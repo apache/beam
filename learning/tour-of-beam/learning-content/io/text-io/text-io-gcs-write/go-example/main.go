@@ -50,6 +50,7 @@ func main() {
 
   input := beam.Create(s, "Hello write from playground","First example")
 
+  // It may be unsupported. Since gcs requires credentials
   // textio.Write(s, locationGCS, input)
 
   debug.Printf(s,"Recorded data:", input)

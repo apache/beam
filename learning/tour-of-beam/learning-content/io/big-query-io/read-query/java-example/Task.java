@@ -53,8 +53,12 @@ public class Task {
 
         Pipeline pipeline = Pipeline.create(options);
 
-
-        /*PCollection<Double> pCollection = pipeline
+        // pCollection.apply(BigQueryIO.read(... - This part of the pipeline reads from a BigQuery table using a SQL query and stores the result in a PCollection.
+        // The BigQueryIO.read() function is used to read from BigQuery. It is configured with a lambda function to extract a field from each record.
+        // The .fromQuery("SELECT field FROM project-id.dataset.table")
+        // specifies the SQL query used to read from BigQuery. You should replace "field", "project-id", "dataset", and "table" with your specific field name, project id, dataset name, and table name, respectively.
+/*
+        PCollection<Double> pCollection = pipeline
                 .apply(BigQueryIO.read(
                                 (SchemaAndRecord elem) -> (Double) elem.getRecord().get("field"))
                         .fromQuery(

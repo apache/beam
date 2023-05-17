@@ -81,6 +81,7 @@ public class Task {
                 .build();
 
         /*PCollection<User> pCollection = pipeline
+                // Reads from the specified BigQuery table and maps the data to User objects.
                 .apply(BigQueryIO.readTableRows()
                         .from(String.format("%s.%s.%s", projectId, dataset, table)))
                 .apply(MapElements.into(TypeDescriptor.of(User.class)).via(it -> new User((String) it.get("id"), (String) it.get("name"), (Integer) it.get("age"))))

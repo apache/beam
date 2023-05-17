@@ -16,7 +16,9 @@
 // beam-playground:
 //   name: text-io-local-read
 //   description: TextIO read local file example.
-//   multifile: false
+//   multifile: true
+//   files:
+//     - name: ../myfile.txt
 //   context_line: 30
 //   categories:
 //     - Quickstart

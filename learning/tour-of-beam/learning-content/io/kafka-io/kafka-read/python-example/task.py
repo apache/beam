@@ -40,6 +40,17 @@ input_topic = 'input-topic'
 output_topic = 'output-topic'
 bootstrap_servers = {"bootstrap.servers": "localhost:9092"}
 
+# Set Kafka parameters: The Kafka topic to read from (input_topic), the Kafka topic to write to (output_topic),
+# and the Kafka brokers to connect to (bootstrap_servers) are specified.
+
+# Read from Kafka topic: A KafkaIO ReadFromKafka transform is created, where the topics method is used to specify the
+# Kafka topic to read from and the consumer_config method is used to specify the Kafka brokers to connect to.
+
+# Process the data: The data read from Kafka is processed using the beam.Map(process_data) method. In this case,
+# the data is simply passed to the process_data function defined earlier.
+
+
+
 # (p | "Read from Kafka" >> ReadFromKafka(
 #       topics=[input_topic],
 #       consumer_config=bootstrap_servers)

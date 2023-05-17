@@ -35,8 +35,8 @@ def print_words(line):
       print(word)
 
 p = beam.Pipeline()
-"""
+
 input = p | 'ReadMyFile' >> beam.io.ReadFromText('myfile.txt')
 input | 'PrintMyFile' >> beam.Map(print_lines)
-"""
+
 p.run()

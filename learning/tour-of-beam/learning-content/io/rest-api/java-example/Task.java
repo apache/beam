@@ -78,6 +78,12 @@ public class Task {
                 .addField("age", Schema.FieldType.INT32)
                 .build();
 
+        /*
+        * The idea behind this code is to read data from a BigQuery table,
+        * process it in some way (although the example provided doesn't perform any significant transformations beyond type conversion),
+        * and then write the data back into BigQuery, but with a unique table for each user based on the user's "id".
+        * */
+
         /*PCollection<User> pCollection = pipeline
                 .apply(BigQueryIO.readTableRows()
                         .from(String.format("%s.%s.%s", projectId, dataset, table)))
@@ -86,6 +92,7 @@ public class Task {
                 .setRowSchema(inputSchema);
 
         pCollection.apply(
+                // Reading from BigQuery: The pipeline is configured to read data from a table in BigQuery, with the table's name, dataset, and project ID specified as variables. The data read is a collection of table rows.
                 BigQueryIO.<User>write()
                         .to(
                                 new DynamicDestinations<User, String>() {
@@ -94,6 +101,7 @@ public class Task {
                                         return elem.getValue().id;
                                     }
 
+                                    // The destination table schema is a list of three fields ("id", "name", and "age"), matching the fields of the User objects (as implemented in getSchema).
                                     @Override
                                     public TableDestination getTable(String destination) {
                                         return new TableDestination(
@@ -129,6 +137,10 @@ public class Task {
                                                 .set("id", elem.id)
                                                 .set("name", elem.name)
                                                 .set("age", elem.age))
+
+//                    The write operation is configured to create the destination table if it does not already exist (CREATE_IF_NEEDED)
+//                    and to replace any existing data in the destination table (WRITE_TRUNCATE).
+
                         .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
                         .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));*/
 

@@ -16,7 +16,9 @@
 // beam-playground:
 //   name: text-io-local-read
 //   description: TextIO read local file example.
-//   multifile: false
+//   multifile: true
+//   files:
+//     - name: ../myfile.txt
 //   context_line: 34
 //   categories:
 //     - Quickstart
@@ -34,7 +36,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 public class Task {
     public static void main(String[] args) {
         Pipeline pipeline = Pipeline.create(PipelineOptionsFactory.create());
-/*
+
         pipeline.apply(TextIO.read().from("myfile.txt"))
                 .apply(ParDo.of(new DoFn<String, Void>() {
                     @ProcessElement
@@ -45,7 +47,7 @@ public class Task {
                         }
                     }
                 }));
-*/
+
         pipeline.run();
     }
 }

@@ -61,6 +61,8 @@ func main() {
   p := beam.NewPipeline()
   s := p.Root()
   s = s.Scope("ReadFromBigQuery")
+
+  // Reads from the BigQuery table specified by the projectID, datasetID, and tableID, with the schema defined by the User struct, and stores the result in rows.
   rows := bigqueryio.Read(s, bigquery.TableReference{ProjectID: projectID, DatasetID: datasetID, TableID: tableID},
     beam.WithSchema(User{}))
 
@@ -72,11 +74,9 @@ func main() {
   */
 }
 
-/*
 type logOutput struct{}
 
 func (l *logOutput) ProcessElement(row User, emit func(User)) {
   log.Printf("Processing element: %v", row)
   emit(row)
 }
-*/

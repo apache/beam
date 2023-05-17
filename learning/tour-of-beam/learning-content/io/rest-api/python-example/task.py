@@ -42,13 +42,11 @@
 # limitations under the License.
 #
 
-"""A workflow that writes to a BigQuery table with nested and repeated fields.
-
-Demonstrates how to build a bigquery.TableSchema object with nested and repeated
-fields. Also, shows how to generate data to be written to a BigQuery table with
-nested and repeated fields.
-"""
-
+'''
+The idea behind this code is to read data from a BigQuery table,
+process it in some way (although the example provided doesn't perform any significant transformations beyond type conversion),
+and then write the data back into BigQuery, but with a unique table for each user based on the user's "id".
+'''
 # pytype: skip-file
 
 import argparse
@@ -61,21 +59,22 @@ import apache_beam as beam
 def run(argv=None):
   """Run the workflow."""
   parser = argparse.ArgumentParser()
-  """
+
   parser.add_argument(
-      '--output',
-      required=True,
-      help=(
-          'Output BigQuery table for results specified as: '
-          'PROJECT:DATASET.TABLE or DATASET.TABLE.'))
-  """
+    '--output',
+    required=True,
+    help=(
+      'Output BigQuery table for results specified as: '
+      'PROJECT:DATASET.TABLE or DATASET.TABLE.'))
+
   known_args, pipeline_args = parser.parse_known_args(argv)
 
   with beam.Pipeline(argv=pipeline_args) as p:
-    """
+
     table_schema = bigquery.TableSchema()
 
     # Fields that use standard types.
+    # The destination table schema is a list of three fields ("id", "name", and "age"), matching the fields of the User objects (as implemented in getSchema).
     kind_schema = bigquery.TableFieldSchema()
     kind_schema.name = 'kind'
     kind_schema.type = 'string'
@@ -128,24 +127,26 @@ def run(argv=None):
 
     def create_random_record(record_id):
       return {
-          'kind': 'kind' + record_id,
-          'fullName': 'fullName' + record_id,
-          'age': int(record_id) * 10,
-          'gender': 'male',
-          'phoneNumber': {
-              'areaCode': int(record_id) * 100,
-              'number': int(record_id) * 100000
-          },
-          'children': [
-              'child' + record_id + '1',
-              'child' + record_id + '2',
-              'child' + record_id + '3'
-          ]
+        'kind': 'kind' + record_id,
+        'fullName': 'fullName' + record_id,
+        'age': int(record_id) * 10,
+        'gender': 'male',
+        'phoneNumber': {
+          'areaCode': int(record_id) * 100,
+          'number': int(record_id) * 100000
+        },
+        'children': [
+          'child' + record_id + '1',
+          'child' + record_id + '2',
+          'child' + record_id + '3'
+        ]
       }
 
+    # The write operation is configured to create the destination table if it does not already exist (CREATE_IF_NEEDED) and to replace any existing data in the destination table (WRITE_TRUNCATE).
     # pylint: disable=expression-not-assigned
     record_ids = p | 'CreateIDs' >> beam.Create(['1', '2', '3', '4', '5'])
     records = record_ids | 'CreateRecords' >> beam.Map(create_random_record)
+  """
     records | 'write' >> beam.io.WriteToBigQuery(
         known_args.output,
         schema=table_schema,

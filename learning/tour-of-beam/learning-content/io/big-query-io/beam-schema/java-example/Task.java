@@ -70,12 +70,15 @@ public class Task {
 
         /*
         PCollection<Object> pCollection = pipeline
+        // The pipeline is reading data from a BigQuery table called "table" that's in the dataset "dataset" from the project with the ID "project-id". The data read is a collection of table rows.
                 .apply(BigQueryIO.readTableRows()
                         .from("project-id.dataset.table"))
                 .apply(MapElements.into(TypeDescriptor.of(Object.class)).via(it -> it))
                 .setCoder(CustomCoder.of())
+        // The setRowSchema(inputSchema) is used to provide the schema of the rows in the PCollection. This is necessary for some Beam operations, including writing to BigQuery using Beam schema.
                 .setRowSchema(inputSchema);
 
+        // The useBeamSchema() method indicates that the schema for the table is to be inferred from the types of the elements in the PCollection.
         pCollection
                 .apply("WriteToBigQuery", BigQueryIO.write()
                         .to("mydataset.outputtable")

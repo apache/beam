@@ -45,6 +45,14 @@ def run(argv=None):
     pipeline_options = PipelineOptions(pipeline_args)
     pipeline_options.view_as(SetupOptions).save_main_session = True
 
+    """
+    (p | 'ReadTable' >> ReadFromBigQuery(query='SELECT * FROM project-id.dataset.table') - This part of the 
+    pipeline reads from a BigQuery table using a SQL query and processes the result. The ReadFromBigQuery(
+    query='SELECT * FROM project-id.dataset.table') function is used to read from BigQuery. 'LogOutput' >> 
+    beam.Map(lambda elem: print(f"Processing element: {elem['field']}"))) - This part of the pipeline processes the
+    PCollection and logs the output to the console. It prints the 'field' column from each row in the table. 
+    """
+
     with beam.Pipeline(options=pipeline_options) as p:
       (p #| 'ReadTable' >> beam.io.Read(beam.io.BigQuerySource(query='SELECT * FROM `project-id.dataset.table`')))
          # Each row is a dictionary where the keys are the BigQuery columns

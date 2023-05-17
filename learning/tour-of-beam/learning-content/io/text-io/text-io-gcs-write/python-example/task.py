@@ -34,6 +34,8 @@ def print_lines(line):
 p = beam.Pipeline()
 
 data = ['Hello, World!', 'Apache Beam']
+
+# It may be unsupported. Since gcs requires credentials
 """
 p | 'CreateMyData' >> beam.Create(data) | 'WriteMyFile' >> beam.io.WriteToText('gs://mybucket/myfile.txt')
 """

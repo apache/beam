@@ -40,11 +40,14 @@ import (
 	_ "reflect"
 )
 
-// CommentRow models 1 row of HackerNews comments.
+// Define the data model: The CommentRow struct is defined, which models one row of HackerNews comments.
+//The bigquery tag in the struct field is used to map the struct field to the BigQuery column.
 type CommentRow struct {
 	Text string `bigquery:"text"`
 }
 
+// Construct the BigQuery query: A constant query is defined that selects the text column
+// from the bigquery-public-data.hacker_news.comments table for a certain time range.
 const query = `SELECT text
 FROM ` + "`bigquery-public-data.hacker_news.comments`" + `
 WHERE time_ts BETWEEN '2013-01-01' AND '2014-01-01'

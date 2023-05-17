@@ -66,6 +66,9 @@ func (fn *LogFn) FinishBundle() {
   time.Sleep(2 * time.Second)
 }
 
+// Pipeline creation: A Beam pipeline is created with beam.NewPipeline().
+// Kafka reading: The script sets up to read from a Kafka topic specified by the command-line argument. The setup includes establishing a connection to Kafka via a local host and a specified port.
+
 func main() {
   flag.Parse()
   beam.Init()

@@ -45,6 +45,10 @@ def run(argv=None):
     pipeline_options = PipelineOptions(pipeline_args)
     pipeline_options.view_as(SetupOptions).save_main_session = True
 
+    # ReadFromBigQuery: This operation reads from a BigQuery table and outputs a PCollection of dictionaries. Each
+    # dictionary represents a row in the BigQuery table, where the keys are the BigQuery column names. beam.Map: This
+    # operation applies a function to each element in the PCollection, here, it selects a specific field from each row.
+
     with beam.Pipeline(options=pipeline_options) as p:
       (p #| 'ReadTable' >> beam.io.ReadFromBigQuery(table='project-id.dataset.table')
          # Each row is a dictionary where the keys are the BigQuery columns

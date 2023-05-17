@@ -55,6 +55,12 @@ type Comment struct {
 	Ranking float64   `bigquery:"ranking"`
 }
 
+// rows := bigqueryio.Read(s, project, "bigquery-public-data:hacker_news.comments", reflect.TypeOf(Comment{}))
+// reads data from the specified BigQuery table and produces a PCollection where each element is a Comment.
+// The reflect.TypeOf(Comment{}) is used to tell BigQuery the schema of the data.
+
+// debug.Print(s, rows) prints the elements of the PCollection to stdout for debugging purposes.
+
 func main() {
 	internal_log.Println("Running Task")
 	/*

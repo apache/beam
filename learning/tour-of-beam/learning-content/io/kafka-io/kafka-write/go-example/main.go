@@ -26,7 +26,6 @@
 //     - IO
 //   complexity: ADVANCED
 
-
 package main
 
 import (
@@ -70,19 +69,21 @@ func (fn *LogFn) FinishBundle() {
 func main() {
   flag.Parse()
   beam.Init()
-/*
-  ctx := context.Background()
+  /*
+  	   ctx := context.Background()
 
-  p := beam.NewPipeline()
-  s := p.Root()
+  	   p := beam.NewPipeline()
+  	   s := p.Root()
 
-  data := pubsubio.Read(s, "pubsub-public-data", "taxirides-realtime", nil)
-  kvData := beam.ParDo(s, func(elm []byte) ([]byte, []byte) { return []byte(""), elm }, data)
-  windowed := beam.WindowInto(s, window.NewFixedWindows(15*time.Second), kvData)
-  kafkaio.Write(s, *expansionAddr, *bootstrapServers, *topic, windowed)
+  	   // In the main function, the code creates a Beam pipeline, reads from the Pub/Sub source, transforms the data into a key-value pair, applies a windowing function to the data, and writes the windowed data to a Kafka topic.
 
-  if err := beamx.Run(ctx, p); err != nil {
-    log.Fatalf(ctx, "Failed to execute job: %v", err)
-  }
+       data := pubsubio.Read(s, "pubsub-public-data", "taxirides-realtime", nil)
+  	   kvData := beam.ParDo(s, func(elm []byte) ([]byte, []byte) { return []byte(""), elm }, data)
+  	   windowed := beam.WindowInto(s, window.NewFixedWindows(15*time.Second), kvData)
+  	   kafkaio.Write(s, *expansionAddr, *bootstrapServers, *topic, windowed)
+
+  	   if err := beamx.Run(ctx, p); err != nil {
+  	     log.Fatalf(ctx, "Failed to execute job: %v", err)
+  	   }
   */
 }

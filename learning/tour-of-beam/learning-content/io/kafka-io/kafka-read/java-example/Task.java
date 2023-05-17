@@ -59,6 +59,15 @@ public class Task {
         Map<String, Object> consumerConfig = new HashMap<>();
         consumerConfig.put("auto.offset.reset", "earliest");
 
+        /*
+        * Read from Kafka topic: A KafkaIO Read transform is applied to the pipeline.
+        * The withBootstrapServers method is used to specify the Kafka brokers to connect to.
+        * The withTopicPartitions method is used to specify the Kafka topic and partition to read from.
+        * The withKeyDeserializer and withValueDeserializer methods specify the deserializer for keys and values.
+        * The withConsumerConfigUpdates method is used to pass the configuration Map to the Kafka consumer.
+        * Extract values from KafkaRecord: The Values.create() method is used to extract the value part of the KafkaRecord.
+        * */
+
         /*pipeline.apply(
                         "ReadFromKafka",
                         KafkaIO.<String, String>read()

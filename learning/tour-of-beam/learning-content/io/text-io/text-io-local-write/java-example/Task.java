@@ -16,7 +16,9 @@
 // beam-playground:
 //   name: text-io-local-write
 //   description: TextIO write local file example.
-//   multifile: false
+//   multifile: true
+//   files:
+//     - name: ../myfile.txt
 //   context_line: 34
 //   categories:
 //     - Quickstart

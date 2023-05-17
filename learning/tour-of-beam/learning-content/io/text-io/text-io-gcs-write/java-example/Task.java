@@ -44,6 +44,8 @@ public class Task {
         Pipeline pipeline = Pipeline.create(options);
 
         PCollection<String> input = pipeline.apply(Create.of("Hello, World!"));
+
+        // It may be unsupported. Since gcs requires credentials
 /*
         input.apply(TextIO.write().to(locationGCS));
 */
