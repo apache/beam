@@ -114,7 +114,8 @@ public class SpannerAccessor implements AutoCloseable {
 
     Set<Code> retryableCodes = new HashSet<>();
     // Add default retryable codes
-    retryableCodes.add(Code.UNAVAILABLE);
+    retryableCodes.addAll(builder.getSpannerStubSettingsBuilder()
+        .executeStreamingSqlSettings().getRetryableCodes());
     if (spannerConfig.getRetryableCodes() != null) {
       retryableCodes.addAll(spannerConfig.getRetryableCodes());
     }
@@ -267,3 +268,10 @@ public class SpannerAccessor implements AutoCloseable {
     }
   }
 }
+
+
+Spanner import export templates (Dataflow templates)
+
+Templates (java code) -> Apache Beam (Open source library) SpannerIO -> Java client library
+
+What all codes are retryable codes
