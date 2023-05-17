@@ -114,8 +114,8 @@ public class SpannerAccessor implements AutoCloseable {
 
     Set<Code> retryableCodes = new HashSet<>();
     // Add default retryable codes
-    retryableCodes.addAll(builder.getSpannerStubSettingsBuilder()
-        .executeStreamingSqlSettings().getRetryableCodes());
+    retryableCodes.addAll(
+        builder.getSpannerStubSettingsBuilder().executeStreamingSqlSettings().getRetryableCodes());
     if (spannerConfig.getRetryableCodes() != null) {
       retryableCodes.addAll(spannerConfig.getRetryableCodes());
     }
