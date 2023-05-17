@@ -18,10 +18,7 @@
 
 /** Classes and interfaces for interacting with state. */
 @DefaultAnnotation(NonNull.class)
-@Experimental(Kind.STATE)
 package org.apache.beam.sdk.state;
 
 import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.checkerframework.checker.nullness.qual.NonNull;

@@ -17,8 +17,4 @@
  */
 
 /** Schemas for AWS model classes. */
-@Experimental(Kind.SCHEMAS)
 package org.apache.beam.sdk.io.aws2.schemas;
-
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;

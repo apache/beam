@@ -20,8 +20,4 @@
  * Provides an API for reading from and writing to <a
  * href="https://cloud.google.com/firestore/docs">Google Cloud Firestore</a>.
  */
-@Experimental(Kind.SOURCE_SINK)
 package org.apache.beam.sdk.io.gcp.firestore;
-
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;

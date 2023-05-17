@@ -22,6 +22,7 @@ import PostcommitJobBuilder
 import static PythonTestProperties.ALL_SUPPORTED_VERSIONS
 
 // This job defines the Python postcommit sickbay tests.
+this.buildSchedule = 'H H * * *'
 ALL_SUPPORTED_VERSIONS.each { pythonVersion ->
   def versionSuffix = pythonVersion.replace('.', '')
   PostcommitJobBuilder.postCommitJob("beam_PostCommit_Sickbay_Python${versionSuffix}",

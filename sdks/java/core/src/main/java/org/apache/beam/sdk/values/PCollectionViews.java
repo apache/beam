@@ -42,8 +42,6 @@ import java.util.RandomAccess;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.function.Supplier;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.BooleanCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -338,10 +336,9 @@ public class PCollectionViews {
    *
    * <p>{@link SingletonViewFn} is meant to be removed in the future and replaced with this class.
    */
-  @Experimental(Kind.CORE_RUNNERS_ONLY)
   @Internal
   public static class SingletonViewFn2<T> extends ViewFn<IterableView<T>, T>
-      implements HasDefaultValue<T> {
+      implements HasDefaultValue<T>, IsSingletonView<T> {
     private byte @Nullable [] encodedDefaultValue;
     private transient @Nullable T defaultValue;
     private @Nullable Coder<T> valueCoder;
@@ -428,6 +425,9 @@ public class PCollectionViews {
     T getDefaultValue();
   }
 
+  @Internal
+  public interface IsSingletonView<T> {}
+
   /**
    * Implementation which is able to adapt a multimap materialization to a {@code T}.
    *
@@ -436,9 +436,8 @@ public class PCollectionViews {
    * @deprecated See {@link SingletonViewFn2}.
    */
   @Deprecated
-  @Experimental(Kind.CORE_RUNNERS_ONLY)
   public static class SingletonViewFn<T> extends ViewFn<MultimapView<Void, T>, T>
-      implements HasDefaultValue<T> {
+      implements HasDefaultValue<T>, IsSingletonView<T> {
     private byte @Nullable [] encodedDefaultValue;
     private transient @Nullable T defaultValue;
     private @Nullable Coder<T> valueCoder;
@@ -464,7 +463,6 @@ public class PCollectionViews {
     }
 
     /** Returns if a default value was specified. */
-    @Internal
     public boolean hasDefault() {
       return hasDefault;
     }
@@ -529,7 +527,6 @@ public class PCollectionViews {
    *
    * <p>{@link IterableViewFn} is meant to be removed in the future and replaced with this class.
    */
-  @Experimental(Kind.CORE_RUNNERS_ONLY)
   @Internal
   public static class IterableViewFn2<T> extends ViewFn<IterableView<T>, Iterable<T>> {
     private TypeDescriptorSupplier<T> typeDescriptorSupplier;
@@ -562,7 +559,6 @@ public class PCollectionViews {
    * @deprecated See {@link IterableViewFn2}.
    */
   @Deprecated
-  @Experimental(Kind.CORE_RUNNERS_ONLY)
   public static class IterableViewFn<T> extends ViewFn<MultimapView<Void, T>, Iterable<T>> {
     private TypeDescriptorSupplier<T> typeDescriptorSupplier;
 
@@ -595,7 +591,6 @@ public class PCollectionViews {
    *
    * <p>{@link ListViewFn} is meant to be removed in the future and replaced with this class.
    */
-  @Experimental(Kind.CORE_RUNNERS_ONLY)
   @VisibleForTesting
   public static class ListViewFn2<T>
       extends ViewFn<MultimapView<Long, ValueOrMetadata<T, OffsetRange>>, List<T>> {
@@ -933,7 +928,6 @@ public class PCollectionViews {
    * @deprecated See {@link ListViewFn2}.
    */
   @Deprecated
-  @Experimental(Kind.CORE_RUNNERS_ONLY)
   public static class ListViewFn<T> extends ViewFn<MultimapView<Void, T>, List<T>> {
     private TypeDescriptorSupplier<T> typeDescriptorSupplier;
 
@@ -981,7 +975,6 @@ public class PCollectionViews {
    *
    * <p>{@link MultimapViewFn} is meant to be removed in the future and replaced with this class.
    */
-  @Experimental(Kind.CORE_RUNNERS_ONLY)
   @Internal
   public static class MultimapViewFn2<K, V>
       extends ViewFn<MultimapView<K, V>, Map<K, Iterable<V>>> {
@@ -1022,7 +1015,6 @@ public class PCollectionViews {
    * @deprecated See {@link MultimapViewFn2}.
    */
   @Deprecated
-  @Experimental(Kind.CORE_RUNNERS_ONLY)
   public static class MultimapViewFn<K, V>
       extends ViewFn<MultimapView<Void, KV<K, V>>, Map<K, Iterable<V>>> {
     private TypeDescriptorSupplier<K> keyTypeDescriptorSupplier;
@@ -1109,7 +1101,6 @@ public class PCollectionViews {
    * @deprecated See {@link MapViewFn2}.
    */
   @Deprecated
-  @Experimental(Kind.CORE_RUNNERS_ONLY)
   public static class MapViewFn<K, V> extends ViewFn<MultimapView<Void, KV<K, V>>, Map<K, V>> {
     private TypeDescriptorSupplier<K> keyTypeDescriptorSupplier;
     private TypeDescriptorSupplier<V> valueTypeDescriptorSupplier;

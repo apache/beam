@@ -17,7 +17,4 @@
  */
 
 /** DoFn and SDF definitions to process Google Cloud Spanner Change Streams. */
-@Experimental
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn;
-
-import org.apache.beam.sdk.annotations.Experimental;

@@ -38,8 +38,6 @@ import javax.naming.SizeLimitExceededException;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.beam.sdk.PipelineRunner;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -607,7 +605,6 @@ public class PubsubIO {
    * @param domain The {@link ProtoDomain} that contains the target message and its dependencies.
    * @param fullMessageName The full name of the message for lookup in {@code domain}.
    */
-  @Experimental(Kind.SCHEMAS)
   public static Read<DynamicMessage> readProtoDynamicMessages(
       ProtoDomain domain, String fullMessageName) {
     SerializableFunction<PubsubMessage, DynamicMessage> parser =
@@ -636,7 +633,6 @@ public class PubsubIO {
    * Similar to {@link PubsubIO#readProtoDynamicMessages(ProtoDomain, String)} but for when the
    * {@link Descriptor} is already known.
    */
-  @Experimental(Kind.SCHEMAS)
   public static Read<DynamicMessage> readProtoDynamicMessages(Descriptor descriptor) {
     return readProtoDynamicMessages(ProtoDomain.buildFrom(descriptor), descriptor.getFullName());
   }
@@ -669,7 +665,6 @@ public class PubsubIO {
    * <p>Beam will infer a schema for the Avro schema. This allows the output to be used by SQL and
    * by the schema-transform library.
    */
-  @Experimental(Kind.SCHEMAS)
   public static Read<GenericRecord> readAvroGenericRecords(org.apache.avro.Schema avroSchema) {
     Schema schema = AvroUtils.getSchema(GenericRecord.class, avroSchema);
     AvroCoder<GenericRecord> coder = AvroCoder.of(GenericRecord.class, avroSchema);
@@ -690,7 +685,6 @@ public class PubsubIO {
    * <p>Beam will infer a schema for the Avro schema. This allows the output to be used by SQL and
    * by the schema-transform library.
    */
-  @Experimental(Kind.SCHEMAS)
   public static <T> Read<T> readAvrosWithBeamSchema(Class<T> clazz) {
     if (clazz.equals(GenericRecord.class)) {
       throw new IllegalArgumentException("For GenericRecord, please call readAvroGenericRecords");
@@ -789,7 +783,6 @@ public class PubsubIO {
     /** User function for parsing PubsubMessage object. */
     abstract @Nullable SerializableFunction<PubsubMessage, T> getParseFn();
 
-    @Experimental(Kind.SCHEMAS)
     abstract @Nullable Schema getBeamSchema();
 
     abstract @Nullable TypeDescriptor<T> getTypeDescriptor();
@@ -841,7 +834,6 @@ public class PubsubIO {
 
       abstract Builder<T> setParseFn(SerializableFunction<PubsubMessage, T> parseFn);
 
-      @Experimental(Kind.SCHEMAS)
       abstract Builder<T> setBeamSchema(@Nullable Schema beamSchema);
 
       abstract Builder<T> setTypeDescriptor(@Nullable TypeDescriptor<T> typeDescriptor);

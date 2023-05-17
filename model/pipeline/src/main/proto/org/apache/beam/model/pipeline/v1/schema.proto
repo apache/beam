@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-// ** Experimental **
 // Protocol Buffers describing Beam Schemas, a portable representation for
 // complex types.
 //

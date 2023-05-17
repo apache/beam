@@ -39,7 +39,7 @@ Pipeline p = Pipeline.create(options);
 ```
 import apache_beam as beam
 
-with beam.Pipeline() as pipeline:
+with beam.Pipeline() as p:
   pass  # build your pipeline here
 ```
 {{end}}

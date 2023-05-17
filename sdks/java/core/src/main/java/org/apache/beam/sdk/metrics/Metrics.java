@@ -18,8 +18,6 @@
 package org.apache.beam.sdk.metrics;
 
 import java.io.Serializable;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 
 /**
  * The <code>Metrics</code> is a utility class for producing various kinds of metrics for reporting
@@ -51,7 +49,6 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
  * <p>See {@link MetricResults} (available from the {@code PipelineResults} interface) for an
  * example off how to query metrics.
  */
-@Experimental(Kind.METRICS)
 public class Metrics {
 
   private Metrics() {}

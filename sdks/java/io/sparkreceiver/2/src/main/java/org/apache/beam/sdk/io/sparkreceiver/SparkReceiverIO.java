@@ -21,8 +21,6 @@ import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -74,7 +72,6 @@ import org.slf4j.LoggerFactory;
  *      .withSparkReceiverBuilder(receiverBuilder);
  * }</pre>
  */
-@Experimental(Kind.SOURCE_SINK)
 public class SparkReceiverIO {
 
   private static final Logger LOG = LoggerFactory.getLogger(SparkReceiverIO.class);
