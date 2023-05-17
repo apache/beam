@@ -22,17 +22,17 @@ resource "google_service_account" "tob_deploy_sa" {
 }
 
 resource "google_service_account" "tob_update_sa" {
-  account_id   = var.tb_update_sa == "" ? "tob-update" : var.tb_update_sa
+  account_id   = var.tob_update_sa == "" ? "tob-update" : var.tob_update_sa
   description  = "The service account to be used by cloud build to update Tour of Beam backend"
 }
 
 resource "google_service_account" "tob_ci_sa" {
-  account_id   = var.tb_ci_sa == "" ? "tob-ci" : var.tb_ci_sa
+  account_id   = var.tob_ci_sa == "" ? "tob-ci" : var.tob_ci_sa
   description  = "The service account to be used by cloud build to run CI checks for Tour of Beam backend"
 }
 
 resource "google_service_account" "tob_cd_sa" {
-  account_id   = var.tb_cd_sa == "" ? "tob-cd" : var.tb_cd_sa
+  account_id   = var.tob_cd_sa == "" ? "tob-cd" : var.tob_cd_sa
   description  = "The service account to be used by cloud build to run CD checks for Tour of Beam backend"
 }
 

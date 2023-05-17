@@ -23,7 +23,7 @@ This directory organizes Infrastructure-as-Code to provision dependent resources
 
 1. [GCP project](https://cloud.google.com/resource-manager/docs/creating-managing-projects)
 2. [GCP User account](https://cloud.google.com/appengine/docs/standard/access-control?tab=python) _(Note: You will find the instruction "How to create User account" for your new project)_<br>
-  Ensure that the account has at least the following [IAM roles](https://cloud.google.com/iam/docs/understanding-roles:
+  Ensure that the account has at least the following [IAM roles](https://cloud.google.com/iam/docs/understanding-roles):
 
    - Cloud Datastore Owner
    - Create Service Accounts
@@ -34,28 +34,29 @@ This directory organizes Infrastructure-as-Code to provision dependent resources
    - Kubernetes Engine Cluster Viewer
 
 
------------- CONSIDER CHANGING
-3. [Google Cloud Storage buckets](https://cloud.google.com/storage/docs/creating-buckets)for:
-- Terraform state for Cloud Build triggers: \<triggers-state-bucket\>
-- Cloud Build private logs: \<private-logs-bucket\>
-- Cloud Build public logs: \<public-logs-bucket\>. Don't enforce public access prevention on this bucket.
+3. An OS with the following software installed:
 
------------- EXISTING
+* [Terraform](https://www.terraform.io/downloads)
+* [gcloud CLI](https://cloud.google.com/sdk/docs/install-sdk)
+* [Kubectl authentication plugin](https://cloud.google.com/blog/products/containers-kubernetes/kubectl-auth-changes-in-gke)
+DEV NOTE: GCP Cloud shell can be used for deployment. It has all required software pre-installed.
 
-- An existing GCP Bucket to save Terraform state - `state-bucket`
-----------------------
+4. Additionaly for manual Frontend deployment you will need 
+* [Flutter (3.7.3 >)](https://docs.flutter.dev/get-started/install)
+* [Dart SDK (2.19.2)](https://dart.dev/get-dart)
+* [Firebase-tools CLI](https://www.npmjs.com/package/firebase-tools)
 
-4. DNS name for your Playground deployment instance ?
+5. DNS name for your Playground deployment instance ?
 
-5. OS with installed software listed below:
+6. OS with installed software listed below:
 - [gcloud CLI](https://cloud.google.com/sdk/docs/install-sdk)
 - [Terraform](https://www.terraform.io/)
 
-6. [Apache Beam GitHub](https://github.com/apache/beam) repository cloned locally
+7. [Apache Beam GitHub](https://github.com/apache/beam) repository cloned locally
 
-7. [GitHub Personal Access Token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token) for CI trigger
+8. [GitHub Personal Access Token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token) for CI trigger
 
-8. Existing Beam Playground environment/infrastructure in same GCP Project
+9. Existing Beam Playground environment/infrastructure in same GCP Project
 
 
 
@@ -103,7 +104,12 @@ cd ../02.builders
 
 # Run terraform commands and provide required values
 terraform init -backend-config="bucket=$STATE_BUCKET"
-terraform apply -var="project_id=$(gcloud config get-value project)"
+
+TODO: add preparing of tfvars file
+
+terraform apply -var="project_id=$(gcloud config get-value project)" -var-file="../common.tfvars"
+
+
 ```
 
 ## 4. Run Cloud Build trigger to deploy Tour of Beam backend infrastructure
