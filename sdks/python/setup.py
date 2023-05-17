@@ -256,7 +256,7 @@ if __name__ == '__main__':
         # does not exceed the minor version at runtime.
         # To avoid depending on an old dependency, update the minor version on
         # every Beam release, see: https://github.com/apache/beam/issues/25590
-        'protobuf>=3.20.3,<4.23.0',
+        'protobuf>=3.20.3,<4.24.0',
         'pydot>=1.2.0,<2',
         'python-dateutil>=2.8.0,<3',
         'pytz>=2018.3',
