@@ -27,7 +27,7 @@ You can try the available Apache Beam examples at
 
 {{< playground height="700px" >}}
 {{< playground_snippet language="java" path="SDK_JAVA_MinimalWordCount" >}}
-{{< playground_snippet language="py" path="SDK_PYTHON_WordCount" >}}
+{{< playground_snippet language="py" path="SDK_PYTHON_WordCountWithMetrics" >}}
 {{< playground_snippet language="go" path="SDK_GO_MinimalWordCount" >}}
 {{< playground_snippet language="scio" path="SDK_SCIO_MinimalWordCount" >}}
 {{< /playground >}}
