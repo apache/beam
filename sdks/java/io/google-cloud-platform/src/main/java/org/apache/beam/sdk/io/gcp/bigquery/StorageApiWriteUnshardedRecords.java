@@ -529,9 +529,17 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                 return ApiFutures.immediateFuture(AppendRowsResponse.newBuilder().build());
               }
               try {
-                StreamAppendClient writeStream =
-                    Preconditions.checkStateNotNull(
-                        getAppendClientInfo(true, null).getStreamAppendClient());
+                AppendClientInfo appendInfo = Preconditions.checkStateNotNull(
+                        getAppendClientInfo(true, null));
+                try {
+                  for (ByteString bytes : c.protoRows.getSerializedRowsList()) {
+                    DynamicMessage.parseFrom(appendInfo.getDescriptor(), bytes);
+                  }
+                } catch (InvalidProtocolBufferException e) {
+                  LOG.error("Failed to parse message destined to " + this.tableUrn + " STREAM " + this.streamName;
+                  throw new RuntimeException(e);
+                }
+                StreamAppendClient writeStream = appendInfo.getStreamAppendClient();
                 ApiFuture<AppendRowsResponse> response =
                     writeStream.appendRows(c.offset, c.protoRows);
                 inflightWaitSecondsDistribution.update(writeStream.getInflightWaitSeconds());
