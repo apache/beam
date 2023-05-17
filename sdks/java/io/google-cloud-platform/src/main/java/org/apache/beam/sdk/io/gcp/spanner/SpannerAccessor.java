@@ -121,7 +121,8 @@ public class SpannerAccessor implements AutoCloseable {
     }
     // Add default retryable codes for unary methods
     Set<Code> unaryMethodRetryableCodes = new HashSet<>(retryableCodes);
-    unaryMethodRetryableCodes.addAll(builder.getSpannerStubSettingsBuilder().getSessionSettings().getRetryableCodes());
+    unaryMethodRetryableCodes.addAll(
+        builder.getSpannerStubSettingsBuilder().getSessionSettings().getRetryableCodes());
     // Set retryable codes for all API methods
     builder
         .getSpannerStubSettingsBuilder()
@@ -132,7 +133,8 @@ public class SpannerAccessor implements AutoCloseable {
             });
     // Add default retryable codes for streaming methods
     Set<Code> streamingMethodRetryableCodes = new HashSet<>(retryableCodes);
-    streamingMethodRetryableCodes.addAll(builder.getSpannerStubSettingsBuilder().executeStreamingSqlSettings().getRetryableCodes());
+    streamingMethodRetryableCodes.addAll(
+        builder.getSpannerStubSettingsBuilder().executeStreamingSqlSettings().getRetryableCodes());
     builder
         .getSpannerStubSettingsBuilder()
         .executeStreamingSqlSettings()
