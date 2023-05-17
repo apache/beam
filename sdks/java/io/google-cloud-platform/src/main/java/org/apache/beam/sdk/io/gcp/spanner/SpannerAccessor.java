@@ -268,10 +268,3 @@ public class SpannerAccessor implements AutoCloseable {
     }
   }
 }
-
-
-Spanner import export templates (Dataflow templates)
-
-Templates (java code) -> Apache Beam (Open source library) SpannerIO -> Java client library
-
-What all codes are retryable codes
