@@ -18,6 +18,10 @@
 import unittest
 import pytest
 import numpy as np
+try:
+  from google.cloud import dlp_v2
+except ImportError:
+  dlp_v2 = None
 
 @pytest.mark.uses_tft
 @unittest.skipIf(dlp_v2 is None, 'GCP dependencies are not installed')
