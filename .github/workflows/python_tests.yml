@@ -122,7 +122,7 @@ jobs:
       - name: Run tests basic unix
         if: startsWith(matrix.os, 'ubuntu') || startsWith(matrix.os, 'macos')
         working-directory: ./sdks/python
-        run: tox -c tox.ini run -v -e ${{ matrix.params.tox_env }}
+        run: tox --exit-and-dump-after 10800 -c tox.ini run -v -e ${{ matrix.params.tox_env }}
       - name: Run tests basic windows
         if: startsWith(matrix.os, 'windows')
         working-directory: ./sdks/python
