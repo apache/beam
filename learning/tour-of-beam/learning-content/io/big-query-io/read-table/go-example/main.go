@@ -31,8 +31,8 @@ package main
 
 import (
 	_ "context"
-	"flag"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	_ "flag"
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/io/bigqueryio"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
@@ -57,8 +57,6 @@ type Comment struct {
 
 func main() {
 	internal_log.Println("Running Task")
-	flag.Parse()
-	beam.Init()
 	/*
 		ctx := context.Background()
 		p := beam.NewPipeline()
