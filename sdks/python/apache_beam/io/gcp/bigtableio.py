@@ -53,8 +53,7 @@ _LOGGER = logging.getLogger(__name__)
 
 try:
   from google.cloud.bigtable import Client
-  from google.cloud.bigtable.row import Cell, DirectRow, PartialRowData
-  from google.cloud.bigtable.row_filters import TimestampRange
+  from google.cloud.bigtable.row import Cell, PartialRowData
   from google.cloud.bigtable.batcher import MutationsBatcher
 
   FLUSH_COUNT = 1000
@@ -249,12 +248,7 @@ class ReadFromBigtable(PTransform):
   """
   URN = "beam:schematransform:org.apache.beam:bigtable_read:v1"
 
-  def __init__(
-      self,
-      table_id,
-      instance_id,
-      project_id,
-      expansion_service=None):
+  def __init__(self, table_id, instance_id, project_id, expansion_service=None):
     """Initialize a ReadFromBigtable transform.
 
     :param table_id:

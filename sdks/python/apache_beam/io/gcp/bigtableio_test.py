@@ -49,8 +49,7 @@ try:
   from apitools.base.py.exceptions import HttpError
   from google.cloud.bigtable import client
   from google.cloud.bigtable.instance import Instance
-  from google.cloud.bigtable.row import Cell, DirectRow, PartialRowData
-  from google.cloud.bigtable.row_filters import TimestampRange
+  from google.cloud.bigtable.row import DirectRow, PartialRowData
   from google.cloud.bigtable.table import Table
   from google.cloud.bigtable_admin_v2.types import instance
   from google.rpc.code_pb2 import OK, ALREADY_EXISTS
@@ -62,8 +61,8 @@ except ImportError as e:
 
 @pytest.mark.uses_gcp_java_expansion_service
 @unittest.skipUnless(
-  os.environ.get('EXPANSION_PORT'),
-  "EXPANSION_PORT environment var is not provided.")
+    os.environ.get('EXPANSION_PORT'),
+    "EXPANSION_PORT environment var is not provided.")
 @unittest.skipIf(client is None, 'Bigtable dependencies are not installed')
 class TestReadFromBigTable(unittest.TestCase):
   INSTANCE = "bt-read-tests"

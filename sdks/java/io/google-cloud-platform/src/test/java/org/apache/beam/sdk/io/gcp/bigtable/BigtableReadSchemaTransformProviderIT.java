@@ -36,6 +36,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableReadSchemaTransformProvider.BigtableReadSchemaTransformConfiguration;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.testing.PAssert;
@@ -93,7 +94,7 @@ public class BigtableReadSchemaTransformProviderIT {
   public void setup() throws Exception {
     BigtableTestOptions options =
         TestPipeline.testingPipelineOptions().as(BigtableTestOptions.class);
-    projectId = "google.com:clouddfe"; // options.as(GcpOptions.class).getProject();
+    projectId = options.as(GcpOptions.class).getProject();
     instanceId = options.getInstanceId();
 
     BigtableDataSettings settings =
