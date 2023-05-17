@@ -17,8 +17,10 @@
 
 import unittest
 import pytest
+import numpy as np
 
 @pytest.mark.uses_tft
+@unittest.skipIf(dlp_v2 is None, 'GCP dependencies are not installed')
 class FillInMissingTest(unittest.TestCase):
   def test_fill_in_missing(self):
     # Create a rank 2 sparse tensor with missing values
