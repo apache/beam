@@ -14,17 +14,17 @@ curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/
 
 echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list
 
-wget -nv https://releases.hashicorp.com/terraform/$TF_VERSION/terraform_$TF_VERSION_linux_amd64.zip 
+wget -nv https://releases.hashicorp.com/terraform/1.4.5/terraform_1.4.5_linux_amd64.zip 
 
-unzip terraform_$TF_VERSION_linux_amd64.zip
+unzip terraform_1.4.5_linux_amd64.zip
 
 mv terraform /usr/local/bin/terraform
 
 apt-get -qq update
 
-apt-get -qq install -y google-cloud-sdk-gke-gcloud-auth-plugin google-cloud-sdk openjdk-11-jdk kubectl docker-ce
+apt-get -qq install -y google-cloud-sdk-gke-gcloud-auth-plugin google-cloud-sdk openjdk-11-jdk kubectl docker-ce golang
 
-git clone  https://github.com/akvelon/beam.git
+git clone --branch $BRANCH_NAME $REPO_NAME --single-branch
 
 gcloud auth configure-docker $PG_REGION-docker.pkg.dev
 
@@ -34,6 +34,12 @@ cd beam/learning/tour-of-beam/terraform
 
 gcloud datastore indexes create ../backend/internal/storage/index.yaml
 
+echo "---- ENV OUTPUT---"
+env | grep TF_VAR
+
 terraform init -backend-config='bucket=$STATE_BUCKET'
 
-terraform apply -auto-approve -var 'gcloud_init_account=$GCP_USERNAME' -var 'environment=$ENV_NAME' -var 'region=$TOB_REGION' -var 'project_id=$PROJECT_ID' -var 'datastore_namespace=$PG_DATASTORE_NAMESPACE' -var "pg_router_host=$(kubectl get svc -l app=backend-router-grpc -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}:{.items[0].spec.ports[0].port}')"
+terraform apply -auto-approve -var "pg_router_host=$(kubectl get svc -l app=backend-router-grpc -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}:{.items[0].spec.ports[0].port}')"
+
+echo "---- UPLOAD LEARNING METERIALS ---"
+go run ../backend/cmd/ci_cd/ci_cd.go

@@ -15,11 +15,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-variable "tf_version" {
-    default = "1.4.5"
-    description = "Terraform version to be installed on cloud build runner"
+variable "project_id" {
+    description = "GCP project id where resources will be created"
 }
 
+# Playground variables
 variable "pg_region" {
     description = "Existing Beam Playground's region (e.g: us-west1)"
 }
@@ -32,8 +32,13 @@ variable "pg_gke_name" {
     description = "Existing Beam Playground GKE cluster's name"
 }
 
-variable "state_bucket" {
-    description = "Existing GCS bucket's name to store Terraform state"
+variable "pg_datastore_namespace" {
+    description = "Existing Beam Playground's datastore namespace"
+}
+
+variable "tob_learning_root" {
+    description = "Existing Tour of Beam learning material root"
+    default = "../learning-content/"
 }
 
 variable "env_name" {
@@ -44,23 +49,95 @@ variable "tob_region" {
     description = "GCP region where Tour of Beam backend infrastructure will be created"
 }
 
-variable "pg_datastore_namespace" {
-    description = "Existing Beam Playground's datastore namespace"
+variable "state_bucket" {
+    description = "Existing GCS bucket's name to store Terraform state"
 }
 
+
+# Trigger variables
 variable "trigger_source_repo" {
     default = "https://github.com/beamplayground/deploy-workaround"
 }
 
-variable "project_id" {
-    description = "GCP project id where resources will be created"
+variable "trigger_source_branch" {
+  description = "Source branch used for github trigger, not used but reqired due to cloudbuild limitation"
+  default = "main"
 }
 
-variable "tourofbeam_deployer_sa_name" {
-    default = "tob-cloudbuild-sa"
-    description = "Service account name to be created and used by cloud build"
+# Trigger service account variables
+variable "tob_deploy_sa" {
+    default = "tob-deploy"
+    description = "Service account name to be created and used by cloud build deployer"
+}
+
+variable "tob_update_sa" {
+    default = "tob-update"
+    description = "Service account name to be created and used by cloud build updater"
+}
+
+variable "tob_ci_sa" {
+    default = "tob-ci"
+    description = "Service account name to be created and used by cloud build CI"
+}
+
+variable "tob_cd_sa" {
+    default = "tob-cd"
+    description = "Service account name to be created and used by cloud build CD"
+}
+
+variable "webhook_trigger_secret_id" {
+  description = "The name of the secret for webhook config cloud build trigger (CI/CD)"
+  default = "playground-cicd-webhook"
+}
+
+variable "gh_pat_secret_id" {
+  description = "The name of the secret for GitHub Personal Access Token. Required for cloud build trigger (CI/CD)"
+  default = "playground-github-pat-ci"
 }
 
 variable "gcp_username" {
     description = "Your username. Can be found in GCP IAM console (e.g. name.surname@example.com)"
+}
+
+variable "tob_deploy_trigger_name" {
+  description = "The name of the trigger to run CI checks"
+  default = "TourOfBeam-Deploy"
+}
+
+variable "tob_ci_trigger_name" {
+  description = "The name of the trigger to run CI checks"
+  default = "TourOfBeam-CI"
+}
+
+variable "tob_cd_trigger_name" {
+  description = "The name of the trigger to run CD checks"
+    default = "TourOfBeam-CD"
+}
+
+variable "cloudbuild_machine_type" {
+  description = "Machine type used for cloudbuild runtime"
+  default = "E2_HIGHCPU_32"
+}
+
+variable "playground_dns_name" {
+  description = "The DNS A-record name for Playground website"
+  default = "fqdn.playground.zone"
+}
+
+variable "cloudbuild_bucket_private" {
+  description = "The Google Cloud Platform GCS bucket name for Tour of Beam Cloudbuild Private logs"
+}
+
+variable "cloudbuild_bucket_public" {
+  description = "The Google Cloud Platform GCS bucket name for Tour of Beam Cloudbuild Public logs"
+}
+
+variable "terraform_source_repo" {
+  description = "Repo used to fetch terraform code"
+  default = "https://github.com/apache/beam"
+}
+
+variable "terraform_source_branch" {
+  description = "Branch used to fetch terraform code"
+  default = "master"
 }

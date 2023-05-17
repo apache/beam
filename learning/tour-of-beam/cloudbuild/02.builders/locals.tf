@@ -16,15 +16,78 @@
 # under the License.
 
 locals { 
-     cloudbuild_init_environment = [ 
-        "TF_VERSION=$_TF_VERSION",
-        "PG_REGION=$_PG_REGION",
-        "PG_GKE_ZONE=$_PG_GKE_ZONE",
-        "PG_GKE_NAME=$_PG_GKE_NAME",
-        "PROJECT_ID=$PROJECT_ID",
-        "STATE_BUCKET=$_STATE_BUCKET",
-        "ENV_NAME=$_ENV_NAME",
-        "TOB_REGION=$_TOB_REGION",
-        "PG_DATASTORE_NAMESPACE=$_PG_DATASTORE_NAMESPACE"
-     ]
+   cloudbuild_init_environment = [
+   "BRANCH_NAME=$_BRANCH_NAME",
+   "REPO_NAME=$_REPO_NAME" ,
+   "PG_REGION=$_PG_REGION",
+   "PG_GKE_ZONE=$_PG_GKE_ZONE",
+   "PG_GKE_NAME=$_PG_GKE_NAME",
+   "PROJECT_ID=$PROJECT_ID",
+   "STATE_BUCKET=$_STATE_BUCKET",
+
+   # Learning material 
+   "DATASTORE_PROJECT_ID=$PROJECT_ID",
+   "DATASTORE_NAMESPACE=$_PG_DATASTORE_NAMESPACE",
+   "TOB_LEARNING_ROOT=$_TOB_LEARNING_ROOT",
+
+   # Terraform variables
+   "TF_VAR_service_account_id=$_TOB_CLOUDBUILD_SA",
+   "TF_VAR_environment=$_ENV_NAME",
+   "TF_VAR_region=$_TOB_REGION",
+   "TF_VAR_project_id=$_PROJECT_ID",
+   "TF_VAR_datastore_namespace=$_PG_DATASTORE_NAMESPACE",
+   ]
+
+   cloudbuild_cd_environment = [ 
+   "PROJECT_ID=$PROJECT_ID",
+   "DATASTORE_NAMESPACE=$_DATASTORE_NAMESPACE",
+   "DNS_NAME=$_DNS_NAME",
+   "PR_URL=$_PR_URL",
+   "TARGET_PR_REPO_BRANCH=$_TARGET_PR_REPO_BRANCH",
+   "PR_TYPE=$_PR_TYPE",
+   "MERGE_STATUS=$_MERGE_STATUS",
+   "MERGE_COMMIT=$_MERGE_COMMIT",
+   "ORIGIN=$_ORIGIN",
+   "SUBDIRS=$_SUBDIRS",
+   "SDKS=$_SDKS",
+   "BEAM_CONCURRENCY=$_BEAM_CONCURRENCY",
+   "PR_COMMIT=$_PR_COMMIT",
+   "CD_SCRIPT_PATH=beam/playground/infrastructure/cloudbuild/playground_cd_examples.sh",
+   "FORCE_CD=false",
+    ]
+
+   cloudbuild_cd_environment_manual = [ 
+   "PROJECT_ID=$PROJECT_ID",
+   "DATASTORE_NAMESPACE=$_DATASTORE_NAMESPACE",
+   "DNS_NAME=$_DNS_NAME",
+   "PR_URL=URL",
+   "TARGET_PR_REPO_BRANCH=apache:master",
+   "PR_TYPE=closed",
+   "MERGE_STATUS=true",
+   "MERGE_COMMIT=$_MERGE_COMMIT",
+   "ORIGIN=$_ORIGIN",
+   "SUBDIRS=$_SUBDIRS",
+   "SDKS=$_SDKS",
+   "BEAM_CONCURRENCY=$_BEAM_CONCURRENCY",
+   "PR_COMMIT=$_PR_COMMIT",
+   "CD_SCRIPT_PATH=beam/playground/infrastructure/cloudbuild/playground_cd_examples.sh",
+   "FORCE_CD=true"
+    ]
+
+   cloudbuild_ci_environment = [ 
+   "PROJECT_ID=$PROJECT_ID",
+   "PR_BRANCH=$_PR_BRANCH",
+   "PR_URL=$_PR_URL",
+   "PR_TYPE=$_PR_TYPE",
+   "PR_COMMIT=$_PR_COMMIT",
+   "PR_NUMBER=$_PR_NUMBER",
+   "CI_SCRIPT_PATH=beam/playground/infrastructure/cloudbuild/playground_ci_examples.sh",
+   "PUBLIC_BUCKET=$_PUBLIC_BUCKET",
+   "PUBLIC_LOG=$_PUBLIC_LOG",
+   "PUBLIC_LOG_URL=$_PUBLIC_LOG_URL",
+   "PUBLIC_LOG_LOCAL=$_PUBLIC_LOG_LOCAL",
+   "FORK_REPO=$_FORK_REPO",
+   "BASE_REF=$_BASE_REF",
+   "BEAM_VERSION=$_BEAM_VERSION"
+   ]
 }

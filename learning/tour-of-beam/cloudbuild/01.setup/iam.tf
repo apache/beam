@@ -16,13 +16,28 @@
 # under the License.
 
 # Create cloud build service account
-resource "google_service_account" "tourofbeam_deployer" {
-  account_id   = var.tourofbeam_deployer_sa_name
+resource "google_service_account" "tob_deploy_sa" {
+  account_id   = var.tob_deploy_sa == "" ? "tob-deploy" : var.tob_deploy_sa
   description  = "The service account to be used by cloud build to deploy Tour of Beam backend"
 }
 
+resource "google_service_account" "tob_update_sa" {
+  account_id   = var.tb_update_sa == "" ? "tob-update" : var.tb_update_sa
+  description  = "The service account to be used by cloud build to update Tour of Beam backend"
+}
+
+resource "google_service_account" "tob_ci_sa" {
+  account_id   = var.tb_ci_sa == "" ? "tob-ci" : var.tb_ci_sa
+  description  = "The service account to be used by cloud build to run CI checks for Tour of Beam backend"
+}
+
+resource "google_service_account" "tob_cd_sa" {
+  account_id   = var.tb_cd_sa == "" ? "tob-cd" : var.tb_cd_sa
+  description  = "The service account to be used by cloud build to run CD checks for Tour of Beam backend"
+}
+
 # Assign IAM roles to cloud build service account
-resource "google_project_iam_member" "tourofbeam_backend_deployer" {
+resource "google_project_iam_member" "tourofbeam_backend_deployer_roles" {
   for_each = toset([
     "roles/datastore.indexAdmin",
     "roles/iam.serviceAccountCreator",
@@ -35,6 +50,46 @@ resource "google_project_iam_member" "tourofbeam_backend_deployer" {
     "roles/cloudfunctions.admin"
   ])
   role    = each.key
-  member  = "serviceAccount:${google_service_account.tourofbeam_deployer.email}"
+  member  = "serviceAccount:${google_service_account.tob_deploy_sa.email}"
   project = var.project_id
 }
+
+resource "google_project_iam_member" "tourofbeam_backend_updater_roles" {
+  for_each = toset([
+    "roles/datastore.indexAdmin",
+    "roles/iam.serviceAccountCreator",
+    "roles/iam.securityAdmin",
+    "roles/iam.serviceAccountUser",
+    "roles/serviceusage.serviceUsageAdmin",
+    "roles/storage.admin",
+    "roles/container.clusterViewer",
+    "roles/logging.logWriter",
+    "roles/cloudfunctions.admin"
+  ])
+  role    = each.key
+  member  = "serviceAccount:${google_service_account.tob_update_sa.email}"
+  project = var.project_id
+}
+
+resource "google_project_iam_member" "tob_ci_sa_roles" {
+  for_each = toset([
+    "roles/secretmanager.secretAccessor",
+    "roles/storage.insightsCollectorService"
+  ])
+  role    = each.key
+  member  = "serviceAccount:${google_service_account.tob_ci_sa.email}"
+  project = var.project_id
+}
+
+resource "google_project_iam_member" "tob_cd_sa_roles" {
+  for_each = toset([
+    "roles/datastore.user",
+    "roles/secretmanager.secretAccessor",
+    "roles/storage.insightsCollectorService"
+
+  ])
+  role    = each.key
+  member  = "serviceAccount:${google_service_account.tob_cd_sa.email}"
+  project = var.project_id
+}
+

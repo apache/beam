@@ -15,12 +15,28 @@
 # specific language governing permissions and limitations
 # under the License.
 
-
-variable "tourofbeam_deployer_sa_name" {
-  default = "tob-cloudbuild-sa"
-  description = "Service account name to be created and used by cloud build"
-}
-
 variable "project_id" {
-  description = "GCP project id where resources will be created"
+  description = "The ID of the Google Cloud project within which resources are provisioned"
 }
+
+variable "tob_deploy_sa" {
+  description = "The ID of the cloud build service account responsible for deploying the Tour of Beam"
+  default = ""
+}
+
+variable "tob_update_sa" {
+  description = "The ID of the cloud build service account responsible for updating the Tour of Beam"
+  default = ""
+}
+
+variable "tob_ci_sa" {
+  description = "The ID of the cloud build service account responsible for running Tour of Beam CI checks and scripts"
+  default = ""
+}
+
+variable "tob_cd_sa" {
+  description = "The ID of the cloud build service account responsible for running Tour of Beam CD checks and scripts"
+  default = ""
+}
+
+

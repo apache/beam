@@ -55,7 +55,6 @@ tasks.register<TerraformTask>("terraformApplyBackend") {
                 "-lock=false",
                 "-parallelism=3",
                 "-var=pg_router_host=$pg_router_host",
-                "-var=gcloud_init_account=$(gcloud config get-value core/account)",
                 "-var=project_id=$(gcloud config get-value project)",
                 "-var-file=./common.tfvars"
         )
@@ -71,7 +70,6 @@ tasks.register<TerraformTask>("terraformDestroy") {
             "-auto-approve",
             "-lock=false",
             "-var=pg_router_host=$pg_router_host",
-            "-var=gcloud_init_account=$(gcloud config get-value core/account)",
             "-var=project_id=$(gcloud config get-value project)",
             "-var-file=./common.tfvars"
     )

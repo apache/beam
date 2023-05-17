@@ -16,7 +16,30 @@
 # under the License.
 
 # Takes data of service account created for cloud build trigger
- data "google_service_account" "tourofbeam_backend_deployer" {
-   account_id   = var.tourofbeam_deployer_sa_name
+ data "google_service_account" "tob_deployer" {
+   account_id   = var.tob_deploy_sa
  }
+ 
+ data "google_service_account" "tob_updater" {
+   account_id   = var.tob_update_sa
+ }
+ 
+ data "google_service_account" "tob_ci_runner" {
+    account_id   = var.tob_ci_sa
+  }
+
+  data "google_service_account" "tob_cd_runner" {
+    account_id   = var.tob_cd_sa
+  }
+
+# Takes data of secretst created for cloud build trigger
+  data "google_secret_manager_secret_version" "secret_webhook_cloudbuild_trigger_cicd_data" {
+  secret      = var.webhook_trigger_secret_id
+  version     = "latest"
+}
+
+  data "google_secret_manager_secret_version" "secret_gh_pat_cloudbuild_data" {
+  secret      = var.gh_pat_secret_id
+  version     = "latest"
+}
  

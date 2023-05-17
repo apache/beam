@@ -21,9 +21,10 @@ This directory organizes Infrastructure-as-Code to provision dependent resources
 
 ## Requirements:
 
-- [GCP project](https://cloud.google.com/resource-manager/docs/creating-managing-projects)
-- [GCP User account](https://cloud.google.com/appengine/docs/standard/access-control?tab=python) _(Note: You will find the instruction "How to create User account" for your new project)_<br>
-  Ensure that the account has at least the following [IAM roles](https://cloud.google.com/iam/docs/understanding-roles):
+1. [GCP project](https://cloud.google.com/resource-manager/docs/creating-managing-projects)
+2. [GCP User account](https://cloud.google.com/appengine/docs/standard/access-control?tab=python) _(Note: You will find the instruction "How to create User account" for your new project)_<br>
+  Ensure that the account has at least the following [IAM roles](https://cloud.google.com/iam/docs/understanding-roles:
+
    - Cloud Datastore Owner
    - Create Service Accounts
    - Security Admin
@@ -31,11 +32,32 @@ This directory organizes Infrastructure-as-Code to provision dependent resources
    - Service Usage Admin
    - Storage Admin
    - Kubernetes Engine Cluster Viewer
-- [gcloud CLI](https://cloud.google.com/sdk/docs/install-sdk)
+
+
+------------ CONSIDER CHANGING
+3. [Google Cloud Storage buckets](https://cloud.google.com/storage/docs/creating-buckets)for:
+- Terraform state for Cloud Build triggers: \<triggers-state-bucket\>
+- Cloud Build private logs: \<private-logs-bucket\>
+- Cloud Build public logs: \<public-logs-bucket\>. Don't enforce public access prevention on this bucket.
+
+------------ EXISTING
+
 - An existing GCP Bucket to save Terraform state - `state-bucket`
-- Existing Beam Playground environment/infrastructure in same GCP Project
+----------------------
+
+4. DNS name for your Playground deployment instance ?
+
+5. OS with installed software listed below:
+- [gcloud CLI](https://cloud.google.com/sdk/docs/install-sdk)
 - [Terraform](https://www.terraform.io/)
-- [Apache Beam GitHub](https://github.com/apache/beam) repository cloned locally
+
+6. [Apache Beam GitHub](https://github.com/apache/beam) repository cloned locally
+
+7. [GitHub Personal Access Token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token) for CI trigger
+
+8. Existing Beam Playground environment/infrastructure in same GCP Project
+
+
 
 ## 1. Set up the Google Cloud Build for your GCP project
 

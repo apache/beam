@@ -90,8 +90,7 @@ terraform init -backend-config="bucket=`created_gcs_bucket`"
 7. Run terraform apply to create Tour-Of-Beam backend infrastructure
 
 ```
-terraform plan -var "gcloud_init_account=$(gcloud config get-value core/account)" \
--var "environment=prod" \
+terraform plan -var "environment=prod" \
 -var "region=us-west1" \
 -var "project_id=$(gcloud config get-value project)" \
 -var "datastore_namespace=playground-datastore-namespace" \
@@ -99,8 +98,7 @@ terraform plan -var "gcloud_init_account=$(gcloud config get-value core/account)
 ```
 
 ```
-terraform apply -var "gcloud_init_account=$(gcloud config get-value core/account)" \
--var "environment=prod" \
+terraform apply -var "environment=prod" \
 -var "region=us-west1" \
 -var "project_id=$(gcloud config get-value project)" \
 -var "datastore_namespace=playground-datastore-namespace" \

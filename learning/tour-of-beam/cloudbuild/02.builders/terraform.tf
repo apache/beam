@@ -18,7 +18,7 @@
 # Using 4.62.0 provider to run script block in build
 terraform {
   backend "gcs" {
-    prefix = "01.setup"
+    prefix = "02.builders"
   }
   required_providers {
     google = {
