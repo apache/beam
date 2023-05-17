@@ -18,10 +18,9 @@
 """Unit tests for BigTable service."""
 
 # pytype: skip-file
+import logging
 import os
 import secrets
-import logging
-import pytest
 import string
 import time
 import unittest
@@ -29,6 +28,7 @@ import uuid
 from datetime import datetime
 from random import choice
 
+import pytest
 from mock import MagicMock
 from mock import patch
 
