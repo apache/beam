@@ -1325,7 +1325,7 @@ class BigQueryServicesImpl implements BigQueryServices {
 
     @Override
     public StreamAppendClient getStreamAppendClient(
-        String streamName, Descriptor descriptor, boolean useConnectionPool) throws Exception {
+        String streamName, final Descriptor descriptor, boolean useConnectionPool) throws Exception {
       ProtoSchema protoSchema =
           ProtoSchema.newBuilder().setProtoDescriptor(descriptor.toProto()).build();
 
@@ -1356,6 +1356,11 @@ class BigQueryServicesImpl implements BigQueryServices {
       return new StreamAppendClient() {
         private int pins = 0;
         private boolean closed = false;
+
+        @Override
+        public Descriptor getDescriptor() {
+          return descriptor;
+        }
 
         @Override
         public void close() throws Exception {

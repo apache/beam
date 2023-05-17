@@ -540,6 +540,10 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                   throw new RuntimeException(e);
                 }
                 StreamAppendClient writeStream = appendInfo.getStreamAppendClient();
+                if (!writeStream.getDescriptor().getFullName().equals(appendInfo.getDescriptor().getFullName())) {
+                  LOG.error("DESCRIPTOR DOES NOT MATCH " +  writeStream.getDescriptor().getFullName()
+                          + " vs " + appendInfo.getDescriptor().getFullName());
+                }
                 ApiFuture<AppendRowsResponse> response =
                     writeStream.appendRows(c.offset, c.protoRows);
                 inflightWaitSecondsDistribution.update(writeStream.getInflightWaitSeconds());
