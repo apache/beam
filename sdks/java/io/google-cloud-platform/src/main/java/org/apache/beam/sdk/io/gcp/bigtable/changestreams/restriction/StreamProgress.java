@@ -37,7 +37,7 @@ import org.joda.time.Instant;
  */
 @Internal
 public class StreamProgress implements Serializable {
-  private static final long serialVersionUID = -8597355120329526194L;
+  private static final long serialVersionUID = -5384329262726188695L;
 
   private @Nullable ChangeStreamContinuationToken currentToken;
   private @Nullable Instant estimatedLowWatermark;
@@ -74,6 +74,10 @@ public class StreamProgress implements Serializable {
 
   public void setFailToLock(boolean failToLock) {
     this.failToLock = failToLock;
+  }
+
+  public boolean isEmpty() {
+    return closeStream == null && currentToken == null;
   }
 
   @Override

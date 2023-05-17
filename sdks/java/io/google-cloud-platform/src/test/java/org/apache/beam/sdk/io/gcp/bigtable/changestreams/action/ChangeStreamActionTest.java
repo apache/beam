@@ -123,8 +123,8 @@ public class ChangeStreamActionTest {
   public void testChangeStreamMutationUser() {
     ByteStringRange partition = ByteStringRange.create("", "");
     when(partitionRecord.getPartition()).thenReturn(partition);
-    final Instant commitTimestamp = Instant.ofEpochSecond(1000);
-    final Instant lowWatermark = Instant.ofEpochSecond(500);
+    final Instant commitTimestamp = Instant.ofEpochMilli(1_000L);
+    final Instant lowWatermark = Instant.ofEpochMilli(500L);
     ChangeStreamContinuationToken changeStreamContinuationToken =
         ChangeStreamContinuationToken.create(ByteStringRange.create("", ""), "1234");
     ChangeStreamMutation changeStreamMutation = Mockito.mock(ChangeStreamMutation.class);
@@ -155,8 +155,8 @@ public class ChangeStreamActionTest {
   public void testChangeStreamMutationGc() {
     ByteStringRange partition = ByteStringRange.create("", "");
     when(partitionRecord.getPartition()).thenReturn(partition);
-    final Instant commitTimestamp = Instant.ofEpochSecond(1000);
-    final Instant lowWatermark = Instant.ofEpochSecond(500);
+    final Instant commitTimestamp = Instant.ofEpochMilli(1_000L);
+    final Instant lowWatermark = Instant.ofEpochMilli(500L);
     ChangeStreamContinuationToken changeStreamContinuationToken =
         ChangeStreamContinuationToken.create(ByteStringRange.create("", ""), "1234");
     ChangeStreamMutation changeStreamMutation = Mockito.mock(ChangeStreamMutation.class);

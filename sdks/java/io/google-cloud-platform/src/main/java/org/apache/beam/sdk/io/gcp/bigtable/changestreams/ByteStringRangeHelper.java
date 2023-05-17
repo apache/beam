@@ -45,6 +45,13 @@ public class ByteStringRangeHelper {
     return ByteString.unsignedLexicographicalComparator().compare(e1, e2);
   }
 
+  private static int compareStartEndKey(ByteString start, ByteString end) {
+    if (end.isEmpty()) {
+      return -1;
+    }
+    return ByteString.unsignedLexicographicalComparator().compare(start, end);
+  }
+
   @VisibleForTesting
   static class PartitionComparator implements Comparator<ByteStringRange> {
     @Override
@@ -65,36 +72,37 @@ public class ByteStringRangeHelper {
   }
 
   /**
-   * Returns true if parentPartitions is a superset of childPartition.
+   * Returns true if parentPartitions form a proper superset of childPartition.
    *
-   * <p>If ordered parentPartitions row ranges form a contiguous range, and start key is before or
-   * at childPartition's start key, and end key is at or after childPartition's end key, then
-   * parentPartitions is a superset of childPartition.
+   * <p>If ordered parentPartitions row ranges form a contiguous range without any overlaps, and
+   * start key equals to childPartition's start key, and end key equals to childPartition's end key,
+   * then parentPartitions form a proper superset of childPartition.
    *
-   * <p>Overlaps from parents are valid because arbitrary partitions can merge and they may overlap.
-   * They will form a valid new partition. However, if there are any missing parent partitions, then
-   * merge cannot happen with missing row ranges.
+   * <p>Returns false if there are overlaps or missing partitions in parentPartitions.
    *
-   * @param parentPartitions list of partitions to determine if it forms a large contiguous range
-   * @param childPartition the smaller partition
-   * @return true if parentPartitions is a superset of childPartition, otherwise false.
+   * @param parentPartitions list of partitions to determine if it forms an exact contiguous range
+   * @param childPartition the partition to match
+   * @return true if parentPartitions covers the same key space as childPartition, otherwise false.
    */
-  public static boolean isSuperset(
+  public static boolean coverSameKeySpace(
       List<ByteStringRange> parentPartitions, ByteStringRange childPartition) {
-    // sort parentPartitions by starting key
-    // iterate through, check open end key and close start key of each iteration to ensure no gaps.
-    // first start key and last end key must be equal to or wider than child partition start and end
-    // key.
+    // Sort parentPartitions by starting key. Verify there's no gap or overlaps in between parent
+    // partitions.
+    // The first start key and last end key must be equal to child partition.
     if (parentPartitions.isEmpty()) {
       return false;
     }
     parentPartitions.sort(new PartitionComparator());
-    ByteString parentStartKey = parentPartitions.get(0).getStart();
-    ByteString parentEndKey = parentPartitions.get(parentPartitions.size() - 1).getEnd();
-
-    return !childStartsBeforeParent(parentStartKey, childPartition.getStart())
-        && !childEndsAfterParent(parentEndKey, childPartition.getEnd())
-        && !gapsInParentPartitions(parentPartitions);
+    if (!parentPartitions.get(0).getStart().equals(childPartition.getStart())) {
+      return false;
+    }
+    if (!parentPartitions
+        .get(parentPartitions.size() - 1)
+        .getEnd()
+        .equals(childPartition.getEnd())) {
+      return false;
+    }
+    return isContinuous(parentPartitions);
   }
 
   /**
@@ -110,20 +118,18 @@ public class ByteStringRangeHelper {
   }
 
   /**
-   * Figure out if partitions cover the entire keyspace. If it doesn't, return a list of missing and
-   * overlapping partitions.
+   * Return missing partitions within partitions that are within start and end. Gaps in partitions
+   * that are outside of start and end are ignored.
    *
-   * <p>partitions covers the entire key space if, when ordered, the end key is the same as the
-   * start key of the next row range in the list, and the first start key is "" and the last end key
-   * is "". There should be no overlap.
-   *
-   * @param partitions to determine if they cover entire keyspace
-   * @return list of missing and overlapping partitions
+   * @param partitions find missing partitions within
+   * @param start start of the search range
+   * @param end end of the search range
+   * @return missing partitions within the range
    */
-  public static List<ByteStringRange> getMissingAndOverlappingPartitionsFromKeySpace(
-      List<ByteStringRange> partitions) {
+  public static List<ByteStringRange> getMissingPartitionsFrom(
+      List<ByteStringRange> partitions, ByteString start, ByteString end) {
     if (partitions.isEmpty()) {
-      return Collections.singletonList(ByteStringRange.create("", ""));
+      return Collections.singletonList(ByteStringRange.create(start, end));
     }
 
     List<ByteStringRange> missingPartitions = new ArrayList<>();
@@ -132,20 +138,79 @@ public class ByteStringRangeHelper {
     // iterate through ensuring end key is lexicographically after next start key.
     partitions.sort(new PartitionComparator());
 
-    ByteString prevEnd = ByteString.EMPTY;
-    for (ByteStringRange partition : partitions) {
-      if (!partition.getStart().equals(prevEnd)) {
-        ByteStringRange missingPartition = ByteStringRange.create(prevEnd, partition.getStart());
-        missingPartitions.add(missingPartition);
-      }
-      prevEnd = partition.getEnd();
+    // Check if the start is missing.
+    if (compareStartKey(start, partitions.get(0).getStart()) < 0) {
+      missingPartitions.add(ByteStringRange.create(start, partitions.get(0).getStart()));
     }
-    // Check that the last partition ends with "", otherwise it's missing.
-    if (!prevEnd.equals(ByteString.EMPTY)) {
-      ByteStringRange missingPartition = ByteStringRange.create(prevEnd, ByteString.EMPTY);
-      missingPartitions.add(missingPartition);
+    ByteString currEnd = partitions.get(0).getEnd();
+    if (compareStartKey(start, partitions.get(0).getEnd()) > 0) {
+      currEnd = start;
+    }
+    for (int i = 1; i < partitions.size(); i++) {
+      if (compareStartEndKey(partitions.get(i).getStart(), currEnd) > 0) {
+        missingPartitions.add(ByteStringRange.create(currEnd, partitions.get(i).getStart()));
+      }
+      // It's possible that we have subset partitions that has a later start key but earlier end
+      // key. So we only advance end key if it's further ahead. For example [A, D) and [B, C).
+      // PrevEnd = D and processing [B, C) would push back end key to C instead of D.
+      if (compareEndKey(currEnd, partitions.get(i).getEnd()) < 0) {
+        currEnd = partitions.get(i).getEnd();
+      }
+      // Current end maybe before the start of the evaluation range.
+      if (compareStartKey(start, currEnd) > 0) {
+        currEnd = start;
+      }
+      // If it's past the end, we stop
+      if (compareEndKey(currEnd, end) > 0) {
+        break;
+      }
+    }
+    // Check that the last partition ends with end, otherwise it's missing.
+    if (compareEndKey(currEnd, end) < 0) {
+      missingPartitions.add(ByteStringRange.create(currEnd, end));
     }
     return missingPartitions;
+  }
+
+  /**
+   * Return missing partitions from the entire keyspace.
+   *
+   * @param partitions find missing partitions within
+   * @return a list of missing partitions.
+   */
+  public static List<ByteStringRange> getMissingPartitionsFromEntireKeySpace(
+      List<ByteStringRange> partitions) {
+    return getMissingPartitionsFrom(partitions, ByteString.EMPTY, ByteString.EMPTY);
+  }
+
+  /**
+   * Return a list of overlapping partitions. The partitions outputted are valid partitions i.e.
+   * start < end. This represents 2 ordered partitions overlapping because the 2nd partition starts
+   * before the 1st ended. If end == start, it's not considered overlap.
+   *
+   * @param partitions find overlaps within
+   * @return a list of overlapping partitions.
+   */
+  public static List<ByteStringRange> getOverlappingPartitions(List<ByteStringRange> partitions) {
+    if (partitions.isEmpty() || partitions.size() == 1) {
+      return Collections.emptyList();
+    }
+
+    List<ByteStringRange> overlappingPartitions = new ArrayList<>();
+
+    // sort partitions by start key
+    // iterate through ensuring end key is lexicographically after next start key.
+    partitions.sort(new PartitionComparator());
+
+    // Determine where we start
+    ByteString prevEnd = partitions.get(0).getEnd();
+    for (int i = 1; i < partitions.size(); i++) {
+      if (compareStartEndKey(partitions.get(i).getStart(), prevEnd) < 0) {
+        overlappingPartitions.add(ByteStringRange.create(partitions.get(i).getStart(), prevEnd));
+      }
+      prevEnd = partitions.get(i).getEnd();
+    }
+    return overlappingPartitions;
   }
 
   /**
@@ -162,32 +227,18 @@ public class ByteStringRangeHelper {
         + "')";
   }
 
-  private static boolean childStartsBeforeParent(
-      ByteString parentStartKey, ByteString childStartKey) {
-    // Check if the start key of the child partition comes before the start key of the entire
-    // parentPartitions
-    return compareStartKey(parentStartKey, childStartKey) > 0;
-  }
-
-  private static boolean childEndsAfterParent(ByteString parentEndKey, ByteString childEndKey) {
-    return compareEndKey(parentEndKey, childEndKey) < 0;
-  }
-
   // This assumes parentPartitions is sorted. If parentPartitions has not already been sorted
   // it will be incorrect
-  private static boolean gapsInParentPartitions(List<ByteStringRange> sortedParentPartitions) {
+  private static boolean isContinuous(List<ByteStringRange> sortedParentPartitions) {
     for (int i = 1; i < sortedParentPartitions.size(); i++) {
-      // Iterating through a sorted list, the start key should be the same or before the end of the
-      // previous. Handle "" end key as a special case.
+      // Iterating through a sorted list, the start key should be the same as the end of the
+      // previous.
       ByteString prevEndKey = sortedParentPartitions.get(i - 1).getEnd();
-      if (ByteString.unsignedLexicographicalComparator()
-                  .compare(sortedParentPartitions.get(i).getStart(), prevEndKey)
-              > 0
-          && !prevEndKey.isEmpty()) {
-        return true;
+      if (!sortedParentPartitions.get(i).getStart().equals(prevEndKey)) {
+        return false;
       }
     }
-    return false;
+    return true;
   }
 
   /**

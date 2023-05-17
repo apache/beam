@@ -17,42 +17,35 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams.action;
 
-import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper.getMissingAndOverlappingPartitionsFromKeySpace;
-import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper.isSuperset;
+import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper.formatByteStringRange;
+import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper.getMissingPartitionsFromEntireKeySpace;
+import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper.getOverlappingPartitions;
 import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper.partitionsToString;
 
-import com.google.api.gax.rpc.ServerStream;
-import com.google.cloud.bigtable.data.v2.models.ChangeStreamContinuationToken;
 import com.google.cloud.bigtable.data.v2.models.Range.ByteStringRange;
-import com.google.cloud.bigtable.data.v2.models.Row;
-import com.google.cloud.bigtable.data.v2.models.RowCell;
-import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Set;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.UniqueIdGenerator;
-import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTableAdminDao;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTableDao;
-import org.apache.beam.sdk.io.gcp.bigtable.changestreams.encoder.MetadataTableEncoder;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.model.DetectNewPartitionsState;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.model.InitialPipelineState;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.model.NewPartition;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.model.PartitionRecord;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.model.StreamPartitionWithWatermark;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.reconciler.OrphanedMetadataCleaner;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.reconciler.PartitionReconciler;
 import org.apache.beam.sdk.io.range.OffsetRange;
-import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Longs;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -74,26 +67,30 @@ public class DetectNewPartitionsAction {
   private final ChangeStreamMetrics metrics;
   private final MetadataTableDao metadataTableDao;
   @Nullable private final Instant endTime;
+  private final ProcessNewPartitionsAction processNewPartitionsAction;
   private final GenerateInitialPartitionsAction generateInitialPartitionsAction;
+  private final ResumeFromPreviousPipelineAction resumeFromPreviousPipelineAction;
 
   private transient PartitionReconciler partitionReconciler;
+  private transient OrphanedMetadataCleaner orphanedMetadataCleaner;
 
   public DetectNewPartitionsAction(
       ChangeStreamMetrics metrics,
       MetadataTableDao metadataTableDao,
       @Nullable Instant endTime,
-      GenerateInitialPartitionsAction generateInitialPartitionsAction) {
+      GenerateInitialPartitionsAction generateInitialPartitionsAction,
+      ResumeFromPreviousPipelineAction resumeFromPreviousPipelineAction,
+      ProcessNewPartitionsAction processNewPartitionsAction) {
     this.metrics = metrics;
     this.metadataTableDao = metadataTableDao;
     this.endTime = endTime;
     this.generateInitialPartitionsAction = generateInitialPartitionsAction;
+    this.resumeFromPreviousPipelineAction = resumeFromPreviousPipelineAction;
+    this.processNewPartitionsAction = processNewPartitionsAction;
   }
 
   /**
-   * Periodically advances DetectNewPartition's (DNP) watermark based on the watermark of all the
-   * partitions recorded in the metadata table. We don't advance DNP's watermark on every run to
-   * "now" because of a possible inconsistent state. DNP's watermark is used to hold the entire
-   * pipeline's watermark back.
+   * Get the new watermark based on the watermark of StreamPartitions and NewPartitions.
    *
    * <p>The low watermark is important to determine when to terminate the pipeline. During splits
    * and merges, the watermark step may appear to be higher than it actually is. If a partition, at
@@ -110,171 +107,65 @@ public class DetectNewPartitionsAction {
    * ensuring all the partitions exists in the metadata table in order to calculate the low
    * watermark. It is possible that some partitions might be missing in between split and merges.
    *
-   * @param tracker restriction tracker to guide how frequently watermark should be advanced
-   * @param watermarkEstimator watermark estimator to advance the watermark
+   * @param streamPartitionsWithWatermark restriction tracker to guide how frequently watermark
+   *     should be advanced
+   * @param newPartitions watermark estimator to advance the watermark
+   * @return low watermark if possible, otherwise empty.
    */
-  private void advanceWatermark(
-      RestrictionTracker<OffsetRange, Long> tracker,
-      ManualWatermarkEstimator<Instant> watermarkEstimator)
-      throws InvalidProtocolBufferException {
-    // We currently choose to update the watermark every 10 runs. We want to choose a number that is
-    // frequent, so the watermark isn't lagged behind too far. Also not too frequent so we do not
-    // overload the table with full table scans.
-    if (tracker.currentRestriction().getFrom() % 10 == 0) {
-      // Get partitions with a watermark set but skip rows w a lock and no watermark yet
-      ServerStream<Row> rows = metadataTableDao.readFromMdTableStreamPartitionsWithWatermark();
-      List<ByteStringRange> partitions = new ArrayList<>();
-      HashMap<ByteStringRange, Instant> slowPartitions = new HashMap<>();
-      Instant lowWatermark = Instant.ofEpochMilli(Long.MAX_VALUE);
-      for (Row row : rows) {
-        Instant watermark = MetadataTableEncoder.parseWatermarkFromRow(row);
-        if (watermark == null) {
-          continue;
-        }
-        // Update low watermark if watermark < low watermark.
-        if (watermark.compareTo(lowWatermark) < 0) {
-          lowWatermark = watermark;
-        }
-        ByteStringRange partition =
-            metadataTableDao.convertStreamPartitionRowKeyToPartition(row.getKey());
-        partitions.add(partition);
-        if (watermark.plus(DEBUG_WATERMARK_DELAY).isBeforeNow()) {
-          slowPartitions.put(partition, watermark);
-        }
+  private Optional<Instant> getNewWatermark(
+      List<StreamPartitionWithWatermark> streamPartitionsWithWatermark,
+      List<NewPartition> newPartitions) {
+    // Get partitions with a watermark set but skip rows w a lock and no watermark yet
+    List<StreamPartitionWithWatermark> slowPartitions = new ArrayList<>();
+    Instant lowWatermark = Instant.ofEpochMilli(Long.MAX_VALUE);
+
+    List<ByteStringRange> partitions = new ArrayList<>();
+    for (StreamPartitionWithWatermark streamPartitionWithWatermark :
+        streamPartitionsWithWatermark) {
+      if (streamPartitionWithWatermark.getWatermark().plus(DEBUG_WATERMARK_DELAY).isBeforeNow()) {
+        slowPartitions.add(streamPartitionWithWatermark);
       }
-      List<ByteStringRange> missingAndOverlappingPartitions =
-          getMissingAndOverlappingPartitionsFromKeySpace(partitions);
-      if (missingAndOverlappingPartitions.isEmpty()) {
-        watermarkEstimator.setWatermark(lowWatermark);
-        LOG.info("DNP: Updating watermark: " + watermarkEstimator.currentWatermark());
-      } else {
-        LOG.warn(
-            "DNP: Could not update watermark because missing {}",
-            partitionsToString(missingAndOverlappingPartitions));
+      if (streamPartitionWithWatermark.getWatermark().compareTo(lowWatermark) < 0) {
+        lowWatermark = streamPartitionWithWatermark.getWatermark();
       }
-      if (!slowPartitions.isEmpty()) {
-        LOG.warn(
-            "DNP: Watermark is being held back by the following partitions: {}",
-            slowPartitions.entrySet().stream()
-                .map(
-                    e ->
-                        ByteStringRangeHelper.formatByteStringRange(e.getKey())
-                            + " => "
-                            + e.getValue())
-                .collect(Collectors.joining(", ", "{", "}")));
-      }
-      partitionReconciler.addMissingPartitions(missingAndOverlappingPartitions);
+      partitions.add(streamPartitionWithWatermark.getPartition());
     }
-  }
-
-  /**
-   * Process a single new partition. New partition resulting from split and merges need to be
-   * outputted to be streamed. Regardless if it's a split or a merge, we have the same verification
-   * process in order to ensure the new partition can actually be streamed.
-   *
-   * <p>When a parent partition splits, it receives two or more new partitions. It will write a new
-   * row, with the new row ranges as row key, for each new partition. These new partitions can be
-   * immediately streamed.
-   *
-   * <p>The complicated scenario is merges. Two or more parent partitions will merge into one new
-   * partition. Each parent partition receives the same new partition (row range) but each parent
-   * partition will have a different continuation token. The parent partitions will all write to the
-   * same row key form by the new row range. Each parent will record its continuation token, and
-   * watermark. Parent partitions may not receive the message to stop at the same time. So when we
-   * try to process the new partition, we need to ensure that all the parent partitions have stopped
-   * and recorded their metadata table. We do so by verifying that the row ranges of the parents
-   * covers a contiguous block of row range that is same or wider (superset) of the new row range.
-   *
-   * <p>For example, partition1, A-B, and partition2, B-C, merges into partition3, A-C.
-   *
-   * <ol>
-   *   <li>p1 writes to row A-C in metadata table
-   *   <li>processNewPartition process A-C seeing that only A-B has been recorded and A-B does not
-   *       cover A-C. Do Nothing
-   *   <li>p2 writes to row A-C in metadata table
-   *   <li>processNewPartition process A-C again, seeing that A-B and B-C has been recorded and
-   *       outputs new partition A-C to be streamed.
-   * </ol>
-   *
-   * <p>Note that, the algorithm to verify if a merge is valid, also correctly verifies if a split
-   * is valid. A split is immediately valid as long as the row exists because there's only one
-   * parent that needs to write to that row.
-   *
-   * @param row new partition to be processed
-   * @param receiver to output new partitions
-   * @param recordedPartitionRecords add the partition if it's been processed
-   * @throws InvalidProtocolBufferException if partition can't be converted from row key.
-   */
-  private void processNewPartition(
-      Row row, OutputReceiver<PartitionRecord> receiver, List<ByteString> recordedPartitionRecords)
-      throws Exception {
-    ByteStringRange partition = metadataTableDao.convertNewPartitionRowKeyToPartition(row.getKey());
-
-    partitionReconciler.addNewPartition(partition, row.getKey());
-
-    // Ensure all parent partitions have stopped and updated the metadata table with the new
-    // partition continuation token.
-    List<ByteStringRange> parentPartitions = new ArrayList<>();
-    for (RowCell cell : row.getCells(MetadataTableAdminDao.CF_PARENT_PARTITIONS)) {
-      ByteStringRange parentPartition = ByteStringRange.toByteStringRange(cell.getQualifier());
-      parentPartitions.add(parentPartition);
-    }
-    if (!isSuperset(parentPartitions, partition)) {
+    if (!slowPartitions.isEmpty()) {
       LOG.warn(
-          "DNP: New partition: {} does not have all the parents {}",
-          ByteStringRangeHelper.formatByteStringRange(partition),
-          partitionsToString(parentPartitions));
-      return;
+          "DNP: Updating watermark is held back by {} partitions : {}",
+          slowPartitions.size(),
+          slowPartitions.stream()
+              .map(e -> formatByteStringRange(e.getPartition()) + " => " + e.getWatermark())
+              .collect(Collectors.joining(", ", "{", "}")));
     }
 
-    // Capture all the initial continuation tokens to request for the new partition.
-    ImmutableList.Builder<ChangeStreamContinuationToken> changeStreamContinuationTokensBuilder =
-        ImmutableList.builder();
-    for (RowCell cell : row.getCells(MetadataTableAdminDao.CF_INITIAL_TOKEN)) {
-      ChangeStreamContinuationToken changeStreamContinuationToken =
-          ChangeStreamContinuationToken.fromByteString(cell.getQualifier());
-      changeStreamContinuationTokensBuilder.add(changeStreamContinuationToken);
-    }
-    ImmutableList<ChangeStreamContinuationToken> changeStreamContinuationTokens =
-        changeStreamContinuationTokensBuilder.build();
-
-    // If parent and continuation token count are not the same, it's possible the same parent wrote
-    // multiple continuation tokens or there's an inconsistent state.
-    if (parentPartitions.size() != changeStreamContinuationTokens.size()) {
+    // Only added StreamPartitions so far, check if there are any overlapping StreamPartitions. If
+    // so, something is wrong, we should stop.
+    List<ByteStringRange> overlappingStreamPartitions = getOverlappingPartitions(partitions);
+    if (!overlappingStreamPartitions.isEmpty()) {
       LOG.warn(
-          "DNP: New partition {} parent partitions count {} != continuation token count {}",
-          ByteStringRangeHelper.formatByteStringRange(partition),
-          parentPartitions.size(),
-          changeStreamContinuationTokens.size());
+          "DNP: Updating watermark failed due to overlapping: {}",
+          partitionsToString(overlappingStreamPartitions));
+      return Optional.empty();
     }
 
-    // Capture all the low watermark and calculate the low watermark among all the parents.
-    List<Long> parentLowWatermark = new ArrayList<>();
-    for (RowCell cell : row.getCells(MetadataTableAdminDao.CF_PARENT_LOW_WATERMARKS)) {
-      parentLowWatermark.add(Longs.fromByteArray(cell.getValue().toByteArray()));
+    for (NewPartition newPartition : newPartitions) {
+      partitions.addAll(newPartition.getParentPartitions());
+      if (newPartition.getLowWatermark().compareTo(lowWatermark) < 0) {
+        lowWatermark = newPartition.getLowWatermark();
+      }
     }
-    Long lowWatermarkMilli = Collections.min(parentLowWatermark);
-    Instant lowWatermark = Instant.ofEpochMilli(lowWatermarkMilli);
 
-    String uid = UniqueIdGenerator.getNextId();
-    PartitionRecord partitionRecord =
-        new PartitionRecord(partition, changeStreamContinuationTokens, uid, lowWatermark, endTime);
-    if (parentPartitions.size() > 1) {
-      metrics.incPartitionMergeCount();
-    } else {
-      metrics.incPartitionSplitCount();
+    List<ByteStringRange> missingPartitions = getMissingPartitionsFromEntireKeySpace(partitions);
+    if (missingPartitions.isEmpty()) {
+      LOG.info("DNP: Updating watermark: " + lowWatermark);
+      return Optional.of(lowWatermark);
     }
-    LOG.info(
-        "DNP: Split/Merge {} into {}",
-        parentPartitions.stream()
-            .map(ByteStringRangeHelper::formatByteStringRange)
-            .collect(Collectors.joining(",", "{", "}")),
-        ByteStringRangeHelper.formatByteStringRange(partition));
-    // We are outputting elements with timestamp of 0 to prevent reliance on event time. This limits
-    // the ability to window on commit time of any data changes. It is still possible to window on
-    // processing time.
-    receiver.outputWithTimestamp(partitionRecord, Instant.EPOCH);
-    recordedPartitionRecords.add(row.getKey());
+    LOG.warn(
+        "DNP: Updating watermark failed due to missing {} partitions : {}.",
+        missingPartitions.size(),
+        partitionsToString(missingPartitions));
+    return Optional.empty();
   }
 
   /**
@@ -283,69 +174,54 @@ public class DetectNewPartitionsAction {
    *
    * @param receiver used to output reconciled partitions
    * @param watermarkEstimator read the low watermark for all partitions
-   * @param startTime startTime of the pipeline
-   * @param recordedPartitionRecords the list of row keys that needs to be cleaned up
    */
   private void processReconcilerPartitions(
       OutputReceiver<PartitionRecord> receiver,
       ManualWatermarkEstimator<Instant> watermarkEstimator,
-      Instant startTime,
-      List<ByteString> recordedPartitionRecords) {
-    for (HashMap.Entry<ByteStringRange, Set<ByteString>> partitionToReconcile :
-        partitionReconciler.getPartitionsToReconcile().entrySet()) {
-      String uid = UniqueIdGenerator.getNextId();
+      Instant startTime) {
+    for (PartitionRecord reconciledPartition :
+        partitionReconciler.getPartitionsToReconcile(
+            watermarkEstimator.currentWatermark(), startTime)) {
+      // Set the missing fields.
+      reconciledPartition.setUuid(UniqueIdGenerator.getNextId());
+      reconciledPartition.setEndTime(endTime);
 
-      // When we reconcile, we start from 1h prior to effectively eliminate the possibility of
-      // missing data.
-      Instant reconciledTime =
-          watermarkEstimator.currentWatermark().minus(Duration.standardMinutes(60));
-      if (reconciledTime.compareTo(startTime) < 0) {
-        reconciledTime = startTime;
+      for (NewPartition parentPartition : reconciledPartition.getParentPartitions()) {
+        metadataTableDao.markNewPartitionForDeletion(parentPartition);
       }
+      receiver.outputWithTimestamp(reconciledPartition, Instant.EPOCH);
+      LOG.warn("DNP: Reconciling missing partition: {}", reconciledPartition);
+    }
+  }
 
-      PartitionRecord partitionRecord =
-          new PartitionRecord(
-              partitionToReconcile.getKey(), reconciledTime, uid, reconciledTime, endTime);
-      receiver.outputWithTimestamp(partitionRecord, Instant.EPOCH);
-      recordedPartitionRecords.addAll(partitionToReconcile.getValue());
-      LOG.warn(
-          "DNP: Reconciling missing partition: {} and cleaning up rows {}",
-          partitionRecord,
-          partitionToReconcile.getValue().stream()
-              .map(
-                  rowKey -> {
-                    try {
-                      return ByteStringRangeHelper.formatByteStringRange(
-                          metadataTableDao.convertNewPartitionRowKeyToPartition(rowKey));
-                    } catch (InvalidProtocolBufferException exception) {
-                      return rowKey.toStringUtf8();
-                    }
-                  })
-              .collect(Collectors.joining(", ", "{", "}")));
+  private void cleanUpOrphanedMetadata() {
+    for (NewPartition newPartitionToClean : orphanedMetadataCleaner.getOrphanedNewPartitions()) {
+      metrics.incOrphanedNewPartitionCleanedCount();
+      metadataTableDao.markNewPartitionForDeletion(newPartitionToClean);
+      metadataTableDao.deleteNewPartition(newPartitionToClean);
     }
   }
 
   /**
-   * After processing new partitions and if it was outputted successfully, we need to clean up the
-   * metadata table so that we don't try to process the same new partition again.
+   * Return true if watermark should be updated.
    *
-   * <p>This is performed at a best effort basis. If some clean up is unsuccessful, the new
-   * partition will be processed and output again in subsequent runs. This is OK because the DoFn
-   * that stream partitions performs locking to prevent multiple DoFn from streaming the same
-   * partition.
+   * <p>We update the watermark on even count after 10s since last update.
    *
-   * @param bundleFinalizer finalizer that registered the callback to perform the cleanup
-   * @param recordedPartitionRecords the list of row keys that needs to be cleaned up
+   * <p>We chose to only update on even count, so we don't perform a full table scan on every DNP
+   * run if DNP taking longer than 10s between each run.
+   *
+   * <p>We set a minimum of 10s to minimize frequency of full table scan. This means the watermark
+   * will always lag behind by 10s. We didn't choose a larger minimum frequency because that would
+   * increase the minimum watermark delay.
    */
-  private void cleanUpAfterCommit(
-      BundleFinalizer bundleFinalizer, List<ByteString> recordedPartitionRecords) {
-    bundleFinalizer.afterBundleCommit(
-        Instant.ofEpochMilli(Long.MAX_VALUE),
-        () -> {
-          for (ByteString rowKey : recordedPartitionRecords) {
-            metadataTableDao.deleteRowKey(rowKey);
-          }
-        });
+  private boolean shouldUpdateWatermark(
+      long count, @Nullable DetectNewPartitionsState detectNewPartitionsState) {
+    return count % 2 == 0
+        && (detectNewPartitionsState == null
+            || detectNewPartitionsState
+                .getWatermarkLastUpdated()
+                .plus(Duration.standardSeconds(10))
+                .isBeforeNow());
   }
 
   /**
@@ -366,7 +242,6 @@ public class DetectNewPartitionsAction {
    * @param receiver output new partitions
    * @param watermarkEstimator update watermark that is a representation of the low watermark of the
    *     entire beam pipeline
-   * @param bundleFinalizer perform after bundle output actions to clean up metadata table
    * @return {@link ProcessContinuation#resume()} with 1-second delay if the stream continues,
    *     otherwise {@link ProcessContinuation#stop()}
    * @throws InvalidProtocolBufferException if failing to process new partitions
@@ -376,23 +251,48 @@ public class DetectNewPartitionsAction {
       RestrictionTracker<OffsetRange, Long> tracker,
       OutputReceiver<PartitionRecord> receiver,
       ManualWatermarkEstimator<Instant> watermarkEstimator,
-      BundleFinalizer bundleFinalizer,
-      Instant startTime)
+      InitialPipelineState initialPipelineState)
       throws Exception {
     LOG.debug("DNP: Watermark: " + watermarkEstimator.getState());
     LOG.debug("DNP: CurrentTracker: " + tracker.currentRestriction().getFrom());
     if (tracker.currentRestriction().getFrom() == 0L) {
-      return generateInitialPartitionsAction.run(receiver, tracker, watermarkEstimator, startTime);
+      if (!tracker.tryClaim(0L)) {
+        LOG.error(
+            "Could not claim initial DetectNewPartition restriction. No partitions are outputted.");
+        return ProcessContinuation.stop();
+      }
+      watermarkEstimator.setWatermark(initialPipelineState.getStartTime());
+      if (initialPipelineState.isResume()) {
+        resumeFromPreviousPipelineAction.run(receiver);
+      } else {
+        generateInitialPartitionsAction.run(receiver, initialPipelineState.getStartTime());
+      }
+      return ProcessContinuation.resume();
     }
 
     // Create a new partition reconciler every run to reset the state each time.
-    partitionReconciler = new PartitionReconciler(metadataTableDao);
+    partitionReconciler = new PartitionReconciler(metadataTableDao, metrics);
+    orphanedMetadataCleaner = new OrphanedMetadataCleaner();
 
-    advanceWatermark(tracker, watermarkEstimator);
+    // Calculating the new value of watermark is a resource intensive process. We have to do a full
+    // scan of the metadata table and then ensure we're not missing partitions and then calculate
+    // the low watermark. This is usually a fairly fast process even with thousands of partitions.
+    // However, sometimes this may take so long that the runner checkpoints before the watermark is
+    // calculated. Because the checkpoint takes place before tryClaim, this forces the DoFn to
+    // restart, wasting the resources spent calculating the watermark. On restart, we will try to
+    // calculate the watermark again. The problem causing the slow watermark calculation can persist
+    // leading to a crash loop. In order to ensure we persist the calculated watermark, we calculate
+    // the watermark after successful tryClaim. Then we write to the metadata table the new
+    // watermark. On the start of each run we read the watermark and update the DoFn's watermark.
+    DetectNewPartitionsState detectNewPartitionsState =
+        metadataTableDao.readDetectNewPartitionsState();
+    if (detectNewPartitionsState != null) {
+      watermarkEstimator.setWatermark(detectNewPartitionsState.getWatermark());
+    }
 
     // Terminate if endTime <= watermark that means all partitions have read up to or beyond
     // watermark. We no longer need to manage splits and merges, we can terminate.
-    if (endTime != null && endTime.isBefore(watermarkEstimator.currentWatermark())) {
+    if (endTime != null && !watermarkEstimator.currentWatermark().isBefore(endTime)) {
       tracker.tryClaim(tracker.currentRestriction().getTo());
       return ProcessContinuation.stop();
     }
@@ -402,17 +302,51 @@ public class DetectNewPartitionsAction {
       return ProcessContinuation.stop();
     }
 
-    List<ByteString> recordedPartitionRecords = new ArrayList<>();
-
-    ServerStream<Row> rows = metadataTableDao.readNewPartitions();
-    for (Row row : rows) {
-      processNewPartition(row, receiver, recordedPartitionRecords);
+    // Read StreamPartitions to calculate watermark.
+    List<StreamPartitionWithWatermark> streamPartitionsWithWatermark = null;
+    if (shouldUpdateWatermark(tracker.currentRestriction().getFrom(), detectNewPartitionsState)) {
+      streamPartitionsWithWatermark = metadataTableDao.readStreamPartitionsWithWatermark();
     }
 
-    processReconcilerPartitions(receiver, watermarkEstimator, startTime, recordedPartitionRecords);
+    // Process NewPartitions and track the ones successfully outputted.
+    List<NewPartition> newPartitions = metadataTableDao.readNewPartitions();
+    List<ByteStringRange> outputtedNewPartitions = new ArrayList<>();
+    for (NewPartition newPartition : newPartitions) {
+      if (processNewPartitionsAction.processNewPartition(newPartition, receiver)) {
+        outputtedNewPartitions.add(newPartition.getPartition());
+      } else {
+        partitionReconciler.addIncompleteNewPartitions(newPartition);
+        orphanedMetadataCleaner.addIncompleteNewPartitions(newPartition);
+      }
+    }
 
-    cleanUpAfterCommit(bundleFinalizer, recordedPartitionRecords);
+    // Process the watermark using read StreamPartitions and NewPartitions.
+    if (streamPartitionsWithWatermark != null) {
+      Optional<Instant> maybeWatermark =
+          getNewWatermark(streamPartitionsWithWatermark, newPartitions);
+      maybeWatermark.ifPresent(metadataTableDao::updateDetectNewPartitionWatermark);
+      // Using NewPartitions and StreamPartitions, evaluate partitions that are possibly not being
+      // streamed. This isn't perfect because there may be partitions moving between
+      // StreamPartitions and NewPartitions while scanning the metadata table. Also, this does not
+      // include NewPartitions marked as deleted from a previous DNP run not yet processed by RCSP.
+      List<ByteStringRange> existingPartitions =
+          streamPartitionsWithWatermark.stream()
+              .map(StreamPartitionWithWatermark::getPartition)
+              .collect(Collectors.toList());
+      existingPartitions.addAll(outputtedNewPartitions);
+      List<ByteStringRange> missingStreamPartitions =
+          getMissingPartitionsFromEntireKeySpace(existingPartitions);
+      orphanedMetadataCleaner.addMissingPartitions(missingStreamPartitions);
+      partitionReconciler.addMissingPartitions(missingStreamPartitions);
+    }
 
-    return ProcessContinuation.resume().withResumeDelay(Duration.standardSeconds(1));
+    // Only start reconciling after the pipeline has been running for a while.
+    if (tracker.currentRestriction().getFrom() > 50) {
+      processReconcilerPartitions(
+          receiver, watermarkEstimator, initialPipelineState.getStartTime());
+      cleanUpOrphanedMetadata();
+    }
+
+    return ProcessContinuation.resume().withResumeDelay(Duration.millis(100));
   }
 }
