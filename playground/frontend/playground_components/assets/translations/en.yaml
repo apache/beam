@@ -26,7 +26,7 @@ errors:
   loading: 'Error while loading.'
   loadingCatalog: 'Cannot load the example catalog.'
   loadingExample: 'Cannot load the example.'
-  failedLoadExampleWithToken: 'Failed to load the example with the token: {token}.'
+  failedLoadExampleWithToken: 'Failed to load the example: {token}.'
   savingSnippet: 'Cannot create a shareable link.'
   unknownError: 'Unknown error. Possibly internet connection problem or CORS issue'
 

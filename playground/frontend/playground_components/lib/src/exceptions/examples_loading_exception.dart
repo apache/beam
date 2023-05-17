@@ -18,15 +18,12 @@
 
 import 'package:easy_localization/easy_localization.dart';
 
-class ExampleLoadingException implements Exception {
-  final String? token;
+/// Thrown when a single example failed to be loaded.
+class ExamplesLoadingException implements Exception {
+  final Exception inner;
 
-  ExampleLoadingException({required this.token});
+  ExamplesLoadingException(this.inner);
 
   @override
-  String toString() => 'errors.failedLoadExampleWithToken'.tr(
-        namedArgs: {
-          'token': token ?? 'null',
-        },
-      );
+  String toString() => '${'errors.loadingExample'.tr()} $inner';
 }
