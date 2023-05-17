@@ -28,7 +28,7 @@ require (
 	cloud.google.com/go/datastore v1.11.0
 	cloud.google.com/go/profiler v0.3.1
 	cloud.google.com/go/pubsub v1.30.1
-	cloud.google.com/go/spanner v1.45.1
+	cloud.google.com/go/spanner v1.46.0
 	cloud.google.com/go/storage v1.30.1
 	github.com/aws/aws-sdk-go-v2 v1.18.0
 	github.com/aws/aws-sdk-go-v2/config v1.18.24
