@@ -555,6 +555,11 @@ public class FakeDatasetService implements DatasetService, Serializable {
       }
 
       @Override
+      public Descriptor getDescriptor() {
+        return protoDescriptor;
+      }
+
+      @Override
       public ApiFuture<AppendRowsResponse> appendRows(long offset, ProtoRows rows)
           throws Exception {
         AppendRowsResponse.Builder responseBuilder = AppendRowsResponse.newBuilder();
