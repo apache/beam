@@ -17,9 +17,11 @@
  */
 
 import 'package:collection/collection.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:get_it/get_it.dart';
 
 import '../../exceptions/example_loading_exception.dart';
+import '../../models/example.dart';
 import '../../models/example_loading_descriptors/empty_example_loading_descriptor.dart';
 import '../../models/example_loading_descriptors/example_loading_descriptor.dart';
 import '../../models/example_loading_descriptors/examples_loading_descriptor.dart';
@@ -142,7 +144,18 @@ class ExamplesLoader {
   }
 
   Future<void> _loadOne(ExampleLoader loader) async {
-    final example = await loader.future;
+    Example example;
+    try {
+      example = await loader.future;
+    } on Exception catch (_) {
+      throw Exception(
+        'errors.failedLoadExampleWithToken'.tr(
+          namedArgs: {
+            'token': loader.descriptor.token ?? 'null',
+          },
+        ),
+      );
+    }
     _playgroundController!.setExample(
       example,
       descriptor: loader.descriptor,

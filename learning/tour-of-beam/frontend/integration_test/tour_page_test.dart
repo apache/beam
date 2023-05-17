@@ -1,5 +1,3 @@
-// ignore_for_file: avoid_print
-
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -88,7 +86,6 @@ Future<void> _checkModule(ModuleModel module, WidgetTester wt) async {
 }
 
 Future<void> _checkNode(UnitModel node, WidgetTester wt) async {
-  print('Checking node: ${node.title}');
   final finder = find.byKey(Key(node.id));
   expect(finder, findsOneWidget, reason: node.id);
 
@@ -127,7 +124,6 @@ Future<void> _checkUnitContentLoadsProperly(
 }
 
 Future<void> _checkGroup(GroupModel group, WidgetTester wt) async {
-  print('Checking group: ${group.title}');
   await wt.ensureVisible(find.byKey(Key(group.id)));
   await wt.tapAndSettle(find.byKey(Key(group.id)));
 

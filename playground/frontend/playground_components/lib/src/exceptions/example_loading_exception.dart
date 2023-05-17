@@ -25,5 +25,5 @@ class ExampleLoadingException implements Exception {
   ExampleLoadingException(this.inner);
 
   @override
-  String toString() => 'errors.loadingExample'.tr();
+  String toString() => '${'errors.loadingExample'.tr()} $inner';
 }
