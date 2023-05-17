@@ -42,14 +42,8 @@ Cloud Build triggers created by terraform scripts from this directory automate s
 4. DNS name for your Playground deployment instance
 
 5. OS with installed software listed below:
-- [Java](https://adoptopenjdk.net/)
-- [Kubernetes Command Line Interface](https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/)
-- [HELM](https://helm.sh/docs/intro/install/)
-- [Docker](https://docs.docker.com/engine/install/)
 - [Terraform](https://www.terraform.io/downloads)
 - [gcloud CLI](https://cloud.google.com/sdk/docs/install-sdk)
-- [Kubectl authentication](https://cloud.google.com/blog/products/containers-kubernetes/kubectl-auth-changes-in-gke)
-- [GO](https://go.dev/doc/install)
 
 6. [GitHub Personal Access Token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token) for CI trigger
 
