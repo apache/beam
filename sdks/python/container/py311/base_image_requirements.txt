@@ -62,7 +62,7 @@ google-cloud-language==2.9.1
 google-cloud-pubsub==2.17.0
 google-cloud-pubsublite==1.8.2
 google-cloud-recommendations-ai==0.10.3
-google-cloud-spanner==3.33.0
+google-cloud-spanner==3.34.0
 google-cloud-videointelligence==2.11.1
 google-cloud-vision==3.4.1
 google-crc32c==1.5.0
@@ -73,6 +73,7 @@ greenlet==2.0.2
 grpc-google-iam-v1==0.12.6
 grpcio==1.54.2
 grpcio-status==1.54.2
+guppy3==3.1.3
 h5py==3.8.0
 hdfs==2.7.0
 httplib2==0.22.0

@@ -65,7 +65,7 @@ google-cloud-profiler==4.0.0
 google-cloud-pubsub==2.17.0
 google-cloud-pubsublite==1.8.2
 google-cloud-recommendations-ai==0.10.3
-google-cloud-spanner==3.33.0
+google-cloud-spanner==3.34.0
 google-cloud-videointelligence==2.11.1
 google-cloud-vision==3.4.1
 google-crc32c==1.5.0
