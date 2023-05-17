@@ -19,12 +19,12 @@ import unittest
 import pytest
 import numpy as np
 try:
-  from google.cloud import dlp_v2
+  import tensorflow_transform as tft
 except ImportError:
-  dlp_v2 = None
+  tft = None
 
 @pytest.mark.uses_tft
-@unittest.skipIf(dlp_v2 is None, 'GCP dependencies are not installed')
+@unittest.skipIf(tft is None, 'tft dependencies are not installed')
 class FillInMissingTest(unittest.TestCase):
   def test_fill_in_missing(self):
     # Create a rank 2 sparse tensor with missing values
