@@ -113,6 +113,8 @@ public class SpannerAccessor implements AutoCloseable {
     SpannerOptions.Builder builder = SpannerOptions.newBuilder();
 
     Set<Code> retryableCodes = new HashSet<>();
+    // Add default retryable codes
+    retryableCodes.add(Code.UNAVAILABLE);
     if (spannerConfig.getRetryableCodes() != null) {
       retryableCodes.addAll(spannerConfig.getRetryableCodes());
     }
