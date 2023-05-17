@@ -536,10 +536,10 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                     DynamicMessage.parseFrom(appendInfo.getDescriptor(), bytes);
                   }
                 } catch (InvalidProtocolBufferException e) {
-                  LOG.error("Failed to parse message destined to " + this.tableUrn + " STREAM " + this.streamName;
+                  LOG.error("Failed to parse message destined to " + this.tableUrn + " STREAM " + this.streamName);
                   throw new RuntimeException(e);
                 }
-                StreamAppendClient writeStream = appendInfo.getStreamAppendClient();
+                StreamAppendClient writeStream = Preconditions.checkStateNotNull(appendInfo.getStreamAppendClient());
                 if (!writeStream.getDescriptor().getFullName().equals(appendInfo.getDescriptor().getFullName())) {
                   LOG.error("DESCRIPTOR DOES NOT MATCH " +  writeStream.getDescriptor().getFullName()
                           + " vs " + appendInfo.getDescriptor().getFullName());
