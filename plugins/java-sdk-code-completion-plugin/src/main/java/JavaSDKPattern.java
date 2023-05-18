@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 import com.intellij.patterns.PatternCondition;
 import com.intellij.psi.PsiElement;
 import com.intellij.util.ProcessingContext;
