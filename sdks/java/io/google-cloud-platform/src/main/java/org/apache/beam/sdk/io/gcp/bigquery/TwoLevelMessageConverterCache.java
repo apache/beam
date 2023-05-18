@@ -62,8 +62,6 @@ class TwoLevelMessageConverterCache<DestinationT extends @NonNull Object, Elemen
       StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations,
       DatasetService datasetService)
       throws Exception {
-    return dynamicDestinations.getMessageConverter(destination, datasetService);
-    /*
     // Lookup first in the local cache, and fall back to the static cache if necessary.
     return localMessageConverters.get(
         destination,
@@ -71,6 +69,6 @@ class TwoLevelMessageConverterCache<DestinationT extends @NonNull Object, Elemen
             (MessageConverter<ElementT>)
                 CACHED_MESSAGE_CONVERTERS.get(
                     KV.of(operationName, destination),
-                    () -> dynamicDestinations.getMessageConverter(destination, datasetService)));*/
+                    () -> dynamicDestinations.getMessageConverter(destination, datasetService)));
   }
 }
