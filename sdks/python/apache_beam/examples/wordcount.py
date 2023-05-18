@@ -23,6 +23,7 @@
 #   name: WordCount
 #   description: An example that counts words in Shakespeare's works.
 #   multifile: false
+#   default_example: true
 #   pipeline_options: --output output.txt
 #   context_line: 44
 #   categories:
