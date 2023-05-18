@@ -442,9 +442,9 @@ public class TableRowToStorageApiProto {
       throws SchemaConversionException {
     DynamicMessage.Builder builder = DynamicMessage.newBuilder(descriptor);
 
-    TreeMap<String, Object> sortedMap = new TreeMap();
-    sortedMap.putAll(map);
-    for (final Map.Entry<String, Object> entry : sortedMap.entrySet()) {
+    //TreeMap<String, Object> sortedMap = new TreeMap();
+   // sortedMap.putAll(map);
+    for (final Map.Entry<String, Object> entry : map.entrySet()) {
       @Nullable
       FieldDescriptor fieldDescriptor = descriptor.findFieldByName(entry.getKey().toLowerCase());
       if (fieldDescriptor == null) {
@@ -619,10 +619,10 @@ public class TableRowToStorageApiProto {
     // Create a unique name for the descriptor ('-' characters cannot be used).
     descriptorBuilder.setName("D" + UUID.randomUUID().toString().replace("-", "_"));
     int i = 1;
-    List<TableFieldSchema> sortedSchema = StreamSupport.stream(tableFieldSchemas.spliterator(), false)
-            .sorted(Comparator.comparing(TableFieldSchema::getName))
-            .collect(Collectors.toList());
-    for (TableFieldSchema fieldSchema : sortedSchema) {
+   // List<TableFieldSchema> sortedSchema = StreamSupport.stream(tableFieldSchemas.spliterator(), false)
+     //       .sorted(Comparator.comparing(TableFieldSchema::getName))
+      //      .collect(Collectors.toList());
+    for (TableFieldSchema fieldSchema : tableFieldSchemas) {
       fieldDescriptorFromTableField(fieldSchema, i++, descriptorBuilder, respectRequired);
     }
     return descriptorBuilder.build();
