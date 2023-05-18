@@ -94,7 +94,7 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
     TableRowConverter(DestinationT destination, DatasetService datasetService) throws Exception {
       TableSchema localTableSchema = getSchema(destination);
       TableReference tableReference = getTable(destination).getTableReference();
-      if (localTableSchema == null) {
+      if (localTableSchema == null) {/*
         // If the table already exists, then try and fetch the schema from the existing
         // table.
         localTableSchema = SCHEMA_CACHE.getSchema(tableReference, datasetService);
@@ -113,13 +113,13 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
                     + " when writing TableRows using Storage API and "
                     + "using a create disposition of CREATE_IF_NEEDED.");
           }
-        }
+        }*/
       } else {
         // Make sure we register this schema with the cache, unless there's already a more
         // up-to-date schema.
-        localTableSchema =
-            MoreObjects.firstNonNull(
-                SCHEMA_CACHE.putSchemaIfAbsent(tableReference, localTableSchema), localTableSchema);
+    //    localTableSchema =
+         //   MoreObjects.firstNonNull(
+           //     SCHEMA_CACHE.putSchemaIfAbsent(tableReference, localTableSchema), localTableSchema);
       }
       this.tableSchema = localTableSchema;
       this.protoTableSchema = TableRowToStorageApiProto.schemaToProtoTableSchema(tableSchema);
