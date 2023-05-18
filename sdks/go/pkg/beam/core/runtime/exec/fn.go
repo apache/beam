@@ -87,7 +87,7 @@ type InvokeOpts struct {
 	we    sdf.WatermarkEstimator
 	sa    UserStateAdapter
 	sr    StateReader
-	ta    UserTimerAdapter
+	ta    *userTimerAdapter
 	tm    DataManager
 	extra []any
 }
@@ -242,7 +242,7 @@ func (n *invoker) invokeWithOpts(ctx context.Context, pn typex.PaneInfo, ws []ty
 	}
 
 	if n.tpIdx >= 0 {
-		tp, err := opts.ta.NewTimerProvider(ctx, opts.tm, ts, ws, opts.opt)
+		tp, err := opts.ta.NewTimerProvider(ctx, opts.tm, pn, ws)
 		if err != nil {
 			return nil, err
 		}

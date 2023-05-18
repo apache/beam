@@ -17,7 +17,6 @@ package exec
 
 import (
 	"bytes"
-	"fmt"
 	"sort"
 	"testing"
 	"time"
@@ -46,33 +45,39 @@ func TestTimerEncodingDecoding(t *testing.T) {
 		{
 			name: "all set fields",
 			tm: TimerRecv{
-				Key:           &FullValue{Elm: "Basic"},
-				Tag:           "first",
-				Windows:       window.SingleGlobalWindow,
-				Clear:         false,
-				FireTimestamp: mtime.Now(),
+				Key: &FullValue{Elm: "Basic"},
+				TimerMap: timers.TimerMap{
+					Tag:           "first",
+					Clear:         false,
+					FireTimestamp: mtime.Now(),
+				},
+				Windows: window.SingleGlobalWindow,
 			},
 			result: true,
 		},
 		{
 			name: "without tag",
 			tm: TimerRecv{
-				Key:           &FullValue{Elm: "Basic"},
-				Tag:           "",
-				Windows:       window.SingleGlobalWindow,
-				Clear:         false,
-				FireTimestamp: mtime.Now(),
+				Key: &FullValue{Elm: "Basic"},
+				TimerMap: timers.TimerMap{
+					Tag:           "",
+					Clear:         false,
+					FireTimestamp: mtime.Now(),
+				},
+				Windows: window.SingleGlobalWindow,
 			},
 			result: true,
 		},
 		{
 			name: "with clear set",
 			tm: TimerRecv{
-				Key:           &FullValue{Elm: "Basic"},
-				Tag:           "first",
-				Windows:       window.SingleGlobalWindow,
-				Clear:         true,
-				FireTimestamp: mtime.Now(),
+				Key: &FullValue{Elm: "Basic"},
+				TimerMap: timers.TimerMap{
+					Tag:           "first",
+					Clear:         true,
+					FireTimestamp: mtime.Now(),
+				},
+				Windows: window.SingleGlobalWindow,
 			},
 			result: false,
 		},
@@ -197,8 +202,8 @@ func TestSortableTimer_Less(t *testing.T) {
 			lesserFireTimer,
 			lesserHoldTimer,
 			leastTagTimer, // equal to base
-			baseTimer,  // basic version of everything.
-			eventTimer, //equal to base
+			baseTimer,     // basic version of everything.
+			eventTimer,    //equal to base
 			lesserTagTimer,
 			greaterTagTimer,
 			greaterHoldTimer,
@@ -217,7 +222,7 @@ func TestSortableTimer_Less(t *testing.T) {
 
 }
 
-func TestTimerHeap_HeadSet(t *testing.T) {
+func TestTimerHeap_HeadSetIter(t *testing.T) {
 	f := "family"
 
 	now := mtime.FromTime(time.Now())
@@ -273,16 +278,52 @@ func TestTimerHeap_HeadSet(t *testing.T) {
 			key:     nextTimer,
 			want:    []sortableTimer{lesserFireTimer, nextTimer},
 		},
+		{
+			name:    "lessthan or equal- different order",
+			inserts: []sortableTimer{greaterFireTimer, lesserFireTimer, nextTimer},
+			key:     nextTimer,
+			want:    []sortableTimer{lesserFireTimer, nextTimer},
+		},
 	}
 
+	// Test inserting everything at the same time.
 	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
+		t.Run("singlebatch_"+test.name, func(t *testing.T) {
 			var h timerHeap
 			for _, timer := range test.inserts {
 				h.Add(timer)
 			}
-			fmt.Println(test.name, len(h), h.Len())
-			got := h.HeadSet(test.key)
+			iter := h.HeadSetIter(test.key)
+
+			var got []sortableTimer
+			for {
+				if v, ok := iter(); ok {
+					got = append(got, v)
+				} else {
+					break
+				}
+			}
+
+			if diff := cmp.Diff(test.want, got); diff != "" {
+				t.Errorf("h.HeadSet(%+v) diff (-want, +got):\n%v", test.key, diff)
+			}
+		})
+	}
+
+	// Test pulling after every insert, to validate the iterator is a dynamic view that reflects changes.
+	for _, test := range tests {
+		t.Run("dynamic_"+test.name, func(t *testing.T) {
+			var h timerHeap
+
+			iter := h.HeadSetIter(test.key)
+			var got []sortableTimer
+			for _, timer := range test.inserts {
+				h.Add(timer)
+
+				if v, ok := iter(); ok {
+					got = append(got, v)
+				}
+			}
 
 			if diff := cmp.Diff(test.want, got); diff != "" {
 				t.Errorf("h.HeadSet(%+v) diff (-want, +got):\n%v", test.key, diff)

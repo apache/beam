@@ -116,19 +116,6 @@ func TryParDo(s Scope, dofn any, col PCollection, opts ...Option) ([]PCollection
 		}
 	}
 
-	wc := inWfn.Coder()
-	pipelineTimers, _ := fn.PipelineTimers()
-	if len(pipelineTimers) > 0 {
-		kvt := col.Type()
-		kt := kvt.Components()[0]
-		c, err := inferCoder(kt)
-		if err != nil {
-			return nil, addParDoCtx(errors.Errorf("error infering key coder for timers from %v", kt), s)
-		}
-		tc := coder.NewT(c, wc)
-		edge.TimerCoders = tc
-	}
-
 	var ret []PCollection
 	for _, out := range edge.Output {
 		c := PCollection{out.To}
