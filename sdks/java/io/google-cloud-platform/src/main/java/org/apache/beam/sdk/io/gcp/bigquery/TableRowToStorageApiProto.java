@@ -51,9 +51,11 @@ import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 import java.util.AbstractMap;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.TreeMap;
 import java.util.UUID;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -439,7 +441,10 @@ public class TableRowToStorageApiProto {
       @Nullable TableRow unknownFields)
       throws SchemaConversionException {
     DynamicMessage.Builder builder = DynamicMessage.newBuilder(descriptor);
-    for (final Map.Entry<String, Object> entry : map.entrySet()) {
+
+    TreeMap<String, Object> sortedMap = new TreeMap();
+    sortedMap.putAll(map);
+    for (final Map.Entry<String, Object> entry : sortedMap.entrySet()) {
       @Nullable
       FieldDescriptor fieldDescriptor = descriptor.findFieldByName(entry.getKey().toLowerCase());
       if (fieldDescriptor == null) {
@@ -614,7 +619,10 @@ public class TableRowToStorageApiProto {
     // Create a unique name for the descriptor ('-' characters cannot be used).
     descriptorBuilder.setName("D" + UUID.randomUUID().toString().replace("-", "_"));
     int i = 1;
-    for (TableFieldSchema fieldSchema : tableFieldSchemas) {
+    List<TableFieldSchema> sortedSchema = StreamSupport.stream(tableFieldSchemas.spliterator(), false)
+            .sorted(Comparator.comparing(TableFieldSchema::getName))
+            .collect(Collectors.toList());
+    for (TableFieldSchema fieldSchema : sortedSchema) {
       fieldDescriptorFromTableField(fieldSchema, i++, descriptorBuilder, respectRequired);
     }
     return descriptorBuilder.build();
