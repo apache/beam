@@ -338,7 +338,7 @@ if __name__ == '__main__':
             'nbconvert>=6.2.0,<8',
           ] + dataframe_dependency,
           'interactive_test': [
-            # notebok utils
+            # notebook utils
             'nbformat>=5.0.5,<6',
             'nbconvert>=6.2.0,<8',
             # headless chrome based integration tests
