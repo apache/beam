@@ -41,6 +41,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A {@link TypedSchemaTransformProvider} implementation for writing a {@link Row} {@link
@@ -96,6 +98,9 @@ public class FileWriteSchemaTransformProvider
       implements SchemaTransform {
 
     final FileWriteSchemaTransformConfiguration configuration;
+    private static final Logger LOG =
+    LoggerFactory.getLogger(FileWriteSchemaTransform.class);
+
 
     FileWriteSchemaTransform(FileWriteSchemaTransformConfiguration configuration) {
       validateConfiguration(configuration);
@@ -104,32 +109,37 @@ public class FileWriteSchemaTransformProvider
 
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
-      if (input.getAll().isEmpty() || input.getAll().size() > 1) {
-        throw new IllegalArgumentException(
-            String.format(
-                "%s expects a single %s tagged PCollection<Row> input",
-                FileWriteSchemaTransform.class.getName(), INPUT_TAG));
+      try {
+        if (input.getAll().isEmpty() || input.getAll().size() > 1) {
+          throw new IllegalArgumentException(
+              String.format(
+                  "%s expects a single %s tagged PCollection<Row> input",
+                  FileWriteSchemaTransform.class.getName(), INPUT_TAG));
+        }
+  
+        PCollection<Row> rowInput = input.get(INPUT_TAG);
+  
+        PTransform<PCollection<Row>, PCollection<String>> transform =
+            getProvider().buildTransform(configuration, rowInput.getSchema());
+  
+        PCollection<String> files = rowInput.apply("Write Rows", transform);
+        PCollection<Row> output =
+            files
+                .apply(
+                    "Filenames to Rows",
+                    MapElements.into(rows())
+                        .via(
+                            (String name) ->
+                                Row.withSchema(OUTPUT_SCHEMA)
+                                    .withFieldValue(FILE_NAME_FIELD.getName(), name)
+                                    .build()))
+                .setRowSchema(OUTPUT_SCHEMA);
+  
+        return PCollectionRowTuple.of(OUTPUT_TAG, output);
+      } catch (Exception e) {
+        LOG.warn("config at roow file transform expand is " + configuration.toString());
+        throw e;
       }
-
-      PCollection<Row> rowInput = input.get(INPUT_TAG);
-
-      PTransform<PCollection<Row>, PCollection<String>> transform =
-          getProvider().buildTransform(configuration, rowInput.getSchema());
-
-      PCollection<String> files = rowInput.apply("Write Rows", transform);
-      PCollection<Row> output =
-          files
-              .apply(
-                  "Filenames to Rows",
-                  MapElements.into(rows())
-                      .via(
-                          (String name) ->
-                              Row.withSchema(OUTPUT_SCHEMA)
-                                  .withFieldValue(FILE_NAME_FIELD.getName(), name)
-                                  .build()))
-              .setRowSchema(OUTPUT_SCHEMA);
-
-      return PCollectionRowTuple.of(OUTPUT_TAG, output);
     }
 
     @Override

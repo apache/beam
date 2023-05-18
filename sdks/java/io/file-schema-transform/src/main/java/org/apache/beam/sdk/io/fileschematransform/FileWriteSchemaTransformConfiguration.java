@@ -162,7 +162,6 @@ public abstract class FileWriteSchemaTransformConfiguration {
 
     @SchemaFieldDescription(
         "Specify row-group size; if not set or zero, a default is used by the underlying writer.")
-    @Nullable
     public abstract Integer getRowGroupSize();
 
     @AutoValue.Builder

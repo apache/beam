@@ -34,11 +34,16 @@ import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.parquet.hadoop.metadata.CompressionCodecName;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** A {@link FileWriteSchemaTransformFormatProvider} for Parquet format. */
 @AutoService(FileWriteSchemaTransformFormatProvider.class)
 public class ParquetWriteSchemaTransformFormatProvider
     implements FileWriteSchemaTransformFormatProvider {
+
+  private static final Logger LOG =
+      LoggerFactory.getLogger(ParquetWriteSchemaTransformFormatProvider.class);
 
   private static final String SUFFIX =
       String.format(".%s", FileWriteSchemaTransformFormatProviders.PARQUET);
@@ -83,20 +88,26 @@ public class ParquetWriteSchemaTransformFormatProvider
 
   private ParquetIO.Sink buildSink(ParquetConfiguration configuration, Schema schema) {
 
-    ParquetIO.Sink sink =
-        ParquetIO.sink(AvroUtils.toAvroSchema(schema))
-            .withCompressionCodec(
-                CompressionCodecName.valueOf(configuration.getCompressionCodecName()));
+    try {
+      ParquetIO.Sink sink =
+          ParquetIO.sink(AvroUtils.toAvroSchema(schema))
+              .withCompressionCodec(
+                  CompressionCodecName.valueOf(configuration.getCompressionCodecName()));
 
-    if (configuration.getRowGroupSize() != null) {
-      int rowGroupSize = getRowGroupSize(configuration);
-      // Python SDK external transforms do not support null values requiring additional check.
-      if (rowGroupSize > 0) {
-        sink = sink.withRowGroupSize(rowGroupSize);
+      if (configuration.getRowGroupSize() != null) {
+        int rowGroupSize = getRowGroupSize(configuration);
+        // Python SDK external transforms do not support null values requiring additional check.
+        if (rowGroupSize > 0) {
+          sink = sink.withRowGroupSize(rowGroupSize);
+        }
       }
-    }
 
-    return sink;
+      return sink;
+    } catch (Exception e) {
+      LOG.warn("compression codec name in buildsink " + configuration.getCompressionCodecName());
+      LOG.warn("config in buildSink " + configuration.toString());
+      throw new IllegalArgumentException("asdfasfasdfasdfajgaiosgjodasd", e);
+    }
   }
 
   private static ParquetConfiguration parquetConfiguration(
