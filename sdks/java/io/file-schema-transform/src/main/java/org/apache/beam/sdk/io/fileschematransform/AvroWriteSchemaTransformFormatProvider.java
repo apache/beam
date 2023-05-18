@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.fileschematransform;
 
+import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.AVRO;
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.getNumShards;
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.getShardNameTemplate;
 
@@ -36,6 +37,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 @AutoService(FileWriteSchemaTransformFormatProvider.class)
 public class AvroWriteSchemaTransformFormatProvider
     implements FileWriteSchemaTransformFormatProvider {
+
+  final String suffix = String.format(".%s", AVRO);
 
   @Override
   public String identifier() {
@@ -65,7 +68,9 @@ public class AvroWriteSchemaTransformFormatProvider
                 .setCoder(coder);
 
         AvroIO.Write<GenericRecord> write =
-            AvroIO.writeGenericRecords(avroSchema).to(configuration.getFilenamePrefix());
+            AvroIO.writeGenericRecords(avroSchema)
+                .to(configuration.getFilenamePrefix())
+                .withSuffix(suffix);
 
         if (configuration.getNumShards() != null) {
           int numShards = getNumShards(configuration);
