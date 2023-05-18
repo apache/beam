@@ -364,8 +364,9 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
             getOrCreateStreamName();
             final AppendClientInfo newAppendClientInfo;
             synchronized (APPEND_CLIENTS) {
-              if (lookupCache) {
-                newAppendClientInfo =
+       //       if (lookupCache) {
+                if (false) {
+                  newAppendClientInfo =
                     APPEND_CLIENTS.get(
                         getStreamAppendClientCacheEntryKey(), () -> generateClient(updatedSchema));
               } else {
@@ -457,6 +458,14 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
             }
           }
         }
+
+        AppendClientInfo appendInfo = Preconditions.checkStateNotNull(
+                getAppendClientInfo(true, null));
+        try {
+          DynamicMessage.parseFrom(appendInfo.getDescriptor(), payloadBytes);
+        } catch (InvalidProtocolBufferException e) {
+          LOG.error("FAILED TO PARSE MESSAGE FOR TABLE " + this.tableUrn + " STREAM " + this.streamName);
+        }
         pendingMessages.add(payloadBytes);
         org.joda.time.Instant timestamp = payload.getTimestamp();
         pendingTimestamps.add(timestamp != null ? timestamp : elementTs);
@@ -529,9 +538,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                   }
                 } catch (InvalidProtocolBufferException e) {
                   LOG.error("Failed to parse message destined to " + this.tableUrn + " STREAM " + this.streamName);
-                  throw new RuntimeException(e);
                 }
-                StreamAppendClient writeStream = appendInfo.getStreamAppendClient();
+                StreamAppendClient writeStream = Preconditions.checkStateNotNull(appendInfo.getStreamAppendClient());
                 if (!writeStream.getDescriptor().getFullName().equals(appendInfo.getDescriptor().getFullName())) {
                   LOG.error("DESCRIPTOR DOES NOT MATCH " +  writeStream.getDescriptor().getFullName()
                           + " vs " + appendInfo.getDescriptor().getFullName());

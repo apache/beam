@@ -21,8 +21,12 @@ import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.protobuf.Descriptors.Descriptor;
+import com.google.protobuf.DynamicMessage;
+import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
 import java.util.concurrent.ExecutionException;
+
+import jdk.internal.org.jline.utils.Log;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -156,6 +160,12 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
               ignoreUnknown,
               allowMissingFields,
               unknownFields);
+      try {
+        DynamicMessage.parseFrom(descriptor, msg.toByteArray());
+      } catch (InvalidProtocolBufferException e) {
+        Log.error("FAILED TO PARSE MESSAGE IMMEDIATELY AFTER WRITING IT! " + e);
+        throw new RuntimeException(e);
+      }
       return StorageApiWritePayload.of(msg.toByteArray(), unknownFields);
     }
   };
