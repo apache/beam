@@ -710,7 +710,11 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
           @Nullable
           TableSchema updatedTableSchema =
               (streamAppendClient != null) ? streamAppendClient.getUpdatedSchema() : null;
+          if (updatedTableSchema != null) {
+            LOG.error("BIGQUERY RETURN SCHEMA UPDATE TO " + updatedTableSchema);
+          }
           if (updatedTableSchema != null && autoUpdateSchema) {
+            LOG.error("AUTO UPDATING SCHEMA TO " + updatedTableSchema);
             invalidateWriteStream();
             appendClientInfo =
                 Preconditions.checkStateNotNull(getAppendClientInfo(false, updatedTableSchema));
