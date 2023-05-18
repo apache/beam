@@ -26,7 +26,6 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
 import java.util.concurrent.ExecutionException;
 
-import jdk.internal.org.jline.utils.Log;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -35,9 +34,13 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonNull Object>
     extends StorageApiDynamicDestinations<T, DestinationT> {
+  private static final Logger LOG = LoggerFactory.getLogger(StorageApiDynamicDestinationsTableRow.class);
+
   private final SerializableFunction<T, TableRow> formatFunction;
   private final CreateDisposition createDisposition;
   private final boolean ignoreUnknownValues;
@@ -163,7 +166,7 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
       try {
         DynamicMessage.parseFrom(descriptor, msg.toByteArray());
       } catch (InvalidProtocolBufferException e) {
-        Log.error("FAILED TO PARSE MESSAGE IMMEDIATELY AFTER WRITING IT! " + e);
+        LOG.error("FAILED TO PARSE MESSAGE IMMEDIATELY AFTER WRITING IT! " + e);
         throw new RuntimeException(e);
       }
       return StorageApiWritePayload.of(msg.toByteArray(), unknownFields);
