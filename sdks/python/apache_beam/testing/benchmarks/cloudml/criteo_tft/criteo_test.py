@@ -18,6 +18,7 @@
 import unittest
 import pytest
 import numpy as np
+import tensorflow as tf
 try:
   import tensorflow_transform as tft
 except ImportError:
