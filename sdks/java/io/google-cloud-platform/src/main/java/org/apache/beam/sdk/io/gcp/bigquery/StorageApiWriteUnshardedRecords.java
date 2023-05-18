@@ -364,8 +364,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
             getOrCreateStreamName();
             final AppendClientInfo newAppendClientInfo;
             synchronized (APPEND_CLIENTS) {
-       //       if (lookupCache) {
-                if (false) {
+              if (lookupCache) {
                   newAppendClientInfo =
                     APPEND_CLIENTS.get(
                         getStreamAppendClientCacheEntryKey(), () -> generateClient(updatedSchema));
