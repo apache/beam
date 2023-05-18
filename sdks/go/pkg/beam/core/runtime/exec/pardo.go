@@ -42,7 +42,7 @@ type ParDo struct {
 	Inbound      []*graph.Inbound
 	Side         []SideInputAdapter
 	UState       UserStateAdapter
-	TimerAdapter *userTimerAdapter
+	TimerTracker *userTimerAdapter
 	Out          []Node
 
 	PID      string
@@ -82,7 +82,7 @@ func (n *ParDo) ID() UnitID {
 
 // HasOnTimer returns if this ParDo wraps a DoFn that has an OnTimer method.
 func (n *ParDo) HasOnTimer() bool {
-	return n.TimerAdapter != nil
+	return n.TimerTracker != nil
 }
 
 // Up initializes this ParDo and does one-time DoFn setup.
@@ -161,7 +161,7 @@ func (n *ParDo) ProcessElement(_ context.Context, elm *FullValue, values ...ReSt
 // a ParDo's ProcessElement functionality with their own construction of
 // MainInputs.
 func (n *ParDo) processMainInput(mainIn *MainInput) error {
-	n.TimerAdapter.SetCurrentKey(mainIn)
+	n.TimerTracker.SetCurrentKey(mainIn)
 	elm := &mainIn.Key
 
 	// If the function observes windows or uses per window state, we must invoke it for each window.
@@ -254,7 +254,7 @@ func (n *ParDo) FinishBundle(_ context.Context) error {
 		return n.fail(err)
 	}
 	// Flush timers if any.
-	if err := n.TimerAdapter.FlushAndReset(n.ctx, n.timerManager); err != nil {
+	if err := n.TimerTracker.FlushAndReset(n.ctx, n.timerManager); err != nil {
 		return n.fail(err)
 	}
 	n.reader = nil
@@ -385,7 +385,7 @@ func (n *ParDo) invokeDataFn(ctx context.Context, pn typex.PaneInfo, ws []typex.
 // and as a result, must add a clear to the set of timer modifications.
 func (n *ParDo) ProcessTimers(timerFamilyID string, r io.Reader) (err error) {
 	// Lookup actual domain for family here.
-	spec := n.TimerAdapter.familyToSpec[timerFamilyID]
+	spec := n.TimerTracker.familyToSpec[timerFamilyID]
 
 	var bundleTimers []TimerRecv
 	for {
@@ -399,10 +399,10 @@ func (n *ParDo) ProcessTimers(timerFamilyID string, r io.Reader) (err error) {
 		bundleTimers = append(bundleTimers, tmap)
 	}
 	for _, tmap := range bundleTimers {
-		n.TimerAdapter.SetCurrentKeyString(tmap.KeyString)
+		n.TimerTracker.SetCurrentKeyString(tmap.KeyString)
 		for i, w := range tmap.Windows {
 			ws := tmap.Windows[i : i+1]
-			modifications := n.TimerAdapter.GetModifications(windowKeyPair{window: w, key: tmap.KeyString})
+			modifications := n.TimerTracker.GetModifications(windowKeyPair{window: w, key: tmap.KeyString})
 
 			indexKey := sortableTimer{
 				Domain: spec.Domain,
@@ -478,7 +478,7 @@ func (n *ParDo) processTimer(timerFamilyID string, singleWindow []typex.Window, 
 		we:    n.we,
 		sa:    n.UState,
 		sr:    n.reader,
-		ta:    n.TimerAdapter,
+		ta:    n.TimerTracker,
 		tm:    n.timerManager,
 		extra: extra,
 	})
@@ -496,7 +496,7 @@ func (n *ParDo) invokeProcessFn(ctx context.Context, pn typex.PaneInfo, ws []typ
 	if err := n.preInvoke(ctx, ws, ts); err != nil {
 		return nil, err
 	}
-	val, err = n.inv.invokeWithOpts(ctx, pn, ws, ts, InvokeOpts{opt: opt, bf: n.bf, we: n.we, sa: n.UState, sr: n.reader, ta: n.TimerAdapter, tm: n.timerManager, extra: n.cache.extra})
+	val, err = n.inv.invokeWithOpts(ctx, pn, ws, ts, InvokeOpts{opt: opt, bf: n.bf, we: n.we, sa: n.UState, sr: n.reader, ta: n.TimerTracker, tm: n.timerManager, extra: n.cache.extra})
 	if err != nil {
 		return nil, err
 	}

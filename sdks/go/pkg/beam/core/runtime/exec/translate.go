@@ -611,7 +611,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 								WinDecoder: MakeWindowDecoder(timerCoder.Window),
 							}
 						}
-						n.TimerAdapter = newUserTimerAdapter(sID, familyToSpec)
+						n.TimerTracker = newUserTimerAdapter(sID, familyToSpec)
 					}
 
 					for i := 1; i < len(input); i++ {
