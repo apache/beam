@@ -21,6 +21,7 @@ module "setup" {
   project_id = var.project_id
   service_account_id = var.service_account_id
   depends_on = [module.api_enable]
+  environment = var.environment
 }
 
 # GCS buckets to create buckets, objects, archive to store source code that cloud functions will use
@@ -43,7 +44,7 @@ module "cloud_functions" {
   pg_router_host = var.pg_router_host
   environment = var.environment
   datastore_namespace = var.datastore_namespace
-  service_account_id = module.setup.service-account-email
+  service_account_id = module.setup.cf-service-account-email
   source_archive_bucket = module.functions_buckets.functions-bucket-name
   source_archive_object = module.functions_buckets.function-bucket-object
   depends_on = [module.functions_buckets, module.setup, module.api_enable]

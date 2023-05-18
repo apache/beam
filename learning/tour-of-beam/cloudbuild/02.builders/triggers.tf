@@ -34,12 +34,11 @@ resource "google_cloudbuild_trigger" "tob_deployment_trigger" {
       logging      = "GCS_ONLY"
     }
 
-
-    logs_bucket = "gs://${var.cloudbuild_bucket_private}"
+    logs_bucket = "gs://${var.tob_cloudbuild_private_bucket}"
 
     step {
       id = "Deploy Tour of Beam"
-      script = file("../scripts/init.sh")
+      script = file("../scripts/tob_deploy_infra_backend.sh")
       name = "ubuntu"
       env = local.cloudbuild_init_environment
     }
@@ -53,10 +52,9 @@ resource "google_cloudbuild_trigger" "tob_deployment_trigger" {
       _PG_REGION              = var.pg_region
       _PG_GKE_ZONE            = var.pg_gke_zone
       _PG_GKE_NAME            = var.pg_gke_name
-      _STATE_BUCKET           = var.state_bucket
-      _ENV_NAME               = var.env_name
-      _TOB_REGION             = var.tob_region
       _PG_DATASTORE_NAMESPACE = var.pg_datastore_namespace
+      _STATE_BUCKET           = var.state_bucket
+      _ENVIRONMENT_NAME       = var.environment_name
       _TOB_LEARNING_ROOT      = var.tob_learning_root
       _BRANCH_NAME            = var.terraform_source_branch
       _REPO_NAME              = var.terraform_source_repo
@@ -83,7 +81,7 @@ resource "google_cloudbuild_trigger" "tob_ci_trigger" {
       machine_type = var.cloudbuild_machine_type
       logging      = "GCS_ONLY"
     }
-    logs_bucket = "gs://${var.cloudbuild_bucket_private}" 
+    logs_bucket = "gs://${var.tob_cloudbuild_private_bucket}" 
     step {
       id     = "Run CI"
       script = file("../../../../playground/infrastructure/cloudbuild/cloudbuild_playground_ci_examples.sh")
@@ -107,7 +105,7 @@ resource "google_cloudbuild_trigger" "tob_ci_trigger" {
       _BASE_REF             = "$(body.pull_request.base.ref)"
       _PUBLIC_LOG_LOCAL: "/tmp/$${_PUBLIC_LOG}"
       _PUBLIC_LOG: "CI_PR$${_PR_NUMBER}_$${_PR_COMMIT}_$${BUILD_ID}.txt"
-      _PUBLIC_BUCKET: "${var.cloudbuild_bucket_public}"
+      _PUBLIC_BUCKET: "${var.tob_cloudbuild_public_bucket}"
       _PUBLIC_LOG_URL: "https://storage.googleapis.com/$${_PUBLIC_BUCKET}/$${_PUBLIC_LOG}"
     }
   }
@@ -136,7 +134,7 @@ resource "google_cloudbuild_trigger" "tob_cd_trigger" {
       machine_type = var.cloudbuild_machine_type
       logging      = "GCS_ONLY"
     }
-    logs_bucket = "gs://${var.cloudbuild_bucket_private}" 
+    logs_bucket = "gs://${var.tob_cloudbuild_private_bucket}" 
     step {
       id     = "Run CD"
       script = file("../../../../playground/infrastructure/cloudbuild/cloudbuild_playground_cd_examples.sh")
@@ -183,7 +181,7 @@ resource "google_cloudbuild_trigger" "tob_cd_manual_trigger" {
       machine_type = var.cloudbuild_machine_type
       logging      = "GCS_ONLY"
     }
-    logs_bucket = "gs://${var.cloudbuild_bucket_private}" 
+    logs_bucket = "gs://${var.tob_cloudbuild_private_bucket}" 
     step {
       id     = "Run CD"
       script = file("../../../../playground/infrastructure/cloudbuild/cloudbuild_playground_cd_examples.sh")

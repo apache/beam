@@ -26,7 +26,7 @@ resource "random_string" "id" {
 variable "resource_name_prefix" {
   type = string
   description = "The resource name prefix applied to all resource naming for the application"
-  default = "tour-of-beam"
+  default = "tob-cf-sa"
 }
 
 locals {

@@ -40,6 +40,7 @@ resource "google_service_account" "tob_cd_sa" {
 resource "google_project_iam_member" "tourofbeam_backend_deployer_roles" {
   for_each = toset([
     "roles/datastore.indexAdmin",
+    "roles/datastore.user",
     "roles/iam.serviceAccountCreator",
     "roles/iam.securityAdmin",
     "roles/iam.serviceAccountUser",
@@ -57,6 +58,7 @@ resource "google_project_iam_member" "tourofbeam_backend_deployer_roles" {
 resource "google_project_iam_member" "tourofbeam_backend_updater_roles" {
   for_each = toset([
     "roles/datastore.indexAdmin",
+    "roles/datastore.user",
     "roles/iam.serviceAccountCreator",
     "roles/iam.securityAdmin",
     "roles/iam.serviceAccountUser",

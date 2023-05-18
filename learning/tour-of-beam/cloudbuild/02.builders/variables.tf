@@ -15,55 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-variable "project_id" {
-    description = "GCP project id where resources will be created"
-}
-
-# Playground variables
-variable "pg_region" {
-    description = "Existing Beam Playground's region (e.g: us-west1)"
-}
-
-variable "pg_gke_zone" {
-    description = "Existing Beam Playground GKE cluster's zone (e.g. us-west1-b)"
-}
-
-variable "pg_gke_name" {
-    description = "Existing Beam Playground GKE cluster's name"
-}
-
-variable "pg_datastore_namespace" {
-    description = "Existing Beam Playground's datastore namespace"
-}
-
-variable "tob_learning_root" {
-    description = "Existing Tour of Beam learning material root"
-    default = "../learning-content/"
-}
-
-variable "env_name" {
-    description = "Environment name for Tour of Beam backend (e.g. prod, staging). To support multi-environment on same GCP project"
-}
-
-variable "tob_region" {
-    description = "GCP region where Tour of Beam backend infrastructure will be created"
-}
-
-variable "state_bucket" {
-    description = "Existing GCS bucket's name to store Terraform state"
-}
-
-
-# Trigger variables
-variable "trigger_source_repo" {
-    default = "https://github.com/beamplayground/deploy-workaround"
-}
-
-variable "trigger_source_branch" {
-  description = "Source branch used for github trigger, not used but reqired due to cloudbuild limitation"
-  default = "main"
-}
-
 # Trigger service account variables
 variable "tob_deploy_sa" {
     default = "tob-deploy"
@@ -85,6 +36,55 @@ variable "tob_cd_sa" {
     description = "Service account name to be created and used by cloud build CD"
 }
 
+# Playground variables
+variable "project_id" {
+    description = "GCP project id where resources will be created"
+}
+
+variable "playground_dns_name" {
+  description = "The DNS A-record name for Playground website"
+  default = "fqdn.playground.zone"
+}
+
+variable "pg_region" {
+    description = "Existing Beam Playground's region (e.g: us-west1)"
+}
+
+variable "pg_gke_zone" {
+    description = "Existing Beam Playground GKE cluster's zone (e.g. us-west1-b)"
+}
+
+variable "pg_gke_name" {
+    description = "Existing Beam Playground GKE cluster's name"
+}
+
+variable "pg_datastore_namespace" {
+    description = "Existing Beam Playground's datastore namespace"
+}
+
+variable "environment_name" {
+    description = "Environment name for Tour of Beam backend (e.g. prod, staging). To support multi-environment on same GCP project"
+}
+
+variable "tob_learning_root" {
+    description = "Existing Tour of Beam learning material root"
+    default = "../learning-content/"
+}
+
+variable "state_bucket" {
+    description = "Existing GCS bucket's name to store Terraform state"
+}
+
+# Trigger variables
+variable "trigger_source_repo" {
+    default = "https://github.com/beamplayground/deploy-workaround"
+}
+
+variable "trigger_source_branch" {
+  description = "Source branch used for github trigger, not used but reqired due to cloudbuild limitation"
+  default = "main"
+}
+
 variable "webhook_trigger_secret_id" {
   description = "The name of the secret for webhook config cloud build trigger (CI/CD)"
   default = "playground-cicd-webhook"
@@ -93,10 +93,6 @@ variable "webhook_trigger_secret_id" {
 variable "gh_pat_secret_id" {
   description = "The name of the secret for GitHub Personal Access Token. Required for cloud build trigger (CI/CD)"
   default = "playground-github-pat-ci"
-}
-
-variable "gcp_username" {
-    description = "Your username. Can be found in GCP IAM console (e.g. name.surname@example.com)"
 }
 
 variable "tob_deploy_trigger_name" {
@@ -119,16 +115,11 @@ variable "cloudbuild_machine_type" {
   default = "E2_HIGHCPU_32"
 }
 
-variable "playground_dns_name" {
-  description = "The DNS A-record name for Playground website"
-  default = "fqdn.playground.zone"
-}
-
-variable "cloudbuild_bucket_private" {
+variable "tob_cloudbuild_private_bucket" {
   description = "The Google Cloud Platform GCS bucket name for Tour of Beam Cloudbuild Private logs"
 }
 
-variable "cloudbuild_bucket_public" {
+variable "tob_cloudbuild_public_bucket" {
   description = "The Google Cloud Platform GCS bucket name for Tour of Beam Cloudbuild Public logs"
 }
 

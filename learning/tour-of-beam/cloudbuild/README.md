@@ -21,6 +21,8 @@ This directory organizes Infrastructure-as-Code to provision dependent resources
 
 ## Requirements:
 
+1. Existing Beam Playground environment/infrastructure deployed in same GCP Project
+
 1. [GCP project](https://cloud.google.com/resource-manager/docs/creating-managing-projects)
 2. [GCP User account](https://cloud.google.com/appengine/docs/standard/access-control?tab=python) _(Note: You will find the instruction "How to create User account" for your new project)_<br>
   Ensure that the account has at least the following [IAM roles](https://cloud.google.com/iam/docs/understanding-roles):
@@ -33,12 +35,13 @@ This directory organizes Infrastructure-as-Code to provision dependent resources
    - Storage Admin
    - Kubernetes Engine Cluster Viewer
 
-
 3. An OS with the following software installed:
 
 * [Terraform](https://www.terraform.io/downloads)
 * [gcloud CLI](https://cloud.google.com/sdk/docs/install-sdk)
 * [Kubectl authentication plugin](https://cloud.google.com/blog/products/containers-kubernetes/kubectl-auth-changes-in-gke)
+* [Git client](https://git-scm.com/downloads)
+
 DEV NOTE: GCP Cloud shell can be used for deployment. It has all required software pre-installed.
 
 4. Additionaly for manual Frontend deployment you will need 
@@ -46,17 +49,11 @@ DEV NOTE: GCP Cloud shell can be used for deployment. It has all required softwa
 * [Dart SDK (2.19.2)](https://dart.dev/get-dart)
 * [Firebase-tools CLI](https://www.npmjs.com/package/firebase-tools)
 
-5. DNS name for your Playground deployment instance ?
+5. DNS name for your deployed Playground instance (e.g. `play.beam.apache.org`)
 
-6. OS with installed software listed below:
-- [gcloud CLI](https://cloud.google.com/sdk/docs/install-sdk)
-- [Terraform](https://www.terraform.io/)
+6. [Apache Beam GitHub](https://github.com/apache/beam) repository cloned locally
 
-7. [Apache Beam GitHub](https://github.com/apache/beam) repository cloned locally
-
-8. [GitHub Personal Access Token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token) for CI trigger
-
-9. Existing Beam Playground environment/infrastructure in same GCP Project
+7. [GitHub Personal Access Token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token) for CI trigger
 
 
 
@@ -97,6 +94,15 @@ The `beam/learning/tour-of-beam/cloudbuild/02.builders` provisions:
 - Cloud Build triggers to build and deploy Tour of Beam backend infrastructure
 
 #### To execute the module
+
+1. Generate a Terraform variable file called `beam/learning/tour-of-beam/cloudbuild/common.tfvars`. Place the values listed below into the file, adjusting them as needed:
+
+tob_deploy_sa   = "tob-cb-deploy"                 # Service account for Initialize-Playground-environment trigger
+tob_update_sa   = "tob-cb-update"                 # Service account for Deploy-Update-Playground-environment trigger
+tob_ci_sa       = "tob-cb-ci"                     # Service account for CI trigger
+ptob_cd_sa      = "tob-cb-cd"                     # Service account for CD trigger
+
+
 
 ```
 # Navigate to beam/learning/tour-of-beam/cloudbuild/02.builders directory
