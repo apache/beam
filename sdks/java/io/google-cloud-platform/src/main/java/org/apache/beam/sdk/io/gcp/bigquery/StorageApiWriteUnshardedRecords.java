@@ -702,6 +702,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         @Nullable TupleTag<TableRow> successfulRowsTag,
         boolean autoUpdateSchema,
         boolean ignoreUnknownValues) {
+      LOG.error("CREATING WriteRecordDoFn with operation name " + operationName);
       this.messageConverters = new TwoLevelMessageConverterCache<>(operationName);
       this.dynamicDestinations = dynamicDestinations;
       this.bqServices = bqServices;
