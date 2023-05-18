@@ -34,21 +34,10 @@ from collections import OrderedDict
 
 import yaml
 
-import apache_beam as beam
 import nbformat
 from nbconvert.preprocessors import ExecutePreprocessor
 
 # import testlib
-
-IS_BEAM_DEV = False
-if "dev" in beam.__version__:
-  IS_BEAM_DEV = True
-
-
-def _skip_test(spec):
-  if IS_BEAM_DEV and "sql" in str(spec).lower():
-    return True
-  return False
 
 
 class Executor:
@@ -133,8 +122,6 @@ def main():
   total_error_count = 0
   total_errors = []
   for spec in specs:
-    if _skip_test(spec):
-      continue
     test_count, error_count, errors = Executor(
         spec, args.timeout_secs).execute_tests()
     total_test_count += test_count
