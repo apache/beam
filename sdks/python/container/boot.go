@@ -156,12 +156,12 @@ func launchSDKProcess() error {
 	signalChannel := make(chan os.Signal, 1)
 	signal.Notify(signalChannel, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM)
 
-	// Create a separate virtual envirionment (with access to globally installed packages), unless disabled by the user.
-	// This improves usability on runners that persit the execution environment for the boot entrypoint between multiple pipeline executions.
+	// Create a separate virtual environment (with access to globally installed packages), unless disabled by the user.
+	// This improves usability on runners that persist the execution environment for the boot entrypoint between multiple pipeline executions.
 	if os.Getenv("RUN_PYTHON_SDK_IN_DEFAULT_ENVIRONMENT") == "" {
 		venvDir, err := setupVenv(ctx, logger, "/opt/apache/beam-venv", *id)
 		if err != nil {
-			logger.Printf(ctx, "Using default environment, since creating a virtual environment for the SDK harness didn't succeed: "+err.Error())
+			logger.Printf(ctx, "Using default environment, since creating a virtual environment for the SDK harness didn't succeed: %v", err)
 		} else {
 			cleanupFunc := func() {
 				os.RemoveAll(venvDir)
@@ -313,7 +313,7 @@ func StartCommandEnv(env map[string]string, prog string, args ...string) *exec.C
 // setupVenv initializes a local Python venv and sets the corresponding env variables
 func setupVenv(ctx context.Context, logger *tools.Logger, baseDir, workerId string) (string, error) {
 	dir := filepath.Join(baseDir, "beam-venv-worker-"+workerId)
-	logger.Printf(ctx, "Initializing temporary Python venv in "+dir)
+	logger.Printf(ctx, "Initializing temporary Python venv in %v", dir)
 	if _, err := os.Stat(dir); !os.IsNotExist(err) {
 		// Probably leftovers from a previous run
 		logger.Printf(ctx, "Cleaning up previous venv ...")
