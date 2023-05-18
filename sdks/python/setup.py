@@ -336,9 +336,11 @@ if __name__ == '__main__':
             # https://github.com/jupyter/jupyter_client/issues/637
             'jupyter-client>=6.1.11,!=6.1.13,<8.2.1',
             'timeloop>=1.0.2,<2',
+            'nbformat>=5.0.5,<6',
+            'nbconvert>=6.2.0,<8',
           ] + dataframe_dependency,
           'interactive_test': [
-            # notebok utils
+            # notebook utils
             'nbformat>=5.0.5,<6',
             'nbconvert>=6.2.0,<8',
             # headless chrome based integration tests
