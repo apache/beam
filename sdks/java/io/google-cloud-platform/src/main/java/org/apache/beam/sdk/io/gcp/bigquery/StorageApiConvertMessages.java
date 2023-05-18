@@ -34,12 +34,16 @@ import org.apache.beam.sdk.values.TupleTagList;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A transform that converts messages to protocol buffers in preparation for writing to BigQuery.
  */
 public class StorageApiConvertMessages<DestinationT, ElementT>
     extends PTransform<PCollection<KV<DestinationT, ElementT>>, PCollectionTuple> {
+  private static final Logger LOG = LoggerFactory.getLogger(StorageApiConvertMessages.class);
+
   private final StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations;
   private final BigQueryServices bqServices;
   private final TupleTag<BigQueryStorageApiInsertError> failedWritesTag;
@@ -86,7 +90,7 @@ public class StorageApiConvertMessages<DestinationT, ElementT>
   public static class ConvertMessagesDoFn<DestinationT extends @NonNull Object, ElementT>
       extends DoFn<KV<DestinationT, ElementT>, KV<DestinationT, StorageApiWritePayload>> {
     private final StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations;
-    private TwoLevelMessageConverterCache<DestinationT, ElementT> messageConverters;
+   // private TwoLevelMessageConverterCache<DestinationT, ElementT> messageConverters;
     private final BigQueryServices bqServices;
     private final TupleTag<BigQueryStorageApiInsertError> failedWritesTag;
     private final TupleTag<KV<DestinationT, StorageApiWritePayload>> successfulWritesTag;
@@ -99,10 +103,11 @@ public class StorageApiConvertMessages<DestinationT, ElementT>
         TupleTag<BigQueryStorageApiInsertError> failedWritesTag,
         TupleTag<KV<DestinationT, StorageApiWritePayload>> successfulWritesTag) {
       this.dynamicDestinations = dynamicDestinations;
-      this.messageConverters = new TwoLevelMessageConverterCache<>(operationName);
+     // this.messageConverters = new TwoLevelMessageConverterCache<>(operationName);
       this.bqServices = bqServices;
       this.failedWritesTag = failedWritesTag;
       this.successfulWritesTag = successfulWritesTag;
+      LOG.error("CREATING ConvertMessagesDoFn with operation name " + operationName);
     }
 
     private DatasetService getDatasetService(PipelineOptions pipelineOptions) throws IOException {
@@ -134,9 +139,9 @@ public class StorageApiConvertMessages<DestinationT, ElementT>
         MultiOutputReceiver o)
         throws Exception {
       dynamicDestinations.setSideInputAccessorFromProcessContext(c);
-      MessageConverter<ElementT> messageConverter =
-          messageConverters.get(
-              element.getKey(), dynamicDestinations, getDatasetService(pipelineOptions));
+      MessageConverter<ElementT> messageConverter = dynamicDestinations.getMessageConverter(element.getKey(), getDatasetService(pipelineOptions));
+     //     messageConverters.get(
+      //        element.getKey(), dynamicDestinations, getDatasetService(pipelineOptions));
       try {
         StorageApiWritePayload payload =
             messageConverter.toMessage(element.getValue()).withTimestamp(timestamp);
