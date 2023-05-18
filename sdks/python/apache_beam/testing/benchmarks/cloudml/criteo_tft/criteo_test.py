@@ -26,7 +26,7 @@ except ImportError:
   tf=None
 
 @pytest.mark.uses_tft
-@unittest.skipIf(tft is None, 'Missing dependencies. ',tf is None)
+@unittest.skipIf(tft is None or tf is None, 'Missing dependencies. ')
 class FillInMissingTest(unittest.TestCase):
   def test_fill_in_missing(self):
     # Create a rank 2 sparse tensor with missing values
