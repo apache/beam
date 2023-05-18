@@ -678,7 +678,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
     }
 
     private @Nullable Map<DestinationT, DestinationState> destinations = Maps.newHashMap();
-    private final TwoLevelMessageConverterCache<DestinationT, ElementT> messageConverters;
+   // private final TwoLevelMessageConverterCache<DestinationT, ElementT> messageConverters;
     private transient @Nullable DatasetService maybeDatasetService;
     private int numPendingRecords = 0;
     private int numPendingRecordBytes = 0;
@@ -703,7 +703,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         boolean autoUpdateSchema,
         boolean ignoreUnknownValues) {
       LOG.error("CREATING WriteRecordDoFn with operation name " + operationName);
-      this.messageConverters = new TwoLevelMessageConverterCache<>(operationName);
+     // this.messageConverters = new TwoLevelMessageConverterCache<>(operationName);
       this.dynamicDestinations = dynamicDestinations;
       this.bqServices = bqServices;
       this.useDefaultStream = useDefaultStream;
@@ -796,7 +796,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
           destination);
       MessageConverter<ElementT> messageConverter;
       try {
-        messageConverter = messageConverters.get(destination, dynamicDestinations, datasetService);
+  //      messageConverter = messageConverters.get(destination, dynamicDestinations, datasetService);
+        messageConverter = dynamicDestinations.getMessageConverter(destination, datasetService);
         return new DestinationState(
             tableDestination1.getTableUrn(bigQueryOptions),
             messageConverter,
