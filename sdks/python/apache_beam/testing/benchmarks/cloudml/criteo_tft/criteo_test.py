@@ -18,6 +18,7 @@
 import unittest
 import pytest
 import numpy as np
+from .criteo import fill_in_missing
 try:
   import tensorflow_transform as tft
   import tensorflow as tf
