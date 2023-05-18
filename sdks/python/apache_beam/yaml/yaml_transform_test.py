@@ -280,6 +280,50 @@ class YamlWindowingTest(unittest.TestCase):
           providers=TEST_PROVIDERS)
       assert_that(result, equal_to([6, 9]))
 
+  def test_name_is_not_ambiguous(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+
+      result = p | YamlTransform(
+          '''
+          type: composite
+          transforms:
+            - type: Create
+              name: Create
+              elements: [0, 1, 3, 4]
+            - type: PyFilter
+              name: Filter
+              keep: "lambda elem: elem > 2"
+              input: Create
+          output: Filter
+          ''')
+      # No exception raised
+      assert_that(result, equal_to([3, 4]))
+
+  def test_name_is_ambiguous(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+
+      with self.assertRaises(ValueError):
+        result = p | YamlTransform(
+            '''
+            type: composite
+            transforms:
+              - type: Create
+                name: CreateData
+                elements: [0, 1, 3, 4]
+              - type: PyFilter
+                name: PyFilter
+                keep: "lambda elem: elem > 2"
+                input: CreateData
+              - type: PyFilter
+                name: AnotherFilter
+                keep: "lambda elem: elem > 3"
+                input: PyFilter
+            output: AnotherFilter
+            ''')
+
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
