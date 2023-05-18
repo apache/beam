@@ -18,14 +18,15 @@
 import unittest
 import pytest
 import numpy as np
-import tensorflow as tf
 try:
   import tensorflow_transform as tft
+  import tensorflow as tf
 except ImportError:
   tft = None
+  tf=None
 
 @pytest.mark.uses_tft
-@unittest.skipIf(tft is None, 'tft dependencies are not installed')
+@unittest.skipIf(tft is None, 'Missing dependencies. ',tf is None)
 class FillInMissingTest(unittest.TestCase):
   def test_fill_in_missing(self):
     # Create a rank 2 sparse tensor with missing values
