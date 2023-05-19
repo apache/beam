@@ -19,8 +19,7 @@
 # TODO: Refactor file.
 
 import logging
-import typing
-from typing import Any, Callable, Dict, List, Optional, TypeVar, Union
+from typing import Any, Callable, Dict, List, Optional
 
 import apache_beam as beam
 import numpy as np
@@ -39,7 +38,7 @@ __all__ = ['compute_and_apply_vocabulary', 'scale_to_z_score', 'MLTransform']
 class _TFTOperation(_BaseOperation):
   def __init__(self, columns, *args, **kwargs):
     """
-    Constructor for the BaseTransform class. When subclassing this, please make sure
+    When subclassing _TFTOperation, please make sure
     positional arguments are part of the instance variables.
     """
     self.columns = columns

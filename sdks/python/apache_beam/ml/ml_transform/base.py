@@ -30,7 +30,7 @@ TransformedDatasetT = TypeVar('TransformedDatasetT')
 TransformedMetadataT = TypeVar('TransformedMetadataT')
 
 # Input/Output types to the MLTransform.
-ExampleT = TypeVar('ExampleT', bound=typing.Union[typing.NamedTuple, beam.Row])
+ExampleT = TypeVar('ExampleT')
 MLTransformOutputT = TypeVar('MLTransformOutputT')
 
 # Input to the process data. This could be same or different from ExampleT.
@@ -72,7 +72,11 @@ class ProcessHandler(Generic[ProcessInputT, ProcessOutputT]):
 
 
 class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
-                                  beam.PCollection[MLTransformOutputT]]):
+                                  beam.PCollection[MLTransformOutputT]],
+                  Generic[ExampleT,
+                          MLTransformOutputT,
+                          ProcessInputT,
+                          ProcessOutputT]):
   def __init__(
       self,
       process_handler: ProcessHandler[ProcessInputT, ProcessOutputT],

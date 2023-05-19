@@ -31,27 +31,24 @@ float: FixedLenFeature
 bytes: FixedLenFeature
 """
 
-import logging
 import tempfile
 import typing
-# from abc import abstractmethod
-from typing import Dict, List, Optional, Tuple, TypeVar, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 import apache_beam as beam
 import numpy as np
-import pyarrow as pa
 import tensorflow as tf
-import tensorflow_transform as tft
 import tensorflow_transform.beam as tft_beam
-from apache_beam import typehints
+from apache_beam.ml.ml_transform.base import MLTransformOutput
+from apache_beam.ml.ml_transform.base import ProcessHandler
+from apache_beam.ml.ml_transform.base import ProcessInputT
+from apache_beam.ml.ml_transform.base import ProcessOutputT
 from apache_beam.typehints import native_type_compatibility
 from apache_beam.typehints.row_type import RowTypeConstraint
 from tensorflow_transform import common_types
 from tensorflow_transform.beam.tft_beam_io import transform_fn_io
-from tensorflow_transform.tf_metadata import dataset_metadata, schema_utils
-from tfx_bsl.tfxio import tf_example_record
-from apache_beam.ml.ml_transform.base import ProcessHandler
-from apache_beam.ml.ml_transform.base import MLTransformOutput
+from tensorflow_transform.tf_metadata import dataset_metadata
+from tensorflow_transform.tf_metadata import schema_utils
 
 # tensorflow transform doesn't support the types other than tf.int64, tf.float32 and tf.string.
 _default_type_to_tensor_type_map = {
@@ -65,12 +62,16 @@ _default_type_to_tensor_type_map = {
     np.float64: tf.float32
 }
 
-InputT = TypeVar('InputT', bound=typing.Union[typing.NamedTuple, beam.Row])
+tft_process_handler_dict_input_type = typing.Union[typing.NamedTuple, beam.Row]
 
 
-class ConvertNamedTupleToDict(beam.PTransform[beam.PCollection[InputT],
-                                              beam.PCollection[Dict]]):
-  def expand(self, pcoll: beam.PCollection[InputT]) -> beam.PCollection[Dict]:
+class ConvertNamedTupleToDict(
+    beam.PTransform[beam.PCollection[tft_process_handler_dict_input_type],
+                    beam.PCollection[Dict[str,
+                                          common_types.InstanceDictType]]]):
+  def expand(
+      self, pcoll: beam.PCollection[tft_process_handler_dict_input_type]
+  ) -> beam.PCollection[common_types.InstanceDictType]:
     if isinstance(pcoll.element_type, RowTypeConstraint):
       # Row instance
       return pcoll | beam.Map(lambda x: x.asdict())
@@ -79,7 +80,7 @@ class ConvertNamedTupleToDict(beam.PTransform[beam.PCollection[InputT],
       return pcoll | beam.Map(lambda x: x._asdict())
 
 
-class TFTProcessHandler(ProcessHandler):
+class TFTProcessHandler(ProcessHandler[ProcessInputT, ProcessOutputT]):
   def __init__(
       self,
       *,
@@ -88,6 +89,7 @@ class TFTProcessHandler(ProcessHandler):
       transforms=None,
       artifact_location=None,
   ):
+    super().__init__()
     self._input_types = input_types
     self._transforms = transforms if transforms else []
     self._input_types = input_types
@@ -176,7 +178,8 @@ class TFTProcessHandler(ProcessHandler):
     pass
 
 
-class TFTProcessHandlerDict(TFTProcessHandler):
+class TFTProcessHandlerDict(
+    TFTProcessHandler[tft_process_handler_dict_input_type, MLTransformOutput]):
   def _validate_input_types(self, input_types: Dict[str, type]):
     # Fail for the cases like
     # Union[List[int], float] and List[List[int]]
@@ -210,9 +213,8 @@ class TFTProcessHandlerDict(TFTProcessHandler):
 
   def _get_ptransform(self):
     @beam.ptransform_fn
-    @typehints.with_input_types(InputT)
     def ptransform_fn(
-        raw_data: beam.PCollection[InputT]
+        raw_data: beam.PCollection[tft_process_handler_dict_input_type]
     ) -> beam.PCollection[MLTransformOutput]:
 
       element_type = raw_data.element_type
