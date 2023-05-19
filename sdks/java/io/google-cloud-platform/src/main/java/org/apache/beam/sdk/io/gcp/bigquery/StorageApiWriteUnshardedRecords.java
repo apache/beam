@@ -691,7 +691,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
           @Nullable
           TableSchema updatedTableSchema =
               (streamAppendClient != null) ? streamAppendClient.getUpdatedSchema() : null;
-          if (updatedTableSchema != null) {
+          if (updatedTableSchema != null && autoUpdateSchema) {
             invalidateWriteStream();
             appendClientInfo =
                 Preconditions.checkStateNotNull(getAppendClientInfo(false, updatedTableSchema));
