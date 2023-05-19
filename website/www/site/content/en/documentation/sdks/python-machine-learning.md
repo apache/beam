@@ -194,6 +194,9 @@ For more information on resource hints, see [Resource hints](/documentation/runt
 
 ## RunInference Patterns
 
+This section suggests patterns and best practices that can be used to make your inference pipelines simpler,
+more robust, and more efficient.
+
 ### Use a keyed ModelHandler
 
 If a key is attached to the examples, wrap the `KeyedModelHandler` around the `ModelHandler` object:
