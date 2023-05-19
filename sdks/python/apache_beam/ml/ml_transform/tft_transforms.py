@@ -16,26 +16,32 @@
 
 # pylint: skip-file
 
+# TODO: Refactor file.
+
 import logging
-from typing import Any
-from typing import Callable
-from typing import List
-from typing import Optional
-from typing import Dict
+import typing
+from typing import Any, Callable, Dict, List, Optional, TypeVar, Union
 
 import apache_beam as beam
-from apache_beam.ml.transform.handlers import TFTProcessHandlerDict, TFTProcessHandlerPyArrow, TFTProcessHandler
-from apache_beam.ml.transform.handlers import ProcessHandler
+import numpy as np
+import pyarrow as pa
 import tensorflow as tf
 import tensorflow_transform as tft
-from tensorflow_transform import analyzers
-from tensorflow_transform import common_types
+from apache_beam.ml.ml_transform.handlers import (
+    TFTProcessHandler, TFTProcessHandlerDict)
+from apache_beam.typehints.schemas import named_fields_from_element_type
+from tensorflow_transform import analyzers, common_types, tf_utils
+from apache_beam.ml.ml_transform.base import _BaseOperation, MLTransform
 
 __all__ = ['compute_and_apply_vocabulary', 'scale_to_z_score', 'MLTransform']
 
 
-class _BaseTransform:
+class _TFTOperation(_BaseOperation):
   def __init__(self, columns, *args, **kwargs):
+    """
+    Constructor for the BaseTransform class. When subclassing this, please make sure
+    positional arguments are part of the instance variables.
+    """
     self.columns = columns
     self._args = args
     self._kwargs = kwargs
@@ -46,7 +52,7 @@ class _BaseTransform:
       logging.warning(
           "Columns are not specified. Ignoring the transform %s" % self)
 
-  def apply(self, data):
+  def apply(self, inputs, *args, **kwargs):
     raise NotImplementedError
 
   def validate_args(self):
@@ -55,8 +61,12 @@ class _BaseTransform:
   def __call__(self, data):
     return self.apply(data, *self._args, **self._kwargs)
 
+  def get_analyzer_artifacts(self, data, col_name):
+    pass
 
-class _ComputeAndApplyVocab(_BaseTransform):
+
+class _ComputeAndApplyVocab(_TFTOperation):
+  # TODO: Pending outputting artifact.
   def apply(self, data: common_types.ConsistentTensorType):
     return tft.compute_and_apply_vocabulary(x=data, *self._args, **self._kwargs)
 
@@ -64,15 +74,26 @@ class _ComputeAndApplyVocab(_BaseTransform):
     return "compute_and_apply_vocabulary"
 
 
-class _Scale_To_Z_Score(_BaseTransform):
+class _Scale_To_Z_Score(_TFTOperation):
+  def __init__(self, columns, *args, **kwargs):
+    super().__init__(columns, *args, **kwargs)
+    self.has_artifacts = True
+
   def apply(self, data):
     return tft.scale_to_z_score(x=data, *self._args, **self._kwargs)
+
+  def get_analyzer_artifacts(self, data, col_name):
+    mean_var = tft.analyzers._mean_and_var(data)
+    return {
+        col_name + '_mean': tf.reshape(mean_var[0], [-1]),
+        col_name + '_var': tf.reshape(mean_var[1], [-1])
+    }
 
   def __str__(self):
     return "scale_to_z_score"
 
 
-class _Scale_0_to_1(_BaseTransform):
+class _Scale_0_to_1(_TFTOperation):
   def __init__(self, columns, *args, **kwargs):
     super().__init__(columns, *args, **kwargs)
     self.has_artifacts = True
@@ -90,9 +111,91 @@ class _Scale_0_to_1(_BaseTransform):
     return 'scale_0_to_1'
 
 
+class _ApplyBuckets(_TFTOperation):
+  def __init__(self, columns, bucket_boundaries, *args, **kwargs):
+    super().__init__(columns, *args, **kwargs)
+    self.bucket_boundaries = bucket_boundaries
+
+  def apply(self, data: tf.Tensor):
+    return tft.apply_buckets(
+        x=data,
+        bucket_boundaries=self.bucket_boundaries * self._args,
+        **self._kwargs)
+
+  def __str__(self):
+    return 'apply_buckets'
+
+
+class _Bucketize(_TFTOperation):
+  def __init__(self, columns: List[str], num_buckets: int, *args, **kwrags):
+    super().__init__(columns, *args, **kwrags)
+    self.num_buckets = num_buckets
+    self.has_artifacts = True
+
+  def get_analyzer_artifacts(self, data, col_name):
+    num_buckets = self.num_buckets
+    epsilon = self._kwargs['epsilon']
+    weights = self._kwargs['weights']
+    elementwise = self._kwargs['elementwise']
+
+    if num_buckets < 1:
+      raise ValueError('Invalid num_buckets %d' % num_buckets)
+
+    if isinstance(data, (tf.SparseTensor, tf.RaggedTensor)) and elementwise:
+      raise ValueError(
+          'bucketize requires `x` to be dense if `elementwise=True`')
+
+    x_values = tf_utils.get_values(data)
+
+    if epsilon is None:
+      # See explanation in args documentation for epsilon.
+      epsilon = min(1.0 / num_buckets, 0.01)
+
+    quantiles = analyzers.quantiles(
+        x_values,
+        num_buckets,
+        epsilon,
+        weights,
+        reduce_instance_dims=not elementwise)
+
+    return {col_name + '_quantiles': tf.reshape(quantiles, [-1])}
+
+  def apply(self, data):
+    return tft.bucketize(data, self.num_buckets, *self._args, **self._kwargs)
+
+
 # API visible to the user.
-def scale_0_to_1(columns, ):
-  return _Scale_0_to_1(columns=columns)
+
+
+def scale_0_to_1(
+    columns, elementwise: bool = False, name: Optional[str] = None):
+  return _Scale_0_to_1(columns=columns, elementwise=elementwise, name=name)
+
+
+def apply_buckets(
+    bucket_boundaries: Optional[common_types.BucketBoundariesType],
+    columns: Optional[List[str]],
+    *,
+    name: str):
+  return _ApplyBuckets(
+      columns=columns, bucket_boundaries=bucket_boundaries, name=name)
+
+
+def bucketize(
+    columns: List[str],
+    num_buckets: int,
+    *,
+    epsilon: Optional[float] = None,
+    weights: Optional[tf.Tensor] = None,
+    elementwise: bool = False,
+    name: Optional[str] = None):
+  return _Bucketize(
+      columns=columns,
+      num_buckets=num_buckets,
+      epsilon=epsilon,
+      weights=weights,
+      elementwise=elementwise,
+      name=name)
 
 
 def compute_and_apply_vocabulary(
@@ -149,20 +252,3 @@ def scale_to_z_score(
       elementwise=elementwise,
       name=name,
       output_dtype=output_dtype)
-
-
-# MLTransform - framework agnostic PTransform
-# can we automatically infer the schema?
-class MLTransform(beam.PTransform):
-  def __init__(
-      self,
-      process_handler: TFTProcessHandler,
-  ):
-    self._process_handler = process_handler
-
-  def expand(self, pcoll):
-    return (pcoll | self._process_handler.process_data())
-
-  def with_transform(self, transform: _BaseTransform):
-    self._process_handler._transforms.append(transform)
-    return self

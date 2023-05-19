@@ -15,4 +15,6 @@
 # limitations under the License.
 #
 
-from apache_beam.ml.transform.transforms import *
+# TODO: Refactor file, codepaths and namespaces.
+
+from apache_beam.ml.ml_transform.tft_transforms import *
