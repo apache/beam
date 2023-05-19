@@ -57,7 +57,6 @@
   the misperception of code as "not ready". Any proposed breaking changes will be subject to
   case-by-case pro/con decision making (and generally avoided) rather than using the "Experimental"
   to allow them.
-* Go SDK now supports Timers. 
 
 ## I/Os
 
@@ -73,7 +72,6 @@
 * Dead letter queue support added to RunInference in Python ([#24209](https://github.com/apache/beam/issues/24209)).
 * Support added for defining pre/postprocessing operations on the RunInference transform ([#26308](https://github.com/apache/beam/issues/26308))
 * Adds a Docker Compose based transform service that can be used to discover and use portable Beam transforms ([#26023](https://github.com/apache/beam/pull/26023)).
-* Added Timers to Go SDK (Go) ([#22737](https://github.com/apache/beam/issues/22737)).
 
 ## Breaking Changes
 
