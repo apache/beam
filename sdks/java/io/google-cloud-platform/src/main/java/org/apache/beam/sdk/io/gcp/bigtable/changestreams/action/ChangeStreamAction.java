@@ -136,7 +136,7 @@ public class ChangeStreamAction {
       if (!tracker.tryClaim(streamProgress)) {
         if (shouldDebug) {
           LOG.info(
-              "RCSP {}: Failed to claim heart beat tracker",
+              "RCSP {}: Checkpoint heart beat tracker",
               formatByteStringRange(partitionRecord.getPartition()));
         }
         return Optional.of(DoFn.ProcessContinuation.stop());
@@ -167,7 +167,7 @@ public class ChangeStreamAction {
       if (!tracker.tryClaim(streamProgress)) {
         if (shouldDebug) {
           LOG.info(
-              "RCSP {}: Failed to claim close stream tracker",
+              "RCSP {}: Checkpoint close stream tracker",
               formatByteStringRange(partitionRecord.getPartition()));
         }
         return Optional.of(DoFn.ProcessContinuation.stop());
@@ -192,7 +192,7 @@ public class ChangeStreamAction {
       if (!tracker.tryClaim(streamProgress)) {
         if (shouldDebug) {
           LOG.info(
-              "RCSP {}: Failed to claim data change tracker",
+              "RCSP {}: Checkpoint data change tracker",
               formatByteStringRange(partitionRecord.getPartition()));
         }
         return Optional.of(DoFn.ProcessContinuation.stop());

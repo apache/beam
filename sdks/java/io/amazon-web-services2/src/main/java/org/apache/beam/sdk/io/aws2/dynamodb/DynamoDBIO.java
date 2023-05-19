@@ -22,19 +22,15 @@ import static java.util.stream.Collectors.mapping;
 import static java.util.stream.Collectors.toList;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
-import java.io.Serializable;
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.ListCoder;
@@ -43,7 +39,6 @@ import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.aws2.common.ClientBuilderFactory;
 import org.apache.beam.sdk.io.aws2.common.ClientConfiguration;
-import org.apache.beam.sdk.io.aws2.common.RetryConfiguration;
 import org.apache.beam.sdk.io.aws2.options.AwsOptions;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -169,9 +164,7 @@ public final class DynamoDBIO {
   @AutoValue
   public abstract static class Read<T> extends PTransform<PBegin, PCollection<T>> {
 
-    abstract @Nullable ClientConfiguration getClientConfiguration();
-
-    abstract @Nullable DynamoDbClientProvider getDynamoDbClientProvider();
+    abstract ClientConfiguration getClientConfiguration();
 
     abstract @Nullable SerializableFunction<Void, ScanRequest> getScanRequestFn();
 
@@ -188,8 +181,6 @@ public final class DynamoDBIO {
 
       abstract Builder<T> setClientConfiguration(ClientConfiguration config);
 
-      abstract Builder<T> setDynamoDbClientProvider(DynamoDbClientProvider dynamoDbClientProvider);
-
       abstract Builder<T> setScanRequestFn(SerializableFunction<Void, ScanRequest> fn);
 
       abstract Builder<T> setSegmentId(Integer segmentId);
@@ -201,49 +192,8 @@ public final class DynamoDBIO {
       abstract Read<T> build();
     }
 
-    /**
-     * @deprecated Use {@link #withClientConfiguration(ClientConfiguration)} instead. Alternatively
-     *     you can configure a custom {@link ClientBuilderFactory} in {@link AwsOptions}.
-     */
-    @Deprecated
-    public Read<T> withDynamoDbClientProvider(DynamoDbClientProvider clientProvider) {
-      checkArgument(clientProvider != null, "DynamoDbClientProvider cannot be null");
-      return toBuilder()
-          .setClientConfiguration(null)
-          .setDynamoDbClientProvider(clientProvider)
-          .build();
-    }
-
-    /** @deprecated Use {@link #withClientConfiguration(ClientConfiguration)} instead. */
-    @Deprecated
-    public Read<T> withDynamoDbClientProvider(
-        AwsCredentialsProvider credentials, String region, URI endpoint) {
-      return updateClientConfig(
-          b ->
-              b.credentialsProvider(credentials)
-                  .region(Region.of(region))
-                  .endpoint(endpoint)
-                  .build());
-    }
-
-    /** @deprecated Use {@link #withClientConfiguration(ClientConfiguration)} instead. */
-    @Deprecated
-    public Read<T> withDynamoDbClientProvider(AwsCredentialsProvider credentials, String region) {
-      return updateClientConfig(
-          b -> b.credentialsProvider(credentials).region(Region.of(region)).build());
-    }
-
     /** Configuration of DynamoDB client. */
     public Read<T> withClientConfiguration(ClientConfiguration config) {
-      return updateClientConfig(ignore -> config);
-    }
-
-    private Read<T> updateClientConfig(
-        Function<ClientConfiguration.Builder, ClientConfiguration> fn) {
-      checkState(
-          getDynamoDbClientProvider() == null,
-          "Legacy DynamoDbClientProvider is set, but incompatible with ClientConfiguration.");
-      ClientConfiguration config = fn.apply(getClientConfiguration().toBuilder());
       checkArgument(config != null, "ClientConfiguration cannot be null");
       return toBuilder().setClientConfiguration(config).build();
     }
@@ -288,11 +238,8 @@ public final class DynamoDBIO {
           (scanRequest.totalSegments() != null && scanRequest.totalSegments() > 0),
           "TotalSegments is required with withScanRequestFn() and greater zero");
 
-      if (getDynamoDbClientProvider() == null) {
-        checkNotNull(getClientConfiguration(), "clientConfiguration cannot be null");
-        AwsOptions awsOptions = input.getPipeline().getOptions().as(AwsOptions.class);
-        ClientBuilderFactory.validate(awsOptions, getClientConfiguration());
-      }
+      AwsOptions awsOptions = input.getPipeline().getOptions().as(AwsOptions.class);
+      ClientBuilderFactory.validate(awsOptions, getClientConfiguration());
 
       PCollection<Read<T>> splits =
           input.apply("Create", Create.of(this)).apply("Split", ParDo.of(new SplitFn<>()));
@@ -320,10 +267,6 @@ public final class DynamoDBIO {
     /** A {@link DoFn} executing the ScanRequest to read from DynamoDb. */
     private static class ReadFn<T> extends DoFn<Read<T>, T> {
       private DynamoDbClient buildClient(Read<T> spec, AwsOptions opts) {
-        if (spec.getDynamoDbClientProvider() != null) {
-          // build client using legacy DynamoDbClientProvider
-          return spec.getDynamoDbClientProvider().getDynamoDbClient();
-        }
         return ClientBuilderFactory.buildClient(
             opts, DynamoDbClient.builder(), spec.getClientConfiguration());
       }
@@ -364,61 +307,11 @@ public final class DynamoDBIO {
     }
   }
 
-  /**
-   * Legacy retry configuration.
-   *
-   * <p><b>Warning</b>: Max accumulative retry latency is silently ignored as it is not supported by
-   * the AWS SDK.
-   *
-   * @deprecated Use {@link org.apache.beam.sdk.io.aws2.common.RetryConfiguration} instead to
-   *     delegate retries to the AWS SDK.
-   */
-  @AutoValue
-  @Deprecated
-  public abstract static class RetryConfiguration implements Serializable {
-    abstract int getMaxAttempts();
-
-    abstract Duration getMaxDuration();
-
-    public static Builder builder() {
-      return new AutoValue_DynamoDBIO_RetryConfiguration.Builder();
-    }
-
-    @AutoValue.Builder
-    public abstract static class Builder {
-      public abstract Builder setMaxAttempts(int maxAttempts);
-
-      /**
-       * @deprecated <b>Warning</b>, max accumulative retry latency is silently ignored as it is not
-       *     supported by the AWS SDK.
-       */
-      @Deprecated
-      public abstract Builder setMaxDuration(Duration maxDuration);
-
-      abstract RetryConfiguration autoBuild();
-
-      public RetryConfiguration build() {
-        RetryConfiguration config = autoBuild();
-        checkArgument(config.getMaxAttempts() > 0, "maxAttempts should be greater than 0");
-        return config;
-      }
-    }
-
-    org.apache.beam.sdk.io.aws2.common.RetryConfiguration convertLegacyConfig() {
-      int totalAttempts = getMaxAttempts() * 3; // 3 SDK attempts per user attempt
-      return org.apache.beam.sdk.io.aws2.common.RetryConfiguration.builder()
-          .numRetries(totalAttempts - 1)
-          .build();
-    }
-  }
-
   /** Write a PCollection<T> data into DynamoDB. */
   @AutoValue
   public abstract static class Write<T> extends PTransform<PCollection<T>, PCollection<Void>> {
 
-    abstract @Nullable ClientConfiguration getClientConfiguration();
-
-    abstract @Nullable DynamoDbClientProvider getDynamoDbClientProvider();
+    abstract ClientConfiguration getClientConfiguration();
 
     abstract @Nullable SerializableFunction<T, KV<String, WriteRequest>> getWriteItemMapperFn();
 
@@ -430,8 +323,6 @@ public final class DynamoDBIO {
     abstract static class Builder<T> {
       abstract Builder<T> setClientConfiguration(ClientConfiguration config);
 
-      abstract Builder<T> setDynamoDbClientProvider(DynamoDbClientProvider dynamoDbClientProvider);
-
       abstract Builder<T> setWriteItemMapperFn(
           SerializableFunction<T, KV<String, WriteRequest>> writeItemMapperFn);
 
@@ -440,63 +331,10 @@ public final class DynamoDBIO {
       abstract Write<T> build();
     }
 
-    /**
-     * @deprecated Use {@link #withClientConfiguration(ClientConfiguration)} instead. Alternatively
-     *     you can configure a custom {@link ClientBuilderFactory} in {@link AwsOptions}.
-     */
-    @Deprecated
-    public Write<T> withDynamoDbClientProvider(DynamoDbClientProvider clientProvider) {
-      checkArgument(clientProvider != null, "DynamoDbClientProvider cannot be null");
-      return toBuilder()
-          .setClientConfiguration(null)
-          .setDynamoDbClientProvider(clientProvider)
-          .build();
-    }
-
-    /** @deprecated Use {@link #withClientConfiguration(ClientConfiguration)} instead. */
-    @Deprecated
-    public Write<T> withDynamoDbClientProvider(
-        AwsCredentialsProvider credentials, String region, URI endpoint) {
-      return updateClientConfig(
-          b ->
-              b.credentialsProvider(credentials)
-                  .region(Region.of(region))
-                  .endpoint(endpoint)
-                  .build());
-    }
-
-    /** @deprecated Use {@link #withClientConfiguration(ClientConfiguration)} instead. */
-    @Deprecated
-    public Write<T> withDynamoDbClientProvider(AwsCredentialsProvider credentials, String region) {
-      return updateClientConfig(
-          b -> b.credentialsProvider(credentials).region(Region.of(region)).build());
-    }
-
     /** Configuration of DynamoDB client. */
     public Write<T> withClientConfiguration(ClientConfiguration config) {
-      return updateClientConfig(ignore -> config);
-    }
-
-    private Write<T> updateClientConfig(
-        Function<ClientConfiguration.Builder, ClientConfiguration> fn) {
-      checkState(
-          getDynamoDbClientProvider() == null,
-          "Legacy DynamoDbClientProvider is set, but incompatible with ClientConfiguration.");
-      ClientConfiguration config = fn.apply(getClientConfiguration().toBuilder());
       checkArgument(config != null, "ClientConfiguration cannot be null");
       return toBuilder().setClientConfiguration(config).build();
-    }
-
-    /**
-     * Retry configuration of DynamoDB client.
-     *
-     * @deprecated Use {@link #withClientConfiguration(ClientConfiguration)} with {@link
-     *     org.apache.beam.sdk.io.aws2.common.RetryConfiguration} instead to delegate retries to the
-     *     AWS SDK.
-     */
-    @Deprecated
-    public Write<T> withRetryConfiguration(RetryConfiguration retry) {
-      return updateClientConfig(b -> b.retry(retry.convertLegacyConfig()).build());
     }
 
     public Write<T> withWriteRequestMapperFn(
@@ -510,11 +348,9 @@ public final class DynamoDBIO {
 
     @Override
     public PCollection<Void> expand(PCollection<T> input) {
-      if (getDynamoDbClientProvider() == null) {
-        checkNotNull(getClientConfiguration(), "clientConfiguration cannot be null");
-        AwsOptions awsOptions = input.getPipeline().getOptions().as(AwsOptions.class);
-        ClientBuilderFactory.validate(awsOptions, getClientConfiguration());
-      }
+      checkNotNull(getClientConfiguration(), "clientConfiguration cannot be null");
+      AwsOptions awsOptions = input.getPipeline().getOptions().as(AwsOptions.class);
+      ClientBuilderFactory.validate(awsOptions, getClientConfiguration());
 
       return input.apply(ParDo.of(new WriteFn<>(this)));
     }
@@ -544,14 +380,8 @@ public final class DynamoDBIO {
       @Setup
       public void setup(PipelineOptions options) {
         ClientConfiguration clientConfig = spec.getClientConfiguration();
-        if (spec.getDynamoDbClientProvider() != null) {
-          // build client using legacy DynamoDbClientProvider
-          client = spec.getDynamoDbClientProvider().getDynamoDbClient();
-        } else {
-          AwsOptions awsOpts = options.as(AwsOptions.class);
-          client =
-              ClientBuilderFactory.buildClient(awsOpts, DynamoDbClient.builder(), clientConfig);
-        }
+        AwsOptions awsOpts = options.as(AwsOptions.class);
+        client = ClientBuilderFactory.buildClient(awsOpts, DynamoDbClient.builder(), clientConfig);
 
         // resume from partial failures
         resumeBackoff = FluentBackoff.DEFAULT.withMaxRetries(BATCH_SIZE);

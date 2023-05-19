@@ -279,6 +279,7 @@ def applyBatchValidatesRunnerSetup = { Test it ->
     // Ordering
     excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderedDelivery'
     excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderInBundle'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesTriggeredSideInputs'
   }
 }
 
@@ -351,6 +352,7 @@ def validatesRunnerStreaming = tasks.register("validatesRunnerStreaming", Test) 
     // Ordering
     excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderedDelivery'
     excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderInBundle'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesTriggeredSideInputs'
   }
 }
 
@@ -403,6 +405,7 @@ tasks.register("validatesStructuredStreamingRunnerBatch", Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesJavaExpansionService'
     excludeCategories 'org.apache.beam.sdk.testing.UsesPythonExpansionService'
     excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesTriggeredSideInputs'
   }
   filter {
     // Combine with context not implemented

@@ -77,6 +77,9 @@
 
 * Passing a tag into MultiProcessShared is now required in the Python SDK ([#26168](https://github.com/apache/beam/issues/26168)).
 * CloudDebuggerOptions is removed (deprecated in Beam v2.47.0) for Dataflow runner as the Google Cloud Debugger service is [shutting down](https://cloud.google.com/debugger/docs/deprecations). (Java) ([#25959](https://github.com/apache/beam/issues/25959)).
+* AWS 2 client providers (deprecated in Beam [v2.38.0](#2380---2022-04-20)) are finally removed ([#26681](https://github.com/apache/beam/issues/26681)).
+* AWS 2 SnsIO.writeAsync (deprecated in Beam v2.37.0 due to risk of data loss) was finally removed ([#26710](https://github.com/apache/beam/issues/26710)).
+* AWS 2 coders (deprecated in Beam v2.43.0 when adding Schema support for AWS Sdk Pojos) are finally removed ([#23315](https://github.com/apache/beam/issues/23315)).
 
 ## Deprecations
 
@@ -112,7 +115,6 @@
   like `df | (Transform1 | Transform2 | ...)` to avoid excessive conversions.)
 * The Go SDK adds new transforms periodic.Impulse and periodic.Sequence that extends support
   for slowly updating side input patterns. ([#23106](https://github.com/apache/beam/issues/23106))
-* Python SDK now requires `protobuf>=4.21.1,<4.23.0` and no longer supports protobuf 3.x. ([#24599](https://github.com/apache/beam/pull/24599))
 * Several Google client libraries in Python SDK dependency chain were updated to latest available major versions. ([#24599](https://github.com/apache/beam/pull/24599))
 
 ## Breaking Changes
@@ -124,12 +126,16 @@
 ## Deprecations
 
 * Cloud Debugger support and its pipeline options are deprecated and will be removed in the next Beam version,
-  in response to the Google Cloud Debugger service [turning down](https://cloud.google.com/debugger/docs/deprecations).
-  (Java) ([#25959](https://github.com/apache/beam/issues/25959)).
+  in response to the Google Cloud Debugger service [turning down](https://cloud.google.com/debugger/docs/deprecations). (Java) ([#25959](https://github.com/apache/beam/issues/25959)).
 
 ## Bugfixes
 
 * BigQuery sink in STORAGE_WRITE_API mode in batch pipelines could result in data consistency issues during the handling of other unrelated transient errors for Beam SDKs 2.35.0 - 2.46.0 (inclusive). For more details see: https://github.com/apache/beam/issues/26521
+
+## Known Issues
+
+* The google-cloud-profiler dependency was accidentally removed from Beam's Python Docker
+  Image [#26998](https://github.com/apache/beam/issues/26698). [Dataflow Docker images](https://cloud.google.com/dataflow/docs/concepts/sdk-worker-dependencies) still preinstall this dependency.
 
 # [2.46.0] - 2023-03-10
 

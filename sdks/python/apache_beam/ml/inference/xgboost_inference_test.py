@@ -288,6 +288,7 @@ class XGBoostRunInferenceTest(unittest.TestCase):
       ]
       assert_that(
           actual, equal_to(expected, equals_fn=_compare_prediction_result))
+      pipeline.run()
 
   def test_pipeline_pandas_sets_env_vars_correctly(self):
     model = build_monkeypatched_xgboost_classifier()

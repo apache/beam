@@ -17,6 +17,7 @@
 
 # pytype: skip-file
 
+import os
 import unittest
 
 import numpy as np
@@ -369,6 +370,25 @@ class TensorRTRunInferencePipelineTest(unittest.TestCase):
           predictions,
           equal_to(
               SINGLE_FEATURE_PREDICTIONS, equals_fn=_compare_prediction_result))
+
+  @unittest.skipIf(GCSFileSystem is None, 'GCP dependencies are not installed')
+  def test_pipeline_sets_env_vars_correctly(self):
+    with TestPipeline() as pipeline:
+      engine_handler = TensorRTEngineHandlerNumPy(
+          env_vars={'FOO': 'bar'},
+          min_batch_size=4,
+          max_batch_size=4,
+          engine_path=
+          'gs://apache-beam-ml/models/single_tensor_features_engine.trt')
+      os.environ.pop('FOO', None)
+      self.assertFalse('FOO' in os.environ)
+      _ = (
+          pipeline
+          | 'start' >> beam.Create(SINGLE_FEATURE_EXAMPLES)
+          | RunInference(engine_handler))
+      pipeline.run()
+      self.assertTrue('FOO' in os.environ)
+      self.assertTrue((os.environ['FOO']) == 'bar')
 
   @unittest.skipIf(GCSFileSystem is None, 'GCP dependencies are not installed')
   def test_pipeline_multiple_tensor_feature_built_engine(self):

@@ -1436,9 +1436,8 @@ func validateTimer(fn *DoFn, numIn mainInputs) error {
 				if timer, ok := timerKeys[timerFamilyID]; ok {
 					err := errors.Errorf("Duplicate timer key %v", timerFamilyID)
 					return errors.SetTopLevelMsgf(err, "Duplicate timer family ID %v used by struct fields %v and %v. Ensure that timer family IDs are unique per DoFn", timerFamilyID, timer, fieldNames[i])
-				} else {
-					timerKeys[timerFamilyID] = fieldNames[i]
 				}
+				timerKeys[timerFamilyID] = fieldNames[i]
 			}
 		}
 		if err := validateOnTimerFn(fn); err != nil {
@@ -1451,7 +1450,7 @@ func validateTimer(fn *DoFn, numIn mainInputs) error {
 				", Ensure that you are using the TimerProvider to set and clear the timers.", pt)
 		}
 		if err := validateOnTimerFn(fn); err == nil {
-			actualErr := errors.New("OnTimer function is defined for the DoFn but no TimerProvider defined in ProcessElement.")
+			actualErr := errors.New("OnTimer function is defined for the DoFn but no TimerProvider defined in ProcessElement")
 			return errors.SetTopLevelMsgf(actualErr, "OnTimer function is defined for the DoFn but no TimerProvider defined in ProcessElement."+
 				"Ensure that timers.Provider is defined in the ProcessElement and OnTimer methods of DoFn.")
 		}

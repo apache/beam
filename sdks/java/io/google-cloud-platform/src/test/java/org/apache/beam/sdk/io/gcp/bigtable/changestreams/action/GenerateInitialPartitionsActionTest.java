@@ -25,7 +25,7 @@ import static org.mockito.Mockito.when;
 
 import com.google.cloud.bigtable.admin.v2.BigtableTableAdminClient;
 import com.google.cloud.bigtable.admin.v2.BigtableTableAdminSettings;
-import com.google.cloud.bigtable.data.v2.models.Range.ByteStringRange;
+import com.google.cloud.bigtable.data.v2.models.Range;
 import com.google.cloud.bigtable.emulator.v2.BigtableEmulatorRule;
 import java.io.IOException;
 import java.util.Arrays;
@@ -35,12 +35,7 @@ import org.apache.beam.sdk.io.gcp.bigtable.changestreams.UniqueIdGenerator;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.ChangeStreamDao;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTableAdminDao;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.model.PartitionRecord;
-import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
-import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
-import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
-import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
-import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -58,12 +53,10 @@ public class GenerateInitialPartitionsActionTest {
   @ClassRule
   public static final BigtableEmulatorRule BIGTABLE_EMULATOR_RULE = BigtableEmulatorRule.create();
 
-  @Mock private RestrictionTracker<OffsetRange, Long> tracker;
   @Mock private ChangeStreamDao changeStreamDao;
   @Mock private ChangeStreamMetrics metrics;
   @Mock private OutputReceiver<PartitionRecord> receiver;
 
-  private ManualWatermarkEstimator<Instant> watermarkEstimator;
   private Instant startTime;
   private Instant endTime;
   private static BigtableTableAdminClient adminClient;
@@ -89,23 +82,18 @@ public class GenerateInitialPartitionsActionTest {
     metadataTableAdminDao.createMetadataTable();
     startTime = Instant.now();
     endTime = startTime.plus(Duration.standardSeconds(10));
-    watermarkEstimator = new WatermarkEstimators.Manual(startTime);
   }
 
   @Test
   public void testGenerateInitialPartitionsFromStartTime() {
-    when(tracker.tryClaim(0L)).thenReturn(true);
-
-    ByteStringRange partition1 = ByteStringRange.create("", "b");
-    ByteStringRange partition2 = ByteStringRange.create("b", "");
-    List<ByteStringRange> partitionRecordList = Arrays.asList(partition1, partition2);
+    Range.ByteStringRange partition1 = Range.ByteStringRange.create("", "b");
+    Range.ByteStringRange partition2 = Range.ByteStringRange.create("b", "");
+    List<Range.ByteStringRange> partitionRecordList = Arrays.asList(partition1, partition2);
     when(changeStreamDao.generateInitialChangeStreamPartitions()).thenReturn(partitionRecordList);
 
     GenerateInitialPartitionsAction generateInitialPartitionsAction =
         new GenerateInitialPartitionsAction(metrics, changeStreamDao, endTime);
-    assertEquals(
-        ProcessContinuation.resume(),
-        generateInitialPartitionsAction.run(receiver, tracker, watermarkEstimator, startTime));
+    generateInitialPartitionsAction.run(receiver, startTime);
     verify(receiver, times(2))
         .outputWithTimestamp(partitionRecordArgumentCaptor.capture(), eq(Instant.EPOCH));
     List<PartitionRecord> actualPartitions = partitionRecordArgumentCaptor.getAllValues();

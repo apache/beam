@@ -92,11 +92,10 @@ public class DaoFactory implements Serializable {
     if (changeStreamDao == null) {
       checkArgumentNotNull(changeStreamConfig.getProjectId());
       checkArgumentNotNull(changeStreamConfig.getInstanceId());
-      String tableId = this.tableId;
       checkArgumentNotNull(changeStreamConfig.getAppProfileId());
       BigtableDataClient dataClient =
           BigtableChangeStreamAccessor.getOrCreate(changeStreamConfig).getDataClient();
-      changeStreamDao = new ChangeStreamDao(dataClient, tableId);
+      changeStreamDao = new ChangeStreamDao(dataClient, this.tableId);
     }
     return changeStreamDao;
   }
@@ -122,7 +121,7 @@ public class DaoFactory implements Serializable {
     if (metadataTableAdminDao == null) {
       checkArgumentNotNull(metadataTableConfig.getProjectId());
       checkArgumentNotNull(metadataTableConfig.getInstanceId());
-      String tableId = checkArgumentNotNull(this.metadataTableId);
+      checkArgumentNotNull(this.metadataTableId);
       checkArgumentNotNull(metadataTableConfig.getAppProfileId());
       BigtableTableAdminClient tableAdminClient =
           BigtableChangeStreamAccessor.getOrCreate(metadataTableConfig).getTableAdminClient();
@@ -130,7 +129,7 @@ public class DaoFactory implements Serializable {
           BigtableChangeStreamAccessor.getOrCreate(metadataTableConfig).getInstanceAdminClient();
       metadataTableAdminDao =
           new MetadataTableAdminDao(
-              tableAdminClient, instanceAdminClient, changeStreamName, tableId);
+              tableAdminClient, instanceAdminClient, changeStreamName, this.metadataTableId);
     }
     return metadataTableAdminDao;
   }

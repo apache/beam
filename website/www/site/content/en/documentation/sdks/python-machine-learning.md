@@ -82,7 +82,7 @@ with pipeline as p:
 ```
 Where `model_handler` is the model handler setup code.
 
-To import models, you need to configure a `ModelHandler` object that wraps the underlying model. Which `ModelHandler` you import depends on the framework and type of data structure that contains the inputs. The following examples show some ModelHandlers that you might want to import.
+To import models, you need to configure a `ModelHandler` object that wraps the underlying model. Which `ModelHandler` you import depends on the framework and type of data structure that contains the inputs. The `ModelHandler` also allows you to set environment variables needed for inference via the `env_vars` keyword argument. The following examples show some ModelHandlers that you might want to import.
 
 ```
 from apache_beam.ml.inference.sklearn_inference import SklearnModelHandlerNumpy
