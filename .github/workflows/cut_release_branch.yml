@@ -43,6 +43,10 @@ on:
       JENKINS_TOKEN:
         description: API Token for the current Jenkins user. Can be generated at https://ci-beam.apache.org/user/<user>/configure
         required: true
+      UPDATE_MASTER:
+        description: Whether to push the master branch to the next release. You shouldnt skip this unless it has already been completed successfully (yes/no)
+        required: true
+        default: 'yes'
 
 permissions:
   contents: write
@@ -71,12 +75,15 @@ jobs:
           fi
       - name: Check out code
         uses: actions/checkout@v3
+        if: ${{github.event.inputs.UPDATE_MASTER == 'yes'}}
       - name: Set git config
         run: |
           git config user.name $GITHUB_ACTOR
           git config user.email actions@"$RUNNER_NAME".local
+        if: ${{github.event.inputs.UPDATE_MASTER == 'yes'}}
       - name: Install xmllint
         run: sudo apt-get install -y libxml2-utils
+        if: ${{github.event.inputs.UPDATE_MASTER == 'yes'}}
       - name: Update mass_comment.py with new Jenkins jobs
         run: |
           rm release/src/main/scripts/jenkins_jobs.txt
@@ -105,17 +112,20 @@ jobs:
         env:
           JENKINS_USERNAME: ${{ github.event.inputs.JENKINS_USERNAME }}
           JENKINS_TOKEN: ${{ github.event.inputs.JENKINS_TOKEN }}
+        if: ${{github.event.inputs.UPDATE_MASTER == 'yes'}}
       - name: Update master branch
         run: |
           bash "${SCRIPT_DIR}/set_version.sh" "${NEXT_VERSION_IN_BASE_BRANCH}"
           echo "==============Update master branch as following================"
           git diff
           echo "==============================================================="
+        if: ${{github.event.inputs.UPDATE_MASTER == 'yes'}}
       - name: Commit and Push to master branch files with Next Version
         run: |
           git add *
           git commit -m "Moving to ${NEXT_VERSION_IN_BASE_BRANCH}-SNAPSHOT on master branch."
           git push origin ${MASTER_BRANCH}
+        if: ${{github.event.inputs.UPDATE_MASTER == 'yes'}}
 
   update_release_branch:
     needs: update_master
