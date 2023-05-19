@@ -7,5 +7,5 @@
   "nextAction": "Author",
   "stopReviewerNotifications": false,
   "remindAfterTestsPass": [],
-  "committerAssigned": false
+  "committerAssigned": true
 }
