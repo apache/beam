@@ -37,7 +37,7 @@ public class TransportTest {
     Storage storageClient = Transport.newStorageClient(gcsOptions).build();
     Storage.Objects.Get getObject = storageClient.objects().get("testbucket", "testobject");
     // An example of user agent string will be like
-    // "(GPN:Beam) TransportTest Google-API-Java-Client/2.0.0"
+    // "TransportTest (GPN:Beam) Google-API-Java-Client/2.0.0"
     assertThat(getObject.getRequestHeaders().getUserAgent(), containsString("(GPN:Beam)"));
   }
 }
