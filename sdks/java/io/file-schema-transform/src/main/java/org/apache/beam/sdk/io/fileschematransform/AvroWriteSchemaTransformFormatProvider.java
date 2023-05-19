@@ -38,7 +38,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 public class AvroWriteSchemaTransformFormatProvider
     implements FileWriteSchemaTransformFormatProvider {
 
-  final String suffix = String.format(".%s", AVRO);
+  final String SUFFIX = String.format(".%s", AVRO);
 
   @Override
   public String identifier() {
@@ -70,7 +70,7 @@ public class AvroWriteSchemaTransformFormatProvider
         AvroIO.Write<GenericRecord> write =
             AvroIO.writeGenericRecords(avroSchema)
                 .to(configuration.getFilenamePrefix())
-                .withSuffix(suffix);
+                .withSuffix(SUFFIX);
 
         if (configuration.getNumShards() != null) {
           int numShards = getNumShards(configuration);
