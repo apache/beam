@@ -18,6 +18,7 @@ package code_processing
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -31,7 +32,7 @@ import (
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/cache"
 	"beam.apache.org/playground/backend/internal/environment"
-	"beam.apache.org/playground/backend/internal/errors"
+	perrors "beam.apache.org/playground/backend/internal/errors"
 	"beam.apache.org/playground/backend/internal/executors"
 	"beam.apache.org/playground/backend/internal/fs_tool"
 	"beam.apache.org/playground/backend/internal/logger"
@@ -68,13 +69,23 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 
 	err := validateStep(pipelineLifeCycleCtx, cacheService, &lc.Paths, pipelineId, sdkEnv, &validationResults)
 	if err != nil {
-		logger.Errorf("%s: error during validation step: %s", pipelineId, err.Error())
+		var pipelineCanceledError perrors.PipelineCanceledError
+		if errors.As(err, &pipelineCanceledError) {
+			logger.Warnf("%s: pipeline execution has been canceled: %s", pipelineId, pipelineCanceledError.Error())
+		} else {
+			logger.Errorf("%s: error during validation step: %s", pipelineId, err.Error())
+		}
 		return
 	}
 
 	err = prepareStep(pipelineLifeCycleCtx, cacheService, &lc.Paths, pipelineId, sdkEnv, &validationResults, lc.GetPreparerParameters())
 	if err != nil {
-		logger.Errorf("%s: error during preparation step: %s", pipelineId, err.Error())
+		var pipelineCanceledError perrors.PipelineCanceledError
+		if errors.As(err, &pipelineCanceledError) {
+			logger.Warnf("%s: pipeline execution has been canceled: %s", pipelineId, pipelineCanceledError.Error())
+		} else {
+			logger.Errorf("%s: error during preparation step: %s", pipelineId, err.Error())
+		}
 		return
 	}
 
@@ -84,14 +95,25 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 
 	err = compileStep(pipelineLifeCycleCtx, cacheService, &lc.Paths, pipelineId, sdkEnv, isUnitTest)
 	if err != nil {
-		logger.Errorf("%s: error during compilation step: %s", pipelineId, err.Error())
+		var pipelineCanceledError perrors.PipelineCanceledError
+		if errors.As(err, &pipelineCanceledError) {
+			logger.Warnf("%s: pipeline execution has been canceled: %s", pipelineId, pipelineCanceledError.Error())
+		} else {
+			logger.Errorf("%s: error during compilation step: %s", pipelineId, err.Error())
+		}
 		return
 	}
 
 	// Run/RunTest
 	err = runStep(pipelineLifeCycleCtx, cacheService, &lc.Paths, pipelineId, isUnitTest, sdkEnv, pipelineOptions)
 	if err != nil {
-		logger.Errorf("%s: error during run step: %s", pipelineId, err.Error())
+		var pipelineCanceledError perrors.PipelineCanceledError
+		if errors.As(err, &pipelineCanceledError) {
+			logger.Warnf("%s: pipeline execution has been canceled: %s", pipelineId, pipelineCanceledError.Error())
+		} else {
+			logger.Errorf("%s: error during run step: %s", pipelineId, err.Error())
+		}
+		return
 	}
 }
 
@@ -320,12 +342,12 @@ func GetProcessingOutput(ctx context.Context, cacheService cache.Cache, key uuid
 	value, err := cacheService.GetValue(ctx, key, subKey)
 	if err != nil {
 		logger.Errorf("%s: GetProcessingOutput(): cache.GetValue: error: %s", key, err.Error())
-		return "", errors.NotFoundError(errorTitle, "Error during getting output")
+		return "", perrors.NotFoundError(errorTitle, "Error during getting output")
 	}
 	stringValue, converted := value.(string)
 	if !converted {
 		logger.Errorf("%s: couldn't convert value to string: %s", key, value)
-		return "", errors.InternalError(errorTitle, "Error during getting output")
+		return "", perrors.InternalError(errorTitle, "Error during getting output")
 	}
 	return stringValue, nil
 }
@@ -337,12 +359,12 @@ func GetProcessingStatus(ctx context.Context, cacheService cache.Cache, key uuid
 	value, err := cacheService.GetValue(ctx, key, cache.Status)
 	if err != nil {
 		logger.Errorf("%s: GetProcessingStatus(): cache.GetValue: error: %s", key, err.Error())
-		return pb.Status_STATUS_UNSPECIFIED, errors.NotFoundError(errorTitle, "Error during getting status")
+		return pb.Status_STATUS_UNSPECIFIED, perrors.NotFoundError(errorTitle, "Error during getting status")
 	}
 	statusValue, converted := value.(pb.Status)
 	if !converted {
 		logger.Errorf("%s: couldn't convert value to correct status enum: %s", key, value)
-		return pb.Status_STATUS_UNSPECIFIED, errors.InternalError(errorTitle, "Error during getting status")
+		return pb.Status_STATUS_UNSPECIFIED, perrors.InternalError(errorTitle, "Error during getting status")
 	}
 	return statusValue, nil
 }
@@ -354,12 +376,12 @@ func GetLastIndex(ctx context.Context, cacheService cache.Cache, key uuid.UUID, 
 	value, err := cacheService.GetValue(ctx, key, subKey)
 	if err != nil {
 		logger.Errorf("%s: GetLastIndex(): cache.GetValue: error: %s", key, err.Error())
-		return 0, errors.NotFoundError(errorTitle, "Error during getting pagination value")
+		return 0, perrors.NotFoundError(errorTitle, "Error during getting pagination value")
 	}
 	convertedValue, converted := value.(float64)
 	if !converted {
 		logger.Errorf("%s: couldn't convert value to float64. value: %s type %s", key, value, reflect.TypeOf(value))
-		return 0, errors.InternalError(errorTitle, "Error during getting pagination value")
+		return 0, perrors.InternalError(errorTitle, "Error during getting pagination value")
 	}
 	return int(convertedValue), nil
 }
@@ -371,12 +393,12 @@ func GetGraph(ctx context.Context, cacheService cache.Cache, key uuid.UUID, erro
 	value, err := cacheService.GetValue(ctx, key, cache.Graph)
 	if err != nil {
 		logger.Errorf("%s: GetGraph(): cache.GetValue: error: %s", key, err.Error())
-		return "", errors.NotFoundError(errorTitle, "Error during getting graph")
+		return "", perrors.NotFoundError(errorTitle, "Error during getting graph")
 	}
 	stringValue, converted := value.(string)
 	if !converted {
 		logger.Errorf("%s: couldn't convert value to string. value: %s type %s", key, value, reflect.TypeOf(value))
-		return "", errors.InternalError(errorTitle, "Error during getting graph")
+		return "", perrors.InternalError(errorTitle, "Error during getting graph")
 	}
 	return stringValue, nil
 }
@@ -414,14 +436,14 @@ func reconcileBackgroundTask(pipelineLifeCycleCtx context.Context, pipelineId uu
 			if err := finishByTimeout(pipelineId, cacheService); err != nil {
 				return false, fmt.Errorf("error during context timeout processing: %s", err.Error())
 			}
-			return false, fmt.Errorf("code processing context timeout")
+			return false, perrors.PipelineCanceledError{Reason: fmt.Sprintf("code processing context timeout")}
 		case context.Canceled:
 			if err := processCancel(cacheService, pipelineId); err != nil {
 				return false, fmt.Errorf("error during cancellation processing: %s", err.Error())
 			}
-			return false, fmt.Errorf("code processing was canceled")
+			return false, perrors.PipelineCanceledError{Reason: "code processing was canceled"}
 		default:
-			return false, fmt.Errorf("code processing cancelled: %s", contextErr.Error())
+			return false, fmt.Errorf("code processing cancelled due to unexpected reason: %s", contextErr.Error())
 		}
 	case ok := <-successChannel:
 		return ok, nil
@@ -554,7 +576,7 @@ func DeleteResources(pipelineId uuid.UUID, lc *fs_tool.LifeCycle) {
 
 // finishByTimeout is used in case of runCode method finished by timeout
 func finishByTimeout(pipelineId uuid.UUID, cacheService cache.Cache) error {
-	logger.Errorf("%s: code processing finishes because of timeout\n", pipelineId)
+	logger.Warnf("%s: code processing finishes because of timeout\n", pipelineId)
 
 	// set to cache pipelineId: cache.SubKey_Status: Status_STATUS_RUN_TIMEOUT
 	return utils.SetToCache(cacheService, pipelineId, cache.Status, pb.Status_STATUS_RUN_TIMEOUT)
