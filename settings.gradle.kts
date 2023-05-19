@@ -47,7 +47,7 @@ gradleEnterprise {
 
 buildCache {
   local {
-    isEnabled = !isCi
+    isEnabled = true
   }
   remote(gradleEnterprise.buildCache) {
     isEnabled = false
