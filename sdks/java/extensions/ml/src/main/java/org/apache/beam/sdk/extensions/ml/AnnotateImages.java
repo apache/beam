@@ -47,14 +47,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * @param <T> Type of input PCollection.
  */
-<<<<<<< HEAD
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 abstract class AnnotateImages<T>
-=======
-abstract class AnnotateImages<T extends @NonNull Object>
->>>>>>> 9cf7248973 (Remove experimental annotation from Beam)
     extends PTransform<PCollection<T>, PCollection<List<AnnotateImageResponse>>> {
 
   private static final Long MIN_BATCH_SIZE = 1L;

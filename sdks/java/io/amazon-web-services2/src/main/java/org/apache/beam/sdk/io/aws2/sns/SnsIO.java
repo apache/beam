@@ -21,10 +21,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.google.auto.value.AutoValue;
 import java.util.function.Consumer;
-<<<<<<< HEAD
-=======
-import org.apache.beam.sdk.coders.Coder;
->>>>>>> 9cf7248973 (Remove experimental annotation from Beam)
 import org.apache.beam.sdk.io.aws2.common.ClientBuilderFactory;
 import org.apache.beam.sdk.io.aws2.common.ClientConfiguration;
 import org.apache.beam.sdk.io.aws2.options.AwsOptions;

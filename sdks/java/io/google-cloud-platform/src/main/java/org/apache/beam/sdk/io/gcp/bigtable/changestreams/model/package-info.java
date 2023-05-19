@@ -16,11 +16,7 @@
  * limitations under the License.
  */
 /** User models for the Google Cloud Bigtable change stream API. */
-<<<<<<< HEAD
 @Internal
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams.model;
 
 import org.apache.beam.sdk.annotations.Internal;
-=======
-package org.apache.beam.sdk.io.gcp.bigtable.changestreams.model;
->>>>>>> 9cf7248973 (Remove experimental annotation from Beam)
