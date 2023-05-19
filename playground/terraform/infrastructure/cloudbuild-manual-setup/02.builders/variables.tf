@@ -16,93 +16,149 @@
 # under the License.
 
 variable "project_id" {
-  type        = string
   description = "The ID of the Google Cloud project within which resources are provisioned"
 }
 
-variable "region" {
-  type        = string
-  description = "The Google Cloud Platform (GCP) region (For example: us-central1) where Cloud Build triggers will be created at"
-}
-
-variable "infra_trigger_name" {
-  type        = string
+variable "pg_infra_trigger_name" {
   description = "The name of the trigger that will deploy Playground infrastructure"
-  default     = "playground-infrastructure-trigger"
+  default     = "Initialize-Playground-environment"
 }
 
-variable "gke_trigger_name" {
-  type        = string
+variable "pg_gke_trigger_name" {
   description = "The name of the trigger that will deploy Playground to GKE"
-  default     = "playground-to-gke-trigger"
+  default     = "Deploy-Update-Playground-environment"
+}
+variable "pg_ci_trigger_name" {
+  description = "The name of the trigger to run CI checks"
+  default = "Playground-CI-stable"
 }
 
-variable "cloudbuild_service_account_id" {
-  type        = string
-  description = "The ID of the cloud build service account responsible for provisioning Google Cloud resources"
-  default     = "playground-cloudbuild-sa"
+variable "pg_cd_trigger_name" {
+  description = "The name of the trigger to run CD checks"
+  default = "Playground-CD-stable"
 }
 
-variable "github_repository_name" {
-  type        = string
-  description = "The name of the GitHub repository. For example the repository name for https://github.com/example/foo is 'foo'."
+variable "playground_deploy_sa" {
+  description = "The ID of the cloud build service account responsible for deploying the Playground"
 }
 
-variable "github_repository_owner" {
-  type        = string
-  description = "The owner of the GitHub repository. For example the owner for https://github.com/example/foo is 'example'."
+variable "playground_update_sa" {
+  description = "The ID of the cloud build service account responsible for updating the Helm"
 }
 
-variable "github_repository_branch" {
-  type        = string
-  description = "The GitHub repository branch regex to match cloud build trigger"
+variable "playground_ci_sa" {
+  description = "The ID of the cloud build service account responsible for running CI checks and scripts"
 }
+variable "playground_cd_sa" {
+  description = "The ID of the cloud build service account responsible for running CD checks and scripts"
+}
+
 
 variable "playground_environment_name" {
-  description = <<EOF
-Environment name where to deploy Playground. Located in playground/terraform/environment/{environment_name}. E.g. test, dev, prod.
-More details: https://github.com/akvelon/beam/blob/cloudbuild%2Bmanualsetup%2Bplayground/playground/terraform/README.md#prepare-deployment-configuration"
-  EOF
+  description = "An environment name which will have it is own configuration of Playground"
+  default = "env"
 }
 
 variable "playground_dns_name" {
-  description = <<EOF
-The DNS record name for Playground website.
-More details: https://github.com/apache/beam/blob/master/playground/terraform/README.md#deploy-playground-infrastructure"
-  EOF
-}
-
-variable "playground_network_name" {
-  description = "The Google Cloud Platform (GCP) VPC Network Name for Playground deployment"
-}
-
-variable "playground_gke_name" {
-  description = "The Playground GKE Cluster name in Google Cloud Platform (GCP)"
+  description = "The DNS A-record name for Playground website"
+  default = "fqdn.playground.zone"
 }
 
 variable "state_bucket" {
-  description = "The Google Cloud Platform (GCP) GCS bucket name for Beam Playground temp files and Terraform state"
+  description = "The Google Cloud Platform GCS bucket name for Playground Terraform state file"
+  default = "playground-tfstate-project-env"
+}
+
+variable "cloudbuild_bucket_private" {
+  description = "The Google Cloud Platform GCS bucket name for Playground Cloudbuild private logs"
+}
+
+variable "cloudbuild_bucket_public" {
+  description = "The Google Cloud Platform GCS bucket name for Playground Cloudbuild public logs"
 }
 
 variable "image_tag" {
-  description = "The docker images tag for Playground containers"
-}
-
-variable "docker_repository_root" {
-  description = "The name of Google Cloud Platform (GCP) Artifact Registry Repository where Playground images will be saved to"
+  description = "The docker images tag for Playground images"
+  default = "env-1.0"
 }
 
 variable "playground_region" {
   description = "The Google Cloud Platform (GCP) region (For example: us-central1) where playground infrastructure will be deployed to"
+  default = "us-central1"
 }
 
 variable "playground_zone" {
   description = "The Google Cloud Platform (GCP) zone (For example: us-central1-b) where playground infrastructure will be deployed to"
+  default = "us-central1-a"
 }
 
 variable "sdk_tag" {
   description = <<EOF
-Apache Beam Golang and Python images SDK tag. (For example: 2.43.0)
+Apache Beam Golang and Python images SDK tag. (For example current latest: 2.44.0)
 See more: https://hub.docker.com/r/apache/beam_python3.7_sdk/tags and https://hub.docker.com/r/apache/beam_go_sdk"
   EOF
+  default = "2.44.0"
+}
+
+variable "skip_appengine_deploy" {
+  description = "Boolean. If AppEngine and Datastore need to be installed. Put 'true' if AppEngine and Datastore already installed"
+  default = "false"
+}
+
+variable "gke_machine_type" {
+  description = "Machine type for GKE Nodes. Default: e2-standard-8"
+  default = "e2-standard-8"
+}
+
+variable "max_count" {
+  description = "Max node count for GKE cluster. Default: 4"
+  default = 4
+}
+
+variable "min_count" {
+  description = "Min node count for GKE cluster. Default: 2"
+  default = 2
+}
+
+variable "redis_tier" {
+  description = "The tier of the GCP redis instance (BASIC, STANDARD)"
+  default = "BASIC"
+}
+
+variable "webhook_trigger_secret_id" {
+  description = "The name of the secret for webhook config cloud build trigger (CI/CD)"
+}
+
+variable "gh_pat_secret_id" {
+  description = "The name of the secret for GitHub Personal Access Token. Required for cloud build trigger (CI/CD)"
+}
+
+variable "data_for_github_pat_secret" {
+  description = "The GitHub generated Personal Access Token value"
+}
+#What i understand this is mandatoy but not actually used. Should we document it 
+variable "trigger_source_repo" {
+  description = "Source repo used for github trigger, not used but reqired due to cloudbuild limitation"
+  default = "https://github.com/beamplayground/deploy-workaround"
+}
+variable "trigger_source_branch" {
+  description = "Source branch used for github trigger, not used but reqired due to cloudbuild limitation"
+  default = "main"
+}
+
+variable "terraform_source_repo" {
+  description = "Repo used to fetch terraform code"
+  default = "https://github.com/apache/beam"
+}
+
+variable "terraform_source_branch" {
+  description = "Branch used to fetch terraform code"
+  default = "master"
+}
+variable "cloudbuild_machine_type" {
+  description = "Machine type used for cloudbuild runtime"
+  default = "E2_HIGHCPU_32"
+}
+variable "data_for_cicd_webhook_secret" {
+  description = "secret string that was set when creating the webhook in Github"  
 }
