@@ -19,7 +19,7 @@
 #   description: TextIO write local file example.
 #   multifile: true
 #   files:
-#     - name: ../myfile.txt
+#     - name: myfile.txt
 #   context_line: 30
 #   categories:
 #     - Quickstart
@@ -35,6 +35,7 @@ def print_lines(line):
 p = beam.Pipeline()
 
 data = ['Hello, World!', 'Apache Beam']
-p | 'CreateMyData' >> beam.Create(data) | 'WriteMyFile' >> beam.io.WriteToText('output.txt')
 
-p.run()
+p | 'CreateMyData' >> beam.Create(data) | 'WriteMyFile' >> beam.io.WriteToText(file_path_prefix='myfile.txt',shard_name_template='')
+
+p.run().wait_until_finish()

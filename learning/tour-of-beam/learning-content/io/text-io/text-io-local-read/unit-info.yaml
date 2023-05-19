@@ -22,6 +22,6 @@ sdk:
   - Python
   - Go
 complexity: MEDIUM
-id: text-io-local0-read
+id: text-io-local-read
 name: TextIO read local file
 taskName: text-io-local-read

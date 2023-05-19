@@ -18,7 +18,7 @@
 //   description: TextIO read local file example.
 //   multifile: true
 //   files:
-//     - name: ../myfile.txt
+//     - name: myfile.txt
 //   context_line: 34
 //   categories:
 //     - Quickstart
@@ -48,6 +48,6 @@ public class Task {
                     }
                 }));
 
-        pipeline.run();
+        pipeline.run().waitUntilFinish();
     }
 }

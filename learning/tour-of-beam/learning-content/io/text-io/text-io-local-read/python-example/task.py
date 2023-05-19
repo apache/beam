@@ -19,7 +19,7 @@
 #   description: TextIO read local file example.
 #   multifile: true
 #   files:
-#     - name: ../myfile.txt
+#     - name: myfile.txt
 #   context_line: 30
 #   categories:
 #     - Quickstart
@@ -30,13 +30,9 @@
 
 import apache_beam as beam
 
-def print_words(line):
-    for word in line.split():
-      print(word)
-
 p = beam.Pipeline()
 
 input = p | 'ReadMyFile' >> beam.io.ReadFromText('myfile.txt')
-input | 'PrintMyFile' >> beam.Map(print_lines)
+input | 'PrintMyFile' >> beam.Map(print)
 
 p.run()

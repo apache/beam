@@ -18,7 +18,7 @@
 //   description: TextIO write local file example.
 //   multifile: true
 //   files:
-//     - name: ../myfile.txt
+//     - name: myfile.txt
 //   context_line: 30
 //   categories:
 //     - Quickstart
@@ -26,30 +26,28 @@
 //   tags:
 //     - hellobeam
 
-
 package main
 
 import (
-	"regexp"
+	"context"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
-    "context"
-    "github.com/apache/beam/sdks/v2/go/pkg/beam/log"
-    "github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
+	"regexp"
 )
 
 var wordRE = regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)
 
-
 func main() {
-    p, s := beam.NewPipelineWithRoot()
+	p, s := beam.NewPipelineWithRoot()
 
-    input := beam.Create(s, "Hello write from playground","First example")
+	input := beam.Create(s, "Hello write from playground", "First example")
 
-    textio.Write(s, "output.txt", input)
+	textio.Write(s, "myfile.txt", input)
 
-err := beamx.Run(context.Background(), p)
-    if err != nil {
-        log.Exitf(context.Background(), "Failed to execute job: %v", err)
-    }
+	err := beamx.Run(context.Background(), p)
+	if err != nil {
+		log.Exitf(context.Background(), "Failed to execute job: %v", err)
+	}
 }
