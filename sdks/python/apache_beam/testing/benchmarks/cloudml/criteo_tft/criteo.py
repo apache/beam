@@ -20,8 +20,11 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
-import tensorflow_transform as tft
+try:
+  import tensorflow as tf
+  import tensorflow_transform as tft
+except ImportError as e:
+  tf = None
 
 
 def _get_raw_categorical_column_name(column_idx):
@@ -134,14 +137,15 @@ def make_preprocessing_fn(frequency_threshold):
       feature = inputs[name]
       
       def fill_in_missing(feature, default_value=-1):
-        feature = tf.sparse.SparseTensor(
-            indices=feature.indices,
-            values=feature.values,
-            dense_shape=[feature.dense_shape[0], 1])
-        feature = tf.sparse.to_dense(feature, default_value=default_value)
-        # Reshaping from a batch of vectors of size 1 to a batch of scalars and
-        # adding a bucketized version.
-        feature = tf.squeeze(feature, axis=1)
+        if tf!=None:
+          feature = tf.sparse.SparseTensor(
+              indices=feature.indices,
+              values=feature.values,
+              dense_shape=[feature.dense_shape[0], 1])
+          feature = tf.sparse.to_dense(feature, default_value=default_value)
+          # Reshaping from a batch of vectors of size 1 to a batch of scalars and
+          # adding a bucketized version.
+          feature = tf.squeeze(feature, axis=1)
         return feature
       
       feature = fill_in_missing(feature)
