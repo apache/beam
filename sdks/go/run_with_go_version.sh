@@ -25,7 +25,7 @@
 # Accepts the following optional flags, after which all following parameters
 # will be provided to the go version tool.
 #    --version -> A string for a fully qualified go version, eg go1.16.5 or go1.18beta1
-#        The list of available versions are at https://go.dev/dl/ 
+#        The list of available versions are at https://go.dev/dl/
 #    --gocmd -> a specific path to a Go command to execute. If present, ignores --version flag
 #        and avoids doing the download check step.
 
@@ -36,8 +36,8 @@ set -e
 # The specific Go version used by default for Beam infrastructure.
 #
 # This variable is also used as the execution command downscript.
-# The list of downloadable versions are at https://go.dev/dl/ 
-GOVERS=go1.20.2
+# The list of downloadable versions are at https://go.dev/dl/
+GOVERS=go1.20.4
 
 if ! command -v go &> /dev/null
 then
