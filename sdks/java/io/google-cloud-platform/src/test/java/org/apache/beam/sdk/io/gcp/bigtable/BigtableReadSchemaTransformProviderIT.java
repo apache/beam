@@ -85,7 +85,7 @@ public class BigtableReadSchemaTransformProviderIT {
       assertThrows(
           IllegalArgumentException.class,
           () -> {
-            config.build();
+            config.build().validate();
           });
     }
   }
