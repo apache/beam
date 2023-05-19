@@ -70,11 +70,11 @@ variable "state_bucket" {
 }
 
 variable "cloudbuild_bucket_private" {
-  description = "The Google Cloud Platform GCS bucket name for Playground Cloudbuild Private logs"
+  description = "The Google Cloud Platform GCS bucket name for Playground Cloudbuild private logs"
 }
 
 variable "cloudbuild_bucket_public" {
-  description = "The Google Cloud Platform GCS bucket name for Playground Cloudbuild Private logs"
+  description = "The Google Cloud Platform GCS bucket name for Playground Cloudbuild public logs"
 }
 
 variable "image_tag" {

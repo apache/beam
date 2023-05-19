@@ -167,7 +167,6 @@ resource "google_cloudbuild_trigger" "playground_ci" {
       _PR_NUMBER            = "$(body.number)"
       _FORK_REPO            = "$(body.pull_request.head.repo.full_name)"
       _BASE_REF             = "$(body.pull_request.base.ref)"
-      _DATASTORE_NAMESPACE  = "playground-$${_ENVIRONMENT_NAME}"
       _PUBLIC_LOG_LOCAL: "/tmp/$${_PUBLIC_LOG}"
       _PUBLIC_LOG: "CI_PR$${_PR_NUMBER}_$${_PR_COMMIT}_$${BUILD_ID}.txt"
       _PUBLIC_BUCKET: "${var.cloudbuild_bucket_public}"
