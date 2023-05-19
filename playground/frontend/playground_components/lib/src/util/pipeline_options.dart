@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-RegExp pipelineOptionsRegExp = RegExp(r'''--([^ ]+)\s+([^ ]+)''');
+RegExp pipelineOptionsRegExp = RegExp(r'--(\S+)\s+(\S+)');
 
 const keyValueGroupCount = 2;
 
