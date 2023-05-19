@@ -257,6 +257,8 @@
 * If you activated a virtual environment in your custom container image, this environment might no longer be activated, since a new environment will be created (see the note about [BEAM-12792](https://issues.apache.org/jira/browse/BEAM-12792) above).
   To work around, install dependencies into the default (global) python environment. When using poetry you may need to use `poetry config virtualenvs.create false` before installing deps, see an example in: [#25085](https://github.com/apache/beam/issues/25085).
   If you were negatively impacted by this change and cannot find a workaround, feel free to chime in on [#16658](https://github.com/apache/beam/pull/16658).
+  To disable this behavior, you could upgrade to Beam 2.48.0 and set an environment variable
+  `ENV RUN_PYTHON_SDK_IN_DEFAULT_ENVIRONMENT=1` in your Dockerfile.
 
 ## Deprecations
 
