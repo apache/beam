@@ -172,19 +172,16 @@ class AvroNycTripsIT(unittest.TestCase):
       },
   ]
 
-  # TODO Enable when fixed this tests for Dataflow runner
   @pytest.mark.sickbay_dataflow
   @pytest.mark.no_xdist
   @pytest.mark.examples_postcommit
   def test_avro_nyc_trips_output_files_on_small_input(self):
     test_pipeline = TestPipeline(is_integration_test=True)
+
     # set up the files with expected content.
-    OUTPUT_FILE_DIR = \
-      '/tmp/temp-storage-for-end-to-end-tests/py-it-cloud/output'
-    output = '/'.join([OUTPUT_FILE_DIR, str(uuid.uuid4()), 'result'])
-    INPUT_FILE_DIR = \
-      '/tmp/temp-storage-for-end-to-end-tests/py-it-cloud/input'
-    input = '/'.join([INPUT_FILE_DIR, str(uuid.uuid4()), 'input.avro'])
+    test_output = '/'.join(
+        (test_pipeline.get_option('output'), str(uuid.uuid4()), 'result'))
+    test_input = test_pipeline.get_option('input')
 
     # create avro data
     fo = BytesIO()
@@ -192,14 +189,14 @@ class AvroNycTripsIT(unittest.TestCase):
     fo.seek(0)
 
     # write avro test case
-    with FileSystems.create(input) as f:
+    with FileSystems.create(test_input) as f:
       f.write(fo.read())
 
-    extra_opts = {'input': input, 'output': output}
+    extra_opts = {'input': test_input, 'output': test_output}
     avro_nyc_trips.run(test_pipeline.get_full_options_as_args(**extra_opts))
 
     # load result avro file and compare
-    metadata = FileSystems.match([f'{output}*'])[0].metadata_list[0]
+    metadata = FileSystems.match([f'{test_output}*'])[0].metadata_list[0]
     with FileSystems.open(metadata.path) as f:
       avro_reader = fastavro.reader(f)
 
