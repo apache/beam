@@ -376,6 +376,10 @@ class DuplicatesError(Exception):
     pass
 
 
+class ConflictingDatasetsError(Exception):
+    pass
+
+
 def validate_examples_for_duplicates_by_name(examples: List[Example]):
     """
     Validate examples for duplicates by example name to avoid duplicates in the Cloud Datastore
@@ -389,3 +393,29 @@ def validate_examples_for_duplicates_by_name(examples: List[Example]):
             err_msg = f"Examples have duplicate names.\nDuplicates: \n - path #1: {duplicates[example.tag.name].filepath} \n - path #2: {example.filepath}"
             logging.error(err_msg)
             raise DuplicatesError(err_msg)
+
+
+def validate_examples_for_conflicting_datasets(examples: List[Example]):
+    """
+    Validate examples for conflicting datasets to avoid conflicts in the Cloud Datastore
+    :param examples: examples from the repository for saving to the Cloud Datastore
+    """
+    datasets: Dict[str, Dataset] = {}
+    for example in examples:
+        for k, v in example.tag.datasets.items():
+            if k not in datasets:
+                datasets[k] = v
+            elif datasets[k].file_name != v.file_name or \
+                    datasets[k].format != v.format or \
+                    datasets[k].location != v.location:
+                err_msg = f"Examples have conflicting datasets.\n" \
+                          f"Conflicts: \n" \
+                          f" - file_name #1: {datasets[k].file_name} \n" \
+                          f" - format #1: {datasets[k].format} \n" \
+                          f"  - location #1: {datasets[k].location} \n" \
+                          f" - file_name #2: {v.file_name}\n" \
+                          f" - format #2: {v.format}\n" \
+                          f" - location #2: {v.location}\n" \
+                          f"Dataset name: {k}"
+                logging.error(err_msg)
+                raise ConflictingDatasetsError(err_msg)
