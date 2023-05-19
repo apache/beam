@@ -264,22 +264,22 @@ The side input `PCollection` must follow the [`AsSingleton`](https://beam.apache
 **Note**: If the main `PCollection` emits inputs and a side input has yet to receive inputs, the main `PCollection` is buffered until there is
             an update to the side input. This could happen with global windowed side inputs with data driven triggers, such as `AfterCount` and `AfterProcessingTime`. Until the side input is updated, emit the default or initial model ID that is used to pass the respective `ModelHandler` as a side input.
 
-### Preprocess and postprocess your records before and after inference
+### Preprocess and postprocess your records
 
-RunInference supports adding pre and post processing operations as part of your transform.
-To apply preprocessing operations, use `with_preprocess_fn` on your ModelHandler:
+With RunInference, you can add preprocessing and postprocessing operations to your transform.
+To apply preprocessing operations, use `with_preprocess_fn` on your model handler:
 
 ```
 inference = pcoll | RunInference(model_handler.with_preprocess_fn(lambda x : do_something(x)))
 ```
 
-To apply postprocessing operations, use `with_postprocess_fn` on your ModelHandler:
+To apply postprocessing operations, use `with_postprocess_fn` on your model handler:
 
 ```
 inference = pcoll | RunInference(model_handler.with_postprocess_fn(lambda x : do_something_to_result(x)))
 ```
 
-You can also chain multiple pre/postprocess operations:
+You can also chain multiple pre- and postprocessing operations:
 
 ```
 inference = pcoll | RunInference(
@@ -294,26 +294,26 @@ inference = pcoll | RunInference(
     ))
 ```
 
-The preprocessing function will be run before batching/inference and should map your input PCollection
-to the base ModelHandler's input type. If you apply multiple preprocessing functions, they will be run on your original
-PCollection in order from last applied to first applied.
+The preprocessing function is run before batching and inference. This function maps your input `PCollection`
+to the base input type of the model handler. If you apply multiple preprocessing functions, they run on your original
+`PCollection` in the order of last applied to first applied.
 
-The postprocessing function will be run after inference and should map the base ModelHandler's output
-type to your desired output type. If you apply multiple postprocessing functions, they will be run on your original
-inference result in order from first applied to last applied.
+The postprocessing function runs after inference. This function maps the output type of the base model handler
+to your desired output type. If you apply multiple postprocessing functions, they run on your original
+inference result in the order of first applied to last applied.
 
 ### Handle errors while using RunInference
 
-To handle errors robustly while using RunInference, you can use a _Deadletter Queue (DLQ)_ to output failed records into a separate PCollection for further processing.
-This PCollection can then be analyzed and sent to a storage system so that it can be reviewed and resubmitted to the pipeline or discarded.
-RunInference has native support for Deadletter Queues; you can use one by applying the `with_exception_handling` to your RunInference transform:
+To handle errors robustly while using RunInference, you can use a _dead-letter queue_. The dead-letter queue outputs failed records into a separate `PCollection` for further processing.
+This `PCollection` can then be analyzed and sent to a storage system, where it can be reviewed and resubmitted to the pipeline, or discarded.
+RunInference has built-in support for dead-letter queues. You can use a dead-letter queue by applying `with_exception_handling` to your RunInference transform:
 
 ```
 main, other = pcoll | RunInference(model_handler).with_exception_handling()
 other.failed_inferences | beam.Map(print) # insert logic to handle failed records here
 ```
 
-You can also apply this pattern to RunInference transforms with associated pre/postprocessing operations:
+You can also apply this pattern to RunInference transforms with associated pre- and postprocessing operations:
 
 ```
 main, other = pcoll | RunInference(model_handler.with_preprocess_fn(f1).with_postprocess_fn(f2)).with_exception_handling()
