@@ -20,8 +20,7 @@ dialogs:
 
 errors:
   error: 'Error'
-  failedParseOptions: >
-    Failed to parse pipeline options, please check the format (example: --key1 value1 --key2 value2), only alphanumeric and ",*,/,-,:,;,',. symbols are allowed
+  failedParseOptions: Failed to parse pipeline options.
   internetUnavailable: 'Internet connection is unavailable'
   loading: 'Error while loading.'
   loadingCatalog: 'Cannot load the example catalog.'
@@ -86,8 +85,7 @@ widgets:
   pipelineOptions:
     options: 'Options'
     raw: 'Raw'
-    error: >
-      Please check the format (example: --key1 value1 --key2 value2), only alphanumeric and \",*,/,-,:,;,',. symbols are allowed
+    error: 'Please check the format (example: --key1 value1 --key2 value2)'
     addParameter: Add parameter
     saveAndClose: Save & close
     input: Input
