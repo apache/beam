@@ -83,7 +83,7 @@ if [[ ${PR_TYPE} == @(opened|synchronize) ]]; then
     
         echo "CILOG Writing FAIL status message to PR${PR_NUMBER}, commit:  ${PR_COMMIT}, branch: ${PR_BRANCH}"
 
-        curl -X POST -H "Accept: application/vnd.github+json" -H "Authorization: Bearer ${PAT}" -H "X-GitHub-Api-Version: 2022-11-28" https://api.github.com/repos/apache/beam/statuses/${PR_COMMIT} -d "{\"state\":\"success\",\"target_url\":\"${PUBLIC_LOG_URL}\",\"description\":\"Examples validation has FAILED. For more details please see the logs.\",\"context\":\"GCP Cloud Build CI/CD\"}"
+        curl -X POST -H "Accept: application/vnd.github+json" -H "Authorization: Bearer ${PAT}" -H "X-GitHub-Api-Version: 2022-11-28" https://api.github.com/repos/apache/beam/statuses/${PR_COMMIT} -d "{\"state\":\"error\",\"target_url\":\"${PUBLIC_LOG_URL}\",\"description\":\"Examples validation has FAILED. For more details please see the logs.\",\"context\":\"GCP Cloud Build CI/CD\"}"
     fi
 else
     echo "CILOG $(date --utc '+%D %T') Commit $PR_COMMIT is not related to any PR"
