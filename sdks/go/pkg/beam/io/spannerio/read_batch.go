@@ -17,9 +17,10 @@ package spannerio
 
 import (
 	"context"
+	"reflect"
+
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/rtrackers/offsetrange"
-	"reflect"
 
 	"cloud.google.com/go/spanner"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
@@ -64,8 +65,9 @@ func (f *readBatchFn) Setup(ctx context.Context) error {
 }
 
 // CreateInitialRestriction creates an offset range restriction representing
-// the partition's size in bytes.
+// the number of rows in the partition..
 func (f *readBatchFn) CreateInitialRestriction(read partitionedRead) offsetrange.Restriction {
+
 	txn := f.client.BatchReadOnlyTransactionFromID(read.BatchTransactionId)
 	iter := txn.Execute(context.Background(), read.Partition)
 	defer iter.Stop()

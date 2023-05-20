@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.NoSuchElementException;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
@@ -73,6 +74,8 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
   private MatchResult.@Nullable Metadata singleFileMetadata;
   private final Mode mode;
 
+  private final AtomicReference<@Nullable Long> filesSizeBytes;
+
   /** A given {@code FileBasedSource} represents a file resource of one of these types. */
   public enum Mode {
     FILEPATTERN,
@@ -91,6 +94,7 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
     this.mode = Mode.FILEPATTERN;
     this.emptyMatchTreatment = emptyMatchTreatment;
     this.fileOrPatternSpec = fileOrPatternSpec;
+    this.filesSizeBytes = new AtomicReference<>();
   }
 
   /**
@@ -123,6 +127,7 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
     mode = Mode.SINGLE_FILE_OR_SUBRANGE;
     this.singleFileMetadata = checkNotNull(fileMetadata, "fileMetadata");
     this.fileOrPatternSpec = StaticValueProvider.of(fileMetadata.resourceId().toString());
+    this.filesSizeBytes = new AtomicReference<>();
 
     // This field will be unused in this mode.
     this.emptyMatchTreatment = EmptyMatchTreatment.DISALLOW;
@@ -222,6 +227,11 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
     String fileOrPattern = fileOrPatternSpec.get();
 
     if (mode == Mode.FILEPATTERN) {
+      Long maybeNumBytes = filesSizeBytes.get();
+      if (maybeNumBytes != null) {
+        return maybeNumBytes;
+      }
+
       long totalSize = 0;
       List<Metadata> allMatches = FileSystems.match(fileOrPattern, emptyMatchTreatment).metadata();
       for (Metadata metadata : allMatches) {
@@ -232,6 +242,8 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
           fileOrPattern,
           allMatches.size(),
           totalSize);
+
+      filesSizeBytes.compareAndSet(null, totalSize);
       return totalSize;
     } else {
       long start = getStartOffset();

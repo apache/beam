@@ -25,11 +25,14 @@ import com.google.cloud.pubsublite.TopicName;
 import com.google.cloud.pubsublite.TopicPath;
 import com.google.cloud.pubsublite.proto.PubSubMessage;
 import com.google.protobuf.ByteString;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
@@ -38,16 +41,22 @@ import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.schemas.utils.JsonUtils;
-import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @AutoService(SchemaTransformProvider.class)
 public class PubsubLiteWriteSchemaTransformProvider
@@ -57,11 +66,55 @@ public class PubsubLiteWriteSchemaTransformProvider
   public static final String SUPPORTED_FORMATS_STR = "JSON,AVRO";
   public static final Set<String> SUPPORTED_FORMATS =
       Sets.newHashSet(SUPPORTED_FORMATS_STR.split(","));
+  public static final TupleTag<PubSubMessage> OUTPUT_TAG = new TupleTag<PubSubMessage>() {};
+  public static final TupleTag<Row> ERROR_TAG = new TupleTag<Row>() {};
+  public static final Schema ERROR_SCHEMA =
+      Schema.builder().addStringField("error").addNullableByteArrayField("row").build();
+  private static final Logger LOG =
+      LoggerFactory.getLogger(PubsubLiteWriteSchemaTransformProvider.class);
 
   @Override
   protected @UnknownKeyFor @NonNull @Initialized Class<PubsubLiteWriteSchemaTransformConfiguration>
       configurationClass() {
     return PubsubLiteWriteSchemaTransformConfiguration.class;
+  }
+
+  public static class ErrorCounterFn extends DoFn<Row, PubSubMessage> {
+    private SerializableFunction<Row, byte[]> toBytesFn;
+    private Counter errorCounter;
+    private long errorsInBundle = 0L;
+
+    public ErrorCounterFn(String name, SerializableFunction<Row, byte[]> toBytesFn) {
+      this.toBytesFn = toBytesFn;
+      errorCounter = Metrics.counter(PubsubLiteWriteSchemaTransformProvider.class, name);
+    }
+
+    @ProcessElement
+    public void process(@DoFn.Element Row row, MultiOutputReceiver receiver) {
+      try {
+        PubSubMessage message =
+            PubSubMessage.newBuilder()
+                .setData(ByteString.copyFrom(Objects.requireNonNull(toBytesFn.apply(row))))
+                .build();
+
+        receiver.get(OUTPUT_TAG).output(message);
+      } catch (Exception e) {
+        errorsInBundle += 1;
+        LOG.warn("Error while parsing the element", e);
+        receiver
+            .get(ERROR_TAG)
+            .output(
+                Row.withSchema(ERROR_SCHEMA)
+                    .addValues(e.toString(), row.toString().getBytes(StandardCharsets.UTF_8))
+                    .build());
+      }
+    }
+
+    @FinishBundle
+    public void finish() {
+      errorCounter.inc(errorsInBundle);
+      errorsInBundle = 0L;
+    }
   }
 
   @Override
@@ -92,18 +145,17 @@ public class PubsubLiteWriteSchemaTransformProvider
                 configuration.getFormat().equals("JSON")
                     ? JsonUtils.getRowToJsonBytesFunction(inputSchema)
                     : AvroUtils.getRowToAvroBytesFunction(inputSchema);
-            input
-                .get("input")
-                .apply(
-                    "Map Rows to PubSubMessages",
-                    MapElements.into(TypeDescriptor.of(PubSubMessage.class))
-                        .via(
-                            row ->
-                                PubSubMessage.newBuilder()
-                                    .setData(
-                                        ByteString.copyFrom(
-                                            Objects.requireNonNull(toBytesFn.apply(row))))
-                                    .build()))
+
+            PCollectionTuple outputTuple =
+                input
+                    .get("input")
+                    .apply(
+                        "Map Rows to PubSubMessages",
+                        ParDo.of(new ErrorCounterFn("PubSubLite-write-error-counter", toBytesFn))
+                            .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
+
+            outputTuple
+                .get(OUTPUT_TAG)
                 .apply("Add UUIDs", PubsubLiteIO.addUuids())
                 .apply(
                     "Write to PS Lite",
@@ -117,7 +169,9 @@ public class PubsubLiteWriteSchemaTransformProvider
                                         CloudRegionOrZone.parse(configuration.getLocation()))
                                     .build())
                             .build()));
-            return PCollectionRowTuple.empty(input.getPipeline());
+
+            return PCollectionRowTuple.of(
+                "errors", outputTuple.get(ERROR_TAG).setRowSchema(ERROR_SCHEMA));
           }
         };
       }
@@ -138,7 +192,7 @@ public class PubsubLiteWriteSchemaTransformProvider
   @Override
   public @UnknownKeyFor @NonNull @Initialized List<@UnknownKeyFor @NonNull @Initialized String>
       outputCollectionNames() {
-    return Collections.emptyList();
+    return Collections.singletonList("errors");
   }
 
   @AutoValue

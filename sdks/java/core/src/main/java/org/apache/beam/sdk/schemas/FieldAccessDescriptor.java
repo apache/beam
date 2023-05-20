@@ -33,8 +33,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor.FieldDescriptor.ListQualifier;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor.FieldDescriptor.MapQualifier;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor.FieldDescriptor.Qualifier;
@@ -58,7 +56,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * <p>This class always puts the selected fields in a deterministic order.
  */
-@Experimental(Experimental.Kind.SCHEMAS)
 @AutoValue
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)

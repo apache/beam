@@ -137,6 +137,11 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
       failed_result = DataflowPipelineResult(failed_runner.job, failed_runner)
       failed_result.wait_until_finish()
 
+    # check the second call can still triggers the exception
+    with self.assertRaisesRegex(DataflowRuntimeException,
+                                'Dataflow pipeline failed. State: FAILED'):
+      failed_result.wait_until_finish()
+
     succeeded_runner = MockDataflowRunner([values_enum.JOB_STATE_DONE])
     succeeded_result = DataflowPipelineResult(
         succeeded_runner.job, succeeded_runner)
@@ -511,13 +516,13 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
 
     job_dict = json.loads(str(runner.job))
     self.assertIn(
-        u'CombineValues', set(step[u'kind'] for step in job_dict[u'steps']))
+        'CombineValues', set(step['kind'] for step in job_dict['steps']))
 
   def _find_step(self, job, step_name):
     job_dict = json.loads(str(job))
     maybe_step = [
-        s for s in job_dict[u'steps']
-        if s[u'properties'][u'user_name'] == step_name
+        s for s in job_dict['steps']
+        if s['properties']['user_name'] == step_name
     ]
     self.assertTrue(maybe_step, 'Could not find step {}'.format(step_name))
     return maybe_step[0]
@@ -542,12 +547,12 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     }]
 
     step = self._find_step(job, step_name)
-    self.assertEqual(step[u'kind'], step_kind)
+    self.assertEqual(step['kind'], step_kind)
 
     # The display data here is forwarded because the replace transform is
     # subclassed from iobase.Read.
-    self.assertGreater(len(step[u'properties']['display_data']), 0)
-    self.assertEqual(step[u'properties']['output_info'], expected_output_info)
+    self.assertGreater(len(step['properties']['display_data']), 0)
+    self.assertEqual(step['properties']['output_info'], expected_output_info)
 
   def test_read_create_translation(self):
     runner = DataflowRunner()
@@ -557,7 +562,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
       # pylint: disable=expression-not-assigned
       p | beam.Create([b'a', b'b', b'c'])
 
-    self.expect_correct_override(runner.job, u'Create/Read', u'ParallelRead')
+    self.expect_correct_override(runner.job, 'Create/Read', 'ParallelRead')
 
   def test_read_pubsub_translation(self):
     runner = DataflowRunner()
@@ -570,7 +575,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
       p | beam.io.ReadFromPubSub(topic='projects/project/topics/topic')
 
     self.expect_correct_override(
-        runner.job, u'ReadFromPubSub/Read', u'ParallelRead')
+        runner.job, 'ReadFromPubSub/Read', 'ParallelRead')
 
   def test_gbk_translation(self):
     runner = DataflowRunner()
@@ -604,10 +609,10 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         "user_name": "GroupByKey.out"
     }]  # yapf: disable
 
-    gbk_step = self._find_step(runner.job, u'GroupByKey')
-    self.assertEqual(gbk_step[u'kind'], u'GroupByKey')
+    gbk_step = self._find_step(runner.job, 'GroupByKey')
+    self.assertEqual(gbk_step['kind'], 'GroupByKey')
     self.assertEqual(
-        gbk_step[u'properties']['output_info'], expected_output_info)
+        gbk_step['properties']['output_info'], expected_output_info)
 
   @unittest.skip(
       'https://github.com/apache/beam/issues/18716: enable once '
@@ -657,24 +662,24 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
             input | beam.GroupIntoBatches.WithShardedKey(2)
             | beam.Map(lambda key_values: (key_values[0].key, key_values[1])))
         step_name = (
-            u'WithShardedKey/GroupIntoBatches/ParDo(_GroupIntoBatchesDoFn)')
+            'WithShardedKey/GroupIntoBatches/ParDo(_GroupIntoBatchesDoFn)')
       else:
         input | beam.GroupIntoBatches(2)
-        step_name = u'GroupIntoBatches/ParDo(_GroupIntoBatchesDoFn)'
+        step_name = 'GroupIntoBatches/ParDo(_GroupIntoBatchesDoFn)'
 
     return self._find_step(runner.job, step_name)['properties']
 
   def test_group_into_batches_translation(self):
     properties = self._run_group_into_batches_and_get_step_properties(
         True, ['--enable_streaming_engine', '--experiments=use_runner_v2'])
-    self.assertEqual(properties[PropertyNames.USES_KEYED_STATE], u'true')
-    self.assertEqual(properties[PropertyNames.ALLOWS_SHARDABLE_STATE], u'true')
-    self.assertEqual(properties[PropertyNames.PRESERVES_KEYS], u'true')
+    self.assertEqual(properties[PropertyNames.USES_KEYED_STATE], 'true')
+    self.assertEqual(properties[PropertyNames.ALLOWS_SHARDABLE_STATE], 'true')
+    self.assertEqual(properties[PropertyNames.PRESERVES_KEYS], 'true')
 
   def test_group_into_batches_translation_non_sharded(self):
     properties = self._run_group_into_batches_and_get_step_properties(
         False, ['--enable_streaming_engine', '--experiments=use_runner_v2'])
-    self.assertEqual(properties[PropertyNames.USES_KEYED_STATE], u'true')
+    self.assertEqual(properties[PropertyNames.USES_KEYED_STATE], 'true')
     self.assertNotIn(PropertyNames.ALLOWS_SHARDABLE_STATE, properties)
     self.assertNotIn(PropertyNames.PRESERVES_KEYS, properties)
 

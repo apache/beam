@@ -1068,7 +1068,6 @@ message LogEntry {
 
   // (Optional) Additional structured data to log.
   // Keys are limited to these characters: [a-zA-Z_-]
-  // Experimental.
   google.protobuf.Struct custom_data = 9;
 }
 

@@ -3036,7 +3036,7 @@ class PushFilter(_messages.Message):
 
 
 class ReceiveTriggerWebhookResponse(_messages.Message):
-  r"""ReceiveTriggerWebhookResponse [Experimental] is the response object for
+  r"""ReceiveTriggerWebhookResponse is the response object for
   the ReceiveTriggerWebhook method.
   """
 

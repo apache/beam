@@ -31,6 +31,10 @@ variable "region" {
   description = "Infrastructure Region"
 }
 
+variable "env" {}
+
+variable "state_bucket" {}
+
 #IAM
 
 variable "service_account_id" {
@@ -129,7 +133,7 @@ variable "network_region" {
   default     = "us-central1"
 }
 
-variable "ip-address-name" {
+variable "ip_address_name" {
   description = "Static IP address name"
   default     = "pg-static-ip"
 }

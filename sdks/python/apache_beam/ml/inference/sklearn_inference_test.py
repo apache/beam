@@ -350,6 +350,24 @@ class SkLearnRunInferenceTest(unittest.TestCase):
             model_uri=file.name, model_file_type=None)
         model_handler.load_model()
 
+  def test_env_vars_set_correctly_numpy(self):
+    temp_file_name = self.tmpdir + os.sep + 'pickled_file'
+    with open(temp_file_name, 'wb') as file:
+      pickle.dump(build_model(), file)
+    handler_with_vars = SklearnModelHandlerNumpy(
+        env_vars={'FOO': 'bar'}, model_uri=temp_file_name)
+    os.environ.pop('FOO', None)
+    self.assertFalse('FOO' in os.environ)
+    examples = [numpy.array([0, 0]), numpy.array([1, 1])]
+    with TestPipeline() as pipeline:
+      _ = (
+          pipeline
+          | 'start' >> beam.Create(examples)
+          | RunInference(handler_with_vars))
+      pipeline.run()
+      self.assertTrue('FOO' in os.environ)
+      self.assertTrue((os.environ['FOO']) == 'bar')
+
   def test_pipeline_pandas(self):
     temp_file_name = self.tmpdir + os.sep + 'pickled_file'
     with open(temp_file_name, 'wb') as file:
@@ -370,6 +388,26 @@ class SkLearnRunInferenceTest(unittest.TestCase):
       ]
       assert_that(
           actual, equal_to(expected, equals_fn=_compare_dataframe_predictions))
+
+  def test_pipeline_pandas_env_vars_set_correctly(self):
+    temp_file_name = self.tmpdir + os.sep + 'pickled_file'
+    with open(temp_file_name, 'wb') as file:
+      pickle.dump(build_pandas_pipeline(), file)
+
+    handler_with_vars = SklearnModelHandlerPandas(
+        env_vars={'FOO': 'bar'}, model_uri=temp_file_name)
+    os.environ.pop('FOO', None)
+    self.assertFalse('FOO' in os.environ)
+    with TestPipeline() as pipeline:
+      dataframe = pandas_dataframe()
+      splits = [dataframe.loc[[i]] for i in dataframe.index]
+      _ = (
+          pipeline
+          | 'start' >> beam.Create(splits)
+          | RunInference(handler_with_vars))
+      pipeline.run()
+      self.assertTrue('FOO' in os.environ)
+      self.assertTrue((os.environ['FOO']) == 'bar')
 
   def test_pipeline_pandas_custom_batching(self):
     temp_file_name = self.tmpdir + os.sep + 'pickled_file'

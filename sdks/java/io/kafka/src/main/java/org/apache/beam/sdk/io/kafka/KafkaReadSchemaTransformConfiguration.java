@@ -21,7 +21,6 @@ import com.google.auto.value.AutoValue;
 import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
@@ -34,7 +33,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
  * provide no backwards compatibility guarantees, and it should not be implemented outside the Beam
  * repository.
  */
-@Experimental
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
 public abstract class KafkaReadSchemaTransformConfiguration {

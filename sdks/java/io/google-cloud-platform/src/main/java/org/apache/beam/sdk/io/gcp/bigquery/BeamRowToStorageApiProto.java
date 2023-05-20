@@ -24,6 +24,7 @@ import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.DynamicMessage;
 import java.math.BigDecimal;
+import java.nio.ByteBuffer;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -102,9 +103,23 @@ public class BeamRowToStorageApiProto {
           .put(TypeName.BOOLEAN, Function.identity())
           // A Beam DATETIME is actually a timestamp, not a DateTime.
           .put(TypeName.DATETIME, o -> ((ReadableInstant) o).getMillis() * 1000)
-          .put(TypeName.BYTES, o -> ByteString.copyFrom((byte[]) o))
+          .put(TypeName.BYTES, BeamRowToStorageApiProto::toProtoByteString)
           .put(TypeName.DECIMAL, o -> serializeBigDecimalToNumeric((BigDecimal) o))
           .build();
+
+  private static ByteString toProtoByteString(Object o) {
+    if (o instanceof byte[]) {
+      return ByteString.copyFrom((byte[]) o);
+    } else if (o instanceof ByteBuffer) {
+      return ByteString.copyFrom((ByteBuffer) o);
+    } else if (o instanceof String) {
+      return ByteString.copyFromUtf8((String) o);
+    } else {
+      throw new ClassCastException(
+          String.format(
+              "Cannot cast %s to a compatible object to build ByteString.", o.getClass()));
+    }
+  }
 
   // A map of supported logical types to their encoding functions.
   static final Map<String, BiFunction<LogicalType<?, ?>, Object, Object>> LOGICAL_TYPE_ENCODERS =

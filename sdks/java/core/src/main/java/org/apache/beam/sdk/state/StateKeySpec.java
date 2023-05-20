@@ -17,10 +17,6 @@
  */
 package org.apache.beam.sdk.state;
 
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
-
-@Experimental(Kind.SCHEMAS)
 public class StateKeySpec {
 
   private StateKeySpec() {}

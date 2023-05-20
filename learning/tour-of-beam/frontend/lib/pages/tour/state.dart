@@ -27,7 +27,6 @@ import 'package:rate_limiter/rate_limiter.dart';
 import '../../auth/notifier.dart';
 import '../../cache/unit_content.dart';
 import '../../cache/unit_progress.dart';
-import '../../config.dart';
 import '../../enums/save_code_status.dart';
 import '../../enums/snippet_type.dart';
 import '../../models/event_context.dart';
@@ -57,10 +56,10 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
 
   TourNotifier({
     required Sdk initialSdk,
-    List<String> initialTreeIds = const [],
+    List<String> initialBreadcrumbIds = const [],
   })  : contentTreeController = ContentTreeController(
           initialSdk: initialSdk,
-          initialTreeIds: initialTreeIds,
+          initialBreadcrumbIds: initialBreadcrumbIds,
         ),
         playgroundController = _createPlaygroundController(initialSdk.id) {
     _appNotifier.sdk ??= initialSdk;
@@ -86,7 +85,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   @override
   PagePath get path => TourPath(
         sdkId: contentTreeController.sdk.id,
-        treeIds: contentTreeController.treeIds,
+        breadcrumbIds: contentTreeController.breadcrumbIds,
       );
 
   bool get isAuthenticated => _authNotifier.isAuthenticated;
@@ -109,6 +108,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     _saveCodeStatus = saveCodeStatus;
     notifyListeners();
   }
+
   bool get isUnitContainsSnippet => currentUnitContent?.taskSnippetId != null;
   bool get isSnippetLoading => _isLoadingSnippet;
 
