@@ -28,7 +28,7 @@ import (
 )
 
 func init() {
-	register.DoFn4x1[context.Context, *sdf.LockRTracker, PartitionedRead, func(beam.X), error]((*readBatchFn)(nil))
+	register.DoFn4x1[context.Context, *sdf.LockRTracker, partitionedRead, func(beam.X), error]((*readBatchFn)(nil))
 	register.Emitter1[beam.X]()
 }
 
@@ -65,7 +65,7 @@ func (f *readBatchFn) Setup(ctx context.Context) error {
 
 // CreateInitialRestriction creates an offset range restriction representing
 // the partition's size in bytes.
-func (f *readBatchFn) CreateInitialRestriction(read PartitionedRead) offsetrange.Restriction {
+func (f *readBatchFn) CreateInitialRestriction(read partitionedRead) offsetrange.Restriction {
 	txn := f.client.BatchReadOnlyTransactionFromID(read.BatchTransactionId)
 	iter := txn.Execute(context.Background(), read.Partition)
 	defer iter.Stop()
@@ -83,7 +83,7 @@ const (
 
 // SplitRestriction splits each file restriction into blocks of a predetermined
 // size, with some checks to avoid having small remainders.
-func (f *readBatchFn) SplitRestriction(_ PartitionedRead, rest offsetrange.Restriction) []offsetrange.Restriction {
+func (f *readBatchFn) SplitRestriction(_ partitionedRead, rest offsetrange.Restriction) []offsetrange.Restriction {
 	splits := rest.SizedSplits(blockSize)
 	numSplits := len(splits)
 	if numSplits > 1 {
@@ -98,7 +98,7 @@ func (f *readBatchFn) SplitRestriction(_ PartitionedRead, rest offsetrange.Restr
 }
 
 // RestrictionSize returns the size of each restriction as its range.
-func (f *readBatchFn) RestrictionSize(_ PartitionedRead, rest offsetrange.Restriction) float64 {
+func (f *readBatchFn) RestrictionSize(_ partitionedRead, rest offsetrange.Restriction) float64 {
 	return rest.Size()
 }
 
@@ -112,7 +112,7 @@ func (f *readBatchFn) Teardown() {
 	f.spannerFn.Teardown()
 }
 
-func (f *readBatchFn) ProcessElement(ctx context.Context, rt *sdf.LockRTracker, read PartitionedRead, emit func(beam.X)) error {
+func (f *readBatchFn) ProcessElement(ctx context.Context, rt *sdf.LockRTracker, read partitionedRead, emit func(beam.X)) error {
 	rest := rt.GetRestriction().(offsetrange.Restriction)
 
 	txn := f.client.BatchReadOnlyTransactionFromID(read.BatchTransactionId)
@@ -153,15 +153,15 @@ func (f *readBatchFn) ProcessElement(ctx context.Context, rt *sdf.LockRTracker, 
 	return nil
 }
 
-// PartitionedRead holds relevant partition information to support partitioned reading from Spanner.
-type PartitionedRead struct {
+// partitionedRead holds relevant partition information to support partitioned reading from Spanner.
+type partitionedRead struct {
 	BatchTransactionId spanner.BatchReadOnlyTransactionID `json:"batchTransactionId"` // The Spanner Batch Transaction Id
 	Partition          *spanner.Partition                 `json:"partition"`          // The Spanner Partition to read from
 }
 
-// NewPartitionedRead constructs a new PartitionedRead.
-func NewPartitionedRead(batchTransactionId spanner.BatchReadOnlyTransactionID, partition *spanner.Partition) PartitionedRead {
-	return PartitionedRead{
+// newPartitionedRead constructs a new PartitionedRead.
+func newPartitionedRead(batchTransactionId spanner.BatchReadOnlyTransactionID, partition *spanner.Partition) partitionedRead {
+	return partitionedRead{
 		BatchTransactionId: batchTransactionId,
 		Partition:          partition,
 	}

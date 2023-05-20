@@ -33,7 +33,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 )
 
-func TestSpannerIO_ExampleQueryBatch(t *testing.T) {
+func TestSpannerIO_QueryBatch(t *testing.T) {
 	integration.CheckFilters(t)
 
 	p := beam.NewPipeline()

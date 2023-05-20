@@ -16,6 +16,7 @@
 package spannerio
 
 import (
+	"cloud.google.com/go/spanner/apiv1/spannerpb"
 	"context"
 	"fmt"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
@@ -26,8 +27,8 @@ import (
 )
 
 func init() {
-	register.DoFn3x1[context.Context, []byte, func(read PartitionedRead), error]((*generatePartitionsFn)(nil))
-	register.Emitter1[*PartitionedRead]()
+	register.DoFn3x1[context.Context, []byte, func(read partitionedRead), error]((*generatePartitionsFn)(nil))
+	register.Emitter1[*partitionedRead]()
 }
 
 type generatePartitionsFn struct {
@@ -77,20 +78,22 @@ func newGeneratePartitionsFn(
 	}
 }
 
-func (f *generatePartitionsFn) ProcessElement(ctx context.Context, _ []byte, emit func(PartitionedRead)) error {
+func (f *generatePartitionsFn) ProcessElement(ctx context.Context, _ []byte, emit func(partitionedRead)) error {
 	txn, err := f.client.BatchReadOnlyTransaction(ctx, f.Options.TimestampBound)
 	if err != nil {
 		panic("unable to create batch read only transaction: " + err.Error())
 	}
 	defer txn.Close()
 
-	partitions, err := txn.PartitionQuery(ctx, spanner.Statement{SQL: f.Query}, partitionOptions(f.Options))
+	mode := spannerpb.ExecuteSqlRequest_PROFILE
+
+	partitions, err := txn.PartitionQueryWithOptions(ctx, spanner.Statement{SQL: f.Query}, partitionOptions(f.Options), spanner.QueryOptions{Mode: &mode})
 	if err != nil {
 		panic(fmt.Sprintf("unable to partition query: %v", err))
 	}
 
 	for _, p := range partitions {
-		emit(NewPartitionedRead(txn.ID, p))
+		emit(newPartitionedRead(txn.ID, p))
 	}
 
 	return nil
