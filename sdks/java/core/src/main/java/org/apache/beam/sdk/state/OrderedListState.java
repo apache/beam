@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.state;
 
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Instant;
 
@@ -27,7 +25,6 @@ import org.joda.time.Instant;
  * can be added to the list, and subranges can be read out in order. Subranges of the list can be
  * deleted as well.
  */
-@Experimental(Kind.STATE)
 public interface OrderedListState<T>
     extends GroupingState<TimestampedValue<T>, Iterable<TimestampedValue<T>>> {
   /**

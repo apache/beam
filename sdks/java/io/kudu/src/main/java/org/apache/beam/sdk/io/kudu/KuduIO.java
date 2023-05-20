@@ -26,8 +26,6 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -114,11 +112,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *         .withFormatFn(fn));
  * }</pre>
  *
- * <h3>Experimental</h3>
- *
- * {@code KuduIO} does not support authentication in this release.
+ * <p>{@link KuduIO} does not support authentication in this release.
  */
-@Experimental(Kind.SOURCE_SINK)
 @SuppressWarnings({
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)

@@ -119,10 +119,7 @@ class Metrics(object):
 
 
 class MetricLogger(object):
-  """Simple object to locally aggregate and log metrics.
-
-  This class is experimental. No backwards-compatibility guarantees.
-  """
+  """Simple object to locally aggregate and log metrics."""
   def __init__(self):
     # type: () -> None
     self._metric = {}  # type: Dict[MetricName, MetricCell]

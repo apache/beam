@@ -64,3 +64,15 @@ output "playground_gke_project" {
 output "playground_static_ip_address_name" {
  value = module.ip_address.playground_static_ip_address_name
 }
+
+output "playground_function_cleanup_url" {
+  value = module.cloudfunctions.playground_function_cleanup_url
+}
+
+output "playground_function_put_url" {
+  value = module.cloudfunctions.playground_function_put_url
+}
+
+output "playground_function_view_url" {
+  value = module.cloudfunctions.playground_function_view_url
+}

@@ -35,7 +35,6 @@ from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference import utils
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import PredictionResult
-from apache_beam.utils.annotations import experimental
 
 LOGGER = logging.getLogger("TensorRTEngineHandlerNumPy")
 # This try/catch block allows users to submit jobs from a machine without
@@ -221,7 +220,6 @@ def _default_tensorRT_inference_fn(
     return utils._convert_to_result(batch, predictions)
 
 
-@experimental(extra_message="No backwards-compatibility guarantees.")
 class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
                                               PredictionResult,
                                               TensorRTEngine]):
@@ -251,7 +249,8 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
       inference_fn: the inference function to use on RunInference calls.
         default: _default_tensorRT_inference_fn
       kwargs: Additional arguments like 'engine_path' and 'onnx_path' are
-        currently supported.
+        currently supported. 'env_vars' can be used to set environment variables
+        before loading the model.
 
     See https://docs.nvidia.com/deeplearning/tensorrt/api/python_api/
     for details
@@ -263,6 +262,7 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
       self.engine_path = kwargs.get('engine_path')
     elif 'onnx_path' in kwargs:
       self.onnx_path = kwargs.get('onnx_path')
+    self._env_vars = kwargs.get('env_vars', {})
 
   def batch_elements_kwargs(self):
     """Sets min_batch_size and max_batch_size of a TensorRT engine."""

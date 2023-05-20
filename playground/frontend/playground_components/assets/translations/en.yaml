@@ -31,7 +31,7 @@ errors:
 
 examples:
   defaultTitle: 'Catalog'
-  userSharedName: 'User Shared Code'
+  userSharedName: 'User Snippet'
 
 ui:
   copyright: '© The Apache Software Foundation'

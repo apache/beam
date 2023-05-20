@@ -28,6 +28,7 @@ import java.io.Serializable;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,6 +48,9 @@ class BigtableServiceFactory implements Serializable {
       new ConcurrentHashMap<>();
   private static final ConcurrentHashMap<UUID, AtomicInteger> refCounts = new ConcurrentHashMap<>();
   private static final Object lock = new Object();
+
+  private static final String BIGTABLE_ENABLE_CLIENT_SIDE_METRICS =
+      "bigtable_enable_client_side_metrics";
 
   @AutoValue
   abstract static class ConfigId implements Serializable {
@@ -115,6 +119,12 @@ class BigtableServiceFactory implements Serializable {
       }
       BigtableDataSettings settings =
           BigtableConfigTranslator.translateReadToVeneerSettings(config, opts, pipelineOptions);
+
+      if (ExperimentalOptions.hasExperiment(pipelineOptions, BIGTABLE_ENABLE_CLIENT_SIDE_METRICS)) {
+        LOG.info("Enabling client side metrics");
+        BigtableDataSettings.enableBuiltinMetrics();
+      }
+
       BigtableService service;
       if (opts.getWaitTimeout() != null) {
         service = new BigtableServiceImpl(settings, opts.getWaitTimeout());
@@ -155,6 +165,12 @@ class BigtableServiceFactory implements Serializable {
 
       BigtableDataSettings settings =
           BigtableConfigTranslator.translateWriteToVeneerSettings(config, opts, pipelineOptions);
+
+      if (ExperimentalOptions.hasExperiment(pipelineOptions, BIGTABLE_ENABLE_CLIENT_SIDE_METRICS)) {
+        LOG.info("Enabling client side metrics");
+        BigtableDataSettings.enableBuiltinMetrics();
+      }
+
       BigtableService service = new BigtableServiceImpl(settings);
       entry = BigtableServiceEntry.create(configId, service);
       entries.put(configId.id(), entry);

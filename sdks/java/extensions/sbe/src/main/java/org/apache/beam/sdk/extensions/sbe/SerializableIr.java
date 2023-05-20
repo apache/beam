@@ -23,15 +23,12 @@ import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.util.List;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import uk.co.real_logic.sbe.ir.Ir;
 import uk.co.real_logic.sbe.ir.IrDecoder;
 import uk.co.real_logic.sbe.ir.IrEncoder;
 
 /** A wrapper around {@link Ir} that fulfils Java's {@link Serializable} contract. */
-@Experimental(Kind.SCHEMAS)
 public final class SerializableIr implements Serializable {
   private static final long serialVersionUID = 1L;
 

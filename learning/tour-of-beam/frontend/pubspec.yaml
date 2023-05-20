@@ -38,7 +38,12 @@ dependencies:
   firebase_auth_platform_interface: ^6.11.7
   firebase_core: ^2.1.1
   flutter: { sdk: flutter }
-  flutter_markdown: ^0.6.12
+
+  # TODO(nausharipov): return flutter_markdown when it is fixed, https://github.com/apache/beam/issues/26498
+  # The exact version is used because this non-official package can be poorly maintained.
+  # Same in playground_components.
+  flutter_markdown_selectionarea: 0.6.14+3
+
   flutter_svg: ^2.0.1
   get_it: ^7.2.0
   google_fonts: ^4.0.3
