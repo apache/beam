@@ -56,7 +56,7 @@ func Read(s beam.Scope, db string, table string, t reflect.Type) beam.PCollectio
 // fields that have the "spanner" tag. By default, the transform uses spanners partitioned read ability to split
 // the results into bundles.
 // If the underlying query is not root-partitionable you can disable batching via UseBatching.
-func Query(s beam.Scope, db string, q string, t reflect.Type, options ...func(*queryOptions) error) beam.PCollection {
+func Query(s beam.Scope, db string, q string, t reflect.Type, options ...QueryOptionFn) beam.PCollection {
 	queryOptions := newQueryOptions(options...)
 
 	if db == "" {

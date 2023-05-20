@@ -25,6 +25,9 @@ const (
 	defaultBatching = true
 )
 
+// QueryOptionFn is a function that can be passed to Read or Query to configure options for reading or querying spanner.
+type QueryOptionFn func(*queryOptions) error
+
 // queryOptions represents additional options for executing a query.
 type queryOptions struct {
 	Batching       bool                   `json:"batching"`       // Batched reading, default is true.
@@ -32,7 +35,7 @@ type queryOptions struct {
 	TimestampBound spanner.TimestampBound `json:"timestampBound"` // The TimestampBound to use for batched reading
 }
 
-func newQueryOptions(options ...func(*queryOptions) error) queryOptions {
+func newQueryOptions(options ...QueryOptionFn) queryOptions {
 	opts := queryOptions{
 		Batching: defaultBatching,
 	}
@@ -48,7 +51,7 @@ func newQueryOptions(options ...func(*queryOptions) error) queryOptions {
 
 // WithBatching sets whether we will use a batched reader. Batching is set to true by default, disable it when the
 // underlying query is not root-partitionable.
-func WithBatching(batching bool) func(opts *queryOptions) error {
+func WithBatching(batching bool) QueryOptionFn {
 	return func(opts *queryOptions) error {
 		opts.Batching = batching
 		return nil
@@ -56,7 +59,7 @@ func WithBatching(batching bool) func(opts *queryOptions) error {
 }
 
 // WithMaxPartitions sets the maximum number of Partitions to split the query into when batched reading.
-func WithMaxPartitions(maxPartitions int64) func(opts *queryOptions) error {
+func WithMaxPartitions(maxPartitions int64) QueryOptionFn {
 	return func(opts *queryOptions) error {
 		if maxPartitions <= 0 {
 			return errors.New("max partitions must be greater than 0")
@@ -68,7 +71,7 @@ func WithMaxPartitions(maxPartitions int64) func(opts *queryOptions) error {
 }
 
 // WithTimestampBound sets the TimestampBound to use when doing batched reads.
-func WithTimestampBound(timestampBound spanner.TimestampBound) func(opts *queryOptions) error {
+func WithTimestampBound(timestampBound spanner.TimestampBound) QueryOptionFn {
 	return func(opts *queryOptions) error {
 		opts.TimestampBound = timestampBound
 		return nil

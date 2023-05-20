@@ -29,12 +29,15 @@ func init() {
 	register.DoFn2x1[context.Context, beam.X, error]((*writeFn)(nil))
 }
 
+// WriteOptionsFn is a function that can be passed to Write to configure options for writing to spanner.
+type WriteOptionsFn func(qo *writeOptions) error
+
 type writeOptions struct {
 	BatchSize int
 }
 
-// UseBatchSize explicitly sets the batch size per transaction for writes
-func UseBatchSize(batchSize int) func(qo *writeOptions) error {
+// UseBatchSize explicitly sets the batch size per transaction for writes.
+func UseBatchSize(batchSize int) WriteOptionsFn {
 	return func(qo *writeOptions) error {
 		qo.BatchSize = batchSize
 		return nil
@@ -43,7 +46,7 @@ func UseBatchSize(batchSize int) func(qo *writeOptions) error {
 
 // Write writes the elements of the given PCollection<T> to spanner. T is required
 // to be the schema type.
-func Write(s beam.Scope, db string, table string, col beam.PCollection, options ...func(*writeOptions) error) {
+func Write(s beam.Scope, db string, table string, col beam.PCollection, options ...WriteOptionsFn) {
 	if db == "" {
 		panic("no database provided!")
 	}
@@ -65,7 +68,7 @@ type writeFn struct {
 	mutations []*spanner.Mutation
 }
 
-func newWriteFn(db string, table string, t reflect.Type, options ...func(*writeOptions) error) *writeFn {
+func newWriteFn(db string, table string, t reflect.Type, options ...WriteOptionsFn) *writeFn {
 	writeOptions := writeOptions{
 		BatchSize: 1000, // default
 	}
