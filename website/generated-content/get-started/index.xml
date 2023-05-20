@@ -4617,8 +4617,8 @@ complexity. Beam Katas are available for both Java and Python SDKs.&lt;/p>
 &lt;/ul>
 &lt;h3 id="beam-playground">Beam Playground&lt;/h3>
 &lt;ul>
-&lt;li>&lt;a href="https://play.beam.apache.org">Beam Playground&lt;/a> is an interactive environment to try out Beam transforms and examples without having to install Apache Beam in your environment.
-You can try the available Apache Beam examples at &lt;a href="https://play.beam.apache.org">Beam Playground&lt;/a>.&lt;/li>
+&lt;li>&lt;a href="https://play-dev.beam.apache.org">Beam Playground&lt;/a> is an interactive environment to try out Beam transforms and examples without having to install Apache Beam in your environment.
+You can try the available Apache Beam examples at &lt;a href="https://play-dev.beam.apache.org">Beam Playground&lt;/a>.&lt;/li>
 &lt;li>Learn more about how to add an Apache Beam example/test/kata into Beam Playground catalog &lt;a href="/get-started/try-beam-playground/#how-to-add-new-examples">here&lt;/a>.&lt;/li>
 &lt;/ul>
 &lt;h2 id="api-reference">API Reference&lt;/h2>
@@ -4945,17 +4945,40 @@ limitations under the License.
 &lt;p>Beam Playground is an interactive environment to try out Beam transforms and examples
 without having to install Apache Beam in your environment.&lt;/p>
 &lt;p>You can try the available Apache Beam examples at
-&lt;a href="https://play.beam.apache.org/">Beam Playground&lt;/a>.&lt;/p>
+&lt;a href="https://play-dev.beam.apache.org/">Beam Playground&lt;/a>.&lt;/p>
 &lt;h2 id="beam-playground-wordcount-example">Beam Playground WordCount Example&lt;/h2>
-&lt;div class="playground-iframe-wrapper-no-scroll">
+&lt;div class="playground-wrapper">
+&lt;div class="playground-snippets">
+&lt;div
+class="language-java playground-snippet"
+data-sdk="java"
+data-path="SDK_JAVA_MinimalWordCount"
+>&lt;/div>
+&lt;div
+class="language-py playground-snippet"
+data-sdk="python"
+data-path="SDK_PYTHON_WordCountWithMetrics"
+>&lt;/div>
+&lt;div
+class="language-go playground-snippet"
+data-sdk="go"
+data-path="SDK_GO_MinimalWordCount"
+>&lt;/div>
+&lt;div
+class="language-scio playground-snippet"
+data-sdk="scio"
+data-path="SDK_SCIO_MinimalWordCount"
+>&lt;/div>
+&lt;/div>
+&lt;div class="code-snippet code-snippet-playground">
 &lt;iframe
-src="https://play.beam.apache.org/embedded?editable=1&amp;example=SDK_JAVA%2fPRECOMPILED_OBJECT_TYPE_EXAMPLE%2fMinimalWordCount&amp;code="
+src="https://play-dev.beam.apache.org/embedded?editable=1&amp;examples=%5b%7b%22path%22%3a%22SDK_JAVA_MinimalWordCount%22%2c%22sdk%22%3a%22java%22%7d%2c%7b%22path%22%3a%22SDK_PYTHON_WordCountWithMetrics%22%2c%22sdk%22%3a%22python%22%7d%2c%7b%22path%22%3a%22SDK_GO_MinimalWordCount%22%2c%22sdk%22%3a%22go%22%7d%2c%7b%22path%22%3a%22SDK_SCIO_MinimalWordCount%22%2c%22sdk%22%3a%22scio%22%7d%5d"
 width="100%"
-height="700"
-class="code-snippet playground"
-allow="clipboard-write">
-&lt;/iframe>
-&lt;div class="playground-iframe-overlay">&lt;/div>
+height="700px"
+class="playground"
+allow="clipboard-write"
+>&lt;/iframe>
+&lt;/div>
 &lt;/div>
 &lt;h2 id="how-to-add-new-examples">How To Add New Examples&lt;/h2>
 &lt;p>To add an Apache Beam example/test/kata into Beam Playground catalog,
@@ -5044,9 +5067,9 @@ After the category has been added, it can be used in the examples.&lt;/li>
 &lt;a href="https://docs.google.com/document/d/1LBeGVTYwJHYbtmLt06OjhBR1CJ1Wgz18MEZjvNkuofc/edit?usp=sharing">here&lt;/a>.&lt;/p>
 &lt;h2 id="next-steps">Next Steps&lt;/h2>
 &lt;ul>
-&lt;li>Try examples in &lt;a href="https://play.beam.apache.org/">Apache Beam Playground&lt;/a>.&lt;/li>
+&lt;li>Try examples in &lt;a href="https://play-dev.beam.apache.org/">Apache Beam Playground&lt;/a>.&lt;/li>
 &lt;li>Submit feedback using &amp;ldquo;Enjoying Playground?&amp;rdquo; in
-&lt;a href="https://play.beam.apache.org/">Apache Beam Playground&lt;/a> or via
+&lt;a href="https://play-dev.beam.apache.org/">Apache Beam Playground&lt;/a> or via
 &lt;a href="https://docs.google.com/forms/d/e/1FAIpQLSd5_5XeOwwW2yjEVHUXmiBad8Lxk-4OtNcgG45pbyAZzd4EbA/viewform?usp=pp_url">this form&lt;/a>.&lt;/li>
 &lt;li>Join the Beam &lt;a href="/community/contact-us">users@&lt;/a> mailing list.&lt;/li>
 &lt;li>If you&amp;rsquo;re interested in contributing to the Apache Beam Playground codebase, see the &lt;a href="/contribute">Contribution Guide&lt;/a>.&lt;/li>

@@ -537,7 +537,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 &lt;h3 id="what-is-apache-beam-playground">&lt;strong>What is Apache Beam Playground?&lt;/strong>&lt;/h3>
-&lt;p>&lt;a href="https://play.beam.apache.org/">Apache Beam Playground&lt;/a> is an interactive environment to try Apache Beam transforms and examples without requiring to install or set up a Beam environment.&lt;/p>
+&lt;p>&lt;a href="https://play-dev.beam.apache.org/">Apache Beam Playground&lt;/a> is an interactive environment to try Apache Beam transforms and examples without requiring to install or set up a Beam environment.&lt;/p>
 &lt;h3 id="apache-beam-playground-features">&lt;strong>Apache Beam Playground Features&lt;/strong>&lt;/h3>
 &lt;p>&lt;img class="center-block"
 src="/images/blog/BeamPlayground.gif"
@@ -552,7 +552,7 @@ alt="Apache Beam Playground">&lt;/p>
 &lt;/ul>
 &lt;h3 id="whats-next">&lt;strong>What’s Next&lt;/strong>&lt;/h3>
 &lt;ul>
-&lt;li>Try examples in &lt;a href="https://play.beam.apache.org/">Apache Beam Playground&lt;/a>&lt;/li>
+&lt;li>Try examples in &lt;a href="https://play-dev.beam.apache.org/">Apache Beam Playground&lt;/a>&lt;/li>
 &lt;li>Submit your feedback using “Enjoying Playground?” in Apache Beam Playground or via &lt;a href="https://docs.google.com/forms/d/e/1FAIpQLSd5_5XeOwwW2yjEVHUXmiBad8Lxk-4OtNcgG45pbyAZzd4EbA/viewform?usp=pp_url">this form&lt;/a>&lt;/li>
 &lt;li>Join the Beam &lt;a href="/community/contact-us">users@&lt;/a> mailing list&lt;/li>
 &lt;li>Contribute to the Apache Beam Playground codebase by following a few steps in this &lt;a href="/contribute">Contribution Guide&lt;/a>&lt;/li>
