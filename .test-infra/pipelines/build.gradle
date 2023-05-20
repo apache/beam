@@ -56,6 +56,7 @@ dependencies {
     testImplementation(platform("org.junit:junit-bom:${jupiterVersion}"))
     testImplementation('org.junit.jupiter:junit-jupiter')
     testImplementation project(":sdks:java:extensions:google-cloud-platform-core")
+    testImplementation library.java.mockito_core
 }
 
 test {
