@@ -289,23 +289,22 @@ class ReadFromBigtable(PTransform):
   # we process each Beam Row and return a PartialRowData equivalent.
   class _BeamRowToPartialRowData(beam.DoFn):
     def process(self, row):
-        key = row.key
-        families = row.column_families
+      key = row.key
+      families = row.column_families
 
-        # initialize PartialRowData object
-        partial_row: PartialRowData = PartialRowData(key)
-        for fam_name, col_fam in families.items():
-            if fam_name not in partial_row.cells:
-                partial_row.cells[fam_name] = {}
-            for col_qualifier, cells in col_fam.items():
-                # store column qualifier as bytes to follow PartialRowData behavior
-                col_qualifier_bytes = col_qualifier.encode()
-                if col_qualifier not in partial_row.cells[fam_name]:
-                    partial_row.cells[fam_name][col_qualifier_bytes] = []
-                for cell in cells:
-                    value = cell.value
-                    timestamp_micros = cell.timestamp_micros
-                    partial_row.cells[fam_name][col_qualifier_bytes].append(
-                        Cell(value, timestamp_micros))
-
-        yield partial_row
+      # initialize PartialRowData object
+      partial_row: PartialRowData = PartialRowData(key)
+      for fam_name, col_fam in families.items():
+        if fam_name not in partial_row.cells:
+          partial_row.cells[fam_name] = {}
+        for col_qualifier, cells in col_fam.items():
+          # store column qualifier as bytes to follow PartialRowData behavior
+          col_qualifier_bytes = col_qualifier.encode()
+          if col_qualifier not in partial_row.cells[fam_name]:
+            partial_row.cells[fam_name][col_qualifier_bytes] = []
+          for cell in cells:
+            value = cell.value
+            timestamp_micros = cell.timestamp_micros
+            partial_row.cells[fam_name][col_qualifier_bytes].append(
+                Cell(value, timestamp_micros))
+      yield partial_row
