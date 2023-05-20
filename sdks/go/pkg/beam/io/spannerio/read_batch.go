@@ -64,7 +64,7 @@ func (f *readBatchFn) Setup(ctx context.Context) error {
 }
 
 // CreateInitialRestriction creates an offset range restriction representing
-// the partition's size in bytes.
+// the number of rows in the partition..
 func (f *readBatchFn) CreateInitialRestriction(read PartitionedRead) offsetrange.Restriction {
 	txn := f.client.BatchReadOnlyTransactionFromID(read.BatchTransactionId)
 	iter := txn.Execute(context.Background(), read.Partition)
