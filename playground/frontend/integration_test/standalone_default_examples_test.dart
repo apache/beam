@@ -56,7 +56,7 @@ Future<void> _expectExample(ExampleDescriptor example, WidgetTester wt) async {
   expectVisibleText(visibleText, wt);
 
   if (example.contextLine1Based != null) {
-    expectContextLine(example.contextLine1Based!, wt);
+    expectContextLine(example.contextLine1Based!, wt, reason: example.path);
   }
 
   if (example.hasGraphTab) {

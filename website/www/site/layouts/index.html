@@ -53,21 +53,36 @@ limitations under the License. See accompanying LICENSE file.
 <div class="body__contained body__section-nav playground-section" tabindex="-1">
   <h1>Try Beam Playground</h1>
   <p>Beam Playground is an interactive environment to try out Beam transforms and examples without having to install Apache Beam in your environment.
-    You can try the Apache Beam examples at <a href="https://play.beam.apache.org/">Beam Playground (Beta)</a>.
+    You can try the Apache Beam examples at <a href="https://play-dev.beam.apache.org/">Beam Playground (Beta)</a>.
   </p>
   <br>
   <br>
-  <a class="playground__mobile" href="https://play.beam.apache.org/">
+  <a class="playground__mobile" href="https://play-dev.beam.apache.org/">
     <img src="images/playground.png" alt="beam playground">
   </a>
-  <div class="playground-iframe-wrapper-no-scroll">
-    <iframe
-            src="https://play.beam.apache.org/embedded?editable=1&example=SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MinimalWordCount"
-            width="100%"
-            height="700px"
-            class="code-snippet playground"
-            allow="clipboard-write">
-    </iframe>
+
+  <div class="playground-wrapper">
+    <div class="playground-snippets">
+      <div class="language-java playground-snippet" data-sdk="java"></div>
+      <div class="language-py playground-snippet" data-sdk="python"></div>
+      <div class="language-go playground-snippet" data-sdk="go"></div>
+      <div class="language-scio playground-snippet" data-sdk="scio"></div>
+    </div>
+
+    {{ $javaDict := dict "sdk" "java" "path" "SDK_JAVA_MinimalWordCount" }}
+    {{ $pythonDict := dict "sdk" "python" "path" "SDK_PYTHON_WordCountWithMetrics" }}
+    {{ $goDict := dict "sdk" "go" "path" "SDK_GO_MinimalWordCount" }}
+    {{ $scioDict := dict "sdk" "scio" "path" "SDK_SCIO_MinimalWordCount" }}
+    {{ $examples := slice $javaDict $pythonDict $goDict $scioDict }}
+
+    <div class="code-snippet code-snippet-playground">
+      <iframe
+        src="https://play-dev.beam.apache.org/embedded?sdk=java&examples={{ jsonify $examples }}"
+        width="100%"
+        height="700px"
+        allow="clipboard-write"
+      />
+    </div>
     <div class="playground-iframe-overlay"></div>
   </div>
 </div>
@@ -218,7 +233,7 @@ limitations under the License. See accompanying LICENSE file.
     <a class="ctas_button" href={{ "/get-started/quickstart-go/" | relLangURL }}>{{ T "home-go-quickstart" }}</a>
   </div>
   <div class='ctas_row'>
-    <a class="ctas_button" href={{ "https://play.beam.apache.org/" | relLangURL }}>{{ T "home-playground" }}</a>
+    <a class="ctas_button" href={{ "https://play-dev.beam.apache.org/" | relLangURL }}>{{ T "home-playground" }}</a>
   </div>
 </div>
 {{ end }}
