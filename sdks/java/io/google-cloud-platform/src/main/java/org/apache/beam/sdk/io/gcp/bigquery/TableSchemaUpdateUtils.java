@@ -35,13 +35,15 @@ public class TableSchemaUpdateUtils {
   Given an original schema and an updated schema, return a schema that should be used to process future records.
   This function returns:
       - If the new schema is not compatible (e.g. missing fields), then it will return Optional.empty().
+      - If the new schema is equivalent (i.e. equal modulo field ordering) to the old schema, then it will return
+        Optional.empty().
       - The returned schema will always contain the old schema as a prefix. This ensures that if any of the old
        fields are reordered in the new schema, we maintain the old order.
    */
   public static Optional<TableSchema> getUpdatedSchema(
       TableSchema oldSchema, TableSchema newSchema) {
     Result updatedFields = getUpdatedSchema(oldSchema.getFieldsList(), newSchema.getFieldsList());
-    if (updatedFields.isEqual()) {
+    if (updatedFields.isEquivalent()) {
       return Optional.empty();
     } else {
       return updatedFields
@@ -56,10 +58,10 @@ public class TableSchemaUpdateUtils {
   abstract static class Result {
     abstract Optional<List<TableFieldSchema>> getFields();
 
-    abstract boolean isEqual();
+    abstract boolean isEquivalent();
 
-    static Result of(List<TableFieldSchema> fields, boolean isEqual) {
-      return new AutoValue_TableSchemaUpdateUtils_Result(Optional.of(fields), isEqual);
+    static Result of(List<TableFieldSchema> fields, boolean isEquivalent) {
+      return new AutoValue_TableSchemaUpdateUtils_Result(Optional.of(fields), isEquivalent);
     }
 
     static Result empty() {
@@ -80,7 +82,7 @@ public class TableSchemaUpdateUtils {
         newSchema.stream().collect(Collectors.toMap(TableFieldSchema::getName, x -> x));
     Set<String> fieldNamesPopulated = Sets.newHashSet();
     List<TableFieldSchema> updatedSchema = Lists.newArrayList();
-    boolean isEqual = oldSchema.size() == newSchema.size();
+    boolean isEquivalent = oldSchema.size() == newSchema.size();
     for (TableFieldSchema tableFieldSchema : oldSchema) {
       @Nullable TableFieldSchema newTableFieldSchema = newSchemaMap.get(tableFieldSchema.getName());
       if (newTableFieldSchema == null) {
@@ -96,16 +98,16 @@ public class TableSchemaUpdateUtils {
           return updatedTableFields;
         }
         updatedTableFieldSchema.addAllFields(updatedTableFields.getFields().get());
-        isEqual = isEqual && updatedTableFields.isEqual();
-        isEqual =
-            isEqual
+        isEquivalent = isEquivalent && updatedTableFields.isEquivalent();
+        isEquivalent =
+            isEquivalent
                 && tableFieldSchema
                     .toBuilder()
                     .clearFields()
                     .build()
                     .equals(newTableFieldSchema.toBuilder().clearFields().build());
       } else {
-        isEqual = isEqual && tableFieldSchema.equals(newTableFieldSchema);
+        isEquivalent = isEquivalent && tableFieldSchema.equals(newTableFieldSchema);
       }
       updatedSchema.add(updatedTableFieldSchema.build());
       fieldNamesPopulated.add(updatedTableFieldSchema.getName());
@@ -115,6 +117,6 @@ public class TableSchemaUpdateUtils {
     newSchema.stream()
         .filter(f -> !fieldNamesPopulated.contains(f.getName()))
         .forEach(updatedSchema::add);
-    return Result.of(updatedSchema, isEqual);
+    return Result.of(updatedSchema, isEquivalent);
   }
 }

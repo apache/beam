@@ -55,6 +55,16 @@ public class TableSchemaUpdateUtilsTest {
                     .setType(TableFieldSchema.Type.STRUCT)
                     .addAllFields(baseSchema.getFieldsList()))
             .build();
+    TableSchema topSchema =
+        TableSchema.newBuilder()
+            .addFields(
+                TableFieldSchema.newBuilder().setName("a").setType(TableFieldSchema.Type.STRING))
+            .addFields(
+                TableFieldSchema.newBuilder()
+                    .setName("nested")
+                    .setType(TableFieldSchema.Type.STRUCT)
+                    .addAllFields(schema.getFieldsList()))
+            .build();
 
     TableSchema newBaseSchema =
         TableSchema.newBuilder()
@@ -84,6 +94,17 @@ public class TableSchemaUpdateUtilsTest {
                 TableFieldSchema.newBuilder().setName("d").setType(TableFieldSchema.Type.STRING))
             .build();
 
+    TableSchema newTopSchema =
+        TableSchema.newBuilder()
+            .addFields(
+                TableFieldSchema.newBuilder()
+                    .setName("nested")
+                    .setType(TableFieldSchema.Type.STRUCT)
+                    .addAllFields(newSchema.getFieldsList()))
+            .addFields(
+                TableFieldSchema.newBuilder().setName("a").setType(TableFieldSchema.Type.STRING))
+            .build();
+
     TableSchema expectedSchemaBaseSchema =
         TableSchema.newBuilder()
             .addFields(
@@ -111,9 +132,20 @@ public class TableSchemaUpdateUtilsTest {
             .addFields(
                 TableFieldSchema.newBuilder().setName("d").setType(TableFieldSchema.Type.STRING))
             .build();
+    TableSchema expectedTopSchema =
+        TableSchema.newBuilder()
+            .addFields(
+                TableFieldSchema.newBuilder().setName("a").setType(TableFieldSchema.Type.STRING))
+            .addFields(
+                TableFieldSchema.newBuilder()
+                    .setName("nested")
+                    .setType(TableFieldSchema.Type.STRUCT)
+                    .addAllFields(expectedSchema.getFieldsList()))
+            .build();
 
-    TableSchema updatedSchema = TableSchemaUpdateUtils.getUpdatedSchema(schema, newSchema).get();
-    assertEquals(expectedSchema, updatedSchema);
+    TableSchema updatedTopSchema =
+        TableSchemaUpdateUtils.getUpdatedSchema(topSchema, newTopSchema).get();
+    assertEquals(expectedTopSchema, updatedTopSchema);
   }
 
   @Test
