@@ -44,8 +44,14 @@ pipeline configuration in addition to the above:::
   --temp_location gs://YOUR_TEMPORARY_DIRECTORY
   --runner DataflowRunner
 
-The default input is ``gs://apache-beam-samples/nyc_trip/avro/*.avro`` and can
-be overridden with --input.
+The default input is
+``gs://apache-beam-samples/nyc_trip/avro/fhvhv_tripdata_2023-02.avro`` and
+takes about 15 minutes with 6 workers running on Dataflow. The default input
+can be overridden with --input argument. More data can be accessed at
+``gs://apache-beam-samples/nyc_trip/avro/*``.
+
+Additionally, the original parquet files can be found at
+``gs://apache-beam-samples/nyc_trip/parquet/*``.
 """
 
 # pytype: skip-file
@@ -235,8 +241,10 @@ def run(argv=None):
   parser.add_argument(
       '--input',
       dest='input',
-      default='gs://apache-beam-samples/nyc_trip/avro/*.avro',
-      help='Input file of NYC FHV data to process.',
+      default=
+      'gs://apache-beam-samples/nyc_trip/avro/fhvhv_tripdata_2023-02.avro',
+      help='Input file of NYC FHV data to process. Larger dataset can be found '
+      'here: gs://apache-beam-samples/nyc_trip/avro/*',
   )
   parser.add_argument(
       '--output',
