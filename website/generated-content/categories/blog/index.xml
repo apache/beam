@@ -50,6 +50,10 @@ in response to the Google Cloud Debugger service &lt;a href="https://cloud.googl
 &lt;ul>
 &lt;li>BigQuery sink in STORAGE_WRITE_API mode in batch pipelines might result in data consistency issues during the handling of other unrelated transient errors for Beam SDKs 2.35.0 - 2.46.0 (inclusive). For more details see: &lt;a href="https://github.com/apache/beam/issues/26521">https://github.com/apache/beam/issues/26521&lt;/a>&lt;/li>
 &lt;/ul>
+&lt;h3 id="known-issues">Known Issues&lt;/h3>
+&lt;ul>
+&lt;li>BigQueryIO Storage API write with autoUpdateSchema may cause data corruption for Beam SDKs 2.45.0 - 2.47.0 (inclusive) (&lt;a href="https://github.com/apache/beam/issues/26789">#26789&lt;/a>)&lt;/li>
+&lt;/ul>
 &lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
 &lt;p>According to git shortlog, the following people contributed to the 2.47.0 release. Thank you to all contributors!&lt;/p>
 &lt;p>Ahmed Abualsaud&lt;/p>
