@@ -37,8 +37,6 @@ import org.apache.beam.model.jobmanagement.v1.ArtifactRetrievalServiceGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Impulse;
@@ -70,7 +68,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * service. Note that this is a low-level API and mainly for internal use. A user may want to use
  * high-level wrapper classes rather than this one.
  */
-@Experimental(Kind.PORTABILITY)
 @SuppressWarnings({
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)

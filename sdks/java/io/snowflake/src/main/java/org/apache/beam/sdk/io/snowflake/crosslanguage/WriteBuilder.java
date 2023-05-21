@@ -20,8 +20,6 @@ package org.apache.beam.sdk.io.snowflake.crosslanguage;
 import java.io.IOException;
 import java.util.List;
 import net.snowflake.client.jdbc.internal.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.snowflake.SnowflakeIO;
 import org.apache.beam.sdk.io.snowflake.data.SnowflakeTableSchema;
 import org.apache.beam.sdk.io.snowflake.enums.CreateDisposition;
@@ -31,7 +29,6 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 
-@Experimental(Kind.PORTABILITY)
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })

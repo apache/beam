@@ -32,7 +32,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTableFilter;
 import org.apache.beam.sdk.extensions.sql.meta.SchemaBaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
@@ -50,7 +49,6 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
 
-@Experimental
 public class BigtableTable extends SchemaBaseBeamTable implements Serializable {
   // Should match:
   // googleapis.com/bigtable/projects/projectId/instances/instanceId/tables/tableId"

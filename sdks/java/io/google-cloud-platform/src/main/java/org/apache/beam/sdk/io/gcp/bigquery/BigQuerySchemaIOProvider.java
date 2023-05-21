@@ -21,7 +21,6 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.auto.service.AutoService;
 import java.io.Serializable;
 import java.util.HashMap;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.gcp.testing.FakeBigQueryServices;
 import org.apache.beam.sdk.io.gcp.testing.FakeDatasetService;
@@ -43,11 +42,8 @@ import org.joda.time.Duration;
  * An implementation of {@link SchemaIOProvider} for reading and writing to BigQuery with {@link
  * BigQueryIO}. For a description of configuration options and other defaults, see {@link
  * BigQuerySchemaIOProvider#configurationSchema()}.
- *
- * <p>This transform is still experimental, and is still subject to breaking changes.
  */
 @Internal
-@Experimental
 @AutoService(SchemaIOProvider.class)
 public class BigQuerySchemaIOProvider implements SchemaIOProvider {
 

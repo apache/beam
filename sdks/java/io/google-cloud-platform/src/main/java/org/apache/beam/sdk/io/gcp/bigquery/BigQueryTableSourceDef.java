@@ -24,8 +24,6 @@ import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
 import java.io.IOException;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.avro.io.AvroSource;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
@@ -103,7 +101,6 @@ class BigQueryTableSourceDef implements BigQuerySourceDef {
   }
 
   /** {@inheritDoc} */
-  @Experimental(Kind.SCHEMAS)
   @Override
   public Schema getBeamSchema(BigQueryOptions bqOptions) {
     try {

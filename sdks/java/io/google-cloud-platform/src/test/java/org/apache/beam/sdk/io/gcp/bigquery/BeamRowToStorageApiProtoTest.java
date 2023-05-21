@@ -28,6 +28,7 @@ import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.DynamicMessage;
 import java.math.BigDecimal;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -44,16 +45,14 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Functions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.commons.math3.util.Pair;
 import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-@RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 /** Unit tests form {@link BeamRowToStorageApiProto}. */
+@RunWith(JUnit4.class)
 public class BeamRowToStorageApiProtoTest {
   private static final EnumerationType TEST_ENUM =
       EnumerationType.create("ONE", "TWO", "RED", "BLUE");
@@ -391,5 +390,29 @@ public class BeamRowToStorageApiProtoTest {
             .collect(Collectors.toMap(FieldDescriptor::getName, Functions.identity()));
     DynamicMessage nestedMsg = (DynamicMessage) msg.getField(fieldDescriptors.get("nested"));
     assertBaseRecord(nestedMsg);
+  }
+
+  @Test
+  public void testScalarToProtoValue() {
+    Map<FieldType, Iterable<Pair<Object, Object>>> testCases =
+        ImmutableMap.<FieldType, Iterable<Pair<Object, Object>>>builder()
+            .put(
+                FieldType.BYTES,
+                ImmutableList.of(
+                    Pair.create(BYTES, ByteString.copyFrom(BYTES)),
+                    Pair.create(ByteBuffer.wrap(BYTES), ByteString.copyFrom(BYTES)),
+                    Pair.create(
+                        new String(BYTES, StandardCharsets.UTF_8), ByteString.copyFrom(BYTES))))
+            .build();
+    for (Map.Entry<FieldType, Iterable<Pair<Object, Object>>> entry : testCases.entrySet()) {
+      entry
+          .getValue()
+          .forEach(
+              p -> {
+                assertEquals(
+                    p.getValue(),
+                    BeamRowToStorageApiProto.scalarToProtoValue(entry.getKey(), p.getKey()));
+              });
+    }
   }
 }

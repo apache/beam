@@ -41,6 +41,7 @@ import org.apache.beam.model.expansion.v1.ExpansionApi.SchemaTransformConfig;
 import org.apache.beam.model.expansion.v1.ExpansionServiceGrpc;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms.ExpansionMethods;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms.ExternalConfigurationPayload;
+import org.apache.beam.model.pipeline.v1.ExternalTransforms.SchemaTransformPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.SchemaApi;
 import org.apache.beam.runners.core.construction.Environments;
@@ -79,6 +80,7 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.Server;
 import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ServerBuilder;
 import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.StreamObserver;
@@ -400,8 +402,35 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
           Pipeline.applyTransform(name, createInput(p, inputs), getTransform(spec)));
     }
 
+    default String getTransformUniqueID(RunnerApi.FunctionSpec spec) {
+      if (getUrn(ExpansionMethods.Enum.SCHEMA_TRANSFORM).equals(spec.getUrn())) {
+        SchemaTransformPayload payload;
+        try {
+          payload = SchemaTransformPayload.parseFrom(spec.getPayload());
+          return payload.getIdentifier();
+        } catch (InvalidProtocolBufferException e) {
+          throw new IllegalArgumentException(
+              "Invalid payload type for URN " + getUrn(ExpansionMethods.Enum.SCHEMA_TRANSFORM), e);
+        }
+      }
+      return spec.getUrn();
+    }
+
     default List<String> getDependencies(RunnerApi.FunctionSpec spec, PipelineOptions options) {
+
+      ExpansionServiceConfig config =
+          options.as(ExpansionServiceOptions.class).getExpansionServiceConfig();
+      String transformUniqueID = getTransformUniqueID(spec);
+      if (config.getDependencies().containsKey(transformUniqueID)) {
+        List<String> updatedDependencies =
+            config.getDependencies().get(transformUniqueID).stream()
+                .map(dependency -> dependency.getPath())
+                .collect(Collectors.toList());
+        return updatedDependencies;
+      }
+
       List<String> filesToStage = options.as(PortablePipelineOptions.class).getFilesToStage();
+
       if (filesToStage == null || filesToStage.isEmpty()) {
         ClassLoader classLoader = Environments.class.getClassLoader();
         if (classLoader == null) {
@@ -595,6 +624,10 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
         .as(ExperimentalOptions.class)
         .setExperiments(pipelineOptions.as(ExperimentalOptions.class).getExperiments());
     effectiveOpts.setRunner(NotRunnableRunner.class);
+    effectiveOpts
+        .as(ExpansionServiceOptions.class)
+        .setExpansionServiceConfig(
+            pipelineOptions.as(ExpansionServiceOptions.class).getExpansionServiceConfig());
     return Pipeline.create(effectiveOpts);
   }
 
