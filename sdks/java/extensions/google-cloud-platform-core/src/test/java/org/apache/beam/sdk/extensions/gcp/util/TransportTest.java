@@ -18,10 +18,11 @@
 package org.apache.beam.sdk.extensions.gcp.util;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.greaterThan;
 
 import com.google.api.services.storage.Storage;
 import java.io.IOException;
+import java.util.Arrays;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.Test;
@@ -38,6 +39,11 @@ public class TransportTest {
     Storage.Objects.Get getObject = storageClient.objects().get("testbucket", "testobject");
     // An example of user agent string will be like
     // "TransportTest (GPN:Beam) Google-API-Java-Client/2.0.0"
-    assertThat(getObject.getRequestHeaders().getUserAgent(), containsString("(GPN:Beam)"));
+    // For a valid user-agent string, a comment like "(GPN:Beam)" cannot be the first token.
+    // https://www.rfc-editor.org/rfc/rfc7231#section-5.5.3
+    assertThat(
+        Arrays.asList(getObject.getRequestHeaders().getUserAgent().split(" "))
+            .indexOf("(GPN:Beam)"),
+        greaterThan(0));
   }
 }
