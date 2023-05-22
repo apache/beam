@@ -64,7 +64,6 @@ public class CreateTableHelpers {
       throws Exception {
     BackOff backoff = BackOffAdapter.toGcpBackOff(DEFAULT_BACKOFF_FACTORY.backoff());
     RuntimeException lastException = null;
-    int i = 0;
     do {
       try {
         action.call();
