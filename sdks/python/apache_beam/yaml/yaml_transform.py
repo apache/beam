@@ -15,8 +15,6 @@
 # limitations under the License.
 #
 
-# This module is experimental. No backwards-compatibility guarantees.
-
 import collections
 import json
 import logging

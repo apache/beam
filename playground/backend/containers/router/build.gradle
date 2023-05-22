@@ -27,67 +27,69 @@ def playgroundJobServerProject = "${project.path.replace('-container', '')}"
 description = project(playgroundJobServerProject).description + " :: Container"
 
 configurations {
-  dockerDependency
+   dockerDependency
 }
 
 dependencies {
-  dockerDependency project(path: playgroundJobServerProject, configuration: "shadow")
+   dockerDependency project(path: playgroundJobServerProject, configuration: "shadow")
 }
 
-task copyDockerfileDependencies(type: Copy) {
-   copy {
-      from '../../../backend/'
-      into 'build/src'
-      exclude 'containers'
-   }
-   copy {
-      from 'entrypoint.sh'
-      into 'build/'
-   }
-   copy {
-      from '../../../playground'
-      into 'build/playground'
-   }
-   copy {
-      from '../../../sdks.yaml'
-      into 'build/'
-   }
-   copy {
-      from '../../../sdks-emulator.yaml'
-      into 'build/'
+task copyDockerfileDependencies {
+   doLast {
+      copy {
+         from '../../../backend/'
+         into 'build/src'
+         exclude 'containers'
+      }
+      copy {
+         from 'entrypoint.sh'
+         into 'build/'
+      }
+      copy {
+         from '../../../playground'
+         into 'build/playground'
+      }
+      copy {
+         from '../../../sdks.yaml'
+         into 'build/'
+      }
+      copy {
+         from '../../../sdks-emulator.yaml'
+         into 'build/'
+      }
    }
 }
 
 docker {
-  name containerImageName(
-          name: project.docker_image_default_repo_prefix + "playground-backend-router",
-          root: project.rootProject.hasProperty(["docker-repository-root"]) ?
-                  project.rootProject["docker-repository-root"] :
-                  project.docker_image_default_repo_root)
-  files "./build/"
-  tags containerImageTags()
-  buildArgs(['BASE_IMAGE': project.rootProject.hasProperty(["base-image"]) ?
-                           project.rootProject["base-image"] :
-                           "golang:1.18-bullseye",
-             'GIT_COMMIT': getGitCommitHash(),
-             'GIT_TIMESTAMP': getGitCommitTimestamp()])
+   name containerImageName(
+         name: project.docker_image_default_repo_prefix + "playground-backend-router",
+         root: project.rootProject.hasProperty(["docker-repository-root"]) ?
+               project.rootProject["docker-repository-root"] :
+               project.docker_image_default_repo_root)
+   files "./build/"
+   tags containerImageTags()
+   buildArgs(['BASE_IMAGE'   : project.rootProject.hasProperty(["base-image"]) ?
+         project.rootProject["base-image"] :
+         "golang:1.18-bullseye",
+              'GIT_COMMIT'   : getGitCommitHash(),
+              'GIT_TIMESTAMP': getGitCommitTimestamp()])
 }
 
 task dockerComposeLocalUp() {
-    dependsOn ':playground:backend:containers:router:docker'
-    doLast {
-        exec {
-            commandLine "docker-compose", "-f", "docker-compose.local.yml", "up", "-d"
-        }
-    }
+   dependsOn ':playground:backend:containers:router:docker'
+   doLast {
+      exec {
+         commandLine "docker-compose", "-f", "docker-compose.local.yml", "up", "-d"
+      }
+   }
 }
 
 task dockerComposeLocalDown() {
-    doLast {
-        exec {
-            commandLine "docker-compose", "-f", "docker-compose.local.yml", "down"
-        }
-    }
+   doLast {
+      exec {
+         commandLine "docker-compose", "-f", "docker-compose.local.yml", "down"
+      }
+   }
 }
 
 // Ensure that we build the required resources and copy and file dependencies from related projects

@@ -31,11 +31,13 @@ import com.google.cloud.bigquery.storage.v1.WriteStream.Type;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.InvalidProtocolBufferException;
+import io.grpc.Status;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
@@ -224,11 +226,14 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       ProtoRows protoRows;
       List<org.joda.time.Instant> timestamps;
 
+      int failureCount;
+
       public AppendRowsContext(
           long offset, ProtoRows protoRows, List<org.joda.time.Instant> timestamps) {
         this.offset = offset;
         this.protoRows = protoRows;
         this.timestamps = timestamps;
+        this.failureCount = 0;
       }
     }
 
@@ -301,17 +306,20 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       }
 
       String getOrCreateStreamName() {
-        try {
-          if (!useDefaultStream) {
-            this.streamName =
-                Preconditions.checkStateNotNull(maybeDatasetService)
-                    .createWriteStream(tableUrn, Type.PENDING)
-                    .getName();
-          } else {
-            this.streamName = getDefaultStreamName();
+        if (Strings.isNullOrEmpty(this.streamName)) {
+          try {
+            if (!useDefaultStream) {
+              this.streamName =
+                  Preconditions.checkStateNotNull(maybeDatasetService)
+                      .createWriteStream(tableUrn, Type.PENDING)
+                      .getName();
+              this.currentOffset = 0;
+            } else {
+              this.streamName = getDefaultStreamName();
+            }
+          } catch (Exception e) {
+            throw new RuntimeException(e);
           }
-        } catch (Exception e) {
-          throw new RuntimeException(e);
         }
         return this.streamName;
       }
@@ -376,7 +384,6 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
               // This pin is "owned" by the current DoFn.
               Preconditions.checkStateNotNull(newAppendClientInfo.getStreamAppendClient()).pin();
             }
-            this.currentOffset = 0;
             nextCacheTickle = Instant.now().plus(java.time.Duration.ofMinutes(1));
             this.appendClientInfo = newAppendClientInfo;
           }
@@ -486,9 +493,9 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
             // the ProtoRows iterable at 2MB and the max request size is 10MB, this scenario seems
             // nearly impossible.
             LOG.error(
-                "A request containing more than one row is over the request size limit of "
-                    + maxRequestSize
-                    + ". This is unexpected. All rows in the request will be sent to the failed-rows PCollection.");
+                "A request containing more than one row is over the request size limit of {}. "
+                    + "This is unexpected. All rows in the request will be sent to the failed-rows PCollection.",
+                maxRequestSize);
           }
           for (int i = 0; i < inserts.getSerializedRowsCount(); ++i) {
             ByteString rowBytes = inserts.getSerializedRows(i);
@@ -507,6 +514,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
 
         long offset = -1;
         if (!this.useDefaultStream) {
+          getOrCreateStreamName(); // Force creation of the stream before we get offsets.
           offset = this.currentOffset;
           this.currentOffset += inserts.getSerializedRowsCount();
         }
@@ -563,7 +571,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                             failedRow, error.getRowIndexToErrorMessage().get(failedIndex)),
                         timestamp);
                   } catch (InvalidProtocolBufferException e) {
-                    LOG.error("Failed to insert row and could not parse the result!");
+                    LOG.error("Failed to insert row and could not parse the result!", e);
                   }
                 }
                 rowsSentToFailedRowsCollection.inc(failedRowIndices.size());
@@ -598,7 +606,42 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                   streamName,
                   clientNumber,
                   retrieveErrorDetails(contexts));
+              failedContext.failureCount += 1;
+
+              // Maximum number of times we retry before we fail the work item.
+              if (failedContext.failureCount > 5) {
+                throw new RuntimeException("More than 5 attempts to call AppendRows failed.");
+              }
+
+              // The following errors are known to be persistent, so always fail the work item in
+              // this case.
+              Throwable error = Preconditions.checkStateNotNull(failedContext.getError());
+              Status.Code statusCode = Status.fromThrowable(error).getCode();
+              if (statusCode.equals(Status.Code.OUT_OF_RANGE)
+                  || statusCode.equals(Status.Code.ALREADY_EXISTS)) {
+                throw new RuntimeException(
+                    "Append to stream "
+                        + this.streamName
+                        + " failed with invalid "
+                        + "offset of "
+                        + failedContext.offset);
+              }
+
+              boolean streamDoesNotExist =
+                  failedContext.getError() instanceof Exceptions.StreamFinalizedException
+                      || statusCode.equals(Status.Code.INVALID_ARGUMENT)
+                      || statusCode.equals(Status.Code.NOT_FOUND)
+                      || statusCode.equals(Status.Code.FAILED_PRECONDITION);
+              if (streamDoesNotExist) {
+                throw new RuntimeException(
+                    "Append to stream "
+                        + this.streamName
+                        + " failed with stream "
+                        + "doesn't exist");
+              }
+
               invalidateWriteStream();
+
               appendFailures.inc();
               return RetryType.RETRY_ALL_OPERATIONS;
             },
@@ -616,7 +659,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                     org.joda.time.Instant timestamp = c.timestamps.get(i);
                     successfulRowsReceiver.outputWithTimestamp(row, timestamp);
                   } catch (InvalidProtocolBufferException e) {
-                    LOG.warn("Failure parsing TableRow: " + e);
+                    LOG.warn("Failure parsing TableRow", e);
                   }
                 }
               }
@@ -629,7 +672,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       String retrieveErrorDetails(Iterable<AppendRowsContext> failedContext) {
         return StreamSupport.stream(failedContext.spliterator(), false)
             .<@Nullable Throwable>map(AppendRowsContext::getError)
-            .filter(err -> err != null)
+            .filter(Objects::nonNull)
             .map(
                 thrw ->
                     Preconditions.checkStateNotNull(thrw).toString()
@@ -648,7 +691,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
           @Nullable
           TableSchema updatedTableSchema =
               (streamAppendClient != null) ? streamAppendClient.getUpdatedSchema() : null;
-          if (updatedTableSchema != null) {
+          if (updatedTableSchema != null && autoUpdateSchema) {
             invalidateWriteStream();
             appendClientInfo =
                 Preconditions.checkStateNotNull(getAppendClientInfo(false, updatedTableSchema));

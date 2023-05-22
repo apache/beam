@@ -19,15 +19,12 @@ package org.apache.beam.sdk.metrics;
 
 import com.google.auto.value.AutoValue;
 import java.util.List;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /**
  * The results of a query for metrics. Allows accessing all of the metrics that matched the filter.
  */
 @AutoValue
-@Experimental(Kind.METRICS)
 public abstract class MetricQueryResults {
   /** Return the metric results for the counters that matched the filter. */
   public abstract Iterable<MetricResult<Long>> getCounters();

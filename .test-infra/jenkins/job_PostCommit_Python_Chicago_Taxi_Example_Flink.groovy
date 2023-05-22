@@ -72,7 +72,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
 //
 // CronJobBuilder.cronJob(
 //     'beam_PostCommit_Python_Chicago_Taxi_Flink',
-//     'H 14 * * *',
+//     'H H * * *',
 //     this
 //     ) {
 //       chicagoTaxiJob(delegate)

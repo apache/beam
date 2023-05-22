@@ -30,7 +30,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.StringUtils;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.harness.JvmInitializer;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -180,7 +179,6 @@ import org.slf4j.LoggerFactory;
  *    );
  * }</pre>
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
 public class Neo4jIO {
 
   private static final Logger LOG = LoggerFactory.getLogger(Neo4jIO.class);

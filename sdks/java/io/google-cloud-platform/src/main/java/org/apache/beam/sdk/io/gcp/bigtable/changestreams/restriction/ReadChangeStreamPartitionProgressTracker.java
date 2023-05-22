@@ -62,11 +62,10 @@ public class ReadChangeStreamPartitionProgressTracker
   /**
    * This restriction tracker is for unbounded streams.
    *
-   * @return {@link
-   *     org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.IsBounded.UNBOUNDED}
+   * @return {@link IsBounded.UNBOUNDED}
    */
   @Override
-  public RestrictionTracker.IsBounded isBounded() {
+  public IsBounded isBounded() {
     return IsBounded.UNBOUNDED;
   }
 
@@ -76,11 +75,11 @@ public class ReadChangeStreamPartitionProgressTracker
    * runner initiated checkpoint or the streamProgress contains a closeStream response and not a
    * token.
    *
-   * @throws java.lang.IllegalStateException when the restriction is not done and there is more work
-   *     to be done.
+   * @throws IllegalStateException when the restriction is not done and there is more work to be
+   *     done.
    */
   @Override
-  public void checkDone() throws java.lang.IllegalStateException {
+  public void checkDone() throws IllegalStateException {
     boolean done =
         shouldStop || streamProgress.getCloseStream() != null || streamProgress.isFailToLock();
     Preconditions.checkState(done, "There's more work to be done");

@@ -450,10 +450,10 @@ packages:
     dependency: transitive
     description:
       name: flutter_code_editor
-      sha256: "73313c8235b242102af1935312933134774f62c7ed8ad8297beedb88340cc7e1"
+      sha256: "5cd0337a24155dcac85d4f5b0cc8fa022ab19785a968a86726cdc62e363ee428"
       url: "https://pub.dev"
     source: hosted
-    version: "0.2.18"
+    version: "0.2.23"
   flutter_driver:
     dependency: transitive
     description: flutter
@@ -496,14 +496,14 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
-  flutter_markdown:
+  flutter_markdown_selectionarea:
     dependency: "direct main"
     description:
-      name: flutter_markdown
-      sha256: "7b25c10de1fea883f3c4f9b8389506b54053cd00807beab69fd65c8653a2711f"
+      name: flutter_markdown_selectionarea
+      sha256: "4ce7f7eb337d75afcb8613f49e484ffc561e695b5369ff588b6549e422078569"
       url: "https://pub.dev"
     source: hosted
-    version: "0.6.14"
+    version: "0.6.14+3"
   flutter_svg:
     dependency: "direct main"
     description:
@@ -888,6 +888,13 @@ packages:
     dependency: "direct main"
     description:
       path: "../../../playground/frontend/playground_components"
+      relative: true
+    source: path
+    version: "0.0.1"
+  playground_components_dev:
+    dependency: "direct main"
+    description:
+      path: "../../../playground/frontend/playground_components_dev"
       relative: true
     source: path
     version: "0.0.1"

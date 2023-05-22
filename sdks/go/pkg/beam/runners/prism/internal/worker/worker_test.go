@@ -145,7 +145,7 @@ func TestWorker_Control_HappyPath(t *testing.T) {
 
 	b := &B{}
 	b.Init()
-	wk.bundles[instID] = b
+	wk.activeInstructions[instID] = b
 	b.ProcessOn(wk)
 
 	ctrlStream.Send(&fnpb.InstructionResponse{
@@ -187,7 +187,7 @@ func TestWorker_Data_HappyPath(t *testing.T) {
 		OutputCount: 1,
 	}
 	b.Init()
-	wk.bundles[instID] = b
+	wk.activeInstructions[instID] = b
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -235,7 +235,7 @@ func TestWorker_State_Iterable(t *testing.T) {
 	}
 
 	instID := wk.NextInst()
-	wk.bundles[instID] = &B{
+	wk.activeInstructions[instID] = &B{
 		IterableSideInputData: map[string]map[string]map[typex.Window][][]byte{
 			"transformID": {
 				"i1": {

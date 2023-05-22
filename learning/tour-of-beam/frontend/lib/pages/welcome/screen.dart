@@ -129,7 +129,7 @@ class _SdkSelection extends StatelessWidget {
                 SdksBuilder(
                   builder: (context, sdks, child) {
                     if (sdks.isEmpty) {
-                      return Container();
+                      return const Center(child: CircularProgressIndicator());
                     }
 
                     return AnimatedBuilder(
@@ -184,15 +184,15 @@ class _TourSummary extends StatelessWidget {
             sdk: sdk,
             builder: (context, contentTree, child) {
               if (contentTree == null) {
-                return Container();
+                return const Center(child: CircularProgressIndicator());
               }
 
               return Column(
-                children: contentTree.modules
+                children: contentTree.nodes
                     .map(
                       (module) => _Module(
                         module: module,
-                        isLast: module == contentTree.modules.last,
+                        isLast: module == contentTree.nodes.last,
                       ),
                     )
                     .toList(growable: false),
@@ -367,7 +367,7 @@ class _Module extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        _ModuleHeader(title: module.title),
+        _ModuleHeader(module: module),
         if (isLast) const _LastModuleBody() else const _ModuleBody(),
       ],
     );
@@ -375,9 +375,9 @@ class _Module extends StatelessWidget {
 }
 
 class _ModuleHeader extends StatelessWidget {
-  final String title;
+  final ModuleModel module;
 
-  const _ModuleHeader({required this.title});
+  const _ModuleHeader({required this.module});
 
   @override
   Widget build(BuildContext context) {
@@ -400,7 +400,7 @@ class _ModuleHeader extends StatelessWidget {
               const SizedBox(width: BeamSizes.size16),
               Expanded(
                 child: Text(
-                  title,
+                  module.title,
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
               ),
@@ -410,11 +410,11 @@ class _ModuleHeader extends StatelessWidget {
         Row(
           children: [
             Text(
-              'complexity.medium',
+              'complexity.${module.complexity.name}',
               style: Theme.of(context).textTheme.headlineSmall,
             ).tr(),
             const SizedBox(width: BeamSizes.size6),
-            const ComplexityWidget(complexity: Complexity.medium),
+            ComplexityWidget(complexity: module.complexity),
           ],
         ),
       ],
