@@ -61,12 +61,11 @@ func TestRead(t *testing.T) {
 //
 //	type GoTypeFromGBQAvro struct {
 //	   Tweet struct {
-//				Value string `json:"string"`
-//		  } `json:"tweet,omitempty"`
+//	   	 	Value string `json:"string"`
+//	   } `json:"tweet,omitempty"`
 //	}
 //
 // For readability, using the below nested struct set-up.
-
 type NullableFloat64 struct {
 	Value float64 `json:"double"`
 }
