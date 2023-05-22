@@ -128,6 +128,7 @@ func Runner(ctx context.Context, paths *fs_tool.LifeCyclePaths, pipelineOptions 
 		builder = builder.
 			WithRunner().
 			WithArgs(args).
+			WithWorkingDir(paths.AbsoluteSourceFileFolderPath).
 			WithExecutableFileNames(className).
 			WithPipelineOptions(strings.Split(pipelineOptions, " ")).
 			ExecutorBuilder
