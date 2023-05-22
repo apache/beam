@@ -12,10 +12,17 @@
 
 <!DOCTYPE html>
 <html lang="{{ .Site.Language.Lang }}" class="no-js">
-
+<head>
+  {{ partial "head_homepage" . }}
+</head>
 <body class="body body--index">
+  <!-- {{ partial "header.html" . }} -->
   <div class="body__contained no__padding">
     {{ block "playground-section" . }}{{ end }}
   </div>
+  <!-- <div class="main-padding">
+    {{ partial "footer.html" . }} -->
+  <!-- </div>
+  {{ partial "hooks/body-end.html"}} -->
 </body>
 </html>
