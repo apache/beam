@@ -20,6 +20,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -161,14 +162,19 @@ func launchSDKProcess() error {
 	if os.Getenv("RUN_PYTHON_SDK_IN_DEFAULT_ENVIRONMENT") == "" {
 		venvDir, err := setupVenv(ctx, logger, "/opt/apache/beam-venv", *id)
 		if err != nil {
-			logger.Printf(ctx, "Using default environment, since creating a virtual environment for the SDK harness didn't succeed: %v", err)
-		} else {
-			cleanupFunc := func() {
-				os.RemoveAll(venvDir)
-				logger.Printf(ctx, "Cleaned up temporary venv for worker %v.", *id)
-			}
-			defer cleanupFunc()
+			return errors.New(
+				"failed to create a virtual environment. If running on Ubuntu systems, " +
+				"you might need to install `python3-venv` package. " +
+				"To run the SDK process in default environment instead, " +
+				"set the environment variable `RUN_PYTHON_SDK_IN_DEFAULT_ENVIRONMENT=1`. " +
+				"In custom Docker images, you can do that with an `ENV` statement. " +
+				fmt.Sprintf("Encountered error: %v", err))
 		}
+		cleanupFunc := func() {
+			os.RemoveAll(venvDir)
+			logger.Printf(ctx, "Cleaned up temporary venv for worker %v.", *id)
+		}
+		defer cleanupFunc()
 	}
 
 	dir := filepath.Join(*semiPersistDir, "staged")

@@ -16,17 +16,14 @@
  * limitations under the License.
  */
 
-import 'package:playground_components/playground_components.dart';
+import 'package:easy_localization/easy_localization.dart';
 
-import '../example_descriptor.dart';
+/// Thrown when a single example failed to be loaded.
+class ExamplesLoadingException implements Exception {
+  final Exception inner;
 
-const pythonWordCountWithMetrics = ExampleDescriptor(
-  //
-  'WordCountWithMetrics',
-  contextLine1Based: 23,
-  dbPath: 'SDK_PYTHON_WordCountWithMetrics',
-  path: '/sdks/python/apache_beam/examples/wordcount_with_metrics.py',
-  sdk: Sdk.python,
+  ExamplesLoadingException(this.inner);
 
-  outputContains: ['average word length: 4'],
-);
+  @override
+  String toString() => '${'errors.loadingExample'.tr()} $inner';
+}

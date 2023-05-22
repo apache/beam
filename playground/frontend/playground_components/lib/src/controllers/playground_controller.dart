@@ -293,6 +293,7 @@ class PlaygroundController with ChangeNotifier {
       path: snippetId,
       sdk: snippetController.sdk,
       type: ExampleType.example,
+      pipelineOptions: snippetController.pipelineOptions,
     );
 
     final descriptor = UserSharedExampleLoadingDescriptor(

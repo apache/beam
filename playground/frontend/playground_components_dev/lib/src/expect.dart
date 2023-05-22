@@ -24,7 +24,11 @@ import 'package:playground_components/playground_components.dart';
 import 'examples/example_descriptor.dart';
 import 'widget_tester.dart';
 
-void expectContextLine(int contextLine1Based, WidgetTester wt) {
+void expectContextLine(
+  int contextLine1Based,
+  WidgetTester wt, {
+  String? reason,
+}) {
   final controller = wt.findOneCodeController();
   final selection = controller.selection;
   final position = controller.code.hiddenRanges.recoverPosition(
@@ -36,6 +40,7 @@ void expectContextLine(int contextLine1Based, WidgetTester wt) {
   expect(
     controller.code.lines.characterIndexToLineIndex(position),
     contextLine1Based - 1,
+    reason: reason,
   );
 }
 
