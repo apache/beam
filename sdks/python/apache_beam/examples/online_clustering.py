@@ -34,7 +34,7 @@ from apache_beam.transforms import ptransform
 from apache_beam.transforms.userstate import ReadModifyWriteStateSpec
 
 
-class SaveModel(beam.DoFn):
+class SaveModel(core.DoFn):
   """Saves trained clustering model to persistent storage"""
   def __init__(self, checkpoints_path: str):
     self.checkpoints_path = checkpoints_path
@@ -60,7 +60,7 @@ class SaveModel(beam.DoFn):
     yield checkpoint_name
 
 
-class AssignClusterLabelsFn(beam.DoFn):
+class AssignClusterLabelsFn(core.DoFn):
   """Takes a trained model and input data and labels
    all data instances using the trained model."""
   def process(self, batch, model, model_id):
@@ -69,7 +69,7 @@ class AssignClusterLabelsFn(beam.DoFn):
       yield PredictionResult(example=e, inference=i, model_id=model_id)
 
 
-class SelectLatestModelState(beam.CombineFn):
+class SelectLatestModelState(core.CombineFn):
   """Selects that latest version of a model after training"""
   def create_accumulator(self):
     # create and initialise accumulator

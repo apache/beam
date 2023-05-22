@@ -26,10 +26,9 @@ using the OnlineKMeans transform, then the AssignClusterLabels
 transform assigns a cluster to each record in the dataset. This
 transform makes use of the RunInference API under the hood.
 
-In order to set this example up, you will need one thing.
+In order to run this example up:
 1. Download the data from kaggle as csv
-
-california_housing_clustering.py --input /tmp/housing.csv
+2. Run `python california_housing_clustering.py --input <path/to/housing.csv> --checkpoints_path <path/to/checkpoints>`  # pylint: disable=line-too-long
 """
 
 import argparse
@@ -56,6 +55,11 @@ def parse_known_args(argv):
       dest='input',
       required=True,
       help='A csv file containing the data that needs to be clustered.')
+  parser.add_argument(
+      '--checkpoints_path',
+      dest='checkpoints_path',
+      required=True,
+      help='A path to a directory where model checkpoints can be stored.')
   return parser.parse_known_args(argv)
 
 
@@ -90,7 +94,7 @@ def run(
           n_clusters=6,
           batch_size=256,
           cluster_args={},
-          checkpoints_path='/tmp/checkpoints'))
+          checkpoints_path=known_args.checkpoints_path))
 
   # 2. Calculate labels for all records in the dataset
   # using the trained clustering model using in memory model
