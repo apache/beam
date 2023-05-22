@@ -38,6 +38,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
@@ -685,16 +686,22 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
 
       void postFlush() {
         // If we got a response indicating an updated schema, recreate the client.
-        if (this.appendClientInfo != null) {
+        if (this.appendClientInfo != null && autoUpdateSchema) {
           @Nullable
           StreamAppendClient streamAppendClient = appendClientInfo.getStreamAppendClient();
           @Nullable
-          TableSchema updatedTableSchema =
+          TableSchema updatedTableSchemaReturned =
               (streamAppendClient != null) ? streamAppendClient.getUpdatedSchema() : null;
-          if (updatedTableSchema != null && autoUpdateSchema) {
-            invalidateWriteStream();
-            appendClientInfo =
-                Preconditions.checkStateNotNull(getAppendClientInfo(false, updatedTableSchema));
+          if (updatedTableSchemaReturned != null) {
+            Optional<TableSchema> updatedTableSchema =
+                TableSchemaUpdateUtils.getUpdatedSchema(
+                    this.initialTableSchema, updatedTableSchemaReturned);
+            if (updatedTableSchema.isPresent()) {
+              invalidateWriteStream();
+              appendClientInfo =
+                  Preconditions.checkStateNotNull(
+                      getAppendClientInfo(false, updatedTableSchema.get()));
+            }
           }
         }
       }
