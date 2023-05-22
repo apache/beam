@@ -72,7 +72,7 @@ jobs:
         
       
   stage_java_source:
-    if: ${{github.event.inputs.PUBLISH_JAVA_ARTIFACTS == 'yes'}}
+    if: ${{github.event.inputs.STAGE_JAVA_SOURCE == 'yes'}}
     runs-on: ubuntu-latest
     steps:
       - name: Validate and mask apache id/password
