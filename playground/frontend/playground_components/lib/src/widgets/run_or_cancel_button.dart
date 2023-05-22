@@ -49,11 +49,10 @@ class RunOrCancelButton extends StatelessWidget {
               (_) => PlaygroundComponents.toastNotifier.add(_getErrorToast()),
             );
       },
-      runCode: () {
+      runCode: () async {
         beforeRun?.call();
-        playgroundController.codeRunner.runCode(
-          onFinish: () => onComplete?.call(playgroundController.codeRunner),
-        );
+        await playgroundController.codeRunner.runCode();
+        onComplete?.call(playgroundController.codeRunner);
       },
     );
   }
