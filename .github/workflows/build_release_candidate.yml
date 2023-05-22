@@ -122,7 +122,6 @@ jobs:
             rm -r "$RELEASE_DIR"
 
             echo "----Signing Source Release ${SOURCE_RELEASE_ZIP}-----"
-            echo "gpg --local-user \"${{steps.import_gpg.outputs.name}}\" --armor --detach-sig \"${SOURCE_RELEASE_ZIP}\""
             gpg --local-user "${{steps.import_gpg.outputs.name}}" --armor --detach-sig "${SOURCE_RELEASE_ZIP}"
 
             echo "----Creating Hash Value for ${SOURCE_RELEASE_ZIP}----"
