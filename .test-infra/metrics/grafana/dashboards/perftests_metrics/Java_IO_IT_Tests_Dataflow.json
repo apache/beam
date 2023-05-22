@@ -1939,7 +1939,7 @@
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "JdbcIO | 5M records",
+      "title": "JdbcIO | 5M records | TestRow",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -2062,7 +2062,7 @@
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "HadoopFormatIO | 5M records",
+      "title": "HadoopFormatIO | 5M records | TestRow",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -2743,7 +2743,7 @@
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "CdapIO | 5M records",
+      "title": "CdapIO | 5M records | TestRow",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -2866,7 +2866,7 @@
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "SparkReceiverIO | 5M Records",
+      "title": "SparkReceiverIO | 5M Records | 450 MB",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -2989,7 +2989,7 @@
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "SingleStoreIO | 5M Records",
+      "title": "SingleStoreIO | 5M Records | TestRow",
       "tooltip": {
         "shared": true,
         "sort": 0,

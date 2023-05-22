@@ -33,7 +33,7 @@ String jobName = "beam_PerformanceTests_SparkReceiver_IO"
  */
 job(jobName) {
   common.setTopLevelMainJobProperties(delegate, 'master', 120)
-  common.setAutoJob(delegate, 'H H/12 * * *')
+  common.setAutoJob(delegate, 'H H * * *')
   common.enablePhraseTriggeringFromPullRequest(
       delegate,
       'Java SparkReceiverIO Performance Test',
@@ -67,7 +67,7 @@ job(jobName) {
     rabbitMqBootstrapServerAddress: "amqp://guest:guest@\$${rabbitMqHostName}:5672",
     streamName                    : 'rabbitMqTestStream',
     readTimeout                   : '1800',
-    numWorkers                    : '1',
+    numWorkers                    : '5',
     autoscalingAlgorithm          : 'NONE'
   ]
 
