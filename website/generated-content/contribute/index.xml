@@ -1191,7 +1191,7 @@ is perfectly safe since the script does not depend on the current working tree.&
 You don&amp;rsquo;t need to wait for the action to complete to start running the script.&lt;/p>
 &lt;ul>
 &lt;li>
-&lt;p>&lt;strong>Action&lt;/strong> &lt;a href="https://github.com/damccorm/beam/actions/workflows/build_release_candidate.yml">build_release_candidate&lt;/a> (click &lt;code>run workflow&lt;/code>)&lt;/p>
+&lt;p>&lt;strong>Action&lt;/strong> &lt;a href="https://github.com/apache/beam/actions/workflows/build_release_candidate.yml">build_release_candidate&lt;/a> (click &lt;code>run workflow&lt;/code>)&lt;/p>
 &lt;/li>
 &lt;li>
 &lt;p>&lt;strong>The script will:&lt;/strong>&lt;/p>
