@@ -19,9 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 
-import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableFieldSchema;
-import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import java.io.IOException;
@@ -122,7 +120,7 @@ public class StorageApiSinkFailedRowsIT {
 
   @Test
   public void testSchemaMismatchCaughtByBeam() throws IOException, InterruptedException {
-    String tableSpec = createTable(BASE_TABLE_SCHEMA);
+    String tableSpec = createTable();
     TableRow good1 = new TableRow().set("str", "foo").set("i64", "42");
     TableRow good2 = new TableRow().set("str", "foo").set("i64", "43");
     Iterable<TableRow> goodRows =
@@ -149,7 +147,7 @@ public class StorageApiSinkFailedRowsIT {
 
   @Test
   public void testInvalidRowCaughtByBigquery() throws IOException, InterruptedException {
-    String tableSpec = createTable(BASE_TABLE_SCHEMA);
+    String tableSpec = createTable();
 
     TableRow good1 =
         new TableRow()
@@ -195,20 +193,19 @@ public class StorageApiSinkFailedRowsIT {
     assertGoodRowsWritten(tableSpec, goodRows);
   }
 
-  private static String createTable(TableSchema tableSchema)
-      throws IOException, InterruptedException {
+  private static String createTable() throws IOException, InterruptedException {
     String table = "table" + System.nanoTime();
     BQ_CLIENT.deleteTable(PROJECT, BIG_QUERY_DATASET_ID, table);
-    BQ_CLIENT.createNewTable(
-        PROJECT,
-        BIG_QUERY_DATASET_ID,
-        new Table()
-            .setSchema(tableSchema)
-            .setTableReference(
-                new TableReference()
-                    .setTableId(table)
-                    .setDatasetId(BIG_QUERY_DATASET_ID)
-                    .setProjectId(PROJECT)));
+    /* BQ_CLIENT.createNewTable(
+    PROJECT,
+    BIG_QUERY_DATASET_ID,
+    new Table()
+        .setSchema(tableSchema)
+        .setTableReference(
+            new TableReference()
+                .setTableId(table)
+                .setDatasetId(BIG_QUERY_DATASET_ID)
+                .setProjectId(PROJECT)));*/
     return PROJECT + "." + BIG_QUERY_DATASET_ID + "." + table;
   }
 
@@ -239,7 +236,7 @@ public class StorageApiSinkFailedRowsIT {
             .to(tableSpec)
             .withSchema(BASE_TABLE_SCHEMA)
             .withMethod(method)
-            .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER);
+            .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED);
     if (method == BigQueryIO.Write.Method.STORAGE_WRITE_API) {
       write = write.withNumStorageWriteApiStreams(1);
       if (triggered) {

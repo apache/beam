@@ -19,6 +19,8 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
+import com.google.api.client.util.BackOff;
+import com.google.api.client.util.BackOffUtils;
 import com.google.api.gax.rpc.ApiException;
 import com.google.api.services.bigquery.model.Clustering;
 import com.google.api.services.bigquery.model.EncryptionConfiguration;
@@ -32,13 +34,16 @@ import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.extensions.gcp.util.BackOffAdapter;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
+import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Duration;
 
 public class CreateTableHelpers {
   /**
@@ -48,13 +53,19 @@ public class CreateTableHelpers {
    */
   private static Set<String> createdTables = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
+  private static final Duration INITIAL_RPC_BACKOFF = Duration.millis(500);
+  private static final FluentBackoff DEFAULT_BACKOFF_FACTORY =
+      FluentBackoff.DEFAULT.withMaxRetries(4).withInitialBackoff(INITIAL_RPC_BACKOFF);
+
   // When CREATE_IF_NEEDED is specified, BQ tables should be created if they do not exist. This
   // method detects
   // errors on table operations, and attempts to create the table if necessary.
   static void createTableWrapper(Callable<Void> action, Callable<Boolean> tryCreateTable)
       throws Exception {
+    BackOff backoff = BackOffAdapter.toGcpBackOff(DEFAULT_BACKOFF_FACTORY.backoff());
     RuntimeException lastException = null;
-    for (int retry = 0; retry <= 1; ++retry) {
+    int i = 0;
+    do {
       try {
         action.call();
         return;
@@ -68,7 +79,7 @@ public class CreateTableHelpers {
           throw e;
         }
       }
-    }
+    } while (BackOffUtils.next(com.google.api.client.util.Sleeper.DEFAULT, backoff));
     throw Preconditions.checkStateNotNull(lastException);
   }
 
