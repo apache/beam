@@ -52,12 +52,12 @@ limitations under the License. See accompanying LICENSE file.
 {{ define "playground-section" }}
 <div class="body__contained body__section-nav playground-section" tabindex="-1">
   <div class="playground-wrapper">
-    <!-- <div class="playground-snippets">
+    <div class="playground-snippets">
       <div class="language-java playground-snippet" data-sdk="java"></div>
       <div class="language-py playground-snippet" data-sdk="python"></div>
       <div class="language-go playground-snippet" data-sdk="go"></div>
       <div class="language-scio playground-snippet" data-sdk="scio"></div>
-    </div> -->
+    </div>
 
     {{ $javaDict := dict "sdk" "java" "path" "SDK_JAVA_MinimalWordCount" }}
     {{ $pythonDict := dict "sdk" "python" "path" "SDK_PYTHON_WordCountWithMetrics" }}
@@ -73,7 +73,7 @@ limitations under the License. See accompanying LICENSE file.
         allow="clipboard-write"
       ></iframe>
     </div>
-    <!-- <div class="playground-iframe-overlay"></div> -->
+    <div class="playground-iframe-overlay"></div>
   </div>
 </div>
 {{ end }}
