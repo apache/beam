@@ -79,7 +79,7 @@ See playground_snippet for all supported options.
     {{ $editable := 1 }}{{ if isset .Params "editable" }}{{ $editable = index .Params "editable" }}{{ end }}
     <div class="code-snippet code-snippet-playground">
         <iframe
-            src="https://play-dev.beam.apache.org/embedded?editable={{ $editable }}&examples={{ $snippets }}"
+            src="https://play.beam.apache.org/embedded?editable={{ $editable }}&examples={{ $snippets }}"
             width="100%"
             height="{{ .Get "height" }}"
             class="playground"
