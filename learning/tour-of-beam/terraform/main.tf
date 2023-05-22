@@ -28,6 +28,7 @@ module "setup" {
 module "functions_buckets" {
   source = "./functions_buckets"
   region      = var.region
+  environment = var.environment
   depends_on = [module.setup, module.api_enable]
 }
 

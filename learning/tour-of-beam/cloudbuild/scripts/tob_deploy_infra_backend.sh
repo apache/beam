@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 
 export DEBIAN_FRONTEND=noninteractive
-
 apt-get -qq update
 apt-get -qq install -y wget unzip software-properties-common git curl apt-transport-https ca-certificates gnupg jq lsb-release
 
