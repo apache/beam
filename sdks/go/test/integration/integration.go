@@ -240,6 +240,7 @@ var dataflowFilters = []string{
 	"TestPanes",
 	// There is no infrastructure for running KafkaIO tests with Dataflow.
 	"TestKafkaIO.*",
+	"TestSpannerIO.*",
 	// Dataflow doesn't support any test that requires loopback.
 	// Eg. For FileIO examples.
 	".*Loopback.*",
@@ -248,6 +249,8 @@ var dataflowFilters = []string{
 	"TestCheckpointing",
 	// TODO(21761): This test needs to provide GCP project to expansion service.
 	"TestBigQueryIO_BasicWriteQueryRead",
+	// Can't handle the test spanner container or access a local spanner. 
+	"TestSpannerIO.*",
 	// Dataflow does not drain jobs by itself.
 	"TestDrain",
 }
