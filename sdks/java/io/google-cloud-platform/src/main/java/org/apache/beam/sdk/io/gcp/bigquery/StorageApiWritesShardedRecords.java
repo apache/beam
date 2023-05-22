@@ -36,6 +36,7 @@ import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
@@ -751,16 +752,23 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
         if (autoUpdateSchema) {
           @Nullable
           StreamAppendClient streamAppendClient = appendClientInfo.get().getStreamAppendClient();
+          TableSchema originalSchema = appendClientInfo.get().getTableSchema();
+          ;
           @Nullable
-          TableSchema newSchema =
+          TableSchema updatedSchemaReturned =
               (streamAppendClient != null) ? streamAppendClient.getUpdatedSchema() : null;
           // Update the table schema and clear the append client.
-          if (newSchema != null) {
-            appendClientInfo.set(
-                AppendClientInfo.of(newSchema, appendClientInfo.get().getCloseAppendClient()));
-            APPEND_CLIENTS.invalidate(element.getKey());
-            APPEND_CLIENTS.put(element.getKey(), appendClientInfo.get());
-            updatedSchema.write(newSchema);
+          if (updatedSchemaReturned != null) {
+            Optional<TableSchema> newSchema =
+                TableSchemaUpdateUtils.getUpdatedSchema(originalSchema, updatedSchemaReturned);
+            if (newSchema.isPresent()) {
+              appendClientInfo.set(
+                  AppendClientInfo.of(
+                      newSchema.get(), appendClientInfo.get().getCloseAppendClient()));
+              APPEND_CLIENTS.invalidate(element.getKey());
+              APPEND_CLIENTS.put(element.getKey(), appendClientInfo.get());
+              updatedSchema.write(newSchema.get());
+            }
           }
         }
 

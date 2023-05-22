@@ -229,6 +229,7 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
       max_batch_size: int,
       *,
       inference_fn: TensorRTInferenceFn = _default_tensorRT_inference_fn,
+      large_model: bool = False,
       **kwargs):
     """Implementation of the ModelHandler interface for TensorRT.
 
@@ -248,6 +249,10 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
       max_batch_size: maximum accepted batch size.
       inference_fn: the inference function to use on RunInference calls.
         default: _default_tensorRT_inference_fn
+      large_model: set to true if your model is large enough to run into
+        memory pressure if you load multiple copies. Given a model that
+        consumes N memory and a machine with W cores and M memory, you should
+        set this to True if N*W > M.
       kwargs: Additional arguments like 'engine_path' and 'onnx_path' are
         currently supported. 'env_vars' can be used to set environment variables
         before loading the model.
@@ -263,6 +268,7 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
     elif 'onnx_path' in kwargs:
       self.onnx_path = kwargs.get('onnx_path')
     self._env_vars = kwargs.get('env_vars', {})
+    self._large_model = large_model
 
   def batch_elements_kwargs(self):
     """Sets min_batch_size and max_batch_size of a TensorRT engine."""
@@ -321,3 +327,6 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
     Returns a namespace for metrics collected by the RunInference transform.
     """
     return 'BeamML_TensorRT'
+
+  def share_model_across_processes(self) -> bool:
+    return self._large_model
