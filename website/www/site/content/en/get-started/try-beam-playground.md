@@ -21,11 +21,16 @@ Beam Playground is an interactive environment to try out Beam transforms and exa
 without having to install Apache Beam in your environment.
 
 You can try the available Apache Beam examples at
-[Beam Playground](https://play.beam.apache.org/).
+[Beam Playground](https://play-dev.beam.apache.org/).
 
 ## Beam Playground WordCount Example
 
-{{< playground_iframe editable="1" example="SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MinimalWordCount" code="" height="700">}}
+{{< playground height="700px" >}}
+{{< playground_snippet language="java" path="SDK_JAVA_MinimalWordCount" >}}
+{{< playground_snippet language="py" path="SDK_PYTHON_WordCountWithMetrics" >}}
+{{< playground_snippet language="go" path="SDK_GO_MinimalWordCount" >}}
+{{< playground_snippet language="scio" path="SDK_SCIO_MinimalWordCount" >}}
+{{< /playground >}}
 
 ## How To Add New Examples
 
@@ -102,9 +107,9 @@ More details on examples in Apache Beam Playground can be found
 
 ## Next Steps
 
-* Try examples in [Apache Beam Playground](https://play.beam.apache.org/).
+* Try examples in [Apache Beam Playground](https://play-dev.beam.apache.org/).
 * Submit feedback using "Enjoying Playground?" in
-[Apache Beam Playground](https://play.beam.apache.org/) or via
+[Apache Beam Playground](https://play-dev.beam.apache.org/) or via
 [this form](https://docs.google.com/forms/d/e/1FAIpQLSd5_5XeOwwW2yjEVHUXmiBad8Lxk-4OtNcgG45pbyAZzd4EbA/viewform?usp=pp_url).
 * Join the Beam [users@](/community/contact-us) mailing list.
 * If you're interested in contributing to the Apache Beam Playground codebase, see the [Contribution Guide](/contribute).
