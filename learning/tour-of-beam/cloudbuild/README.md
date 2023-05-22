@@ -33,6 +33,9 @@ This directory organizes Infrastructure-as-Code to provision dependent resources
    - Service Usage Admin
    - Storage Admin
    - Kubernetes Engine Cluster Viewer
+   - Secret Manager Secret Accessor
+   - Secret Manager Secret Viewer
+   - Cloud Build Editor
 
 4. [Google Cloud Storage buckets](https://cloud.google.com/storage/docs/creating-buckets) for:
 - Terraform state for Cloud Build triggers: \<tourofbeam-triggers-tfstate\>
