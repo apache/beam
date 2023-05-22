@@ -96,6 +96,7 @@ jobs:
         uses: crazy-max/ghaction-import-gpg@111c56156bcc6918c056dbef52164cfa583dc549
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.PASSPHRASE }} # TODO - remove this in final version
       - name: stage source
         run: |
             svn co https://dist.apache.org/repos/dist/dev/beam
