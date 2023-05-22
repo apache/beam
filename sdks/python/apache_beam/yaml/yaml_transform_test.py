@@ -283,7 +283,6 @@ class YamlWindowingTest(unittest.TestCase):
   def test_name_is_not_ambiguous(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:
-
       result = p | YamlTransform(
           '''
           type: composite
@@ -303,9 +302,8 @@ class YamlWindowingTest(unittest.TestCase):
   def test_name_is_ambiguous(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:
-
       with self.assertRaises(ValueError):
-        result = p | YamlTransform(
+        p | YamlTransform(
             '''
             type: composite
             transforms:
