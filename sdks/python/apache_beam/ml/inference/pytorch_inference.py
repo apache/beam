@@ -192,6 +192,7 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
       torch_script_model_path: Optional[str] = None,
       min_batch_size: Optional[int] = None,
       max_batch_size: Optional[int] = None,
+      large_model: bool = False,
       load_model_args: Optional[Dict[str, Any]] = None,
       **kwargs):
     """Implementation of the ModelHandler interface for PyTorch.
@@ -225,6 +226,10 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
         batch will be fed into the inference_fn as a Sequence of Tensors.
       max_batch_size: the maximum batch size to use when batching inputs. This
         batch will be fed into the inference_fn as a Sequence of Tensors.
+      large_model: set to true if your model is large enough to run into
+        memory pressure if you load multiple copies. Given a model that
+        consumes N memory and a machine with W cores and M memory, you should
+        set this to True if N*W > M.
       load_model_args: a dictionary of parameters passed to the torch.load
         function to specify custom config for loading models.
       kwargs: 'env_vars' can be used to set environment variables
@@ -251,6 +256,7 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
     self._torch_script_model_path = torch_script_model_path
     self._load_model_args = load_model_args if load_model_args else {}
     self._env_vars = kwargs.get('env_vars', {})
+    self._large_model = large_model
 
     _validate_constructor_args(
         state_dict_path=self._state_dict_path,
@@ -330,6 +336,9 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
 
   def batch_elements_kwargs(self):
     return self._batching_kwargs
+
+  def share_model_across_processes(self) -> bool:
+    return self._large_model
 
 
 def default_keyed_tensor_inference_fn(
@@ -411,6 +420,7 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
       torch_script_model_path: Optional[str] = None,
       min_batch_size: Optional[int] = None,
       max_batch_size: Optional[int] = None,
+      large_model: bool = False,
       load_model_args: Optional[Dict[str, Any]] = None,
       **kwargs):
     """Implementation of the ModelHandler interface for PyTorch.
@@ -449,6 +459,10 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
         batch will be fed into the inference_fn as a Sequence of Keyed Tensors.
       max_batch_size: the maximum batch size to use when batching inputs. This
         batch will be fed into the inference_fn as a Sequence of Keyed Tensors.
+      large_model: set to true if your model is large enough to run into
+        memory pressure if you load multiple copies. Given a model that
+        consumes N memory and a machine with W cores and M memory, you should
+        set this to True if N*W > M.
       load_model_args: a dictionary of parameters passed to the torch.load
         function to specify custom config for loading models.
       kwargs: 'env_vars' can be used to set environment variables
@@ -475,6 +489,8 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
     self._torch_script_model_path = torch_script_model_path
     self._load_model_args = load_model_args if load_model_args else {}
     self._env_vars = kwargs.get('env_vars', {})
+    self._large_model = large_model
+
     _validate_constructor_args(
         state_dict_path=self._state_dict_path,
         model_class=self._model_class,
@@ -555,3 +571,6 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
 
   def batch_elements_kwargs(self):
     return self._batching_kwargs
+
+  def share_model_across_processes(self) -> bool:
+    return self._large_model

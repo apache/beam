@@ -172,6 +172,7 @@ class TestOnnxModelHandler(OnnxModelHandlerNumpy):
       provider_options=None,
       *,
       inference_fn=default_numpy_inference_fn,
+      large_model=False,
       **kwargs):
     self._model_uri = model_uri
     self._session_options = session_options
@@ -179,6 +180,7 @@ class TestOnnxModelHandler(OnnxModelHandlerNumpy):
     self._provider_options = provider_options
     self._model_inference_fn = inference_fn
     self._env_vars = kwargs.get('env_vars', {})
+    self._large_model = large_model
 
 
 class OnnxTestBase(unittest.TestCase):
@@ -343,6 +345,36 @@ class OnnxPytorchRunInferencePipelineTest(OnnxTestBase):
       pipeline.run()
       self.assertTrue('FOO' in os.environ)
       self.assertTrue('bar'.equals(os.environ['FOO']))
+
+  def test_model_handler_large_model(self):
+    with TestPipeline() as pipeline:
+
+      def onxx_numpy_inference_fn(
+          inference_session: ort.InferenceSession, batch, inference_args=None):
+        multi_process_shared_loaded = "multi_process_shared" in str(
+            type(inference_session))
+        if not multi_process_shared_loaded:
+          raise Exception(
+              f'Loaded model of type {type(model)}, was ' +
+              'expecting multi_process_shared_model')
+        return default_numpy_inference_fn(
+            inference_session, batch, inference_args)
+
+      path = os.path.join(self.tmpdir, 'my_onnx_pytorch_path')
+      model = self.test_data_and_model.get_torch_two_feature_model()
+      self.exportModelToOnnx(model, path)
+      model_handler = OnnxModelHandlerNumpy(
+          model_uri=path,
+          env_vars={'FOO': 'bar'},
+          inference_fn=onxx_numpy_inference_fn,
+          large_model=True)
+      self.assertFalse('FOO' in os.environ)
+      _ = (
+          pipeline
+          | 'start' >> beam.Create(
+              self.test_data_and_model.get_two_feature_examples())
+          | RunInference(model_handler))
+      pipeline.run()
 
   @unittest.skipIf(GCSFileSystem is None, 'GCP dependencies are not installed')
   def test_pipeline_gcs_model(self):
