@@ -96,8 +96,11 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 	err = compileStep(pipelineLifeCycleCtx, cacheService, &lc.Paths, pipelineId, sdkEnv, isUnitTest)
 	if err != nil {
 		var pipelineCanceledError perrors.PipelineCanceledError
+		var compilationError perrors.CompilationError
 		if errors.As(err, &pipelineCanceledError) {
 			logger.Warnf("%s: pipeline execution has been canceled: %s", pipelineId, pipelineCanceledError.Error())
+		} else if errors.As(err, &compilationError) {
+			logger.Warnf("%s: compilation error: %s", pipelineId, compilationError.Error())
 		} else {
 			logger.Errorf("%s: error during compilation step: %s", pipelineId, err.Error())
 		}
@@ -228,7 +231,7 @@ func compileStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.L
 			if processingErr != nil {
 				return processingErr
 			}
-			return err
+			return perrors.CompilationError{Reason: err.Error()}
 		} // Compile step is finished and code is compiled
 		if err := processCompileSuccess(compileOutput.Bytes(), pipelineId, cacheService); err != nil {
 			return err
@@ -584,7 +587,7 @@ func finishByTimeout(pipelineId uuid.UUID, cacheService cache.Cache) error {
 
 // processErrorWithSavingOutput processes error with saving to cache received error output.
 func processErrorWithSavingOutput(err error, errorOutput []byte, pipelineId uuid.UUID, subKey cache.SubKey, cacheService cache.Cache, errorTitle string, newStatus pb.Status) error {
-	logger.Errorf("%s: %s(): err: %s, output: %s\n", pipelineId, errorTitle, err.Error(), errorOutput)
+	logger.Warnf("%s: %s(): err: %s, output: %s\n", pipelineId, errorTitle, err.Error(), errorOutput)
 
 	if err := utils.SetToCache(cacheService, pipelineId, subKey, fmt.Sprintf("error: %s\noutput: %s", err.Error(), errorOutput)); err != nil {
 		logger.Errorf("%s: failed to save error message to cache: %s", pipelineId, err.Error())

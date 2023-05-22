@@ -22,3 +22,11 @@ type PipelineCanceledError struct {
 func (e PipelineCanceledError) Error() string {
 	return e.Reason
 }
+
+type CompilationError struct {
+	Reason string
+}
+
+func (e CompilationError) Error() string {
+	return e.Reason
+}
