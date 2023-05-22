@@ -26,8 +26,8 @@ import apache_beam as beam
 from apache_beam.coders import PickleCoder
 from apache_beam.coders import VarIntCoder
 from apache_beam.io.filesystems import FileSystems
-from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.inference.base import PredictionResult
+from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.inference.sklearn_inference import ModelFileType
 from apache_beam.ml.inference.sklearn_inference import SklearnModelHandlerNumpy
 from apache_beam.transforms import core
