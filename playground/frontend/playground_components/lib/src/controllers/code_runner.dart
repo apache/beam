@@ -317,7 +317,7 @@ class CodeRunner extends ChangeNotifier {
             'widgets.output.messages.pipelineCancelled'.tr(),
         output: _result?.output,
         sdk: sdk,
-        status: RunCodeStatus.finished,
+        status: RunCodeStatus.cancelled,
       ),
     );
   }
@@ -479,6 +479,7 @@ class CodeRunner extends ChangeNotifier {
           status: status,
         );
 
+      case RunCodeStatus.cancelled:
       case RunCodeStatus.finished:
         final responses = await Future.wait([
           codeClient!.getRunOutput(pipelineUuid),
