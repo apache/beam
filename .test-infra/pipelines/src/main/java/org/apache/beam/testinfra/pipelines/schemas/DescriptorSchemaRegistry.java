@@ -15,14 +15,20 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.checkerframework.checker.nullness.qual.NonNull;
 
 class DescriptorSchemaRegistry {
-  private static final String KEY_FIELD_NAME = "key";
-  private static final String VALUE_FIELD_NAME = "value";
+  static final String KEY_FIELD_NAME = "key";
+  static final String VALUE_FIELD_NAME = "value";
   private static final Map<@NonNull String, @NonNull Schema> SCHEMA_CACHE = new HashMap<>();
 
+  @NonNull
   Schema getOrBuild(Descriptor descriptor) {
     if (!SCHEMA_CACHE.containsKey(descriptor.getFullName())) {
       build(descriptor);
     }
+    return checkStateNotNull(SCHEMA_CACHE.get(descriptor.getFullName()));
+  }
+
+  @NonNull
+  Schema getSchema(Descriptor descriptor) {
     return checkStateNotNull(SCHEMA_CACHE.get(descriptor.getFullName()));
   }
 
@@ -48,11 +54,20 @@ class DescriptorSchemaRegistry {
         .put(JavaType.STRING, FieldType.STRING)
         .build();
 
+    private static final Map<@NonNull String, @NonNull FieldType> FULL_NAME_TYPE_MAP = ImmutableMap
+            .<String, FieldType>builder()
+            .put("google.protobuf.Value", FieldType.STRING)
+            .put("google.dataflow.v1beta3.DisplayData", FieldType.STRING)
+            .put("google.protobuf.Timestamp", FieldType.DATETIME)
+            .build();
+
     private final Schema.Builder schemaBuilder = Schema.builder();
 
     Schema build(Descriptor descriptor) {
       parse(descriptor);
-      return schemaBuilder.build();
+      Schema schema = schemaBuilder.build();
+      SCHEMA_CACHE.put(descriptor.getFullName(), schema);
+      return schema;
     }
 
     void parse(Descriptor descriptor) {
@@ -90,8 +105,15 @@ class DescriptorSchemaRegistry {
 
     FieldType buildNestedType(FieldDescriptor fieldDescriptor) {
       Descriptor messageDescriptor = fieldDescriptor.getMessageType();
-      checkState(SCHEMA_CACHE.containsKey(messageDescriptor.getFullName()));
-      Schema schema = checkStateNotNull(SCHEMA_CACHE.get(fieldDescriptor.getFullName()));
+      if (FULL_NAME_TYPE_MAP.containsKey(messageDescriptor.getFullName())) {
+        return checkStateNotNull(FULL_NAME_TYPE_MAP.get(messageDescriptor.getFullName()));
+      }
+      if (!SCHEMA_CACHE.containsKey(messageDescriptor.getFullName())) {
+        Builder builder = new Builder();
+        Schema schema = builder.build(messageDescriptor);
+        SCHEMA_CACHE.put(messageDescriptor.getFullName(), schema);
+      }
+      Schema schema = checkStateNotNull(SCHEMA_CACHE.get(messageDescriptor.getFullName()), "nested type not cached: %s", messageDescriptor.getFullName());
       FieldType type = FieldType.row(schema);
       if (fieldDescriptor.isRepeated()) {
         type = FieldType.array(type);

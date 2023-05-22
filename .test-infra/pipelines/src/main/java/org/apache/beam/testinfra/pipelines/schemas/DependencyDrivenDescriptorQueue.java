@@ -73,4 +73,6 @@ class DependencyDrivenDescriptorQueue implements Iterable<Descriptor>, Comparato
     Integer bMessageFieldCount = checkStateNotNull(MESSAGE_FIELD_COUNTS.get(b.getFullName()));
     return aMessageFieldCount.compareTo(bMessageFieldCount);
   }
+
+
 }
