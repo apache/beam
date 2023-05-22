@@ -503,6 +503,7 @@ task validatesRunnerV2Streaming {
       'org.apache.beam.sdk.testing.LargeKeys$Above10KB',
       'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo',
       'org.apache.beam.sdk.testing.UsesCommittedMetrics',
+      'org.apache.beam.sdk.testing.UsesTriggeredSideInputs',
     ],
     excludedTests: [
       // TestStream only (partially) supported on UW
