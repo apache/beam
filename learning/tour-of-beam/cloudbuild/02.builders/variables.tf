@@ -15,30 +15,31 @@
 # specific language governing permissions and limitations
 # under the License.
 
+
+variable "project_id" {
+    description = "GCP project id where resources will be created"
+}
+
 # Trigger service account variables
-variable "tob_deploy_sa" {
-    default = "tob-deploy"
+variable "tourofbeam_deploy_sa" {
     description = "Service account name to be created and used by cloud build deployer"
 }
 
-variable "tob_update_sa" {
-    default = "tob-update"
+variable "tourofbeam_update_sa" {
     description = "Service account name to be created and used by cloud build updater"
 }
 
-variable "tob_ci_sa" {
-    default = "tob-ci"
+variable "tourofbeam_ci_sa" {
     description = "Service account name to be created and used by cloud build CI"
 }
 
-variable "tob_cd_sa" {
-    default = "tob-cd"
+variable "tourofbeam_cd_sa" {
     description = "Service account name to be created and used by cloud build CD"
 }
 
 # Playground variables
-variable "project_id" {
-    description = "GCP project id where resources will be created"
+variable "environment_name" {
+    description = "Environment name for Tour of Beam backend (e.g. prod, staging). To support multi-environment on same GCP project"
 }
 
 variable "playground_dns_name" {
@@ -62,17 +63,8 @@ variable "pg_datastore_namespace" {
     description = "Existing Beam Playground's datastore namespace"
 }
 
-variable "environment_name" {
-    description = "Environment name for Tour of Beam backend (e.g. prod, staging). To support multi-environment on same GCP project"
-}
-
-variable "tob_learning_root" {
-    description = "Existing Tour of Beam learning material root"
-    default = "../learning-content/"
-}
-
-variable "state_bucket" {
-    description = "Existing GCS bucket's name to store Terraform state"
+variable "tourofbeam_deployment_state_bucket" {
+    description = "Existing GCS bucket's to store Terraform state for Tour of Beam deployment"
 }
 
 # Trigger variables
@@ -95,19 +87,24 @@ variable "gh_pat_secret_id" {
   default = "playground-github-pat-ci"
 }
 
-variable "tob_deploy_trigger_name" {
-  description = "The name of the trigger to run CI checks"
-  default = "TourOfBeam-Deploy"
+variable "tourofbeam_deploy_trigger_name" {
+  description = "The name of the trigger to deploy Tour of Beam"
+  default = "TourOfBeam-Deploy-env"
 }
 
-variable "tob_ci_trigger_name" {
-  description = "The name of the trigger to run CI checks"
-  default = "TourOfBeam-CI"
+variable "tourofbeam_update_trigger_name" {
+  description = "The name of the trigger to update Tour of Beam"
+  default = "TourOfBeam-Update-env"
 }
 
-variable "tob_cd_trigger_name" {
+variable "tourofbeam_ci_trigger_name" {
+  description = "The name of the trigger to run CI checks"
+  default = "TourOfBeam-CI-env"
+}
+
+variable "tourofbeam_cd_trigger_name" {
   description = "The name of the trigger to run CD checks"
-    default = "TourOfBeam-CD"
+    default = "TourOfBeam-CD-env"
 }
 
 variable "cloudbuild_machine_type" {
@@ -115,11 +112,11 @@ variable "cloudbuild_machine_type" {
   default = "E2_HIGHCPU_32"
 }
 
-variable "tob_cloudbuild_private_bucket" {
+variable "tourofbeam_cb_private_bucket" {
   description = "The Google Cloud Platform GCS bucket name for Tour of Beam Cloudbuild Private logs"
 }
 
-variable "tob_cloudbuild_public_bucket" {
+variable "tourofbeam_cb_public_bucket" {
   description = "The Google Cloud Platform GCS bucket name for Tour of Beam Cloudbuild Public logs"
 }
 
@@ -131,4 +128,9 @@ variable "terraform_source_repo" {
 variable "terraform_source_branch" {
   description = "Branch used to fetch terraform code"
   default = "master"
+}
+
+variable "tourofbeam_learning_root" {
+    description = "Existing Tour of Beam learning material root"
+    default = "../learning-content/"
 }

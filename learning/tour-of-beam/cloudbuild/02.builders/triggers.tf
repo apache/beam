@@ -16,8 +16,8 @@
 # under the License.
 
 # This creates cloud build trigger for deploying Tour of Beam backend
-resource "google_cloudbuild_trigger" "tob_deployment_trigger" {
-  name     = var.tob_deploy_trigger_name
+resource "google_cloudbuild_trigger" "tourofbeam_deployment_trigger" {
+  name     = var.tourofbeam_deploy_trigger_name
 
   description = "Trigger used to deploy Tour of Beam infrastructure and backend"
 
@@ -34,7 +34,7 @@ resource "google_cloudbuild_trigger" "tob_deployment_trigger" {
       logging      = "GCS_ONLY"
     }
 
-    logs_bucket = "gs://${var.tob_cloudbuild_private_bucket}"
+    logs_bucket = "gs://${var.tourofbeam_cb_private_bucket}"
 
     step {
       id = "Deploy Tour of Beam"
@@ -44,32 +44,32 @@ resource "google_cloudbuild_trigger" "tob_deployment_trigger" {
     }
 
     substitutions = {
-      _TOB_CLOUDBUILD_SA      = var.tob_deploy_sa
+      _TOB_CLOUDBUILD_SA      = var.tourofbeam_deploy_sa
     }
   }
-
-    substitutions = {
-      _PG_REGION              = var.pg_region
-      _PG_GKE_ZONE            = var.pg_gke_zone
-      _PG_GKE_NAME            = var.pg_gke_name
-      _PG_DATASTORE_NAMESPACE = var.pg_datastore_namespace
-      _STATE_BUCKET           = var.state_bucket
-      _ENVIRONMENT_NAME       = var.environment_name
-      _TOB_LEARNING_ROOT      = var.tob_learning_root
-      _BRANCH_NAME            = var.terraform_source_branch
-      _REPO_NAME              = var.terraform_source_repo
+  
+  substitutions = {
+    _PG_REGION              = var.pg_region
+    _PG_GKE_ZONE            = var.pg_gke_zone
+    _PG_GKE_NAME            = var.pg_gke_name
+    _PG_DATASTORE_NAMESPACE = var.pg_datastore_namespace
+    _STATE_BUCKET           = var.tourofbeam_deployment_state_bucket
+    _ENVIRONMENT_NAME       = var.environment_name
+    _TOB_LEARNING_ROOT      = var.tourofbeam_learning_root
+    _BRANCH_NAME            = var.terraform_source_branch
+    _REPO_NAME              = var.terraform_source_repo
     }
 
-  service_account = data.google_service_account.tob_deployer.id
+  service_account = data.google_service_account.tourofbeam_deployer.id
 }
 
-resource "google_cloudbuild_trigger" "tob_ci_trigger" {
-  name    = var.tob_ci_trigger_name
+resource "google_cloudbuild_trigger" "tourofbeam_ci_trigger" {
+  name    = var.tourofbeam_ci_trigger_name
   project = var.project_id
 
   description = "Validate changed examples and set commit status messages in GitHub"
 
-  service_account = data.google_service_account.tob_ci_runner.id
+  service_account = data.google_service_account.tourofbeam_ci_runner.id
 
   webhook_config {
     secret = data.google_secret_manager_secret_version.secret_webhook_cloudbuild_trigger_cicd_data.id
@@ -81,7 +81,7 @@ resource "google_cloudbuild_trigger" "tob_ci_trigger" {
       machine_type = var.cloudbuild_machine_type
       logging      = "GCS_ONLY"
     }
-    logs_bucket = "gs://${var.tob_cloudbuild_private_bucket}" 
+    logs_bucket = "gs://${var.tourofbeam_cb_private_bucket}" 
     step {
       id     = "Run CI"
       script = file("../../../../playground/infrastructure/cloudbuild/cloudbuild_playground_ci_examples.sh")
@@ -105,7 +105,7 @@ resource "google_cloudbuild_trigger" "tob_ci_trigger" {
       _BASE_REF             = "$(body.pull_request.base.ref)"
       _PUBLIC_LOG_LOCAL: "/tmp/$${_PUBLIC_LOG}"
       _PUBLIC_LOG: "CI_PR$${_PR_NUMBER}_$${_PR_COMMIT}_$${BUILD_ID}.txt"
-      _PUBLIC_BUCKET: "${var.tob_cloudbuild_public_bucket}"
+      _PUBLIC_BUCKET: "${var.tourofbeam_cb_public_bucket}"
       _PUBLIC_LOG_URL: "https://storage.googleapis.com/$${_PUBLIC_BUCKET}/$${_PUBLIC_LOG}"
     }
   }
@@ -116,13 +116,13 @@ resource "google_cloudbuild_trigger" "tob_ci_trigger" {
 
 }
 
-resource "google_cloudbuild_trigger" "tob_cd_trigger" {
-  name    = var.tob_cd_trigger_name
+resource "google_cloudbuild_trigger" "tourofbeam_cd_trigger" {
+  name    = var.tourofbeam_cd_trigger_name
   project = var.project_id
 
-  description = "Automatically update examples for an existing Playground environment"
+  description = "Automatically update examples for an existing Tour of Beam environment"
 
-  service_account = data.google_service_account.tob_cd_runner.id
+  service_account = data.google_service_account.tourofbeam_cd_runner.id
 
   webhook_config {
     secret = data.google_secret_manager_secret_version.secret_webhook_cloudbuild_trigger_cicd_data.id
@@ -134,7 +134,7 @@ resource "google_cloudbuild_trigger" "tob_cd_trigger" {
       machine_type = var.cloudbuild_machine_type
       logging      = "GCS_ONLY"
     }
-    logs_bucket = "gs://${var.tob_cloudbuild_private_bucket}" 
+    logs_bucket = "gs://${var.tourofbeam_cb_private_bucket}" 
     step {
       id     = "Run CD"
       script = file("../../../../playground/infrastructure/cloudbuild/cloudbuild_playground_cd_examples.sh")
@@ -152,7 +152,7 @@ resource "google_cloudbuild_trigger" "tob_cd_trigger" {
 
   substitutions = {
     _DNS_NAME              = var.playground_dns_name
-    _DATASTORE_NAMESPACE   = "playground-env"
+    _DATASTORE_NAMESPACE   = var.pg_datastore_namespace
     _ORIGIN                = "TB_EXAMPLES"
     _SDKS                  = "java python go"
     _SUBDIRS               = "./learning/tour-of-beam/learning-content"
@@ -161,13 +161,13 @@ resource "google_cloudbuild_trigger" "tob_cd_trigger" {
 
 }
 
-resource "google_cloudbuild_trigger" "tob_cd_manual_trigger" {
-  name    = "${var.tob_cd_trigger_name}-manual"
+resource "google_cloudbuild_trigger" "tourofbeam_cd_manual_trigger" {
+  name    = "${var.tourofbeam_cd_trigger_name}-manual"
   project = var.project_id
 
   description = "Manually update examples for an existing Playground environment"
 
-  service_account = data.google_service_account.tob_cd_runner.id
+  service_account = data.google_service_account.tourofbeam_cd_runner.id
 
   source_to_build {
     uri       = var.trigger_source_repo
@@ -181,7 +181,7 @@ resource "google_cloudbuild_trigger" "tob_cd_manual_trigger" {
       machine_type = var.cloudbuild_machine_type
       logging      = "GCS_ONLY"
     }
-    logs_bucket = "gs://${var.tob_cloudbuild_private_bucket}" 
+    logs_bucket = "gs://${var.tourofbeam_cb_private_bucket}" 
     step {
       id     = "Run CD"
       script = file("../../../../playground/infrastructure/cloudbuild/cloudbuild_playground_cd_examples.sh")
@@ -191,8 +191,8 @@ resource "google_cloudbuild_trigger" "tob_cd_manual_trigger" {
   }
 
   substitutions = {
-    _DNS_NAME            = "fqdn.playground.zone"
-    _DATASTORE_NAMESPACE = "playground-env"
+    _DNS_NAME            = var.playground_dns_name
+    _DATASTORE_NAMESPACE = var.pg_datastore_namespace
     _MERGE_COMMIT        = "master"
     _ORIGIN              = "TB_EXAMPLES"
     _SDKS                = "java python go"

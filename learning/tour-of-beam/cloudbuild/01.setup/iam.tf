@@ -16,23 +16,23 @@
 # under the License.
 
 # Create cloud build service account
-resource "google_service_account" "tob_deploy_sa" {
-  account_id   = var.tob_deploy_sa == "" ? "tob-deploy" : var.tob_deploy_sa
+resource "google_service_account" "tourofbeam_deploy_sa" {
+  account_id   = var.tourofbeam_deploy_sa == "" ? "tourofbeam-cb-deploy" : var.tourofbeam_deploy_sa
   description  = "The service account to be used by cloud build to deploy Tour of Beam backend"
 }
 
-resource "google_service_account" "tob_update_sa" {
-  account_id   = var.tob_update_sa == "" ? "tob-update" : var.tob_update_sa
+resource "google_service_account" "tourofbeam_update_sa" {
+  account_id   = var.tourofbeam_update_sa == "" ? "tourofbeam-cb-update" : var.tourofbeam_update_sa
   description  = "The service account to be used by cloud build to update Tour of Beam backend"
 }
 
-resource "google_service_account" "tob_ci_sa" {
-  account_id   = var.tob_ci_sa == "" ? "tob-ci" : var.tob_ci_sa
+resource "google_service_account" "tourofbeam_ci_sa" {
+  account_id   = var.tourofbeam_ci_sa == "" ? "tourofbeam-cb-ci" : var.tourofbeam_ci_sa
   description  = "The service account to be used by cloud build to run CI checks for Tour of Beam backend"
 }
 
-resource "google_service_account" "tob_cd_sa" {
-  account_id   = var.tob_cd_sa == "" ? "tob-cd" : var.tob_cd_sa
+resource "google_service_account" "tourofbeam_cd_sa" {
+  account_id   = var.tourofbeam_cd_sa == "" ? "tourofbeam-cb-cd" : var.tourofbeam_cd_sa
   description  = "The service account to be used by cloud build to run CD checks for Tour of Beam backend"
 }
 
@@ -51,7 +51,7 @@ resource "google_project_iam_member" "tourofbeam_backend_deployer_roles" {
     "roles/cloudfunctions.admin"
   ])
   role    = each.key
-  member  = "serviceAccount:${google_service_account.tob_deploy_sa.email}"
+  member  = "serviceAccount:${google_service_account.tourofbeam_deploy_sa.email}"
   project = var.project_id
 }
 
@@ -69,21 +69,21 @@ resource "google_project_iam_member" "tourofbeam_backend_updater_roles" {
     "roles/cloudfunctions.admin"
   ])
   role    = each.key
-  member  = "serviceAccount:${google_service_account.tob_update_sa.email}"
+  member  = "serviceAccount:${google_service_account.tourofbeam_update_sa.email}"
   project = var.project_id
 }
 
-resource "google_project_iam_member" "tob_ci_sa_roles" {
+resource "google_project_iam_member" "tourofbeam_ci_sa_roles" {
   for_each = toset([
     "roles/secretmanager.secretAccessor",
     "roles/storage.insightsCollectorService"
   ])
   role    = each.key
-  member  = "serviceAccount:${google_service_account.tob_ci_sa.email}"
+  member  = "serviceAccount:${google_service_account.tourofbeam_ci_sa.email}"
   project = var.project_id
 }
 
-resource "google_project_iam_member" "tob_cd_sa_roles" {
+resource "google_project_iam_member" "tourofbeam_cd_sa_roles" {
   for_each = toset([
     "roles/datastore.user",
     "roles/secretmanager.secretAccessor",
@@ -91,7 +91,7 @@ resource "google_project_iam_member" "tob_cd_sa_roles" {
 
   ])
   role    = each.key
-  member  = "serviceAccount:${google_service_account.tob_cd_sa.email}"
+  member  = "serviceAccount:${google_service_account.tourofbeam_cd_sa.email}"
   project = var.project_id
 }
 

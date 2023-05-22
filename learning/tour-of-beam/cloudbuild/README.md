@@ -21,10 +21,9 @@ This directory organizes Infrastructure-as-Code to provision dependent resources
 
 ## Requirements:
 
-1. Existing Beam Playground environment/infrastructure deployed in same GCP Project
-
 1. [GCP project](https://cloud.google.com/resource-manager/docs/creating-managing-projects)
-2. [GCP User account](https://cloud.google.com/appengine/docs/standard/access-control?tab=python) _(Note: You will find the instruction "How to create User account" for your new project)_<br>
+2. Existing Beam Playground environment/infrastructure deployed in same GCP Project. Tour of Beam will be deployed to that same location  (region/zone). If you don't have one, please follow [Beam Playground deployment instructions](TODO: add link to Beam Playground deployment instructions) to deploy it.
+3. [GCP User account](https://cloud.google.com/appengine/docs/standard/access-control?tab=python) _(Note: You will find the instruction "How to create User account" for your new project)_<br>
   Ensure that the account has at least the following [IAM roles](https://cloud.google.com/iam/docs/understanding-roles):
 
    - Cloud Datastore Owner
@@ -35,7 +34,13 @@ This directory organizes Infrastructure-as-Code to provision dependent resources
    - Storage Admin
    - Kubernetes Engine Cluster Viewer
 
-3. An OS with the following software installed:
+4. [Google Cloud Storage buckets](https://cloud.google.com/storage/docs/creating-buckets) for:
+- Terraform state for Cloud Build triggers: \<tourofbeam-triggers-tfstate\>
+- Cloud Build private logs: \<tourofbeam-cb-private-logs\>
+- Cloud Build public logs: \<tourofbeam-cb-public-logs\>. Don't enforce public access prevention on this bucket.
+- Terraform state for Tour of Beam deployment: \<tourofbeam-deployment-tfstate\>
+
+5. An OS with the following software installed:
 
 * [Terraform](https://www.terraform.io/downloads)
 * [gcloud CLI](https://cloud.google.com/sdk/docs/install-sdk)
@@ -44,17 +49,21 @@ This directory organizes Infrastructure-as-Code to provision dependent resources
 
 DEV NOTE: GCP Cloud shell can be used for deployment. It has all required software pre-installed.
 
-4. Additionaly for manual Frontend deployment you will need 
+6. Additionaly for manual Frontend deployment you will need 
 * [Flutter (3.7.3 >)](https://docs.flutter.dev/get-started/install)
 * [Dart SDK (2.19.2)](https://dart.dev/get-dart)
 * [Firebase-tools CLI](https://www.npmjs.com/package/firebase-tools)
 
-5. DNS name for your deployed Playground instance (e.g. `play.beam.apache.org`)
+7. [Apache Beam GitHub](https://github.com/apache/beam) repository cloned locally
 
-6. [Apache Beam GitHub](https://github.com/apache/beam) repository cloned locally
+# Prepare deployment configuration
 
-7. [GitHub Personal Access Token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token) for CI trigger
+1. Generate a Terraform variable file called `beam/learning/tour-of-beam/cloudbuild/common.tfvars`. Place the values listed below into the file, adjusting them as needed:
 
+tourofbeam_deploy_sa   = "tourofbeam-cb-deploy"                 # Service account for Initialize-Playground-environment trigger
+tourofbeam_update_sa   = "tourofbeam-cb-update"                 # Service account for Deploy-Update-Playground-environment trigger
+tourofbeam_ci_sa       = "tourofbeam-cb-ci"                     # Service account for CI trigger
+tourofbeam_cd_sa       = "tourofbeam-cb-cd"                     # Service account for CD trigger
 
 
 ## 1. Set up the Google Cloud Build for your GCP project
@@ -81,7 +90,7 @@ cd beam/learning/tour-of-beam/cloudbuild/01.setup
 
 # Run terraform commands
 terraform init -backend-config="bucket=$STATE_BUCKET"
-terraform apply -var="project_id=$(gcloud config get-value project)"
+terraform apply -var="project_id=$(gcloud config get-value project)" -var-file="../common.tfvars"
 ```
 
 ## 2. Connect default (https://github.com/beamplayground/deploy-workaround) GitHub repository with GCP Cloud Build
@@ -94,14 +103,6 @@ The `beam/learning/tour-of-beam/cloudbuild/02.builders` provisions:
 - Cloud Build triggers to build and deploy Tour of Beam backend infrastructure
 
 #### To execute the module
-
-1. Generate a Terraform variable file called `beam/learning/tour-of-beam/cloudbuild/common.tfvars`. Place the values listed below into the file, adjusting them as needed:
-
-tob_deploy_sa   = "tob-cb-deploy"                 # Service account for Initialize-Playground-environment trigger
-tob_update_sa   = "tob-cb-update"                 # Service account for Deploy-Update-Playground-environment trigger
-tob_ci_sa       = "tob-cb-ci"                     # Service account for CI trigger
-ptob_cd_sa      = "tob-cb-cd"                     # Service account for CD trigger
-
 
 
 ```
