@@ -58,7 +58,7 @@ echo "---- ENV OUTPUT---"
 
 env | grep TF_VAR
 
-terraform init -backend-config='bucket=${STATE_BUCKET}'
+terraform init -backend-config="bucket=${STATE_BUCKET}"
 
 terraform apply -auto-approve -var "pg_router_host=$(kubectl get svc -l app=backend-router-grpc -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}:{.items[0].spec.ports[0].port}')"
 

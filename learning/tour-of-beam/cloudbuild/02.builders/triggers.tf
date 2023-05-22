@@ -165,7 +165,7 @@ resource "google_cloudbuild_trigger" "tourofbeam_cd_manual_trigger" {
   name    = "${var.tourofbeam_cd_trigger_name}-manual"
   project = var.project_id
 
-  description = "Manually update examples for an existing Playground environment"
+  description = "Manually update examples for an existing Tour of Beam environment"
 
   service_account = data.google_service_account.tourofbeam_cd_runner.id
 
