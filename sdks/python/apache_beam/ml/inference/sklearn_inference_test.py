@@ -314,6 +314,38 @@ class SkLearnRunInferenceTest(unittest.TestCase):
       assert_that(
           actual, equal_to(expected, equals_fn=_compare_prediction_result))
 
+  def test_pipeline_pickled_large_model(self):
+    temp_file_name = self.tmpdir + os.sep + 'pickled_file'
+    with open(temp_file_name, 'wb') as file:
+      pickle.dump(build_model(), file)
+
+    def large_model_validator_numpy_inference_fn(
+        model: BaseEstimator,
+        batch: Sequence[numpy.ndarray],
+        inference_args: Optional[Dict[str, Any]] = None) -> Any:
+      multi_process_shared_loaded = "multi_process_shared" in str(type(model))
+      if not multi_process_shared_loaded:
+        raise Exception(
+            f'Loaded model of type {type(model)}, was ' +
+            'expecting multi_process_shared_model')
+      return _default_numpy_inference_fn(model, batch, inference_args)
+
+    with TestPipeline() as pipeline:
+      examples = [numpy.array([0, 0]), numpy.array([1, 1])]
+
+      pcoll = pipeline | 'start' >> beam.Create(examples)
+      actual = pcoll | RunInference(
+          SklearnModelHandlerNumpy(
+              model_uri=temp_file_name,
+              inference_fn=large_model_validator_numpy_inference_fn,
+              large_model=True))
+      expected = [
+          PredictionResult(numpy.array([0, 0]), 0),
+          PredictionResult(numpy.array([1, 1]), 1)
+      ]
+      assert_that(
+          actual, equal_to(expected, equals_fn=_compare_prediction_result))
+
   def test_pipeline_joblib(self):
     temp_file_name = self.tmpdir + os.sep + 'joblib_file'
     with open(temp_file_name, 'wb') as file:
@@ -433,6 +465,42 @@ class SkLearnRunInferenceTest(unittest.TestCase):
               inference_fn=batch_validator_pandas_inference_fn,
               min_batch_size=5,
               max_batch_size=5))
+
+      expected = [
+          PredictionResult(splits[0], 5),
+          PredictionResult(splits[1], 8),
+          PredictionResult(splits[2], 1),
+          PredictionResult(splits[3], 1),
+          PredictionResult(splits[4], 2),
+      ]
+      assert_that(
+          actual, equal_to(expected, equals_fn=_compare_dataframe_predictions))
+
+  def test_pipeline_pandas_large_model(self):
+    temp_file_name = self.tmpdir + os.sep + 'pickled_file'
+    with open(temp_file_name, 'wb') as file:
+      pickle.dump(build_pandas_pipeline(), file)
+
+    def large_model_validator_pandas_inference_fn(
+        model: BaseEstimator,
+        batch: Sequence[numpy.ndarray],
+        inference_args: Optional[Dict[str, Any]] = None) -> Any:
+      multi_process_shared_loaded = "multi_process_shared" in str(type(model))
+      if not multi_process_shared_loaded:
+        raise Exception(
+            f'Loaded model of type {type(model)}, was ' +
+            'expecting multi_process_shared_model')
+      return _default_pandas_inference_fn(model, batch, inference_args)
+
+    with TestPipeline() as pipeline:
+      dataframe = pandas_dataframe()
+      splits = [dataframe.loc[[i]] for i in dataframe.index]
+      pcoll = pipeline | 'start' >> beam.Create(splits)
+      actual = pcoll | RunInference(
+          SklearnModelHandlerPandas(
+              model_uri=temp_file_name,
+              inference_fn=large_model_validator_pandas_inference_fn,
+              large_model=True))
 
       expected = [
           PredictionResult(splits[0], 5),

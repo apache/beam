@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.schemas.utils;
 
+import static org.apache.beam.sdk.util.ByteBuddyUtils.getClassLoadingStrategy;
+
 import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Type;
@@ -24,7 +26,6 @@ import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.DynamicType;
-import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
 import net.bytebuddy.dynamic.scaffold.InstrumentedType;
 import net.bytebuddy.implementation.Implementation;
 import net.bytebuddy.implementation.bytecode.ByteCodeAppender;
@@ -176,7 +177,8 @@ public class ConvertHelpers {
           .method(ElementMatchers.named("apply"))
           .intercept(new ConvertPrimitiveInstruction(outputType, typeConversionsFactory))
           .make()
-          .load(ReflectHelpers.findClassLoader(), ClassLoadingStrategy.Default.INJECTION)
+          .load(
+              ReflectHelpers.findClassLoader(), getClassLoadingStrategy(SerializableFunction.class))
           .getLoaded()
           .getDeclaredConstructor()
           .newInstance();

@@ -38,44 +38,47 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * SamzaOutputMetricOp is a metric Op that emits & maintains default transform metrics for output
- * PCollection to the transform. It emits the output throughput and maintains avg arrival time for
- * output PCollection per watermark.
+ * SamzaMetricOp is a metric Op that emits & maintains default transform metrics for inputs &
+ * outputs PCollection to the non data-shuffle transform. It emits the output throughput and
+ * maintains avg arrival time for input & output PCollection per watermark.
  *
- * <p>Assumes that {@code SamzaOutputMetricOp#processWatermark(Instant, OpEmitter)} is exclusive of
- * {@code SamzaOutputMetricOp#processElement(Instant, OpEmitter)}. Specifically, the
- * processWatermark method assumes that no calls to processElement will be made during its
- * execution, and vice versa.
+ * <p>Assumes that {@code SamzaMetricOp#processWatermark(Instant, OpEmitter)} is exclusive of {@code
+ * SamzaMetricOp#processElement(Instant, OpEmitter)}. Specifically, the processWatermark method
+ * assumes that no calls to processElement will be made during its execution, and vice versa.
  *
  * @param <T> The type of the elements in the output PCollection.
  */
-class SamzaOutputMetricOp<T> implements Op<T, T, Void> {
+class SamzaMetricOp<T> implements Op<T, T, Void> {
   // Unique name of the PTransform this MetricOp is associated with
-  protected final String transformFullName;
-  protected final SamzaTransformMetricRegistry samzaTransformMetricRegistry;
+  private final String transformFullName;
+  private final SamzaTransformMetricRegistry samzaTransformMetricRegistry;
   // Name or identifier of the PCollection which PTransform is processing
-  protected final String pValue;
+  private final String pValue;
   // Counters for output throughput
   private final AtomicLong count;
   private final AtomicReference<BigInteger> sumOfTimestamps;
+  // Type of the PTransform input or output
+  private final SamzaMetricOpFactory.OpType opType;
   // List of input PValue(s) for all PCollections processing the PTransform
-  protected transient List<String> transformInputs;
+  private transient List<String> transformInputs;
   // List of output PValue(s) for all PCollections processing the PTransform
-  protected transient List<String> transformOutputs;
+  private transient List<String> transformOutputs;
   // Name of the task, for logging purpose
-  protected transient String task;
+  private transient String task;
 
-  private static final Logger LOG = LoggerFactory.getLogger(SamzaOutputMetricOp.class);
+  private static final Logger LOG = LoggerFactory.getLogger(SamzaMetricOp.class);
 
   // Some fields are initialized in open() method, which is called after the constructor.
   @SuppressWarnings("initialization.fields.uninitialized")
-  public SamzaOutputMetricOp(
+  public SamzaMetricOp(
       @NonNull String pValue,
       @NonNull String transformFullName,
+      SamzaMetricOpFactory.OpType opType,
       @NonNull SamzaTransformMetricRegistry samzaTransformMetricRegistry) {
     this.transformFullName = transformFullName;
     this.samzaTransformMetricRegistry = samzaTransformMetricRegistry;
     this.pValue = pValue;
+    this.opType = opType;
     this.count = new AtomicLong(0L);
     this.sumOfTimestamps = new AtomicReference<>(BigInteger.ZERO);
   }
@@ -104,10 +107,20 @@ class SamzaOutputMetricOp<T> implements Op<T, T, Void> {
     // update counters for timestamps
     count.incrementAndGet();
     sumOfTimestamps.updateAndGet(sum -> sum.add(BigInteger.valueOf(System.nanoTime())));
-    samzaTransformMetricRegistry
-        .getTransformMetrics()
-        .getTransformOutputThroughput(transformFullName)
-        .inc();
+    switch (opType) {
+      case INPUT:
+        samzaTransformMetricRegistry
+            .getTransformMetrics()
+            .getTransformInputThroughput(transformFullName)
+            .inc();
+        break;
+      case OUTPUT:
+        samzaTransformMetricRegistry
+            .getTransformMetrics()
+            .getTransformOutputThroughput(transformFullName)
+            .inc();
+        break;
+    }
     emitter.emitElement(inputElement);
   }
 
@@ -131,16 +144,20 @@ class SamzaOutputMetricOp<T> implements Op<T, T, Void> {
       // Update MetricOp Registry with avg arrival for the pValue
       samzaTransformMetricRegistry.updateArrivalTimeMap(
           transformFullName, pValue, watermark.getMillis(), avg);
-      // compute & emit the latency metric
-      samzaTransformMetricRegistry.emitLatencyMetric(
-          transformFullName, transformInputs, transformOutputs, watermark.getMillis(), task);
+      if (opType == SamzaMetricOpFactory.OpType.OUTPUT) {
+        // compute & emit the latency metric if the opType is OUTPUT
+        samzaTransformMetricRegistry.emitLatencyMetric(
+            transformFullName, transformInputs, transformOutputs, watermark.getMillis(), task);
+      }
     }
 
-    // update output watermark progress metric
-    samzaTransformMetricRegistry
-        .getTransformMetrics()
-        .getTransformWatermarkProgress(transformFullName)
-        .set(watermark.getMillis());
+    if (opType == SamzaMetricOpFactory.OpType.OUTPUT) {
+      // update output watermark progress metric
+      samzaTransformMetricRegistry
+          .getTransformMetrics()
+          .getTransformWatermarkProgress(transformFullName)
+          .set(watermark.getMillis());
+    }
 
     // reset all counters
     count.set(0L);

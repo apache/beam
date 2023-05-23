@@ -516,7 +516,7 @@ See the source of the script for more details, or to run commands manually in ca
 Note: This step is partially automated (in progress), so part of the rc creation is done by GitHub Actions and the rest is done by a script.
 You don't need to wait for the action to complete to start running the script.
 
-* **Action** [build_release_candidate](https://github.com/damccorm/beam/actions/workflows/build_release_candidate.yml) (click `run workflow`)
+* **Action** [build_release_candidate](https://github.com/apache/beam/actions/workflows/build_release_candidate.yml) (click `run workflow`)
 
 * **The script will:**
   1. Clone the repo at the selected RC tag.

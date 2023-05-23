@@ -32,6 +32,7 @@ from helper import (
     find_examples,
     load_supported_categories,
     validate_examples_for_duplicates_by_name,
+    validate_examples_for_conflicting_datasets,
 )
 from logger import setup_logger
 
@@ -98,6 +99,7 @@ def _run_ci_cd(step: str, raw_sdk: str, origin: Origin, project: str, namespace:
     logging.info("Start of searching Playground examples ...")
     examples = find_examples(root_dir, subdirs, sdk)
     validate_examples_for_duplicates_by_name(examples)
+    validate_examples_for_conflicting_datasets(examples)
     logging.info("Finish of searching Playground examples")
     logging.info("Number of found Playground examples: %s", len(examples))
 

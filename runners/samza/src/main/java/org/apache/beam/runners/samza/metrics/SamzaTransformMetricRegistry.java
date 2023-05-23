@@ -17,11 +17,13 @@
  */
 package org.apache.beam.runners.samza.metrics;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.samza.context.Context;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -42,12 +44,17 @@ public class SamzaTransformMetricRegistry implements Serializable {
   // TransformName -> PValue for pCollection -> Map<WatermarkId, AvgArrivalTime>
   private final ConcurrentHashMap<String, ConcurrentHashMap<String, ConcurrentHashMap<Long, Long>>>
       avgArrivalTimeMap;
+  // TransformName -> Map<WindowId, AvgArrivalTime>
+  @SuppressFBWarnings("SE_BAD_FIELD")
+  private final ConcurrentHashMap<String, ConcurrentHashMap<BoundedWindow, Long>>
+      avgArrivalTimeMapForGbk;
 
   // Per Transform Metrics for each primitive transform
   private final SamzaTransformMetrics transformMetrics;
 
   public SamzaTransformMetricRegistry() {
     this.avgArrivalTimeMap = new ConcurrentHashMap<>();
+    this.avgArrivalTimeMapForGbk = new ConcurrentHashMap<>();
     this.transformMetrics = new SamzaTransformMetrics();
   }
 
@@ -55,6 +62,7 @@ public class SamzaTransformMetricRegistry implements Serializable {
   SamzaTransformMetricRegistry(SamzaTransformMetrics samzaTransformMetrics) {
     this.transformMetrics = samzaTransformMetrics;
     this.avgArrivalTimeMap = new ConcurrentHashMap<>();
+    this.avgArrivalTimeMapForGbk = new ConcurrentHashMap<>();
   }
 
   public void register(String transformFullName, String pValue, Context ctx) {
@@ -62,6 +70,7 @@ public class SamzaTransformMetricRegistry implements Serializable {
     // initialize the map for the transform
     avgArrivalTimeMap.putIfAbsent(transformFullName, new ConcurrentHashMap<>());
     avgArrivalTimeMap.get(transformFullName).putIfAbsent(pValue, new ConcurrentHashMap<>());
+    avgArrivalTimeMapForGbk.putIfAbsent(transformFullName, new ConcurrentHashMap<>());
   }
 
   public SamzaTransformMetrics getTransformMetrics() {
@@ -78,6 +87,49 @@ public class SamzaTransformMetricRegistry implements Serializable {
       // remove any stale entries which are lesser than the watermark
       avgArrivalTimeMapForPValue.entrySet().removeIf(entry -> entry.getKey() < watermark);
     }
+  }
+
+  public void updateArrivalTimeMap(String transformName, BoundedWindow windowId, long avg) {
+    ConcurrentHashMap<BoundedWindow, Long> avgArrivalTimeMapForTransform =
+        avgArrivalTimeMapForGbk.get(transformName);
+    if (avgArrivalTimeMapForTransform != null) {
+      avgArrivalTimeMapForTransform.put(windowId, avg);
+    }
+  }
+
+  @SuppressWarnings("nullness")
+  public void emitLatencyMetric(
+      String transformName, BoundedWindow windowId, long avgArrivalEndTime, String taskName) {
+    Long avgArrivalStartTime =
+        avgArrivalTimeMapForGbk.get(transformName) != null
+            ? avgArrivalTimeMapForGbk.get(transformName).remove(windowId)
+            : null;
+
+    if (avgArrivalStartTime == null || avgArrivalStartTime == 0 || avgArrivalEndTime == 0) {
+      LOG.debug(
+          "Failure to Emit Metric for Transform: {}, Start-Time: {} or End-Time: {} found is 0/null for windowId: {}, task: {}",
+          transformName,
+          avgArrivalStartTime,
+          avgArrivalEndTime,
+          windowId,
+          taskName);
+      return;
+    }
+
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(
+          "Success Emit Metric for Transform: {}, window: {} for task: {}",
+          transformName,
+          windowId,
+          taskName);
+    }
+    transformMetrics
+        .getTransformLatencyMetric(transformName)
+        .update(avgArrivalEndTime - avgArrivalStartTime);
+
+    transformMetrics
+        .getTransformCacheSize(transformName)
+        .set((long) avgArrivalTimeMapForGbk.get(transformName).size());
   }
 
   // Checker framework bug: https://github.com/typetools/checker-framework/issues/979
@@ -126,6 +178,14 @@ public class SamzaTransformMetricRegistry implements Serializable {
     final long endTime = Collections.max(outputPValuesAvgArrivalTimes);
     final long latency = endTime - startTime;
     transformMetrics.getTransformLatencyMetric(transformName).update(latency);
+
+    transformMetrics
+        .getTransformCacheSize(transformName)
+        .set(
+            avgArrivalTimeMapForTransform.values().stream()
+                .mapToLong(ConcurrentHashMap::size)
+                .sum());
+
     LOG.debug(
         "Success Emit Metric Transform: {} for watermark: {} for task: {}",
         transformName,
@@ -138,5 +198,11 @@ public class SamzaTransformMetricRegistry implements Serializable {
   ConcurrentHashMap<String, ConcurrentHashMap<Long, Long>> getAverageArrivalTimeMap(
       String transformName) {
     return avgArrivalTimeMap.get(transformName);
+  }
+
+  @VisibleForTesting
+  @Nullable
+  ConcurrentHashMap<BoundedWindow, Long> getAverageArrivalTimeMapForGBK(String transformName) {
+    return avgArrivalTimeMapForGbk.get(transformName);
   }
 }
