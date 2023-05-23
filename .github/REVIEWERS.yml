@@ -61,5 +61,14 @@ labels:
       - Abacn
     exclusionList: []
 fallbackReviewers:
+  - Abacn
+  - AnandInguva
+  - chamikaramj
+  - damccorm
+  - johnjcasey
+  - jrmccluskey
   - kennknowles
-  - liferoad
+  - lostluck
+  - riteshghorse
+  - robertwb
+  - tvalentyn
