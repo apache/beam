@@ -39,23 +39,23 @@
 <script type="text/javascript" src="{{ $bootstrap.RelPermalink }}" defer></script>
 
 <!-- TODO [BEAM-12644]: Create an asset pipeline so we don't have to version .js files. -->
-{{ $switchV2 := resources.Get "js/language-switch-v2.js" | minify | fingerprint }}
-<script type="text/javascript" src="{{ $switchV2.RelPermalink }}" defer></script>
+<!-- {{ $switchV2 := resources.Get "js/language-switch-v2.js" | minify | fingerprint }}
+<script type="text/javascript" src="{{ $switchV2.RelPermalink }}" defer></script> -->
 
-{{ $fixMenu := resources.Get "js/fix-menu.js" | minify | fingerprint }}
-<script type="text/javascript" src="{{ $fixMenu.RelPermalink }}" defer></script>
+<!-- {{ $fixMenu := resources.Get "js/fix-menu.js" | minify | fingerprint }}
+<script type="text/javascript" src="{{ $fixMenu.RelPermalink }}" defer></script> -->
 
-{{ $sectionNav := resources.Get "js/section-nav.js" | minify | fingerprint }}
-<script type="text/javascript" src="{{ $sectionNav.RelPermalink }}" defer></script>
+<!-- {{ $sectionNav := resources.Get "js/section-nav.js" | minify | fingerprint }}
+<script type="text/javascript" src="{{ $sectionNav.RelPermalink }}" defer></script> -->
 
-{{ $pageNav := resources.Get "js/page-nav.js" | resources.ExecuteAsTemplate "js/page-nav.js" . | minify | fingerprint }}
-<script type="text/javascript" src="{{ $pageNav.RelPermalink }}" defer></script>
+<!-- {{ $pageNav := resources.Get "js/page-nav.js" | resources.ExecuteAsTemplate "js/page-nav.js" . | minify | fingerprint }}
+<script type="text/javascript" src="{{ $pageNav.RelPermalink }}" defer></script> -->
 
-{{ $expandableList := resources.Get "js/expandable-list.js" | minify | fingerprint }}
-<script type="text/javascript" src="{{ $expandableList.RelPermalink }}" defer></script>
+<!-- {{ $expandableList := resources.Get "js/expandable-list.js" | minify | fingerprint }}
+<script type="text/javascript" src="{{ $expandableList.RelPermalink }}" defer></script> -->
 
-{{ $copyToClipboard := resources.Get "js/copy-to-clipboard.js" |  resources.ExecuteAsTemplate "js/copy-to-clipboard.js" . |minify | fingerprint }}
-<script type="text/javascript" src="{{ $copyToClipboard.RelPermalink }}" defer></script>
+<!-- {{ $copyToClipboard := resources.Get "js/copy-to-clipboard.js" |  resources.ExecuteAsTemplate "js/copy-to-clipboard.js" . |minify | fingerprint }}
+<script type="text/javascript" src="{{ $copyToClipboard.RelPermalink }}" defer></script> -->
 
 <!-- {{ $calendar := resources.Get "js/calendar.js" | minify | fingerprint }}
 <script type="text/javascript" src="{{ $calendar.RelPermalink }}" defer></script> -->
