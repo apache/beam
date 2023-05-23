@@ -298,13 +298,11 @@ type timerModifications struct {
 }
 
 func (tm *timerModifications) InsertTimer(t sortableTimer) {
-	if tm.modified == nil {
-		tm.modified = map[timerKey]sortableTimer{}
-	}
 	tm.modified[timerKey{
 		family: t.Family,
 		tag:    t.Tag,
 	}] = t
+	tm.earlierTimers[t.Domain].Add(t)
 }
 
 func (tm *timerModifications) IsModified(check sortableTimer) bool {

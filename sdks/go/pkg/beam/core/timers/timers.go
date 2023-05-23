@@ -77,6 +77,7 @@ type Context struct {
 }
 
 // Provider represents a timer provider interface.
+// It is not intended for end user use, and is subject to change.
 type Provider interface {
 	Set(t TimerMap)
 }
@@ -156,11 +157,11 @@ func (pt ProcessingTime) ClearTag(p Provider, tag string) {
 }
 
 // InEventTime creates and returns a new EventTime timer object.
-func InEventTime(Key string) EventTime {
-	return EventTime{Family: Key}
+func InEventTime(family string) EventTime {
+	return EventTime{Family: family}
 }
 
 // InProcessingTime creates and returns a new ProcessingTime timer object.
-func InProcessingTime(Key string) ProcessingTime {
-	return ProcessingTime{Family: Key}
+func InProcessingTime(family string) ProcessingTime {
+	return ProcessingTime{Family: family}
 }
