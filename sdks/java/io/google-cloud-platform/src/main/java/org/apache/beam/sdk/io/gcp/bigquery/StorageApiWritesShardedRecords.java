@@ -353,20 +353,30 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
         ValueState<String> streamName,
         ValueState<Long> streamOffset,
         Timer streamIdleTimer,
-        DatasetService datasetService) {
+        DatasetService datasetService,
+        Callable<Boolean> tryCreateTable) {
       try {
-        String stream = streamName.read();
-        if (stream == null || "".equals(stream)) {
+        final @Nullable String streamValue = streamName.read();
+        AtomicReference<String> stream = new AtomicReference<>();
+        if (streamValue == null || "".equals(streamValue)) {
           // In a buffered stream, data is only visible up to the offset to which it was flushed.
-          stream = datasetService.createWriteStream(tableId, Type.BUFFERED).getName();
-          streamName.write(stream);
+          CreateTableHelpers.createTableWrapper(
+              () -> {
+                stream.set(datasetService.createWriteStream(tableId, Type.BUFFERED).getName());
+                return null;
+              },
+              tryCreateTable);
+
+          streamName.write(stream.get());
           streamOffset.write(0L);
           streamsCreated.inc();
+        } else {
+          stream.set(streamValue);
         }
         // Reset the idle timer.
         streamIdleTimer.offset(streamIdleTime).withNoOutputTimestamp().setRelative();
 
-        return stream;
+        return stream.get();
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
@@ -427,8 +437,24 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
       final String tableId = tableDestination.getTableUrn(bigQueryOptions);
       final DatasetService datasetService = getDatasetService(pipelineOptions);
 
+      Coder<DestinationT> destinationCoder = dynamicDestinations.getDestinationCoder();
+      Callable<Boolean> tryCreateTable =
+          () -> {
+            CreateTableHelpers.possiblyCreateTable(
+                c.getPipelineOptions().as(BigQueryOptions.class),
+                tableDestination,
+                () -> dynamicDestinations.getSchema(element.getKey().getKey()),
+                createDisposition,
+                destinationCoder,
+                kmsKey,
+                bqServices);
+            return true;
+          };
+
       Supplier<String> getOrCreateStream =
-          () -> getOrCreateStream(tableId, streamName, streamOffset, idleTimer, datasetService);
+          () ->
+              getOrCreateStream(
+                  tableId, streamName, streamOffset, idleTimer, datasetService, tryCreateTable);
       Callable<AppendClientInfo> getAppendClientInfo =
           () -> {
             @Nullable TableSchema tableSchema;
@@ -626,6 +652,13 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
             // Invalidate the StreamWriter and force a new one to be created.
             LOG.error(
                 "Got error " + failedContext.getError() + " closing " + failedContext.streamName);
+
+            // TODO: Only do this on explicit NOT_FOUND errors once BigQuery reliably produces them.
+            try {
+              tryCreateTable.call();
+            } catch (Exception e) {
+              throw new RuntimeException(e);
+            }
             clearClients.accept(failedContexts);
             appendFailures.inc();
 

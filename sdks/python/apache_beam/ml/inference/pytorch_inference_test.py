@@ -492,6 +492,45 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
           equal_to(
               TWO_FEATURES_PREDICTIONS, equals_fn=_compare_prediction_result))
 
+  def test_pipeline_local_model_large(self):
+    with TestPipeline() as pipeline:
+
+      def batch_validator_tensor_inference_fn(
+          batch,
+          model,
+          device,
+          inference_args,
+          model_id,
+      ):
+        multi_process_shared_loaded = "multi_process_shared" in str(type(model))
+        if not multi_process_shared_loaded:
+          raise Exception(
+              f'Loaded model of type {type(model)}, was ' +
+              'expecting multi_process_shared_model')
+        return default_tensor_inference_fn(
+            batch, model, device, inference_args, model_id)
+
+      state_dict = OrderedDict([('linear.weight', torch.Tensor([[2.0, 3]])),
+                                ('linear.bias', torch.Tensor([0.5]))])
+      path = os.path.join(self.tmpdir, 'my_state_dict_path')
+      torch.save(state_dict, path)
+
+      model_handler = PytorchModelHandlerTensor(
+          state_dict_path=path,
+          model_class=PytorchLinearRegression,
+          model_params={
+              'input_dim': 2, 'output_dim': 1
+          },
+          inference_fn=batch_validator_tensor_inference_fn,
+          large_model=True)
+
+      pcoll = pipeline | 'start' >> beam.Create(TWO_FEATURES_EXAMPLES)
+      predictions = pcoll | RunInference(model_handler)
+      assert_that(
+          predictions,
+          equal_to(
+              TWO_FEATURES_PREDICTIONS, equals_fn=_compare_prediction_result))
+
   def test_pipeline_local_model_extra_inference_args(self):
     with TestPipeline() as pipeline:
       inference_args = {
@@ -511,6 +550,54 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
           model_params={
               'input_dim': 1, 'output_dim': 1
           })
+
+      pcoll = pipeline | 'start' >> beam.Create(KEYED_TORCH_EXAMPLES)
+      inference_args_side_input = (
+          pipeline | 'create side' >> beam.Create(inference_args))
+      predictions = pcoll | RunInference(
+          model_handler=model_handler,
+          inference_args=beam.pvalue.AsDict(inference_args_side_input))
+      assert_that(
+          predictions,
+          equal_to(
+              KEYED_TORCH_PREDICTIONS, equals_fn=_compare_prediction_result))
+
+  def test_pipeline_local_model_extra_inference_args_large(self):
+    with TestPipeline() as pipeline:
+      inference_args = {
+          'prediction_param_array': torch.from_numpy(
+              np.array([1, 2], dtype="float32")),
+          'prediction_param_bool': True
+      }
+
+      state_dict = OrderedDict([('linear.weight', torch.Tensor([[2.0]])),
+                                ('linear.bias', torch.Tensor([0.5]))])
+      path = os.path.join(self.tmpdir, 'my_state_dict_path')
+      torch.save(state_dict, path)
+
+      def batch_validator_keyed_tensor_inference_fn(
+          batch,
+          model,
+          device,
+          inference_args,
+          model_id,
+      ):
+        multi_process_shared_loaded = "multi_process_shared" in str(type(model))
+        if not multi_process_shared_loaded:
+          raise Exception(
+              f'Loaded model of type {type(model)}, was ' +
+              'expecting multi_process_shared_model')
+        return default_keyed_tensor_inference_fn(
+            batch, model, device, inference_args, model_id)
+
+      model_handler = PytorchModelHandlerKeyedTensor(
+          state_dict_path=path,
+          model_class=PytorchLinearRegressionKeyedBatchAndExtraInferenceArgs,
+          model_params={
+              'input_dim': 1, 'output_dim': 1
+          },
+          inference_fn=batch_validator_keyed_tensor_inference_fn,
+          large_model=True)
 
       pcoll = pipeline | 'start' >> beam.Create(KEYED_TORCH_EXAMPLES)
       inference_args_side_input = (
