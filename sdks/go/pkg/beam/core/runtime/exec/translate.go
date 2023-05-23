@@ -601,15 +601,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 							if err != nil {
 								return nil, errors.WithContextf(err, "couldn't retreive coder for timer %v in DoFn %v, ID %v", fam, dofn.Name(), n.PID)
 							}
-							keyCoder := timerCoder.Components[0]
-
-							familyToSpec[fam] = timerFamilySpec{
-								Domain:     domain,
-								KeyEncoder: MakeElementEncoder(keyCoder),
-								KeyDecoder: MakeElementDecoder(keyCoder),
-								WinEncoder: MakeWindowEncoder(timerCoder.Window),
-								WinDecoder: MakeWindowDecoder(timerCoder.Window),
-							}
+							familyToSpec[fam] = newTimerFamilySpec(domain, timerCoder)
 						}
 						n.TimerTracker = newUserTimerAdapter(sID, familyToSpec)
 					}

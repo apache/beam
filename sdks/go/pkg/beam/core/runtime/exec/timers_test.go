@@ -17,6 +17,8 @@ package exec
 
 import (
 	"bytes"
+	"context"
+	"fmt"
 	"sort"
 	"testing"
 	"time"
@@ -25,7 +27,10 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/timers"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
+	"golang.org/x/exp/maps"
 )
 
 func equalTimers(a, b TimerRecv) bool {
@@ -101,7 +106,206 @@ func TestTimerEncodingDecoding(t *testing.T) {
 			}
 		})
 	}
+}
 
+func TestTimerAdapter(t *testing.T) {
+	encodedKey := string([]byte{3}) + "key"
+	recv := func(tmap timers.TimerMap) TimerRecv {
+		var pane typex.PaneInfo
+		if !tmap.Clear {
+			pane = typex.NoFiringPane()
+		}
+		return TimerRecv{
+			Key:       &FullValue{Elm: "key"},
+			KeyString: encodedKey,
+			Windows:   window.SingleGlobalWindow,
+			Pane:      pane,
+			TimerMap:  tmap,
+		}
+	}
+
+	tests := []struct {
+		name  string
+		toSet []timers.TimerMap
+		want  map[string][]TimerRecv // family to timers without family.
+	}{
+		{
+			name: "simple",
+			toSet: []timers.TimerMap{
+				{
+					Family:        "family1",
+					Tag:           "",
+					Clear:         false,
+					FireTimestamp: 123,
+					HoldTimestamp: 456,
+				}, {
+					Family:        "family2",
+					Tag:           "tag1",
+					Clear:         false,
+					FireTimestamp: 123,
+					HoldTimestamp: 456,
+				},
+			},
+			want: map[string][]TimerRecv{
+				"family1": {
+					recv(timers.TimerMap{
+						Tag:           "",
+						Clear:         false,
+						FireTimestamp: 123,
+						HoldTimestamp: 456,
+					}),
+				},
+				"family2": {
+					recv(timers.TimerMap{
+						Tag:           "tag1",
+						Clear:         false,
+						FireTimestamp: 123,
+						HoldTimestamp: 456,
+					}),
+				},
+			},
+		}, {
+			name: "overwritten",
+			toSet: []timers.TimerMap{
+				{
+					Family:        "family1",
+					Tag:           "",
+					Clear:         false,
+					FireTimestamp: 123,
+					HoldTimestamp: 456,
+				}, {
+					Family:        "family1",
+					Tag:           "",
+					Clear:         false,
+					FireTimestamp: 456,
+					HoldTimestamp: 789,
+				},
+			},
+			want: map[string][]TimerRecv{
+				"family1": {
+					recv(timers.TimerMap{
+						Tag:           "",
+						Clear:         false,
+						FireTimestamp: 456,
+						HoldTimestamp: 789,
+					}),
+				},
+			},
+		}, {
+			name: "cleared",
+			toSet: []timers.TimerMap{
+				{
+					Family:        "family1",
+					Tag:           "",
+					Clear:         false,
+					FireTimestamp: 123,
+					HoldTimestamp: 456,
+				}, {
+					Family: "family1",
+					Tag:    "",
+					Clear:  true,
+				},
+			},
+			want: map[string][]TimerRecv{
+				"family1": {
+					recv(timers.TimerMap{
+						Tag:   "",
+						Clear: true,
+					}),
+				},
+			},
+		}, {
+			name: "tags separate",
+			toSet: []timers.TimerMap{
+				{
+					Family:        "family1",
+					Tag:           "",
+					Clear:         false,
+					FireTimestamp: 1,
+					HoldTimestamp: 2,
+				}, {
+					Family:        "family1",
+					Tag:           "tag1",
+					Clear:         false,
+					FireTimestamp: 3,
+					HoldTimestamp: 4,
+				}, {
+					Family:        "family1",
+					Tag:           "tag2",
+					Clear:         false,
+					FireTimestamp: 5,
+					HoldTimestamp: 6,
+				},
+			},
+			want: map[string][]TimerRecv{
+				"family1": {
+					recv(timers.TimerMap{
+						Tag:           "",
+						Clear:         false,
+						FireTimestamp: 1,
+						HoldTimestamp: 2,
+					}), recv(timers.TimerMap{
+						Tag:           "tag1",
+						Clear:         false,
+						FireTimestamp: 3,
+						HoldTimestamp: 4,
+					}), recv(timers.TimerMap{
+						Tag:           "tag2",
+						Clear:         false,
+						FireTimestamp: 5,
+						HoldTimestamp: 6,
+					}),
+				},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			timerCoder := coder.NewT(coder.NewString(), coder.NewGlobalWindow())
+			ta := newUserTimerAdapter(StreamID{PtransformID: "test"}, map[string]timerFamilySpec{
+				"family1": newTimerFamilySpec(timers.EventTimeDomain, timerCoder),
+				"family2": newTimerFamilySpec(timers.ProcessingTimeDomain, timerCoder),
+			})
+
+			// Set the "key"
+			ta.SetCurrentKey(&MainInput{
+				Key: FullValue{Elm: "key"},
+			})
+
+			tp := ta.NewTimerProvider(typex.NoFiringPane(), window.SingleGlobalWindow)
+			for _, tmap := range test.toSet {
+				tp.Set(tmap)
+			}
+
+			dm := &TestDataManager{}
+			ta.FlushAndReset(context.Background(), dm)
+
+			if len(dm.TimerWrites) != len(test.want) {
+				t.Errorf("didn't receive writes for all expected families: got %v, want %v", maps.Keys(dm.TimerWrites), maps.Keys(test.want))
+			}
+			for family, buf := range dm.TimerWrites {
+				fmt.Println("bytes for ", family, len(buf.Bytes()))
+				r := bytes.NewBuffer(buf.Bytes())
+				wantedTimers := test.want[family]
+				spec := ta.familyToSpec[family]
+				bundleTimers, err := decodeBundleTimers(spec, r)
+				if err != nil {
+					t.Fatalf("unable to decode timers for family %v: %v", family, err)
+				}
+				if diff := cmp.Diff(wantedTimers, bundleTimers, cmpopts.SortSlices(
+					func(a, b TimerRecv) bool {
+						if a.Tag != b.Tag {
+							return a.Tag < b.Tag
+						}
+						return a.FireTimestamp < a.FireTimestamp
+					},
+				)); diff != "" {
+					t.Errorf("timer diff on family %v (-want,+got):\n%v", family, diff)
+				}
+			}
+		})
+	}
 }
 
 func TestSortableTimer_Less(t *testing.T) {

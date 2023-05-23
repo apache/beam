@@ -21,6 +21,7 @@ import (
 	"context"
 	"io"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/timers"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
@@ -43,6 +44,17 @@ type timerFamilySpec struct {
 	KeyDecoder ElementDecoder
 	WinEncoder WindowEncoder
 	WinDecoder WindowDecoder
+}
+
+func newTimerFamilySpec(domain timers.TimeDomain, timerCoder *coder.Coder) timerFamilySpec {
+	keyCoder := timerCoder.Components[0]
+	return timerFamilySpec{
+		Domain:     domain,
+		KeyEncoder: MakeElementEncoder(keyCoder),
+		KeyDecoder: MakeElementDecoder(keyCoder),
+		WinEncoder: MakeWindowEncoder(timerCoder.Window),
+		WinDecoder: MakeWindowDecoder(timerCoder.Window),
+	}
 }
 
 // newUserTimerAdapter returns a user timer adapter for the given StreamID and timer coder.
@@ -86,13 +98,12 @@ func (u *userTimerAdapter) GetKeyString(family string) string {
 }
 
 // NewTimerProvider creates and returns a timer provider to set/clear timers.
-func (u *userTimerAdapter) NewTimerProvider(ctx context.Context, manager DataManager, pane typex.PaneInfo, w []typex.Window) (timerProvider, error) {
-	tp := timerProvider{
+func (u *userTimerAdapter) NewTimerProvider(pane typex.PaneInfo, w []typex.Window) *timerProvider {
+	return &timerProvider{
 		window:  w,
 		pane:    pane,
 		adapter: u,
 	}
-	return tp, nil
 }
 
 func (u *userTimerAdapter) GetModifications(key windowKeyPair) *timerModifications {
@@ -176,6 +187,8 @@ func (p *timerProvider) Set(t timers.TimerMap) {
 }
 
 // TimerRecv holds the timer metadata while encoding and decoding timers in exec unit.
+//
+// For SDK internal use, and subject to change.
 type TimerRecv struct {
 	Key             *FullValue
 	KeyString       string         // The bytes for the key to avoid re-encoding key for lookups.

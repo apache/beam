@@ -42,6 +42,8 @@ const (
 )
 
 // TimerMap holds timer information obtained from the pipeline.
+//
+// For SDK internal use, and subject to change.
 type TimerMap struct {
 	Family                       string
 	Tag                          string

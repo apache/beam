@@ -370,6 +370,22 @@ func (n *ParDo) invokeDataFn(ctx context.Context, pn typex.PaneInfo, ws []typex.
 	return val, nil
 }
 
+// decodeBundleTimers is a helper to decode a batch of timers for a bundle, handling the io.EOF from the reader.
+func decodeBundleTimers(spec timerFamilySpec, r io.Reader) ([]TimerRecv, error) {
+	var bundleTimers []TimerRecv
+	for {
+		tmap, err := decodeTimer(spec.KeyDecoder, spec.WinDecoder, r)
+		if err != nil {
+			if goerrors.Is(err, io.EOF) {
+				break
+			}
+			return nil, errors.WithContext(err, "error decoding received timer callback")
+		}
+		bundleTimers = append(bundleTimers, tmap)
+	}
+	return bundleTimers, nil
+}
+
 // ProcessTimers processes all timers in firing order from the runner for a timer family ID.
 //
 // A timer refers to a specific combination of Key+Window + Family + Tag. They also
@@ -387,16 +403,9 @@ func (n *ParDo) ProcessTimers(timerFamilyID string, r io.Reader) (err error) {
 	// Lookup actual domain for family here.
 	spec := n.TimerTracker.familyToSpec[timerFamilyID]
 
-	var bundleTimers []TimerRecv
-	for {
-		tmap, err := decodeTimer(spec.KeyDecoder, spec.WinDecoder, r)
-		if err != nil {
-			if goerrors.Is(err, io.EOF) {
-				break
-			}
-			return errors.WithContext(err, "error decoding received timer callback")
-		}
-		bundleTimers = append(bundleTimers, tmap)
+	bundleTimers, err := decodeBundleTimers(spec, r)
+	if err != nil {
+		return err
 	}
 	for _, tmap := range bundleTimers {
 		n.TimerTracker.SetCurrentKeyString(tmap.KeyString)
