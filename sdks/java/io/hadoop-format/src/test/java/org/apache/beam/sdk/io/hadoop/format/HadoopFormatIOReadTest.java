@@ -603,7 +603,7 @@ public class HadoopFormatIOReadTest {
     assertThat(
         displayData,
         hasDisplayItem(
-            "mapreduce.input.fileinputformat.inputdir", longInputPath.substring(0, 250) + "..."));
+            "mapreduce.input.fileinputformat.inputdir", longInputPath.substring(0, 247) + "..."));
   }
 
   /**

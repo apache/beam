@@ -76,6 +76,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.AtomicDouble;
+import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.ObjectWritable;
@@ -699,15 +700,12 @@ public class HadoopFormatIO {
                     "mapreduce.job.inputformat.class",
                     hadoopConfig.get("mapreduce.job.inputformat.class"))
                 .withLabel("InputFormat Class"));
-        final String inputDir = hadoopConfig.get("mapreduce.input.fileinputformat.inputdir");
-        if (inputDir != null) {
-          builder.add(
-              DisplayData.item(
-                      "mapreduce.input.fileinputformat.inputdir",
-                      String.format(
-                          "%s...", inputDir.substring(0, Math.min(inputDir.length(), 250))))
-                  .withLabel("Input Directory"));
-        }
+        builder.addIfNotNull(
+            DisplayData.item(
+                    "mapreduce.input.fileinputformat.inputdir",
+                    StringUtils.abbreviate(
+                        hadoopConfig.get("mapreduce.input.fileinputformat.inputdir"), 250))
+                .withLabel("Input Directory"));
         builder.addIfNotNull(
             DisplayData.item("key.class", hadoopConfig.get("key.class")).withLabel("Key Class"));
         builder.addIfNotNull(
