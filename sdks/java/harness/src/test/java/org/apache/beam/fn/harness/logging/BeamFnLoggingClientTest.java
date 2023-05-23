@@ -96,7 +96,10 @@ public class BeamFnLoggingClientTest {
           .setInstructionId("instruction-1")
           .setSeverity(BeamFnApi.LogEntry.Severity.Enum.DEBUG)
           .setMessage("testMdcValue:Message")
-          .setCustomData(Struct.newBuilder().putFields("testMdcKey", Value.newBuilder().setStringValue("testMdcValue").build()))
+          .setCustomData(
+              Struct.newBuilder()
+                  .putFields(
+                      "testMdcKey", Value.newBuilder().setStringValue("testMdcValue").build()))
           .setThread("12345")
           .setTimestamp(Timestamp.newBuilder().setSeconds(1234567).setNanos(890000000).build())
           .setLogLocation("LoggerName")

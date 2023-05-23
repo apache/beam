@@ -102,11 +102,10 @@ public interface SdkHarnessOptions extends PipelineOptions {
 
   void setSdkHarnessLogLevelOverrides(SdkHarnessLogLevelOverrides value);
 
-  /**
-   * Whether to include SLF4J MDC in log entries.
-   */
+  /** Whether to include SLF4J MDC in log entries. */
   @Experimental()
-  @Description("This option controls whether SLF4J MDC keys and values will be appended to log entries. This used by Beam to add structured data to log entries, such as quota events and return statuses.")
+  @Description(
+      "This option controls whether SLF4J MDC keys and values will be appended to log entries. This used by Beam to add structured data to log entries, such as quota events and return statuses.")
   @Default.Boolean(true)
   boolean getLogMdc();
 
