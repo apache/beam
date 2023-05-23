@@ -124,6 +124,7 @@ tasks.register("firebaseProjectCreate") {
     doLast {
         val result = ByteArrayOutputStream()
         val projectId = project.property("project_id") as String
+        val token = project.property("token") as String
         exec {
             executable("firebase")
             args("projects:list")
@@ -150,6 +151,7 @@ tasks.register("firebaseWebAppCreate") {
         val result = ByteArrayOutputStream()
         val projectId = project.property("project_id") as String
         val webappId = project.property("webapp_id") as String
+        val token = project.property("token") as String
         exec {
             executable("firebase")
             args("apps:list", "--project", projectId)
@@ -183,6 +185,7 @@ tasks.register("getSdkConfigWebApp") {
     dependsOn("firebaseWebAppCreate")
 
     doLast {
+        val token = project.property("token") as String
         val firebaseAppId = project.extensions.extraProperties["firebaseAppId"] as String
         val result = ByteArrayOutputStream()
         exec {
@@ -285,8 +288,9 @@ tasks.register("firebaseDeploy") {
 
     doLast {
         val projectId = project.property("project_id") as String
+        val token = project.property("token") as String
         exec {
-            commandLine("firebase", "deploy", "--project", projectId)
+            commandLine("firebase", "deploy", "--token", token, "--project", projectId)
             workingDir("../frontend")
         }
     }
@@ -312,18 +316,6 @@ const cloudFunctionsBaseUrl = 'https://'
     '$region-$projectId'
     '.cloudfunctions.net/${environment}_';
 
-
-const String kAnalyticsUA = 'UA-73650088-2';
-const String kApiClientURL =
-'https://router.${dnsName}';
-const String kApiJavaClientURL =
-'https://java.${dnsName}';
-const String kApiGoClientURL =
-'https://go.${dnsName}';
-const String kApiPythonClientURL =
-'https://python.${dnsName}';
-const String kApiScioClientURL =
-'https://scio.${dnsName}';
 """
         )
     }

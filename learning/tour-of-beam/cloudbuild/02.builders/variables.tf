@@ -134,3 +134,8 @@ variable "tourofbeam_learning_root" {
     description = "Existing Tour of Beam learning material root"
     default = "../learning-content/"
 }
+
+variable "web_app_id" {
+    description = "Tour of Beam web app id"
+    default = "tob-web-app"
+}

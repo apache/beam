@@ -53,6 +53,8 @@ resource "google_cloudbuild_trigger" "tourofbeam_deployment_trigger" {
     _PG_GKE_ZONE            = var.pg_gke_zone
     _PG_GKE_NAME            = var.pg_gke_name
     _PG_DATASTORE_NAMESPACE = var.pg_datastore_namespace
+    _DNS_NAME               = var.playground_dns_name
+    _WEB_APP_ID             = var.web_app_id
     _STATE_BUCKET           = var.tourofbeam_deployment_state_bucket
     _ENVIRONMENT_NAME       = var.environment_name
     _TOB_LEARNING_ROOT      = var.tourofbeam_learning_root
