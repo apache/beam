@@ -52,7 +52,7 @@
 <script type="text/javascript" src="{{ $pageNav.RelPermalink }}" defer></script>
 
 {{ $expandableList := resources.Get "js/expandable-list.js" | minify | fingerprint }}
-<!-- <script type="text/javascript" src="{{ $expandableList.RelPermalink }}" defer></script> -->
+<script type="text/javascript" src="{{ $expandableList.RelPermalink }}" defer></script>
 
 {{ $copyToClipboard := resources.Get "js/copy-to-clipboard.js" |  resources.ExecuteAsTemplate "js/copy-to-clipboard.js" . |minify | fingerprint }}
 <!-- <script type="text/javascript" src="{{ $copyToClipboard.RelPermalink }}" defer></script> -->
