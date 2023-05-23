@@ -704,7 +704,8 @@ public class HadoopFormatIO {
           builder.add(
               DisplayData.item(
                       "mapreduce.input.fileinputformat.inputdir",
-                      inputDir.substring(0, Math.min(inputDir.length(), 250)))
+                      String.format(
+                          "%s...", inputDir.substring(0, Math.min(inputDir.length(), 250))))
                   .withLabel("Input Directory"));
         }
         builder.addIfNotNull(

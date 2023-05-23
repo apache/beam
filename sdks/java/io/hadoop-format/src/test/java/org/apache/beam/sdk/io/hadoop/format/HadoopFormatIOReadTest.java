@@ -33,6 +33,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.RowCoder;
@@ -570,12 +571,18 @@ public class HadoopFormatIOReadTest {
    */
   @Test
   public void testReadDisplayData() {
+    final String longInputPath =
+        "file:///"
+            + IntStream.range(0, 50)
+                .mapToObj(i -> String.format("some-path-%d", i))
+                .collect(Collectors.joining("/"));
+
     SerializableConfiguration conf =
         loadTestConfiguration(
             EmployeeInputFormat.class,
             Text.class,
             Employee.class,
-            ImmutableMap.of("mapreduce.input.fileinputformat.inputdir", "some-path"));
+            ImmutableMap.of("mapreduce.input.fileinputformat.inputdir", longInputPath));
     HadoopInputFormatBoundedSource<Text, Employee> boundedSource =
         new HadoopInputFormatBoundedSource<>(
             conf,
@@ -594,7 +601,9 @@ public class HadoopFormatIOReadTest {
     assertThat(displayData, hasDisplayItem("key.class", conf.get().get("key.class")));
     assertThat(displayData, hasDisplayItem("value.class", conf.get().get("value.class")));
     assertThat(
-        displayData, hasDisplayItem("mapreduce.input.fileinputformat.inputdir", "some-path"));
+        displayData,
+        hasDisplayItem(
+            "mapreduce.input.fileinputformat.inputdir", longInputPath.substring(0, 250) + "..."));
   }
 
   /**
