@@ -127,7 +127,7 @@ tasks.register("firebaseProjectCreate") {
         val token = project.property("token") as String
         exec {
             executable("firebase")
-            args("projects:list")
+            args("projects:list", "--token", token)
             standardOutput = result
         }
         val output = result.toString().trim()
@@ -136,7 +136,7 @@ tasks.register("firebaseProjectCreate") {
         } else {
             exec {
                 executable("firebase")
-                args("projects:addfirebase", projectId)
+                args("projects:addfirebase", projectId, "--token", token)
             }.assertNormalExitValue()
             println("Firebase has been added to project $projectId.")
         }
@@ -154,7 +154,7 @@ tasks.register("firebaseWebAppCreate") {
         val token = project.property("token") as String
         exec {
             executable("firebase")
-            args("apps:list", "--project", projectId)
+            args("apps:list", "--token", token, "--project", projectId)
             standardOutput = result
         }
         println(result)
@@ -168,7 +168,7 @@ tasks.register("firebaseWebAppCreate") {
             val result2 = ByteArrayOutputStream()
             exec {
                 executable("firebase")
-                args("apps:create", "WEB", webappId, "--project", projectId)
+                args("apps:create", "WEB", webappId, "--token", token, "--project", projectId)
                 standardOutput = result2
             }.assertNormalExitValue()
             val firebaseAppId =
@@ -190,7 +190,7 @@ tasks.register("getSdkConfigWebApp") {
         val result = ByteArrayOutputStream()
         exec {
             executable("firebase")
-            args("apps:sdkconfig", "WEB", firebaseAppId)
+            args("apps:sdkconfig", "WEB", firebaseAppId , "--token", token)
             standardOutput = result
         }
         val output = result.toString().trim()
