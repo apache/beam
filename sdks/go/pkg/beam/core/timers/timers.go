@@ -79,7 +79,8 @@ type Context struct {
 }
 
 // Provider represents a timer provider interface.
-// It is not intended for end user use, and is subject to change.
+//
+// The methods are not intended for end user use, and is subject to change.
 type Provider interface {
 	Set(t TimerMap)
 }

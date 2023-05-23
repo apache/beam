@@ -76,7 +76,7 @@ func (s *Stateful) ProcessElement(ctx context.Context, ts beam.EventTime, sp sta
 	}
 
 	s.OutputState.Set(tp, time.UnixMilli(toFire), timers.WithOutputTimestamp(time.UnixMilli(minTime)))
-	// A timer can be set independently different string tags.
+	// A timer can be set with independent to fire with independant string tags.
 	s.OutputState.Set(tp, time.UnixMilli(toFire), timers.WithTag(word), timers.WithOutputTimestamp(time.UnixMilli(minTime)))
 	s.TimerTime.Write(sp, toFire)
 	return nil
@@ -85,16 +85,18 @@ func (s *Stateful) ProcessElement(ctx context.Context, ts beam.EventTime, sp sta
 func (s *Stateful) OnTimer(ctx context.Context, ts beam.EventTime, sp state.Provider, tp timers.Provider, key string, timer timers.Context, emit func(beam.EventTime, string, string)) {
 	log.Infof(ctx, "Timer fired for key %q, for family %q and tag %q", key, timer.Family, timer.Tag)
 
-	const tag = "emit" // Tags can be arbitrary, but this demonstrates a single one.
+	const tag = "emit" // Tags can be arbitrary strings, but we're associating behavior with this tag in this method.
 
 	// Check which timer has fired.
 	switch timer.Family {
 	case s.OutputState.Family:
 		switch timer.Tag {
 		case "":
-			// If no tag was set, set a tagged timer to fire in 5 seconds.
+			// Timers can be set within the OnTimer method.
+			// In this case the emit tag timer to fire in 5 seconds.
 			s.OutputState.Set(tp, ts.ToTime().Add(5*time.Second), timers.WithTag(tag))
 		case tag:
+			// When the emit tag fires, read the batched data.
 			es, ok, err := s.ElementBag.Read(sp)
 			if err != nil {
 				log.Errorf(ctx, "error reading ElementBag: %v", err)

@@ -438,8 +438,8 @@ func (n *ParDo) ProcessTimers(timerFamilyID string, r io.Reader) (err error) {
 
 				// If so, add a clear to the set for the tag + family, and process the inserted timer.
 				// This clear is necessary to prevent double firing the same timer.
-				// Timers may only have one active expiry (the last one set), and this timer is set to fire before the next one in
-				// the same bundle.
+				// Timers may only have one active expiry (the last one set), and this timer is set
+				// to fire before the next one in the same bundle.
 				modifications.modified[timerKey{family: insertedTimer.Family, tag: insertedTimer.Tag}] = insertedTimer.Cleared()
 
 				err := n.processTimer(timerFamilyID, ws, TimerRecv{

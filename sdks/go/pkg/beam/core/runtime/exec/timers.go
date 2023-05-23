@@ -82,9 +82,9 @@ func (u *userTimerAdapter) SetCurrentKeyString(key string) {
 
 // GetKeyString encodes the current key with the family's encoder, and stores the string
 // for later access.
-func (u *userTimerAdapter) GetKeyString(family string) string {
+func (u *userTimerAdapter) GetKeyStringAndDomain(family string) (string, timers.TimeDomain) {
 	if u.keyEncoded {
-		return u.currentKeyString
+		return u.currentKeyString, u.familyToSpec[family].Domain
 	}
 	spec := u.familyToSpec[family]
 
@@ -94,7 +94,7 @@ func (u *userTimerAdapter) GetKeyString(family string) string {
 	}
 	u.currentKeyString = u.buf.String()
 	u.keyEncoded = true
-	return u.currentKeyString
+	return u.currentKeyString, spec.Domain
 }
 
 // NewTimerProvider creates and returns a timer provider to set/clear timers.
@@ -171,12 +171,11 @@ type timerProvider struct {
 // Set writes a new timer. This can be used to both Set as well as Clear the timer.
 // Note: This function is intended for internal use only.
 func (p *timerProvider) Set(t timers.TimerMap) {
-	k := p.adapter.GetKeyString(t.Family)
+	k, domain := p.adapter.GetKeyStringAndDomain(t.Family)
 	for _, w := range p.window {
 		modifications := p.adapter.GetModifications(windowKeyPair{w, k})
 
 		// Make the adapter know the domains of the families.
-		domain := timers.EventTimeDomain
 		insertedTimer := sortableTimer{
 			Domain:   domain,
 			TimerMap: t,
@@ -191,8 +190,8 @@ func (p *timerProvider) Set(t timers.TimerMap) {
 // For SDK internal use, and subject to change.
 type TimerRecv struct {
 	Key             *FullValue
-	KeyString       string         // The bytes for the key to avoid re-encoding key for lookups.
-	Windows         []typex.Window // []typex.Window
+	KeyString       string // The bytes for the key to avoid re-encoding key for lookups.
+	Windows         []typex.Window
 	Pane            typex.PaneInfo
 	timers.TimerMap // embed common information from set parameter.
 }

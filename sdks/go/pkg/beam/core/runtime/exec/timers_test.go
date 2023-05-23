@@ -18,7 +18,6 @@ package exec
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"sort"
 	"testing"
 	"time"
@@ -285,7 +284,6 @@ func TestTimerAdapter(t *testing.T) {
 				t.Errorf("didn't receive writes for all expected families: got %v, want %v", maps.Keys(dm.TimerWrites), maps.Keys(test.want))
 			}
 			for family, buf := range dm.TimerWrites {
-				fmt.Println("bytes for ", family, len(buf.Bytes()))
 				r := bytes.NewBuffer(buf.Bytes())
 				wantedTimers := test.want[family]
 				spec := ta.familyToSpec[family]
@@ -407,7 +405,7 @@ func TestSortableTimer_Less(t *testing.T) {
 			lesserHoldTimer,
 			leastTagTimer, // equal to base
 			baseTimer,     // basic version of everything.
-			eventTimer,    //equal to base
+			eventTimer,    // equal to base
 			lesserTagTimer,
 			greaterTagTimer,
 			greaterHoldTimer,

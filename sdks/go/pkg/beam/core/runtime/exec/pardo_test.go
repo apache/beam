@@ -510,8 +510,6 @@ func TestProcessTimers(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			fmt.Println("start ", test.name)
-
 			fn, err := graph.NewDoFn(test.inputFn)
 			if err != nil {
 				t.Fatalf("invalid function %v", err)

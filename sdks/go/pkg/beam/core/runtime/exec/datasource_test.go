@@ -1042,7 +1042,6 @@ func (dm *TestDataManager) OpenTimerWrite(ctx context.Context, id StreamID, fami
 		buf = &bytes.Buffer{}
 		dm.TimerWrites[family] = buf
 	}
-	fmt.Println("returning writer for ", family)
 	return struct {
 		*bytes.Buffer
 		io.Closer
