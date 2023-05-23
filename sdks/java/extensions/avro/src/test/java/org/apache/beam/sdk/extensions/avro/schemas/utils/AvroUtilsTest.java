@@ -19,16 +19,20 @@ package org.apache.beam.sdk.extensions.avro.schemas.utils;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import com.pholser.junit.quickcheck.From;
 import com.pholser.junit.quickcheck.Property;
 import com.pholser.junit.quickcheck.runner.JUnitQuickcheck;
+import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
+import io.confluent.kafka.serializers.KafkaAvroSerializer;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.sql.JDBCType;
 import java.util.List;
 import java.util.Map;
+import org.apache.avro.AvroRuntimeException;
 import org.apache.avro.Conversions;
 import org.apache.avro.LogicalType;
 import org.apache.avro.LogicalTypes;
@@ -65,8 +69,12 @@ import org.joda.time.DateTimeZone;
 import org.joda.time.Days;
 import org.joda.time.Instant;
 import org.joda.time.LocalTime;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.Mock;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 /** Tests for conversion between AVRO records and Beam rows. */
 @RunWith(JUnitQuickcheck.class)
@@ -74,6 +82,10 @@ import org.junit.runner.RunWith;
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class AvroUtilsTest {
+
+  @Rule public final MockitoRule mockito = MockitoJUnit.rule();
+
+  @Mock SchemaRegistryClient kafkaSchemaRegistryClient;
 
   private static final org.apache.avro.Schema NULL_SCHEMA =
       org.apache.avro.Schema.create(Type.NULL);
@@ -839,6 +851,55 @@ public class AvroUtilsTest {
     assertEquals(
         AvroUtils.getFromRowFunction(GenericRecord.class),
         AvroUtils.getFromRowFunction(GenericRecord.class));
+  }
+
+  @Test
+  public void testAvroBytesToRowIgnoresKafkaAvroSerializerHeader() {
+    Row row = getBeamRow();
+    GenericRecord record = AvroUtils.toGenericRecord(row);
+
+    Row actual;
+    try (KafkaAvroSerializer serializer = new KafkaAvroSerializer(kafkaSchemaRegistryClient)) {
+      byte[] serialized = serializer.serialize("test-topic", record);
+      actual =
+          AvroUtils.getAvroBytesToRowFunction(row.getSchema(), /* hasKafkaHeaderBytes= */ true)
+              .apply(serialized);
+    }
+
+    assertEquals(row, actual);
+  }
+
+  @Test
+  public void testAvroBytesToRowFailsIfNotIgnoringKafkaSerializerHeader() {
+    Row row = getBeamRow();
+    GenericRecord record = AvroUtils.toGenericRecord(row);
+
+    try (KafkaAvroSerializer serializer = new KafkaAvroSerializer(kafkaSchemaRegistryClient)) {
+      byte[] serialized = serializer.serialize("test-topic", record);
+      assertThrows(
+          AvroRuntimeException.class,
+          () ->
+              AvroUtils.getAvroBytesToRowFunction(row.getSchema(), /* hasKafkaHeaderBytes= */ false)
+                  .apply(serialized));
+    }
+  }
+
+  @Test
+  public void testAvroBytesToRowFailsWhenNoKafkaHeaderBytes() {
+    Row row = getBeamRow();
+
+    AvroRuntimeException exception;
+    try (KafkaAvroSerializer serializer = new KafkaAvroSerializer(kafkaSchemaRegistryClient)) {
+      exception =
+          assertThrows(
+              AvroRuntimeException.class,
+              () ->
+                  AvroUtils.getAvroBytesToRowFunction(
+                          row.getSchema(), /* hasKafkaHeaderBytes= */ true)
+                      .apply(new byte[3]));
+    }
+
+    assertTrue(exception.getCause() instanceof IllegalStateException);
   }
 
   /** Helper class that simulate JDBC Logical types. */

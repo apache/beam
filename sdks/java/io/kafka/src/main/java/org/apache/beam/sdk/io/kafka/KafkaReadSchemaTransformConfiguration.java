@@ -54,7 +54,8 @@ public abstract class KafkaReadSchemaTransformConfiguration {
 
   /** Instantiates a {@link KafkaReadSchemaTransformConfiguration.Builder} instance. */
   public static Builder builder() {
-    return new AutoValue_KafkaReadSchemaTransformConfiguration.Builder();
+    return new AutoValue_KafkaReadSchemaTransformConfiguration.Builder()
+        .setUseKafkaAvroDeserializer(false);
   }
 
   /** Sets the bootstrap servers for the Kafka consumer. */
@@ -87,6 +88,12 @@ public abstract class KafkaReadSchemaTransformConfiguration {
   public abstract String getSchema();
 
   @SchemaFieldDescription(
+      "Whether to use a KafkaAvroDeserializer. This must be set to true if data was written to "
+          + "the topic using KafkaAvroSerializer. This value is only used when a schema is "
+          + "provided. It is not used if using a schema registry.")
+  public abstract boolean getUseKafkaAvroDeserializer();
+
+  @SchemaFieldDescription(
       "What to do when there is no initial offset in Kafka or if the current offset"
           + " does not exist any more on the server. (1) earliest: automatically reset the offset to the earliest"
           + " offset. (2) latest: automatically reset the offset to the latest offset"
@@ -117,6 +124,8 @@ public abstract class KafkaReadSchemaTransformConfiguration {
     public abstract Builder setConfluentSchemaRegistrySubject(String subject);
 
     public abstract Builder setSchema(String schema);
+
+    public abstract Builder setUseKafkaAvroDeserializer(boolean value);
 
     public abstract Builder setFormat(String format);
 

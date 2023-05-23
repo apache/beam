@@ -59,6 +59,12 @@ dependencies {
     // Exclude Avro dependencies from "core" since Avro support moved to this extension
     exclude group: "org.apache.avro", module: "avro"
   }
+  testImplementation("io.confluent:kafka-avro-serializer:5.3.2") {
+    // zookeeper depends on "spotbugs-annotations:3.1.9" which clashes with current
+    // "spotbugs-annotations:3.1.12" used in Beam. Not required.
+    exclude group: "org.apache.zookeeper", module: "zookeeper"
+  }
+  testImplementation library.java.mockito_core
   testImplementation library.java.avro_tests
   testImplementation library.java.junit
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")

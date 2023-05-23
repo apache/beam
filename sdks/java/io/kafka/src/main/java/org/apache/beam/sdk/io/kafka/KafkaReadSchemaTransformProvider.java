@@ -189,7 +189,8 @@ public class KafkaReadSchemaTransformProvider
         SerializableFunction<byte[], Row> valueMapper =
             Objects.equals(configuration.getFormat(), "JSON")
                 ? JsonUtils.getJsonBytesToRowFunction(beamSchema)
-                : AvroUtils.getAvroBytesToRowFunction(beamSchema);
+                : AvroUtils.getAvroBytesToRowFunction(
+                    beamSchema, configuration.getUseKafkaAvroDeserializer());
         return new PTransform<PCollectionRowTuple, PCollectionRowTuple>() {
           @Override
           public PCollectionRowTuple expand(PCollectionRowTuple input) {
@@ -208,7 +209,7 @@ public class KafkaReadSchemaTransformProvider
 
             PCollectionTuple outputTuple =
                 kafkaValues.apply(
-                    ParDo.of(new ErrorFn("Kafka-read-error-counter", valueMapper))
+                    ParDo.of(new ErrorFn("kafka-read-error-counter", valueMapper))
                         .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
 
             return PCollectionRowTuple.of(

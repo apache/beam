@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.avro.schemas.utils;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -575,23 +576,47 @@ public class AvroUtils {
 
   /** Returns a function mapping encoded AVRO {@link GenericRecord}s to Beam {@link Row}s. */
   public static SimpleFunction<byte[], Row> getAvroBytesToRowFunction(Schema beamSchema) {
-    return new AvroBytesToRowFn(beamSchema);
+    return getAvroBytesToRowFunction(beamSchema, false);
+  }
+
+  /**
+   * Returns a function mapping encoded AVRO {@link GenericRecord}s to Beam {@link Row}s.
+   *
+   * @param beamSchema the {@link Schema} to decode with
+   * @param hasKafkaHeaderBytes whether the input to the function has additional bytes added by
+   *     Kafka's Avro serializer. If set to true, the returned function will ignore those bytes. If
+   *     set to false, the function assumes that the serialized Avro begins at the the first byte of
+   *     the input.
+   */
+  public static SimpleFunction<byte[], Row> getAvroBytesToRowFunction(
+      Schema beamSchema, boolean hasKafkaHeaderBytes) {
+    return new AvroBytesToRowFn(beamSchema, hasKafkaHeaderBytes);
   }
 
   private static class AvroBytesToRowFn extends SimpleFunction<byte[], Row> {
+    // This does not actually use the KafkaAvroDeserializer. The number of bytes is fixed, so we can
+    // just skip them (1 magic byte + 4 bytes for a schema id)
+    private static final int KAFKA_HEADER_SIZE = 5;
     private final AvroCoder<GenericRecord> coder;
     private final Schema beamSchema;
+    private final boolean hasKafkaHeaderBytes;
 
-    AvroBytesToRowFn(Schema beamSchema) {
+    AvroBytesToRowFn(Schema beamSchema, boolean hasKafkaHeaderBytes) {
       org.apache.avro.Schema avroSchema = toAvroSchema(beamSchema);
       coder = AvroCoder.of(avroSchema);
       this.beamSchema = beamSchema;
+      this.hasKafkaHeaderBytes = hasKafkaHeaderBytes;
     }
 
     @Override
     public Row apply(byte[] bytes) {
       try {
         ByteArrayInputStream inputStream = new ByteArrayInputStream(bytes);
+        if (hasKafkaHeaderBytes) {
+          checkState(
+              inputStream.skip(KAFKA_HEADER_SIZE) == KAFKA_HEADER_SIZE,
+              "Configured to skip Kafka Avro serializer bytes, but the buffer has too few bytes");
+        }
         GenericRecord record = coder.decode(inputStream);
         return AvroUtils.toBeamRowStrict(record, beamSchema);
       } catch (Exception e) {
