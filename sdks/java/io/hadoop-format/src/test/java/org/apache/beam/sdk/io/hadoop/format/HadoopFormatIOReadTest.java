@@ -31,6 +31,7 @@ import static org.junit.Assert.assertTrue;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.NullableCoder;
@@ -51,6 +52,7 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
@@ -569,8 +571,11 @@ public class HadoopFormatIOReadTest {
   @Test
   public void testReadDisplayData() {
     SerializableConfiguration conf =
-        loadTestConfigurationWithInputPath(
-            EmployeeInputFormat.class, Text.class, Employee.class, "some-path");
+        loadTestConfiguration(
+            EmployeeInputFormat.class,
+            Text.class,
+            Employee.class,
+            ImmutableMap.of("mapreduce.input.fileinputformat.inputdir", "some-path"));
     HadoopInputFormatBoundedSource<Text, Employee> boundedSource =
         new HadoopInputFormatBoundedSource<>(
             conf,
@@ -1080,13 +1085,17 @@ public class HadoopFormatIOReadTest {
     return new SerializableConfiguration(conf);
   }
 
-  private static SerializableConfiguration loadTestConfigurationWithInputPath(
-      Class<?> inputFormatClassName, Class<?> keyClass, Class<?> valueClass, String inputPath) {
+  private static SerializableConfiguration loadTestConfiguration(
+      Class<?> inputFormatClassName,
+      Class<?> keyClass,
+      Class<?> valueClass,
+      Map<String, String> extraConf) {
     Configuration conf = new Configuration();
     conf.setClass("mapreduce.job.inputformat.class", inputFormatClassName, InputFormat.class);
-    conf.set("mapreduce.input.fileinputformat.inputdir", inputPath);
     conf.setClass("key.class", keyClass, Object.class);
     conf.setClass("value.class", valueClass, Object.class);
+
+    extraConf.forEach((k, v) -> conf.set(k, v));
     return new SerializableConfiguration(conf);
   }
 

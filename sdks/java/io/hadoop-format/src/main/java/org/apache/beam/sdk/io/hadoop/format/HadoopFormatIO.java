@@ -699,11 +699,14 @@ public class HadoopFormatIO {
                     "mapreduce.job.inputformat.class",
                     hadoopConfig.get("mapreduce.job.inputformat.class"))
                 .withLabel("InputFormat Class"));
-        builder.addIfNotNull(
-            DisplayData.item(
-                    "mapreduce.input.fileinputformat.inputdir",
-                    hadoopConfig.get("mapreduce.input.fileinputformat.inputdir"))
-                .withLabel("Input Directory"));
+        final String inputDir = hadoopConfig.get("mapreduce.input.fileinputformat.inputdir");
+        if (inputDir != null) {
+          builder.add(
+              DisplayData.item(
+                      "mapreduce.input.fileinputformat.inputdir",
+                      inputDir.substring(0, Math.min(inputDir.length(), 250)))
+                  .withLabel("Input Directory"));
+        }
         builder.addIfNotNull(
             DisplayData.item("key.class", hadoopConfig.get("key.class")).withLabel("Key Class"));
         builder.addIfNotNull(
