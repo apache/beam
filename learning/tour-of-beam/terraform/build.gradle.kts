@@ -67,7 +67,7 @@ tasks.register<TerraformTask>("terraformApplyBackend") {
 tasks.register<TerraformTask>("terraformDestroy") {
     dependsOn("getRouterHost")
 
-    val pgRouterHost = if (project.extensions.extraProperties.has("pg_router_host")) {
+    val pg_router_host = if (project.extensions.extraProperties.has("pg_router_host")) {
         project.extensions.extraProperties["pg_router_host"] as String
     } else {
         "unknown"
