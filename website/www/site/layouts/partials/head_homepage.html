@@ -39,8 +39,8 @@
 <script type="text/javascript" src="{{ $bootstrap.RelPermalink }}" defer></script>
 
 <!-- TODO [BEAM-12644]: Create an asset pipeline so we don't have to version .js files. -->
-<!-- {{ $switchV2 := resources.Get "js/language-switch-v2.js" | minify | fingerprint }}
-<script type="text/javascript" src="{{ $switchV2.RelPermalink }}" defer></script> -->
+{{ $switchV2 := resources.Get "js/language-switch-v2.js" | minify | fingerprint }}
+<script type="text/javascript" src="{{ $switchV2.RelPermalink }}" defer></script>
 
 <!-- {{ $sectionNav := resources.Get "js/section-nav.js" | minify | fingerprint }}
 <script type="text/javascript" src="{{ $sectionNav.RelPermalink }}" defer></script> -->
