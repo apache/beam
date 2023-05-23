@@ -56,18 +56,16 @@ class EmbeddedActions extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: kXxlSpacing),
-                _ButtonPadding(
-                  child: SizedBox(
-                    width: kTryPlaygroundButtonWidth,
-                    height: kTryPlaygroundButtonHeight,
-                    child: ElevatedButton.icon(
-                      icon: SvgPicture.asset(Assets.link),
-                      label:
-                          Text(AppLocalizations.of(context)!.tryInPlayground),
-                      onPressed: () => _openStandalonePlayground(controller),
-                    ),
+                SizedBox(
+                  width: kTryPlaygroundButtonWidth,
+                  height: kTryPlaygroundButtonHeight,
+                  child: ElevatedButton.icon(
+                    icon: SvgPicture.asset(Assets.link),
+                    label: Text(AppLocalizations.of(context)!.tryInPlayground),
+                    onPressed: () => _openStandalonePlayground(controller),
                   ),
                 ),
+                const SizedBox(width: kMdSpacing),
               ],
             );
           },
