@@ -37,6 +37,10 @@ intellij {
   plugins.set(listOf("java", "gradle"))
 }
 
+dependencies {
+  testImplementation("junit:junit:4.12")
+}
+
 tasks {
   // Set the JVM compatibility versions
   withType<JavaCompile> {
@@ -58,4 +62,8 @@ tasks {
   publishPlugin {
     token.set(System.getenv("PUBLISH_TOKEN"))
   }
+}
+
+tasks.test {
+  useJUnit()
 }
