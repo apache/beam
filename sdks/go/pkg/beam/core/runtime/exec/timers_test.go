@@ -296,7 +296,7 @@ func TestTimerAdapter(t *testing.T) {
 						if a.Tag != b.Tag {
 							return a.Tag < b.Tag
 						}
-						return a.FireTimestamp < a.FireTimestamp
+						return a.FireTimestamp < b.FireTimestamp
 					},
 				)); diff != "" {
 					t.Errorf("timer diff on family %v (-want,+got):\n%v", family, diff)
