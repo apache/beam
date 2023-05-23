@@ -60,8 +60,8 @@
 {{ $calendar := resources.Get "js/calendar.js" | minify | fingerprint }}
 <script type="text/javascript" src="{{ $calendar.RelPermalink }}" defer></script>
 
-{{ $fixPlaygroundNestedScroll := resources.Get "js/fix-playground-nested-scroll.js" | minify | fingerprint }}
-<script type="text/javascript" src="{{ $fixPlaygroundNestedScroll.RelPermalink }}" defer></script>
+<!-- {{ $fixPlaygroundNestedScroll := resources.Get "js/fix-playground-nested-scroll.js" | minify | fingerprint }} -->
+<!-- <script type="text/javascript" src="{{ $fixPlaygroundNestedScroll.RelPermalink }}" defer></script> -->
 
 {{ $anchorContentJumpFix := resources.Get "js/anchor-content-jump-fix.js" | minify | fingerprint }}
 <script type="text/javascript" src="{{ $anchorContentJumpFix.RelPermalink }}" defer></script>
