@@ -60,4 +60,6 @@ labels:
       - damccorm
       - Abacn
     exclusionList: []
-fallbackReviewers: []
+fallbackReviewers:
+  - kennknowles
+  - liferoad
