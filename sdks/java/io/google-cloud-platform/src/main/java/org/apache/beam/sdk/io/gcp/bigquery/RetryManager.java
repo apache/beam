@@ -33,6 +33,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.bigquery.RetryManager.Operation.Context;
+import com.google.cloud.bigquery.storage.v1.BigQueryReadSettings;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
@@ -41,11 +42,20 @@ import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Queues;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.joda.time.Duration;
+import java.time.Instant;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
+import com.google.common.annotations.VisibleForTesting;
+import io.grpc.Metadata;
+import io.grpc.Status;
+import io.grpc.Status.Code;
+import io.grpc.protobuf.ProtoUtils;
+import com.google.rpc.RetryInfo;
 
 /**
  * Retry manager used by Storage API operations. This class manages a sequence of operations (e.g.
  * sequential appends to a stream) and retries of those operations. If any one operation fails, then
- * all subsequent operations are expected to fail true and will alll be retried.
+ * all subsequent operations are expected to fail true and will all be retried.
  */
 class RetryManager<ResultT, ContextT extends Context<ResultT>> {
   private Queue<Operation<ResultT, ContextT>> operations;
@@ -53,6 +63,12 @@ class RetryManager<ResultT, ContextT extends Context<ResultT>> {
   private static final ExecutorService executor =
       Executors.newCachedThreadPool(
           new ThreadFactoryBuilder().setNameFormat("BeamBQRetryManager-%d").build());
+
+  private final Counter throttlingMsecs =
+        Metrics.counter(RetryManager.class, "throttling-msecs");
+
+  private static final Metadata.Key<RetryInfo> KEY_RETRY_INFO =
+      ProtoUtils.keyForProto(RetryInfo.getDefaultInstance());
 
   // Enum returned by onError indicating whether errors should be retried.
   enum RetryType {
@@ -146,6 +162,8 @@ class RetryManager<ResultT, ContextT extends Context<ResultT>> {
     private final Function<ResultT, Boolean> hasSucceeded;
     @Nullable private Throwable failure = null;
     boolean failed = false;
+
+
 
     Callback(Function<ResultT, Boolean> hasSucceeded) {
       this.waiter = new CountDownLatch(1);
@@ -252,6 +270,33 @@ class RetryManager<ResultT, ContextT extends Context<ResultT>> {
     }
   }
 
+    // If client retries ReadRows requests due to RESOURCE_EXHAUSTED error, bump
+    // throttlingMsecs according to delay. Runtime can use this information for
+    // autoscaling decisions.
+    @VisibleForTesting
+    public static class RetryAttemptCounter implements BigQueryReadSettings.RetryAttemptListener {
+      public final Counter throttlingMsecs =
+          Metrics.counter(RetryAttemptCounter.class, "throttling-msecs");
+
+      @SuppressWarnings("ProtoDurationGetSecondsGetNano")
+      @Override
+      public void onRetryAttempt(Status status, Metadata metadata) {
+        if (status != null
+            && status.getCode() == Code.RESOURCE_EXHAUSTED
+            && metadata != null
+            && metadata.containsKey(KEY_RETRY_INFO)) {
+          RetryInfo retryInfo = metadata.get(KEY_RETRY_INFO);
+          if (retryInfo != null && retryInfo.hasRetryDelay()) {
+            long delay =
+                retryInfo.getRetryDelay().getSeconds() * 1000
+                    + retryInfo.getRetryDelay().getNanos() / 1000000;
+            throttlingMsecs.inc(delay);
+          }
+        }
+      }
+    }
+
+
   void await() throws Exception {
     while (!this.operations.isEmpty()) {
       Operation<ResultT, ContextT> operation = this.operations.element();
@@ -265,13 +310,16 @@ class RetryManager<ResultT, ContextT extends Context<ResultT>> {
         if (retryType == RetryType.DONT_RETRY) {
           operations.clear();
         } else {
+          Instant now = Instant.now();
           checkState(RetryType.RETRY_ALL_OPERATIONS == retryType);
           if (!BackOffUtils.next(Sleeper.DEFAULT, backoff)) {
             throw new RuntimeException(failure);
           }
           for (Operation<ResultT, ?> awaitOperation : operations) {
             awaitOperation.await();
-          }
+          } 
+          java.time.Duration timeElapsed = java.time.Duration.between(now, Instant.now());
+          throttlingMsecs.inc(timeElapsed.toMillis());
           // Run all the operations again.
           run(false);
         }

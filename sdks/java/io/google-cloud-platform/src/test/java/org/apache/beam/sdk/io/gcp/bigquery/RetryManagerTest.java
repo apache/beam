@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import com.google.api.core.ApiFutures;
 import java.util.List;
@@ -74,6 +75,7 @@ public class RetryManagerTest {
           assertEquals(1, c.numSucceeded);
           assertEquals(0, c.numFailed);
         });
+    assertTrue(0 == retryManager.getThrottlingMsecsCounter());
   }
 
   @Test
@@ -129,6 +131,9 @@ public class RetryManagerTest {
               assertEquals(1, e.getValue().numSucceeded);
               assertEquals((int) expectedFailures.get(e.getKey()), e.getValue().numFailed);
             });
+    // Check that a small nonw zero delay was observed.
+    assertTrue(100 > retryManager.getThrottlingMsecsCounter());
+    assertTrue(0 < retryManager.getThrottlingMsecsCounter());
   }
 
   @Test
@@ -208,5 +213,66 @@ public class RetryManagerTest {
           assertEquals(0, c.numSucceeded);
           assertEquals(1, c.numFailed);
         });
+  }
+
+  @Test
+  public void testRetryAttemptCounter() {
+    RetryManager.RetryAttemptCounter counter =
+        new RetryManager.RetryAttemptCounter();
+
+    RetryInfo retryInfo =
+        RetryInfo.newBuilder()
+            .setRetryDelay(
+                com.google.protobuf.Duration.newBuilder()
+                    .setSeconds(123)
+                    .setNanos(456000000)
+                    .build())
+            .build();
+
+    Metadata metadata = new Metadata();
+    metadata.put(
+        Metadata.Key.of(
+            "google.rpc.retryinfo-bin",
+            new Metadata.BinaryMarshaller<RetryInfo>() {
+              @Override
+              public byte[] toBytes(RetryInfo value) {
+                return value.toByteArray();
+              }
+
+              @Override
+              public RetryInfo parseBytes(byte[] serialized) {
+                try {
+                  Parser<RetryInfo> parser = RetryInfo.newBuilder().build().getParserForType();
+                  return parser.parseFrom(serialized);
+                } catch (Exception e) {
+                  return null;
+                }
+              }
+            }),
+        retryInfo);
+
+    MetricName metricName =
+        MetricName.named(
+            "org.apache.beam.sdk.io.gcp.bigquery.RetryManager$RetryAttemptCounter",
+            "throttling-msecs");
+    MetricsContainerImpl container =
+        (MetricsContainerImpl) MetricsEnvironment.getCurrentContainer();
+
+    // Nulls don't bump the counter.
+    counter.onRetryAttempt(null, null);
+    assertEquals(0, (long) container.getCounter(metricName).getCumulative());
+
+    // Resource exhausted with empty metadata doesn't bump the counter.
+    counter.onRetryAttempt(
+        Status.RESOURCE_EXHAUSTED.withDescription("You have consumed some quota"), new Metadata());
+    assertEquals(0, (long) container.getCounter(metricName).getCumulative());
+
+    // Resource exhausted with retry info bumps the counter.
+    counter.onRetryAttempt(Status.RESOURCE_EXHAUSTED.withDescription("Stop for a while"), metadata);
+    assertEquals(123456, (long) container.getCounter(metricName).getCumulative());
+
+    // Other errors with retry info doesn't bump the counter.
+    counter.onRetryAttempt(Status.UNAVAILABLE.withDescription("Server is gone"), metadata);
+    assertEquals(123456, (long) container.getCounter(metricName).getCumulative());
   }
 }
