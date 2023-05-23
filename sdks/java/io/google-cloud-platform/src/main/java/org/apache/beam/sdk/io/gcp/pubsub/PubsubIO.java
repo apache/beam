@@ -749,12 +749,36 @@ public class PubsubIO {
   }
 
   /**
+   * Returns A {@link PTransform} that writes binary encoded protobuf messages of a given type to a
+   * Google Cloud Pub/Sub stream.
+   */
+  public static <T extends Message> Write<T> writeProtos(
+      Class<T> messageClass, SerializableFunction<T, Map<String, String>> attributeFn) {
+    // TODO: Like in readProtos(), stop using ProtoCoder and instead format the payload directly.
+    return Write.newBuilder(formatPayloadUsingCoder(ProtoCoder.of(messageClass), attributeFn))
+        .setDynamicDestinations(false)
+        .build();
+  }
+
+  /**
    * Returns A {@link PTransform} that writes binary encoded Avro messages of a given type to a
    * Google Cloud Pub/Sub stream.
    */
   public static <T> Write<T> writeAvros(Class<T> clazz) {
     // TODO: Like in readAvros(), stop using AvroCoder and instead format the payload directly.
     return Write.newBuilder(formatPayloadUsingCoder(AvroCoder.of(clazz)))
+        .setDynamicDestinations(false)
+        .build();
+  }
+
+  /**
+   * Returns A {@link PTransform} that writes binary encoded Avro messages of a given type to a
+   * Google Cloud Pub/Sub stream.
+   */
+  public static <T> Write<T> writeAvros(
+      Class<T> clazz, SerializableFunction<T, Map<String, String>> attributeFn) {
+    // TODO: Like in readAvros(), stop using AvroCoder and instead format the payload directly.
+    return Write.newBuilder(formatPayloadUsingCoder(AvroCoder.of(clazz), attributeFn))
         .setDynamicDestinations(false)
         .build();
   }
@@ -1491,6 +1515,18 @@ public class PubsubIO {
     return input -> {
       try {
         return new PubsubMessage(CoderUtils.encodeToByteArray(coder, input), ImmutableMap.of());
+      } catch (CoderException e) {
+        throw new RuntimeException("Could not encode Pubsub message", e);
+      }
+    };
+  }
+
+  private static <T> SerializableFunction<T, PubsubMessage> formatPayloadUsingCoder(
+      Coder<T> coder, SerializableFunction<T, Map<String, String>> attributesFn) {
+    return input -> {
+      try {
+        return new PubsubMessage(
+            CoderUtils.encodeToByteArray(coder, input), attributesFn.apply(input));
       } catch (CoderException e) {
         throw new RuntimeException("Could not encode Pubsub message", e);
       }
