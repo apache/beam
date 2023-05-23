@@ -57,8 +57,8 @@
 {{ $copyToClipboard := resources.Get "js/copy-to-clipboard.js" |  resources.ExecuteAsTemplate "js/copy-to-clipboard.js" . |minify | fingerprint }}
 <script type="text/javascript" src="{{ $copyToClipboard.RelPermalink }}" defer></script>
 
-{{ $calendar := resources.Get "js/calendar.js" | minify | fingerprint }}
-<script type="text/javascript" src="{{ $calendar.RelPermalink }}" defer></script>
+<!-- {{ $calendar := resources.Get "js/calendar.js" | minify | fingerprint }}
+<script type="text/javascript" src="{{ $calendar.RelPermalink }}" defer></script> -->
 
 <!-- {{ $fixPlaygroundNestedScroll := resources.Get "js/fix-playground-nested-scroll.js" | minify | fingerprint }} -->
 <!-- <script type="text/javascript" src="{{ $fixPlaygroundNestedScroll.RelPermalink }}" defer></script> -->
