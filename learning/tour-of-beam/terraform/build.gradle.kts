@@ -256,6 +256,7 @@ tasks.register("prepareFirebaseOptionsDart") {
 }
 
 tasks.register("flutterPubGetPG") {
+    dependsOn("prepareFirebaseOptionsDart")
     doLast {
         exec {
             executable("flutter")
