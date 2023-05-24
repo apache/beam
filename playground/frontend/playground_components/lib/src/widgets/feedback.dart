@@ -19,6 +19,7 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../playground_components.dart';
 import '../assets/assets.gen.dart';
@@ -156,19 +157,6 @@ class FeedbackDropdown extends StatelessWidget {
     required this.subtitle,
   });
 
-  void _sendFeedback() {
-    PlaygroundComponents.analyticsService.sendUnawaited(
-      FeedbackFormSentAnalyticsEvent(
-        rating: rating,
-        text: controller.textController.text,
-        snippetContext: controller.eventSnippetContext,
-        additionalParams: controller.additionalParams,
-      ),
-    );
-    controller.textController.clear();
-    close();
-  }
-
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
@@ -178,42 +166,27 @@ class FeedbackDropdown extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
         ),
         padding: const EdgeInsets.all(16),
-        width: 400,
+        width: 300,
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               title,
               style: Theme.of(context).textTheme.headlineLarge,
             ),
-            const SizedBox(height: BeamSizes.size8),
+            const SizedBox(height: BeamSizes.size6),
             Text(
               subtitle,
+              textAlign: TextAlign.center,
             ),
-            const SizedBox(height: BeamSizes.size8),
-            TextField(
-              key: textFieldKey,
-              controller: controller.textController,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-              ),
-              keyboardType: TextInputType.multiline,
-              maxLines: 5,
-              minLines: 3,
-            ),
-            const SizedBox(height: BeamSizes.size8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                ElevatedButton(
-                  key: sendButtonKey,
-                  onPressed: controller.textController.text.isEmpty
-                      ? null
-                      : _sendFeedback,
-                  child: const Text('widgets.feedback.send').tr(),
-                ),
-              ],
+            const SizedBox(height: BeamSizes.size16),
+            ElevatedButton(
+              key: sendButtonKey,
+              onPressed: () async {
+                await launchUrl(Uri.parse(BeamLinks.feedbackGoogleForms));
+                close();
+              },
+              child: const Text('widgets.feedback.googleForms').tr(),
             ),
           ],
         ),
