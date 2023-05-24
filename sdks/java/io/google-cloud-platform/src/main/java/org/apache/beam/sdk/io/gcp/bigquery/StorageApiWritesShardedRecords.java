@@ -523,9 +523,9 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
               bytes -> appendClientInfo.get().toTableRow(bytes),
               (failedRow, errorMessage) -> {
                 o.get(failedRowsTag)
-                        .outputWithTimestamp(
-                                new BigQueryStorageApiInsertError(failedRow.getValue(), errorMessage),
-                                failedRow.getTimestamp());
+                    .outputWithTimestamp(
+                        new BigQueryStorageApiInsertError(failedRow.getValue(), errorMessage),
+                        failedRow.getTimestamp());
                 rowsSentToFailedRowsCollection.inc();
               },
               autoUpdateSchema,
