@@ -309,8 +309,8 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
                 (triggeringFrequency == null || triggeringFrequency <= 0)
                     ? DEFAULT_TRIGGERING_FREQUENCY
                     : Duration.standardSeconds(triggeringFrequency));
-
-        if (autoSharding != null && autoSharding) {
+        // use default value true for autoSharding if not configured for STORAGE_WRITE_API
+        if (autoSharding == null || autoSharding) {
           write = write.withAutoSharding();
         }
       }
