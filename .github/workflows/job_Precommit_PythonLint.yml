@@ -2,20 +2,15 @@ name: Precommit Python Lint
 run-name: Python Lint
 on:
   pull_request:
-    branches: [ "*" ]
+    branches: [ "master", "release-*" ]
+    paths: [ "sdks/python/.*", "release/.*" ]
   issue_comment:
     types: [created, edited]
-  workflow_dispatch:
-   inputs:
-     tags:
-        description: 'Test scenario tags'
-        required: false
-        type: boolean
 
 
 jobs:
   PythonLint:
-    if: github.event.workflow_dispatch || (github.event.issue.pull_request && contains(github.event.comment.body, 'Run PythonLint PreCommit'))
+    if:  (github.event.issue.pull_request && contains(github.event.comment.body, 'Run PythonLint PreCommit'))
     runs-on: self-hosted
 
     steps:
