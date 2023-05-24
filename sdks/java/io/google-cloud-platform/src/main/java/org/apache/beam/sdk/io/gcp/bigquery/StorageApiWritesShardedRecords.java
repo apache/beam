@@ -495,11 +495,13 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
               splitSize,
               (fields, ignore) -> appendClientInfo.get().encodeUnknownFields(fields, ignore),
               bytes -> appendClientInfo.get().toTableRow(bytes),
-              (failedRow, errorMessage) ->
-                  o.get(failedRowsTag)
-                      .outputWithTimestamp(
-                          new BigQueryStorageApiInsertError(failedRow.getValue(), errorMessage),
-                          failedRow.getTimestamp()),
+              (failedRow, errorMessage) -> {
+                o.get(failedRowsTag)
+                    .outputWithTimestamp(
+                        new BigQueryStorageApiInsertError(failedRow.getValue(), errorMessage),
+                        failedRow.getTimestamp());
+                rowsSentToFailedRowsCollection.inc();
+              },
               autoUpdateSchema,
               ignoreUnknownValues,
               elementTs);
@@ -722,6 +724,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                         failedRow, "Row payload too large. Maximum size " + maxRequestSize),
                     timestamp);
           }
+          rowsSentToFailedRowsCollection.inc(splitValue.getProtoRows().getSerializedRowsCount());
         } else {
           ++numAppends;
           // RetryManager
