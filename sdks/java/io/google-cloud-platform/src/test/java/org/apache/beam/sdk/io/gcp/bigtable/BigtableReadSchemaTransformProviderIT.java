@@ -213,7 +213,7 @@ public class BigtableReadSchemaTransformProviderIT {
   @Test
   public void testRead() throws Exception {
     tableId = "BigtableReadSchemaTransformIT";
-    List<Row> expectedRows = writeToTable(1);
+    List<Row> expectedRows = writeToTable(20);
 
     BigtableReadSchemaTransformConfiguration config =
         BigtableReadSchemaTransformConfiguration.builder()
