@@ -24,8 +24,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import com.google.auto.value.AutoValue;
 import io.cdap.cdap.api.plugin.PluginConfig;
 import java.util.Map;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.hadoop.format.HDFSSynchronization;
@@ -191,7 +189,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *             .withStartOffset(10L);
  * }</pre>
  */
-@Experimental(Kind.SOURCE_SINK)
 public class CdapIO {
 
   public static <K, V> Read<K, V> read() {
@@ -233,7 +230,6 @@ public class CdapIO {
 
     abstract Builder<K, V> toBuilder();
 
-    @Experimental(Experimental.Kind.PORTABILITY)
     @AutoValue.Builder
     abstract static class Builder<K, V> {
 
@@ -388,7 +384,6 @@ public class CdapIO {
 
     abstract Builder<K, V> toBuilder();
 
-    @Experimental(Experimental.Kind.PORTABILITY)
     @AutoValue.Builder
     abstract static class Builder<K, V> {
 

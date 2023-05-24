@@ -16,7 +16,4 @@
  * limitations under the License.
  */
 /** Provides DoFns for integration with Google Cloud AI Video Intelligence service. */
-@Experimental
 package org.apache.beam.sdk.extensions.ml;
-
-import org.apache.beam.sdk.annotations.Experimental;

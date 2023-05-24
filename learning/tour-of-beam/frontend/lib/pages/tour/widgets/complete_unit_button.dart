@@ -53,23 +53,21 @@ class CompleteUnitButton extends StatelessWidget {
             canComplete ? themeData.primaryColor : themeData.disabledColor;
         final onPressed = canComplete ? _onPressed : null;
 
-        return Flexible(
-          child: OutlinedButton(
-            style: OutlinedButton.styleFrom(
-              foregroundColor: themeData.primaryColor,
-              side: BorderSide(color: borderColor),
-              shape: const RoundedRectangleBorder(
-                borderRadius: BorderRadius.all(
-                  Radius.circular(BeamSizes.size4),
-                ),
+        return OutlinedButton(
+          style: OutlinedButton.styleFrom(
+            foregroundColor: themeData.primaryColor,
+            side: BorderSide(color: borderColor),
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.all(
+                Radius.circular(BeamSizes.size4),
               ),
             ),
-            onPressed: onPressed,
-            child: const Text(
-              'pages.tour.completeUnit',
-              overflow: TextOverflow.visible,
-            ).tr(),
           ),
+          onPressed: onPressed,
+          child: const Text(
+            'pages.tour.completeUnit',
+            overflow: TextOverflow.visible,
+          ).tr(),
         );
       },
     );

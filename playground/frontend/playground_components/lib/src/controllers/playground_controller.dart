@@ -289,10 +289,11 @@ class PlaygroundController with ChangeNotifier {
     final sharedExample = Example(
       datasets: snippetController.example?.datasets ?? [],
       files: files,
-      name: files.first.name,
+      name: 'examples.userSharedName'.tr(),
       path: snippetId,
       sdk: snippetController.sdk,
       type: ExampleType.example,
+      pipelineOptions: snippetController.pipelineOptions,
     );
 
     final descriptor = UserSharedExampleLoadingDescriptor(

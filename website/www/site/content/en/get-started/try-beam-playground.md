@@ -25,7 +25,12 @@ You can try the available Apache Beam examples at
 
 ## Beam Playground WordCount Example
 
-{{< playground_iframe editable="1" example="SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MinimalWordCount" code="" height="700">}}
+{{< playground height="700px" >}}
+{{< playground_snippet language="java" path="SDK_JAVA_MinimalWordCount" >}}
+{{< playground_snippet language="py" path="SDK_PYTHON_WordCountWithMetrics" >}}
+{{< playground_snippet language="go" path="SDK_GO_MinimalWordCount" >}}
+{{< playground_snippet language="scio" path="SDK_SCIO_MinimalWordCount" >}}
+{{< /playground >}}
 
 See [here](https://github.com/akvelon/beam/blob/master/playground/load_your_code.md) for adding new examples.
 

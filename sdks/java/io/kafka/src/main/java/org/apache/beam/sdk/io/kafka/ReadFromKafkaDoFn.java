@@ -44,6 +44,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Stopwatch;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Suppliers;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
@@ -377,7 +378,7 @@ abstract class ReadFromKafkaDoFn<K, V>
       ConsumerRecords<byte[], byte[]> rawRecords = ConsumerRecords.empty();
 
       while (true) {
-        rawRecords = consumer.poll(KAFKA_POLL_TIMEOUT);
+        rawRecords = poll(consumer, kafkaSourceDescriptor.getTopicPartition());
         // When there are no records available for the current TopicPartition, self-checkpoint
         // and move to process the next element.
         if (rawRecords.isEmpty()) {
@@ -420,6 +421,31 @@ abstract class ReadFromKafkaDoFn<K, V>
           }
           receiver.outputWithTimestamp(KV.of(kafkaSourceDescriptor, kafkaRecord), outputTimestamp);
         }
+      }
+    }
+  }
+
+  // see https://github.com/apache/beam/issues/25962
+  private ConsumerRecords<byte[], byte[]> poll(
+      Consumer<byte[], byte[]> consumer, TopicPartition topicPartition) {
+    final Stopwatch sw = Stopwatch.createStarted();
+    long previousPosition = -1;
+    java.time.Duration elapsed = java.time.Duration.ZERO;
+    while (true) {
+      final ConsumerRecords<byte[], byte[]> rawRecords =
+          consumer.poll(KAFKA_POLL_TIMEOUT.minus(elapsed));
+      if (!rawRecords.isEmpty()) {
+        // return as we have found some entries
+        return rawRecords;
+      }
+      if (previousPosition == (previousPosition = consumer.position(topicPartition))) {
+        // there was no progress on the offset/position, which indicates end of stream
+        return rawRecords;
+      }
+      elapsed = sw.elapsed();
+      if (elapsed.toMillis() >= KAFKA_POLL_TIMEOUT.toMillis()) {
+        // timeout is over
+        return rawRecords;
       }
     }
   }

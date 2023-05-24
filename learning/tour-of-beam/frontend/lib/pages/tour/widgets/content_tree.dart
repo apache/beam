@@ -54,7 +54,7 @@ class ContentTreeWidget extends StatelessWidget {
               child: Column(
                 children: [
                   const ContentTreeTitleWidget(),
-                  ...contentTree.modules.map(
+                  ...contentTree.nodes.map(
                     (module) => ModuleWidget(
                       module: module,
                       contentTreeController: controller,

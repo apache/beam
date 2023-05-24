@@ -59,6 +59,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
 import org.joda.time.Instant;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
@@ -185,6 +186,8 @@ abstract class BaseFirestoreIT {
   }
 
   @Test
+  @Ignore(
+      "https://github.com/apache/beam/issues/25851 failing due to internal Firestore breaking change")
   public final void listDocuments() throws Exception {
     DocumentGenerator documentGenerator = helper.documentGenerator(NUM_ITEMS_TO_GENERATE, "a");
     Instant readTime =

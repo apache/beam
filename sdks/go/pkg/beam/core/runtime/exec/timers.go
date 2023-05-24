@@ -85,14 +85,13 @@ type timerProvider struct {
 func (p *timerProvider) getWriter(family string) (io.Writer, error) {
 	if w, ok := p.writersByFamily[family]; ok {
 		return w, nil
-	} else {
-		w, err := p.tm.OpenTimerWrite(p.ctx, p.sID, family)
-		if err != nil {
-			return nil, err
-		}
-		p.writersByFamily[family] = w
-		return p.writersByFamily[family], nil
 	}
+	w, err := p.tm.OpenTimerWrite(p.ctx, p.sID, family)
+	if err != nil {
+		return nil, err
+	}
+	p.writersByFamily[family] = w
+	return p.writersByFamily[family], nil
 }
 
 // Set writes a new timer. This can be used to both Set as well as Clear the timer.

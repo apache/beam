@@ -19,8 +19,6 @@ package org.apache.beam.sdk.schemas.transforms;
 
 import com.google.auto.value.AutoValue;
 import java.util.List;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
@@ -92,7 +90,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
  * {@link Field} object containing the field type must be passed in. This is currently the case for
  * ApproximateQuantilesCombineFn in the above example.
  */
-@Experimental(Kind.SCHEMAS)
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })

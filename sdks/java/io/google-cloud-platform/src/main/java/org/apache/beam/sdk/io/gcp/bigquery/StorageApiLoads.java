@@ -116,20 +116,15 @@ public class StorageApiLoads<DestinationT, ElementT>
         input.apply("rewindowIntoGlobal", Window.into(new GlobalWindows()));
 
     PCollectionTuple convertMessagesResult =
-        inputInGlobalWindow
-            .apply(
-                "CreateTables",
-                new CreateTableDestinations<>(
-                    createDisposition, bqServices, dynamicDestinations, kmsKey))
-            .apply(
-                "Convert",
-                new StorageApiConvertMessages<>(
-                    dynamicDestinations,
-                    bqServices,
-                    failedRowsTag,
-                    successfulConvertedRowsTag,
-                    BigQueryStorageApiInsertErrorCoder.of(),
-                    successCoder));
+        inputInGlobalWindow.apply(
+            "Convert",
+            new StorageApiConvertMessages<>(
+                dynamicDestinations,
+                bqServices,
+                failedRowsTag,
+                successfulConvertedRowsTag,
+                BigQueryStorageApiInsertErrorCoder.of(),
+                successCoder));
     PCollectionTuple writeRecordsResult =
         convertMessagesResult
             .get(successfulConvertedRowsTag)
@@ -143,7 +138,9 @@ public class StorageApiLoads<DestinationT, ElementT>
                     BigQueryStorageApiInsertErrorCoder.of(),
                     TableRowJsonCoder.of(),
                     autoUpdateSchema,
-                    ignoreUnknownValues));
+                    ignoreUnknownValues,
+                    createDisposition,
+                    kmsKey));
 
     PCollection<BigQueryStorageApiInsertError> insertErrors =
         PCollectionList.of(convertMessagesResult.get(failedRowsTag))
@@ -174,20 +171,15 @@ public class StorageApiLoads<DestinationT, ElementT>
     PCollection<KV<DestinationT, ElementT>> inputInGlobalWindow =
         input.apply("rewindowIntoGlobal", Window.into(new GlobalWindows()));
     PCollectionTuple convertMessagesResult =
-        inputInGlobalWindow
-            .apply(
-                "CreateTables",
-                new CreateTableDestinations<>(
-                    createDisposition, bqServices, dynamicDestinations, kmsKey))
-            .apply(
-                "Convert",
-                new StorageApiConvertMessages<>(
-                    dynamicDestinations,
-                    bqServices,
-                    failedRowsTag,
-                    successfulConvertedRowsTag,
-                    BigQueryStorageApiInsertErrorCoder.of(),
-                    successCoder));
+        inputInGlobalWindow.apply(
+            "Convert",
+            new StorageApiConvertMessages<>(
+                dynamicDestinations,
+                bqServices,
+                failedRowsTag,
+                successfulConvertedRowsTag,
+                BigQueryStorageApiInsertErrorCoder.of(),
+                successCoder));
 
     PCollection<KV<ShardedKey<DestinationT>, Iterable<StorageApiWritePayload>>> groupedRecords;
 
@@ -295,20 +287,15 @@ public class StorageApiLoads<DestinationT, ElementT>
         input.apply(
             "rewindowIntoGlobal", Window.<KV<DestinationT, ElementT>>into(new GlobalWindows()));
     PCollectionTuple convertMessagesResult =
-        inputInGlobalWindow
-            .apply(
-                "CreateTables",
-                new CreateTableDestinations<>(
-                    createDisposition, bqServices, dynamicDestinations, kmsKey))
-            .apply(
-                "Convert",
-                new StorageApiConvertMessages<>(
-                    dynamicDestinations,
-                    bqServices,
-                    failedRowsTag,
-                    successfulConvertedRowsTag,
-                    BigQueryStorageApiInsertErrorCoder.of(),
-                    successCoder));
+        inputInGlobalWindow.apply(
+            "Convert",
+            new StorageApiConvertMessages<>(
+                dynamicDestinations,
+                bqServices,
+                failedRowsTag,
+                successfulConvertedRowsTag,
+                BigQueryStorageApiInsertErrorCoder.of(),
+                successCoder));
 
     PCollectionTuple writeRecordsResult =
         convertMessagesResult
@@ -323,7 +310,9 @@ public class StorageApiLoads<DestinationT, ElementT>
                     BigQueryStorageApiInsertErrorCoder.of(),
                     TableRowJsonCoder.of(),
                     autoUpdateSchema,
-                    ignoreUnknownValues));
+                    ignoreUnknownValues,
+                    createDisposition,
+                    kmsKey));
 
     PCollection<BigQueryStorageApiInsertError> insertErrors =
         PCollectionList.of(convertMessagesResult.get(failedRowsTag))

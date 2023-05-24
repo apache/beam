@@ -81,7 +81,7 @@ func NewEmulated(ctx context.Context) (*EmulatedDatastore, error) {
 		panic(err)
 	}
 
-	datastoreDb, err := New(ctx, mapper.NewPrecompiledObjectMapper(), constants.EmulatorProjectId)
+	datastoreDb, err := New(ctx, mapper.NewPrecompiledObjectMapper(), nil, constants.EmulatorProjectId)
 	if err != nil {
 		return nil, err
 	}
@@ -130,7 +130,9 @@ func startEmulator() (*emulator, error) {
 
 		ok := func() bool {
 			workTicker := time.NewTicker(pauseDuration)
+			defer workTicker.Stop()
 			globalTicker := time.NewTicker(waitDuration)
+			defer workTicker.Stop()
 			for {
 				select {
 				case <-workTicker.C:

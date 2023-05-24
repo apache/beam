@@ -51,7 +51,9 @@ from helper import (
     _update_example_status,
     _get_object_type,
     validate_examples_for_duplicates_by_name,
+    validate_examples_for_conflicting_datasets,
     DuplicatesError,
+    ConflictingDatasetsError,
 )
 
 
@@ -507,6 +509,58 @@ def test_validate_examples_for_duplicates_by_name_when_examples_have_duplicates(
         match="Examples have duplicate names.\nDuplicates: \n - path #1: MOCK_FILEPATH \n - path #2: MOCK_FILEPATH",
     ):
         validate_examples_for_duplicates_by_name(examples)
+
+
+def test_validate_examples_for_conflicting_datasets_same_datasets_no_conflicts(
+    create_test_example,
+):
+    examples_names = ["MOCK_NAME_1", "MOCK_NAME_2", "MOCK_NAME_3"]
+    examples = list(
+        map(lambda name: create_test_example(tag_meta=dict(name=name,
+                                                           kafka_datasets={"dataset_id_1": {"format": "avro", "location": "local"}}),
+                                             with_kafka=True),
+            examples_names)
+    )
+    try:
+        validate_examples_for_conflicting_datasets(examples)
+    except ConflictingDatasetsError:
+        pytest.fail("Unexpected ConflictingDatasetsError")
+
+
+def test_validate_examples_for_conflicting_datasets_different_datasets_have_conflict(
+    create_test_example,
+):
+    examples_names = ["MOCK_NAME_1", "MOCK_NAME_2", "MOCK_NAME_3"]
+    datasets = [{"dataset_id_1": {"format": "avro", "location": "local"}},
+                {"dataset_id_1": {"format": "json", "location": "local"}},
+                {"dataset_id_3": {"format": "avro", "location": "local"}}]
+    examples = list(
+        map(lambda p: create_test_example(tag_meta=dict(name=p[0],
+                                                        kafka_datasets=p[1]),
+                                          with_kafka=True),
+            zip(examples_names, datasets))
+    )
+    with pytest.raises(ConflictingDatasetsError):
+        validate_examples_for_conflicting_datasets(examples)
+
+
+def test_validate_examples_for_conflicting_datasets_different_datasets_no_conflicts(
+    create_test_example,
+):
+    examples_names = ["MOCK_NAME_1", "MOCK_NAME_2", "MOCK_NAME_3"]
+    datasets = [{"dataset_id_1": {"format": "avro", "location": "local"}},
+                {"dataset_id_2": {"format": "json", "location": "local"}},
+                {"dataset_id_3": {"format": "avro", "location": "local"}}]
+    examples = list(
+        map(lambda p: create_test_example(tag_meta=dict(name=p[0],
+                                                        kafka_datasets=p[1]),
+                                          with_kafka=True),
+            zip(examples_names, datasets))
+    )
+    try:
+        validate_examples_for_conflicting_datasets(examples)
+    except ConflictingDatasetsError:
+        pytest.fail("Unexpected ConflictingDatasetsError")
 
 
 def test_validate_example_fields_when_filepath_is_invalid(create_test_example):
