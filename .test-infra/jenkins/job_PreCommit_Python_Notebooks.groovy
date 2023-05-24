@@ -27,7 +27,7 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
       '^examples/notebooks/.*$',
     ],
     gradleSwitches: [
-      '-Pposargs=\"python runner.py --args"'
+      '-Pposargs=\"python runner.py"'
     ],
     )
 builder.build {
