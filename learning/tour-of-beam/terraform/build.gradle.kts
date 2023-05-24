@@ -154,14 +154,12 @@ tasks.register("firebaseHostingCreate") {
         exec {
             executable("firebase")
             args("hosting:sites:create", webapp_id, "--token", token)
-            standardOutput = result
             workingDir("../frontend")
         }
 
         exec {
             executable("firebase")
             args("target:apply", "hosting", webapp_id , webapp_id, "--token", token)
-            standardOutput = result
             workingDir("../frontend")
         }
         
