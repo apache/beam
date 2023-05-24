@@ -160,7 +160,7 @@ tasks.register("firebaseHostingCreate") {
         }
 
         println(listSitesResult)
-        val output = result.toString()
+        val output = listSitesResult.toString()
         val regex = "\\b$webapp_id\\b".toRegex()
         if (regex.containsMatchIn(output)) {
             println("Firebase is already added to project $projectId.")
