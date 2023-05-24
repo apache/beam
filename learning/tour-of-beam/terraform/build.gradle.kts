@@ -272,6 +272,30 @@ tasks.register("flutterPubRunPG") {
     doLast {
         exec {
             executable("flutter")
+            args("pub", "clean")
+            workingDir("../../../playground/frontend/playground_components")
+        }
+
+        exec {
+            executable("flutter")
+            args("pub", "cache", "repair")
+            workingDir("../../../playground/frontend/playground_components")
+        }
+
+        exec {
+            executable("flutter")
+            args("pub", "run ", "build_runner", "clean")
+            workingDir("../../../playground/frontend/playground_components")
+        }
+
+        exec {
+            executable("flutter")
+            args("pub", "get ")
+            workingDir("../../../playground/frontend/playground_components")
+        }
+
+        exec {
+            executable("flutter")
             args("pub", "run", "build_runner", "build", "--delete-conflicting-outputs")
             workingDir("../../../playground/frontend/playground_components")
         }
