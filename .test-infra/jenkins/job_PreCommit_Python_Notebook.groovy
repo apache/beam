@@ -25,7 +25,10 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     timeoutMins: 180,
     triggerPathPatterns: [
       '^examples/notebooks/.*$',
-    ]
+    ],
+    gradleSwitches: [
+      '-Pposargs=\"python runner.py --args"'
+    ],
     )
 builder.build {
   // Publish all test results to Jenkins.
