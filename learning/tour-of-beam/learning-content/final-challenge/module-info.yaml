@@ -21,11 +21,10 @@ sdk:
   - Java
   - Python
   - Go
+id: final-challenge
+name: Final challenge
+complexity: ADVANCED
 content:
-  - introduction
-  - common-transforms
-  - core-transforms
-  - schema-based-transforms
-  - windowing
-  - triggers
-  - final-challenge
+  - final-challenge-1
+  - final-challenge-2
+  - final-challenge-3

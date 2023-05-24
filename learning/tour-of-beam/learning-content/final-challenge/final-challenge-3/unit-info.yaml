@@ -21,11 +21,7 @@ sdk:
   - Java
   - Python
   - Go
-content:
-  - introduction
-  - common-transforms
-  - core-transforms
-  - schema-based-transforms
-  - windowing
-  - triggers
-  - final-challenge
+id: final-challenge-3
+name: Final Challenge 3
+taskName: FinalChallenge3
+solutionName: FinalSolution3
