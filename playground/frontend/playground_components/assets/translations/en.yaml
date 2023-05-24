@@ -53,7 +53,6 @@ widgets:
     label: 'Close'
   
   feedback:
-    googleForms: Fill in Google Forms
     hint: "Have feedback? We'd love to hear it, but please don't share sensitive information."
     negative: 'Bad Experience'
     positive: 'Good Experience'

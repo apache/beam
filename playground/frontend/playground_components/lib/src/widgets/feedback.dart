@@ -19,10 +19,10 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../playground_components.dart';
 import '../assets/assets.gen.dart';
+import 'iframe.dart';
 
 class FeedbackWidget extends StatelessWidget {
   static const positiveRatingButtonKey = Key('positive');
@@ -166,7 +166,8 @@ class FeedbackDropdown extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
         ),
         padding: const EdgeInsets.all(16),
-        width: 300,
+        width: 500,
+        height: MediaQuery.of(context).size.height - 100,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -180,13 +181,11 @@ class FeedbackDropdown extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: BeamSizes.size16),
-            ElevatedButton(
-              key: sendButtonKey,
-              onPressed: () async {
-                await launchUrl(Uri.parse(BeamLinks.feedbackGoogleForms));
-                close();
-              },
-              child: const Text('widgets.feedback.googleForms').tr(),
+            const Expanded(
+              child: IFrameWidget(
+                url: BeamLinks.feedbackGoogleForms,
+                viewType: 'feedbackGoogleForms',
+              ),
             ),
           ],
         ),
