@@ -24,7 +24,7 @@ import com.intellij.codeInsight.lookup.LookupElementBuilder;
 import com.intellij.util.ProcessingContext;
 import org.jetbrains.annotations.NotNull;
 
-class JavaSDKCompletionProvider extends CompletionProvider<CompletionParameters> {
+class BeamCompletionProvider extends CompletionProvider<CompletionParameters> {
 
     @Override
     protected void addCompletions(

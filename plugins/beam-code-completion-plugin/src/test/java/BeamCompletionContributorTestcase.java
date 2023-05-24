@@ -16,19 +16,12 @@
  * limitations under the License.
  */
 
-import com.intellij.patterns.PatternCondition;
-import com.intellij.psi.PsiElement;
-import com.intellij.util.ProcessingContext;
-import org.jetbrains.annotations.NotNull;
 
+import com.intellij.testFramework.fixtures.BasePlatformTestCase;
+import org.junit.Assert;
 
-public class JavaSDKPattern extends PatternCondition<PsiElement> {
-    JavaSDKPattern() {
-        super("javaSDKPattern()");
-    }
-
-    @Override
-    public boolean accepts(@NotNull PsiElement psiElement, ProcessingContext context) {
-        return false;
+public class BeamCompletionContributorTestcase extends BasePlatformTestCase {
+    public void testAutoPopupCompletions() {
+        Assert.assertEquals(2,2);
     }
 }

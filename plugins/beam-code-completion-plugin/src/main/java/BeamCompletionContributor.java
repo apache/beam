@@ -24,13 +24,13 @@ import com.intellij.psi.PsiElement;
 import org.jetbrains.annotations.NotNull;
 
 
-public class JavaSDKCompletionContributor extends CompletionContributor {
-    public JavaSDKCompletionContributor() {
+public class BeamCompletionContributor extends CompletionContributor {
+    public BeamCompletionContributor() {
         // completions for java files
         extend(
                 CompletionType.BASIC,
                 PsiJavaPatterns.psiElement(),
-                new JavaSDKCompletionProvider()
+                new BeamCompletionProvider()
         );
     }
     @Override

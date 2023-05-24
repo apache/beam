@@ -20,7 +20,7 @@
 <!-- Plugin Configuration File. Read more: https://plugins.jetbrains.com/docs/intellij/plugin-configuration-file.html -->
 <idea-plugin>
   <!-- Unique identifier of the plugin. It should be FQN. It cannot be changed between the plugin versions. -->
-  <id>com.example.beam-java-sdk-code-completion-plugin</id>
+  <id>beam-code-completion-plugin</id>
 
   <!-- Public plugin name should be written in Title Case.
        Guidelines: https://plugins.jetbrains.com/docs/marketplace/plugin-overview-page.html#plugin-name -->
@@ -32,7 +32,7 @@
   <!-- Description of the plugin displayed on the Plugin Page and IDE Plugin Manager.
        Simple HTML elements (text formatting, paragraphs, and lists) can be added inside of <![CDATA[ ]]> tag.
        Guidelines: https://plugins.jetbrains.com/docs/marketplace/plugin-overview-page.html#plugin-description -->
-  <description>A plugin that provides beam java sdk completions.</description>
+  <description>A plugin that provides Apache Beam completions.</description>
 
   <!-- Product and plugin compatibility requirements.
        Read more: https://plugins.jetbrains.com/docs/intellij/plugin-compatibility.html -->
@@ -44,6 +44,6 @@
        Read more: https://plugins.jetbrains.com/docs/intellij/plugin-extension-points.html -->
   <extensions defaultExtensionNs="com.intellij">
     <completion.contributor language="JAVA"
-                            implementationClass="JavaSDKCompletionContributor"></completion.contributor>
+                            implementationClass="BeamCompletionContributor"></completion.contributor>
   </extensions>
 </idea-plugin>

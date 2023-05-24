@@ -17,26 +17,11 @@
     under the License.
 -->
 
-# Apache Beam Java SDK Completion Plugin
+# Apache Beam Completion Plugin
 
-The Beam Java SDK Completion Plugin is an IntelliJ Plugin that provides Java SDK Beam Transform completions.
+The Beam Completion Plugin is an IntelliJ Plugin that provides Java SDK Beam Transform completions.
 The project is a part of Google Summer of Code program. The related proposal: https://docs.google.com/document/d/1ZT70nv6XvX_ShS0Y_aSNpOYelBkmRhiZ4HUMvY9dqXA/edit?usp=sharing .
 This project is not officially supported by Apache Beam.
-
-## Project Structure
-The project consists of the following parts:
-
-#### plugin.xml
-The plugin.xml contains the plugin's configurations: meta-information, dependencies and extension points.
-
-#### JavaSDKCompletionContibutor
-The JavaSDKCompetionContibutor is a class that provides custom completion logic.
-
-#### JavaSDKCompletionProvider
-The JavaSDKCompletionProvider class implements the beam transform suggestion logic.
-
-#### JavaSDKPattern
-The JavaSDKPattern class is responsible for code completion triggers at particular moments.
 
 ## Installation
 TODO: add description
