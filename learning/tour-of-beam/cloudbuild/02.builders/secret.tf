@@ -23,7 +23,7 @@ resource "google_secret_manager_secret" "secret_firebase_deployment_token" {
   }
 }
 
-resource "google_secret_manager_secret_version" "secret_webhook_cloudbuild_trigger_cicd_data" {
+resource "google_secret_manager_secret_version" "secret_firebase_deployment_token_data" {
   secret = google_secret_manager_secret.secret_firebase_deployment_token.id
   secret_data = var.data_for_firebase_token_secret
 }

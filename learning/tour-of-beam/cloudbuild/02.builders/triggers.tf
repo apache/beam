@@ -47,7 +47,7 @@ resource "google_cloudbuild_trigger" "tourofbeam_deployment_trigger" {
     available_secrets {
       secret_manager {
         env = "FIREBASE_TOKEN"
-        version_name = "${data.google_secret_manager_secret_version.secret_firebase_deployment_token.secret}/versions/latest"
+        version_name = "${google_secret_manager_secret_version.secret_firebase_deployment_token_data.secret}/versions/latest"
       }
     }
     substitutions = {
