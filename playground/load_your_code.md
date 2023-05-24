@@ -312,8 +312,6 @@ The ID of the snippet is a function of the SDK and the `name` attribute from its
 | Java   | SDK_JAVA_name   |
 | Python | SDK_PYTHON_name |
 
-**TODO: add example of the name for snippet**
-
 ### Source 3. How to add a Tour of Beam unit
 
 "Tour of Beam" is a separate project that combines learning materials with runnable snippets
@@ -321,9 +319,7 @@ and allows students to track their learning progress.
 It uses Playground engine, and so its content is added in a similar way.
 
 A Tour of Beam unit consists of learning materials and an optional runnable snippet.
-See [the learning content README] on how to add units and link snippets to them.
-
-**TODO** Link to the learning content README when this is merged: https://github.com/apache/beam/pull/25963
+See [the learning content README](../learning/tour-of-beam/learning-content/README.md) on how to add units and link snippets to them.
 
 #### Adding a snippet
 
@@ -333,7 +329,7 @@ Proceed the same way as with [Source 1. Playground Examples Catalog](#source-1-h
 
 1. Use the directory `/learning/tour-of-beam/learning-content`.
    It is recommended to follow the directory hierarchy as described in
-   [the learning content README] **TODO** Link
+   [the learning content README]((../learning/tour-of-beam/learning-content/README.md)).
 2. Do not use the following attributes:
    - `categories`
    - `default_example`
@@ -460,7 +456,8 @@ The ID of the snippet is a function of the SDK and the `name` attribute from its
 | Java   | TB_EXAMPLES_SDK_JAVA_name   |
 | Python | TB_EXAMPLES_SDK_PYTHON_name |
 
-**TODO: add example of the name for snippet**
+For instance, for the Go the example `CSV` it is `TB_EXAMPLES_SDK_GO_CSV`, and the link is
+https://play.beam.apache.org/?path=TB_EXAMPLES_SDK_GO_CSV&sdk=go
 
 #### Link to a user-shared snippet
 
