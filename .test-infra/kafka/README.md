@@ -31,6 +31,6 @@ Usage of this code requires:
 - IntelliJ or VS Code kubernetes plugin (optional but **highly** recommended)
 
 # Usage
-test 01
+test 02
 Each folder focuses on a specific kafka implementation. For example, the [strimzi](strimzi) folder provisions
 a kafka cluster using [strimzi.io](https://strimzi.io)
