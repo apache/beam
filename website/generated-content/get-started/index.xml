@@ -4970,15 +4970,12 @@ data-sdk="scio"
 data-path="SDK_SCIO_MinimalWordCount"
 >&lt;/div>
 &lt;/div>
-&lt;div class="code-snippet code-snippet-playground">
-&lt;iframe
-src="https://play.beam.apache.org/embedded?editable=1&amp;examples=%5b%7b%22path%22%3a%22SDK_JAVA_MinimalWordCount%22%2c%22sdk%22%3a%22java%22%7d%2c%7b%22path%22%3a%22SDK_PYTHON_WordCountWithMetrics%22%2c%22sdk%22%3a%22python%22%7d%2c%7b%22path%22%3a%22SDK_GO_MinimalWordCount%22%2c%22sdk%22%3a%22go%22%7d%2c%7b%22path%22%3a%22SDK_SCIO_MinimalWordCount%22%2c%22sdk%22%3a%22scio%22%7d%5d"
-width="100%"
-height="700px"
-class="playground"
-allow="clipboard-write"
->&lt;/iframe>
-&lt;/div>
+&lt;div
+class="code-snippet code-snippet-playground"
+data-src="https://play.beam.apache.org/embedded?editable=1&amp;examples=%5b%7b%22path%22%3a%22SDK_JAVA_MinimalWordCount%22%2c%22sdk%22%3a%22java%22%7d%2c%7b%22path%22%3a%22SDK_PYTHON_WordCountWithMetrics%22%2c%22sdk%22%3a%22python%22%7d%2c%7b%22path%22%3a%22SDK_GO_MinimalWordCount%22%2c%22sdk%22%3a%22go%22%7d%2c%7b%22path%22%3a%22SDK_SCIO_MinimalWordCount%22%2c%22sdk%22%3a%22scio%22%7d%5d"
+data-width="100%"
+data-height="700px"
+>&lt;/div>
 &lt;/div>
 &lt;h2 id="how-to-add-new-examples">How To Add New Examples&lt;/h2>
 &lt;p>To add an Apache Beam example/test/kata into Beam Playground catalog,
