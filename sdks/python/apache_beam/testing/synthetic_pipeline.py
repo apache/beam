@@ -94,11 +94,15 @@ class _Random(Random):
 def get_generator(seed: Optional[int] = None, algorithm: Optional[str] = None):
   if algorithm is None or algorithm == 'builtin':
     return _Random(seed)
-  else:
+  elif algorithm == 'lcg':
     generator = LCGenerator()
     if seed is not None:
       generator.seed(seed)
     return generator
+  else:
+    raise ValueError(
+        'Unknown algorithm %s. Supported algorithms are "builtin" or "lcg".',
+        algorithm)
 
 
 def parse_byte_size(s):
