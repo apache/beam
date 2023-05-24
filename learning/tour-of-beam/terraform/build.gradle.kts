@@ -209,7 +209,7 @@ tasks.register("firebaseWebAppCreate") {
         val output = result.toString()
         if (output.contains(webappId)) {
             println("Webapp id $webappId is already created on the project: $projectId.")
-            val regex = Regex("$webappId[│ ?]+([\d:a-zA-Z]+)[│ ?]+WEB")
+            val regex = Regex("$webappId[│| ?]+([\\d:a-zA-Z]+)[│| ?]+WEB")
             val firebaseAppId = regex.find(output)?.groupValues?.get(1)?.trim()
             println("Firebase app ID for existing Firebase Web App: $firebaseAppId")
             project.extensions.extraProperties["firebaseAppId"] = firebaseAppId
