@@ -103,11 +103,21 @@ func RunWithMetrics(p *beam.Pipeline) (beam.PipelineResult, error) {
 // RunAndValidate runs a pipeline for testing and validates the result, failing
 // the test if the pipeline fails.
 func RunAndValidate(t *testing.T, p *beam.Pipeline) beam.PipelineResult {
+	t.Helper()
 	pr, err := RunWithMetrics(p)
 	if err != nil {
 		t.Fatalf("Failed to execute job: %v", err)
 	}
 	return pr
+}
+
+// BuildAndRun calls the provided pipeline building function, and then executes
+// the resulting pipeline, failing the test if the pipeline fails.
+func BuildAndRun(t *testing.T, build func(s beam.Scope)) beam.PipelineResult {
+	t.Helper()
+	p, s := beam.NewPipelineWithRoot()
+	build(s)
+	return RunAndValidate(t, p)
 }
 
 // Main is an implementation of testing's TestMain to permit testing
