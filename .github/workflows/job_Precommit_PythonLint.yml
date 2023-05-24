@@ -10,8 +10,8 @@ on:
 
 jobs:
   PythonLint:
-    if:  (github.event.issue.pull_request && contains(github.event.comment.body, 'Run PythonLint PreCommit'))
-    runs-on: self-hosted
+    if:  github.event.issue.pull_request && contains(github.event.comment.body, 'Run PythonLint PreCommit')
+    runs-on: [self-hosted, ubuntu-latest ]
 
     steps:
       - uses: actions/checkout@v3
