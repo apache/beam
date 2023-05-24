@@ -41,25 +41,9 @@ func TestUnimplemented(t *testing.T) {
 	tests := []struct {
 		pipeline func(s beam.Scope)
 	}{
-		// These tests don't terminate, so can't be run.
 		// {pipeline: primitives.Drain}, // Can't test drain automatically yet.
-		// {pipeline: primitives.Checkpoints},  // Doesn't self terminate?
-		// {pipeline: primitives.Flatten}, // Times out, should be quick.
-		// {pipeline: primitives.FlattenDup}, // Times out, should be quick.
 
-		{pipeline: primitives.TestStreamBoolSequence},
-		{pipeline: primitives.TestStreamByteSliceSequence},
-		{pipeline: primitives.TestStreamFloat64Sequence},
-		{pipeline: primitives.TestStreamInt64Sequence},
-		{pipeline: primitives.TestStreamStrings},
-		{pipeline: primitives.TestStreamTwoBoolSequences},
-		{pipeline: primitives.TestStreamTwoFloat64Sequences},
-		{pipeline: primitives.TestStreamTwoInt64Sequences},
-
-		// Needs teststream
-		{pipeline: primitives.Panes},
-
-		// Triggers (Need teststream and are unimplemented.)
+		// Triggers
 		{pipeline: primitives.TriggerAlways},
 		{pipeline: primitives.TriggerAfterAll},
 		{pipeline: primitives.TriggerAfterAny},
@@ -72,7 +56,7 @@ func TestUnimplemented(t *testing.T) {
 		{pipeline: primitives.TriggerOrFinally},
 		{pipeline: primitives.TriggerRepeat},
 
-		// Reshuffle (Due to missing windowing strategy features)
+		// Reshuffle
 		{pipeline: primitives.Reshuffle},
 		{pipeline: primitives.ReshuffleKV},
 
@@ -87,8 +71,6 @@ func TestUnimplemented(t *testing.T) {
 		{pipeline: primitives.ValueStateParDo},
 		{pipeline: primitives.ValueStateParDoClear},
 		{pipeline: primitives.ValueStateParDoWindowed},
-
-		// TODO: Timers integration tests.
 	}
 
 	for _, test := range tests {
