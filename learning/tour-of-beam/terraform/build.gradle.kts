@@ -301,12 +301,6 @@ tasks.register("flutterPubRunPG") {
 
         exec {
             executable("flutter")
-            args("pub", "run ", "build_runner", "clean")
-            workingDir("../../../playground/frontend/playground_components")
-        }
-
-        exec {
-            executable("flutter")
             args("pub", "get ")
             workingDir("../../../playground/frontend/playground_components")
         }
