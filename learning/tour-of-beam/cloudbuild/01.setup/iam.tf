@@ -48,6 +48,7 @@ resource "google_project_iam_member" "tourofbeam_backend_deployer_roles" {
     "roles/storage.admin",
     "roles/container.clusterViewer",
     "roles/logging.logWriter",
+    "roles/secretmanager.secretAccessor",
     "roles/cloudfunctions.admin"
   ])
   role    = each.key
