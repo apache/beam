@@ -20,6 +20,8 @@
 # Apache Beam Java SDK Completion Plugin
 
 The Beam Java SDK Completion Plugin is an IntelliJ Plugin that provides Java SDK Beam Transform completions.
+The project is a part of Google Summer of Code program. The related proposal: https://docs.google.com/document/d/1ZT70nv6XvX_ShS0Y_aSNpOYelBkmRhiZ4HUMvY9dqXA/edit?usp=sharing .
+This project is not officially supported by Apache Beam.
 
 ## Project Structure
 The project consists of the following parts:
@@ -41,3 +43,8 @@ TODO: add description
 
 ## How to use
 TODO: add description
+
+## Development
+The project is written in Java language and uses Gradle as a build tool.
+The project has a separate build.gradle.kts file since it is an isolated project.
+The JUnit library is used for unit tests.
