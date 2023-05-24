@@ -75,14 +75,12 @@ limitations under the License. See accompanying LICENSE file.
     {{ $scioDict := dict "sdk" "scio" "path" "SDK_SCIO_MinimalWordCount" }}
     {{ $examples := slice $javaDict $pythonDict $goDict $scioDict }}
 
-    <div class="code-snippet code-snippet-playground">
-      <iframe
-        src="https://play.beam.apache.org/embedded?sdk=java&examples={{ jsonify $examples }}"
-        width="100%"
-        height="700px"
-        allow="clipboard-write"
-      ></iframe>
-    </div>
+    <div
+      class="code-snippet code-snippet-playground"
+      data-src="https://play.beam.apache.org/embedded?sdk=java&examples={{ jsonify $examples }}"
+      data-width="100%"
+      data-height="700px"
+    ></div>
     <div class="playground-iframe-overlay"></div>
   </div>
 </div>
