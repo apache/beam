@@ -143,6 +143,30 @@ tasks.register("firebaseProjectCreate") {
     }
 }
 
+tasks.register("firebaseHostingCreate") {
+    group = "frontend-deploy"
+    dependsOn("firebaseWebAppCreate")
+
+    doLast {
+        val projectId = project.property("project_id") as String
+        val webapp_id = project.property("webapp_id") as String
+        val token = project.property("token") as String
+        exec {
+            executable("firebase")
+            args("hosting:sites:create", webapp_id, "--token", token)
+            standardOutput = result
+            workingDir("../frontend")
+        }
+
+        exec {
+            executable("firebase")
+            args("target:apply", "hosting", webapp_id , webapp_id, "--token", token)
+            standardOutput = result
+            workingDir("../frontend")
+        }
+    }
+}
+
 tasks.register("firebaseWebAppCreate") {
     group = "frontend-deploy"
     dependsOn("firebaseProjectCreate")
@@ -182,7 +206,7 @@ tasks.register("firebaseWebAppCreate") {
 // firebase apps:sdkconfig WEB AppId
 tasks.register("getSdkConfigWebApp") {
     group = "frontend-deploy"
-    dependsOn("firebaseWebAppCreate")
+    dependsOn("firebaseHostingCreate")
 
     doLast {
         val token = project.property("token") as String
@@ -289,8 +313,9 @@ tasks.register("firebaseDeploy") {
     doLast {
         val projectId = project.property("project_id") as String
         val token = project.property("token") as String
+        val webapp_id = project.property("webapp_id") as String
         exec {
-            commandLine("firebase", "deploy", "--token", token, "--project", projectId)
+            commandLine("firebase", "deploy", "--only",  "hosting:$webapp_id", "--token", token, "--project", projectId)
             workingDir("../frontend")
         }
     }
@@ -384,6 +409,7 @@ tasks.register("InitFrontend") {
     dependsOn("prepareFirebasercConfig")
     dependsOn("firebaseProjectCreate")
     dependsOn("firebaseWebAppCreate")
+    dependsOn("firebaseHostingCreate")
     dependsOn("getSdkConfigWebApp")
     dependsOn("prepareFirebaseOptionsDart")
     dependsOn("flutterPubGetPG")

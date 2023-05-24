@@ -42,4 +42,9 @@
   secret      = var.gh_pat_secret_id
   version     = "latest"
 }
+
+  data "google_secret_manager_secret_version" "secret_firebase_deployment_token" {
+  secret      = var.firebase_token_secret_id
+  version     = "latest"
+}
  

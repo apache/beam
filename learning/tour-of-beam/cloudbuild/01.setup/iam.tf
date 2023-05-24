@@ -66,7 +66,8 @@ resource "google_project_iam_member" "tourofbeam_backend_updater_roles" {
     "roles/storage.admin",
     "roles/container.clusterViewer",
     "roles/logging.logWriter",
-    "roles/cloudfunctions.admin"
+    "roles/cloudfunctions.admin",
+    "roles/secretmanager.secretAccessor",
   ])
   role    = each.key
   member  = "serviceAccount:${google_service_account.tourofbeam_update_sa.email}"

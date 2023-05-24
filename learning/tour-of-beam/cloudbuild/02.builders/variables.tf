@@ -82,6 +82,15 @@ variable "webhook_trigger_secret_id" {
   default = "playground-cicd-webhook"
 }
 
+variable "firebase_token_secret_id" {
+  description = "The name of the secret for Firebase deployment token. Required for Tour of Beam deployment"
+  default = "tourofbeam-firebase-token"
+}
+
+variable "data_for_firebase_token_secret" {
+  description = "The data for Firebase deployment token. Required for Tour of Beam deployment"  
+}
+
 variable "gh_pat_secret_id" {
   description = "The name of the secret for GitHub Personal Access Token. Required for cloud build trigger (CI/CD)"
   default = "playground-github-pat-ci"
