@@ -383,9 +383,9 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
   @Override
   public void snapshotState(FunctionSnapshotContext functionSnapshotContext) throws Exception {
     if (!isRunning) {
-      // This implies that stop/drain is invoked and final checkpoint is triggered. This method should
-      // not be skipped in this scenario so that the notifyCheckpointComplete method is still invoked
-      // and performs the finalization step after commit is complete.
+      // This implies that stop/drain is invoked and final checkpoint is triggered. This method
+      // should not be skipped in this scenario so that the notifyCheckpointComplete method is still
+      // invoked and performs the finalization step after commit is complete.
       LOG.debug("snapshotState() called on closed source");
     }
 
