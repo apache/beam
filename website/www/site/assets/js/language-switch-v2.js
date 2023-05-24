@@ -216,8 +216,13 @@ $(document).ready(function() {
                 const width = div.dataset.width;
                 const height = div.dataset.height;
 
+                const url = new URL(src);
+                const searchParams = new URLSearchParams(url.search);
+                searchParams.set("sdk", sdk);
+                url.search = searchParams.toString();
+
                 const iframe = document.createElement('iframe');
-                iframe.src = src;
+                iframe.src = url.href;
                 iframe.width = width;
                 iframe.height = height;
                 iframe.className = 'playground';
