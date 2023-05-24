@@ -488,6 +488,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
               // outputting to the
               // failed-rows consumer.
               org.joda.time.Instant timestamp = payload.getTimestamp();
+              rowsSentToFailedRowsCollection.inc();
               failedRowsReceiver.outputWithTimestamp(
                   new BigQueryStorageApiInsertError(tableRow, e.toString()),
                   timestamp != null ? timestamp : elementTs);
@@ -540,6 +541,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                     failedRow, "Row payload too large. Maximum size " + maxRequestSize),
                 timestamp);
           }
+          rowsSentToFailedRowsCollection.inc(inserts.getSerializedRowsCount());
           return 0;
         }
 
