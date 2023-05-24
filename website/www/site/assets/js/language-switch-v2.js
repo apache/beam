@@ -216,7 +216,8 @@ $(document).ready(function() {
                 const searchParams = new URLSearchParams(url.search);
                 searchParams.set("sdk", sdk);
                 url.search = searchParams.toString();
-                iframe.src = url.href;
+                console.log('Setting URL to', url.href);
+//                iframe.src = url.href;
             }
         },
 
