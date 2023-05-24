@@ -22,7 +22,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../playground_components.dart';
 import '../assets/assets.gen.dart';
-import 'iframe.dart';
+import 'iframe/iframe.dart';
 
 class FeedbackWidget extends StatelessWidget {
   static const positiveRatingButtonKey = Key('positive');
