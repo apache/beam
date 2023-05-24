@@ -33,8 +33,8 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.WithFailures;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.testinfra.pipelines.eventarc.ConversionError;
-import org.apache.beam.testinfra.pipelines.eventarc.EventarcConversions;
+import org.apache.beam.testinfra.pipelines.conversions.ConversionError;
+import org.apache.beam.testinfra.pipelines.conversions.EventarcConversions;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.junit.jupiter.api.Test;
 

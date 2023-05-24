@@ -17,34 +17,53 @@
  */
 package org.apache.beam.testinfra.pipelines;
 
-import com.google.dataflow.v1beta3.GetJobExecutionDetailsRequest;
-import com.google.dataflow.v1beta3.GetJobMetricsRequest;
+import autovalue.shaded.kotlin.text.Charsets;
+import com.google.api.services.bigquery.model.DatasetReference;
+import com.google.api.services.bigquery.model.TableReference;
 import com.google.dataflow.v1beta3.GetJobRequest;
-import com.google.dataflow.v1beta3.GetStageExecutionDetailsRequest;
 import com.google.dataflow.v1beta3.Job;
+import com.google.protobuf.ByteString;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.extensions.avro.coders.AvroGenericCoder;
+import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.WithFailures;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.testinfra.pipelines.bigquery.BigQueryWriteOptions;
-import org.apache.beam.testinfra.pipelines.bigquery.BigQueryWrites;
 import org.apache.beam.testinfra.pipelines.dataflow.DataflowClientFactoryConfiguration;
-import org.apache.beam.testinfra.pipelines.dataflow.DataflowGetJobExecutionDetails;
-import org.apache.beam.testinfra.pipelines.dataflow.DataflowGetJobMetrics;
 import org.apache.beam.testinfra.pipelines.dataflow.DataflowGetJobs;
-import org.apache.beam.testinfra.pipelines.dataflow.DataflowGetStageExecutionDetails;
 import org.apache.beam.testinfra.pipelines.dataflow.DataflowJobsOptions;
 import org.apache.beam.testinfra.pipelines.dataflow.DataflowReadResult;
 import org.apache.beam.testinfra.pipelines.dataflow.DataflowRequestError;
 import org.apache.beam.testinfra.pipelines.dataflow.DataflowRequests;
-import org.apache.beam.testinfra.pipelines.dataflow.JobMetricsWithAppendedDetails;
-import org.apache.beam.testinfra.pipelines.dataflow.StageSummaryWithAppendedDetails;
-import org.apache.beam.testinfra.pipelines.dataflow.WorkerDetailsWithAppendedDetails;
-import org.apache.beam.testinfra.pipelines.eventarc.ConversionError;
-import org.apache.beam.testinfra.pipelines.eventarc.EventarcConversions;
+import org.apache.beam.testinfra.pipelines.conversions.ConversionError;
+import org.apache.beam.testinfra.pipelines.conversions.EventarcConversions;
 import org.apache.beam.testinfra.pipelines.pubsub.PubsubReadOptions;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.joda.time.Duration;
+
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.RandomAccessFile;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.util.Base64;
+
+import static org.apache.beam.sdk.values.TypeDescriptors.strings;
+
 
 public class ReadDataflowApiWriteBigQuery {
 
@@ -77,63 +96,99 @@ public class ReadDataflowApiWriteBigQuery {
     DataflowReadResult<Job, DataflowRequestError<GetJobRequest>> getJobsResult =
         getJobRequests.apply("GetJobs", DataflowGetJobs.create(configuration));
 
-    DataflowReadResult<JobMetricsWithAppendedDetails, DataflowRequestError<GetJobMetricsRequest>>
-        getJobsMetricsResult =
-            getJobsResult
-                .getSuccess()
-                .apply("GetJobMetrics", DataflowGetJobMetrics.create(configuration));
+    PCollection<String> bytes = getJobsResult.getSuccess().apply(
+            MapElements.into(strings())
+                    .via(job -> Base64.getEncoder().encodeToString(job.toByteArray()))
+    );
 
-    DataflowReadResult<
-            StageSummaryWithAppendedDetails, DataflowRequestError<GetJobExecutionDetailsRequest>>
-        getJobExecutionDetailsResult =
-            getJobsResult
-                .getSuccess()
-                .apply(
-                    "GetJobExecutionDetails", DataflowGetJobExecutionDetails.create(configuration));
+    bytes.apply(ParDo.of(new DoFn<String, String>() {
+      @ProcessElement
+      public void process(@Element String element) throws IOException {
+        RandomAccessFile stream = new RandomAccessFile("/tmp/jobs/out-" + Instant.now().getEpochSecond(), "rw");
+        FileChannel channel = stream.getChannel();
+        byte[] bytes = element.getBytes(StandardCharsets.UTF_8);
+        ByteBuffer buffer = ByteBuffer.allocate(bytes.length);
+        buffer.put(bytes);
+        buffer.flip();
+        channel.write(buffer);
+        stream.close();
+        channel.close();
+      }
+    }));
+//
+//    DatasetReference datasetReference = options.getDataset().getValue();
+//
+//    TableReference jobsTable = new TableReference()
+//            .setProjectId(datasetReference.getProjectId())
+//                    .setDatasetId(datasetReference.getDatasetId())
+//                            .setTableId(String.format("jobs_%s", Instant.now().getEpochSecond()));
 
-    DataflowReadResult<
-            WorkerDetailsWithAppendedDetails, DataflowRequestError<GetStageExecutionDetailsRequest>>
-        getStageExecutionDetailsResult =
-            getJobsResult
-                .getSuccess()
-                .apply(
-                    "GetStageExecutionDetails",
-                    DataflowGetStageExecutionDetails.create(configuration));
+//    DataflowReadResult<JobMetricsWithAppendedDetails, DataflowRequestError<GetJobMetricsRequest>>
+//        getJobsMetricsResult =
+//            getJobsResult
+//                .getSuccess()
+//                .apply("GetJobMetrics", DataflowGetJobMetrics.create(configuration));
+//
+//    DataflowReadResult<
+//            StageSummaryWithAppendedDetails, DataflowRequestError<GetJobExecutionDetailsRequest>>
+//        getJobExecutionDetailsResult =
+//            getJobsResult
+//                .getSuccess()
+//                .apply(
+//                    "GetJobExecutionDetails", DataflowGetJobExecutionDetails.create(configuration));
+//
+//    DataflowReadResult<
+//            WorkerDetailsWithAppendedDetails, DataflowRequestError<GetStageExecutionDetailsRequest>>
+//        getStageExecutionDetailsResult =
+//            getJobsResult
+//                .getSuccess()
+//                .apply(
+//                    "GetStageExecutionDetails",
+//                    DataflowGetStageExecutionDetails.create(configuration));
+
+
+
+//    getJobsResult.getSuccess().apply(BigQueryIO.<Row>write().to(jobsTable).useBeamSchema()
+//            .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+//            .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
+//            .withMethod(BigQueryIO.Write.Method.STORAGE_WRITE_API));
+
+//   getJobsResult.getSuccess().apply()
 
     // Write results to BigQuery
     //    getJobsResult.getSuccess().apply("Write Jobs", BigQueryWrites.dataflowJobs(options));
-    getJobsMetricsResult
-        .getSuccess()
-        .apply("Write JobMetrics", BigQueryWrites.dataflowJobMetrics(options));
-    getJobExecutionDetailsResult
-        .getSuccess()
-        .apply("Write JobExecutionDetails", BigQueryWrites.dataflowJobExecutionDetails(options));
-    getStageExecutionDetailsResult
-        .getSuccess()
-        .apply(
-            "Write StageExecutionDetails", BigQueryWrites.dataflowStageExecutionDetails(options));
+//    getJobsMetricsResult
+//        .getSuccess()
+//        .apply("Write JobMetrics", BigQueryWrites.dataflowJobMetrics(options));
+//    getJobExecutionDetailsResult
+//        .getSuccess()
+//        .apply("Write JobExecutionDetails", BigQueryWrites.dataflowJobExecutionDetails(options));
+//    getStageExecutionDetailsResult
+//        .getSuccess()
+//        .apply(
+//            "Write StageExecutionDetails", BigQueryWrites.dataflowStageExecutionDetails(options));
 
     // Write errors to BigQuery
-    events
-        .failures()
-        .setRowSchema(ConversionError.getSchema())
-        .apply("Write Conversion Errors", BigQueryWrites.writeFromJsonToJobEventsErrors(options));
-    getJobsResult
-        .getFailure()
-        .apply("Write GetJob Errors", BigQueryWrites.dataflowGetJobsErrors(options));
-    getJobExecutionDetailsResult
-        .getFailure()
-        .apply(
-            "Write GetExecutionDetails Errors",
-            BigQueryWrites.dataflowGetJobExecutionDetailsErrors(options));
-    getJobsMetricsResult
-        .getFailure()
-        .apply("Write GetJobMetrics Errors", BigQueryWrites.dataflowGetJobMetricsErrors(options));
-    getStageExecutionDetailsResult
-        .getFailure()
-        .apply(
-            "Write GetStageExecutionDetails Errors",
-            BigQueryWrites.dataflowGetStageExecutionDetailsErrors(options));
+//    events
+//        .failures()
+//        .setRowSchema(ConversionError.getSchema())
+//        .apply("Write Conversion Errors", BigQueryWrites.writeFromJsonToJobEventsErrors(options));
+//    getJobsResult
+//        .getFailure()
+//        .apply("Write GetJob Errors", BigQueryWrites.dataflowGetJobsErrors(options));
+//    getJobExecutionDetailsResult
+//        .getFailure()
+//        .apply(
+//            "Write GetExecutionDetails Errors",
+//            BigQueryWrites.dataflowGetJobExecutionDetailsErrors(options));
+//    getJobsMetricsResult
+//        .getFailure()
+//        .apply("Write GetJobMetrics Errors", BigQueryWrites.dataflowGetJobMetricsErrors(options));
+//    getStageExecutionDetailsResult
+//        .getFailure()
+//        .apply(
+//            "Write GetStageExecutionDetails Errors",
+//            BigQueryWrites.dataflowGetStageExecutionDetailsErrors(options));
 
     pipeline.run();
   }
