@@ -22,13 +22,10 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@Experimental(Kind.METRICS)
 public class MetricsLogger extends MetricsContainerImpl {
   private static final Logger LOG = LoggerFactory.getLogger(MetricsLogger.class);
 

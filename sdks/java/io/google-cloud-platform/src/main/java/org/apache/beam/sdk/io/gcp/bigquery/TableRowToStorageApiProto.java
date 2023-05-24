@@ -39,6 +39,7 @@ import com.google.protobuf.Message;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.RoundingMode;
+import java.time.DateTimeException;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -80,10 +81,31 @@ public class TableRowToStorageApiProto {
   private static final DateTimeFormatter DATETIME_SPACE_FORMATTER =
       new DateTimeFormatterBuilder()
           .append(DateTimeFormatter.ISO_LOCAL_DATE)
+          .optionalStart()
           .appendLiteral(' ')
+          .optionalEnd()
+          .optionalStart()
+          .appendLiteral('T')
+          .optionalEnd()
           .append(DateTimeFormatter.ISO_LOCAL_TIME)
           .toFormatter()
           .withZone(ZoneOffset.UTC);
+
+  private static final DateTimeFormatter TIMESTAMP_FORMATTER =
+      new DateTimeFormatterBuilder()
+          // 'yyyy-MM-dd(T| )HH:mm:ss.SSSSSSSSS'
+          .append(DATETIME_SPACE_FORMATTER)
+          // 'yyyy-MM-dd(T| )HH:mm:ss.SSSSSSSSS(+HH:MM:ss|Z)'
+          .optionalStart()
+          .appendOffsetId()
+          .optionalEnd()
+          // 'yyyy-MM-dd(T| )HH:mm:ss.SSSSSSSSS [time_zone]', time_zone -> UTC, Asia/Kolkata, etc
+          // if both an offset and a time zone are provided, the offset takes precedence
+          .optionalStart()
+          .appendLiteral(' ')
+          .parseCaseSensitive()
+          .appendZoneRegionId()
+          .toFormatter();
 
   abstract static class SchemaConversionException extends Exception {
     SchemaConversionException(String msg) {
@@ -737,18 +759,21 @@ public class TableRowToStorageApiProto {
       case TIMESTAMP:
         if (value instanceof String) {
           try {
-            // '2011-12-03T10:15:30+01:00' '2011-12-03T10:15:30'
+            // '2011-12-03T10:15:30Z', '2011-12-03 10:15:30+05:00'
+            // '2011-12-03 10:15:30 UTC', '2011-12-03T10:15:30 America/New_York'
             return ChronoUnit.MICROS.between(
-                Instant.EPOCH, Instant.from(DateTimeFormatter.ISO_DATE_TIME.parse((String) value)));
-          } catch (DateTimeParseException e) {
+                Instant.EPOCH, Instant.from(TIMESTAMP_FORMATTER.parse((String) value)));
+          } catch (DateTimeException e) {
             try {
+              // for backwards compatibility, default time zone is UTC for values with no time-zone
+              // '2011-12-03T10:15:30'
+              return ChronoUnit.MICROS.between(
+                  Instant.EPOCH,
+                  Instant.from(TIMESTAMP_FORMATTER.withZone(ZoneOffset.UTC).parse((String) value)));
+            } catch (DateTimeParseException err) {
               // "12345667"
               return ChronoUnit.MICROS.between(
                   Instant.EPOCH, Instant.ofEpochMilli(Long.parseLong((String) value)));
-            } catch (NumberFormatException e2) {
-              // "yyyy-MM-dd HH:mm:ss.SSSSSS"
-              return ChronoUnit.MICROS.between(
-                  Instant.EPOCH, Instant.from(DATETIME_SPACE_FORMATTER.parse((String) value)));
             }
           }
         } else if (value instanceof Instant) {

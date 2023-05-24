@@ -14,4 +14,4 @@
 # limitations under the License.
 
 tfx==1.9.0
-tensorflow==2.9.3
+tensorflow==2.11.1

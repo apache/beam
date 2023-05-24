@@ -21,31 +21,33 @@ import java.io.Closeable;
 import java.io.IOException;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.spark.structuredstreaming.metrics.MetricsAccumulator;
+import org.apache.beam.runners.spark.structuredstreaming.translation.batch.DoFnRunnerFactory.DoFnRunnerWithTeardown;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.joda.time.Instant;
 
 /** DoFnRunner decorator which registers {@link MetricsContainer}. */
-class DoFnRunnerWithMetrics<InputT, OutputT> implements DoFnRunner<InputT, OutputT> {
-  private final DoFnRunner<InputT, OutputT> delegate;
+class DoFnRunnerWithMetrics<InT, OutT> implements DoFnRunnerWithTeardown<InT, OutT> {
+  private final DoFnRunner<InT, OutT> delegate;
   private final MetricsContainer metrics;
 
   DoFnRunnerWithMetrics(
-      String stepName, DoFnRunner<InputT, OutputT> delegate, MetricsAccumulator metricsAccum) {
+      String stepName, DoFnRunner<InT, OutT> delegate, MetricsAccumulator metricsAccum) {
     this(delegate, metricsAccum.value().getContainer(stepName));
   }
 
-  private DoFnRunnerWithMetrics(DoFnRunner<InputT, OutputT> delegate, MetricsContainer metrics) {
+  private DoFnRunnerWithMetrics(DoFnRunner<InT, OutT> delegate, MetricsContainer metrics) {
     this.delegate = delegate;
     this.metrics = metrics;
   }
 
   @Override
-  public DoFn<InputT, OutputT> getFn() {
+  public DoFn<InT, OutT> getFn() {
     return delegate.getFn();
   }
 
@@ -59,7 +61,7 @@ class DoFnRunnerWithMetrics<InputT, OutputT> implements DoFnRunner<InputT, Outpu
   }
 
   @Override
-  public void processElement(final WindowedValue<InputT> elem) {
+  public void processElement(final WindowedValue<InT> elem) {
     try (Closeable ignored = MetricsEnvironment.scopedMetricsContainer(metrics)) {
       delegate.processElement(elem);
     } catch (IOException e) {
@@ -95,5 +97,10 @@ class DoFnRunnerWithMetrics<InputT, OutputT> implements DoFnRunner<InputT, Outpu
   @Override
   public <KeyT> void onWindowExpiration(BoundedWindow window, Instant timestamp, KeyT key) {
     delegate.onWindowExpiration(window, timestamp, key);
+  }
+
+  @Override
+  public void teardown() {
+    DoFnInvokers.invokerFor(delegate.getFn()).invokeTeardown();
   }
 }

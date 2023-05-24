@@ -60,14 +60,35 @@ To change the Google Project that is used as the backend:
 
 # Deployment
 
-# Tests
+# Integration Tests
 
-Install ChromeDriver to run integration tests in a browser: https://docs.flutter.dev/testing/integration-tests#running-in-a-browser
-Run integration tests:
-flutter drive \
- --driver=test_driver/integration_test.dart \
- --target=integration_test/counter_test.dart \
- -d web-server
+## Prerequisites
+
+1. Install Google Chrome: https://www.google.com/chrome/
+2. Install Chrome Driver: https://chromedriver.chromium.org/downloads
+   - Note: This GitHub action installs both Chrome and Chrome Driver:
+     https://github.com/nanasess/setup-chromedriver/blob/a249caaaad10fd12103028fd509853c2229eb6e6/lib/setup-chromedriver.sh
+3. Retrieve the required dependencies for each project subdirectory by running the following commands:
+
+```bash
+cd playground/frontend/playground_components && flutter pub get && cd -
+cd playground/frontend/playground_components_dev && flutter pub get && cd -
+cd learning/tour-of-beam/frontend && flutter pub get && cd -
+```
+
+## Running Tests
+
+1. Run the Chrome Driver on port 4444: `chromedriver --port=4444`
+2. Run the integration tests:
+
+```bash
+# To run in a visible Chrome window:
+./gradlew :learning:tour-of-beam:frontend:integrationTest
+
+# Headless run without a browser window:
+./gradlew :learning:tour-of-beam:frontend:integrationTest -PdeviceId=web-server
+```
+
 
 # Packages
 

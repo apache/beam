@@ -23,7 +23,7 @@ import org.apache.beam.sdk.util.PythonCallableSource;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 
-/** Wrapper for invoking external Python {@code DataframeTransform}. @Experimental */
+/** Wrapper for invoking external Python {@code DataframeTransform}. */
 public class DataframeTransform extends PTransform<PCollection<Row>, PCollection<Row>> {
   private final String func;
   private final boolean includeIndexes;

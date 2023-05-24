@@ -22,8 +22,6 @@ import com.clickhouse.client.ClickHousePipedOutputStream;
 import com.clickhouse.client.data.BinaryStreamUtils;
 import java.io.IOException;
 import java.util.List;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.clickhouse.TableSchema.ColumnType;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
@@ -33,7 +31,6 @@ import org.joda.time.Instant;
 import org.joda.time.ReadableInstant;
 
 /** Writes Rows and field values using {@link ClickHousePipedOutputStream}. */
-@Experimental(Kind.SOURCE_SINK)
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })

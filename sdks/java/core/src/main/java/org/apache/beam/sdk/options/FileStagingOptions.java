@@ -18,10 +18,8 @@
 package org.apache.beam.sdk.options;
 
 import java.util.List;
-import org.apache.beam.sdk.annotations.Experimental;
 
 /** File staging related options. */
-@Experimental
 public interface FileStagingOptions extends PipelineOptions {
   /**
    * List of local files to make available to workers.

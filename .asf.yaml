@@ -39,6 +39,7 @@ github:
     - pcoet
     - olehborysevych
     - rshamunov
+    - andreydevyatkin
 
   enabled_merge_buttons:
     squash: true

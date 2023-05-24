@@ -81,6 +81,9 @@ pip_dependencies:
     notice: "https://raw.githubusercontent.com/grpc/grpc/master/NOTICE.txt"
   grpcio-gcp:
     license: "https://raw.githubusercontent.com/GoogleCloudPlatform/grpc-gcp-python/master/LICENSE"
+  grpcio-status:
+    license: "https://raw.githubusercontent.com/grpc/grpc/master/LICENSE"
+    notice: "https://raw.githubusercontent.com/grpc/grpc/master/NOTICE.txt"
   guppy:
     license: "https://raw.githubusercontent.com/joshwcomeau/guppy/master/LICENSE.md"
   guppy3:
@@ -91,6 +94,8 @@ pip_dependencies:
     license: "https://raw.githubusercontent.com/mtth/hdfs/master/LICENSE"
   httplib2:
     license: "https://raw.githubusercontent.com/httplib2/httplib2/master/LICENSE"
+  keras:
+    license: "https://raw.githubusercontent.com/keras-team/keras/master/LICENSE"
   keras-nightly:
     license: "https://raw.githubusercontent.com/keras-team/keras/master/LICENSE"
   mmh3:

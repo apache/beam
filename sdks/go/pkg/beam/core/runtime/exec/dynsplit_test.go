@@ -75,10 +75,10 @@ func TestDynamicSplit(t *testing.T) {
 			plan, out := createSdfPlan(t, t.Name(), dfn, cdr)
 
 			// Create thread to send element to pipeline.
-			pr, pw := io.Pipe()
+			cw := makeChanWriter()
 			elm := createElm()
-			go writeElm(elm, cdr, pw)
-			dc := DataContext{Data: &TestDataManager{R: pr}}
+			go writeElm(elm, cdr, cw)
+			dc := DataContext{Data: &TestDataManager{Ch: cw.Ch}}
 
 			// Call driver to coordinate processing & splitting threads.
 			splitRes, procRes := test.driver(context.Background(), plan, dc, sdf)
@@ -92,7 +92,7 @@ func TestDynamicSplit(t *testing.T) {
 				RI:   1,
 				PS:   nil,
 				RS:   nil,
-				TId:  testTransformId,
+				TId:  testTransformID,
 				InId: indexToInputId(0),
 			}
 			if diff := cmp.Diff(splitRes.split, wantSplit, cmpopts.IgnoreFields(SplitResult{}, "PS", "RS")); diff != "" {
@@ -263,7 +263,7 @@ func createSplitTestInCoder() *coder.Coder {
 func createSdfPlan(t *testing.T, name string, fn *graph.DoFn, cdr *coder.Coder) (*Plan, *CaptureNode) {
 	out := &CaptureNode{UID: 0}
 	n := &ParDo{UID: 1, Fn: fn, Out: []Node{out}}
-	sdf := &ProcessSizedElementsAndRestrictions{PDo: n, TfId: testTransformId}
+	sdf := &ProcessSizedElementsAndRestrictions{PDo: n, TfId: testTransformID}
 	ds := &DataSource{
 		UID:   2,
 		SID:   StreamID{PtransformID: "DataSource"},
@@ -281,8 +281,8 @@ func createSdfPlan(t *testing.T, name string, fn *graph.DoFn, cdr *coder.Coder) 
 }
 
 // writeElm is meant to be the goroutine for feeding an element to the
-// DataSourc of the test pipeline.
-func writeElm(elm *FullValue, cdr *coder.Coder, pw *io.PipeWriter) {
+// DataSource of the test pipeline.
+func writeElm(elm *FullValue, cdr *coder.Coder, pw io.WriteCloser) {
 	wc := MakeWindowEncoder(cdr.Window)
 	ec := MakeElementEncoder(coder.SkipW(cdr))
 	if err := EncodeWindowedValueHeader(wc, window.SingleGlobalWindow, mtime.ZeroTimestamp, typex.NoFiringPane(), pw); err != nil {

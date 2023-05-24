@@ -17,29 +17,30 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams.action;
 
-import com.google.cloud.Timestamp;
+import com.google.cloud.bigtable.data.v2.models.Range.ByteStringRange;
+import java.util.Collections;
+import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.UniqueIdGenerator;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.ChangeStreamDao;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.model.PartitionRecord;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
-import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.joda.time.Instant;
 
 /**
  * Class to generate first set of outputs for {@link
  * org.apache.beam.sdk.io.gcp.bigtable.changestreams.dofn.DetectNewPartitionsDoFn}.
  */
-@SuppressWarnings({"UnusedVariable", "UnusedMethod"})
 @Internal
 public class GenerateInitialPartitionsAction {
   private final ChangeStreamMetrics metrics;
   private final ChangeStreamDao changeStreamDao;
-  @Nullable private final Timestamp endTime;
+  @Nullable private final Instant endTime;
 
   public GenerateInitialPartitionsAction(
-      ChangeStreamMetrics metrics, ChangeStreamDao changeStreamDao, @Nullable Timestamp endTime) {
+      ChangeStreamMetrics metrics, ChangeStreamDao changeStreamDao, @Nullable Instant endTime) {
     this.metrics = metrics;
     this.changeStreamDao = changeStreamDao;
     this.endTime = endTime;
@@ -48,13 +49,20 @@ public class GenerateInitialPartitionsAction {
   /**
    * The very first step of the pipeline when there are no partitions being streamed yet. We want to
    * get an initial list of partitions to stream and output them.
-   *
-   * @return true if this pipeline should continue, otherwise false.
    */
-  public boolean run(
-      OutputReceiver<PartitionRecord> receiver,
-      ManualWatermarkEstimator<Instant> watermarkEstimator,
-      Timestamp startTime) {
-    return true;
+  public void run(OutputReceiver<PartitionRecord> receiver, Instant startTime) {
+    List<ByteStringRange> streamPartitions =
+        changeStreamDao.generateInitialChangeStreamPartitions();
+    for (ByteStringRange partition : streamPartitions) {
+      metrics.incListPartitionsCount();
+      String uid = UniqueIdGenerator.getNextId();
+      PartitionRecord partitionRecord =
+          new PartitionRecord(
+              partition, startTime, uid, startTime, Collections.emptyList(), endTime);
+      // We are outputting elements with timestamp of 0 to prevent reliance on event time. This
+      // limits the ability to window on commit time of any data changes. It is still possible to
+      // window on processing time.
+      receiver.outputWithTimestamp(partitionRecord, Instant.EPOCH);
+    }
   }
 }

@@ -647,7 +647,7 @@
           "calcs": [
             "lastNotNull"
           ],
-          "displayMode": "hidden",
+          "displayMode": "table",
           "placement": "right"
         },
         "tooltip": {

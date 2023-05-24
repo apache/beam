@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.aws2.sqs;
 
-import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.IntStream.range;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -26,12 +25,9 @@ import static org.mockito.Mockito.when;
 import static software.amazon.awssdk.services.sqs.model.MessageSystemAttributeName.SENT_TIMESTAMP;
 import static software.amazon.awssdk.services.sqs.model.QueueAttributeName.VISIBILITY_TIMEOUT;
 
-import java.net.URI;
 import java.util.List;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import org.apache.beam.sdk.io.aws2.MockClientBuilderFactory;
-import org.apache.beam.sdk.io.aws2.common.ClientConfiguration;
 import org.apache.beam.sdk.io.aws2.sqs.SqsIO.Read;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -47,9 +43,6 @@ import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
-import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
-import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
-import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.SqsClientBuilder;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageBatchRequest;
@@ -78,16 +71,6 @@ public class SqsIOReadTest {
 
   @Test
   public void testReadOnce() {
-    readOnce(identity());
-  }
-
-  @Test
-  public void testReadOnceWithLegacyProvider() {
-    MockClientBuilderFactory.set(p, SqsClientBuilder.class, null);
-    readOnce(read -> read.withSqsClientProvider(StaticSqsClientProvider.of(sqs)));
-  }
-
-  private void readOnce(Function<Read, Read> fn) {
     List<Message> expected = range(0, 10).mapToObj(this::message).collect(toList());
 
     when(sqs.receiveMessage(any(ReceiveMessageRequest.class)))
@@ -101,8 +84,7 @@ public class SqsIOReadTest {
         .thenReturn(DeleteMessageBatchResponse.builder().build());
 
     PCollection<Message> result =
-        p.apply(fn.apply(SqsIO.read().withMaxNumRecords(expected.size())))
-            .apply(ParDo.of(new ToMessage()));
+        p.apply(SqsIO.read().withMaxNumRecords(expected.size())).apply(ParDo.of(new ToMessage()));
 
     // all expected messages are read
     PAssert.that(result).containsInAnyOrder(expected);
@@ -117,27 +99,6 @@ public class SqsIOReadTest {
     // all messages are deleted
     assertThat(deletedHandles)
         .containsExactlyInAnyOrderElementsOf(Lists.transform(expected, Message::receiptHandle));
-  }
-
-  @Test
-  public void testBuildWithCredentialsProviderAndRegion() {
-    Region region = Region.US_EAST_1;
-    AwsCredentialsProvider credentialsProvider = DefaultCredentialsProvider.create();
-
-    Read read = SqsIO.read().withSqsClientProvider(credentialsProvider, region.id());
-    assertThat(read.clientConfiguration())
-        .isEqualTo(ClientConfiguration.create(credentialsProvider, region, null));
-  }
-
-  @Test
-  public void testBuildWithCredentialsProviderAndRegionAndEndpoint() {
-    Region region = Region.US_EAST_1;
-    AwsCredentialsProvider credentialsProvider = DefaultCredentialsProvider.create();
-    URI endpoint = URI.create("localhost:9999");
-
-    Read read = SqsIO.read().withSqsClientProvider(credentialsProvider, region.id(), endpoint);
-    assertThat(read.clientConfiguration())
-        .isEqualTo(ClientConfiguration.create(credentialsProvider, region, endpoint));
   }
 
   private Message message(int i) {

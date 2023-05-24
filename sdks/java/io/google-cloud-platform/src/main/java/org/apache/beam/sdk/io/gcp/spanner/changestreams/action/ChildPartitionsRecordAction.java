@@ -155,7 +155,8 @@ public class ChildPartitionsRecordAction {
                   } else {
                     return false;
                   }
-                })
+                },
+                "InsertChildPartition")
             .getResult();
     if (insertedRow && isSplit) {
       metrics.incPartitionRecordSplitCount();
