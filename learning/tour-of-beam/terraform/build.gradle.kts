@@ -18,10 +18,17 @@
 
 import com.pswidersk.gradle.terraform.TerraformTask
 import java.io.ByteArrayOutputStream
+import java.io.File
 import java.util.regex.Pattern
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+
 
 plugins {
     id("com.pswidersk.terraform-plugin") version "1.0.0"
+    kotlin("plugin.serialization") version "1.5.10"
 }
 
 terraformPlugin {
@@ -164,6 +171,23 @@ tasks.register("firebaseHostingCreate") {
             standardOutput = result
             workingDir("../frontend")
         }
+        
+        // Parse existing JSON
+        val jsonString = File("../frontend/firebase.json").readText()
+        val jsonObject = Json.parseToJsonElement(jsonString) as JsonObject
+        
+        // Add "target" property
+        val modifiedJson = buildJsonObject {
+            put("hosting", buildJsonObject {
+                put("public", jsonObject["public"])
+                put("ignore", jsonObject["ignore"])
+                put("rewrites", jsonObject["rewrites"])
+                put("target", webapp_id)
+            })
+        }
+
+        // Write JSON back to file
+        File("../frontend/firebase.json").writeText(Json.encodeToString(modifiedJson))
     }
 }
 
