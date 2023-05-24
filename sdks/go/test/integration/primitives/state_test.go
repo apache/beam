@@ -18,77 +18,56 @@ package primitives
 import (
 	"testing"
 
-	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 	"github.com/apache/beam/sdks/v2/go/test/integration"
 )
 
 func TestValueState(t *testing.T) {
 	integration.CheckFilters(t)
-	p, s := beam.NewPipelineWithRoot()
-	ValueStateParDo(s)
-	ptest.RunAndValidate(t, p)
+	ptest.BuildAndRun(t, ValueStateParDo)
 }
 
 func TestValueStateWindowed(t *testing.T) {
 	integration.CheckFilters(t)
-	p, s := beam.NewPipelineWithRoot()
-	ValueStateParDoWindowed(s)
-	ptest.RunAndValidate(t, p)
+	ptest.BuildAndRun(t, ValueStateParDoWindowed)
 }
 
 func TestValueStateClear(t *testing.T) {
 	integration.CheckFilters(t)
-	p, s := beam.NewPipelineWithRoot()
-	ValueStateParDoClear(s)
-	ptest.RunAndValidate(t, p)
+	ptest.BuildAndRun(t, ValueStateParDoClear)
 }
 
 func TestBagState(t *testing.T) {
 	integration.CheckFilters(t)
-	p, s := beam.NewPipelineWithRoot()
-	BagStateParDo(s)
-	ptest.RunAndValidate(t, p)
+	ptest.BuildAndRun(t, BagStateParDo)
 }
 
 func TestBagStateClear(t *testing.T) {
 	integration.CheckFilters(t)
-	p, s := beam.NewPipelineWithRoot()
-	BagStateParDoClear(s)
-	ptest.RunAndValidate(t, p)
+	ptest.BuildAndRun(t, BagStateParDoClear)
 }
 
 func TestCombiningState(t *testing.T) {
 	integration.CheckFilters(t)
-	p, s := beam.NewPipelineWithRoot()
-	CombiningStateParDo(s)
-	ptest.RunAndValidate(t, p)
+	ptest.BuildAndRun(t, CombiningStateParDo)
 }
 
 func TestMapState(t *testing.T) {
 	integration.CheckFilters(t)
-	p, s := beam.NewPipelineWithRoot()
-	MapStateParDo(s)
-	ptest.RunAndValidate(t, p)
+	ptest.BuildAndRun(t, MapStateParDo)
 }
 
 func TestMapStateClear(t *testing.T) {
 	integration.CheckFilters(t)
-	p, s := beam.NewPipelineWithRoot()
-	MapStateParDoClear(s)
-	ptest.RunAndValidate(t, p)
+	ptest.BuildAndRun(t, MapStateParDoClear)
 }
 
 func TestSetState(t *testing.T) {
 	integration.CheckFilters(t)
-	p, s := beam.NewPipelineWithRoot()
-	SetStateParDo(s)
-	ptest.RunAndValidate(t, p)
+	ptest.BuildAndRun(t, SetStateParDo)
 }
 
 func TestSetStateClear(t *testing.T) {
 	integration.CheckFilters(t)
-	p, s := beam.NewPipelineWithRoot()
-	SetStateParDoClear(s)
-	ptest.RunAndValidate(t, p)
+	ptest.BuildAndRun(t, SetStateParDoClear)
 }

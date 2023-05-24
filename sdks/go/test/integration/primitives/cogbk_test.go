@@ -20,35 +20,26 @@ package primitives
 import (
 	"testing"
 
-	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 	"github.com/apache/beam/sdks/v2/go/test/integration"
 )
 
 func TestCoGBK(t *testing.T) {
 	integration.CheckFilters(t)
-	p, s := beam.NewPipelineWithRoot()
-	CoGBK(s)
-	ptest.RunAndValidate(t, p)
+	ptest.BuildAndRun(t, CoGBK)
 }
 
 func TestReshuffle(t *testing.T) {
 	integration.CheckFilters(t)
-	p, s := beam.NewPipelineWithRoot()
-	Reshuffle(s)
-	ptest.RunAndValidate(t, p)
+	ptest.BuildAndRun(t, Reshuffle)
 }
 
 func TestReshuffleKV(t *testing.T) {
 	integration.CheckFilters(t)
-	p, s := beam.NewPipelineWithRoot()
-	ReshuffleKV(s)
-	ptest.RunAndValidate(t, p)
+	ptest.BuildAndRun(t, ReshuffleKV)
 }
 
 func TestGBKShortRead(t *testing.T) {
 	integration.CheckFilters(t)
-	p, s := beam.NewPipelineWithRoot()
-	GBKShortRead(s)
-	ptest.RunAndValidate(t, p)
+	ptest.BuildAndRun(t, GBKShortRead)
 }
