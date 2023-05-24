@@ -98,31 +98,6 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (*jo
 			errs = append(errs, err)
 		}
 	}
-
-	// Inspect Transforms for unsupported features.
-	for _, t := range job.Pipeline.GetComponents().GetTransforms() {
-		urn := t.GetSpec().GetUrn()
-		switch urn {
-		case urns.TransformImpulse,
-			urns.TransformParDo,
-			urns.TransformGBK,
-			urns.TransformFlatten,
-			urns.TransformCombinePerKey,
-			urns.TransformAssignWindows:
-		// Very few expected transforms types for submitted pipelines.
-		// Most URNs are for the runner to communicate back to the SDK for execution.
-		case "":
-			// Composites can often have no spec
-			if len(t.GetSubtransforms()) > 0 {
-				continue
-			}
-			fallthrough
-		default:
-			check("PTransform.Spec.Urn", urn+" "+t.GetUniqueName(), "<doesn't exist>")
-		}
-	}
-
-	// Inspect Windowing strategies for unsupported features.
 	for _, ws := range job.Pipeline.GetComponents().GetWindowingStrategies() {
 		check("WindowingStrategy.AllowedLateness", ws.GetAllowedLateness(), int64(0))
 		check("WindowingStrategy.ClosingBehaviour", ws.GetClosingBehavior(), pipepb.ClosingBehavior_EMIT_IF_NONEMPTY)
