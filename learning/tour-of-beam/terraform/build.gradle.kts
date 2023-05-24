@@ -151,18 +151,35 @@ tasks.register("firebaseHostingCreate") {
         val projectId = project.property("project_id") as String
         val webapp_id = project.property("webapp_id") as String
         val token = project.property("token") as String
+        val listSitesResult = ByteArrayOutputStream()
         exec {
             executable("firebase")
-            args("hosting:sites:create", webapp_id, "--token", token)
+            args("hosting:sites:list", "--token", token, "--project", projectId)
             workingDir("../frontend")
+            standardOutput = listSitesResult
         }
 
+        println(listSitesResult)
+        val output = result.toString()
+        val regex = "\\b$webapp_id\\b".toRegex()
+        if (regex.containsMatchIn(output)) {
+            println("Firebase is already added to project $projectId.")
+        } else {
+            exec {
+                executable("firebase")
+                args("hosting:sites:create", webapp_id, "--token", token)
+                workingDir("../frontend")
+            }.assertNormalExitValue()
+            println("Firebase hosting site has been added to project $projectId.")
+        }
+    
         exec {
             executable("firebase")
             args("target:apply", "hosting", webapp_id , webapp_id, "--token", token)
             workingDir("../frontend")
-        }
-        
+
+        }.assertNormalExitValue()
+
         val file = project.file("../frontend/firebase.json")
         val content = file.readText()
         
