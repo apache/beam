@@ -184,7 +184,8 @@ tasks.register("firebaseHostingCreate") {
         val content = file.readText()
         
         val oldContent = """"public": "build/web","""
-        val newContent = """"public": "build/web",\n    "hosting": "$webapp_id","""
+        val newContent = """"public": "build/web",
+        "target": "$webapp_id","""
         val updatedContent = content.replace(oldContent, newContent)
         
         file.writeText(updatedContent)
