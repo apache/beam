@@ -49,6 +49,9 @@ public class TransformServiceLauncher {
 
   private static final String COMMAND_POSSIBLE_VALUES = "\"up\", \"down\" and \"ps\"";
 
+  private static final String ARGUMENTS_POSSIBLE_VALUES =
+      "\"project_name\", \"port\", \"command\" and \"beam_version\"";
+
   private static Map<String, TransformServiceLauncher> launchers = new HashMap<>();
 
   private List<String> dockerComposeStartCommandPrefix = new ArrayList<>();
@@ -233,14 +236,13 @@ public class TransformServiceLauncher {
     int port = -1;
     String beamVersion = null;
 
-    if (args.length % 2 != 0) {
-      throw new IllegalArgumentException(
-          "Incorrect number of arguments. Supported arguments are " + COMMAND_POSSIBLE_VALUES);
-    }
-
     Iterator<String> argIter = Arrays.stream(args).iterator();
     while (argIter.hasNext()) {
       String key = argIter.next();
+      if (!argIter.hasNext()) {
+        throw new IllegalArgumentException(
+            "Incorrect number of arguments. Expected a value for the argument " + key);
+      }
       String value = argIter.next();
 
       if (key.equalsIgnoreCase("--project_name")) {
@@ -251,6 +253,10 @@ public class TransformServiceLauncher {
         command = value;
       } else if (key.equalsIgnoreCase("--beam_version")) {
         beamVersion = value;
+      } else {
+        throw new IllegalArgumentException(
+            String.format(
+                "Unknown argument {}. Expected arguments are " + ARGUMENTS_POSSIBLE_VALUES));
       }
     }
 

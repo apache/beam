@@ -463,7 +463,8 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
           String projectName = UUID.randomUUID().toString();
           TransformServiceLauncher service = TransformServiceLauncher.forProject(projectName, port);
           service.setBeamVersion(ReleaseInfo.getReleaseInfo().getSdkVersion());
-          // TODO: add support for installing extra packages.
+          // TODO(https://github.com/apache/beam/issues/26833): add support for installing extra
+          // packages.
           if (!extraPackages.isEmpty()) {
             throw new RuntimeException(
                 "Transform Service does not support installing extra packages yet");
