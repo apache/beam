@@ -20,7 +20,6 @@ package org.apache.beam.testinfra.pipelines.conversions;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import com.google.auto.value.AutoValue;
-import com.google.protobuf.Timestamp;
 import java.io.Serializable;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.Schema;
@@ -29,6 +28,7 @@ import org.apache.beam.sdk.schemas.annotations.SchemaCaseFormat;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.CaseFormat;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.joda.time.Instant;
 
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
@@ -47,7 +47,7 @@ public abstract class ConversionError<SourceT> implements Serializable {
     return new AutoValue_ConversionError.Builder<>();
   }
 
-  public abstract Timestamp getObservedTime();
+  public abstract Instant getObservedTime();
 
   public abstract SourceT getSource();
 
@@ -58,13 +58,13 @@ public abstract class ConversionError<SourceT> implements Serializable {
   @AutoValue.Builder
   public abstract static class Builder<SourceT> {
 
-    public abstract Builder<SourceT> setObservedTime(Timestamp newObservationTime);
+    public abstract Builder<SourceT> setObservedTime(Instant value);
 
-    public abstract Builder<SourceT> setSource(SourceT newSource);
+    public abstract Builder<SourceT> setSource(SourceT value);
 
-    public abstract Builder<SourceT> setMessage(String newMessage);
+    public abstract Builder<SourceT> setMessage(String value);
 
-    public abstract Builder<SourceT> setStackTrace(String newStackTrace);
+    public abstract Builder<SourceT> setStackTrace(String value);
 
     public abstract ConversionError<SourceT> build();
   }

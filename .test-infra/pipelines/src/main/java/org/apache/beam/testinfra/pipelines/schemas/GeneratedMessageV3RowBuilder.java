@@ -1,21 +1,38 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.beam.testinfra.pipelines.schemas;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+import static org.apache.beam.testinfra.pipelines.schemas.DescriptorSchemaRegistry.KEY_FIELD_NAME;
+import static org.apache.beam.testinfra.pipelines.schemas.DescriptorSchemaRegistry.VALUE_FIELD_NAME;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+
+import com.google.protobuf.AbstractMessage;
+import com.google.protobuf.Any;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor.JavaType;
 import com.google.protobuf.GeneratedMessageV3;
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.Message;
 import com.google.protobuf.Timestamp;
-import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Futures;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListenableFuture;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListeningExecutorService;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
-import org.apache.commons.lang3.tuple.Pair;
-import org.checkerframework.checker.nullness.qual.NonNull;
-
-import java.time.Instant;
+import com.google.protobuf.Value;
+import com.google.protobuf.util.JsonFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -24,233 +41,193 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Function;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListeningExecutorService;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.joda.time.Instant;
 
-import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
-import static org.apache.beam.testinfra.pipelines.schemas.DescriptorSchemaRegistry.KEY_FIELD_NAME;
-import static org.apache.beam.testinfra.pipelines.schemas.DescriptorSchemaRegistry.VALUE_FIELD_NAME;
+public class GeneratedMessageV3RowBuilder<T extends GeneratedMessageV3> {
+  public static <T extends GeneratedMessageV3> GeneratedMessageV3RowBuilder<T> of(
+      DescriptorSchemaRegistry registry, T source) {
+    return new GeneratedMessageV3RowBuilder<>(registry, source);
+  }
 
-class GeneratedMessageV3RowBuilder<T extends GeneratedMessageV3> {
-    private final ExecutorService threadPool = Executors.newCachedThreadPool();
-    private final ListeningExecutorService service = MoreExecutors.listeningDecorator(threadPool);
+  private static final Map<JavaType, Object> DEFAULT_VALUES = ImmutableMap
+      .<JavaType, Object>builder()
+      .put(JavaType.BOOLEAN, false)
+      .put(JavaType.INT, 0)
+      .put(JavaType.LONG, 0L)
+      .put(JavaType.FLOAT, 0f)
+      .put(JavaType.DOUBLE, 0.0)
+      .put(JavaType.ENUM, "")
+      .put(JavaType.STRING, "")
+      .build();
 
-    private final List<ListenableFuture<Pair<String, Row>>> futureMessageCallbacks = new ArrayList<>();
-    private static final Map<@NonNull String, Function<Object, Object>> FULL_NAME_TYPE_MAP = ImmutableMap
-            .<String, Function<Object, Object>>builder()
-            .put("google.protobuf.Value", Object::toString)
-            .put("google.dataflow.v1beta3.DisplayData", Object::toString)
-            .put("google.protobuf.Timestamp", o -> Instant.ofEpochSecond(((Timestamp)o).getSeconds()))
-            .build();
-    private final @NonNull DescriptorSchemaRegistry schemaRegistry;
-    private final @NonNull T source;
+  private final ExecutorService threadPool = Executors.newCachedThreadPool();
+  private final ListeningExecutorService service = MoreExecutors.listeningDecorator(threadPool);
 
-    private Row.@NonNull FieldValueBuilder builder;
-    GeneratedMessageV3RowBuilder(DescriptorSchemaRegistry schemaRegistry, T source) {
-        this.schemaRegistry = schemaRegistry;
-        this.source = source;
-        Schema schema = checkStateNotNull(schemaRegistry.getSchema(source.getDescriptorForType()));
-        builder = Row.withSchema(schema).withFieldValues(ImmutableMap.of());
+  private static final Map<@NonNull String, Function<Object, Object>> CONVERTERS_MAP =
+      ImmutableMap.<String, Function<Object, Object>>builder()
+          .put("google.protobuf.Value", o -> convert((Value) o))
+          .put("google.protobuf.Any", o -> convert((Any) o))
+          .put("google.protobuf.Timestamp", o -> convert((Timestamp) o))
+          .build();
+  private final @NonNull DescriptorSchemaRegistry schemaRegistry;
+  private final @NonNull T source;
+
+  private Row.@NonNull FieldValueBuilder builder;
+
+  GeneratedMessageV3RowBuilder(
+      @NonNull DescriptorSchemaRegistry schemaRegistry, @NonNull T source) {
+    this.schemaRegistry = schemaRegistry;
+    this.source = source;
+    Schema schema = checkStateNotNull(schemaRegistry.getSchema(source.getDescriptorForType()));
+    builder = Row.withSchema(schema).withFieldValues(ImmutableMap.of());
+  }
+
+  public Row build() {
+    for (FieldDescriptor fieldDescriptor : source.getDescriptorForType().getFields()) {
+      if (shouldSkip(fieldDescriptor)) {
+        continue;
+      }
+      Object value = getValue(fieldDescriptor);
+      builder.withFieldValue(fieldDescriptor.getName(), value);
     }
 
-    Row build() {
-        for (FieldDescriptor fieldDescriptor : source.getDescriptorForType().getFields()) {
-            if (fieldDescriptor.getJavaType().equals(JavaType.BYTE_STRING)) {
-                continue;
-            }
+    return builder.build();
+  }
 
-            if (fieldDescriptor.isMapField()) {
-                visitMapField(fieldDescriptor);
-                continue;
-            }
+  Object getValue(FieldDescriptor fieldDescriptor) {
+    return getValue(this.source, fieldDescriptor);
+  }
 
-            if (fieldDescriptor.isRepeated()) {
-                visitRepeatedField(fieldDescriptor);
-                continue;
-            }
+  <MessageT extends AbstractMessage> Object getValue(
+      MessageT message, FieldDescriptor fieldDescriptor) {
+    if (fieldDescriptor.isMapField()) {
+      return mapOf(message, fieldDescriptor);
+    }
+    if (fieldDescriptor.isRepeated()) {
+      return listOf(message, fieldDescriptor);
+    }
+    Object value = message.getField(fieldDescriptor);
+    return convert(fieldDescriptor, value);
+  }
 
-            if (fieldDescriptor.getJavaType().equals(JavaType.MESSAGE)) {
-                visitMessageField(fieldDescriptor);
-            }
+  <MessageT extends AbstractMessage> Object listOf(
+      MessageT message, FieldDescriptor fieldDescriptor) {
+    List<Object> result = new ArrayList<>();
+    int size = message.getRepeatedFieldCount(fieldDescriptor);
+    for (int i = 0; i < size; i++) {
+      Object value = getValue(message, fieldDescriptor, i);
+      result.add(value);
+    }
+    return result;
+  }
 
-            Object value = getPrimitiveValue(fieldDescriptor);
-            builder.withFieldValue(fieldDescriptor.getName(), value);
-        }
+  <MessageT extends AbstractMessage> Object getValue(
+      MessageT message, FieldDescriptor fieldDescriptor, int i) {
+    Object value = message.getRepeatedField(fieldDescriptor, i);
+    return convert(fieldDescriptor, value);
+  }
 
-        try {
-            for (Pair<String, Row> pair : Futures.allAsList(futureMessageCallbacks).get()) {
-                String name = checkStateNotNull(pair.getKey());
-                Row value = checkStateNotNull(pair.getValue());
-                builder.withFieldValue(name, value);
-            }
-        } catch (InterruptedException | ExecutionException e) {
-            throw new IllegalStateException(e);
-        }
+  <MessageT extends AbstractMessage> Object mapOf(
+      MessageT message, FieldDescriptor fieldDescriptor) {
+    List<Row> result = new ArrayList<>();
+    Descriptor mapDescriptor = fieldDescriptor.getMessageType();
+    FieldDescriptor keyType = checkStateNotNull(mapDescriptor.findFieldByName(KEY_FIELD_NAME));
+    FieldDescriptor valueType = checkStateNotNull(mapDescriptor.findFieldByName(VALUE_FIELD_NAME));
+    int size = message.getRepeatedFieldCount(fieldDescriptor);
+    Schema messageSchema = checkStateNotNull(schemaRegistry.getSchema(message.getDescriptorForType()));
+    Schema.Field mapField = messageSchema.getField(fieldDescriptor.getName());
+    checkState(mapField.getType().getTypeName().equals(TypeName.ARRAY));
+    Schema.FieldType mapEntryFieldType = checkStateNotNull(mapField.getType().getCollectionElementType());
+    checkState(mapEntryFieldType.getTypeName().equals(TypeName.ROW));
+    Schema entrySchema = checkStateNotNull(mapEntryFieldType.getRowSchema());
 
-        return builder.build();
+    for (int i = 0; i < size; i++) {
+      Object entryObj = message.getRepeatedField(fieldDescriptor, i);
+      checkState(
+          entryObj instanceof AbstractMessage,
+          "%s is not an instance of %s, found: %s",
+          fieldDescriptor.getName(),
+          AbstractMessage.class,
+          entryObj.getClass());
+      AbstractMessage entry = (AbstractMessage) entryObj;
+      Object key = getValue(entry, keyType);
+      Object value = getValue(entry, valueType);
+      Row entryRow = Row.withSchema(entrySchema)
+          .withFieldValue(KEY_FIELD_NAME, key)
+          .withFieldValue(VALUE_FIELD_NAME, value)
+          .build();
+      result.add(entryRow);
+    }
+    return result;
+  }
+
+  Object convert(FieldDescriptor fieldDescriptor, Object originalValue) {
+
+    if (originalValue == null && DEFAULT_VALUES.containsKey(fieldDescriptor.getJavaType())) {
+      return checkStateNotNull(DEFAULT_VALUES.get(fieldDescriptor.getJavaType()));
     }
 
-    Object getPrimitiveValue(FieldDescriptor fieldDescriptor) {
-        Object value = source.getField(fieldDescriptor);
-        return convert(fieldDescriptor, value);
+    if (fieldDescriptor.getJavaType().equals(JavaType.ENUM)) {
+      return checkStateNotNull(originalValue).toString();
     }
 
-    Object getPrimitiveValue(FieldDescriptor fieldDescriptor, int i) {
-        Object value = source.getRepeatedField(fieldDescriptor, i);
-        return convert(fieldDescriptor, value);
+    if (!fieldDescriptor.getJavaType().equals(JavaType.MESSAGE)) {
+      return originalValue;
     }
 
-    Object convert(FieldDescriptor fieldDescriptor, Object value) {
-        if (fieldDescriptor.getJavaType().equals(JavaType.ENUM)) {
-            return value.toString();
-        }
-        if (fieldDescriptor.getJavaType().equals(JavaType.MESSAGE)) {
-            Descriptor descriptor = checkStateNotNull(fieldDescriptor.getMessageType());
-            if (FULL_NAME_TYPE_MAP.containsKey(descriptor.getFullName())) {
-                Function<Object, Object> converter = checkStateNotNull(FULL_NAME_TYPE_MAP.get(descriptor.getFullName()));
-                value = converter.apply(value);
-            }
-        }
-        return value;
+    Descriptor descriptor = fieldDescriptor.getMessageType();
+    if (CONVERTERS_MAP.containsKey(descriptor.getFullName())) {
+      Function<Object, Object> converter =
+          checkStateNotNull(CONVERTERS_MAP.get(descriptor.getFullName()));
+      return converter.apply(originalValue);
     }
 
-    void visitMessageField(FieldDescriptor fieldDescriptor) {
-        Object value = source.getField(fieldDescriptor);
-        Descriptor descriptor = fieldDescriptor.getMessageType();
-        if (FULL_NAME_TYPE_MAP.containsKey(descriptor.getFullName())) {
-            value = checkStateNotNull(FULL_NAME_TYPE_MAP.get(descriptor.getFullName())).apply(value);
-            builder.withFieldValue(fieldDescriptor.getName(), value);
-            return;
-        }
-        GeneratedMessageV3 message = (GeneratedMessageV3) value;
-        futureMessageCallbacks.add(futureOf(fieldDescriptor, message));
+    checkState(
+        originalValue instanceof GeneratedMessageV3,
+        "%s is not instance of %s, found: %s",
+        fieldDescriptor.getName(),
+        GeneratedMessageV3.class,
+        originalValue.getClass());
+
+    GeneratedMessageV3 message = (GeneratedMessageV3) originalValue;
+    GeneratedMessageV3RowBuilder<GeneratedMessageV3> rowBuilder =
+        new GeneratedMessageV3RowBuilder<>(schemaRegistry, message);
+
+    try {
+      return service.submit(rowBuilder::build).get();
+    } catch (InterruptedException | ExecutionException e) {
+      throw new IllegalStateException(
+          String.format(
+              "error building Row of %s type for field: %s of %s: %s\n%s",
+              fieldDescriptor.getMessageType().getFullName(),
+              fieldDescriptor.getName(),
+              source.getDescriptorForType().getFullName(),
+              e.getMessage(),
+              Throwables.getStackTraceAsString(e)));
     }
+  }
 
+  boolean shouldSkip(FieldDescriptor fieldDescriptor) {
+    return fieldDescriptor.getJavaType().equals(JavaType.BYTE_STRING);
+  }
 
-    void visitMapField(FieldDescriptor fieldDescriptor) {
-        Descriptor mapDescriptor = fieldDescriptor.getMessageType();
-        FieldDescriptor keyType = checkStateNotNull(mapDescriptor.findFieldByName(KEY_FIELD_NAME));
-        FieldDescriptor valueType = checkStateNotNull(mapDescriptor.findFieldByName(VALUE_FIELD_NAME));
-        if (!valueType.getJavaType().equals(JavaType.MESSAGE)) {
-            visitPrimitiveMapField(fieldDescriptor, keyType, valueType);
-            return;
-        }
-        if (FULL_NAME_TYPE_MAP.containsKey(valueType.getMessageType().getFullName())) {
-            visitPrimitiveMapField(fieldDescriptor, keyType, valueType);
-            return;
-        }
-        visitMessageMapField(fieldDescriptor, keyType, valueType);
+  private static Object convert(Timestamp timestamp) {
+    return Instant.ofEpochMilli(timestamp.getSeconds() * 1000);
+  }
+
+  private static Object convert(Message value) {
+    try {
+      return JsonFormat.printer().omittingInsignificantWhitespace().print(value);
+    } catch (InvalidProtocolBufferException e) {
+      throw new IllegalStateException(e);
     }
-
-    void visitMessageMapField(
-            FieldDescriptor fieldDescriptor,
-            FieldDescriptor keyType,
-            FieldDescriptor valueType
-    ) {
-        List<ListenableFuture<Pair<String, Row>>> callbacks = new ArrayList<>();
-        int size = source.getRepeatedFieldCount(fieldDescriptor);
-        for (int i = 0; i < size; i++) {
-            Object entryObj = source.getRepeatedField(fieldDescriptor, i);
-            GeneratedMessageV3 entry = (GeneratedMessageV3) entryObj;
-            Object keyObj = entry.getField(keyType);
-            String key = keyObj.toString();
-            Object valueObj = entry.getField(valueType);
-            GeneratedMessageV3 value = (GeneratedMessageV3) valueObj;
-            callbacks.add(futureOf(key, value));
-        }
-        Map<String, Row> result = new HashMap<>();
-        try {
-            for (Pair<String, Row> pair : Futures.allAsList(callbacks).get()) {
-                String key = checkStateNotNull(pair.getKey());
-                Row value = checkStateNotNull(pair.getValue());
-                result.put(key, value);
-            }
-        } catch (InterruptedException | ExecutionException e) {
-            throw new IllegalStateException(e);
-        }
-        builder.withFieldValue(fieldDescriptor.getName(), result);
-    }
-
-    void visitPrimitiveMapField(
-            FieldDescriptor fieldDescriptor,
-            FieldDescriptor keyType,
-            FieldDescriptor valueType
-    ) {
-        Map<String, Object> result = new HashMap<>();
-        int size = source.getRepeatedFieldCount(fieldDescriptor);
-        for (int i = 0; i < size; i++) {
-            Object entryObj = source.getRepeatedField(fieldDescriptor, i);
-            GeneratedMessageV3 entry = (GeneratedMessageV3) entryObj;
-            Object keyObj = entry.getField(keyType);
-            String key = keyObj.toString();
-            Object valueObj = entry.getField(valueType);
-            if (valueType.getJavaType().equals(JavaType.ENUM)) {
-                valueObj = valueObj.toString();
-            }
-            if (valueType.getJavaType().equals(JavaType.MESSAGE)) {
-                Descriptor descriptor = checkStateNotNull(valueType.getMessageType());
-                Function<Object, Object> converter = checkStateNotNull(FULL_NAME_TYPE_MAP.get(descriptor.getFullName()));
-                valueObj = converter.apply(valueObj);
-            }
-            result.put(key, valueObj);
-        }
-        builder.withFieldValue(fieldDescriptor.getName(), result);
-    }
-
-    void visitRepeatedField(FieldDescriptor fieldDescriptor) {
-        if (!fieldDescriptor.getJavaType().equals(JavaType.MESSAGE)) {
-            visitRepeatedPrimitiveField(fieldDescriptor);
-            return;
-        }
-        if (FULL_NAME_TYPE_MAP.containsKey(fieldDescriptor.getMessageType().getFullName())) {
-            visitRepeatedPrimitiveField(fieldDescriptor);
-            return;
-        }
-        visitRepeatedMessageField(fieldDescriptor);
-    }
-
-    void visitRepeatedPrimitiveField(FieldDescriptor fieldDescriptor) {
-        List<Object> result = new ArrayList<>();
-        int size = source.getRepeatedFieldCount(fieldDescriptor);
-        for (int i = 0; i < size; i++) {
-            Object value = getPrimitiveValue(fieldDescriptor, i);
-            result.add(value);
-        }
-        builder.withFieldValue(fieldDescriptor.getName(), result);
-    }
-
-    void visitRepeatedMessageField(FieldDescriptor fieldDescriptor) {
-        List<ListenableFuture<Row>> futures = new ArrayList<>();
-        int size = source.getRepeatedFieldCount(fieldDescriptor);
-        for (int i = 0; i < size; i++) {
-            Object valueObj = source.getRepeatedField(fieldDescriptor, i);
-            GeneratedMessageV3 message = (GeneratedMessageV3) valueObj;
-            GeneratedMessageV3RowBuilder<GeneratedMessageV3> rowBuilder = new GeneratedMessageV3RowBuilder<>(
-                    schemaRegistry,
-                    message
-            );
-            futures.add(service.submit(rowBuilder::build));
-        }
-        List<Row> result;
-        try {
-            result = new ArrayList<>(Futures.allAsList(futures).get());
-        } catch (InterruptedException | ExecutionException e) {
-            throw new IllegalStateException(e);
-        }
-        builder.withFieldValue(fieldDescriptor.getName(), result);
-    }
-
-    ListenableFuture<Pair<String, Row>> futureOf(String name, GeneratedMessageV3 message) {
-        GeneratedMessageV3RowBuilder<GeneratedMessageV3> rowBuilder = new GeneratedMessageV3RowBuilder<>(
-                schemaRegistry,
-                message
-        );
-        return service.submit(()->{
-            Row row = rowBuilder.build();
-            return Pair.of(name, row);
-        });
-    }
-
-    ListenableFuture<Pair<String, Row>> futureOf(FieldDescriptor fieldDescriptor, GeneratedMessageV3 message) {
-        return futureOf(fieldDescriptor.getName(), message);
-    }
-
+  }
 }
