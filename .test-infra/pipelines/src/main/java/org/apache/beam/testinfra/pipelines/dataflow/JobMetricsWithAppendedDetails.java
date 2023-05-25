@@ -24,6 +24,7 @@ import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCaseFormat;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.CaseFormat;
+import org.joda.time.Instant;
 
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
@@ -36,7 +37,7 @@ public abstract class JobMetricsWithAppendedDetails {
 
   public abstract String getJobId();
 
-  public abstract Timestamp getJobCreateTime();
+  public abstract Instant getJobCreateTime();
 
   public abstract JobMetrics getJobMetrics();
 
@@ -45,7 +46,7 @@ public abstract class JobMetricsWithAppendedDetails {
 
     public abstract Builder setJobId(String value);
 
-    public abstract Builder setJobCreateTime(Timestamp value);
+    public abstract Builder setJobCreateTime(Instant value);
 
     public abstract Builder setJobMetrics(JobMetrics value);
 

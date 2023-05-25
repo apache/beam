@@ -20,3 +20,8 @@
 data "google_service_account" "dataflow_worker" {
   account_id = var.dataflow_worker_service_account_id
 }
+
+// Query the GCP project. Needed to acquire the project number.
+data "google_project" "default" {
+  project_id = var.project
+}

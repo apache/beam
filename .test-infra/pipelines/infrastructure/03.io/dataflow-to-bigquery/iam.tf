@@ -33,3 +33,9 @@ resource "google_project_iam_member" "default" {
   role    = each.key
   project = var.project
 }
+
+resource "google_project_iam_member" "gcp-sa-pubsub" {
+  member  = "serviceAccount:service-${data.google_project.default.number}@gcp-sa-pubsub.iam.gserviceaccount.com"
+  project = var.project
+  role    = "roles/iam.serviceAccountTokenCreator"
+}

@@ -23,6 +23,7 @@ import com.google.dataflow.v1beta3.GetJobRequest;
 import com.google.dataflow.v1beta3.Job;
 import com.google.dataflow.v1beta3.JobsV1Beta3Grpc;
 import io.grpc.StatusRuntimeException;
+import java.util.Optional;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -30,8 +31,10 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.joda.time.Instant;
 
 public class DataflowGetJobs
     extends PTransform<
@@ -84,7 +87,12 @@ public class DataflowGetJobs
         Job job = checkStateNotNull(client).getJob(request);
         receiver.get(SUCCESS).output(job);
       } catch (StatusRuntimeException e) {
-        receiver.get(FAILURE).output(DataflowRequestError.<GetJobRequest>builder().build());
+        receiver.get(FAILURE).output(DataflowRequestError.<GetJobRequest>builder()
+                .setObservedTime(Instant.now())
+                .setMessage(Optional.ofNullable(e.getMessage()).orElse(""))
+                .setRequest(request)
+                .setStackTrace(Throwables.getStackTraceAsString(e))
+            .build());
       }
     }
   }
