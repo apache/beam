@@ -54,7 +54,8 @@ resource "google_project_iam_member" "tourofbeam_backend_deployer_roles" {
 resource "google_project_iam_member" "tourofbeam_ci_sa_roles" {
   for_each = toset([
     "roles/secretmanager.secretAccessor",
-    "roles/storage.insightsCollectorService"
+    "roles/storage.insightsCollectorService",
+    "roles/storage.objectCreator"
   ])
   role    = each.key
   member  = "serviceAccount:${google_service_account.tourofbeam_ci_sa.email}"
@@ -64,6 +65,7 @@ resource "google_project_iam_member" "tourofbeam_ci_sa_roles" {
 resource "google_project_iam_member" "tourofbeam_cd_sa_roles" {
   for_each = toset([
     "roles/datastore.user",
+    "roles/storage.objectCreator",
     "roles/secretmanager.secretAccessor",
     "roles/storage.insightsCollectorService"
 
