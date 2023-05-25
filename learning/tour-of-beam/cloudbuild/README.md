@@ -52,7 +52,7 @@ This directory organizes Infrastructure-as-Code to provision dependent resources
 
 DEV NOTE: GCP Cloud shell can be used for deployment. It has all required software pre-installed.
 
-6. Additionaly for manual Frontend deployment you will need 
+6. Additionaly for manual Frontend deployment you will need:
 * [Flutter (3.7.3 >)](https://docs.flutter.dev/get-started/install)
 * [Dart SDK (2.19.2)](https://dart.dev/get-dart)
 * [Firebase-tools CLI](https://www.npmjs.com/package/firebase-tools)
