@@ -469,6 +469,10 @@ tasks.register("pythonPreCommit") {
   dependsOn(":sdks:python:test-suites:tox:py311:preCommitPy311")
 }
 
+tasks.register("pythonNotebooksPreCommit") {
+  dependsOn(":beam:examples:pythonNotebooksPreCommit")
+}
+
 tasks.register("pythonPreCommitIT") {
   dependsOn(":sdks:python:test-suites:tox:pycommon:preCommitPyCommon")
   dependsOn(":sdks:python:test-suites:dataflow:preCommitIT")
