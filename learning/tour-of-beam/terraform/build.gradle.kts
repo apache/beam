@@ -288,17 +288,6 @@ tasks.register("flutterPubRunPG") {
     dependsOn("flutterPubGetPG")
 
     doLast {
-        exec {
-            executable("flutter")
-            args("pub", "clean")
-            workingDir("../../../playground/frontend/playground_components")
-        }
-
-        exec {
-            executable("flutter")
-            args("pub", "cache", "repair")
-            workingDir("../../../playground/frontend/playground_components")
-        }
 
         exec {
             executable("flutter")
