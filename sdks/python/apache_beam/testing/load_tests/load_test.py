@@ -168,7 +168,8 @@ class LoadTest(object):
             'type': options.get('bundle_size_distribution_type', 'const'),
             'param': options.get('bundle_size_distribution_param', 0)
         },
-        'forceNumInitialBundles': options.get('force_initial_num_bundles', 0)
+        'forceNumInitialBundles': options.get('force_initial_num_bundles', 0),
+        'algorithm': options.get('algorithm', None)
     }
 
   def get_option_or_default(self, opt_name, default=0):

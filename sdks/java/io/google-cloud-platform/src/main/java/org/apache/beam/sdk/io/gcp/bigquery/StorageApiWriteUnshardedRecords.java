@@ -488,6 +488,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
               // outputting to the
               // failed-rows consumer.
               org.joda.time.Instant timestamp = payload.getTimestamp();
+              rowsSentToFailedRowsCollection.inc();
               failedRowsReceiver.outputWithTimestamp(
                   new BigQueryStorageApiInsertError(tableRow, e.toString()),
                   timestamp != null ? timestamp : elementTs);
@@ -540,6 +541,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                     failedRow, "Row payload too large. Maximum size " + maxRequestSize),
                 timestamp);
           }
+          rowsSentToFailedRowsCollection.inc(inserts.getSerializedRowsCount());
           return 0;
         }
 
@@ -639,6 +641,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                   retrieveErrorDetails(contexts));
               failedContext.failureCount += 1;
 
+              invalidateWriteStream();
+
               // Maximum number of times we retry before we fail the work item.
               if (failedContext.failureCount > 5) {
                 throw new RuntimeException("More than 5 attempts to call AppendRows failed.");
@@ -677,8 +681,6 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
               } catch (Exception e) {
                 throw new RuntimeException(e);
               }
-
-              invalidateWriteStream();
 
               appendFailures.inc();
               return RetryType.RETRY_ALL_OPERATIONS;
