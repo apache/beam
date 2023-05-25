@@ -201,7 +201,7 @@ public class BigQuerySchemaIOProvider implements SchemaIOProvider {
 
           final Boolean autoSharding = config.getBoolean("autoSharding");
           // use default value true for autoSharding if not configured for STORAGE_WRITE_API
-          if (input.isBounded() == PCollection.IsBounded.Unbounded) {
+          if (input.isBounded() == PCollection.IsBounded.UNBOUNDED) {
             write = write.withTriggeringFrequency(Duration.standardSeconds(5));
             if (autoSharding == null || autoSharding) {
               write = write.withAutoSharding();
