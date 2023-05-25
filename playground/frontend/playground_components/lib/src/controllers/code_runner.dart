@@ -101,8 +101,8 @@ class CodeRunner extends ChangeNotifier {
 
   bool get canRun => _snippetEditingControllerGetter() != null;
 
-  static const _attempts = 5;
-  static const _attemptInterval = Duration(seconds: 3);
+  static const _attempts = 6;
+  static const _attemptInterval = Duration(seconds: 5);
   static const _statusCheckInterval = Duration(seconds: 1);
 
   void clearResult() {
