@@ -36,27 +36,12 @@ task initializeForDataflowJob{
       'host system platform is not compatible with Dataflow worker container image.')
   }
   dependsOn 'installGcpTest'
+  dependsOn ':sdks:python:sdist'
 
-  if (project.hasProperty('useWheelDistribution')) {
-    dependsOn ":sdks:python:bdistPy${pythonVersionNumber}linux"
-
-    doLast {
-      def collection = project.fileTree(project.project(':sdks:python').buildDir){
-          include "**/apache_beam-*cp${pythonVersionNumber}*manylinux*.whl"
-      }
-      // sdkLocation ext is set at execution time
-      String packageFilename = collection.singleFile.toString()
-      project.ext.sdkLocation = packageFilename
-      logger.info('Use wheel {} for sdk_location.', packageFilename)
-    }
-  } else {
-    dependsOn ':sdks:python:sdist'
-
-    // sdkLocation ext is available at config time
-    String packageFilename = files(configurations.distTarBall.files).singleFile
-    project.ext.sdkLocation = packageFilename
-    logger.info('Use tarball {} for sdk_location.', packageFilename)
-  }
+  // sdkLocation ext is available at config time
+  String packageFilename = files(configurations.distTarBall.files).singleFile
+  project.ext.sdkLocation = packageFilename
+  logger.info('Use tarball {} for sdk_location.', packageFilename)
 }
 
 def runScriptsDir = "${rootDir}/sdks/python/scripts"
