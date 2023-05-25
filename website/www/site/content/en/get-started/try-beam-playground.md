@@ -21,7 +21,7 @@ Beam Playground is an interactive environment to try out Beam transforms and exa
 without having to install Apache Beam in your environment.
 
 You can try the available Apache Beam examples at
-[Beam Playground](https://play-dev.beam.apache.org/).
+[Beam Playground](https://play.beam.apache.org/).
 
 ## Beam Playground WordCount Example
 
@@ -107,9 +107,9 @@ More details on examples in Apache Beam Playground can be found
 
 ## Next Steps
 
-* Try examples in [Apache Beam Playground](https://play-dev.beam.apache.org/).
+* Try examples in [Apache Beam Playground](https://play.beam.apache.org/).
 * Submit feedback using "Enjoying Playground?" in
-[Apache Beam Playground](https://play-dev.beam.apache.org/) or via
+[Apache Beam Playground](https://play.beam.apache.org/) or via
 [this form](https://docs.google.com/forms/d/e/1FAIpQLSd5_5XeOwwW2yjEVHUXmiBad8Lxk-4OtNcgG45pbyAZzd4EbA/viewform?usp=pp_url).
 * Join the Beam [users@](/community/contact-us) mailing list.
 * If you're interested in contributing to the Apache Beam Playground codebase, see the [Contribution Guide](/contribute).

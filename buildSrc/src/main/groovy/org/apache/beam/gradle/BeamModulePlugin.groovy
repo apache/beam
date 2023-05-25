@@ -546,7 +546,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def jsr305_version = "3.0.2"
     def everit_json_version = "1.14.1"
     def kafka_version = "2.4.1"
-    def log4j2_version = "2.17.2"
+    def log4j2_version = "2.20.0"
     def nemo_version = "0.1"
     def netty_version = "4.1.77.Final"
     def postgres_version = "42.2.16"
