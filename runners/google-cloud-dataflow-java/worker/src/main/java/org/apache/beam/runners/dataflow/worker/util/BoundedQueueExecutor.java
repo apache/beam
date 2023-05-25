@@ -36,6 +36,8 @@ public class BoundedQueueExecutor {
   private final Monitor monitor = new Monitor();
   private int elementsOutstanding = 0;
   private long bytesOutstanding = 0;
+  private long startTimeMaxActiveThreadsUsed = 0;
+  private long totalTimeMaxActiveThreadsUsed = 0;
 
   public BoundedQueueExecutor(
       int maximumPoolSize,
@@ -51,7 +53,31 @@ public class BoundedQueueExecutor {
             keepAliveTime,
             unit,
             new LinkedBlockingQueue<>(),
-            threadFactory);
+            threadFactory) {
+              @Override
+              protected void beforeExecute(Thread t, Runnable r) {
+                super.beforeExecute(t, r);
+                synchronized(this) {
+                  if (getActiveCount() == maximumPoolSize - 1) {
+                    startTimeMaxActiveThreadsUsed = System.currentTimeMillis;
+                  }
+                }
+              }
+
+              @Override
+              protected void afterExecute(Runnable r, Throawable t) {
+                super.afterExecute(r, t);
+                synchronized(this) {
+                  if (getActiveCount() == maxThreads) {
+                    totalTimeMaxActiveThreadsUsed += System.currentTimeMillis - start;
+                    startTimeMaxActiveThreadsUsed = 0;
+                  }
+                }
+              }
+              public long getTotalTime() {
+                return totalTimeMaxActiveThreadsUsed;
+              }
+            };
     executor.allowCoreThreadTimeOut(true);
     this.maximumElementsOutstanding = maximumElementsOutstanding;
     this.maximumBytesOutstanding = maximumBytesOutstanding;
@@ -87,6 +113,10 @@ public class BoundedQueueExecutor {
 
   public boolean executorQueueIsEmpty() {
     return executor.getQueue().isEmpty();
+  }
+
+  public boolean allThreadsActiveTime() {
+    return totalTime;
   }
 
   public String summaryHtml() {
