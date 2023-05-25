@@ -193,7 +193,7 @@ def find_release_time_from_python_compatibility_checking_service(dep_name, versi
   Return:
     release date
   """
-  url = 'http://104.197.8.72/?package={0}=={1}&python-version=2'.format(
+  url = '"https://pypi.org/pypi/{0}/{1}/json"'.format(
       dep_name,
       version
   )
@@ -210,7 +210,7 @@ def find_release_time_from_python_compatibility_checking_service(dep_name, versi
                                                           str(response.status_code)))
       return None
     response_data = response.json()
-    release_datetime = response_data['dependency_info'][dep_name]['installed_version_time']
+    release_datetime = response_data['urls'][0]['upload_time']
     release_date = datetime.strptime(release_datetime, '%Y-%m-%dT%H:%M:%S').date()
     return release_date
   except Exception as e:
