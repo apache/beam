@@ -1144,6 +1144,16 @@ def model_bigqueryio(
       | beam.Map(lambda elem: elem['max_temperature']))
   # [END model_bigqueryio_read_query_std_sql]
 
+  # [START model_bigqueryio_read_table_with_storage_api]
+  max_temperatures = (
+      pipeline
+      | 'ReadTableWithStorageAPI' >> beam.io.ReadFromBigQuery(
+          table=table_spec,
+          method=beam.io.ReadFromBigQuery.Method.DIRECT_READ
+        )
+      | beam.Map(lambda elem: elem['max_temperature']))
+  # [END model_bigqueryio_read_table_with_storage_api]
+
   # [START model_bigqueryio_schema]
   # column_name:BIGQUERY_TYPE, ...
   table_schema = 'source:STRING, quote:STRING'

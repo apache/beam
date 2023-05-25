@@ -363,7 +363,7 @@ GitHub](https://github.com/apache/beam/blob/master/examples/java/src/main/java/o
 {{< /highlight >}}
 
 {{< highlight py >}}
-# The SDK for Python does not support the BigQuery Storage API.
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_read_table_with_storage_api >}}
 {{< /highlight >}}
 
 The following code snippet reads with a query string.
