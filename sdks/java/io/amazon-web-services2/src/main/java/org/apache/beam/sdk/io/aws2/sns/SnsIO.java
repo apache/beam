@@ -18,21 +18,12 @@
 package org.apache.beam.sdk.io.aws2.sns;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
-import java.io.Serializable;
-import java.net.URI;
-import java.util.function.BiConsumer;
 import java.util.function.Consumer;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.aws2.common.ClientBuilderFactory;
 import org.apache.beam.sdk.io.aws2.common.ClientConfiguration;
 import org.apache.beam.sdk.io.aws2.options.AwsOptions;
-import org.apache.beam.sdk.io.aws2.schemas.AwsSchemaProvider;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -41,17 +32,12 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Function;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
-import software.amazon.awssdk.awscore.AwsResponseMetadata;
 import software.amazon.awssdk.core.exception.SdkException;
-import software.amazon.awssdk.http.SdkHttpResponse;
 import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.services.sns.SnsAsyncClient;
 import software.amazon.awssdk.services.sns.SnsClient;
 import software.amazon.awssdk.services.sns.model.InvalidParameterException;
 import software.amazon.awssdk.services.sns.model.NotFoundException;
@@ -79,12 +65,6 @@ import software.amazon.awssdk.services.sns.model.PublishResponse;
  *   <li>Request builder function to create SNS publish requests from your input
  * </ul>
  *
- * <p>By default, the output {@link PublishResponse} contains only the SNS messageId, all other
- * fields are null. If you need to include the full {@link SdkHttpResponse} and {@link
- * AwsResponseMetadata}, you can call {@link Write#withFullPublishResponse()}. If you need the HTTP
- * status code only but no headers, you can use {@link
- * Write#withFullPublishResponseWithoutHeaders()}.
- *
  * <h3>Configuration of AWS clients</h3>
  *
  * <p>AWS clients for all AWS IOs can be configured using {@link AwsOptions}, e.g. {@code
@@ -108,7 +88,6 @@ import software.amazon.awssdk.services.sns.model.PublishResponse;
  * then opt to retry the current partition in entirety or abort if the max number of retries of the
  * runner is reached.
  */
-@Experimental(Kind.SOURCE_SINK)
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
@@ -121,59 +100,16 @@ public final class SnsIO {
         .build();
   }
 
-  /**
-   * @deprecated Please use {@link SnsIO#write()} to avoid the risk of data loss.
-   * @see <a href="https://github.com/apache/beam/issues/21366">Issue #21366</a>, <a
-   *     href="https://issues.apache.org/jira/browse/BEAM-13203">BEAM-13203</a>
-   */
-  @Deprecated
-  public static <T> WriteAsync<T> writeAsync() {
-    return new AutoValue_SnsIO_WriteAsync.Builder<T>().build();
-  }
-
-  /**
-   * Legacy retry configuration.
-   *
-   * <p><b>Warning</b>: Max accumulative retry latency is silently ignored as it is not supported by
-   * the AWS SDK.
-   *
-   * @deprecated Use {@link org.apache.beam.sdk.io.aws2.common.RetryConfiguration} instead to
-   *     delegate retries to the AWS SDK.
-   */
-  @AutoValue
-  @Deprecated
-  public abstract static class RetryConfiguration implements Serializable {
-    abstract int getMaxAttempts();
-
-    /** @deprecated Use {@link org.apache.beam.sdk.io.aws2.common.RetryConfiguration} instead. */
-    @Deprecated
-    public static RetryConfiguration create(int maxAttempts, Duration ignored) {
-      checkArgument(maxAttempts > 0, "maxAttempts should be greater than 0");
-      return new AutoValue_SnsIO_RetryConfiguration(maxAttempts);
-    }
-
-    org.apache.beam.sdk.io.aws2.common.RetryConfiguration convertLegacyConfig() {
-      int totalAttempts = getMaxAttempts() * 3; // 3 SDK attempts per user attempt
-      return org.apache.beam.sdk.io.aws2.common.RetryConfiguration.builder()
-          .numRetries(totalAttempts - 1)
-          .build();
-    }
-  }
-
   /** Implementation of {@link #write}. */
   @AutoValue
   public abstract static class Write<T>
       extends PTransform<PCollection<T>, PCollection<PublishResponse>> {
 
-    abstract @Nullable ClientConfiguration getClientConfiguration();
+    abstract ClientConfiguration getClientConfiguration();
 
     abstract @Nullable String getTopicArn();
 
     abstract @Nullable SerializableFunction<T, PublishRequest.Builder> getPublishRequestBuilder();
-
-    abstract @Nullable SnsClientProvider getSnsClientProvider();
-
-    abstract @Nullable Coder<PublishResponse> getCoder();
 
     abstract Builder<T> builder();
 
@@ -186,10 +122,6 @@ public final class SnsIO {
 
       abstract Builder<T> setPublishRequestBuilder(
           SerializableFunction<T, PublishRequest.Builder> requestBuilder);
-
-      abstract Builder<T> setSnsClientProvider(SnsClientProvider snsClientProvider);
-
-      abstract Builder<T> setCoder(Coder<PublishResponse> coder);
 
       abstract Write<T> build();
     }
@@ -225,93 +157,10 @@ public final class SnsIO {
       return builder().setPublishRequestBuilder(m -> publishRequestFn.apply(m).toBuilder()).build();
     }
 
-    /**
-     * @deprecated Use {@link #withClientConfiguration(ClientConfiguration)} instead. Alternatively
-     *     you can configure a custom {@link ClientBuilderFactory} in {@link AwsOptions}.
-     */
-    @Deprecated
-    public Write<T> withSnsClientProvider(SnsClientProvider clientProvider) {
-      checkArgument(clientProvider != null, "SnsClientProvider cannot be null");
-      return builder().setClientConfiguration(null).setSnsClientProvider(clientProvider).build();
-    }
-
-    /** @deprecated Use {@link #withClientConfiguration(ClientConfiguration)} instead. */
-    @Deprecated
-    public Write<T> withSnsClientProvider(AwsCredentialsProvider credentials, String region) {
-      return updateClientConfig(
-          b -> b.credentialsProvider(credentials).region(Region.of(region)).build());
-    }
-
-    /** @deprecated Use {@link #withClientConfiguration(ClientConfiguration)} instead. */
-    @Deprecated
-    public Write<T> withSnsClientProvider(
-        AwsCredentialsProvider credentials, String region, URI endpoint) {
-      return updateClientConfig(
-          b ->
-              b.credentialsProvider(credentials)
-                  .region(Region.of(region))
-                  .endpoint(endpoint)
-                  .build());
-    }
-
     /** Configuration of SNS client. */
     public Write<T> withClientConfiguration(ClientConfiguration config) {
-      return updateClientConfig(ignore -> config);
-    }
-
-    private Write<T> updateClientConfig(
-        Function<ClientConfiguration.Builder, ClientConfiguration> fn) {
-      checkState(
-          getSnsClientProvider() == null,
-          "Legacy SnsClientProvider is set, but incompatible with ClientConfiguration.");
-      ClientConfiguration config = fn.apply(getClientConfiguration().toBuilder());
       checkArgument(config != null, "ClientConfiguration cannot be null");
       return builder().setClientConfiguration(config).build();
-    }
-
-    /**
-     * Retry configuration of SNS client.
-     *
-     * @deprecated Use {@link #withClientConfiguration(ClientConfiguration)} with {@link
-     *     org.apache.beam.sdk.io.aws2.common.RetryConfiguration} instead to delegate retries to the
-     *     AWS SDK.
-     */
-    @Deprecated
-    public Write<T> withRetryConfiguration(RetryConfiguration retry) {
-      return updateClientConfig(b -> b.retry(retry.convertLegacyConfig()).build());
-    }
-
-    /**
-     * Encode the full {@link PublishResponse} object, including sdkResponseMetadata and
-     * sdkHttpMetadata with the HTTP response headers.
-     *
-     * @deprecated Writes fail exceptionally in case of errors, there is no need to check headers.
-     */
-    @Deprecated
-    public Write<T> withFullPublishResponse() {
-      return withCoder(PublishResponseCoders.fullPublishResponse());
-    }
-
-    /**
-     * Encode the full {@link PublishResponse} object, including sdkResponseMetadata and
-     * sdkHttpMetadata but excluding the HTTP response headers.
-     *
-     * @deprecated Writes fail exceptionally in case of errors, there is no need to check headers.
-     */
-    @Deprecated
-    public Write<T> withFullPublishResponseWithoutHeaders() {
-      return withCoder(PublishResponseCoders.fullPublishResponseWithoutHeaders());
-    }
-
-    /**
-     * Encode the {@link PublishResponse} with the given coder.
-     *
-     * @deprecated Explicit usage of coders is deprecated. Inferred schemas provided by {@link
-     *     AwsSchemaProvider} will be used instead.
-     */
-    @Deprecated
-    public Write<T> withCoder(Coder<PublishResponse> coder) {
-      return builder().setCoder(coder).build();
     }
 
     @Override
@@ -319,19 +168,13 @@ public final class SnsIO {
       checkArgument(getPublishRequestBuilder() != null, "withPublishRequestBuilder() is required");
 
       AwsOptions awsOptions = input.getPipeline().getOptions().as(AwsOptions.class);
-      if (getSnsClientProvider() == null) {
-        checkArgument(getClientConfiguration() != null, "withClientConfiguration() is required");
-        ClientBuilderFactory.validate(awsOptions, getClientConfiguration());
-      }
+      checkArgument(getClientConfiguration() != null, "withClientConfiguration() is required");
+      ClientBuilderFactory.validate(awsOptions, getClientConfiguration());
       if (getTopicArn() != null) {
         checkArgument(checkTopicExists(awsOptions), "Topic arn %s does not exist", getTopicArn());
       }
 
-      PCollection<PublishResponse> result = input.apply(ParDo.of(new SnsWriterFn<>(this)));
-      if (getCoder() != null) {
-        result.setCoder(getCoder());
-      }
-      return result;
+      return input.apply(ParDo.of(new SnsWriterFn<>(this)));
     }
 
     private boolean checkTopicExists(AwsOptions options) {
@@ -346,13 +189,8 @@ public final class SnsIO {
     }
 
     private SnsClient buildClient(AwsOptions options) {
-      if (getSnsClientProvider() != null) {
-        // build client using legacy SnsClientProvider
-        return getSnsClientProvider().getSnsClient();
-      } else {
-        return ClientBuilderFactory.buildClient(
-            options.as(AwsOptions.class), SnsClient.builder(), getClientConfiguration());
-      }
+      return ClientBuilderFactory.buildClient(
+          options.as(AwsOptions.class), SnsClient.builder(), getClientConfiguration());
     }
 
     static class SnsWriterFn<T> extends DoFn<T, PublishResponse> {
@@ -400,154 +238,6 @@ public final class SnsIO {
           producer = null;
         }
       }
-    }
-  }
-
-  /**
-   * Implementation of {@link #writeAsync}.
-   *
-   * @deprecated Please use {@link SnsIO#write()} to avoid the risk of data loss.
-   * @see <a href="https://github.com/apache/beam/issues/21366">Issue #21366</a>, <a
-   *     href="https://issues.apache.org/jira/browse/BEAM-13203">BEAM-13203</a>
-   */
-  @Deprecated
-  @AutoValue
-  public abstract static class WriteAsync<T>
-      extends PTransform<PCollection<T>, PCollection<SnsResponse<T>>> {
-
-    abstract @Nullable SnsAsyncClientProvider getSnsClientProvider();
-
-    /** SerializableFunction to create PublishRequest. */
-    abstract @Nullable SerializableFunction<T, PublishRequest> getPublishRequestFn();
-
-    /** Coder for element T. */
-    abstract @Nullable Coder<T> getCoder();
-
-    abstract Builder<T> builder();
-
-    @AutoValue.Builder
-    abstract static class Builder<T> {
-      abstract Builder<T> setSnsClientProvider(SnsAsyncClientProvider asyncClientProvider);
-
-      abstract Builder<T> setCoder(Coder<T> elementCoder);
-
-      abstract Builder<T> setPublishRequestFn(
-          SerializableFunction<T, PublishRequest> publishRequestFn);
-
-      abstract WriteAsync<T> build();
-    }
-
-    /**
-     * Specify a Coder for SNS PublishRequest object.
-     *
-     * @param elementCoder Coder
-     */
-    public WriteAsync<T> withCoder(Coder<T> elementCoder) {
-      checkNotNull(elementCoder, "elementCoder cannot be null");
-      return builder().setCoder(elementCoder).build();
-    }
-
-    /**
-     * Specify a function for converting a message into PublishRequest object.
-     *
-     * @param publishRequestFn publishRequestFn
-     */
-    public WriteAsync<T> withPublishRequestFn(
-        SerializableFunction<T, PublishRequest> publishRequestFn) {
-      checkNotNull(publishRequestFn, "publishRequestFn cannot be null");
-      return builder().setPublishRequestFn(publishRequestFn).build();
-    }
-
-    /**
-     * Allows to specify custom {@link SnsAsyncClientProvider}. {@link SnsAsyncClientProvider}
-     * creates new {@link SnsAsyncClientProvider} which is later used for writing to a SNS topic.
-     */
-    public WriteAsync<T> withSnsClientProvider(SnsAsyncClientProvider asyncClientProvider) {
-      checkNotNull(asyncClientProvider, "asyncClientProvider cannot be null");
-      return builder().setSnsClientProvider(asyncClientProvider).build();
-    }
-
-    /**
-     * Specify credential details and region to be used to write to SNS. If you need more
-     * sophisticated credential protocol, then you should look at {@link
-     * WriteAsync#withSnsClientProvider(SnsAsyncClientProvider)}.
-     */
-    public WriteAsync<T> withSnsClientProvider(
-        AwsCredentialsProvider credentialsProvider, String region) {
-      checkNotNull(credentialsProvider, "credentialsProvider cannot be null");
-      checkNotNull(region, "region cannot be null");
-      return withSnsClientProvider(credentialsProvider, region, null);
-    }
-
-    /**
-     * Specify credential details and region to be used to write to SNS. If you need more
-     * sophisticated credential protocol, then you should look at {@link
-     * WriteAsync#withSnsClientProvider(SnsAsyncClientProvider)}.
-     *
-     * <p>The {@code serviceEndpoint} sets an alternative service host.
-     */
-    public WriteAsync<T> withSnsClientProvider(
-        AwsCredentialsProvider credentialsProvider, String region, URI serviceEndpoint) {
-      checkNotNull(credentialsProvider, "credentialsProvider cannot be null");
-      checkNotNull(region, "region cannot be null");
-      return withSnsClientProvider(
-          new BasicSnsAsyncClientProvider(credentialsProvider, region, serviceEndpoint));
-    }
-
-    @Override
-    public PCollection<SnsResponse<T>> expand(PCollection<T> input) {
-      checkArgument(getSnsClientProvider() != null, "withSnsClientProvider() needs to called");
-      checkArgument(getPublishRequestFn() != null, "withPublishRequestFn() needs to called");
-      checkArgument(getCoder() != null, "withElementCoder() needs to called");
-
-      return input
-          .apply(ParDo.of(new SnsWriteAsyncFn<>(this)))
-          .setCoder(SnsResponseCoder.of(getCoder()));
-    }
-
-    private static class SnsWriteAsyncFn<T> extends DoFn<T, SnsResponse<T>> {
-
-      private static final Logger LOG = LoggerFactory.getLogger(SnsWriteAsyncFn.class);
-
-      private final WriteAsync<T> spec;
-      private transient SnsAsyncClient client;
-
-      SnsWriteAsyncFn(WriteAsync<T> spec) {
-        this.spec = spec;
-      }
-
-      @Setup
-      public void setup() {
-        this.client = spec.getSnsClientProvider().getSnsAsyncClient();
-      }
-
-      @SuppressWarnings("FutureReturnValueIgnored")
-      @ProcessElement
-      public void processElement(ProcessContext context) {
-        PublishRequest publishRequest = spec.getPublishRequestFn().apply(context.element());
-        client.publish(publishRequest).whenComplete(getPublishResponse(context));
-      }
-
-      private BiConsumer<? super PublishResponse, ? super Throwable> getPublishResponse(
-          DoFn<T, SnsResponse<T>>.ProcessContext context) {
-        return (response, ex) -> {
-          if (ex == null) {
-            SnsResponse<T> snsResponse = SnsResponse.of(context.element(), response);
-            context.output(snsResponse);
-          } else {
-            LOG.error("Error while publishing request to SNS", ex);
-            throw new SnsWriteException("Error while publishing request to SNS", ex);
-          }
-        };
-      }
-    }
-  }
-
-  /** Exception class for SNS write exceptions. */
-  protected static class SnsWriteException extends RuntimeException {
-
-    SnsWriteException(String message, Throwable error) {
-      super(message, error);
     }
   }
 }

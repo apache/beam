@@ -43,7 +43,8 @@ def bqio_read_test = [
     input_options        : '\'{' +
     '"num_records": 10485760,' +
     '"key_size": 1,' +
-    '"value_size": 1024}\'',
+    '"value_size": 1024,' +
+    '"algorithm": "lcg"}\'',
     num_workers          : 5,
     autoscaling_algorithm: 'NONE',  // Disable autoscale the worker pool.
   ]
@@ -69,7 +70,8 @@ def bqio_write_test = [
     input_options        : '\'{' +
     '"num_records": 10485760,' +
     '"key_size": 1,' +
-    '"value_size": 1024}\'',
+    '"value_size": 1024,' +
+    '"algorithm": "lcg"}\'',
     num_workers          : 5,
     autoscaling_algorithm: 'NONE',  // Disable autoscale the worker pool.
   ]

@@ -453,13 +453,8 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<SqsMessage> {
 
   private void initClient() {
     if (sqsClient == null) {
-      if (source.getRead().sqsClientProvider() != null) {
-        // build client using legacy SqsClientProvider
-        sqsClient = source.getRead().sqsClientProvider().getSqsClient();
-      } else {
-        ClientConfiguration config = source.getRead().clientConfiguration();
-        sqsClient = ClientBuilderFactory.buildClient(awsOptions, SqsClient.builder(), config);
-      }
+      ClientConfiguration config = source.getRead().clientConfiguration();
+      sqsClient = ClientBuilderFactory.buildClient(awsOptions, SqsClient.builder(), config);
     }
   }
 

@@ -19,8 +19,6 @@ package org.apache.beam.sdk.schemas.utils;
 
 import java.io.Serializable;
 import java.util.List;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
 import org.apache.beam.sdk.schemas.Schema;
 
@@ -28,7 +26,6 @@ import org.apache.beam.sdk.schemas.Schema;
  * A naming policy for schema fields. This maps a name from the class (field name or getter name) to
  * the matching field name in the schema.
  */
-@Experimental(Kind.SCHEMAS)
 public interface FieldValueTypeSupplier extends Serializable {
   /** Return all the FieldValueTypeInformations. */
   List<FieldValueTypeInformation> get(Class<?> clazz);

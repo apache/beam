@@ -22,7 +22,6 @@ import java.io.Serializable;
 import java.math.RoundingMode;
 import java.util.Arrays;
 import java.util.Objects;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.math.DoubleMath;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
@@ -33,11 +32,7 @@ import org.slf4j.LoggerFactory;
  *
  * <p>We may consider using Apache Commons or HdrHistogram library in the future for advanced
  * features such as sparsely populated histograms.
- *
- * <p>This class is considered experimental and may break or receive backwards-incompatible changes
- * in future versions of the Apache Beam SDK.
  */
-@Experimental
 public class HistogramData implements Serializable {
   private static final Logger LOG = LoggerFactory.getLogger(HistogramData.class);
 

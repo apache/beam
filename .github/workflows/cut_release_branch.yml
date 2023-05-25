@@ -44,6 +44,10 @@ on:
         description: API Token for the current Jenkins user. Can be generated at https://ci-beam.apache.org/user/<user>/configure
         required: true
 
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
   update_master:
     runs-on: ubuntu-latest

@@ -113,7 +113,8 @@ def comment_on_issue(issue_number: int,
           'owner': _BEAM_GITHUB_REPO_OWNER,
           'repo': _BEAM_GITHUB_REPO_NAME,
           'issue_number': issue_number
-      }),
+      },
+                 default=str),
       headers=_HEADERS).json()
   if open_issue_response['state'] == 'open':
     data = {

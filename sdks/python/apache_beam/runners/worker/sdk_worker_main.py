@@ -44,8 +44,6 @@ from apache_beam.runners.worker.log_handler import FnApiLogRecordHandler
 from apache_beam.runners.worker.sdk_worker import SdkHarness
 from apache_beam.utils import profiler
 
-# This module is experimental. No backwards-compatibility guarantees.
-
 _LOGGER = logging.getLogger(__name__)
 _ENABLE_GOOGLE_CLOUD_PROFILER = 'enable_google_cloud_profiler'
 
@@ -214,7 +212,7 @@ def main(unused_argv):
     sdk_harness.run()
     _LOGGER.info('Python sdk harness exiting.')
   except:  # pylint: disable=broad-except
-    _LOGGER.exception('Python sdk harness failed: ')
+    _LOGGER.critical('Python sdk harness failed: ', exc_info=True)
     raise
   finally:
     if fn_log_handler:

@@ -24,7 +24,6 @@ import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.util.UUID;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.state.BagState;
@@ -270,7 +269,6 @@ public class GroupIntoBatches<K, InputT>
    * the transform. Runners may override the default sharding to do a better load balancing during
    * the execution time.
    */
-  @Experimental
   public WithShardedKey withShardedKey() {
     return new WithShardedKey();
   }
