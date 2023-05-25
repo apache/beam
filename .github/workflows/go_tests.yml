@@ -52,7 +52,7 @@ jobs:
       - uses: codecov/codecov-action@v3
         with:
           flags: go 
-          files: ./sdks/go/pkg/coverage.txt
+          files: ./sdks/coverage.txt
           name: go-unittests
       - name: Run fmt
         run: cd sdks/go/pkg/beam && go fmt ./...; git diff-index --quiet HEAD || (echo "Run go fmt before checking in changes" && exit 1)
