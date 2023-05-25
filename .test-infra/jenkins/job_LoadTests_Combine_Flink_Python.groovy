@@ -49,7 +49,8 @@ def loadTestConfigurations = { mode, datasetName ->
         input_options       : '\'{' +
         '"num_records": 200000000,' +
         '"key_size": 1,' +
-        '"value_size": 9}\'',
+        '"value_size": 9,' +
+        '"algorithm": "lcg"}\'',
         parallelism         : 5,
         job_endpoint        : 'localhost:8099',
         environment_type    : 'DOCKER',
@@ -71,7 +72,8 @@ def loadTestConfigurations = { mode, datasetName ->
         input_options       : '\'{' +
         '"num_records": 5000000,' +
         '"key_size": 10,' +
-        '"value_size": 90}\'',
+        '"value_size": 90,' +
+        '"algorithm": "lcg"}\'',
         parallelism         : 16,
         job_endpoint        : 'localhost:8099',
         environment_type    : 'DOCKER',
@@ -94,7 +96,8 @@ def loadTestConfigurations = { mode, datasetName ->
         input_options       : '\'{' +
         '"num_records": 2500000,' +
         '"key_size": 10,' +
-        '"value_size": 90}\'',
+        '"value_size": 90,' +
+        '"algorithm": "lcg"}\'',
         parallelism         : 16,
         job_endpoint        : 'localhost:8099',
         environment_type    : 'DOCKER',
