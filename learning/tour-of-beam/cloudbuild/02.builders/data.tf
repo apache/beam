@@ -20,10 +20,6 @@
    account_id   = var.tourofbeam_deploy_sa
  }
  
- data "google_service_account" "tourofbeam_updater" {
-   account_id   = var.tourofbeam_update_sa
- }
- 
  data "google_service_account" "tourofbeam_ci_runner" {
     account_id   = var.tourofbeam_ci_sa
   }

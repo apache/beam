@@ -25,10 +25,6 @@ variable "tourofbeam_deploy_sa" {
     description = "Service account name to be created and used by cloud build deployer"
 }
 
-variable "tourofbeam_update_sa" {
-    description = "Service account name to be created and used by cloud build updater"
-}
-
 variable "tourofbeam_ci_sa" {
     description = "Service account name to be created and used by cloud build CI"
 }
@@ -98,22 +94,17 @@ variable "gh_pat_secret_id" {
 
 variable "tourofbeam_deploy_trigger_name" {
   description = "The name of the trigger to deploy Tour of Beam"
-  default = "TourOfBeam-Deploy-env"
-}
-
-variable "tourofbeam_update_trigger_name" {
-  description = "The name of the trigger to update Tour of Beam"
-  default = "TourOfBeam-Update-env"
+  default = "TourOfBeam-Deploy"
 }
 
 variable "tourofbeam_ci_trigger_name" {
   description = "The name of the trigger to run CI checks"
-  default = "TourOfBeam-CI-env"
+  default = "TourOfBeam-CI"
 }
 
 variable "tourofbeam_cd_trigger_name" {
   description = "The name of the trigger to run CD checks"
-    default = "TourOfBeam-CD-env"
+    default = "TourOfBeam-CD"
 }
 
 variable "cloudbuild_machine_type" {
@@ -146,5 +137,5 @@ variable "tourofbeam_learning_root" {
 
 variable "web_app_id" {
     description = "Tour of Beam web app id"
-    default = "tob-web-app"
+    default = "tourofbeam-web-app"
 }

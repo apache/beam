@@ -21,11 +21,6 @@ resource "google_service_account" "tourofbeam_deploy_sa" {
   description  = "The service account to be used by cloud build to deploy Tour of Beam backend"
 }
 
-resource "google_service_account" "tourofbeam_update_sa" {
-  account_id   = var.tourofbeam_update_sa == "" ? "tourofbeam-cb-update" : var.tourofbeam_update_sa
-  description  = "The service account to be used by cloud build to update Tour of Beam backend"
-}
-
 resource "google_service_account" "tourofbeam_ci_sa" {
   account_id   = var.tourofbeam_ci_sa == "" ? "tourofbeam-cb-ci" : var.tourofbeam_ci_sa
   description  = "The service account to be used by cloud build to run CI checks for Tour of Beam backend"
@@ -53,25 +48,6 @@ resource "google_project_iam_member" "tourofbeam_backend_deployer_roles" {
   ])
   role    = each.key
   member  = "serviceAccount:${google_service_account.tourofbeam_deploy_sa.email}"
-  project = var.project_id
-}
-
-resource "google_project_iam_member" "tourofbeam_backend_updater_roles" {
-  for_each = toset([
-    "roles/datastore.indexAdmin",
-    "roles/datastore.user",
-    "roles/iam.serviceAccountCreator",
-    "roles/iam.securityAdmin",
-    "roles/iam.serviceAccountUser",
-    "roles/serviceusage.serviceUsageAdmin",
-    "roles/storage.admin",
-    "roles/container.clusterViewer",
-    "roles/logging.logWriter",
-    "roles/cloudfunctions.admin",
-    "roles/secretmanager.secretAccessor",
-  ])
-  role    = each.key
-  member  = "serviceAccount:${google_service_account.tourofbeam_update_sa.email}"
   project = var.project_id
 }
 

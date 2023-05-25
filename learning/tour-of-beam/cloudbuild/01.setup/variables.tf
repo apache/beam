@@ -24,11 +24,6 @@ variable "tourofbeam_deploy_sa" {
   default = ""
 }
 
-variable "tourofbeam_update_sa" {
-  description = "The ID of the cloud build service account responsible for updating the Tour of Beam"
-  default = ""
-}
-
 variable "tourofbeam_ci_sa" {
   description = "The ID of the cloud build service account responsible for running Tour of Beam CI checks and scripts"
   default = ""

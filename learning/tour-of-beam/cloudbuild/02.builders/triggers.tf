@@ -120,7 +120,7 @@ resource "google_cloudbuild_trigger" "tourofbeam_ci_trigger" {
   }
 
   substitutions = {
-    _BEAM_VERSION             = "2.44.0"
+    _BEAM_VERSION             = "2.47.0"
   }
 
 }
