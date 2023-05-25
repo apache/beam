@@ -1140,6 +1140,7 @@ Consider adding known issues there for minor issues instead of accepting cherry 
 &lt;ul>
 &lt;li>Release Manager’s GPG key is published to &lt;code>dist.apache.org&lt;/code>;&lt;/li>
 &lt;li>Release Manager’s GPG key is configured in &lt;code>git&lt;/code> configuration;&lt;/li>
+&lt;li>Set &lt;code>SIGNING_KEY&lt;/code> to the public key of the Manager&amp;rsquo;s GPG key;&lt;/li>
 &lt;li>Release Manager has &lt;code>org.apache.beam&lt;/code> listed under &lt;code>Staging Profiles&lt;/code> in Nexus;&lt;/li>
 &lt;li>Release Manager’s Nexus User Token is configured in &lt;code>settings.xml&lt;/code>;&lt;/li>
 &lt;li>GitHub issue release item for the subsequent release has been created;&lt;/li>
@@ -1225,7 +1226,7 @@ Some additional validation should be done during the rc validation step.&lt;/li>
 &lt;/li>
 &lt;li>
 &lt;p>&lt;strong>Usage&lt;/strong>&lt;/p>
-&lt;pre>&lt;code>./beam/release/src/main/scripts/build_release_candidate.sh --release &amp;quot;${RELEASE_VERSION}&amp;quot; --rc &amp;quot;${RC_NUM}&amp;quot; --github-user &amp;quot;${GITHUB_USER}&amp;quot; --java11-home &amp;quot;${JAVA11_HOME}&amp;quot;
+&lt;pre>&lt;code>./beam/release/src/main/scripts/build_release_candidate.sh --release &amp;quot;${RELEASE_VERSION}&amp;quot; --rc &amp;quot;${RC_NUM}&amp;quot; --github-user &amp;quot;${GITHUB_USER}&amp;quot; --java11-home &amp;quot;${JAVA11_HOME}&amp;quot; --signing-key &amp;quot;${SIGNING_KEY}&amp;quot;
 &lt;/code>&lt;/pre>
 &lt;/li>
 &lt;li>
