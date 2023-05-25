@@ -97,7 +97,10 @@ public class TableRowToStorageApiProto {
           .append(DATETIME_SPACE_FORMATTER)
           // 'yyyy-MM-dd(T| )HH:mm:ss.SSSSSSSSS(+HH:mm:ss|Z)'
           .optionalStart()
-          .appendOffset("+HH:mm:ss", "Z")
+          .appendOffsetId()
+          .optionalEnd()
+          .optionalStart()
+          .appendOffset("+HH:mm", "+00:00")
           .optionalEnd()
           // 'yyyy-MM-dd(T| )HH:mm:ss.SSSSSSSSS [time_zone]', time_zone -> UTC, Asia/Kolkata, etc
           // if both an offset and a time zone are provided, the offset takes precedence

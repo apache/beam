@@ -92,7 +92,10 @@ public class TableRowToStorageApiProtoTest {
                           .setMode("REPEATED")
                           .setName("arrayValue"))
                   .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampISOValue"))
-                  .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampISOValueOffsetHH"))
+                  .add(
+                      new TableFieldSchema()
+                          .setType("TIMESTAMP")
+                          .setName("timestampISOValueOffsetHH"))
                   .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampValueLong"))
                   .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampValueSpace"))
                   .add(
@@ -138,7 +141,10 @@ public class TableRowToStorageApiProtoTest {
                           .setMode("REPEATED")
                           .setName("arrayValue"))
                   .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampISOValue"))
-                  .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampISOValueOffsetHH"))
+                  .add(
+                      new TableFieldSchema()
+                          .setType("TIMESTAMP")
+                          .setName("timestampISOValueOffsetHH"))
                   .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampValueLong"))
                   .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampValueSpace"))
                   .add(
