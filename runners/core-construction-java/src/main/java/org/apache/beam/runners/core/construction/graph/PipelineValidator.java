@@ -219,7 +219,8 @@ public class PipelineValidator {
       checkArgument(
           isComposite(transform),
           "Transform %s is not a composite transform but does not have a specified URN. %s",
-          id, transform);
+          id,
+          transform);
     }
 
     if (VALIDATORS.containsKey(urn)) {
