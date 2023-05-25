@@ -285,8 +285,8 @@ class ReadFromBigtable(PTransform):
         | beam.ParDo(self._BeamRowToPartialRowData()))
 
   # PartialRowData has some useful methods for querying data within a row.
-  # To make use of those methods and to give Python users a more familiar object,
-  # we process each Beam Row and return a PartialRowData equivalent.
+  # To make use of those methods and to give Python users a more familiar
+  # object, we process each Beam Row and return a PartialRowData equivalent.
   class _BeamRowToPartialRowData(beam.DoFn):
     def process(self, row):
       key = row.key
