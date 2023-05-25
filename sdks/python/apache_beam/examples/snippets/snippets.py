@@ -1181,6 +1181,39 @@ def model_bigqueryio(
       create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED)
   # [END model_bigqueryio_write]
 
+  # [START model_bigqueryio_write_with_storage_write_api]
+  quotes | beam.io.WriteToBigQuery(
+      table_spec,
+      schema=table_schema,
+      method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API)
+  # [END model_bigqueryio_write_with_storage_write_api]
+
+  # [START model_bigqueryio_write_schema]
+  table_schema = {
+    'fields': [
+      {
+        "name": "request_ts",
+        "type": "TIMESTAMP",
+        "mode": "REQUIRED"
+      },
+      {
+        "name": "user_name",
+        "type": "STRING",
+        "mode": "REQUIRED"
+      }
+    ]
+  }
+  # [END model_bigqueryio_write_schema]
+
+  # [START model_bigqueryio_storage_write_api_with_frequency_and_multiple_streams]
+  # The SDK for Python does not support `withNumStorageWriteApiStreams`
+  quotes | beam.io.WriteToBigQuery(
+      table_spec,
+      schema=table_schema,
+      method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API,
+      triggering_frequency=5)
+  # [END model_bigqueryio_storage_write_api_with_frequency_and_multiple_streams]
+
   # [START model_bigqueryio_write_dynamic_destinations]
   fictional_characters_view = beam.pvalue.AsDict(
       pipeline | 'CreateCharacters' >> beam.Create([('Yoda', True),

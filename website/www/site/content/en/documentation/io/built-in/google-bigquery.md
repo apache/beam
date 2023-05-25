@@ -795,7 +795,7 @@ BigQueryIO.writeTableRows()
 );
 {{< /highlight >}}
 {{< highlight py >}}
-# The SDK for Python does not support the BigQuery Storage API.
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_write_with_storage_write_api >}}
 {{< /highlight >}}
 
 If you want to change the behavior of BigQueryIO so that all the BigQuery sinks
@@ -820,7 +820,7 @@ TableSchema schema = new TableSchema().setFields(
                 .setMode("REQUIRED")));
 {{< /highlight >}}
 {{< highlight py >}}
-# The SDK for Python does not support the BigQuery Storage API.
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_write_schema >}}
 {{< /highlight >}}
 
 For streaming pipelines, you need to set two additional parameters: the number
@@ -834,7 +834,7 @@ BigQueryIO.writeTableRows()
 );
 {{< /highlight >}}
 {{< highlight py >}}
-# The SDK for Python does not support the BigQuery Storage API.
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_storage_write_api_with_frequency_and_multiple_streams >}}
 {{< /highlight >}}
 
 The number of streams defines the parallelism of the BigQueryIO Write transform
