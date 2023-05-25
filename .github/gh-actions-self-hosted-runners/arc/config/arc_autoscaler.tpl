@@ -21,13 +21,9 @@ kind: HorizontalRunnerAutoscaler
 metadata:
   name: main-runners
 spec:
-  # Runners in the targeted RunnerDeployment won't be scaled down
-  # for 5 minutes instead of the default 10 minutes now
   scaleDownDelaySecondsAfterScaleOut: 300
   scaleTargetRef:
     kind: RunnerDeployment
-    # # In case the scale target is RunnerSet:
-    # kind: RunnerSet
     name: main-runners
   minReplicas: ${min_runners}
   maxReplicas: ${max_runners}

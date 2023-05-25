@@ -22,38 +22,38 @@
 Check out the docs at https://github.com/actions/actions-runner-controller/blob/master/docs/about-arc.md
 
 # Installing
-1. Create a file called `overrides.tfvars` with the following contents:
-```
-project_id = "PROJECT_ID"                             # google PROJECT_ID that you want to deploy in
-region = "gcp_region"                                 # GCP region for the network
-zone = "europe-west3-c"                               # GCP zone for the nodes
-min_main_node_count = "1"                             # Minimal and initial node count for main pool
-max_main_node_count = "5"                             # Maximal node count for main pool
-environment = "environment_name"                               # Name of the environment. Used as a prefix like dev- stag- anything-
-ingress_domain = "fqdn"                               # FQDN for webhook ingress
-organization = "org"                                  # Github Organization to use runners in
-repository = "repo"                                   # Repository to use runners in
-github_app_id = "app_id"                              # Github App app_id
-github_app_installation_id = "install_id"             # Github App install id
-github_app_private_key_path = "absolute_path_to_key"  # Absolute filesystem path to .pem keyfile generated in the Github App
-deploy_webhook = "false"                              # Terraform to deploy the scaling webhook
-max_main_replicas = "2"                               # Max number of runner PODs . Do not confuse with Nodes
-min_main_replicas = "1"                               # Min number of runner PODs . Do not confuse with Nodes
-webhook_scaling = "false"                             # Enable webhook scaling. When disabled runner busy percentage is used
-```
-
-2. Create a google bucket for storing the terraform state. Make sure you disable public access and allow your account to access it.
-
-3. Create a Github App in your account and install it in the repo you want to provide runners for.
+1. Create a Github App in your account and install it in the repo you want to provide runners for.
 All is explained in : https://github.com/actions/actions-runner-controller/blob/master/docs/authenticating-to-the-github-api.md
 
-4. In your Google Cloud Project create the secrets for
+2. In your Google Cloud Project create the secrets for
 - Github App ID
 - Github App Installation ID
 - Github App PEM key
 All are created in the step before
 
-5.  Init terraform with:
+3. Create a file called `overrides.tfvars` with the following contents:
+```
+project_id = "PROJECT_ID"                                     # google PROJECT_ID that you want to deploy in
+region = "gcp_region"                                         # GCP region for the network
+zone = "europe-west3-c"                                       # GCP zone for the nodes
+min_main_node_count = "1"                                     # Minimal and initial node count for main pool
+max_main_node_count = "5"                                     # Maximal node count for main pool
+environment = "environment_name"                              # Name of the environment. Used as a prefix like dev- stag- anything-
+ingress_domain = "fqdn"                                       # FQDN for webhook ingress
+organization = "org"                                          # Github Organization to use runners in
+repository = "repo"                                           # Repository to use runners in
+github_app_id_secret_name = "app_id_secret_name"              # Google secret name for app id
+github_app_install_id_secret_name = "install_id_secret_name"  # Google secret name for install_id
+github_private_key_secret_name = "pem_file_secret_name"       # Google secret name for pem file
+deploy_webhook = "false"                                      # Terraform to deploy the scaling webhook
+max_main_replicas = "2"                                       # Max number of runner PODs . Do not confuse with Nodes
+min_main_replicas = "1"                                       # Min number of runner PODs . Do not confuse with Nodes
+webhook_scaling = "false"                                     # Enable webhook scaling. When disabled runner busy percentage is used
+```
+
+4. Create a google bucket for storing the terraform state. Make sure you disable public access and allow your account to access it.
+
+5.  From this directory, init terraform with:
 ```
 terraform init -backend-config="bucket=bucket_name"
 ```
