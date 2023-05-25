@@ -40,15 +40,30 @@ apt-get -qq install -y google-cloud-sdk-gke-gcloud-auth-plugin google-cloud-sdk 
 git clone --branch $BRANCH_NAME $REPO_NAME --single-branch
 cd beam
 mkdir playground/terraform/environment/$ENVIRONMENT_NAME
- 
-gcloud storage buckets create gs://$TF_VAR_state_bucket --location $TF_VAR_region --project $TF_VAR_project_id --pap
-if [ $? -eq 0 ]
-then 
-        echo "Creation successfull"
+
+
+checkBucket=$(curl -s -H "X-Goog-User-Project: $(gcloud config get-value project)" -H "Authorization: Bearer $(gcloud auth print-access-token)" https://storage.googleapis.com/storage/v1/b/$TF_VAR_state_bucket -w "%{http_code}" -o /dev/null)
+if [ $checkBucket -eq 200 ]; then
+        echo "Bucket already exists"
+elif [ $checkBucket -eq 404 ]; then
+        echo "Bucket does not exist, creating"
+        gcloud storage buckets create gs://$TF_VAR_state_bucket --location $TF_VAR_region --project $TF_VAR_project_id --pap
+                if [ $? -eq 0 ]
+                then 
+                        echo "Creation successfull"
+                else
+                        echo "Cannot create bucket, gcloud exit code: $?"
+                        exit 1
+                fi
+elif [ $checkBucket -eq 401 ]; then
+        echo "You do not have permission to access this bucket"
+        exit 1
 else
-        echo "Cannot create bucket, please check if the name is unique"
+        echo "Something went wrong, please check the bucket name"
         exit 1
 fi
+
+
 
 echo "---- ENV OUTPUT---"
 env | grep TF_VAR
