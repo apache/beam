@@ -40,21 +40,23 @@ task copyKafkaEmulator(type: Copy) {
    into 'build/kafka-emulator/'
 }
 
-task copyDockerfileDependencies(type: Copy) {
+task copyDockerfileDependencies {
    dependsOn("copyKafkaEmulator")
 
-   copy {
-      from '../../../backend/'
-      into 'build/src'
-      exclude 'containers'
-   }
-   copy {
-      from 'entrypoint.sh'
-      into 'build/'
-   }
-   copy {
-      from '../../../playground'
-      into 'build/playground'
+   doLast {
+      copy {
+         from '../../../backend/'
+         into 'build/src'
+         exclude 'containers'
+      }
+      copy {
+         from 'entrypoint.sh'
+         into 'build/'
+      }
+      copy {
+         from '../../../playground'
+         into 'build/playground'
+      }
    }
 }
 

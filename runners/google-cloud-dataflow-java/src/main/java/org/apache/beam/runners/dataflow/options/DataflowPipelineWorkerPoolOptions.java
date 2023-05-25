@@ -18,8 +18,6 @@
 package org.apache.beam.runners.dataflow.options;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.FileStagingOptions;
@@ -44,7 +42,6 @@ public interface DataflowPipelineWorkerPoolOptions extends GcpOptions, FileStagi
   void setNumWorkers(int value);
 
   /** Type of autoscaling algorithm to use. */
-  @Experimental(Kind.AUTOSCALING)
   enum AutoscalingAlgorithmType {
     /** Use numWorkers machines. Do not autoscale the worker pool. */
     NONE("AUTOSCALING_ALGORITHM_NONE"),
@@ -69,7 +66,7 @@ public interface DataflowPipelineWorkerPoolOptions extends GcpOptions, FileStagi
   }
 
   /**
-   * [Experimental] The autoscaling algorithm to use for the workerpool.
+   * The autoscaling algorithm to use for the workerpool.
    *
    * <ul>
    *   <li>NONE: does not change the size of the worker pool.
@@ -78,12 +75,11 @@ public interface DataflowPipelineWorkerPoolOptions extends GcpOptions, FileStagi
    * </ul>
    */
   @Description(
-      "[Experimental] The autoscaling algorithm to use for the workerpool. "
+      "The autoscaling algorithm to use for the workerpool. "
           + "NONE: does not change the size of the worker pool. "
           + "BASIC (deprecated): autoscale the worker pool size up to maxNumWorkers until the job "
           + "completes. "
           + "THROUGHPUT_BASED: autoscale the workerpool based on throughput (up to maxNumWorkers).")
-  @Experimental(Kind.AUTOSCALING)
   AutoscalingAlgorithmType getAutoscalingAlgorithm();
 
   void setAutoscalingAlgorithm(AutoscalingAlgorithmType value);
@@ -201,12 +197,11 @@ public interface DataflowPipelineWorkerPoolOptions extends GcpOptions, FileStagi
   /**
    * Specifies whether worker pools should be started with public IP addresses.
    *
-   * <p>WARNING: This feature is experimental. You must be allowlisted to use it.
+   * <p>WARNING: This feature is available only through allowlist.
    */
   @Description(
       "Specifies whether worker pools should be started with public IP addresses. WARNING:"
-          + "This feature is experimental. You must be allowlisted to use it.")
-  @Experimental
+          + "This feature is available only through allowlist.")
   @JsonIgnore
   @Nullable
   Boolean getUsePublicIps();

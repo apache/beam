@@ -23,15 +23,16 @@ import '../util/logical_keyboard_key.dart';
 import 'intents.dart';
 import 'shortcut.dart';
 
-class BeamRunShortcut extends BeamShortcut {
+abstract class BeamRunShortcut extends BeamShortcut {
   final VoidCallback onInvoke;
 
   BeamRunShortcut({
     required this.onInvoke,
+    required LogicalKeyboardKey enterKey,
   }) : super(
           keys: [
             LogicalKeyboardKeyExtension.metaOrControl,
-            LogicalKeyboardKey.enter,
+            enterKey,
           ],
           actionIntent: const RunIntent(),
           createAction: (BuildContext context) => CallbackAction(
@@ -41,4 +42,16 @@ class BeamRunShortcut extends BeamShortcut {
             },
           ),
         );
+}
+
+class BeamMainRunShortcut extends BeamRunShortcut {
+  BeamMainRunShortcut({
+    required super.onInvoke,
+  }) : super(enterKey: LogicalKeyboardKey.enter);
+}
+
+class BeamNumpadRunShortcut extends BeamRunShortcut {
+  BeamNumpadRunShortcut({
+    required super.onInvoke,
+  }) : super(enterKey: LogicalKeyboardKey.numpadEnter);
 }

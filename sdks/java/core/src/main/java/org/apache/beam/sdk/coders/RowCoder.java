@@ -20,8 +20,6 @@ package org.apache.beam.sdk.coders;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
@@ -30,7 +28,6 @@ import org.apache.beam.sdk.values.TypeDescriptors;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A sub-class of SchemaCoder that can only encode {@link Row} instances. */
-@Experimental(Kind.SCHEMAS)
 public class RowCoder extends SchemaCoder<Row> {
   public static RowCoder of(Schema schema) {
     return new RowCoder(schema);

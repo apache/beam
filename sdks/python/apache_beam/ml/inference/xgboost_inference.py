@@ -74,7 +74,8 @@ class XGBoostModelHandler(ModelHandler[ExampleT, PredictionT, ModelT], ABC):
       model_class: Union[Callable[..., xgboost.Booster],
                          Callable[..., xgboost.XGBModel]],
       model_state: str,
-      inference_fn: XGBoostInferenceFn = default_xgboost_inference_fn):
+      inference_fn: XGBoostInferenceFn = default_xgboost_inference_fn,
+      **kwargs):
     """Implementation of the ModelHandler interface for XGBoost.
 
     Example Usage::
@@ -94,6 +95,8 @@ class XGBoostModelHandler(ModelHandler[ExampleT, PredictionT, ModelT], ABC):
         configuration.
       inference_fn: the inference function to use during RunInference.
         default=default_xgboost_inference_fn
+      kwargs: 'env_vars' can be used to set environment variables
+        before loading the model.
 
     **Supported Versions:** RunInference APIs in Apache Beam have been tested
     with XGBoost 1.6.0 and 1.7.0
@@ -111,6 +114,7 @@ class XGBoostModelHandler(ModelHandler[ExampleT, PredictionT, ModelT], ABC):
     self._model_class = model_class
     self._model_state = model_state
     self._inference_fn = inference_fn
+    self._env_vars = kwargs.get('env_vars', {})
 
   def load_model(self) -> Union[xgboost.Booster, xgboost.XGBModel]:
     model = self._model_class()

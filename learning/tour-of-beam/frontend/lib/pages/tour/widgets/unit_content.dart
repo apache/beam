@@ -287,9 +287,28 @@ class _ContentFooter extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(BeamSizes.size20),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          CompleteUnitButton(tourNotifier),
+          IconButton(
+            color: Theme.of(context).primaryColor,
+            icon: const Icon(Icons.arrow_back_ios_new_rounded),
+            onPressed: tourNotifier.contentTreeController.hasPreviousUnit()
+                ? tourNotifier.contentTreeController.openPreviousUnit
+                : null,
+            tooltip: 'pages.tour.previousUnit'.tr(),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: BeamSizes.size10),
+            child: CompleteUnitButton(tourNotifier),
+          ),
+          IconButton(
+            color: Theme.of(context).primaryColor,
+            icon: const Icon(Icons.arrow_forward_ios_rounded),
+            onPressed: tourNotifier.contentTreeController.hasNextUnit()
+                ? tourNotifier.contentTreeController.openNextUnit
+                : null,
+            tooltip: 'pages.tour.nextUnit'.tr(),
+          ),
         ],
       ),
     );

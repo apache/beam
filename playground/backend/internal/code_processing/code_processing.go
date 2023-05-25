@@ -434,10 +434,10 @@ func reconcileBackgroundTask(pipelineLifeCycleCtx context.Context, pipelineId uu
 // If cancel flag exists, and it is true it means that the code processing was canceled. Set true to cancelChannel and return.
 func cancelCheck(ctx context.Context, pipelineId uuid.UUID, cancelFunc context.CancelFunc, cacheService cache.Cache) {
 	ticker := time.NewTicker(pauseDuration)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-ctx.Done():
-			ticker.Stop()
 			return
 		case <-ticker.C:
 			// Use background context for the cache operation to avoid failure when the main context is timed out.
@@ -460,12 +460,12 @@ func cancelCheck(ctx context.Context, pipelineId uuid.UUID, cancelFunc context.C
 // In other case each pauseDuration checks that graph file exists or not and try to save it to the cache.
 func readGraphFile(pipelineLifeCycleCtx context.Context, cacheService cache.Cache, graphFilePath string, pipelineId uuid.UUID) {
 	ticker := time.NewTicker(pauseDuration)
+	defer ticker.Stop()
 	for {
 		select {
 		// waiting when graph file appears
 		case <-ticker.C:
 			if _, err := os.Stat(graphFilePath); err == nil {
-				ticker.Stop()
 				graph, err := os.ReadFile(graphFilePath)
 				if err != nil {
 					logger.Errorf("%s: Error during saving graph to the file: %s", pipelineId, err.Error())
@@ -474,7 +474,6 @@ func readGraphFile(pipelineLifeCycleCtx context.Context, cacheService cache.Cach
 			}
 		// in case of timeout or cancel
 		case <-pipelineLifeCycleCtx.Done():
-			ticker.Stop()
 			if _, err := os.Stat(graphFilePath); err == nil {
 				graph, err := os.ReadFile(graphFilePath)
 				if err != nil {
@@ -497,6 +496,7 @@ func readGraphFile(pipelineLifeCycleCtx context.Context, cacheService cache.Cach
 // In other case each pauseDuration write to cache logs of the code processing.
 func readLogFile(pipelineLifeCycleCtx context.Context, cacheService cache.Cache, logFilePath string, pipelineId uuid.UUID, stopReadLogsChannel, finishReadLogChannel chan bool) {
 	ticker := time.NewTicker(pauseDuration)
+	defer ticker.Stop()
 	for {
 		select {
 		// in case of timeout or cancel

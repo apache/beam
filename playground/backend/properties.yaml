@@ -23,5 +23,3 @@ id_length: 11
 # Check your cron expression here: https://crontab.cronhub.io/
 # Time trigger for the scheduled task will be updated every time the application is restarted
 removing_unused_snippets_cron: 0 0 0 1 */1 *
-# Number of days after which a snippet becomes unused
-removing_unused_snippets_days: 180

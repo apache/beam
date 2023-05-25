@@ -49,8 +49,6 @@ import java.util.UUID;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedPrecisionNumeric;
@@ -65,7 +63,6 @@ import org.joda.time.LocalDate;
 import org.joda.time.chrono.ISOChronology;
 
 /** Provides utility functions for working with Beam {@link Schema} types. */
-@Experimental(Kind.SCHEMAS)
 public class SchemaUtil {
   /**
    * Interface implemented by functions that extract values of different types from a JDBC

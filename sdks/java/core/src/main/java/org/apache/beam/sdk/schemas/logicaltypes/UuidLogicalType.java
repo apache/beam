@@ -18,14 +18,11 @@
 package org.apache.beam.sdk.schemas.logicaltypes;
 
 import java.util.UUID;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.values.Row;
 
 /** Base class for types representing UUID as two long values. */
-@Experimental(Kind.SCHEMAS)
 public class UuidLogicalType implements Schema.LogicalType<UUID, Row> {
   public static final String IDENTIFIER = "beam:logical_type:uuid:v1";
   public static final String LEAST_SIGNIFICANT_BITS_FIELD_NAME = "LeastSignificantBits";

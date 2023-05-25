@@ -203,7 +203,7 @@ def streamingLoadTestJob = { scope, triggeringContext ->
   }
 }
 
-CronJobBuilder.cronJob('beam_LoadTests_Java_CoGBK_Dataflow_V2_Streaming_Java17', 'H 12 * * *', this) {
+CronJobBuilder.cronJob('beam_LoadTests_Java_CoGBK_Dataflow_V2_Streaming_Java17', 'H H * * *', this) {
   additionalPipelineArgs = [
     influxDatabase: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
     influxHost: InfluxDBCredentialsHelper.InfluxDBHostUrl,
@@ -227,7 +227,7 @@ def batchLoadTestJob = { scope, triggeringContext ->
       "CoGBK", "batch", JOB_SPECIFIC_SWITCHES)
 }
 
-CronJobBuilder.cronJob('beam_LoadTests_Java_CoGBK_Dataflow_V2_Batch_Java17', 'H 14 * * *', this) {
+CronJobBuilder.cronJob('beam_LoadTests_Java_CoGBK_Dataflow_V2_Batch_Java17', 'H H * * *', this) {
   additionalPipelineArgs = [
     influxDatabase: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
     influxHost: InfluxDBCredentialsHelper.InfluxDBHostUrl,

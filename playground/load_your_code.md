@@ -19,7 +19,7 @@
 
 # How to Add an Example/Snippet/Learning Content into Apache Beam Playground
 
-Adding a new example, code snippet or Tour of Beam learning unit into the Playground is a three-step process:
+Adding a new example, code snippet, or Tour of Beam learning unit into the Playground is a three-step process:
 
 1. Prepare a code snippet.
 2. Add the code snippet to Apache Beam and/or Playground.
@@ -30,7 +30,7 @@ Playground sources and output presentation formats:
 
 ![Workflow](doc/load_your_code/images/workflow.png)
 
-The guide will walk through all steps.
+This guide will walk through all steps.
 
 
 # Table of Contents
@@ -77,7 +77,7 @@ and requires that a code snippet is a complete runnable code.
 
 ### Code snippet data sources and dependencies
 
-Code snippets can use data sources to demonstrate transforms and concepts. Playground restricts code access to Internet for security reasons. Following are recommend ways for code snippet's data sources and dependecies:
+Code snippets can use data sources to demonstrate transforms and concepts. Playground restricts code access to Internet for security reasons. Following are the recommend ways for code snippet's data sources and dependecies:
 
 | Source/Dependency   | Notes                                                     |
 |----------|-----------------------------------------------------------|
@@ -107,9 +107,10 @@ Playground supports *Named Sections* to tag code blocks and provide the followin
 - Make certain code parts read-only.
   This feature can be useful to create learning units where user modifications are desired
   only in certain parts of the code.
+
 Please see [Snippet View Options](#snippet-view-options) section for details how different view options can be used.
 
-If you do not need any of those view options, skip to the [next step](#step-2-add-the-code-snippet-to-the-apache-beam-repo-and-playground).
+If you do not need any of those view options, skip to the [next step](#step-2-add-the-code-snippet-to-the-apache-beam-repo-andor-playground).
 
 *Named Sections* are defined with the following syntax:
 
@@ -147,7 +148,7 @@ See the [workflow above](#how-to-add-an-examplesnippetlearning-content-into-apac
 ### Source 1. How to add an example to Playground Examples Catalog
 
 Playground Examples Catalog helps users discover example snippets
-and is a recommended way to add examples. Playground automatically scans,
+and is the recommended way to add examples. Playground automatically scans,
 verifies and deploys example snippets from the directories listed below.
 
 > **Note:** SCIO examples are stored in a separate repository. To add support for a new SCIO example, please refer to [this section of `TASKS.md`](TASKS.md#obtaining-scio-examples).
@@ -167,9 +168,9 @@ and Scala example snippets can be added to the catalog manually.
 #### 2. Add metadata to describe the example
 
 Playground relies on metadata comments block to identify and place an example into the database,
-and present in the Examples Catalog.
+which is required for an example to show in the Examples Catalog.
 See [this](https://github.com/apache/beam/blob/3e080ff212d8ed7208c8486b515bb73c5d294475/examples/java/src/main/java/org/apache/beam/examples/MinimalWordCount.java#L20-L36) for an example.
-Playground automatically removes metadata comments block before storing the example in database
+Playground automatically removes metadata comments block before storing the example in database,
 so the metadata is not visible to end users. The block is in the format of a YAML map:
 
 ```yaml
@@ -223,24 +224,24 @@ beam-playground:
          source_dataset: "CountWords"
 ```
 
-For metadata reference see fields in "Tag" class [here](infrastructure/models.py).
+For metadata reference, see the fields in the `Tag` class [here](infrastructure/models.py).
 
 ##### Categories
 
 The list of supported categories for an example is
 [here](https://github.com/apache/beam/blob/master/playground/categories.yaml).
-To add a new category, submit a PR that adds a categry to the [`categories.yaml`](https://github.com/apache/beam/blob/master/playground/categories.yaml).
+To add a new category, submit a PR that adds a category to the [categories.yaml](https://github.com/apache/beam/blob/master/playground/categories.yaml).
 When it is merged, the new category can be used in an example.
 
 ##### Default examples
 
 Each SDK must have a single default example.
-If there is none, the user will see the error in the app and face a blank editor.
+If there is none, the user will see an error in the app and a blank editor.
 If there are more than one, it is not defined which one will be selected.
 
 ##### Kafka emulator
 
-Examples which require Kafka server emulator, need to include the `emulators` tag
+Examples which require Kafka server emulator need to include the `emulators` tag
 and provide `dataset` in the example's tag. You can refer to an example
 [here](/examples/java/src/main/java/org/apache/beam/examples/KafkaWordCountJson.java).
 
@@ -260,14 +261,14 @@ and provide `dataset` in the example's tag. You can refer to an example
     ```
     replace `<dataset_name>` with the name of your dataset file without the file name extension.
 
-3. Use the exact string `"kafka_server:9092"` as a server name in your code snippet.
+3. Use the exact string `"kafka_server:9092"` as the server name in your code snippet.
    This string will be replaced by the actual host name and port automatically
    before the compilation step by Playground.
 
 >**Kafka emulator limitations:**
-> - Playground Kafka emulator currently supports only Beam Java SDK
-> - exact string `"kafka_server:9092"` should be present in the code snippet;
-    any other variation like `"kafa_server" + ":9092"` will not work
+> - Playground Kafka emulator currently supports only Beam Java SDK.
+> - The exact string `"kafka_server:9092"` should be present in the code snippet;
+    any other variation like `"kafa_server" + ":9092"` will not work.
 
 #### 3. Submit a PR
 
@@ -290,14 +291,14 @@ https://play.beam.apache.org/?path=SDK_JAVA_MinimalWordCount&sdk=java
 
 the ID is: `SDK_JAVA_MinimalWordCount`.
 
-You will need the snippet ID to embed the Playground with snippet into a website page.
+You will need the snippet ID to embed the Playground with the snippet into a website page.
 
 ### Source 2. How to add an unlisted example to Playground
 
 Not all examples must be visible in the example dropdown.
 Some examples are best in the context of Apache Beam documentation.
-To embed them into the documentation use unlisted examples.
-They work and are checked and cached the same way as examples displayed in the Playground catalog.
+To embed them into the documentation, use unlisted examples.
+They work and are checked and cached the same way as the examples displayed in the Playground catalog.
 
 Proceed the same way as with [Source 1. Playground Examples Catalog](#source-1-how-to-add-an-example-to-playground-examples-catalog) except:
 1. Use the directory `/learning/beamdoc`
@@ -314,18 +315,14 @@ The ID of the snippet is a function of the SDK and the `name` attribute from its
 | Java   | SDK_JAVA_name   |
 | Python | SDK_PYTHON_name |
 
-**TODO: add example of the name for snippet**
-
 ### Source 3. How to add a Tour of Beam unit
 
 "Tour of Beam" is a separate project that combines learning materials with runnable snippets
 and allows students to track their learning progress.
-It uses Playground engine, and so its content is added in a similar way.
+It uses the Playground engine, and so its content is added in a similar way.
 
 A Tour of Beam unit consists of learning materials and an optional runnable snippet.
-See [the learning content README] on how to add units and link snippets to them.
-
-**TODO** Link to the learning content README when this is merged: https://github.com/apache/beam/pull/25963
+See [the learning content README](../learning/tour-of-beam/learning-content/README.md) on how to add units and link snippets to them.
 
 #### Adding a snippet
 
@@ -335,7 +332,7 @@ Proceed the same way as with [Source 1. Playground Examples Catalog](#source-1-h
 
 1. Use the directory `/learning/tour-of-beam/learning-content`.
    It is recommended to follow the directory hierarchy as described in
-   [the learning content README] **TODO** Link
+   [the learning content README](../learning/tour-of-beam/learning-content/README.md).
 2. Do not use the following attributes:
    - `categories`
    - `default_example`
@@ -349,9 +346,11 @@ The ID of the snippet is a function of the SDK and the `name` attribute from its
 | Java   | TB_EXAMPLES_SDK_JAVA_name   |
 | Python | TB_EXAMPLES_SDK_PYTHON_name |
 
+For instance, for the Go the example `CSV` it is `TB_EXAMPLES_SDK_GO_CSV`.
+
 ### Source 4. How to add a snippet with the app alone
 
-Code snippet can be saved to the Playground using **"Share my code"** button in the Playground:
+A code snippet can be saved to the Playground using **"Share my code"** button in the Playground:
 
 ![Sharing code with the app alone](doc/load_your_code/images/share-my-code.png)
 
@@ -359,7 +358,7 @@ This is easy and fast. It does not require any interaction with the Beam team.
 
 >**Share my code** considerations:
 > - A user-shared snippet is immutable.
-    If you edit the code and re-share, a new snippet and link will be generated.
+    If you edit the code and re-share, a new snippet and a new link will be generated.
 > - Playground automatically applies a 3-month retention policy to shared snippets that are not used.
     To request a deletion of a snippet, please send an email to
     [dev@beam.apache.org](mailto:dev@beam.apache.org?subject=[Playground]%20Delete%20a%20snippet)
@@ -367,7 +366,7 @@ This is easy and fast. It does not require any interaction with the Beam team.
 > - Playground does not cache output or graph for user-shared snippets.
 > - Playground does not verify user-shared snippets.
 
-### Source 5. How to load code from GitHub or other HTTPS URL
+### Source 5. How to load code from GitHub or another HTTPS URL
 
 Playground can load a snippet stored on an HTTPS server using the provided URL,
 including GitHub direct links to raw file content.
@@ -444,9 +443,6 @@ The ID of the snippet is a function of the SDK and the `name` attribute from its
 | Java   | SDK_JAVA_name   |
 | Python | SDK_PYTHON_name |
 
-**TODO: add example of the name for snippet**
-
-
 #### Link to a snippet from a Tour of Beam unit
 
 Link to a snippet can be constructed by providing your snippet ID and SDK in the following URL:
@@ -462,7 +458,10 @@ The ID of the snippet is a function of the SDK and the `name` attribute from its
 | Java   | TB_EXAMPLES_SDK_JAVA_name   |
 | Python | TB_EXAMPLES_SDK_PYTHON_name |
 
-**TODO: add example of the name for snippet**
+For instance, for the Go the example `CSV` it is `TB_EXAMPLES_SDK_GO_CSV`, and the link is
+```
+https://play.beam.apache.org/?path=TB_EXAMPLES_SDK_GO_CSV&sdk=go
+```
 
 #### Link to a user-shared snippet
 
@@ -518,7 +517,7 @@ Then pass it in`examples` query parameter like this:
 
 This starts with the Go example loaded from the URL.
 If SDK is then switched to Java, the `AggregationMax` catalog example is loaded for it.
-If SDK is switched to any other one, the default example for that SDK is loaded because no override was provided.
+If SDK is switched to any other one, the default example for that SDK is loaded, because no override was provided.
 
 
 ### Embedding a snippet into HTML
@@ -527,7 +526,7 @@ Embedded Playground is a simplified interface of the Playground web app designed
 into an `<iframe>` in web pages. It supports most of the Playground web app features.
 The embedded Playground URLs start with `https://play.beam.apache.org/embedded`
 and use the same query string parameters as the Playground web app.
-Additionally the Embedded playground supports `editable=0` parameter to make the editor read-only.
+Additionally, the Embedded playground supports `editable=0` parameter to make the editor read-only.
 
 #### Embedding a snippet from Playground Examples Catalog
 
@@ -580,13 +579,13 @@ you can apply view options to those sections. Otherwise skip this.
 
 Add `readonly` parameter with comma-separated section names:
 
-`https://play.beam.apache.org/?sdk=go&url=https://raw.githubusercontent.com/GoogleCloudPlatform/golang-samples/main/iam/snippets/roles_get.go&readonly=iam_get_role`
+`https://play.beam.apache.org/?sdk=go&url=...&readonly=section_name`
 
 ### Folding everything except named sections
 
 Add `unfold` parameter with comma-separated section names:
 
-`https://play.beam.apache.org/?sdk=go&url=https://raw.githubusercontent.com/GoogleCloudPlatform/golang-samples/main/iam/snippets/roles_get.go&unfold=iam_get_role`
+`https://play.beam.apache.org/?sdk=go&url=...&unfold=section_name`
 
 This folds all foldable blocks that do not overlap with any of the given sections.
 
@@ -594,8 +593,8 @@ This folds all foldable blocks that do not overlap with any of the given section
 
 Add `show` parameter with a single section name:
 
-`https://play.beam.apache.org/?sdk=go&url=https://raw.githubusercontent.com/GoogleCloudPlatform/golang-samples/main/iam/snippets/roles_get.go&show=iam_get_role`
+`https://play.beam.apache.org/?sdk=go&url=...&show=section_name`
 
-It is still the whole snippet that is sent for execution although only the given section is visible.
+It is still the whole snippet that is sent for execution, although only the given section is visible.
 
 This also makes the editor read-only so the user cannot add code that conflicts with the hidden text.
