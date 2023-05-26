@@ -212,7 +212,7 @@ def main(unused_argv):
     sdk_harness.run()
     _LOGGER.info('Python sdk harness exiting.')
   except:  # pylint: disable=broad-except
-    _LOGGER.exception('Python sdk harness failed: ')
+    _LOGGER.critical('Python sdk harness failed: ', exc_info=True)
     raise
   finally:
     if fn_log_handler:

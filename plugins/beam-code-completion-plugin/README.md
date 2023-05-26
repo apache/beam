@@ -17,54 +17,19 @@
     under the License.
 -->
 
-# Overview
+# Apache Beam Completion Plugin
 
-This directory provisions required infrastructure for the application.
+The Beam Completion Plugin is an IntelliJ Plugin that provides Java SDK Beam Transform completions.
+The project is a part of Google Summer of Code program. The related proposal: https://docs.google.com/document/d/1ZT70nv6XvX_ShS0Y_aSNpOYelBkmRhiZ4HUMvY9dqXA/edit?usp=sharing .
+This project is not officially supported by Apache Beam.
 
-# Requirements
+## Installation
+TODO: add description
 
-See [playground/README.md](../README.md) for a list of the requirements
-prior to following these instructions.
+## How to use
+TODO: add description
 
-# Usage
-
-## Terraform init
-
-Follow conventional terraform workflow to build this solution.
-You will be prompted for required variables.
-Alternatively, you may create a `vars.tfvars` file and
-apply the `-var-file=vars.tfvars` flag.
-
-Initialize the terraform environment.
-
-```
-terraform init
-```
-
-## Terraform plan
-
-Plan the terraform solution.
-
-```
-terraform plan
-```
-
-or
-
-```
-terraform plan -var-file=vars.tfvars
-```
-
-## Terraform apply
-
-Apply the terraform solution.
-
-```
-terraform apply
-```
-
-or
-
-```
-terraform apply -var-file=vars.tfvars
-```
+## Development
+The project is written in Java language and uses Gradle as a build tool.
+The project has a separate build.gradle.kts file since it is an isolated project.
+The JUnit library is used for unit tests.
