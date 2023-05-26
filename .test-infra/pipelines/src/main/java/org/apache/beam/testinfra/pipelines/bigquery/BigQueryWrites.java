@@ -21,11 +21,6 @@ import com.google.api.services.bigquery.model.Clustering;
 import com.google.api.services.bigquery.model.DatasetReference;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TimePartitioning;
-import com.google.dataflow.v1beta3.GetJobExecutionDetailsRequest;
-import com.google.dataflow.v1beta3.GetJobMetricsRequest;
-import com.google.dataflow.v1beta3.GetJobRequest;
-import com.google.dataflow.v1beta3.GetStageExecutionDetailsRequest;
-import com.google.dataflow.v1beta3.Job;
 import java.time.Instant;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteResult;
@@ -34,9 +29,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.testinfra.pipelines.conversions.ConversionError;
 import org.apache.beam.testinfra.pipelines.dataflow.DataflowRequestError;
-import org.apache.beam.testinfra.pipelines.dataflow.JobMetricsWithAppendedDetails;
-import org.apache.beam.testinfra.pipelines.dataflow.StageSummaryWithAppendedDetails;
-import org.apache.beam.testinfra.pipelines.dataflow.WorkerDetailsWithAppendedDetails;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -44,100 +36,100 @@ import org.joda.time.Duration;
 
 public class BigQueryWrites {
 
-  private static final TimePartitioning JOB_TIME_PARTITIONING =
+  public static final TimePartitioning JOB_TIME_PARTITIONING =
       new TimePartitioning().setType("HOUR").setField("create_time");
 
-  private static final TimePartitioning ENRICHED_TIME_PARTITIONING =
+  public static final TimePartitioning ENRICHED_TIME_PARTITIONING =
       new TimePartitioning().setType("HOUR").setField("job_create_time");
 
-  private static final TimePartitioning OBSERVED_TIME_PARTITIONING =
+  public static final TimePartitioning OBSERVED_TIME_PARTITIONING =
       new TimePartitioning().setType("HOUR").setField("observed_time");
 
-  private static final Clustering JOB_CLUSTERING =
+  public static final Clustering JOB_CLUSTERING =
       new Clustering().setFields(ImmutableList.of("type", "location"));
 
-  private static final String CONVERSION_ERRORS_TABLE_ID_PREFIX = "conversion_errors";
+  public static final String CONVERSION_ERRORS_TABLE_ID_PREFIX = "conversion_errors";
 
-  private static final String JOB_EXECUTION_DETAILS = "job_execution_details";
+  public static final String JOB_EXECUTION_DETAILS = "job_execution_details";
 
-  private static final String JOB_EXECUTION_DETAILS_ERRORS = "job_execution_details_request_errors";
+  public static final String JOB_EXECUTION_DETAILS_ERRORS = "job_execution_details_request_errors";
 
-  private static final String JOB_METRICS = "job_metrics";
+  public static final String JOB_METRICS = "job_metrics";
 
-  private static final String JOB_METRICS_ERRORS = "job_metrics_request_errors";
+  public static final String JOB_METRICS_ERRORS = "job_metrics_request_errors";
 
-  private static final String JOBS = "jobs";
+  public static final String JOBS = "jobs";
 
-  private static final String JOB_ERRORS = "jobs_request_errors";
+  public static final String JOB_ERRORS = "jobs_request_errors";
 
-  private static final String STAGE_EXECUTION_DETAILS = "stage_execution_details";
+  public static final String STAGE_EXECUTION_DETAILS = "stage_execution_details";
 
-  private static final String STAGE_EXECUTION_DETAILS_REQUESTS_ERRORS =
+  public static final String STAGE_EXECUTION_DETAILS_REQUESTS_ERRORS =
       "stage_execution_details_requests_errors";
 
   public static PTransform<@NonNull PCollection<ConversionError<String>>, @NonNull WriteResult>
       writeConversionErrors(BigQueryWriteOptions options) {
     return withPartitioning(
-        options, tableId(CONVERSION_ERRORS_TABLE_ID_PREFIX), OBSERVED_TIME_PARTITIONING);
+        options, tableIdFrom(CONVERSION_ERRORS_TABLE_ID_PREFIX), OBSERVED_TIME_PARTITIONING);
   }
 
   public static PTransform<
           @NonNull PCollection<Row>, @NonNull WriteResult>
       dataflowJobExecutionDetails(BigQueryWriteOptions options) {
-    return withPartitioning(options, tableId(JOB_EXECUTION_DETAILS), ENRICHED_TIME_PARTITIONING);
+    return withPartitioning(options, tableIdFrom(JOB_EXECUTION_DETAILS), ENRICHED_TIME_PARTITIONING);
   }
 
   public static PTransform<
           @NonNull PCollection<DataflowRequestError<String>>,
           @NonNull WriteResult>
       dataflowGetJobExecutionDetailsErrors(BigQueryWriteOptions options) {
-    return writeDataflowRequestErrors(options, tableId(JOB_EXECUTION_DETAILS_ERRORS));
+    return writeDataflowRequestErrors(options, tableIdFrom(JOB_EXECUTION_DETAILS_ERRORS));
   }
 
   public static PTransform<
           @NonNull PCollection<Row>, @NonNull WriteResult>
       dataflowJobMetrics(BigQueryWriteOptions options) {
-    return withPartitioning(options, tableId(JOB_METRICS), ENRICHED_TIME_PARTITIONING);
+    return withPartitioning(options, tableIdFrom(JOB_METRICS), ENRICHED_TIME_PARTITIONING);
   }
 
   public static PTransform<
           @NonNull PCollection<DataflowRequestError<String>>, @NonNull WriteResult>
       dataflowGetJobMetricsErrors(BigQueryWriteOptions options) {
-    return writeDataflowRequestErrors(options, tableId(JOB_METRICS_ERRORS));
+    return writeDataflowRequestErrors(options, tableIdFrom(JOB_METRICS_ERRORS));
   }
 
   public static PTransform<@NonNull PCollection<Row>, @NonNull WriteResult> dataflowJobs(
       BigQueryWriteOptions options) {
     return withPartitioningAndOptionalClustering(
-        options, tableId(JOBS), JOB_TIME_PARTITIONING, JOB_CLUSTERING);
+        options, tableIdFrom(JOBS), JOB_TIME_PARTITIONING, JOB_CLUSTERING);
   }
 
   public static PTransform<
           @NonNull PCollection<DataflowRequestError<String>>, @NonNull WriteResult>
       dataflowGetJobsErrors(BigQueryWriteOptions options) {
-    return writeDataflowRequestErrors(options, tableId(JOB_ERRORS));
+    return writeDataflowRequestErrors(options, tableIdFrom(JOB_ERRORS));
   }
 
   public static PTransform<
           @NonNull PCollection<Row>, @NonNull WriteResult>
       dataflowStageExecutionDetails(BigQueryWriteOptions options) {
-    return withPartitioning(options, tableId(STAGE_EXECUTION_DETAILS), ENRICHED_TIME_PARTITIONING);
+    return withPartitioning(options, tableIdFrom(STAGE_EXECUTION_DETAILS), ENRICHED_TIME_PARTITIONING);
   }
 
   public static PTransform<
           @NonNull PCollection<DataflowRequestError<String>>,
           @NonNull WriteResult>
       dataflowGetStageExecutionDetailsErrors(BigQueryWriteOptions options) {
-    return writeDataflowRequestErrors(options, tableId(STAGE_EXECUTION_DETAILS_REQUESTS_ERRORS));
+    return writeDataflowRequestErrors(options, tableIdFrom(STAGE_EXECUTION_DETAILS_REQUESTS_ERRORS));
   }
 
   private static
       PTransform<@NonNull PCollection<DataflowRequestError<String>>, @NonNull WriteResult>
           writeDataflowRequestErrors(BigQueryWriteOptions options, String tableIdPrefix) {
-    return withPartitioning(options, tableId(tableIdPrefix), OBSERVED_TIME_PARTITIONING);
+    return withPartitioning(options, tableIdFrom(tableIdPrefix), OBSERVED_TIME_PARTITIONING);
   }
 
-  private static String tableId(String prefix) {
+  public static String tableIdFrom(String prefix) {
     return String.format("%s_%s", prefix, Instant.now().getEpochSecond());
   }
 
@@ -146,7 +138,7 @@ public class BigQueryWrites {
     return withPartitioningAndOptionalClustering(options, tableId, timePartitioning, null);
   }
 
-  private static <T>
+  public static <T>
       PTransform<@NonNull PCollection<T>, @NonNull WriteResult>
           withPartitioningAndOptionalClustering(
               BigQueryWriteOptions options,

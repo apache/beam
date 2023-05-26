@@ -86,6 +86,43 @@ public class ReadDataflowApiWriteBigQuery {
     pipeline.run();
   }
 
+  private static <ConversionSourceT extends GeneratedMessageV3, RequestT extends GeneratedMessageV3> void writeErrors(
+      Class<ConversionSourceT> conversionSourceTClass,
+      Class<RequestT> requestTClass,
+      PCollection<ConversionError<ConversionSourceT>> conversionErrors,
+      String requestErrorTableIdPrefix,
+      PCollection<DataflowRequestError<RequestT>> requestErrors,
+      Options options
+  ) {
+
+    DataflowClientFactoryConfiguration configuration =
+        DataflowClientFactoryConfiguration.builder(options).build();
+
+    PCollection<ConversionError<String>> conversionErrorsToString = conversionErrors.apply(
+        tagOf(ConversionErrorsToString.class, conversionSourceTClass),
+        ConversionErrorsToString.create()
+    );
+
+    PCollection<DataflowRequestError<String>> requestErrorsToString = requestErrors.apply(
+        tagOf(DataflowRequestErrorsToString.class, requestTClass),
+        DataflowRequestErrorsToString.create()
+    );
+
+    conversionErrorsToString.apply(
+        tagOf(BigQueryWrites.class, conversionSourceTClass),
+        BigQueryWrites.writeConversionErrors(options)
+    );
+
+    requestErrorsToString.apply(
+        BigQueryWrites.withPartitioningAndOptionalClustering(
+            options,
+            BigQueryWrites.tableIdFrom(requestErrorTableIdPrefix),
+
+        )
+    );
+
+  }
+
   private static PCollection<Job> getJobs(Pipeline pipeline, Options options) {
     DataflowClientFactoryConfiguration configuration =
         DataflowClientFactoryConfiguration.builder(options).build();
