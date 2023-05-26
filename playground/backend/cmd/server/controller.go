@@ -69,11 +69,17 @@ type playgroundController struct {
 
 // RunCode is running code from requests using a particular SDK
 //   - In case of incorrect sdk returns codes.InvalidArgument
+//   - In case of exceeded number of parallel jobs returns codes.ResourceExhausted
 //   - In case of error during preparing files/folders returns codes.Internal
 //   - In case of no errors saves playground.Status_STATUS_EXECUTING as cache.Status into cache and sets expiration time
 //     for all cache values which will be saved into cache during processing received code.
 //     Returns id of code processing (pipelineId)
 func (controller *playgroundController) RunCode(ctx context.Context, info *pb.RunCodeRequest) (*pb.RunCodeResponse, error) {
+	// check if we can take a new RunCode request
+	if !utils.CheckNumOfTheParallelJobs(controller.env.ApplicationEnvs.WorkingDir(), controller.env.BeamSdkEnvs.NumOfParallelJobs()) {
+		logger.Warnf("RunCode(): number of parallel jobs is exceeded\n")
+		return nil, cerrors.ResourceExhaustedError("Error during preparing", "Number of parallel jobs is exceeded")
+	}
 	// check for correct sdk
 	if info.Sdk != controller.env.BeamSdkEnvs.ApacheBeamSdk {
 		logger.Errorf("RunCode(): request contains incorrect sdk: %s\n", info.Sdk)
