@@ -15,7 +15,7 @@
 
 // beam-playground:
 //   name: text-io-gcs-read
-//   description: TextIO GCS read example.
+//   description: TextIO GCS read example DUMMY CHANGE.
 //   multifile: false
 //   context_line: 29
 //   categories:
