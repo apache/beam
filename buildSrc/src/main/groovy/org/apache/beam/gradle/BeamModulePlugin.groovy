@@ -2498,7 +2498,6 @@ class BeamModulePlugin implements Plugin<Project> {
             "suite": config.name,
             "collect": config.collectMarker,
           ]
-          System.err.println 'PYTHON SDK LOCATION: ' + project.ext.sdkLocation
           def cmdArgs = project.project(':sdks:python').mapToArgString(beamPythonTestPipelineOptions)
 
           project.exec {
