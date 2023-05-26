@@ -261,7 +261,7 @@ class ReadFromBigtable(PTransform):
     self._project_id = project_id
     self._expansion_service = (
         expansion_service or BeamJarExpansionService(
-      'sdks:java:io:google-cloud-platform:expansion-service:build'))
+            'sdks:java:io:google-cloud-platform:expansion-service:build'))
     self.schematransform_config = SchemaAwareExternalTransform.discover_config(
         self._expansion_service, self.URN)
 
