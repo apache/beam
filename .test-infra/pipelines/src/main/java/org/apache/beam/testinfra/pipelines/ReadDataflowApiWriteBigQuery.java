@@ -28,14 +28,20 @@ import com.google.dataflow.v1beta3.Job;
 import com.google.events.cloud.dataflow.v1beta3.JobState;
 import com.google.events.cloud.dataflow.v1beta3.JobType;
 import java.time.Instant;
+import java.util.Arrays;
+import java.util.stream.Collectors;
+
+import com.google.protobuf.GeneratedMessageV3;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
+import org.apache.beam.sdk.io.gcp.bigquery.WriteResult;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Flatten;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.WithFailures;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
@@ -75,74 +81,12 @@ public class ReadDataflowApiWriteBigQuery {
     Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
     Pipeline pipeline = Pipeline.create(options);
 
-    // Use earlier retrieved Jobs to retrieve metrics.
-    DataflowReadResult<JobMetricsWithAppendedDetails, DataflowRequestError<GetJobMetricsRequest>>
-        getJobsMetricsResult =
-        getJobsResult
-            .getSuccess()
-            .apply(
-                tagOf(DataflowGetJobMetrics.class),
-                DataflowGetJobMetrics.create(configuration)
-            );
-
-    // Use earlier retrieved Jobs to retrieve execution details.
-    DataflowReadResult<StageSummaryWithAppendedDetails, DataflowRequestError<GetJobExecutionDetailsRequest>>
-        getJobExecutionDetailsResult =
-        getJobsResult
-            .getSuccess()
-            .apply(
-                tagOf(DataflowGetJobExecutionDetails.class),
-                DataflowGetJobExecutionDetails.create(configuration)
-            );
-
-    // Use earlier retrieved Jobs to retrieve worker details.
-    DataflowReadResult<WorkerDetailsWithAppendedDetails, DataflowReadResult<>>
-
-    // Convert Job Metrics to Rows.
-    RowConversionResult<JobMetricsWithAppendedDetails>
-        metricsToRowsResult = getJobsMetricsResult.getSuccess()
-        .apply(
-            tagOf(WithAppendedDetailsToRow.class, "Metrics"),
-            WithAppendedDetailsToRow.jobMetricsWithAppendedDetailsToRow()
-        );
-
-    events.failures().apply(
-        tagOf(BigQueryWrites.class, "writeConversionErrors"),
-        BigQueryWrites.writeConversionErrors(options)
-    );
-
-    getJobsResult.getFailure()
-        .apply(
-            tagOf(DataflowRequestErrorsToString.class, "GetJobRequest"),
-            DataflowRequestErrorsToString.create())
-        .apply(
-            tagOf(BigQueryWrites.class, "GetJobRequests Errors"),
-            BigQueryWrites.dataflowGetJobsErrors(options));
-
-    jobsToRowResult.getFailure()
-        .apply(
-            tagOf(ConversionErrorsToString.class, "ConversionError<Job>"),
-            ConversionErrorsToString.create()
-        )
-        .apply(
-            tagOf(BigQueryWrites.class, "ConversionError<Job>"),
-            BigQueryWrites.writeConversionErrors(options)
-        );
-
-     getJobsMetricsResult.getFailure()
-         .apply(
-             tagOf(DataflowRequestErrorsToString.class, "GetJobMetrics Errors"),
-             DataflowRequestErrorsToString.create()
-         )
-         .apply(
-             tagOf(BigQueryWrites.class, "GetJobMetrics Errors"),
-             BigQueryWrites.dataflowGetJobMetricsErrors(options)
-         );
+    PCollection<Job> jobs = getJobs(pipeline, options);
 
     pipeline.run();
   }
 
-  private static PCollection<Job> jobs(Pipeline pipeline, Options options) {
+  private static PCollection<Job> getJobs(Pipeline pipeline, Options options) {
     DataflowClientFactoryConfiguration configuration =
         DataflowClientFactoryConfiguration.builder(options).build();
 
@@ -196,7 +140,7 @@ public class ReadDataflowApiWriteBigQuery {
     // Call the Dataflow GetJobs endpoint.
     DataflowReadResult<Job, DataflowRequestError<GetJobRequest>> getJobsResult =
         getJobRequests.apply(
-            tagOf(DataflowGetJobs.class),
+            tagOf(DataflowGetJobs.class, "Read"),
             DataflowGetJobs.create(configuration));
 
     // Convert Jobs to Rows.
@@ -216,27 +160,50 @@ public class ReadDataflowApiWriteBigQuery {
     return getJobsResult.getSuccess();
   }
 
-  private static void metrics(PCollection<Job> jobs, Options options) {
-    DataflowClientFactoryConfiguration configuration =
-        DataflowClientFactoryConfiguration.builder(options).build();
+  private static <RequestT, ResultT, EmbeddedT extends GeneratedMessageV3> void jobDetails(
+          Class<RequestT> requestTClass,
+          Class<ResultT> resultTClass,
+          PCollection<Job> jobs,
+          PTransform<PCollection<Job>, PCollection<RequestT>> jobToRequestTransform,
+          PTransform<PCollection<RequestT>, DataflowReadResult<ResultT, DataflowRequestError<RequestT>>> getDetails,
+          PTransform<PCollection<ResultT>, RowConversionResult<ResultT>> detailsToRowTransform,
+          PTransform<@NonNull PCollection<Row>, @NonNull WriteResult> bigQueryWriteTransform) {
 
+      // Convert request for details from Jobs.
+      PCollection<RequestT> requests = jobs.apply(
+              tagOf(jobToRequestTransform.getClass(), requestTClass),
+              jobToRequestTransform
+      );
 
+      // Call the Dataflow API to get more Job details.
+      DataflowReadResult<ResultT, DataflowRequestError<RequestT>> readResult = requests.apply(
+              tagOf(getDetails.getClass(), resultTClass),
+              getDetails
+      );
+
+      // Convert the Job details result to Beam Rows.
+      RowConversionResult<ResultT> toRowResult = readResult.getSuccess().apply(
+              tagOf(detailsToRowTransform.getClass(), resultTClass),
+              detailsToRowTransform
+      );
+
+      // Write result to BigQuery.
+      toRowResult.getSuccess().apply(
+              tagOf(bigQueryWriteTransform.getClass(), resultTClass),
+              bigQueryWriteTransform
+      );
+
+      // Write Dataflow API request errors to BigQuery.
   }
 
-  private static void executionDetails(PCollection<Job> jobs, Options options) {
-    DataflowClientFactoryConfiguration configuration =
-        DataflowClientFactoryConfiguration.builder(options).build();
-
-
-  }
-
-  private static void stageExecutionDetails(PCollection<Job> jobs) {
-    DataflowClientFactoryConfiguration configuration =
-        DataflowClientFactoryConfiguration.builder(options).build();
-
-
-  }
   private static String tagOf(Class<?> clazz, String... addl) {
     return clazz.getSimpleName() + " " + String.join(" ", addl);
+  }
+
+  private static String tagOf(Class<?> clazz, Class<?>... addl) {
+      return String.join(" ", ImmutableList.<String>builder()
+                      .add(clazz.getSimpleName())
+                      .addAll(Arrays.stream(addl).map(Class::getSimpleName).collect(Collectors.toList()))
+              .build());
   }
 }
