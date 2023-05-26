@@ -41,6 +41,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
+import org.apache.beam.sdk.extensions.avro.coders.AvroGenericCoder;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoDomain;
@@ -665,8 +666,8 @@ public class PubsubIO {
    * by the schema-transform library.
    */
   public static Read<GenericRecord> readAvroGenericRecords(org.apache.avro.Schema avroSchema) {
+    AvroCoder<GenericRecord> coder = AvroGenericCoder.of(avroSchema);
     Schema schema = AvroUtils.getSchema(GenericRecord.class, avroSchema);
-    AvroCoder<GenericRecord> coder = AvroCoder.of(GenericRecord.class, avroSchema);
     return Read.newBuilder(parsePayloadUsingCoder(coder))
         .setCoder(
             SchemaCoder.of(
@@ -685,23 +686,12 @@ public class PubsubIO {
    * by the schema-transform library.
    */
   public static <T> Read<T> readAvrosWithBeamSchema(Class<T> clazz) {
-    return readAvrosWithBeamSchema(clazz, AvroCoder.of(clazz));
-  }
-
-  /**
-   * Returns a {@link PTransform} that continuously reads binary encoded Avro messages of the
-   * specific type.
-   *
-   * <p>Beam will infer a schema for the Avro schema. This allows the output to be used by SQL and
-   * by the schema-transform library.
-   */
-  @Experimental(Kind.SCHEMAS)
-  public static <T> Read<T> readAvrosWithBeamSchema(Class<T> clazz, AvroCoder<T> coder) {
     if (clazz.equals(GenericRecord.class)) {
       throw new IllegalArgumentException("For GenericRecord, please call readAvroGenericRecords");
     }
+    AvroCoder<T> coder = AvroCoder.of(clazz);
     org.apache.avro.Schema avroSchema = coder.getSchema();
-    Schema schema = AvroUtils.getSchema(clazz, null);
+    Schema schema = AvroUtils.getSchema(clazz, avroSchema);
     return Read.newBuilder(parsePayloadUsingCoder(coder))
         .setCoder(
             SchemaCoder.of(
