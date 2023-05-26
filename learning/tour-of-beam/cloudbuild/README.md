@@ -17,7 +17,7 @@
 
 # Tour of Beam Cloud Build Setup
 
-This directory organizes Infrastructure-as-Code to provision dependent resources and set up Cloud Build for automated Tour of Beam Backend Infrastructure provisioning.
+This directory organizes Infrastructure-as-Code to provision dependent resources and set up Cloud Build for automated Tour of Beam Backend Infrastructure provisioning, Backend and frontend deployment.
 
 ## Requirements:
 
@@ -33,15 +33,16 @@ This directory organizes Infrastructure-as-Code to provision dependent resources
    - Service Usage Admin
    - Storage Admin
    - Kubernetes Engine Cluster Viewer
-   - Secret Manager Secret Accessor
-   - Secret Manager Secret Viewer
+   - Secret Manager Admin
    - Cloud Build Editor
 
 4. [Google Cloud Storage buckets](https://cloud.google.com/storage/docs/creating-buckets) for:
-- Terraform state for Cloud Build triggers: \<tourofbeam-triggers-tfstate\>
+- Terraform state for Cloud Build triggers: \<tourofbeam-triggers-state\>
 - Cloud Build private logs: \<tourofbeam-cb-private-logs\>
 - Cloud Build public logs: \<tourofbeam-cb-public-logs\>. Don't enforce public access prevention on this bucket.
-- Terraform state for Tour of Beam deployment: \<tourofbeam-deployment-tfstate\>
+- Terraform state for Tour of Beam deployment: \<tourofbeam-deployment-state\>
+
+It's advised to add environment name to the bucket name to avoid collisions with other environments.
 
 5. An OS with the following software installed:
 
@@ -52,21 +53,35 @@ This directory organizes Infrastructure-as-Code to provision dependent resources
 
 DEV NOTE: GCP Cloud shell can be used for deployment. It has all required software pre-installed.
 
-6. Additionaly for manual Frontend deployment you will need:
-* [Flutter (3.7.3 >)](https://docs.flutter.dev/get-started/install)
-* [Dart SDK (2.19.2)](https://dart.dev/get-dart)
-* [Firebase-tools CLI](https://www.npmjs.com/package/firebase-tools)
-
-7. [Apache Beam GitHub](https://github.com/apache/beam) repository cloned locally
+6. [Apache Beam GitHub](https://github.com/apache/beam) repository cloned locally
 
 # Prepare deployment configuration
 
 1. Generate a Terraform variable file called `beam/learning/tour-of-beam/cloudbuild/common.tfvars`. Place the values listed below into the file, adjusting them as needed:
 
-tourofbeam_deploy_sa   = "tourofbeam-cb-deploy"                 # Service account for Initialize-Playground-environment trigger
-tourofbeam_update_sa   = "tourofbeam-cb-update"                 # Service account for Deploy-Update-Playground-environment trigger
-tourofbeam_ci_sa       = "tourofbeam-cb-ci"                     # Service account for CI trigger
-tourofbeam_cd_sa       = "tourofbeam-cb-cd"                     # Service account for CD trigger
+project_id                          = "apache-beam-testing"      # GCP project ID
+tourofbeam_deploy_sa                = "tourofbeam-cb-deploy-env" # Service account for Initialize-Playground-environment trigger
+tourofbeam_ci_sa                    = "tourofbeam-cb-ci-env"     # Service account for CI trigger
+tourofbeam_cd_sa                    = "tourofbeam-cb-cd-env"     # Service account for CD trigger
+environment_name                    = "env"                      # Environment name
+playground_dns_name                 = "fqdn.beam.apache.org"     # Playground DNS name
+pg_region                           = "us-west1"                 # Playground region
+pg_gke_zone                         = "us-west1-a"               # Playground GKE zone
+pg_gke_name                         = "cluster_name"             # Playground GKE cluster name
+pg_datastore_namespace              = "env"                      # Playground Datastore namespace name 
+tourofbeam_deployment_state_bucket  = "tourofbeam-deployment-state-env"     # Bucket for Terraform state for deployment
+webhook_trigger_secret_id           = "secret-cloudbuild-triggers-webhook"  # Secret ID for webhook trigger
+gh_pat_secret_id                    = "github_pat_playground_deployment"    # Secret ID for GitHub PAT
+tourofbeam_deploy_trigger_name = "TourOfBeam-Deploy-Update-env"             # Trigger name for deployment trigger
+tourofbeam_ci_trigger_name = "TourOfBeam-CI-env"                            # Trigger name for CI trigger
+tourofbeam_cd_trigger_name = "TourOfBeam-CD-env"                            # Trigger name for CD trigger
+tourofbeam_cb_private_bucket = "tourofbeam-cb-private-logs-env"             # Bucket for Cloud Build private logs
+tourofbeam_cb_public_bucket = "tourofbeam-cb-public-logs-env"               # Bucket for Cloud Build public logs 
+web_app_id = "Tour-Of-Beam"                                                 # Web app ID
+firebase_token_secret_id = "tourofbeam-firebase-token-env"                  # Secret ID for Firebase token
+data_for_firebase_token_secret = "firebase token string"                    # Data for Firebase token secret
+
+If you plan to have only one environment, you can use simple resource names like `tourofbeam-deployment-state` or `tourofbeam-cb-private-logs` instead of `tourofbeam-deployment-state-env` or `tourofbeam-cb-private-logs-env`. But if you plan to have multiple environments, it's advised to add environment name to the resource name to avoid collisions with other environments.
 
 
 ## 1. Set up the Google Cloud Build for your GCP project
