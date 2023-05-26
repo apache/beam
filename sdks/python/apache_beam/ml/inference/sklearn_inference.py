@@ -90,6 +90,7 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
       inference_fn: NumpyInferenceFn = _default_numpy_inference_fn,
       min_batch_size: Optional[int] = None,
       max_batch_size: Optional[int] = None,
+      large_model: bool = False,
       **kwargs):
     """ Implementation of the ModelHandler interface for scikit-learn
     using numpy arrays as input.
@@ -110,6 +111,10 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
       max_batch_size: the maximum batch size to use when batching inputs. This
         batch will be fed into the inference_fn as a Sequence of Numpy
         ndarrays.
+      large_model: set to true if your model is large enough to run into
+        memory pressure if you load multiple copies. Given a model that
+        consumes N memory and a machine with W cores and M memory, you should
+        set this to True if N*W > M.
       kwargs: 'env_vars' can be used to set environment variables
         before loading the model.
     """
@@ -122,6 +127,7 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
     if max_batch_size is not None:
       self._batching_kwargs['max_batch_size'] = max_batch_size
     self._env_vars = kwargs.get('env_vars', {})
+    self._large_model = large_model
 
   def load_model(self) -> BaseEstimator:
     """Loads and initializes a model for processing."""
@@ -174,6 +180,9 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
   def batch_elements_kwargs(self):
     return self._batching_kwargs
 
+  def share_model_across_processes(self) -> bool:
+    return self._large_model
+
 
 PandasInferenceFn = Callable[
     [BaseEstimator, Sequence[pandas.DataFrame], Optional[Dict[str, Any]]], Any]
@@ -203,6 +212,7 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
       inference_fn: PandasInferenceFn = _default_pandas_inference_fn,
       min_batch_size: Optional[int] = None,
       max_batch_size: Optional[int] = None,
+      large_model: bool = False,
       **kwargs):
     """Implementation of the ModelHandler interface for scikit-learn that
     supports pandas dataframes.
@@ -226,6 +236,10 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
       max_batch_size: the maximum batch size to use when batching inputs. This
         batch will be fed into the inference_fn as a Sequence of Pandas
         Dataframes.
+      large_model: set to true if your model is large enough to run into
+        memory pressure if you load multiple copies. Given a model that
+        consumes N memory and a machine with W cores and M memory, you should
+        set this to True if N*W > M.
       kwargs: 'env_vars' can be used to set environment variables
         before loading the model.
     """
@@ -238,6 +252,7 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
     if max_batch_size is not None:
       self._batching_kwargs['max_batch_size'] = max_batch_size
     self._env_vars = kwargs.get('env_vars', {})
+    self._large_model = large_model
 
   def load_model(self) -> BaseEstimator:
     """Loads and initializes a model for processing."""
@@ -291,3 +306,6 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
 
   def batch_elements_kwargs(self):
     return self._batching_kwargs
+
+  def share_model_across_processes(self) -> bool:
+    return self._large_model

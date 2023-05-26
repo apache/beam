@@ -26,7 +26,7 @@ Alternatively, you can automate Playground environment deployment with Cloud Bui
 1. [GCP project](https://cloud.google.com/resource-manager/docs/creating-managing-projects)
 
 2. [GCP User account](https://cloud.google.com/appengine/docs/standard/access-control?tab=python) _(Note: You will find the instruction "How to create User account" for your new project)_<br>
-Ensure that the account has at least following privileges:
+Ensure that the account has at least the following  [IAM roles](https://cloud.google.com/iam/docs/understanding-roles):
    - App Engine Admin
    - App Engine Creator
    - Artifact Registry Administrator

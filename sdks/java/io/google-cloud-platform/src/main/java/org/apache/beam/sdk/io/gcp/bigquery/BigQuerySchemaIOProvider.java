@@ -201,7 +201,8 @@ public class BigQuerySchemaIOProvider implements SchemaIOProvider {
                   .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND);
 
           final Boolean autoSharding = config.getBoolean("autoSharding");
-          if (autoSharding != null && autoSharding) {
+          // use default value true for autoSharding if not configured for STORAGE_WRITE_API
+          if (autoSharding == null || autoSharding) {
             write = write.withAutoSharding();
           }
 

@@ -43,6 +43,8 @@ public class SamzaTransformMetrics implements Serializable {
   private static final String TRANSFORM_IP_THROUGHPUT = "num-input-messages";
   private static final String TRANSFORM_OP_THROUGHPUT = "num-output-messages";
 
+  private static final String TRANSFORM_ARRIVAL_TIME_CACHE_SIZE = "in-mem-cache-size";
+
   // Transform name to metric maps
   @SuppressFBWarnings("SE_BAD_FIELD")
   private final Map<String, Timer> transformLatency;
@@ -56,11 +58,15 @@ public class SamzaTransformMetrics implements Serializable {
   @SuppressFBWarnings("SE_BAD_FIELD")
   private final Map<String, Counter> transformOutputThroughPut;
 
+  @SuppressFBWarnings("SE_BAD_FIELD")
+  private final Map<String, Gauge<Long>> transformCacheSize;
+
   public SamzaTransformMetrics() {
     this.transformLatency = new ConcurrentHashMap<>();
     this.transformOutputThroughPut = new ConcurrentHashMap<>();
     this.transformWatermarkProgress = new ConcurrentHashMap<>();
     this.transformInputThroughput = new ConcurrentHashMap<>();
+    this.transformCacheSize = new ConcurrentHashMap<>();
   }
 
   public void register(String transformName, Context ctx) {
@@ -91,6 +97,14 @@ public class SamzaTransformMetrics implements Serializable {
         transformName,
         metricsRegistry.newCounter(
             GROUP, getMetricNameWithPrefix(TRANSFORM_IP_THROUGHPUT, transformName)));
+    transformCacheSize.putIfAbsent(
+        transformName,
+        ctx.getTaskContext()
+            .getTaskMetricsRegistry()
+            .newGauge(
+                GROUP,
+                getMetricNameWithPrefix(TRANSFORM_ARRIVAL_TIME_CACHE_SIZE, transformName),
+                0L));
   }
 
   public Timer getTransformLatencyMetric(String transformName) {
@@ -103,6 +117,10 @@ public class SamzaTransformMetrics implements Serializable {
 
   public Counter getTransformOutputThroughput(String transformName) {
     return transformOutputThroughPut.get(transformName);
+  }
+
+  public Gauge<Long> getTransformCacheSize(String transformName) {
+    return transformCacheSize.get(transformName);
   }
 
   public Gauge<Long> getTransformWatermarkProgress(String transformName) {
