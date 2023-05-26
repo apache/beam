@@ -34,19 +34,19 @@ import java.util.Set;
 import org.checkerframework.checker.nullness.qual.NonNull;
 
 class DependencyDrivenDescriptorQueue implements Iterable<Descriptor>, Comparator<Descriptor> {
-  private final Map<@NonNull String, @NonNull Descriptor> DESCRIPTOR_MAP = new HashMap<>();
-  private final Map<@NonNull String, @NonNull Set<String>> DEPENDENCY_MAP = new HashMap<>();
+  private final Map<@NonNull String, @NonNull Descriptor> descriptorMap = new HashMap<>();
+  private final Map<@NonNull String, @NonNull Set<String>> dependencyMap = new HashMap<>();
 
-  private final Map<@NonNull String, @NonNull Integer> MESSAGE_FIELD_COUNTS = new HashMap<>();
+  private final Map<@NonNull String, @NonNull Integer> messageFieldCounts = new HashMap<>();
 
   void enqueue(@NonNull Descriptor descriptor) {
     List<@NonNull Descriptor> descriptorStack = new ArrayList<>();
     descriptorStack.add(descriptor);
     while (!descriptorStack.isEmpty()) {
       Descriptor fromStack = descriptorStack.remove(0);
-      if (DESCRIPTOR_MAP.containsKey(fromStack.getFullName())) {
-        checkState(DEPENDENCY_MAP.containsKey(fromStack.getFullName()));
-        checkState(MESSAGE_FIELD_COUNTS.containsKey(fromStack.getFullName()));
+      if (descriptorMap.containsKey(fromStack.getFullName())) {
+        checkState(dependencyMap.containsKey(fromStack.getFullName()));
+        checkState(messageFieldCounts.containsKey(fromStack.getFullName()));
         continue;
       }
       int messageFieldCounts = 0;
@@ -56,40 +56,40 @@ class DependencyDrivenDescriptorQueue implements Iterable<Descriptor>, Comparato
         }
         messageFieldCounts++;
         Descriptor fieldDescriptor = field.getMessageType();
-        if (!DEPENDENCY_MAP.containsKey(fieldDescriptor.getFullName())) {
-          DEPENDENCY_MAP.put(fieldDescriptor.getFullName(), new HashSet<>());
+        if (!dependencyMap.containsKey(fieldDescriptor.getFullName())) {
+          dependencyMap.put(fieldDescriptor.getFullName(), new HashSet<>());
         }
-        Set<String> dependents = DEPENDENCY_MAP.get(fieldDescriptor.getFullName());
+        Set<String> dependents = dependencyMap.get(fieldDescriptor.getFullName());
         dependents.add(descriptor.getFullName());
         descriptorStack.add(fieldDescriptor);
       }
-      DESCRIPTOR_MAP.put(fromStack.getFullName(), fromStack);
-      MESSAGE_FIELD_COUNTS.put(fromStack.getFullName(), messageFieldCounts);
-      if (!DEPENDENCY_MAP.containsKey(fromStack.getFullName())) {
-        DEPENDENCY_MAP.put(fromStack.getFullName(), new HashSet<>());
+      descriptorMap.put(fromStack.getFullName(), fromStack);
+      this.messageFieldCounts.put(fromStack.getFullName(), messageFieldCounts);
+      if (!dependencyMap.containsKey(fromStack.getFullName())) {
+        dependencyMap.put(fromStack.getFullName(), new HashSet<>());
       }
     }
   }
 
   @Override
   public Iterator<Descriptor> iterator() {
-    return DESCRIPTOR_MAP.values().stream().sorted(this).iterator();
+    return descriptorMap.values().stream().sorted(this).iterator();
   }
 
   @Override
   public int compare(@NonNull Descriptor a, @NonNull Descriptor b) {
     boolean aDependsOnB =
-        checkStateNotNull(DEPENDENCY_MAP.get(b.getFullName())).contains(a.getFullName());
+        checkStateNotNull(dependencyMap.get(b.getFullName())).contains(a.getFullName());
     boolean bDependsOnA =
-        checkStateNotNull(DEPENDENCY_MAP.get(a.getFullName())).contains(b.getFullName());
+        checkStateNotNull(dependencyMap.get(a.getFullName())).contains(b.getFullName());
     if (aDependsOnB) {
       return 1;
     }
     if (bDependsOnA) {
       return -1;
     }
-    Integer aMessageFieldCount = checkStateNotNull(MESSAGE_FIELD_COUNTS.get(a.getFullName()));
-    Integer bMessageFieldCount = checkStateNotNull(MESSAGE_FIELD_COUNTS.get(b.getFullName()));
+    Integer aMessageFieldCount = checkStateNotNull(messageFieldCounts.get(a.getFullName()));
+    Integer bMessageFieldCount = checkStateNotNull(messageFieldCounts.get(b.getFullName()));
     return aMessageFieldCount.compareTo(bMessageFieldCount);
   }
 }

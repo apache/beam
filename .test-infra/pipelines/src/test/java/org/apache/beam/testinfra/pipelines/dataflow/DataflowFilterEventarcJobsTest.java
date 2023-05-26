@@ -58,6 +58,7 @@ class DataflowFilterEventarcJobsTest {
                     .build());
     PAssert.that(
             result.apply(
+                "get job type",
                 MapElements.into(TypeDescriptor.of(JobType.class))
                     .via(job -> checkStateNotNull(job).getType())))
         .satisfies(
@@ -86,12 +87,14 @@ class DataflowFilterEventarcJobsTest {
 
     PAssert.thatSingleton(
             result.apply(
+                "filter batch",
                 MapElements.into(TypeDescriptor.of(JobType.class))
                     .via(job -> checkStateNotNull(job).getType())))
         .isEqualTo(JobType.JOB_TYPE_BATCH);
 
     PAssert.thatSingleton(
             result.apply(
+                "filter done",
                 MapElements.into(TypeDescriptor.of(JobState.class))
                     .via(job -> checkStateNotNull(job).getCurrentState())))
         .isEqualTo(JobState.JOB_STATE_DONE);
@@ -116,12 +119,14 @@ class DataflowFilterEventarcJobsTest {
 
     PAssert.thatSingleton(
             result.apply(
+                "get type",
                 MapElements.into(TypeDescriptor.of(JobType.class))
                     .via(job -> checkStateNotNull(job).getType())))
         .isEqualTo(JobType.JOB_TYPE_STREAMING);
 
     PAssert.thatSingleton(
             result.apply(
+                "get current state",
                 MapElements.into(TypeDescriptor.of(JobState.class))
                     .via(job -> checkStateNotNull(job).getCurrentState())))
         .isEqualTo(JobState.JOB_STATE_CANCELLED);

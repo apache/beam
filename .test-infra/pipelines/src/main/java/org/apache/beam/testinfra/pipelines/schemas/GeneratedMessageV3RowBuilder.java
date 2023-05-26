@@ -34,7 +34,6 @@ import com.google.protobuf.Timestamp;
 import com.google.protobuf.Value;
 import com.google.protobuf.util.JsonFormat;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
@@ -57,16 +56,16 @@ public class GeneratedMessageV3RowBuilder<T extends GeneratedMessageV3> {
     return new GeneratedMessageV3RowBuilder<>(registry, source);
   }
 
-  private static final Map<JavaType, Object> DEFAULT_VALUES = ImmutableMap
-      .<JavaType, Object>builder()
-      .put(JavaType.BOOLEAN, false)
-      .put(JavaType.INT, 0)
-      .put(JavaType.LONG, 0L)
-      .put(JavaType.FLOAT, 0f)
-      .put(JavaType.DOUBLE, 0.0)
-      .put(JavaType.ENUM, "")
-      .put(JavaType.STRING, "")
-      .build();
+  private static final Map<JavaType, Object> DEFAULT_VALUES =
+      ImmutableMap.<JavaType, Object>builder()
+          .put(JavaType.BOOLEAN, false)
+          .put(JavaType.INT, 0)
+          .put(JavaType.LONG, 0L)
+          .put(JavaType.FLOAT, 0f)
+          .put(JavaType.DOUBLE, 0.0)
+          .put(JavaType.ENUM, "")
+          .put(JavaType.STRING, "")
+          .build();
 
   private final ExecutorService threadPool = Executors.newCachedThreadPool();
   private final ListeningExecutorService service = MoreExecutors.listeningDecorator(threadPool);
@@ -142,10 +141,12 @@ public class GeneratedMessageV3RowBuilder<T extends GeneratedMessageV3> {
     FieldDescriptor keyType = checkStateNotNull(mapDescriptor.findFieldByName(KEY_FIELD_NAME));
     FieldDescriptor valueType = checkStateNotNull(mapDescriptor.findFieldByName(VALUE_FIELD_NAME));
     int size = message.getRepeatedFieldCount(fieldDescriptor);
-    Schema messageSchema = checkStateNotNull(schemaRegistry.getSchema(message.getDescriptorForType()));
+    Schema messageSchema =
+        checkStateNotNull(schemaRegistry.getSchema(message.getDescriptorForType()));
     Schema.Field mapField = messageSchema.getField(fieldDescriptor.getName());
     checkState(mapField.getType().getTypeName().equals(TypeName.ARRAY));
-    Schema.FieldType mapEntryFieldType = checkStateNotNull(mapField.getType().getCollectionElementType());
+    Schema.FieldType mapEntryFieldType =
+        checkStateNotNull(mapField.getType().getCollectionElementType());
     checkState(mapEntryFieldType.getTypeName().equals(TypeName.ROW));
     Schema entrySchema = checkStateNotNull(mapEntryFieldType.getRowSchema());
 
@@ -160,10 +161,11 @@ public class GeneratedMessageV3RowBuilder<T extends GeneratedMessageV3> {
       AbstractMessage entry = (AbstractMessage) entryObj;
       Object key = getValue(entry, keyType);
       Object value = getValue(entry, valueType);
-      Row entryRow = Row.withSchema(entrySchema)
-          .withFieldValue(KEY_FIELD_NAME, key)
-          .withFieldValue(VALUE_FIELD_NAME, value)
-          .build();
+      Row entryRow =
+          Row.withSchema(entrySchema)
+              .withFieldValue(KEY_FIELD_NAME, key)
+              .withFieldValue(VALUE_FIELD_NAME, value)
+              .build();
       result.add(entryRow);
     }
     return result;
@@ -206,7 +208,7 @@ public class GeneratedMessageV3RowBuilder<T extends GeneratedMessageV3> {
     } catch (InterruptedException | ExecutionException e) {
       throw new IllegalStateException(
           String.format(
-              "error building Row of %s type for field: %s of %s: %s\n%s",
+              "error building Row of %s type for field: %s of %s: %s %s",
               fieldDescriptor.getMessageType().getFullName(),
               fieldDescriptor.getName(),
               source.getDescriptorForType().getFullName(),

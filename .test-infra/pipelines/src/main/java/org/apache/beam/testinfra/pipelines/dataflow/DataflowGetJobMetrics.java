@@ -40,8 +40,7 @@ import org.joda.time.Instant;
 public class DataflowGetJobMetrics
     extends PTransform<
         @NonNull PCollection<Job>,
-        @NonNull DataflowReadResult<
-            JobMetricsWithAppendedDetails, DataflowRequestError<GetJobMetricsRequest>>> {
+        @NonNull DataflowReadResult<JobMetricsWithAppendedDetails, DataflowRequestError>> {
 
   public static DataflowGetJobMetrics create(DataflowClientFactoryConfiguration configuration) {
     return new DataflowGetJobMetrics(configuration);
@@ -50,8 +49,8 @@ public class DataflowGetJobMetrics
   private static final TupleTag<JobMetricsWithAppendedDetails> SUCCESS =
       new TupleTag<JobMetricsWithAppendedDetails>() {};
 
-  private static final TupleTag<DataflowRequestError<GetJobMetricsRequest>> FAILURE =
-      new TupleTag<DataflowRequestError<GetJobMetricsRequest>>() {};
+  private static final TupleTag<DataflowRequestError> FAILURE =
+      new TupleTag<DataflowRequestError>() {};
 
   private final DataflowClientFactoryConfiguration configuration;
 
@@ -60,9 +59,8 @@ public class DataflowGetJobMetrics
   }
 
   @Override
-  public @NonNull DataflowReadResult<
-          JobMetricsWithAppendedDetails, DataflowRequestError<GetJobMetricsRequest>>
-      expand(PCollection<Job> input) {
+  public @NonNull DataflowReadResult<JobMetricsWithAppendedDetails, DataflowRequestError> expand(
+      PCollection<Job> input) {
 
     PCollectionTuple pct =
         input.apply(
@@ -96,21 +94,21 @@ public class DataflowGetJobMetrics
               .build();
       try {
         JobMetrics response = checkStateNotNull(client).getJobMetrics(request);
+        com.google.protobuf.Timestamp timestamp = job.getCreateTime();
         receiver
             .get(SUCCESS)
             .output(
                 JobMetricsWithAppendedDetails.builder()
                     .setJobId(request.getJobId())
-                    .setJobCreateTime(job.getCreateTime())
+                    .setJobCreateTime(Instant.ofEpochSecond(timestamp.getSeconds()))
                     .setJobMetrics(response)
                     .build());
       } catch (StatusRuntimeException e) {
         receiver
             .get(FAILURE)
             .output(
-                DataflowRequestError.<GetJobMetricsRequest>builder()
+                DataflowRequestError.fromRequest(request, GetJobMetricsRequest.class)
                     .setObservedTime(Instant.now())
-                    .setRequest(request)
                     .setMessage(Optional.ofNullable(e.getMessage()).orElse(""))
                     .setStackTrace(Throwables.getStackTraceAsString(e))
                     .build());

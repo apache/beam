@@ -34,7 +34,9 @@ public class DatasetReferenceOptionValue implements Serializable {
   private static final Pattern DATASET_PATTERN =
       Pattern.compile("^(?<PROJECT>[^\\.:]+)[\\.:](?<DATASET>[^\\.:]+)$");
 
-  private final DatasetReference datasetReference;
+  private final String project;
+
+  private final String dataset;
 
   DatasetReferenceOptionValue(String input) {
     Matcher m = DATASET_PATTERN.matcher(input);
@@ -43,14 +45,11 @@ public class DatasetReferenceOptionValue implements Serializable {
         "input does not match BigQuery dataset pattern, "
             + "expected 'project_id.dataset_id' or 'project_id:dataset_id, got: %s",
         input);
-    String safeProject = checkStateNotNull(m.group("PROJECT"));
-    String safeDataset = checkStateNotNull(m.group("DATASET"));
-
-    this.datasetReference =
-        new DatasetReference().setProjectId(safeProject).setDatasetId(safeDataset);
+    this.project = checkStateNotNull(m.group("PROJECT"));
+    this.dataset = checkStateNotNull(m.group("DATASET"));
   }
 
   public DatasetReference getValue() {
-    return datasetReference;
+    return new DatasetReference().setProjectId(this.project).setDatasetId(this.dataset);
   }
 }

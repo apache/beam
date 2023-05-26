@@ -33,9 +33,7 @@ def jupiterVersion = "5.9.3"
 
 dependencies {
     implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
-    implementation library.java.google_cloud_bigquery
     implementation library.java.google_api_services_bigquery
-    implementation library.java.commons_lang3
     implementation library.java.jackson_annotations
     implementation library.java.jackson_core
     implementation library.java.jackson_databind
@@ -45,11 +43,11 @@ dependencies {
     implementation library.java.protobuf_java
     implementation library.java.protobuf_java_util
     implementation library.java.joda_time
+    implementation library.java.slf4j_api
     implementation "com.google.api.grpc:proto-google-cloud-dataflow-v1beta3:${grpcDataflowProtoVersion}"
     implementation "io.grpc:grpc-api:${ioGrpcApiVersion}"
     implementation "com.google.cloud:google-cloudevent-types:${googleCloudEventsVersion}"
     implementation 'com.google.api.grpc:grpc-google-cloud-dataflow-v1beta3'
-    implementation project(":sdks:java:extensions:avro")
     implementation project(":sdks:java:io:google-cloud-platform")
     implementation project(":sdks:java:extensions:google-cloud-platform-core")
     implementation project(path: ":sdks:java:core", configuration: "shadow")
@@ -59,7 +57,7 @@ dependencies {
     testImplementation(platform("org.junit:junit-bom:${jupiterVersion}"))
     testImplementation('org.junit.jupiter:junit-jupiter')
     testImplementation project(":sdks:java:extensions:google-cloud-platform-core")
-    testImplementation library.java.mockito_core
+    testImplementation library.java.commons_lang3
 }
 
 test {

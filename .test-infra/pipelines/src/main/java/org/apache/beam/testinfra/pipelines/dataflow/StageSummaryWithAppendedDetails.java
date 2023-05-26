@@ -19,7 +19,6 @@ package org.apache.beam.testinfra.pipelines.dataflow;
 
 import com.google.auto.value.AutoValue;
 import com.google.dataflow.v1beta3.StageSummary;
-import com.google.protobuf.Timestamp;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCaseFormat;

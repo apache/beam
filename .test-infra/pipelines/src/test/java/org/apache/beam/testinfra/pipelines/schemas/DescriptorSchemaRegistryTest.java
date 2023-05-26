@@ -36,6 +36,9 @@ class DescriptorSchemaRegistryTest {
 
   @Test
   void build_Job() {
+    Schema mapSchema =
+        Schema.of(
+            Schema.Field.of("key", FieldType.STRING), Schema.Field.of("value", FieldType.STRING));
     Schema schema = REGISTRY.getOrBuild(Job.getDescriptor());
     assertEquals(Schema.Field.of("id", FieldType.STRING), schema.getField("id"));
     assertEquals(Schema.Field.of("type", FieldType.STRING), schema.getField("type"));
@@ -54,12 +57,10 @@ class DescriptorSchemaRegistryTest {
                             FieldType.row(
                                 Schema.of(
                                     Schema.Field.of(
-                                        "fields",
-                                        FieldType.map(FieldType.STRING, FieldType.STRING))))))))),
+                                        "fields", FieldType.array(FieldType.row(mapSchema)))))))))),
         schema.getField("steps"));
     assertEquals(
-        Schema.Field.of(
-            "transform_name_mapping", FieldType.map(FieldType.STRING, FieldType.STRING)),
+        Schema.Field.of("transform_name_mapping", FieldType.array(FieldType.row(mapSchema))),
         schema.getField("transform_name_mapping"));
     assertEquals(
         Schema.Field.of(

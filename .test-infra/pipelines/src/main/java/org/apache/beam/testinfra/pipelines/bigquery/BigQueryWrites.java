@@ -64,7 +64,7 @@ public class BigQueryWrites {
 
   public static final String STAGE_EXECUTION_DETAILS = "stage_execution_details";
 
-  public static final String STAGE_EXECUTION_DETAILS_REQUESTS_ERRORS =
+  public static final String STAGE_EXECUTION_DETAILS_ERRORS =
       "stage_execution_details_requests_errors";
 
   public static PTransform<@NonNull PCollection<ConversionError<String>>, @NonNull WriteResult>
@@ -73,27 +73,23 @@ public class BigQueryWrites {
         options, tableIdFrom(CONVERSION_ERRORS_TABLE_ID_PREFIX), OBSERVED_TIME_PARTITIONING);
   }
 
-  public static PTransform<
-          @NonNull PCollection<Row>, @NonNull WriteResult>
+  public static PTransform<@NonNull PCollection<Row>, @NonNull WriteResult>
       dataflowJobExecutionDetails(BigQueryWriteOptions options) {
-    return withPartitioning(options, tableIdFrom(JOB_EXECUTION_DETAILS), ENRICHED_TIME_PARTITIONING);
+    return withPartitioning(
+        options, tableIdFrom(JOB_EXECUTION_DETAILS), ENRICHED_TIME_PARTITIONING);
   }
 
-  public static PTransform<
-          @NonNull PCollection<DataflowRequestError<String>>,
-          @NonNull WriteResult>
+  public static PTransform<@NonNull PCollection<DataflowRequestError>, @NonNull WriteResult>
       dataflowGetJobExecutionDetailsErrors(BigQueryWriteOptions options) {
     return writeDataflowRequestErrors(options, tableIdFrom(JOB_EXECUTION_DETAILS_ERRORS));
   }
 
-  public static PTransform<
-          @NonNull PCollection<Row>, @NonNull WriteResult>
-      dataflowJobMetrics(BigQueryWriteOptions options) {
+  public static PTransform<@NonNull PCollection<Row>, @NonNull WriteResult> dataflowJobMetrics(
+      BigQueryWriteOptions options) {
     return withPartitioning(options, tableIdFrom(JOB_METRICS), ENRICHED_TIME_PARTITIONING);
   }
 
-  public static PTransform<
-          @NonNull PCollection<DataflowRequestError<String>>, @NonNull WriteResult>
+  public static PTransform<@NonNull PCollection<DataflowRequestError>, @NonNull WriteResult>
       dataflowGetJobMetricsErrors(BigQueryWriteOptions options) {
     return writeDataflowRequestErrors(options, tableIdFrom(JOB_METRICS_ERRORS));
   }
@@ -104,28 +100,24 @@ public class BigQueryWrites {
         options, tableIdFrom(JOBS), JOB_TIME_PARTITIONING, JOB_CLUSTERING);
   }
 
-  public static PTransform<
-          @NonNull PCollection<DataflowRequestError<String>>, @NonNull WriteResult>
+  public static PTransform<@NonNull PCollection<DataflowRequestError>, @NonNull WriteResult>
       dataflowGetJobsErrors(BigQueryWriteOptions options) {
     return writeDataflowRequestErrors(options, tableIdFrom(JOB_ERRORS));
   }
 
-  public static PTransform<
-          @NonNull PCollection<Row>, @NonNull WriteResult>
+  public static PTransform<@NonNull PCollection<Row>, @NonNull WriteResult>
       dataflowStageExecutionDetails(BigQueryWriteOptions options) {
-    return withPartitioning(options, tableIdFrom(STAGE_EXECUTION_DETAILS), ENRICHED_TIME_PARTITIONING);
+    return withPartitioning(
+        options, tableIdFrom(STAGE_EXECUTION_DETAILS), ENRICHED_TIME_PARTITIONING);
   }
 
-  public static PTransform<
-          @NonNull PCollection<DataflowRequestError<String>>,
-          @NonNull WriteResult>
+  public static PTransform<@NonNull PCollection<DataflowRequestError>, @NonNull WriteResult>
       dataflowGetStageExecutionDetailsErrors(BigQueryWriteOptions options) {
-    return writeDataflowRequestErrors(options, tableIdFrom(STAGE_EXECUTION_DETAILS_REQUESTS_ERRORS));
+    return writeDataflowRequestErrors(options, tableIdFrom(STAGE_EXECUTION_DETAILS_ERRORS));
   }
 
-  private static
-      PTransform<@NonNull PCollection<DataflowRequestError<String>>, @NonNull WriteResult>
-          writeDataflowRequestErrors(BigQueryWriteOptions options, String tableIdPrefix) {
+  public static PTransform<@NonNull PCollection<DataflowRequestError>, @NonNull WriteResult>
+      writeDataflowRequestErrors(BigQueryWriteOptions options, String tableIdPrefix) {
     return withPartitioning(options, tableIdFrom(tableIdPrefix), OBSERVED_TIME_PARTITIONING);
   }
 

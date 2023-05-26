@@ -42,14 +42,13 @@ import org.joda.time.Instant;
 public class DataflowGetJobExecutionDetails
     extends PTransform<
         @NonNull PCollection<Job>,
-        @NonNull DataflowReadResult<
-            StageSummaryWithAppendedDetails, DataflowRequestError<GetJobExecutionDetailsRequest>>> {
+        @NonNull DataflowReadResult<StageSummaryWithAppendedDetails, DataflowRequestError>> {
 
   private static final TupleTag<StageSummaryWithAppendedDetails> SUCCESS =
       new TupleTag<StageSummaryWithAppendedDetails>() {};
 
-  private static final TupleTag<DataflowRequestError<GetJobExecutionDetailsRequest>> FAILURE =
-      new TupleTag<DataflowRequestError<GetJobExecutionDetailsRequest>>() {};
+  private static final TupleTag<DataflowRequestError> FAILURE =
+      new TupleTag<DataflowRequestError>() {};
 
   private final DataflowClientFactoryConfiguration configuration;
 
@@ -63,9 +62,8 @@ public class DataflowGetJobExecutionDetails
   }
 
   @Override
-  public @NonNull DataflowReadResult<
-          StageSummaryWithAppendedDetails, DataflowRequestError<GetJobExecutionDetailsRequest>>
-      expand(PCollection<Job> input) {
+  public @NonNull DataflowReadResult<StageSummaryWithAppendedDetails, DataflowRequestError> expand(
+      PCollection<Job> input) {
 
     PCollectionTuple pct =
         input.apply(
@@ -110,9 +108,8 @@ public class DataflowGetJobExecutionDetails
         receiver
             .get(FAILURE)
             .output(
-                DataflowRequestError.<GetJobExecutionDetailsRequest>builder()
+                DataflowRequestError.fromRequest(request, GetJobExecutionDetailsRequest.class)
                     .setObservedTime(Instant.now())
-                    .setRequest(request)
                     .setMessage(Optional.ofNullable(e.getMessage()).orElse(""))
                     .setStackTrace(Throwables.getStackTraceAsString(e))
                     .build());
@@ -124,11 +121,12 @@ public class DataflowGetJobExecutionDetails
       @NonNull Job job,
       @NonNull JobExecutionDetails response,
       DoFn.OutputReceiver<StageSummaryWithAppendedDetails> receiver) {
+    Instant createTime = Instant.ofEpochSecond(job.getCreateTime().getSeconds());
     for (StageSummary summary : response.getStagesList()) {
       receiver.output(
           StageSummaryWithAppendedDetails.builder()
               .setJobId(job.getId())
-              .setJobCreateTime(job.getCreateTime())
+              .setJobCreateTime(createTime)
               .setStageSummary(summary)
               .build());
     }

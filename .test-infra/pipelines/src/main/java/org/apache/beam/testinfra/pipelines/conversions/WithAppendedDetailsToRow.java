@@ -1,12 +1,33 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.beam.testinfra.pipelines.conversions;
 
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.dataflow.v1beta3.JobMetrics;
 import com.google.dataflow.v1beta3.StageSummary;
 import com.google.dataflow.v1beta3.WorkerDetails;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.GeneratedMessageV3;
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.util.JsonFormat;
 import java.util.Optional;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
@@ -29,135 +50,172 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.joda.time.Instant;
 
-public class WithAppendedDetailsToRow<T, EmbeddedT extends GeneratedMessageV3> extends PTransform<PCollection<T>, RowConversionResult<T>> {
+public class WithAppendedDetailsToRow<AppendedDetailsT, EmbeddedT extends GeneratedMessageV3>
+    extends PTransform<
+        PCollection<AppendedDetailsT>,
+        RowConversionResult<AppendedDetailsT, ConversionError<String>>> {
 
-  public static WithAppendedDetailsToRow<JobMetricsWithAppendedDetails, JobMetrics> jobMetricsWithAppendedDetailsToRow() {
+  public static WithAppendedDetailsToRow<JobMetricsWithAppendedDetails, JobMetrics>
+      jobMetricsWithAppendedDetailsToRow() {
     return new WithAppendedDetailsToRow<>(
         JobMetricsWithAppendedDetails.class,
-        JobMetrics.getDescriptor(),
-        new TupleTag<ConversionError<JobMetricsWithAppendedDetails>>(){},
+        JobMetrics.class,
+        new TupleTag<ConversionError<String>>() {},
         "job_metrics",
+        clazz -> JobMetrics.getDescriptor(),
         element -> checkStateNotNull(element).getJobId(),
         element -> checkStateNotNull(element).getJobCreateTime(),
-        element -> checkStateNotNull(element).getJobMetrics()
-    );
+        element -> checkStateNotNull(element).getJobMetrics());
   }
 
-  public static WithAppendedDetailsToRow<StageSummaryWithAppendedDetails, StageSummary> stageSummaryWithAppendedDetailsToRow() {
+  public static WithAppendedDetailsToRow<StageSummaryWithAppendedDetails, StageSummary>
+      stageSummaryWithAppendedDetailsToRow() {
     return new WithAppendedDetailsToRow<>(
         StageSummaryWithAppendedDetails.class,
-        StageSummary.getDescriptor(),
-        new TupleTag<ConversionError<StageSummaryWithAppendedDetails>>(){},
+        StageSummary.class,
+        new TupleTag<ConversionError<String>>() {},
         "stage_summary",
+        clazz -> StageSummary.getDescriptor(),
         element -> checkStateNotNull(element).getJobId(),
         element -> checkStateNotNull(element).getJobCreateTime(),
-        element -> checkStateNotNull(element).getStageSummary()
-    );
+        element -> checkStateNotNull(element).getStageSummary());
   }
 
-  public static WithAppendedDetailsToRow<WorkerDetailsWithAppendedDetails, WorkerDetails> workerDetailsWithAppendedDetailsToRow() {
+  public static WithAppendedDetailsToRow<WorkerDetailsWithAppendedDetails, WorkerDetails>
+      workerDetailsWithAppendedDetailsToRow() {
     return new WithAppendedDetailsToRow<>(
         WorkerDetailsWithAppendedDetails.class,
-        WorkerDetails.getDescriptor(),
-        new TupleTag<ConversionError<WorkerDetailsWithAppendedDetails>>(){},
+        WorkerDetails.class,
+        new TupleTag<ConversionError<String>>() {},
         "worker_details",
+        clazz -> WorkerDetails.getDescriptor(),
         element -> checkStateNotNull(element).getJobId(),
         element -> checkStateNotNull(element).getJobCreateTime(),
-        element -> checkStateNotNull(element).getWorkerDetails()
-    );
+        element -> checkStateNotNull(element).getWorkerDetails());
   }
 
-  private static final TupleTag<Row> SUCCESS = new TupleTag<Row>(){};
+  private static final TupleTag<Row> SUCCESS = new TupleTag<Row>() {};
 
   private static final DescriptorSchemaRegistry SCHEMA_REGISTRY = new DescriptorSchemaRegistry();
   private static final Field JOB_ID_FIELD = Field.of("job_id", FieldType.STRING);
 
   private static final Field JOB_CREATE_TIME = Field.of("job_create_time", FieldType.DATETIME);
 
-  private final Class<T> containerClass;
+  private final Class<AppendedDetailsT> containerClass;
 
-  private final Descriptor descriptor;
-  private final TupleTag<ConversionError<T>> failureTag;
+  private final Class<EmbeddedT> embeddedTClass;
+
+  private final TupleTag<ConversionError<String>> failureTag;
 
   private final String embeddedFieldName;
 
-  private final SerializableFunction<@NonNull T, @NonNull String> jobIdSupplier;
+  private final SerializableFunction<@NonNull Class<EmbeddedT>, @NonNull Descriptor>
+      descriptorSupplier;
 
-  private final SerializableFunction<@NonNull T, @NonNull Instant> jobCreateTimeSupplier;
+  private final SerializableFunction<@NonNull AppendedDetailsT, @NonNull String> jobIdSupplier;
 
-  private final SerializableFunction<@NonNull T, @NonNull EmbeddedT> embeddedInstanceSupplier;
+  private final SerializableFunction<@NonNull AppendedDetailsT, @NonNull Instant>
+      jobCreateTimeSupplier;
+
+  private final SerializableFunction<@NonNull AppendedDetailsT, @NonNull EmbeddedT>
+      embeddedInstanceSupplier;
 
   private WithAppendedDetailsToRow(
-      Class<T> containerClass,
-      Descriptor descriptor,
-      TupleTag<ConversionError<T>> failureTag,
+      Class<AppendedDetailsT> containerClass,
+      Class<EmbeddedT> embeddedTClass,
+      TupleTag<ConversionError<String>> failureTag,
       String embeddedFieldName,
-      SerializableFunction<@NonNull T, @NonNull String> jobIdSupplier,
-      SerializableFunction<@NonNull T, @NonNull Instant> jobCreateTimeSupplier,
-      SerializableFunction<@NonNull T, @NonNull EmbeddedT> embeddedInstanceSupplier
-  ) {
+      SerializableFunction<@NonNull Class<EmbeddedT>, @NonNull Descriptor> descriptorSupplier,
+      SerializableFunction<@NonNull AppendedDetailsT, @NonNull String> jobIdSupplier,
+      SerializableFunction<@NonNull AppendedDetailsT, @NonNull Instant> jobCreateTimeSupplier,
+      SerializableFunction<@NonNull AppendedDetailsT, @NonNull EmbeddedT>
+          embeddedInstanceSupplier) {
     this.containerClass = containerClass;
-    this.descriptor = descriptor;
+    this.embeddedTClass = embeddedTClass;
     this.failureTag = failureTag;
     this.embeddedFieldName = embeddedFieldName;
+    this.descriptorSupplier = descriptorSupplier;
     this.jobIdSupplier = jobIdSupplier;
     this.jobCreateTimeSupplier = jobCreateTimeSupplier;
     this.embeddedInstanceSupplier = embeddedInstanceSupplier;
   }
 
   @Override
-  public RowConversionResult<T> expand(PCollection<T> input) {
+  public RowConversionResult<AppendedDetailsT, ConversionError<String>> expand(
+      PCollection<AppendedDetailsT> input) {
+    Descriptor descriptor = descriptorSupplier.apply(embeddedTClass);
     SCHEMA_REGISTRY.build(descriptor);
     Schema embeddedSchema = checkStateNotNull(SCHEMA_REGISTRY.getSchema(descriptor));
     FieldType embeddedType = FieldType.row(embeddedSchema);
     Field embeddedField = Field.of(embeddedFieldName, embeddedType);
     Schema schema = Schema.of(JOB_ID_FIELD, JOB_CREATE_TIME, embeddedField);
 
-    PCollectionTuple pct = input.apply(containerClass.getSimpleName() + " ToRowFn",
-        ParDo.of(new ToRowFn<>(schema, this)).withOutputTags(
-            SUCCESS,
-            TupleTagList.of(failureTag)
-        ));
+    PCollectionTuple pct =
+        input.apply(
+            containerClass.getSimpleName() + " ToRowFn",
+            ParDo.of(new ToRowFn<>(schema, this))
+                .withOutputTags(SUCCESS, TupleTagList.of(failureTag)));
 
     return new RowConversionResult<>(schema, SUCCESS, failureTag, pct);
   }
 
-  private class ToRowFn<T, EmbeddedT extends GeneratedMessageV3> extends DoFn<T, Row> {
+  private static class ToRowFn<AppendedDetailsT, EmbeddedT extends GeneratedMessageV3>
+      extends DoFn<AppendedDetailsT, Row> {
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private final @NonNull Schema schema;
-    private final WithAppendedDetailsToRow<T, EmbeddedT> spec;
+    private final WithAppendedDetailsToRow<AppendedDetailsT, EmbeddedT> spec;
 
-    private ToRowFn(@NonNull Schema schema, WithAppendedDetailsToRow<T, EmbeddedT> spec) {
+    private ToRowFn(
+        @NonNull Schema schema, WithAppendedDetailsToRow<AppendedDetailsT, EmbeddedT> spec) {
       this.schema = schema;
       this.spec = spec;
     }
 
     @ProcessElement
-    public void process(@Element T element, MultiOutputReceiver receiver) {
-      String id = checkStateNotNull(spec.jobIdSupplier.apply(element));
-      Instant createTime = checkStateNotNull(spec.jobCreateTimeSupplier.apply(element));
-      EmbeddedT embeddedInstance = checkStateNotNull(spec.embeddedInstanceSupplier.apply(element));
-      GeneratedMessageV3RowBuilder<EmbeddedT> builder = GeneratedMessageV3RowBuilder.of(
-          SCHEMA_REGISTRY,
-          embeddedInstance
-      );
+    public void process(@Element @NonNull AppendedDetailsT element, MultiOutputReceiver receiver) {
+      String id = spec.jobIdSupplier.apply(element);
+      Instant createTime = spec.jobCreateTimeSupplier.apply(element);
+      EmbeddedT embeddedInstance = spec.embeddedInstanceSupplier.apply(element);
+      GeneratedMessageV3RowBuilder<EmbeddedT> builder =
+          GeneratedMessageV3RowBuilder.of(SCHEMA_REGISTRY, embeddedInstance);
       try {
         Row embeddedRow = checkStateNotNull(builder.build());
-        Row result = Row.withSchema(schema)
-            .withFieldValue(JOB_ID_FIELD.getName(), id)
-            .withFieldValue(JOB_CREATE_TIME.getName(), createTime)
-            .withFieldValue(spec.embeddedFieldName, embeddedRow)
-            .build();
+        Row result =
+            Row.withSchema(schema)
+                .withFieldValue(JOB_ID_FIELD.getName(), id)
+                .withFieldValue(JOB_CREATE_TIME.getName(), createTime)
+                .withFieldValue(spec.embeddedFieldName, embeddedRow)
+                .build();
         receiver.get(SUCCESS).output(result);
-      } catch(RuntimeException e) {
-        receiver.get(spec.failureTag).output(
-            ConversionError.<T>builder()
-                .setObservedTime(Instant.now())
-                .setSource(element)
-                .setMessage(Optional.ofNullable(e.getMessage()).orElse(""))
-                .setStackTrace(Throwables.getStackTraceAsString(e))
-                .build()
-        );
+      } catch (RuntimeException e) {
+        receiver
+            .get(spec.failureTag)
+            .output(
+                ConversionError.<String>builder()
+                    .setObservedTime(Instant.now())
+                    .setSource(tryToJson(id, createTime, embeddedInstance))
+                    .setMessage(Optional.ofNullable(e.getMessage()).orElse(""))
+                    .setStackTrace(Throwables.getStackTraceAsString(e))
+                    .build());
       }
+    }
+
+    private @NonNull String tryToJson(String id, Instant createTime, EmbeddedT embeddedInstant) {
+      ObjectNode result = OBJECT_MAPPER.createObjectNode();
+
+      result.put(JOB_ID_FIELD.getName(), id);
+      result.put(JOB_CREATE_TIME.getName(), createTime.toString());
+      String embeddedJson;
+      try {
+        embeddedJson =
+            JsonFormat.printer().omittingInsignificantWhitespace().print(embeddedInstant);
+      } catch (InvalidProtocolBufferException e) {
+        embeddedJson =
+            String.format(
+                "error converting %s to json: %s", embeddedInstant.getClass(), e.getMessage());
+      }
+      result.put(spec.embeddedFieldName, embeddedJson);
+      return result.toString();
     }
   }
 }

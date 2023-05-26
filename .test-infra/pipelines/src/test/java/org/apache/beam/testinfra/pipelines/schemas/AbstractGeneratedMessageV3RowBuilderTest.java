@@ -154,7 +154,7 @@ abstract class AbstractGeneratedMessageV3RowBuilderTest<T extends GeneratedMessa
       Row defaultRow = builderOf(getDefaultInstance()).build();
       Row defaultStruct = defaultRow.getRow(fieldName);
       assertNotNull(defaultStruct);
-      Map<String, String> defaultFields = defaultStruct.getMap("fields");
+      Collection<Row> defaultFields = defaultStruct.getArray("fields");
       assertNotNull(defaultFields);
       assertTrue(defaultFields.isEmpty());
 
@@ -167,11 +167,21 @@ abstract class AbstractGeneratedMessageV3RowBuilderTest<T extends GeneratedMessa
       assertNotNull(row);
       Row struct = row.getRow(fieldName);
       assertNotNull(struct);
-      Map<String, String> fields = struct.getMap("fields");
+      Collection<Row> fields = struct.getArray("fields");
       assertNotNull(fields);
-      assertEquals(
-          "{\"bool\":true,\"string\":\"string_value\",\"number\":1.234567,\"list\":[true,\"string_value\",1.234567]}",
-          fields.get("struct"));
+      Map<@NonNull String, @NonNull Object> expectedFields =
+          ImmutableMap.of(
+              "struct",
+              "{\"bool\":true,\"string\":\"string_value\",\"number\":1.234567,\"list\":[true,\"string_value\",1.234567]}");
+      Map<@NonNull String, @NonNull Object> actualFields = new HashMap<>();
+      for (Row field : fields) {
+        String key = field.getString("key");
+        assertNotNull(key);
+        Object value = field.getValue("value");
+        assertNotNull(value);
+        actualFields.put(key, value);
+      }
+      assertEquals(expectedFields, actualFields);
     }
   }
 

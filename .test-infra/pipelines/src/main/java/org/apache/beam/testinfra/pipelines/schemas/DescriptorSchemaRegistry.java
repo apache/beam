@@ -120,10 +120,9 @@ public class DescriptorSchemaRegistry {
       FieldDescriptor valueField =
           checkStateNotNull(mapDescriptor.findFieldByName(VALUE_FIELD_NAME));
       FieldType valueType = build(valueField);
-      return FieldType.array(FieldType.row(Schema.of(
-          Field.of(KEY_FIELD_NAME, keyType),
-          Field.of(VALUE_FIELD_NAME, valueType)
-      )));
+      return FieldType.array(
+          FieldType.row(
+              Schema.of(Field.of(KEY_FIELD_NAME, keyType), Field.of(VALUE_FIELD_NAME, valueType))));
     }
 
     FieldType buildNestedType(FieldDescriptor fieldDescriptor) {

@@ -29,24 +29,21 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.checkerframework.checker.initialization.qual.Initialized;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 
-public class RowConversionResult<SourceT> implements POutput {
+public class RowConversionResult<SourceT, FailureT> implements POutput {
 
   private final Pipeline pipeline;
 
   private final TupleTag<Row> successTag;
   private final PCollection<Row> success;
 
-  private final TupleTag<ConversionError<SourceT>> failureTag;
-  private final PCollection<ConversionError<SourceT>> failure;
+  private final TupleTag<FailureT> failureTag;
+  private final PCollection<FailureT> failure;
 
   RowConversionResult(
       Schema successRowSchema,
       TupleTag<Row> successTag,
-      TupleTag<ConversionError<SourceT>> failureTag,
+      TupleTag<FailureT> failureTag,
       PCollectionTuple pct) {
     this.pipeline = pct.getPipeline();
     this.successTag = successTag;
@@ -59,12 +56,12 @@ public class RowConversionResult<SourceT> implements POutput {
     return success;
   }
 
-  public PCollection<ConversionError<SourceT>> getFailure() {
+  public PCollection<FailureT> getFailure() {
     return failure;
   }
 
   @Override
-  public  Pipeline getPipeline() {
+  public Pipeline getPipeline() {
     return pipeline;
   }
 
@@ -77,9 +74,5 @@ public class RowConversionResult<SourceT> implements POutput {
 
   @Override
   public void finishSpecifyingOutput(
-       String transformName,
-       PInput input,
-      
-          PTransform< ?,  ?>
-              transform) {}
+      String transformName, PInput input, PTransform<?, ?> transform) {}
 }

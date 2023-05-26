@@ -18,37 +18,61 @@
 package org.apache.beam.testinfra.pipelines.dataflow;
 
 import com.google.auto.value.AutoValue;
+import com.google.protobuf.GeneratedMessageV3;
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.util.JsonFormat;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
-public abstract class DataflowRequestError<RequestT> {
+public abstract class DataflowRequestError {
 
-  public static <RequestT> Builder<RequestT> builder() {
-    return new AutoValue_DataflowRequestError.Builder<>();
+  private static final Logger LOG = LoggerFactory.getLogger(DataflowRequestError.class);
+
+  //  private static final AutoValueSchema SCHEMA_PROVIDER = new AutoValueSchema();
+  //
+  //  public static final Schema SCHEMA =
+  //      SCHEMA_PROVIDER.schemaFor(TypeDescriptor.of(DataflowRequestError.class));
+
+  public static Builder builder() {
+    return new AutoValue_DataflowRequestError.Builder();
+  }
+
+  public static <RequestT extends GeneratedMessageV3> Builder fromRequest(
+      RequestT request, Class<RequestT> clazz) {
+    Builder builder = builder();
+    try {
+      String json = JsonFormat.printer().omittingInsignificantWhitespace().print(request);
+      builder = builder.setRequest(json);
+    } catch (InvalidProtocolBufferException e) {
+      LOG.warn("error converting {} to json: {}", clazz, e.getMessage());
+    }
+    return builder;
   }
 
   public abstract Instant getObservedTime();
 
-  public abstract RequestT getRequest();
+  public abstract String getRequest();
 
   public abstract String getMessage();
 
   public abstract String getStackTrace();
 
   @AutoValue.Builder
-  public abstract static class Builder<RequestT> {
+  public abstract static class Builder {
 
-    public abstract Builder<RequestT> setObservedTime(Instant value);
+    public abstract Builder setObservedTime(Instant value);
 
-    public abstract Builder<RequestT> setRequest(RequestT value);
+    public abstract Builder setRequest(String value);
 
-    public abstract Builder<RequestT> setMessage(String value);
+    public abstract Builder setMessage(String value);
 
-    public abstract Builder<RequestT> setStackTrace(String value);
+    public abstract Builder setStackTrace(String value);
 
-    public abstract DataflowRequestError<RequestT> build();
+    public abstract DataflowRequestError build();
   }
 }

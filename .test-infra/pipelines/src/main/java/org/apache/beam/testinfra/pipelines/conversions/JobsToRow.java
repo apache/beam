@@ -38,7 +38,8 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.joda.time.Instant;
 
 public class JobsToRow
-    extends PTransform<@NonNull PCollection<Job>, @NonNull RowConversionResult<Job>> {
+    extends PTransform<
+        @NonNull PCollection<Job>, @NonNull RowConversionResult<Job, ConversionError<Job>>> {
 
   public static JobsToRow create() {
     return new JobsToRow();
@@ -51,7 +52,8 @@ public class JobsToRow
   }
 
   @Override
-  public @NonNull RowConversionResult<Job> expand(@NonNull PCollection<Job> input) {
+  public @NonNull RowConversionResult<Job, ConversionError<Job>> expand(
+      @NonNull PCollection<Job> input) {
     TupleTag<Row> success = new TupleTag<Row>() {};
     TupleTag<ConversionError<Job>> failure = new TupleTag<ConversionError<Job>>() {};
     Schema successSchema = SCHEMA_REGISTRY.getSchema(Job.getDescriptor());

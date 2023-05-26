@@ -42,9 +42,7 @@ import org.joda.time.Instant;
 public class DataflowGetStageExecutionDetails
     extends PTransform<
         @NonNull PCollection<Job>,
-        @NonNull DataflowReadResult<
-            WorkerDetailsWithAppendedDetails,
-            DataflowRequestError<GetStageExecutionDetailsRequest>>> {
+        @NonNull DataflowReadResult<WorkerDetailsWithAppendedDetails, DataflowRequestError>> {
 
   public static DataflowGetStageExecutionDetails create(
       DataflowClientFactoryConfiguration configuration) {
@@ -54,8 +52,8 @@ public class DataflowGetStageExecutionDetails
   private static final TupleTag<WorkerDetailsWithAppendedDetails> SUCCESS =
       new TupleTag<WorkerDetailsWithAppendedDetails>() {};
 
-  private static final TupleTag<DataflowRequestError<GetStageExecutionDetailsRequest>> FAILURE =
-      new TupleTag<DataflowRequestError<GetStageExecutionDetailsRequest>>() {};
+  private static final TupleTag<DataflowRequestError> FAILURE =
+      new TupleTag<DataflowRequestError>() {};
 
   private final DataflowClientFactoryConfiguration configuration;
 
@@ -64,9 +62,8 @@ public class DataflowGetStageExecutionDetails
   }
 
   @Override
-  public @NonNull DataflowReadResult<
-          WorkerDetailsWithAppendedDetails, DataflowRequestError<GetStageExecutionDetailsRequest>>
-      expand(PCollection<Job> input) {
+  public @NonNull DataflowReadResult<WorkerDetailsWithAppendedDetails, DataflowRequestError> expand(
+      PCollection<Job> input) {
 
     PCollectionTuple pct =
         input.apply(
@@ -112,9 +109,8 @@ public class DataflowGetStageExecutionDetails
         receiver
             .get(FAILURE)
             .output(
-                DataflowRequestError.<GetStageExecutionDetailsRequest>builder()
+                DataflowRequestError.fromRequest(request, GetStageExecutionDetailsRequest.class)
                     .setObservedTime(Instant.now())
-                    .setRequest(request)
                     .setMessage(Optional.ofNullable(e.getMessage()).orElse(""))
                     .setStackTrace(Throwables.getStackTraceAsString(e))
                     .build());
@@ -125,11 +121,13 @@ public class DataflowGetStageExecutionDetails
         @NonNull Job job,
         @NonNull StageExecutionDetails response,
         @NonNull OutputReceiver<WorkerDetailsWithAppendedDetails> receiver) {
+
       for (WorkerDetails details : response.getWorkersList()) {
+        Instant createTime = Instant.ofEpochSecond(job.getCreateTime().getSeconds());
         receiver.output(
             WorkerDetailsWithAppendedDetails.builder()
                 .setJobId(job.getId())
-                .setJobCreateTime(job.getCreateTime())
+                .setJobCreateTime(createTime)
                 .setWorkerDetails(details)
                 .build());
       }

@@ -57,6 +57,7 @@ class EventarcConversionsTest {
             result
                 .failures()
                 .apply(
+                    "get error message",
                     MapElements.into(strings())
                         .via(error -> checkStateNotNull(error).getMessage())))
         .isEqualTo("json input is empty");
@@ -74,6 +75,7 @@ class EventarcConversionsTest {
             result
                 .failures()
                 .apply(
+                    "contains message part",
                     MapElements.into(booleans())
                         .via(
                             error ->
@@ -95,6 +97,7 @@ class EventarcConversionsTest {
             result
                 .failures()
                 .apply(
+                    "get error message",
                     MapElements.into(strings())
                         .via(error -> checkStateNotNull(error).getMessage())))
         .isEqualTo("json input missing path: $.data");
@@ -112,6 +115,7 @@ class EventarcConversionsTest {
             result
                 .failures()
                 .apply(
+                    "get error message",
                     MapElements.into(strings())
                         .via(error -> checkStateNotNull(error).getMessage())))
         .isEqualTo("json input missing path: $.data.@type");
@@ -131,6 +135,7 @@ class EventarcConversionsTest {
             result
                 .failures()
                 .apply(
+                    "get error message",
                     MapElements.into(strings())
                         .via(error -> checkStateNotNull(error).getMessage())))
         .isEqualTo(
@@ -153,6 +158,7 @@ class EventarcConversionsTest {
             result
                 .failures()
                 .apply(
+                    "get error message",
                     MapElements.into(strings())
                         .via(error -> checkStateNotNull(error).getMessage())))
         .isEqualTo("json input missing path: $.data.payload");
@@ -172,6 +178,7 @@ class EventarcConversionsTest {
             result
                 .failures()
                 .apply(
+                    "get error message",
                     MapElements.into(strings())
                         .via(error -> checkStateNotNull(error).getMessage())))
         .isEqualTo(
@@ -180,6 +187,7 @@ class EventarcConversionsTest {
             result
                 .failures()
                 .apply(
+                    "get error source",
                     MapElements.into(strings()).via(error -> checkStateNotNull(error).getSource())))
         .isEqualTo(payload);
 
@@ -197,6 +205,7 @@ class EventarcConversionsTest {
             result
                 .output()
                 .apply(
+                    "get current state",
                     MapElements.into(TypeDescriptor.of(JobState.class))
                         .via(job -> checkStateNotNull(job).getCurrentState())))
         .isEqualTo(JobState.JOB_STATE_CANCELLED);
@@ -205,6 +214,7 @@ class EventarcConversionsTest {
             result
                 .output()
                 .apply(
+                    "get job type",
                     MapElements.into(TypeDescriptor.of(JobType.class))
                         .via(job -> checkStateNotNull(job).getType())))
         .isEqualTo(JobType.JOB_TYPE_STREAMING);
@@ -212,7 +222,9 @@ class EventarcConversionsTest {
     PAssert.thatSingleton(
             result
                 .output()
-                .apply(MapElements.into(strings()).via(job -> checkStateNotNull(job).getId())))
+                .apply(
+                    "get job id",
+                    MapElements.into(strings()).via(job -> checkStateNotNull(job).getId())))
         .isEqualTo("2023-05-09_13_23_50-11065941757886660214");
 
     PAssert.that(result.failures()).empty();

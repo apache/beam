@@ -39,12 +39,12 @@ import org.joda.time.Instant;
 public class DataflowGetJobs
     extends PTransform<
         @NonNull PCollection<GetJobRequest>,
-        @NonNull DataflowReadResult<Job, DataflowRequestError<GetJobRequest>>> {
+        @NonNull DataflowReadResult<Job, DataflowRequestError>> {
 
   private static final TupleTag<Job> SUCCESS = new TupleTag<Job>() {};
 
-  private static final TupleTag<DataflowRequestError<GetJobRequest>> FAILURE =
-      new TupleTag<DataflowRequestError<GetJobRequest>>() {};
+  private static final TupleTag<DataflowRequestError> FAILURE =
+      new TupleTag<DataflowRequestError>() {};
 
   public static DataflowGetJobs create(DataflowClientFactoryConfiguration configuration) {
     return new DataflowGetJobs(configuration);
@@ -57,7 +57,7 @@ public class DataflowGetJobs
   }
 
   @Override
-  public @NonNull DataflowReadResult<Job, DataflowRequestError<GetJobRequest>> expand(
+  public @NonNull DataflowReadResult<Job, DataflowRequestError> expand(
       PCollection<GetJobRequest> input) {
 
     PCollectionTuple pct =
@@ -87,12 +87,14 @@ public class DataflowGetJobs
         Job job = checkStateNotNull(client).getJob(request);
         receiver.get(SUCCESS).output(job);
       } catch (StatusRuntimeException e) {
-        receiver.get(FAILURE).output(DataflowRequestError.<GetJobRequest>builder()
-                .setObservedTime(Instant.now())
-                .setMessage(Optional.ofNullable(e.getMessage()).orElse(""))
-                .setRequest(request)
-                .setStackTrace(Throwables.getStackTraceAsString(e))
-            .build());
+        receiver
+            .get(FAILURE)
+            .output(
+                DataflowRequestError.fromRequest(request, GetJobRequest.class)
+                    .setObservedTime(Instant.now())
+                    .setMessage(Optional.ofNullable(e.getMessage()).orElse(""))
+                    .setStackTrace(Throwables.getStackTraceAsString(e))
+                    .build());
       }
     }
   }
