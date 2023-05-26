@@ -23,6 +23,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CancellationException;
@@ -49,7 +50,9 @@ import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.options.ExecutorOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.SdkHarnessOptions;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.Struct;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.Timestamp;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.Value;
 import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.Status;
 import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.CallStreamObserver;
@@ -58,6 +61,7 @@ import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.ClientResponseObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.MDC;
 
 /**
  * Configures {@link java.util.logging} to send all {@link LogRecord}s via the Beam Fn Logging API.
@@ -122,6 +126,7 @@ public class BeamFnLoggingClient implements AutoCloseable {
     logRecordHandler.setLevel(Level.ALL);
     logRecordHandler.setFormatter(DEFAULT_FORMATTER);
     logRecordHandler.executeOn(options.as(ExecutorOptions.class).getScheduledExecutorService());
+    logRecordHandler.setLogMdc(options.as(SdkHarnessOptions.class).getLogMdc());
     outboundObserver = (CallStreamObserver<BeamFnApi.LogEntry.List>) stub.logging(inboundObserver);
     rootLogger.addHandler(logRecordHandler);
   }
@@ -171,6 +176,12 @@ public class BeamFnLoggingClient implements AutoCloseable {
      */
     private @Nullable Thread logEntryHandlerThread = null;
 
+    private boolean logMdc = true;
+
+    private void setLogMdc(boolean value) {
+      logMdc = value;
+    }
+
     private void executeOn(ExecutorService executorService) {
       bufferedLogWriter = executorService.submit(this);
     }
@@ -214,6 +225,17 @@ public class BeamFnLoggingClient implements AutoCloseable {
           if (transformId != null) {
             builder.setTransformId(transformId);
           }
+        }
+      }
+
+      if (logMdc) {
+        Map<String, String> mdc = MDC.getCopyOfContextMap();
+        if (mdc != null) {
+          Struct.Builder customDataBuilder = builder.getCustomDataBuilder();
+          mdc.forEach(
+              (k, v) -> {
+                customDataBuilder.putFields(k, Value.newBuilder().setStringValue(v).build());
+              });
         }
       }
 
