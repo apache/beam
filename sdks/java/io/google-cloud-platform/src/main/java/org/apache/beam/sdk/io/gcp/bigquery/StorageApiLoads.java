@@ -45,6 +45,7 @@ public class StorageApiLoads<DestinationT, ElementT>
     extends PTransform<PCollection<KV<DestinationT, ElementT>>, WriteResult> {
   final TupleTag<KV<DestinationT, StorageApiWritePayload>> successfulConvertedRowsTag =
       new TupleTag<>("successfulRows");
+
   final TupleTag<BigQueryStorageApiInsertError> failedRowsTag = new TupleTag<>("failedRows");
 
   @Nullable TupleTag<TableRow> successfulWrittenRowsTag;
@@ -87,6 +88,10 @@ public class StorageApiLoads<DestinationT, ElementT>
     if (propagateSuccessfulStorageApiWrites) {
       this.successfulWrittenRowsTag = new TupleTag<>("successfulPublishedRowsTag");
     }
+  }
+
+  public TupleTag<BigQueryStorageApiInsertError> getFailedRowsTag() {
+    return failedRowsTag;
   }
 
   @Override

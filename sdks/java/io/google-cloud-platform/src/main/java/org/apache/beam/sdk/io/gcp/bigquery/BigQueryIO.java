@@ -950,7 +950,7 @@ public class BigQueryIO {
 
     abstract @Nullable String getQueryTempDataset();
 
-    abstract TypedRead.Method getMethod();
+    public abstract TypedRead.Method getMethod();
 
     abstract DataFormat getFormat();
 
@@ -2208,7 +2208,7 @@ public class BigQueryIO {
 
     abstract @Nullable Duration getTriggeringFrequency();
 
-    abstract Write.Method getMethod();
+    public abstract Write.Method getMethod();
 
     abstract @Nullable ValueProvider<String> getLoadJobProjectId();
 
