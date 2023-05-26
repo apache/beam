@@ -88,27 +88,27 @@ public class ReadDataflowApiWriteBigQuery {
 
     // Retrieve WorkerDetails (from StageExecutionDetails) calling the
     // MetricsV1Beta3.GetStageExecutionDetails rpc.
-    jobDetails(
-        options,
-        BigQueryWrites.STAGE_EXECUTION_DETAILS_ERRORS,
-        GetStageExecutionDetailsRequest.class,
-        WorkerDetailsWithAppendedDetails.class,
-        jobs,
-        DataflowGetStageExecutionDetails.create(configuration),
-        WithAppendedDetailsToRow.workerDetailsWithAppendedDetailsToRow(),
-        BigQueryWrites.dataflowJobExecutionDetails(options));
+//    jobDetails(
+//        options,
+//        BigQueryWrites.STAGE_EXECUTION_DETAILS_ERRORS,
+//        GetStageExecutionDetailsRequest.class,
+//        WorkerDetailsWithAppendedDetails.class,
+//        jobs,
+//        DataflowGetStageExecutionDetails.create(configuration),
+//        WithAppendedDetailsToRow.workerDetailsWithAppendedDetailsToRow(),
+//        BigQueryWrites.dataflowJobExecutionDetails(options));
 
     // Retrieve StageSummary entries (from JobExecutionDetails) calling the
     // MetricsV1Beta3.GetJobExecutionDetails rpc.
-    jobDetails(
-        options,
-        BigQueryWrites.JOB_EXECUTION_DETAILS_ERRORS,
-        GetJobExecutionDetailsRequest.class,
-        StageSummaryWithAppendedDetails.class,
-        jobs,
-        DataflowGetJobExecutionDetails.create(configuration),
-        WithAppendedDetailsToRow.stageSummaryWithAppendedDetailsToRow(),
-        BigQueryWrites.dataflowJobExecutionDetails(options));
+//    jobDetails(
+//        options,
+//        BigQueryWrites.JOB_EXECUTION_DETAILS_ERRORS,
+//        GetJobExecutionDetailsRequest.class,
+//        StageSummaryWithAppendedDetails.class,
+//        jobs,
+//        DataflowGetJobExecutionDetails.create(configuration),
+//        WithAppendedDetailsToRow.stageSummaryWithAppendedDetailsToRow(),
+//        BigQueryWrites.dataflowJobExecutionDetails(options));
 
     pipeline.run();
   }
@@ -159,7 +159,7 @@ public class ReadDataflowApiWriteBigQuery {
         .failures()
         .setRowSchema(ConversionError.getSchema())
         .apply(
-            tagOf(BigQueryWrites.class, com.google.events.cloud.dataflow.v1beta3.Job.class),
+            tagOf(BigQueryWrites.class, com.google.events.cloud.dataflow.v1beta3.Job.class.getName()),
             BigQueryWrites.writeConversionErrors(options));
 
     // Filter Done Batch Jobs.

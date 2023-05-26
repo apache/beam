@@ -95,14 +95,13 @@ public class DataflowGetJobMetrics
       try {
         JobMetrics response = checkStateNotNull(client).getJobMetrics(request);
         com.google.protobuf.Timestamp timestamp = job.getCreateTime();
-        receiver
-            .get(SUCCESS)
-            .output(
-                JobMetricsWithAppendedDetails.builder()
-                    .setJobId(request.getJobId())
-                    .setJobCreateTime(Instant.ofEpochSecond(timestamp.getSeconds()))
-                    .setJobMetrics(response)
-                    .build());
+        JobMetricsWithAppendedDetails result = new JobMetricsWithAppendedDetails();
+        result.setJobId(request.getJobId());
+        result.setJobCreateTime(Instant.ofEpochSecond(timestamp.getSeconds()));
+        result.setJobMetrics(response);
+
+        receiver.get(SUCCESS).output(result);
+
       } catch (StatusRuntimeException e) {
         receiver
             .get(FAILURE)

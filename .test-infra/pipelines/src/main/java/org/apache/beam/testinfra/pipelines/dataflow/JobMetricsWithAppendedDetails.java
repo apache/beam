@@ -17,38 +17,65 @@
  */
 package org.apache.beam.testinfra.pipelines.dataflow;
 
-import com.google.auto.value.AutoValue;
 import com.google.dataflow.v1beta3.JobMetrics;
-import org.apache.beam.sdk.schemas.AutoValueSchema;
+import org.apache.beam.sdk.schemas.JavaBeanSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCaseFormat;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.CaseFormat;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
-@DefaultSchema(AutoValueSchema.class)
-@AutoValue
-@SchemaCaseFormat(CaseFormat.LOWER_CAMEL)
-public abstract class JobMetricsWithAppendedDetails {
+import java.io.Serializable;
 
-  public static Builder builder() {
-    return new AutoValue_JobMetricsWithAppendedDetails.Builder();
+@DefaultSchema(JavaBeanSchema.class)
+@SchemaCaseFormat(CaseFormat.LOWER_CAMEL)
+public class JobMetricsWithAppendedDetails implements Serializable {
+
+  private String jobId = "";
+
+  private Instant jobCreateTime = Instant.now();
+
+  private JobMetrics jobMetrics = JobMetrics.getDefaultInstance();
+
+  public String getJobId() {
+    return jobId;
   }
 
-  public abstract String getJobId();
+  public void setJobId(String jobId) {
+    this.jobId = jobId;
+  }
 
-  public abstract Instant getJobCreateTime();
+  public Instant getJobCreateTime() {
+    return jobCreateTime;
+  }
 
-  public abstract JobMetrics getJobMetrics();
+  public void setJobCreateTime(Instant jobCreateTime) {
+    this.jobCreateTime = jobCreateTime;
+  }
 
-  @AutoValue.Builder
-  public abstract static class Builder {
+  public JobMetrics getJobMetrics() {
+    return jobMetrics;
+  }
 
-    public abstract Builder setJobId(String value);
+  public void setJobMetrics(JobMetrics jobMetrics) {
+    this.jobMetrics = jobMetrics;
+  }
 
-    public abstract Builder setJobCreateTime(Instant value);
+  @Override
+  public boolean equals(@Nullable Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    JobMetricsWithAppendedDetails that = (JobMetricsWithAppendedDetails) o;
+    return Objects.equal(jobId, that.jobId) && Objects.equal(jobCreateTime, that.jobCreateTime) && Objects.equal(jobMetrics, that.jobMetrics);
+  }
 
-    public abstract Builder setJobMetrics(JobMetrics value);
-
-    public abstract JobMetricsWithAppendedDetails build();
+  @Override
+  public int hashCode() {
+    return Objects.hashCode(jobId, jobCreateTime, jobMetrics);
   }
 }

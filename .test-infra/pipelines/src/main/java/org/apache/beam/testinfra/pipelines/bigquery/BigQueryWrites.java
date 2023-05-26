@@ -152,8 +152,7 @@ public class BigQueryWrites {
             .withTimePartitioning(timePartitioning)
             .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
             .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
-            .withMethod(BigQueryIO.Write.Method.STORAGE_WRITE_API)
-            .withTriggeringFrequency(Duration.standardSeconds(3L));
+            .withMethod(BigQueryIO.Write.Method.STREAMING_INSERTS);
 
     if (clustering != null) {
       write = write.withClustering(clustering);
