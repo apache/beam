@@ -570,7 +570,7 @@ func (controller *playgroundController) GetSnippet(ctx context.Context, info *pb
 func (controller *playgroundController) GetMetadata(_ context.Context, _ *pb.GetMetadataRequest) (*pb.GetMetadataResponse, error) {
 	commitTimestampInteger, err := strconv.ParseInt(BuildCommitTimestamp, 10, 64)
 	if err != nil {
-		logger.Errorf("GetMetadata(): failed to parse BuildCommitTimestamp (\"%s\"): %s", BuildCommitTimestamp, err.Error())
+		logger.Warnf("GetMetadata(): failed to parse BuildCommitTimestamp (\"%s\"): %s", BuildCommitTimestamp, err.Error())
 		commitTimestampInteger = 0
 	}
 
@@ -587,7 +587,7 @@ func (controller *playgroundController) GetMetadata(_ context.Context, _ *pb.Get
 // verifyRouter verifies that controller is configured to work in router mode
 func (controller *playgroundController) verifyRouter() error {
 	if controller.env.BeamSdkEnvs.ApacheBeamSdk != pb.Sdk_SDK_UNSPECIFIED {
-		return errors.New("runner mode")
+		return errors.New("server is in runner mode")
 	}
 	if controller.db == nil {
 		return errors.New("no database service")
