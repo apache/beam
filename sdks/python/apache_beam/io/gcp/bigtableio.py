@@ -233,12 +233,6 @@ class WriteToBigTable(beam.PTransform):
                 beam_options['table_id'])))
 
 
-def _default_io_expansion_service(append_args=None):
-  return BeamJarExpansionService(
-      'sdks:java:io:google-cloud-platform:expansion-service:build',
-      append_args=append_args)
-
-
 class ReadFromBigtable(PTransform):
   """Reads rows from Bigtable.
 
@@ -266,7 +260,8 @@ class ReadFromBigtable(PTransform):
     self._instance_id = instance_id
     self._project_id = project_id
     self._expansion_service = (
-        expansion_service or _default_io_expansion_service())
+        expansion_service or BeamJarExpansionService(
+      'sdks:java:io:google-cloud-platform:expansion-service:build'))
     self.schematransform_config = SchemaAwareExternalTransform.discover_config(
         self._expansion_service, self.URN)
 
