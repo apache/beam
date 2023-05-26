@@ -96,8 +96,10 @@ import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.ExpansionServiceClient;
 import org.apache.beam.runners.core.construction.ExpansionServiceClientFactory;
 import org.apache.beam.runners.core.construction.External;
+import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.SdkComponents;
+import org.apache.beam.runners.core.construction.TransformPayloadTranslatorRegistrar;
 import org.apache.beam.runners.dataflow.DataflowRunner.StreamingShardedWriteFactory;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
@@ -165,6 +167,7 @@ import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -1618,6 +1621,33 @@ public class DataflowRunnerTest implements Serializable {
           WindowingStrategy.globalDefault(),
           input.isBounded(),
           input.getCoder());
+    }
+  }
+
+  private static class TestTransformTranslator
+      implements TransformPayloadTranslator<TestTransform> {
+    @Override
+    public String getUrn(TestTransform transform) {
+      return "test_transform";
+    }
+
+    @Override
+    public RunnerApi.FunctionSpec translate(
+        AppliedPTransform<?, ?, TestTransform> application, SdkComponents components)
+        throws IOException {
+      return RunnerApi.FunctionSpec.newBuilder().setUrn(getUrn(application.getTransform())).build();
+    }
+  }
+
+  @SuppressWarnings({
+    "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+  })
+  @AutoService(TransformPayloadTranslatorRegistrar.class)
+  public static class DataflowTransformTranslator implements TransformPayloadTranslatorRegistrar {
+    @Override
+    public Map<? extends Class<? extends PTransform>, ? extends TransformPayloadTranslator>
+        getTransformPayloadTranslators() {
+      return ImmutableMap.of(TestTransform.class, new TestTransformTranslator());
     }
   }
 

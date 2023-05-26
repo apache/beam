@@ -92,6 +92,10 @@ public class TableRowToStorageApiProtoTest {
                           .setMode("REPEATED")
                           .setName("arrayValue"))
                   .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampISOValue"))
+                  .add(
+                      new TableFieldSchema()
+                          .setType("TIMESTAMP")
+                          .setName("timestampISOValueOffsetHH"))
                   .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampValueLong"))
                   .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampValueSpace"))
                   .add(
@@ -137,6 +141,10 @@ public class TableRowToStorageApiProtoTest {
                           .setMode("REPEATED")
                           .setName("arrayValue"))
                   .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampISOValue"))
+                  .add(
+                      new TableFieldSchema()
+                          .setType("TIMESTAMP")
+                          .setName("timestampISOValueOffsetHH"))
                   .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampValueLong"))
                   .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampValueSpace"))
                   .add(
@@ -293,50 +301,57 @@ public class TableRowToStorageApiProtoTest {
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
-                  .setName("timestampvaluelong")
+                  .setName("timestampisovalueoffsethh")
                   .setNumber(20)
                   .setType(Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
-                  .setName("timestampvaluespace")
+                  .setName("timestampvaluelong")
                   .setNumber(21)
                   .setType(Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
-                  .setName("timestampvaluespaceutc")
+                  .setName("timestampvaluespace")
                   .setNumber(22)
                   .setType(Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
-                  .setName("timestampvaluezoneregion")
+                  .setName("timestampvaluespaceutc")
                   .setNumber(23)
                   .setType(Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
-                  .setName("timestampvaluespacemilli")
+                  .setName("timestampvaluezoneregion")
                   .setNumber(24)
                   .setType(Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
-                  .setName("timestampvaluespacetrailingzero")
+                  .setName("timestampvaluespacemilli")
                   .setNumber(25)
                   .setType(Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
-                  .setName("datetimevaluespace")
+                  .setName("timestampvaluespacetrailingzero")
                   .setNumber(26)
+                  .setType(Type.TYPE_INT64)
+                  .setLabel(Label.LABEL_OPTIONAL)
+                  .build())
+          .addField(
+              FieldDescriptorProto.newBuilder()
+                  .setName("datetimevaluespace")
+                  .setNumber(27)
                   .setType(Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
@@ -472,50 +487,57 @@ public class TableRowToStorageApiProtoTest {
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
-                  .setName("timestampvaluelong")
+                  .setName("timestampisovalueoffsethh")
                   .setNumber(19)
                   .setType(Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
-                  .setName("timestampvaluespace")
+                  .setName("timestampvaluelong")
                   .setNumber(20)
                   .setType(Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
-                  .setName("timestampvaluespaceutc")
+                  .setName("timestampvaluespace")
                   .setNumber(21)
                   .setType(Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
-                  .setName("timestampvaluezoneregion")
+                  .setName("timestampvaluespaceutc")
                   .setNumber(22)
                   .setType(Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
-                  .setName("timestampvaluespacemilli")
+                  .setName("timestampvaluezoneregion")
                   .setNumber(23)
                   .setType(Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
-                  .setName("timestampvaluespacetrailingzero")
+                  .setName("timestampvaluespacemilli")
                   .setNumber(24)
                   .setType(Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
-                  .setName("datetimevaluespace")
+                  .setName("timestampvaluespacetrailingzero")
                   .setNumber(25)
+                  .setType(Type.TYPE_INT64)
+                  .setLabel(Label.LABEL_OPTIONAL)
+                  .build())
+          .addField(
+              FieldDescriptorProto.newBuilder()
+                  .setName("datetimevaluespace")
+                  .setNumber(26)
                   .setType(Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
@@ -659,6 +681,7 @@ public class TableRowToStorageApiProtoTest {
                   new TableCell().setV(123456789012345678L),
                   new TableCell().setV(REPEATED_BYTES),
                   new TableCell().setV("1970-01-01T00:00:00.000+01:00"),
+                  new TableCell().setV("1970-01-01T00:00:00.000+01"),
                   new TableCell().setV("1234567"),
                   new TableCell().setV("1970-01-01 00:00:00.000343"),
                   new TableCell().setV("1970-01-01 00:00:00.000343 UTC"),
@@ -689,6 +712,7 @@ public class TableRowToStorageApiProtoTest {
           .set("bigNumericValue2", 123456789012345678L)
           .set("arrayValue", REPEATED_BYTES)
           .set("timestampISOValue", "1970-01-01T00:00:00.000+01:00")
+          .set("timestampISOValueOffsetHH", "1970-01-01T00:00:00.000+01")
           .set("timestampValueLong", "1234567")
           // UTC time for backwards compatibility
           .set("timestampValueSpace", "1970-01-01 00:00:00.000343")
@@ -728,6 +752,7 @@ public class TableRowToStorageApiProtoTest {
                   new BigDecimal("123456789012345678")))
           .put("arrayvalue", EXPECTED_PROTO_REPEATED_BYTES)
           .put("timestampisovalue", -3600000000L)
+          .put("timestampisovalueoffsethh", -3600000000L)
           .put("timestampvaluelong", 1234567000L)
           .put("timestampvaluespace", 343L)
           .put("timestampvaluespaceutc", 343L)
@@ -766,6 +791,7 @@ public class TableRowToStorageApiProtoTest {
                   new BigDecimal("123456789012345678")))
           .put("arrayvalue", EXPECTED_PROTO_REPEATED_BYTES)
           .put("timestampisovalue", -3600000000L)
+          .put("timestampisovalueoffsethh", -3600000000L)
           .put("timestampvaluelong", 1234567000L)
           .put("timestampvaluespace", 343L)
           .put("timestampvaluespaceutc", 343L)
