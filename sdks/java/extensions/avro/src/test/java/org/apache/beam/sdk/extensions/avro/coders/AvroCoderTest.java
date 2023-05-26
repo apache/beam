@@ -28,12 +28,12 @@ import static org.junit.Assert.fail;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
+import com.esotericsoftware.kryo.serializers.JavaSerializer;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.nio.ByteBuffer;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -46,19 +46,13 @@ import java.util.SortedSet;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import org.apache.avro.AvroRuntimeException;
-import org.apache.avro.Conversion;
-import org.apache.avro.LogicalType;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.io.DatumReader;
-import org.apache.avro.io.DatumWriter;
 import org.apache.avro.reflect.AvroName;
 import org.apache.avro.reflect.AvroSchema;
 import org.apache.avro.reflect.ReflectData;
-import org.apache.avro.reflect.ReflectDatumReader;
-import org.apache.avro.reflect.ReflectDatumWriter;
 import org.apache.avro.reflect.Stringable;
 import org.apache.avro.reflect.Union;
 import org.apache.avro.specific.SpecificData;
@@ -68,7 +62,6 @@ import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
-import org.apache.beam.sdk.extensions.avro.io.AvroDatumFactory;
 import org.apache.beam.sdk.extensions.avro.schemas.TestAvro;
 import org.apache.beam.sdk.extensions.avro.schemas.TestAvroFactory;
 import org.apache.beam.sdk.extensions.avro.schemas.TestAvroNested;
@@ -95,6 +88,7 @@ import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
 import org.hamcrest.TypeSafeMatcher;
 import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 import org.joda.time.LocalDate;
 import org.junit.Rule;
 import org.junit.Test;
@@ -107,6 +101,10 @@ import org.objenesis.strategy.StdInstantiatorStrategy;
 @RunWith(JUnit4.class)
 public class AvroCoderTest {
 
+  public static final DateTime DATETIME_A =
+      new DateTime().withDate(1994, 10, 31).withZone(DateTimeZone.UTC);
+  public static final DateTime DATETIME_B =
+      new DateTime().withDate(1997, 4, 25).withZone(DateTimeZone.UTC);
   private static final TestAvroNested AVRO_NESTED_SPECIFIC_RECORD = new TestAvroNested(true, 42);
   private static final TestAvro AVRO_SPECIFIC_RECORD =
       TestAvroFactory.newInstance(
@@ -131,122 +129,49 @@ public class AvroCoderTest {
     public String text;
     public int count;
 
+    @AvroSchema("{\"type\": \"long\", \"logicalType\": \"timestamp-millis\"}")
+    public DateTime timestamp;
+
     // Empty constructor required for Avro decoding.
     @SuppressWarnings("unused")
     public Pojo() {}
 
-    public Pojo(String text, int count) {
+    public Pojo(String text, int count, DateTime timestamp) {
       this.text = text;
       this.count = count;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-      Pojo pojo = (Pojo) o;
-      return count == pojo.count && Objects.equals(text, pojo.text);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(text, count);
-    }
-
-    @Override
-    public String toString() {
-      return "Pojo{" + "text='" + text + '\'' + ", count=" + count + '}';
-    }
-  }
-
-  private static class TimestampConversion extends Conversion<Instant> {
-
-    @Override
-    public Class<Instant> getConvertedType() {
-      return Instant.class;
-    }
-
-    @Override
-    public String getLogicalTypeName() {
-      return "timestamp-millis";
-    }
-
-    @Override
-    public Instant fromLong(Long millisFromEpoch, Schema schema, LogicalType type) {
-      return Instant.ofEpochMilli(millisFromEpoch);
-    }
-
-    @Override
-    public Long toLong(Instant timestamp, Schema schema, LogicalType type) {
-      return timestamp.toEpochMilli();
-    }
-  }
-
-  private static class CustomDatumFactory<T> extends AvroDatumFactory<T> {
-
-    public CustomDatumFactory(Class<T> type) {
-      super(type);
-    }
-
-    @Override
-    public DatumReader<T> apply(Schema writer, Schema reader) {
-      ReflectDatumReader<T> datumReader = new ReflectDatumReader<>(this.type);
-      datumReader.getData().addLogicalTypeConversion(new TimestampConversion());
-      datumReader.setExpected(reader);
-      datumReader.setSchema(writer);
-      return datumReader;
-    }
-
-    @Override
-    public DatumWriter<T> apply(Schema writer) {
-      ReflectDatumWriter<T> datumWriter = new ReflectDatumWriter<>(this.type);
-      datumWriter.getData().addLogicalTypeConversion(new TimestampConversion());
-      datumWriter.setSchema(writer);
-      return datumWriter;
-    }
-  }
-
-  private static class AvroCustomCoder<T> extends AvroCoder<T> {
-    public AvroCustomCoder(Class<T> type) {
-      super(type, new CustomDatumFactory<>(type), ReflectData.get().getSchema(type));
-    }
-  }
-
-  private static class PojoWithCustomLogicalType {
-
-    @AvroSchema("{\"type\": \"long\", \"logicalType\": \"timestamp-millis\"}")
-    public Instant timestamp;
-
-    public PojoWithCustomLogicalType() {}
-
-    public PojoWithCustomLogicalType(Instant timestamp) {
       this.timestamp = timestamp;
     }
 
     @Override
-    public boolean equals(Object o) {
-      if (this == o) {
+    public boolean equals(@Nullable Object other) {
+      if (this == other) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (other == null || getClass() != other.getClass()) {
         return false;
       }
-      PojoWithCustomLogicalType that = (PojoWithCustomLogicalType) o;
-      return Objects.equals(timestamp, that.timestamp);
+      Pojo that = (Pojo) other;
+      return this.count == that.count
+          && Objects.equals(this.text, that.text)
+          && Objects.equals(this.timestamp, that.timestamp);
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(timestamp);
+      return Objects.hash(text, count, timestamp);
     }
 
     @Override
     public String toString() {
-      return "PojoWithCustomLogicalType{" + "timestamp=" + timestamp + '}';
+      return "Pojo{"
+          + "text='"
+          + text
+          + '\''
+          + ", count="
+          + count
+          + ", timestamp="
+          + timestamp
+          + '}';
     }
   }
 
@@ -265,9 +190,9 @@ public class AvroCoderTest {
     CoderProperties.coderSerializable(coder);
     AvroCoder<Pojo> copy = SerializableUtils.clone(coder);
 
-    Pojo pojo = new Pojo("foo", 3);
-    Pojo equalPojo = new Pojo("foo", 3);
-    Pojo otherPojo = new Pojo("bar", -19);
+    Pojo pojo = new Pojo("foo", 3, DATETIME_A);
+    Pojo equalPojo = new Pojo("foo", 3, DATETIME_A);
+    Pojo otherPojo = new Pojo("bar", -19, DATETIME_B);
     CoderProperties.coderConsistentWithEquals(coder, pojo, equalPojo);
     CoderProperties.coderConsistentWithEquals(copy, pojo, equalPojo);
     CoderProperties.coderConsistentWithEquals(coder, pojo, otherPojo);
@@ -324,7 +249,7 @@ public class AvroCoderTest {
    */
   @Test
   public void testTransientFieldInitialization() throws Exception {
-    Pojo value = new Pojo("Hello", 42);
+    Pojo value = new Pojo("Hello", 42, DATETIME_A);
     AvroCoder<Pojo> coder = AvroCoder.of(Pojo.class);
 
     // Serialization of object
@@ -347,12 +272,13 @@ public class AvroCoderTest {
    */
   @Test
   public void testKryoSerialization() throws Exception {
-    Pojo value = new Pojo("Hello", 42);
-    AvroCoder<Pojo> coder = AvroCoder.of(Pojo.class);
+    Pojo value = new Pojo("Hello", 42, DATETIME_A);
+    AvroCoder<Pojo> coder = AvroReflectCoder.of(Pojo.class);
 
     // Kryo instantiation
     Kryo kryo = new Kryo();
     kryo.setInstantiatorStrategy(new StdInstantiatorStrategy());
+    kryo.addDefaultSerializer(AvroCoder.SerializableSchemaSupplier.class, JavaSerializer.class);
 
     // Serialization of object without any memoization
     ByteArrayOutputStream coderWithoutMemoizationBos = new ByteArrayOutputStream();
@@ -385,7 +311,7 @@ public class AvroCoderTest {
 
   @Test
   public void testPojoEncoding() throws Exception {
-    Pojo value = new Pojo("Hello", 42);
+    Pojo value = new Pojo("Hello", 42, DATETIME_A);
     AvroCoder<Pojo> coder = AvroReflectCoder.of(Pojo.class);
 
     CoderProperties.coderDecodeEncodeEqual(coder, value);
@@ -449,20 +375,11 @@ public class AvroCoderTest {
   }
 
   @Test
-  public void testCustomRecordEncoding() throws Exception {
-    Instant timestamp = Instant.parse("2022-01-01T01:02:03.456Z");
-    PojoWithCustomLogicalType value = new PojoWithCustomLogicalType(timestamp);
-    AvroCoder<PojoWithCustomLogicalType> coder =
-        new AvroCustomCoder<>(PojoWithCustomLogicalType.class);
-    CoderProperties.coderDecodeEncodeEqual(coder, value);
-  }
-
-  @Test
   public void testEncodingNotBuffered() throws Exception {
     // This test ensures that the coder doesn't read ahead and buffer data.
     // Reading ahead causes a problem if the stream consists of records of different
     // types.
-    Pojo before = new Pojo("Hello", 42);
+    Pojo before = new Pojo("Hello", 42, DATETIME_A);
 
     AvroCoder<Pojo> coder = AvroCoder.of(Pojo.class);
     SerializableCoder<Integer> intCoder = SerializableCoder.of(Integer.class);
@@ -489,7 +406,7 @@ public class AvroCoderTest {
     // a coder (this uses the default coders, which may not be AvroCoder).
     PCollection<String> output =
         pipeline
-            .apply(Create.of(new Pojo("hello", 1), new Pojo("world", 2)))
+            .apply(Create.of(new Pojo("hello", 1, DATETIME_A), new Pojo("world", 2, DATETIME_B)))
             .apply(ParDo.of(new GetTextFn()));
 
     PAssert.that(output).containsInAnyOrder("hello", "world");

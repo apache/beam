@@ -81,7 +81,7 @@ class AvroCoderCloudObjectTranslator<T extends AvroCoder> implements CloudObject
   }
 
   @Override
-  public Class<T> getSupportedClass() {
+  public Class<? extends T> getSupportedClass() {
     return coderClass;
   }
 

@@ -22,6 +22,7 @@ import org.apache.avro.reflect.Nullable;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.Union;
 import org.apache.beam.sdk.extensions.avro.io.AvroDatumFactory;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
  * AvroCoder specialisation for avro classes using Java reflection.
@@ -42,6 +43,10 @@ public class AvroReflectCoder<T> extends AvroCoder<T> {
 
   AvroReflectCoder(Class<T> type, Schema schema) {
     super(type, AvroDatumFactory.ReflectDatumFactory.of(type), schema);
+  }
+
+  public static <T> AvroReflectCoder<T> of(TypeDescriptor<T> type) {
+    return new AvroReflectCoder<>((Class<T>) type.getRawType());
   }
 
   public static <T> AvroReflectCoder<T> of(Class<T> type) {

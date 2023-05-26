@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.avro.io;
 
+import java.util.Objects;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericDatumWriter;
@@ -28,6 +29,8 @@ import org.apache.avro.reflect.ReflectDatumWriter;
 import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.avro.specific.SpecificDatumWriter;
 import org.apache.avro.specific.SpecificRecord;
+import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Create {@link DatumReader} and {@link DatumWriter} for given schemas. */
 public abstract class AvroDatumFactory<T>
@@ -37,6 +40,23 @@ public abstract class AvroDatumFactory<T>
 
   public AvroDatumFactory(Class<T> type) {
     this.type = type;
+  }
+
+  @Override
+  public boolean equals(@Nullable Object other) {
+    if (this == other) {
+      return true;
+    }
+    if (other == null || getClass() != other.getClass()) {
+      return false;
+    }
+    AvroDatumFactory<?> that = (AvroDatumFactory<?>) other;
+    return Objects.equals(type, that.type);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(getClass(), type);
   }
 
   /** Specialized {@link AvroDatumFactory} for {@link GenericRecord}. */
@@ -73,6 +93,7 @@ public abstract class AvroDatumFactory<T>
       SpecificDatumReader<T> datumReader = new SpecificDatumReader<>(this.type);
       datumReader.setExpected(reader);
       datumReader.setSchema(writer);
+      // logical types should be added to the data's model by the specific compiler
       return datumReader;
     }
 
@@ -83,6 +104,7 @@ public abstract class AvroDatumFactory<T>
       // the proper data with conversions (SpecificData.getForClass)
       SpecificDatumWriter<T> datumWriter = new SpecificDatumWriter<>(type);
       datumWriter.setSchema(writer);
+      // logical types should be added to the data's model by the specific compiler
       return datumWriter;
     }
 
@@ -106,6 +128,8 @@ public abstract class AvroDatumFactory<T>
       ReflectDatumReader<T> datumReader = new ReflectDatumReader<>(type);
       datumReader.setExpected(reader);
       datumReader.setSchema(writer);
+      // for backward compat, add logical type support by default
+      AvroUtils.addLogicalTypeConversions(datumReader.getData());
       return datumReader;
     }
 
@@ -115,6 +139,8 @@ public abstract class AvroDatumFactory<T>
       // avro will load the proper class loader
       ReflectDatumWriter<T> datumWriter = new ReflectDatumWriter<>(type);
       datumWriter.setSchema(writer);
+      // for backward compat, add logical type support by default
+      AvroUtils.addLogicalTypeConversions(datumWriter.getData());
       return datumWriter;
     }
 
@@ -123,10 +149,16 @@ public abstract class AvroDatumFactory<T>
     }
   }
 
+  @Deprecated
   public static <T> AvroDatumFactory<T> of(Class<T> type) {
+    return of(type, true);
+  }
+
+  @Deprecated
+  public static <T> AvroDatumFactory<T> of(Class<T> type, boolean useReflectApi) {
     if (GenericRecord.class.equals(type)) {
       return (AvroDatumFactory<T>) AvroDatumFactory.GenericDatumFactory.INSTANCE;
-    } else if (SpecificRecord.class.isAssignableFrom(type)) {
+    } else if (SpecificRecord.class.isAssignableFrom(type) && !useReflectApi) {
       return new AvroDatumFactory.SpecificDatumFactory<>(type);
     } else {
       return new AvroDatumFactory.ReflectDatumFactory<>(type);

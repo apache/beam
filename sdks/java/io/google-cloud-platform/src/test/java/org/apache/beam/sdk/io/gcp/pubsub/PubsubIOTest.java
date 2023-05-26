@@ -43,21 +43,15 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import org.apache.avro.Schema;
-import org.apache.avro.data.TimeConversions;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.io.DatumReader;
-import org.apache.avro.io.DatumWriter;
 import org.apache.avro.reflect.AvroSchema;
-import org.apache.avro.reflect.ReflectData;
-import org.apache.avro.reflect.ReflectDatumReader;
-import org.apache.avro.reflect.ReflectDatumWriter;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
+import org.apache.beam.sdk.extensions.avro.coders.AvroReflectCoder;
 import org.apache.beam.sdk.extensions.avro.coders.AvroSpecificCoder;
-import org.apache.beam.sdk.extensions.avro.io.AvroDatumFactory;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.Primitive;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoDomain;
@@ -321,50 +315,12 @@ public class PubsubIOTest {
         hasItem(hasDisplayItem("topic")));
   }
 
-  // our avro ReflectClass contains some logical type
-  // to enable that we need a new coder that create DatumReaders and DatumWriters
-  // initialized with the extra logical type conversion
-  static class ReflectWithTimestampDatumFactory<T> extends AvroDatumFactory<T> {
-
-    public ReflectWithTimestampDatumFactory(Class<T> type) {
-      super(type);
-    }
-
-    @Override
-    public DatumReader<T> apply(Schema writer, Schema reader) {
-      ReflectDatumReader<T> datumReader = new ReflectDatumReader<>(this.type);
-      datumReader.getData().addLogicalTypeConversion(new TimeConversions.TimestampConversion());
-      return datumReader;
-    }
-
-    @Override
-    public DatumWriter<T> apply(Schema writer) {
-      ReflectDatumWriter<T> datumWriter = new ReflectDatumWriter<>(this.type);
-      datumWriter.getData().addLogicalTypeConversion(new TimeConversions.TimestampConversion());
-      return datumWriter;
-    }
-  }
-
-  static class AvroReflectWithTimestampCoder<T> extends AvroCoder<T> {
-
-    AvroReflectWithTimestampCoder(Class<T> type) {
-      super(
-          type,
-          new ReflectWithTimestampDatumFactory<>(type),
-          new ReflectData(type.getClassLoader()).getSchema(type));
-    }
-
-    public static <T> AvroReflectWithTimestampCoder<T> of(Class<T> type) {
-      return new AvroReflectWithTimestampCoder<>(type);
-    }
-  }
-
   static class ReflectClass {
     int intField;
     String stringField;
 
     @AvroSchema("{\"type\": \"long\", \"logicalType\": \"timestamp-millis\"}")
-    DateTime timestamp;
+    public DateTime timestamp;
 
     public ReflectClass() {}
 
@@ -638,7 +594,7 @@ public class PubsubIOTest {
 
   @Test
   public void testAvroPojo() {
-    AvroCoder<ReflectClass> coder = AvroReflectWithTimestampCoder.of(ReflectClass.class);
+    AvroCoder<ReflectClass> coder = AvroReflectCoder.of(ReflectClass.class);
     List<ReflectClass> inputs =
         Lists.newArrayList(
             new ReflectClass(

@@ -109,36 +109,71 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public abstract class AvroCoder<T> extends CustomCoder<T> {
 
   /**
-   * Returns an {@code AvroCoder} instance for the provided element type.
+   * Returns an {@code AvroCoder} instance for the Avro schema. The implicit type is GenericRecord.
    *
-   * @param <T> the element type
+   * @deprecated Use {@link AvroGenericCoder#of(Class)} or {@link AvroReflectCoder#of(Class)}
+   *     instead.
    */
-  public static <T> AvroCoder<T> of(TypeDescriptor<T> type) {
-    @SuppressWarnings("unchecked")
-    Class<T> clazz = (Class<T>) type.getRawType();
-    return of(clazz);
-  }
-
-  /**
-   * Returns an {@code AvroGenericCoder} instance for the Avro schema. The implicit type is
-   * GenericRecord.
-   */
-  public static AvroCoder<GenericRecord> of(Schema schema) {
+  @Deprecated
+  public static AvroGenericCoder of(Schema schema) {
     return AvroGenericCoder.of(schema);
   }
 
   /**
-   * Returns an {@code AvroCoder} instance for the provided element class.
+   * Returns an {@code AvroCoder} instance for the provided element type.
    *
    * @param <T> the element type
+   * @deprecated Use {@link AvroGenericCoder#of(TypeDescriptor)} or {@link
+   *     AvroReflectCoder#of(TypeDescriptor)} instead.
    */
+  @Deprecated
+  public static <T> AvroCoder<T> of(TypeDescriptor<T> type) {
+    return of(type, true);
+  }
+
+  /**
+   * Returns an {@code AvroCoder} instance for the provided element type, respecting whether to use
+   * Avro's Reflect* or Specific* suite for encoding and decoding.
+   *
+   * @param <T> the element type
+   * @deprecated Use {@link AvroSpecificCoder#of(TypeDescriptor)} or {@link
+   *     AvroReflectCoder#of(TypeDescriptor)} instead.
+   */
+  @Deprecated
+  public static <T> AvroCoder<T> of(TypeDescriptor<T> type, boolean useReflectApi) {
+    @SuppressWarnings("unchecked")
+    Class<T> clazz = (Class<T>) type.getRawType();
+    return of(clazz, useReflectApi);
+  }
+
+  /**
+   * Returns an {@code AvroCoder} instance for the given class.
+   *
+   * @param <T> the element type
+   * @deprecated Use {@link AvroSpecificCoder#of(Class)} or {@link AvroReflectCoder#of(Class)}
+   *     instead.
+   */
+  @Deprecated
   public static <T> AvroCoder<T> of(Class<T> clazz) {
-    if (GenericRecord.class.equals(clazz)) {
+    return of(clazz, true);
+  }
+
+  /**
+   * Returns an {@code AvroCoder} instance for the given class, respecting whether to use Avro's
+   * Reflect* or Specific* suite for encoding and decoding.
+   *
+   * @param <T> the element type
+   * @deprecated Use {@link AvroSpecificCoder#of(Class)} or {@link AvroReflectCoder#of(Class)}
+   *     instead.
+   */
+  @Deprecated
+  public static <T> AvroCoder<T> of(Class<T> type, boolean useReflectApi) {
+    if (GenericRecord.class.equals(type)) {
       throw new IllegalArgumentException("AvroCoder for GenericRecord requires a schema");
-    } else if (SpecificRecord.class.isAssignableFrom(clazz)) {
-      return AvroSpecificCoder.of(clazz);
+    } else if (SpecificRecord.class.isAssignableFrom(type) && useReflectApi) {
+      return AvroSpecificCoder.of(type);
     } else {
-      return AvroReflectCoder.of(clazz);
+      return AvroReflectCoder.of(type);
     }
   }
 
@@ -149,11 +184,29 @@ public abstract class AvroCoder<T> extends CustomCoder<T> {
    * <p>The schema must correspond to the type provided.
    *
    * @param <T> the element type
+   * @deprecated Use {@link AvroGenericCoder#of(Schema)}, {@link AvroSpecificCoder#of(Class,
+   *     Schema)} or {@link AvroReflectCoder#of(Class, Schema)} instead.
    */
+  @Deprecated
   public static <T> AvroCoder<T> of(Class<T> type, Schema schema) {
+    return of(type, schema, true);
+  }
+
+  /**
+   * Returns an {@code AvroCoder} instance for the provided element type using the provided Avro
+   * schema, respecting whether to use Avro's Reflect* or Specific* suite for encoding and decoding.
+   *
+   * <p>The schema must correspond to the type provided.
+   *
+   * @param <T> the element type
+   * @deprecated Use {@link AvroGenericCoder#of(Schema)}, {@link AvroSpecificCoder#of(Class,
+   *     Schema)} or {@link AvroReflectCoder#of(Class, Schema)} instead.
+   */
+  @Deprecated
+  public static <T> AvroCoder<T> of(Class<T> type, Schema schema, boolean useReflectApi) {
     if (GenericRecord.class.equals(type)) {
       return (AvroCoder<T>) AvroGenericCoder.of(schema);
-    } else if (SpecificRecord.class.isAssignableFrom(type)) {
+    } else if (SpecificRecord.class.isAssignableFrom(type) && !useReflectApi) {
       return AvroSpecificCoder.of(type, schema);
     } else {
       return AvroReflectCoder.of(type, schema);
@@ -194,7 +247,6 @@ public abstract class AvroCoder<T> extends CustomCoder<T> {
   }
 
   private final Class<T> type;
-
   private final AvroDatumFactory<T> datumFactory;
   private final SerializableSchemaSupplier schemaSupplier;
   private final TypeDescriptor<T> typeDescriptor;
@@ -256,6 +308,16 @@ public abstract class AvroCoder<T> extends CustomCoder<T> {
   private final EmptyOnDeserializationThreadLocal<DatumWriter<T>> writer;
   private final EmptyOnDeserializationThreadLocal<DatumReader<T>> reader;
 
+  @Deprecated
+  protected AvroCoder(Class<T> type, Schema schema) {
+    this(type, schema, true);
+  }
+
+  @Deprecated
+  protected AvroCoder(Class<T> type, Schema schema, boolean useReflectApi) {
+    this(type, AvroDatumFactory.of(type, useReflectApi), schema);
+  }
+
   protected AvroCoder(Class<T> type, AvroDatumFactory<T> datumFactory, Schema schema) {
     this.type = type;
     this.datumFactory = datumFactory;
@@ -294,6 +356,16 @@ public abstract class AvroCoder<T> extends CustomCoder<T> {
   /** Returns the type this coder encodes/decodes. */
   public Class<T> getType() {
     return type;
+  }
+
+  /**
+   * @return true if internal {@link AvroDatumFactory} is an instance of {@link
+   *     AvroDatumFactory.ReflectDatumFactory}
+   * @deprecated kept for backward API compatibility only.
+   */
+  @Deprecated
+  public boolean useReflectApi() {
+    return datumFactory instanceof AvroDatumFactory.ReflectDatumFactory;
   }
 
   @Override
@@ -701,16 +773,20 @@ public abstract class AvroCoder<T> extends CustomCoder<T> {
    */
   @Override
   public boolean equals(@Nullable Object other) {
+    if (this == other) {
+      return true;
+    }
     if (other == null || this.getClass() != other.getClass()) {
       return false;
     }
     AvroCoder<?> that = (AvroCoder<?>) other;
-    return Objects.equals(this.schemaSupplier.get(), that.schemaSupplier.get())
-        && Objects.equals(this.typeDescriptor, that.typeDescriptor);
+    return Objects.equals(this.typeDescriptor, that.typeDescriptor)
+        && Objects.equals(this.datumFactory, that.datumFactory)
+        && Objects.equals(this.schemaSupplier.get(), that.schemaSupplier.get());
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(getClass(), schemaSupplier.get(), typeDescriptor);
+    return Objects.hash(getClass(), typeDescriptor, datumFactory, schemaSupplier.get());
   }
 }

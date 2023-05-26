@@ -152,6 +152,25 @@ public class AvroUtils {
       new ForLoadedType(ReadableInstant.class);
   private static final ForLoadedType JODA_INSTANT = new ForLoadedType(Instant.class);
 
+  public static void addLogicalTypeConversions(final GenericData data) {
+    data.addLogicalTypeConversion(new Conversions.DecimalConversion());
+    data.addLogicalTypeConversion(new Conversions.UUIDConversion());
+    // joda-time
+    data.addLogicalTypeConversion(new AvroJodaTimeConversions.DateConversion());
+    data.addLogicalTypeConversion(new AvroJodaTimeConversions.TimeConversion());
+    data.addLogicalTypeConversion(new AvroJodaTimeConversions.TimeMicrosConversion());
+    data.addLogicalTypeConversion(new AvroJodaTimeConversions.TimestampConversion());
+    data.addLogicalTypeConversion(new AvroJodaTimeConversions.TimestampMicrosConversion());
+    // java-time
+    data.addLogicalTypeConversion(new AvroJavaTimeConversions.DateConversion());
+    data.addLogicalTypeConversion(new AvroJavaTimeConversions.TimeMillisConversion());
+    data.addLogicalTypeConversion(new AvroJavaTimeConversions.TimeMicrosConversion());
+    data.addLogicalTypeConversion(new AvroJavaTimeConversions.TimestampMillisConversion());
+    data.addLogicalTypeConversion(new AvroJavaTimeConversions.TimestampMicrosConversion());
+    data.addLogicalTypeConversion(new AvroJavaTimeConversions.LocalTimestampMillisConversion());
+    data.addLogicalTypeConversion(new AvroJavaTimeConversions.LocalTimestampMicrosConversion());
+  }
+
   // Unwrap an AVRO schema into the base type an whether it is nullable.
   public static class TypeWithNullability {
     public final org.apache.avro.Schema type;
@@ -436,6 +455,16 @@ public class AvroUtils {
   }
 
   private AvroUtils() {}
+
+  /**
+   * Converts AVRO schema to Beam row schema.
+   *
+   * @param clazz avro class
+   */
+  public static Schema toBeamSchema(Class<?> clazz) {
+    ReflectData data = new ReflectData(clazz.getClassLoader());
+    return toBeamSchema(data.getSchema(clazz));
+  }
 
   /**
    * Converts AVRO schema to Beam row schema.

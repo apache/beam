@@ -17,10 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.avro.schemas;
 
-import static org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils.toBeamSchema;
-
 import java.util.List;
-import org.apache.avro.reflect.ReflectData;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
@@ -42,10 +39,8 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 })
 public class AvroRecordSchema extends GetterBasedSchemaProvider {
   @Override
-  @SuppressWarnings("nullness") // new ReflectData(ClassLoader) is not annotated to accept null
   public <T> Schema schemaFor(TypeDescriptor<T> typeDescriptor) {
-    Class<?> avroType = typeDescriptor.getRawType();
-    return toBeamSchema(new ReflectData(avroType.getClassLoader()).getSchema(avroType));
+    return AvroUtils.toBeamSchema(typeDescriptor.getRawType());
   }
 
   @Override
