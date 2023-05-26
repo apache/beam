@@ -37,9 +37,9 @@ from apache_beam.testing.util import equal_to
 # Protect against environments where gcp library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
-  from apache_beam.io.gcp.dicomio import DicomSearch
-  from apache_beam.io.gcp.dicomio import FormatToQido
-  from apache_beam.io.gcp.dicomio import UploadToDicomStore
+  from apache_beam.io.gcp.healthcare.dicomio import DicomSearch
+  from apache_beam.io.gcp.healthcare.dicomio import FormatToQido
+  from apache_beam.io.gcp.healthcare.dicomio import UploadToDicomStore
 except ImportError:
   DicomSearch = None  # type: ignore
 # pylint: enable=wrong-import-order, wrong-import-position

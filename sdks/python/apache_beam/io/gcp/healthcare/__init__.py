@@ -14,13 +14,3 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
-# For backwards compatibility.
-
-# pytype: skip-file
-
-import warnings
-
-warnings.warn(
-    "Dicom Client moved to apache_beam.io.gcp.healthcare.dicomio",
-    DeprecationWarning)
