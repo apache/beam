@@ -2439,7 +2439,6 @@ class BeamModulePlugin implements Plugin<Project> {
       project.evaluationDependsOn(":sdks:java:extensions:python")
 
       // Setting up args to launch the expansion service
-      def envDir = project.project(":sdks:python").envdir
       def pythonDir = project.project(":sdks:python").projectDir
       def javaExpansionPort = -1 // will be populated in setupTask
       def expansionJar = project.project(config.expansionProjectPath).shadowJar.archivePath
@@ -2504,7 +2503,7 @@ class BeamModulePlugin implements Plugin<Project> {
             environment "EXPANSION_JAR", expansionJar
             environment "EXPANSION_PORT", javaExpansionPort
             executable 'sh'
-            args '-c', ". $envDir/bin/activate && cd $pythonDir && ./scripts/run_integration_test.sh $cmdArgs"
+            args '-c', ". $project.ext.envdir/bin/activate && cd $pythonDir && ./scripts/run_integration_test.sh $cmdArgs"
           }
         }
       }
