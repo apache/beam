@@ -28,30 +28,38 @@
 import apache_beam as beam
 import logging
 import re
+from apache_beam.transforms import window, trigger
+from apache_beam.transforms.combiners import CountCombineFn
+
+
+class Transaction:
+    def __init__(self, transaction_no, date, product_no, product_name, price, quantity, customer_no, country):
+        self.transaction_no = transaction_no
+        self.date = date
+        self.product_no = product_no
+        self.product_name = product_name
+        self.price = price
+        self.quantity = quantity
+        self.customer_no = customer_no
+        self.country = country
+
+    def __str__(self):
+        return f"Transaction(transaction_no={self.transaction_no}, date='{self.date}', product_no='{self.product_no}', product_name='{self.product_name}', price={self.price}, quantity={self.quantity}, customer_no={self.customer_no}, country='{self.country}')"
+
 
 class ExtractDataFn(beam.DoFn):
     def process(self, element):
-        element = element.split(",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)")
-        try:
-            yield {
-                'id': int(element[0]),
-                'date': element[1],
-                'productId': element[2],
-                'productName': element[3],
-                'price': float(element[4]),
-                'quantity': int(element[5]),
-                'customerId': int(element[6]),
-                'country': element[7]
-            }
-        except Exception:
-            logging.info("Skipping header")
+        items = re.split(r',(?=(?:[^"]*"[^"]*")*[^"]*$)', element)
+        if items[0] != 'TransactionNo':
+            yield Transaction(items[0], items[1], items[2], items[3], items[4], items[5], items[6], items[7])
 
-class PartitionTransactions(beam.DoFn):
-    def process(self, element):
-        if element['price'] > 10:
-            yield beam.pvalue.TaggedOutput('biggerThan10', element)
-        else:
-            yield beam.pvalue.TaggedOutput('smallerThan10', element)
+
+def partitionTransactions(element, num_partitions):
+    if float(element.price) >= 10:
+        return 0
+    else:
+        return 1
+
 
 def run():
     with beam.Pipeline() as pipeline:
@@ -60,21 +68,27 @@ def run():
                         | 'Extract Data' >> beam.ParDo(ExtractDataFn())
                         )
 
-        partition = (transactions
-                     | 'Partition transactions' >> beam.ParDo(PartitionTransactions()).with_outputs('biggerThan10', 'smallerThan10', main='main')
-                     )
+        windowed_transactions = (transactions
+                                 | 'Window' >> beam.WindowInto(window.FixedWindows(30), trigger=trigger.AfterWatermark(
+                    early=trigger.AfterProcessingTime(5).has_ontime_pane(), late=trigger.AfterAll()),
+                                                               allowed_lateness=180,
+                                                               accumulation_mode=trigger.AccumulationMode.DISCARDING))
 
-        biggerThan10 = partition.biggerThan10
-        smallerThan10 = partition.smallerThan10
+        partition = (windowed_transactions
+                     | 'Filtering' >> beam.Filter(lambda t: t.quantity>=20)
+                     | 'Partition transactions' >> beam.Partition(partitionTransactions, 2))
+
+        biggerThan10 = partition[0]
+        smallerThan10 = partition[1]
 
         (biggerThan10
-         | 'Calculate sum for biggerThan10' >> beam.CombinePerKey(sum)
-         | 'Write biggerThan10 results to text file' >> beam.io.WriteToText('biggerThan10')
+         | 'Calculate sum for biggerThan10' >> beam.CombineGlobally(CountCombineFn()).without_defaults()
+         | 'Write biggerThan10 results to text file' >> beam.io.WriteToText('biggerThan10', '.txt', shard_name_template='')
          )
 
         (smallerThan10
-         | 'Calculate sum for smallerThan10' >> beam.CombinePerKey(sum)
-         | 'Write smallerThan10 results to text file' >> beam.io.WriteToText('smallerThan10')
+         | 'Calculate sum for smallerThan10' >> beam.CombineGlobally(CountCombineFn()).without_defaults()
+         | 'Write smallerThan10 results to text file' >> beam.io.WriteToText('smallerThan10', '.txt', shard_name_template='')
          )
 
 if __name__ == '__main__':

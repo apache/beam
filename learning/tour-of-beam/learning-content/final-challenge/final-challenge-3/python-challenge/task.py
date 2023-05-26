@@ -27,18 +27,51 @@
 
 import re
 import apache_beam as beam
+from apache_beam.io import ReadFromText
 from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.io import ReadFromText, WriteToText
-from apache_beam.transforms import DoFn, ParDo, WindowInto, FixedWindows
-from apache_beam.transforms.window import AfterProcessingTime
+from apache_beam.transforms import window, trigger
+from apache_beam.transforms.combiners import CountCombineFn
+
+
+class SplitWords(beam.DoFn):
+    def process(self, element):
+        return re.sub(r"[^A-Za-z0-9 ]", "", element).lower().split(" ")
+
+
+class Analysis:
+    def __init__(self, word, negative, positive, uncertainty, litigious, strong, weak, constraining):
+        self.word = word
+        self.negative = negative
+        self.positive = positive
+        self.uncertainty = uncertainty
+        self.litigious = litigious
+        self.strong = strong
+        self.weak = weak
+        self.constraining = constraining
+
+    def __str__(self):
+        return (f'Analysis(word={self.word}, negative={self.negative}, positive={self.positive}, '
+                f'uncertainty={self.uncertainty}, litigious={self.litigious}, strong={self.strong}, '
+                f'weak={self.weak}, constraining={self.constraining})')
+
+class LogOutput(beam.DoFn):
+    def __init__(self, message):
+        self.message = message
+
+    def process(self, element):
+        print(f"{self.message}: {element}")
 
 
 def run():
     pipeline_options = PipelineOptions()
     with beam.Pipeline(options=pipeline_options) as p:
         shakespeare = (p
-                       | "Read Text" >> ReadFromText("gs://apache-beam-samples/shakespeare/kinglear.txt")
-                       )
+                       | 'Read from text file' >> ReadFromText('gs://apache-beam-samples/shakespeare/kinglear.txt')
+                       | 'Split into words' >> beam.ParDo(SplitWords())
+                       | 'Filter empty words' >> beam.Filter(bool))
 
-if __name__ == '__main__':
+        analysis = (p
+                    | 'Read from csv file' >> ReadFromText('analysis.csv'))
+
+if __name__ == "__main__":
     run()

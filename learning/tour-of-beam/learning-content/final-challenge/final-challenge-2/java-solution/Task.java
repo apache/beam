@@ -41,8 +41,6 @@ import org.apache.beam.sdk.transforms.*;
 import org.apache.beam.sdk.transforms.windowing.*;
 import org.apache.beam.sdk.values.*;
 import org.joda.time.Duration;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.util.Arrays;
@@ -53,7 +51,6 @@ import static org.apache.beam.sdk.testing.SerializableMatchers.kv;
 import static org.apache.beam.sdk.values.TypeDescriptors.*;
 
 public class Task {
-    private static final Logger LOG = LoggerFactory.getLogger(Task.class);
     private static final Integer WINDOW_TIME = 30;
     private static final Integer TIME_OUTPUT_AFTER_FIRST_ELEMENT = 5;
     private static final Integer ALLOWED_LATENESS_TIME = 1;
@@ -61,7 +58,6 @@ public class Task {
     private static final String REGEX_FOR_CSV = ",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)";
 
     public static void main(String[] args) {
-        LOG.info("Running Task");
         PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
         Pipeline pipeline = Pipeline.create(options);
 
@@ -79,13 +75,13 @@ public class Task {
                 .apply(new TransactionPartitionFn());
 
         parts.get(0)
-                .apply(MapElements.into(TypeDescriptors.kvs(TypeDescriptors.longs(), TypeDescriptors.doubles())).via(it->KV.of(it.id,it.price)))
+                .apply(MapElements.into(TypeDescriptors.kvs(TypeDescriptors.longs(), TypeDescriptors.doubles())).via(it -> KV.of(it.id, it.price)))
                 .apply(Combine.perKey(new SumDoubleBinaryCombineFn()))
                 .apply(MapElements.into(TypeDescriptor.of(String.class)).via(it -> it.toString()))
                 .apply("WriteToFile", TextIO.write().to("biggerThan10").withSuffix(".txt"));
 
         parts.get(1)
-                .apply(MapElements.into(TypeDescriptors.kvs(TypeDescriptors.longs(), TypeDescriptors.doubles())).via(it->KV.of(it.id,it.price)))
+                .apply(MapElements.into(TypeDescriptors.kvs(TypeDescriptors.longs(), TypeDescriptors.doubles())).via(it -> KV.of(it.id, it.price)))
                 .apply(Combine.perKey(new SumDoubleBinaryCombineFn()))
                 .apply(MapElements.into(TypeDescriptor.of(String.class)).via(it -> it.toString()))
                 .apply("WriteToFile", TextIO.write().to("smallerThan10").withSuffix(".txt"));
@@ -203,22 +199,4 @@ public class Task {
                     '}';
         }
     }
-
-    static class LogOutput<T> extends DoFn<T, T> {
-        private final String prefix;
-
-        LogOutput() {
-            this.prefix = "Processing element";
-        }
-
-        LogOutput(String prefix) {
-            this.prefix = prefix;
-        }
-
-        @ProcessElement
-        public void processElement(ProcessContext c) throws Exception {
-            LOG.info(prefix + ": {}", c.element());
-        }
-    }
-
 }

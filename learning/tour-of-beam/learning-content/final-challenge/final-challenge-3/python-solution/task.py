@@ -25,13 +25,18 @@
 #     tags:
 #       - hellobeam
 
-
 import re
 import apache_beam as beam
+from apache_beam.io import ReadFromText
 from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.io import ReadFromText, WriteToText
-from apache_beam.transforms import DoFn, ParDo, WindowInto, FixedWindows
-from apache_beam.transforms.window import AfterProcessingTime
+from apache_beam.transforms import window, trigger
+from apache_beam.transforms.combiners import CountCombineFn
+
+
+class SplitWords(beam.DoFn):
+    def process(self, element):
+        return re.sub(r"[^A-Za-z0-9 ]", "", element).lower().split(" ")
+
 
 class Analysis:
     def __init__(self, word, negative, positive, uncertainty, litigious, strong, weak, constraining):
@@ -44,53 +49,91 @@ class Analysis:
         self.weak = weak
         self.constraining = constraining
 
-class ExtractWordsFn(beam.DoFn):
-    def process(self, element):
-        # Remove punctuation and non-alphanumeric characters, convert to lowercase and split the line into words
-        return re.sub(r"[^A-Za-z0-9 ]", "").split(" ")
+    def __str__(self):
+        return (f'Analysis(word={self.word}, negative={self.negative}, positive={self.positive}, '
+                f'uncertainty={self.uncertainty}, litigious={self.litigious}, strong={self.strong}, '
+                f'weak={self.weak}, constraining={self.constraining})')
 
-class PartitionFn(beam.DoFn):
-    def process(self, element):
-        if not element.positive == '0':
-            yield beam.pvalue.TaggedOutput('positive', element)
-        elif not element.negative == '0':
-            yield beam.pvalue.TaggedOutput('negative', element)
 
-class FilterWordsFn(beam.DoFn):
-    def process(self, element, analysis_list):
-        for analysis in analysis_list:
-            if analysis.word == element:
-                yield analysis
+class ExtractAnalysis(beam.DoFn):
+    def process(self, element):
+        items = re.split(r',(?=(?:[^"]*"[^"]*")*[^"]*$)', element)
+        if items[1] != 'Negative':
+            yield Analysis(items[0].lower(), items[1], items[2], items[3], items[4], items[5], items[6], items[7])
+
+
+class ApplyTransform(beam.PTransform):
+    def expand(self, pcoll):
+        return pcoll | beam.Partition(self._analysis_partition_fn, 3)
+
+    @staticmethod
+    def _analysis_partition_fn(analysis, num_partitions):
+        if analysis.positive != "0":
+            return 0
+        elif analysis.negative != "0":
+            return 1
+        else:
+            return 2
+
+
+class LogOutput(beam.DoFn):
+    def __init__(self, message):
+        self.message = message
+
+    def process(self, element):
+        print(f"{self.message}: {element}")
+
+
+class MatchWordDoFn(beam.DoFn):
+    def process(self, element, analysis):
+            for a in analysis:
+            if a.word == element:
+                yield a
+
 
 def run():
     pipeline_options = PipelineOptions()
     with beam.Pipeline(options=pipeline_options) as p:
         shakespeare = (p
-                       | "Read Text" >> ReadFromText("gs://apache-beam-samples/shakespeare/kinglear.txt")
-                       | "Extract Words" >> ParDo(ExtractWordsFn())
-                       )
+                       | 'Read from text file' >> ReadFromText('gs://apache-beam-samples/shakespeare/kinglear.txt')
+                       | 'Split into words' >> beam.ParDo(SplitWords())
+                       | 'Filter empty words' >> beam.Filter(bool))
 
         analysis = (p
-                    | "Read CSV" >> ReadFromText("analysis.csv")
-                    | "Extract Analysis" >> ParDo(SentimentAnalysisExtractFn())
-                    )
+                    | 'Read from csv file' >> ReadFromText('analysis.csv')
+                    | 'Extract Analysis' >> beam.ParDo(ExtractAnalysis()))
 
-        analysis_list = beam.pvalue.AsList(analysis)
+        windowed_words = (shakespeare
+                          | 'Window' >> beam.WindowInto(window.FixedWindows(30), trigger=trigger.AfterWatermark(
+                    early=trigger.AfterProcessingTime(5).has_ontime_pane(), late=trigger.AfterAll()), allowed_lateness=180,
+                                                        accumulation_mode=trigger.AccumulationMode.DISCARDING))
 
-        result = (shakespeare
-                  | "Filter Words" >> ParDo(FilterWordsFn(), analysis_list)
-                  | "Partition" >> beam.Partition(PartitionFn(), 2)
-                  )
+        matches = windowed_words | beam.ParDo(MatchWordDoFn(), beam.pvalue.AsList(analysis))
 
-        positive, negative = result
+        result = matches | ApplyTransform()
 
-        # TODO: Apply further transforms to the 'positive' and 'negative' PCollections
+        positive_words = result[0]
+        negative_words = result[1]
 
-class SentimentAnalysisExtractFn(beam.DoFn):
-    def process(self, element):
-        items = re.split(r",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)", element)
-        if items[1] != "Negative":
-            yield Analysis(items[0].lower(), items[1], items[2], items[3], items[4], items[5], items[6], items[7])
+        (positive_words
+         | 'Count Positive Words' >> beam.CombineGlobally(CountCombineFn()).without_defaults()
+         | 'Log Positive Words' >> beam.ParDo(LogOutput('Positive word count')))
 
-if __name__ == '__main__':
+        (positive_words
+         | 'Filter Strong or Weak Positive Words' >> beam.Filter(
+                    lambda analysis: analysis.strong != '0' or analysis.weak != '0')
+         | 'Count Strong or Weak Positive Words' >> beam.CombineGlobally(CountCombineFn()).without_defaults()
+         | 'Log Strong or Weak Positive Words' >> beam.ParDo(LogOutput('Positive words with enhanced effect count')))
+
+        (negative_words
+         | 'Count Negative Words' >> beam.CombineGlobally(CountCombineFn()).without_defaults()
+         | 'Log Negative Words' >> beam.ParDo(LogOutput('Negative word count')))
+
+        (negative_words
+         | 'Filter Strong or Weak Negative Words' >> beam.Filter(
+                    lambda analysis: analysis.strong != '0' or analysis.weak != '0')
+         | 'Count Strong or Weak Negative Words' >> beam.CombineGlobally(CountCombineFn()).without_defaults()
+         | 'Log Strong or Weak Negative Words' >> beam.ParDo(LogOutput('Negative words with enhanced effect count')))
+
+if __name__ == "__main__":
     run()

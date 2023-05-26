@@ -50,16 +50,66 @@ import static org.apache.beam.sdk.values.TypeDescriptors.*;
 public class Task {
     public static void main(String[] args) {
         PipelineOptions options = PipelineOptionsFactory.fromArgs(args).withValidation().create();
-        options.setTempLocation("input.csv");
         runChallenge(options);
     }
 
     static void runChallenge(PipelineOptions options) {
         Pipeline p = Pipeline.create(options);
 
-        PCollection<Review> reviewPCollection = p.apply("ReadLines", TextIO.read().from(options.getTempLocation()));
+        PCollection<String> shakespeare = getPCollection(pipeline);
 
         p.run();
+    }
+
+    public static PCollection<String> getPCollection(Pipeline pipeline) {
+        PCollection<String> rides = pipeline.apply(TextIO.read().from("gs://apache-beam-samples/shakespeare/kinglear.txt"));
+        return rides.apply(FlatMapElements.into(TypeDescriptors.strings()).via(line -> Arrays.asList(line
+                        .replaceAll("[^A-Za-z0-9 ]", "").replaceAll("\\d+", "")
+                        .toLowerCase().split(" "))))
+                .apply(Filter.by((String word) -> !word.isEmpty()));
+    }
+
+    public static PCollection<?> getAnalysisPCollection(Pipeline pipeline) {
+        PCollection<String> words = pipeline.apply(TextIO.read().from("analysis.csv"));
+        return analysisPCollection;
+    }
+
+    @DefaultSchema(JavaFieldSchema.class)
+    public static class Analysis {
+        public String word;
+        public String negative;
+        public String positive;
+        public String uncertainty;
+        public String litigious;
+        public String strong;
+        public String weak;
+        public String constraining;
+
+        @SchemaCreate
+        public Analysis(String word, String negative, String positive, String uncertainty, String litigious, String strong, String weak, String constraining) {
+            this.word = word;
+            this.negative = negative;
+            this.positive = positive;
+            this.uncertainty = uncertainty;
+            this.litigious = litigious;
+            this.strong = strong;
+            this.weak = weak;
+            this.constraining = constraining;
+        }
+
+        @Override
+        public String toString() {
+            return "Analysis{" +
+                    "word='" + word + '\'' +
+                    ", negative='" + negative + '\'' +
+                    ", positive='" + positive + '\'' +
+                    ", uncertainty='" + uncertainty + '\'' +
+                    ", litigious='" + litigious + '\'' +
+                    ", strong='" + strong + '\'' +
+                    ", weak='" + weak + '\'' +
+                    ", constraining='" + constraining + '\'' +
+                    '}';
+        }
     }
 
 }

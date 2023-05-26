@@ -11,4 +11,10 @@ limitations under the License.
 -->
 ### Final challenge 3
 
-You are given a set of analyzed words. Therefore, you need to analyze the shekspir/kinglear file. How many negative words are positive words , and amplified negative words , amplified positive words ?
+You are given a file analyzed.csv which contain analyzed words. Therefore, you need to analyze the shekspir/kinglear file. How many **negative words** and **positive words** , and negative words, positive words with strong or weak modal?
+
+| Word         | Negative | Positive | Uncertainty | Litigious | Strong_Modal | Weak_Modal | Constraining |
+|--------------|----------|----------|-------------|-----------|--------------|------------|--------------|
+| NONSEVERABLE | 0        | 0        | 0           | 2011      | 0            | 0          | 0            |
+| DISFAVOR     | 2009     | 0        | 0           | 0         | 0            | 0          | 0            |
+| COMPLIMENT   | 0        | 2009     | 0           | 0         | 0            | 0          | 0            |

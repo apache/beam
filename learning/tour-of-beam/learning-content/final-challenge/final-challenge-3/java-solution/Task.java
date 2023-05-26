@@ -128,11 +128,11 @@ public class Task {
         PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
         Pipeline pipeline = Pipeline.create(options);
 
-        Window<String> window = Window.into(FixedWindows.of(Duration.standardSeconds(WINDOW_TIME)));
-        Trigger trigger = AfterProcessingTime.pastFirstElementInPane().plusDelayOf(Duration.standardSeconds(TIME_OUTPUT_AFTER_FIRST_ELEMENT));
-
         PCollection<String> shakespeare = getPCollection(pipeline);
         PCollectionView<List<Analysis>> viewAnalysisPCollection = getAnalysisPCollection(pipeline).apply(View.asList());
+
+        Window<String> window = Window.into(FixedWindows.of(Duration.standardSeconds(WINDOW_TIME)));
+        Trigger trigger = AfterProcessingTime.pastFirstElementInPane().plusDelayOf(Duration.standardSeconds(TIME_OUTPUT_AFTER_FIRST_ELEMENT));
 
         PCollection<String> pCollection = shakespeare.
                 apply(window.triggering(Repeatedly.forever(trigger)).withAllowedLateness(Duration.standardMinutes(ALLOWED_LATENESS_TIME)).discardingFiredPanes());

@@ -31,12 +31,12 @@ package main
 
 import (
 	"context"
-	"log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 	"strings"
-
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
-	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
 )
 
 type Analysis struct {
@@ -51,6 +51,8 @@ type Analysis struct {
 }
 
 func main() {
+	ctx := context.Background()
+
 	beam.Init()
 
 	p := beam.NewPipeline()
@@ -80,15 +82,14 @@ func main() {
 
 	textio.Write(s, "output.txt", counted)
 
-	err := beam.Run(context.Background(), "direct", p)
+	err := beamx.Run(ctx, p)
+
 	if err != nil {
-		log.Fatalf(ctx, "Failed to execute job: %v", err)
+		log.Exitf(context.Background(), "Failed to execute job: %v", err)
 	}
 }
 
 func parseAnalysis(line string) (Analysis, error) {
-	// Implement CSV parsing here.
-	// Assuming comma-separated values for simplicity.
 	parts := strings.Split(line, ",")
 	return Analysis{
 		Word:         parts[0],

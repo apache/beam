@@ -31,14 +31,17 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window/trigger"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/filter"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 	"log"
-	"reflect"
 	"strconv"
 	"strings"
-
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
-	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
+	"time"
 )
 
 type Transaction struct {
@@ -52,56 +55,90 @@ type Transaction struct {
 	Country     string
 }
 
+func (p Transaction) ToString() string {
+	return fmt.Sprintf(
+		"Transaction{ID: %d, Date: %s, ProductID: %s, ProductName: %s, Price: %.2f, Quantity: %d, CustomerID: %d, Country: %s}",
+		p.ID, p.Date, p.ProductID, p.ProductName, p.Price, p.Quantity, p.CustomerID, p.Country,
+	)
+}
+
 func main() {
+	ctx := context.Background()
+
 	beam.Init()
 	p := beam.NewPipeline()
 	s := p.Root()
 
-	t := beam.TypeOf(reflect.TypeOf((*Transaction)(nil)).Elem())
 	file := textio.Read(s, "input.csv")
 
-	data := beam.ParDo(s, extractDataFn, file, beam.TypeDefinition{Var: t.Var, T: t})
+	transactions := getTransactions(s, file)
 
-	biggerThan10 := beam.ParDo(s, partitionBiggerThan10Fn, data, beam.TypeDefinition{Var: t.Var, T: t})
-	smallerThan10 := beam.ParDo(s, partitionSmallerThan10Fn, data, beam.TypeDefinition{Var: t.Var, T: t})
+	trigger := trigger.AfterEndOfWindow().
+		EarlyFiring(trigger.AfterProcessingTime().
+			PlusDelay(60 * time.Second)).
+		LateFiring(trigger.Repeat(trigger.AfterCount(1)))
 
+	fixedWindowedItems := beam.WindowInto(s, window.NewFixedWindows(30*time.Second), transactions,
+		beam.Trigger(trigger),
+		beam.AllowedLateness(30*time.Minute),
+		beam.PanesDiscard(),
+	)
+
+	filtered := filtering(s, fixedWindowedItems)
+
+	result := getPartition(s, filtered)
+
+	biggerThan10 := convertToString(s, result[0])
 	textio.Write(s, "biggerThan10.txt", biggerThan10)
+
+	smallerThan10 := convertToString(s, result[1])
 	textio.Write(s, "smallerThan10.txt", smallerThan10)
 
-	if err := beamx.Run(context.Background(), p); err != nil {
+	if err := beamx.Run(ctx, p); err != nil {
 		log.Fatalf("Failed to execute job: %v", err)
 	}
 }
 
-func extractDataFn(ctx context.Context, line string, emit func(Transaction)) {
-	csv := strings.Split(line, ",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)")
-	if len(csv) < 8 {
-		return
-	}
-	id, _ := strconv.ParseInt(csv[0], 10, 64)
-	price, _ := strconv.ParseFloat(csv[4], 64)
-	quantity, _ := strconv.ParseInt(csv[5], 10, 64)
-	customerID, _ := strconv.ParseInt(csv[6], 10, 64)
-	emit(Transaction{
-		ID:          id,
-		Date:        csv[1],
-		ProductID:   csv[2],
-		ProductName: csv[3],
-		Price:       price,
-		Quantity:    quantity,
-		CustomerID:  customerID,
-		Country:     csv[7],
+func getTransactions(s beam.Scope, input beam.PCollection) beam.PCollection {
+	return beam.ParDo(s, func(line string, emit func(transaction Transaction)) {
+		csv := strings.Split(line, ",")
+
+		if csv[0] != "TransactionNo" {
+			id, _ := strconv.ParseInt(csv[0], 10, 64)
+			price, _ := strconv.ParseFloat(csv[4], 64)
+			quantity, _ := strconv.ParseInt(csv[5], 10, 64)
+			customerID, _ := strconv.ParseInt(csv[6], 10, 64)
+			emit(Transaction{
+				ID:          id,
+				Date:        csv[1],
+				ProductID:   csv[2],
+				ProductName: csv[3],
+				Price:       price,
+				Quantity:    quantity,
+				CustomerID:  customerID,
+				Country:     csv[7],
+			})
+		}
+	}, input)
+}
+
+func getPartition(s beam.Scope, input beam.PCollection) []beam.PCollection {
+	return beam.Partition(s, 2, func(element Transaction) int {
+		if element.Price >= 10 {
+			return 0
+		}
+		return 1
+	}, input)
+}
+
+func convertToString(s beam.Scope, input beam.PCollection) beam.PCollection {
+	return beam.ParDo(s, func(element Transaction, emit func(string)) {
+		emit(element.ToString())
+	}, input)
+}
+
+func filtering(s beam.Scope, input beam.PCollection) beam.PCollection {
+	return filter.Include(s, input, func(element Transaction) bool {
+		return element.Quantity >= 20
 	})
-}
-
-func partitionBiggerThan10Fn(ctx context.Context, transaction Transaction, emit func(Transaction)) {
-	if transaction.Price > 10 {
-		emit(transaction)
-	}
-}
-
-func partitionSmallerThan10Fn(ctx context.Context, transaction Transaction, emit func(Transaction)) {
-	if transaction.Price <= 10 {
-		emit(transaction)
-	}
 }
