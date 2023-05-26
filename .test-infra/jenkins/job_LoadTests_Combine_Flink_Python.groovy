@@ -51,7 +51,7 @@ def loadTestConfigurations = { mode, datasetName ->
         '"key_size": 1,' +
         '"value_size": 9,' +
         '"algorithm": "lcg"}\'',
-        parallelism         : 2,
+        parallelism         : 5,
         job_endpoint        : 'localhost:8099',
         environment_type    : 'DOCKER',
         environment_config  : "${DOCKER_CONTAINER_REGISTRY}/${DOCKER_BEAM_SDK_IMAGE}",
