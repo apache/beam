@@ -42,6 +42,7 @@ cd beam
 mkdir playground/terraform/environment/$ENVIRONMENT_NAME
 
 
+#Check if bucket exists using the GCS API. If it does not exist, create it
 checkBucket=$(curl -s -H "X-Goog-User-Project: $(gcloud config get-value project)" -H "Authorization: Bearer $(gcloud auth print-access-token)" https://storage.googleapis.com/storage/v1/b/$TF_VAR_state_bucket -w "%{http_code}" -o /dev/null)
 if [ $checkBucket -eq 200 ]; then
         echo "Bucket already exists"
@@ -59,10 +60,9 @@ elif [ $checkBucket -eq 401 ]; then
         echo "You do not have permission to access this bucket"
         exit 1
 else
-        echo "Something went wrong, please check the bucket name"
+        echo "Something went wrong, error code: $checkBucket, please check the bucket name"
         exit 1
 fi
-
 
 
 echo "---- ENV OUTPUT---"
