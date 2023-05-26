@@ -1,0 +1,155 @@
+/**
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+ http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+*/
+
+html {
+    box-sizing: border-box;
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: inherit;
+    margin: 0;
+    padding: 0;
+}
+
+:root {
+    --light-green: #00ff00;
+    --dark-green: #003b00;
+    --dark-grey: #777;
+    --light-grey: #dadce0;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
+}
+
+a {
+    text-decoration: none;
+    color: #333;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+a.button {
+    border: 2px solid #004400;
+    color: var(--dark-green);
+    border-radius: 4px;
+    padding: 6px 24px;
+    font-size: 14px;
+    font-weight: 400;
+}
+
+a.button:hover {
+    text-decoration: none;
+    background-color: var(--dark-green);
+    color: var(--light-green);
+}
+
+header {
+    width: 100%;
+    height: 50px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: space-between;
+    background-color: var(--light-green);
+    padding: 5px 10px;
+    align-items: center;
+}
+
+.logo {
+    color: #002200;
+}
+
+.container {
+    width: 100%;
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 80px 20px 40px;
+}
+
+.result-count {
+    color: var(--dark-grey);
+    text-align: center;
+    margin-bottom: 15px;
+}
+
+.title {
+    margin-bottom: 15px;
+}
+
+.description {
+    color: var(--dark-grey);
+    margin-bottom: 15px;
+}
+
+.metadata {
+    display: flex;
+    color: var(--dark-green);
+    font-size: 14px;
+}
+
+.pagination {
+    margin-top: 20px;
+}
+
+.previous-page {
+    margin-right: 20px;
+}
+
+.job-list {
+    border-collapse: collapse;
+    margin: 25px 0;
+    font-size: 0.9em;
+    font-family: sans-serif;
+    min-width: 400px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
+}
+
+.job-list thead tr {
+    background-color: #009879;
+    color: #ffffff;
+    text-align: left;
+}
+
+.job-list th,
+.job-list td {
+    padding: 12px 15px;
+}
+
+@media screen and (max-width: 550px) {
+    header {
+        flex-direction: column;
+        height: auto;
+        padding-bottom: 10px;
+    }
+
+    .logo {
+        display: inline-block;
+        margin-bottom: 10px;
+    }
+
+    .title {
+        font-size: 18px;
+    }
+
+    .description {
+        font-size: 14px;
+    }
+}

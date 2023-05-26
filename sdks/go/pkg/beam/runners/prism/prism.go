@@ -21,10 +21,14 @@ import (
 	"context"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/jobopts"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/jobservices"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/web"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/universal"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func init() {
@@ -45,4 +49,25 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 		*jobopts.EnvironmentType = "loopback"
 	}
 	return universal.Execute(ctx, p)
+}
+
+type Options struct {
+	Port int
+}
+
+// CreateJobServer returns a Beam JobServicesClient connected to an in memory JobServer.
+func CreateJobServer(ctx context.Context, opts Options) (jobpb.JobServiceClient, error) {
+	s := jobservices.NewServer(opts.Port, internal.RunPipeline)
+	go s.Serve()
+	clientConn, err := grpc.DialContext(ctx, s.Endpoint(), grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
+	if err != nil {
+		return nil, err
+	}
+	return jobpb.NewJobServiceClient(clientConn), nil
+}
+
+// CreateWebServer initialises the web UI for prism against the given JobsServiceClient.
+func CreateWebServer(ctx context.Context, cli jobpb.JobServiceClient, opts Options) error {
+	web.Initialize(ctx, opts.Port, cli)
+	return nil
 }

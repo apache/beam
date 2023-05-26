@@ -226,3 +226,20 @@ func (s *Server) GetJobMetrics(ctx context.Context, req *jobpb.GetJobMetricsRequ
 		},
 	}, nil
 }
+
+// GetJobs returns the set of active jobs and associated metadata.
+func (s *Server) GetJobs(context.Context, *jobpb.GetJobsRequest) (*jobpb.GetJobsResponse, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	resp := &jobpb.GetJobsResponse{}
+	for key, job := range s.jobs {
+		resp.JobInfo = append(resp.JobInfo, &jobpb.JobInfo{
+			JobId:           key,
+			JobName:         job.jobName,
+			State:           job.state.Load().(jobpb.JobState_Enum),
+			PipelineOptions: job.options,
+		})
+	}
+	return resp, nil
+}
