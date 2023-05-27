@@ -121,7 +121,7 @@ class PairWithRestrictionFn(beam.DoFn):
   def start_bundle(self):
     self._invoker = DoFnInvoker.create_invoker(
         self._signature,
-        output_processor=_NoneShallPassOutputHandler(),
+        output_handler=_NoneShallPassOutputHandler(),
         process_invocation=False)
 
   def process(self, element, window=beam.DoFn.WindowParam, *args, **kwargs):
@@ -142,7 +142,7 @@ class SplitRestrictionFn(beam.DoFn):
     signature = DoFnSignature(self._do_fn)
     self._invoker = DoFnInvoker.create_invoker(
         signature,
-        output_processor=_NoneShallPassOutputHandler(),
+        output_handler=_NoneShallPassOutputHandler(),
         process_invocation=False)
 
   def process(self, element_and_restriction, *args, **kwargs):
@@ -273,7 +273,7 @@ class ProcessFn(beam.DoFn):
     self.sdf_invoker = DoFnInvoker.create_invoker(
         DoFnSignature(self.sdf),
         context=DoFnContext('unused_context'),
-        output_processor=self._output_processor,
+        output_handler=self._output_processor,
         input_args=args_for_invoker,
         input_kwargs=kwargs_for_invoker)
 
