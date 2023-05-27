@@ -604,7 +604,7 @@ public class PubsubIOTest {
     setupTestClient(inputs, coder);
     PCollection<ReflectClass> read =
         pipeline.apply(
-            PubsubIO.readAvrosWithBeamSchema(ReflectClass.class, coder)
+            PubsubIO.readAvrosWithBeamSchema(ReflectClass.class)
                 .fromSubscription(SUBSCRIPTION.getPath())
                 .withClock(CLOCK)
                 .withClientFactory(clientFactory));
