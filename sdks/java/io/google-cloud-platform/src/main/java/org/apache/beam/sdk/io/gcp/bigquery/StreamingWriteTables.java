@@ -303,7 +303,7 @@ public class StreamingWriteTables<ElementT>
         deterministicRecordIdFn);
   }
 
-  public <TupleTagType> TupleTag<TupleTagType> getFailedRowsTupleTag() {
+  public <TupleTagT> TupleTag<TupleTagT> getFailedRowsTupleTag() {
     return new TupleTag<>(FAILED_INSERTS_TAG_ID);
   }
 
