@@ -117,7 +117,7 @@ from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import as_completed
 
 import apache_beam as beam
-from apache_beam.io.gcp.dicomclient import DicomApiHttpClient
+from apache_beam.io.gcp.healthcare.dicomclient import DicomApiHttpClient
 from apache_beam.transforms import PTransform
 
 
