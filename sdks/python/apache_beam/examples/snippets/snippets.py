@@ -1190,7 +1190,7 @@ def model_bigqueryio(
   # [END model_bigqueryio_write]
 
   # [START model_bigqueryio_write_with_storage_write_api]
-  quotes | beam.io.WriteToBigQuery(
+  quotes | "WriteTableWithStorageAPI" >> beam.io.WriteToBigQuery(
       table_spec,
       schema=table_schema,
       method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API)
@@ -1208,7 +1208,7 @@ def model_bigqueryio(
 
   # [START model_bigqueryio_storage_write_api_with_frequency_and_multiple_streams]
   # The SDK for Python does not support `withNumStorageWriteApiStreams`
-  quotes | beam.io.WriteToBigQuery(
+  quotes | "StorageWriteAPIWithFrequency" >> beam.io.WriteToBigQuery(
       table_spec,
       schema=table_schema,
       method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API,
