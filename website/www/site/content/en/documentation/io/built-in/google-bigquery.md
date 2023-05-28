@@ -779,6 +779,17 @@ Starting with version 2.36.0 of the Beam SDK for Java, you can use the
 [BigQuery Storage Write API](https://cloud.google.com/bigquery/docs/write-api)
 from the BigQueryIO connector.
 
+Also after version 2.47.0 of Beam SDK for Python, SDK supports BigQuery Storage Write API.
+
+{{< paragraph class="language-py" >}}
+BigQuery Storage Write API for Python SDK has some limitations on supported data types. This is due to that the Python SDK uses cross-language transforms for the feature. For example, `decimal.Decimal` in Python is needed to write a `NUMERIC` type in BigQuery. Also `DATETIME` in Python is not supported yet. For more details, please refer to the [type mapping](https://github.com/apache/beam/blob/0b430748cdd2e25edc553747ce018195e9cce888/sdks/python/apache_beam/io/gcp/bigquery_tools.py#L112-L123).
+{{< /paragraph >}}
+
+{{< paragraph class="language-py" >}}
+**Note:** If you want to run WriteToBigQuery with Storage Write API from the source code, you need to run `./gradlew :sdks:java:io:google-cloud-platform:expansion-service:build` to setup corresponding Java classes. If you want to run it from a released Beam SDK, you don't need to execute the command since the expansion service will be automatically downloaded and started.
+
+{{< /paragraph >}}
+
 #### Exactly-once semantics
 
 To write to BigQuery using the Storage Write API, set `withMethod` to
