@@ -845,7 +845,7 @@ BigQueryIO.writeTableRows()
 );
 {{< /highlight >}}
 {{< highlight py >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_storage_write_api_with_frequency_and_multiple_streams >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_storage_write_api_with_frequency >}}
 {{< /highlight >}}
 
 The number of streams defines the parallelism of the BigQueryIO Write transform

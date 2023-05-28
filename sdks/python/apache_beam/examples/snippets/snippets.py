@@ -1206,14 +1206,14 @@ def model_bigqueryio(
   }
   # [END model_bigqueryio_write_schema]
 
-  # [START model_bigqueryio_storage_write_api_with_frequency_and_multiple_streams]
+  # [START model_bigqueryio_storage_write_api_with_frequency]
   # The SDK for Python does not support `withNumStorageWriteApiStreams`
   quotes | "StorageWriteAPIWithFrequency" >> beam.io.WriteToBigQuery(
       table_spec,
       schema=table_schema,
       method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API,
       triggering_frequency=5)
-  # [END model_bigqueryio_storage_write_api_with_frequency_and_multiple_streams]
+  # [END model_bigqueryio_storage_write_api_with_frequency]
 
   # [START model_bigqueryio_write_dynamic_destinations]
   fictional_characters_view = beam.pvalue.AsDict(
