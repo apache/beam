@@ -44,7 +44,7 @@ module "cloud_functions" {
   pg_router_host = var.pg_router_host
   environment = var.environment
   datastore_namespace = var.datastore_namespace
-  cf-service-account-email = module.setup.cf-service-account-email
+  cf-service-account-id = module.setup.cf-service-account-id
   source_archive_bucket = module.functions_buckets.functions-bucket-name
   source_archive_object = module.functions_buckets.function-bucket-object
   depends_on = [module.functions_buckets, module.setup, module.api_enable]
