@@ -309,7 +309,7 @@ abstract class AbstractGeneratedMessageV3RowBuilderTest<T extends GeneratedMessa
   }
 
   protected GeneratedMessageV3RowBuilder<T> builderOf(@NonNull T instance) {
-    if (!schemaRegistry.hasCachedBuild(getDescriptorForType())) {
+    if (schemaRegistry.hasNoCachedBuild(getDescriptorForType())) {
       schemaRegistry.build(getDescriptorForType());
     }
     return new GeneratedMessageV3RowBuilder<>(schemaRegistry, instance);

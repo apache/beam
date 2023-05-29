@@ -17,38 +17,60 @@
  */
 package org.apache.beam.testinfra.pipelines.dataflow;
 
-import com.google.auto.value.AutoValue;
 import com.google.dataflow.v1beta3.WorkerDetails;
-import org.apache.beam.sdk.schemas.AutoValueSchema;
-import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
-import org.apache.beam.sdk.schemas.annotations.SchemaCaseFormat;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.CaseFormat;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
-@DefaultSchema(AutoValueSchema.class)
-@AutoValue
-@SchemaCaseFormat(CaseFormat.LOWER_CAMEL)
-public abstract class WorkerDetailsWithAppendedDetails {
+import java.io.Serializable;
 
-  public static Builder builder() {
-    return new AutoValue_WorkerDetailsWithAppendedDetails.Builder();
+public class WorkerDetailsWithAppendedDetails implements Serializable {
+
+  private String jobId = "";
+
+  private Instant jobCreateTime = Instant.EPOCH;
+
+  private WorkerDetails workerDetails = WorkerDetails.getDefaultInstance();
+
+  public String getJobId() {
+    return jobId;
   }
 
-  public abstract String getJobId();
+  public void setJobId(@NonNull String jobId) {
+    this.jobId = jobId;
+  }
 
-  public abstract Instant getJobCreateTime();
+  public Instant getJobCreateTime() {
+    return jobCreateTime;
+  }
 
-  public abstract WorkerDetails getWorkerDetails();
+  public void setJobCreateTime(@NonNull Instant jobCreateTime) {
+    this.jobCreateTime = jobCreateTime;
+  }
 
-  @AutoValue.Builder
-  public abstract static class Builder {
+  public WorkerDetails getWorkerDetails() {
+    return workerDetails;
+  }
 
-    public abstract Builder setJobId(String value);
+  public void setWorkerDetails(@NonNull WorkerDetails workerDetails) {
+    this.workerDetails = workerDetails;
+  }
 
-    public abstract Builder setJobCreateTime(Instant value);
+  @Override
+  public boolean equals(@Nullable Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    WorkerDetailsWithAppendedDetails that = (WorkerDetailsWithAppendedDetails) o;
+    return Objects.equal(jobId, that.jobId) && Objects.equal(jobCreateTime, that.jobCreateTime) && Objects.equal(workerDetails, that.workerDetails);
+  }
 
-    public abstract Builder setWorkerDetails(WorkerDetails value);
-
-    public abstract WorkerDetailsWithAppendedDetails build();
+  @Override
+  public int hashCode() {
+    return Objects.hashCode(jobId, jobCreateTime, workerDetails);
   }
 }

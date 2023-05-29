@@ -124,12 +124,11 @@ public class DataflowGetStageExecutionDetails
 
       for (WorkerDetails details : response.getWorkersList()) {
         Instant createTime = Instant.ofEpochSecond(job.getCreateTime().getSeconds());
-        receiver.output(
-            WorkerDetailsWithAppendedDetails.builder()
-                .setJobId(job.getId())
-                .setJobCreateTime(createTime)
-                .setWorkerDetails(details)
-                .build());
+        WorkerDetailsWithAppendedDetails result = new WorkerDetailsWithAppendedDetails();
+        result.setJobId(job.getId());
+        result.setJobCreateTime(createTime);
+        result.setWorkerDetails(details);
+        receiver.output(result);
       }
     }
   }

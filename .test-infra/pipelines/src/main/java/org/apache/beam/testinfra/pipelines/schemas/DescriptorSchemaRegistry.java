@@ -35,13 +35,12 @@ public class DescriptorSchemaRegistry {
   static final String VALUE_FIELD_NAME = "value";
   private static final Map<@NonNull String, @NonNull Schema> SCHEMA_CACHE = new HashMap<>();
 
-  boolean hasCachedBuild(Descriptor descriptor) {
-    return SCHEMA_CACHE.containsKey(descriptor.getFullName());
+  boolean hasNoCachedBuild(Descriptor descriptor) {
+    return !SCHEMA_CACHE.containsKey(descriptor.getFullName());
   }
 
-  @NonNull
-  Schema getOrBuild(Descriptor descriptor) {
-    if (!hasCachedBuild(descriptor)) {
+  public @NonNull Schema getOrBuild(Descriptor descriptor) {
+    if (hasNoCachedBuild(descriptor)) {
       build(descriptor);
     }
     return checkStateNotNull(SCHEMA_CACHE.get(descriptor.getFullName()));

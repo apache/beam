@@ -123,12 +123,11 @@ public class DataflowGetJobExecutionDetails
       DoFn.OutputReceiver<StageSummaryWithAppendedDetails> receiver) {
     Instant createTime = Instant.ofEpochSecond(job.getCreateTime().getSeconds());
     for (StageSummary summary : response.getStagesList()) {
-      receiver.output(
-          StageSummaryWithAppendedDetails.builder()
-              .setJobId(job.getId())
-              .setJobCreateTime(createTime)
-              .setStageSummary(summary)
-              .build());
+      StageSummaryWithAppendedDetails result = new StageSummaryWithAppendedDetails();
+      result.setJobId(job.getId());
+      result.setJobCreateTime(createTime);
+      result.setStageSummary(summary);
+      receiver.output(result);
     }
   }
 }

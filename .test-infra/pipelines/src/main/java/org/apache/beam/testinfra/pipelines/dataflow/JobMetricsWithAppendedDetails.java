@@ -18,23 +18,18 @@
 package org.apache.beam.testinfra.pipelines.dataflow;
 
 import com.google.dataflow.v1beta3.JobMetrics;
-import org.apache.beam.sdk.schemas.JavaBeanSchema;
-import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
-import org.apache.beam.sdk.schemas.annotations.SchemaCaseFormat;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.CaseFormat;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 import java.io.Serializable;
 
-@DefaultSchema(JavaBeanSchema.class)
-@SchemaCaseFormat(CaseFormat.LOWER_CAMEL)
 public class JobMetricsWithAppendedDetails implements Serializable {
 
   private String jobId = "";
 
-  private Instant jobCreateTime = Instant.now();
+  private Instant jobCreateTime = Instant.EPOCH;
 
   private JobMetrics jobMetrics = JobMetrics.getDefaultInstance();
 
@@ -42,7 +37,7 @@ public class JobMetricsWithAppendedDetails implements Serializable {
     return jobId;
   }
 
-  public void setJobId(String jobId) {
+  public void setJobId(@NonNull String jobId) {
     this.jobId = jobId;
   }
 
@@ -50,7 +45,7 @@ public class JobMetricsWithAppendedDetails implements Serializable {
     return jobCreateTime;
   }
 
-  public void setJobCreateTime(Instant jobCreateTime) {
+  public void setJobCreateTime(@NonNull Instant jobCreateTime) {
     this.jobCreateTime = jobCreateTime;
   }
 
@@ -58,7 +53,7 @@ public class JobMetricsWithAppendedDetails implements Serializable {
     return jobMetrics;
   }
 
-  public void setJobMetrics(JobMetrics jobMetrics) {
+  public void setJobMetrics(@NonNull JobMetrics jobMetrics) {
     this.jobMetrics = jobMetrics;
   }
 

@@ -97,9 +97,9 @@ public class WithAppendedDetailsToRow<AppendedDetailsT, EmbeddedT extends Genera
   private static final TupleTag<Row> SUCCESS = new TupleTag<Row>() {};
 
   private static final DescriptorSchemaRegistry SCHEMA_REGISTRY = new DescriptorSchemaRegistry();
-  private static final Field JOB_ID_FIELD = Field.of("job_id", FieldType.STRING);
+  static final Field JOB_ID_FIELD = Field.of("job_id", FieldType.STRING);
 
-  private static final Field JOB_CREATE_TIME = Field.of("job_create_time", FieldType.DATETIME);
+  static final Field JOB_CREATE_TIME = Field.of("job_create_time", FieldType.DATETIME);
 
   private final Class<AppendedDetailsT> containerClass;
 

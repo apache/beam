@@ -24,6 +24,9 @@ import com.google.dataflow.v1beta3.Job;
 import com.google.dataflow.v1beta3.JobsV1Beta3Grpc;
 import io.grpc.StatusRuntimeException;
 import java.util.Optional;
+
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -69,6 +72,8 @@ public class DataflowGetJobs
   }
 
   private static class GetJobsFn extends DoFn<GetJobRequest, Job> {
+    final Counter success = Metrics.counter(GetJobRequest.class, "get_jobs_success");
+    final Counter failure = Metrics.counter(GetJobRequest.class, "get_jobs_failure");
     private final DataflowGetJobs spec;
     private transient JobsV1Beta3Grpc.@MonotonicNonNull JobsV1Beta3BlockingStub client;
 
@@ -84,9 +89,14 @@ public class DataflowGetJobs
     @ProcessElement
     public void process(@Element GetJobRequest request, MultiOutputReceiver receiver) {
       try {
+
         Job job = checkStateNotNull(client).getJob(request);
+        success.inc();
         receiver.get(SUCCESS).output(job);
+
       } catch (StatusRuntimeException e) {
+
+        failure.inc();
         receiver
             .get(FAILURE)
             .output(
