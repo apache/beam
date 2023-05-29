@@ -65,7 +65,7 @@ $ ./output/launcher --worker_binary=output/worker --runner=flink --endpoint=... 
 
 # SDK Containers
 
-Apache Beam releases [SDK specific containers](documentation/runtime/environments/) for runners to use to launch workers.
+Apache Beam releases [SDK specific containers](/documentation/runtime/environments/) for runners to use to launch workers.
 These containers provision and initialize the worker binary as appropriate for the SDK.
 
 At present, Go SDK worker containers are only built for the `linux-amd64` platform.
@@ -82,6 +82,6 @@ From Beam 2.48.0, the default cross compile sets CGO_ENABLED=0 to reduce issues 
 If your pipeline requires CGO to run, see the above Overriding the Worker Binary for more information on using your own built binary.
 
 Beam uses minimal debian containers as a base.
-If your binary has specific execution requirements, [Custom Containers](documentation/runtime/environments/) can be derieved from the released
+If your binary has specific execution requirements, [Custom Containers](/documentation/runtime/environments/) can be derieved from the released
 containers to satisfy them.
 Use custom containers to resolve glibc mismatches, or requiring additional binaries to be available at execution time.

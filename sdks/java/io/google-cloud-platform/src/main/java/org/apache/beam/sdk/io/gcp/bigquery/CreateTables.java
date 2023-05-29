@@ -114,7 +114,7 @@ public class CreateTables<DestinationT, ElementT>
                 Supplier<@Nullable TableSchema> schemaSupplier =
                     () -> dynamicDestinations.getSchema(dest);
                 return CreateTableHelpers.possiblyCreateTable(
-                    context,
+                    context.getPipelineOptions().as(BigQueryOptions.class),
                     tableDestination1,
                     schemaSupplier,
                     createDisposition,

@@ -692,9 +692,24 @@ public class BigQueryUtils {
     }
 
     if (jsonBQValue instanceof List) {
+      if (fieldType.getCollectionElementType() == null) {
+        throw new IllegalArgumentException(
+            "Cannot convert BigQuery type '"
+                + jsonBQValue.getClass()
+                + "' to '"
+                + fieldType
+                + "' because the BigQuery type is a List, while the output type is not a collection.");
+      }
+      boolean innerTypeIsMap =
+          fieldType.getCollectionElementType().getTypeName().equals(TypeName.MAP);
+
       return ((List<Object>) jsonBQValue)
           .stream()
-              .map(v -> ((Map<String, Object>) v).get("v"))
+              .map(
+                  v ->
+                      (!innerTypeIsMap && v instanceof Map)
+                          ? ((Map<String, Object>) v).get("v")
+                          : v)
               .map(v -> toBeamValue(fieldType.getCollectionElementType(), v))
               .collect(toList());
     }

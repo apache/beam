@@ -110,12 +110,12 @@ class LightweightScope(object):
   def __init__(self, transforms):
     self._transforms = transforms
     self._transforms_by_uuid = {t['__uuid__']: t for t in self._transforms}
-    self._uuid_by_name = collections.defaultdict(list)
+    self._uuid_by_name = collections.defaultdict(set)
     for spec in self._transforms:
       if 'name' in spec:
-        self._uuid_by_name[spec['name']].append(spec['__uuid__'])
+        self._uuid_by_name[spec['name']].add(spec['__uuid__'])
       if 'type' in spec:
-        self._uuid_by_name[spec['type']].append(spec['__uuid__'])
+        self._uuid_by_name[spec['type']].add(spec['__uuid__'])
 
   def get_transform_id_and_output_name(self, name):
     if '.' in name:
