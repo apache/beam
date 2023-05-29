@@ -18,7 +18,7 @@
 #   name: CombineFn
 #   description: Task from katas averaging.
 #   multifile: false
-#   context_line: 30
+#   context_line: 50
 #   categories:
 #     - Combiners
 #   complexity: BASIC

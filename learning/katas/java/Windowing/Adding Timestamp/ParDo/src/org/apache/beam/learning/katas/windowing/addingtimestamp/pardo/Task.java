@@ -22,7 +22,7 @@ package org.apache.beam.learning.katas.windowing.addingtimestamp.pardo;
 //   name: WindowingAddTimestamp
 //   description: Task from katas to assign each element a timestamp based on the `Event.timestamp`.
 //   multifile: true
-//   context_line: 39
+//   context_line: 46
 //   categories:
 //     - Streaming
 //   complexity: MEDIUM

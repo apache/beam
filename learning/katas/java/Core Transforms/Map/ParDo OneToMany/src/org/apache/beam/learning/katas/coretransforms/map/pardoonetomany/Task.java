@@ -22,7 +22,7 @@ package org.apache.beam.learning.katas.coretransforms.map.pardoonetomany;
 //   name: MapParDoOneToMany
 //   description: Task from katas that maps each input sentence into words split by whitespace (" ").
 //   multifile: false
-//   context_line: 39
+//   context_line: 45
 //   categories:
 //     - Flatten
 //     - Core Transforms

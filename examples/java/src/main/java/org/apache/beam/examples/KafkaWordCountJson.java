@@ -21,7 +21,7 @@ package org.apache.beam.examples;
 //   name: KafkaWordCountJson
 //   description: Read CountWords dataset (CountWords.json) from Kafka to count words
 //   multifile: false
-//   context_line: 55
+//   context_line: 65
 //   categories:
 //     - Emulated Data Source
 //     - IO

@@ -42,7 +42,7 @@ package main
 //   name: StringSplit
 //   description: An example of using a Splittable DoFn in the Go SDK with a portable runner.
 //   multifile: false
-//   context_line: 61
+//   context_line: 154
 //   categories:
 //     - Debugging
 //     - Flatten

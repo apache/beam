@@ -22,7 +22,7 @@ package org.apache.beam.examples;
 //   description: Read NYC Taxi dataset from Kafka server to count passengers for each vendor
 //   multifile: false
 //   default_example: false
-//   context_line: 72
+//   context_line: 64
 //   categories:
 //     - Emulated Data Source
 //     - IO

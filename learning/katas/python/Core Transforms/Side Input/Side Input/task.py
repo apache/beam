@@ -18,7 +18,7 @@
 #   name: SideInput
 #   description: Task from katas to enrich each Person with the country based on the city he/she lives in.
 #   multifile: false
-#   context_line: 38
+#   context_line: 48
 #   categories:
 #     - Side Input
 #   complexity: MEDIUM

@@ -22,7 +22,7 @@ package org.apache.beam.examples;
 //   description: An example that counts words in Shakespeare's works.
 //   multifile: false
 //   default_example: true
-//   context_line: 71
+//   context_line: 78
 //   categories:
 //     - Combiners
 //     - Filtering
