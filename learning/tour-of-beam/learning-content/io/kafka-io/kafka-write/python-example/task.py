@@ -38,7 +38,7 @@ p = beam.Pipeline(options=options)
 
 input_topic = 'input-topic'
 output_topic = 'output-topic'
-bootstrap_servers = {"bootstrap.servers": "localhost:9092"}
+bootstrap_servers = {"bootstrap.servers": "kafka_server:9092"}
 
 input = p | beam.Create([{"key": "foo", "value": "bar"}])
 
@@ -49,9 +49,7 @@ topic.Make sure your Kafka server is accessible and running, and the topic exist
 
 # (input |  "Write to Kafka" >> WriteToKafka(
 #       topic=output_topic,
-#       producer_config = bootstrap_servers,
-#       key='key',
-#       value='value')
+#       producer_config = bootstrap_servers)
 # )
 
 p.run().wait_until_finish()

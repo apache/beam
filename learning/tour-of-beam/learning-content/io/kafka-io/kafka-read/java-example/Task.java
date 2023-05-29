@@ -68,11 +68,11 @@ public class Task {
         * Extract values from KafkaRecord: The Values.create() method is used to extract the value part of the KafkaRecord.
         * */
 
-        /*pipeline.apply(
+        pipeline.apply(
                         "ReadFromKafka",
                         KafkaIO.<String, String>read()
                                 .withBootstrapServers(
-                                        "localhost:9092") // The argument is hardcoded to a predefined value. Do not
+                                        "kafka_server:9092") // The argument is hardcoded to a predefined value. Do not
                                 // change it manually. It's replaced to the correct Kafka
                                 // cluster address when code starts in backend.
 
@@ -97,7 +97,7 @@ public class Task {
                                     public void processElement(ProcessContext c) throws JsonProcessingException {
                                         System.out.println(c.element());
                                     }
-                                }));*/
+                                }));
 
 
         pipeline.run().waitUntilFinish();

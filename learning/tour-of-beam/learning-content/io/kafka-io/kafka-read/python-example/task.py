@@ -38,7 +38,7 @@ p = beam.Pipeline(options=options)
 
 input_topic = 'input-topic'
 output_topic = 'output-topic'
-bootstrap_servers = {"bootstrap.servers": "localhost:9092"}
+bootstrap_servers = {"bootstrap.servers": "kafka_server:9092"}
 
 # Set Kafka parameters: The Kafka topic to read from (input_topic), the Kafka topic to write to (output_topic),
 # and the Kafka brokers to connect to (bootstrap_servers) are specified.

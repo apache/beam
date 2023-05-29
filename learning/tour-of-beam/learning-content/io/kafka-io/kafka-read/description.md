@@ -28,6 +28,7 @@ When reading data from Kafka topics using Apache Beam, developers can use the `R
 
 For detailed [information](https://beam.apache.org/releases/javadoc/2.0.0/org/apache/beam/sdk/io/kafka/KafkaIO.html)
 {{if (eq .Sdk "go")}}
+Kafka works via Cross-language. Raise your expansion service.
 ```
 var (
 	expansionAddr = flag.String("expansion_addr", "",

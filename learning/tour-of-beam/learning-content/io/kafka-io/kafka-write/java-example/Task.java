@@ -49,20 +49,19 @@ public class Task {
         PCollection<String> input = pipeline.apply(Create.of("Hello", "KafkaIO"));
 
         Properties producerProps = new Properties();
-        producerProps.setProperty("bootstrap.servers", "localhost:9092");
+        producerProps.setProperty("bootstrap.servers", "kafka_server:9092");
         producerProps.setProperty("key.serializer", StringSerializer.class.getName());
         producerProps.setProperty("value.serializer", ByteArraySerializer.class.getName());
 
         // This pipeline is an example of how you can use Apache Beam's KafkaIO to write data to a Kafka topic.
         // Make sure your Kafka server is accessible and running, and the topic exists.
-/*
+
         input.apply(KafkaIO.<String, String>write()
-                .withBootstrapServers("localhost:9092")
+                .withBootstrapServers("kafka_server:9092")
                 .withTopic("my-topic")
                 .withKeySerializer(StringSerializer.class)
                 .withValueSerializer(StringSerializer.class)
                 .withProducerConfigUpdates(new HashMap<>()).values());
-*/
 
         pipeline.run().waitUntilFinish();
     }

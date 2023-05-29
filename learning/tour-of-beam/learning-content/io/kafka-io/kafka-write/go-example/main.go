@@ -29,24 +29,24 @@
 package main
 
 import (
-  "context"
-  "flag"
-  "time"
+	"context"
+	"flag"
+	"time"
 
-  "github.com/apache/beam/sdks/v2/go/pkg/beam"
-  // "github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
-  // "github.com/apache/beam/sdks/v2/go/pkg/beam/io/pubsubio"
-  // "github.com/apache/beam/sdks/v2/go/pkg/beam/io/xlang/kafkaio"
-  "github.com/apache/beam/sdks/v2/go/pkg/beam/log"
-  // "github.com/apache/beam/sdks/v2/go/pkg/beam/register"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	// "github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	// "github.com/apache/beam/sdks/v2/go/pkg/beam/io/pubsubio"
+	// "github.com/apache/beam/sdks/v2/go/pkg/beam/io/xlang/kafkaio"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	// "github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 )
 
 var (
-  expansionAddr = flag.String("expansion_addr", "localhost:29092",
-    "Address of Expansion Service. If not specified, attempts to automatically start an appropriate expansion service.")
-  bootstrapServers = flag.String("bootstrap_servers", "localhost:9092",
-    "(Required) URL of the bootstrap servers for the Kafka cluster. Should be accessible by the runner.")
-  topic = flag.String("topic", "kafka_taxirides_realtime", "Kafka topic to write to and read from.")
+	expansionAddr = flag.String("expansion_addr", "localhost:1234",
+		"Address of Expansion Service. If not specified, attempts to automatically start an appropriate expansion service.")
+	bootstrapServers = flag.String("bootstrap_servers", "kafka_server:9092",
+		"(Required) URL of the bootstrap servers for the Kafka cluster. Should be accessible by the runner.")
+	topic = flag.String("topic", "kafka_taxirides_realtime", "Kafka topic to write to and read from.")
 )
 
 // func init() {
@@ -58,32 +58,32 @@ type LogFn struct{}
 
 // ProcessElement logs each element it receives.
 func (fn *LogFn) ProcessElement(ctx context.Context, elm []byte) {
-  log.Infof(ctx, "Ride info: %v", string(elm))
+	log.Infof(ctx, "Ride info: %v", string(elm))
 }
 
 // FinishBundle waits a bit so the job server finishes receiving logs.
 func (fn *LogFn) FinishBundle() {
-  time.Sleep(2 * time.Second)
+	time.Sleep(2 * time.Second)
 }
 
 func main() {
-  flag.Parse()
-  beam.Init()
-  /*
-  	   ctx := context.Background()
+	flag.Parse()
+	beam.Init()
+	/*
+	  	   ctx := context.Background()
 
-  	   p := beam.NewPipeline()
-  	   s := p.Root()
+	  	   p := beam.NewPipeline()
+	  	   s := p.Root()
 
-  	   // In the main function, the code creates a Beam pipeline, reads from the Pub/Sub source, transforms the data into a key-value pair, applies a windowing function to the data, and writes the windowed data to a Kafka topic.
+	  	   // In the main function, the code creates a Beam pipeline, reads from the Pub/Sub source, transforms the data into a key-value pair, applies a windowing function to the data, and writes the windowed data to a Kafka topic.
 
-       data := pubsubio.Read(s, "pubsub-public-data", "taxirides-realtime", nil)
-  	   kvData := beam.ParDo(s, func(elm []byte) ([]byte, []byte) { return []byte(""), elm }, data)
-  	   windowed := beam.WindowInto(s, window.NewFixedWindows(15*time.Second), kvData)
-  	   kafkaio.Write(s, *expansionAddr, *bootstrapServers, *topic, windowed)
+	       data := pubsubio.Read(s, "pubsub-public-data", "taxirides-realtime", nil)
+	  	   kvData := beam.ParDo(s, func(elm []byte) ([]byte, []byte) { return []byte(""), elm }, data)
+	  	   windowed := beam.WindowInto(s, window.NewFixedWindows(15*time.Second), kvData)
+	  	   kafkaio.Write(s, *expansionAddr, *bootstrapServers, *topic, windowed)
 
-  	   if err := beamx.Run(ctx, p); err != nil {
-  	     log.Fatalf(ctx, "Failed to execute job: %v", err)
-  	   }
-  */
+	  	   if err := beamx.Run(ctx, p); err != nil {
+	  	     log.Fatalf(ctx, "Failed to execute job: %v", err)
+	  	   }
+	*/
 }
