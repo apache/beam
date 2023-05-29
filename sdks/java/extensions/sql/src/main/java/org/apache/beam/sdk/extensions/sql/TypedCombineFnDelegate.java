@@ -22,7 +22,6 @@ import java.lang.reflect.TypeVariable;
 import java.util.Optional;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -44,7 +43,6 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * @param <AccumT> the type of accumulator
  * @param <OutputT> the type of output
  */
-@Experimental
 public class TypedCombineFnDelegate<InputT, AccumT, OutputT>
     extends Combine.CombineFn<InputT, AccumT, OutputT> {
 

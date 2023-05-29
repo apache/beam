@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.changestreams;
 
+import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.Dialect;
@@ -46,6 +47,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
+import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -64,6 +66,7 @@ import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
 
+@AutoService(SchemaTransformProvider.class)
 public class SpannerChangestreamsReadSchemaTransformProvider
     extends TypedSchemaTransformProvider<
         SpannerChangestreamsReadSchemaTransformProvider.SpannerChangestreamsReadConfiguration> {

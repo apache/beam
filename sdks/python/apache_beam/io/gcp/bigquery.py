@@ -418,7 +418,6 @@ from apache_beam.transforms.window import GlobalWindows
 from apache_beam.typehints.row_type import RowTypeConstraint
 from apache_beam.utils import retry
 from apache_beam.utils.annotations import deprecated
-from apache_beam.utils.annotations import experimental
 
 try:
   from apache_beam.io.gcp.internal.clients.bigquery import DatasetReference
@@ -2787,7 +2786,6 @@ class ReadFromBigQueryRequest:
             % self.table)
 
 
-@experimental()
 class ReadAllFromBigQuery(PTransform):
   """Read data from BigQuery.
 

@@ -38,9 +38,6 @@ import java.lang.annotation.Target;
  *   }
  * }
  * </code></pre>
- *
- * <p>ScalarFn is <strong>experimental</strong>. Compatibility is not guaranteed across Beam
- * versions.
  */
 public abstract class ScalarFn implements Serializable {
   /**

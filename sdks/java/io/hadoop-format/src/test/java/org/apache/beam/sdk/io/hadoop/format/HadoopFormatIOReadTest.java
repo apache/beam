@@ -31,7 +31,9 @@ import static org.junit.Assert.assertTrue;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.RowCoder;
@@ -51,6 +53,7 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
@@ -568,9 +571,21 @@ public class HadoopFormatIOReadTest {
    */
   @Test
   public void testReadDisplayData() {
+    final String longInputPath =
+        "file:///"
+            + IntStream.range(0, 50)
+                .mapToObj(i -> String.format("some-path-%d", i))
+                .collect(Collectors.joining("/"));
+
+    SerializableConfiguration conf =
+        loadTestConfiguration(
+            EmployeeInputFormat.class,
+            Text.class,
+            Employee.class,
+            ImmutableMap.of("mapreduce.input.fileinputformat.inputdir", longInputPath));
     HadoopInputFormatBoundedSource<Text, Employee> boundedSource =
         new HadoopInputFormatBoundedSource<>(
-            serConf,
+            conf,
             WritableCoder.of(Text.class),
             AvroCoder.of(Employee.class),
             null, // No key translation required.
@@ -582,10 +597,13 @@ public class HadoopFormatIOReadTest {
     assertThat(
         displayData,
         hasDisplayItem(
-            "mapreduce.job.inputformat.class",
-            serConf.get().get("mapreduce.job.inputformat.class")));
-    assertThat(displayData, hasDisplayItem("key.class", serConf.get().get("key.class")));
-    assertThat(displayData, hasDisplayItem("value.class", serConf.get().get("value.class")));
+            "mapreduce.job.inputformat.class", conf.get().get("mapreduce.job.inputformat.class")));
+    assertThat(displayData, hasDisplayItem("key.class", conf.get().get("key.class")));
+    assertThat(displayData, hasDisplayItem("value.class", conf.get().get("value.class")));
+    assertThat(
+        displayData,
+        hasDisplayItem(
+            "mapreduce.input.fileinputformat.inputdir", longInputPath.substring(0, 247) + "..."));
   }
 
   /**
@@ -1073,6 +1091,20 @@ public class HadoopFormatIOReadTest {
     conf.setClass("mapreduce.job.inputformat.class", inputFormatClassName, InputFormat.class);
     conf.setClass("key.class", keyClass, Object.class);
     conf.setClass("value.class", valueClass, Object.class);
+    return new SerializableConfiguration(conf);
+  }
+
+  private static SerializableConfiguration loadTestConfiguration(
+      Class<?> inputFormatClassName,
+      Class<?> keyClass,
+      Class<?> valueClass,
+      Map<String, String> extraConf) {
+    Configuration conf = new Configuration();
+    conf.setClass("mapreduce.job.inputformat.class", inputFormatClassName, InputFormat.class);
+    conf.setClass("key.class", keyClass, Object.class);
+    conf.setClass("value.class", valueClass, Object.class);
+
+    extraConf.forEach((k, v) -> conf.set(k, v));
     return new SerializableConfiguration(conf);
   }
 

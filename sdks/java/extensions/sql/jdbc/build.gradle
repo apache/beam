@@ -45,7 +45,6 @@ dependencies {
   integrationTest sourceSets.test.output
   integrationTest sourceSets.main.output
   integrationTest library.java.junit
-  implementation project(path: ":sdks:java:core", configuration: "shadow")
 }
 
 processResources {

@@ -23,8 +23,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import java.util.Iterator;
 import java.util.List;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.extensions.sbe.SbeSchema.IrOptions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import uk.co.real_logic.sbe.ir.Encoding.Presence;
@@ -32,7 +30,6 @@ import uk.co.real_logic.sbe.ir.Ir;
 import uk.co.real_logic.sbe.ir.Token;
 
 /** Utility for generating {@link SbeField}s from an {@link Ir}. */
-@Experimental(Kind.SCHEMAS)
 final class IrFieldGenerator {
   private IrFieldGenerator() {}
 

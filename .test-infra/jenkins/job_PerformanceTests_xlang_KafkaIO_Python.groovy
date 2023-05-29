@@ -37,7 +37,8 @@ def jobs = [
       input_options        : """'{
                                "num_records": 100000000,
                                "key_size": 10,
-                               "value_size": 90
+                               "value_size": 90,
+                               "algorithm": "lcg"
                              }'""".trim().replaceAll("\\s", ""),
       kafka_topic          : 'beam',
       read_timeout         : '1500',

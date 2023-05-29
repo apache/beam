@@ -89,6 +89,9 @@ tasks.rat {
     "website/www/site/static/js/keen-slider.min.js",
     "website/www/site/assets/scss/_keen-slider.scss",
 
+    // Release automation files
+    "release/src/main/scripts/*.txt",
+
     // Ignore ownership files
     "ownership/**/*",
     "**/OWNERS",
@@ -598,6 +601,9 @@ tasks.register("pushAllDockerImages") {
   for (version in project.ext.get("allFlinkVersions") as Array<*>) {
     dependsOn(":runners:flink:${version}:job-server-container:dockerPush")
   }
+  dependsOn(":sdks:java:expansion-service:container:dockerPush")
+  dependsOn(":sdks:java:transform-service:controller-container:dockerPush")
+  dependsOn(":sdks:python:expansion-service-container:dockerPush")
 }
 
 // Use this task to validate the environment set up for Go, Python and Java

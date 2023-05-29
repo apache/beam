@@ -3,7 +3,7 @@
 // Do not manually edit this file.
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
-import 'dart:async' as _i15;
+import 'dart:async' as _i14;
 import 'dart:ui' as _i17;
 
 import 'package:mockito/mockito.dart' as _i1;
@@ -12,7 +12,7 @@ import 'package:playground_components/src/controllers/code_runner.dart' as _i5;
 import 'package:playground_components/src/controllers/example_loaders/examples_loader.dart'
     as _i3;
 import 'package:playground_components/src/controllers/playground_controller.dart'
-    as _i13;
+    as _i12;
 import 'package:playground_components/src/controllers/result_filter_controller.dart'
     as _i4;
 import 'package:playground_components/src/controllers/snippet_editing_controller.dart'
@@ -21,8 +21,8 @@ import 'package:playground_components/src/models/category_with_examples.dart'
     as _i18;
 import 'package:playground_components/src/models/event_snippet_context.dart'
     as _i7;
-import 'package:playground_components/src/models/example.dart' as _i12;
-import 'package:playground_components/src/models/example_base.dart' as _i11;
+import 'package:playground_components/src/models/example.dart' as _i11;
+import 'package:playground_components/src/models/example_base.dart' as _i15;
 import 'package:playground_components/src/models/example_loading_descriptors/example_loading_descriptor.dart'
     as _i16;
 import 'package:playground_components/src/models/example_loading_descriptors/examples_loading_descriptor.dart'
@@ -32,7 +32,7 @@ import 'package:playground_components/src/models/example_loading_descriptors/use
 import 'package:playground_components/src/models/example_view_options.dart'
     as _i20;
 import 'package:playground_components/src/models/loading_status.dart' as _i19;
-import 'package:playground_components/src/models/sdk.dart' as _i14;
+import 'package:playground_components/src/models/sdk.dart' as _i13;
 import 'package:playground_components/src/models/shortcut.dart' as _i6;
 import 'package:playground_components/src/models/snippet_file.dart' as _i21;
 
@@ -143,18 +143,8 @@ class _FakeExamplesLoadingDescriptor_8 extends _i1.SmartFake
         );
 }
 
-class _FakeExampleBase_9 extends _i1.SmartFake implements _i11.ExampleBase {
-  _FakeExampleBase_9(
-    Object parent,
-    Invocation parentInvocation,
-  ) : super(
-          parent,
-          parentInvocation,
-        );
-}
-
-class _FakeExample_10 extends _i1.SmartFake implements _i12.Example {
-  _FakeExample_10(
+class _FakeExample_9 extends _i1.SmartFake implements _i11.Example {
+  _FakeExample_9(
     Object parent,
     Invocation parentInvocation,
   ) : super(
@@ -167,7 +157,7 @@ class _FakeExample_10 extends _i1.SmartFake implements _i12.Example {
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockPlaygroundController extends _i1.Mock
-    implements _i13.PlaygroundController {
+    implements _i12.PlaygroundController {
   MockPlaygroundController() {
     _i1.throwOnMissingStub(this);
   }
@@ -289,7 +279,7 @@ class MockPlaygroundController extends _i1.Mock
         ),
       ) as _i8.SnippetEditingController);
   @override
-  void setEmptyIfNoSdk(_i14.Sdk? sdk) => super.noSuchMethod(
+  void setEmptyIfNoSdk(_i13.Sdk? sdk) => super.noSuchMethod(
         Invocation.method(
           #setEmptyIfNoSdk,
           [sdk],
@@ -298,7 +288,7 @@ class MockPlaygroundController extends _i1.Mock
       );
   @override
   void setEmptyIfNotExists(
-    _i14.Sdk? sdk, {
+    _i13.Sdk? sdk, {
     required bool? setCurrentSdk,
   }) =>
       super.noSuchMethod(
@@ -310,18 +300,18 @@ class MockPlaygroundController extends _i1.Mock
         returnValueForMissingStub: null,
       );
   @override
-  _i15.Future<void> setExampleBase(_i11.ExampleBase? exampleBase) =>
+  _i14.Future<void> setExampleBase(_i15.ExampleBase? exampleBase) =>
       (super.noSuchMethod(
         Invocation.method(
           #setExampleBase,
           [exampleBase],
         ),
-        returnValue: _i15.Future<void>.value(),
-        returnValueForMissingStub: _i15.Future<void>.value(),
-      ) as _i15.Future<void>);
+        returnValue: _i14.Future<void>.value(),
+        returnValueForMissingStub: _i14.Future<void>.value(),
+      ) as _i14.Future<void>);
   @override
   void setExample(
-    _i12.Example? example, {
+    _i11.Example? example, {
     required _i16.ExampleLoadingDescriptor? descriptor,
     required bool? setCurrentSdk,
   }) =>
@@ -338,7 +328,7 @@ class MockPlaygroundController extends _i1.Mock
       );
   @override
   void setSdk(
-    _i14.Sdk? sdk, {
+    _i13.Sdk? sdk, {
     bool? notify = true,
   }) =>
       super.noSuchMethod(
@@ -350,14 +340,14 @@ class MockPlaygroundController extends _i1.Mock
         returnValueForMissingStub: null,
       );
   @override
-  _i15.Future<void> reset() => (super.noSuchMethod(
+  _i14.Future<void> reset() => (super.noSuchMethod(
         Invocation.method(
           #reset,
           [],
         ),
-        returnValue: _i15.Future<void>.value(),
-        returnValueForMissingStub: _i15.Future<void>.value(),
-      ) as _i15.Future<void>);
+        returnValue: _i14.Future<void>.value(),
+        returnValueForMissingStub: _i14.Future<void>.value(),
+      ) as _i14.Future<void>);
   @override
   void showSuggestions() => super.noSuchMethod(
         Invocation.method(
@@ -383,13 +373,13 @@ class MockPlaygroundController extends _i1.Mock
         returnValueForMissingStub: null,
       );
   @override
-  _i15.Future<_i9.UserSharedExampleLoadingDescriptor> saveSnippet() =>
+  _i14.Future<_i9.UserSharedExampleLoadingDescriptor> saveSnippet() =>
       (super.noSuchMethod(
         Invocation.method(
           #saveSnippet,
           [],
         ),
-        returnValue: _i15.Future<_i9.UserSharedExampleLoadingDescriptor>.value(
+        returnValue: _i14.Future<_i9.UserSharedExampleLoadingDescriptor>.value(
             _FakeUserSharedExampleLoadingDescriptor_7(
           this,
           Invocation.method(
@@ -397,7 +387,7 @@ class MockPlaygroundController extends _i1.Mock
             [],
           ),
         )),
-      ) as _i15.Future<_i9.UserSharedExampleLoadingDescriptor>);
+      ) as _i14.Future<_i9.UserSharedExampleLoadingDescriptor>);
   @override
   _i10.ExamplesLoadingDescriptor getLoadingDescriptor() => (super.noSuchMethod(
         Invocation.method(
@@ -455,16 +445,16 @@ class MockExampleCache extends _i1.Mock implements _i2.ExampleCache {
   }
 
   @override
-  Map<_i14.Sdk, List<_i18.CategoryWithExamples>> get categoryListsBySdk =>
+  Map<_i13.Sdk, List<_i18.CategoryWithExamples>> get categoryListsBySdk =>
       (super.noSuchMethod(
         Invocation.getter(#categoryListsBySdk),
-        returnValue: <_i14.Sdk, List<_i18.CategoryWithExamples>>{},
-      ) as Map<_i14.Sdk, List<_i18.CategoryWithExamples>>);
+        returnValue: <_i13.Sdk, List<_i18.CategoryWithExamples>>{},
+      ) as Map<_i13.Sdk, List<_i18.CategoryWithExamples>>);
   @override
-  Map<_i14.Sdk, _i12.Example> get defaultExamplesBySdk => (super.noSuchMethod(
+  Map<_i13.Sdk, _i11.Example> get defaultExamplesBySdk => (super.noSuchMethod(
         Invocation.getter(#defaultExamplesBySdk),
-        returnValue: <_i14.Sdk, _i12.Example>{},
-      ) as Map<_i14.Sdk, _i12.Example>);
+        returnValue: <_i13.Sdk, _i11.Example>{},
+      ) as Map<_i13.Sdk, _i11.Example>);
   @override
   bool get isSelectorOpened => (super.noSuchMethod(
         Invocation.getter(#isSelectorOpened),
@@ -479,10 +469,10 @@ class MockExampleCache extends _i1.Mock implements _i2.ExampleCache {
         returnValueForMissingStub: null,
       );
   @override
-  _i15.Future<void> get allExamplesFuture => (super.noSuchMethod(
+  _i14.Future<void> get allExamplesFuture => (super.noSuchMethod(
         Invocation.getter(#allExamplesFuture),
-        returnValue: _i15.Future<void>.value(),
-      ) as _i15.Future<void>);
+        returnValue: _i14.Future<void>.value(),
+      ) as _i14.Future<void>);
   @override
   _i19.LoadingStatus get catalogStatus => (super.noSuchMethod(
         Invocation.getter(#catalogStatus),
@@ -494,16 +484,16 @@ class MockExampleCache extends _i1.Mock implements _i2.ExampleCache {
         returnValue: false,
       ) as bool);
   @override
-  _i15.Future<void> loadAllPrecompiledObjectsIfNot() => (super.noSuchMethod(
+  _i14.Future<void> loadAllPrecompiledObjectsIfNot() => (super.noSuchMethod(
         Invocation.method(
           #loadAllPrecompiledObjectsIfNot,
           [],
         ),
-        returnValue: _i15.Future<void>.value(),
-        returnValueForMissingStub: _i15.Future<void>.value(),
-      ) as _i15.Future<void>);
+        returnValue: _i14.Future<void>.value(),
+        returnValueForMissingStub: _i14.Future<void>.value(),
+      ) as _i14.Future<void>);
   @override
-  List<_i18.CategoryWithExamples> getCategories(_i14.Sdk? sdk) =>
+  List<_i18.CategoryWithExamples> getCategories(_i13.Sdk? sdk) =>
       (super.noSuchMethod(
         Invocation.method(
           #getCategories,
@@ -512,9 +502,9 @@ class MockExampleCache extends _i1.Mock implements _i2.ExampleCache {
         returnValue: <_i18.CategoryWithExamples>[],
       ) as List<_i18.CategoryWithExamples>);
   @override
-  _i15.Future<_i11.ExampleBase> getPrecompiledObject(
+  _i14.Future<_i11.Example> getPrecompiledObject(
     String? path,
-    _i14.Sdk? sdk,
+    _i13.Sdk? sdk,
   ) =>
       (super.noSuchMethod(
         Invocation.method(
@@ -524,7 +514,7 @@ class MockExampleCache extends _i1.Mock implements _i2.ExampleCache {
             sdk,
           ],
         ),
-        returnValue: _i15.Future<_i11.ExampleBase>.value(_FakeExampleBase_9(
+        returnValue: _i14.Future<_i11.Example>.value(_FakeExample_9(
           this,
           Invocation.method(
             #getPrecompiledObject,
@@ -534,9 +524,9 @@ class MockExampleCache extends _i1.Mock implements _i2.ExampleCache {
             ],
           ),
         )),
-      ) as _i15.Future<_i11.ExampleBase>);
+      ) as _i14.Future<_i11.Example>);
   @override
-  _i15.Future<_i12.Example> loadSharedExample(
+  _i14.Future<_i11.Example> loadSharedExample(
     String? id, {
     required _i20.ExampleViewOptions? viewOptions,
   }) =>
@@ -546,7 +536,7 @@ class MockExampleCache extends _i1.Mock implements _i2.ExampleCache {
           [id],
           {#viewOptions: viewOptions},
         ),
-        returnValue: _i15.Future<_i12.Example>.value(_FakeExample_10(
+        returnValue: _i14.Future<_i11.Example>.value(_FakeExample_9(
           this,
           Invocation.method(
             #loadSharedExample,
@@ -554,11 +544,11 @@ class MockExampleCache extends _i1.Mock implements _i2.ExampleCache {
             {#viewOptions: viewOptions},
           ),
         )),
-      ) as _i15.Future<_i12.Example>);
+      ) as _i14.Future<_i11.Example>);
   @override
-  _i15.Future<String> saveSnippet({
+  _i14.Future<String> saveSnippet({
     required List<_i21.SnippetFile>? files,
-    required _i14.Sdk? sdk,
+    required _i13.Sdk? sdk,
     required String? pipelineOptions,
   }) =>
       (super.noSuchMethod(
@@ -571,23 +561,23 @@ class MockExampleCache extends _i1.Mock implements _i2.ExampleCache {
             #pipelineOptions: pipelineOptions,
           },
         ),
-        returnValue: _i15.Future<String>.value(''),
-      ) as _i15.Future<String>);
+        returnValue: _i14.Future<String>.value(''),
+      ) as _i14.Future<String>);
   @override
-  _i15.Future<_i12.Example> loadExampleInfo(_i11.ExampleBase? example) =>
+  _i14.Future<_i11.Example> loadExampleInfo(_i15.ExampleBase? example) =>
       (super.noSuchMethod(
         Invocation.method(
           #loadExampleInfo,
           [example],
         ),
-        returnValue: _i15.Future<_i12.Example>.value(_FakeExample_10(
+        returnValue: _i14.Future<_i11.Example>.value(_FakeExample_9(
           this,
           Invocation.method(
             #loadExampleInfo,
             [example],
           ),
         )),
-      ) as _i15.Future<_i12.Example>);
+      ) as _i14.Future<_i11.Example>);
   @override
   void setSelectorOpened(bool? value) => super.noSuchMethod(
         Invocation.method(
@@ -597,41 +587,41 @@ class MockExampleCache extends _i1.Mock implements _i2.ExampleCache {
         returnValueForMissingStub: null,
       );
   @override
-  _i15.Future<_i12.Example?> getDefaultExampleBySdk(_i14.Sdk? sdk) =>
+  _i14.Future<_i11.Example?> getDefaultExampleBySdk(_i13.Sdk? sdk) =>
       (super.noSuchMethod(
         Invocation.method(
           #getDefaultExampleBySdk,
           [sdk],
         ),
-        returnValue: _i15.Future<_i12.Example?>.value(),
-      ) as _i15.Future<_i12.Example?>);
+        returnValue: _i14.Future<_i11.Example?>.value(),
+      ) as _i14.Future<_i11.Example?>);
   @override
-  _i15.Future<void> loadDefaultPrecompiledObjects() => (super.noSuchMethod(
+  _i14.Future<void> loadDefaultPrecompiledObjects() => (super.noSuchMethod(
         Invocation.method(
           #loadDefaultPrecompiledObjects,
           [],
         ),
-        returnValue: _i15.Future<void>.value(),
-        returnValueForMissingStub: _i15.Future<void>.value(),
-      ) as _i15.Future<void>);
+        returnValue: _i14.Future<void>.value(),
+        returnValueForMissingStub: _i14.Future<void>.value(),
+      ) as _i14.Future<void>);
   @override
-  _i15.Future<void> loadDefaultPrecompiledObjectsIfNot() => (super.noSuchMethod(
+  _i14.Future<void> loadDefaultPrecompiledObjectsIfNot() => (super.noSuchMethod(
         Invocation.method(
           #loadDefaultPrecompiledObjectsIfNot,
           [],
         ),
-        returnValue: _i15.Future<void>.value(),
-        returnValueForMissingStub: _i15.Future<void>.value(),
-      ) as _i15.Future<void>);
+        returnValue: _i14.Future<void>.value(),
+        returnValueForMissingStub: _i14.Future<void>.value(),
+      ) as _i14.Future<void>);
   @override
-  _i15.Future<_i11.ExampleBase?> getCatalogExampleByPath(String? path) =>
+  _i14.Future<_i15.ExampleBase?> getCatalogExampleByPath(String? path) =>
       (super.noSuchMethod(
         Invocation.method(
           #getCatalogExampleByPath,
           [path],
         ),
-        returnValue: _i15.Future<_i11.ExampleBase?>.value(),
-      ) as _i15.Future<_i11.ExampleBase?>);
+        returnValue: _i14.Future<_i15.ExampleBase?>.value(),
+      ) as _i14.Future<_i15.ExampleBase?>);
   @override
   void addListener(_i17.VoidCallback? listener) => super.noSuchMethod(
         Invocation.method(

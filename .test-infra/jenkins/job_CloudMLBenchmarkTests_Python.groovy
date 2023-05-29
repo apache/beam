@@ -60,7 +60,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
 
 CronJobBuilder.cronJob(
     'beam_CloudML_Benchmarks_Dataflow',
-    'H 14 * * *',
+    'H H * * *',
     this
     ) {
       cloudMLJob(delegate)
