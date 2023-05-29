@@ -17,17 +17,17 @@
 
 # Create cloud build service account
 resource "google_service_account" "tourofbeam_deploy_sa" {
-  account_id   = var.tourofbeam_deploy_sa == "" ? "tourofbeam-cb-deploy" : var.tourofbeam_deploy_sa
+  account_id   = var.tourofbeam_deploy_sa
   description  = "The service account to be used by cloud build to deploy Tour of Beam backend"
 }
 
 resource "google_service_account" "tourofbeam_ci_sa" {
-  account_id   = var.tourofbeam_ci_sa == "" ? "tourofbeam-cb-ci" : var.tourofbeam_ci_sa
+  account_id   = var.tourofbeam_ci_sa
   description  = "The service account to be used by cloud build to run CI checks for Tour of Beam backend"
 }
 
 resource "google_service_account" "tourofbeam_cd_sa" {
-  account_id   = var.tourofbeam_cd_sa == "" ? "tourofbeam-cb-cd" : var.tourofbeam_cd_sa
+  account_id   = var.tourofbeam_cd_sa
   description  = "The service account to be used by cloud build to run CD checks for Tour of Beam backend"
 }
 
