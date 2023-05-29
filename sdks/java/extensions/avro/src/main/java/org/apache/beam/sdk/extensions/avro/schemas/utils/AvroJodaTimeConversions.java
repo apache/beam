@@ -20,7 +20,11 @@ package org.apache.beam.sdk.extensions.avro.schemas.utils;
 import org.apache.avro.Conversion;
 import org.apache.avro.LogicalType;
 import org.apache.avro.Schema;
-import org.joda.time.*;
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
+import org.joda.time.Days;
+import org.joda.time.LocalDate;
+import org.joda.time.LocalTime;
 
 /**
  * Avro 1.8 & 1.9 ship joda time conversions.
