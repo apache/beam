@@ -10,30 +10,46 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-1. Parse the csv file into a `Transaction` object. 
+1. Change `getAnalysisPCollection` so that it returns a `PCollection` with `Analysis` objects. Create your own `Coder` and install for `PCollection`.
 
-   Extract: `static class ExtractDataFn extends DoFn<String, Transaction> {
+   Write own DoFn `static class SentimentAnalysisExtractFn extends DoFn<String, Analysis> {
    @ProcessElement
    public void processElement(ProcessContext c) {
    String[] items = c.element().split(REGEX_FOR_CSV);
-   try {
-   c.output(new Transaction(Long.valueOf(items[0]), items[1], items[2], items[3], Double.valueOf(items[4]), Integer.parseInt(items[5]), Long.valueOf(items[6]), items[7]));
-   } catch (Exception e) {
-   System.out.println("Skip header");
-   }
+   if(!items[1].equals("Negative"))
+   c.output(new Analysis(items[0].toLowerCase(), items[1], items[2], items[3], items[4], items[5], items[6], items[7]));
    }
    }`
-2. Add a fixed-window that runs for 30 seconds `Window.into(Fixed Windows.of(Duration.standard Seconds(30)))`. And add a trigger that works after the first element with a delay of 5 seconds `AfterProcessingTime.pastFirstElementInPane().plusDelayOf(Duration.standardSeconds(5))`
-3. Filter so that the number is higher or equal to 20 `Filter.by(it -> it.quantity >= 20)`
-4. Divide transactions into parts, the first contains transactions whose **price** is more than 10. And the rest are in the second.
-5. Create a `MapElements.into(TypeDescriptors.kvs(TypeDescriptors.longs(), TypeDescriptors.doubles())).via(it->KV.of(it.id,it.price))` to group
-6. Combine by key, the function that summarizes the prices `Combine.perKey(new SumDoubleBinaryCombineFn())`. 
+2. To use the analyzed words in the `side-input`, turn to `.apply(View.asList())`
+3. Add a fixed-window that runs for 30 seconds `Window.into(Fixed Windows.of(Duration.standard Seconds(30)))`. And add a trigger that works after the first element with a delay of 5 seconds `AfterProcessingTime.pastFirstElementInPane().plusDelayOf(Duration.standardSeconds(5))`
+4. Write your own function that works with `side-input`. Its logic should check whether the words from shakespeare are contained in the list of analyzed words 
 
-   Sum function: `static class SumDoubleBinaryCombineFn extends Combine.BinaryCombineFn<Double> {
-   @Override
-   public Double apply(Double left, Double right) {
-   return left + right;
+   Function: `static PCollection<Analysis> getAnalysis(PCollection<String> pCollection, PCollectionView<List<Analysis>> viewAnalysisPCollection) {
+   return pCollection.apply(ParDo.of(new DoFn<String, Analysis>() {
+   @ProcessElement
+   public void processElement(@Element String word, OutputReceiver<Analysis> out, ProcessContext context) {
+   List<Analysis> analysisPCollection = context.sideInput(viewAnalysisPCollection);
+   analysisPCollection.forEach(it -> {
+   if (it.word.equals(word)) {
+   out.output(it);
    }
+   });
    }
-   `
-7. Write to a txt file: `TextIO.write().to("biggerThan10").withSuffix(".txt")`
+   }).withSideInputs(viewAnalysisPCollection));
+   }`
+5. Divide the words into portions in the first **positive** words. In the **second** negative. And all the others in the third.
+
+   Partition:`static PCollectionList<Analysis> applyTransform(PCollection<Analysis> input) {
+   return input
+   .apply(Partition.of(3,
+   (Partition.PartitionFn<Analysis>) (analysis, numPartitions) -> {
+   if (!analysis.positive.equals("0")) {
+   return 0;
+   }
+   if (!analysis.negative.equals("0")) {
+   return 1;
+   }
+   return 2;
+   }));
+   }`
+6. To calculate the count with windows, use `Combine.globally` with `withoutDefaults()`. Apply the transformation `.apply(Combine.globally(Count.<Analysis>combineFn()).withoutDefaults())`

@@ -23,15 +23,13 @@
 //   context_line: 50
 //   categories:
 //     - Quickstart
-//   complexity: BASIC
+//   complexity: ADVANCED
 //   tags:
 //     - hellobeam
 
+package com.example.demo;
 
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -39,52 +37,78 @@ import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 import org.apache.beam.sdk.transforms.*;
-import org.apache.beam.sdk.transforms.windowing.*;
-import org.apache.beam.sdk.values.*;
-import org.joda.time.Duration;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
 
-import java.io.*;
-import java.util.Arrays;
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static org.apache.beam.sdk.testing.SerializableMatchers.kv;
 import static org.apache.beam.sdk.values.TypeDescriptors.*;
 
 public class Task {
-    private static final Logger LOG = LoggerFactory.getLogger(Task.class);
-    private static final Integer WINDOW_TIME = 30;
-    private static final Integer TIME_OUTPUT_AFTER_FIRST_ELEMENT = 5;
-    private static final Integer ALLOWED_LATENESS_TIME = 1;
-
-    private static final String REGEX_FOR_CSV = ",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)";
-
     public static void main(String[] args) {
-        LOG.info("Running Task");
-        PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
-        Pipeline pipeline = Pipeline.create(options);
-
-        PCollection<Transaction> input = pipeline.apply(TextIO.read().from("input.csv"));
-
-        pipeline.run().waitUntilFinish();
+        PipelineOptions options = PipelineOptionsFactory.fromArgs(args).withValidation().create();
+        runChallenge(options);
     }
 
-    static class LogOutput<T> extends DoFn<T, T> {
-        private final String prefix;
+    static void runChallenge(PipelineOptions options) {
+        Pipeline p = Pipeline.create(options);
 
-        LogOutput() {
-            this.prefix = "Processing element";
+        PCollection<String> shakespeare = getPCollection(pipeline);
+
+        p.run();
+    }
+
+    public static PCollection<String> getPCollection(Pipeline pipeline) {
+        PCollection<String> rides = pipeline.apply(TextIO.read().from("gs://apache-beam-samples/shakespeare/kinglear.txt"));
+        return rides.apply(FlatMapElements.into(TypeDescriptors.strings()).via(line -> Arrays.asList(line
+                        .replaceAll("[^A-Za-z0-9 ]", "").replaceAll("\\d+", "")
+                        .toLowerCase().split(" "))))
+                .apply(Filter.by((String word) -> !word.isEmpty()));
+    }
+
+    public static PCollection<?> getAnalysisPCollection(Pipeline pipeline) {
+        PCollection<String> words = pipeline.apply(TextIO.read().from("analysis.csv"));
+        return analysisPCollection;
+    }
+
+    @DefaultSchema(JavaFieldSchema.class)
+    public static class Analysis {
+        public String word;
+        public String negative;
+        public String positive;
+        public String uncertainty;
+        public String litigious;
+        public String strong;
+        public String weak;
+        public String constraining;
+
+        @SchemaCreate
+        public Analysis(String word, String negative, String positive, String uncertainty, String litigious, String strong, String weak, String constraining) {
+            this.word = word;
+            this.negative = negative;
+            this.positive = positive;
+            this.uncertainty = uncertainty;
+            this.litigious = litigious;
+            this.strong = strong;
+            this.weak = weak;
+            this.constraining = constraining;
         }
 
-        LogOutput(String prefix) {
-            this.prefix = prefix;
-        }
-
-        @ProcessElement
-        public void processElement(ProcessContext c) throws Exception {
-            LOG.info(prefix + ": {}", c.element());
+        @Override
+        public String toString() {
+            return "Analysis{" +
+                    "word='" + word + '\'' +
+                    ", negative='" + negative + '\'' +
+                    ", positive='" + positive + '\'' +
+                    ", uncertainty='" + uncertainty + '\'' +
+                    ", litigious='" + litigious + '\'' +
+                    ", strong='" + strong + '\'' +
+                    ", weak='" + weak + '\'' +
+                    ", constraining='" + constraining + '\'' +
+                    '}';
         }
     }
 

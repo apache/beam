@@ -17,8 +17,8 @@
  */
 
 // beam-playground:
-//   name: FinalChallenge3
-//   description: Final challenge 3.
+//   name: FinalChallenge1
+//   description: Final challenge 1.
 //   multifile: false
 //   context_line: 54
 //   categories:
@@ -33,21 +33,31 @@ import (
 	"context"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 	"log"
 )
 
+type Transaction struct {
+	ID          int64
+	Date        string
+	ProductID   string
+	ProductName string
+	Price       float64
+	Quantity    int64
+	CustomerID  int64
+	Country     string
+}
+
 func main() {
 	beam.Init()
-
 	p := beam.NewPipeline()
 	s := p.Root()
 
-	shakespeare := textio.Read(s, "gs://apache-beam-samples/shakespeare/kinglear.txt")
+	file := textio.Read(s, "input.csv")
 
-	textio.Write(s, "output.txt", shakespeare)
+	textio.Write(s, "smallerThan10.txt", file)
 
-	err := beam.Run(context.Background(), "direct", p)
-	if err != nil {
-		log.Fatalf(ctx, "Failed to execute job: %v", err)
+	if err := beamx.Run(context.Background(), p); err != nil {
+		log.Fatalf("Failed to execute job: %v", err)
 	}
 }

@@ -33,20 +33,21 @@ import (
 	"context"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 	"log"
 )
 
 func main() {
 	beam.Init()
+
 	p := beam.NewPipeline()
 	s := p.Root()
 
-	file := textio.Read(s, "input.csv")
+	shakespeare := textio.Read(s, "gs://apache-beam-samples/shakespeare/kinglear.txt")
 
-	textio.Write(s, "smallerThan10.txt", file)
+	textio.Write(s, "output.txt", shakespeare)
 
-	if err := beamx.Run(context.Background(), p); err != nil {
-		log.Fatalf("Failed to execute job: %v", err)
+	err := beam.Run(context.Background(), "direct", p)
+	if err != nil {
+		log.Fatalf(ctx, "Failed to execute job: %v", err)
 	}
 }

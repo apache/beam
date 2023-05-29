@@ -21,44 +21,46 @@
 #     context_line: 50
 #     categories:
 #       - Quickstart
-#     complexity: BASIC
+#     complexity: ADVANCED
 #     tags:
 #       - hellobeam
 
-import apache_beam as beam
-import logging
 import re
+import apache_beam as beam
+from apache_beam.io import ReadFromText
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.transforms import window, trigger
 from apache_beam.transforms.combiners import CountCombineFn
 
 
-class Transaction:
-    def __init__(self, transaction_no, date, product_no, product_name, price, quantity, customer_no, country):
-        self.transaction_no = transaction_no
-        self.date = date
-        self.product_no = product_no
-        self.product_name = product_name
-        self.price = price
-        self.quantity = quantity
-        self.customer_no = customer_no
-        self.country = country
+class SplitWords(beam.DoFn):
+    def process(self, element):
+        return re.sub(r"[^A-Za-z0-9 ]", "", element).lower().split(" ")
+
+
+class Analysis:
+    def __init__(self, word, negative, positive, uncertainty, litigious, strong, weak, constraining):
+        self.word = word
+        self.negative = negative
+        self.positive = positive
+        self.uncertainty = uncertainty
+        self.litigious = litigious
+        self.strong = strong
+        self.weak = weak
+        self.constraining = constraining
 
     def __str__(self):
-        return f"Transaction(transaction_no={self.transaction_no}, date='{self.date}', product_no='{self.product_no}', product_name='{self.product_name}', price={self.price}, quantity={self.quantity}, customer_no={self.customer_no}, country='{self.country}')"
-
-
-class ExtractDataFn(beam.DoFn):
-    def process(self, element):
-        items = re.split(r',(?=(?:[^"]*"[^"]*")*[^"]*$)', element)
-        if items[0] != 'TransactionNo':
-            yield Transaction(items[0], items[1], items[2], items[3], items[4], items[5], items[6], items[7])
+        return (f'Analysis(word={self.word}, negative={self.negative}, positive={self.positive}, '
+                f'uncertainty={self.uncertainty}, litigious={self.litigious}, strong={self.strong}, '
+                f'weak={self.weak}, constraining={self.constraining})')
 
 def run():
-    with beam.Pipeline() as pipeline:
-        transactions = (pipeline
-                        | 'Read from text file' >> beam.io.ReadFromText('input.csv')
-                        | 'Extract Data' >> beam.ParDo(ExtractDataFn())
-                        )
+    pipeline_options = PipelineOptions()
+    with beam.Pipeline(options=pipeline_options) as p:
+        shakespeare = (p
+                       | 'Read from text file' >> ReadFromText('gs://apache-beam-samples/shakespeare/kinglear.txt')
+                       | 'Split into words' >> beam.ParDo(SplitWords())
+                       | 'Filter empty words' >> beam.Filter(bool))
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     run()

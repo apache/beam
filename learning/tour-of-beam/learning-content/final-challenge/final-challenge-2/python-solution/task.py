@@ -17,80 +17,123 @@
 #   beam-playground:
 #     name: FinalSolution2
 #     description: Final challenge solution 2.
-#     multifile: false
+#     multifile: true
 #     context_line: 57
 #     categories:
 #       - Quickstart
-#     complexity: BASIC
+#     complexity: ADVANCED
 #     tags:
 #       - hellobeam
 
-import apache_beam as beam
-import logging
 import re
+import apache_beam as beam
+from apache_beam.io import ReadFromText
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.transforms import window, trigger
 from apache_beam.transforms.combiners import CountCombineFn
 
 
-class Transaction:
-    def __init__(self, transaction_no, date, product_no, product_name, price, quantity, customer_no, country):
-        self.transaction_no = transaction_no
-        self.date = date
-        self.product_no = product_no
-        self.product_name = product_name
-        self.price = price
-        self.quantity = quantity
-        self.customer_no = customer_no
-        self.country = country
+class SplitWords(beam.DoFn):
+    def process(self, element):
+        return re.sub(r"[^A-Za-z0-9 ]", "", element).lower().split(" ")
+
+
+class Analysis:
+    def __init__(self, word, negative, positive, uncertainty, litigious, strong, weak, constraining):
+        self.word = word
+        self.negative = negative
+        self.positive = positive
+        self.uncertainty = uncertainty
+        self.litigious = litigious
+        self.strong = strong
+        self.weak = weak
+        self.constraining = constraining
 
     def __str__(self):
-        return f"Transaction(transaction_no={self.transaction_no}, date='{self.date}', product_no='{self.product_no}', product_name='{self.product_name}', price={self.price}, quantity={self.quantity}, customer_no={self.customer_no}, country='{self.country}')"
+        return (f'Analysis(word={self.word}, negative={self.negative}, positive={self.positive}, '
+                f'uncertainty={self.uncertainty}, litigious={self.litigious}, strong={self.strong}, '
+                f'weak={self.weak}, constraining={self.constraining})')
 
 
-class ExtractDataFn(beam.DoFn):
+class ExtractAnalysis(beam.DoFn):
     def process(self, element):
         items = re.split(r',(?=(?:[^"]*"[^"]*")*[^"]*$)', element)
-        if items[0] != 'TransactionNo':
-            yield Transaction(items[0], items[1], items[2], items[3], items[4], items[5], items[6], items[7])
+        if items[1] != 'Negative':
+            yield Analysis(items[0].lower(), items[1], items[2], items[3], items[4], items[5], items[6], items[7])
 
 
-def partitionTransactions(element, num_partitions):
-    if float(element.price) >= 10:
-        return 0
-    else:
-        return 1
+class Partition(beam.PTransform):
+    def expand(self, pcoll):
+        return pcoll | beam.Partition(self._analysis_partition_fn, 3)
+
+    @staticmethod
+    def _analysis_partition_fn(analysis, num_partitions):
+        if analysis.positive != "0":
+            return 0
+        elif analysis.negative != "0":
+            return 1
+        else:
+            return 2
+
+
+class LogOutput(beam.DoFn):
+    def __init__(self, message):
+        self.message = message
+
+    def process(self, element):
+        print(f"{self.message}: {element}")
+
+
+class MatchWordDoFn(beam.DoFn):
+    def process(self, element, analysis):
+            for a in analysis:
+                if a.word == element:
+                    yield a
 
 
 def run():
-    with beam.Pipeline() as pipeline:
-        transactions = (pipeline
-                        | 'Read from text file' >> beam.io.ReadFromText('input.csv')
-                        | 'Extract Data' >> beam.ParDo(ExtractDataFn())
-                        )
+    pipeline_options = PipelineOptions()
+    with beam.Pipeline(options=pipeline_options) as p:
+        shakespeare = (p
+                       | 'Read from text file' >> ReadFromText('gs://apache-beam-samples/shakespeare/kinglear.txt')
+                       | 'Split into words' >> beam.ParDo(SplitWords())
+                       | 'Filter empty words' >> beam.Filter(bool))
 
-        windowed_transactions = (transactions
-                                 | 'Window' >> beam.WindowInto(window.FixedWindows(30), trigger=trigger.AfterWatermark(
-                    early=trigger.AfterProcessingTime(5).has_ontime_pane(), late=trigger.AfterAll()),
-                                                               allowed_lateness=180,
-                                                               accumulation_mode=trigger.AccumulationMode.DISCARDING))
+        analysis = (p
+                    | 'Read from csv file' >> ReadFromText('analysis.csv')
+                    | 'Extract Analysis' >> beam.ParDo(ExtractAnalysis()))
 
-        partition = (windowed_transactions
-                     | 'Filtering' >> beam.Filter(lambda t: t.quantity>=20)
-                     | 'Partition transactions' >> beam.Partition(partitionTransactions, 2))
+        windowed_words = (shakespeare
+                          | 'Window' >> beam.WindowInto(window.FixedWindows(30), trigger=trigger.AfterWatermark(
+                    early=trigger.AfterProcessingTime(5).has_ontime_pane(), late=trigger.AfterAll()), allowed_lateness=30,
+                                                        accumulation_mode=trigger.AccumulationMode.DISCARDING))
 
-        biggerThan10 = partition[0]
-        smallerThan10 = partition[1]
+        matches = windowed_words | beam.ParDo(MatchWordDoFn(), beam.pvalue.AsList(analysis))
 
-        (biggerThan10
-         | 'Calculate sum for biggerThan10' >> beam.CombineGlobally(CountCombineFn()).without_defaults()
-         | 'Write biggerThan10 results to text file' >> beam.io.WriteToText('biggerThan10', '.txt', shard_name_template='')
-         )
+        result = matches | Partition()
 
-        (smallerThan10
-         | 'Calculate sum for smallerThan10' >> beam.CombineGlobally(CountCombineFn()).without_defaults()
-         | 'Write smallerThan10 results to text file' >> beam.io.WriteToText('smallerThan10', '.txt', shard_name_template='')
-         )
+        positive_words = result[0]
+        negative_words = result[1]
 
-if __name__ == '__main__':
-    logging.getLogger().setLevel(logging.INFO)
+        (positive_words
+         | 'Count Positive Words' >> beam.CombineGlobally(CountCombineFn()).without_defaults()
+         | 'Log Positive Words' >> beam.ParDo(LogOutput('Positive word count')))
+
+        (positive_words
+         | 'Filter Strong or Weak Positive Words' >> beam.Filter(
+                    lambda analysis: analysis.strong != '0' or analysis.weak != '0')
+         | 'Count Strong or Weak Positive Words' >> beam.CombineGlobally(CountCombineFn()).without_defaults()
+         | 'Log Strong or Weak Positive Words' >> beam.ParDo(LogOutput('Positive words with enhanced effect count')))
+
+        (negative_words
+         | 'Count Negative Words' >> beam.CombineGlobally(CountCombineFn()).without_defaults()
+         | 'Log Negative Words' >> beam.ParDo(LogOutput('Negative word count')))
+
+        (negative_words
+         | 'Filter Strong or Weak Negative Words' >> beam.Filter(
+                    lambda analysis: analysis.strong != '0' or analysis.weak != '0')
+         | 'Count Strong or Weak Negative Words' >> beam.CombineGlobally(CountCombineFn()).without_defaults()
+         | 'Log Strong or Weak Negative Words' >> beam.ParDo(LogOutput('Negative words with enhanced effect count')))
+
+if __name__ == "__main__":
     run()

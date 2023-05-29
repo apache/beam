@@ -17,8 +17,8 @@
  */
 
 // beam-playground:
-//   name: FinalSolution2
-//   description: Final challenge solution 2.
+//   name: FinalSolution3
+//   description: Final challenge solution 3.
 //   multifile: false
 //   context_line: 54
 //   categories:
@@ -31,114 +31,74 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window/trigger"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/filter"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
-	"log"
-	"strconv"
 	"strings"
-	"time"
 )
 
-type Transaction struct {
-	ID          int64
-	Date        string
-	ProductID   string
-	ProductName string
-	Price       float64
-	Quantity    int64
-	CustomerID  int64
-	Country     string
-}
-
-func (p Transaction) ToString() string {
-	return fmt.Sprintf(
-		"Transaction{ID: %d, Date: %s, ProductID: %s, ProductName: %s, Price: %.2f, Quantity: %d, CustomerID: %d, Country: %s}",
-		p.ID, p.Date, p.ProductID, p.ProductName, p.Price, p.Quantity, p.CustomerID, p.Country,
-	)
+type Analysis struct {
+	Word         string
+	Negative     string
+	Positive     string
+	Uncertainty  string
+	Litigious    string
+	Strong       string
+	Weak         string
+	Constraining string
 }
 
 func main() {
 	ctx := context.Background()
 
 	beam.Init()
+
 	p := beam.NewPipeline()
 	s := p.Root()
 
-	file := textio.Read(s, "input.csv")
+	shakespeare := textio.Read(s, "gs://apache-beam-samples/shakespeare/kinglear.txt")
 
-	transactions := getTransactions(s, file)
+	analysis := textio.Read(s, "analysis.csv")
+	analysisRecords := beam.ParDo(s, parseAnalysis, analysis)
 
-	trigger := trigger.AfterEndOfWindow().
-		EarlyFiring(trigger.AfterProcessingTime().
-			PlusDelay(60 * time.Second)).
-		LateFiring(trigger.Repeat(trigger.AfterCount(1)))
+	shakespeareWords := beam.ParDo(s, func(line string) string {
+		// Simplified text preprocessing.
+		words := strings.Fields(line)
+		return strings.ToLower(words[0])
+	}, shakespeare)
 
-	fixedWindowedItems := beam.WindowInto(s, window.NewFixedWindows(30*time.Second), transactions,
-		beam.Trigger(trigger),
-		beam.AllowedLateness(30*time.Minute),
-		beam.PanesDiscard(),
-	)
+	matchedWords := beam.ParDo(s, func(word string, analysisIter func(*Analysis) bool) (*Analysis, error) {
+		var analysis Analysis
+		if !analysisIter(&analysis) {
+			return nil, nil // Skip if no analysis.
+		}
+		return &analysis, nil
+	}, shakespeareWords, beam.SideInput{Input: analysisRecords})
 
-	filtered := filtering(s, fixedWindowedItems)
+	// Just counting all words in this simplified example.
+	counted := stats.Count(s, matchedWords)
 
-	result := getPartition(s, filtered)
+	textio.Write(s, "output.txt", counted)
 
-	biggerThan10 := convertToString(s, result[0])
-	textio.Write(s, "biggerThan10.txt", biggerThan10)
+	err := beamx.Run(ctx, p)
 
-	smallerThan10 := convertToString(s, result[1])
-	textio.Write(s, "smallerThan10.txt", smallerThan10)
-
-	if err := beamx.Run(ctx, p); err != nil {
-		log.Fatalf("Failed to execute job: %v", err)
+	if err != nil {
+		log.Exitf(context.Background(), "Failed to execute job: %v", err)
 	}
 }
 
-func getTransactions(s beam.Scope, input beam.PCollection) beam.PCollection {
-	return beam.ParDo(s, func(line string, emit func(transaction Transaction)) {
-		csv := strings.Split(line, ",")
-
-		if csv[0] != "TransactionNo" {
-			id, _ := strconv.ParseInt(csv[0], 10, 64)
-			price, _ := strconv.ParseFloat(csv[4], 64)
-			quantity, _ := strconv.ParseInt(csv[5], 10, 64)
-			customerID, _ := strconv.ParseInt(csv[6], 10, 64)
-			emit(Transaction{
-				ID:          id,
-				Date:        csv[1],
-				ProductID:   csv[2],
-				ProductName: csv[3],
-				Price:       price,
-				Quantity:    quantity,
-				CustomerID:  customerID,
-				Country:     csv[7],
-			})
-		}
-	}, input)
-}
-
-func getPartition(s beam.Scope, input beam.PCollection) []beam.PCollection {
-	return beam.Partition(s, 2, func(element Transaction) int {
-		if element.Price >= 10 {
-			return 0
-		}
-		return 1
-	}, input)
-}
-
-func convertToString(s beam.Scope, input beam.PCollection) beam.PCollection {
-	return beam.ParDo(s, func(element Transaction, emit func(string)) {
-		emit(element.ToString())
-	}, input)
-}
-
-func filtering(s beam.Scope, input beam.PCollection) beam.PCollection {
-	return filter.Include(s, input, func(element Transaction) bool {
-		return element.Quantity >= 20
-	})
+func parseAnalysis(line string) (Analysis, error) {
+	parts := strings.Split(line, ",")
+	return Analysis{
+		Word:         parts[0],
+		Negative:     parts[1],
+		Positive:     parts[2],
+		Uncertainty:  parts[3],
+		Litigious:    parts[4],
+		Strong:       parts[5],
+		Weak:         parts[6],
+		Constraining: parts[7],
+	}, nil
 }
