@@ -81,7 +81,7 @@ cd ../../../
 
 export QUALIFIED_WEB_APP_ID=${WEB_APP_ID}-${TF_VAR_environment}
 
-./gradlew learning:tour-of-beam:terraform:InitFrontend -Pregion=$PG_REGION -Pproject_id=$TF_VAR_project_id -Pproject_environment=$TF_VAR_environment -Pdns-name=$DNS_NAME -Pwebapp_id=$QUALIFIED_WEB_APP_ID -Ptoken=$FIREBASE_TOKEN
+./gradlew learning:tour-of-beam:terraform:InitFrontend -Pregion=$PG_REGION -Pproject_id=$TF_VAR_project_id -Pproject_environment=$TF_VAR_environment -Pdns-name=$DNS_NAME -Pwebapp_id=$QUALIFIED_WEB_APP_ID -Ptoken=$DUMMY_FIREBASE_TOKEN
 
 cd learning/tour-of-beam/backend
 
