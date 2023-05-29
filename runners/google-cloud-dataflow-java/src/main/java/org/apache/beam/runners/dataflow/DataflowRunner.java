@@ -35,6 +35,7 @@ import com.google.api.services.dataflow.model.Job;
 import com.google.api.services.dataflow.model.ListJobsResponse;
 import com.google.api.services.dataflow.model.SdkHarnessContainerImage;
 import com.google.api.services.dataflow.model.WorkerPool;
+import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -63,12 +64,14 @@ import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.External;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
+import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
 import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.core.construction.SplittableParDoNaiveBounded;
+import org.apache.beam.runners.core.construction.TransformPayloadTranslatorRegistrar;
 import org.apache.beam.runners.core.construction.UnboundedReadFromBoundedSource;
 import org.apache.beam.runners.core.construction.UnconsumedReads;
 import org.apache.beam.runners.core.construction.WriteFilesTranslation;
@@ -2446,6 +2449,44 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           String.format(
               "%s does not currently support state or timers with merging windows",
               DataflowRunner.class.getSimpleName()));
+    }
+  }
+
+  /**
+   * These are for dataflow-specific classes where we put fake stubs in the pipeline proto to pass
+   * validation.
+   */
+  private static class DataflowPayloadTranslator
+      implements TransformPayloadTranslator<PTransform<?, ?>> {
+    @Override
+    public String getUrn(PTransform transform) {
+      return "dataflow_stub:" + transform.getClass().getName();
+    }
+
+    @Override
+    public RunnerApi.FunctionSpec translate(
+        AppliedPTransform<?, ?, PTransform<?, ?>> application, SdkComponents components)
+        throws IOException {
+      return RunnerApi.FunctionSpec.newBuilder().setUrn(getUrn(application.getTransform())).build();
+    }
+  }
+
+  @SuppressWarnings({
+    "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+  })
+  @AutoService(TransformPayloadTranslatorRegistrar.class)
+  public static class DataflowTransformTranslator implements TransformPayloadTranslatorRegistrar {
+    @Override
+    public Map<? extends Class<? extends PTransform>, ? extends TransformPayloadTranslator>
+        getTransformPayloadTranslators() {
+      TransformPayloadTranslator dummyTranslator = new DataflowPayloadTranslator();
+      return ImmutableMap.<Class<? extends PTransform>, TransformPayloadTranslator>builder()
+          .put(CreateDataflowView.class, dummyTranslator)
+          .put(BatchViewOverrides.GroupByKeyAndSortValuesOnly.class, dummyTranslator)
+          .put(StreamingPubsubIORead.class, dummyTranslator)
+          .put(StreamingUnboundedRead.ReadWithIds.class, dummyTranslator)
+          .put(CombineGroupedValues.class, dummyTranslator)
+          .build();
     }
   }
 }

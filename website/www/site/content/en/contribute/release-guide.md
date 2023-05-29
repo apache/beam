@@ -463,6 +463,7 @@ Consider adding known issues there for minor issues instead of accepting cherry 
 
 * Release Manager’s GPG key is published to `dist.apache.org`;
 * Release Manager’s GPG key is configured in `git` configuration;
+* Set `SIGNING_KEY` to the public key of the Manager's GPG key;
 * Release Manager has `org.apache.beam` listed under `Staging Profiles` in Nexus;
 * Release Manager’s Nexus User Token is configured in `settings.xml`;
 * GitHub issue release item for the subsequent release has been created;
@@ -542,7 +543,7 @@ You don't need to wait for the action to complete to start running the script.
 
 * **Usage**
 
-      ./beam/release/src/main/scripts/build_release_candidate.sh --release "${RELEASE_VERSION}" --rc "${RC_NUM}" --github-user "${GITHUB_USER}" --java11-home "${JAVA11_HOME}"
+      ./beam/release/src/main/scripts/build_release_candidate.sh --release "${RELEASE_VERSION}" --rc "${RC_NUM}" --github-user "${GITHUB_USER}" --java11-home "${JAVA11_HOME}" --signing-key "${SIGNING_KEY}"
 
 * **The script will:**
   1. Clone the repo at the selected RC tag.

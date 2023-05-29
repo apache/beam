@@ -113,7 +113,7 @@ func Runner(ctx context.Context, paths *fs_tool.LifeCyclePaths, pipelineOptions 
 	executorConfig := sdkEnv.ExecutorConfig
 	builder := executors.NewExecutorBuilder().
 		WithRunner().
-		WithWorkingDir(paths.AbsoluteBaseFolderPath).
+		WithWorkingDir(paths.AbsoluteSourceFileFolderPath).
 		WithCommand(executorConfig.RunCmd).
 		WithArgs(executorConfig.RunArgs).
 		ExecutorBuilder
