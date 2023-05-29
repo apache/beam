@@ -15,12 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# Service account ID to be used and assigned required IAM roles
-variable "service_account_id" {
-  description = "Service account ID to be used and assigned required IAM roles"
-  default = "tob_cf_sa"
-}
-
 # GCP Project ID
 variable "project_id" {
   description = "The ID of the Google Cloud project within which resources are provisioned"

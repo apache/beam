@@ -32,6 +32,9 @@ Before starting the deployment, ensure that you have the following prerequisites
    - Service Usage Admin
    - Storage Admin
    - Kubernetes Engine Cluster Viewer
+   - Firebase Admin
+   - Cloud Functions Admin
+
 
 3. [Google Cloud Storage bucket](https://cloud.google.com/storage/docs/creating-buckets) for saving deployment state
 
@@ -131,20 +134,6 @@ const cloudFunctionsBaseUrl = 'https://'
    '$_cloudFunctionsProjectRegion-$_cloudFunctionsProjectId'
    '.cloudfunctions.net/${environment}_';
 
-
-const String kAnalyticsUA = 'UA-73650088-2';
-const String kApiClientURL =
-'https://router.${dns_name}';
-const String kApiJavaClientURL =
-'https://java.${dns_name}';
-const String kApiGoClientURL =
-'https://go.${dns_name}';
-const String kApiPythonClientURL =
-'https://python.${dns_name}';
-const String kApiScioClientURL =
-'https://scio.${dns_name}';
-```
-
 9. Create file .firebaserc under beam/learning/tour-of-beam/frontend
 
    9.1. Navigate to beam/learning/tour-of-beam/frontend.
@@ -230,7 +219,7 @@ You will need to:
 
 1) Remove "locationId" line.
 2) Remove quotes (") from key of "key": "value" pair.
-   3) E.g. `projectId: "cloudbuild-384304"`
+3) E.g. `projectId: "cloudbuild-384304"`
 4) In overall, redacted and ready to be inserted data should be as follows:
 
 ```

@@ -32,13 +32,3 @@ resource "google_project_iam_member" "terraform_service_account_roles" {
   member  = "serviceAccount:${google_service_account.cloud_function_sa.email}"
   project = var.project_id
 }
-
-# # IAM roles to be granted for user account that will be running terraform scripts
-# resource "google_project_iam_member" "gcloud_user_required_roles" {
-#   for_each = toset([
-#     "roles/cloudfunctions.admin", "roles/firebase.admin"
-#   ])
-#   role    = each.key
-#   member  = "serviceAccount:${google_service_account.pg_cloudbuild_deploy_sa.email}"
-#   project = var.project_id
-# }

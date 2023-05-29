@@ -42,10 +42,6 @@ resource "google_cloudbuild_trigger" "tourofbeam_deployment_trigger" {
       name = "ubuntu"
       env = local.cloudbuild_init_environment
     }
-
-    substitutions = {
-      _TOB_CLOUDBUILD_SA      = var.tourofbeam_deploy_sa
-    }
   }
   
   substitutions = {

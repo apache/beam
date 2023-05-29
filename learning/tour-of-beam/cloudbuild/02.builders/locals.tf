@@ -33,7 +33,6 @@ locals {
    "TOB_LEARNING_ROOT=$_TOB_LEARNING_ROOT",
 
    # Terraform variables
-   "TF_VAR_service_account_id=$_TOB_CLOUDBUILD_SA",
    "TF_VAR_environment=$_ENVIRONMENT_NAME",
    "TF_VAR_region=$_PG_REGION",
    "TF_VAR_project_id=$PROJECT_ID",
