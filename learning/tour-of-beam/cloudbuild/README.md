@@ -68,25 +68,24 @@ playground_dns_name                 = "fqdn.beam.apache.org"     # Playground DN
 pg_region                           = "us-west1"                 # Playground region
 pg_gke_zone                         = "us-west1-a"               # Playground GKE zone
 pg_gke_name                         = "cluster_name"             # Playground GKE cluster name
-pg_datastore_namespace              = "env"                      # Playground Datastore namespace name 
+pg_datastore_namespace              = "env"                      # Playground Datastore namespace name
 tourofbeam_deployment_state_bucket  = "tourofbeam-deployment-state-env"     # Bucket for Terraform state for deployment
 webhook_trigger_secret_id           = "secret-cloudbuild-triggers-webhook"  # Secret ID for webhook trigger
 gh_pat_secret_id                    = "github_pat_playground_deployment"    # Secret ID for GitHub PAT
-tourofbeam_deploy_trigger_name = "TourOfBeam-Deploy-Update-env"             # Trigger name for deployment trigger
-tourofbeam_ci_trigger_name = "TourOfBeam-CI-env"                            # Trigger name for CI trigger
-tourofbeam_cd_trigger_name = "TourOfBeam-CD-env"                            # Trigger name for CD trigger
-tourofbeam_cb_private_bucket = "tourofbeam-cb-private-logs-env"             # Bucket for Cloud Build private logs
-tourofbeam_cb_public_bucket = "tourofbeam-cb-public-logs-env"               # Bucket for Cloud Build public logs 
-web_app_id = "Tour-Of-Beam"                                                 # Web app ID
+tourofbeam_deploy_trigger_name      = "TourOfBeam-Deploy-Update-env"        # Trigger name for deployment trigger
+tourofbeam_ci_trigger_name          = "TourOfBeam-CI-env"                   # Trigger name for CI trigger
+tourofbeam_cd_trigger_name          = "TourOfBeam-CD-env"                   # Trigger name for CD trigger
+tourofbeam_cb_private_bucket        = "tourofbeam-cb-private-logs-env"      # Bucket for Cloud Build private logs
+tourofbeam_cb_public_bucket         = "tourofbeam-cb-public-logs-env"       # Bucket for Cloud Build public logs
+web_app_id = "Tour-Of-Beam"         = "tour-of-beam"                        # Web app ID
 
 If you plan to have only one environment, you can use simple resource names like `tourofbeam-deployment-state` or `tourofbeam-cb-private-logs` instead of `tourofbeam-deployment-state-env` or `tourofbeam-cb-private-logs-env`. But if you plan to have multiple environments, it's advised to add environment name to the resource name to avoid collisions with other environments.
-
 
 ## 1. Set up the Google Cloud Build for your GCP project
 
 The `beam/learning/tour-of-beam/cloudbuild/01.setup` provisions dependencies required to set up Cloud Build for Tour of Beam:
 - Required API services
-- Cloud Build service account
+- Cloud Build triggers service accounts
 - IAM roles for Cloud Build service account
 
 #### To execute the module:
@@ -120,7 +119,6 @@ The `beam/learning/tour-of-beam/cloudbuild/02.builders` provisions:
 
 #### To execute the module
 
-
 ```
 # Navigate to beam/learning/tour-of-beam/cloudbuild/02.builders directory
 cd ../02.builders
@@ -128,22 +126,26 @@ cd ../02.builders
 # Run terraform commands and provide required values
 terraform init -backend-config="bucket=$STATE_BUCKET"
 
-TODO: add preparing of tfvars file
-
 terraform apply -var="project_id=$(gcloud config get-value project)" -var-file="../common.tfvars"
-
 
 ```
 
-## 4. Run Cloud Build trigger to deploy Tour of Beam backend infrastructure
+## 4. Run Cloud Build trigger to deploy Tour of Beam infrastructure, backend and learning materials
 
 1. Navigate to [GCP Console Cloud Build Triggers](https://console.cloud.google.com/cloud-build/triggers) page. Choose the global region.
-2. Open Trigger: `Tourofbeam-backend-infra-trigger`.
+2. Open Trigger: `TourOfBeam-Deploy-Update-env`.
+3. Scroll down to `Source` - `Repository` to ensure that Default GitHub repository is connected.
+   - Click on drop-down menu and press `CONNECT NEW REPOSITORY` in case it was not automatically connected.
+4. Click `Save` and Run the trigger.
+
+## 5. Run Cloud Build trigger to upload Tour of Beam examples to Datastore
+
+1. Navigate to [GCP Console Cloud Build Triggers](https://console.cloud.google.com/cloud-build/triggers) page. Choose the global region.
+2. Open Trigger: `TourOfBeam-CD-env-manual`.
 3. Scroll down to `Source` - `Repository` to ensure that Default GitHub repository is connected.
    - Click on drop-down menu and press `CONNECT NEW REPOSITORY` in case it was not automatically connected.
 4. Click `Save` and Run the trigger.
 
 ## 5. Validate Tour of Beam backend infrastructure deployment
-
 1. Navigate to Cloud Functions service in GCP.
 2. Check if there are cloud functions with prefix of environment (e.g. prod, test) in their names.
