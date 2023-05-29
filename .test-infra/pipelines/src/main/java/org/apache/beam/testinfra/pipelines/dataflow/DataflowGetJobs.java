@@ -24,7 +24,6 @@ import com.google.dataflow.v1beta3.Job;
 import com.google.dataflow.v1beta3.JobsV1Beta3Grpc;
 import io.grpc.StatusRuntimeException;
 import java.util.Optional;
-
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;

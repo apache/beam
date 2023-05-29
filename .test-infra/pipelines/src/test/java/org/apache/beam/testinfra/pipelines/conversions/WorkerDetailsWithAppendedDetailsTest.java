@@ -1,4 +1,25 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.beam.testinfra.pipelines.conversions;
+
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+import static org.apache.beam.sdk.values.TypeDescriptors.rows;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.google.dataflow.v1beta3.MetricUpdate;
 import com.google.dataflow.v1beta3.WorkItemDetails;
@@ -6,6 +27,10 @@ import com.google.dataflow.v1beta3.WorkerDetails;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.Timestamp;
 import com.google.protobuf.Value;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.function.Function;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
@@ -23,82 +48,90 @@ import org.joda.time.Instant;
 import org.joda.time.ReadableDateTime;
 import org.junit.jupiter.api.Test;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.function.Function;
+class WorkerDetailsWithAppendedDetailsTest
+    extends WithAppendedDetailsToRowTest<WorkerDetailsWithAppendedDetails, WorkerDetails> {
 
-import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
-import static org.apache.beam.sdk.values.TypeDescriptors.rows;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+  @Override
+  WithAppendedDetailsToRow<WorkerDetailsWithAppendedDetails, WorkerDetails> transform() {
+    return WithAppendedDetailsToRow.workerDetailsWithAppendedDetailsToRow();
+  }
 
-class WorkerDetailsWithAppendedDetailsTest extends WithAppendedDetailsToRowTest<WorkerDetailsWithAppendedDetails, WorkerDetails> {
+  @Override
+  Descriptors.Descriptor embeddedTypeDescriptor() {
+    return WorkerDetails.getDescriptor();
+  }
 
-    @Override
-    WithAppendedDetailsToRow<WorkerDetailsWithAppendedDetails, WorkerDetails> transform() {
-        return WithAppendedDetailsToRow.workerDetailsWithAppendedDetailsToRow();
-    }
+  @Override
+  String embeddedTypeFieldName() {
+    return "worker_details";
+  }
 
-    @Override
-    Descriptors.Descriptor embeddedTypeDescriptor() {
-        return WorkerDetails.getDescriptor();
-    }
+  @Override
+  Function<WorkerDetailsWithAppendedDetails, String> jobIdGetter() {
+    return WorkerDetailsWithAppendedDetails::getJobId;
+  }
 
-    @Override
-    String embeddedTypeFieldName() {
-        return "worker_details";
-    }
+  @Override
+  Function<WorkerDetailsWithAppendedDetails, Instant> createTimeGetter() {
+    return WorkerDetailsWithAppendedDetails::getJobCreateTime;
+  }
 
-    @Override
-    Function<WorkerDetailsWithAppendedDetails, String> jobIdGetter() {
-        return WorkerDetailsWithAppendedDetails::getJobId;
-    }
+  @Override
+  @NonNull
+  List<@NonNull WorkerDetailsWithAppendedDetails> input() {
+    WorkerDetailsWithAppendedDetails details = new WorkerDetailsWithAppendedDetails();
+    details.setJobId("job_id_value");
+    details.setJobCreateTime(Instant.ofEpochSecond(1000L));
+    details.setWorkerDetails(
+        WorkerDetails.getDefaultInstance()
+            .toBuilder()
+            .setWorkerName("worker_name_value")
+            .addWorkItems(
+                WorkItemDetails.getDefaultInstance()
+                    .toBuilder()
+                    .addMetrics(
+                        MetricUpdate.getDefaultInstance()
+                            .toBuilder()
+                            .setUpdateTime(Timestamp.newBuilder().setSeconds(10000L).build())
+                            .setScalar(Value.newBuilder().setNumberValue(1.23456))
+                            .build())
+                    .build())
+            .build());
+    return ImmutableList.of(details);
+  }
 
-    @Override
-    Function<WorkerDetailsWithAppendedDetails, Instant> createTimeGetter() {
-        return WorkerDetailsWithAppendedDetails::getJobCreateTime;
-    }
+  @Test
+  void workerDetails() {
 
-    @Override
-    @NonNull List<@NonNull WorkerDetailsWithAppendedDetails> input() {
-        WorkerDetailsWithAppendedDetails details = new WorkerDetailsWithAppendedDetails();
-        details.setJobId("job_id_value");
-        details.setJobCreateTime(Instant.ofEpochSecond(1000L));
-        details.setWorkerDetails(WorkerDetails.getDefaultInstance().toBuilder()
-                        .setWorkerName("worker_name_value")
-                        .addWorkItems(WorkItemDetails.getDefaultInstance().toBuilder()
-                                .addMetrics(MetricUpdate.getDefaultInstance().toBuilder()
-                                        .setUpdateTime(Timestamp.newBuilder().setSeconds(10000L).build())
-                                        .setScalar(Value.newBuilder().setNumberValue(1.23456))
-                                        .build())
-                                .build())
-                .build());
-        return ImmutableList.of(details);
-    }
+    Schema embeddedSchema = expectedEmbeddedSchema();
 
-    @Test
-    void workerDetails() {
+    Pipeline pipeline = Pipeline.create();
 
-        Schema embeddedSchema = expectedEmbeddedSchema();
+    PCollection<WorkerDetailsWithAppendedDetails> input = pipeline.apply(Create.of(input()));
 
-        Pipeline pipeline = Pipeline.create();
+    RowConversionResult<WorkerDetailsWithAppendedDetails, ConversionError<String>> result =
+        input.apply(transform());
 
-        PCollection<WorkerDetailsWithAppendedDetails> input = pipeline.apply(Create.of(input()));
+    PAssert.thatSingleton(result.getFailure().apply("count errors", Count.globally()))
+        .isEqualTo(0L);
 
-        RowConversionResult<WorkerDetailsWithAppendedDetails, ConversionError<String>> result = input.apply(transform());
-
-        PAssert.thatSingleton(result.getFailure().apply("count errors", Count.globally())).isEqualTo(0L);
-
-        PCollection<Row> workDetails = result.getSuccess().apply(
+    PCollection<Row> workDetails =
+        result
+            .getSuccess()
+            .apply(
                 "work_details",
-                MapElements.into(rows()).via(row -> checkStateNotNull(row).getRow(embeddedTypeFieldName()))
-        ).setRowSchema(embeddedSchema);
+                MapElements.into(rows())
+                    .via(row -> checkStateNotNull(row).getRow(embeddedTypeFieldName())))
+            .setRowSchema(embeddedSchema);
 
-        PAssert.thatSingleton(workDetails.apply("count work_details", Count.globally())).isEqualTo(1L);
+    PAssert.thatSingleton(workDetails.apply("count work_details", Count.globally())).isEqualTo(1L);
 
-        workDetails.apply("iterate work_details", ParDo.of(new DoFn<Row, Void>() {
-            @ProcessElement
-            public void process(@Element Row row) {
+    workDetails.apply(
+        "iterate work_details",
+        ParDo.of(
+            new DoFn<Row, Void>() {
+              @ProcessElement
+              public void process(@Element Row row) {
                 String workerName = checkStateNotNull(row.getString("worker_name"));
                 assertEquals("worker_name_value", workerName);
                 Collection<Row> workItems = checkStateNotNull(row.getArray("work_items"));
@@ -106,13 +139,14 @@ class WorkerDetailsWithAppendedDetailsTest extends WithAppendedDetailsToRowTest<
                 Row workItem = checkStateNotNull(new ArrayList<>(workItems).get(0));
                 Collection<Row> metrics = checkStateNotNull(workItem.getArray("metrics"));
                 Row metricsUpdate = checkStateNotNull(new ArrayList<>(metrics).get(0));
-                ReadableDateTime timestamp = checkStateNotNull(metricsUpdate.getDateTime("update_time"));
+                ReadableDateTime timestamp =
+                    checkStateNotNull(metricsUpdate.getDateTime("update_time"));
                 assertEquals(10000L, timestamp.getMillis() / 1000);
                 String scalar = checkStateNotNull(metricsUpdate.getString("scalar"));
                 assertEquals("1.23456", scalar);
-            }
-        }));
+              }
+            }));
 
-        pipeline.run();
-    }
+    pipeline.run();
+  }
 }

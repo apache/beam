@@ -32,7 +32,6 @@ import org.apache.beam.testinfra.pipelines.dataflow.DataflowRequestError;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.joda.time.Duration;
 
 public class BigQueryWrites {
 

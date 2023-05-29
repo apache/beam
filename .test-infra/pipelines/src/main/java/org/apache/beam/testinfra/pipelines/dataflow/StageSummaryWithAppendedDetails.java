@@ -18,12 +18,11 @@
 package org.apache.beam.testinfra.pipelines.dataflow;
 
 import com.google.dataflow.v1beta3.StageSummary;
+import java.io.Serializable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
 import org.checkerframework.checker.nullness.qual.NonNull;
-import org.joda.time.Instant;
 import org.checkerframework.checker.nullness.qual.Nullable;
-
-import java.io.Serializable;
+import org.joda.time.Instant;
 
 public class StageSummaryWithAppendedDetails implements Serializable {
 
@@ -66,7 +65,9 @@ public class StageSummaryWithAppendedDetails implements Serializable {
       return false;
     }
     StageSummaryWithAppendedDetails that = (StageSummaryWithAppendedDetails) o;
-    return Objects.equal(jobId, that.jobId) && Objects.equal(jobCreateTime, that.jobCreateTime) && Objects.equal(stageSummary, that.stageSummary);
+    return Objects.equal(jobId, that.jobId)
+        && Objects.equal(jobCreateTime, that.jobCreateTime)
+        && Objects.equal(stageSummary, that.stageSummary);
   }
 
   @Override

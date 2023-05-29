@@ -20,7 +20,6 @@ package org.apache.beam.testinfra.pipelines;
 import com.google.dataflow.v1beta3.GetJobExecutionDetailsRequest;
 import com.google.dataflow.v1beta3.GetJobMetricsRequest;
 import com.google.dataflow.v1beta3.GetJobRequest;
-import com.google.dataflow.v1beta3.GetStageExecutionDetailsRequest;
 import com.google.dataflow.v1beta3.Job;
 import com.google.events.cloud.dataflow.v1beta3.JobState;
 import com.google.events.cloud.dataflow.v1beta3.JobType;
@@ -30,7 +29,6 @@ import java.util.stream.Collectors;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteResult;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
-import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -55,14 +53,12 @@ import org.apache.beam.testinfra.pipelines.dataflow.DataflowFilterEventarcJobs;
 import org.apache.beam.testinfra.pipelines.dataflow.DataflowGetJobExecutionDetails;
 import org.apache.beam.testinfra.pipelines.dataflow.DataflowGetJobMetrics;
 import org.apache.beam.testinfra.pipelines.dataflow.DataflowGetJobs;
-import org.apache.beam.testinfra.pipelines.dataflow.DataflowGetStageExecutionDetails;
 import org.apache.beam.testinfra.pipelines.dataflow.DataflowJobsOptions;
 import org.apache.beam.testinfra.pipelines.dataflow.DataflowReadResult;
 import org.apache.beam.testinfra.pipelines.dataflow.DataflowRequestError;
 import org.apache.beam.testinfra.pipelines.dataflow.DataflowRequests;
 import org.apache.beam.testinfra.pipelines.dataflow.JobMetricsWithAppendedDetails;
 import org.apache.beam.testinfra.pipelines.dataflow.StageSummaryWithAppendedDetails;
-import org.apache.beam.testinfra.pipelines.dataflow.WorkerDetailsWithAppendedDetails;
 import org.apache.beam.testinfra.pipelines.pubsub.PubsubReadOptions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -93,15 +89,15 @@ public class ReadDataflowApiWriteBigQuery {
 
     // Retrieve WorkerDetails (from StageExecutionDetails) calling the
     // MetricsV1Beta3.GetStageExecutionDetails rpc.
-//    jobDetails(
-//        options,
-//        BigQueryWrites.STAGE_EXECUTION_DETAILS_ERRORS,
-//        GetStageExecutionDetailsRequest.class,
-//        WorkerDetailsWithAppendedDetails.class,
-//        jobs,
-//        DataflowGetStageExecutionDetails.create(configuration),
-//        WithAppendedDetailsToRow.workerDetailsWithAppendedDetailsToRow(),
-//        BigQueryWrites.dataflowJobExecutionDetails(options));
+    //    jobDetails(
+    //        options,
+    //        BigQueryWrites.STAGE_EXECUTION_DETAILS_ERRORS,
+    //        GetStageExecutionDetailsRequest.class,
+    //        WorkerDetailsWithAppendedDetails.class,
+    //        jobs,
+    //        DataflowGetStageExecutionDetails.create(configuration),
+    //        WithAppendedDetailsToRow.workerDetailsWithAppendedDetailsToRow(),
+    //        BigQueryWrites.dataflowJobExecutionDetails(options));
 
     // Retrieve StageSummary entries (from JobExecutionDetails) calling the
     // MetricsV1Beta3.GetJobExecutionDetails rpc.
@@ -118,7 +114,7 @@ public class ReadDataflowApiWriteBigQuery {
     pipeline.run();
   }
 
-  private static <RequestT extends GeneratedMessageV3, ResponseT> void writeErrors(
+  static <RequestT extends GeneratedMessageV3, ResponseT> void writeErrors(
       Options options,
       String requestErrorTableIdPrefix,
       Class<RequestT> requestTClass,
@@ -140,9 +136,7 @@ public class ReadDataflowApiWriteBigQuery {
             BigQueryWrites.writeConversionErrors(options));
   }
 
-  private static PCollection<Job> getJobs(Options options, Pipeline pipeline) {
-    DataflowClientFactoryConfiguration configuration =
-        DataflowClientFactoryConfiguration.builder(options).build();
+  static PCollection<Job> getJobs(Options options, Pipeline pipeline) {
 
     // Read from Eventarc published Pub/Sub events.
     PCollection<String> json =
@@ -151,7 +145,8 @@ public class ReadDataflowApiWriteBigQuery {
             PubsubIO.readStrings()
                 .fromSubscription(options.getSubscription().getValue().getPath()));
 
-    json.apply("Count Pub/Sub messages", ParDo.of(countFn(PubsubIO.Read.class, "pulled_pubsub_messages")));
+    json.apply(
+        "Count Pub/Sub messages", ParDo.of(countFn(PubsubIO.Read.class, "pulled_pubsub_messages")));
 
     // Encode Eventarc JSON payloads into Eventarc Dataflow Jobs.
     WithFailures.Result<
@@ -161,21 +156,37 @@ public class ReadDataflowApiWriteBigQuery {
             json.apply(
                 tagOf(EventarcConversions.class, "fromJson"), EventarcConversions.fromJson());
 
-    events.output().apply("Count Encoded Events", ParDo.of(countFn(EventarcConversions.class, "encode_events_success")));
-    events.failures().apply("Count Encoded Failures", ParDo.of(countFn(EventarcConversions.class, "encoded_events_failure")));
+    events
+        .output()
+        .apply(
+            "Count Encoded Events",
+            ParDo.of(countFn(EventarcConversions.class, "encode_events_success")));
+    events
+        .failures()
+        .apply(
+            "Count Encoded Failures",
+            ParDo.of(countFn(EventarcConversions.class, "encoded_events_failure")));
 
     // Write Eventarc encoding errors to BigQuery.
     events
         .failures()
         .setRowSchema(ConversionError.getSchema())
         .apply(
-            tagOf(BigQueryWrites.class, com.google.events.cloud.dataflow.v1beta3.Job.class.getName()),
+            tagOf(
+                BigQueryWrites.class, com.google.events.cloud.dataflow.v1beta3.Job.class.getName()),
             BigQueryWrites.writeConversionErrors(options));
+
+    return getJobs(options, events.output());
+  }
+
+  static PCollection<Job> getJobs(
+      Options options, PCollection<com.google.events.cloud.dataflow.v1beta3.Job> events) {
+    DataflowClientFactoryConfiguration configuration =
+        DataflowClientFactoryConfiguration.builder(options).build();
 
     // Filter Done Batch Jobs.
     PCollection<GetJobRequest> getBatchJobRequests =
         events
-            .output()
             .apply(
                 tagOf(DataflowFilterEventarcJobs.class, "Done Batch Jobs"),
                 DataflowFilterEventarcJobs.builder()
@@ -186,12 +197,12 @@ public class ReadDataflowApiWriteBigQuery {
                 tagOf(DataflowRequests.class, "Batch GetJobRequests"),
                 DataflowRequests.jobRequestsFromEventsViewAll());
 
-    getBatchJobRequests.apply("Count Done Batch Jobs", ParDo.of(countFn(GetJobRequest.class, "done_batch_jobs")));
+    getBatchJobRequests.apply(
+        "Count Done Batch Jobs", ParDo.of(countFn(GetJobRequest.class, "done_batch_jobs")));
 
     // Filter Canceled Streaming Jobs.
     PCollection<GetJobRequest> getStreamJobRequests =
         events
-            .output()
             .apply(
                 tagOf(DataflowFilterEventarcJobs.class, "Canceled Streaming Jobs"),
                 DataflowFilterEventarcJobs.builder()
@@ -202,7 +213,9 @@ public class ReadDataflowApiWriteBigQuery {
                 tagOf(DataflowRequests.class, "Stream GetJobRequests"),
                 DataflowRequests.jobRequestsFromEventsViewAll());
 
-    getStreamJobRequests.apply("Count Canceled Streaming Jobs", ParDo.of(countFn(GetJobRequest.class, "canceled_streaming_jobs")));
+    getStreamJobRequests.apply(
+        "Count Canceled Streaming Jobs",
+        ParDo.of(countFn(GetJobRequest.class, "canceled_streaming_jobs")));
 
     // Merge Batch and Streaming Jobs.
     PCollectionList<GetJobRequest> getJobRequestList =
@@ -219,8 +232,14 @@ public class ReadDataflowApiWriteBigQuery {
     RowConversionResult<Job, ConversionError<Job>> jobsToRowResult =
         getJobsResult.getSuccess().apply(tagOf(JobsToRow.class, "Job"), JobsToRow.create());
 
-    jobsToRowResult.getSuccess().apply("Count JobsToRow Success", ParDo.of(countFn(JobsToRow.class, "jobs_to_row_success")));
-    jobsToRowResult.getFailure().apply("Count JobsToRow Failure", ParDo.of(countFn(JobsToRow.class, "jobs_to_row_failure")));
+    jobsToRowResult
+        .getSuccess()
+        .apply(
+            "Count JobsToRow Success", ParDo.of(countFn(JobsToRow.class, "jobs_to_row_success")));
+    jobsToRowResult
+        .getFailure()
+        .apply(
+            "Count JobsToRow Failure", ParDo.of(countFn(JobsToRow.class, "jobs_to_row_failure")));
 
     // Write Job Rows to BigQuery.
     jobsToRowResult
@@ -245,7 +264,7 @@ public class ReadDataflowApiWriteBigQuery {
     return getJobsResult.getSuccess();
   }
 
-  private static <RequestT extends GeneratedMessageV3, ResponseT> void jobDetails(
+  static <RequestT extends GeneratedMessageV3, ResponseT> void jobDetails(
       Options options,
       String requestErrorTableIdPrefix,
       Class<RequestT> requestTClass,
@@ -298,6 +317,7 @@ public class ReadDataflowApiWriteBigQuery {
   private static <T> DoFn<T, T> countFn(Class<?> clazz, String name) {
     return new DoFn<T, T>() {
       final Counter counter = Metrics.counter(clazz, name);
+
       @ProcessElement
       public void process(@Element T ignored) {
         counter.inc();

@@ -18,12 +18,11 @@
 package org.apache.beam.testinfra.pipelines.dataflow;
 
 import com.google.dataflow.v1beta3.JobMetrics;
+import java.io.Serializable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
-
-import java.io.Serializable;
 
 public class JobMetricsWithAppendedDetails implements Serializable {
 
@@ -66,7 +65,9 @@ public class JobMetricsWithAppendedDetails implements Serializable {
       return false;
     }
     JobMetricsWithAppendedDetails that = (JobMetricsWithAppendedDetails) o;
-    return Objects.equal(jobId, that.jobId) && Objects.equal(jobCreateTime, that.jobCreateTime) && Objects.equal(jobMetrics, that.jobMetrics);
+    return Objects.equal(jobId, that.jobId)
+        && Objects.equal(jobCreateTime, that.jobCreateTime)
+        && Objects.equal(jobMetrics, that.jobMetrics);
   }
 
   @Override
