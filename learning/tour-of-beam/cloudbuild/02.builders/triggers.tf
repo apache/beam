@@ -41,15 +41,8 @@ resource "google_cloudbuild_trigger" "tourofbeam_deployment_trigger" {
       script = file("../scripts/tob_deploy_infra_backend.sh")
       name = "ubuntu"
       env = local.cloudbuild_init_environment
-      secret_env = ["DUMMY_FIREBASE_TOKEN"]
     }
 
-    available_secrets {
-      secret_manager {
-        env = "DUMMY_FIREBASE_TOKEN"
-        version_name = "${google_secret_manager_secret_version.secret_firebase_deployment_token_data.secret}/versions/latest"
-      }
-    }
     substitutions = {
       _TOB_CLOUDBUILD_SA      = var.tourofbeam_deploy_sa
     }

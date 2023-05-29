@@ -124,10 +124,8 @@ tasks.register("firebaseProjectCreate") {
     doLast {
         val result = ByteArrayOutputStream()
         val projectId = project.property("project_id") as String
-        val token = project.property("token") as String
         exec {
             executable("firebase")
-            //args("projects:list", "--token", token)
             args("projects:list")
             standardOutput = result
         }
@@ -137,7 +135,6 @@ tasks.register("firebaseProjectCreate") {
         } else {
             exec {
                 executable("firebase")
-                //args("projects:addfirebase", projectId, "--token", token)
                 args("projects:addfirebase", projectId)
             }.assertNormalExitValue()
             println("Firebase has been added to project $projectId.")
@@ -152,11 +149,9 @@ tasks.register("firebaseHostingCreate") {
     doLast {
         val projectId = project.property("project_id") as String
         val webapp_id = project.property("webapp_id") as String
-        val token = project.property("token") as String
         val listSitesResult = ByteArrayOutputStream()
         exec {
             executable("firebase")
-            //args("hosting:sites:list", "--token", token, "--project", projectId)
             args("hosting:sites:list", "--project", projectId)
             workingDir("../frontend")
             standardOutput = listSitesResult
@@ -170,7 +165,6 @@ tasks.register("firebaseHostingCreate") {
         } else {
             exec {
                 executable("firebase")
-                //args("hosting:sites:create", webapp_id, "--token", token)
                 args("hosting:sites:create", webapp_id)
                 workingDir("../frontend")
             }.assertNormalExitValue()
@@ -179,7 +173,6 @@ tasks.register("firebaseHostingCreate") {
     
         exec {
             executable("firebase")
-            //args("target:apply", "hosting", webapp_id , webapp_id, "--token", token)
             args("target:apply", "hosting", webapp_id , webapp_id)
             workingDir("../frontend")
 
@@ -200,15 +193,13 @@ tasks.register("firebaseHostingCreate") {
 tasks.register("firebaseWebAppCreate") {
     group = "frontend-deploy"
     dependsOn("firebaseProjectCreate")
-
+m
     doLast {
         val result = ByteArrayOutputStream()
         val projectId = project.property("project_id") as String
         val webappId = project.property("webapp_id") as String
-        val token = project.property("token") as String
         exec {
             executable("firebase")
-            //args("apps:list", "--token", token, "--project", projectId)
             args("apps:list", "--project", projectId)
             standardOutput = result
         }
@@ -224,7 +215,6 @@ tasks.register("firebaseWebAppCreate") {
             val result2 = ByteArrayOutputStream()
             exec {
                 executable("firebase")
-                //args("apps:create", "WEB", webappId, "--token", token, "--project", projectId)
                 args("apps:create", "WEB", webappId, "--project", projectId)
                 standardOutput = result2
             }.assertNormalExitValue()
@@ -242,12 +232,10 @@ tasks.register("getSdkConfigWebApp") {
     dependsOn("firebaseHostingCreate")
 
     doLast {
-        val token = project.property("token") as String
         val firebaseAppId = project.extensions.extraProperties["firebaseAppId"] as String
         val result = ByteArrayOutputStream()
         exec {
             executable("firebase")
-            //args("apps:sdkconfig", "WEB", firebaseAppId , "--token", token)
             args("apps:sdkconfig", "WEB", firebaseAppId)
             standardOutput = result
         }
@@ -347,10 +335,8 @@ tasks.register("firebaseDeploy") {
 
     doLast {
         val projectId = project.property("project_id") as String
-        val token = project.property("token") as String
         val webapp_id = project.property("webapp_id") as String
         exec {
-            //commandLine("firebase", "deploy", "--only",  "hosting:$webapp_id", "--token", token, "--project", projectId)
             commandLine("firebase", "deploy", "--only",  "hosting:$webapp_id", "--project", projectId)
             workingDir("../frontend")
         }

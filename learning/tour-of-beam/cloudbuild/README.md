@@ -78,8 +78,6 @@ tourofbeam_cd_trigger_name = "TourOfBeam-CD-env"                            # Tr
 tourofbeam_cb_private_bucket = "tourofbeam-cb-private-logs-env"             # Bucket for Cloud Build private logs
 tourofbeam_cb_public_bucket = "tourofbeam-cb-public-logs-env"               # Bucket for Cloud Build public logs 
 web_app_id = "Tour-Of-Beam"                                                 # Web app ID
-firebase_token_secret_id = "tourofbeam-firebase-token-env"                  # Secret ID for Firebase token
-data_for_firebase_token_secret = "firebase token string"                    # Data for Firebase token secret
 
 If you plan to have only one environment, you can use simple resource names like `tourofbeam-deployment-state` or `tourofbeam-cb-private-logs` instead of `tourofbeam-deployment-state-env` or `tourofbeam-cb-private-logs-env`. But if you plan to have multiple environments, it's advised to add environment name to the resource name to avoid collisions with other environments.
 
