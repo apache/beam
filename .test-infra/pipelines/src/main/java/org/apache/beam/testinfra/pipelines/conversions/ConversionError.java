@@ -25,6 +25,8 @@ import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCaseFormat;
+import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.CaseFormat;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -32,7 +34,7 @@ import org.joda.time.Instant;
 
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
-@SchemaCaseFormat(CaseFormat.LOWER_CAMEL)
+@SchemaCaseFormat(CaseFormat.LOWER_UNDERSCORE)
 public abstract class ConversionError<SourceT> implements Serializable {
 
   private static final AutoValueSchema SCHEMA_PROVIDER = new AutoValueSchema();
@@ -41,6 +43,12 @@ public abstract class ConversionError<SourceT> implements Serializable {
     TypeDescriptor<ConversionError<SourceT>> type =
         new TypeDescriptor<ConversionError<SourceT>>() {};
     return checkStateNotNull(SCHEMA_PROVIDER.schemaFor(type));
+  }
+
+  public static <SourceT> SerializableFunction<ConversionError<SourceT>, Row> toRowFn() {
+    TypeDescriptor<ConversionError<SourceT>> type =
+        new TypeDescriptor<ConversionError<SourceT>>() {};
+    return SCHEMA_PROVIDER.toRowFunction(type);
   }
 
   public static <SourceT> Builder<SourceT> builder() {

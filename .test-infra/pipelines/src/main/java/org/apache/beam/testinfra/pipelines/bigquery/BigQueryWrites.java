@@ -27,8 +27,6 @@ import org.apache.beam.sdk.io.gcp.bigquery.WriteResult;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.testinfra.pipelines.conversions.ConversionError;
-import org.apache.beam.testinfra.pipelines.dataflow.DataflowRequestError;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -47,27 +45,27 @@ public class BigQueryWrites {
   public static final Clustering JOB_CLUSTERING =
       new Clustering().setFields(ImmutableList.of("type", "location"));
 
-  public static final String CONVERSION_ERRORS_TABLE_ID_PREFIX = "conversion_errors";
+  public static final String CONVERSION_ERRORS_TABLE_ID_PREFIX = "errors_conversions";
 
   public static final String JOB_EXECUTION_DETAILS = "job_execution_details";
 
-  public static final String JOB_EXECUTION_DETAILS_ERRORS = "job_execution_details_request_errors";
+  public static final String JOB_EXECUTION_DETAILS_ERRORS = "errors_job_execution_details_requests";
 
   public static final String JOB_METRICS = "job_metrics";
 
-  public static final String JOB_METRICS_ERRORS = "job_metrics_request_errors";
+  public static final String JOB_METRICS_ERRORS = "errors_job_metrics_requests";
 
   public static final String JOBS = "jobs";
 
-  public static final String JOB_ERRORS = "jobs_request_errors";
+  public static final String JOB_ERRORS = "errors_jobs_requests";
 
   public static final String STAGE_EXECUTION_DETAILS = "stage_execution_details";
 
   public static final String STAGE_EXECUTION_DETAILS_ERRORS =
-      "stage_execution_details_requests_errors";
+      "errors_stage_execution_details_requests";
 
-  public static PTransform<@NonNull PCollection<ConversionError<String>>, @NonNull WriteResult>
-      writeConversionErrors(BigQueryWriteOptions options) {
+  public static PTransform<@NonNull PCollection<Row>, @NonNull WriteResult> writeConversionErrors(
+      BigQueryWriteOptions options) {
     return withPartitioning(
         options, tableIdFrom(CONVERSION_ERRORS_TABLE_ID_PREFIX), OBSERVED_TIME_PARTITIONING);
   }
@@ -78,19 +76,9 @@ public class BigQueryWrites {
         options, tableIdFrom(JOB_EXECUTION_DETAILS), ENRICHED_TIME_PARTITIONING);
   }
 
-  public static PTransform<@NonNull PCollection<DataflowRequestError>, @NonNull WriteResult>
-      dataflowGetJobExecutionDetailsErrors(BigQueryWriteOptions options) {
-    return writeDataflowRequestErrors(options, tableIdFrom(JOB_EXECUTION_DETAILS_ERRORS));
-  }
-
   public static PTransform<@NonNull PCollection<Row>, @NonNull WriteResult> dataflowJobMetrics(
       BigQueryWriteOptions options) {
     return withPartitioning(options, tableIdFrom(JOB_METRICS), ENRICHED_TIME_PARTITIONING);
-  }
-
-  public static PTransform<@NonNull PCollection<DataflowRequestError>, @NonNull WriteResult>
-      dataflowGetJobMetricsErrors(BigQueryWriteOptions options) {
-    return writeDataflowRequestErrors(options, tableIdFrom(JOB_METRICS_ERRORS));
   }
 
   public static PTransform<@NonNull PCollection<Row>, @NonNull WriteResult> dataflowJobs(
@@ -99,23 +87,13 @@ public class BigQueryWrites {
         options, tableIdFrom(JOBS), JOB_TIME_PARTITIONING, JOB_CLUSTERING);
   }
 
-  public static PTransform<@NonNull PCollection<DataflowRequestError>, @NonNull WriteResult>
-      dataflowGetJobsErrors(BigQueryWriteOptions options) {
-    return writeDataflowRequestErrors(options, tableIdFrom(JOB_ERRORS));
-  }
-
   public static PTransform<@NonNull PCollection<Row>, @NonNull WriteResult>
       dataflowStageExecutionDetails(BigQueryWriteOptions options) {
     return withPartitioning(
         options, tableIdFrom(STAGE_EXECUTION_DETAILS), ENRICHED_TIME_PARTITIONING);
   }
 
-  public static PTransform<@NonNull PCollection<DataflowRequestError>, @NonNull WriteResult>
-      dataflowGetStageExecutionDetailsErrors(BigQueryWriteOptions options) {
-    return writeDataflowRequestErrors(options, tableIdFrom(STAGE_EXECUTION_DETAILS_ERRORS));
-  }
-
-  public static PTransform<@NonNull PCollection<DataflowRequestError>, @NonNull WriteResult>
+  public static PTransform<@NonNull PCollection<Row>, @NonNull WriteResult>
       writeDataflowRequestErrors(BigQueryWriteOptions options, String tableIdPrefix) {
     return withPartitioning(options, tableIdFrom(tableIdPrefix), OBSERVED_TIME_PARTITIONING);
   }

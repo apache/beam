@@ -90,7 +90,8 @@ public class DataflowGetStageExecutionDetails
     @ProcessElement
     public void process(@Element Job job, MultiOutputReceiver receiver) {
       GetStageExecutionDetailsRequest request =
-          GetStageExecutionDetailsRequest.newBuilder()
+          GetStageExecutionDetailsRequest.getDefaultInstance()
+              .toBuilder()
               .setJobId(job.getId())
               .setProjectId(job.getProjectId())
               .setLocation(job.getLocation())
