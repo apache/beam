@@ -149,12 +149,10 @@ public abstract class AvroDatumFactory<T>
     }
   }
 
-  @Deprecated
   public static <T> AvroDatumFactory<T> of(Class<T> type) {
     return of(type, true);
   }
 
-  @Deprecated
   public static <T> AvroDatumFactory<T> of(Class<T> type, boolean useReflectApi) {
     if (GenericRecord.class.equals(type)) {
       return (AvroDatumFactory<T>) AvroDatumFactory.GenericDatumFactory.INSTANCE;
