@@ -17,13 +17,13 @@
  */
 
 // beam-playground:
-//   name: FinalSolution3
-//   description: Final challenge solution 3.
+//   name: FinalSolution2
+//   description: Final challenge solution 2.
 //   multifile: false
 //   context_line: 54
 //   categories:
 //     - Quickstart
-//   complexity: BASIC
+//   complexity: ADVANCED
 //   tags:
 //     - hellobeam
 
@@ -32,11 +32,17 @@ package main
 import (
 	"context"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window/trigger"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
+	"os"
+	"regexp"
 	"strings"
+	"time"
 )
 
 type Analysis struct {
@@ -50,7 +56,11 @@ type Analysis struct {
 	Constraining string
 }
 
+var wordRE = regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)
+
 func main() {
+	os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", "") // FILL IN WITH YOUR FILE PATH
+
 	ctx := context.Background()
 
 	beam.Init()
@@ -59,28 +69,31 @@ func main() {
 	s := p.Root()
 
 	shakespeare := textio.Read(s, "gs://apache-beam-samples/shakespeare/kinglear.txt")
+	shakespeareWords := getWords(s, shakespeare)
 
 	analysis := textio.Read(s, "analysis.csv")
-	analysisRecords := beam.ParDo(s, parseAnalysis, analysis)
+	analysisRecords := parseAnalysis(s, analysis)
 
-	shakespeareWords := beam.ParDo(s, func(line string) string {
-		// Simplified text preprocessing.
-		words := strings.Fields(line)
-		return strings.ToLower(words[0])
-	}, shakespeare)
+	trigger := trigger.AfterEndOfWindow().
+		EarlyFiring(trigger.AfterProcessingTime().
+			PlusDelay(5 * time.Second)).
+		LateFiring(trigger.Repeat(trigger.AfterCount(1)))
 
-	matchedWords := beam.ParDo(s, func(word string, analysisIter func(*Analysis) bool) (*Analysis, error) {
-		var analysis Analysis
-		if !analysisIter(&analysis) {
-			return nil, nil // Skip if no analysis.
-		}
-		return &analysis, nil
-	}, shakespeareWords, beam.SideInput{Input: analysisRecords})
+	fixedWindowedItems := beam.WindowInto(s, window.NewFixedWindows(30*time.Second), shakespeareWords,
+		beam.Trigger(trigger),
+		beam.AllowedLateness(30*time.Second),
+		beam.PanesDiscard(),
+	)
 
-	// Just counting all words in this simplified example.
-	counted := stats.Count(s, matchedWords)
+	result := matchWords(s, fixedWindowedItems, analysisRecords)
 
-	textio.Write(s, "output.txt", counted)
+	parts := partition(s, result)
+
+	negativeWords := parts[0]
+	//positiveWords := parts[1]
+
+	negativeWordsCount1 := beam.ParDo(s, func(analysis2 Analysis, emit func(string)) { emit(analysis2.Word) }, negativeWords)
+	debug.Print(s, stats.CountElms(s, negativeWordsCount1))
 
 	err := beamx.Run(ctx, p)
 
@@ -89,16 +102,56 @@ func main() {
 	}
 }
 
-func parseAnalysis(line string) (Analysis, error) {
-	parts := strings.Split(line, ",")
-	return Analysis{
-		Word:         parts[0],
-		Negative:     parts[1],
-		Positive:     parts[2],
-		Uncertainty:  parts[3],
-		Litigious:    parts[4],
-		Strong:       parts[5],
-		Weak:         parts[6],
-		Constraining: parts[7],
-	}, nil
+func parseAnalysis(s beam.Scope, input beam.PCollection) beam.PCollection {
+	return beam.ParDo(s, func(line string, emit func(analysis Analysis)) {
+		parts := strings.Split(line, ",")
+		if parts[0] != "Word" {
+			emit(Analysis{
+				Word:         strings.ToLower(parts[0]),
+				Negative:     parts[1],
+				Positive:     parts[2],
+				Uncertainty:  parts[3],
+				Litigious:    parts[4],
+				Strong:       parts[5],
+				Weak:         parts[6],
+				Constraining: parts[7],
+			})
+		}
+	}, input)
+}
+
+func getWords(s beam.Scope, input beam.PCollection) beam.PCollection {
+	return beam.ParDo(s, func(line string, emit func(string)) {
+		for _, word := range wordRE.FindAllString(line, -1) {
+			emit(strings.ToLower(word))
+		}
+	}, input)
+}
+
+func matchWords(s beam.Scope, input beam.PCollection, viewPCollection beam.PCollection) beam.PCollection {
+	view := beam.SideInput{
+		Input: viewPCollection,
+	}
+	return beam.ParDo(s, matchFn, input, view)
+}
+
+func matchFn(word string, view func(analysis *Analysis) bool, emit func(analysis Analysis)) {
+	var newAnalysis Analysis
+	for view(&newAnalysis) {
+		if word == newAnalysis.Word {
+			emit(newAnalysis)
+		}
+	}
+}
+
+func partition(s beam.Scope, input beam.PCollection) []beam.PCollection {
+	return beam.Partition(s, 3, func(analysis Analysis) int {
+		if analysis.Negative != "0" {
+			return 0
+		}
+		if analysis.Positive != "0" {
+			return 1
+		}
+		return 2
+	}, input)
 }
