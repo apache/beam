@@ -32,7 +32,7 @@ You can try the available Apache Beam examples at
 {{< playground_snippet language="scio" path="SDK_SCIO_MinimalWordCount" >}}
 {{< /playground >}}
 
-See [here](https://github.com/akvelon/beam/blob/master/playground/load_your_code.md) for adding new examples.
+See [here](https://github.com/apache/beam/blob/master/playground/load_your_code.md) for adding new examples.
 
 ## Next Steps
 
