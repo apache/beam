@@ -18,8 +18,8 @@
 import collections
 import json
 import logging
-import pprint
 import os
+import pprint
 import re
 import uuid
 from typing import Iterable
@@ -646,7 +646,7 @@ class YamlTransform(beam.PTransform):
   def __init__(self, spec, providers={}):  # pylint: disable=dangerous-default-value
     if isinstance(spec, str):
       spec = yaml.load(spec, Loader=SafeLineLoader)
-    # TODO: Validate as a transform.
+    # TODO(BEAM-26941): Validate as a transform.
     self._spec = preprocess(spec)
     self._providers = yaml_provider.merge_providers(
         {
