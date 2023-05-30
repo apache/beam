@@ -1346,17 +1346,18 @@ class BigQueryWrapper(object):
 
   @staticmethod
   def from_pipeline_options(pipeline_options: PipelineOptions):
-    return BigQueryWrapper(client=BigQueryWrapper._bigquery_client(pipeline_options))
+    return BigQueryWrapper(
+        client=BigQueryWrapper._bigquery_client(pipeline_options))
 
   @staticmethod
   def _bigquery_client(pipeline_options: PipelineOptions):
     return bigquery.BigqueryV2(
-          http=get_new_http(),
-          credentials=auth.get_service_credentials(pipeline_options),
-          response_encoding='utf8',
-          additional_http_headers={
-              "user-agent": "apache-beam-%s" % apache_beam.__version__
-          })
+        http=get_new_http(),
+        credentials=auth.get_service_credentials(pipeline_options),
+        response_encoding='utf8',
+        additional_http_headers={
+            "user-agent": "apache-beam-%s" % apache_beam.__version__
+        })
 
 
 class RowAsDictJsonCoder(coders.Coder):
