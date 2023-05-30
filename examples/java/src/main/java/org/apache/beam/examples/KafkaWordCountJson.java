@@ -77,7 +77,8 @@ public class KafkaWordCountJson {
   }
 
   public static void main(String[] args) {
-    final KafkaStreamingOptions options = PipelineOptionsFactory.create();
+    KafkaStreamingOptions options =
+        PipelineOptionsFactory.fromArgs(args).withValidation().as(KafkaStreamingOptions.class);
     final Pipeline p = Pipeline.create(options);
 
     final Map<String, Object> consumerConfig = new HashMap<>();
