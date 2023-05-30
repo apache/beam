@@ -64,7 +64,6 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
         playgroundController = _createPlaygroundController(initialSdk.id) {
     _appNotifier.sdk ??= initialSdk;
     contentTreeController.addListener(_onUnitChanged);
-    _unitContentCache.addListener(_onUnitChanged);
     _appNotifier.addListener(_onAppNotifierChanged);
     _authNotifier.addListener(_onAuthChanged);
     _saveCodeDebounced = _saveCode.debounced(
@@ -373,7 +372,6 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
 
   @override
   Future<void> dispose() async {
-    _unitContentCache.removeListener(_onUnitChanged);
     contentTreeController.removeListener(_onUnitChanged);
     _appNotifier.removeListener(_onAppNotifierChanged);
     _authNotifier.removeListener(_onAuthChanged);

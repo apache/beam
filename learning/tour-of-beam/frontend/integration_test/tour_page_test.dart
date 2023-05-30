@@ -31,6 +31,7 @@ import 'package:tour_of_beam/models/module.dart';
 import 'package:tour_of_beam/models/unit.dart';
 import 'package:tour_of_beam/pages/tour/screen.dart';
 import 'package:tour_of_beam/pages/tour/state.dart';
+import 'package:tour_of_beam/pages/tour/widgets/playground.dart';
 import 'package:tour_of_beam/pages/tour/widgets/unit.dart';
 import 'package:tour_of_beam/pages/tour/widgets/unit_content.dart';
 
@@ -50,8 +51,8 @@ void main() {
       await _checkContentTreeScrollsProperly(wt);
       await _checkHighlightsSelectedUnit(wt);
       // TODO(nausharipov): fix tests
-      // await _checkRunCodeWorks(wt);
-      // await _checkResizeUnitContent(wt);
+      await _checkRunCodeWorks(wt);
+      await _checkResizeUnitContent(wt);
 
       if (ExamplesLoader.failedToLoadExamples.isNotEmpty) {
         final tokens = ExamplesLoader.failedToLoadExamples.join(', ');
@@ -117,12 +118,12 @@ Future<void> _checkUnitContentLoadsProperly(
   await wt.tapAndSettle(find.byKey(Key(unit.id)));
 
   // TODO(nausharipov): fix the test.
-  // final hasSnippet = _getTourNotifier(wt).isUnitContainsSnippet;
+  final hasSnippet = _getTourNotifier(wt).isUnitContainsSnippet;
 
-  // expect(
-  //   find.byType(PlaygroundWidget),
-  //   hasSnippet ? findsOneWidget : findsNothing,
-  // );
+  expect(
+    find.byType(PlaygroundWidget),
+    hasSnippet ? findsOneWidget : findsNothing,
+  );
 
   expect(
     find.descendant(
