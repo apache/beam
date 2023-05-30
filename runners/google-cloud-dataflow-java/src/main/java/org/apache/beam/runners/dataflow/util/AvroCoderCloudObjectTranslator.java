@@ -28,41 +28,32 @@ import org.apache.beam.sdk.util.StringUtils;
 @SuppressWarnings({
   "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
-class AvroCoderCloudObjectTranslator implements CloudObjectTranslator<AvroCoder> {
-  private static final String TYPE_FIELD = "type";
-  private static final String SCHEMA_FIELD = "schema";
+class AvroCoderCloudObjectTranslator implements CloudObjectTranslator<AvroCoder<?>> {
   private static final String DATUM_FACTORY_FIELD = "datum_factory";
+  private static final String SCHEMA_FIELD = "schema";
 
   @Override
-  public CloudObject toCloudObject(AvroCoder target, SdkComponents sdkComponents) {
+  public CloudObject toCloudObject(AvroCoder<?> target, SdkComponents sdkComponents) {
     CloudObject base = CloudObject.forClass(AvroCoder.class);
-    Structs.addString(base, SCHEMA_FIELD, target.getSchema().toString());
-    Structs.addString(base, TYPE_FIELD, target.getType().getName());
     byte[] serializedDatumFactory =
-        SerializableUtils.serializeToByteArray(target.getDatumFactory());
+            SerializableUtils.serializeToByteArray(target.getDatumFactory());
     Structs.addString(
-        base, DATUM_FACTORY_FIELD, StringUtils.byteArrayToJsonString(serializedDatumFactory));
+            base, DATUM_FACTORY_FIELD, StringUtils.byteArrayToJsonString(serializedDatumFactory));
+    Structs.addString(base, SCHEMA_FIELD, target.getSchema().toString());
     return base;
   }
 
   @Override
-  public AvroCoder fromCloudObject(CloudObject cloudObject) {
+  public AvroCoder<?> fromCloudObject(CloudObject cloudObject) {
     Schema.Parser parser = new Schema.Parser();
-    String className = Structs.getString(cloudObject, TYPE_FIELD);
-    String schemaString = Structs.getString(cloudObject, SCHEMA_FIELD);
     byte[] deserializedDatumFactory =
-        StringUtils.jsonStringToByteArray(Structs.getString(cloudObject, DATUM_FACTORY_FIELD));
-    try {
-      Class type = Class.forName(className);
-      Schema schema = parser.parse(schemaString);
-      AvroDatumFactory datumFactory =
-          (AvroDatumFactory)
-              SerializableUtils.deserializeFromByteArray(
-                  deserializedDatumFactory, DATUM_FACTORY_FIELD);
-      return AvroCoder.of(type, schema, datumFactory);
-    } catch (ClassNotFoundException e) {
-      throw new IllegalArgumentException(e);
-    }
+            StringUtils.jsonStringToByteArray(Structs.getString(cloudObject, DATUM_FACTORY_FIELD));
+    String schemaString = Structs.getString(cloudObject, SCHEMA_FIELD);
+    Schema schema = parser.parse(schemaString);
+    AvroDatumFactory<?> datumFactory =
+        (AvroDatumFactory) SerializableUtils.deserializeFromByteArray(
+                deserializedDatumFactory, DATUM_FACTORY_FIELD);
+    return AvroCoder.of(datumFactory, schema);
   }
 
   @Override

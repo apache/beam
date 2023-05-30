@@ -112,7 +112,7 @@ public class AvroCoder<T> extends CustomCoder<T> {
    * Returns an {@link AvroCoder} instance for the Avro schema. The implicit type is GenericRecord.
    */
   public static AvroCoder<GenericRecord> generic(Schema schema) {
-    return new AvroCoder<>(GenericRecord.class, AvroDatumFactory.generic(), schema);
+    return AvroGenericCoder.of(schema);
   }
 
   /**
@@ -138,7 +138,7 @@ public class AvroCoder<T> extends CustomCoder<T> {
    * <p>The schema must correspond to the type provided.
    */
   public static <T> AvroCoder<T> specific(Class<T> type, Schema schema) {
-    return new AvroCoder<>(type, AvroDatumFactory.specific(type), schema);
+    return new AvroCoder<>(AvroDatumFactory.specific(type), schema);
   }
 
   /**
@@ -164,16 +164,13 @@ public class AvroCoder<T> extends CustomCoder<T> {
    * <p>The schema must correspond to the type provided.
    */
   public static <T> AvroCoder<T> reflect(Class<T> type, Schema schema) {
-    return new AvroCoder<>(type, AvroDatumFactory.reflect(type), schema);
+    return new AvroCoder<>(AvroDatumFactory.reflect(type), schema);
   }
 
   /**
    * Returns an {@link AvroGenericCoder} instance for the Avro schema. The implicit type is
    * GenericRecord.
-   *
-   * @deprecated Use {@link AvroCoder#generic(Schema)} instead
    */
-  @Deprecated
   public static AvroGenericCoder of(Schema schema) {
     return AvroGenericCoder.of(schema);
   }
@@ -245,7 +242,7 @@ public class AvroCoder<T> extends CustomCoder<T> {
    * @param <T> the element type
    */
   public static <T> AvroCoder<T> of(AvroDatumFactory<T> datumFactory, Schema schema) {
-    return new AvroCoder<>(datumFactory.getType(), datumFactory, schema);
+    return new AvroCoder<>(datumFactory, schema);
   }
 
   /**
@@ -298,8 +295,6 @@ public class AvroCoder<T> extends CustomCoder<T> {
       }
     }
   }
-
-  private final Class<T> type;
   private final AvroDatumFactory<T> datumFactory;
   private final SerializableSchemaSupplier schemaSupplier;
   private final TypeDescriptor<T> typeDescriptor;
@@ -366,14 +361,13 @@ public class AvroCoder<T> extends CustomCoder<T> {
   }
 
   protected AvroCoder(Class<T> type, Schema schema, boolean useReflectApi) {
-    this(type, AvroDatumFactory.of(type, useReflectApi), schema);
+    this(AvroDatumFactory.of(type, useReflectApi), schema);
   }
 
-  protected AvroCoder(Class<T> type, AvroDatumFactory<T> datumFactory, Schema schema) {
-    this.type = type;
+  protected AvroCoder(AvroDatumFactory<T> datumFactory, Schema schema) {
     this.datumFactory = datumFactory;
     this.schemaSupplier = new SerializableSchemaSupplier(schema);
-    this.typeDescriptor = TypeDescriptor.of(type);
+    this.typeDescriptor = TypeDescriptor.of(datumFactory.getType());
     this.nonDeterministicReasons = new AvroDeterminismChecker().check(typeDescriptor, schema);
 
     // Decoder and Encoder start off null for each thread. They are allocated and potentially
@@ -406,7 +400,7 @@ public class AvroCoder<T> extends CustomCoder<T> {
 
   /** Returns the type this coder encodes/decodes. */
   public Class<T> getType() {
-    return type;
+    return datumFactory.getType();
   }
 
   /** Returns the datum factory used for encoding/decoding. */
