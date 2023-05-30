@@ -4,7 +4,7 @@
     "python": "riteshghorse",
     "io": "Abacn"
   },
-  "nextAction": "Author",
+  "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
   "remindAfterTestsPass": [],
   "committerAssigned": true
