@@ -23,9 +23,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -33,6 +31,9 @@ import java.util.concurrent.TimeoutException;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Files;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.kohsuke.args4j.CmdLineException;
+import org.kohsuke.args4j.CmdLineParser;
+import org.kohsuke.args4j.Option;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,9 +49,6 @@ public class TransformServiceLauncher {
   private static final String DEFAULT_PROJECT_NAME = "apache.beam.transform.service";
 
   private static final String COMMAND_POSSIBLE_VALUES = "\"up\", \"down\" and \"ps\"";
-
-  private static final String ARGUMENTS_POSSIBLE_VALUES =
-      "\"project_name\", \"port\", \"command\" and \"beam_version\"";
 
   private static Map<String, TransformServiceLauncher> launchers = new HashMap<>();
 
@@ -230,62 +228,79 @@ public class TransformServiceLauncher {
     return outputOverride.getAbsolutePath();
   }
 
+  private static class ArgConfig {
+
+    static final String PROJECT_NAME_ARG_NAME = "project_name";
+    static final String COMMAND_ARG_NAME = "command";
+    static final String PORT_ARG_NAME = "port";
+    static final String BEAM_VERSION_ARG_NAME = "beam_version";
+
+    @Option(name = "--" + PROJECT_NAME_ARG_NAME, usage = "Docker compose project name")
+    private String projectName = "";
+
+    @Option(name = "--" + COMMAND_ARG_NAME, usage = "Command to execute")
+    private String command = "";
+
+    @Option(name = "--" + PORT_ARG_NAME, usage = "Port for the transform service")
+    private int port = -1;
+
+    @Option(name = "--" + BEAM_VERSION_ARG_NAME, usage = "Beam version to use.")
+    private String beamVersion = "";
+  }
+
   public static void main(String[] args) throws IOException, TimeoutException {
-    String projectName = null;
-    String command = null;
-    int port = -1;
-    String beamVersion = null;
 
-    Iterator<String> argIter = Arrays.stream(args).iterator();
-    while (argIter.hasNext()) {
-      String key = argIter.next();
-      if (!argIter.hasNext()) {
-        throw new IllegalArgumentException(
-            "Incorrect number of arguments. Expected a value for the argument " + key);
-      }
-      String value = argIter.next();
+    ArgConfig config = new ArgConfig();
+    CmdLineParser parser = new CmdLineParser(config);
 
-      if (key.equalsIgnoreCase("--project_name")) {
-        projectName = value;
-      } else if (key.equalsIgnoreCase("--port")) {
-        port = Integer.parseInt(value);
-      } else if (key.equalsIgnoreCase("--command")) {
-        command = value;
-      } else if (key.equalsIgnoreCase("--beam_version")) {
-        beamVersion = value;
-      } else {
-        throw new IllegalArgumentException(
-            String.format(
-                "Unknown argument {}. Expected arguments are " + ARGUMENTS_POSSIBLE_VALUES));
-      }
+    try {
+      parser.parseArgument(args);
+    } catch (CmdLineException e) {
+      System.err.println(e.getMessage());
+      System.err.println("Valid options are:");
+      // print the list of available options
+      parser.printUsage(System.err);
+      System.err.println();
+
+      return;
     }
 
-    if (command == null) {
+    if (config.command.isEmpty()) {
       throw new IllegalArgumentException(
-          "\"command\" argument must be specified, Valid values are " + COMMAND_POSSIBLE_VALUES);
+          "\""
+              + ArgConfig.COMMAND_ARG_NAME
+              + "\" argument must be specified, Valid values are "
+              + COMMAND_POSSIBLE_VALUES);
+    }
+    if (config.beamVersion.isEmpty()) {
+      throw new IllegalArgumentException(
+          "\"" + ArgConfig.BEAM_VERSION_ARG_NAME + "\" argument must be specified.");
     }
 
     System.out.println("===================================================");
     System.out.println(
         "Starting the Beam Transform Service at "
-            + (port < 0 ? "the default port." : ("port " + Integer.toString(port) + ".")));
+            + (config.port < 0
+                ? "the default port."
+                : ("port " + Integer.toString(config.port) + ".")));
     System.out.println("===================================================");
 
-    TransformServiceLauncher service = TransformServiceLauncher.forProject(projectName, port);
-    if (beamVersion != null) {
-      service.setBeamVersion(beamVersion);
+    TransformServiceLauncher service =
+        TransformServiceLauncher.forProject(config.projectName, config.port);
+    if (!config.beamVersion.isEmpty()) {
+      service.setBeamVersion(config.beamVersion);
     }
 
-    if (command.equals("up")) {
+    if (config.command.equals("up")) {
       service.start();
       service.waitTillUp(-1);
-    } else if (command.equals("down")) {
+    } else if (config.command.equals("down")) {
       service.shutdown();
-    } else if (command.equals("ps")) {
+    } else if (config.command.equals("ps")) {
       service.status();
     } else {
       throw new IllegalArgumentException(
-          String.format("Unknown command \"%s\". Possible values are ", command));
+          String.format("Unknown command \"%s\". Possible values are {}", config.command));
     }
   }
 }
