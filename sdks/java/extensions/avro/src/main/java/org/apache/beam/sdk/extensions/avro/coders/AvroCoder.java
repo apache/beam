@@ -106,7 +106,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-public abstract class AvroCoder<T> extends CustomCoder<T> {
+public class AvroCoder<T> extends CustomCoder<T> {
 
   /**
    * Returns an {@code AvroCoder} instance for the Avro schema. The implicit type is GenericRecord.
