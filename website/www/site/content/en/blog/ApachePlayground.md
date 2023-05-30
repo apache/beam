@@ -21,7 +21,7 @@ limitations under the License.
 -->
 
 ### **What is Apache Beam Playground?**
-[Apache Beam Playground](https://play-dev.beam.apache.org/) is an interactive environment to try Apache Beam transforms and examples without requiring to install or set up a Beam environment.
+[Apache Beam Playground](https://play.beam.apache.org/) is an interactive environment to try Apache Beam transforms and examples without requiring to install or set up a Beam environment.
 
 
 ### **Apache Beam Playground Features**
@@ -39,7 +39,7 @@ limitations under the License.
 
 
 ### **What’s Next**
-* Try examples in [Apache Beam Playground](https://play-dev.beam.apache.org/)
+* Try examples in [Apache Beam Playground](https://play.beam.apache.org/)
 * Submit your feedback using “Enjoying Playground?” in Apache Beam Playground or via [this form](https://docs.google.com/forms/d/e/1FAIpQLSd5_5XeOwwW2yjEVHUXmiBad8Lxk-4OtNcgG45pbyAZzd4EbA/viewform?usp=pp_url)
 * Join the Beam [users@](/community/contact-us) mailing list
 * Contribute to the Apache Beam Playground codebase by following a few steps in this  [Contribution Guide](/contribute)

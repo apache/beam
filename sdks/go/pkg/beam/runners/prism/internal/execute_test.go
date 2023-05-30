@@ -17,8 +17,12 @@ package internal
 
 import (
 	"context"
+	"fmt"
+	"math/rand"
 	"os"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
@@ -60,6 +64,9 @@ func execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 
 func executeWithT(ctx context.Context, t *testing.T, p *beam.Pipeline) (beam.PipelineResult, error) {
 	t.Log("startingTest - ", t.Name())
+	s1 := rand.NewSource(time.Now().UnixNano())
+	r1 := rand.New(s1)
+	*jobopts.JobName = fmt.Sprintf("%v-%v", strings.ToLower(t.Name()), r1.Intn(1000))
 	return execute(ctx, p)
 }
 

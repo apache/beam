@@ -34,7 +34,6 @@ import '../../../utils/javascript_post_message.dart';
 import '../../standalone_playground/path.dart';
 
 const kTryPlaygroundButtonWidth = 200.0;
-const kTryPlaygroundButtonHeight = 40.0;
 
 class EmbeddedActions extends StatelessWidget {
   const EmbeddedActions({Key? key}) : super(key: key);
@@ -56,18 +55,15 @@ class EmbeddedActions extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: kXxlSpacing),
-                _ButtonPadding(
-                  child: SizedBox(
-                    width: kTryPlaygroundButtonWidth,
-                    height: kTryPlaygroundButtonHeight,
-                    child: ElevatedButton.icon(
-                      icon: SvgPicture.asset(Assets.link),
-                      label:
-                          Text(AppLocalizations.of(context)!.tryInPlayground),
-                      onPressed: () => _openStandalonePlayground(controller),
-                    ),
+                SizedBox(
+                  width: kTryPlaygroundButtonWidth,
+                  child: ElevatedButton.icon(
+                    icon: SvgPicture.asset(Assets.link),
+                    label: Text(AppLocalizations.of(context)!.tryInPlayground),
+                    onPressed: () => _openStandalonePlayground(controller),
                   ),
                 ),
+                const SizedBox(width: kMdSpacing),
               ],
             );
           },
