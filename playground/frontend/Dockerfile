@@ -50,7 +50,7 @@ RUN cd /app/playground_components &&\
 
 RUN cd /app &&\
     flutter pub get -v &&\
-    flutter build web -v --web-renderer=html
+    flutter build web -v --web-renderer=html --release
 
 # ------------------------------------------------
 # Getting the result into NGINX.
