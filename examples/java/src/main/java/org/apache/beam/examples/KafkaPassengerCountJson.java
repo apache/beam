@@ -49,6 +49,8 @@ import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
+import org.apache.beam.sdk.options.Default;
+import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Combine;
@@ -60,7 +62,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.StringDeserializer;
 
-public class KafkaPassengerCount {
+public class KafkaPassengerCountJson {
   
   public interface KafkaStreamingOptions extends PipelineOptions {
     /**
