@@ -18,7 +18,7 @@
 # Service account for GCP Cloud Functions
 resource "google_service_account" "cloud_function_sa" {
   account_id   = local.cloudfunctions_service_account
-  display_name = "ToB Cloud Functions Service Account-${var.environment}"
+  display_name = "Tour of Beam CF Service Account-${var.environment}"
 }
 
 # IAM roles for Cloud Functions service account
