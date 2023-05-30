@@ -16,22 +16,9 @@
  * limitations under the License.
  */
 
-variable "project" {
-  type        = string
-  description = "The Google Cloud Platform (GCP) project within which resources are provisioned"
-}
-
-variable "region" {
-  type        = string
-  description = "The Google Cloud Platform (GCP) region in which to provision resources"
-}
-
-variable "dataflow_worker_service_account_id" {
-  type        = string
-  description = "The Dataflow Worker Service Account ID"
-}
-
-variable "artifact_registry_id" {
-  type        = string
-  description = "The ID of the artifact registry repository"
-}
+artifact_registry_id               = "infra-pipelines"
+template_image_prefix              = "dataflow-to-bigquery"
+gradle_project                     = ":beam-test-infra-pipelines:dataflow-to-bigquery"
+region                             = "us-central1"
+dataflow_worker_service_account_id = "infra-pipelines-worker"
+network_name_base                  = "infra-pipelines"

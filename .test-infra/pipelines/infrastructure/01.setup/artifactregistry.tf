@@ -16,22 +16,9 @@
  * limitations under the License.
  */
 
-variable "project" {
-  type        = string
-  description = "The Google Cloud Platform (GCP) project within which resources are provisioned"
-}
-
-variable "region" {
-  type        = string
-  description = "The Google Cloud Platform (GCP) region in which to provision resources"
-}
-
-variable "dataflow_worker_service_account_id" {
-  type        = string
-  description = "The Dataflow Worker Service Account ID"
-}
-
-variable "artifact_registry_id" {
-  type        = string
-  description = "The ID of the artifact registry repository"
+resource "google_artifact_registry_repository" "default" {
+  description   = "Stores artifacts related to github.com/apache/beam/.test-infra/pipelines"
+  format        = "DOCKER"
+  repository_id = var.artifact_registry_id
+  location      = var.region
 }

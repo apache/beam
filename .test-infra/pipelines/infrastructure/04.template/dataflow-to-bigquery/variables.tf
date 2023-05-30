@@ -21,6 +21,11 @@ variable "project" {
   description = "The Google Cloud Platform (GCP) project within which resources are provisioned"
 }
 
+variable "artifact_registry_id" {
+  type        = string
+  description = "The ID of the artifact registry repository"
+}
+
 variable "region" {
   type        = string
   description = "The Google Cloud Platform (GCP) region in which to provision resources"
@@ -31,7 +36,40 @@ variable "dataflow_worker_service_account_id" {
   description = "The Dataflow Worker Service Account ID"
 }
 
-variable "artifact_registry_id" {
+variable "network_name_base" {
   type        = string
-  description = "The ID of the artifact registry repository"
+  description = "The name of the Google Cloud Platform (GCP) name basis from which we name network related resources"
+}
+
+variable "github_repository_owner" {
+  type        = string
+  description = "The owner of the GitHub repository to base Dataflow template build"
+  default     = "apache"
+}
+
+variable "github_repository_name" {
+  type        = string
+  description = "The name of the GitHub repository to base Dataflow template build"
+  default     = "beam"
+}
+
+variable "github_repository_branch" {
+  type        = string
+  description = "The branch of the GitHub repository to base Dataflow template build"
+  default     = "master"
+}
+
+variable "gradle_project" {
+  type        = string
+  description = "The gradle project to base Dataflow template build"
+}
+
+variable "storage_bucket_name" {
+  type        = string
+  description = "The name of the Storage Bucket reserved for infra pipelines"
+}
+
+variable "template_image_prefix" {
+  type        = string
+  description = "The artifact registry image prefix of the Dataflow template"
 }

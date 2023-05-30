@@ -18,15 +18,15 @@
 
 // Generate random string to name Storage bucket
 resource "random_string" "temporary" {
-  length = 8
+  length  = 8
   special = false
-  upper = false
-  lower = true
+  upper   = false
+  lower   = true
   numeric = true
 }
 
 // Provision Storage Bucket for use by Dataflow Worker as temporary storage
-resource "google_storage_bucket" "temporary" {
+resource "google_storage_bucket" "default" {
   location = var.region
   name     = "${replace(var.workflow_resource_name_base, "_", "-")}-${random_string.temporary.result}"
   labels   = {
@@ -37,7 +37,7 @@ resource "google_storage_bucket" "temporary" {
 
 // Enable Dataflow Worker Service Account to manage objects in temporary storage
 resource "google_storage_bucket_iam_member" "temporary" {
-  bucket = google_storage_bucket.temporary.id
+  bucket = google_storage_bucket.default.id
   member = "serviceAccount:${data.google_service_account.dataflow_worker.email}"
   role   = "roles/storage.objectAdmin"
 }

@@ -16,22 +16,33 @@
  * limitations under the License.
  */
 
-variable "project" {
-  type        = string
-  description = "The Google Cloud Platform (GCP) project within which resources are provisioned"
+data "google_artifact_registry_repository" "default" {
+  location      = var.region
+  repository_id = var.artifact_registry_id
 }
 
-variable "region" {
-  type        = string
-  description = "The Google Cloud Platform (GCP) region in which to provision resources"
+// Query the Dataflow Worker service account
+data "google_service_account" "dataflow_worker" {
+  account_id = var.dataflow_worker_service_account_id
 }
 
-variable "dataflow_worker_service_account_id" {
-  type        = string
-  description = "The Dataflow Worker Service Account ID"
+// Query the GCP project. Needed to acquire the project number.
+data "google_project" "default" {
+  project_id = var.project
 }
 
-variable "artifact_registry_id" {
-  type        = string
-  description = "The ID of the artifact registry repository"
+// Query the GCP Network.
+data "google_compute_network" "default" {
+  name = var.network_name_base
+}
+
+// Query the GCP Subnetwork.
+data "google_compute_subnetwork" "default" {
+  region = var.region
+  name   = var.network_name_base
+}
+
+// Query the Storage bucket.
+data "google_storage_bucket" "default" {
+  name = var.storage_bucket_name
 }

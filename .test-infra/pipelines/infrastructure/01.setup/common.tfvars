@@ -16,5 +16,6 @@
  * limitations under the License.
  */
 
+artifact_registry_id               = "infra-pipelines"
 region                             = "us-central1"
 dataflow_worker_service_account_id = "infra-pipelines-worker"

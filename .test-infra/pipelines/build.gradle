@@ -16,7 +16,9 @@
  * limitations under the License.
  */
 
-plugins { id 'org.apache.beam.module' }
+plugins {
+    id 'org.apache.beam.module'
+}
 
 applyJavaNature(
         exportJavadoc: false,
