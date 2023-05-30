@@ -193,7 +193,7 @@ tasks.register("firebaseHostingCreate") {
 tasks.register("firebaseWebAppCreate") {
     group = "frontend-deploy"
     dependsOn("firebaseProjectCreate")
-m
+
     doLast {
         val result = ByteArrayOutputStream()
         val projectId = project.property("project_id") as String
