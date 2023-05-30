@@ -24,8 +24,10 @@ import com.google.dataflow.v1beta3.Job;
 import com.google.dataflow.v1beta3.MetricsV1Beta3Grpc;
 import com.google.dataflow.v1beta3.StageExecutionDetails;
 import com.google.dataflow.v1beta3.WorkerDetails;
+import io.grpc.ManagedChannel;
 import io.grpc.StatusRuntimeException;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -77,6 +79,7 @@ public class DataflowGetStageExecutionDetails
       extends DoFn<Job, WorkerDetailsWithAppendedDetails> {
     private final DataflowGetStageExecutionDetails spec;
     private transient MetricsV1Beta3Grpc.@MonotonicNonNull MetricsV1Beta3BlockingStub client;
+    private transient @MonotonicNonNull ManagedChannel channel;
 
     private GetStageExecutionDetailsFn(DataflowGetStageExecutionDetails spec) {
       this.spec = spec;
@@ -84,7 +87,19 @@ public class DataflowGetStageExecutionDetails
 
     @Setup
     public void setup() {
-      client = DataflowClientFactory.createMetricsClient(spec.configuration);
+      channel = checkStateNotNull(DataflowClientFactory.channel(spec.configuration));
+      client = DataflowClientFactory.createMetricsClient(spec.configuration, channel);
+    }
+
+    @Teardown
+    public void teardown() {
+      ManagedChannel safeChannel = checkStateNotNull(channel);
+      safeChannel.shutdown();
+      try {
+        safeChannel.awaitTermination(1000L, TimeUnit.MILLISECONDS);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
     }
 
     @ProcessElement

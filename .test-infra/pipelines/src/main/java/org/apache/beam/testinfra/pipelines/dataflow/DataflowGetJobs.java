@@ -22,8 +22,10 @@ import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import com.google.dataflow.v1beta3.GetJobRequest;
 import com.google.dataflow.v1beta3.Job;
 import com.google.dataflow.v1beta3.JobsV1Beta3Grpc;
+import io.grpc.ManagedChannel;
 import io.grpc.StatusRuntimeException;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -75,6 +77,7 @@ public class DataflowGetJobs
     final Counter failure = Metrics.counter(GetJobRequest.class, "get_jobs_failure");
     private final DataflowGetJobs spec;
     private transient JobsV1Beta3Grpc.@MonotonicNonNull JobsV1Beta3BlockingStub client;
+    private transient @MonotonicNonNull ManagedChannel channel;
 
     GetJobsFn(DataflowGetJobs spec) {
       this.spec = spec;
@@ -82,7 +85,19 @@ public class DataflowGetJobs
 
     @Setup
     public void setup() {
-      client = DataflowClientFactory.createJobsClient(spec.configuration);
+      channel = checkStateNotNull(DataflowClientFactory.channel(spec.configuration));
+      client = DataflowClientFactory.createJobsClient(spec.configuration, channel);
+    }
+
+    @Teardown
+    public void teardown() {
+      ManagedChannel safeChannel = checkStateNotNull(channel);
+      safeChannel.shutdown();
+      try {
+        safeChannel.awaitTermination(1000L, TimeUnit.MILLISECONDS);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
     }
 
     @ProcessElement

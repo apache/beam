@@ -53,7 +53,8 @@ public abstract class DataflowFilterEventarcJobs
     return input.apply(
         Filter.by(
             job -> {
-              Job safeJob = checkStateNotNull(job);
+              Job safeJob =
+                  checkStateNotNull(job, "null Job input in %s", DataflowFilterEventarcJobs.class);
               boolean matchesIncludes =
                   !getIncludeJobStates().isEmpty()
                       && getIncludeJobStates().contains(safeJob.getCurrentState());

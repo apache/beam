@@ -42,7 +42,8 @@ public abstract class ConversionError<SourceT> implements Serializable {
   public static <SourceT> @NonNull Schema getSchema() {
     TypeDescriptor<ConversionError<SourceT>> type =
         new TypeDescriptor<ConversionError<SourceT>>() {};
-    return checkStateNotNull(SCHEMA_PROVIDER.schemaFor(type));
+    return checkStateNotNull(
+        SCHEMA_PROVIDER.schemaFor(type), "null schema for %s", ConversionError.class);
   }
 
   public static <SourceT> SerializableFunction<ConversionError<SourceT>, Row> toRowFn() {

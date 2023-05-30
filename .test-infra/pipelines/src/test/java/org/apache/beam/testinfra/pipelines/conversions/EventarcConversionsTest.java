@@ -60,7 +60,7 @@ class EventarcConversionsTest {
                     "get error message",
                     MapElements.into(strings())
                         .via(error -> checkStateNotNull(error).getMessage())))
-        .isEqualTo("json input is empty");
+        .isEqualTo("json input missing path: $.data");
 
     pipeline.run();
   }

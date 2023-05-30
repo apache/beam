@@ -63,9 +63,28 @@ public class WithAppendedDetailsToRow<AppendedDetailsT, EmbeddedT extends Genera
         new TupleTag<ConversionError<String>>() {},
         "job_metrics",
         clazz -> JobMetrics.getDescriptor(),
-        element -> checkStateNotNull(element).getJobId(),
-        element -> checkStateNotNull(element).getJobCreateTime(),
-        element -> checkStateNotNull(element).getJobMetrics());
+        element ->
+            checkStateNotNull(
+                    element,
+                    "%s element null for jobId supplier in %s",
+                    JobMetricsWithAppendedDetails.class,
+                    WithAppendedDetailsToRow.class)
+                .getJobId(),
+        element ->
+            checkStateNotNull(
+                    element,
+                    "%s element null for jobCreateTime supplier in %s",
+                    JobMetricsWithAppendedDetails.class,
+                    WithAppendedDetailsToRow.class)
+                .getJobCreateTime(),
+        element ->
+            checkStateNotNull(
+                    element,
+                    "%s element null for %s supplier in %s",
+                    JobMetricsWithAppendedDetails.class,
+                    JobMetrics.class,
+                    WithAppendedDetailsToRow.class)
+                .getJobMetrics());
   }
 
   public static WithAppendedDetailsToRow<StageSummaryWithAppendedDetails, StageSummary>
@@ -76,9 +95,28 @@ public class WithAppendedDetailsToRow<AppendedDetailsT, EmbeddedT extends Genera
         new TupleTag<ConversionError<String>>() {},
         "stage_summary",
         clazz -> StageSummary.getDescriptor(),
-        element -> checkStateNotNull(element).getJobId(),
-        element -> checkStateNotNull(element).getJobCreateTime(),
-        element -> checkStateNotNull(element).getStageSummary());
+        element ->
+            checkStateNotNull(
+                    element,
+                    "%s element null for jobId supplier in %s",
+                    StageSummaryWithAppendedDetails.class,
+                    WithAppendedDetailsToRow.class)
+                .getJobId(),
+        element ->
+            checkStateNotNull(
+                    element,
+                    "%s element null for jobCreateTime supplier in %s",
+                    StageSummaryWithAppendedDetails.class,
+                    WithAppendedDetailsToRow.class)
+                .getJobCreateTime(),
+        element ->
+            checkStateNotNull(
+                    element,
+                    "%s element null for %s supplier in %s",
+                    StageSummaryWithAppendedDetails.class,
+                    StageSummary.class,
+                    WithAppendedDetailsToRow.class)
+                .getStageSummary());
   }
 
   public static WithAppendedDetailsToRow<WorkerDetailsWithAppendedDetails, WorkerDetails>
@@ -89,14 +127,32 @@ public class WithAppendedDetailsToRow<AppendedDetailsT, EmbeddedT extends Genera
         new TupleTag<ConversionError<String>>() {},
         "worker_details",
         clazz -> WorkerDetails.getDescriptor(),
-        element -> checkStateNotNull(element).getJobId(),
-        element -> checkStateNotNull(element).getJobCreateTime(),
-        element -> checkStateNotNull(element).getWorkerDetails());
+        element ->
+            checkStateNotNull(
+                    element,
+                    "%s element null for jobId supplier in %s",
+                    WorkerDetailsWithAppendedDetails.class,
+                    WithAppendedDetailsToRow.class)
+                .getJobId(),
+        element ->
+            checkStateNotNull(
+                    element,
+                    "%s element null for jobCreateTime supplier in %s",
+                    WorkerDetailsWithAppendedDetails.class,
+                    WithAppendedDetailsToRow.class)
+                .getJobCreateTime(),
+        element ->
+            checkStateNotNull(
+                    element,
+                    "%s element null for %s supplier in %s",
+                    WorkerDetailsWithAppendedDetails.class,
+                    WorkerDetails.class,
+                    WithAppendedDetailsToRow.class)
+                .getWorkerDetails());
   }
 
   private static final TupleTag<Row> SUCCESS = new TupleTag<Row>() {};
 
-  private static final DescriptorSchemaRegistry SCHEMA_REGISTRY = new DescriptorSchemaRegistry();
   static final Field JOB_ID_FIELD = Field.of("job_id", FieldType.STRING);
 
   static final Field JOB_CREATE_TIME = Field.of("job_create_time", FieldType.DATETIME);
@@ -144,8 +200,13 @@ public class WithAppendedDetailsToRow<AppendedDetailsT, EmbeddedT extends Genera
   public RowConversionResult<AppendedDetailsT, ConversionError<String>> expand(
       PCollection<AppendedDetailsT> input) {
     Descriptor descriptor = descriptorSupplier.apply(embeddedTClass);
-    SCHEMA_REGISTRY.build(descriptor);
-    Schema embeddedSchema = checkStateNotNull(SCHEMA_REGISTRY.getSchema(descriptor));
+    Schema embeddedSchema =
+        checkStateNotNull(
+            DescriptorSchemaRegistry.INSTANCE.getOrBuild(descriptor),
+            "%s null from %s: %s",
+            Schema.class,
+            Descriptor.class,
+            descriptor.getFullName());
     FieldType embeddedType = FieldType.row(embeddedSchema);
     Field embeddedField = Field.of(embeddedFieldName, embeddedType);
     Schema schema = Schema.of(JOB_ID_FIELD, JOB_CREATE_TIME, embeddedField);
@@ -177,9 +238,11 @@ public class WithAppendedDetailsToRow<AppendedDetailsT, EmbeddedT extends Genera
       Instant createTime = spec.jobCreateTimeSupplier.apply(element);
       EmbeddedT embeddedInstance = spec.embeddedInstanceSupplier.apply(element);
       GeneratedMessageV3RowBuilder<EmbeddedT> builder =
-          GeneratedMessageV3RowBuilder.of(SCHEMA_REGISTRY, embeddedInstance);
+          GeneratedMessageV3RowBuilder.of(embeddedInstance);
       try {
-        Row embeddedRow = checkStateNotNull(builder.build());
+        Row embeddedRow =
+            checkStateNotNull(
+                builder.build(), "null Row from build of %s type", embeddedInstance.getClass());
         Row result =
             Row.withSchema(schema)
                 .withFieldValue(JOB_ID_FIELD.getName(), id)
@@ -187,7 +250,7 @@ public class WithAppendedDetailsToRow<AppendedDetailsT, EmbeddedT extends Genera
                 .withFieldValue(spec.embeddedFieldName, embeddedRow)
                 .build();
         receiver.get(SUCCESS).output(result);
-      } catch (RuntimeException e) {
+      } catch (IllegalStateException e) {
         receiver
             .get(spec.failureTag)
             .output(

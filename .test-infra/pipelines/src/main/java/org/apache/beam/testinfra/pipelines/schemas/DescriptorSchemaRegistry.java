@@ -31,6 +31,11 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.checkerframework.checker.nullness.qual.NonNull;
 
 public class DescriptorSchemaRegistry {
+
+  public static final DescriptorSchemaRegistry INSTANCE = new DescriptorSchemaRegistry();
+
+  private DescriptorSchemaRegistry() {}
+
   static final String KEY_FIELD_NAME = "key";
   static final String VALUE_FIELD_NAME = "value";
   private static final Map<@NonNull String, @NonNull Schema> SCHEMA_CACHE = new HashMap<>();
@@ -43,10 +48,6 @@ public class DescriptorSchemaRegistry {
     if (hasNoCachedBuild(descriptor)) {
       build(descriptor);
     }
-    return checkStateNotNull(SCHEMA_CACHE.get(descriptor.getFullName()));
-  }
-
-  public @NonNull Schema getSchema(Descriptor descriptor) {
     return checkStateNotNull(SCHEMA_CACHE.get(descriptor.getFullName()));
   }
 

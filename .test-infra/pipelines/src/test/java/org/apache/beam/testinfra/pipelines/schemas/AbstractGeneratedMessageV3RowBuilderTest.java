@@ -53,8 +53,6 @@ import org.joda.time.ReadableDateTime;
 import org.junit.jupiter.api.Test;
 
 abstract class AbstractGeneratedMessageV3RowBuilderTest<T extends GeneratedMessageV3> {
-  protected final DescriptorSchemaRegistry schemaRegistry = new DescriptorSchemaRegistry();
-
   private static final Map<@NonNull String, GeneratedMessageV3> DEFAULT_INSTANCE_MAP =
       ImmutableMap.<@NonNull String, GeneratedMessageV3>builder()
           .put(StageSource.getDescriptor().getFullName(), StageSource.getDefaultInstance())
@@ -309,10 +307,10 @@ abstract class AbstractGeneratedMessageV3RowBuilderTest<T extends GeneratedMessa
   }
 
   protected GeneratedMessageV3RowBuilder<T> builderOf(@NonNull T instance) {
-    if (schemaRegistry.hasNoCachedBuild(getDescriptorForType())) {
-      schemaRegistry.build(getDescriptorForType());
+    if (DescriptorSchemaRegistry.INSTANCE.hasNoCachedBuild(getDescriptorForType())) {
+      DescriptorSchemaRegistry.INSTANCE.build(getDescriptorForType());
     }
-    return new GeneratedMessageV3RowBuilder<>(schemaRegistry, instance);
+    return new GeneratedMessageV3RowBuilder<>(instance);
   }
 
   static Struct structOfAllTypes() {

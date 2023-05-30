@@ -45,7 +45,7 @@ import org.junit.jupiter.api.Test;
 abstract class WithAppendedDetailsToRowTest<AppendedDetailsT, EmbeddedT extends GeneratedMessageV3>
     implements Serializable {
 
-  private static final DescriptorSchemaRegistry SCHEMA_REGISTRY = new DescriptorSchemaRegistry();
+  private static final DescriptorSchemaRegistry SCHEMA_REGISTRY = DescriptorSchemaRegistry.INSTANCE;
 
   abstract WithAppendedDetailsToRow<AppendedDetailsT, EmbeddedT> transform();
 

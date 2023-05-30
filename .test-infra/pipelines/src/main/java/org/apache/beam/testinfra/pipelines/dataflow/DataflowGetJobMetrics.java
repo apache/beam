@@ -23,8 +23,10 @@ import com.google.dataflow.v1beta3.GetJobMetricsRequest;
 import com.google.dataflow.v1beta3.Job;
 import com.google.dataflow.v1beta3.JobMetrics;
 import com.google.dataflow.v1beta3.MetricsV1Beta3Grpc;
+import io.grpc.ManagedChannel;
 import io.grpc.StatusRuntimeException;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -74,6 +76,7 @@ public class DataflowGetJobMetrics
 
     private final DataflowGetJobMetrics spec;
     private transient MetricsV1Beta3Grpc.@MonotonicNonNull MetricsV1Beta3BlockingStub client;
+    private transient @MonotonicNonNull ManagedChannel channel;
 
     private GetJobMetricsFn(DataflowGetJobMetrics spec) {
       this.spec = spec;
@@ -81,7 +84,19 @@ public class DataflowGetJobMetrics
 
     @Setup
     public void setup() {
-      client = DataflowClientFactory.createMetricsClient(spec.configuration);
+      channel = checkStateNotNull(DataflowClientFactory.channel(spec.configuration));
+      client = DataflowClientFactory.createMetricsClient(spec.configuration, channel);
+    }
+
+    @Teardown
+    public void teardown() {
+      ManagedChannel safeChannel = checkStateNotNull(channel);
+      safeChannel.shutdown();
+      try {
+        safeChannel.awaitTermination(1000L, TimeUnit.MILLISECONDS);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
     }
 
     @ProcessElement

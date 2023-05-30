@@ -45,7 +45,7 @@ public class JobsToRow
     return new JobsToRow();
   }
 
-  private static final DescriptorSchemaRegistry SCHEMA_REGISTRY = new DescriptorSchemaRegistry();
+  private static final DescriptorSchemaRegistry SCHEMA_REGISTRY = DescriptorSchemaRegistry.INSTANCE;
 
   static {
     SCHEMA_REGISTRY.build(Job.getDescriptor());
@@ -56,7 +56,7 @@ public class JobsToRow
       @NonNull PCollection<Job> input) {
     TupleTag<Row> success = new TupleTag<Row>() {};
     TupleTag<ConversionError<Job>> failure = new TupleTag<ConversionError<Job>>() {};
-    Schema successSchema = SCHEMA_REGISTRY.getSchema(Job.getDescriptor());
+    Schema successSchema = SCHEMA_REGISTRY.getOrBuild(Job.getDescriptor());
     Result<@NonNull PCollection<Row>, ConversionError<Job>> result =
         input.apply(
             "Jobs To Row",
@@ -80,8 +80,7 @@ public class JobsToRow
 
   private static SerializableFunction<Job, Row> jobsToRowFn() {
     return job -> {
-      GeneratedMessageV3RowBuilder<Job> builder =
-          GeneratedMessageV3RowBuilder.of(SCHEMA_REGISTRY, job);
+      GeneratedMessageV3RowBuilder<Job> builder = GeneratedMessageV3RowBuilder.of(job);
       return builder.build();
     };
   }

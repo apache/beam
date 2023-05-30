@@ -62,10 +62,8 @@ public final class EventarcConversions {
     @Override
     public Job apply(String json) {
 
-      String safeJson = checkStateNotNull(json);
-      if (safeJson.isEmpty()) {
-        throw new IllegalStateException("json input is empty");
-      }
+      String safeJson = checkStateNotNull(json, "null json string input for %s", JsonToJobFn.class);
+
       Job.Builder builder = Job.newBuilder();
 
       try {

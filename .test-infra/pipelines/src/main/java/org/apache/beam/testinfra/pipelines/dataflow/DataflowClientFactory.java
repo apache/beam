@@ -31,15 +31,13 @@ final class DataflowClientFactory {
   }
 
   static JobsV1Beta3Grpc.JobsV1Beta3BlockingStub createJobsClient(
-      DataflowClientFactoryConfiguration configuration) {
-    ManagedChannel channel = channel(configuration);
+      DataflowClientFactoryConfiguration configuration, ManagedChannel channel) {
     return JobsV1Beta3Grpc.newBlockingStub(channel)
         .withCallCredentials(MoreCallCredentials.from(configuration.getCredentials()));
   }
 
   static MetricsV1Beta3Grpc.MetricsV1Beta3BlockingStub createMetricsClient(
-      DataflowClientFactoryConfiguration configuration) {
-    ManagedChannel channel = channel(configuration);
+      DataflowClientFactoryConfiguration configuration, ManagedChannel channel) {
     return MetricsV1Beta3Grpc.newBlockingStub(channel)
         .withCallCredentials(MoreCallCredentials.from(configuration.getCredentials()));
   }

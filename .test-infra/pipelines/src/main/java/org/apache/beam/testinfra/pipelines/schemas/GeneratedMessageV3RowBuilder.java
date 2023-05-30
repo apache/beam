@@ -51,9 +51,8 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.joda.time.Instant;
 
 public class GeneratedMessageV3RowBuilder<T extends GeneratedMessageV3> {
-  public static <T extends GeneratedMessageV3> GeneratedMessageV3RowBuilder<T> of(
-      DescriptorSchemaRegistry registry, T source) {
-    return new GeneratedMessageV3RowBuilder<>(registry, source);
+  public static <T extends GeneratedMessageV3> GeneratedMessageV3RowBuilder<T> of(T source) {
+    return new GeneratedMessageV3RowBuilder<>(source);
   }
 
   private static final Map<JavaType, Object> DEFAULT_VALUES =
@@ -76,16 +75,15 @@ public class GeneratedMessageV3RowBuilder<T extends GeneratedMessageV3> {
           .put("google.protobuf.Any", o -> convert((Any) o))
           .put("google.protobuf.Timestamp", o -> convert((Timestamp) o))
           .build();
-  private final @NonNull DescriptorSchemaRegistry schemaRegistry;
   private final @NonNull T source;
 
   private Row.@NonNull FieldValueBuilder builder;
 
-  GeneratedMessageV3RowBuilder(
-      @NonNull DescriptorSchemaRegistry schemaRegistry, @NonNull T source) {
-    this.schemaRegistry = schemaRegistry;
+  GeneratedMessageV3RowBuilder(@NonNull T source) {
     this.source = source;
-    Schema schema = checkStateNotNull(schemaRegistry.getSchema(source.getDescriptorForType()));
+    Schema schema =
+        checkStateNotNull(
+            DescriptorSchemaRegistry.INSTANCE.getOrBuild(source.getDescriptorForType()));
     builder = Row.withSchema(schema).withFieldValues(ImmutableMap.of());
   }
 
@@ -142,7 +140,8 @@ public class GeneratedMessageV3RowBuilder<T extends GeneratedMessageV3> {
     FieldDescriptor valueType = checkStateNotNull(mapDescriptor.findFieldByName(VALUE_FIELD_NAME));
     int size = message.getRepeatedFieldCount(fieldDescriptor);
     Schema messageSchema =
-        checkStateNotNull(schemaRegistry.getSchema(message.getDescriptorForType()));
+        checkStateNotNull(
+            DescriptorSchemaRegistry.INSTANCE.getOrBuild(message.getDescriptorForType()));
     Schema.Field mapField = messageSchema.getField(fieldDescriptor.getName());
     checkState(mapField.getType().getTypeName().equals(TypeName.ARRAY));
     Schema.FieldType mapEntryFieldType =
@@ -201,7 +200,7 @@ public class GeneratedMessageV3RowBuilder<T extends GeneratedMessageV3> {
 
     GeneratedMessageV3 message = (GeneratedMessageV3) originalValue;
     GeneratedMessageV3RowBuilder<GeneratedMessageV3> rowBuilder =
-        new GeneratedMessageV3RowBuilder<>(schemaRegistry, message);
+        new GeneratedMessageV3RowBuilder<>(message);
 
     try {
       return service.submit(rowBuilder::build).get();

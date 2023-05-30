@@ -27,7 +27,7 @@ import org.junit.jupiter.api.Test;
 
 class DescriptorSchemaRegistryTest {
 
-  private static final DescriptorSchemaRegistry REGISTRY = new DescriptorSchemaRegistry();
+  private static final DescriptorSchemaRegistry REGISTRY = DescriptorSchemaRegistry.INSTANCE;
 
   @BeforeAll
   public static void setup() {

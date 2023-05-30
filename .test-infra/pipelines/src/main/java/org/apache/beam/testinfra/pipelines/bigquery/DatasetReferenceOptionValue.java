@@ -45,8 +45,8 @@ public class DatasetReferenceOptionValue implements Serializable {
         "input does not match BigQuery dataset pattern, "
             + "expected 'project_id.dataset_id' or 'project_id:dataset_id, got: %s",
         input);
-    this.project = checkStateNotNull(m.group("PROJECT"));
-    this.dataset = checkStateNotNull(m.group("DATASET"));
+    this.project = checkStateNotNull(m.group("PROJECT"), "PROJECT not found in %s", input);
+    this.dataset = checkStateNotNull(m.group("DATASET"), "DATASET not found in %s", input);
   }
 
   public DatasetReference getValue() {
