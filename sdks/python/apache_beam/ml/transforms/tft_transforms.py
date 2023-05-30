@@ -14,25 +14,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# pylint: skip-file
+from typing import Any, Dict, List, Optional
 
-# TODO: Refactor file.
-
-import logging
-from typing import Any, Callable, Dict, List, Optional
-
-import apache_beam as beam
-import numpy as np
-import pyarrow as pa
+from apache_beam.ml.transforms.base import _BaseOperation
 import tensorflow as tf
 import tensorflow_transform as tft
-from apache_beam.ml.ml_transform.handlers import (
-    TFTProcessHandler, TFTProcessHandlerDict)
-from apache_beam.typehints.schemas import named_fields_from_element_type
 from tensorflow_transform import analyzers, common_types, tf_utils
-from apache_beam.ml.ml_transform.base import _BaseOperation, MLTransform
 
-__all__ = ['compute_and_apply_vocabulary', 'scale_to_z_score', 'MLTransform']
+__all__ = [
+    'compute_and_apply_vocabulary',
+    'scale_to_z_score',
+    'scale_to_0_1',
+    'apply_buckets',
+    'bucketize'
+]
 
 
 class _TFTOperation(_BaseOperation):
@@ -47,9 +42,9 @@ class _TFTOperation(_BaseOperation):
     self.has_artifacts = False
 
     if not columns:
-      # (TODO): Shoud we apply the transform or skip the transform?
-      logging.warning(
-          "Columns are not specified. Ignoring the transform %s" % self)
+      raise RuntimeError(
+          "Columns are not specified. Please specify the column for the "
+          " op %s" % self)
 
   def apply(self, inputs, *args, **kwargs):
     raise NotImplementedError
@@ -83,49 +78,53 @@ class _Scale_To_Z_Score(_TFTOperation):
 
   def get_analyzer_artifacts(self, data, col_name):
     mean_var = tft.analyzers._mean_and_var(data)
+    shape = [tf.shape(data)[0], 1]
     return {
-        col_name + '_mean': tf.reshape(mean_var[0], [-1]),
-        col_name + '_var': tf.reshape(mean_var[1], [-1])
+        col_name + '_mean': tf.broadcast_to(mean_var[0], shape),
+        col_name + '_var': tf.broadcast_to(mean_var[1], shape),
     }
 
   def __str__(self):
     return "scale_to_z_score"
 
 
-class _Scale_0_to_1(_TFTOperation):
+class _Scale_to_0_1(_TFTOperation):
   def __init__(self, columns, *args, **kwargs):
     super().__init__(columns, *args, **kwargs)
     self.has_artifacts = True
 
   def get_analyzer_artifacts(self, data, col_name) -> Dict[str, tf.Tensor]:
+    shape = [tf.shape(data)[0], 1]
     return {
-        col_name + '_min': tf.reshape(tft.min(data), [-1]),
-        col_name + '_max': tf.reshape(tft.max(data), [-1])
+        col_name + '_min': tf.broadcast_to(tft.min(data), shape),
+        col_name + '_max': tf.broadcast_to(tft.max(data), shape)
     }
 
   def apply(self, data: tf.Tensor):
     return tft.scale_to_0_1(x=data, *self._args, **self._kwargs)
 
   def __str__(self):
-    return 'scale_0_to_1'
+    return 'scale_to_0_1'
 
 
 class _ApplyBuckets(_TFTOperation):
-  def __init__(self, columns, bucket_boundaries, *args, **kwargs):
+  def __init__(self, columns, bucket_boundaries, name=None, *args, **kwargs):
     super().__init__(columns, *args, **kwargs)
     self.bucket_boundaries = bucket_boundaries
+    self.name = name
 
   def apply(self, data: tf.Tensor):
     return tft.apply_buckets(
-        x=data,
-        bucket_boundaries=self.bucket_boundaries * self._args,
-        **self._kwargs)
+        x=data, bucket_boundaries=self.bucket_boundaries, name=self.name)
 
   def __str__(self):
     return 'apply_buckets'
 
 
 class _Bucketize(_TFTOperation):
+  """
+  class that bucketizes the input data using the apply method.
+  """
   def __init__(self, columns: List[str], num_buckets: int, *args, **kwrags):
     super().__init__(columns, *args, **kwrags)
     self.num_buckets = num_buckets
@@ -156,26 +155,27 @@ class _Bucketize(_TFTOperation):
         epsilon,
         weights,
         reduce_instance_dims=not elementwise)
-
-    return {col_name + '_quantiles': tf.reshape(quantiles, [-1])}
+    shape = [
+        tf.shape(data)[0], num_buckets - 1 if num_buckets > 1 else num_buckets
+    ]
+    # These quantiles are used as the bucket boundaries in the later stages.
+    # Should we change the prefix _quantiles to _bucket_boundaries?
+    return {col_name + '_quantiles': tf.broadcast_to(quantiles, shape)}
 
   def apply(self, data):
     return tft.bucketize(data, self.num_buckets, *self._args, **self._kwargs)
 
 
-# API visible to the user.
-
-
-def scale_0_to_1(
+def scale_to_0_1(
     columns, elementwise: bool = False, name: Optional[str] = None):
-  return _Scale_0_to_1(columns=columns, elementwise=elementwise, name=name)
+  return _Scale_to_0_1(columns=columns, elementwise=elementwise, name=name)
 
 
 def apply_buckets(
     bucket_boundaries: Optional[common_types.BucketBoundariesType],
     columns: Optional[List[str]],
     *,
-    name: str):
+    name: Optional[str] = None):
   return _ApplyBuckets(
       columns=columns, bucket_boundaries=bucket_boundaries, name=name)
 
@@ -188,6 +188,35 @@ def bucketize(
     weights: Optional[tf.Tensor] = None,
     elementwise: bool = False,
     name: Optional[str] = None):
+  """
+  This function applies a bucketizing transformation on the given columns
+  of incoming data. The transformation splits the input data range into
+  a set of consecutive bins/buckets, and converts the input values to
+  bucket IDs (integers) where each ID corresponds to a particular bin.
+
+  This operation is used within the beam.MLTransform process.
+
+  Example usage:
+  with beam.Pipeline() as p:
+    data = <data_pcoll>
+    data | beam.MLTransform(process_handler=<process_handler>
+    ).with_transform(bucketize(columns=['col1'], num_buckets=10)
+
+  Args:
+    columns: List of column names to apply the transformation.
+    num_buckets: Number of buckets to be created.
+    epsilon: (Optional) A float number that specifies the error tolerance
+      when computing quantiles, so that we guarantee that any value x will
+      have a quantile q such that x is in the interval
+      [q - epsilon, q + epsilon] (or the symmetric interval for even
+      num_buckets). Must be greater than 0.0.
+    weights: (Optional) A Tensor. The weight column to be used for
+      quantile computation.
+    elementwise: (Optional) A boolean that specifies whether the quantiles
+      should be computed on an element-wise basis. If False, the quantiles
+      are computed globally.
+    name: (Optional) A string that specifies the name of the operation.
+  """
   return _Bucketize(
       columns=columns,
       num_buckets=num_buckets,
@@ -206,19 +235,32 @@ def compute_and_apply_vocabulary(
     num_oov_buckets: int = 0,
     vocab_filename: Optional[str] = None,
     weights: Optional[tf.Tensor] = None,
-    labels: Optional[tf.Tensor] = None,
-    use_adjusted_mutual_info: bool = False,
-    min_diff_from_avg: float = 0.0,
-    coverage_top_k: Optional[int] = None,
-    coverage_frequency_threshold: Optional[int] = None,
-    key_fn: Optional[Callable[[Any], Any]] = None,
-    fingerprint_shuffle: bool = False,
-    file_format: common_types.VocabularyFileFormatType = analyzers.
-    DEFAULT_VOCABULARY_FILE_FORMAT,
-    store_frequency: Optional[bool] = False,
     name: Optional[str] = None,
 ):
+  """
+  This function computes the vocabulary for the given columns of incoming data.
+  The transformation converts the input values to indices of the
+  vocabulary.
 
+  Args:
+    columns: List of column names to apply the transformation.
+    default_value: (Optional) The value to use for out-of-vocabulary values.
+    top_k: (Optional) The number of most frequent tokens to keep.
+    frequency_threshold: (Optional) Limit the generated vocabulary only to
+      elements whose absolute frequency is >= to the supplied threshold.
+      If set to None, the full vocabulary is generated.
+    num_oov_buckets:  Any lookup of an out-of-vocabulary token will return a
+      bucket ID based on its hash if `num_oov_buckets` is greater than zero.
+      Otherwise it is assigned the `default_value`.
+    vocab_filename: The file name for the vocabulary file. If None, a name based
+      on the scope name in the context of this graph will be used as the file
+      name. If not None, should be unique within a given preprocessing function.
+      NOTE in order to make your pipelines resilient to implementation details
+      please set `vocab_filename` when you are using the vocab_filename on a
+      downstream component.
+    weights: (Optional) Weights for the vocabulary. It must have the same shape
+      as the incoming data.
+    """
   return _ComputeAndApplyVocab(
       columns=columns,
       default_value=default_value,
@@ -227,15 +269,6 @@ def compute_and_apply_vocabulary(
       num_oov_buckets=num_oov_buckets,
       vocab_filename=vocab_filename,
       weights=weights,
-      labels=labels,
-      use_adjusted_mutual_info=use_adjusted_mutual_info,
-      min_diff_from_avg=min_diff_from_avg,
-      coverage_top_k=coverage_top_k,
-      key_fn=key_fn,
-      coverage_frequency_threshold=coverage_frequency_threshold,
-      fingerprint_shuffle=fingerprint_shuffle,
-      file_format=file_format,
-      store_frequency=store_frequency,
       name=name)
 
 

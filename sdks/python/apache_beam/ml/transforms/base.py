@@ -14,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# pylint: skip-file
 import typing
 from typing import Dict, Optional, TypeVar, Generic
 
@@ -35,17 +34,17 @@ MLTransformOutputT = TypeVar('MLTransformOutputT')
 
 # Input to the process data. This could be same or different from ExampleT.
 ProcessInputT = TypeVar('ProcessInputT')
-# Output of the process data. This could be same or different from MLTransformOutputT
+# Output of the process data. This could be same or different
+# from MLTransformOutputT
 ProcessOutputT = TypeVar('ProcessOutputT')
 
 
 class _BaseOperation():
-
-  # @abc.abstractmethod
   def apply(self, inputs, *args, **kwargs):
     """
-    Define any preprocessing logic in the apply() method.
-    pre-processing logics are applied on inputs and returns a transformed output.
+    Define any processing logic in the apply() method.
+    processing logics are applied on inputs and returns a transformed
+    output.
 
     Args:
       inputs: input data.
@@ -60,13 +59,12 @@ class MLTransformOutput(typing.NamedTuple):
 
 
 class ProcessHandler(Generic[ProcessInputT, ProcessOutputT]):
-  # @abc.abstractmethod
   def process_data(
       self, pcoll: beam.PCollection[ProcessInputT]
   ) -> beam.PCollection[ProcessOutputT]:
     """
-    Logic to process the data. This will be the entrypoint in beam.MLTransform to process 
-    incoming data:
+    Logic to process the data. This will be the entrypoint in
+    beam.MLTransform to process incoming data.
     """
     raise NotImplementedError
 
@@ -81,13 +79,34 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
       self,
       process_handler: ProcessHandler[ProcessInputT, ProcessOutputT],
   ):
+    """
+    Args:
+      process_handler: A ProcessHandler instance that defines the logic to
+        process the data.
+    """
     self._process_handler = process_handler
 
   def expand(
       self, pcoll: beam.PCollection[ExampleT]
   ) -> beam.PCollection[MLTransformOutputT]:
+    """
+    This is the entrypoint for the MLTransform. This method will
+    invoke the process_data() method of the ProcessHandler instance
+    to process the incoming data.
+    Args:
+      pcoll: A PCollection of ExampleT type.
+    Returns:
+      A PCollection of MLTransformOutputT type.
+    """
     return self._process_handler.process_data(pcoll)
 
   def with_transform(self, transform: _BaseOperation):
-    self._process_handler._transforms.append(transform)
+    """
+    Add a transform to the MLTransform pipeline.
+    Args:
+      transform: A _BaseOperation instance.
+    Returns:
+      A MLTransform instance.
+    """
+    self._process_handler.transforms.append(transform)
     return self

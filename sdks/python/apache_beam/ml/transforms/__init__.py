@@ -15,6 +15,5 @@
 # limitations under the License.
 #
 
-# TODO: Refactor file, codepaths and namespaces.
-
-from apache_beam.ml.ml_transform.tft_transforms import *
+from apache_beam.ml.transforms.base import MLTransform
+from apache_beam.ml.transforms.handlers import TFTProcessHandlerDict
