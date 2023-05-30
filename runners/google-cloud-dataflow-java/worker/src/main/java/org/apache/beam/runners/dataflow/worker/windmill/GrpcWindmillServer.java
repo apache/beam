@@ -885,6 +885,76 @@ public class GrpcWindmillServer extends WindmillServerStub {
     }
   }
 
+  static class GetWorkTimingInfosTracker {
+    private final Map<State, Duration> getWorkStreamLatencies;
+
+    public GetWorkTimingInfosTracker() {
+      this.getWorkStreamLatencies = new EnumMap<>(State.class);
+    }
+
+    public void addTimingInfo(Collection<GetWorkStreamTimingInfo> infos) {
+      // We want to record duration for each stage and also be reflective on total work item
+      // processing time. It can be tricky because timings of different
+      // StreamingGetWorkResponseChunks can be interleaved. Current strategy is to record the
+      // maximum duration in each stage across different chunks, this will allow us to identify
+      // the slow stage, but note the sum duration of each slowest stages may be larger than the
+      // duration from first chunk creation to last chunk reception by user worker.
+      Map<Event, Instant> getWorkStreamTimings = new HashMap<>();
+      for (GetWorkStreamTimingInfo info : infos) {
+        getWorkStreamTimings.putIfAbsent(
+            info.getEvent(), Instant.ofEpochMilli(info.getTimestampUsec() / 1000));
+      }
+
+      for (Cell<Event, Event, State> cell : EVENT_STATE_TABLE.cellSet()) {
+        Event start = cell.getRowKey();
+        Event end = cell.getColumnKey();
+        State state = cell.getValue();
+        Instant startTiming = getWorkStreamTimings.get(start);
+        Instant endTiming = getWorkStreamTimings.get(end);
+        if (startTiming != null && endTiming != null) {
+          getWorkStreamLatencies.compute(
+              state,
+              (state_key, duration) -> {
+                Duration newDuration = new Duration(startTiming, endTiming);
+                if (duration == null) {
+                  return newDuration;
+                }
+                return newDuration.isLongerThan(duration) ? newDuration : duration;
+              });
+        }
+      }
+      Instant receivedByDispatcherTiming =
+          getWorkStreamTimings.get(Event.GET_WORK_RECEIVED_BY_DISPATCHER);
+      if (receivedByDispatcherTiming != null) {
+        getWorkStreamLatencies.compute(
+            State.GET_WORK_IN_TRANSIT_TO_USER_WORKER,
+            (state_key, duration) -> {
+              Duration newDuration = new Duration(receivedByDispatcherTiming, Instant.now());
+              if (duration == null) {
+                return newDuration;
+              }
+              return newDuration.isLongerThan(duration) ? newDuration : duration;
+            });
+      }
+    }
+
+    List<LatencyAttribution> getLatencyAttributions() {
+      List<LatencyAttribution> latencyAttributions = new ArrayList<>(getWorkStreamLatencies.size());
+      for (Map.Entry<State, Duration> duration : getWorkStreamLatencies.entrySet()) {
+        latencyAttributions.add(
+            LatencyAttribution.newBuilder()
+                .setState(duration.getKey())
+                .setTotalDurationMillis(duration.getValue().getMillis())
+                .build());
+      }
+      return latencyAttributions;
+    }
+
+    public void reset() {
+      this.getWorkStreamLatencies.clear();
+    }
+  }
+
   private class GrpcGetWorkStream
       extends AbstractWindmillStream<StreamingGetWorkRequest, StreamingGetWorkResponseChunk>
       implements GetWorkStream {
@@ -985,76 +1055,6 @@ public class GrpcWindmillServer extends WindmillServerStub {
     @Override
     protected void startThrottleTimer() {
       getWorkThrottleTimer.start();
-    }
-
-    private class GetWorkTimingInfosTracker {
-      private final Map<State, Duration> getWorkStreamLatencies;
-
-      public GetWorkTimingInfosTracker() {
-        this.getWorkStreamLatencies = new EnumMap<>(State.class);
-      }
-
-      public void addTimingInfo(Collection<GetWorkStreamTimingInfo> infos) {
-        // We want to record duration for each stage and also be reflective on total work item
-        // processing time. It can be tricky because timings of different
-        // StreamingGetWorkResponseChunks can be interleaved. Current strategy is to record the
-        // maximum duration in each stage across different chunks, this will allow us to identify
-        // the slow stage, but note the sum duration of each slowest stages may be larger than the
-        // duration from first chunk creation to last chunk reception by user worker.
-        Map<Event, Instant> getWorkStreamTimings = new HashMap<>();
-        for (GetWorkStreamTimingInfo info : infos) {
-          getWorkStreamTimings.putIfAbsent(
-              info.getEvent(), Instant.ofEpochMilli(info.getTimestampUsec() / 1000));
-        }
-
-        for (Cell<Event, Event, State> cell : EVENT_STATE_TABLE.cellSet()) {
-          Event start = cell.getRowKey();
-          Event end = cell.getColumnKey();
-          State state = cell.getValue();
-          if (getWorkStreamTimings.containsKey(start) && getWorkStreamTimings.containsKey(end)) {
-            getWorkStreamLatencies.compute(
-                state,
-                (state_key, duration) -> {
-                  Duration newDuration =
-                      new Duration(getWorkStreamTimings.get(start), getWorkStreamTimings.get(end));
-                  if (duration == null) {
-                    return newDuration;
-                  }
-                  return newDuration.isLongerThan(duration) ? newDuration : duration;
-                });
-          }
-        }
-        if (getWorkStreamTimings.containsKey(Event.GET_WORK_RECEIVED_BY_DISPATCHER)) {
-          getWorkStreamLatencies.compute(
-              State.GET_WORK_IN_TRANSIT_TO_USER_WORKER,
-              (state_key, duration) -> {
-                Duration newDuration =
-                    new Duration(
-                        getWorkStreamTimings.get(Event.GET_WORK_RECEIVED_BY_DISPATCHER),
-                        Instant.now());
-                if (duration == null) {
-                  return newDuration;
-                }
-                return newDuration.isLongerThan(duration) ? newDuration : duration;
-              });
-        }
-      }
-
-      private List<LatencyAttribution> getLatencyAttributions() {
-        List<LatencyAttribution> latencyAttributions = new ArrayList<>();
-        for (Map.Entry<State, Duration> duration : getWorkStreamLatencies.entrySet()) {
-          latencyAttributions.add(
-              LatencyAttribution.newBuilder()
-                  .setState(duration.getKey())
-                  .setTotalDurationMillis(duration.getValue().getMillis())
-                  .build());
-        }
-        return latencyAttributions;
-      }
-
-      public void reset() {
-        this.getWorkStreamLatencies.clear();
-      }
     }
 
     private class WorkItemBuffer {
