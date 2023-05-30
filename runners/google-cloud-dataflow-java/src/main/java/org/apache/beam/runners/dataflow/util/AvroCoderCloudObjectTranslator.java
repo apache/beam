@@ -28,12 +28,12 @@ import org.apache.beam.sdk.util.StringUtils;
 @SuppressWarnings({
   "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
-class AvroCoderCloudObjectTranslator implements CloudObjectTranslator<AvroCoder<?>> {
+class AvroCoderCloudObjectTranslator implements CloudObjectTranslator<AvroCoder> {
   private static final String DATUM_FACTORY_FIELD = "datum_factory";
   private static final String SCHEMA_FIELD = "schema";
 
   @Override
-  public CloudObject toCloudObject(AvroCoder<?> target, SdkComponents sdkComponents) {
+  public CloudObject toCloudObject(AvroCoder target, SdkComponents sdkComponents) {
     CloudObject base = CloudObject.forClass(AvroCoder.class);
     byte[] serializedDatumFactory =
         SerializableUtils.serializeToByteArray(target.getDatumFactory());
