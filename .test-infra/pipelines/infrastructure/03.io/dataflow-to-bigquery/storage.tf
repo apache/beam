@@ -17,7 +17,7 @@
  */
 
 // Generate random string to name Storage bucket
-resource "random_string" "temporary" {
+resource "random_string" "default" {
   length  = 8
   special = false
   upper   = false
@@ -28,9 +28,9 @@ resource "random_string" "temporary" {
 // Provision Storage Bucket for use by Dataflow Worker as temporary storage
 resource "google_storage_bucket" "default" {
   location = var.region
-  name     = "${replace(var.workflow_resource_name_base, "_", "-")}-${random_string.temporary.result}"
+  name     = "${replace(var.workflow_resource_name_base, "_", "-")}-${random_string.default.result}"
   labels   = {
-    purpose = "infra-pipelines-temp-storage"
+    purpose = "infra-pipelines"
   }
   uniform_bucket_level_access = true
 }
