@@ -82,7 +82,7 @@ public abstract class AvroDatumFactory<T>
     this.type = type;
   }
 
-  /** Returns the type for the datum factory */
+  /** Returns the type for the datum factory. */
   public Class<T> getType() {
     return type;
   }

@@ -36,9 +36,9 @@ class AvroCoderCloudObjectTranslator implements CloudObjectTranslator<AvroCoder<
   public CloudObject toCloudObject(AvroCoder<?> target, SdkComponents sdkComponents) {
     CloudObject base = CloudObject.forClass(AvroCoder.class);
     byte[] serializedDatumFactory =
-            SerializableUtils.serializeToByteArray(target.getDatumFactory());
+        SerializableUtils.serializeToByteArray(target.getDatumFactory());
     Structs.addString(
-            base, DATUM_FACTORY_FIELD, StringUtils.byteArrayToJsonString(serializedDatumFactory));
+        base, DATUM_FACTORY_FIELD, StringUtils.byteArrayToJsonString(serializedDatumFactory));
     Structs.addString(base, SCHEMA_FIELD, target.getSchema().toString());
     return base;
   }
@@ -47,11 +47,12 @@ class AvroCoderCloudObjectTranslator implements CloudObjectTranslator<AvroCoder<
   public AvroCoder<?> fromCloudObject(CloudObject cloudObject) {
     Schema.Parser parser = new Schema.Parser();
     byte[] deserializedDatumFactory =
-            StringUtils.jsonStringToByteArray(Structs.getString(cloudObject, DATUM_FACTORY_FIELD));
+        StringUtils.jsonStringToByteArray(Structs.getString(cloudObject, DATUM_FACTORY_FIELD));
     String schemaString = Structs.getString(cloudObject, SCHEMA_FIELD);
     Schema schema = parser.parse(schemaString);
     AvroDatumFactory<?> datumFactory =
-        (AvroDatumFactory) SerializableUtils.deserializeFromByteArray(
+        (AvroDatumFactory)
+            SerializableUtils.deserializeFromByteArray(
                 deserializedDatumFactory, DATUM_FACTORY_FIELD);
     return AvroCoder.of(datumFactory, schema);
   }

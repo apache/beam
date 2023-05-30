@@ -21,7 +21,7 @@ import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.extensions.avro.io.AvroDatumFactory;
 
-/** AvroCoder specialisation for GenericRecord, needed for cross-language transforms */
+/** AvroCoder specialisation for GenericRecord, needed for cross-language transforms. */
 public class AvroGenericCoder extends AvroCoder<GenericRecord> {
   AvroGenericCoder(Schema schema) {
     super(AvroDatumFactory.GenericDatumFactory.INSTANCE, schema);
