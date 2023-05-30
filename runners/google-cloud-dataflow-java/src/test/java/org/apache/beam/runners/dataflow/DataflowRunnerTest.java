@@ -64,6 +64,8 @@ import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.google.api.services.bigquery.model.TableRow;
+import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.model.DataflowPackage;
 import com.google.api.services.dataflow.model.Job;
@@ -123,6 +125,8 @@ import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.WriteFiles;
 import org.apache.beam.sdk.io.WriteFilesResult;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
+import org.apache.beam.sdk.io.gcp.bigquery.WriteResult;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.options.ExperimentalOptions;
@@ -164,6 +168,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValues;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -2414,7 +2419,89 @@ public class DataflowRunnerTest implements Serializable {
   }
 
   @Test
-  public void testPubinkDynamicOverride() throws IOException {
+  public void testBigQueryDLQWarningStreamingInsertsConsumed() throws Exception {
+    testBigQueryDLQWarning(BigQueryIO.Write.Method.STREAMING_INSERTS, true);
+  }
+
+  @Test
+  public void testBigQueryDLQWarningStreamingInsertsNotConsumed() throws Exception {
+    testBigQueryDLQWarning(BigQueryIO.Write.Method.STREAMING_INSERTS, false);
+  }
+
+  @Test
+  public void testBigQueryDLQWarningStorageApiConsumed() throws Exception {
+    testBigQueryDLQWarning(BigQueryIO.Write.Method.STORAGE_WRITE_API, true);
+  }
+
+  @Test
+  public void testBigQueryDLQWarningStorageApiNotConsumed() throws Exception {
+    testBigQueryDLQWarning(BigQueryIO.Write.Method.STORAGE_WRITE_API, false);
+  }
+
+  @Test
+  public void testBigQueryDLQWarningStorageApiALOConsumed() throws Exception {
+    testBigQueryDLQWarning(BigQueryIO.Write.Method.STORAGE_API_AT_LEAST_ONCE, true);
+  }
+
+  @Test
+  public void testBigQueryDLQWarningStorageApiALONotConsumed() throws Exception {
+    testBigQueryDLQWarning(BigQueryIO.Write.Method.STORAGE_API_AT_LEAST_ONCE, false);
+  }
+
+  public void testBigQueryDLQWarning(BigQueryIO.Write.Method method, boolean processFailures)
+      throws IOException {
+    PipelineOptions options = buildPipelineOptions();
+    List<String> experiments =
+        new ArrayList<>(ImmutableList.of(GcpOptions.STREAMING_ENGINE_EXPERIMENT));
+    DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
+    dataflowOptions.setExperiments(experiments);
+    dataflowOptions.setStreaming(true);
+    Pipeline p = Pipeline.create(options);
+
+    List<TableRow> testValues = Arrays.asList(new TableRow(), new TableRow());
+    PCollection<TableRow> input =
+        p.apply("CreateValuesBytes", Create.of(testValues))
+            .setIsBoundedInternal(PCollection.IsBounded.UNBOUNDED);
+
+    BigQueryIO.Write<TableRow> write =
+        BigQueryIO.writeTableRows()
+            .to("project:dataset.table")
+            .withSchema(new TableSchema())
+            .withMethod(method)
+            .withoutValidation();
+    if (method == BigQueryIO.Write.Method.STORAGE_WRITE_API) {
+      write = write.withAutoSharding().withTriggeringFrequency(Duration.standardSeconds(1));
+    }
+    WriteResult result = input.apply("BQWrite", write);
+    if (processFailures) {
+      if (method == BigQueryIO.Write.Method.STREAMING_INSERTS) {
+        result
+            .getFailedInserts()
+            .apply(
+                MapElements.into(TypeDescriptors.voids())
+                    .via(SerializableFunctions.constant((Void) null)));
+      } else {
+        result
+            .getFailedStorageApiInserts()
+            .apply(
+                MapElements.into(TypeDescriptors.voids())
+                    .via(SerializableFunctions.constant((Void) null)));
+      }
+    }
+    p.run();
+
+    final String expectedWarning =
+        "No transform processes the failed-inserts output from BigQuery sink: BQWrite!"
+            + " Not processing failed inserts means that those rows will be lost.";
+    if (processFailures) {
+      expectedLogs.verifyNotLogged(expectedWarning);
+    } else {
+      expectedLogs.verifyWarn(expectedWarning);
+    }
+  }
+
+  @Test
+  public void testPubsubSinkDynamicOverride() throws IOException {
     PipelineOptions options = buildPipelineOptions();
     DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
     dataflowOptions.setStreaming(true);
