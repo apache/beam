@@ -3,7 +3,7 @@
   "reviewersAssignedForLabels": {
     "python": "riteshghorse"
   },
-  "nextAction": "Author",
+  "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
   "remindAfterTestsPass": [
     "bzablocki"
