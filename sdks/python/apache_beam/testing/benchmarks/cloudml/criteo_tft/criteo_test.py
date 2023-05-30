@@ -18,13 +18,14 @@
 import unittest
 import pytest
 import numpy as np
-from .criteo import fill_in_missing
 try:
   import tensorflow_transform as tft
   import tensorflow as tf
+  from apache_beam.testing.benchmarks.cloudml.criteo_tft.criteo import fill_in_missing
 except ImportError:
   tft = None
   tf=None
+  fill_in_missing=None
 
 @pytest.mark.uses_tft
 @unittest.skipIf(tft is None or tf is None, 'Missing dependencies. ')
@@ -37,7 +38,9 @@ class FillInMissingTest(unittest.TestCase):
     sparse_tensor = tf.sparse.SparseTensor(indices, values, dense_shape)
 
     # Fill in missing values with -1
-    filled_tensor = fill_in_missing(sparse_tensor, -1)
+    filled_tensor=[]
+    if fill_in_missing!=None:
+      filled_tensor = fill_in_missing(sparse_tensor, -1)
 
     # Convert to a dense tensor and check the values
     expected_output = np.array([1, -1, 2, -1, -1, -1, 4, -1, -1])
