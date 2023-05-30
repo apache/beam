@@ -19,10 +19,12 @@
 
 # pytype: skip-file
 
+import json
 import logging
 import math
 import random
 import re
+import tempfile
 import time
 import unittest
 import warnings
@@ -901,6 +903,19 @@ class GroupIntoBatchesTest(unittest.TestCase):
                       GroupIntoBatchesTest.NUM_ELEMENTS /
                       GroupIntoBatchesTest.BATCH_SIZE))
           ]))
+
+  def test_in_global_window_with_text_file(self):
+    with self.assertRaises(NotImplementedError):
+      with tempfile.NamedTemporaryFile(suffix=".json") as f:
+        with open(f.name, "w") as fh:
+          json.dump(GroupIntoBatchesTest._create_test_data(), fh)
+        with TestPipeline() as pipeline:
+          collection = pipeline \
+                      | beam.io.ReadFromText(file_pattern=f.name) \
+                      | beam.Map(lambda e: json.loads(e)) \
+                      | beam.Map(lambda e: (e["key"], e)) \
+                      | util.GroupIntoBatches(GroupIntoBatchesTest.BATCH_SIZE)
+          assert collection
 
   def test_with_sharded_key_in_global_window(self):
     with TestPipeline() as pipeline:
