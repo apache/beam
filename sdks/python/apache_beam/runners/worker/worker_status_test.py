@@ -108,7 +108,7 @@ class FnApiWorkerStatusHandlerTest(unittest.TestCase):
 
         self.assertIn('bundle-id', bundle_id_template)
         self.assertIn('step_name', step_name_template)
-        self.assertEquals(21 * 60, processing_template)
+        self.assertEqual(21 * 60, processing_template)
         self.assertIn('test_log_lull_in_bundle_processor', traceback)
 
       with mock.patch('time.time') as time_mock:
