@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_print
+
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -29,7 +31,6 @@ import 'package:tour_of_beam/models/module.dart';
 import 'package:tour_of_beam/models/unit.dart';
 import 'package:tour_of_beam/pages/tour/screen.dart';
 import 'package:tour_of_beam/pages/tour/state.dart';
-import 'package:tour_of_beam/pages/tour/widgets/playground.dart';
 import 'package:tour_of_beam/pages/tour/widgets/unit.dart';
 import 'package:tour_of_beam/pages/tour/widgets/unit_content.dart';
 
@@ -51,6 +52,13 @@ void main() {
       // TODO(nausharipov): fix tests
       // await _checkRunCodeWorks(wt);
       // await _checkResizeUnitContent(wt);
+
+      if (ExamplesLoader.failedToLoadExamples.isNotEmpty) {
+        final tokens = ExamplesLoader.failedToLoadExamples.join(', ');
+        print(
+          'There are some havent loaded examples with tokens: $tokens',
+        );
+      }
     },
   );
 }

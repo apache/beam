@@ -17,15 +17,19 @@
  */
 
 import 'package:collection/collection.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:get_it/get_it.dart';
 
 import '../../exceptions/example_loading_exception.dart';
 import '../../exceptions/examples_loading_exception.dart';
+import '../../exceptions/multiple_exceptions.dart';
 import '../../models/example.dart';
 import '../../models/example_loading_descriptors/empty_example_loading_descriptor.dart';
 import '../../models/example_loading_descriptors/example_loading_descriptor.dart';
 import '../../models/example_loading_descriptors/examples_loading_descriptor.dart';
 import '../../models/sdk.dart';
+import '../../models/toast.dart';
+import '../../models/toast_type.dart';
 import '../../services/toast_notifier.dart';
 import '../playground_controller.dart';
 import 'catalog_default_example_loader.dart';
@@ -42,6 +46,8 @@ class ExamplesLoader {
   final defaultFactory = ExampleLoaderFactory();
   PlaygroundController? _playgroundController;
   ExamplesLoadingDescriptor? _descriptor;
+
+  static List failedToLoadExamples = List<String>.empty(growable: true);
 
   ExamplesLoader() {
     defaultFactory.add(CatalogDefaultExampleLoader.new);
@@ -70,6 +76,7 @@ class ExamplesLoader {
   Future<void> load(ExamplesLoadingDescriptor descriptor) async {
     _descriptor = descriptor;
     final loaders = descriptor.descriptors.map(_createLoader).whereNotNull();
+    print('Loaders: ' + loaders.map((e) => e.descriptor.token).join(', '));
 
     try {
       final loadFutures = loaders.map(_loadOne);
@@ -147,9 +154,31 @@ class ExamplesLoader {
     Example example;
     try {
       example = await loader.future;
-    } on Exception {
+    } on MultipleExceptions catch (ex) {
+      example = Example.empty(loader.sdk ?? Sdk.java);
+      _handleLoadException(loader, ex);
+    } on Exception catch (ex) {
+      example = Example.empty(loader.sdk ?? Sdk.java);
+      _handleLoadException(loader, ex);
       throw ExampleLoadingException(token: loader.descriptor.token);
     }
+    _playgroundController!.setExample(
+      example,
+      descriptor: loader.descriptor,
+      setCurrentSdk: _shouldSetCurrentSdk(example.sdk),
+    );
+  }
+
+  void _handleLoadException(ExampleLoader loader, Exception ex) {
+    failedToLoadExamples.add(loader.descriptor.token);
+    GetIt.instance.get<ToastNotifier>().add(
+          Toast(
+            type: ToastType.error,
+            description: 'errors.loadingExampleDescription'.tr(),
+            title: 'errors.loadingExample'.tr(),
+          ),
+        );
+    final example = Example.empty(loader.sdk ?? Sdk.java);
     _playgroundController!.setExample(
       example,
       descriptor: loader.descriptor,
