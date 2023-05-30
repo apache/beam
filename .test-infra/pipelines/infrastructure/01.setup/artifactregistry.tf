@@ -22,3 +22,9 @@ resource "google_artifact_registry_repository" "default" {
   repository_id = var.artifact_registry_id
   location      = var.region
 }
+
+resource "google_artifact_registry_repository_iam_member" "dataflow_worker" {
+  member     = "serviceAccount:${google_service_account.dataflow_worker.email}"
+  repository = google_artifact_registry_repository.default.id
+  role       = "roles/artifactregistry.reader"
+}
