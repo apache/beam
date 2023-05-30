@@ -21,7 +21,7 @@ import PrecommitJobBuilder
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
     nameBase: 'Python',
-    gradleTask: ':pythonPreCommit',
+    gradleTask: ':pythonNotebooksPreCommit',
     timeoutMins: 180,
     triggerPathPatterns: [
       '^model/.*$',
