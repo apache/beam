@@ -35,7 +35,7 @@ apt-get -qq update
 
 apt-get -qq install -y google-cloud-sdk golang
 
-git clone --branch $BRANCH_NAME $REPO_NAME --single-branch
+git clone --branch --branch master https://github.com/apache/beam.git --single-branch
 
 cd beam/learning/tour-of-beam/backend
 

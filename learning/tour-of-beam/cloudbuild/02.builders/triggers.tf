@@ -200,6 +200,7 @@ resource "google_cloudbuild_trigger" "tourofbeam_cd_manual_trigger" {
     _DATASTORE_NAMESPACE = var.pg_datastore_namespace
     _MERGE_COMMIT        = "master"
     _ORIGIN              = "TB_EXAMPLES"
+    _TOB_LEARNING_ROOT   = var.tourofbeam_learning_root
     _SDKS                = "java python go"
     _SUBDIRS             = "./learning/tour-of-beam/learning-content"
     _BEAM_CONCURRENCY    = "4"
