@@ -18,7 +18,7 @@
 package org.apache.beam.examples;
 
 // beam-playground:
-//   name: KafkaPassengerCount
+//   name: KafkaPassengerCountJson
 //   description: Read NYC Taxi dataset from Kafka server to count passengers for each vendor
 //   multifile: false
 //   default_example: false
@@ -34,9 +34,9 @@ package org.apache.beam.examples;
 //      - type: kafka
 //        topic:
 //          id: NYCTaxi1000_simple
-//          source_dataset: NYCTaxi1000_simple
+//          source_dataset: NYCTaxi1000_simpleJson
 //   datasets:
-//      NYCTaxi1000_simple:
+//      NYCTaxi1000_simpleJson:
 //          location: local
 //          format: json
 
@@ -61,6 +61,19 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.StringDeserializer;
 
 public class KafkaPassengerCount {
+  
+  public interface KafkaStreamingOptions extends PipelineOptions {
+    /**
+     * By default, this example uses Playground's Kafka server. Set this option to different value
+     * to use your own Kafka server.
+     */
+    @Description("Kafka server host")
+    @Default.String("kafka_server:9092")
+    String getKafkaHost();
+
+    void setKafkaHost(String value);
+  }
+  
   public static void main(String[] args) {
 
     PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
@@ -73,19 +86,15 @@ public class KafkaPassengerCount {
             "ReadFromKafka",
             KafkaIO.<String, String>read()
                 .withBootstrapServers(
-                    "kafka_server:9092") // The argument is hardcoded to a predefined value. Do not
-                // change it manually. It's replaced to the correct Kafka
-                // cluster address when code starts in backend.
-
+                    options.getKafkaHost()) // Set KafkaHost pipeline option to redefine 
+                                            // default value (valid for Playground environment)
                 // NYCTaxi1000_simple is a small subset of NYC Taxi dataset with VendorID and
                 // passenger_count fields
                 .withTopicPartitions(
                     Collections.singletonList(
                         new TopicPartition(
                             "NYCTaxi1000_simple",
-                            0))) // The argument is hardcoded to a predefined value. Do not change
-                // it manually. It's replaced to the correct Kafka cluster address
-                // when code starts in backend.
+                            0))) // Kafka topic is preloaded in Playground environment
                 .withKeyDeserializer(StringDeserializer.class)
                 .withValueDeserializer(StringDeserializer.class)
                 .withConsumerConfigUpdates(consumerConfig)

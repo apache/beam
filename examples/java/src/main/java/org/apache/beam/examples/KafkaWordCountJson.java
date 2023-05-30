@@ -33,7 +33,7 @@ package org.apache.beam.examples;
 //   emulators:
 //      - type: kafka
 //        topic:
-//          id: dataset
+//          id: CountWords
 //          source_dataset: CountWordsJson
 //   datasets:
 //     CountWordsJson:
@@ -62,6 +62,18 @@ import org.apache.kafka.common.serialization.StringDeserializer;
 public class KafkaWordCountJson {
   static final String TOKENIZER_PATTERN = "[^\\p{L}]+"; // Java pattern for letters
 
+  public interface KafkaStreamingOptions extends PipelineOptions {
+    /**
+     * By default, this example uses Playground's Kafka server. Set this option to different value
+     * to use your own Kafka server.
+     */
+    @Description("Kafka server host")
+    @Default.String("kafka_server:9092")
+    String getKafkaHost();
+
+    void setKafkaHost(String value);
+  }
+  
   public static void main(String[] args) {
     final PipelineOptions options = PipelineOptionsFactory.create();
     final Pipeline p = Pipeline.create(options);
@@ -72,16 +84,13 @@ public class KafkaWordCountJson {
     p.apply(
             KafkaIO.<Long, String>read()
                 .withBootstrapServers(
-                    "kafka_server:9092") // The argument is hardcoded to a predefined value. Do not
-                // change it manually. It's replaced to the correct Kafka cluster address when code
-                // starts in backend.
+                    options.getKafkaHost()) // Set KafkaHost pipeline option to redefine 
+                                            // default value (valid for Playground environment)
                 .withTopicPartitions(
                     Collections.singletonList(
                         new TopicPartition(
-                            "dataset",
-                            0))) // The argument is hardcoded to a predefined value. Do not
-                // change it manually. It's replaced to the correct topic name when code starts in
-                // backend.
+                            "CountWords",
+                            0))) // Kafka topic is preloaded in Playground environment
                 .withKeyDeserializer(LongDeserializer.class)
                 .withValueDeserializer(StringDeserializer.class)
                 .withConsumerConfigUpdates(consumerConfig)
