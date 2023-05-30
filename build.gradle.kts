@@ -470,7 +470,7 @@ tasks.register("pythonPreCommit") {
 }
 
 tasks.register("pythonNotebooksPreCommit") {
-  dependsOn(":beam:examples:pythonNotebooksPreCommit")
+  dependsOn(":examples:notebooks:wordCount")
 }
 
 tasks.register("pythonPreCommitIT") {
