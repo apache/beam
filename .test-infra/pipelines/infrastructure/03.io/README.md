@@ -19,5 +19,6 @@
 
 # Overview
 
-This directory holds different terraform modules to provision resources required for different pipeline needs.
+This directory holds different terraform modules to provision resources required
+for different pipeline needs.
 See subdirectories for more details.

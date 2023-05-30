@@ -33,10 +33,12 @@ The following table lists all provisioned resources and their rationale.
 
 # Usage
 
-Follow terraform workflow convention to apply this module. It assumes the working directory is at
+Follow terraform workflow convention to apply this module. It assumes the
+working directory is at
 [.test-infra/pipelines](../..)
 
-Notice the `-var-file` flag referencing [common.tfvars](common.tfvars) that provides opinionated variable defaults.
+Notice the `-var-file` flag referencing [common.tfvars](common.tfvars) that
+provides opinionated variable defaults.
 
 For example:
 

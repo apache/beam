@@ -16,9 +16,4 @@
  * limitations under the License.
  */
 
-artifact_registry_id               = "infra-pipelines"
-dataflow_worker_service_account_id = "infra-pipelines-worker"
-gradle_project                     = ":beam-test-infra-pipelines"
-network_name_base                  = "infra-pipelines"
-region                             = "us-central1"
-template_image_prefix              = "dataflow-to-bigquery"
+project = "apache-beam-testing"

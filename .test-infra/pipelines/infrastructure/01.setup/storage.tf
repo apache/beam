@@ -28,7 +28,7 @@ resource "random_string" "default" {
 // Provision Storage Bucket for use by Dataflow Worker as temporary storage
 resource "google_storage_bucket" "default" {
   location = var.region
-  name     = "${replace(var.workflow_resource_name_base, "_", "-")}-${random_string.default.result}"
+  name     = "infra-pipelines-${random_string.default.result}"
   labels   = {
     purpose = "infra-pipelines"
   }
@@ -36,8 +36,8 @@ resource "google_storage_bucket" "default" {
 }
 
 // Enable Dataflow Worker Service Account to manage objects in temporary storage
-resource "google_storage_bucket_iam_member" "temporary" {
+resource "google_storage_bucket_iam_member" "default" {
   bucket = google_storage_bucket.default.id
-  member = "serviceAccount:${data.google_service_account.dataflow_worker.email}"
+  member = "serviceAccount:${google_service_account.dataflow_worker.email}"
   role   = "roles/storage.objectAdmin"
 }

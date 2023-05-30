@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 plugins {
     id 'org.apache.beam.module'
 }
@@ -23,6 +25,16 @@ plugins {
 applyJavaNature(
         exportJavadoc: false,
         publish: false,
+        // ShadowJar has a naming dependency with:
+        // .test-infra/pipelines/infrastructure/04.template/dataflow-to-bigquery/template.tf
+        shadowClosure: {
+            // TODO: determine how to create separate shadowJar tasks for each pipeline
+            manifest {
+                attributes 'Main-Class': 'org.apache.beam.testinfra.pipelines.ReadDataflowApiWriteBigQuery'
+            }
+            mergeServiceFiles()
+            archiveVersion = 'latest'
+        }
 )
 
 description = "Apache Beam :: Test Infra :: Pipelines"

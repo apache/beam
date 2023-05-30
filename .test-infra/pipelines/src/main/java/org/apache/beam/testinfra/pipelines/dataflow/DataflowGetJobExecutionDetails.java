@@ -39,6 +39,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 public class DataflowGetJobExecutionDetails
@@ -68,10 +69,17 @@ public class DataflowGetJobExecutionDetails
       PCollection<Job> input) {
 
     PCollectionTuple pct =
-        input.apply(
-            DataflowGetJobExecutionDetails.class.getSimpleName(),
-            ParDo.of(new GetJobExecutionDetailsFn(this))
-                .withOutputTags(SUCCESS, TupleTagList.of(FAILURE)));
+        input
+            .apply(
+                Throttle.class.getSimpleName()
+                    + " "
+                    + DataflowGetJobExecutionDetails.class.getSimpleName(),
+                Throttle.of(
+                    DataflowGetJobExecutionDetails.class.getName(), Duration.standardSeconds(1L)))
+            .apply(
+                DataflowGetJobExecutionDetails.class.getSimpleName(),
+                ParDo.of(new GetJobExecutionDetailsFn(this))
+                    .withOutputTags(SUCCESS, TupleTagList.of(FAILURE)));
 
     return DataflowReadResult.of(SUCCESS, FAILURE, pct);
   }
