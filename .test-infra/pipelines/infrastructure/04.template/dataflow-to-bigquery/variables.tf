@@ -41,24 +41,6 @@ variable "network_name_base" {
   description = "The name of the Google Cloud Platform (GCP) name basis from which we name network related resources"
 }
 
-variable "github_repository_owner" {
-  type        = string
-  description = "The owner of the GitHub repository to base Dataflow template build"
-  default     = "apache"
-}
-
-variable "github_repository_name" {
-  type        = string
-  description = "The name of the GitHub repository to base Dataflow template build"
-  default     = "beam"
-}
-
-variable "github_repository_branch" {
-  type        = string
-  description = "The branch of the GitHub repository to base Dataflow template build"
-  default     = "master"
-}
-
 variable "gradle_project" {
   type        = string
   description = "The gradle project to base Dataflow template build"
