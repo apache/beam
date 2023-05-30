@@ -25,6 +25,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.when;
 
 import com.google.cloud.bigtable.admin.v2.BigtableTableAdminClient;
 import com.google.cloud.bigtable.admin.v2.BigtableTableAdminSettings;
@@ -57,6 +58,8 @@ import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.Mockito;
+import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -141,7 +144,7 @@ public class MetadataTableDaoTest {
   }
 
   @Test
-  public void testLockPartitionRace() throws InterruptedException {
+  public void testLockPartitionRaceUniqueIds() throws InterruptedException {
     ByteStringRange partition = ByteStringRange.create("", "");
     ByteString rowKey = metadataTableDao.convertPartitionToStreamPartitionRowKey(partition);
     // Class to try to lock the partition in a separate thread.
@@ -221,6 +224,54 @@ public class MetadataTableDaoTest {
     RowMutation rowMutation =
         RowMutation.create(metadataTableAdminDao.getTableId(), rowKey).deleteRow();
     dataClient.mutateRow(rowMutation);
+  }
+
+  @Test
+  public void testLockPartitionRaceDuplicateIds() throws InterruptedException {
+    ByteStringRange partition = ByteStringRange.create("", "");
+    String uid = "a";
+    MetadataTableDao spy = Mockito.spy(metadataTableDao);
+    // First call we sleep for ten seconds to ensure the duplicate acquires the
+    // lock before we return.
+    when(spy.doHoldLock(partition, uid))
+        .then(
+            (Answer<Boolean>)
+                invocation -> {
+                  Thread.sleep(10000);
+                  return false;
+                })
+        .thenCallRealMethod()
+        .thenCallRealMethod();
+
+    class LockPartition implements Runnable {
+      final PartitionRecord partitionRecord =
+          new PartitionRecord(
+              partition,
+              Collections.emptyList(),
+              uid,
+              Instant.now(),
+              Collections.emptyList(),
+              Instant.now().plus(Duration.standardMinutes(10)));
+      boolean locked = false;
+
+      @Override
+      public void run() {
+        locked = spy.lockAndRecordPartition(partitionRecord);
+      }
+    }
+
+    LockPartition dup1 = new LockPartition();
+    Thread dup1Thread = new Thread(dup1);
+    LockPartition dup2 = new LockPartition();
+    Thread dup2Thread = new Thread(dup2);
+
+    dup1Thread.start();
+    dup2Thread.start();
+    dup1Thread.join();
+    dup2Thread.join();
+
+    assertTrue(dup2.locked);
+    assertTrue(dup1.locked);
   }
 
   @Test
