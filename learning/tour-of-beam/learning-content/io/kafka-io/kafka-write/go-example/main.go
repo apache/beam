@@ -31,14 +31,13 @@ package main
 import (
 	"context"
 	"flag"
-	"time"
-
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
-	// "github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
-	// "github.com/apache/beam/sdks/v2/go/pkg/beam/io/pubsubio"
-	// "github.com/apache/beam/sdks/v2/go/pkg/beam/io/xlang/kafkaio"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
-	// "github.com/apache/beam/sdks/v2/go/pkg/beam/register"
+	"time"
+	//"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
+	//"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	//"github.com/apache/beam/sdks/v2/go/pkg/beam/io/pubsubio"
+	//"github.com/apache/beam/sdks/v2/go/pkg/beam/io/xlang/kafkaio"
 )
 
 var (
@@ -70,20 +69,20 @@ func main() {
 	flag.Parse()
 	beam.Init()
 	/*
-	  	   ctx := context.Background()
+		ctx := context.Background()
 
-	  	   p := beam.NewPipeline()
-	  	   s := p.Root()
+		p := beam.NewPipeline()
+		s := p.Root()
 
-	  	   // In the main function, the code creates a Beam pipeline, reads from the Pub/Sub source, transforms the data into a key-value pair, applies a windowing function to the data, and writes the windowed data to a Kafka topic.
+		// In the main function, the code creates a Beam pipeline, reads from the Pub/Sub source, transforms the data into a key-value pair, applies a windowing function to the data, and writes the windowed data to a Kafka topic.
 
-	       data := pubsubio.Read(s, "pubsub-public-data", "taxirides-realtime", nil)
-	  	   kvData := beam.ParDo(s, func(elm []byte) ([]byte, []byte) { return []byte(""), elm }, data)
-	  	   windowed := beam.WindowInto(s, window.NewFixedWindows(15*time.Second), kvData)
-	  	   kafkaio.Write(s, *expansionAddr, *bootstrapServers, *topic, windowed)
+		data := pubsubio.Read(s, "pubsub-public-data", "taxirides-realtime", nil)
+		kvData := beam.ParDo(s, func(elm []byte) ([]byte, []byte) { return []byte(""), elm }, data)
+		windowed := beam.WindowInto(s, window.NewFixedWindows(15*time.Second), kvData)
+		kafkaio.Write(s, *expansionAddr, *bootstrapServers, *topic, windowed)
 
-	  	   if err := beamx.Run(ctx, p); err != nil {
-	  	     log.Fatalf(ctx, "Failed to execute job: %v", err)
-	  	   }
+		if err := beamx.Run(ctx, p); err != nil {
+			log.Fatalf(ctx, "Failed to execute job: %v", err)
+		}
 	*/
 }

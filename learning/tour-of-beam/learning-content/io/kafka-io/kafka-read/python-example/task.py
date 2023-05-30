@@ -54,6 +54,6 @@ bootstrap_servers = {"bootstrap.servers": "kafka_server:9092"}
 # (p | "Read from Kafka" >> ReadFromKafka(
 #       topics=[input_topic],
 #       consumer_config=bootstrap_servers)
-#  | "Process data" >> beam.Map(process_data)
+#  | "Process data" >> beam.Map(process_data))
 
 p.run().wait_until_finish()
