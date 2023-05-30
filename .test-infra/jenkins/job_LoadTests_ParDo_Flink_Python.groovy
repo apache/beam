@@ -76,7 +76,8 @@ def batchScenarios = { datasetName ->
         input_options        : '\'{' +
         '"num_records": 20000000,' +
         '"key_size": 10,' +
-        '"value_size": 90}\'',
+        '"value_size": 90,' +
+        '"algorithm": "lcg"}\'',
         iterations           : 10,
         number_of_counter_operations: 0,
         number_of_counters   : 0,
@@ -102,7 +103,8 @@ def batchScenarios = { datasetName ->
     //                         input_options        : '\'{' +
     //                                 '"num_records": 20000000,' +
     //                                 '"key_size": 10,' +
-    //                                 '"value_size": 90}\'',
+    //                                 '"value_size": 90,' +
+    //                                 '"algorithm": "lcg"}\'',
     //                         iterations           : 200,
     //                         number_of_counter_operations: 0,
     //                         number_of_counters   : 0,
@@ -126,7 +128,8 @@ def batchScenarios = { datasetName ->
         input_options        : '\'{' +
         '"num_records": 20000000,' +
         '"key_size": 10,' +
-        '"value_size": 90}\'',
+        '"value_size": 90,' +
+        '"algorithm": "lcg"}\'',
         iterations           : 1,
         number_of_counter_operations: 10,
         number_of_counters   : 1,
@@ -150,7 +153,8 @@ def batchScenarios = { datasetName ->
         input_options        : '\'{' +
         '"num_records": 20000000,' +
         '"key_size": 10,' +
-        '"value_size": 90}\'',
+        '"value_size": 90,' +
+        '"algorithm": "lcg"}\'',
         iterations           : 1,
         number_of_counter_operations: 100,
         number_of_counters   : 1,
@@ -180,7 +184,8 @@ def streamingScenarios = { datasetName ->
         input_options        : '\'{' +
         '"num_records": 2000000,' +
         '"key_size": 10,' +
-        '"value_size": 90}\'',
+        '"value_size": 90,' +
+        '"algorithm": "lcg"}\'',
         iterations           : 10,
         number_of_counter_operations: 0,
         number_of_counters   : 0,
@@ -208,7 +213,8 @@ def streamingScenarios = { datasetName ->
         input_options        : '\'{' +
         '"num_records": 20000000,' +
         '"key_size": 10,' +
-        '"value_size": 90}\'',
+        '"value_size": 90,' +
+        '"algorithm": "lcg"}\'',
         iterations           : 200,
         number_of_counter_operations: 0,
         number_of_counters   : 0,
@@ -234,7 +240,8 @@ def streamingScenarios = { datasetName ->
         input_options        : '\'{' +
         '"num_records": 20000000,' +
         '"key_size": 10,' +
-        '"value_size": 90}\'',
+        '"value_size": 90,' +
+        '"algorithm": "lcg"}\'',
         iterations           : 1,
         number_of_counter_operations: 10,
         number_of_counters   : 1,
@@ -260,7 +267,8 @@ def streamingScenarios = { datasetName ->
         input_options        : '\'{' +
         '"num_records": 20000000,' +
         '"key_size": 10,' +
-        '"value_size": 90}\'',
+        '"value_size": 90,' +
+        '"algorithm": "lcg"}\'',
         iterations           : 1,
         number_of_counter_operations: 100,
         number_of_counters   : 1,
@@ -286,7 +294,8 @@ def streamingScenarios = { datasetName ->
         input_options        : '\'{' +
         '"num_records": 2000000,' +
         '"key_size": 10,' +
-        '"value_size": 90}\'',
+        '"value_size": 90,' +
+        '"algorithm": "lcg"}\'',
         iterations           : 5,
         number_of_counter_operations: 10,
         number_of_counters   : 3,
