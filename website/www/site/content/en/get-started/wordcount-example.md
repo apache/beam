@@ -320,6 +320,15 @@ Note that the `run` method is asynchronous. For a blocking execution, call the
 returned by the call to `run`.
 {{< /paragraph >}}
 
+{{< paragraph class="language-java language-py" >}}
+Try the full example in Playground:
+{{< /paragraph >}}
+
+{{< playground height="700px" >}}
+{{< playground_snippet language="java" url="https://raw.githubusercontent.com/akvelon/beam/new-examples-for-documentation/examples/java/src/main/java/org/apache/beam/examples/MinimalWordCount.java" >}}
+{{< playground_snippet language="py" path="SDK_PYTHON_WordCountMinimal" >}}
+{{< /playground >}}
+
 ## WordCount example
 
 This WordCount example introduces a few recommended programming practices that
@@ -662,6 +671,15 @@ func main() {
     ...
 {{< /highlight >}}
 
+{{< paragraph class="language-java language-py" >}}
+Try the full example in Playground:
+{{< /paragraph >}}
+
+{{< playground height="700px" >}}
+{{< playground_snippet language="java" url="https://raw.githubusercontent.com/apache/beam/63731bb98edc5178e5bfe56185b20e9fd96abc78/examples/java/src/main/java/org/apache/beam/examples/WordCount.java" >}}
+{{< playground_snippet language="py" path="SDK_PYTHON_WordCount" >}}
+{{< /playground >}}
+
 ## DebuggingWordCount example
 
 The DebuggingWordCount example demonstrates some best practices for
@@ -975,6 +993,15 @@ passert.Equals(s, formatted, "Flourish: 3", "stomach: 1")
 See [DebuggingWordCountTest](https://github.com/apache/beam/blob/master/examples/java/src/test/java/org/apache/beam/examples/DebuggingWordCountTest.java)
 for an example unit test.
 {{< /paragraph >}}
+
+{{< paragraph class="language-java language-py" >}}
+Try the full example in Playground:
+{{< /paragraph >}}
+
+{{< playground height="700px" >}}
+{{< playground_snippet language="java" path="SDK_JAVA_DebuggingWordCount" >}}
+{{< playground_snippet language="py" path="SDK_PYTHON_WordCountDebugging" >}}
+{{< /playground >}}
 
 ## WindowedWordCount example
 
@@ -1325,6 +1352,15 @@ word_counts = windowed_words | CountWords()
 counted := wordcount.CountWords(s, windowedLines)
 {{< /highlight >}}
 
+{{< paragraph class="language-java language-py" >}}
+Try the full example in Playground:
+{{< /paragraph >}}
+
+{{< playground height="700px" >}}
+{{< playground_snippet language="java" url="https://raw.githubusercontent.com/apache/beam/master/examples/java/src/main/java/org/apache/beam/examples/WindowedWordCount.java" >}}
+{{< playground_snippet language="py" path="https://raw.githubusercontent.com/apache/beam/master/sdks/python/apache_beam/examples/windowed_wordcount.py" >}}
+{{< /playground >}}
+
 ## StreamingWordCount example
 
 The StreamingWordCount example is a streaming pipeline that reads Pub/Sub
@@ -1447,6 +1483,14 @@ using [`beam.io.WriteToPubSub`](https://beam.apache.org/releases/pydoc/{{< param
 {{< highlight go >}}
   // This example is not currently available for the Beam SDK for Go.
 {{< /highlight >}}
+
+{{< paragraph class="language-py" >}}
+Try the full example in Playground:
+{{< /paragraph >}}
+
+{{< playground height="700px" >}}
+{{< playground_snippet language="py" path="https://raw.githubusercontent.com/apache/beam/master/sdks/python/apache_beam/examples/streaming_wordcount.py" >}}
+{{< /playground >}}
 
 ## Next Steps
 
