@@ -73,9 +73,6 @@ public class KafkaStreaming {
   // Kafka topic name
   private static final String TOPIC_NAME = "my-topic";
 
-  // Delay before the start of kafka-producer so that kafka-consumer has time to start
-  private static final long DELAY_START_KAFKA_PRODUCER = 1000;
-
   // The deadline for processing late data
   private static final int ALLOWED_LATENESS_TIME = 1;
 
@@ -120,6 +117,17 @@ public class KafkaStreaming {
         },
         TOTAL_TIME_SECONDS);
 
+    // FixedWindows will always start at an integer multiple of the window size counting from epoch
+    // start.
+    // To get nicer looking results we will start producing results right after the next window
+    // starts.
+    Duration windowSize = Duration.standardSeconds(WINDOW_TIME);
+    Instant nextWindowStart =
+        new Instant(
+            Instant.now().getMillis()
+                + windowSize.getMillis()
+                - Instant.now().plus(windowSize).getMillis() % windowSize.getMillis());
+
     KafkaStreamingOptions options =
         PipelineOptionsFactory.fromArgs(args).withValidation().as(KafkaStreamingOptions.class);
 
@@ -129,7 +137,7 @@ public class KafkaStreaming {
      * Kafka producer which sends messages (works in background thread)
      */
     KafkaProducer producer = new KafkaProducer(options);
-    timer.schedule(producer, DELAY_START_KAFKA_PRODUCER);
+    timer.schedule(producer, nextWindowStart.toDate());
 
     /*
      * Kafka consumer which reads messages
