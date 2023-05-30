@@ -75,7 +75,7 @@ public class KafkaWordCountJson {
 
     void setKafkaHost(String value);
   }
-  
+
   public static void main(String[] args) {
     final PipelineOptions options = PipelineOptionsFactory.create();
     final Pipeline p = Pipeline.create(options);
@@ -86,13 +86,12 @@ public class KafkaWordCountJson {
     p.apply(
             KafkaIO.<Long, String>read()
                 .withBootstrapServers(
-                    options.getKafkaHost()) // Set KafkaHost pipeline option to redefine 
-                                            // default value (valid for Playground environment)
+                    options.getKafkaHost()) // Set KafkaHost pipeline option to redefine
+                // default value (valid for Playground environment)
                 .withTopicPartitions(
                     Collections.singletonList(
                         new TopicPartition(
-                            "CountWords",
-                            0))) // Kafka topic is preloaded in Playground environment
+                            "CountWords", 0))) // Kafka topic is preloaded in Playground environment
                 .withKeyDeserializer(LongDeserializer.class)
                 .withValueDeserializer(StringDeserializer.class)
                 .withConsumerConfigUpdates(consumerConfig)

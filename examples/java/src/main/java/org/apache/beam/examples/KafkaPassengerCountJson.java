@@ -63,7 +63,7 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.StringDeserializer;
 
 public class KafkaPassengerCountJson {
-  
+
   public interface KafkaStreamingOptions extends PipelineOptions {
     /**
      * By default, this example uses Playground's Kafka server. Set this option to different value
@@ -75,7 +75,7 @@ public class KafkaPassengerCountJson {
 
     void setKafkaHost(String value);
   }
-  
+
   public static void main(String[] args) {
 
     PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
@@ -88,8 +88,8 @@ public class KafkaPassengerCountJson {
             "ReadFromKafka",
             KafkaIO.<String, String>read()
                 .withBootstrapServers(
-                    options.getKafkaHost()) // Set KafkaHost pipeline option to redefine 
-                                            // default value (valid for Playground environment)
+                    options.getKafkaHost()) // Set KafkaHost pipeline option to redefine
+                // default value (valid for Playground environment)
                 // NYCTaxi1000_simple is a small subset of NYC Taxi dataset with VendorID and
                 // passenger_count fields
                 .withTopicPartitions(
