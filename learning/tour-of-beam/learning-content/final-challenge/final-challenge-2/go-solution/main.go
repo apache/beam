@@ -59,7 +59,7 @@ type Analysis struct {
 var wordRE = regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)
 
 func main() {
-	os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", "") // FILL IN WITH YOUR FILE PATH
+	os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", "")
 
 	ctx := context.Background()
 
@@ -90,10 +90,10 @@ func main() {
 	parts := partition(s, result)
 
 	negativeWords := parts[0]
-	//positiveWords := parts[1]
+	positiveWords := parts[1]
 
-	negativeWordsCount1 := beam.ParDo(s, func(analysis2 Analysis, emit func(string)) { emit(analysis2.Word) }, negativeWords)
-	debug.Print(s, stats.CountElms(s, negativeWordsCount1))
+	debug.Print(s, stats.CountElms(s, negativeWords))
+	debug.Print(s, stats.CountElms(s, positiveWords))
 
 	err := beamx.Run(ctx, p)
 

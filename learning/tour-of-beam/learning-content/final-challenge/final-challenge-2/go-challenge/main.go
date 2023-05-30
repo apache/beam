@@ -33,21 +33,38 @@ import (
 	"context"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
 	"log"
+	"os"
+	"strings"
 )
 
 func main() {
+	os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", "")
+
 	beam.Init()
+	ctx := context.Background()
 
 	p := beam.NewPipeline()
 	s := p.Root()
 
 	shakespeare := textio.Read(s, "gs://apache-beam-samples/shakespeare/kinglear.txt")
+	analysis := textio.Read(s, "analysis.csv")
 
-	textio.Write(s, "output.txt", shakespeare)
+	debug.Print(s, stats.CountElms(s, getWords(s, shakespeare)))
+	debug.Print(s, stats.CountElms(s, analysis))
 
 	err := beam.Run(context.Background(), "direct", p)
 	if err != nil {
 		log.Fatalf(ctx, "Failed to execute job: %v", err)
 	}
+}
+
+func getWords(s beam.Scope, input beam.PCollection) beam.PCollection {
+	return beam.ParDo(s, func(line string, emit func(string)) {
+		for _, word := range wordRE.FindAllString(line, -1) {
+			emit(strings.ToLower(word))
+		}
+	}, input)
 }
