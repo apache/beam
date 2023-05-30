@@ -29,6 +29,7 @@ resource "google_project_iam_member" "dataflow_worker_service_account_roles" {
   depends_on = [google_project_service.required_services]
   for_each   = toset([
     "roles/dataflow.worker",
+    "roles/dataflow.viewer"
   ])
   role    = each.key
   member  = "serviceAccount:${google_service_account.dataflow_worker.email}"
