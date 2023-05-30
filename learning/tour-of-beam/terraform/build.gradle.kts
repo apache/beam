@@ -324,7 +324,7 @@ tasks.register("flutterBuildWeb") {
     doLast {
         exec {
             executable("flutter")
-            args("build", "web", "--profile", "--dart-define=Dart2jsOptimization=O0")
+            args("build", "web", "-v", "--web-renderer=html", "--release")
             workingDir("../frontend")
         }
     }
