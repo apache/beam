@@ -22,7 +22,7 @@ import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransfor
 
 import com.google.auto.service.AutoService;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.beam.sdk.extensions.avro.coders.AvroGenericCoder;
+import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.extensions.avro.io.AvroIO;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.schemas.Schema;
@@ -55,7 +55,7 @@ public class AvroWriteSchemaTransformFormatProvider
       public PCollection<String> expand(PCollection<Row> input) {
 
         org.apache.avro.Schema avroSchema = AvroUtils.toAvroSchema(schema);
-        AvroGenericCoder coder = AvroGenericCoder.of(avroSchema);
+        AvroCoder<GenericRecord> coder = AvroCoder.of(avroSchema);
 
         PCollection<GenericRecord> avro =
             input

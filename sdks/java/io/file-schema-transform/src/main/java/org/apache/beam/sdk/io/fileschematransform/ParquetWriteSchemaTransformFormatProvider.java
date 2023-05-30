@@ -23,7 +23,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import com.google.auto.service.AutoService;
 import java.util.Optional;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.beam.sdk.coders.AvroGenericCoder;
+import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformConfiguration.ParquetConfiguration;
@@ -59,7 +59,7 @@ public class ParquetWriteSchemaTransformFormatProvider
       @Override
       public PCollection<String> expand(PCollection<Row> input) {
         org.apache.avro.Schema avroSchema = AvroUtils.toAvroSchema(schema);
-        AvroGenericCoder coder = AvroGenericCoder.of(avroSchema);
+        AvroCoder<GenericRecord> coder = AvroCoder.of(avroSchema);
 
         FileIO.Write<Void, GenericRecord> write =
             FileIO.<GenericRecord>write()

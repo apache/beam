@@ -273,7 +273,7 @@ public class AvroCoderTest {
   @Test
   public void testKryoSerialization() throws Exception {
     Pojo value = new Pojo("Hello", 42, DATETIME_A);
-    AvroCoder<Pojo> coder = AvroCoder.reflect(Pojo.class);
+    AvroCoder<Pojo> coder = AvroCoder.of(Pojo.class);
 
     // Kryo instantiation
     Kryo kryo = new Kryo();
@@ -368,7 +368,7 @@ public class AvroCoderTest {
     before.put("favorite_number", 256);
     // Leave favorite_color null
 
-    AvroCoder<GenericRecord> coder = AvroGenericCoder.of(schema);
+    AvroCoder<GenericRecord> coder = AvroCoder.generic(schema);
 
     CoderProperties.coderDecodeEncodeEqual(coder, before);
     assertEquals(schema, coder.getSchema());

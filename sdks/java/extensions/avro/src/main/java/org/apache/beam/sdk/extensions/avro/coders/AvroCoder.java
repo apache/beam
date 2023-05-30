@@ -85,7 +85,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <pre>{@code
  * PCollection<MyCustomElement> records =
  *     input.apply(...)
- *          .setCoder(AvroCoder.reflect(MyCustomElement.class));
+ *          .setCoder(AvroCoder.of(MyCustomElement.class));
  * }</pre>
  *
  * <p>or annotate the element class using {@code @DefaultCoder}.
@@ -295,6 +295,7 @@ public class AvroCoder<T> extends CustomCoder<T> {
       }
     }
   }
+
   private final AvroDatumFactory<T> datumFactory;
   private final SerializableSchemaSupplier schemaSupplier;
   private final TypeDescriptor<T> typeDescriptor;

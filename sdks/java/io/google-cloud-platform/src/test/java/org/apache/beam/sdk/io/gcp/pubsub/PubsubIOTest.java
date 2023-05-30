@@ -313,16 +313,16 @@ public class PubsubIOTest {
         hasItem(hasDisplayItem("topic")));
   }
 
-  static class ReflectClass {
+  static class GenericClass {
     int intField;
     String stringField;
 
     @AvroSchema("{\"type\": \"long\", \"logicalType\": \"timestamp-millis\"}")
     public DateTime timestamp;
 
-    public ReflectClass() {}
+    public GenericClass() {}
 
-    public ReflectClass(int intField, String stringField, DateTime timestamp) {
+    public GenericClass(int intField, String stringField, DateTime timestamp) {
       this.intField = intField;
       this.stringField = stringField;
       this.timestamp = timestamp;
@@ -344,10 +344,10 @@ public class PubsubIOTest {
 
     @Override
     public boolean equals(@Nullable Object other) {
-      if (other == null || !(other instanceof ReflectClass)) {
+      if (other == null || !(other instanceof GenericClass)) {
         return false;
       }
-      ReflectClass o = (ReflectClass) other;
+      GenericClass o = (GenericClass) other;
       return intField == o.intField
           && Objects.equals(stringField, o.stringField)
           && Objects.equals(timestamp, o.timestamp);
@@ -573,7 +573,7 @@ public class PubsubIOTest {
 
   @Test
   public void testAvroGenericRecords() {
-    AvroCoder<GenericRecord> coder = AvroCoder.of(GenericRecord.class, SCHEMA);
+    AvroCoder<GenericRecord> coder = AvroCoder.of(SCHEMA);
     List<GenericRecord> inputs =
         ImmutableList.of(
             new AvroGeneratedUser("Bob", 256, null),
@@ -592,17 +592,17 @@ public class PubsubIOTest {
 
   @Test
   public void testAvroPojo() {
-    AvroCoder<ReflectClass> coder = AvroCoder.reflect(ReflectClass.class);
-    List<ReflectClass> inputs =
+    AvroCoder<GenericClass> coder = AvroCoder.of(GenericClass.class);
+    List<GenericClass> inputs =
         Lists.newArrayList(
-            new ReflectClass(
+            new GenericClass(
                 1, "foo", new DateTime().withDate(2019, 10, 1).withZone(DateTimeZone.UTC)),
-            new ReflectClass(
+            new GenericClass(
                 2, "bar", new DateTime().withDate(1986, 10, 1).withZone(DateTimeZone.UTC)));
     setupTestClient(inputs, coder);
-    PCollection<ReflectClass> read =
+    PCollection<GenericClass> read =
         pipeline.apply(
-            PubsubIO.readAvrosWithBeamSchema(ReflectClass.class)
+            PubsubIO.readAvrosWithBeamSchema(GenericClass.class)
                 .fromSubscription(SUBSCRIPTION.getPath())
                 .withClock(CLOCK)
                 .withClientFactory(clientFactory));

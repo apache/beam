@@ -26,7 +26,7 @@ import java.util.Arrays;
 import java.util.List;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.extensions.avro.coders.AvroGenericCoder;
+import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.GenerateSequence;
@@ -75,7 +75,7 @@ public class ParquetReadSchemaTransformFormatProviderTest
         .apply(
             MapElements.into(TypeDescriptor.of(GenericRecord.class))
                 .via(AvroUtils.getRowToGenericRecordFunction(avroSchema)))
-        .setCoder(AvroGenericCoder.of(avroSchema))
+        .setCoder(AvroCoder.of(avroSchema))
         .apply(
             FileIO.<GenericRecord>write()
                 .via(ParquetIO.sink(avroSchema))
@@ -146,7 +146,7 @@ public class ParquetReadSchemaTransformFormatProviderTest
                 .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
                 .discardingFiredPanes())
         .apply(MapElements.via(new CreateAvroPrimitiveGenericRecord(schema)))
-        .setCoder(AvroGenericCoder.of(avroSchema))
+        .setCoder(AvroCoder.of(avroSchema))
         .apply(
             FileIO.<String, GenericRecord>writeDynamic()
                 .by(fn((GenericRecord element) -> element.get("anInteger").toString()))
@@ -175,7 +175,7 @@ public class ParquetReadSchemaTransformFormatProviderTest
         .apply(
             MapElements.into(TypeDescriptor.of(GenericRecord.class))
                 .via(AvroUtils.getRowToGenericRecordFunction(avroSchema)))
-        .setCoder(AvroGenericCoder.of(avroSchema))
+        .setCoder(AvroCoder.of(avroSchema))
         .apply(
             FileIO.<String, GenericRecord>writeDynamic()
                 .by(fn((GenericRecord element) -> element.get("anInteger").toString()))
