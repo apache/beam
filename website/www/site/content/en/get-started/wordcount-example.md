@@ -1358,7 +1358,7 @@ Try the full example in Playground:
 
 {{< playground height="700px" >}}
 {{< playground_snippet language="java" url="https://raw.githubusercontent.com/apache/beam/master/examples/java/src/main/java/org/apache/beam/examples/WindowedWordCount.java" >}}
-{{< playground_snippet language="py" path="https://raw.githubusercontent.com/apache/beam/master/sdks/python/apache_beam/examples/windowed_wordcount.py" >}}
+{{< playground_snippet language="py" url="https://raw.githubusercontent.com/apache/beam/master/sdks/python/apache_beam/examples/windowed_wordcount.py" >}}
 {{< /playground >}}
 
 ## StreamingWordCount example
@@ -1489,7 +1489,7 @@ Try the full example in Playground:
 {{< /paragraph >}}
 
 {{< playground height="700px" >}}
-{{< playground_snippet language="py" path="https://raw.githubusercontent.com/apache/beam/master/sdks/python/apache_beam/examples/streaming_wordcount.py" >}}
+{{< playground_snippet language="py" url="https://raw.githubusercontent.com/apache/beam/master/sdks/python/apache_beam/examples/streaming_wordcount.py" >}}
 {{< /playground >}}
 
 ## Next Steps
