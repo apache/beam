@@ -31,7 +31,6 @@ import 'l10n/l10n.dart';
 import 'locator.dart';
 import 'playground_app.dart';
 
-//temp comment
 Future<void> main() async {
   FlutterIssue106664Workaround.instance.apply();
   setPathUrlStrategy();

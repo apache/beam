@@ -47,7 +47,7 @@ class ExamplesLoader {
   PlaygroundController? _playgroundController;
   ExamplesLoadingDescriptor? _descriptor;
 
-  static List failedToLoadExamples = List<String>.empty(growable: true);
+  static final failedToLoadExamples = <String>[];
 
   ExamplesLoader() {
     defaultFactory.add(CatalogDefaultExampleLoader.new);
@@ -76,14 +76,13 @@ class ExamplesLoader {
   Future<void> load(ExamplesLoadingDescriptor descriptor) async {
     _descriptor = descriptor;
     final loaders = descriptor.descriptors.map(_createLoader).whereNotNull();
-    print('Loaders: ' + loaders.map((e) => e.descriptor.token).join(', '));
 
     try {
       final loadFutures = loaders.map(_loadOne);
       await Future.wait(loadFutures);
-    } on Exception catch (ex) {
+    // ignore: avoid_catches_without_on_clauses
+    } catch (_) {
       _emptyMissing(loaders);
-      throw ExamplesLoadingException(ex);
     }
 
     final sdk = descriptor.initialSdk;
@@ -154,12 +153,10 @@ class ExamplesLoader {
     Example example;
     try {
       example = await loader.future;
-    } on MultipleExceptions catch (ex) {
+    // ignore: avoid_catches_without_on_clauses
+    } catch (ex) {
       example = Example.empty(loader.sdk ?? Sdk.java);
-      _handleLoadException(loader, ex);
-    } on Exception catch (ex) {
-      example = Example.empty(loader.sdk ?? Sdk.java);
-      _handleLoadException(loader, ex);
+      _handleLoadException(loader, ex as Exception);
       throw ExampleLoadingException(token: loader.descriptor.token);
     }
     _playgroundController!.setExample(
@@ -170,14 +167,10 @@ class ExamplesLoader {
   }
 
   void _handleLoadException(ExampleLoader loader, Exception ex) {
-    failedToLoadExamples.add(loader.descriptor.token);
-    GetIt.instance.get<ToastNotifier>().add(
-          Toast(
-            type: ToastType.error,
-            description: 'errors.loadingExampleDescription'.tr(),
-            title: 'errors.loadingExample'.tr(),
-          ),
-        );
+    if (loader.descriptor.token != null) {
+      failedToLoadExamples.add(loader.descriptor.token!);
+    }
+    GetIt.instance.get<ToastNotifier>().addException(ex);
     final example = Example.empty(loader.sdk ?? Sdk.java);
     _playgroundController!.setExample(
       example,
