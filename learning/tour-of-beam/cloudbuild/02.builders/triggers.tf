@@ -180,8 +180,15 @@ resource "google_cloudbuild_trigger" "tourofbeam_cd_manual_trigger" {
       logging      = "GCS_ONLY"
     }
     logs_bucket = "gs://${var.tourofbeam_cb_private_bucket}" 
+
     step {
-      id     = "Run CD"
+      id     = "Run Learning Materials CD"
+      script = file("../scripts/tob_lm_cd.sh")
+      name   = "ubuntu"
+      env    = local.cloudbuild_cd_environment_manual
+    }
+    step {
+      id     = "Run Example CD"
       script = file("../../../../playground/infrastructure/cloudbuild/cloudbuild_playground_cd_examples.sh")
       name   = "ubuntu"
       env    = local.cloudbuild_cd_environment_manual

@@ -31,54 +31,12 @@ curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/
 
 echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" |tee /etc/apt/sources.list.d/docker.list
 
-wget -nv https://releases.hashicorp.com/terraform/1.4.2/terraform_1.4.2_linux_amd64.zip
-
-unzip terraform_1.4.2_linux_amd64.zip
-
-mv terraform /usr/local/bin/terraform
-
-wget -nv https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_3.7.3-stable.tar.xz
-
-tar xf flutter_linux_3.7.3-stable.tar.xz
-
-git config --global --add safe.directory /usr/local/bin/flutter
-
-mv flutter /usr/local/bin/flutter 
-
-export PATH="$PATH:/usr/local/bin/flutter/bin"
-
-flutter doctor
-
-wget -nv https://firebase.tools/bin/linux/latest
-
-mv latest /usr/local/bin/firebase
-
-chmod +x /usr/local/bin/firebase
-
-export PATH="$PATH:/usr/local/bin/"
-
-firebase --version
-
 apt-get -qq update
 
-apt-get -qq install -y google-cloud-sdk-gke-gcloud-auth-plugin google-cloud-sdk openjdk-11-jdk kubectl docker-ce golang
+apt-get -qq install -y google-cloud-sdk golang
 
 git clone --branch $BRANCH_NAME $REPO_NAME --single-branch
 
-gcloud auth configure-docker $PG_REGION-docker.pkg.dev
+cd beam/learning/tour-of-beam/backend
 
-gcloud container clusters get-credentials --region $PG_GKE_ZONE $PG_GKE_NAME --project $PROJECT_ID
-
-cd beam/learning/tour-of-beam/terraform
-
-gcloud datastore indexes create ../backend/internal/storage/index.yaml
-
-terraform init -backend-config="bucket=${STATE_BUCKET}"
-
-terraform apply -auto-approve -var "pg_router_host=$(kubectl get svc -l app=backend-router-grpc -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}:{.items[0].spec.ports[0].port}')"
-
-cd ../../../
-
-export QUALIFIED_WEB_APP_ID=${WEB_APP_ID}-${TF_VAR_environment}
-
-./gradlew learning:tour-of-beam:terraform:InitFrontend -Pregion=$PG_REGION -Pproject_id=$TF_VAR_project_id -Pproject_environment=$TF_VAR_environment -Pdns-name=$DNS_NAME -Pwebapp_id=$QUALIFIED_WEB_APP_ID
+go run ./cmd/ci_cd/ci_cd.go
