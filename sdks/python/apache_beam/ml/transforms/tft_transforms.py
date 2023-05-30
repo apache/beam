@@ -14,12 +14,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, List, Optional
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Optional
 
 from apache_beam.ml.transforms.base import _BaseOperation
 import tensorflow as tf
 import tensorflow_transform as tft
-from tensorflow_transform import analyzers, common_types, tf_utils
+from tensorflow_transform import analyzers
+from tensorflow_transform import common_types
+from tensorflow_transform import tf_utils
 
 __all__ = [
     'compute_and_apply_vocabulary',
@@ -31,7 +36,8 @@ __all__ = [
 
 
 class _TFTOperation(_BaseOperation):
-  def __init__(self, columns, *args, **kwargs):
+  def __init__(
+      self, columns, save_result=False, output_name=None, *args, **kwargs):
     """
     When subclassing _TFTOperation, please make sure
     positional arguments are part of the instance variables.
@@ -41,10 +47,19 @@ class _TFTOperation(_BaseOperation):
     self._kwargs = kwargs
     self.has_artifacts = False
 
+    self._save_result = save_result
+    self._output_name = output_name
     if not columns:
       raise RuntimeError(
           "Columns are not specified. Please specify the column for the "
           " op %s" % self)
+
+    if self._save_result and not self._output_name:
+      raise RuntimeError(
+          "Inplace is set to True. "
+          "but output name in which transformed data is stored"
+          " is not specified. Please specify the output name for "
+          " the op %s" % self)
 
   def apply(self, inputs, *args, **kwargs):
     raise NotImplementedError

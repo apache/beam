@@ -19,22 +19,47 @@ from typing import NamedTuple
 from typing import List
 from typing import Union
 
+import numpy as np
+from parameterized import parameterized
 import unittest
 
 import apache_beam as beam
 from apache_beam.ml.transforms import base
 from apache_beam.ml.transforms import handlers
+from apache_beam.ml.transforms import tft_transforms
 from apache_beam.testing.test_pipeline import TestPipeline
-import numpy as np
 import tensorflow as tf
 
 
-class _FakeOperation(base._BaseOperation):
+class _FakeOperation(tft_transforms._TFTOperation):
   def __init__(self, name, *args, **kwargs):
+    super().__init__(*args, **kwargs)
     self.name = name
 
   def apply(self, inputs, *args, **kwargs):
     return inputs
+
+
+class _AddOperation(tft_transforms._TFTOperation):
+  def apply(self, inputs, *args, **kwargs):
+    return inputs + 1
+
+
+class _MultiplyOperation(tft_transforms._TFTOperation):
+  def apply(self, inputs, *args, **kwargs):
+    return inputs * 10
+
+
+class _FakeOperationWithArtifacts(tft_transforms._TFTOperation):
+  def __init__(self, *args, **kwargs):
+    super().__init__(*args, **kwargs)
+    self.has_artifacts = True
+
+  def apply(self, inputs, *args, **kwargs):
+    return inputs
+
+  def get_analyzer_artifacts(self, data, col_name):
+    return {'artifact': 1}
 
 
 class UnBatchedIntType(NamedTuple):
@@ -49,13 +74,58 @@ class ProcessHandlerTests(unittest.TestCase):
   def setUp(self) -> None:
     self.pipeline = TestPipeline()
 
+  @parameterized.expand([
+      ({
+          'x': 1, 'y': 2
+      }, ['x'], {
+          'x': 20, 'y': 2
+      }),
+      ({
+          'x': 1, 'y': 2
+      }, ['x', 'y'], {
+          'x': 20, 'y': 30
+      }),
+  ])
+  def test_tft_operation_preprocessing_fn(
+      self, inputs, columns, expected_result):
+    add_fn = _AddOperation(columns=columns)
+    mul_fn = _MultiplyOperation(columns=columns)
+    process_handler = handlers.TFTProcessHandlerDict(
+        transforms=[add_fn, mul_fn])
+
+    actual_result = process_handler.preprocessing_fn(inputs)
+    self.assertDictEqual(actual_result, expected_result)
+
+  def test_tft_operation_save_intermediate_result(self):
+    fake_fn_1 = _FakeOperation(
+        columns=['x'],
+        name='fake_fn_1',
+        save_result=True,
+        output_name='x_fake_fn_1')
+    fake_fn_2 = _FakeOperation(columns=['x'], name='fake_fn_2')
+    process_handler = handlers.TFTProcessHandlerDict(
+        transforms=[fake_fn_1, fake_fn_2])
+
+    inputs = {'x': [1, 2, 3]}
+    actual_result = process_handler.preprocessing_fn(inputs)
+    expected_result = {'x': [1, 2, 3], 'x_fake_fn_1': [1, 2, 3]}
+    self.assertDictEqual(actual_result, expected_result)
+
+  def test_preprocessing_fn_with_artifacts(self):
+    process_handler = handlers.TFTProcessHandlerDict(
+        transforms=[_FakeOperationWithArtifacts(columns=['x'])])
+    inputs = {'x': [1, 2, 3]}
+    actual_result = process_handler.preprocessing_fn(inputs)
+    expected_result = {'x': [1, 2, 3], 'artifact': 1}
+    self.assertDictEqual(actual_result, expected_result)
+
   def test_ml_transform_appends_transforms_to_process_handler_correctly(self):
-    fake_fn_1 = _FakeOperation(name='fake_fn_1')
+    fake_fn_1 = _FakeOperation(name='fake_fn_1', columns=['x'])
     transforms = [fake_fn_1]
     process_handler = handlers.TFTProcessHandlerDict(transforms=transforms)
     ml_transform = base.MLTransform(process_handler=process_handler)
     ml_transform = ml_transform.with_transform(
-        transform=_FakeOperation(name='fake_fn_2'))
+        transform=_FakeOperation(name='fake_fn_2', columns=['x']))
 
     self.assertEqual(len(ml_transform._process_handler.transforms), 2)
     self.assertEqual(

@@ -15,7 +15,10 @@
 # limitations under the License.
 
 import typing
-from typing import Dict, Optional, TypeVar, Generic
+from typing import Dict
+from typing import Optional
+from typing import TypeVar
+from typing import Generic
 
 import apache_beam as beam
 
@@ -52,6 +55,7 @@ class _BaseOperation():
     raise NotImplementedError
 
 
+# TODO: Add metrics namespace.
 class MLTransformOutput(typing.NamedTuple):
   transformed_data: TransformedDatasetT
   transformed_metadata: Optional[TransformedMetadataT] = None
@@ -110,3 +114,6 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
     """
     self._process_handler.transforms.append(transform)
     return self
+
+  def get_metrics_namespace(self):
+    return "MLTransform"

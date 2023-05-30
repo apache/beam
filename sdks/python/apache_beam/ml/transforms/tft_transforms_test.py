@@ -15,20 +15,19 @@
 # limitations under the License.
 #
 
-import unittest
 from typing import List
 from typing import NamedTuple
 
+import numpy as np
 from parameterized import parameterized
+import unittest
 
 import apache_beam as beam
 from apache_beam.ml.transforms import base
 from apache_beam.ml.transforms import tft_transforms
-from apache_beam.ml.transforms.tft_transforms import scale_to_z_score
 from apache_beam.ml.transforms import handlers
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-import numpy as np
 
 
 class MyTypesUnbatched(NamedTuple):
@@ -91,7 +90,7 @@ class ScaleZScoreTest(unittest.TestCase):
               MyTypesUnbatched)
           | "unbatchedMLTransform" >>
           base.MLTransform(process_handler=process_handler).with_transform(
-              scale_to_z_score(columns=['x'])))
+              tft_transforms.scale_to_z_score(columns=['x'])))
       _ = (
           unbatched_result
           | beam.Map(lambda x: x.transformed_data)
@@ -108,7 +107,7 @@ class ScaleZScoreTest(unittest.TestCase):
               MyTypesBatched)
           | "batchedMLTransform" >>
           base.MLTransform(process_handler=process_handler).with_transform(
-              scale_to_z_score(columns=['x'])))
+              tft_transforms.scale_to_z_score(columns=['x'])))
       _ = (
           batched_result
           | beam.Map(lambda x: x.transformed_data)

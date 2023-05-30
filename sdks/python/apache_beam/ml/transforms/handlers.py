@@ -17,19 +17,25 @@
 
 import tempfile
 import typing
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Tuple
+from typing import Union
+
+import numpy as np
 
 import apache_beam as beam
-import numpy as np
-import tensorflow as tf
-import tensorflow_transform.beam as tft_beam
 from apache_beam.ml.transforms.base import MLTransformOutput
 from apache_beam.ml.transforms.base import ProcessHandler
 from apache_beam.ml.transforms.base import ProcessInputT
 from apache_beam.ml.transforms.base import ProcessOutputT
+from apache_beam.ml.transforms.tft_transforms import _TFTOperation
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.typehints import native_type_compatibility
 from apache_beam.typehints.row_type import RowTypeConstraint
+import tensorflow as tf
+import tensorflow_transform.beam as tft_beam
 from tensorflow_transform import common_types
 from tensorflow_transform.beam.tft_beam_io import transform_fn_io
 from tensorflow_transform.tf_metadata import dataset_metadata
@@ -82,13 +88,15 @@ class ConvertNamedTupleToDict(
       return pcoll | beam.Map(lambda x: x._asdict())
 
 
+# TODO: Add metrics namespace.
 class TFTProcessHandler(ProcessHandler[ProcessInputT, ProcessOutputT]):
   def __init__(
       self,
       *,
       input_types: Optional[Dict[str, type]] = None,
       output_record_batches=False,
-      transforms=None,
+      transforms: List[_TFTOperation] = None,
+      namespace: str = 'TFTProcessHandler',
   ):
     """
     A handler class for processing data with TensorFlow Transform (TFT)
@@ -103,6 +111,7 @@ class TFTProcessHandler(ProcessHandler[ProcessInputT, ProcessOutputT]):
         are applied in the order they are specified. The input of the
         i-th transform is the output of the (i-1)-th transform. Multi-input
         transforms are not supported yet.
+      namespace: A metrics namespace for the TFTProcessHandler.
     """
     super().__init__()
     self._input_types = input_types
@@ -110,6 +119,7 @@ class TFTProcessHandler(ProcessHandler[ProcessInputT, ProcessOutputT]):
     self._input_types = input_types
     self._output_record_batches = output_record_batches
     self._artifact_location = None
+    self._namespace = namespace
 
   def get_raw_data_feature_spec(
       self, input_types: Dict[str, type]) -> dataset_metadata.DatasetMetadata:
@@ -320,13 +330,16 @@ class TFTProcessHandlerDict(
               inputs[col], col_name=col)
           for key, value in artifacts.items():
             outputs[key] = value
-        outputs[col] = transform.apply(inputs[col])
+        intermediate_result = transform.apply(outputs[col])
+        if transform._save_result:
+          outputs[transform._output_name] = intermediate_result
+        outputs[col] = intermediate_result
     return outputs
 
-  def _get_ptransform(self):
+  def _get_processing_data_ptransform(self, raw_data_metadata):
     """
     Return a PTransform object that has the preprocessing logic
-    for the AnalyzeAndTransformDataset step.
+    using the AnalyzeAndTransformDataset step.
     """
     @beam.ptransform_fn
     def ptransform_fn(
@@ -338,23 +351,6 @@ class TFTProcessHandlerDict(
       Returns:
         A PCollection of MLTransformOutput.
       """
-
-      element_type = raw_data.element_type
-      input_types = self.get_input_types(element_type=element_type)
-
-      if not self._validate_input_types(input_types):
-        raise RuntimeError(
-            "Unable to infer schema. Please pass a schema'd PCollection")
-
-      metadata = self.get_metadata(input_types=input_types)
-
-      # AnalyzeAndTransformDataset raise type hint since we only accept
-      #  schema'd PCollection and the current output type would be a
-      #  custom type(NamedTuple) or a beam.Row type.
-      output_type = self.infer_output_type(element_type)
-      raw_data = (
-          raw_data | ConvertNamedTupleToDict().with_output_types(output_type))
-
       # According to
       # https://www.tensorflow.org/tfx/transform/api_docs/python/tft_beam/Context # pylint: disable=line-too-long
       # context location should be on accessible by all workers.
@@ -364,7 +360,7 @@ class TFTProcessHandlerDict(
 
       self._artifact_location = self._get_artifact_location(raw_data.pipeline)
       with tft_beam.Context(temp_dir=self._artifact_location):
-        data = (raw_data, metadata)
+        data = (raw_data, raw_data_metadata)
         (transformed_dataset, transformed_metadata), transform_fn = (
         data
         | "AnalyzeAndTransformDataset"  >> tft_beam.AnalyzeAndTransformDataset(
@@ -384,7 +380,21 @@ class TFTProcessHandlerDict(
   def process_data(
       self, pcoll: beam.PCollection[tft_process_handler_dict_input_type]
   ) -> beam.PCollection[MLTransformOutput]:
-    return pcoll | self._get_ptransform()
+    element_type = pcoll.element_type
+    input_types = self.get_input_types(element_type=element_type)
+
+    if not self._validate_input_types(input_types):
+      raise RuntimeError(
+          "Unable to infer schema. Please pass a schema'd PCollection")
+
+    # AnalyzeAndTransformDataset raise type hint since we only accept
+    #  schema'd PCollection and the current output type would be a
+    #  custom type(NamedTuple) or a beam.Row type.
+    output_type = self.infer_output_type(element_type)
+    raw_data = (
+        pcoll | ConvertNamedTupleToDict().with_output_types(output_type))
+    raw_data_metadata = self.get_metadata(input_types=input_types)
+    return raw_data | self._get_processing_data_ptransform(raw_data_metadata)
 
   def convert_to_ml_transform_output(self, element, metadata, asset_map):
     return MLTransformOutput(
