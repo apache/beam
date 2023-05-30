@@ -16,20 +16,20 @@ limitations under the License. See accompanying LICENSE file.
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="X-UA-Compatible" content="ie=edge" />
-  <title>Beam Prism Jobs</title>
+  <title>Job Details - Beam Prism</title>
   <link rel="stylesheet" href="/assets/style.css" />
-  <meta http-equiv="refresh" content="3"> {{/* refresh page every 3 seconds */}}
+  <meta http-equiv="refresh" content="5"> {{/* refresh page every 5 seconds */}}
 </head>
 
 <body>
   <main>
     <header>
-      <a class="logo" href="/">Beam Prism Jobs Console</a>
+      <a class="logo" href="/">Jobs Console - Beam Prism</a>
     </header>
     <section class="container">
       {{.Title}}<br />
       {{.WelcomeMessage}}<br />
-      <table class="job-list">
+      <table class="main-table">
         <thead>
           <td>ID</td>
           <td>Name</td>
@@ -37,9 +37,13 @@ limitations under the License. See accompanying LICENSE file.
         </thead>
         {{ range .Jobs }}
         <tr class="job-summary">
-          <td class="jobid">{{ .JobId }}</td>
+          <td class="jobid"><a href="job/{{ .JobId }}">{{ .JobId }}</a></td>
           <td class="jobname">{{ .JobName }}</td>
           <td class="state">{{ .State }}</td>
+        </tr>
+        {{ else }}
+        <tr class="job-summary">
+          <td>No jobs have been run.</td>
         </tr>
         {{ end }}
       </table>

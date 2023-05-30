@@ -1,0 +1,84 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License. See accompanying LICENSE file.
+*/}}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Jobs Console - Beam Prism</title>
+    <link rel="stylesheet" href="/assets/style.css" />
+    <meta http-equiv="refresh" content="10"> {{/* refresh page every 10 seconds */}}
+</head>
+
+<body>
+    <main>
+        <header>
+            <a class="logo" href="/">Job Details - Beam Prism</a>
+        </header>
+        <section class="container">
+            {{.Title}}<br />
+            {{.WelcomeMessage}}<br />
+            <table class="main-table">
+                <thead>
+                    <td>Name</td>
+                    <td>Metrics</td>
+                </thead>
+                {{ range .Transforms }}
+                <tr class="transform-summary">
+                    <td class="transform-name">{{ .Transform.UniqueName }}</td>
+                    <td class="metrics">
+                        {{ range .Metrics }}
+                         {{.}} <br/>
+                        {{else}}
+                        None
+                        {{end}}
+                    </td>
+                </tr>
+                {{ else }}
+                <tr class="transform-summary">
+                    Pipeline has no transforms. 
+                </tr>
+                {{ end }}
+            </table>
+            <h3>PCollection Metrics</h3>
+            <table class="main-table">
+                <thead>
+                    <td>Name</td>
+                    <td>ElementCount</td>
+                    <td>SampledByteSize</td>
+                </thead>
+                {{ range .PCols }}
+                <tr class="pcollection-summary">
+                    <td>{{ .Key.Step }}</td>
+                    <td>
+                        {{ .Committed.ElementCount }} ({{ .Attempted.ElementCount }})
+                    </td>
+                    <td>
+                        {{with .Committed.SampledByteSize}}
+                        Count: {{ .Count }} Sum {{ .Sum }} Min:{{ .Min }} Max:{{ .Max }}
+                        {{end}}
+                        {{with .Attempted.SampledByteSize}}
+                        <br/>(Count: {{ .Count }} Sum {{ .Sum }} Min:{{ .Min }} Max:{{ .Max }})
+                        {{end}}
+                    </td>
+                </tr>
+                {{ else }}
+                <tr class="transform-summary">
+                    <td>Pipeline has no pcollection metrics. </td>
+                </tr>
+                {{ end }}
+            </table>
+        </section>
+    </main>
+</body>

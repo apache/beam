@@ -113,7 +113,7 @@ header {
     margin-right: 20px;
 }
 
-.job-list {
+.main-table {
     border-collapse: collapse;
     margin: 25px 0;
     font-size: 0.9em;
@@ -122,14 +122,14 @@ header {
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
 }
 
-.job-list thead tr {
+.main-table thead tr {
     background-color: #009879;
     color: #ffffff;
     text-align: left;
 }
 
-.job-list th,
-.job-list td {
+.main-table th,
+.main-table td {
     padding: 12px 15px;
 }
 
