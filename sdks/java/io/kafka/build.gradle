@@ -62,7 +62,7 @@ dependencies {
   implementation library.java.joda_time
   implementation library.java.jackson_annotations
   implementation library.java.jackson_databind
-  implementation "org.springframework:spring-expression:5.3.25"
+  implementation "org.springframework:spring-expression:5.3.27"
   implementation ("io.confluent:kafka-avro-serializer:5.3.2") {
     // zookeeper depends on "spotbugs-annotations:3.1.9" which clashes with current
     // "spotbugs-annotations:3.1.12" used in Beam. Not required.

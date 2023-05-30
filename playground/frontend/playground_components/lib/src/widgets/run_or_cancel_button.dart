@@ -24,6 +24,7 @@ import '../controllers/playground_controller.dart';
 import '../models/toast.dart';
 import '../models/toast_type.dart';
 import '../playground_components.dart';
+import '../repositories/models/run_code_result.dart';
 import 'run_button.dart';
 
 class RunOrCancelButton extends StatelessWidget {
@@ -49,11 +50,13 @@ class RunOrCancelButton extends StatelessWidget {
               (_) => PlaygroundComponents.toastNotifier.add(_getErrorToast()),
             );
       },
-      runCode: () {
+      runCode: () async {
         beforeRun?.call();
-        playgroundController.codeRunner.runCode(
-          onFinish: () => onComplete?.call(playgroundController.codeRunner),
-        );
+        final runner = playgroundController.codeRunner;
+        await runner.runCode();
+        if (runner.result?.status == RunCodeStatus.finished) {
+          onComplete?.call(playgroundController.codeRunner);
+        }
       },
     );
   }

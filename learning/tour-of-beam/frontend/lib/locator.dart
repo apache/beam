@@ -57,7 +57,6 @@ Future<void> _initializeRepositories() async {
   final exampleClient = GrpcExampleClient(url: routerUrl);
 
   GetIt.instance.registerSingleton<CodeClient>(codeClient);
-  GetIt.instance.registerSingleton(CodeRepository(client: codeClient));
   GetIt.instance.registerSingleton<ExampleClient>(exampleClient);
   GetIt.instance.registerSingleton(ExampleRepository(client: exampleClient));
 }
