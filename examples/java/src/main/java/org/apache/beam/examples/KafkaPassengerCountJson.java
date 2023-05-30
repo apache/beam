@@ -78,7 +78,7 @@ public class KafkaPassengerCountJson {
 
   public static void main(String[] args) {
 
-    PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
+    KafkaStreamingOptions options = PipelineOptionsFactory.fromArgs(args).create();
     Pipeline p = Pipeline.create(options);
     Map<String, Object> consumerConfig = new HashMap<>();
     consumerConfig.put("auto.offset.reset", "earliest");

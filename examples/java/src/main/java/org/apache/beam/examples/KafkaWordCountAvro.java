@@ -76,7 +76,7 @@ public class KafkaWordCountAvro {
   }
 
   public static void main(String[] args) {
-    final PipelineOptions options = PipelineOptionsFactory.create();
+    final KafkaStreamingOptions options = PipelineOptionsFactory.create();
     final Pipeline p = Pipeline.create(options);
 
     final Map<String, Object> consumerConfig = new HashMap<>();
