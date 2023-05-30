@@ -20,73 +20,58 @@ package org.apache.beam.runners.dataflow.util;
 import org.apache.avro.Schema;
 import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
-import org.apache.beam.sdk.extensions.avro.coders.AvroGenericCoder;
-import org.apache.beam.sdk.extensions.avro.coders.AvroReflectCoder;
-import org.apache.beam.sdk.extensions.avro.coders.AvroSpecificCoder;
+import org.apache.beam.sdk.extensions.avro.io.AvroDatumFactory;
+import org.apache.beam.sdk.util.SerializableUtils;
+import org.apache.beam.sdk.util.StringUtils;
 
 /** A {@link CloudObjectTranslator} for {@link AvroCoder}. */
 @SuppressWarnings({
   "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
-class AvroCoderCloudObjectTranslator<T extends AvroCoder> implements CloudObjectTranslator<T> {
-
-  public interface AvroCoderFactory<T> {
-    T apply(Class<?> type, Schema schema);
-  }
-
-  public static AvroCoderCloudObjectTranslator<AvroGenericCoder> generic() {
-    return new AvroCoderCloudObjectTranslator<>(
-        AvroGenericCoder.class, (t, s) -> AvroGenericCoder.of(s));
-  }
-
-  public static AvroCoderCloudObjectTranslator<AvroSpecificCoder> specific() {
-    return new AvroCoderCloudObjectTranslator<>(AvroSpecificCoder.class, AvroSpecificCoder::of);
-  }
-
-  public static AvroCoderCloudObjectTranslator<AvroReflectCoder> reflect() {
-    return new AvroCoderCloudObjectTranslator<>(AvroReflectCoder.class, AvroReflectCoder::of);
-  }
-
+class AvroCoderCloudObjectTranslator implements CloudObjectTranslator<AvroCoder> {
   private static final String TYPE_FIELD = "type";
   private static final String SCHEMA_FIELD = "schema";
-
-  private final Class<T> coderClass;
-  private final AvroCoderFactory<T> factory;
-
-  public AvroCoderCloudObjectTranslator(Class<T> coderClass, AvroCoderFactory<T> factory) {
-    this.coderClass = coderClass;
-    this.factory = factory;
-  }
+  private static final String DATUM_FACTORY_FIELD = "datum_factory";
 
   @Override
-  public CloudObject toCloudObject(T target, SdkComponents sdkComponents) {
-    CloudObject base = CloudObject.forClass(target.getClass());
+  public CloudObject toCloudObject(AvroCoder target, SdkComponents sdkComponents) {
+    CloudObject base = CloudObject.forClass(AvroCoder.class);
     Structs.addString(base, SCHEMA_FIELD, target.getSchema().toString());
     Structs.addString(base, TYPE_FIELD, target.getType().getName());
+    byte[] serializedDatumFactory =
+        SerializableUtils.serializeToByteArray(target.getDatumFactory());
+    Structs.addString(
+        base, DATUM_FACTORY_FIELD, StringUtils.byteArrayToJsonString(serializedDatumFactory));
     return base;
   }
 
   @Override
-  public T fromCloudObject(CloudObject cloudObject) {
+  public AvroCoder fromCloudObject(CloudObject cloudObject) {
     Schema.Parser parser = new Schema.Parser();
     String className = Structs.getString(cloudObject, TYPE_FIELD);
     String schemaString = Structs.getString(cloudObject, SCHEMA_FIELD);
+    byte[] deserializedDatumFactory =
+        StringUtils.jsonStringToByteArray(Structs.getString(cloudObject, DATUM_FACTORY_FIELD));
     try {
-      Class<?> type = Class.forName(className);
+      Class type = Class.forName(className);
       Schema schema = parser.parse(schemaString);
-      return factory.apply(type, schema);
+      AvroDatumFactory datumFactory =
+          (AvroDatumFactory)
+              SerializableUtils.deserializeFromByteArray(
+                  deserializedDatumFactory, DATUM_FACTORY_FIELD);
+      return AvroCoder.of(type, schema, datumFactory);
     } catch (ClassNotFoundException e) {
       throw new IllegalArgumentException(e);
     }
   }
 
   @Override
-  public Class<? extends T> getSupportedClass() {
-    return coderClass;
+  public Class<? extends AvroCoder> getSupportedClass() {
+    return AvroCoder.class;
   }
 
   @Override
   public String cloudObjectClassName() {
-    return CloudObject.forClass(coderClass).getClassName();
+    return CloudObject.forClass(AvroCoder.class).getClassName();
   }
 }

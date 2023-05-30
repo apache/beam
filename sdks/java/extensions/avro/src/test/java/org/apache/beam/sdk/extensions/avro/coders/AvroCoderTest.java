@@ -273,7 +273,7 @@ public class AvroCoderTest {
   @Test
   public void testKryoSerialization() throws Exception {
     Pojo value = new Pojo("Hello", 42, DATETIME_A);
-    AvroCoder<Pojo> coder = AvroReflectCoder.of(Pojo.class);
+    AvroCoder<Pojo> coder = AvroCoder.reflect(Pojo.class);
 
     // Kryo instantiation
     Kryo kryo = new Kryo();
@@ -312,7 +312,7 @@ public class AvroCoderTest {
   @Test
   public void testPojoEncoding() throws Exception {
     Pojo value = new Pojo("Hello", 42, DATETIME_A);
-    AvroCoder<Pojo> coder = AvroReflectCoder.of(Pojo.class);
+    AvroCoder<Pojo> coder = AvroCoder.reflect(Pojo.class);
 
     CoderProperties.coderDecodeEncodeEqual(coder, value);
   }
@@ -324,7 +324,7 @@ public class AvroCoderTest {
       AVRO_SPECIFIC_RECORD.setMap(ImmutableMap.of());
     }
     AvroCoder<TestAvro> coder =
-        AvroSpecificCoder.of(TestAvro.class, AVRO_SPECIFIC_RECORD.getSchema());
+        AvroCoder.specific(TestAvro.class, AVRO_SPECIFIC_RECORD.getSchema());
 
     assertTrue(SpecificRecord.class.isAssignableFrom(coder.getType()));
     CoderProperties.coderDecodeEncodeEqual(coder, AVRO_SPECIFIC_RECORD);
@@ -338,9 +338,9 @@ public class AvroCoderTest {
 
   @Test
   public void testReflectRecordEncoding() throws Exception {
-    AvroCoder<TestAvro> coder = AvroReflectCoder.of(TestAvro.class);
+    AvroCoder<TestAvro> coder = AvroCoder.reflect(TestAvro.class);
     AvroCoder<TestAvro> coderWithSchema =
-        AvroReflectCoder.of(TestAvro.class, AVRO_SPECIFIC_RECORD.getSchema());
+        AvroCoder.reflect(TestAvro.class, AVRO_SPECIFIC_RECORD.getSchema());
 
     assertTrue(SpecificRecord.class.isAssignableFrom(coder.getType()));
     assertTrue(SpecificRecord.class.isAssignableFrom(coderWithSchema.getType()));
@@ -415,7 +415,7 @@ public class AvroCoderTest {
 
   @Test
   public void testAvroSpecificCoderIsSerializable() throws Exception {
-    AvroCoder<TestAvro> coder = AvroSpecificCoder.of(TestAvro.class);
+    AvroCoder<TestAvro> coder = AvroCoder.specific(TestAvro.class);
 
     // Check that the coder is serializable using the regular JSON approach.
     SerializableUtils.ensureSerializable(coder);
@@ -423,7 +423,7 @@ public class AvroCoderTest {
 
   @Test
   public void testAvroReflectCoderIsSerializable() throws Exception {
-    AvroCoder<Pojo> coder = AvroReflectCoder.of(Pojo.class);
+    AvroCoder<Pojo> coder = AvroCoder.reflect(Pojo.class);
 
     // Check that the coder is serializable using the regular JSON approach.
     SerializableUtils.ensureSerializable(coder);

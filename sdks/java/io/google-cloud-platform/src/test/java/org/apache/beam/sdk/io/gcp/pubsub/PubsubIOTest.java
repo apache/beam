@@ -50,8 +50,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
-import org.apache.beam.sdk.extensions.avro.coders.AvroReflectCoder;
-import org.apache.beam.sdk.extensions.avro.coders.AvroSpecificCoder;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.Primitive;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoDomain;
@@ -594,7 +592,7 @@ public class PubsubIOTest {
 
   @Test
   public void testAvroPojo() {
-    AvroCoder<ReflectClass> coder = AvroReflectCoder.of(ReflectClass.class);
+    AvroCoder<ReflectClass> coder = AvroCoder.reflect(ReflectClass.class);
     List<ReflectClass> inputs =
         Lists.newArrayList(
             new ReflectClass(
@@ -614,7 +612,7 @@ public class PubsubIOTest {
 
   @Test
   public void testAvroSpecificRecord() {
-    AvroCoder<AvroGeneratedUser> coder = AvroSpecificCoder.of(AvroGeneratedUser.class);
+    AvroCoder<AvroGeneratedUser> coder = AvroCoder.specific(AvroGeneratedUser.class);
     List<AvroGeneratedUser> inputs =
         ImmutableList.of(
             new AvroGeneratedUser("Bob", 256, null),

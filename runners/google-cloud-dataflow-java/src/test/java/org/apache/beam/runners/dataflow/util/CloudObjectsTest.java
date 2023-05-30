@@ -52,9 +52,7 @@ import org.apache.beam.sdk.coders.SetCoder;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.TimestampPrefixingWindowCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
-import org.apache.beam.sdk.extensions.avro.coders.AvroGenericCoder;
-import org.apache.beam.sdk.extensions.avro.coders.AvroReflectCoder;
-import org.apache.beam.sdk.extensions.avro.coders.AvroSpecificCoder;
+import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.extensions.avro.io.AvroGeneratedUser;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -158,9 +156,9 @@ public class CloudObjectsTest {
               .add(ByteArrayCoder.of())
               .add(VarLongCoder.of())
               .add(SerializableCoder.of(Record.class))
-              .add(AvroGenericCoder.of(avroSchema))
-              .add(AvroSpecificCoder.of(AvroGeneratedUser.class))
-              .add(AvroReflectCoder.of(Record.class))
+              .add(AvroCoder.generic(avroSchema))
+              .add(AvroCoder.specific(AvroGeneratedUser.class))
+              .add(AvroCoder.reflect(Record.class))
               .add(CollectionCoder.of(VarLongCoder.of()))
               .add(ListCoder.of(VarLongCoder.of()))
               .add(SetCoder.of(VarLongCoder.of()))

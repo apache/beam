@@ -36,10 +36,55 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public abstract class AvroDatumFactory<T>
     implements AvroSource.DatumReaderFactory<T>, AvroSink.DatumWriterFactory<T> {
 
+  /** Returns an {@link AvroDatumFactory} instance for GenericRecord. */
+  public static AvroDatumFactory<GenericRecord> generic() {
+    return GenericDatumFactory.INSTANCE;
+  }
+
+  /**
+   * Returns an {@link AvroDatumFactory} instance for the provided element type respecting Avro's
+   * Specific* suite for encoding and decoding.
+   */
+  public static <T> AvroDatumFactory<T> specific(Class<T> type) {
+    return new SpecificDatumFactory<>(type);
+  }
+
+  /**
+   * Returns an {@link AvroDatumFactory} instance for the provided element type respecting Avro's
+   * Reflect* suite for encoding and decoding.
+   */
+  public static <T> AvroDatumFactory<T> reflect(Class<T> type) {
+    return new ReflectDatumFactory<>(type);
+  }
+
+  /** Returns an {@link AvroDatumFactory} instance for the provided element type. */
+  public static <T> AvroDatumFactory<T> of(Class<T> type) {
+    return of(type, true);
+  }
+
+  /**
+   * Returns an {@link AvroDatumFactory} instance for the provided element type respecting Avro's
+   * Reflect* or Specific* suite for encoding and decoding.
+   */
+  public static <T> AvroDatumFactory<T> of(Class<T> type, boolean useReflectApi) {
+    if (GenericRecord.class.equals(type)) {
+      return (AvroDatumFactory<T>) AvroDatumFactory.GenericDatumFactory.INSTANCE;
+    } else if (SpecificRecord.class.isAssignableFrom(type) && !useReflectApi) {
+      return new AvroDatumFactory.SpecificDatumFactory<>(type);
+    } else {
+      return new AvroDatumFactory.ReflectDatumFactory<>(type);
+    }
+  }
+
   protected final Class<T> type;
 
   public AvroDatumFactory(Class<T> type) {
     this.type = type;
+  }
+
+  /** Returns the type for the datum factory */
+  public Class<T> getType() {
+    return type;
   }
 
   @Override
@@ -146,20 +191,6 @@ public abstract class AvroDatumFactory<T>
 
     public static <T> ReflectDatumFactory<T> of(Class<T> type) {
       return new ReflectDatumFactory<>(type);
-    }
-  }
-
-  public static <T> AvroDatumFactory<T> of(Class<T> type) {
-    return of(type, true);
-  }
-
-  public static <T> AvroDatumFactory<T> of(Class<T> type, boolean useReflectApi) {
-    if (GenericRecord.class.equals(type)) {
-      return (AvroDatumFactory<T>) AvroDatumFactory.GenericDatumFactory.INSTANCE;
-    } else if (SpecificRecord.class.isAssignableFrom(type) && !useReflectApi) {
-      return new AvroDatumFactory.SpecificDatumFactory<>(type);
-    } else {
-      return new AvroDatumFactory.ReflectDatumFactory<>(type);
     }
   }
 }
