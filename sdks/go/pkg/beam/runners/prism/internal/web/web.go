@@ -52,6 +52,20 @@ var (
 	jobPage   = template.Must(template.New("job").Parse(jobTemplate))
 )
 
+type pTransform struct {
+	ID        string
+	Transform *pipepb.PTransform
+	Metrics   []string
+}
+
+type errorHolder struct {
+	Error string
+}
+
+func (jd *errorHolder) SetError(err error) {
+	jd.Error = err.Error()
+}
+
 type errorSetter interface {
 	SetError(err error)
 }
@@ -64,18 +78,13 @@ func renderPage(page *template.Template, data errorSetter, w http.ResponseWriter
 	w.Write(buf.Bytes())
 }
 
-type Tforms struct {
-	ID        string
-	Transform *pipepb.PTransform
-	Metrics   []string
-}
-
 type jobDetailsData struct {
 	JobID, JobName string
-	Error          string
-	Transforms     []Tforms
+	Transforms     []pTransform
 	PCols          map[metrics.StepKey]metrics.PColResult
 	DisplayData    []*pipepb.LabelledPayload
+
+	errorHolder
 }
 
 func (jd *jobDetailsData) SetError(err error) {
@@ -159,7 +168,7 @@ func (h *jobDetailsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	data.PCols = pcols
 	trs := pipeResp.GetPipeline().GetComponents().GetTransforms()
-	data.Transforms = make([]Tforms, 0, len(trs))
+	data.Transforms = make([]pTransform, 0, len(trs))
 	for id, pt := range pipeResp.GetPipeline().GetComponents().GetTransforms() {
 		if len(pt.GetSubtransforms()) > 0 {
 			continue
@@ -173,7 +182,7 @@ func (h *jobDetailsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		data.Transforms = append(data.Transforms, Tforms{
+		data.Transforms = append(data.Transforms, pTransform{
 			ID:        id,
 			Transform: pt,
 			Metrics:   strMets,
@@ -192,12 +201,9 @@ type jobsConsoleHandler struct {
 }
 
 type jobsConsoleData struct {
-	Error string
-	Jobs  []*jobpb.JobInfo
-}
+	Jobs []*jobpb.JobInfo
 
-func (jd *jobsConsoleData) SetError(err error) {
-	jd.Error = err.Error()
+	errorHolder
 }
 
 func (h *jobsConsoleHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
