@@ -14,9 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import typing
-from typing import Dict
-from typing import Optional
 from typing import TypeVar
 from typing import Generic
 
@@ -26,7 +23,7 @@ import apache_beam as beam
 # https://github.com/uqfoundation/dill/issues/332
 # import abc
 
-__all__ = ['MLTransform', 'MLTransformOutput', 'ProcessHandler']
+__all__ = ['MLTransform', 'ProcessHandler']
 
 TransformedDatasetT = TypeVar('TransformedDatasetT')
 TransformedMetadataT = TypeVar('TransformedMetadataT')
@@ -56,10 +53,10 @@ class _BaseOperation():
 
 
 # TODO: Add metrics namespace.
-class MLTransformOutput(typing.NamedTuple):
-  transformed_data: TransformedDatasetT
-  transformed_metadata: Optional[TransformedMetadataT] = None
-  asset_map: Optional[Dict[str, str]] = None
+# class MLTransformOutput(typing.NamedTuple):
+#   transformed_data: TransformedDatasetT
+#   transformed_metadata: Optional[TransformedMetadataT] = None
+#   asset_map: Optional[Dict[str, str]] = None
 
 
 class ProcessHandler(Generic[ProcessInputT, ProcessOutputT]):

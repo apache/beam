@@ -70,7 +70,11 @@ class BatchedIntType(NamedTuple):
   x: List[int]
 
 
-class ProcessHandlerTests(unittest.TestCase):
+class BatchedNumpyType(NamedTuple):
+  x: np.int64
+
+
+class TFTProcessHandlerDictTest(unittest.TestCase):
   def setUp(self) -> None:
     self.pipeline = TestPipeline()
 
@@ -186,6 +190,23 @@ class ProcessHandlerTests(unittest.TestCase):
     expected_input_type = dict(x=List[int])
     self.assertEqual(inferred_input_type, expected_input_type)
 
+  def test_input_type_from_named_tuple_pcoll_batched_numpy(self):
+    batched = [{
+        'x': np.array([1, 2, 3], dtype=np.int64)
+    }, {
+        'x': np.array([4, 5, 6], dtype=np.int64)
+    }]
+    with beam.Pipeline() as p:
+      data = (
+          p | beam.Create(batched)
+          | beam.Map(lambda x: BatchedNumpyType(**x)).with_output_types(
+              BatchedNumpyType))
+      element_type = data.element_type
+      process_handler = handlers.TFTProcessHandlerDict()
+      inferred_input_type = process_handler.get_input_types(element_type)
+      expected_type = dict(x=np.int64)
+      self.assertEqual(inferred_input_type, expected_type)
+
   def test_input_type_non_schema_pcoll(self):
     non_batched_data = [{'x': 1}]
     with beam.Pipeline() as p:
@@ -210,6 +231,16 @@ class ProcessHandlerTests(unittest.TestCase):
 
   def test_validate_numpy_input_types(self):
     input_types = dict(x=np.int32, y=np.float32, k=np.bytes_, l=np.str_)
+    process_handler = handlers.TFTProcessHandlerDict()
+    is_valid = process_handler._validate_input_types(input_types)
+    self.assertTrue(is_valid)
+
+  def test_validate_numpy_input_types_wrapped_in_numpy_dtype(self):
+    input_types = dict(
+        x=np.dtype('int64'),
+        y=np.dtype('float32'),
+        k=np.dtype('bytes_'),
+        l=np.dtype('str_'))
     process_handler = handlers.TFTProcessHandlerDict()
     is_valid = process_handler._validate_input_types(input_types)
     self.assertTrue(is_valid)
@@ -267,6 +298,41 @@ class ProcessHandlerTests(unittest.TestCase):
       feature_spec = process_handler._get_raw_data_feature_spec_per_column(
           typ=typ, col_name=col_name)
       self.assertEqual(expected_dtype[col_name], feature_spec.dtype)
+
+  def test_tft_process_handler_dict_output_pcoll_schema(self):
+    input_types = dict(x=int, y=float)
+    input_data = [{'x': 1, 'y': 2.0}, {'x': 3, 'y': 4.0}]
+    expected_dtype = dict(
+        x=float, y=float, x_scaled=np.float32, x_min=np.int64, x_max=np.int64)
+
+    transforms = [
+        tft_transforms.scale_to_0_1(
+            columns=['x'], save_result=True, output_name='x_scaled')
+    ]
+    process_handler = handlers.TFTProcessHandlerDict(transforms=transforms)
+    with beam.Pipeline() as p:
+      schema_data = (
+          p
+          | beam.Create(input_data)
+          | beam.Map(lambda x: beam.Row(**x)).with_output_types(
+              beam.row_type.RowTypeConstraint.from_fields(
+                  list(input_types.items()))))
+      transformed_data = (
+          schema_data | base.MLTransform(process_handler=process_handler))
+    for name, typ in transformed_data.element_type._fields:
+      self.assertEqual(expected_dtype[name], typ)
+
+  def test_tft_process_handler_dict_fail_for_non_schema_pcoll(self):
+    transforms = [tft_transforms.scale_to_0_1(columns=['x'])]
+    process_handler = handlers.TFTProcessHandlerDict(transforms=transforms)
+    with beam.Pipeline() as p:
+      with self.assertRaises(TypeError):
+        _ = (
+            p
+            | beam.Create([{
+                'x': 1, 'y': 2.0
+            }])
+            | base.MLTransform(process_handler=process_handler))
 
 
 if __name__ == '__main__':

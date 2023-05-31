@@ -42,6 +42,7 @@ z_score_expected = {'x_mean': 3.5, 'x_var': 2.9166666666666665}
 
 
 def assert_z_score_artifacts(element):
+  element = element.as_dict()
   assert 'x_mean' in element
   assert 'x_var' in element
   assert element['x_mean'] == z_score_expected['x_mean']
@@ -49,6 +50,7 @@ def assert_z_score_artifacts(element):
 
 
 def assert_scale_to_0_1_artifacts(element):
+  element = element.as_dict()
   assert 'x_min' in element
   assert 'x_max' in element
   assert element['x_min'] == 1
@@ -56,6 +58,7 @@ def assert_scale_to_0_1_artifacts(element):
 
 
 def assert_bucketize_artifacts(element):
+  element = element.as_dict()
   assert 'x_quantiles' in element
   assert np.array_equal(
       element['x_quantiles'], np.array([3, 5], dtype=np.float32))
@@ -91,10 +94,7 @@ class ScaleZScoreTest(unittest.TestCase):
           | "unbatchedMLTransform" >>
           base.MLTransform(process_handler=process_handler).with_transform(
               tft_transforms.scale_to_z_score(columns=['x'])))
-      _ = (
-          unbatched_result
-          | beam.Map(lambda x: x.transformed_data)
-          | beam.Map(assert_z_score_artifacts))
+      _ = (unbatched_result | beam.Map(assert_z_score_artifacts))
 
   def test_z_score_batched(self):
     batched_data = [{'x': [1, 2, 3]}, {'x': [4, 5, 6]}]
@@ -108,10 +108,7 @@ class ScaleZScoreTest(unittest.TestCase):
           | "batchedMLTransform" >>
           base.MLTransform(process_handler=process_handler).with_transform(
               tft_transforms.scale_to_z_score(columns=['x'])))
-      _ = (
-          batched_result
-          | beam.Map(lambda x: x.transformed_data)
-          | beam.Map(assert_z_score_artifacts))
+      _ = (batched_result | beam.Map(assert_z_score_artifacts))
 
 
 class ScaleTo01Test(unittest.TestCase):
@@ -127,18 +124,13 @@ class ScaleTo01Test(unittest.TestCase):
           | "batchedMLTransform" >>
           base.MLTransform(process_handler=process_handler).with_transform(
               tft_transforms.scale_to_0_1(columns=['x'])))
-      _ = (
-          batched_result
-          | beam.Map(lambda x: x.transformed_data)
-          | beam.Map(assert_scale_to_0_1_artifacts))
+      _ = (batched_result | beam.Map(assert_scale_to_0_1_artifacts))
 
       expected_output = [
           np.array([0, 0.2, 0.4], dtype=np.float32),
           np.array([0.6, 0.8, 1], dtype=np.float32)
       ]
-      actual_output = (
-          batched_result
-          | beam.Map(lambda x: x.transformed_data['x']))
+      actual_output = (batched_result | beam.Map(lambda x: x.x))
       assert_that(
           actual_output, equal_to(expected_output, equals_fn=np.array_equal))
 
@@ -167,10 +159,7 @@ class ScaleTo01Test(unittest.TestCase):
           base.MLTransform(process_handler=process_handler).with_transform(
               tft_transforms.scale_to_0_1(columns=['x'])))
 
-      _ = (
-          unbatched_result
-          | beam.Map(lambda x: x.transformed_data)
-          | beam.Map(assert_scale_to_0_1_artifacts))
+      _ = (unbatched_result | beam.Map(assert_scale_to_0_1_artifacts))
       expected_output = (
           np.array([0], dtype=np.float32),
           np.array([0.2], dtype=np.float32),
@@ -178,9 +167,7 @@ class ScaleTo01Test(unittest.TestCase):
           np.array([0.6], dtype=np.float32),
           np.array([0.8], dtype=np.float32),
           np.array([1], dtype=np.float32))
-      actual_output = (
-          unbatched_result
-          | beam.Map(lambda x: x.transformed_data['x']))
+      actual_output = (unbatched_result | beam.Map(lambda x: x.x))
       assert_that(
           actual_output, equal_to(expected_output, equals_fn=np.array_equal))
 
@@ -206,14 +193,9 @@ class BucketizeTest(unittest.TestCase):
           | "unbatchedMLTransform" >>
           base.MLTransform(process_handler=process_handler).with_transform(
               tft_transforms.bucketize(columns=['x'], num_buckets=3)))
-      _ = (
-          unbatched_result
-          | beam.Map(lambda x: x.transformed_data)
-          | beam.Map(assert_bucketize_artifacts))
+      _ = (unbatched_result | beam.Map(assert_bucketize_artifacts))
 
-      transformed_data = (
-          unbatched_result
-          | beam.Map(lambda x: x.transformed_data['x']))
+      transformed_data = (unbatched_result | beam.Map(lambda x: x.x))
       expected_data = [
           np.array([0]),
           np.array([0]),
@@ -237,14 +219,11 @@ class BucketizeTest(unittest.TestCase):
           | "batchedMLTransform" >>
           base.MLTransform(process_handler=process_handler).with_transform(
               tft_transforms.bucketize(columns=['x'], num_buckets=3)))
-      _ = (
-          batched_result
-          | "TransformedData" >> beam.Map(lambda x: x.transformed_data)
-          | beam.Map(assert_bucketize_artifacts))
+      _ = (batched_result | beam.Map(assert_bucketize_artifacts))
 
       transformed_data = (
           batched_result
-          | "TransformedColumnX" >> beam.Map(lambda x: x.transformed_data['x']))
+          | "TransformedColumnX" >> beam.Map(lambda ele: ele.x))
       expected_data = [
           np.array([0, 0, 1], dtype=np.int64),
           np.array([1, 2, 2], dtype=np.int64)
@@ -277,7 +256,7 @@ class BucketizeTest(unittest.TestCase):
               tft_transforms.bucketize(columns=['x'], num_buckets=num_buckets)))
       actual_boundaries = (
           result
-          | beam.Map(lambda x: x.transformed_data)
+          | beam.Map(lambda x: x.as_dict())
           | beam.Map(lambda x: x['x_quantiles']))
 
       def assert_boundaries(actual_boundaries):
@@ -312,7 +291,7 @@ class ApplyBucketsTest(unittest.TestCase):
           bucket += 1
         expected_output.append(np.array([bucket]))
 
-      actual_output = (result | beam.Map(lambda x: x.transformed_data['x']))
+      actual_output = (result | beam.Map(lambda x: x.x))
       assert_that(
           actual_output, equal_to(expected_output, equals_fn=np.array_equal))
 
@@ -339,7 +318,7 @@ class ComputeAndApplyVocabTest(unittest.TestCase):
 
     with beam.Pipeline() as p:
       process_handler = handlers.TFTProcessHandlerDict()
-      result = (
+      actual_data = (
           p
           | "Create" >> beam.Create(input_data)
           | beam.Map(lambda x: ComputeAndVocabUnbatchedInputType(**x)
@@ -347,8 +326,9 @@ class ComputeAndApplyVocabTest(unittest.TestCase):
           | "MLTransform" >>
           base.MLTransform(process_handler=process_handler).with_transform(
               tft_transforms.compute_and_apply_vocabulary(columns=['x'])))
-      actual_output = (result | beam.Map(lambda x: x.transformed_data))
-      assert_that(actual_output, equal_to(expected_data))
+      actual_data |= beam.Map(lambda x: x.as_dict())
+
+      assert_that(actual_data, equal_to(expected_data))
 
   def test_compute_and_apply_vocabulary_batched(self):
     batch_size = 100
@@ -381,7 +361,7 @@ class ComputeAndApplyVocabTest(unittest.TestCase):
           | "MLTransform" >>
           base.MLTransform(process_handler=process_handler).with_transform(
               tft_transforms.compute_and_apply_vocabulary(columns=['x'])))
-      actual_output = (result | beam.Map(lambda x: x.transformed_data['x']))
+      actual_output = (result | beam.Map(lambda x: x.x))
       assert_that(
           actual_output, equal_to(excepted_data, equals_fn=np.array_equal))
 
