@@ -60,6 +60,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
@@ -720,6 +721,31 @@ public class KafkaIOTest {
 
     PAssert.thatSingleton(input.apply(Count.globally())).isEqualTo(numElements / 10L);
 
+    p.run();
+  }
+
+  @Test
+  public void testUnboundedSourceWithPattern() {
+    int numElements = 1000;
+
+    List<String> topics =
+        ImmutableList.of(
+            "best", "gest", "hest", "jest", "lest", "nest", "pest", "rest", "test", "vest", "west",
+            "zest");
+
+    KafkaIO.Read<byte[], Long> reader =
+        KafkaIO.<byte[], Long>read()
+            .withBootstrapServers("none")
+            .withTopicPattern(Pattern.compile("[a-z]est"))
+            .withConsumerFactoryFn(
+                new ConsumerFactoryFn(topics, 10, numElements, OffsetResetStrategy.EARLIEST))
+            .withKeyDeserializer(ByteArrayDeserializer.class)
+            .withValueDeserializer(LongDeserializer.class)
+            .withMaxNumRecords(numElements);
+
+    PCollection<Long> input = p.apply(reader.withoutMetadata()).apply(Values.create());
+
+    addCountingAsserts(input, numElements);
     p.run();
   }
 
@@ -1823,6 +1849,25 @@ public class KafkaIOTest {
     DisplayData displayData = DisplayData.from(read);
 
     assertThat(displayData, hasDisplayItem("topicPartitions", "test-5,test-6"));
+    assertThat(displayData, hasDisplayItem("enable.auto.commit", false));
+    assertThat(displayData, hasDisplayItem("bootstrap.servers", "myServer1:9092,myServer2:9092"));
+    assertThat(displayData, hasDisplayItem("auto.offset.reset", "latest"));
+    assertThat(displayData, hasDisplayItem("receive.buffer.bytes", 524288));
+  }
+
+  @Test
+  public void testSourceWithPatternDisplayData() {
+    KafkaIO.Read<byte[], byte[]> read =
+        KafkaIO.readBytes()
+            .withBootstrapServers("myServer1:9092,myServer2:9092")
+            .withTopicPattern(Pattern.compile("[a-z]est"))
+            .withConsumerFactoryFn(
+                new ConsumerFactoryFn(
+                    Lists.newArrayList("test"), 10, 10, OffsetResetStrategy.EARLIEST));
+
+    DisplayData displayData = DisplayData.from(read);
+
+    assertThat(displayData, hasDisplayItem("topicPattern", "[a-z]est"));
     assertThat(displayData, hasDisplayItem("enable.auto.commit", false));
     assertThat(displayData, hasDisplayItem("bootstrap.servers", "myServer1:9092,myServer2:9092"));
     assertThat(displayData, hasDisplayItem("auto.offset.reset", "latest"));
