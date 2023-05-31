@@ -27,7 +27,7 @@ require (
 	cloud.google.com/go/bigtable v1.18.1
 	cloud.google.com/go/datastore v1.11.0
 	cloud.google.com/go/profiler v0.3.1
-	cloud.google.com/go/pubsub v1.30.1
+	cloud.google.com/go/pubsub v1.31.0
 	cloud.google.com/go/spanner v1.46.0
 	cloud.google.com/go/storage v1.30.1
 	github.com/aws/aws-sdk-go-v2 v1.18.0
@@ -57,7 +57,7 @@ require (
 	golang.org/x/sync v0.2.0
 	golang.org/x/sys v0.8.0
 	golang.org/x/text v0.9.0
-	google.golang.org/api v0.123.0
+	google.golang.org/api v0.124.0
 	google.golang.org/genproto v0.0.0-20230410155749-daa745c078e1
 	google.golang.org/grpc v1.55.0
 	google.golang.org/protobuf v1.30.0
@@ -72,7 +72,7 @@ require (
 )
 
 require (
-	cloud.google.com/go v0.110.0 // indirect
+	cloud.google.com/go v0.110.2 // indirect
 	cloud.google.com/go/compute v1.19.0 // indirect
 	cloud.google.com/go/compute/metadata v0.2.3 // indirect
 	cloud.google.com/go/iam v1.0.1 // indirect
@@ -117,9 +117,9 @@ require (
 	github.com/google/flatbuffers v2.0.8+incompatible // indirect
 	github.com/google/pprof v0.0.0-20221103000818-d260c55eee4c // indirect
 	github.com/google/renameio/v2 v2.0.0 // indirect
-	github.com/google/s2a-go v0.1.3 // indirect
+	github.com/google/s2a-go v0.1.4 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.2.3 // indirect
-	github.com/googleapis/gax-go/v2 v2.8.0 // indirect
+	github.com/googleapis/gax-go/v2 v2.9.1 // indirect
 	github.com/gorilla/handlers v1.5.1 // indirect
 	github.com/gorilla/mux v1.8.0 // indirect
 	github.com/imdario/mergo v0.3.12 // indirect
