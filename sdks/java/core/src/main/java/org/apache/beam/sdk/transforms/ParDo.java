@@ -446,7 +446,7 @@ public class ParDo {
     } catch (Coder.NonDeterministicException exc) {
       throw new IllegalArgumentException(
           String.format(
-              "%s requires a deterministic key coder in order to use state and timers, the reason is:\n\t %s",
+              "%s requires a deterministic key coder in order to use state and timers, the reason is:%n %s",
               ParDo.class.getSimpleName(), exc.getMessage()));
     }
   }
