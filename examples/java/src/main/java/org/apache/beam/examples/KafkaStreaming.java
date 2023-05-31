@@ -82,9 +82,6 @@ public class KafkaStreaming {
   // The time of the window in which the elements will be processed
   private static final int WINDOW_TIME = 30;
 
-  // The total time for which the example will run
-  private static final long TOTAL_TIME_SECONDS = 5 * 60 * 1000;
-
   // Number of game events to send during game window
   private static final int MESSAGES_COUNT = 100;
 
@@ -106,17 +103,6 @@ public class KafkaStreaming {
   }
 
   public static void main(String[] args) {
-    // Gracefully terminate example after TOTAL_TIME_SECONDS
-    Timer exitTimer = new Timer();
-    exitTimer.schedule(
-        new TimerTask() {
-          @Override
-          public void run() {
-            System.exit(0);
-          }
-        },
-        TOTAL_TIME_SECONDS);
-
     // FixedWindows will always start at an integer multiple of the window size counting from epoch
     // start.
     // To get nicer looking results we will start producing results right after the next window
