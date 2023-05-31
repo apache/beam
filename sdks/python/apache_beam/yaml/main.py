@@ -23,17 +23,17 @@ import apache_beam as beam
 from apache_beam.yaml import yaml_transform
 
 
-def run(argv=None):
+def _configure_parser(argv):
   parser = argparse.ArgumentParser()
   parser.add_argument(
-      '--pipeline_spec',
-      description='A yaml description of the pipeline to run.')
+      '--pipeline_spec', help='A yaml description of the pipeline to run.')
   parser.add_argument(
       '--pipeline_spec_file',
-      description='A file containing a yaml description of the pipeline to run.'
-  )
-  known_args, pipeline_args = parser.parse_known_args(argv)
+      help='A file containing a yaml description of the pipeline to run.')
+  return parser.parse_known_args(argv)
 
+
+def _pipeline_spec_from_args(known_args):
   if known_args.pipeline_spec_file and known_args.pipeline_spec:
     raise ValueError(
         "Exactly one of pipeline_spec or pipeline_spec_file must be set.")
@@ -46,16 +46,20 @@ def run(argv=None):
     raise ValueError(
         "Exactly one of pipeline_spec or pipeline_spec_file must be set.")
 
-  pipeline_spec = yaml.load(pipeline_yaml, Loader=yaml_transform.SafeLineLoader)
+  return yaml.load(pipeline_yaml, Loader=yaml_transform.SafeLineLoader)
 
+
+def run(argv=None):
   yaml_transform._LOGGER.setLevel('INFO')
+  known_args, pipeline_args = _configure_parser(argv)
+  pipeline_spec = _pipeline_spec_from_args(known_args)
 
   with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
       pipeline_args,
       pickle_library='cloudpickle',
       **pipeline_spec.get('options', {}))) as p:
     print("Building pipeline...")
-    yaml_transform.expand_pipeline(p, known_args.pipeline_spec)
+    yaml_transform.expand_pipeline(p, pipeline_spec)
     print("Running pipeline...")
 
 
