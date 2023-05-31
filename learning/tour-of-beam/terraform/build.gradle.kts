@@ -49,7 +49,12 @@ tasks.register<TerraformTask>("terraformRef") {
 
 tasks.register<TerraformTask>("terraformApplyBackend") {
     group = "backend-deploy"
-    var pg_router_host = project.extensions.extraProperties["pg_router_host"] as String
+    
+    val pg_router_host = if (project.extensions.extraProperties.has("pg_router_host")) {
+        project.extensions.extraProperties["pg_router_host"] as String
+    } else {
+        "unknown"
+    }
     args(
         "apply",
         "-auto-approve",
