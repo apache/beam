@@ -44,7 +44,7 @@ func init() {
 	exec.RegisterEmitter(reflect.TypeOf((*func(typex.T))(nil)).Elem(), emitMakerTypex۰T)
 }
 
-func wrapMakerFilterFn(fn interface{}) map[string]reflectx.Func {
+func wrapMakerFilterFn(fn any) map[string]reflectx.Func {
 	dfn := fn.(*filterFn)
 	return map[string]reflectx.Func{
 		"ProcessElement": reflectx.MakeFunc(func(a0 typex.T, a1 func(typex.T)) { dfn.ProcessElement(a0, a1) }),
@@ -56,7 +56,7 @@ type callerIntIntГInt struct {
 	fn func(int, int) int
 }
 
-func funcMakerIntIntГInt(fn interface{}) reflectx.Func {
+func funcMakerIntIntГInt(fn any) reflectx.Func {
 	f := fn.(func(int, int) int)
 	return &callerIntIntГInt{fn: f}
 }
@@ -69,12 +69,12 @@ func (c *callerIntIntГInt) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *callerIntIntГInt) Call(args []interface{}) []interface{} {
+func (c *callerIntIntГInt) Call(args []any) []any {
 	out0 := c.fn(args[0].(int), args[1].(int))
-	return []interface{}{out0}
+	return []any{out0}
 }
 
-func (c *callerIntIntГInt) Call2x1(arg0, arg1 interface{}) interface{} {
+func (c *callerIntIntГInt) Call2x1(arg0, arg1 any) any {
 	return c.fn(arg0.(int), arg1.(int))
 }
 
@@ -82,7 +82,7 @@ type callerTypex۰TEmitTypex۰TГ struct {
 	fn func(typex.T, func(typex.T))
 }
 
-func funcMakerTypex۰TEmitTypex۰TГ(fn interface{}) reflectx.Func {
+func funcMakerTypex۰TEmitTypex۰TГ(fn any) reflectx.Func {
 	f := fn.(func(typex.T, func(typex.T)))
 	return &callerTypex۰TEmitTypex۰TГ{fn: f}
 }
@@ -95,12 +95,12 @@ func (c *callerTypex۰TEmitTypex۰TГ) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *callerTypex۰TEmitTypex۰TГ) Call(args []interface{}) []interface{} {
+func (c *callerTypex۰TEmitTypex۰TГ) Call(args []any) []any {
 	c.fn(args[0].(typex.T), args[1].(func(typex.T)))
-	return []interface{}{}
+	return []any{}
 }
 
-func (c *callerTypex۰TEmitTypex۰TГ) Call2x0(arg0, arg1 interface{}) {
+func (c *callerTypex۰TEmitTypex۰TГ) Call2x0(arg0, arg1 any) {
 	c.fn(arg0.(typex.T), arg1.(func(typex.T)))
 }
 
@@ -108,7 +108,7 @@ type callerTypex۰TГTypex۰TInt struct {
 	fn func(typex.T) (typex.T, int)
 }
 
-func funcMakerTypex۰TГTypex۰TInt(fn interface{}) reflectx.Func {
+func funcMakerTypex۰TГTypex۰TInt(fn any) reflectx.Func {
 	f := fn.(func(typex.T) (typex.T, int))
 	return &callerTypex۰TГTypex۰TInt{fn: f}
 }
@@ -121,12 +121,12 @@ func (c *callerTypex۰TГTypex۰TInt) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *callerTypex۰TГTypex۰TInt) Call(args []interface{}) []interface{} {
+func (c *callerTypex۰TГTypex۰TInt) Call(args []any) []any {
 	out0, out1 := c.fn(args[0].(typex.T))
-	return []interface{}{out0, out1}
+	return []any{out0, out1}
 }
 
-func (c *callerTypex۰TГTypex۰TInt) Call1x2(arg0 interface{}) (interface{}, interface{}) {
+func (c *callerTypex۰TГTypex۰TInt) Call1x2(arg0 any) (any, any) {
 	return c.fn(arg0.(typex.T))
 }
 
@@ -134,7 +134,7 @@ type callerГ struct {
 	fn func()
 }
 
-func funcMakerГ(fn interface{}) reflectx.Func {
+func funcMakerГ(fn any) reflectx.Func {
 	f := fn.(func())
 	return &callerГ{fn: f}
 }
@@ -147,9 +147,9 @@ func (c *callerГ) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *callerГ) Call(args []interface{}) []interface{} {
+func (c *callerГ) Call(args []any) []any {
 	c.fn()
-	return []interface{}{}
+	return []any{}
 }
 
 func (c *callerГ) Call0x0() {
@@ -158,7 +158,7 @@ func (c *callerГ) Call0x0() {
 
 type emitNative struct {
 	n   exec.ElementProcessor
-	fn  interface{}
+	fn  any
 	est *sdf.WatermarkEstimator
 
 	ctx   context.Context
@@ -174,7 +174,7 @@ func (e *emitNative) Init(ctx context.Context, ws []typex.Window, et typex.Event
 	return nil
 }
 
-func (e *emitNative) Value() interface{} {
+func (e *emitNative) Value() any {
 	return e.fn
 }
 

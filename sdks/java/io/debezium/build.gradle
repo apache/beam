@@ -32,7 +32,7 @@ ext.summary = "Library to work with Debezium data."
 
 dependencies {
     implementation library.java.vendored_guava_26_0_jre
-    implementation library.java.vendored_grpc_1_48_1
+    implementation library.java.vendored_grpc_1_54_0
     implementation project(path: ":sdks:java:core", configuration: "shadow")
     implementation library.java.slf4j_api
     implementation library.java.joda_time
@@ -43,9 +43,11 @@ dependencies {
 
     // Test dependencies
     testImplementation library.java.junit
+    testImplementation project(path: ":sdks:java:io:jdbc")
     testRuntimeOnly library.java.slf4j_jdk14
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
     testImplementation project(":runners:google-cloud-dataflow-java")
+    testImplementation library.java.hamcrest
     testImplementation library.java.testcontainers_base
     testImplementation library.java.testcontainers_mysql
     testImplementation library.java.testcontainers_postgresql

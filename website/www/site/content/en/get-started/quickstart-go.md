@@ -15,7 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Apache Beam Go SDK Quickstart
+# WordCount quickstart for Go
 
 This Quickstart will walk you through executing your first Beam pipeline to run [WordCount](/get-started/wordcount-example), written using Beam's [Go SDK](/documentation/sdks/go), on a [runner](/documentation#runners) of your choice.
 
@@ -25,7 +25,7 @@ If you're interested in contributing to the Apache Beam Go codebase, see the [Co
 
 ## Set up your environment
 
-The Beam SDK for Go requires `go` version 1.18 or newer. It can be downloaded [here](https://golang.org/). Check that you have version 1.18 by running:
+The Beam SDK for Go requires `go` version 1.19 or newer. It can be downloaded [here](https://golang.org/). Check that you have version 1.19 by running:
 
 {{< highlight >}}
 $ go version
@@ -88,7 +88,7 @@ $ wordcount --input <PATH_TO_INPUT_FILE> \
   and look through the [godoc](https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam).
 * Walk through these WordCount examples in the [WordCount Example Walkthrough](/get-started/wordcount-example).
 * Take a self-paced tour through our [Learning Resources](/documentation/resources/learning-resources).
-* Dive in to some of our favorite [Videos and Podcasts](/documentation/resources/videos-and-podcasts).
+* Dive in to some of our favorite [Videos and Podcasts](/get-started/resources/videos-and-podcasts).
 * Join the Beam [users@](/community/contact-us) mailing list.
 
 Please don't hesitate to [reach out](/community/contact-us) if you encounter any issues!

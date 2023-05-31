@@ -87,6 +87,13 @@ class NexmarkBuilder {
     suite(context, "NEXMARK IN ZETASQL BATCH MODE USING ${runner} RUNNER", runner, sdk, options, null, DEFAULT_JAVA_RUNTIME_VERSION)
   }
 
+  static void standardPythonJob(context, Runner runner, SDK sdk, Map<String, Object> jobSpecificOptions, TriggeringContext triggeringContext) {
+    Map<String, Object> options = getFullOptions(jobSpecificOptions, runner, triggeringContext)
+
+    pythonSuite(context, "NEXMARK PYTHON IN BATCH MODE USING ${runner} RUNNER", runner, sdk, options)
+  }
+
+
   private
   static Map<String, Object> getFullOptions(Map<String, Object> jobSpecificOptions, Runner runner, TriggeringContext triggeringContext) {
     Map<String, Object> options = defaultOptions + jobSpecificOptions
@@ -174,8 +181,77 @@ class NexmarkBuilder {
     }
   }
 
+  static void pythonSuite(context, String title, Runner runner, SDK sdk, Map<String, Object> options) {
+    InfluxDBCredentialsHelper.useCredentials(context)
+
+    for (int i = 0; i <= 12; i ++) {
+      if (
+      // https://github.com/apache/beam/issues/24678
+      i == 1 ||
+      // https://github.com/apache/beam/issues/24679
+      i == 4 || i == 6 || i == 9 ||
+      // https://github.com/apache/beam/issues/24680
+      i == 12) {
+        continue
+      }
+      pythonTest(context, title, i, runner, sdk, options)
+    }
+  }
+
+  static void pythonTest(context, String title, int query, Runner runner, SDK sdk, Map<String, Object> options) {
+    context.steps {
+      shell("echo \"*** GENERATE events for ${title} query ${query} with Python***\"")
+
+      options.put('query', query)
+
+      // Matches defaults in NexmarkSuite.java
+      if (query == 4 || query == 6 || query == 9) {
+        options.put('numEvents', 10000)
+      } else {
+        options.put('numEvents', 100000)
+      }
+
+      String eventFile = options.get('tempLocation') + "/eventFiles/\${BUILD_TAG}/query${query}-"
+      options.remove('input')
+      options.put('generateEventFilePathPrefix', eventFile)
+
+      gradle {
+        rootBuildScriptDir(commonJobProperties.checkoutDir)
+        tasks(':sdks:java:testing:nexmark:run')
+        commonJobProperties.setGradleSwitches(delegate)
+        switches("-Pnexmark.runner=:runners:direct-java")
+        switches("-Pnexmark.args=\"${parseOptions(options)}\"")
+      }
+
+      shell("echo \"*** RUN ${title} query ${query} with Python***\"")
+
+      options.remove('generateEventFilePathPrefix')
+      options.put('input', eventFile + "\\*")
+
+      gradle {
+        rootBuildScriptDir(commonJobProperties.checkoutDir)
+        tasks(':sdks:python:apache_beam:testing:benchmarks:nexmark:run')
+        commonJobProperties.setGradleSwitches(delegate)
+        switches("-Pnexmark.args=\"${parseOptionsPython(options)}\"")
+      }
+    }
+  }
+
   private static String parseOptions(Map<String, Object> options) {
     options.collect { "--${it.key}=${it.value.toString()}" }.join(' ')
+  }
+
+  private static String parseOptionsPython(Map<String, Object> options) {
+    options.collect {
+      String key = it.key.toString().replaceAll("([a-z])([A-Z]+)", "\$1_\$2").toLowerCase()
+      if (it.value == false) {
+        return ""
+      }
+      if (it.value == true) {
+        return "--${key}"
+      }
+      return "--${key}=${it.value}"
+    }.join(' ')
   }
 
   private static String determineStorageName(TriggeringContext triggeringContext) {

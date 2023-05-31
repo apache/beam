@@ -22,6 +22,7 @@ import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TimePartitioning;
 import java.io.Serializable;
 import java.util.Objects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Encapsulates a BigQuery table destination. */
@@ -122,8 +123,14 @@ public class TableDestination implements Serializable {
   }
 
   /** Return the tablespec in projects/[project]/datasets/[dataset]/tables/[table] format. */
-  public String getTableUrn() {
+  public String getTableUrn(BigQueryOptions bigQueryOptions) {
     TableReference table = getTableReference();
+    if (Strings.isNullOrEmpty(table.getProjectId())) {
+      table.setProjectId(
+          bigQueryOptions.getBigQueryProject() == null
+              ? bigQueryOptions.getProject()
+              : bigQueryOptions.getBigQueryProject());
+    }
     return String.format(
         "projects/%s/datasets/%s/tables/%s",
         table.getProjectId(), table.getDatasetId(), table.getTableId());

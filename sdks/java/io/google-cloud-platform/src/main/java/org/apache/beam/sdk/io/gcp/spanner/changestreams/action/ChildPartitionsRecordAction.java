@@ -109,13 +109,12 @@ public class ChildPartitionsRecordAction {
 
     final String token = partition.getPartitionToken();
 
-    LOG.debug("[" + token + "] Processing child partition record " + record);
+    LOG.debug("[{}] Processing child partition record {}", token, record);
 
     final Timestamp startTimestamp = record.getStartTimestamp();
     final Instant startInstant = new Instant(startTimestamp.toSqlTimestamp().getTime());
     if (!tracker.tryClaim(startTimestamp)) {
-      LOG.debug(
-          "[" + token + "] Could not claim queryChangeStream(" + startTimestamp + "), stopping");
+      LOG.debug("[{}] Could not claim queryChangeStream({}), stopping", token, startTimestamp);
       return Optional.of(ProcessContinuation.stop());
     }
     watermarkEstimator.setWatermark(startInstant);
@@ -124,7 +123,7 @@ public class ChildPartitionsRecordAction {
       processChildPartition(partition, record, childPartition);
     }
 
-    LOG.debug("[" + token + "] Child partitions action completed successfully");
+    LOG.debug("[{}] Child partitions action completed successfully", token);
     return Optional.empty();
   }
 
@@ -137,11 +136,7 @@ public class ChildPartitionsRecordAction {
     final String childPartitionToken = childPartition.getToken();
     final boolean isSplit = isSplit(childPartition);
     LOG.debug(
-        "["
-            + partitionToken
-            + "] Processing child partition"
-            + (isSplit ? " split" : " merge")
-            + " event");
+        "[{}] Processing child partition {} event", partitionToken, (isSplit ? "split" : "merge"));
 
     final PartitionMetadata row =
         toPartitionMetadata(
@@ -149,7 +144,7 @@ public class ChildPartitionsRecordAction {
             partition.getEndTimestamp(),
             partition.getHeartbeatMillis(),
             childPartition);
-    LOG.debug("[" + partitionToken + "] Inserting child partition token " + childPartitionToken);
+    LOG.debug("[{}] Inserting child partition token {}", partitionToken, childPartitionToken);
     final Boolean insertedRow =
         partitionMetadataDao
             .runInTransaction(
@@ -160,7 +155,8 @@ public class ChildPartitionsRecordAction {
                   } else {
                     return false;
                   }
-                })
+                },
+                "InsertChildPartition")
             .getResult();
     if (insertedRow && isSplit) {
       metrics.incPartitionRecordSplitCount();
@@ -168,11 +164,7 @@ public class ChildPartitionsRecordAction {
       metrics.incPartitionRecordMergeCount();
     } else {
       LOG.debug(
-          "["
-              + partitionToken
-              + "] Child token "
-              + childPartitionToken
-              + " already exists, skipping...");
+          "[{}] Child token {} already exists, skipping...", partitionToken, childPartitionToken);
     }
   }
 

@@ -18,16 +18,36 @@
 #
 
 resource "google_container_cluster" "playground-gke" {
-  name               = var.name
-  project            = var.project_id
-  location           = var.location
-  initial_node_count = var.node_count
-  network            = var.network
-  subnetwork         = var.subnetwork
+  name                       = var.name
+  project                    = var.project_id
+  location                   = var.location
+  initial_node_count         = var.min_count
+  network                    = var.network
+  subnetwork                 = var.subnetwork
+  remove_default_node_pool = true
+
+  private_cluster_config {
+   enable_private_nodes = true
+   enable_private_endpoint = false
+   master_ipv4_cidr_block = var.control_plane_cidr
+}
+}
+resource "google_container_node_pool" "playground-node-pool" {
+  name       = "playground-node-pool"
+  cluster    = google_container_cluster.playground-gke.name
+  location   = google_container_cluster.playground-gke.location
+  autoscaling {
+    min_node_count = var.min_count
+    max_node_count = var.max_count
+   }
+  node_count = 2 
+  management {
+    auto_repair  = "true"
+    auto_upgrade = "true"
+   }
   node_config {
     machine_type    = var.machine_type
     service_account = var.service_account_email
-
     oauth_scopes = [
       "https://www.googleapis.com/auth/cloud-platform"
     ]
@@ -35,6 +55,5 @@ resource "google_container_cluster" "playground-gke" {
       component = "beam-playground"
     }
     tags = ["beam-playground"]
-
-  }
+   }
 }

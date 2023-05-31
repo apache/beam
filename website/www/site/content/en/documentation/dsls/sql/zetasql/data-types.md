@@ -27,8 +27,9 @@ Beam ZetaSQL supports standard SQL scalar data types as well as extensions inclu
 <p>The following table contains data type properties and the data types that
 each property applies to:</p>
 
+<div class="table-container-wrapper">
 {{< table >}}
-<table>
+<table class="table-wrapper--equal-p">
 <thead>
 <tr>
 <th>Property</th>
@@ -94,6 +95,7 @@ Types</a> for an explanation of join conditions.
 </tbody>
 </table>
 {{< /table >}}
+</div>
 
 ## Numeric types
 
@@ -103,8 +105,9 @@ Types</a> for an explanation of join conditions.
 
 <p>Integers are numeric values that do not have fractional components.</p>
 
+<div class="table-container-wrapper">
 {{< table >}}
-<table>
+<table class="table-wrapper--equal-p">
 <thead>
 <tr>
 <th>Name</th>
@@ -121,13 +124,15 @@ Types</a> for an explanation of join conditions.
 </tbody>
 </table>
 {{< /table >}}
+</div>
 
 ### Floating point type
 
 <p>Floating point values are approximate numeric values with fractional components.</p>
 
+<div class="table-container-wrapper">
 {{< table >}}
-<table>
+<table class="table-wrapper--equal-p">
 <thead>
 <tr>
 <th>Name</th>
@@ -144,9 +149,11 @@ Types</a> for an explanation of join conditions.
 </tbody>
 </table>
 {{< /table >}}
+</div>
 
 ## Boolean type
 
+<div class="table-container-wrapper">
 {{< table >}}
 <table>
 <thead>
@@ -164,9 +171,11 @@ Types</a> for an explanation of join conditions.
 </tbody>
 </table>
 {{< /table >}}
+</div>
 
 ## String type
 
+<div class="table-container-wrapper">
 {{< table >}}
 <table>
 <thead>
@@ -183,6 +192,7 @@ Types</a> for an explanation of join conditions.
 </tbody>
 </table>
 {{< /table >}}
+</div>
 
 <p>Input STRING values must be UTF-8 encoded and output STRING values will be UTF-8
 encoded. Alternate encodings like CESU-8 and Modified UTF-8 are not treated as
@@ -196,6 +206,7 @@ characters.</p>
 
 ## Bytes type
 
+<div class="table-container-wrapper">
 {{< table >}}
 <table>
 <thead>
@@ -212,6 +223,7 @@ characters.</p>
 </tbody>
 </table>
 {{< /table >}}
+</div>
 
 <p>STRING and BYTES are separate types that cannot be used interchangeably. Casts between STRING and BYTES enforce
 that the bytes are encoded using UTF-8.</p>
@@ -222,8 +234,9 @@ Caution: SQL has millisecond `TIMESTAMP` precision. If a
 `TIMESTAMP` field has sub-millisecond precision, SQL
 throws an `IllegalArgumentException`.
 
+<div class="table-container-wrapper">
 {{< table >}}
-<table>
+<table class="table-wrapper--equal-p">
 <thead>
 <tr>
 <th>Name</th>
@@ -242,6 +255,7 @@ precision.</td>
 </tbody>
 </table>
 {{< /table >}}
+</div>
 
 <p>A timestamp represents an absolute point in time, independent of any time zone
 or convention such as Daylight Savings Time.</p>
@@ -322,6 +336,7 @@ when there is a leap second.</p>
 
 ## Array type
 
+<div class="table-container-wrapper">
 {{< table >}}
 <table>
 <thead>
@@ -338,6 +353,7 @@ when there is a leap second.</p>
 </tbody>
 </table>
 {{< /table >}}
+</div>
 
 <p>An ARRAY is an ordered list of zero or more elements of non-ARRAY values.
 ARRAYs of ARRAYs are not allowed. Queries that would produce an ARRAY of
@@ -355,6 +371,7 @@ an ARRAY cannot directly contain another ARRAY.</p>
 <pre class="codehilite"><code>ARRAY&lt;T&gt;</code></pre>
 <h4 id="examples_2">Examples</h4>
 
+<div class="table-container-wrapper">
 {{< table >}}
 <table>
 <thead>
@@ -402,9 +419,11 @@ the two ARRAYs because ARRAYs cannot hold other ARRAYs directly.</td>
 </tr>
 </tbody></table>
 {{< /table >}}
+</div>
 
 ## Struct type
 
+<div class="table-container-wrapper">
 {{< table >}}
 <table>
 <thead>
@@ -422,6 +441,7 @@ the two ARRAYs because ARRAYs cannot hold other ARRAYs directly.</td>
 </tbody>
 </table>
 {{< /table >}}
+</div>
 
 ### Declaring a STRUCT type
 
@@ -431,6 +451,7 @@ the elements of a STRUCT can be arbitrarily complex.</p>
 <pre class="codehilite"><code>STRUCT&lt;T&gt;</code></pre>
 <h4 id="examples_3">Examples</h4>
 
+<div class="table-container-wrapper">
 {{< table >}}
 <table>
 <thead>
@@ -469,6 +490,7 @@ STRUCT&lt;inner_array ARRAY&lt;INT64&gt;&gt;
 </tr>
 </tbody></table>
 {{< /table >}}
+</div>
 
 ### Limited comparisons for STRUCT
 <p>STRUCTs can be directly compared using equality operators:</p>

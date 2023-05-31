@@ -310,6 +310,19 @@ class PipelineOptionsTest(unittest.TestCase):
           options.view_as(PipelineOptionsTest.MockOptions).mock_json_option,
           case['expected'].get('mock_json_option', {}))
 
+  def test_none_from_dictionary(self):
+    class NoneDefaultOptions(PipelineOptions):
+      @classmethod
+      def _add_argparse_args(cls, parser):
+        parser.add_argument('--test_arg_none', default=None, type=int)
+        parser.add_argument('--test_arg_int', default=1, type=int)
+
+    options_dict = {'test_arg_none': None, 'test_arg_int': 5}
+    options_from_dict = NoneDefaultOptions.from_dictionary(options_dict)
+    result = options_from_dict.get_all_options()
+    self.assertEqual(result['test_arg_int'], 5)
+    self.assertEqual(result['test_arg_none'], None)
+
   def test_option_with_space(self):
     options = PipelineOptions(flags=['--option with space= value with space'])
     self.assertEqual(
@@ -342,8 +355,8 @@ class PipelineOptionsTest(unittest.TestCase):
 
   def test_retain_unknown_options_binary_single_dash_store_string(self):
     options = PipelineOptions(['-i', 'some_value'])
-    result = options.get_all_options(retain_unknown_options=True)
-    self.assertEqual(result['i'], 'some_value')
+    with self.assertRaises(KeyError):
+      _ = options.get_all_options(retain_unknown_options=True)['i']
 
   def test_retain_unknown_options_unary_store_true(self):
     options = PipelineOptions(['--unknown_option'])
@@ -523,7 +536,6 @@ class PipelineOptionsTest(unittest.TestCase):
             '--pot_vp_arg1', help='This flag is a value provider')
 
         parser.add_value_provider_argument('--pot_vp_arg2', default=1, type=int)
-
         parser.add_argument('--pot_non_vp_arg1', default=1, type=int)
 
     # Provide values: if not provided, the option becomes of the type runtime vp

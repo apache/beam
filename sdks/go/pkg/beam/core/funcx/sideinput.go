@@ -55,8 +55,8 @@ func IsMalformedIter(t reflect.Type) (bool, error) {
 // UnfoldIter returns the parameter types, if a single sweep functional
 // iterator. For example:
 //
-//     func (*int) bool                   returns {int}
-//     func (*string, *int) bool          returns {string, int}
+//	func (*int) bool                   returns {int}
+//	func (*string, *int) bool          returns {string, int}
 //
 // EventTimes are not allowed in iterator types as per the Beam model
 // (see https://github.com/apache/beam/issues/22404) for more
@@ -90,6 +90,9 @@ func unfoldIter(t reflect.Type) ([]reflect.Type, bool, error) {
 	for i := skip; i < t.NumIn(); i++ {
 		if ok, err := isOutParam(t.In(i)); !ok {
 			return nil, false, errors.Wrap(err, errIllegalParametersInIter)
+		}
+		if reflect.TypeOf((*any)(nil)).Elem() == t.In(i).Elem() && !typex.IsUniversal(t.In(i)) {
+			return nil, false, errors.New("Type interface{} isn't a supported PCollection type")
 		}
 		ret = append(ret, t.In(i).Elem())
 	}

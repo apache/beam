@@ -19,7 +19,7 @@ package org.apache.beam.sdk.io.gcp.spanner.changestreams.action;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -27,9 +27,9 @@ import static org.mockito.Mockito.when;
 
 import com.google.cloud.Timestamp;
 import java.util.Optional;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.estimator.BytesThroughputEstimator;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
-import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.ThroughputEstimator;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampRange;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
@@ -46,16 +46,16 @@ public class DataChangeRecordActionTest {
   private RestrictionTracker<TimestampRange, Timestamp> tracker;
   private OutputReceiver<DataChangeRecord> outputReceiver;
   private ManualWatermarkEstimator<Instant> watermarkEstimator;
-  private ThroughputEstimator throughputEstimator;
+  private BytesThroughputEstimator<DataChangeRecord> throughputEstimator;
 
   @Before
   public void setUp() {
-    action = new DataChangeRecordAction();
+    throughputEstimator = mock(BytesThroughputEstimator.class);
+    action = new DataChangeRecordAction(throughputEstimator);
     partition = mock(PartitionMetadata.class);
     tracker = mock(RestrictionTracker.class);
     outputReceiver = mock(OutputReceiver.class);
     watermarkEstimator = mock(ManualWatermarkEstimator.class);
-    throughputEstimator = mock(ThroughputEstimator.class);
   }
 
   @Test
@@ -69,13 +69,12 @@ public class DataChangeRecordActionTest {
     when(partition.getPartitionToken()).thenReturn(partitionToken);
 
     final Optional<ProcessContinuation> maybeContinuation =
-        action.run(
-            partition, record, tracker, outputReceiver, watermarkEstimator, throughputEstimator);
+        action.run(partition, record, tracker, outputReceiver, watermarkEstimator);
 
     assertEquals(Optional.empty(), maybeContinuation);
     verify(outputReceiver).outputWithTimestamp(record, instant);
     verify(watermarkEstimator).setWatermark(instant);
-    verify(throughputEstimator).update(any(Timestamp.class), anyLong());
+    verify(throughputEstimator).update(any(), eq(record));
   }
 
   @Test
@@ -88,12 +87,11 @@ public class DataChangeRecordActionTest {
     when(partition.getPartitionToken()).thenReturn(partitionToken);
 
     final Optional<ProcessContinuation> maybeContinuation =
-        action.run(
-            partition, record, tracker, outputReceiver, watermarkEstimator, throughputEstimator);
+        action.run(partition, record, tracker, outputReceiver, watermarkEstimator);
 
     assertEquals(Optional.of(ProcessContinuation.stop()), maybeContinuation);
     verify(outputReceiver, never()).outputWithTimestamp(any(), any());
     verify(watermarkEstimator, never()).setWatermark(any());
-    verify(throughputEstimator, never()).update(any(Timestamp.class), anyLong());
+    verify(throughputEstimator, never()).update(any(), any());
   }
 }

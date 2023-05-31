@@ -62,7 +62,7 @@ class TestGRPCClient:
 
     @pytest.mark.asyncio
     async def test_run_code(self, mock_run_code):
-        result = await GRPCClient().run_code("", api_pb2.SDK_GO, "")
+        result = await GRPCClient().run_code("", api_pb2.SDK_GO, "", [])
         assert isinstance(result, str)
 
     @pytest.mark.asyncio

@@ -21,7 +21,6 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.auto.service.AutoService;
 import java.io.Serializable;
 import java.util.HashMap;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.gcp.testing.FakeBigQueryServices;
 import org.apache.beam.sdk.io.gcp.testing.FakeDatasetService;
@@ -43,11 +42,8 @@ import org.joda.time.Duration;
  * An implementation of {@link SchemaIOProvider} for reading and writing to BigQuery with {@link
  * BigQueryIO}. For a description of configuration options and other defaults, see {@link
  * BigQuerySchemaIOProvider#configurationSchema()}.
- *
- * <p>This transform is still experimental, and is still subject to breaking changes.
  */
 @Internal
-@Experimental
 @AutoService(SchemaIOProvider.class)
 public class BigQuerySchemaIOProvider implements SchemaIOProvider {
 
@@ -95,6 +91,7 @@ public class BigQuerySchemaIOProvider implements SchemaIOProvider {
         .addNullableField("queryLocation", FieldType.STRING)
         .addNullableField("createDisposition", FieldType.STRING)
         .addNullableField("useTestingBigQueryServices", FieldType.BOOLEAN)
+        .addNullableField("autoSharding", FieldType.BOOLEAN)
         .build();
   }
 
@@ -200,9 +197,16 @@ public class BigQuerySchemaIOProvider implements SchemaIOProvider {
               BigQueryIO.<Row>write()
                   .useBeamSchema()
                   .withMethod(BigQueryIO.Write.Method.STORAGE_WRITE_API)
-                  .withTriggeringFrequency(Duration.standardSeconds(5))
-                  .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
-                  .withAutoSharding();
+                  .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND);
+
+          final Boolean autoSharding = config.getBoolean("autoSharding");
+          // use default value true for autoSharding if not configured for STORAGE_WRITE_API
+          if (input.isBounded() == PCollection.IsBounded.UNBOUNDED) {
+            write = write.withTriggeringFrequency(Duration.standardSeconds(5));
+            if (autoSharding == null || autoSharding) {
+              write = write.withAutoSharding();
+            }
+          }
 
           final Boolean useTestingBigQueryServices =
               config.getBoolean("useTestingBigQueryServices");

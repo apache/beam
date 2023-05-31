@@ -22,6 +22,7 @@
 
 import collections
 import contextlib
+import logging
 import random
 import re
 import threading
@@ -70,7 +71,6 @@ from apache_beam.typehints.decorators import get_signature
 from apache_beam.typehints.sharded_key_type import ShardedKeyType
 from apache_beam.utils import windowed_value
 from apache_beam.utils.annotations import deprecated
-from apache_beam.utils.annotations import experimental
 from apache_beam.utils.sharded_key import ShardedKey
 
 if TYPE_CHECKING:
@@ -234,7 +234,8 @@ class _CoGBKImpl(PTransform):
     for pcoll in pcolls.values():
       self._check_pcollection(pcoll)
       if self.pipeline:
-        assert pcoll.pipeline == self.pipeline
+        assert pcoll.pipeline == self.pipeline, (
+            'All input PCollections must belong to the same pipeline.')
 
     tags = list(pcolls.keys())
 
@@ -314,10 +315,12 @@ class _BatchSizeEstimator(object):
       min_batch_size=1,
       max_batch_size=10000,
       target_batch_overhead=.05,
-      target_batch_duration_secs=1,
+      target_batch_duration_secs=10,
+      target_batch_duration_secs_including_fixed_cost=None,
       variance=0.25,
       clock=time.time,
-      ignore_first_n_seen_per_batch_size=0):
+      ignore_first_n_seen_per_batch_size=0,
+      record_metrics=True):
     if min_batch_size > max_batch_size:
       raise ValueError(
           "Minimum (%s) must not be greater than maximum (%s)" %
@@ -330,10 +333,18 @@ class _BatchSizeEstimator(object):
       raise ValueError(
           "target_batch_duration_secs (%s) must be positive" %
           (target_batch_duration_secs))
-    if not (target_batch_overhead or target_batch_duration_secs):
+    if (target_batch_duration_secs_including_fixed_cost and
+        target_batch_duration_secs_including_fixed_cost <= 0):
+      raise ValueError(
+          "target_batch_duration_secs_including_fixed_cost "
+          "(%s) must be positive" %
+          (target_batch_duration_secs_including_fixed_cost))
+    if not (target_batch_overhead or target_batch_duration_secs or
+            target_batch_duration_secs_including_fixed_cost):
       raise ValueError(
           "At least one of target_batch_overhead or "
-          "target_batch_duration_secs must be positive.")
+          "target_batch_duration_secs or "
+          "target_batch_duration_secs_including_fixed_cost must be positive.")
     if ignore_first_n_seen_per_batch_size < 0:
       raise ValueError(
           'ignore_first_n_seen_per_batch_size (%s) must be non '
@@ -342,6 +353,8 @@ class _BatchSizeEstimator(object):
     self._max_batch_size = max_batch_size
     self._target_batch_overhead = target_batch_overhead
     self._target_batch_duration_secs = target_batch_duration_secs
+    self._target_batch_duration_secs_including_fixed_cost = (
+        target_batch_duration_secs_including_fixed_cost)
     self._variance = variance
     self._clock = clock
     self._data = []
@@ -350,11 +363,17 @@ class _BatchSizeEstimator(object):
         ignore_first_n_seen_per_batch_size)
     self._batch_size_num_seen = {}
     self._replay_last_batch_size = None
+    self._record_metrics = record_metrics
+    self._element_count = 0
+    self._batch_count = 0
 
-    self._size_distribution = Metrics.distribution(
-        'BatchElements', 'batch_size')
-    self._time_distribution = Metrics.distribution(
-        'BatchElements', 'msec_per_batch')
+    if record_metrics:
+      self._size_distribution = Metrics.distribution(
+          'BatchElements', 'batch_size')
+      self._time_distribution = Metrics.distribution(
+          'BatchElements', 'msec_per_batch')
+    else:
+      self._size_distribution = self._time_distribution = None
     # Beam distributions only accept integer values, so we use this to
     # accumulate under-reported values until they add up to whole milliseconds.
     # (Milliseconds are chosen because that's conventionally used elsewhere in
@@ -375,8 +394,11 @@ class _BatchSizeEstimator(object):
     yield
     elapsed = self._clock() - start
     elapsed_msec = 1e3 * elapsed + self._remainder_msecs
-    self._size_distribution.update(batch_size)
-    self._time_distribution.update(int(elapsed_msec))
+    if self._record_metrics:
+      self._size_distribution.update(batch_size)
+      self._time_distribution.update(int(elapsed_msec))
+    self._element_count += batch_size
+    self._batch_count += 1
     self._remainder_msecs = elapsed_msec - int(elapsed_msec)
     # If we ignore the next timing, replay the batch size to get accurate
     # timing.
@@ -489,9 +511,19 @@ class _BatchSizeEstimator(object):
 
     target = self._max_batch_size
 
+    if self._target_batch_duration_secs_including_fixed_cost:
+      # Solution to
+      # a + b*x = self._target_batch_duration_secs_including_fixed_cost.
+      target = min(
+          target,
+          (self._target_batch_duration_secs_including_fixed_cost - a) / b)
+
     if self._target_batch_duration_secs:
-      # Solution to a + b*x = self._target_batch_duration_secs.
-      target = min(target, (self._target_batch_duration_secs - a) / b)
+      # Solution to b*x = self._target_batch_duration_secs.
+      # We ignore the fixed cost in this computation as it has negligeabel
+      # impact when it is small and unhelpfully forces the minimum batch size
+      # when it is large.
+      target = min(target, self._target_batch_duration_secs / b)
 
     if self._target_batch_overhead:
       # Solution to a / (a + b*x) = self._target_batch_overhead.
@@ -523,6 +555,13 @@ class _BatchSizeEstimator(object):
     self._batch_size_num_seen[result] = seen_count
     return result
 
+  def stats(self):
+    return "element_count=%s batch_count=%s next_batch_size=%s timings=%s" % (
+        self._element_count,
+        self._batch_count,
+        self._calculate_next_batch_size(),
+        self._data)
+
 
 class _GlobalWindowsBatchingDoFn(DoFn):
   def __init__(self, batch_size_estimator, element_size_fn):
@@ -553,6 +592,8 @@ class _GlobalWindowsBatchingDoFn(DoFn):
       self._batch = None
       self._running_batch_size = 0
     self._target_batch_size = self._batch_size_estimator.next_batch_size()
+    logging.info(
+        "BatchElements statistics: " + self._batch_size_estimator.stats())
 
 
 class _SizedBatch():
@@ -632,7 +673,9 @@ class BatchElements(PTransform):
     target_batch_overhead: (optional) a target for fixed_cost / time,
         as used in the formula above
     target_batch_duration_secs: (optional) a target for total time per bundle,
-        in seconds
+        in seconds, excluding fixed cost
+    target_batch_duration_secs_including_fixed_cost: (optional) a target for
+        total time per bundle, in seconds, including fixed cost
     element_size_fn: (optional) A mapping of an element to its contribution to
         batch size, defaulting to every element having size 1.  When provided,
         attempts to provide batches of optimal total size which may consist of
@@ -642,24 +685,31 @@ class BatchElements(PTransform):
         linear interpolation
     clock: (optional) an alternative to time.time for measuring the cost of
         donwstream operations (mostly for testing)
+    record_metrics: (optional) whether or not to record beam metrics on
+        distributions of the batch size. Defaults to True.
   """
   def __init__(
       self,
       min_batch_size=1,
       max_batch_size=10000,
       target_batch_overhead=.05,
-      target_batch_duration_secs=1,
+      target_batch_duration_secs=10,
+      target_batch_duration_secs_including_fixed_cost=None,
       *,
       element_size_fn=lambda x: 1,
       variance=0.25,
-      clock=time.time):
+      clock=time.time,
+      record_metrics=True):
     self._batch_size_estimator = _BatchSizeEstimator(
         min_batch_size=min_batch_size,
         max_batch_size=max_batch_size,
         target_batch_overhead=target_batch_overhead,
         target_batch_duration_secs=target_batch_duration_secs,
+        target_batch_duration_secs_including_fixed_cost=(
+            target_batch_duration_secs_including_fixed_cost),
         variance=variance,
-        clock=clock)
+        clock=clock,
+        record_metrics=record_metrics)
     self._element_size_fn = element_size_fn
 
   def expand(self, pcoll):
@@ -715,8 +765,6 @@ class ReshufflePerKey(PTransform):
   but operationally provides some of the side effects of a GroupByKey,
   in particular checkpointing, and preventing fusion of the surrounding
   transforms.
-
-  ReshufflePerKey is experimental. No backwards compatibility guarantees.
   """
   def expand(self, pcoll):
     windowing_saved = pcoll.windowing
@@ -780,8 +828,6 @@ class Reshuffle(PTransform):
 
   Reshuffle adds a temporary random key to each element, performs a
   ReshufflePerKey, and finally removes the temporary key.
-
-  Reshuffle is experimental. No backwards compatibility guarantees.
   """
 
   # We use 32-bit integer as the default number of buckets.
@@ -822,6 +868,7 @@ class Reshuffle(PTransform):
 
 
 def fn_takes_side_inputs(fn):
+  fn = getattr(fn, '_argspec_fn', fn)
   try:
     signature = get_signature(fn)
   except TypeError:
@@ -859,7 +906,6 @@ def WithKeys(pcoll, k, *args, **kwargs):
   return pcoll | Map(lambda v: (k, v))
 
 
-@experimental()
 @typehints.with_input_types(Tuple[K, V])
 @typehints.with_output_types(Tuple[K, Iterable[V]])
 class GroupIntoBatches(PTransform):
@@ -868,9 +914,6 @@ class GroupIntoBatches(PTransform):
   point they are output to the output Pcollection.
 
   Windows are preserved (batches will contain elements from the same window)
-
-  GroupIntoBatches is experimental. Its use case will depend on the runner if
-  it has support of States and Timers.
   """
   def __init__(
       self, batch_size, max_buffering_duration_secs=None, clock=time.time):

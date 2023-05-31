@@ -191,6 +191,20 @@ class CombineTest(unittest.TestCase):
                      | combine.Top.Of(3, key=len, reverse=True),
                      [['c', 'aa', 'bbb']])
 
+    self.assertEqual(['xc', 'zb', 'yd', 'wa']
+                     | combine.Top.Largest(3, key=lambda x: x[-1]),
+                     [['yd', 'xc', 'zb']])
+    self.assertEqual(['xc', 'zb', 'yd', 'wa']
+                     | combine.Top.Smallest(3, key=lambda x: x[-1]),
+                     [['wa', 'zb', 'xc']])
+
+    self.assertEqual([('a', x) for x in [1, 2, 3, 4, 1, 1]]
+                     | combine.Top.LargestPerKey(3, key=lambda x: -x),
+                     [('a', [1, 1, 1])])
+    self.assertEqual([('a', x) for x in [1, 2, 3, 4, 1, 1]]
+                     | combine.Top.SmallestPerKey(3, key=lambda x: -x),
+                     [('a', [4, 3, 2])])
+
   def test_sharded_top_combine_fn(self):
     def test_combine_fn(combine_fn, shards, expected):
       accumulators = [
@@ -563,6 +577,27 @@ class CombineTest(unittest.TestCase):
 
       assert_that(result, has_expected_values)
 
+  def test_combining_with_sliding_windows_and_fanout_raises_error(self):
+    options = PipelineOptions()
+    options.view_as(StandardOptions).streaming = True
+    with self.assertRaises(ValueError):
+      with TestPipeline(options=options) as p:
+        _ = (
+            p
+            | beam.Create([
+                window.TimestampedValue(0, Timestamp(seconds=1666707510)),
+                window.TimestampedValue(1, Timestamp(seconds=1666707511)),
+                window.TimestampedValue(2, Timestamp(seconds=1666707512)),
+                window.TimestampedValue(3, Timestamp(seconds=1666707513)),
+                window.TimestampedValue(5, Timestamp(seconds=1666707515)),
+                window.TimestampedValue(6, Timestamp(seconds=1666707516)),
+                window.TimestampedValue(7, Timestamp(seconds=1666707517)),
+                window.TimestampedValue(8, Timestamp(seconds=1666707518))
+            ])
+            | beam.WindowInto(window.SlidingWindows(10, 5))
+            | beam.CombineGlobally(beam.combiners.ToListCombineFn()).
+            without_defaults().with_fanout(7))
+
   def test_MeanCombineFn_combine(self):
     with TestPipeline() as p:
       input = (
@@ -850,6 +885,24 @@ class LatestCombineFnTest(unittest.TestCase):
       with TestPipeline() as p:
         pc = p | Create(l_3_tuple)
         _ = pc | beam.CombineGlobally(self.fn)
+
+
+@pytest.mark.it_validatesrunner
+class CombineValuesTest(unittest.TestCase):
+  def test_gbk_immediately_followed_by_combine(self):
+    def merge(vals):
+      return "".join(vals)
+
+    with TestPipeline() as p:
+      result = (
+          p \
+          | Create([("key1", "foo"), ("key2", "bar"), ("key1", "foo")],
+                    reshuffle=False) \
+          | beam.GroupByKey() \
+          | beam.CombineValues(merge) \
+          | beam.MapTuple(lambda k, v: '{}: {}'.format(k, v)))
+
+      assert_that(result, equal_to(['key1: foofoo', 'key2: bar']))
 
 
 #

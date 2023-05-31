@@ -422,6 +422,9 @@ public class UnboundedSourceWrapperTest {
 
       assertTrue("Did not successfully read first batch of elements.", readFirstBatchOfElements);
 
+      // simulate pipeline stop/drain scenario, where sources are closed first.
+      sourceOperator.cancel();
+
       // draw a snapshot
       OperatorSubtaskState snapshot = testHarness.snapshot(0, 0);
 
@@ -430,6 +433,9 @@ public class UnboundedSourceWrapperTest {
       TestCountingSource.setFinalizeTracker(finalizeList);
       testHarness.notifyOfCompletedCheckpoint(0);
       assertEquals(flinkWrapper.getLocalSplitSources().size(), finalizeList.size());
+
+      // stop the pipeline
+      testHarness.close();
 
       // create a completely new source but restore from the snapshot
       TestCountingSource restoredSource = new TestCountingSource(numElements);

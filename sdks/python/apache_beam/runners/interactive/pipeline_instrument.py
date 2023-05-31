@@ -300,7 +300,7 @@ class PipelineInstrument(object):
         v in transforms.items() if v.unique_name in required_transform_labels
     ]
 
-    # The required transforms are the tranforms that we want to cut out of
+    # The required transforms are the transforms that we want to cut out of
     # the pipeline_proto and insert into a new pipeline to return.
     required_transform_ids = (
         roots + caching_transform_ids + unbounded_source_ids)

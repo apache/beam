@@ -28,9 +28,8 @@ import (
 //
 // For example:
 //
-//    col := beam.Create(s, 1, 11, 7, 5, 10)
-//    sum := stats.Sum(s, col)   // PCollection<int> with 34 as the only element.
-//
+//	col := beam.Create(s, 1, 11, 7, 5, 10)
+//	sum := stats.Sum(s, col)   // PCollection<int> with 34 as the only element.
 func Sum(s beam.Scope, col beam.PCollection) beam.PCollection {
 	s = s.Scope("stats.Sum")
 	return combine(s, findSumFn, col)

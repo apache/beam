@@ -29,8 +29,8 @@ import java.util.HashMap;
 import java.util.Map;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
-import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.CoderRegistry;
+import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.kafka.common.serialization.Serializer;
 import org.junit.Test;
@@ -38,9 +38,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
-})
 public class ConfluentSchemaRegistryDeserializerProviderTest {
   @Test
   public void testGetCoder() {
@@ -49,15 +46,15 @@ public class ConfluentSchemaRegistryDeserializerProviderTest {
     SchemaRegistryClient mockRegistryClient = mockSchemaRegistryClient(schemaRegistryUrl, subject);
     CoderRegistry coderRegistry = CoderRegistry.createDefault();
 
-    AvroCoder coderV0 =
-        (AvroCoder)
+    AvroCoder<Object> coderV0 =
+        (AvroCoder<Object>)
             mockDeserializerProvider(schemaRegistryUrl, subject, null).getCoder(coderRegistry);
     assertEquals(AVRO_SCHEMA, coderV0.getSchema());
 
     try {
       Integer version = mockRegistryClient.getVersion(subject, AVRO_SCHEMA_V1);
-      AvroCoder coderV1 =
-          (AvroCoder)
+      AvroCoder<Object> coderV1 =
+          (AvroCoder<Object>)
               mockDeserializerProvider(schemaRegistryUrl, subject, version).getCoder(coderRegistry);
       assertEquals(AVRO_SCHEMA_V1, coderV1.getSchema());
     } catch (IOException | RestClientException e) {
@@ -76,7 +73,7 @@ public class ConfluentSchemaRegistryDeserializerProviderTest {
     Map<String, Object> map = new HashMap<>();
     map.put(AbstractKafkaAvroSerDeConfig.AUTO_REGISTER_SCHEMAS, true);
     map.put(AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, schemaRegistryUrl);
-    Serializer<GenericRecord> serializer = (Serializer) new KafkaAvroSerializer(mockRegistryClient);
+    Serializer<Object> serializer = new KafkaAvroSerializer(mockRegistryClient);
     serializer.configure(map, true);
 
     byte[] bytes =

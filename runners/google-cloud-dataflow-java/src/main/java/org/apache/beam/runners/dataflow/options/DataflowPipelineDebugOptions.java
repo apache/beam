@@ -23,7 +23,6 @@ import java.util.Map;
 import org.apache.beam.runners.dataflow.util.DataflowTransport;
 import org.apache.beam.runners.dataflow.util.GcsStager;
 import org.apache.beam.runners.dataflow.util.Stager;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
@@ -136,12 +135,12 @@ public interface DataflowPipelineDebugOptions extends ExperimentalOptions, Pipel
   }
 
   /**
-   * Mapping of old PTranform names to new ones, specified as JSON <code>{"oldName":"newName",...}
+   * Mapping of old PTransform names to new ones, specified as JSON <code>{"oldName":"newName",...}
    * </code>. To mark a transform as deleted, make newName the empty string.
    */
   @JsonIgnore
   @Description(
-      "Mapping of old PTranform names to new ones, specified as JSON "
+      "Mapping of old PTransform names to new ones, specified as JSON "
           + "{\"oldName\":\"newName\",...}. To mark a transform as deleted, make newName the empty "
           + "string.")
   Map<String, String> getTransformNameMapping();
@@ -301,10 +300,9 @@ public interface DataflowPipelineDebugOptions extends ExperimentalOptions, Pipel
    * setting this flag to true.
    */
   @Description(
-      "[EXPERIMENTAL] Set to a GCS bucket (directory) to upload heap dumps to the given location.\n"
+      "Set to a GCS bucket (directory) to upload heap dumps to the given location.\n"
           + "Enabling this implies that heap dumps should be generated on OOM (--dumpHeapOnOOM=true)\n"
           + "Uploads will continue until the pipeline is stopped or updated without this option.\n")
-  @Experimental
   String getSaveHeapDumpsToGcsPath();
 
   void setSaveHeapDumpsToGcsPath(String gcsPath);

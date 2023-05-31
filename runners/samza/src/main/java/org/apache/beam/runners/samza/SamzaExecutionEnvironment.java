@@ -35,7 +35,7 @@ public enum SamzaExecutionEnvironment {
 
   /**
    * Runs Samza job as a stand alone embedded library mode which can be imported into your Java
-   * application. You can increase your application’s capacity by spinning up multiple instances.
+   * application. You can increase your application's capacity by spinning up multiple instances.
    * These instances will then dynamically coordinate with each other and distribute work among
    * themselves. If an instance fails, the tasks running on it will be re-assigned to the remaining
    * ones. By default, Samza uses Zookeeper for coordination across individual instances.

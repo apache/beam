@@ -64,7 +64,7 @@ public class ErrorConverters {
 
     public abstract @Nullable Duration windowDuration();
 
-    @SuppressWarnings("argument.type.incompatible")
+    @SuppressWarnings("argument")
     @Override
     public PDone expand(PCollection<FailsafeElement<String, String>> pCollection) {
 
@@ -266,7 +266,7 @@ public class ErrorConverters {
     public abstract @Nullable Duration windowDuration();
 
     @Override
-    @SuppressWarnings("argument.type.incompatible")
+    @SuppressWarnings("argument")
     public PDone expand(PCollection<FailsafeElement<T, V>> pCollection) {
 
       PCollection<String> formattedErrorRows =

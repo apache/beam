@@ -30,6 +30,7 @@ import com.google.api.client.util.ExponentialBackOff;
 import com.google.api.client.util.Sleeper;
 import com.google.api.core.ApiFuture;
 import com.google.api.gax.core.FixedCredentialsProvider;
+import com.google.api.gax.core.FixedExecutorProvider;
 import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.FixedHeaderProvider;
 import com.google.api.gax.rpc.HeaderProvider;
@@ -81,6 +82,7 @@ import com.google.cloud.bigquery.storage.v1.ReadSession;
 import com.google.cloud.bigquery.storage.v1.SplitReadStreamRequest;
 import com.google.cloud.bigquery.storage.v1.SplitReadStreamResponse;
 import com.google.cloud.bigquery.storage.v1.StreamWriter;
+import com.google.cloud.bigquery.storage.v1.TableSchema;
 import com.google.cloud.bigquery.storage.v1.WriteStream;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.cloud.hadoop.util.ChainingHttpRequestInitializer;
@@ -120,6 +122,7 @@ import org.apache.beam.sdk.extensions.gcp.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.options.ExecutorOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.FluentBackoff;
@@ -552,6 +555,8 @@ class BigQueryServicesImpl implements BigQueryServices {
     private final PipelineOptions options;
     private final long maxRowsPerBatch;
     private final long maxRowBatchSize;
+    private final long storageWriteMaxInflightRequests;
+    private final long storageWriteMaxInflightBytes;
     // aggregate the total time spent in exponential backoff
     private final Counter throttlingMsecs =
         Metrics.counter(DatasetServiceImpl.class, "throttling-msecs");
@@ -569,6 +574,8 @@ class BigQueryServicesImpl implements BigQueryServices {
       this.options = options;
       this.maxRowsPerBatch = bqOptions.getMaxStreamingRowsToBatch();
       this.maxRowBatchSize = bqOptions.getMaxStreamingBatchSize();
+      this.storageWriteMaxInflightRequests = bqOptions.getStorageWriteMaxInflightRequests();
+      this.storageWriteMaxInflightBytes = bqOptions.getStorageWriteMaxInflightBytes();
       this.bqIOMetadata = BigQueryIOMetadata.create();
       this.executor = null;
     }
@@ -586,6 +593,8 @@ class BigQueryServicesImpl implements BigQueryServices {
       this.options = options;
       this.maxRowsPerBatch = maxRowsPerBatch;
       this.maxRowBatchSize = bqOptions.getMaxStreamingBatchSize();
+      this.storageWriteMaxInflightRequests = bqOptions.getStorageWriteMaxInflightRequests();
+      this.storageWriteMaxInflightBytes = bqOptions.getStorageWriteMaxInflightBytes();
       this.bqIOMetadata = BigQueryIOMetadata.create();
       this.executor = null;
     }
@@ -597,6 +606,8 @@ class BigQueryServicesImpl implements BigQueryServices {
       this.options = bqOptions;
       this.maxRowsPerBatch = bqOptions.getMaxStreamingRowsToBatch();
       this.maxRowBatchSize = bqOptions.getMaxStreamingBatchSize();
+      this.storageWriteMaxInflightRequests = bqOptions.getStorageWriteMaxInflightRequests();
+      this.storageWriteMaxInflightBytes = bqOptions.getStorageWriteMaxInflightBytes();
       this.bqIOMetadata = BigQueryIOMetadata.create();
       this.executor = null;
     }
@@ -1087,10 +1098,11 @@ class BigQueryServicesImpl implements BigQueryServices {
             if (isRetry) {
               throw new RuntimeException(
                   String.format(
-                      "We have observed a row that is %s bytes in size. BigQuery supports"
-                          + " request sizes up to 10MB, and this row is too large. "
-                          + " You may change your retry strategy to unblock this pipeline, and "
-                          + " the row will be output as a failed insert.",
+                      "We have observed a row that is %s bytes in size and exceeded BigQueryIO"
+                          + " limit of 9MB. While BigQuery supports request sizes up to 10MB,"
+                          + " BigQueryIO sets the limit at 9MB to leave room for request"
+                          + " overhead. You may change your retry strategy to unblock this"
+                          + " pipeline, and the row will be output as a failed insert.",
                       nextRowSize));
             } else {
               errorContainer.add(failedInserts, error, ref, rowsToPublish.get(rowIndex));
@@ -1308,6 +1320,11 @@ class BigQueryServicesImpl implements BigQueryServices {
     }
 
     @Override
+    public @Nullable WriteStream getWriteStream(String writeStream) {
+      return newWriteClient.getWriteStream(writeStream);
+    }
+
+    @Override
     public StreamAppendClient getStreamAppendClient(
         String streamName, Descriptor descriptor, boolean useConnectionPool) throws Exception {
       ProtoSchema protoSchema =
@@ -1322,10 +1339,15 @@ class BigQueryServicesImpl implements BigQueryServices {
               .build();
 
       StreamWriter streamWriter =
-          StreamWriter.newBuilder(streamName)
+          StreamWriter.newBuilder(streamName, newWriteClient)
+              .setExecutorProvider(
+                  FixedExecutorProvider.create(
+                      options.as(ExecutorOptions.class).getScheduledExecutorService()))
               .setWriterSchema(protoSchema)
               .setChannelProvider(transportChannelProvider)
               .setEnableConnectionPool(useConnectionPool)
+              .setMaxInflightRequests(storageWriteMaxInflightRequests)
+              .setMaxInflightBytes(storageWriteMaxInflightBytes)
               .setTraceId(
                   "Dataflow:"
                       + (bqIOMetadata.getBeamJobId() != null
@@ -1340,7 +1362,7 @@ class BigQueryServicesImpl implements BigQueryServices {
         public void close() throws Exception {
           boolean closeWriter;
           synchronized (this) {
-            Preconditions.checkState(!closed);
+            Preconditions.checkState(!closed, "Called close on already closed client");
             closed = true;
             closeWriter = (pins == 0);
           }
@@ -1361,7 +1383,7 @@ class BigQueryServicesImpl implements BigQueryServices {
         public void unpin() throws Exception {
           boolean closeWriter;
           synchronized (this) {
-            Preconditions.checkState(pins > 0);
+            Preconditions.checkState(pins > 0, "Tried to unpin when pins==0");
             --pins;
             closeWriter = (pins == 0) && closed;
           }
@@ -1374,6 +1396,11 @@ class BigQueryServicesImpl implements BigQueryServices {
         public ApiFuture<AppendRowsResponse> appendRows(long offset, ProtoRows rows)
             throws Exception {
           return streamWriter.append(rows, offset);
+        }
+
+        @Override
+        public TableSchema getUpdatedSchema() {
+          return streamWriter.getUpdatedSchema();
         }
 
         @Override
@@ -1488,9 +1515,21 @@ class BigQueryServicesImpl implements BigQueryServices {
 
   private static BigQueryWriteClient newBigQueryWriteClient(BigQueryOptions options) {
     try {
+      TransportChannelProvider transportChannelProvider =
+          BigQueryWriteSettings.defaultGrpcTransportProviderBuilder()
+              .setKeepAliveTime(org.threeten.bp.Duration.ofMinutes(1))
+              .setKeepAliveTimeout(org.threeten.bp.Duration.ofMinutes(1))
+              .setKeepAliveWithoutCalls(true)
+              .setChannelsPerCpu(2)
+              .build();
+
       return BigQueryWriteClient.create(
           BigQueryWriteSettings.newBuilder()
               .setCredentialsProvider(() -> options.as(GcpOptions.class).getGcpCredential())
+              .setTransportChannelProvider(transportChannelProvider)
+              .setBackgroundExecutorProvider(
+                  FixedExecutorProvider.create(
+                      options.as(ExecutorOptions.class).getScheduledExecutorService()))
               .build());
     } catch (Exception e) {
       throw new RuntimeException(e);

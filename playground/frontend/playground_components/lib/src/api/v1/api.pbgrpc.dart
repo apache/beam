@@ -1,27 +1,9 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 ///
 //  Generated code. Do not modify.
 //  source: api/v1/api.proto
 //
 // @dart = 2.12
-// ignore_for_file: annotate_overrides,camel_case_types,unnecessary_const,non_constant_identifier_names,library_prefixes,unused_import,unused_shown_name,return_of_invalid_type,unnecessary_this,prefer_final_fields
+// ignore_for_file: annotate_overrides,camel_case_types,constant_identifier_names,directives_ordering,library_prefixes,non_constant_identifier_names,prefer_final_fields,return_of_invalid_type,unnecessary_const,unnecessary_import,unnecessary_this,unused_import,unused_shown_name
 
 import 'dart:async' as $async;
 
@@ -150,6 +132,12 @@ class PlaygroundServiceClient extends $grpc.Client {
           ($0.GetSnippetRequest value) => value.writeToBuffer(),
           ($core.List<$core.int> value) =>
               $0.GetSnippetResponse.fromBuffer(value));
+  static final _$getMetadata =
+      $grpc.ClientMethod<$0.GetMetadataRequest, $0.GetMetadataResponse>(
+          '/api.v1.PlaygroundService/GetMetadata',
+          ($0.GetMetadataRequest value) => value.writeToBuffer(),
+          ($core.List<$core.int> value) =>
+              $0.GetMetadataResponse.fromBuffer(value));
 
   PlaygroundServiceClient($grpc.ClientChannel channel,
       {$grpc.CallOptions? options,
@@ -269,6 +257,12 @@ class PlaygroundServiceClient extends $grpc.Client {
       $0.GetSnippetRequest request,
       {$grpc.CallOptions? options}) {
     return $createUnaryCall(_$getSnippet, request, options: options);
+  }
+
+  $grpc.ResponseFuture<$0.GetMetadataResponse> getMetadata(
+      $0.GetMetadataRequest request,
+      {$grpc.CallOptions? options}) {
+    return $createUnaryCall(_$getMetadata, request, options: options);
   }
 }
 
@@ -439,6 +433,15 @@ abstract class PlaygroundServiceBase extends $grpc.Service {
         false,
         ($core.List<$core.int> value) => $0.GetSnippetRequest.fromBuffer(value),
         ($0.GetSnippetResponse value) => value.writeToBuffer()));
+    $addMethod(
+        $grpc.ServiceMethod<$0.GetMetadataRequest, $0.GetMetadataResponse>(
+            'GetMetadata',
+            getMetadata_Pre,
+            false,
+            false,
+            ($core.List<$core.int> value) =>
+                $0.GetMetadataRequest.fromBuffer(value),
+            ($0.GetMetadataResponse value) => value.writeToBuffer()));
   }
 
   $async.Future<$0.RunCodeResponse> runCode_Pre(
@@ -547,6 +550,11 @@ abstract class PlaygroundServiceBase extends $grpc.Service {
     return getSnippet(call, await request);
   }
 
+  $async.Future<$0.GetMetadataResponse> getMetadata_Pre($grpc.ServiceCall call,
+      $async.Future<$0.GetMetadataRequest> request) async {
+    return getMetadata(call, await request);
+  }
+
   $async.Future<$0.RunCodeResponse> runCode(
       $grpc.ServiceCall call, $0.RunCodeRequest request);
   $async.Future<$0.CheckStatusResponse> checkStatus(
@@ -587,4 +595,6 @@ abstract class PlaygroundServiceBase extends $grpc.Service {
       $grpc.ServiceCall call, $0.SaveSnippetRequest request);
   $async.Future<$0.GetSnippetResponse> getSnippet(
       $grpc.ServiceCall call, $0.GetSnippetRequest request);
+  $async.Future<$0.GetMetadataResponse> getMetadata(
+      $grpc.ServiceCall call, $0.GetMetadataRequest request);
 }

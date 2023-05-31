@@ -526,7 +526,7 @@ final class FirestoreV1ReadFn {
     // trying to expand all pages to a single collection. We are emitting a single page at a time
     // while tracking read progress so we can resume if an error has occurred and we still have
     // attempt budget available.
-    "type.argument.type.incompatible"
+    "type.argument"
   })
   private abstract static class PaginatedFirestoreV1ReadFn<
           RequestT extends Message,

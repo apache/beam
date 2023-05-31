@@ -147,36 +147,21 @@ public class DataflowBatchWorkerHarnessTest {
     private AtomicInteger count = new AtomicInteger(0);
 
     public FakeWorker(DataflowWorkerHarnessOptions options, boolean returnValue) {
-      super(
-          null /* pipeline */,
-          SdkHarnessRegistries.emptySdkHarnessRegistry(),
-          mockWorkUnitClient,
-          IntrinsicMapTaskExecutorFactory.defaultFactory(),
-          options);
+      super(mockWorkUnitClient, IntrinsicMapTaskExecutorFactory.defaultFactory(), options);
       ioExceptionValue = null;
       runtimeExceptionValue = null;
       this.returnValue = returnValue;
     }
 
     public FakeWorker(DataflowWorkerHarnessOptions options, IOException e) {
-      super(
-          null /* pipeline */,
-          SdkHarnessRegistries.emptySdkHarnessRegistry(),
-          mockWorkUnitClient,
-          IntrinsicMapTaskExecutorFactory.defaultFactory(),
-          options);
+      super(mockWorkUnitClient, IntrinsicMapTaskExecutorFactory.defaultFactory(), options);
       ioExceptionValue = e;
       runtimeExceptionValue = null;
       this.returnValue = false;
     }
 
     public FakeWorker(DataflowWorkerHarnessOptions options, RuntimeException e) {
-      super(
-          null /* pipeline */,
-          SdkHarnessRegistries.emptySdkHarnessRegistry(),
-          mockWorkUnitClient,
-          IntrinsicMapTaskExecutorFactory.defaultFactory(),
-          options);
+      super(mockWorkUnitClient, IntrinsicMapTaskExecutorFactory.defaultFactory(), options);
       ioExceptionValue = null;
       runtimeExceptionValue = e;
       this.returnValue = false;

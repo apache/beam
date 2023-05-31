@@ -18,7 +18,6 @@ package entity
 import (
 	"crypto/sha256"
 	"encoding/base64"
-	"fmt"
 	"io"
 	"sort"
 	"strings"
@@ -30,6 +29,11 @@ import (
 	"beam.apache.org/playground/backend/internal/logger"
 )
 
+type IDMeta struct {
+	Salt     string
+	IdLength int8
+}
+
 type FileEntity struct {
 	Name     string `datastore:"name"`
 	Content  string `datastore:"content,noindex"`
@@ -38,16 +42,30 @@ type FileEntity struct {
 }
 
 type SnippetEntity struct {
-	OwnerId       string         `datastore:"ownerId"`
-	Sdk           *datastore.Key `datastore:"sdk"`
-	PipeOpts      string         `datastore:"pipeOpts"`
-	Created       time.Time      `datastore:"created"`
-	LVisited      time.Time      `datastore:"lVisited"`
-	Origin        string         `datastore:"origin"`
-	VisitCount    int            `datastore:"visitCount"`
-	SchVer        *datastore.Key `datastore:"schVer"`
-	NumberOfFiles int            `datastore:"numberOfFiles"`
-	Complexity    string         `datastore:"complexity"`
+	Key            *datastore.Key         `datastore:"__key__"`
+	OwnerId        string                 `datastore:"ownerId"`
+	Sdk            *datastore.Key         `datastore:"sdk"`
+	PipeOpts       string                 `datastore:"pipeOpts"`
+	Created        time.Time              `datastore:"created"`
+	LVisited       time.Time              `datastore:"lVisited"`
+	Origin         string                 `datastore:"origin"`
+	VisitCount     int                    `datastore:"visitCount"`
+	SchVer         *datastore.Key         `datastore:"schVer"`
+	NumberOfFiles  int                    `datastore:"numberOfFiles"`
+	Complexity     string                 `datastore:"complexity"`
+	PersistenceKey string                 `datastore:"persistenceKey,omitempty"`
+	Datasets       []*DatasetNestedEntity `datastore:"datasets,omitempty"`
+}
+
+type DatasetEntity struct {
+	Key  *datastore.Key `datastore:"__key__"`
+	Path string         `datastore:"path"`
+}
+
+type DatasetNestedEntity struct {
+	Config   string         `datastore:"config"`
+	Dataset  *datastore.Key `datastore:"dataset"`
+	Emulator string         `datastore:"emulator"`
 }
 
 type Snippet struct {
@@ -72,12 +90,13 @@ func combineUniqueSnippetContent(snippet *Snippet) string {
 	}
 	sort.Strings(files)
 	var contentBuilder strings.Builder
-	for i, file := range files {
+	for _, file := range files {
 		contentBuilder.WriteString(file)
-		if i == len(files)-1 {
-			contentBuilder.WriteString(fmt.Sprintf("%v%s%s", snippet.Snippet.Sdk, strings.TrimSpace(snippet.Snippet.PipeOpts), snippet.Snippet.Complexity))
-		}
 	}
+	contentBuilder.WriteString(snippet.Snippet.Sdk.String())
+	contentBuilder.WriteString(strings.TrimSpace(snippet.Snippet.PipeOpts))
+	contentBuilder.WriteString(strings.TrimSpace(snippet.Snippet.Complexity))
+	contentBuilder.WriteString(snippet.Snippet.PersistenceKey)
 
 	return contentBuilder.String()
 }

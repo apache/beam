@@ -111,18 +111,19 @@ public class ReadFromSparkReceiverWithOffsetDoFnTest {
     assertEquals(0L, offsetRangeTracker.currentRestriction().getFrom());
     assertEquals(Long.MAX_VALUE, offsetRangeTracker.currentRestriction().getTo());
 
-    assertEquals(
-        SplitResult.of(new OffsetRange(0, 0), new OffsetRange(0, Long.MAX_VALUE)),
-        offsetRangeTracker.trySplit(0d));
+    // Split is not needed
+    assertNull(offsetRangeTracker.trySplit(0d));
 
     offsetRangeTracker =
         dofnInstance.restrictionTracker(
             TEST_ELEMENT, dofnInstance.initialRestriction(TEST_ELEMENT));
 
     assertTrue(offsetRangeTracker.tryClaim(0L));
+    // Split is not needed, because check done wasn't called
     assertNull(offsetRangeTracker.trySplit(0d));
 
     offsetRangeTracker.checkDone();
+    // Perform split because check done was called
     assertEquals(
         SplitResult.of(new OffsetRange(0, 1), new OffsetRange(1, Long.MAX_VALUE)),
         offsetRangeTracker.trySplit(0d));

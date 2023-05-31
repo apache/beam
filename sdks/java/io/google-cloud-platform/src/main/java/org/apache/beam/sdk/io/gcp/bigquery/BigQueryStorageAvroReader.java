@@ -35,7 +35,6 @@ class BigQueryStorageAvroReader implements BigQueryStorageReader {
   private final Schema avroSchema;
   private final DatumReader<GenericRecord> datumReader;
   private @Nullable BinaryDecoder decoder;
-  private @Nullable GenericRecord record;
   private long rowCount;
 
   BigQueryStorageAvroReader(ReadSession readSession) {
@@ -43,7 +42,6 @@ class BigQueryStorageAvroReader implements BigQueryStorageReader {
     this.datumReader = new GenericDatumReader<>(avroSchema);
     this.rowCount = 0;
     decoder = null;
-    record = null;
   }
 
   @Override
@@ -68,11 +66,11 @@ class BigQueryStorageAvroReader implements BigQueryStorageReader {
   public GenericRecord readSingleRecord() throws IOException {
     Preconditions.checkStateNotNull(decoder);
     @SuppressWarnings({
-      "nullness" // reused record can be null but avro not annotated
+      "nullness" // reused record is null but avro not annotated
     })
-    GenericRecord newRecord = datumReader.read(record, decoder);
-    record = newRecord;
-    return record;
+    // record should not be reused, mutating outputted values is unsafe
+    GenericRecord newRecord = datumReader.read(/*reuse=*/ null, decoder);
+    return newRecord;
   }
 
   @Override

@@ -15,9 +15,10 @@
 
 // native_wordcap is a toy streaming pipeline that uses PubSub. It
 // does the following:
-//    (1) create a topic and publish a few messages to it
-//    (2) start a streaming pipeline that converts the messages to
-//        upper case and logs the result.
+//
+//	(1) create a topic and publish a few messages to it
+//	(2) start a streaming pipeline that converts the messages to
+//	    upper case and logs the result.
 //
 // This is a portable PubSub option and does not need to be run on Dataflow.
 package main

@@ -38,8 +38,9 @@ dependencies {
     permitUsedUndeclared "org.apache.pulsar:pulsar-client-admin-api:$pulsar_version"
 
     implementation project(path: ":sdks:java:core", configuration: "shadow")
-    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.7.0'
-    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.7.0'
+
+    testImplementation library.java.jupiter_api
+    testRuntimeOnly library.java.jupiter_engine
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
     testImplementation "org.testcontainers:pulsar:1.15.3"
     testImplementation "org.assertj:assertj-core:2.9.1"

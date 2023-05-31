@@ -104,10 +104,13 @@ func GetExpansionAddrs() map[string]string {
 // of the flag.
 //
 // Example:
-//    var myFlags stringSlice
-//    flag.Var(&myFlags, "my_flag", "A list of flags")
+//
+//	var myFlags stringSlice
+//	flag.Var(&myFlags, "my_flag", "A list of flags")
+//
 // With the example above, the slice can be set to contain ["foo", "bar"]:
-//    cmd -my_flag foo -my_flag bar
+//
+//	cmd -my_flag foo -my_flag bar
 type stringSlice []string
 
 // String implements the String method of flag.Value. This outputs the value
@@ -124,6 +127,6 @@ func (s *stringSlice) Set(value string) error {
 }
 
 // Get returns the instance itself.
-func (s stringSlice) Get() interface{} {
+func (s stringSlice) Get() any {
 	return s
 }

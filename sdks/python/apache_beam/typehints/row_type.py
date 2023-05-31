@@ -34,6 +34,15 @@ from apache_beam.typehints.schema_registry import SchemaTypeRegistry
 _BEAM_SCHEMA_ID = "_beam_schema_id"
 
 
+def _user_type_is_generated(user_type: type) -> bool:
+  if not hasattr(user_type, _BEAM_SCHEMA_ID):
+    return False
+
+  schema_id = getattr(user_type, _BEAM_SCHEMA_ID)
+  type_name = 'BeamSchema_{}'.format(schema_id.replace('-', '_'))
+  return user_type.__name__ == type_name
+
+
 class RowTypeConstraint(typehints.TypeConstraint):
   def __init__(
       self,
@@ -97,6 +106,13 @@ class RowTypeConstraint(typehints.TypeConstraint):
     if match_is_named_tuple(user_type):
       fields = [(name, user_type.__annotations__[name])
                 for name in user_type._fields]
+
+      if _user_type_is_generated(user_type):
+        return RowTypeConstraint.from_fields(
+            fields,
+            schema_id=getattr(user_type, _BEAM_SCHEMA_ID),
+            schema_options=schema_options,
+            field_options=field_options)
 
       # TODO(https://github.com/apache/beam/issues/22125): Add user API for
       # specifying schema/field options
@@ -203,7 +219,6 @@ class GeneratedClassRowTypeConstraint(RowTypeConstraint):
         field_options=field_options,
         **kwargs)
     user_type = named_tuple_from_schema(schema, **kwargs)
-    setattr(user_type, _BEAM_SCHEMA_ID, schema_id)
 
     super().__init__(
         fields,

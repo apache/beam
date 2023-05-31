@@ -22,6 +22,7 @@ from __future__ import annotations
 import logging
 import threading
 from typing import Any
+from typing import Callable
 from typing import Dict
 from typing import Iterable
 from typing import Optional
@@ -31,9 +32,9 @@ from typing import Tuple
 import numpy as np
 
 from apache_beam.io.filesystems import FileSystems
+from apache_beam.ml.inference import utils
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import PredictionResult
-from apache_beam.utils.annotations import experimental
 
 LOGGER = logging.getLogger("TensorRTEngineHandlerNumPy")
 # This try/catch block allows users to submit jobs from a machine without
@@ -120,7 +121,16 @@ class TensorRTEngine:
     self.outputs = []
     self.gpu_allocations = []
     self.cpu_allocations = []
-    """Setup I/O bindings."""
+
+    # TODO(https://github.com/NVIDIA/TensorRT/issues/2557):
+    # Clean up when fixed upstream.
+    try:
+      _ = np.bool  # type: ignore
+    except AttributeError:
+      # numpy >= 1.24.0
+      np.bool = np.bool_  # type: ignore
+
+    # Setup I/O bindings.
     for i in range(self.engine.num_bindings):
       name = self.engine.get_binding_name(i)
       dtype = self.engine.get_binding_dtype(i)
@@ -164,11 +174,63 @@ class TensorRTEngine:
         self.stream)
 
 
-@experimental(extra_message="No backwards-compatibility guarantees.")
+TensorRTInferenceFn = Callable[
+    [Sequence[np.ndarray], TensorRTEngine, Optional[Dict[str, Any]]],
+    Iterable[PredictionResult]]
+
+
+def _default_tensorRT_inference_fn(
+    batch: Sequence[np.ndarray],
+    engine: TensorRTEngine,
+    inference_args: Optional[Dict[str,
+                                  Any]] = None) -> Iterable[PredictionResult]:
+  from cuda import cuda
+  (
+      engine,
+      context,
+      context_lock,
+      inputs,
+      outputs,
+      gpu_allocations,
+      cpu_allocations,
+      stream) = engine.get_engine_attrs()
+
+  # Process I/O and execute the network
+  with context_lock:
+    _assign_or_fail(
+        cuda.cuMemcpyHtoDAsync(
+            inputs[0]['allocation'],
+            np.ascontiguousarray(batch),
+            inputs[0]['size'],
+            stream))
+    context.execute_async_v2(gpu_allocations, stream)
+    for output in range(len(cpu_allocations)):
+      _assign_or_fail(
+          cuda.cuMemcpyDtoHAsync(
+              cpu_allocations[output],
+              outputs[output]['allocation'],
+              outputs[output]['size'],
+              stream))
+    _assign_or_fail(cuda.cuStreamSynchronize(stream))
+
+    predictions = []
+    for idx in range(len(batch)):
+      predictions.append([prediction[idx] for prediction in cpu_allocations])
+
+    return utils._convert_to_result(batch, predictions)
+
+
 class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
                                               PredictionResult,
                                               TensorRTEngine]):
-  def __init__(self, min_batch_size: int, max_batch_size: int, **kwargs):
+  def __init__(
+      self,
+      min_batch_size: int,
+      max_batch_size: int,
+      *,
+      inference_fn: TensorRTInferenceFn = _default_tensorRT_inference_fn,
+      large_model: bool = False,
+      **kwargs):
     """Implementation of the ModelHandler interface for TensorRT.
 
     Example Usage::
@@ -185,18 +247,28 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
     Args:
       min_batch_size: minimum accepted batch size.
       max_batch_size: maximum accepted batch size.
+      inference_fn: the inference function to use on RunInference calls.
+        default: _default_tensorRT_inference_fn
+      large_model: set to true if your model is large enough to run into
+        memory pressure if you load multiple copies. Given a model that
+        consumes N memory and a machine with W cores and M memory, you should
+        set this to True if N*W > M.
       kwargs: Additional arguments like 'engine_path' and 'onnx_path' are
-        currently supported.
+        currently supported. 'env_vars' can be used to set environment variables
+        before loading the model.
 
     See https://docs.nvidia.com/deeplearning/tensorrt/api/python_api/
     for details
     """
     self.min_batch_size = min_batch_size
     self.max_batch_size = max_batch_size
+    self.inference_fn = inference_fn
     if 'engine_path' in kwargs:
       self.engine_path = kwargs.get('engine_path')
     elif 'onnx_path' in kwargs:
       self.onnx_path = kwargs.get('onnx_path')
+    self._env_vars = kwargs.get('env_vars', {})
+    self._large_model = large_model
 
   def batch_elements_kwargs(self):
     """Sets min_batch_size and max_batch_size of a TensorRT engine."""
@@ -241,40 +313,7 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
     Returns:
       An Iterable of type PredictionResult.
     """
-    from cuda import cuda
-    (
-        engine,
-        context,
-        context_lock,
-        inputs,
-        outputs,
-        gpu_allocations,
-        cpu_allocations,
-        stream) = engine.get_engine_attrs()
-
-    # Process I/O and execute the network
-    with context_lock:
-      _assign_or_fail(
-          cuda.cuMemcpyHtoDAsync(
-              inputs[0]['allocation'],
-              np.ascontiguousarray(batch),
-              inputs[0]['size'],
-              stream))
-      context.execute_async_v2(gpu_allocations, stream)
-      for output in range(len(cpu_allocations)):
-        _assign_or_fail(
-            cuda.cuMemcpyDtoHAsync(
-                cpu_allocations[output],
-                outputs[output]['allocation'],
-                outputs[output]['size'],
-                stream))
-      _assign_or_fail(cuda.cuStreamSynchronize(stream))
-
-      return [
-          PredictionResult(
-              x, [prediction[idx] for prediction in cpu_allocations]) for idx,
-          x in enumerate(batch)
-      ]
+    return self.inference_fn(batch, engine, inference_args)
 
   def get_num_bytes(self, batch: Sequence[np.ndarray]) -> int:
     """
@@ -287,4 +326,7 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
     """
     Returns a namespace for metrics collected by the RunInference transform.
     """
-    return 'RunInferenceTensorRT'
+    return 'BeamML_TensorRT'
+
+  def share_model_across_processes(self) -> bool:
+    return self._large_model

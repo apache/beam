@@ -83,13 +83,13 @@ function get_version() {
 function download_files() {
   if [[ $1 = *"wheel"* ]]; then
     if [[ $2 == "python3.7" ]]; then
-      BEAM_PYTHON_SDK_WHL="apache_beam-$VERSION*-cp37-cp37m-manylinux1_x86_64.whl"
+      BEAM_PYTHON_SDK_WHL="apache_beam-$VERSION*-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl"
     elif [[ $2 == "python3.8" ]]; then
-      BEAM_PYTHON_SDK_WHL="apache_beam-$VERSION*-cp38-cp38-manylinux1_x86_64.whl"
+      BEAM_PYTHON_SDK_WHL="apache_beam-$VERSION*-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl"
     elif [[ $2 == "python3.9" ]]; then
-      BEAM_PYTHON_SDK_WHL="apache_beam-$VERSION*-cp39-cp39-manylinux1_x86_64.whl"
+      BEAM_PYTHON_SDK_WHL="apache_beam-$VERSION*-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl"
     elif [[ $2 == "python3.10" ]]; then
-      BEAM_PYTHON_SDK_WHL="apache_beam-$VERSION*-cp310-cp310-manylinux1_x86_64.whl"
+      BEAM_PYTHON_SDK_WHL="apache_beam-$VERSION*-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl"
     else
       echo "Unable to determine a Beam wheel for interpreter version $2."
       exit 1

@@ -400,7 +400,7 @@ python -m apache_beam.examples.wordcount --input /path/to/inputfile \
 
 {{< runner flinkCluster >}}
 # Running Beam Python on a distributed Flink cluster requires additional configuration.
-# See https://beam.apache.org/documentation/runners/flink/ for more information.
+# See /documentation/runners/flink/ for more information.
 {{< /runner >}}
 
 {{< runner spark >}}
@@ -1452,7 +1452,7 @@ using [`beam.io.WriteToPubSub`](https://beam.apache.org/releases/pydoc/{{< param
 
 * Walk through the Mobile Gaming examples in the [Mobile Gaming Example Walkthrough](/get-started/mobile-gaming-example).
 * Take a self-paced tour through our [Learning Resources](/documentation/resources/learning-resources).
-* Dive in to some of our favorite [Videos and Podcasts](/documentation/resources/videos-and-podcasts).
+* Dive in to some of our favorite [Videos and Podcasts](/get-started/resources/videos-and-podcasts).
 * Join the Beam [users@](/community/contact-us) mailing list.
 
 Please don't hesitate to [reach out](/community/contact-us) if you encounter any issues!

@@ -18,8 +18,26 @@
 
 import 'package:equatable/equatable.dart';
 
-abstract class ExampleLoadingDescriptor with EquatableMixin {
-  const ExampleLoadingDescriptor();
+import '../example_view_options.dart';
+import '../sdk.dart';
 
-  Map<String, dynamic> toJson() => throw UnimplementedError();
+/// Describes a single example to be loaded.
+abstract class ExampleLoadingDescriptor with EquatableMixin {
+  const ExampleLoadingDescriptor({
+    this.viewOptions = ExampleViewOptions.empty,
+  });
+
+  final ExampleViewOptions viewOptions;
+
+  Sdk? get sdk => null;
+
+  /// Anything to hint at the snippet: catalog path, user-shared ID, URL, etc.
+  ///
+  /// This can be used for analytics or other applications to distinguish
+  /// snippets in most cases but not as a strictly unique identifier.
+  String? get token => null;
+
+  ExampleLoadingDescriptor copyWithoutViewOptions();
+
+  Map<String, dynamic> toJson();
 }

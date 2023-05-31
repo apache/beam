@@ -178,6 +178,9 @@ class Pipeline(object):
 
     FileSystems.set_options(self._options)
 
+    pickle_library = self._options.view_as(SetupOptions).pickle_library
+    pickler.set_library(pickle_library)
+
     if runner is None:
       runner = self._options.view_as(StandardOptions).runner
       if runner is None:
@@ -1010,7 +1013,7 @@ class PipelineVisitor(object):
   """For internal use only; no backwards-compatibility guarantees.
 
   Visitor pattern class used to traverse a DAG of transforms
-  (used internally by Pipeline for bookeeping purposes).
+  (used internally by Pipeline for bookkeeping purposes).
   """
   def visit_value(self, value, producer_node):
     # type: (pvalue.PValue, AppliedPTransform) -> None
@@ -1285,7 +1288,8 @@ class AppliedPTransform(object):
           self.main_inputs, self.side_inputs)
       if not self.parts:
         for name, pc_out in self.outputs.items():
-          if pc_out.producer is not self:
+          if pc_out.producer is not self and pc_out not in named_inputs.values(
+          ):
             named_inputs[f'__implicit_input_{name}'] = pc_out
       return named_inputs
 

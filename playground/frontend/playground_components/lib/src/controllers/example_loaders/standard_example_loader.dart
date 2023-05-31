@@ -19,20 +19,25 @@
 import 'dart:async';
 
 import '../../cache/example_cache.dart';
+import '../../exceptions/multiple_exceptions.dart';
 import '../../models/example.dart';
-import '../../models/example_base.dart';
 import '../../models/example_loading_descriptors/standard_example_loading_descriptor.dart';
 import '../../models/sdk.dart';
 import 'example_loader.dart';
 
 /// Loads a given example from the local cache, then adds info from network.
 ///
-/// This loader assumes that [ExampleState] is loading all examples to
+/// This loader assumes that [ExampleCache] is loading all examples to
 /// its cache. So it only completes if this is successful.
 class StandardExampleLoader extends ExampleLoader {
+  @override
   final StandardExampleLoadingDescriptor descriptor;
+
   final ExampleCache exampleCache;
   final _completer = Completer<Example>();
+
+  @override
+  Sdk? get sdk => descriptor.sdk;
 
   @override
   Future<Example> get future => _completer.future;
@@ -41,35 +46,42 @@ class StandardExampleLoader extends ExampleLoader {
     required this.descriptor,
     required this.exampleCache,
   }) {
-    _load();
+    unawaited(_load());
   }
 
   Future<void> _load() async {
-    final example = await _loadExampleWithoutInfo();
+    try {
+      final example = await exampleCache.getPrecompiledObject(
+        descriptor.path,
+        descriptor.sdk,
+      );
 
-    if (example == null) {
-      _completer.completeError('Example not found: $descriptor');
-      return;
+      _completer.complete(example);
+    } on Exception catch (ex, trace) {
+      await _tryLoadSharedExample(
+        previousExceptions: [ex],
+        previousStackTraces: [trace],
+      );
     }
-
-    _completer.complete(
-      exampleCache.loadExampleInfo(example),
-    );
   }
 
-  Future<ExampleBase?> _loadExampleWithoutInfo() {
-    return exampleCache.hasCatalog
-        ? exampleCache.getCatalogExampleByPath(descriptor.path)
-        : _loadExampleFromRepository();
-  }
-
-  Future<ExampleBase?> _loadExampleFromRepository() async {
-    final sdk = Sdk.tryParseExamplePath(descriptor.path);
-
-    if (sdk == null) {
-      return null;
+  Future<void> _tryLoadSharedExample({
+    required List<Exception> previousExceptions,
+    required List<StackTrace> previousStackTraces,
+  }) async {
+    try {
+      final example = await exampleCache.loadSharedExample(
+        descriptor.path,
+        viewOptions: descriptor.viewOptions,
+      );
+      _completer.complete(example);
+    } on Exception catch (ex, trace) {
+      _completer.completeError(
+        MultipleExceptions(
+          exceptions: [...previousExceptions, ex],
+          stackTraces: [...previousStackTraces, trace],
+        ),
+      );
     }
-
-    return exampleCache.getExample(descriptor.path, sdk);
   }
 }

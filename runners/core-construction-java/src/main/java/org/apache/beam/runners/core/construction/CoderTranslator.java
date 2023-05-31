@@ -24,9 +24,8 @@ import org.apache.beam.sdk.coders.Coder;
 /**
  * An interface that translates coders to components and back.
  *
- * <p>This interface is highly experimental, and incomplete. Coders must in the general case have
- * the capability to encode an additional payload, which is not currently supported. This exists as
- * a temporary measure.
+ * <p>This interface is incomplete. Coders must in the general case have the capability to encode an
+ * additional payload, which is not currently supported. This exists as a temporary measure.
  */
 public interface CoderTranslator<T extends Coder<?>> {
   /** Extract all component {@link Coder coders} within a coder. */

@@ -90,8 +90,8 @@ def looks_like_json(s):
 
 
 APACHE_BEAM_DOCKER_IMAGE_PREFIX = 'apache/beam'
-
 APACHE_BEAM_JAVA_CONTAINER_NAME_PREFIX = 'beam_java'
+SDK_VERSION_CAPABILITY_PREFIX = 'beam:version:sdk_base:'
 
 
 def is_apache_beam_container(container_image):
@@ -777,6 +777,11 @@ def python_sdk_docker_capabilities():
   return python_sdk_capabilities() + [common_urns.protocols.SIBLING_WORKERS.urn]
 
 
+def sdk_base_version_capability():
+  return (
+      SDK_VERSION_CAPABILITY_PREFIX + DockerEnvironment.default_docker_image())
+
+
 def _python_sdk_capabilities_iter():
   # type: () -> Iterator[str]
   for urn_spec in common_urns.coders.__dict__.values():
@@ -786,9 +791,10 @@ def _python_sdk_capabilities_iter():
   yield common_urns.protocols.HARNESS_MONITORING_INFOS.urn
   yield common_urns.protocols.WORKER_STATUS.urn
   yield python_urns.PACKED_COMBINE_FN
-  yield 'beam:version:sdk_base:' + DockerEnvironment.default_docker_image()
+  yield sdk_base_version_capability()
   yield common_urns.sdf_components.TRUNCATE_SIZED_RESTRICTION.urn
   yield common_urns.primitives.TO_STRING.urn
+  yield common_urns.protocols.DATA_SAMPLING.urn
 
 
 def python_sdk_dependencies(options, tmp_dir=None):

@@ -18,10 +18,24 @@
 package org.apache.beam.sdk.io.jms;
 
 import static org.apache.beam.sdk.io.UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN;
+import static org.apache.beam.sdk.io.jms.CommonJms.PASSWORD;
+import static org.apache.beam.sdk.io.jms.CommonJms.QUEUE;
+import static org.apache.beam.sdk.io.jms.CommonJms.TOPIC;
+import static org.apache.beam.sdk.io.jms.CommonJms.USERNAME;
+import static org.apache.beam.sdk.io.jms.JmsIO.Writer.JMS_IO_PRODUCER_METRIC_NAME;
+import static org.apache.beam.sdk.io.jms.JmsIO.Writer.PUBLICATION_RETRIES_METRIC_NAME;
+import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.hamcrest.Matchers.hasProperty;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.lessThan;
+import static org.hamcrest.core.StringContains.containsString;
+import static org.hamcrest.object.HasToString.hasToString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -38,7 +52,11 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
@@ -55,15 +73,14 @@ import javax.jms.QueueBrowser;
 import javax.jms.Session;
 import javax.jms.TextMessage;
 import org.apache.activemq.ActiveMQConnectionFactory;
-import org.apache.activemq.broker.BrokerPlugin;
-import org.apache.activemq.broker.BrokerService;
 import org.apache.activemq.command.ActiveMQMessage;
-import org.apache.activemq.security.AuthenticationUser;
-import org.apache.activemq.security.SimpleAuthenticationPlugin;
-import org.apache.activemq.store.memory.MemoryPersistenceAdapter;
 import org.apache.activemq.util.Callback;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.metrics.MetricNameFilter;
+import org.apache.beam.sdk.metrics.MetricQueryResults;
+import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.options.ExecutorOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -75,67 +92,73 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableBiFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
+import org.apache.qpid.jms.JmsAcknowledgeCallback;
+import org.apache.qpid.jms.JmsConnectionFactory;
+import org.apache.qpid.jms.message.JmsTextMessage;
 import org.joda.time.Duration;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
+import org.junit.runners.Parameterized;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Tests of {@link JmsIO}. */
-@RunWith(JUnit4.class)
+@RunWith(Parameterized.class)
 @SuppressWarnings({
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class JmsIOTest {
 
-  private static final String BROKER_URL = "vm://localhost";
-
-  private static final String USERNAME = "test_user";
-  private static final String PASSWORD = "test_password";
-  private static final String QUEUE = "test_queue";
-  private static final String TOPIC = "test_topic";
-
-  private BrokerService broker;
-  private ConnectionFactory connectionFactory;
-  private ConnectionFactory connectionFactoryWithSyncAcksAndWithoutPrefetch;
-
+  private static final Logger LOG = LoggerFactory.getLogger(JmsIOTest.class);
+  private final RetryConfiguration retryConfiguration =
+      RetryConfiguration.create(1, Duration.standardSeconds(1), null);
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
+  @Parameterized.Parameters(name = "with client class {3}")
+  public static Collection<Object[]> connectionFactories() {
+    return Arrays.asList(
+        new Object[] {
+          "vm://localhost", 5672, "jms.sendAcksAsync=false", ActiveMQConnectionFactory.class
+        },
+        new Object[] {
+          "amqp://localhost", 5672, "jms.forceAsyncAcks=false", JmsConnectionFactory.class
+        });
+  }
+
+  private final CommonJms commonJms;
+  private ConnectionFactory connectionFactory;
+  private Class<? extends ConnectionFactory> connectionFactoryClass;
+  private ConnectionFactory connectionFactoryWithSyncAcksAndWithoutPrefetch;
+
+  public JmsIOTest(
+      String brokerUrl,
+      Integer brokerPort,
+      String forceAsyncAcksParam,
+      Class<? extends ConnectionFactory> connectionFactoryClass) {
+    this.commonJms =
+        new CommonJms(brokerUrl, brokerPort, forceAsyncAcksParam, connectionFactoryClass);
+  }
+
   @Before
-  public void startBroker() throws Exception {
-    broker = new BrokerService();
-    broker.setUseJmx(false);
-    broker.setPersistenceAdapter(new MemoryPersistenceAdapter());
-    broker.addConnector(BROKER_URL);
-    broker.setBrokerName("localhost");
-    broker.setPopulateJMSXUserID(true);
-    broker.setUseAuthenticatedPrincipalForJMSXUserID(true);
-
-    // enable authentication
-    List<AuthenticationUser> users = new ArrayList<>();
-    // username and password to use to connect to the broker.
-    // This user has users privilege (able to browse, consume, produce, list destinations)
-    users.add(new AuthenticationUser(USERNAME, PASSWORD, "users"));
-    SimpleAuthenticationPlugin plugin = new SimpleAuthenticationPlugin(users);
-    BrokerPlugin[] plugins = new BrokerPlugin[] {plugin};
-    broker.setPlugins(plugins);
-
-    broker.start();
-
-    // create JMS connection factory
-    connectionFactory = new ActiveMQConnectionFactory(BROKER_URL);
+  public void beforeEeach() throws Exception {
+    this.commonJms.startBroker();
+    connectionFactory = this.commonJms.getConnectionFactory();
+    connectionFactoryClass = this.commonJms.getConnectionFactoryClass();
     connectionFactoryWithSyncAcksAndWithoutPrefetch =
-        new ActiveMQConnectionFactory(
-            BROKER_URL + "?jms.prefetchPolicy.all=0&jms.sendAcksAsync=false");
+        this.commonJms.getConnectionFactoryWithSyncAcksAndWithoutPrefetch();
   }
 
   @After
-  public void stopBroker() throws Exception {
-    broker.stop();
+  public void tearDown() throws Exception {
+    this.commonJms.stopBroker();
+    connectionFactory = null;
+    connectionFactoryClass = null;
+    connectionFactoryWithSyncAcksAndWithoutPrefetch = null;
   }
 
   private void runPipelineExpectingJmsConnectException(String innerMessage) {
@@ -150,8 +173,11 @@ public class JmsIOTest {
   @Test
   public void testAuthenticationRequired() {
     pipeline.apply(JmsIO.read().withConnectionFactory(connectionFactory).withQueue(QUEUE));
-
-    runPipelineExpectingJmsConnectException("User name [null] or password is invalid.");
+    String errorMessage =
+        this.connectionFactoryClass == ActiveMQConnectionFactory.class
+            ? "User name [null] or password is invalid."
+            : "Client failed to authenticate using SASL: ANONYMOUS";
+    runPipelineExpectingJmsConnectException(errorMessage);
   }
 
   @Test
@@ -163,7 +189,11 @@ public class JmsIOTest {
             .withUsername(USERNAME)
             .withPassword("BAD"));
 
-    runPipelineExpectingJmsConnectException("User name [" + USERNAME + "] or password is invalid.");
+    String errorMessage =
+        this.connectionFactoryClass == ActiveMQConnectionFactory.class
+            ? "User name [" + USERNAME + "] or password is invalid."
+            : "Client failed to authenticate using SASL: PLAIN";
+    runPipelineExpectingJmsConnectException(errorMessage);
   }
 
   @Test
@@ -228,7 +258,7 @@ public class JmsIOTest {
                 .withPassword(PASSWORD)
                 .withMaxNumRecords(1)
                 .withCoder(SerializableCoder.of(String.class))
-                .withMessageMapper(new BytesMessageToStringMessageMapper()));
+                .withMessageMapper(new CommonJms.BytesMessageToStringMessageMapper()));
 
     PAssert.thatSingleton(output.apply("Count", Count.<String>globally())).isEqualTo(1L);
     pipeline.run();
@@ -253,6 +283,7 @@ public class JmsIOTest {
             JmsIO.<String>write()
                 .withConnectionFactory(connectionFactory)
                 .withValueMapper(new TextMessageMapper())
+                .withRetryConfiguration(retryConfiguration)
                 .withQueue(QUEUE)
                 .withUsername(USERNAME)
                 .withPassword(PASSWORD));
@@ -284,6 +315,7 @@ public class JmsIOTest {
                 JmsIO.<String>write()
                     .withConnectionFactory(connectionFactory)
                     .withValueMapper(new TextMessageMapperWithError())
+                    .withRetryConfiguration(retryConfiguration)
                     .withQueue(QUEUE)
                     .withUsername(USERNAME)
                     .withPassword(PASSWORD));
@@ -324,6 +356,7 @@ public class JmsIOTest {
                 .withConnectionFactory(connectionFactory)
                 .withUsername(USERNAME)
                 .withPassword(PASSWORD)
+                .withRetryConfiguration(retryConfiguration)
                 .withTopicNameMapper(e -> e.getTopicName())
                 .withValueMapper(
                     (e, s) -> {
@@ -439,6 +472,39 @@ public class JmsIOTest {
     assertEquals(0, count(QUEUE));
   }
 
+  private Function<?, ?> getJmsMessageAck(Class connectorClass) {
+    final int delay = 10;
+    return connectorClass == JmsConnectionFactory.class
+        ? (JmsTextMessage message) -> {
+          final JmsAcknowledgeCallback originalCallback = message.getAcknowledgeCallback();
+          JmsAcknowledgeCallback jmsAcknowledgeCallbackMock =
+              Mockito.mock(JmsAcknowledgeCallback.class);
+          try {
+            Mockito.doAnswer(
+                    invocation -> {
+                      Thread.sleep(delay);
+                      originalCallback.acknowledge();
+                      return null;
+                    })
+                .when(jmsAcknowledgeCallbackMock)
+                .acknowledge();
+          } catch (JMSException exception) {
+            LOG.error("An exception occurred while adding 10s delay", exception);
+          }
+          message.setAcknowledgeCallback(jmsAcknowledgeCallbackMock);
+          return message;
+        }
+        : (ActiveMQMessage message) -> {
+          final Callback originalCallback = message.getAcknowledgeCallback();
+          message.setAcknowledgeCallback(
+              () -> {
+                Thread.sleep(delay);
+                originalCallback.execute();
+              });
+          return message;
+        };
+  }
+
   @Test
   public void testCheckpointMarkSafety() throws Exception {
 
@@ -466,13 +532,15 @@ public class JmsIOTest {
     session.close();
     connection.close();
 
+    Function jmsMessageAck = getJmsMessageAck(this.connectionFactoryClass);
+
     // create a JmsIO.Read with a decorated ConnectionFactory which will introduce a delay in
     // sending
     // acknowledgements - this should help uncover threading issues around checkpoint management.
     JmsIO.Read spec =
         JmsIO.read()
             .withConnectionFactory(
-                withSlowAcks(connectionFactoryWithSyncAcksAndWithoutPrefetch, 10))
+                withSlowAcks(connectionFactoryWithSyncAcksAndWithoutPrefetch, jmsMessageAck))
             .withUsername(USERNAME)
             .withPassword(PASSWORD)
             .withQueue(QUEUE);
@@ -665,6 +733,187 @@ public class JmsIOTest {
     assertEquals(6, count(QUEUE));
   }
 
+  @Test
+  public void testPublisherWithRetryConfiguration() {
+    RetryConfiguration retryPolicy =
+        RetryConfiguration.create(5, Duration.standardSeconds(15), null);
+    JmsIO.Write<String> publisher =
+        JmsIO.<String>write()
+            .withConnectionFactory(connectionFactory)
+            .withRetryConfiguration(retryPolicy)
+            .withQueue(QUEUE)
+            .withUsername(USERNAME)
+            .withPassword(PASSWORD);
+    assertEquals(
+        publisher.getRetryConfiguration(),
+        RetryConfiguration.create(5, Duration.standardSeconds(15), null));
+  }
+
+  @Test
+  public void testWriteMessageWithRetryPolicy() throws Exception {
+    int waitingSeconds = 5;
+    // Margin of the pipeline execution in seconds that should be taken into consideration
+    int pipelineDuration = 5;
+    Instant now = Instant.now();
+    String messageText = now.toString();
+    List<String> data = Collections.singletonList(messageText);
+    RetryConfiguration retryPolicy =
+        RetryConfiguration.create(
+            3, Duration.standardSeconds(waitingSeconds), Duration.standardDays(10));
+
+    WriteJmsResult<String> output =
+        pipeline
+            .apply(Create.of(data))
+            .apply(
+                JmsIO.<String>write()
+                    .withConnectionFactory(connectionFactory)
+                    .withValueMapper(new TextMessageMapperWithErrorCounter())
+                    .withRetryConfiguration(retryPolicy)
+                    .withQueue(QUEUE)
+                    .withUsername(USERNAME)
+                    .withPassword(PASSWORD));
+
+    PAssert.that(output.getFailedMessages()).empty();
+    pipeline.run();
+
+    Connection connection = connectionFactory.createConnection(USERNAME, PASSWORD);
+    connection.start();
+    Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+    MessageConsumer consumer = session.createConsumer(session.createQueue(QUEUE));
+
+    Message message = consumer.receive(1000);
+    assertNotNull(message);
+    long maximumTimestamp =
+        now.plus(java.time.Duration.ofSeconds(waitingSeconds + pipelineDuration)).toEpochMilli();
+    assertThat(
+        message.getJMSTimestamp(),
+        allOf(greaterThanOrEqualTo(now.toEpochMilli()), lessThan(maximumTimestamp)));
+    assertNull(consumer.receiveNoWait());
+  }
+
+  @Test
+  public void testWriteMessageWithRetryPolicyReachesLimit() throws Exception {
+    String messageText = "text";
+    int maxPublicationAttempts = 2;
+    List<String> data = Collections.singletonList(messageText);
+    RetryConfiguration retryConfiguration =
+        RetryConfiguration.create(maxPublicationAttempts, null, null);
+
+    WriteJmsResult<String> output =
+        pipeline
+            .apply(Create.of(data))
+            .apply(
+                JmsIO.<String>write()
+                    .withConnectionFactory(connectionFactory)
+                    .withValueMapper(
+                        (SerializableBiFunction<String, Session, Message>)
+                            (s, session) -> {
+                              throw new JmsIOException("Error!!");
+                            })
+                    .withRetryConfiguration(retryConfiguration)
+                    .withQueue(QUEUE)
+                    .withUsername(USERNAME)
+                    .withPassword(PASSWORD));
+
+    PAssert.that(output.getFailedMessages()).containsInAnyOrder(messageText);
+    PipelineResult pipelineResult = pipeline.run();
+
+    MetricQueryResults metrics =
+        pipelineResult
+            .metrics()
+            .queryMetrics(
+                MetricsFilter.builder()
+                    .addNameFilter(
+                        MetricNameFilter.named(
+                            JMS_IO_PRODUCER_METRIC_NAME, PUBLICATION_RETRIES_METRIC_NAME))
+                    .build());
+
+    assertThat(
+        metrics.getCounters(),
+        contains(
+            allOf(
+                hasProperty("attempted", is((long) maxPublicationAttempts)),
+                hasProperty(
+                    "key",
+                    hasToString(
+                        containsString(
+                            String.format(
+                                "%s:%s",
+                                JMS_IO_PRODUCER_METRIC_NAME, PUBLICATION_RETRIES_METRIC_NAME)))))));
+
+    Connection connection = connectionFactory.createConnection(USERNAME, PASSWORD);
+    connection.start();
+    Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+    MessageConsumer consumer = session.createConsumer(session.createQueue(QUEUE));
+    assertNull(consumer.receiveNoWait());
+  }
+
+  @Test
+  public void testWriteMessagesWithErrors() throws Exception {
+    int maxPublicationAttempts = 2;
+    // Message 1 should fail for Published DoFn handled by the republished DoFn and published to the
+    // queue
+    // Message 2 should fail both DoFn
+    // Message 3 & 4 should pass the publish DoFn
+    List<String> data = Arrays.asList("Message 1", "Message 2", "Message 3", "Message 4");
+
+    RetryConfiguration retryConfiguration =
+        RetryConfiguration.create(maxPublicationAttempts, null, null);
+
+    WriteJmsResult<String> output =
+        pipeline
+            .apply(Create.of(data))
+            .apply(
+                JmsIO.<String>write()
+                    .withConnectionFactory(connectionFactory)
+                    .withValueMapper(new TextMessageMapperWithErrorAndCounter())
+                    .withRetryConfiguration(retryConfiguration)
+                    .withQueue(QUEUE)
+                    .withUsername(USERNAME)
+                    .withPassword(PASSWORD));
+
+    PAssert.that(output.getFailedMessages()).containsInAnyOrder("Message 2");
+    pipeline.run();
+
+    Connection connection = connectionFactory.createConnection(USERNAME, PASSWORD);
+    connection.start();
+    Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+    MessageConsumer consumer = session.createConsumer(session.createQueue(QUEUE));
+    int count = 0;
+    while (consumer.receive(1000) != null) {
+      count++;
+    }
+    assertEquals(3, count);
+  }
+
+  @Test
+  public void testWriteMessageToStaticTopicWithoutRetryPolicy() throws Exception {
+    Instant now = Instant.now();
+    String messageText = now.toString();
+    List<String> data = Collections.singletonList(messageText);
+
+    Connection connection = connectionFactory.createConnection(USERNAME, PASSWORD);
+    connection.start();
+    Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+    MessageConsumer consumer = session.createConsumer(session.createTopic(TOPIC));
+
+    WriteJmsResult<String> output =
+        pipeline
+            .apply(Create.of(data))
+            .apply(
+                JmsIO.<String>write()
+                    .withConnectionFactory(connectionFactory)
+                    .withValueMapper(new TextMessageMapper())
+                    .withTopic(TOPIC)
+                    .withUsername(USERNAME)
+                    .withPassword(PASSWORD));
+    PAssert.that(output.getFailedMessages()).empty();
+    pipeline.run();
+    Message message = consumer.receive(1000);
+    assertNotNull(message);
+    assertNull(consumer.receiveNoWait());
+  }
+
   private int count(String queue) throws Exception {
     Connection connection = connectionFactory.createConnection(USERNAME, PASSWORD);
     connection.start();
@@ -679,25 +928,13 @@ public class JmsIOTest {
     return count;
   }
 
-  /** A test class that maps a {@link javax.jms.BytesMessage} into a {@link String}. */
-  public static class BytesMessageToStringMessageMapper implements JmsIO.MessageMapper<String> {
-
-    @Override
-    public String mapMessage(Message message) throws Exception {
-      BytesMessage bytesMessage = (BytesMessage) message;
-
-      byte[] bytes = new byte[(int) bytesMessage.getBodyLength()];
-
-      return new String(bytes, StandardCharsets.UTF_8);
-    }
-  }
-
   /*
    * A utility method which replaces a ConnectionFactory with one where calling receiveNoWait() -- i.e. pulling a
    * message -- will return a message with its acknowledgement callback decorated to include a sleep for a specified
    * duration. This gives the effect of ensuring messages take at least {@code delay} milliseconds to be processed.
    */
-  private ConnectionFactory withSlowAcks(ConnectionFactory factory, long delay) {
+  private <T extends Message> ConnectionFactory withSlowAcks(
+      ConnectionFactory factory, Function<T, T> resultTransformer) {
     return proxyMethod(
         factory,
         ConnectionFactory.class,
@@ -717,16 +954,7 @@ public class JmsIOTest {
                                 consumer,
                                 MessageConsumer.class,
                                 "receiveNoWait",
-                                (ActiveMQMessage message) -> {
-                                  final Callback originalCallback =
-                                      message.getAcknowledgeCallback();
-                                  message.setAcknowledgeCallback(
-                                      () -> {
-                                        Thread.sleep(delay);
-                                        originalCallback.execute();
-                                      });
-                                  return message;
-                                }))));
+                                resultTransformer))));
   }
 
   /*
@@ -775,6 +1003,56 @@ public class JmsIOTest {
     public Message apply(String value, Session session) {
       try {
         if (value.equals("Message 1") || value.equals("Message 2")) {
+          throw new JMSException("Error!!");
+        }
+        TextMessage msg = session.createTextMessage();
+        msg.setText(value);
+        return msg;
+      } catch (JMSException e) {
+        throw new JmsIOException("Error creating TextMessage", e);
+      }
+    }
+  }
+
+  private static class TextMessageMapperWithErrorCounter
+      implements SerializableBiFunction<String, Session, Message> {
+
+    private static int errorCounter;
+
+    TextMessageMapperWithErrorCounter() {
+      errorCounter = 0;
+    }
+
+    @Override
+    public Message apply(String value, Session session) {
+      try {
+        if (errorCounter == 0) {
+          errorCounter++;
+          throw new JMSException("Error!!");
+        }
+        TextMessage msg = session.createTextMessage();
+        msg.setText(value);
+        return msg;
+      } catch (JMSException e) {
+        throw new JmsIOException("Error creating TextMessage", e);
+      }
+    }
+  }
+
+  private static class TextMessageMapperWithErrorAndCounter
+      implements SerializableBiFunction<String, Session, Message> {
+    private static int errorCounter = 0;
+
+    @Override
+    public Message apply(String value, Session session) {
+      try {
+        if (value.equals("Message 1") || value.equals("Message 2")) {
+          if (errorCounter != 0 && value.equals("Message 1")) {
+            TextMessage msg = session.createTextMessage();
+            msg.setText(value);
+            return msg;
+          }
+          errorCounter++;
           throw new JMSException("Error!!");
         }
         TextMessage msg = session.createTextMessage();

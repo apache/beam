@@ -17,6 +17,7 @@
 import os
 import unittest
 
+import apache_beam as beam
 from apache_beam.utils.python_callable import PythonCallableWithSource
 
 
@@ -81,6 +82,14 @@ class PythonCallableWithSourceTest(unittest.TestCase):
                 self.x = x
         """)(10).x,
         10)
+
+  def test_pycallable_map(self):
+    p = beam.Pipeline()
+    result = (
+        p
+        | beam.Create([1, 2, 3])
+        | beam.Map(PythonCallableWithSource("lambda x: x")))
+    self.assertEqual(result.element_type, int)
 
 
 if __name__ == '__main__':

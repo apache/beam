@@ -34,20 +34,26 @@ import com.google.cloud.spanner.Statement;
 import com.google.spanner.admin.database.v1.CreateDatabaseMetadata;
 import java.io.Serializable;
 import java.util.Collections;
+import java.util.Objects;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.Wait;
+import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Predicate;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Predicates;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
@@ -198,6 +204,40 @@ public class SpannerWriteIT {
     assertThat(result.getState(), is(PipelineResult.State.DONE));
     assertThat(countNumberOfRecords(databaseName), equalTo((long) numRecords));
     assertThat(countNumberOfRecords(pgDatabaseName), equalTo((long) numRecords));
+  }
+
+  @Test
+  public void testWriteViaSchemaTransform() throws Exception {
+    int numRecords = 100;
+    final Schema tableSchema =
+        Schema.builder().addInt64Field("Key").addStringField("Value").build();
+    PCollectionRowTuple.of(
+            "input",
+            p.apply("Init", GenerateSequence.from(0).to(numRecords))
+                .apply(
+                    MapElements.into(TypeDescriptors.rows())
+                        .via(
+                            seed ->
+                                Row.withSchema(tableSchema)
+                                    .addValue(seed)
+                                    .addValue(Objects.requireNonNull(seed).toString())
+                                    .build()))
+                .setRowSchema(tableSchema))
+        .apply(
+            new SpannerWriteSchemaTransformProvider()
+                .from(
+                    SpannerWriteSchemaTransformProvider.SpannerWriteSchemaTransformConfiguration
+                        .builder()
+                        .setDatabaseId(databaseName)
+                        .setInstanceId(options.getInstanceId())
+                        .setTableId(options.getTable())
+                        .build())
+                .buildTransform());
+
+    PipelineResult result = p.run();
+    result.waitUntilFinish();
+    assertThat(result.getState(), is(PipelineResult.State.DONE));
+    assertThat(countNumberOfRecords(databaseName), equalTo((long) numRecords));
   }
 
   @Test

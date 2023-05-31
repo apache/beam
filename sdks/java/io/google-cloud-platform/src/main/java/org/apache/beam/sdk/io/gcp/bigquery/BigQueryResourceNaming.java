@@ -33,7 +33,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>Some examples are: - BigQuery jobs - Export jobs - Query jobs - Load jobs - Copy jobs -
  * Temporary datasets - Temporary tables.
  *
- * <p>BigQuery resource naming follows this conveniton: {@code
+ * <p>BigQuery resource naming follows this convention: {@code
  * "beam_bq_job_{TYPE}_{JOB_ID}_{STEP}_{RANDOM}"}.
  *
  * <p>This class has no backwards compatibility guaantees. It is considered internal.
@@ -71,6 +71,7 @@ class BigQueryResourceNaming {
     COPY,
     EXPORT,
     QUERY,
+    SCHEMA_UPDATE,
   }
 
   /**

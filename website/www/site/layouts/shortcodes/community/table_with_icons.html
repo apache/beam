@@ -11,6 +11,7 @@
 */}}
 {{ $data := index $.Site.Data .Site.Language.Lang (.Get 0) }}
 {{ range $list := $data }}
+<div class="table-container-wrapper">
 <div class="table-wrapper">
     <table>
         <tr>
@@ -49,5 +50,6 @@
             </tr>
         {{ end }}
     </table>
+</div>
 </div>
 {{ end }}

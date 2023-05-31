@@ -17,6 +17,7 @@
  */
 
 import { JobState_Enum } from "../proto/beam_job_api";
+import * as runnerApi from "../proto/beam_runner_api";
 import { MonitoringInfo } from "../proto/metrics";
 import { Pipeline } from "../internal/pipeline";
 import { Root, PValue } from "../pvalue";
@@ -52,6 +53,16 @@ export class PipelineResult {
   }
 }
 
+/**
+ * Creates a `Runner` object with the given set of options.
+ *
+ * The exact type of runner to be created can be specified by the special
+ * `runner` option, e.g. `createRunner({runner: "direct"})` would create
+ * a direct runner.  If no runner option is specified, the "default" runner
+ * is used, which runs what pipelines it can on the direct runner, and
+ * otherwise falls back to the universal runner (e.g. if cross-language
+ * transforms, non-trivial windowing, etc. are used).
+ */
 export function createRunner(options: any = {}): Runner {
   let runnerConstructor: (any) => Runner;
   if (options.runner === undefined || options.runner === "default") {
@@ -72,7 +83,11 @@ export function createRunner(options: any = {}): Runner {
 
 /**
  * A Runner is the object that takes a pipeline definition and actually
- * executes, e.g. locally or on a distributed system.
+ * executes, e.g. locally or on a distributed system, by invoking its
+ * `run` or `runAsync` method.
+ *
+ * Runners are generally created using the `createRunner` method in this
+ * same module.
  */
 export abstract class Runner {
   /**
@@ -88,9 +103,7 @@ export abstract class Runner {
     pipeline: (root: Root) => PValue<any> | Promise<PValue<any>>,
     options?: PipelineOptions
   ): Promise<PipelineResult> {
-    const p = new Pipeline();
-    await pipeline(new Root(p));
-    const pipelineResult = await this.runPipeline(p, options);
+    const pipelineResult = await this.runAsync(pipeline, options);
     const finalState = await pipelineResult.waitUntilFinish();
     if (finalState != JobState_Enum.DONE) {
       // TODO: Grab the last/most severe error message?
@@ -110,11 +123,11 @@ export abstract class Runner {
   ): Promise<PipelineResult> {
     const p = new Pipeline();
     await pipeline(new Root(p));
-    return this.runPipeline(p);
+    return this.runPipeline(p.getProto());
   }
 
   abstract runPipeline(
-    pipeline: Pipeline,
+    pipeline: runnerApi.Pipeline,
     options?: PipelineOptions
   ): Promise<PipelineResult>;
 }
@@ -122,7 +135,7 @@ export abstract class Runner {
 export function defaultRunner(defaultOptions: Object): Runner {
   return new (class extends Runner {
     async runPipeline(
-      pipeline: Pipeline,
+      pipeline: runnerApi.Pipeline,
       options: Object = {}
     ): Promise<PipelineResult> {
       const directRunner =

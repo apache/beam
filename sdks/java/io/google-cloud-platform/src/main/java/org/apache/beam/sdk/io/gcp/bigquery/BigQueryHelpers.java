@@ -244,26 +244,26 @@ public class BigQueryHelpers {
             // This might happen if BigQuery's job listing is slow. Retry with the same
             // job id.
             LOG.info(
-                "Load job {} finished in unknown state: {}: {}",
+                "Load job {} finished in unknown state, {}: {}",
                 currentJobId,
-                job.getStatus(),
-                shouldRetry() ? "will retry" : "will not retry");
+                shouldRetry() ? "will retry" : "will not retry",
+                statusToPrettyString(job.getStatus()));
             return false;
           case FAILED:
             String oldJobId = currentJobId.getJobId();
-            currentJobId = BigQueryHelpers.getRetryJobId(currentJobId, lookupJob).jobId;
+            currentJobId = getRetryJobId(currentJobId, lookupJob).jobId;
             LOG.warn(
                 "Load job {} failed, {}: {}. Next job id {}",
                 oldJobId,
                 shouldRetry() ? "will retry" : "will not retry",
-                job.getStatus(),
+                statusToPrettyString(job.getStatus()),
                 currentJobId);
             return false;
           default:
             throw new IllegalStateException(
                 String.format(
                     "Unexpected status [%s] of load job: %s.",
-                    job.getStatus(), BigQueryHelpers.jobToPrettyString(job)));
+                    job.getStatus(), jobToPrettyString(job)));
         }
       }
       return false;
@@ -574,6 +574,17 @@ public class BigQueryHelpers {
     }
   }
 
+  public static @Nullable Table getTable(BigQueryOptions options, TableReference tableRef)
+      throws InterruptedException, IOException {
+    try (DatasetService datasetService = new BigQueryServicesImpl().getDatasetService(options)) {
+      return datasetService.getTable(tableRef);
+    } catch (IOException | InterruptedException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
   static String getDatasetLocation(
       DatasetService datasetService, String projectId, String datasetId) {
     Dataset dataset;
@@ -593,10 +604,15 @@ public class BigQueryHelpers {
 
   static void verifyTablePresence(DatasetService datasetService, TableReference table) {
     try {
-      datasetService.getTable(table);
+      Table fetchedTable = datasetService.getTable(table);
+      if (fetchedTable == null) {
+        throw new IOException("Table does not exist.");
+      }
     } catch (Exception e) {
       ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
-      if ((e instanceof IOException) && errorExtractor.itemNotFound((IOException) e)) {
+      if ((e instanceof IOException)
+          && ("Table does not exist.".equals(e.getMessage())
+              || errorExtractor.itemNotFound((IOException) e))) {
         throw new IllegalArgumentException(
             String.format(RESOURCE_NOT_FOUND_ERROR, "table", toTableSpec(table)), e);
       } else if (e instanceof RuntimeException) {

@@ -35,7 +35,7 @@ String HIGH_RANGE_PORT = "32767"
  */
 job(jobName) {
   common.setTopLevelMainJobProperties(delegate, 'master', 120)
-  common.setAutoJob(delegate, 'H H/6 * * *')
+  common.setAutoJob(delegate, 'H H/12 * * *')
   common.enablePhraseTriggeringFromPullRequest(
       delegate,
       'Java KafkaIO Performance Test',
@@ -97,17 +97,16 @@ job(jobName) {
   Map dataflowRunnerV2SdfPipelineOptions = pipelineOptions + [
     sourceOptions                : """
                                      {
-                                       "numRecords": "100000",
-                                       "keySizeBytes": "1",
+                                       "numRecords": "100000000",
+                                       "keySizeBytes": "10",
                                        "valueSizeBytes": "90"
                                      }
                                    """.trim().replaceAll("\\s", ""),
     kafkaTopic                   : 'beam-sdf',
-    readTimeout                  : '900',
+    readTimeout                  : '1500',
     bigQueryTable                : 'kafkaioit_results_runner_v2',
     influxMeasurement            : 'kafkaioit_results_runner_v2',
-    // TODO(https://github.com/apache/beam/issues/20806) remove shuffle_mode=appliance with runner v2 once issue is resolved.
-    experiments                  : 'use_runner_v2,shuffle_mode=appliance,use_unified_worker',
+    experiments                  : 'use_runner_v2,use_unified_worker',
   ]
 
   steps {

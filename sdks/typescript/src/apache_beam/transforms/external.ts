@@ -47,6 +47,15 @@ import { Coder } from "../coders/coders";
 import * as artifacts from "../runners/artifacts";
 import * as service from "../utils/service";
 
+/**
+ * Various transforms useful for creating and invoking cross-language
+ * transforms.
+ *
+ * See also https://beam.apache.org/documentation/programming-guide/#1324-using-cross-language-transforms-in-a-typescript-pipeline
+ *
+ * @packageDocumentation
+ */
+
 export interface RawExternalTransformOptions {
   inferPValueType?: boolean;
   requestedOutputCoders?: { [key: string]: Coder<unknown> };

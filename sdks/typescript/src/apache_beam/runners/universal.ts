@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import { Pipeline } from "../internal/pipeline";
+import { Pipeline } from "../proto/beam_runner_api";
 import { PipelineResult, Runner } from "./runner";
 import { PortableRunner } from "./portable_runner/runner";
 import { PythonService } from "../utils/service";

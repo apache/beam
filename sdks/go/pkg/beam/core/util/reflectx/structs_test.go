@@ -28,7 +28,7 @@ func (f *nameFn) PrintName() string {
 	return f.Name
 }
 
-func NameFnMaker(fn interface{}) map[string]Func {
+func NameFnMaker(fn any) map[string]Func {
 	dfn := fn.(*nameFn)
 	return map[string]Func{
 		"PrintName": MakeFunc(func() string { return dfn.PrintName() }),
@@ -46,7 +46,7 @@ func TestWrapMethods_Registered(t *testing.T) {
 	if ok != true {
 		t.Errorf("WrapMethods(&nameFn{Name: \"testName\"}) doesn't contain PrintName, want a function")
 	}
-	if got, want := fn.Call([]interface{}{})[0].(string), "testName"; got != want {
+	if got, want := fn.Call([]any{})[0].(string), "testName"; got != want {
 		t.Errorf("WrapMethods(&nameFn{Name: \"testName\"}) invoked PrintName, got %v, want %v", got, want)
 	}
 }

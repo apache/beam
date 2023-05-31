@@ -39,7 +39,7 @@ import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.fn.data.BeamFnDataInboundObserver2;
+import org.apache.beam.sdk.fn.data.BeamFnDataInboundObserver;
 import org.apache.beam.sdk.fn.data.BeamFnDataOutboundAggregator;
 import org.apache.beam.sdk.fn.data.DataEndpoint;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
@@ -49,13 +49,13 @@ import org.apache.beam.sdk.fn.test.TestStreams;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.ManagedChannel;
-import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.inprocess.InProcessChannelBuilder;
-import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.inprocess.InProcessServerBuilder;
-import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.stub.CallStreamObserver;
-import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.inprocess.InProcessChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.inprocess.InProcessServerBuilder;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.CallStreamObserver;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.StreamObserver;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -169,12 +169,12 @@ public class BeamFnDataGrpcClientTest {
               (Endpoints.ApiServiceDescriptor descriptor) -> channel,
               OutboundObserverFactory.trivial());
 
-      BeamFnDataInboundObserver2 observerA =
-          BeamFnDataInboundObserver2.forConsumers(
+      BeamFnDataInboundObserver observerA =
+          BeamFnDataInboundObserver.forConsumers(
               Arrays.asList(DataEndpoint.create(TRANSFORM_ID_A, CODER, inboundValuesA::add)),
               Collections.emptyList());
-      BeamFnDataInboundObserver2 observerB =
-          BeamFnDataInboundObserver2.forConsumers(
+      BeamFnDataInboundObserver observerB =
+          BeamFnDataInboundObserver.forConsumers(
               Arrays.asList(DataEndpoint.create(TRANSFORM_ID_B, CODER, inboundValuesB::add)),
               Collections.emptyList());
 
@@ -245,8 +245,8 @@ public class BeamFnDataGrpcClientTest {
               (Endpoints.ApiServiceDescriptor descriptor) -> channel,
               OutboundObserverFactory.trivial());
 
-      BeamFnDataInboundObserver2 observer =
-          BeamFnDataInboundObserver2.forConsumers(
+      BeamFnDataInboundObserver observer =
+          BeamFnDataInboundObserver.forConsumers(
               Arrays.asList(
                   DataEndpoint.create(
                       TRANSFORM_ID_A,

@@ -29,7 +29,7 @@ Today, we are happy to announce a new addition to the Beam Katas family: Kotlin!
 
 <img src="/images/blog/beam-katas-kotlin-release/beam-and-kotlin.png" alt="Apache Beam and Kotlin Shaking Hands" height="330" width="800" >
 
-You may remember [a post from last year](https://beam.apache.org/blog/beam-kata-release) that informed everyone of the wonderful Beam Katas available on [Stepik](https://stepik.org)
+You may remember [a post from last year](/blog/beam-kata-release) that informed everyone of the wonderful Beam Katas available on [Stepik](https://stepik.org)
 for learning more about writing Apache Beam applications, working with its various APIs and programming model
 hands-on, all from the comfort of your favorite IDEs. As of today, you can now work through all of the progressive
 exercises to learn about the fundamentals of Beam in Kotlin.
@@ -41,7 +41,7 @@ as one of the most beloved programming languages in the annual Stack Overflow De
 just our word for it.
 
 The relationship between Apache Beam and Kotlin isn't a new one. You can find examples scattered across the web
-of engineering teams embracing the two technologies including [a series of samples announced on this very blog](https://beam.apache.org/blog/beam-kotlin/).
+of engineering teams embracing the two technologies including [a series of samples announced on this very blog](/blog/beam-kotlin/).
 If you are new to Beam or are an experienced veteran looking for a change of pace, we'd encourage you to give
 Kotlin a try.
 

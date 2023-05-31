@@ -22,7 +22,7 @@ import (
 	"reflect"
 )
 
-func findMaxFn(t reflect.Type) interface{} {
+func findMaxFn(t reflect.Type) any {
 	switch t.String() {
 	case "int":
 		return maxIntFn

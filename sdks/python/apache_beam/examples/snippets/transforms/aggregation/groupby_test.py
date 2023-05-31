@@ -82,7 +82,8 @@ class GroupByTest(unittest.TestCase):
     with beam.Pipeline() as p:
       grouped = (
           p
-          | beam.Create(['strawberry', 'raspberry', 'blueberry', 'blackberry', 'banana'])
+          | beam.Create(
+              ['strawberry', 'raspberry', 'blueberry', 'blackberry', 'banana'])
           | beam.GroupBy(lambda s: s[0]))
       # [END groupby_expr]
 
@@ -101,8 +102,10 @@ class GroupByTest(unittest.TestCase):
     with beam.Pipeline() as p:
       grouped = (
           p
-          | beam.Create(['strawberry', 'raspberry', 'blueberry', 'blackberry', 'banana'])
-          | beam.GroupBy(letter=lambda s: s[0], is_berry=lambda s: 'berry' in s))
+          | beam.Create(
+              ['strawberry', 'raspberry', 'blueberry', 'blackberry', 'banana'])
+          | beam.GroupBy(
+              letter=lambda s: s[0], is_berry=lambda s: 'berry' in s))
       # [END groupby_two_exprs]
 
       expected = [
@@ -123,18 +126,44 @@ class GroupByTest(unittest.TestCase):
 
       expected = [
           #[START groupby_attr_result]
-          ('pie',
-            [
-                beam.Row(recipe='pie', fruit='strawberry', quantity=3, unit_price=1.50),
-                beam.Row(recipe='pie', fruit='raspberry', quantity=1, unit_price=3.50),
-                beam.Row(recipe='pie', fruit='blackberry', quantity=1, unit_price=4.00),
-                beam.Row(recipe='pie', fruit='blueberry', quantity=1, unit_price=2.00),
-            ]),
-          ('muffin',
-            [
-                beam.Row(recipe='muffin', fruit='blueberry', quantity=2, unit_price=2.00),
-                beam.Row(recipe='muffin', fruit='banana', quantity=3, unit_price=1.00),
-            ]),
+          (
+              'pie',
+              [
+                  beam.Row(
+                      recipe='pie',
+                      fruit='strawberry',
+                      quantity=3,
+                      unit_price=1.50),
+                  beam.Row(
+                      recipe='pie',
+                      fruit='raspberry',
+                      quantity=1,
+                      unit_price=3.50),
+                  beam.Row(
+                      recipe='pie',
+                      fruit='blackberry',
+                      quantity=1,
+                      unit_price=4.00),
+                  beam.Row(
+                      recipe='pie',
+                      fruit='blueberry',
+                      quantity=1,
+                      unit_price=2.00),
+              ]),
+          (
+              'muffin',
+              [
+                  beam.Row(
+                      recipe='muffin',
+                      fruit='blueberry',
+                      quantity=2,
+                      unit_price=2.00),
+                  beam.Row(
+                      recipe='muffin',
+                      fruit='banana',
+                      quantity=3,
+                      unit_price=1.00),
+              ]),
           #[END groupby_attr_result]
       ]
       assert_that(grouped | beam.MapTuple(normalize_kv), equal_to(expected))
@@ -149,21 +178,48 @@ class GroupByTest(unittest.TestCase):
 
       expected = [
           #[START groupby_attr_expr_result]
-          (NamedTuple(recipe='pie', is_berry=True),
-            [
-                beam.Row(recipe='pie', fruit='strawberry', quantity=3, unit_price=1.50),
-                beam.Row(recipe='pie', fruit='raspberry', quantity=1, unit_price=3.50),
-                beam.Row(recipe='pie', fruit='blackberry', quantity=1, unit_price=4.00),
-                beam.Row(recipe='pie', fruit='blueberry', quantity=1, unit_price=2.00),
-            ]),
-          (NamedTuple(recipe='muffin', is_berry=True),
-            [
-                beam.Row(recipe='muffin', fruit='blueberry', quantity=2, unit_price=2.00),
-            ]),
-          (NamedTuple(recipe='muffin', is_berry=False),
-            [
-                beam.Row(recipe='muffin', fruit='banana', quantity=3, unit_price=1.00),
-            ]),
+          (
+              NamedTuple(recipe='pie', is_berry=True),
+              [
+                  beam.Row(
+                      recipe='pie',
+                      fruit='strawberry',
+                      quantity=3,
+                      unit_price=1.50),
+                  beam.Row(
+                      recipe='pie',
+                      fruit='raspberry',
+                      quantity=1,
+                      unit_price=3.50),
+                  beam.Row(
+                      recipe='pie',
+                      fruit='blackberry',
+                      quantity=1,
+                      unit_price=4.00),
+                  beam.Row(
+                      recipe='pie',
+                      fruit='blueberry',
+                      quantity=1,
+                      unit_price=2.00),
+              ]),
+          (
+              NamedTuple(recipe='muffin', is_berry=True),
+              [
+                  beam.Row(
+                      recipe='muffin',
+                      fruit='blueberry',
+                      quantity=2,
+                      unit_price=2.00),
+              ]),
+          (
+              NamedTuple(recipe='muffin', is_berry=False),
+              [
+                  beam.Row(
+                      recipe='muffin',
+                      fruit='banana',
+                      quantity=3,
+                      unit_price=1.00),
+              ]),
           #[END groupby_attr_expr_result]
       ]
       assert_that(grouped | beam.MapTuple(normalize_kv), equal_to(expected))
@@ -174,8 +230,8 @@ class GroupByTest(unittest.TestCase):
       grouped = (
           p
           | beam.Create(GROCERY_LIST)
-          | beam.GroupBy('fruit')
-              .aggregate_field('quantity', sum, 'total_quantity'))
+          | beam.GroupBy('fruit').aggregate_field(
+              'quantity', sum, 'total_quantity'))
       # [END simple_aggregate]
 
       expected = [
@@ -195,9 +251,9 @@ class GroupByTest(unittest.TestCase):
       grouped = (
           p
           | beam.Create(GROCERY_LIST)
-          | beam.GroupBy('recipe')
-              .aggregate_field('quantity', sum, 'total_quantity')
-              .aggregate_field(lambda x: x.quantity * x.unit_price, sum, 'price'))
+          | beam.GroupBy('recipe').aggregate_field(
+              'quantity', sum, 'total_quantity').aggregate_field(
+                  lambda x: x.quantity * x.unit_price, sum, 'price'))
       # [END expr_aggregate]
 
       expected = [
@@ -214,10 +270,10 @@ class GroupByTest(unittest.TestCase):
       grouped = (
           p
           | beam.Create(GROCERY_LIST)
-          | beam.GroupBy()
-              .aggregate_field('unit_price', min, 'min_price')
-              .aggregate_field('unit_price', MeanCombineFn(), 'mean_price')
-              .aggregate_field('unit_price', max, 'max_price'))
+          | beam.GroupBy().aggregate_field(
+              'unit_price', min, 'min_price').aggregate_field(
+                  'unit_price', MeanCombineFn(), 'mean_price').aggregate_field(
+                      'unit_price', max, 'max_price'))
       # [END global_aggregate]
 
       expected = [

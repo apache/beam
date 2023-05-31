@@ -48,7 +48,7 @@ func TestRegisterDoFn(t *testing.T) {
 
 	tests := []struct {
 		name   string
-		dofn   interface{}
+		dofn   any
 		ok     bool           // is this a valid dofn?
 		isFunc bool           // is this a functional dofn?
 		types  []reflect.Type // expected types

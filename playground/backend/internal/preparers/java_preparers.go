@@ -23,11 +23,14 @@ import (
 	"os"
 	"regexp"
 
+	"beam.apache.org/playground/backend/internal/constants"
 	"beam.apache.org/playground/backend/internal/logger"
 	"beam.apache.org/playground/backend/internal/utils"
 )
 
 const (
+	bootstrapServerPattern            = "kafka_server:9092"
+	topicNamePattern                  = "dataset"
 	classWithPublicModifierPattern    = "public class "
 	classWithoutPublicModifierPattern = "class "
 	packagePattern                    = `^(package) (([\w]+\.)+[\w]+);`
@@ -40,21 +43,20 @@ const (
 		"		out.println(dotString);\n    " +
 		"	} catch (java.io.FileNotFoundException e) {\n" +
 		"      e.printStackTrace();\n    " +
-		"\n}\n" +
-		"%s.run"
+		"\n}\n"
 )
 
-//JavaPreparersBuilder facet of PreparersBuilder
+// JavaPreparersBuilder facet of PreparersBuilder
 type JavaPreparersBuilder struct {
 	PreparersBuilder
 }
 
-//JavaPreparers chains to type *PreparersBuilder and returns a *JavaPreparersBuilder
+// JavaPreparers chains to type *PreparersBuilder and returns a *JavaPreparersBuilder
 func (builder *PreparersBuilder) JavaPreparers() *JavaPreparersBuilder {
 	return &JavaPreparersBuilder{*builder}
 }
 
-//WithPublicClassRemover adds preparer to remove public class
+// WithPublicClassRemover adds preparer to remove public class
 func (builder *JavaPreparersBuilder) WithPublicClassRemover() *JavaPreparersBuilder {
 	removePublicClassPreparer := Preparer{
 		Prepare: removePublicClassModifier,
@@ -64,7 +66,7 @@ func (builder *JavaPreparersBuilder) WithPublicClassRemover() *JavaPreparersBuil
 	return builder
 }
 
-//WithPackageChanger adds preparer to change package
+// WithPackageChanger adds preparer to change package
 func (builder *JavaPreparersBuilder) WithPackageChanger() *JavaPreparersBuilder {
 	changePackagePreparer := Preparer{
 		Prepare: replace,
@@ -74,7 +76,7 @@ func (builder *JavaPreparersBuilder) WithPackageChanger() *JavaPreparersBuilder 
 	return builder
 }
 
-//WithPackageRemover adds preparer to remove package
+// WithPackageRemover adds preparer to remove package
 func (builder *JavaPreparersBuilder) WithPackageRemover() *JavaPreparersBuilder {
 	removePackagePreparer := Preparer{
 		Prepare: replace,
@@ -84,7 +86,7 @@ func (builder *JavaPreparersBuilder) WithPackageRemover() *JavaPreparersBuilder 
 	return builder
 }
 
-//WithFileNameChanger adds preparer to remove package
+// WithFileNameChanger adds preparer to remove package
 func (builder *JavaPreparersBuilder) WithFileNameChanger() *JavaPreparersBuilder {
 	unitTestFileNameChanger := Preparer{
 		Prepare: utils.ChangeTestFileName,
@@ -94,7 +96,7 @@ func (builder *JavaPreparersBuilder) WithFileNameChanger() *JavaPreparersBuilder
 	return builder
 }
 
-//WithGraphHandler adds code to save the graph
+// WithGraphHandler adds code to save the graph
 func (builder *JavaPreparersBuilder) WithGraphHandler() *JavaPreparersBuilder {
 	graphCodeAdder := Preparer{
 		Prepare: addCodeToSaveGraph,
@@ -104,15 +106,53 @@ func (builder *JavaPreparersBuilder) WithGraphHandler() *JavaPreparersBuilder {
 	return builder
 }
 
+// WithBootstrapServersChanger adds preparer to replace tokens in the example source to correct values
+func (builder *JavaPreparersBuilder) WithBootstrapServersChanger() *JavaPreparersBuilder {
+	if len(builder.params) == 0 {
+		return builder
+	}
+	bootstrapServerVal, ok := builder.params[constants.BootstrapServerKey]
+	if !ok {
+		return builder
+	}
+	bootstrapServersChanger := Preparer{
+		Prepare: replace,
+		Args:    []interface{}{builder.filePath, bootstrapServerPattern, bootstrapServerVal},
+	}
+	builder.AddPreparer(bootstrapServersChanger)
+	return builder
+}
+
+// WithTopicNameChanger adds preparer to replace tokens in the example source to correct values
+func (builder *JavaPreparersBuilder) WithTopicNameChanger() *JavaPreparersBuilder {
+	if len(builder.params) == 0 {
+		return builder
+	}
+	topicNameVal, ok := builder.params[constants.TopicNameKey]
+	if !ok {
+		return builder
+	}
+	topicNameChanger := Preparer{
+		Prepare: replace,
+		Args:    []interface{}{builder.filePath, topicNamePattern, topicNameVal},
+	}
+	builder.AddPreparer(topicNameChanger)
+	return builder
+}
+
 func addCodeToSaveGraph(args ...interface{}) error {
 	filePath := args[0].(string)
 	pipelineObjectName, _ := findPipelineObjectName(filePath)
-	graphSaveCode := fmt.Sprintf(graphSavePattern, pipelineObjectName, pipelineObjectName)
+	graphSaveCode := fmt.Sprintf(graphSavePattern, pipelineObjectName)
 
 	if pipelineObjectName != utils.EmptyLine {
-		err := replace(filePath, fmt.Sprintf("%s.run", pipelineObjectName), graphSaveCode)
+		pipelineRunPosition, err := findPosition(filePath, fmt.Sprintf("(?m)^.*%s.run", pipelineObjectName))
 		if err != nil {
-			logger.Error("Can't add graph extractor. Can't add new import")
+			logger.Errorf("Cannot add graph saving code: failed to locate pipeline.run() call")
+			return err
+		}
+		if err := insertBeforePosition(filePath, pipelineRunPosition, graphSaveCode); err != nil {
+			logger.Error("Cannot add graph saving code: failed to inject code")
 			return err
 		}
 	}
@@ -125,7 +165,9 @@ func GetJavaPreparers(builder *PreparersBuilder, isUnitTest bool, isKata bool) {
 		builder.JavaPreparers().
 			WithPublicClassRemover().
 			WithPackageChanger().
-			WithGraphHandler()
+			WithGraphHandler().
+			WithBootstrapServersChanger().
+			WithTopicNameChanger()
 	}
 	if isUnitTest {
 		builder.JavaPreparers().
@@ -136,7 +178,9 @@ func GetJavaPreparers(builder *PreparersBuilder, isUnitTest bool, isKata bool) {
 		builder.JavaPreparers().
 			WithPublicClassRemover().
 			WithPackageRemover().
-			WithGraphHandler()
+			WithGraphHandler().
+			WithBootstrapServersChanger().
+			WithTopicNameChanger()
 	}
 }
 
@@ -154,6 +198,58 @@ func findPipelineObjectName(filepath string) (string, error) {
 		return "", nil
 	}
 
+}
+
+// findPosition finds first line which matches the pattern
+func findPosition(filePath, pattern string) (int, error) {
+	reg, err := regexp.Compile(pattern)
+	if err != nil {
+		return 0, err
+	}
+
+	b, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		logger.Errorf("findPosition(): Error during open file: %s, err: %s", filePath, err.Error())
+		return 0, err
+	}
+
+	matches := reg.FindStringIndex(string(b))
+	if matches == nil {
+		return 0, fmt.Errorf("cannot find location of pattern '%s' in file '%s'", pattern, filePath)
+	}
+
+	return matches[0], nil
+}
+
+func insertBeforePosition(filePath string, position int, text string) error {
+	b, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		logger.Errorf("insertBeforePosition(): Error during open file: %s, err: %s", filePath, err.Error())
+		return err
+	}
+
+	content := string(b)
+
+	modified := content[:position] + "\n" + text + "\n" + content[position:]
+
+	tmp, err := utils.CreateTempFile(filePath)
+	if err != nil {
+		logger.Errorf("insertBeforePosition(): Error during create new temporary file, err: %s", err.Error())
+		return err
+	}
+	defer tmp.Close()
+
+	if _, err := io.WriteString(tmp, modified); err != nil {
+		logger.Errorf("insertBeforePosition(): Error during writing to temporary file, err: %s", err.Error())
+		return err
+	}
+
+	// replace original file with temporary file with renaming
+	if err = os.Rename(tmp.Name(), filePath); err != nil {
+		logger.Errorf("insertBeforePosition(): Error during rename temporary file, err: %s", err.Error())
+		return err
+	}
+	return nil
 }
 
 // replace processes file by filePath and replaces all patterns to newPattern

@@ -25,6 +25,7 @@ import sys
 from apache_beam.metrics import MetricsFilter
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.runners.runner import PipelineState
 from apache_beam.testing.load_tests.load_test_metrics_utils import InfluxDBMetricsPublisherOptions
 from apache_beam.testing.load_tests.load_test_metrics_utils import MetricsReader
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -148,7 +149,8 @@ class LoadTest(object):
       if not hasattr(self, 'result'):
         self.result = self.pipeline.run()
         # Defaults to waiting forever, unless timeout_ms has been set
-        self.result.wait_until_finish(duration=self.timeout_ms)
+        state = self.result.wait_until_finish(duration=self.timeout_ms)
+        assert state != PipelineState.FAILED
       self._metrics_monitor.publish_metrics(self.result, self.extra_metrics)
     finally:
       self.cleanup()
@@ -166,7 +168,8 @@ class LoadTest(object):
             'type': options.get('bundle_size_distribution_type', 'const'),
             'param': options.get('bundle_size_distribution_param', 0)
         },
-        'forceNumInitialBundles': options.get('force_initial_num_bundles', 0)
+        'forceNumInitialBundles': options.get('force_initial_num_bundles', 0),
+        'algorithm': options.get('algorithm', None)
     }
 
   def get_option_or_default(self, opt_name, default=0):

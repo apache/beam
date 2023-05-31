@@ -35,9 +35,13 @@ import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.beam.model.expansion.v1.ExpansionApi;
+import org.apache.beam.model.expansion.v1.ExpansionApi.DiscoverSchemaTransformRequest;
+import org.apache.beam.model.expansion.v1.ExpansionApi.DiscoverSchemaTransformResponse;
+import org.apache.beam.model.expansion.v1.ExpansionApi.SchemaTransformConfig;
 import org.apache.beam.model.expansion.v1.ExpansionServiceGrpc;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms.ExpansionMethods;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms.ExternalConfigurationPayload;
+import org.apache.beam.model.pipeline.v1.ExternalTransforms.SchemaTransformPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.SchemaApi;
 import org.apache.beam.runners.core.construction.Environments;
@@ -63,6 +67,7 @@ import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.SchemaTranslation;
+import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -74,10 +79,11 @@ import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.ServerBuilder;
-import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ServerBuilder;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.CaseFormat;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Converter;
@@ -396,8 +402,35 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
           Pipeline.applyTransform(name, createInput(p, inputs), getTransform(spec)));
     }
 
+    default String getTransformUniqueID(RunnerApi.FunctionSpec spec) {
+      if (getUrn(ExpansionMethods.Enum.SCHEMA_TRANSFORM).equals(spec.getUrn())) {
+        SchemaTransformPayload payload;
+        try {
+          payload = SchemaTransformPayload.parseFrom(spec.getPayload());
+          return payload.getIdentifier();
+        } catch (InvalidProtocolBufferException e) {
+          throw new IllegalArgumentException(
+              "Invalid payload type for URN " + getUrn(ExpansionMethods.Enum.SCHEMA_TRANSFORM), e);
+        }
+      }
+      return spec.getUrn();
+    }
+
     default List<String> getDependencies(RunnerApi.FunctionSpec spec, PipelineOptions options) {
+
+      ExpansionServiceConfig config =
+          options.as(ExpansionServiceOptions.class).getExpansionServiceConfig();
+      String transformUniqueID = getTransformUniqueID(spec);
+      if (config.getDependencies().containsKey(transformUniqueID)) {
+        List<String> updatedDependencies =
+            config.getDependencies().get(transformUniqueID).stream()
+                .map(dependency -> dependency.getPath())
+                .collect(Collectors.toList());
+        return updatedDependencies;
+      }
+
       List<String> filesToStage = options.as(PortablePipelineOptions.class).getFilesToStage();
+
       if (filesToStage == null || filesToStage.isEmpty()) {
         ClassLoader classLoader = Environments.class.getClassLoader();
         if (classLoader == null) {
@@ -434,6 +467,10 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
       registeredTransforms = loadRegisteredTransforms();
     }
     return registeredTransforms;
+  }
+
+  private Iterable<SchemaTransformProvider> getRegisteredSchemaTransforms() {
+    return ExpansionServiceSchemaTransformProvider.of().getAllProviders();
   }
 
   private Map<String, TransformProvider> loadRegisteredTransforms() {
@@ -500,6 +537,8 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
           pipelineOptions.as(ExpansionServiceOptions.class).getJavaClassLookupAllowlist();
       assert allowList != null;
       transformProvider = new JavaClassLookupTransformProvider(allowList);
+    } else if (getUrn(ExpansionMethods.Enum.SCHEMA_TRANSFORM).equals(urn)) {
+      transformProvider = ExpansionServiceSchemaTransformProvider.of();
     } else {
       transformProvider = getRegisteredTransforms().get(urn);
       if (transformProvider == null) {
@@ -585,6 +624,10 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
         .as(ExperimentalOptions.class)
         .setExperiments(pipelineOptions.as(ExperimentalOptions.class).getExperiments());
     effectiveOpts.setRunner(NotRunnableRunner.class);
+    effectiveOpts
+        .as(ExpansionServiceOptions.class)
+        .setExpansionServiceConfig(
+            pipelineOptions.as(ExpansionServiceOptions.class).getExpansionServiceConfig());
     return Pipeline.create(effectiveOpts);
   }
 
@@ -598,6 +641,42 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
     } catch (RuntimeException exn) {
       responseObserver.onNext(
           ExpansionApi.ExpansionResponse.newBuilder()
+              .setError(Throwables.getStackTraceAsString(exn))
+              .build());
+      responseObserver.onCompleted();
+    }
+  }
+
+  DiscoverSchemaTransformResponse discover(DiscoverSchemaTransformRequest request) {
+    ExpansionServiceSchemaTransformProvider transformProvider =
+        ExpansionServiceSchemaTransformProvider.of();
+    DiscoverSchemaTransformResponse.Builder responseBuilder =
+        DiscoverSchemaTransformResponse.newBuilder();
+    for (org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider provider :
+        transformProvider.getAllProviders()) {
+      SchemaTransformConfig.Builder schemaTransformConfigBuider =
+          SchemaTransformConfig.newBuilder();
+      schemaTransformConfigBuider.setConfigSchema(
+          SchemaTranslation.schemaToProto(provider.configurationSchema(), true));
+      schemaTransformConfigBuider.addAllInputPcollectionNames(provider.inputCollectionNames());
+      schemaTransformConfigBuider.addAllOutputPcollectionNames(provider.outputCollectionNames());
+      responseBuilder.putSchemaTransformConfigs(
+          provider.identifier(), schemaTransformConfigBuider.build());
+    }
+
+    return responseBuilder.build();
+  }
+
+  @Override
+  public void discoverSchemaTransform(
+      DiscoverSchemaTransformRequest request,
+      StreamObserver<DiscoverSchemaTransformResponse> responseObserver) {
+    try {
+      responseObserver.onNext(discover(request));
+      responseObserver.onCompleted();
+    } catch (RuntimeException exn) {
+      responseObserver.onNext(
+          ExpansionApi.DiscoverSchemaTransformResponse.newBuilder()
               .setError(Throwables.getStackTraceAsString(exn))
               .build());
       responseObserver.onCompleted();
@@ -618,9 +697,36 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
 
     @SuppressWarnings("nullness")
     ExpansionService service = new ExpansionService(Arrays.copyOfRange(args, 1, args.length));
+
+    StringBuilder registeredTransformsLog = new StringBuilder();
+    boolean registeredTransformsFound = false;
+    registeredTransformsLog.append("\n");
+    registeredTransformsLog.append("Registered transforms:");
+
     for (Map.Entry<String, TransformProvider> entry :
         service.getRegisteredTransforms().entrySet()) {
-      System.out.println("\t" + entry.getKey() + ": " + entry.getValue());
+      registeredTransformsFound = true;
+      registeredTransformsLog.append("\n\t" + entry.getKey() + ": " + entry.getValue());
+    }
+
+    StringBuilder registeredSchemaTransformProvidersLog = new StringBuilder();
+    boolean registeredSchemaTransformProvidersFound = false;
+    registeredSchemaTransformProvidersLog.append("\n");
+    registeredSchemaTransformProvidersLog.append("Registered SchemaTransformProviders:");
+
+    for (SchemaTransformProvider provider : service.getRegisteredSchemaTransforms()) {
+      registeredSchemaTransformProvidersFound = true;
+      registeredSchemaTransformProvidersLog.append("\n\t" + provider.identifier());
+    }
+
+    if (registeredTransformsFound) {
+      System.out.println(registeredTransformsLog.toString());
+    }
+    if (registeredSchemaTransformProvidersFound) {
+      System.out.println(registeredSchemaTransformProvidersLog.toString());
+    }
+    if (!registeredTransformsFound && !registeredSchemaTransformProvidersFound) {
+      System.out.println("\nDid not find any registered transforms or SchemaTransforms.\n");
     }
 
     Server server =

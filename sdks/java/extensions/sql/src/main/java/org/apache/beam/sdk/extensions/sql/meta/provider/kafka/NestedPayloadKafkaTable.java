@@ -140,7 +140,7 @@ class NestedPayloadKafkaTable extends BeamKafkaTable {
   }
 
   // Suppress nullability warnings: ProducerRecord is supposed to accept null arguments.
-  @SuppressWarnings("argument.type.incompatible")
+  @SuppressWarnings("argument")
   @VisibleForTesting
   ProducerRecord<byte[], byte[]> transformOutput(Row row) {
     row = castRow(row, row.getSchema(), schema);

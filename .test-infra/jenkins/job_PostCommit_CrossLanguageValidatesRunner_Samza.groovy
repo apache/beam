@@ -44,6 +44,8 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_XVR_Samza',
             tasks(":runners:samza:job-server:validatesCrossLanguageRunner")
             commonJobProperties.setGradleSwitches(delegate)
             switches("-PpythonVersion=${pythonVersion}")
+            // only run non-python task (e.g. GoUsingJava) once
+            switches("-PskipNonPythonTask=${pythonVersion != CROSS_LANGUAGE_VALIDATES_RUNNER_PYTHON_VERSIONS[0]}")
           }
         }
       }

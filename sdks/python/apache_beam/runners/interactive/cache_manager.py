@@ -236,7 +236,7 @@ class FileBasedCacheManager(CacheManager):
     return reader, version
 
   def write(self, values, *labels):
-    """Imitates how a WriteCache tranform works without running a pipeline.
+    """Imitates how a WriteCache transform works without running a pipeline.
 
     For testing and cache manager development, not for production usage because
     the write is not sharded and does not use Beam execution model.

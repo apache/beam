@@ -24,10 +24,6 @@ import CommonTestProperties.TriggeringContext
 import NexmarkBuilder as Nexmark
 import NoPhraseTriggeringPostCommitBuilder
 import PhraseTriggeringPostCommitBuilder
-import InfluxDBCredentialsHelper
-
-import static NexmarkDatabaseProperties.nexmarkBigQueryArgs
-import static NexmarkDatabaseProperties.nexmarkInfluxDBArgs
 
 // This job runs the suite of ValidatesRunner tests against the Flink runner.
 NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_Flink',
@@ -35,7 +31,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
 
       description('Runs the Nexmark suite on the Flink runner.')
 
-      commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240, true, 'beam-perf')
+      commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240, true, 'beam-perf', true, 40)
 
       commonJob(delegate, TriggeringContext.POST_COMMIT)
     }
@@ -45,7 +41,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_Fl
 
       description('Runs the Nexmark suite on the Flink runner against a Pull Request, on demand.')
 
-      commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
+      commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240, true, 'beam', true, 40)
 
       commonJob(delegate, TriggeringContext.PR)
     }

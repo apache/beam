@@ -16,50 +16,81 @@
  * limitations under the License.
  */
 
+import 'package:json_annotation/json_annotation.dart';
+
+import '../enums/complexity.dart';
+import 'dataset.dart';
 import 'example_base.dart';
+import 'example_view_options.dart';
+import 'sdk.dart';
+import 'snippet_file.dart';
+
+part 'example.g.dart';
 
 /// A [ExampleBase] that also has all large fields fetched.
+@JsonSerializable()
 class Example extends ExampleBase {
-  final String source;
-  final String? outputs;
-  final String? logs;
+  final List<SnippetFile> files;
   final String? graph;
+  final String? logs;
+  final String? outputs;
 
   const Example({
-    required super.sdk,
-    required super.tags,
-    required super.type,
+    required this.files,
     required super.name,
+    required super.sdk,
+    required super.type,
     required super.path,
-    required super.description,
+    super.complexity,
     super.contextLine,
-    super.isMultiFile,
-    super.link,
-    required super.pipelineOptions,
-    required this.source,
-    this.outputs,
-    this.logs,
+    super.datasets,
+    super.description,
     this.graph,
-    required super.complexity,
+    super.isMultiFile,
+    this.logs,
+    this.outputs,
+    super.pipelineOptions,
+    super.tags,
+    super.urlNotebook,
+    super.urlVcs,
+    super.viewOptions,
   });
+
+  factory Example.fromJson(Map<String, dynamic> json) =>
+      _$ExampleFromJson(json);
+
+  @override
+  Map<String, dynamic> toJson() => _$ExampleToJson(this);
 
   Example.fromBase(
     ExampleBase example, {
-    required this.source,
-    required this.outputs,
+    required this.files,
     required this.logs,
+    required this.outputs,
     this.graph,
   }) : super(
-          sdk: example.sdk,
+          complexity: example.complexity,
+          contextLine: example.contextLine,
+          datasets: example.datasets,
+          description: example.description,
+          isMultiFile: example.isMultiFile,
           name: example.name,
           path: example.path,
-          description: example.description,
+          pipelineOptions: example.pipelineOptions,
+          sdk: example.sdk,
           tags: example.tags,
           type: example.type,
-          contextLine: example.contextLine,
-          isMultiFile: example.isMultiFile,
-          link: example.link,
-          pipelineOptions: example.pipelineOptions,
-          complexity: example.complexity,
+          urlNotebook: example.urlNotebook,
+          urlVcs: example.urlVcs,
+          viewOptions: example.viewOptions,
+        );
+
+  Example.empty(Sdk sdk)
+      : this(
+          name: 'Untitled Example',
+          files: [SnippetFile.empty],
+          path: '',
+          sdk: sdk,
+          type: ExampleType.example,
         );
 }

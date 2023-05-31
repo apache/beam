@@ -17,13 +17,11 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground_components/playground_components.dart';
 
-import '../../../components/expansion_tile_wrapper.dart';
 import '../../../models/group.dart';
 import '../controllers/content_tree.dart';
-import 'group_nodes.dart';
 import 'group_title.dart';
+import 'parent_node.dart';
 
 class GroupWidget extends StatelessWidget {
   final GroupModel group;
@@ -32,26 +30,19 @@ class GroupWidget extends StatelessWidget {
   const GroupWidget({
     required this.group,
     required this.contentTreeController,
+    super.key,
   });
 
   @override
   Widget build(BuildContext context) {
-    return ExpansionTileWrapper(
-      ExpansionTile(
-        tilePadding: EdgeInsets.zero,
-        title: GroupTitleWidget(
-          group: group,
-          onTap: () => contentTreeController.onNodeTap(group),
-        ),
-        childrenPadding: const EdgeInsets.only(
-          left: BeamSizes.size24,
-        ),
-        children: [
-          GroupNodesWidget(
-            nodes: group.nodes,
-            contentTreeController: contentTreeController,
-          ),
-        ],
+    return ParentNodeWidget(
+      contentTreeController: contentTreeController,
+      node: group,
+      title: GroupTitleWidget(
+        group: group,
+        onTap: () {
+          contentTreeController.onNodePressed(group);
+        },
       ),
     );
   }

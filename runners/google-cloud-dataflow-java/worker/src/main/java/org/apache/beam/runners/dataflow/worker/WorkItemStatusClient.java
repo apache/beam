@@ -75,6 +75,7 @@ public class WorkItemStatusClient {
 
   private transient String uniqueWorkId = null;
   private boolean finalStateSent = false;
+  private boolean wasAskedToAbort = false;
 
   private @Nullable BatchModeExecutionContext executionContext;
 
@@ -114,8 +115,12 @@ public class WorkItemStatusClient {
   }
 
   /** Return the {@link WorkItemServiceState} resulting from sending an error completion status. */
-  public synchronized WorkItemServiceState reportError(Throwable e) throws IOException {
+  public synchronized @Nullable WorkItemServiceState reportError(Throwable e) throws IOException {
     checkState(!finalStateSent, "cannot reportUpdates after sending a final state");
+    if (wasAskedToAbort) {
+      LOG.info("Service already asked to abort work item, not reporting ignored progress.");
+      return null;
+    }
     WorkItemStatus status = createStatusUpdate(true);
 
     // TODO: Provide more structure representation of error, e.g., the serialized exception object.
@@ -147,9 +152,13 @@ public class WorkItemStatusClient {
   }
 
   /** Return the {@link WorkItemServiceState} resulting from sending a success completion status. */
-  public synchronized WorkItemServiceState reportSuccess() throws IOException {
+  public synchronized @Nullable WorkItemServiceState reportSuccess() throws IOException {
     checkState(!finalStateSent, "cannot reportSuccess after sending a final state");
     checkState(worker != null, "setWorker should be called before reportSuccess");
+    if (wasAskedToAbort) {
+      LOG.info("Service already asked to abort work item, not reporting ignored progress.");
+      return null;
+    }
 
     WorkItemStatus status = createStatusUpdate(true);
 
@@ -168,12 +177,16 @@ public class WorkItemStatusClient {
   }
 
   /** Return the {@link WorkItemServiceState} resulting from sending a progress update. */
-  public synchronized WorkItemServiceState reportUpdate(
+  public synchronized @Nullable WorkItemServiceState reportUpdate(
       @Nullable DynamicSplitResult dynamicSplitResult, Duration requestedLeaseDuration)
       throws Exception {
     checkState(worker != null, "setWorker should be called before reportUpdate");
     checkState(!finalStateSent, "cannot reportUpdates after sending a final state");
     checkArgument(requestedLeaseDuration != null, "requestLeaseDuration must be non-null");
+    if (wasAskedToAbort) {
+      LOG.info("Service already asked to abort work item, not reporting ignored progress.");
+      return null;
+    }
 
     WorkItemStatus status = createStatusUpdate(false);
     status.setRequestedLeaseDuration(TimeUtil.toCloudDuration(requestedLeaseDuration));
@@ -207,6 +220,12 @@ public class WorkItemStatusClient {
       throws IOException {
     WorkItemServiceState result = workUnitClient.reportWorkItemStatus(status);
     if (result != null) {
+      if (result.getCompleteWorkStatus() != null
+          && result.getCompleteWorkStatus().getCode() != com.google.rpc.Code.OK.getNumber()) {
+        LOG.info("Service asked worker to abort with status: {}", result.getCompleteWorkStatus());
+        wasAskedToAbort = true;
+        return result;
+      }
       nextReportIndex = result.getNextReportIndex();
       if (nextReportIndex == null && !status.getCompleted()) {
         LOG.error("Missing next work index in {} when reporting {}.", result, status);

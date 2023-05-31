@@ -44,7 +44,7 @@ func TestEncodeDecodeMap(t *testing.T) {
 	ptrByte := byte(42)
 
 	tests := []struct {
-		v          interface{}
+		v          any
 		encK, encV func(reflect.Value, io.Writer) error
 		decK, decV func(reflect.Value, io.Reader) error
 		encoded    []byte

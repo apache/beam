@@ -19,10 +19,10 @@ import (
 	"log"
 
 	tob "beam.apache.org/learning/tour-of-beam/backend/internal"
-	pb "beam.apache.org/learning/tour-of-beam/backend/playground_api"
+	pb "beam.apache.org/learning/tour-of-beam/backend/playground_api/api/v1"
 )
 
-func MakePgSaveRequest(userRequest tob.UserCodeRequest, sdk tob.Sdk) pb.SaveSnippetRequest {
+func MakePgSaveRequest(userRequest tob.UserCodeRequest, sdk tob.Sdk, persistence_key string) pb.SaveSnippetRequest {
 	filesProto := make([]*pb.SnippetFile, 0)
 	for _, file := range userRequest.Files {
 		filesProto = append(filesProto,
@@ -40,5 +40,6 @@ func MakePgSaveRequest(userRequest tob.UserCodeRequest, sdk tob.Sdk) pb.SaveSnip
 		Sdk:             pb.Sdk(sdkIdx),
 		Files:           filesProto,
 		PipelineOptions: userRequest.PipelineOptions,
+		PersistenceKey:  persistence_key,
 	}
 }

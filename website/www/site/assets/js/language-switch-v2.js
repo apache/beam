@@ -61,6 +61,7 @@ $(document).ready(function() {
             "valueToTabTitle": function (value) {
                 switch (value) {
                     case 'py': return 'Python';
+                    case 'scio': return 'SCIO';
                     case 'typescript': return 'TypeScript';
                 }
 
@@ -87,6 +88,15 @@ $(document).ready(function() {
 
                     const tabsHtml = _self.navHtml(values);
                     $(this).before(tabsHtml);
+
+                    // Add 'language-XXX' classes to the Playground iframe so it can be hidden
+                    // when selecting a language it does not have.
+                    let iframeWrapper = $(this).parent().parent().children('.code-snippet-playground');
+                    if (iframeWrapper.length > 0) {
+                        for (const value of values) {
+                            iframeWrapper.addClass(`${name}-${value}`)
+                        }
+                    }
                 });
             },
 
@@ -149,12 +159,19 @@ $(document).ready(function() {
                 $(`.${this.wrapper} li[data-value="${value}"]`).addClass("active");
                 $(`.${this.wrapper} li[data-value!="${value}"]`).removeClass("active");
 
-                // Swapping visibility of code blocks.
+                // Hiding all sets of tabs and all playground iframes.
+                // Then showing those having a tab for the new language.
                 $(this.selector).hide(); // Ex: [class^=language-]:not(.no-toggle)
+                if (name === 'language') {
+                    $('.code-snippet-playground').hide();
+                }
+                $(`.${name}-${value}`).show();
+
+                // Showing the main switch at the top of the page.
                 $("nav" + this.selector).show();
+
                 // make sure that runner and shell snippets are still visible after changing language
                 $("code" + this.selector).show();
-                $(`.${name}-${value}`).show();
 
                 //add refresh method because html elements are added/deleted after changing language
                 $('[data-spy="scroll"]').each(function () {
@@ -191,15 +208,27 @@ $(document).ready(function() {
          *       send messages to them. This is cheap when the page only started loading.
          */
         "onInit": function (lang) {
-            const playgroundIframes = $(".code-snippet-playground iframe").get();
+            const playgroundIframeContainers = document.getElementsByClassName("code-snippet-playground");
             const sdk = this.langToSdk(lang);
 
-            for (const iframe of playgroundIframes) {
-                const url = new URL(iframe.src);
+            for (const div of playgroundIframeContainers) {
+                const src = div.dataset.src;
+                const width = div.dataset.width;
+                const height = div.dataset.height;
+
+                const url = new URL(src);
                 const searchParams = new URLSearchParams(url.search);
                 searchParams.set("sdk", sdk);
                 url.search = searchParams.toString();
+
+                const iframe = document.createElement('iframe');
                 iframe.src = url.href;
+                iframe.width = width;
+                iframe.height = height;
+                iframe.className = 'playground';
+                iframe.allow = 'clipboard-write';
+
+                div.appendChild(iframe);
             }
         },
 

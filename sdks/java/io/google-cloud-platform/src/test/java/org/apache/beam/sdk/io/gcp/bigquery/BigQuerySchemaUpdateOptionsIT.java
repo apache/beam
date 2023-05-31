@@ -25,22 +25,30 @@ import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
+import java.io.IOException;
 import java.security.SecureRandom;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.SchemaUpdateOption;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -152,7 +160,8 @@ public class BigQuerySchemaUpdateOptionsIT {
             .withSchemaUpdateOptions(schemaUpdateOptions);
 
     p.apply(input).apply(writer);
-    p.run().waitUntilFinish();
+    PipelineResult.State state = p.run().waitUntilFinish();
+    assertEquals(PipelineResult.State.DONE, state);
 
     QueryResponse response = BQ_CLIENT.queryWithRetries(testQuery, project);
 
@@ -222,66 +231,143 @@ public class BigQuerySchemaUpdateOptionsIT {
   }
 
   @Test
-  public void runWriteTestTempTables() throws Exception {
-    String tableName = makeTestTable();
+  public void runWriteTestTempTableAndDynamicDestination() throws Exception {
+
+    final int numPerAnimal = 10;
+
+    String tableNameCat = makeTestTable();
+    String tableNameDog = makeTestTable();
+
+    WriteToBqDynamic dynamicDestination =
+        new WriteToBqDynamic(project, BIG_QUERY_DATASET_ID, tableNameCat, tableNameDog);
 
     Set<SchemaUpdateOption> schemaUpdateOptions =
         EnumSet.of(BigQueryIO.Write.SchemaUpdateOption.ALLOW_FIELD_ADDITION);
 
-    TableSchema schema =
+    String[] values = {"meow", "bark"};
+
+    List<Set<String>> expectedCat = new ArrayList<>();
+    List<Set<String>> expectedDog = new ArrayList<>();
+    List<TableRow> inputRows = new ArrayList<>();
+
+    for (int i = 0; i < numPerAnimal; ++i) {
+      expectedCat.add(ImmutableSet.of(values[0], String.valueOf(i)));
+      expectedDog.add(ImmutableSet.of(values[1], String.valueOf(i)));
+      // cat and dog tables have different schema
+      inputRows.add(
+          new TableRow().set("required_field", values[0]).set("cat_new_field", String.valueOf(i)));
+      inputRows.add(new TableRow().set("required_field", values[1]).set("dog_new_field", (long) i));
+    }
+
+    Options options = TestPipeline.testingPipelineOptions().as(Options.class);
+    options.setTempLocation(options.getTempRoot() + "/bq_it_temp");
+
+    Pipeline p = Pipeline.create(options);
+
+    p.apply(Create.of(inputRows))
+        .apply(
+            BigQueryIO.writeTableRows()
+                .to(dynamicDestination)
+                .withCreateDisposition(CreateDisposition.CREATE_NEVER)
+                .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
+                .withSchemaUpdateOptions(schemaUpdateOptions)
+                .withMaxFileSize(10)
+                .withMaxFilesPerPartition(2));
+    PipelineResult.State state = p.run().waitUntilFinish();
+    assertEquals(PipelineResult.State.DONE, state);
+
+    String testCatQuery =
+        String.format(
+            "SELECT cat_new_field, required_field FROM [%s.%s];",
+            BIG_QUERY_DATASET_ID, tableNameCat);
+    String testDogQuery =
+        String.format(
+            "SELECT dog_new_field, required_field FROM [%s.%s];",
+            BIG_QUERY_DATASET_ID, tableNameDog);
+
+    List<Set<String>> catResult = runQuery(testCatQuery);
+    assertEquals(new HashSet<>(expectedCat), new HashSet<>(catResult));
+    List<Set<String>> dogResult = runQuery(testDogQuery);
+    assertEquals(new HashSet<>(expectedDog), new HashSet<>(dogResult));
+  }
+
+  /** Run a query and return result as a list of records with each having a list of values. */
+  List<Set<String>> runQuery(String query) {
+    QueryResponse response;
+    try {
+      response = BQ_CLIENT.queryWithRetries(query, project);
+    } catch (IOException | InterruptedException e) {
+      throw new RuntimeException(e);
+    }
+    return response.getRows().stream()
+        .map(
+            row ->
+                row.getF().stream().map(cell -> cell.getV().toString()).collect(Collectors.toSet()))
+        .collect(Collectors.toList());
+  }
+
+  static class WriteToBqDynamic extends DynamicDestinations<TableRow, String> {
+    private final String projectId;
+    private final String dataSetId;
+    private final String catTable;
+    private final String dogTable;
+
+    public WriteToBqDynamic(String projectId, String dataSetId, String catTable, String dogTable) {
+      this.projectId = projectId;
+      this.dataSetId = dataSetId;
+      this.catTable = catTable;
+      this.dogTable = dogTable;
+    }
+
+    private static final TableSchema CAT_SCHEMA =
         new TableSchema()
             .setFields(
                 ImmutableList.of(
-                    new TableFieldSchema().setName("new_field").setType("STRING"),
+                    new TableFieldSchema().setName("cat_new_field").setType("STRING"),
                     new TableFieldSchema().setName("optional_field").setType("STRING"),
                     new TableFieldSchema()
                         .setName("required_field")
                         .setType("STRING")
                         .setMode("REQUIRED")));
 
-    String[] values = {"meow", "bark"};
+    public static final TableSchema DOG_SCHEMA =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("dog_new_field").setType("INT64"),
+                    new TableFieldSchema().setName("optional_field").setType("STRING"),
+                    new TableFieldSchema()
+                        .setName("required_field")
+                        .setType("STRING")
+                        .setMode("REQUIRED")));
 
-    String testQuery =
-        String.format(
-            "SELECT new_field, required_field FROM [%s.%s];", BIG_QUERY_DATASET_ID, tableName);
+    @Override
+    public String getDestination(@Nullable ValueInSingleWindow<TableRow> element) {
+      assert element != null;
+      String sound = (String) Objects.requireNonNull(element.getValue()).get("required_field");
+      if (Objects.equals(sound, "meow")) {
+        return "cat";
+      } else if (Objects.equals(sound, "bark")) {
+        return "dog";
+      } else {
+        throw new IllegalArgumentException("Unknown sound: " + sound);
+      }
+    }
 
-    List<List<String>> expectedResult =
-        Arrays.asList(Arrays.asList(values[0], values[1]), Arrays.asList(values[1], values[0]));
+    @Override
+    public TableDestination getTable(String destination) {
+      String tableId = Objects.equals(destination, "cat") ? catTable : dogTable;
+      String reference = String.format("%s:%s.%s", projectId, dataSetId, tableId);
+      return new TableDestination(reference, destination);
+    }
 
-    Options options = TestPipeline.testingPipelineOptions().as(Options.class);
-    options.setTempLocation(options.getTempRoot() + "/bq_it_temp");
-
-    Pipeline p = Pipeline.create(options);
-    Create.Values<TableRow> input =
-        Create.of(
-            Arrays.asList(
-                new TableRow().set("new_field", values[0]).set("required_field", values[1]),
-                new TableRow().set("new_field", values[1]).set("required_field", values[0])));
-
-    Write<TableRow> writer =
-        BigQueryIO.writeTableRows()
-            .to(String.format("%s:%s.%s", options.getProject(), BIG_QUERY_DATASET_ID, tableName))
-            .withSchema(schema)
-            .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
-            .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
-            .withSchemaUpdateOptions(schemaUpdateOptions)
-            .withMaxBytesPerPartition(1)
-            .withMaxFilesPerPartition(1);
-
-    p.apply(input).apply(writer);
-    p.run().waitUntilFinish();
-
-    QueryResponse response = BQ_CLIENT.queryWithRetries(testQuery, project);
-
-    List<List<String>> result =
-        response.getRows().stream()
-            .map(
-                row ->
-                    row.getF().stream()
-                        .map(cell -> cell.getV().toString())
-                        .collect(Collectors.toList()))
-            .collect(Collectors.toList());
-
-    assertEquals(new HashSet<>(expectedResult), new HashSet<>(result));
+    @Override
+    public @Nullable TableSchema getSchema(String destination) {
+      if (Objects.equals(destination, "cat")) {
+        return CAT_SCHEMA;
+      } else {
+        return DOG_SCHEMA;
+      }
+    }
   }
 }

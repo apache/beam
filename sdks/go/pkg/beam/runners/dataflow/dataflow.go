@@ -35,6 +35,7 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/pipelinex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/hooks"
@@ -69,9 +70,9 @@ var (
 	subnetwork             = flag.String("subnetwork", "", "GCP subnetwork (optional)")
 	noUsePublicIPs         = flag.Bool("no_use_public_ips", false, "Workers must not use public IP addresses (optional)")
 	tempLocation           = flag.String("temp_location", "", "Temp location (optional)")
-	machineType            = flag.String("worker_machine_type", "", "GCE machine type (optional)")
+	workerMachineType      = flag.String("worker_machine_type", "", "GCE machine type (optional)")
+	machineType            = flag.String("machine_type", "", "alias of worker_machine_type (optional)")
 	minCPUPlatform         = flag.String("min_cpu_platform", "", "GCE minimum cpu platform (optional)")
-	workerJar              = flag.String("dataflow_worker_jar", "", "Dataflow worker jar (optional)")
 	workerRegion           = flag.String("worker_region", "", "Dataflow worker region (optional)")
 	workerZone             = flag.String("worker_zone", "", "Dataflow worker zone (optional)")
 	dataflowServiceOptions = flag.String("dataflow_service_options", "", "Comma separated list of additional job modes and configurations (optional)")
@@ -120,6 +121,7 @@ var flagFilter = map[string]bool{
 	"no_use_public_ips":              true,
 	"template_location":              true,
 	"worker_machine_type":            true,
+	"machine_type":                   true,
 	"min_cpu_platform":               true,
 	"dataflow_worker_jar":            true,
 	"worker_region":                  true,
@@ -170,6 +172,16 @@ func init() {
 
 var unique int32
 
+// Helper function finding first non empty string. Used for handling alias options.
+func firstNonEmpty(values ...*string) *string {
+	for _, value := range values {
+		if *value != "" {
+			return value
+		}
+	}
+	return values[0]
+}
+
 // Execute runs the given pipeline on Google Cloud Dataflow. It uses the
 // default application credentials to submit the job.
 func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error) {
@@ -177,25 +189,26 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 		panic("Beam has not been initialized. Call beam.Init() before pipeline construction.")
 	}
 
+	edges, nodes, err := p.Build()
+	if err != nil {
+		return nil, err
+	}
+	streaming := !graph.Bounded(nodes)
+
 	beam.PipelineOptions.LoadOptionsFromFlags(flagFilter)
-	opts, err := getJobOptions(ctx)
+	opts, err := getJobOptions(ctx, streaming)
 	if err != nil {
 		return nil, err
 	}
 
 	// (1) Build and submit
-	// NOTE(herohde) 10/8/2018: the last segment of the names must be "worker" and "dataflow-worker.jar".
+	// NOTE(herohde) 10/8/2018: the last segment of the names must be "worker".
 	id := fmt.Sprintf("go-%v-%v", atomic.AddInt32(&unique, 1), time.Now().UnixNano())
 
 	modelURL := gcsx.Join(*stagingLocation, id, "model")
 	workerURL := gcsx.Join(*stagingLocation, id, "worker")
-	jarURL := gcsx.Join(*stagingLocation, id, "dataflow-worker.jar")
 	xlangURL := gcsx.Join(*stagingLocation, id, "xlang")
 
-	edges, _, err := p.Build()
-	if err != nil {
-		return nil, err
-	}
 	artifactURLs, err := dataflowlib.ResolveXLangArtifacts(ctx, edges, opts.Project, xlangURL)
 	if err != nil {
 		return nil, errors.WithContext(err, "resolving cross-language artifacts")
@@ -205,7 +218,10 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 	if err != nil {
 		return nil, errors.WithContext(err, "creating environment for model pipeline")
 	}
-	model, err := graphx.Marshal(edges, &graphx.Options{Environment: environment})
+	model, err := graphx.Marshal(edges, &graphx.Options{
+		Environment:           environment,
+		PipelineResourceHints: jobopts.GetPipelineResourceHints(),
+	})
 	if err != nil {
 		return nil, errors.WithContext(err, "generating model pipeline")
 	}
@@ -218,7 +234,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 		log.Info(ctx, "Dry-run: not submitting job!")
 
 		log.Info(ctx, proto.MarshalTextString(model))
-		job, err := dataflowlib.Translate(ctx, model, opts, workerURL, jarURL, modelURL)
+		job, err := dataflowlib.Translate(ctx, model, opts, workerURL, modelURL)
 		if err != nil {
 			return nil, err
 		}
@@ -226,17 +242,17 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 		return nil, nil
 	}
 
-	return dataflowlib.Execute(ctx, model, opts, workerURL, jarURL, modelURL, *endpoint, *jobopts.Async)
+	return dataflowlib.Execute(ctx, model, opts, workerURL, modelURL, *endpoint, *jobopts.Async)
 }
 
-func getJobOptions(ctx context.Context) (*dataflowlib.JobOptions, error) {
+func getJobOptions(ctx context.Context, streaming bool) (*dataflowlib.JobOptions, error) {
 	project := gcpopts.GetProjectFromFlagOrEnvironment(ctx)
 	if project == "" {
 		return nil, errors.New("no Google Cloud project specified. Use --project=<project>")
 	}
 	region := gcpopts.GetRegion(ctx)
 	if region == "" {
-		return nil, errors.New("No Google Cloud region specified. Use --region=<region>. See https://cloud.google.com/dataflow/docs/concepts/regional-endpoints")
+		return nil, errors.New("no Google Cloud region specified. Use --region=<region>. See https://cloud.google.com/dataflow/docs/concepts/regional-endpoints")
 	}
 	if *stagingLocation == "" {
 		return nil, errors.New("no GCS staging location specified. Use --staging_location=gs://<bucket>/<path>")
@@ -266,6 +282,9 @@ func getJobOptions(ctx context.Context) (*dataflowlib.JobOptions, error) {
 			return nil, errors.Errorf("invalid flex resource scheduling goal. Got %q; Use --flexrs_goal=(FLEXRS_UNSPECIFIED|FLEXRS_SPEED_OPTIMIZED|FLEXRS_COST_OPTIMIZED)", *flexRSGoal)
 		}
 	}
+	if !streaming && *transformMapping != "" {
+		return nil, errors.New("provided transform_name_mapping for a batch pipeline, did you mean to construct a streaming pipeline?")
+	}
 	if !*update && *transformMapping != "" {
 		return nil, errors.New("provided transform_name_mapping without setting the --update flag, so the pipeline would not be updated")
 	}
@@ -279,22 +298,49 @@ func getJobOptions(ctx context.Context) (*dataflowlib.JobOptions, error) {
 	hooks.SerializeHooksToOptions()
 
 	experiments := jobopts.GetExperiments()
-	// Always use runner v2, unless set already.
-	var v2set, portaSubmission bool
+	// Ensure that we enable the same set of experiments across all SDKs
+	// for runner v2.
+	var fnApiSet, v2set, uwSet, portaSubmission, seSet, wsSet bool
 	for _, e := range experiments {
-		if strings.Contains(e, "use_runner_v2") || strings.Contains(e, "use_unified_worker") {
+		if strings.Contains(e, "beam_fn_api") {
+			fnApiSet = true
+		}
+		if strings.Contains(e, "use_runner_v2") {
 			v2set = true
+		}
+		if strings.Contains(e, "use_unified_worker") {
+			uwSet = true
 		}
 		if strings.Contains(e, "use_portable_job_submission") {
 			portaSubmission = true
 		}
+		if strings.Contains(e, "disable_runner_v2") || strings.Contains(e, "disable_runner_v2_until_2023") || strings.Contains(e, "disable_prime_runner_v2") {
+			return nil, errors.New("detected one of the following experiments: disable_runner_v2 | disable_runner_v2_until_2023 | disable_prime_runner_v2. Disabling runner v2 is no longer supported as of Beam version 2.45.0+")
+		}
 	}
-	// Enable by default unified worker, and portable job submission.
+	// Enable default experiments.
+	if !fnApiSet {
+		experiments = append(experiments, "beam_fn_api")
+	}
 	if !v2set {
+		experiments = append(experiments, "use_runner_v2")
+	}
+	if !uwSet {
 		experiments = append(experiments, "use_unified_worker")
 	}
 	if !portaSubmission {
 		experiments = append(experiments, "use_portable_job_submission")
+	}
+
+	// Ensure that streaming specific experiments are set for streaming pipelines
+	// since runner v2 only supports using streaming engine.
+	if streaming {
+		if !seSet {
+			experiments = append(experiments, "enable_streaming_engine")
+		}
+		if !wsSet {
+			experiments = append(experiments, "enable_windmill_service")
+		}
 	}
 
 	if *minCPUPlatform != "" {
@@ -309,6 +355,7 @@ func getJobOptions(ctx context.Context) (*dataflowlib.JobOptions, error) {
 	beam.PipelineOptions.LoadOptionsFromFlags(flagFilter)
 	opts := &dataflowlib.JobOptions{
 		Name:                   jobopts.GetJobName(),
+		Streaming:              streaming,
 		Experiments:            experiments,
 		DataflowServiceOptions: dfServiceOptions,
 		Options:                beam.PipelineOptions.Export(),
@@ -326,13 +373,12 @@ func getJobOptions(ctx context.Context) (*dataflowlib.JobOptions, error) {
 		DiskType:               *diskType,
 		Algorithm:              *autoscalingAlgorithm,
 		FlexRSGoal:             *flexRSGoal,
-		MachineType:            *machineType,
+		MachineType:            *firstNonEmpty(workerMachineType, machineType),
 		Labels:                 jobLabels,
 		ServiceAccountEmail:    *serviceAccountEmail,
 		TempLocation:           *tempLocation,
 		TemplateLocation:       *templateLocation,
 		Worker:                 *jobopts.WorkerBinary,
-		WorkerJar:              *workerJar,
 		WorkerRegion:           *workerRegion,
 		WorkerZone:             *workerZone,
 		TeardownPolicy:         *teardownPolicy,

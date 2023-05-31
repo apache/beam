@@ -55,6 +55,10 @@ if [ "$kernelname" = "Linux" ]; then
         exit
     fi
 
+    for ver in 3.7 3.8 3.9 3.10 3; do
+        apt install --yes python$ver-venv
+    done
+
     type -P go > /dev/null 2>&1
     goExists=$?
     if [ $goExists -eq 0 ]; then

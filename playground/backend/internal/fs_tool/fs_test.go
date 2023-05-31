@@ -16,14 +16,17 @@
 package fs_tool
 
 import (
-	pb "beam.apache.org/playground/backend/internal/api/v1"
-	"beam.apache.org/playground/backend/internal/utils"
 	"fmt"
-	"github.com/google/uuid"
 	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
+
+	"github.com/google/uuid"
+
+	pb "beam.apache.org/playground/backend/internal/api/v1"
+	"beam.apache.org/playground/backend/internal/db/entity"
+	"beam.apache.org/playground/backend/internal/utils"
 )
 
 const (
@@ -132,11 +135,7 @@ func TestLifeCycle_CopyFile(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			l := &LifeCycle{
-				folderGlobs: tt.fields.folderGlobs,
-				Paths:       tt.fields.Paths,
-			}
-			if err := l.CopyFile(tt.args.fileName, tt.args.sourceDir, tt.args.destinationDir); (err != nil) != tt.wantErr {
+			if err := utils.CopyFilePreservingName(tt.args.fileName, tt.args.sourceDir, tt.args.destinationDir); (err != nil) != tt.wantErr {
 				t.Errorf("CopyFile() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
@@ -219,7 +218,8 @@ func TestLifeCycle_CreateSourceCodeFile(t *testing.T) {
 			l := &LifeCycle{
 				Paths: tt.fields.Paths,
 			}
-			if err := l.CreateSourceCodeFile(tt.args.code); (err != nil) != tt.wantErr {
+			sources := []entity.FileEntity{{Name: "main.java", Content: tt.args.code, IsMain: true}}
+			if err := l.CreateSourceCodeFiles(sources); (err != nil) != tt.wantErr {
 				t.Errorf("CreateSourceCodeFile() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if !tt.wantErr {
@@ -327,9 +327,9 @@ func TestNewLifeCycle(t *testing.T) {
 			want: &LifeCycle{
 				folderGlobs: []string{baseFileFolder, srcFileFolder, execFileFolder},
 				Paths: LifeCyclePaths{
-					SourceFileName:                   fmt.Sprintf("%s%s", pipelineId.String(), goSourceFileExtension),
+					SourceFileName:                   fmt.Sprintf("%s%s", pipelineId.String(), GoSourceFileExtension),
 					AbsoluteSourceFileFolderPath:     srcFileFolder,
-					AbsoluteSourceFilePath:           filepath.Join(srcFileFolder, fmt.Sprintf("%s%s", pipelineId.String(), goSourceFileExtension)),
+					AbsoluteSourceFilePath:           filepath.Join(srcFileFolder, fmt.Sprintf("%s%s", pipelineId.String(), GoSourceFileExtension)),
 					ExecutableFileName:               fmt.Sprintf("%s%s", pipelineId.String(), goExecutableFileExtension),
 					AbsoluteExecutableFileFolderPath: execFileFolder,
 					AbsoluteExecutableFilePath:       filepath.Join(execFileFolder, fmt.Sprintf("%s%s", pipelineId.String(), goExecutableFileExtension)),

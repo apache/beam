@@ -247,11 +247,7 @@ class Stage(object):
   def side_inputs(self):
     # type: () -> Iterator[str]
     for transform in self.transforms:
-      if transform.spec.urn in PAR_DO_URNS:
-        payload = proto_utils.parse_Bytes(
-            transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
-        for side_input in payload.side_inputs:
-          yield transform.inputs[side_input]
+      yield from side_inputs(transform).values()
 
   def has_as_main_input(self, pcoll):
     for transform in self.transforms:
@@ -260,7 +256,7 @@ class Stage(object):
             transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
         local_side_inputs = payload.side_inputs
       else:
-        local_side_inputs = {}
+        local_side_inputs = {}  # type: ignore[assignment]
       for local_id, pipeline_id in transform.inputs.items():
         if pcoll == pipeline_id and local_id not in local_side_inputs:
           return True
@@ -2052,6 +2048,16 @@ def union(a, b):
 
 
 _global_counter = 0
+
+
+def side_inputs(transform):
+  result = {}
+  if transform.spec.urn in PAR_DO_URNS:
+    payload = proto_utils.parse_Bytes(
+        transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
+    for side_input in payload.side_inputs:
+      result[side_input] = transform.inputs[side_input]
+  return result
 
 
 def unique_name(existing, prefix):

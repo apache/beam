@@ -43,7 +43,8 @@ def bqio_read_test = [
     input_options        : '\'{' +
     '"num_records": 10485760,' +
     '"key_size": 1,' +
-    '"value_size": 1024}\'',
+    '"value_size": 1024,' +
+    '"algorithm": "lcg"}\'',
     num_workers          : 5,
     autoscaling_algorithm: 'NONE',  // Disable autoscale the worker pool.
   ]
@@ -69,7 +70,8 @@ def bqio_write_test = [
     input_options        : '\'{' +
     '"num_records": 10485760,' +
     '"key_size": 1,' +
-    '"value_size": 1024}\'',
+    '"value_size": 1024,' +
+    '"algorithm": "lcg"}\'',
     num_workers          : 5,
     autoscaling_algorithm: 'NONE',  // Disable autoscale the worker pool.
   ]
@@ -90,7 +92,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
       executeJob(delegate, bqio_read_test)
     }
 
-CronJobBuilder.cronJob('beam_PerformanceTests_BiqQueryIO_Read_Python', 'H 15 * * *', this) {
+CronJobBuilder.cronJob('beam_PerformanceTests_BiqQueryIO_Read_Python', 'H H * * *', this) {
   executeJob(delegate, bqio_read_test)
 }
 
@@ -103,6 +105,6 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
       executeJob(delegate, bqio_write_test)
     }
 
-CronJobBuilder.cronJob('beam_PerformanceTests_BiqQueryIO_Write_Python_Batch', 'H 15 * * *', this) {
+CronJobBuilder.cronJob('beam_PerformanceTests_BiqQueryIO_Write_Python_Batch', 'H H * * *', this) {
   executeJob(delegate, bqio_write_test)
 }

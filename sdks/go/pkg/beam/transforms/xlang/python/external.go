@@ -46,25 +46,32 @@ func init() {
 // that can be evaluated to Python callables in Python SDK.
 //
 // The snippet of Python code can be a valid Python expression such as
-//    lambda x: x * x
-// 	  str.upper
+//
+//	   lambda x: x * x
+//		  str.upper
+//
 // a fully qualified name such as
-//    math.sin
+//
+//	math.sin
+//
 // or a complete multi-line function or class definition such as
-//    def foo(x):
-// 	   ...
-//    class Foo:
-// 	   ...
+//
+//	   def foo(x):
+//		   ...
+//	   class Foo:
+//		   ...
 //
 // Any lines preceding the function definition are first evaluated to provide context in which to
 // define the function which can be useful to declare imports or any other needed values, e.g.
-//    import math
 //
-//    def helper(x):
-//        return x * x
+//	import math
 //
-//    def func(y):
-//        return helper(y) + y
+//	def helper(x):
+//	    return x * x
+//
+//	def func(y):
+//	    return helper(y) + y
+//
 // in which case `func` would get applied to each element.
 type CallableSource string
 
@@ -80,24 +87,24 @@ func (p *callableSourceProvider) FromLogicalType(rt reflect.Type) (reflect.Type,
 }
 
 // BuildEncoder encodes the PythonCallableSource logical type
-func (p *callableSourceProvider) BuildEncoder(rt reflect.Type) (func(interface{}, io.Writer) error, error) {
+func (p *callableSourceProvider) BuildEncoder(rt reflect.Type) (func(any, io.Writer) error, error) {
 	if _, err := p.FromLogicalType(rt); err != nil {
 		return nil, err
 	}
 
-	return func(iface interface{}, w io.Writer) error {
+	return func(iface any, w io.Writer) error {
 		v := iface.(CallableSource)
 		return coder.EncodeStringUTF8(string(v), w)
 	}, nil
 }
 
 // BuildDecoder decodes the PythonCallableSource logical type
-func (p *callableSourceProvider) BuildDecoder(rt reflect.Type) (func(io.Reader) (interface{}, error), error) {
+func (p *callableSourceProvider) BuildDecoder(rt reflect.Type) (func(io.Reader) (any, error), error) {
 	if _, err := p.FromLogicalType(rt); err != nil {
 		return nil, err
 	}
 
-	return func(r io.Reader) (interface{}, error) {
+	return func(r io.Reader) (any, error) {
 		s, err := coder.DecodeStringUTF8(r)
 		if err != nil {
 			return nil, err

@@ -17,14 +17,13 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
+import static org.junit.Assert.assertTrue;
+
 import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.spark.SparkCommonPipelineOptions;
-import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
-import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingRunner;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.runners.spark.structuredstreaming.SparkSessionRule;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -37,23 +36,23 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestRule;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** Test class for beam to spark {@link ParDo} translation. */
 @RunWith(JUnit4.class)
 public class ParDoTest implements Serializable {
-  @Rule public transient TestPipeline pipeline = TestPipeline.fromOptions(testOptions());
+  @ClassRule public static final SparkSessionRule SESSION = new SparkSessionRule();
 
-  private static PipelineOptions testOptions() {
-    SparkStructuredStreamingPipelineOptions options =
-        PipelineOptionsFactory.create().as(SparkStructuredStreamingPipelineOptions.class);
-    options.setRunner(SparkStructuredStreamingRunner.class);
-    options.setTestMode(true);
-    return options;
-  }
+  @Rule
+  public transient TestPipeline pipeline =
+      TestPipeline.fromOptions(SESSION.createPipelineOptions());
+
+  @Rule public transient TestRule clearCache = SESSION.clearCache();
 
   @Test
   public void testPardo() {
@@ -61,32 +60,42 @@ public class ParDoTest implements Serializable {
         pipeline.apply(Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)).apply(ParDo.of(PLUS_ONE_DOFN));
     PAssert.that(input).containsInAnyOrder(2, 3, 4, 5, 6, 7, 8, 9, 10, 11);
     pipeline.run();
+
+    assertTrue("No usage of cache expected", !SESSION.hasCachedData());
   }
 
   @Test
   public void testPardoWithOutputTagsCachedRDD() {
-    pardoWithOutputTags("MEMORY_ONLY");
+    pardoWithOutputTags("MEMORY_ONLY", true);
+    assertTrue("Expected cached data", SESSION.hasCachedData());
   }
 
   @Test
   public void testPardoWithOutputTagsCachedDataset() {
-    pardoWithOutputTags("MEMORY_AND_DISK");
+    pardoWithOutputTags("MEMORY_AND_DISK", true);
+    assertTrue("Expected cached data", SESSION.hasCachedData());
   }
 
-  private void pardoWithOutputTags(String storageLevel) {
+  @Test
+  public void testPardoWithUnusedOutputTags() {
+    pardoWithOutputTags("MEMORY_AND_DISK", false);
+    assertTrue("No usage of cache expected", !SESSION.hasCachedData());
+  }
+
+  private void pardoWithOutputTags(String storageLevel, boolean evaluateAdditionalOutputs) {
     pipeline.getOptions().as(SparkCommonPipelineOptions.class).setStorageLevel(storageLevel);
 
-    TupleTag<Integer> even = new TupleTag<Integer>() {};
-    TupleTag<String> unevenAsString = new TupleTag<String>() {};
+    TupleTag<Integer> mainTag = new TupleTag<Integer>() {};
+    TupleTag<String> additionalUnevenTag = new TupleTag<String>() {};
 
     DoFn<Integer, Integer> doFn =
         new DoFn<Integer, Integer>() {
           @ProcessElement
           public void processElement(@Element Integer i, MultiOutputReceiver out) {
             if (i % 2 == 0) {
-              out.get(even).output(i);
+              out.get(mainTag).output(i);
             } else {
-              out.get(unevenAsString).output(i.toString());
+              out.get(additionalUnevenTag).output(i.toString());
             }
           }
         };
@@ -94,10 +103,12 @@ public class ParDoTest implements Serializable {
     PCollectionTuple outputs =
         pipeline
             .apply(Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
-            .apply(ParDo.of(doFn).withOutputTags(even, TupleTagList.of(unevenAsString)));
+            .apply(ParDo.of(doFn).withOutputTags(mainTag, TupleTagList.of(additionalUnevenTag)));
 
-    PAssert.that(outputs.get(even)).containsInAnyOrder(2, 4, 6, 8, 10);
-    PAssert.that(outputs.get(unevenAsString)).containsInAnyOrder("1", "3", "5", "7", "9");
+    PAssert.that(outputs.get(mainTag)).containsInAnyOrder(2, 4, 6, 8, 10);
+    if (evaluateAdditionalOutputs) {
+      PAssert.that(outputs.get(additionalUnevenTag)).containsInAnyOrder("1", "3", "5", "7", "9");
+    }
     pipeline.run();
   }
 
@@ -106,10 +117,12 @@ public class ParDoTest implements Serializable {
     PCollection<Integer> input =
         pipeline
             .apply(Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
-            .apply(ParDo.of(PLUS_ONE_DOFN))
-            .apply(ParDo.of(PLUS_ONE_DOFN));
+            .apply("Plus 1 (1st)", ParDo.of(PLUS_ONE_DOFN))
+            .apply("Plus 1 (2nd)", ParDo.of(PLUS_ONE_DOFN));
     PAssert.that(input).containsInAnyOrder(3, 4, 5, 6, 7, 8, 9, 10, 11, 12);
     pipeline.run();
+
+    assertTrue("No usage of cache expected", !SESSION.hasCachedData());
   }
 
   @Test
@@ -133,6 +146,8 @@ public class ParDoTest implements Serializable {
                     .withSideInputs(sideInputView));
     PAssert.that(input).containsInAnyOrder(4, 5, 6, 7, 8, 9, 10);
     pipeline.run();
+
+    assertTrue("No usage of cache expected", !SESSION.hasCachedData());
   }
 
   @Test
@@ -158,6 +173,8 @@ public class ParDoTest implements Serializable {
 
     PAssert.that(input).containsInAnyOrder(2, 3, 4, 5, 6, 7, 8, 9, 10);
     pipeline.run();
+
+    assertTrue("No usage of cache expected", !SESSION.hasCachedData());
   }
 
   @Test
@@ -183,6 +200,8 @@ public class ParDoTest implements Serializable {
                     .withSideInputs(sideInputView));
     PAssert.that(input).containsInAnyOrder(3, 4, 5, 6, 7, 8, 9, 10);
     pipeline.run();
+
+    assertTrue("No usage of cache expected", !SESSION.hasCachedData());
   }
 
   private static final DoFn<Integer, Integer> PLUS_ONE_DOFN =

@@ -24,29 +24,38 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/xitongsys/parquet-go-source/buffer"
 	"github.com/xitongsys/parquet-go/reader"
 	"github.com/xitongsys/parquet-go/writer"
 )
 
 func init() {
-	beam.RegisterFunction(expandFn)
+	register.Function3x1(expandFn)
+	register.Emitter1[string]()
+
 	beam.RegisterType(reflect.TypeOf((*parquetReadFn)(nil)).Elem())
+	register.DoFn3x1[context.Context, string, func(beam.X), error](&parquetReadFn{})
+	register.Emitter1[beam.X]()
+
 	beam.RegisterType(reflect.TypeOf((*parquetWriteFn)(nil)).Elem())
+	register.DoFn3x1[context.Context, int, func(*beam.X) bool, error](&parquetWriteFn{})
+	register.Iter1[beam.X]()
 }
 
 // Read reads a set of files and returns lines as a PCollection<elem>
 // based on type of a parquetStruct (struct with parquet tags).
 // For example:
-// type Student struct {
-//   Name    string  `parquet:"name=name, type=BYTE_ARRAY, convertedtype=UTF8, encoding=PLAIN_DICTIONARY"`
-//   Age     int32   `parquet:"name=age, type=INT32, encoding=PLAIN"`
-//   Id      int64   `parquet:"name=id, type=INT64"`
-//   Weight  float32 `parquet:"name=weight, type=FLOAT"`
-//   Sex     bool    `parquet:"name=sex, type=BOOLEAN"`
-//   Day     int32   `parquet:"name=day, type=INT32, convertedtype=DATE"`
-//   Ignored int32   //without parquet tag and won't write
-// }
+//
+//	type Student struct {
+//	  Name    string  `parquet:"name=name, type=BYTE_ARRAY, convertedtype=UTF8, encoding=PLAIN_DICTIONARY"`
+//	  Age     int32   `parquet:"name=age, type=INT32, encoding=PLAIN"`
+//	  Id      int64   `parquet:"name=id, type=INT64"`
+//	  Weight  float32 `parquet:"name=weight, type=FLOAT"`
+//	  Sex     bool    `parquet:"name=sex, type=BOOLEAN"`
+//	  Day     int32   `parquet:"name=day, type=INT32, convertedtype=DATE"`
+//	  Ignored int32   //without parquet tag and won't write
+//	}
 func Read(s beam.Scope, glob string, t reflect.Type) beam.PCollection {
 	s = s.Scope("parquetio.Read")
 	filesystem.ValidateScheme(glob)
@@ -125,15 +134,16 @@ func (a *parquetReadFn) ProcessElement(ctx context.Context, filename string, emi
 // Write writes a PCollection<parquetStruct> to .parquet file.
 // Write expects a type t of struct with parquet tags
 // For example:
-// type Student struct {
-//   Name    string  `parquet:"name=name, type=BYTE_ARRAY, convertedtype=UTF8, encoding=PLAIN_DICTIONARY"`
-//   Age     int32   `parquet:"name=age, type=INT32, encoding=PLAIN"`
-//   Id      int64   `parquet:"name=id, type=INT64"`
-//   Weight  float32 `parquet:"name=weight, type=FLOAT"`
-//   Sex     bool    `parquet:"name=sex, type=BOOLEAN"`
-//   Day     int32   `parquet:"name=day, type=INT32, convertedtype=DATE"`
-//   Ignored int32   //without parquet tag and won't write
-// }
+//
+//	type Student struct {
+//	  Name    string  `parquet:"name=name, type=BYTE_ARRAY, convertedtype=UTF8, encoding=PLAIN_DICTIONARY"`
+//	  Age     int32   `parquet:"name=age, type=INT32, encoding=PLAIN"`
+//	  Id      int64   `parquet:"name=id, type=INT64"`
+//	  Weight  float32 `parquet:"name=weight, type=FLOAT"`
+//	  Sex     bool    `parquet:"name=sex, type=BOOLEAN"`
+//	  Day     int32   `parquet:"name=day, type=INT32, convertedtype=DATE"`
+//	  Ignored int32   //without parquet tag and won't write
+//	}
 func Write(s beam.Scope, filename string, t reflect.Type, col beam.PCollection) {
 	s = s.Scope("parquetio.Write")
 	filesystem.ValidateScheme(filename)
@@ -147,7 +157,7 @@ type parquetWriteFn struct {
 	Filename string `json:"filename"`
 }
 
-func (a *parquetWriteFn) ProcessElement(ctx context.Context, _ int, iter func(*interface{}) bool) error {
+func (a *parquetWriteFn) ProcessElement(ctx context.Context, _ int, iter func(*beam.X) bool) error {
 	fs, err := filesystem.New(ctx, a.Filename)
 	if err != nil {
 		return err
@@ -165,7 +175,7 @@ func (a *parquetWriteFn) ProcessElement(ctx context.Context, _ int, iter func(*i
 		return err
 	}
 
-	val := reflect.New(a.Type.T).Interface()
+	var val beam.X
 	for iter(&val) {
 		if err := pw.Write(val); err != nil {
 			return err

@@ -28,16 +28,20 @@ Public endpoints:
 Authorized endpoints also consume `Authorization: Bearer <id_token>` header
 
 * getUserProgress?sdk=<sdk>
-* postUnitContent?sdk=<sdk>&id=<id>
+* postUnitComplete?sdk=<sdk>&id=<id>
+* postUserCode?sdk=<sdk>&id=<id>
 
 ### Playground GRPC API
 
 We use Playground GRPC to save/get user snippets, so we keep the generated stubs in [playground_api](playground_api)
-To re-generate:
+To re-generate, refer to [Playground Readme](../../../playground/README.md), section "Re-generate protobuf".
+
+To update mocks for tests, run:
 ```
 $ go generate -x ./...
 ```
 
+> Note: [`moq`](https://github.com/matryer/moq) tool to be installed
 
 ### Datastore schema
 
@@ -85,10 +89,26 @@ Prerequisites:
     * Billing API
     * Cloud Functions API
     * Firebase Admin API
+    * Secret Manager API
+ - existing setup of Playground backend in a project
+   * (output) GKE_CLUSTER_NAME (`playground` by default)
+   * (output) GKE_ZONE, like `us-east1-b`
  - set environment variables:
    * PROJECT_ID: GCP id
    * REGION: the region, "us-central1" fe
- - existing setup of Playground backend in a project
+   * DATASTORE_NAMESPACE: datastore namespace, "Playground" namespace will be used if variable is not set
+   * PLAYGROUND_ROUTER_HOST: router serving Playground Router GRPC API
+
+__To discover Router host:__
+```
+# setup kubectl credentials
+gcloud container clusters get-credentials $GKE_CLUSTER_NAME --zone $GKE_ZONE --project $PROJECT_ID
+
+# get external host:port of a backend-router-grpc service
+PLAYGROUND_ROUTER_HOST=$(kubectl get svc -l "app=backend-router-grpc" \
+    -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}:{.items[0].spec.ports[0].port}'\
+)
+```
 
 1. Deploy Datastore indexes (but don't delete existing Playground indexes!)
 ```
@@ -97,18 +117,21 @@ gcloud datastore indexes create ./internal/storage/index.yaml
 
 2. Deploy cloud functions
 ```
-for endpoint in "getSdkList getContentTree getUnitComplete getUserProgress postUnitComplete"; do
+for endpoint in getSdkList getContentTree getUnitContent getUserProgress postUnitComplete postUserCode; do
 gcloud functions deploy $endpoint --entry-point $endpoint \
   --region $REGION --runtime go116 --allow-unauthenticated \
-  --trigger-http --set-env-vars="DATASTORE_PROJECT_ID=$PROJECT_ID,GOOGLE_PROJECT_ID=$PROJECT_ID"
+  --trigger-http \
+  --set-env-vars="DATASTORE_PROJECT_ID=$PROJECT_ID,DATASTORE_NAMESPACE=$DATASTORE_NAMESPACE,GOOGLE_PROJECT_ID=$PROJECT_ID,PLAYGROUND_ROUTER_HOST=$PLAYGROUND_ROUTER_HOST"
+done
 
 ```
 3. Set environment variables:
 - TOB_MOCK: set to 1 to deliver mock responses from samples/api
 - DATASTORE_PROJECT_ID: Google Cloud PROJECT_ID
+- DATASTORE_NAMESPACE: Datastore namespace to use
 - GOOGLE_PROJECT_ID: Google Cloud PROJECT_ID (consumed by Firebase Admin SDK)
 - GOOGLE_APPLICATION_CREDENTIALS: path to json auth key
-- TOB_LEARNING_PATH: path the content tree root
+- TOB_LEARNING_ROOT: path the content tree root
 
 4. Populate datastore
 ```
@@ -136,15 +159,37 @@ $ curl -X GET "https://$REGION-$PROJECT_ID.cloudfunctions.net/getUnitContent?sdk
 ```
 [response](./samples/api/get_unit_content.json)
 
-### Set unit as complete
-```
-$ curl -X POST -H "Authorization: Bearer $token" \
-  "https://$REGION-$PROJECT_ID.cloudfunctions.net/postUnitComplete?sdk=python&id=challenge1" -d '{}'
-```
-
 ### Get user progress by sdk name
 ```
 $ curl -X GET -H "Authorization: Bearer $token" \
   "https://$REGION-$PROJECT_ID.cloudfunctions.net/getUserProgress?sdk=python"
 ```
 [response](./samples/api/get_user_progress.json)
+
+### Set unit as complete
+```
+$ curl -X POST -H "Authorization: Bearer $token" \
+  "https://$REGION-$PROJECT_ID.cloudfunctions.net/postUnitComplete?sdk=python&id=challenge1" -d '{}'
+```
+
+### Save user code
+request body:
+```json
+{
+  "pipelineOptions": "some pipeline opts",
+  "files": [
+    {"name": "main.py", "content": "import sys; sys.exit(0)", "isMain": true}
+  ]
+}
+```
+
+```
+$ curl -X POST -H "Authorization: Bearer $token" \
+  "https://$REGION-$PROJECT_ID.cloudfunctions.net/postUserCode?sdk=python&id=challenge1" -d @request.json
+```
+
+### Delete user progress
+```
+$ curl -X POST -H "Authorization: Bearer $token" \
+  "https://$REGION-$PROJECT_ID.cloudfunctions.net/postDeleteProgress" -d '{}'
+```

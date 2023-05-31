@@ -42,6 +42,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.MapState;
+import org.apache.beam.sdk.state.MultimapState;
 import org.apache.beam.sdk.state.OrderedListState;
 import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.ReadableStates;
@@ -60,7 +61,7 @@ import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.CombineFnUtil;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
@@ -574,6 +575,16 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
                 };
               }
             });
+  }
+
+  @Override
+  public <KeyT, ValueT> MultimapState<KeyT, ValueT> bindMultimap(
+      String id,
+      StateSpec<MultimapState<KeyT, ValueT>> spec,
+      Coder<KeyT> keyCoder,
+      Coder<ValueT> valueCoder) {
+    // TODO(https://github.com/apache/beam/issues/23616)
+    throw new UnsupportedOperationException("Multimap is not currently supported with Fn API.");
   }
 
   @Override

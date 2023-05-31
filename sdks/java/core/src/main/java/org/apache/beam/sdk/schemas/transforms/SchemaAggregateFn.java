@@ -21,8 +21,6 @@ import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.util.List;
 import java.util.stream.Collectors;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -47,7 +45,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** This is the builder used by {@link Group} to build up a composed {@link CombineFn}. */
-@Experimental(Kind.SCHEMAS)
 @SuppressWarnings({
   "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes"
@@ -61,6 +58,8 @@ class SchemaAggregateFn {
 
   /** Implementation of {@link #create}. */
   @AutoValue
+  @AutoValue.CopyAnnotations
+  @SuppressWarnings("rawtypes")
   abstract static class Inner extends CombineFn<Row, Object[], Row> {
     // Represents an aggregation of one or more fields.
     static class FieldAggregation<FieldT, AccumT, OutputT> implements Serializable {
@@ -147,6 +146,8 @@ class SchemaAggregateFn {
     abstract Builder toBuilder();
 
     @AutoValue.Builder
+    @AutoValue.CopyAnnotations
+    @SuppressWarnings("rawtypes")
     abstract static class Builder {
       abstract Builder setInputSchema(@Nullable Schema inputSchema);
 

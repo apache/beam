@@ -211,12 +211,12 @@ public abstract class FillGaps<ValueT>
   }
 
   /* The max gap duration that will be filled. The transform will stop filling timeseries buckets after this duration. */
-  FillGaps<ValueT> withMaxGapFillBuckets(Long value) {
+  public FillGaps<ValueT> withMaxGapFillBuckets(Long value) {
     return toBuilder().setMaxGapFillBuckets(value).build();
   }
 
   /* A hard (event-time) stop time for the transform. */
-  FillGaps<ValueT> withStopTime(Instant stopTime) {
+  public FillGaps<ValueT> withStopTime(Instant stopTime) {
     return toBuilder().setStopTime(stopTime).build();
   }
 
@@ -225,7 +225,7 @@ public abstract class FillGaps<ValueT>
    * what to propagate to the next bucket. If not specified, then the value with the latest
    * timestamp will be propagated.
    */
-  FillGaps<ValueT> withMergeFunction(
+  public FillGaps<ValueT> withMergeFunction(
       SerializableBiFunction<
               TimestampedValue<ValueT>, TimestampedValue<ValueT>, TimestampedValue<ValueT>>
           mergeFunction) {
@@ -236,7 +236,7 @@ public abstract class FillGaps<ValueT>
    * This function can be used to modify elements before propagating to the next bucket. A common
    * use case is to modify a contained timestamp to match that of the new bucket.
    */
-  FillGaps<ValueT> withInterpolateFunction(
+  public FillGaps<ValueT> withInterpolateFunction(
       SerializableFunction<InterpolateData<ValueT>, ValueT> interpolateFunction) {
     return toBuilder().setInterpolateFunction(interpolateFunction).build();
   }

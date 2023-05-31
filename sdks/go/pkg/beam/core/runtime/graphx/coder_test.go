@@ -49,60 +49,74 @@ func TestMarshalUnmarshalCoders(t *testing.T) {
 	baz := custom("baz", reflectx.Int)
 
 	tests := []struct {
-		name string
-		c    *coder.Coder
+		name       string
+		c          *coder.Coder
+		equivalent *coder.Coder
 	}{
 		{
-			"bytes",
-			coder.NewBytes(),
+			name: "bytes",
+			c:    coder.NewBytes(),
 		},
 		{
-			"bool",
-			coder.NewBool(),
+			name: "bool",
+			c:    coder.NewBool(),
 		},
 		{
-			"varint",
-			coder.NewVarInt(),
+			name: "varint",
+			c:    coder.NewVarInt(),
 		},
 		{
-			"double",
-			coder.NewDouble(),
+			name: "double",
+			c:    coder.NewDouble(),
 		},
 		{
-			"string",
-			coder.NewString(),
+			name: "string",
+			c:    coder.NewString(),
 		},
 		{
-			"foo",
-			foo,
+			name: "foo",
+			c:    foo,
 		},
 		{
-			"bar",
-			bar,
+			name: "bar",
+			c:    bar,
 		},
 		{
-			"baz",
-			baz,
+			name: "baz",
+			c:    baz,
 		},
 		{
-			"W<bytes>",
-			coder.NewW(coder.NewBytes(), coder.NewGlobalWindow()),
+			name: "IW",
+			c:    coder.NewIntervalWindowCoder(),
 		},
 		{
-			"N<bytes>",
-			coder.NewN(coder.NewBytes()),
+			name: "W<bytes>",
+			c:    coder.NewW(coder.NewBytes(), coder.NewGlobalWindow()),
 		},
 		{
-			"KV<foo,bar>",
-			coder.NewKV([]*coder.Coder{foo, bar}),
+			name: "N<bytes>",
+			c:    coder.NewN(coder.NewBytes()),
 		},
 		{
-			"CoGBK<foo,bar>",
-			coder.NewCoGBK([]*coder.Coder{foo, bar}),
+			name: "I<foo>",
+			c:    coder.NewI(foo),
 		},
 		{
-			"CoGBK<foo,bar,baz>",
-			coder.NewCoGBK([]*coder.Coder{foo, bar, baz}),
+			name: "KV<foo,bar>",
+			c:    coder.NewKV([]*coder.Coder{foo, bar}),
+		},
+		{
+			name: "KV<foo, I<bar>>",
+			c:    coder.NewKV([]*coder.Coder{foo, coder.NewI(bar)}),
+		},
+		{
+			name:       "CoGBK<foo,bar>",
+			c:          coder.NewCoGBK([]*coder.Coder{foo, bar}),
+			equivalent: coder.NewKV([]*coder.Coder{foo, coder.NewI(bar)}),
+		},
+		{
+			name: "CoGBK<foo,bar,baz>",
+			c:    coder.NewCoGBK([]*coder.Coder{foo, bar, baz}),
 		},
 		{
 			name: "R[graphx.registeredNamedTypeForTest]",
@@ -124,7 +138,10 @@ func TestMarshalUnmarshalCoders(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Unmarshal(Marshal(%v)) failed: %v", test.c, err)
 			}
-			if len(coders) != 1 || !test.c.Equals(coders[0]) {
+			if test.equivalent != nil && !test.equivalent.Equals(coders[0]) {
+				t.Errorf("Unmarshal(Marshal(%v)) = %v, want equivalent", test.equivalent, coders)
+			}
+			if test.equivalent == nil && !test.c.Equals(coders[0]) {
 				t.Errorf("Unmarshal(Marshal(%v)) = %v, want identity", test.c, coders)
 			}
 		})
@@ -149,7 +166,10 @@ func TestMarshalUnmarshalCoders(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Unmarshal(Marshal(%v)) failed: %v", test.c, err)
 			}
-			if len(coders) != 1 || !test.c.Equals(coders[0]) {
+			if test.equivalent != nil && !test.equivalent.Equals(coders[0]) {
+				t.Errorf("Unmarshal(Marshal(%v)) = %v, want equivalent", test.equivalent, coders)
+			}
+			if test.equivalent == nil && !test.c.Equals(coders[0]) {
 				t.Errorf("Unmarshal(Marshal(%v)) = %v, want identity", test.c, coders)
 			}
 		})
@@ -166,8 +186,11 @@ func TestMarshalUnmarshalCoders(t *testing.T) {
 			if err != nil {
 				t.Fatalf("DecodeCoderRef(EncodeCoderRef(%v)) failed: %v", test.c, err)
 			}
-			if !test.c.Equals(got) {
-				t.Errorf("DecodeCoderRef(EncodeCoderRef(%v)) = %v, want identity", test.c, got)
+			if test.equivalent != nil && !test.equivalent.Equals(got) {
+				t.Errorf("DecodeCoderRef(EncodeCoderRef(%v)) = %v want equivalent", test.equivalent, got)
+			}
+			if test.equivalent == nil && !test.c.Equals(got) {
+				t.Errorf("DecodeCoderRef(EncodeCoderRef(%v)) = %v want identity", test.c, got)
 			}
 		})
 	}

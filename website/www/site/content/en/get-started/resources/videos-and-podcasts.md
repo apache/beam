@@ -3,6 +3,7 @@ title: "Videos and Podcasts"
 aliases:
   - /learn/resources/
   - /get-started/resources/
+  - /documentation/resources/videos-and-podcasts/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -64,6 +65,13 @@ Presented by Dan Halperin, *Apache Beam PPMC member*
 Presented by Frances Perry, *Apache Beam PPMC member*
 
 <a href="https://www.se-radio.net/2016/10/se-radio-episode-272-frances-perry-on-apache-beam/" target="_blank">![alt text](/images/resources/se-radio-podcast.png)</a>
+<br>
+
+### How to run ML Inference with Apache Beam
+
+Video by Cassie Kozyrkov
+
+<iframe class="video video--medium-size" width="560" height="315" src="https://www.youtube.com/embed/ga2TNdrFRoU" frameborder="0" allowfullscreen></iframe>
 <br>
 
 ## Beam & Friends

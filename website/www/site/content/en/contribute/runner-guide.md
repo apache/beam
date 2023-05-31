@@ -630,7 +630,7 @@ depend on the particulars of the Java SDK.
 ## The Runner API protos
 
 The [Runner
-API](https://github.com/apache/beam/blob/master/model/pipeline/src/main/proto/beam_runner_api.proto)
+API](https://github.com/apache/beam/blob/master/model/pipeline/src/main/proto/org/apache/beam/model/pipeline/v1/beam_runner_api.proto)
 refers to a specific manifestation of the concepts in the Beam model, as a
 protocol buffers schema.  Even though you should not manipulate these messages
 directly, it can be helpful to know the canonical data that makes up a

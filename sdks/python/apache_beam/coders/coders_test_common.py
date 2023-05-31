@@ -160,6 +160,7 @@ class CodersTest(unittest.TestCase):
         coders.ListLikeCoder,
         coders.ProtoCoder,
         coders.ProtoPlusCoder,
+        coders.BigEndianShortCoder,
         coders.SinglePrecisionFloatCoder,
         coders.ToBytesCoder,
         coders.BigIntegerCoder, # tested in DecimalCoder

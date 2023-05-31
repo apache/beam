@@ -119,6 +119,10 @@ abstract class RowWriterFactory<ElementT, DestinationT> implements Serializable 
       return new AvroRowWriterFactory<>(toAvro, writerFactory, schemaFactory, dynamicDestinations);
     }
 
+    SerializableFunction<AvroWriteRequest<ElementT>, AvroT> getToAvroFn() {
+      return toAvro;
+    }
+
     @Override
     OutputType getOutputType() {
       return OutputType.AvroGenericRecord;

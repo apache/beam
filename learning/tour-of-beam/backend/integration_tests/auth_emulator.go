@@ -113,10 +113,10 @@ func (e *EmulatorClient) do(method, endpoint string, jsonBody map[string]string)
 // Simulate Frontend client authorization logic
 // Here, we use the simplest possible authorization: email/password
 // Firebase Admin SDK lacks methods to create a user and get ID token
-func (e *EmulatorClient) getIDToken() string {
+func (e *EmulatorClient) getIDToken(email string) string {
 	// create a user (sign-up with dummy email/password)
 	endpoint := "identitytoolkit.googleapis.com/v1/accounts:signUp?key=anything_goes"
-	body := map[string]string{"email": "a@b.c", "password": "1q2w3e"}
+	body := map[string]string{"email": email, "password": "1q2w3e"}
 	resp, err := e.do(http.MethodPost, endpoint, body)
 	if err != nil {
 		log.Fatalf("emulator request error: %+v", err)

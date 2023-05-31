@@ -25,7 +25,7 @@ import (
 )
 
 // Marshal encodes a given value as JSON, and returns the bytes.
-func Marshal(elem interface{}) ([]byte, error) {
+func Marshal(elem any) ([]byte, error) {
 	var bb bytes.Buffer
 	if err := MarshalTo(elem, &bb); err != nil {
 		return nil, err
@@ -34,20 +34,20 @@ func Marshal(elem interface{}) ([]byte, error) {
 }
 
 // MarshalTo encodes a given value as JSON, and returns the bytes.
-func MarshalTo(elem interface{}, w io.Writer) error {
+func MarshalTo(elem any, w io.Writer) error {
 	enc := json.NewEncoder(w)
 	return enc.Encode(elem)
 }
 
 // Unmarshal decodes a given value as JSON, and returns the bytes.
 // The passed in element must be a pointer of the given type.
-func Unmarshal(elem interface{}, data []byte) error {
+func Unmarshal(elem any, data []byte) error {
 	return UnmarshalFrom(elem, bytes.NewReader(data))
 }
 
 // UnmarshalFrom decodes a given value as JSON, and returns the bytes.
 // The passed in element must be a pointer of the given type.
-func UnmarshalFrom(elem interface{}, r io.Reader) error {
+func UnmarshalFrom(elem any, r io.Reader) error {
 	dec := json.NewDecoder(r)
 	return dec.Decode(elem)
 }

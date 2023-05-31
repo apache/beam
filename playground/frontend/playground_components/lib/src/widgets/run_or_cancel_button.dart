@@ -19,45 +19,54 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/widgets.dart';
 
+import '../controllers/code_runner.dart';
 import '../controllers/playground_controller.dart';
-import '../notifications/notification.dart';
+import '../models/toast.dart';
+import '../models/toast_type.dart';
+import '../playground_components.dart';
+import '../repositories/models/run_code_result.dart';
 import 'run_button.dart';
 
 class RunOrCancelButton extends StatelessWidget {
-  final VoidCallback? beforeCancel;
-  final VoidCallback? onComplete;
+  final ValueChanged<CodeRunner>? beforeCancel;
   final VoidCallback? beforeRun;
+  final ValueChanged<CodeRunner>? onComplete;
   final PlaygroundController playgroundController;
 
   const RunOrCancelButton({
     required this.playgroundController,
     this.beforeCancel,
-    this.onComplete,
     this.beforeRun,
+    this.onComplete,
   });
 
   @override
   Widget build(BuildContext context) {
     return RunButton(
       playgroundController: playgroundController,
-      disabled: playgroundController.selectedExample?.isMultiFile ?? false,
-      isRunning: playgroundController.isCodeRunning,
-      cancelRun: () {
-        beforeCancel?.call();
-        playgroundController.cancelRun().catchError(
-              (_) => NotificationManager.showError(
-            context,
-            'widgets.runOrCancelButton.notificationTitles.runCode'.tr(),
-            'widgets.runOrCancelButton.notificationTitles.cancelExecution'.tr(),
-          ),
-        );
+      cancelRun: () async {
+        beforeCancel?.call(playgroundController.codeRunner);
+        await playgroundController.codeRunner.cancelRun().catchError(
+              (_) => PlaygroundComponents.toastNotifier.add(_getErrorToast()),
+            );
       },
-      runCode: () {
+      runCode: () async {
         beforeRun?.call();
-        playgroundController.runCode(
-          onFinish: onComplete,
-        );
+        final runner = playgroundController.codeRunner;
+        await runner.runCode();
+        if (runner.result?.status == RunCodeStatus.finished) {
+          onComplete?.call(playgroundController.codeRunner);
+        }
       },
+    );
+  }
+
+  Toast _getErrorToast() {
+    return Toast(
+      title: 'widgets.runOrCancelButton.notificationTitles.runCode'.tr(),
+      description:
+          'widgets.runOrCancelButton.notificationTitles.cancelExecution'.tr(),
+      type: ToastType.error,
     );
   }
 }

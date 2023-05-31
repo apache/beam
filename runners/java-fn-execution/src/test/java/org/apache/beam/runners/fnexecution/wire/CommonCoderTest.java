@@ -87,8 +87,8 @@ import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableBiMap;
@@ -468,9 +468,9 @@ public class CommonCoderTest {
       case LOGICAL_TYPE:
         // Logical types are represented as their representation types in YAML. Parse as the
         // representation type, then convert to the base type.
-        return fieldType
-            .getLogicalType()
-            .toInputType(parseField(value, fieldType.getLogicalType().getBaseType()));
+        Schema.LogicalType<Object, Object> logicalType =
+            (Schema.LogicalType<Object, Object>) fieldType.getLogicalType();
+        return logicalType.toInputType(parseField(value, fieldType.getLogicalType().getBaseType()));
       default:
         throw new IllegalArgumentException("Unsupported type name: " + fieldType.getTypeName());
     }

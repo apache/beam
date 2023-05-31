@@ -17,33 +17,146 @@
  */
 
 import 'package:flutter/widgets.dart';
+import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 
+import '../../../cache/content_tree.dart';
+
 import '../../../models/node.dart';
+import '../../../models/parent_node.dart';
+import '../../../models/unit.dart';
+import '../../../state.dart';
 
 class ContentTreeController extends ChangeNotifier {
-  String _sdkId;
-  List<String> _treeIds;
+  final Sdk initialSdk;
+  List<String> _breadcrumbIds;
   NodeModel? _currentNode;
+  final _contentTreeCache = GetIt.instance.get<ContentTreeCache>();
+  final _expandedIds = <String>{};
+
+  final _units = <UnitModel>[];
+  int _currentUnitIndex = 0;
+
+  Set<String> get expandedIds => _expandedIds;
 
   ContentTreeController({
-    required String initialSdkId,
-    List<String> initialTreeIds = const [],
-  })  : _sdkId = initialSdkId,
-        _treeIds = initialTreeIds;
+    required this.initialSdk,
+    List<String> initialBreadcrumbIds = const [],
+  }) : _breadcrumbIds = initialBreadcrumbIds {
+    _expandedIds.addAll(initialBreadcrumbIds);
 
-  Sdk get sdk => Sdk.parseOrCreate(_sdkId);
-  String get sdkId => _sdkId;
-  List<String> get treeIds => _treeIds;
+    _contentTreeCache.addListener(_onContentTreeCacheChange);
+    _onContentTreeCacheChange();
+  }
+
+  Sdk get sdk => GetIt.instance.get<AppNotifier>().sdk ?? initialSdk;
+  List<String> get breadcrumbIds => _breadcrumbIds;
   NodeModel? get currentNode => _currentNode;
 
-  void onNodeTap(NodeModel node) {
-    if (node == _currentNode) {
+  void onNodePressed(NodeModel node) {
+    _toggleNode(node);
+    notifyListeners();
+  }
+
+  void _toggleNode(NodeModel node) {
+    if (node is ParentNodeModel) {
+      _onParentNodePressed(node);
+    } else if (node is UnitModel) {
+      if (node != _currentNode) {
+        _setUnit(node);
+      }
+    }
+  }
+
+  void _setUnit(UnitModel unit) {
+    _currentNode = unit;
+    _currentUnitIndex = _getCurrentUnitIndex();
+    _breadcrumbIds = _getNodeAncestors(_currentNode!, [_currentNode!.id]);
+  }
+
+  void _onParentNodePressed(ParentNodeModel node) {
+    if (_expandedIds.contains(node.id)) {
+      _expandedIds.remove(node.id);
+      notifyListeners();
+    } else {
+      _expandedIds.add(node.id);
+
+      final firstChildNode = node.nodes.first;
+      if (firstChildNode != _currentNode) {
+        _toggleNode(firstChildNode);
+      }
+    }
+  }
+
+  void expandParentNode(ParentNodeModel group) {
+    _expandedIds.add(group.id);
+    notifyListeners();
+  }
+
+  void collapseParentNode(ParentNodeModel group) {
+    _expandedIds.remove(group.id);
+    notifyListeners();
+  }
+
+  List<String> _getNodeAncestors(NodeModel node, List<String> ancestorIds) {
+    if (node.parent != null) {
+      return _getNodeAncestors(
+        node.parent!,
+        [...ancestorIds, node.parent!.id],
+      );
+    }
+    return ancestorIds.reversed.toList();
+  }
+
+  void _onContentTreeCacheChange() {
+    final contentTree = _contentTreeCache.getContentTree(sdk);
+    if (contentTree == null) {
       return;
     }
 
-    _currentNode = node;
-    // TODO(alexeyinkin): Set _treeIds from node.
+    _units.clear();
+    _units.addAll(contentTree.getUnits());
+
+    _toggleNode(
+      contentTree.getLastNodeFromBreadcrumbIds(_breadcrumbIds) ??
+          contentTree.nodes.first,
+    );
+
     notifyListeners();
+  }
+
+  bool hasPreviousUnit() {
+    return _currentUnitIndex > 0;
+  }
+
+  bool hasNextUnit() {
+    return _currentUnitIndex < _units.length - 1;
+  }
+
+  void openPreviousUnit() {
+    final previousUnit = _units[_currentUnitIndex - 1];
+    _navigateToUnit(previousUnit);
+  }
+
+  void openNextUnit() {
+    final nextUnit = _units[_currentUnitIndex + 1];
+    _navigateToUnit(nextUnit);
+  }
+
+  int _getCurrentUnitIndex() {
+    return _units.indexWhere(
+      (unit) => unit.id == _currentNode?.id,
+    );
+  }
+
+  void _navigateToUnit(UnitModel unit) {
+    onNodePressed(unit);
+    _expandedIds.addAll(_breadcrumbIds);
+  }
+
+  @override
+  void dispose() {
+    _contentTreeCache.removeListener(_onContentTreeCacheChange);
+    super.dispose();
   }
 }

@@ -14,9 +14,6 @@
 // limitations under the License.
 
 // Package contains interfaces used specifically for splittable DoFns.
-//
-// Warning: Splittable DoFns are still experimental, largely untested, and
-// likely to have bugs.
 package sdf
 
 import (
@@ -53,7 +50,7 @@ type RTracker interface {
 	// 		pos = position of next block within the restriction
 	// 	}
 	// 	return
-	TryClaim(pos interface{}) (ok bool)
+	TryClaim(pos any) (ok bool)
 
 	// GetError returns the error that made this RTracker stop executing, and returns nil if no
 	// error occurred. This is the error that is emitted if automated validation fails.
@@ -80,7 +77,7 @@ type RTracker interface {
 	// the pipeline failing during the checkpoint.
 	//
 	// If an error is returned, some catastrophic failure occurred and the entire bundle will fail.
-	TrySplit(fraction float64) (primary, residual interface{}, err error)
+	TrySplit(fraction float64) (primary, residual any, err error)
 
 	// GetProgress returns two abstract scalars representing the amount of done and remaining work.
 	// These values have no specific units, but are used to estimate work in relation to each other
@@ -98,7 +95,7 @@ type RTracker interface {
 
 	// GetRestriction returns the restriction this tracker is tracking, or nil if the restriction
 	// is unavailable for some reason.
-	GetRestriction() interface{}
+	GetRestriction() any
 }
 
 // BoundableRTracker is an interface used to interact with restrictions that may be bounded or unbounded

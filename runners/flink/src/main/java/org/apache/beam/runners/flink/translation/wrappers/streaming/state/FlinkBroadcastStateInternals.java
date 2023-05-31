@@ -33,10 +33,10 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.MapState;
+import org.apache.beam.sdk.state.MultimapState;
 import org.apache.beam.sdk.state.OrderedListState;
 import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.SetState;
@@ -102,14 +102,14 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
           public <T2> ValueState<T2> bindValue(StateTag<ValueState<T2>> address, Coder<T2> coder) {
 
             return new FlinkBroadcastValueState<>(
-                stateBackend, address, namespace, coder, pipelineOptions.get());
+                stateBackend, address, namespace, coder, pipelineOptions);
           }
 
           @Override
           public <T2> BagState<T2> bindBag(StateTag<BagState<T2>> address, Coder<T2> elemCoder) {
 
             return new FlinkBroadcastBagState<>(
-                stateBackend, address, namespace, elemCoder, pipelineOptions.get());
+                stateBackend, address, namespace, elemCoder, pipelineOptions);
           }
 
           @Override
@@ -135,6 +135,15 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
           }
 
           @Override
+          public <KeyT, ValueT> MultimapState<KeyT, ValueT> bindMultimap(
+              StateTag<MultimapState<KeyT, ValueT>> spec,
+              Coder<KeyT> keyCoder,
+              Coder<ValueT> valueCoder) {
+            throw new UnsupportedOperationException(
+                String.format("%s is not supported", MultimapState.class.getSimpleName()));
+          }
+
+          @Override
           public <InputT, AccumT, OutputT>
               CombiningState<InputT, AccumT, OutputT> bindCombiningValue(
                   StateTag<CombiningState<InputT, AccumT, OutputT>> address,
@@ -142,7 +151,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
                   Combine.CombineFn<InputT, AccumT, OutputT> combineFn) {
 
             return new FlinkCombiningState<>(
-                stateBackend, address, combineFn, namespace, accumCoder, pipelineOptions.get());
+                stateBackend, address, combineFn, namespace, accumCoder, pipelineOptions);
           }
 
           @Override
@@ -187,7 +196,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
         String name,
         StateNamespace namespace,
         Coder<T> coder,
-        PipelineOptions pipelineOptions) {
+        SerializablePipelineOptions pipelineOptions) {
       this.name = name;
 
       this.namespace = namespace;
@@ -303,7 +312,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
         StateTag<ValueState<T>> address,
         StateNamespace namespace,
         Coder<T> coder,
-        PipelineOptions pipelineOptions) {
+        SerializablePipelineOptions pipelineOptions) {
       super(flinkStateBackend, address.getId(), namespace, coder, pipelineOptions);
 
       this.namespace = namespace;
@@ -363,7 +372,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
         StateTag<BagState<T>> address,
         StateNamespace namespace,
         Coder<T> coder,
-        PipelineOptions pipelineOptions) {
+        SerializablePipelineOptions pipelineOptions) {
       super(flinkStateBackend, address.getId(), namespace, ListCoder.of(coder), pipelineOptions);
 
       this.namespace = namespace;
@@ -451,7 +460,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
         Combine.CombineFn<InputT, AccumT, OutputT> combineFn,
         StateNamespace namespace,
         Coder<AccumT> accumCoder,
-        PipelineOptions pipelineOptions) {
+        SerializablePipelineOptions pipelineOptions) {
       super(flinkStateBackend, address.getId(), namespace, accumCoder, pipelineOptions);
 
       this.namespace = namespace;
@@ -568,7 +577,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
         StateNamespace namespace,
         Coder<AccumT> accumCoder,
         CombineWithContext.Context context) {
-      super(flinkStateBackend, address.getId(), namespace, accumCoder, pipelineOptions.get());
+      super(flinkStateBackend, address.getId(), namespace, accumCoder, pipelineOptions);
 
       this.namespace = namespace;
       this.address = address;

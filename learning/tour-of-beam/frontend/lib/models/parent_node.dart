@@ -16,14 +16,38 @@
  * limitations under the License.
  */
 
-import 'node.dart';
+import 'package:collection/collection.dart';
 
-abstract class ParentNodeModel extends NodeModel {
-  final List<NodeModel> nodes;
+import 'node.dart';
+import 'unit.dart';
+
+abstract class ParentNodeModel<T extends NodeModel> extends NodeModel {
+  final List<T> nodes;
 
   const ParentNodeModel({
     required super.id,
+    required super.parent,
     required super.title,
     required this.nodes,
   });
+
+  @override
+  List<UnitModel> getUnits() {
+    return nodes
+        .map((node) => node.getUnits())
+        .expand((e) => e)
+        .toList(growable: false);
+  }
+
+  @override
+  NodeModel? getLastNodeFromBreadcrumbIds(List<String> breadcrumbIds) {
+    final firstId = breadcrumbIds.firstOrNull;
+    final child = nodes.firstWhereOrNull((node) => node.id == firstId);
+
+    if (child == null) {
+      return null;
+    }
+
+    return child.getLastNodeFromBreadcrumbIds(breadcrumbIds.sublist(1));
+  }
 }

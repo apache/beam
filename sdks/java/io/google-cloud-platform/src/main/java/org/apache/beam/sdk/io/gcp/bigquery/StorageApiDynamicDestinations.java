@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
-import com.google.protobuf.Descriptors.Descriptor;
 import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
@@ -31,28 +30,12 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /** Base dynamicDestinations class used by the Storage API sink. */
 abstract class StorageApiDynamicDestinations<T, DestinationT>
     extends DynamicDestinations<T, DestinationT> {
-  /** Container object that contains a proto descriptor along with its deterministic hash. */
-  public static class DescriptorWrapper {
-    public final Descriptor descriptor;
-    public final long hash;
-
-    public DescriptorWrapper(Descriptor descriptor, long hash) {
-      this.descriptor = descriptor;
-      this.hash = hash;
-    }
-
-    @Override
-    public String toString() {
-      return "Descriptor: " + descriptor.getFullName() + " hash: " + hash;
-    }
-  }
-
   public interface MessageConverter<T> {
-    DescriptorWrapper getSchemaDescriptor();
-
-    void refreshSchema(long expectedHash) throws Exception;
+    com.google.cloud.bigquery.storage.v1.TableSchema getTableSchema();
 
     StorageApiWritePayload toMessage(T element) throws Exception;
+
+    StorageApiWritePayload toMessage(TableRow tableRow, boolean respectRequired) throws Exception;
 
     TableRow toTableRow(T element);
   }

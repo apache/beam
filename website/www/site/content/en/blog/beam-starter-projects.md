@@ -72,6 +72,6 @@ Here are the starter projects; you can choose your favorite language:
 * **[Kotlin]** [github.com/apache/beam-starter-kotlin](https://github.com/apache/beam-starter-kotlin) – Adapted to idiomatic Kotlin
 * **[Scala]** [github.com/apache/beam-starter-scala](https://github.com/apache/beam-starter-scala) – Coming soon!
 
-We have updated the [Java quickstart](https://beam.apache.org/get-started/quickstart/java/) to use the new starter project, and we're working on updating the Python and Go quickstarts as well.
+We have updated the [Java quickstart](/get-started/quickstart/java/) to use the new starter project, and we're working on updating the Python and Go quickstarts as well.
 
 We hope you find this useful. Feedback and contributions are always welcome! So feel free to create a GitHub issue, or open a Pull Request to any of the starter project repositories.

@@ -45,6 +45,7 @@ class BigQuerySideInputIT(unittest.TestCase):
 
   @pytest.mark.no_xdist
   @pytest.mark.examples_postcommit
+  @pytest.mark.sickbay_flink
   def test_bigquery_side_input_it(self):
     state_verifier = PipelineStateMatcher(PipelineState.DONE)
     NUM_GROUPS = 3

@@ -19,7 +19,6 @@
 
 # pytype: skip-file
 
-from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.pipeline import PTransformOverride
 
@@ -30,13 +29,7 @@ class CreatePTransformOverride(PTransformOverride):
     # Imported here to avoid circular dependencies.
     # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam import Create
-    from apache_beam.runners.dataflow.internal import apiclient
-
-    if isinstance(applied_ptransform.transform, Create):
-      return not apiclient._use_fnapi(
-          applied_ptransform.outputs[None].pipeline._options)
-    else:
-      return False
+    return isinstance(applied_ptransform.transform, Create)
 
   def get_replacement_transform_for_applied_ptransform(
       self, applied_ptransform):
@@ -84,42 +77,6 @@ class ReadPTransformOverride(PTransformOverride):
 
     return Read(transform.source).with_output_types(
         transform.get_type_hints().simple_output_type('Read'))
-
-
-class JrhReadPTransformOverride(PTransformOverride):
-  """A ``PTransformOverride`` for ``Read(BoundedSource)``"""
-  def matches(self, applied_ptransform):
-    from apache_beam.io import Read
-    from apache_beam.io.iobase import BoundedSource
-    return (
-        isinstance(applied_ptransform.transform, Read) and
-        isinstance(applied_ptransform.transform.source, BoundedSource))
-
-  def get_replacement_transform_for_applied_ptransform(
-      self, applied_ptransform):
-    from apache_beam.io import Read
-    from apache_beam.transforms import core
-    from apache_beam.transforms import util
-    # Make this a local to narrow what's captured in the closure.
-    source = applied_ptransform.transform.source
-
-    class JrhRead(core.PTransform):
-      def expand(self, pbegin):
-        return (
-            pbegin
-            | core.Impulse()
-            | 'Split' >> core.FlatMap(
-                lambda _: source.split(
-                    Read.get_desired_chunk_size(source.estimate_size())))
-            | util.Reshuffle()
-            | 'ReadSplits' >> core.FlatMap(
-                lambda split: split.source.read(
-                    split.source.get_range_tracker(
-                        split.start_position, split.stop_position))))
-
-    return JrhRead().with_output_types(
-        applied_ptransform.transform.get_type_hints().simple_output_type(
-            'Read'))
 
 
 class CombineValuesPTransformOverride(PTransformOverride):
@@ -221,21 +178,6 @@ class GroupIntoBatchesWithShardedKeyPTransformOverride(PTransformOverride):
     standard_options = self.options.view_as(StandardOptions)
     if not standard_options.streaming:
       return False
-    google_cloud_options = self.options.view_as(GoogleCloudOptions)
-    if not google_cloud_options.enable_streaming_engine:
-      raise ValueError(
-          'Runner determined sharding not available in Dataflow for '
-          'GroupIntoBatches for non-Streaming-Engine jobs. In order to use '
-          'runner determined sharding, please use '
-          '--streaming --enable_streaming_engine --experiments=use_runner_v2')
-
-    from apache_beam.runners.dataflow.internal import apiclient
-    if not apiclient._use_unified_worker(self.options):
-      raise ValueError(
-          'Runner determined sharding not available in Dataflow for '
-          'GroupIntoBatches for jobs not using Runner V2. In order to use '
-          'runner determined sharding, please use '
-          '--streaming --enable_streaming_engine --experiments=use_runner_v2')
 
     self.dataflow_runner.add_pcoll_with_auto_sharding(applied_ptransform)
     return True

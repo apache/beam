@@ -40,8 +40,8 @@ import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.reflect.Nullable;
 import org.apache.avro.util.Utf8;
-import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
+import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.BaseEncoding;
@@ -238,13 +238,22 @@ public class BigQueryAvroUtilsTest {
         equalTo(Schema.createUnion(Schema.create(Type.NULL), Schema.create(Type.LONG))));
     assertThat(
         avroSchema.getField("birthday").schema(),
-        equalTo(Schema.createUnion(Schema.create(Type.NULL), Schema.create(Type.LONG))));
+        equalTo(
+            Schema.createUnion(
+                Schema.create(Type.NULL),
+                LogicalTypes.timestampMicros().addToSchema(Schema.create(Type.LONG)))));
     assertThat(
         avroSchema.getField("birthdayMoney").schema(),
-        equalTo(Schema.createUnion(Schema.create(Type.NULL), Schema.create(Type.BYTES))));
+        equalTo(
+            Schema.createUnion(
+                Schema.create(Type.NULL),
+                LogicalTypes.decimal(38, 9).addToSchema(Schema.create(Type.BYTES)))));
     assertThat(
         avroSchema.getField("lotteryWinnings").schema(),
-        equalTo(Schema.createUnion(Schema.create(Type.NULL), Schema.create(Type.BYTES))));
+        equalTo(
+            Schema.createUnion(
+                Schema.create(Type.NULL),
+                LogicalTypes.decimal(77, 38).addToSchema(Schema.create(Type.BYTES)))));
     assertThat(
         avroSchema.getField("flighted").schema(),
         equalTo(Schema.createUnion(Schema.create(Type.NULL), Schema.create(Type.BOOLEAN))));
@@ -260,10 +269,11 @@ public class BigQueryAvroUtilsTest {
     assertThat(
         avroSchema.getField("anniversaryTime").schema(),
         equalTo(Schema.createUnion(Schema.create(Type.NULL), Schema.create(Type.STRING))));
+    Schema geoSchema = Schema.create(Type.STRING);
+    geoSchema.addProp(LogicalType.LOGICAL_TYPE_PROP, "geography_wkt");
     assertThat(
         avroSchema.getField("geoPositions").schema(),
-        equalTo(Schema.createUnion(Schema.create(Type.NULL), Schema.create(Type.STRING))));
-
+        equalTo(Schema.createUnion(Schema.create(Type.NULL), geoSchema)));
     assertThat(
         avroSchema.getField("scion").schema(),
         equalTo(

@@ -5,11 +5,12 @@
   "compile_args": [
     "-d",
     "bin",
+    "-parameters",
     "-classpath"
   ],
   "run_args": [
     "-cp",
-    "bin:",
+    "../bin:",
     "-Djava.util.logging.config.file={logConfigFile}"
   ],
   "test_args": [

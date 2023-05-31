@@ -19,8 +19,6 @@ package org.apache.beam.sdk.values;
 
 import java.io.Serializable;
 import org.apache.beam.sdk.PipelineRunner;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -86,7 +84,6 @@ public interface PCollectionView<T> extends PValue, Serializable {
    * <p>Returns the {@link WindowMappingFn} used to map windows from a main input to the side input
    * of this {@link PCollectionView}.
    */
-  @Experimental(Kind.CORE_RUNNERS_ONLY)
   @Internal
   WindowMappingFn<?> getWindowMappingFn();
 

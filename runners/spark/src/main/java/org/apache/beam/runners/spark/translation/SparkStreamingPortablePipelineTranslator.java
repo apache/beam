@@ -46,7 +46,6 @@ import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.stateful.SparkGroupAlsoByWindowViaWindowSet;
 import org.apache.beam.runners.spark.translation.streaming.UnboundedDataset;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
-import org.apache.beam.runners.spark.util.SparkCompat;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -67,6 +66,7 @@ import org.apache.spark.storage.StorageLevel;
 import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaInputDStream;
 import scala.Tuple2;
+import scala.collection.JavaConverters;
 
 /** Translates an unbounded portable pipeline into a Spark job. */
 @SuppressWarnings({
@@ -328,7 +328,7 @@ public class SparkStreamingPortablePipelineTranslator
         }
       }
       // Unify streams into a single stream.
-      unifiedStreams = SparkCompat.joinStreams(context.getStreamingContext(), dStreams);
+      unifiedStreams = context.getStreamingContext().union(JavaConverters.asScalaBuffer(dStreams));
     }
 
     context.pushDataset(

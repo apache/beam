@@ -36,13 +36,13 @@ var (
 // the filter function returns false. It returns a PCollection of the same type
 // as the input. For example:
 //
-//    words := beam.Create(s, "a", "b", "long", "alsolong")
-//    short := filter.Include(s, words, func(s string) bool {
-//        return len(s) < 3
-//    })
+//	words := beam.Create(s, "a", "b", "long", "alsolong")
+//	short := filter.Include(s, words, func(s string) bool {
+//	    return len(s) < 3
+//	})
 //
 // Here, "short" will contain "a" and "b" at runtime.
-func Include(s beam.Scope, col beam.PCollection, fn interface{}) beam.PCollection {
+func Include(s beam.Scope, col beam.PCollection, fn any) beam.PCollection {
 	s = s.Scope("filter.Include")
 
 	funcx.MustSatisfy(fn, funcx.Replace(sig, beam.TType, col.Type().Type()))
@@ -54,13 +54,13 @@ func Include(s beam.Scope, col beam.PCollection, fn interface{}) beam.PCollectio
 // the filter function returns true. It returns a PCollection of the same type
 // as the input. For example:
 //
-//    words := beam.Create(s, "a", "b", "long", "alsolong")
-//    long := filter.Exclude(s, words, func(s string) bool {
-//        return len(s) < 3
-//    })
+//	words := beam.Create(s, "a", "b", "long", "alsolong")
+//	long := filter.Exclude(s, words, func(s string) bool {
+//	    return len(s) < 3
+//	})
 //
 // Here, "long" will contain "long" and "alsolong" at runtime.
-func Exclude(s beam.Scope, col beam.PCollection, fn interface{}) beam.PCollection {
+func Exclude(s beam.Scope, col beam.PCollection, fn any) beam.PCollection {
 	s = s.Scope("filter.Exclude")
 
 	funcx.MustSatisfy(fn, funcx.Replace(sig, beam.TType, col.Type().Type()))

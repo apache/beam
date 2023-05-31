@@ -333,7 +333,7 @@ class UpdateDestinationSchema(beam.DoFn):
   regardless of whether data is loaded directly to the destination table or
   loaded into temporary tables before being copied into the destination.
 
-  This tranform takes as input a (destination, job_reference) pair where the
+  This transform takes as input a (destination, job_reference) pair where the
   job_reference refers to a completed load job into a temporary table.
 
   This transform emits (destination, job_reference) pairs where the
@@ -508,16 +508,26 @@ class TriggerCopyJobs(beam.DoFn):
             True, label="This Dataflow job launches bigquery jobs.")
     }
 
-  def start_bundle(self):
+  def setup(self):
     self._observed_tables = set()
+
+  def start_bundle(self):
     self.bq_wrapper = bigquery_tools.BigQueryWrapper(client=self.test_client)
     if not self.bq_io_metadata:
       self.bq_io_metadata = create_bigquery_io_metadata(self._step_name)
     self.pending_jobs = []
 
-  def process(self, element, job_name_prefix=None, unused_schema_mod_jobs=None):
-    destination = element[0]
-    job_reference = element[1]
+  def process(
+      self, element_list, job_name_prefix=None, unused_schema_mod_jobs=None):
+    if isinstance(element_list, tuple):
+      # Allow this for streaming update compatibility while fixing BEAM-24535.
+      self.process_one(element_list, job_name_prefix)
+    else:
+      for element in element_list:
+        self.process_one(element, job_name_prefix)
+
+  def process_one(self, element, job_name_prefix):
+    destination, job_reference = element
 
     copy_to_reference = bigquery_tools.parse_table_reference(destination)
     if copy_to_reference.projectId is None:
@@ -1085,8 +1095,25 @@ class BigQueryBatchFileLoads(beam.PTransform):
                 load_job_project_id=self.load_job_project_id),
             schema_mod_job_name_pcv))
 
+    if self.write_disposition in ('WRITE_EMPTY', 'WRITE_TRUNCATE'):
+      # All loads going to the same table must be processed together so that
+      # the truncation happens only once. See
+      # https://github.com/apache/beam/issues/24535.
+      finished_temp_tables_load_job_ids_list_pc = (
+          finished_temp_tables_load_job_ids_pc | beam.MapTuple(
+              lambda destination,
+              job_reference: (
+                  bigquery_tools.parse_table_reference(destination).tableId,
+                  (destination, job_reference)))
+          | beam.GroupByKey()
+          | beam.MapTuple(lambda tableId, batch: list(batch)))
+    else:
+      # Loads can happen in parallel.
+      finished_temp_tables_load_job_ids_list_pc = (
+          finished_temp_tables_load_job_ids_pc | beam.Map(lambda x: [x]))
+
     copy_job_outputs = (
-        finished_temp_tables_load_job_ids_pc
+        finished_temp_tables_load_job_ids_list_pc
         | beam.ParDo(
             TriggerCopyJobs(
                 project=self.project,

@@ -18,10 +18,14 @@
 package org.apache.beam.sdk.io.gcp.pubsub;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThrows;
 
 import com.google.auth.Credentials;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Timestamp;
+import com.google.pubsub.v1.GetSchemaRequest;
+import com.google.pubsub.v1.GetTopicRequest;
 import com.google.pubsub.v1.PublishRequest;
 import com.google.pubsub.v1.PublishResponse;
 import com.google.pubsub.v1.PublisherGrpc.PublisherImplBase;
@@ -29,9 +33,14 @@ import com.google.pubsub.v1.PubsubMessage;
 import com.google.pubsub.v1.PullRequest;
 import com.google.pubsub.v1.PullResponse;
 import com.google.pubsub.v1.ReceivedMessage;
+import com.google.pubsub.v1.Schema;
+import com.google.pubsub.v1.SchemaServiceGrpc.SchemaServiceImplBase;
+import com.google.pubsub.v1.SchemaSettings;
 import com.google.pubsub.v1.SubscriberGrpc.SubscriberImplBase;
+import com.google.pubsub.v1.Topic;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
+import io.grpc.StatusRuntimeException;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.stub.StreamObserver;
@@ -43,8 +52,11 @@ import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.IncomingMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.OutgoingMessage;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SchemaPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
+import org.apache.beam.sdk.schemas.Schema.Field;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
@@ -66,6 +78,8 @@ public class PubsubGrpcClientTest {
   private static final TopicPath TOPIC = PubsubClient.topicPathFromName("testProject", "testTopic");
   private static final SubscriptionPath SUBSCRIPTION =
       PubsubClient.subscriptionPathFromName("testProject", "testSubscription");
+  private static final SchemaPath SCHEMA =
+      PubsubClient.schemaPathFromId("testProject", "testSchemaId");
   private static final long REQ_TIME_MS = 1234L;
   private static final long PUB_TIME_MS = 3456L;
   private static final long MESSAGE_TIME_MS = 6789L;
@@ -255,10 +269,165 @@ public class PubsubGrpcClientTest {
                   .putAllAttributes(ATTRIBUTES)
                   .build(),
               MESSAGE_TIME_MS,
-              RECORD_ID);
+              RECORD_ID,
+              null);
       int n = client.publish(TOPIC, ImmutableList.of(actualMessage));
       assertEquals(1, n);
       assertEquals(expectedRequest, Iterables.getOnlyElement(requestsReceived));
+    } finally {
+      server.shutdownNow();
+    }
+  }
+
+  @Test
+  public void getSchemaPath() throws IOException {
+    initializeClient(null, null);
+    TopicPath topicDoesNotExist =
+        PubsubClient.topicPathFromPath("projects/testProject/topics/idontexist");
+    TopicPath topicExistsDeletedSchema =
+        PubsubClient.topicPathFromPath("projects/testProject/topics/deletedSchema");
+    TopicPath topicExistsNoSchema =
+        PubsubClient.topicPathFromPath("projects/testProject/topics/noSchema");
+    TopicPath topicExistsSchema =
+        PubsubClient.topicPathFromPath("projects/testProject/topics/topicWithSchema");
+    PublisherImplBase publisherImplBase =
+        new PublisherImplBase() {
+          @Override
+          public void getTopic(GetTopicRequest request, StreamObserver<Topic> responseObserver) {
+            String topicPath = request.getTopic();
+            if (topicPath.equals(topicDoesNotExist.getPath())) {
+              responseObserver.onError(
+                  new IOException(String.format("%s does not exist", topicPath)));
+            }
+            if (topicPath.equals(topicExistsDeletedSchema.getPath())) {
+              responseObserver.onNext(
+                  Topic.newBuilder()
+                      .setName(topicPath)
+                      .setSchemaSettings(
+                          SchemaSettings.newBuilder()
+                              .setSchema(SchemaPath.DELETED_SCHEMA_PATH)
+                              .build())
+                      .build());
+              responseObserver.onCompleted();
+            }
+            if (topicPath.equals(topicExistsNoSchema.getPath())) {
+              responseObserver.onNext(Topic.newBuilder().setName(topicPath).build());
+              responseObserver.onCompleted();
+            }
+            if (topicPath.equals(topicExistsSchema.getPath())) {
+              responseObserver.onNext(
+                  Topic.newBuilder()
+                      .setName(topicPath)
+                      .setSchemaSettings(
+                          SchemaSettings.newBuilder().setSchema(SCHEMA.getPath()).build())
+                      .build());
+              responseObserver.onCompleted();
+            }
+          }
+        };
+    Server server =
+        InProcessServerBuilder.forName(channelName).addService(publisherImplBase).build().start();
+    try {
+      assertThrows(
+          "topic does not exist",
+          StatusRuntimeException.class,
+          () -> client.getSchemaPath(topicDoesNotExist));
+
+      assertNull(
+          "topic with deleted Schema should return null SchemaPath",
+          client.getSchemaPath(topicExistsDeletedSchema));
+
+      assertNull(
+          "topic without Schema should return null SchemaPath",
+          client.getSchemaPath(topicExistsNoSchema));
+
+      assertEquals(SCHEMA.getPath(), client.getSchemaPath(topicExistsSchema).getPath());
+
+    } finally {
+      server.shutdownNow();
+    }
+  }
+
+  @Test
+  public void getAvroSchema() throws IOException {
+    String schemaDefinition =
+        "{"
+            + " \"type\" : \"record\","
+            + " \"name\" : \"Avro\","
+            + " \"fields\" : ["
+            + "   {"
+            + "     \"name\" : \"StringField\","
+            + "     \"type\" : \"string\""
+            + "   },"
+            + "   {"
+            + "     \"name\" : \"FloatField\","
+            + "     \"type\" : \"float\""
+            + "   },"
+            + "   {"
+            + "     \"name\" : \"BooleanField\","
+            + "     \"type\" : \"boolean\""
+            + "   }"
+            + " ]"
+            + "}";
+    initializeClient(null, null);
+    final Schema schema =
+        com.google.pubsub.v1.Schema.newBuilder()
+            .setName(SCHEMA.getPath())
+            .setType(Schema.Type.AVRO)
+            .setDefinition(schemaDefinition)
+            .build();
+    SchemaServiceImplBase schemaImplBase =
+        new SchemaServiceImplBase() {
+          @Override
+          public void getSchema(GetSchemaRequest request, StreamObserver<Schema> responseObserver) {
+            if (request.getName().equals(SCHEMA.getPath())) {
+              responseObserver.onNext(schema);
+              responseObserver.onCompleted();
+            }
+          }
+        };
+    Server server =
+        InProcessServerBuilder.forName(channelName).addService(schemaImplBase).build().start();
+    try {
+      assertEquals(
+          org.apache.beam.sdk.schemas.Schema.of(
+              Field.of("StringField", FieldType.STRING),
+              Field.of("FloatField", FieldType.FLOAT),
+              Field.of("BooleanField", FieldType.BOOLEAN)),
+          client.getSchema(SCHEMA));
+    } finally {
+      server.shutdownNow();
+    }
+  }
+
+  @Test
+  public void getProtoSchema() throws IOException {
+    String schemaDefinition =
+        "syntax = \"proto3\"; message ProtocolBuffer { string string_field = 1; int32 int_field = 2; }";
+    initializeClient(null, null);
+    final Schema schema =
+        com.google.pubsub.v1.Schema.newBuilder()
+            .setName(SCHEMA.getPath())
+            .setType(Schema.Type.PROTOCOL_BUFFER)
+            .setDefinition(schemaDefinition)
+            .build();
+    SchemaServiceImplBase schemaImplBase =
+        new SchemaServiceImplBase() {
+          @Override
+          public void getSchema(GetSchemaRequest request, StreamObserver<Schema> responseObserver) {
+            if (request.getName().equals(SCHEMA.getPath())) {
+              responseObserver.onNext(schema);
+              responseObserver.onCompleted();
+            }
+          }
+        };
+    Server server =
+        InProcessServerBuilder.forName(channelName).addService(schemaImplBase).build().start();
+    try {
+      assertThrows(
+          "Pub/Sub Schema type PROTOCOL_BUFFER is not supported at this time",
+          IllegalArgumentException.class,
+          () -> client.getSchema(SCHEMA));
     } finally {
       server.shutdownNow();
     }

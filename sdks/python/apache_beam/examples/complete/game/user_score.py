@@ -61,7 +61,7 @@ python user_score.py \
 #   description: batch processing; reading input from Google Cloud Storage or a
 #     from a local text file, and writing output to a text file; using
 #     standalone DoFns; use of the CombinePerKey transform.
-#   multifile: true
+#   multifile: false
 #   pipeline_options: --output output.txt
 #   context_line: 81
 #   categories:
@@ -71,7 +71,6 @@ python user_score.py \
 #   complexity: ADVANCED
 #   tags:
 #     - batch
-#     - combine
 #     - combine
 #     - io
 #     - strings
@@ -159,7 +158,7 @@ def run(argv=None, save_main_session=True):
   parser.add_argument(
       '--input',
       type=str,
-      default='gs://apache-beam-samples/game/gaming_data*.csv',
+      default='gs://apache-beam-samples/game/small/gaming_data.csv',
       help='Path to the data file(s) containing game data.')
   parser.add_argument(
       '--output', type=str, required=True, help='Path to the output file(s).')
