@@ -30,7 +30,7 @@ limitations under the License. See accompanying LICENSE file.
         </header>
         <section class="container">
             {{ if .Error}}<div class="child">{{.Error}}</div>{{end}}
-            <div class="child">
+            <div class="child">d
                 <h3>Transforms</h3>
                 <table class="main-table">
                     <thead>
@@ -38,7 +38,7 @@ limitations under the License. See accompanying LICENSE file.
                         <td>Metrics</td>
                     </thead>
                     {{ range .Transforms }}
-                    <tr class="transform-summary">
+                    <tr>
                         <td class="transform-name">{{ .Transform.UniqueName }}</td>
                         <td class="metrics">
                             {{ range .Metrics }}
@@ -49,7 +49,7 @@ limitations under the License. See accompanying LICENSE file.
                         </td>
                     </tr>
                     {{ else }}
-                    <tr class="transform-summary">
+                    <tr>
                         <td>Pipeline has no transforms.</td>
                     </tr>
                     {{ end }}
@@ -64,7 +64,7 @@ limitations under the License. See accompanying LICENSE file.
                         <td>SampledByteSize</td>
                     </thead>
                     {{ range .PCols }}
-                    <tr class="pcollection-summary">
+                    <tr>
                         <td>{{ .Key.Step }}</td>
                         <td>
                             {{ .Committed.ElementCount }}
@@ -76,7 +76,7 @@ limitations under the License. See accompanying LICENSE file.
                         </td>
                     </tr>
                     {{ else }}
-                    <tr class="transform-summary">
+                    <tr>
                         <td>Pipeline has no pcollection metrics.</td>
                     </tr>
                     {{ end }}
@@ -92,14 +92,14 @@ limitations under the License. See accompanying LICENSE file.
                         <td>Value</td>
                     </thead>
                     {{ range .DisplayData }}
-                    <tr class="displaydata-summary">
+                    <tr>
                         <td>{{ .Key }}</td>
                         <td>{{ .Label }}</td>
                         <td>{{ .Namespace }}</td>
                         <td>{{ .Value}}</td>
                     </tr>
                     {{ else }}
-                    <tr class="transform-summary">
+                    <tr>
                         <td>Pipeline has no Display Data.</td>
                     </tr>
                     {{ end }}

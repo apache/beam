@@ -13,8 +13,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package web serves a web UI for Prism when it is operating as a stand alone runner.
-// It's not
+// Package web serves a web UI for Prism.
+//
+// Assets are embedded allowing the UI to be served from arbitrary binaries.
 package web
 
 import (
@@ -23,7 +24,6 @@ import (
 	"embed"
 	"fmt"
 	"html/template"
-	"log"
 	"net/http"
 	"sort"
 	"strings"
@@ -78,6 +78,8 @@ func renderPage(page *template.Template, data errorSetter, w http.ResponseWriter
 	w.Write(buf.Bytes())
 }
 
+// Page Handlers and Data.
+
 type jobDetailsData struct {
 	JobID, JobName string
 	Transforms     []pTransform
@@ -85,10 +87,6 @@ type jobDetailsData struct {
 	DisplayData    []*pipepb.LabelledPayload
 
 	errorHolder
-}
-
-func (jd *jobDetailsData) SetError(err error) {
-	jd.Error = err.Error()
 }
 
 type jobDetailsHandler struct {
@@ -107,12 +105,16 @@ func (h *jobDetailsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	errg, ctx := errgroup.WithContext(r.Context())
+
+	// Job names aren't included in pipeline information.
+	// Retain a lookup cache of ids to names and update them here if not present.
 	errg.Go(func() error {
 		v, ok := h.jobDetails.Load(jobID)
 		if ok {
 			data.JobName = v.(string)
 			return nil
 		}
+		// Name isn't available, so update the cache for future requests.
 		resp, err := h.Jobcli.GetJobs(ctx, &jobpb.GetJobsRequest{})
 		if err != nil {
 			return err
@@ -225,7 +227,7 @@ func (h *jobsConsoleHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 // Initialize the web client to talk to the given Job Management Client.
-func Initialize(ctx context.Context, port int, jobcli jobpb.JobServiceClient) {
+func Initialize(ctx context.Context, port int, jobcli jobpb.JobServiceClient) error {
 	assetsFs := http.FileServer(http.FS(assets))
 	mux := http.NewServeMux()
 
@@ -236,9 +238,5 @@ func Initialize(ctx context.Context, port int, jobcli jobpb.JobServiceClient) {
 	endpoint := fmt.Sprintf("localhost:%d", port)
 
 	slog.Info("Serving WebUI", slog.String("endpoint", "http://"+endpoint))
-	err := http.ListenAndServe(endpoint, mux)
-
-	if err != nil {
-		log.Fatal(err)
-	}
+	return http.ListenAndServe(endpoint, mux)
 }

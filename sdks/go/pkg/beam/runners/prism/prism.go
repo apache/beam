@@ -56,6 +56,7 @@ type Options struct {
 }
 
 // CreateJobServer returns a Beam JobServicesClient connected to an in memory JobServer.
+// This call is non-blocking.
 func CreateJobServer(ctx context.Context, opts Options) (jobpb.JobServiceClient, error) {
 	s := jobservices.NewServer(opts.Port, internal.RunPipeline)
 	go s.Serve()
@@ -67,7 +68,7 @@ func CreateJobServer(ctx context.Context, opts Options) (jobpb.JobServiceClient,
 }
 
 // CreateWebServer initialises the web UI for prism against the given JobsServiceClient.
+// This call is blocking.
 func CreateWebServer(ctx context.Context, cli jobpb.JobServiceClient, opts Options) error {
-	web.Initialize(ctx, opts.Port, cli)
-	return nil
+	return web.Initialize(ctx, opts.Port, cli)
 }

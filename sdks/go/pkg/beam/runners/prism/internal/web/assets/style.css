@@ -26,9 +26,9 @@ html {
 
 :root {
     --beam-mascot-orange: #ff570b;
-    --beam-dark-orange:#e74d1a; 
+    --beam-dark-orange: #e74d1a;
     --beam-orange: #f26628;
-    --beam-light-orange:#ff8337; 
+    --beam-light-orange: #ff8337;
 
     --beam-mascot-yellow: #1f1f19;
     --beam-dark-yellow: #febb25;
@@ -47,7 +47,7 @@ body {
 
 a {
     text-decoration: none;
-    color: #333;
+    color: var(--dark-grey);
 }
 
 a:hover {
@@ -55,7 +55,7 @@ a:hover {
 }
 
 a.button {
-    border: 2px solid #004400;
+    border: 2px solid var(--beam-dark-orange);
     color: var(--beam-orange);
     border-radius: 4px;
     padding: 6px 24px;
@@ -98,17 +98,6 @@ header {
     margin-right: 20px;
 }
 
-
-
-
-.pagination {
-    margin-top: 20px;
-}
-
-.previous-page {
-    margin-right: 20px;
-}
-
 .main-table {
     border-collapse: collapse;
     margin: 25px 0;
@@ -139,13 +128,5 @@ header {
     .logo {
         display: inline-block;
         margin-bottom: 10px;
-    }
-
-    .title {
-        font-size: 18px;
-    }
-
-    .description {
-        font-size: 14px;
     }
 }

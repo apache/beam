@@ -35,13 +35,13 @@ limitations under the License. See accompanying LICENSE file.
           <td>State</td>
         </thead>
         {{ range .Jobs }}
-        <tr class="job-summary">
-          <td class="jobid"><a href="job/{{ .JobId }}">{{ .JobId }}</a></td>
-          <td class="jobname">{{ .JobName }}</td>
-          <td class="state">{{ .State }}</td>
+        <tr>
+          <td><a href="job/{{ .JobId }}">{{ .JobId }}</a></td>
+          <td>{{ .JobName }}</td>
+          <td>{{ .State }}</td>
         </tr>
         {{ else }}
-        <tr class="job-summary">
+        <tr>
           <td>No jobs have been run.</td>
         </tr>
         {{ end }}

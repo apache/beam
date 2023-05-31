@@ -13,9 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// prism is a stand alone local Beam Runner.
-//
-// It produces
+// prism is a stand alone local Beam Runner. It produces a JobManagement service endpoint
+// against which jobs can be submited, and a web UI to inspect running and completed jobs.
 package main
 
 import (
@@ -31,8 +30,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("error creating job server: %v", err)
 	}
-	prism.CreateWebServer(ctx, cli, prism.Options{Port: 8074})
-	if err != nil {
+
+	if err := prism.CreateWebServer(ctx, cli, prism.Options{Port: 8074}); err != nil {
 		log.Fatalf("error creating web server: %v", err)
 	}
 }
