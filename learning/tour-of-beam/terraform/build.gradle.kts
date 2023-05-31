@@ -48,21 +48,20 @@ tasks.register<TerraformTask>("terraformRef") {
 }
 
 tasks.register<TerraformTask>("terraformApplyBackend") {
-        group = "backend-deploy"
-        var pg_router_host = project.extensions.extraProperties["pg_router_host"] as String
-        args(
-                "apply",
-                "-auto-approve",
-                "-lock=false",
-                "-parallelism=3",
-                "-var=pg_router_host=$pg_router_host",
-                "-var=project_id=$(gcloud config get-value project)",
-                "-var-file=./common.tfvars"
-        )
-
+    group = "backend-deploy"
+    var pg_router_host = project.extensions.extraProperties["pg_router_host"] as String
+    args(
+        "apply",
+        "-auto-approve",
+        "-lock=false",
+        "-parallelism=3",
+        "-var=pg_router_host=$pg_router_host",
+        "-var=project_id=$(gcloud config get-value project)",
+        "-var-file=./common.tfvars"
+    )
+        
     tasks.getByName("uploadLearningMaterials").mustRunAfter(this)
-
-    }
+}
 
 tasks.register<TerraformTask>("terraformDestroy") {
     dependsOn("getRouterHost")
