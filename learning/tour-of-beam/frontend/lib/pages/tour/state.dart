@@ -351,7 +351,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
 
   static PlaygroundController _createPlaygroundController(String initialSdkId) {
     final playgroundController = PlaygroundController(
-      codeRepository: GetIt.instance.get<CodeRepository>(),
+      codeClient: GetIt.instance.get<CodeClient>(),
       exampleCache: ExampleCache(
         exampleRepository: GetIt.instance.get<ExampleRepository>(),
       ),

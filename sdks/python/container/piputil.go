@@ -148,8 +148,11 @@ func findBeamSdkWhl(files []string, acceptableWhlSpecs []string) string {
 // SDK from source tarball provided in sdkSrcFile.
 func installSdk(files []string, workDir string, sdkSrcFile string, acceptableWhlSpecs []string, required bool) error {
 	sdkWhlFile := findBeamSdkWhl(files, acceptableWhlSpecs)
+
 	if sdkWhlFile != "" {
-		err := pipInstallPackage(files, workDir, sdkWhlFile, false, false, []string{"gcp"})
+		// by default, pip rejects to install wheel if same version already installed
+		isDev := strings.Contains(sdkWhlFile, ".dev")
+		err := pipInstallPackage(files, workDir, sdkWhlFile, isDev, false, []string{"gcp"})
 		if err == nil {
 			return nil
 		}

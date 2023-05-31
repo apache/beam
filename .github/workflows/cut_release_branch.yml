@@ -43,13 +43,58 @@ on:
       JENKINS_TOKEN:
         description: API Token for the current Jenkins user. Can be generated at https://ci-beam.apache.org/user/<user>/configure
         required: true
+      CREATE_RELEASE_BRANCH:
+        description: Whether to cut the release branch. You shouldnt skip this unless it has already been completed successfully (yes/no)
+        required: true
+        default: 'yes'
 
 permissions:
   contents: write
   pull-requests: write
 
 jobs:
+  update_release_branch:
+    runs-on: ubuntu-latest
+    env:
+      RELEASE: ${{ github.event.inputs.RELEASE_VERSION }}
+    steps:
+      - name: Validate Release Version
+        run: |
+          if [[ ${RELEASE} =~ ([0-9]+\.[0-9]+\.[0-9]+) ]]; then
+            echo "RELEASE_VERSION=${BASH_REMATCH[1]}" >> $GITHUB_ENV
+            echo "RELEASE_BRANCH=release-${RELEASE}" >> $GITHUB_ENV
+          else
+            echo "The input for RELEASE does not match a valid format [0-9]+\.[0-9]+\.[0-9]+"
+            exit 1
+          fi
+      - name: Check out code
+        uses: actions/checkout@v3
+      - name: Set git config
+        run: |
+          git config user.name $GITHUB_ACTOR
+          git config user.email actions@"$RUNNER_NAME".local
+      - name: Checkout to release branch
+        run: |
+          git checkout -b ${RELEASE_BRANCH}
+          echo "==================Current working branch======================="
+          echo ${RELEASE_BRANCH}
+          echo "==============================================================="
+      - name: Update release version for dataflow runner
+        run: |
+          sed -i -e "s/'beam-master-.*'/'${RELEASE}'/g" \
+          runners/google-cloud-dataflow-java/build.gradle
+          echo "===============Update release branch as following=============="
+          git diff
+          echo "==============================================================="
+      - name: Commit and Push to release branch
+        run: |
+          git add runners/google-cloud-dataflow-java/build.gradle
+          git commit -m "Set Dataflow container to release version."
+          git push --set-upstream origin ${RELEASE_BRANCH}
+        if: ${{github.event.inputs.CREATE_RELEASE_BRANCH == 'yes'}}
+
   update_master:
+    needs: update_release_branch
     runs-on: ubuntu-latest
     env:
       MASTER_BRANCH: master
@@ -117,45 +162,6 @@ jobs:
           git commit -m "Moving to ${NEXT_VERSION_IN_BASE_BRANCH}-SNAPSHOT on master branch."
           git push origin ${MASTER_BRANCH}
 
-  update_release_branch:
-    needs: update_master
-    runs-on: ubuntu-latest
-    env:
-      RELEASE: ${{ github.event.inputs.RELEASE_VERSION }}
-    steps:
-      - name: Validate Release Version
-        run: |
-          if [[ ${RELEASE} =~ ([0-9]+\.[0-9]+\.[0-9]+) ]]; then
-            echo "RELEASE_VERSION=${BASH_REMATCH[1]}" >> $GITHUB_ENV
-            echo "RELEASE_BRANCH=release-${RELEASE}" >> $GITHUB_ENV
-          else
-            echo "The input for RELEASE does not match a valid format [0-9]+\.[0-9]+\.[0-9]+"
-            exit 1
-          fi
-      - name: Check out code
-        uses: actions/checkout@v3
-      - name: Set git config
-        run: |
-          git config user.name $GITHUB_ACTOR
-          git config user.email actions@"$RUNNER_NAME".local
-      - name: Checkout to release branch
-        run: |
-          git checkout -b ${RELEASE_BRANCH}
-          echo "==================Current working branch======================="
-          echo ${RELEASE_BRANCH}
-          echo "==============================================================="
-      - name: Update release version for dataflow runner
-        run: |
-          sed -i -e "s/'beam-master-.*'/'${RELEASE}'/g" \
-          runners/google-cloud-dataflow-java/build.gradle
-          echo "===============Update release branch as following=============="
-          git diff
-          echo "==============================================================="
-      - name: Commit and Push to release branch
-        run: |
-          git add runners/google-cloud-dataflow-java/build.gradle
-          git commit -m "Set Dataflow container to release version."
-          git push --set-upstream origin ${RELEASE_BRANCH}
 
   start_snapshot_build:
     needs: update_master
