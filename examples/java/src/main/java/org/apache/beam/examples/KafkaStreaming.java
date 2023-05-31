@@ -23,6 +23,7 @@ package org.apache.beam.examples;
 //   multifile: false
 //   context_line: 186
 //   never_run: true
+//   always_run: true
 //   categories:
 //     - Filtering
 //     - Windowing
