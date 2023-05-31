@@ -7,7 +7,7 @@ on:
 
 jobs:
   beam_PreCommit_Go_Commit:
-        runs-on: self-hosted
+        runs-on: [self-hosted, ubuntu-20.04]
         name: beam_PreCommit_Go_Commit
         steps:
 # The checkout step downloads a copy of your repository on the runner.          
