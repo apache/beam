@@ -37,6 +37,8 @@ import org.slf4j.LoggerFactory;
 //   name: MinimalBigQueryTornadoes
 //   description: An example that reads the public samples of weather data from BigQuery.
 //   multifile: false
+//   never_run: true
+//   always_run: true
 //   default_example: false
 //   pipeline_options: --project apache-beam-testing
 //   context_line: 102
