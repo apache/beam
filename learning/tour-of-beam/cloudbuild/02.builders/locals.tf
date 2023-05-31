@@ -55,11 +55,14 @@ locals {
    "PR_COMMIT=$_PR_COMMIT",
    "CD_SCRIPT_PATH=beam/playground/infrastructure/cloudbuild/playground_cd_examples.sh",
    "FORCE_CD=false",
+   # Learning material 
+   "DATASTORE_PROJECT_ID=$PROJECT_ID",
+   "DATASTORE_NAMESPACE=$_DATASTORE_NAMESPACE",
+   "TOB_LEARNING_ROOT=$_TOB_LEARNING_ROOT",
     ]
 
    cloudbuild_cd_environment_manual = [ 
    "PROJECT_ID=$PROJECT_ID",
-   "DATASTORE_NAMESPACE=$_DATASTORE_NAMESPACE",
    "DNS_NAME=$_DNS_NAME",
    "PR_URL=URL",
    "TARGET_PR_REPO_BRANCH=apache:master",

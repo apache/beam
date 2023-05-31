@@ -132,9 +132,15 @@ resource "google_cloudbuild_trigger" "tourofbeam_cd_trigger" {
       machine_type = var.cloudbuild_machine_type
       logging      = "GCS_ONLY"
     }
-    logs_bucket = "gs://${var.tourofbeam_cb_private_bucket}" 
+    logs_bucket = "gs://${var.tourofbeam_cb_private_bucket}"
     step {
-      id     = "Run CD"
+      id     = "Run Learning Materials CD"
+      script = file("../scripts/tob_lm_cd.sh")
+      name   = "ubuntu"
+      env    = local.cloudbuild_cd_environment_manual
+    }
+    step {
+      id     = "Run Example CD"
       script = file("../../../../playground/infrastructure/cloudbuild/cloudbuild_playground_cd_examples.sh")
       name   = "ubuntu"
       env    = local.cloudbuild_cd_environment
@@ -152,6 +158,7 @@ resource "google_cloudbuild_trigger" "tourofbeam_cd_trigger" {
     _DNS_NAME              = var.playground_dns_name
     _DATASTORE_NAMESPACE   = var.pg_datastore_namespace
     _ORIGIN                = "TB_EXAMPLES"
+    _TOB_LEARNING_ROOT     = var.tourofbeam_learning_root
     _SDKS                  = "java python go"
     _SUBDIRS               = "./learning/tour-of-beam/learning-content"
     _BEAM_CONCURRENCY      = "4"
