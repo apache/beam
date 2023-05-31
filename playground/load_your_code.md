@@ -151,6 +151,8 @@ Playground Examples Catalog helps users discover example snippets
 and is the recommended way to add examples. Playground automatically scans,
 verifies and deploys example snippets from the directories listed below.
 
+> **Note:** SCIO examples are stored in a separate repository. To add support for a new SCIO example, please refer to [this section of `TASKS.md`](TASKS.md#obtaining-scio-examples).
+
 #### 1. Add the file with example to a directory
 
 Playground Java, Python, and Go examples are automatically picked from these
