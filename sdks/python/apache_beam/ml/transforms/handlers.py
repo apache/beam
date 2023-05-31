@@ -35,8 +35,10 @@ from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.typehints import native_type_compatibility
 from apache_beam.typehints.row_type import RowTypeConstraint
 import tensorflow as tf
+from tensorflow_metadata.proto.v0 import schema_pb2
 import tensorflow_transform.beam as tft_beam
 from tensorflow_transform import common_types
+from tensorflow_transform.beam.tft_beam_io import beam_metadata_io
 from tensorflow_transform.beam.tft_beam_io import transform_fn_io
 from tensorflow_transform.tf_metadata import dataset_metadata
 from tensorflow_transform.tf_metadata import schema_utils
@@ -59,6 +61,7 @@ _default_type_to_tensor_type_map = {
     np.bytes_: tf.string,
     np.str_: tf.string,
 }
+_primitive_types = (int, float, str, bytes)
 
 tft_process_handler_dict_input_type = typing.Union[typing.NamedTuple, beam.Row]
 
@@ -94,7 +97,6 @@ class TFTProcessHandler(ProcessHandler[ProcessInputT, ProcessOutputT]):
       self,
       *,
       input_types: Optional[Dict[str, type]] = None,
-      output_record_batches=False,
       transforms: List[_TFTOperation] = None,
       namespace: str = 'TFTProcessHandler',
   ):
@@ -105,8 +107,6 @@ class TFTProcessHandler(ProcessHandler[ProcessInputT, ProcessOutputT]):
 
     Args:
       input_types: A dictionary of column names and types.
-      output_record_batches: Whether to output RecordBatches instead of
-        dictionaries.
       transforms: A list of transforms to apply to the data. All the transforms
         are applied in the order they are specified. The input of the
         i-th transform is the output of the (i-1)-th transform. Multi-input
@@ -117,9 +117,9 @@ class TFTProcessHandler(ProcessHandler[ProcessInputT, ProcessOutputT]):
     self._input_types = input_types
     self.transforms = transforms if transforms else []
     self._input_types = input_types
-    self._output_record_batches = output_record_batches
     self._artifact_location = None
     self._namespace = namespace
+    self.transformed_schema = None
 
   def get_raw_data_feature_spec(
       self, input_types: Dict[str, type]) -> dataset_metadata.DatasetMetadata:
@@ -234,7 +234,7 @@ class TFTProcessHandler(ProcessHandler[ProcessInputT, ProcessOutputT]):
 
 
 class TFTProcessHandlerDict(
-    TFTProcessHandler[tft_process_handler_dict_input_type, MLTransformOutput]):
+    TFTProcessHandler[tft_process_handler_dict_input_type, beam.Row]):
   """
     A subclass of TFTProcessHandler specifically for handling
     data in dictionary format. Applies TensorFlow Transform (TFT)
@@ -336,7 +336,10 @@ class TFTProcessHandlerDict(
         outputs[col] = intermediate_result
     return outputs
 
-  def _get_processing_data_ptransform(self, raw_data_metadata):
+  def _get_processing_data_ptransform(
+      self,
+      raw_data_metadata: dataset_metadata.DatasetMetadata,
+      input_types: Dict[str, type]):
     """
     Return a PTransform object that has the preprocessing logic
     using the AnalyzeAndTransformDataset step.
@@ -361,19 +364,42 @@ class TFTProcessHandlerDict(
       self._artifact_location = self._get_artifact_location(raw_data.pipeline)
       with tft_beam.Context(temp_dir=self._artifact_location):
         data = (raw_data, raw_data_metadata)
+        transformed_metadata: beam_metadata_io.BeamDatasetMetadata
         (transformed_dataset, transformed_metadata), transform_fn = (
         data
-        | "AnalyzeAndTransformDataset"  >> tft_beam.AnalyzeAndTransformDataset(
+        | "AnalyzeAndTransformDataset" >> tft_beam.AnalyzeAndTransformDataset(
         self.preprocessing_fn,
-        output_record_batches=self._output_record_batches
-        )
+          )
         )
         self.write_transform_artifacts(transform_fn, self._artifact_location)
-        return transformed_dataset | beam.Map(
-            lambda x: self.convert_to_ml_transform_output(
-                x,
-                transformed_metadata.dataset_metadata,
-                transformed_metadata.asset_map))
+        self.transformed_schema = self._get_transformed_data_schema(
+            metadata=transformed_metadata.dataset_metadata,
+            original_types=input_types)
+
+        transformed_dataset |= (
+            beam.Map(
+                lambda x: self.convert_to_ml_transform_output(
+                    x,
+                    transformed_metadata.dataset_metadata,
+                    transformed_metadata.asset_map)).with_output_types(
+                        MLTransformOutput))
+
+        # TODO: Should we output a Row object or a NamedTuple?
+        # TODO: If we are outputting beam.Row, remove the above code
+        # converting to NamedTuple.
+
+        # with NamedTuple, I am not able set the output type to the
+        # self.transformed_schema. With Row object, we can set the output type
+        # to the self.transformed_schema.
+
+        row_type = RowTypeConstraint.from_fields(
+            list(self.transformed_schema.items()))
+        transformed_dataset |= "ConvertToRowType" >> beam.Map(
+            lambda x: beam.Row(**x.transformed_data)).with_output_types(
+                row_type)
+
+        # transformed_dataset_pcoll.element_type = row_type
+        return transformed_dataset
 
     return ptransform_fn()
 
@@ -388,13 +414,38 @@ class TFTProcessHandlerDict(
           "Unable to infer schema. Please pass a schema'd PCollection")
 
     # AnalyzeAndTransformDataset raise type hint since we only accept
-    #  schema'd PCollection and the current output type would be a
-    #  custom type(NamedTuple) or a beam.Row type.
+    # schema'd PCollection and the current output type would be a
+    # custom type(NamedTuple) or a beam.Row type.
     output_type = self.infer_output_type(element_type)
     raw_data = (
         pcoll | ConvertNamedTupleToDict().with_output_types(output_type))
     raw_data_metadata = self.get_metadata(input_types=input_types)
-    return raw_data | self._get_processing_data_ptransform(raw_data_metadata)
+    return raw_data | self._get_processing_data_ptransform(
+        raw_data_metadata=raw_data_metadata, input_types=input_types)
+
+  def _get_transformed_data_schema(
+      self,
+      metadata: dataset_metadata.DatasetMetadata,
+      original_types: Dict[str, type]):
+    schema = metadata._schema
+    transformed_types = {}
+    for feature in schema.feature:
+      name = feature.name
+      feature_type = feature.type
+      is_container = not (
+          name in original_types and original_types[name] in _primitive_types)
+      if feature_type == schema_pb2.FeatureType.FLOAT:
+        transformed_types[name] = np.float32 if is_container else float
+      elif feature_type == schema_pb2.FeatureType.INT:
+        transformed_types[name] = np.int64 if is_container else int
+      elif feature_type == schema_pb2.FeatureType.BYTES:
+        transformed_types[name] = bytes
+      else:
+        # TODO: This else condition won't be hit since TFT doesn't output
+        # other than float, int and bytes. Refactor the code here.
+        raise RuntimeError(
+            'Unsupported feature type: %s encountered' % feature_type)
+    return transformed_types
 
   def convert_to_ml_transform_output(self, element, metadata, asset_map):
     return MLTransformOutput(

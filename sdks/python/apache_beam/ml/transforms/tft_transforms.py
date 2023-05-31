@@ -182,8 +182,13 @@ class _Bucketize(_TFTOperation):
 
 
 def scale_to_0_1(
-    columns, elementwise: bool = False, name: Optional[str] = None):
-  return _Scale_to_0_1(columns=columns, elementwise=elementwise, name=name)
+    columns,
+    elementwise: bool = False,
+    name: Optional[str] = None,
+    *args,
+    **kwargs):
+  return _Scale_to_0_1(
+      columns=columns, elementwise=elementwise, name=name, *args, **kwargs)
 
 
 def apply_buckets(
