@@ -137,7 +137,7 @@ cd beam
 
 # Updating dependencies
 ## Referenced Beam SDK update
-1. Update default `BEAM_SDK` values in Java contianer [Dockerfile](/playground/backend/containers/java/Dockerfile)
+1. Update default `BEAM_VERSION` values in Java contianer [Dockerfile](/playground/backend/containers/java/Dockerfile)
 2. Update `default_beam_version` in [Java container `build.gradle`](/playground/backend/containers/java/build.gradle)
 3. Update `default_beam_version` in [Python container `build.gradle`](/playground/backend/containers/python/build.gradle)
 4. Update SDK version in CI GitHub workflow:
