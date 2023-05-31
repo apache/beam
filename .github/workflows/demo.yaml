@@ -1,10 +1,12 @@
 name: GitHub Actions Demo2
 run-name: ${{ github.actor }} is testing out GitHub Actions 🚀
-
+#COMMENT
 
 on:
   pull_request:
-   branches: ['master']
+    branches: ['master']
+  issue_comment:
+    types: [created]
 jobs:
   Explore-GitHub-Actions:
     strategy:
