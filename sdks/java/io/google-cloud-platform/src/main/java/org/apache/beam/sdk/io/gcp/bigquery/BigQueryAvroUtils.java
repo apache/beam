@@ -403,7 +403,7 @@ class BigQueryAvroUtils {
   }
 
   static Schema toGenericAvroSchema(
-      String schemaName, List<TableFieldSchema> fieldSchemas, String namespace) {
+      String schemaName, List<TableFieldSchema> fieldSchemas, @Nullable String namespace) {
 
     String nextNamespace = namespace == null ? null : String.format("%s.%s", namespace, schemaName);
 
