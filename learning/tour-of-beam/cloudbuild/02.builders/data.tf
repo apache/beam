@@ -15,20 +15,27 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# Service account for GCP Cloud Functions
-resource "google_service_account" "cloud_function_sa" {
-  account_id   = local.cloudfunctions_service_account
-  display_name = "Tour of Beam CF Service Account-${var.environment}"
+# Takes data of service account created for cloud build trigger
+ data "google_service_account" "tourofbeam_deployer" {
+   account_id   = var.tourofbeam_deploy_sa
+ }
+ 
+ data "google_service_account" "tourofbeam_ci_runner" {
+    account_id   = var.tourofbeam_ci_sa
+  }
+
+  data "google_service_account" "tourofbeam_cd_runner" {
+    account_id   = var.tourofbeam_cd_sa
+  }
+
+# Takes data of secretst created for cloud build trigger
+  data "google_secret_manager_secret_version" "secret_webhook_cloudbuild_trigger_cicd_data" {
+  secret      = var.webhook_trigger_secret_id
+  version     = "latest"
 }
 
-# IAM roles for Cloud Functions service account
-resource "google_project_iam_member" "terraform_service_account_roles" {
-  for_each = toset([
-    "roles/cloudfunctions.admin", "roles/storage.objectViewer",
-    "roles/iam.serviceAccountUser", "roles/datastore.user",
-    "roles/firebaseauth.viewer"
-  ])
-  role    = each.key
-  member  = "serviceAccount:${google_service_account.cloud_function_sa.email}"
-  project = var.project_id
+  data "google_secret_manager_secret_version" "secret_gh_pat_cloudbuild_data" {
+  secret      = var.gh_pat_secret_id
+  version     = "latest"
 }
+ 

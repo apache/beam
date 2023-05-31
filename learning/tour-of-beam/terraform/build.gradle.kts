@@ -49,9 +49,8 @@ tasks.register<TerraformTask>("terraformRef") {
 
 tasks.register<TerraformTask>("terraformApplyBackend") {
     group = "backend-deploy"
-    dependsOn("terraformInit")
-
-    val pgRouterHost = if (project.extensions.extraProperties.has("pg_router_host")) {
+    
+    val pg_router_host = if (project.extensions.extraProperties.has("pg_router_host")) {
         project.extensions.extraProperties["pg_router_host"] as String
     } else {
         "unknown"
@@ -61,29 +60,29 @@ tasks.register<TerraformTask>("terraformApplyBackend") {
         "-auto-approve",
         "-lock=false",
         "-parallelism=3",
-        "-var=pg_router_host=$pgRouterHost",
-        "-var=gcloud_init_account=$(gcloud config get-value core/account)",
+        "-var=pg_router_host=$pg_router_host",
         "-var=project_id=$(gcloud config get-value project)",
         "-var-file=./common.tfvars"
     )
+        
+    tasks.getByName("uploadLearningMaterials").mustRunAfter(this)
 }
 
 tasks.register<TerraformTask>("terraformDestroy") {
     dependsOn("getRouterHost")
 
-    val pgRouterHost = if (project.extensions.extraProperties.has("pg_router_host")) {
+    val pg_router_host = if (project.extensions.extraProperties.has("pg_router_host")) {
         project.extensions.extraProperties["pg_router_host"] as String
     } else {
         "unknown"
     }
     args(
-        "destroy",
-        "-auto-approve",
-        "-lock=false",
-        "-var=pg_router_host=$pgRouterHost",
-        "-var=gcloud_init_account=$(gcloud config get-value core/account)",
-        "-var=project_id=$(gcloud config get-value project)",
-        "-var-file=./common.tfvars"
+            "destroy",
+            "-auto-approve",
+            "-lock=false",
+            "-var=pg_router_host=$pg_router_host",
+            "-var=project_id=$(gcloud config get-value project)",
+            "-var-file=./common.tfvars"
     )
 }
 
@@ -147,6 +146,54 @@ tasks.register("firebaseProjectCreate") {
     }
 }
 
+tasks.register("firebaseHostingCreate") {
+    group = "frontend-deploy"
+    dependsOn("firebaseWebAppCreate")
+
+    doLast {
+        val projectId = project.property("project_id") as String
+        val webapp_id = project.property("webapp_id") as String
+        val listSitesResult = ByteArrayOutputStream()
+        exec {
+            executable("firebase")
+            args("hosting:sites:list", "--project", projectId)
+            workingDir("../frontend")
+            standardOutput = listSitesResult
+        }
+
+        println(listSitesResult)
+        val output = listSitesResult.toString()
+        val regex = "\\b$webapp_id\\b".toRegex()
+        if (regex.containsMatchIn(output)) {
+            println("Firebase is already added to project $projectId.")
+        } else {
+            exec {
+                executable("firebase")
+                args("hosting:sites:create", webapp_id)
+                workingDir("../frontend")
+            }.assertNormalExitValue()
+            println("Firebase hosting site has been added to project $projectId.")
+        }
+    
+        exec {
+            executable("firebase")
+            args("target:apply", "hosting", webapp_id , webapp_id)
+            workingDir("../frontend")
+
+        }.assertNormalExitValue()
+
+        val file = project.file("../frontend/firebase.json")
+        val content = file.readText()
+        
+        val oldContent = """"public": "build/web","""
+        val newContent = """"public": "build/web",
+        "target": "$webapp_id","""
+        val updatedContent = content.replace(oldContent, newContent)
+        
+        file.writeText(updatedContent)
+    }
+}
+
 tasks.register("firebaseWebAppCreate") {
     group = "frontend-deploy"
     dependsOn("firebaseProjectCreate")
@@ -164,8 +211,9 @@ tasks.register("firebaseWebAppCreate") {
         val output = result.toString()
         if (output.contains(webappId)) {
             println("Webapp id $webappId is already created on the project: $projectId.")
-            val regex = Regex("$webappId[│ ]+([\\w:]+)[│ ]+WEB[│ ]+")
+            val regex = Regex("""$webappId[\W]+([\d:a-zA-Z]+)[\W]+WEB""")
             val firebaseAppId = regex.find(output)?.groupValues?.get(1)?.trim()
+            println("Firebase app ID for existing Firebase Web App: $firebaseAppId")
             project.extensions.extraProperties["firebaseAppId"] = firebaseAppId
         } else {
             val result2 = ByteArrayOutputStream()
@@ -185,7 +233,7 @@ tasks.register("firebaseWebAppCreate") {
 // firebase apps:sdkconfig WEB AppId
 tasks.register("getSdkConfigWebApp") {
     group = "frontend-deploy"
-    dependsOn("firebaseWebAppCreate")
+    dependsOn("firebaseHostingCreate")
 
     doLast {
         val firebaseAppId = project.extensions.extraProperties["firebaseAppId"] as String
@@ -227,6 +275,7 @@ tasks.register("prepareFirebaseOptionsDart") {
 }
 
 tasks.register("flutterPubGetPG") {
+    dependsOn("prepareFirebaseOptionsDart")
     doLast {
         exec {
             executable("flutter")
@@ -290,8 +339,9 @@ tasks.register("firebaseDeploy") {
 
     doLast {
         val projectId = project.property("project_id") as String
+        val webapp_id = project.property("webapp_id") as String
         exec {
-            commandLine("firebase", "deploy", "--project", projectId)
+            commandLine("firebase", "deploy", "--only",  "hosting:$webapp_id", "--project", projectId)
             workingDir("../frontend")
         }
     }
@@ -317,18 +367,6 @@ const cloudFunctionsBaseUrl = 'https://'
     '$region-$projectId'
     '.cloudfunctions.net/${environment}_';
 
-
-const String kAnalyticsUA = 'UA-73650088-2';
-const String kApiClientURL =
-'https://router.${dnsName}';
-const String kApiJavaClientURL =
-'https://java.${dnsName}';
-const String kApiGoClientURL =
-'https://go.${dnsName}';
-const String kApiPythonClientURL =
-'https://python.${dnsName}';
-const String kApiScioClientURL =
-'https://scio.${dnsName}';
 """
         )
     }
@@ -397,6 +435,7 @@ tasks.register("InitFrontend") {
     dependsOn("prepareFirebasercConfig")
     dependsOn("firebaseProjectCreate")
     dependsOn("firebaseWebAppCreate")
+    dependsOn("firebaseHostingCreate")
     dependsOn("getSdkConfigWebApp")
     dependsOn("prepareFirebaseOptionsDart")
     dependsOn("flutterPubGetPG")

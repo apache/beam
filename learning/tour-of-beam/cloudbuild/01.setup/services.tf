@@ -15,20 +15,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# Service account for GCP Cloud Functions
-resource "google_service_account" "cloud_function_sa" {
-  account_id   = local.cloudfunctions_service_account
-  display_name = "Tour of Beam CF Service Account-${var.environment}"
-}
-
-# IAM roles for Cloud Functions service account
-resource "google_project_iam_member" "terraform_service_account_roles" {
-  for_each = toset([
-    "roles/cloudfunctions.admin", "roles/storage.objectViewer",
-    "roles/iam.serviceAccountUser", "roles/datastore.user",
-    "roles/firebaseauth.viewer"
+# Enable required GCP APIs
+resource "google_project_service" "required_services" {
+  for_each  = toset([
+    "cloudresourcemanager",
+    "iam",
+    "cloudbuild",
+    "cloudfunctions"
   ])
-  role    = each.key
-  member  = "serviceAccount:${google_service_account.cloud_function_sa.email}"
-  project = var.project_id
+  service   = "${each.key}.googleapis.com"
+  disable_on_destroy = false
 }

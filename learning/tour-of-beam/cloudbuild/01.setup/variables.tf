@@ -15,20 +15,23 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# Service account for GCP Cloud Functions
-resource "google_service_account" "cloud_function_sa" {
-  account_id   = local.cloudfunctions_service_account
-  display_name = "Tour of Beam CF Service Account-${var.environment}"
+variable "project_id" {
+  description = "The ID of the Google Cloud project within which resources are provisioned"
 }
 
-# IAM roles for Cloud Functions service account
-resource "google_project_iam_member" "terraform_service_account_roles" {
-  for_each = toset([
-    "roles/cloudfunctions.admin", "roles/storage.objectViewer",
-    "roles/iam.serviceAccountUser", "roles/datastore.user",
-    "roles/firebaseauth.viewer"
-  ])
-  role    = each.key
-  member  = "serviceAccount:${google_service_account.cloud_function_sa.email}"
-  project = var.project_id
+variable "tourofbeam_deploy_sa" {
+  description = "The ID of the cloud build service account responsible for deploying the Tour of Beam"
+  default = "tourofbeam-cloudbuild-deploy-sa"
 }
+
+variable "tourofbeam_ci_sa" {
+  description = "The ID of the cloud build service account responsible for running Tour of Beam CI checks and scripts"
+  default = "tourofbeam-cloudbuild-ci-sa"
+}
+
+variable "tourofbeam_cd_sa" {
+  description = "The ID of the cloud build service account responsible for running Tour of Beam CD checks and scripts"
+  default = "tourofbeam-cloudbuild-cd-sa"
+}
+
+
