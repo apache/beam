@@ -101,7 +101,12 @@ public class ConfigBuilder {
       config.put(JOB_ID, options.getJobInstance());
 
       // bundle-related configs
-      config.putAll(createBundleConfig(options, config));
+      if (!testIsPortable(options)) {
+        config.putAll(createBundleConfig(options, config));
+        LOG.info("Set bundle-related configs for classic mode");
+      } else {
+        LOG.info("Skipped bundle-related configs for portable mode");
+      }
 
       // remove config overrides before serialization (LISAMZA-15259)
       options.setConfigOverride(new HashMap<>());
@@ -115,6 +120,15 @@ public class ConfigBuilder {
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
+  }
+
+  static boolean testIsPortable(SamzaPipelineOptions options) {
+    Map<String, String> override = options.getConfigOverride();
+    if (override == null) {
+      return false;
+    }
+
+    return Boolean.parseBoolean(override.getOrDefault("beam.portable.mode", "false"));
   }
 
   @VisibleForTesting
