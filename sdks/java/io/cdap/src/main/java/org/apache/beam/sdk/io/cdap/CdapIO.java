@@ -152,7 +152,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * <p>Optionally you can pass {@code pullFrequencySec} which is a delay in seconds between polling
  * for new records updates, you can pass {@code startOffset} which is inclusive start offset from
- * which the reading should be started.
+ * which the reading should be started. Also, you can pass {@code startPollTimeoutSec} which is
+ * delay in seconds before start polling.
  *
  * <p>{@link Plugin} is the Wrapper class for the Cdap Plugin. It contains main information about
  * the Plugin. The object of the {@link Plugin} class can be created with the {@link
@@ -186,6 +187,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *             .withKeyClass(String.class)
  *             .withValueClass(String.class)
  *             .withPullFrequencySec(1L)
+ *             .withStartPollTimeoutSec(2L)
  *             .withStartOffset(10L);
  * }</pre>
  */
@@ -226,6 +228,8 @@ public class CdapIO {
 
     abstract @Nullable Long getPullFrequencySec();
 
+    abstract @Nullable Long getStartPollTimeoutSec();
+
     abstract @Nullable Long getStartOffset();
 
     abstract Builder<K, V> toBuilder();
@@ -242,6 +246,8 @@ public class CdapIO {
       abstract Builder<K, V> setValueClass(Class<V> valueClass);
 
       abstract Builder<K, V> setPullFrequencySec(Long pullFrequencySec);
+
+      abstract Builder<K, V> setStartPollTimeoutSec(Long startPollTimeoutSec);
 
       abstract Builder<K, V> setStartOffset(Long startOffset);
 
@@ -288,6 +294,12 @@ public class CdapIO {
       return toBuilder().setPullFrequencySec(pullFrequencySec).build();
     }
 
+    /** Delay in seconds before start polling. Applicable only for streaming Cdap Plugins. */
+    public Read<K, V> withStartPollTimeoutSec(Long startPollTimeoutSec) {
+      checkArgument(startPollTimeoutSec != null, "Start poll timeout can not be null");
+      return toBuilder().setStartPollTimeoutSec(startPollTimeoutSec).build();
+    }
+
     /**
      * Inclusive start offset from which the reading should be started. Applicable only for
      * streaming Cdap Plugins.
@@ -326,6 +338,10 @@ public class CdapIO {
         Long pullFrequencySec = getPullFrequencySec();
         if (pullFrequencySec != null) {
           reader = reader.withPullFrequencySec(pullFrequencySec);
+        }
+        Long startPollTimeoutSec = getStartPollTimeoutSec();
+        if (startPollTimeoutSec != null) {
+          reader = reader.withStartPollTimeoutSec(startPollTimeoutSec);
         }
         Long startOffset = getStartOffset();
         if (startOffset != null) {
