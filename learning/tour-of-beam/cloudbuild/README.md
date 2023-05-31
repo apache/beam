@@ -22,7 +22,7 @@ This directory organizes Infrastructure-as-Code to provision dependent resources
 ## Requirements:
 
 1. [GCP project](https://cloud.google.com/resource-manager/docs/creating-managing-projects)
-2. Existing Beam Playground environment/infrastructure deployed in same GCP Project. Tour of Beam will be deployed to that same location  (region/zone). If you don't have one, please follow [Beam Playground deployment instructions](TODO: add link to Beam Playground deployment instructions) to deploy it.
+2. Existing Beam Playground environment/infrastructure deployed in same GCP Project. Tour of Beam will be deployed to that same location  (region/zone). If you don't have one, please follow [Beam Playground deployment instructions](./../../../playground/terraform/infrastructure/cloudbuild-manual-setup/README.md) to deploy it.
 3. [GCP User account](https://cloud.google.com/appengine/docs/standard/access-control?tab=python) _(Note: You will find the instruction "How to create User account" for your new project)_<br>
   Ensure that the account has at least the following [IAM roles](https://cloud.google.com/iam/docs/understanding-roles):
 
