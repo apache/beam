@@ -3,7 +3,7 @@
   "reviewersAssignedForLabels": {
     "java": "robertwb"
   },
-  "nextAction": "Reviewers",
+  "nextAction": "Author",
   "stopReviewerNotifications": false,
   "remindAfterTestsPass": [],
   "committerAssigned": false
