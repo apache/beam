@@ -50,6 +50,9 @@ already have these environments set up, first complete the
 For running with portable DirectRunner, you need to have Docker installed
 locally and the Docker daemon should be running. This is not needed for Dataflow.
 
+For running on Dataflow, you need a Google Cloud project with billing enabled and a
+[Google Cloud Storage bucket](https://cloud.google.com/storage/docs/creating-buckets).
+
 This example relies on Python pandas package 1.4.0 or later which is unavailable
 for Python versions earlier than 3.8. Hence please make sure that the default Python
 version installed in your system is 3.8 or later.
@@ -70,7 +73,7 @@ transforms are identified by their fully qualified name. For example,
 package, so its fully qualified name is
 `apache_beam.dataframe.transforms.DataframeTransform`.
 The example pipeline,
-[PythonDataframeWordCount](https://github.com/apache/beam/blob/master/examples/multi-language/src/main/java/org/apache/beam/examples/multilanguage/PythonDataframeWordCount.java),
+[PythonDataframeWordCount](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/multilanguage/PythonDataframeWordCount.java),
 passes this fully qualified name to
 [PythonExternalTransform](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/extensions/python/PythonExternalTransform.html).
 
@@ -138,13 +141,43 @@ default Beam SDK, you might need to run your own expansion service. In such
 cases, [start the expansion service](#advanced-start-an-expansion-service)
 before running your pipeline.
 
-### Run with Dataflow runner at HEAD (Beam 2.41.0 and later)
+Before running the pipeline, make sure to perform the
+[runner specific setup](/get-started/quickstart-java/#run-a-pipeline) for your selected Beam runner.
 
-> **Note:** Due to [issue#23717](https://github.com/apache/beam/issues/23717),
-> Beam 2.42.0 requires manually starting up an expansion service (see
-> [these instructions](https://beam.apache.org/documentation/sdks/java-multi-language-pipelines/#advanced-start-an-expansion-service))
-> and using the additional pipeline option `--expansionService=localhost:<PORT>`
-> when executing the pipeline.
+### Run with Dataflow runner using a Maven Archetype (Beam 2.43.0 and later)
+
+* Check out the Beam examples Maven archetype for the relevant Beam version.
+
+```
+export BEAM_VERSION=<Beam version>
+
+mvn archetype:generate \
+    -DarchetypeGroupId=org.apache.beam \
+    -DarchetypeArtifactId=beam-sdks-java-maven-archetypes-examples \
+    -DarchetypeVersion=$BEAM_VERSION \
+    -DgroupId=org.example \
+    -DartifactId=multi-language-beam \
+    -Dversion="0.1" \
+    -Dpackage=org.apache.beam.examples \
+    -DinteractiveMode=false
+```
+
+* Run the pipeline.
+
+```
+export GCP_PROJECT=<GCP project>
+export GCP_BUCKET=<GCP bucket>
+export GCP_REGION=<GCP region>
+
+mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.multilanguage.PythonDataframeWordCount \
+    -Dexec.args="--runner=DataflowRunner --project=$GCP_PROJECT \
+                 --region=$GCP_REGION \
+                 --gcpTempLocation=gs://$GCP_BUCKET/multi-language-beam/tmp \
+                 --output=gs://$GCP_BUCKET/multi-language-beam/output" \
+    -Pdataflow-runner
+```
+
+### Run with Dataflow runner at HEAD
 
 The following script runs the example multi-language pipeline on Dataflow, using
 example text from a Cloud Storage bucket. You’ll need to adapt the script to
@@ -193,12 +226,6 @@ python -m apache_beam.runners.portability.local_job_service_main -p $JOB_SERVER_
 
 5. Run the pipeline.
 
-> **Note:** Due to [issue#23717](https://github.com/apache/beam/issues/23717),
-> Beam 2.42.0 requires manually starting up an expansion service (see
-> [these instructions](https://beam.apache.org/documentation/sdks/java-multi-language-pipelines/#advanced-start-an-expansion-service))
-> and using the additional pipeline option `--expansionService=localhost:<PORT>`
-> when executing the pipeline.
-
 ```
 export JOB_SERVER_PORT=<port>  # Same port as before
 export OUTPUT_FILE=<local relative path>
@@ -233,12 +260,12 @@ For example, to start the standard expansion service for a Python transform,
 follow these steps:
 
 1. Activate a new virtual environment following
-[these instructions](https://beam.apache.org/get-started/quickstart-py/#create-and-activate-a-virtual-environment).
+[these instructions](/get-started/quickstart-py/#create-and-activate-a-virtual-environment).
 
 2. Install Apache Beam with `gcp` and `dataframe` packages.
 
 ```
-pip install apache-beam[gcp,dataframe]
+pip install 'apache-beam[gcp,dataframe]'
 ```
 
 4. Run the following command
@@ -251,45 +278,6 @@ The command runs
 [expansion_service_main.py](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/runners/portability/expansion_service_main.py), which starts the standard expansion service. When you use
 Gradle to run your Java pipeline, you can specify the expansion service with the
 `expansionService` option. For example: `--expansionService=localhost:<PORT>`.
-
-### Run with Dataflow runner using a Beam release (Beam 2.43.0 and later)
-
-> **Note:** Due to [issue#23717](https://github.com/apache/beam/issues/23717),
-> Beam 2.42.0 requires manually starting up an expansion service (see
-> [these instructions](https://beam.apache.org/documentation/sdks/java-multi-language-pipelines/#advanced-start-an-expansion-service))
-> and using the additional pipeline option `--expansionService=localhost:<PORT>`
-> when executing the pipeline.
-
-* Check out the Beam examples Maven archetype for the relevant Beam version.
-
-```
-export BEAM_VERSION=<Beam version>
-
-mvn archetype:generate \
-    -DarchetypeGroupId=org.apache.beam \
-    -DarchetypeArtifactId=beam-sdks-java-maven-archetypes-examples \
-    -DarchetypeVersion=$BEAM_VERSION \
-    -DgroupId=org.example \
-    -DartifactId=multi-language-beam \
-    -Dversion="0.1" \
-    -Dpackage=org.apache.beam.examples \
-    -DinteractiveMode=false
-```
-
-* Run the pipeline.
-
-```
-export GCP_PROJECT=<GCP project>
-export GCP_BUCKET=<GCP bucket>
-export GCP_REGION=<GCP region>
-
-mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.multilanguage.PythonDataframeWordCount \
-    -Dexec.args="--runner=DataflowRunner --project=$GCP_PROJECT \
-                 --region=us-central1 \
-                 --gcpTempLocation=gs://$GCP_BUCKET/multi-language-beam/tmp \
-                 --output=gs://$GCP_BUCKET/multi-language-beam/output" \
-    -Pdataflow-runner
-```
 
 ## Next steps
 

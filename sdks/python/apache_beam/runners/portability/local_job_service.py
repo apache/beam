@@ -159,10 +159,10 @@ class LocalJobServicer(abstract_job_service.AbstractJobServiceServicer):
       raise LookupError("Job {} does not exist".format(request.job_id))
 
     result = self._jobs[request.job_id].result
-    monitoring_info_list = []
-    if result is not None:
-      for mi in result._monitoring_infos_by_stage.values():
-        monitoring_info_list.extend(mi)
+    if result is None:
+      monitoring_info_list = []
+    else:
+      monitoring_info_list = result.monitoring_infos()
 
     # Filter out system metrics
     user_monitoring_info_list = [
@@ -239,7 +239,7 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
     """
 
   def __init__(self,
-               job_id,  # type: str
+               job_id,   # type: str
                pipeline,
                options,
                provision_info,  # type: fn_runner.ExtendedProvisionInfo

@@ -15,4 +15,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-yes | sbt new spotify/scio-template.g8
+if [ -d /opt/sbt-template/scio ]; then
+  cp -r /opt/sbt-template/scio scio
+else
+  { printf scio\\nscio\\n; yes; } | sbt new spotify/scio-template.g8
+
+  echo "Compile / run / fork := false" >> scio/build.sbt
+  echo "updateOptions := updateOptions.value.withCachedResolution(true)" >> scio/build.sbt
+fi
+

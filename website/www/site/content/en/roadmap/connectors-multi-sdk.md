@@ -21,7 +21,7 @@ Connector-related efforts that will benefit multiple SDKs.
 Splittable DoFn is the next generation sources framework for Beam that will
 replace current frameworks for developing bounded and unbounded sources.
 Splittable DoFn is being developed along side current Beam portability
-efforts. See [Beam portability framework roadmap](https://beam.apache.org/roadmap/portability/) for more details.
+efforts. See [Beam portability framework roadmap](/roadmap/portability/) for more details.
 
 # Cross-language transforms
 
@@ -35,7 +35,7 @@ As an added benefit of Beam portability effort, we are able to utilize Beam tran
   + Go SDK, will be able to utilize connectors currently available for Java and Python SDKs.
 * Ease of developing and maintaining Beam transforms - in general, with cross-language transforms, Beam transform authors will be able to implement new Beam transforms using a
 language of choice and utilize these transforms from other languages reducing the maintenance and support overheads.
-* [Beam SQL](https://beam.apache.org/documentation/dsls/sql/overview/), that is currently only available to Java SDK, will become available to Python and Go SDKs.
+* [Beam SQL](/documentation/dsls/sql/overview/), that is currently only available to Java SDK, will become available to Python and Go SDKs.
 * [Beam TFX transforms](https://www.tensorflow.org/tfx/transform/get_started), that are currently only available to Beam Python SDK pipelines will become available to Java and Go SDKs.
 
 ## Completed and Ongoing Efforts

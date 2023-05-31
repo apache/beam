@@ -27,7 +27,7 @@ import (
 )
 
 // newMsg creates a json-encoded RawMessage. Panics if encoding fails.
-func newMsg(msg interface{}) googleapi.RawMessage {
+func newMsg(msg any) googleapi.RawMessage {
 	data, err := json.Marshal(msg)
 	if err != nil {
 		panic(err)
@@ -38,7 +38,7 @@ func newMsg(msg interface{}) googleapi.RawMessage {
 // pipelineOptions models Job/Environment/SdkPipelineOptions
 type pipelineOptions struct {
 	DisplayData []*displayData     `json:"display_data,omitempty"`
-	Options     interface{}        `json:"options,omitempty"`
+	Options     any                `json:"options,omitempty"`
 	GoOptions   runtime.RawOptions `json:"beam:option:go_options:v1,omitempty"`
 }
 
@@ -46,20 +46,22 @@ type pipelineOptions struct {
 // blobs. We manually add them here for convenient and safer use.
 
 // userAgent models Job/Environment/UserAgent. Example value:
-//    "userAgent": {
-//        "name": "Apache Beam SDK for Python",
-//        "version": "0.6.0.dev"
-//    },
+//
+//	"userAgent": {
+//	    "name": "Apache Beam SDK for Python",
+//	    "version": "0.6.0.dev"
+//	},
 type userAgent struct {
 	Name    string `json:"name,omitempty"`
 	Version string `json:"version,omitempty"`
 }
 
 // version models Job/Environment/Version. Example value:
-//    "version": {
-//       "job_type": "PYTHON_BATCH",
-//       "major": "5"
-//    },
+//
+//	"version": {
+//	   "job_type": "PYTHON_BATCH",
+//	   "major": "5"
+//	},
 type version struct {
 	JobType string `json:"job_type,omitempty"`
 	Major   string `json:"major,omitempty"`
@@ -159,15 +161,15 @@ func newOutputReference(step, output string) *outputReference {
 }
 
 type displayData struct {
-	Key        string      `json:"key,omitempty"`
-	Label      string      `json:"label,omitempty"`
-	Namespace  string      `json:"namespace,omitempty"`
-	ShortValue string      `json:"shortValue,omitempty"`
-	Type       string      `json:"type,omitempty"`
-	Value      interface{} `json:"value,omitempty"`
+	Key        string `json:"key,omitempty"`
+	Label      string `json:"label,omitempty"`
+	Namespace  string `json:"namespace,omitempty"`
+	ShortValue string `json:"shortValue,omitempty"`
+	Type       string `json:"type,omitempty"`
+	Value      any    `json:"value,omitempty"`
 }
 
-func findDisplayDataType(value interface{}) (string, interface{}) {
+func findDisplayDataType(value any) (string, any) {
 	switch value.(type) {
 	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
 		return "INTEGER", value
@@ -180,7 +182,7 @@ func findDisplayDataType(value interface{}) (string, interface{}) {
 	}
 }
 
-func newDisplayData(key, label, namespace string, value interface{}) *displayData {
+func newDisplayData(key, label, namespace string, value any) *displayData {
 	t, v := findDisplayDataType(value)
 
 	return &displayData{

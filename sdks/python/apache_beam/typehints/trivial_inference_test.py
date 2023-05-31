@@ -26,6 +26,7 @@ import apache_beam as beam
 from apache_beam.typehints import row_type
 from apache_beam.typehints import trivial_inference
 from apache_beam.typehints import typehints
+from apache_beam.utils import python_callable
 
 global_int = 1
 
@@ -457,6 +458,12 @@ class TrivialInferenceTest(unittest.TestCase):
         typehints.Tuple[int, str],
         lambda row: (row.x, getattr(row, 'y')),
         [row_type.RowTypeConstraint.from_fields([('x', int), ('y', str)])])
+
+  def testPyCallable(self):
+    self.assertReturnType(
+        typehints.Tuple[int, str],
+        python_callable.PythonCallableWithSource("lambda x: (x, str(x))"),
+        [int])
 
 
 if __name__ == '__main__':

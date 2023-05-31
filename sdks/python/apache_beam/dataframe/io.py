@@ -838,7 +838,7 @@ class _ReadGbq(beam.PTransform):
       method = 'EXPORT'
     return convert.to_dataframe(
         root
-        | beam.io.ReadFromBigQuery(
+        | '_DataFrame_Read_From_BigQuery' >> beam.io.ReadFromBigQuery(
             table=self.table,
             dataset=self.dataset_id,
             project=self.project_id,

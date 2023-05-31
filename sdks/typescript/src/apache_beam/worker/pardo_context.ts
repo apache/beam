@@ -182,7 +182,7 @@ export class ParamProviderImpl implements ParamProvider {
     switch (param.parDoParamName) {
       case "metric":
         this.metricsContainer
-          .getMetric(this.transformId, param as MetricSpec)
+          .getMetric(this.transformId, undefined, param as MetricSpec)
           .update(value);
         break;
 

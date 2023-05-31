@@ -28,6 +28,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import com.google.cloud.Timestamp;
 import java.math.BigDecimal;
 import java.util.function.Supplier;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasProgress;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
@@ -97,6 +98,29 @@ public class TimestampRangeTracker extends RestrictionTracker<TimestampRange, Ti
         "Trying to claim offset %s before start of the range %s",
         position,
         range);
+    lastAttemptedPosition = position;
+
+    // It is ok to try to claim offsets beyond of the range, this will simply return false
+    if (position.compareTo(range.getTo()) >= 0) {
+      return false;
+    }
+    lastClaimedPosition = position;
+    return true;
+  }
+
+  public boolean tryClaim(Timestamp position, PartitionMetadata partitionMetadata) {
+    checkArgument(
+        lastAttemptedPosition == null || position.compareTo(lastAttemptedPosition) > 0,
+        "Trying to claim offset %s while last attempted was %s. The partition metadata: %s",
+        position,
+        lastAttemptedPosition,
+        partitionMetadata.toString());
+    checkArgument(
+        position.compareTo(range.getFrom()) >= 0,
+        "Trying to claim offset %s before start of the range %s. The partition metadata: %s",
+        position,
+        range,
+        partitionMetadata.toString());
     lastAttemptedPosition = position;
 
     // It is ok to try to claim offsets beyond of the range, this will simply return false
@@ -224,12 +248,10 @@ public class TimestampRangeTracker extends RestrictionTracker<TimestampRange, Ti
     final BigDecimal workRemaining = end.subtract(current).max(BigDecimal.ONE);
 
     LOG.debug(
-        "Reported progress - current:"
-            + current.doubleValue()
-            + " end:"
-            + end.doubleValue()
-            + " workRemaining:"
-            + workRemaining.doubleValue());
+        "Reported progress current: {}, end: {}, workRemaining: {}",
+        current.doubleValue(),
+        end.doubleValue(),
+        workRemaining.doubleValue());
 
     return Progress.from(current.doubleValue(), workRemaining.doubleValue());
   }

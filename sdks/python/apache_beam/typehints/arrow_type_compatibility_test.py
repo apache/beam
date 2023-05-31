@@ -19,6 +19,7 @@
 
 import logging
 import unittest
+from typing import Any
 from typing import Optional
 
 import pyarrow as pa
@@ -190,6 +191,29 @@ class ArrowBatchConverterTest(unittest.TestCase):
 
   def test_hash(self):
     self.assertEqual(hash(self.create_batch_converter()), hash(self.converter))
+
+
+class ArrowBatchConverterErrorsTest(unittest.TestCase):
+  @parameterized.expand([
+    (
+      pa.RecordBatch,
+      row_type.RowTypeConstraint.from_fields([
+                    ("bar", Optional[float]),  # noqa: F821
+                    ("baz", Optional[str]),  # noqa: F821
+                    ]),
+      r'batch type must be pa\.Table or pa\.Array',
+    ),
+    (
+      pa.Table,
+      Any,
+      r'Element type must be compatible with Beam Schemas',
+    ),
+  ])
+  def test_construction_errors(
+      self, batch_typehint, element_typehint, error_regex):
+    with self.assertRaisesRegex(TypeError, error_regex):
+      BatchConverter.from_typehints(
+          element_type=element_typehint, batch_type=batch_typehint)
 
 
 if __name__ == '__main__':

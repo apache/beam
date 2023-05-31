@@ -28,7 +28,7 @@ Conversion includes, but is not limited to, casting and coercion:
 The table below summarizes all possible `CAST`s and coercions. "Coercion To" applies to all *expressions* of a given data type (e.g. a column).
 
 {{< table >}}
-<table>
+<table class="table-wrapper--equal-p">
 <thead>
 <tr>
 <th>From Type</th>
@@ -128,7 +128,7 @@ byte sequence is not valid UTF-8 results in a runtime error.
 When casting an expression `x` of the following types, these rules apply:
 
 {{< table >}}
-<table>
+<table class="table-wrapper--equal-p">
 <tr>
 <th>From</th>
 <th>To</th>

@@ -42,6 +42,8 @@ import org.slf4j.LoggerFactory;
  */
 class KafkaWriter<K, V> extends DoFn<ProducerRecord<K, V>, Void> {
 
+  protected transient @Nullable Callback callback;
+
   @Setup
   public void setup() {
     if (spec.getProducerFactoryFn() != null) {
@@ -49,6 +51,7 @@ class KafkaWriter<K, V> extends DoFn<ProducerRecord<K, V>, Void> {
     } else {
       producer = new KafkaProducer<>(producerConfig);
     }
+    callback = new SendCallback();
   }
 
   // Suppression since errors are tracked in SendCallback(), and checked in finishBundle()
@@ -82,7 +85,7 @@ class KafkaWriter<K, V> extends DoFn<ProducerRecord<K, V>, Void> {
                 record.key(),
                 record.value(),
                 record.headers()),
-            new SendCallback());
+            callback);
 
     elementsWritten.inc();
   }
@@ -158,9 +161,9 @@ class KafkaWriter<K, V> extends DoFn<ProducerRecord<K, V>, Void> {
           sendException = exception;
         }
         numSendFailures++;
+        // don't log exception stacktrace here, exception will be propagated up.
+        LOG.warn("send failed : '{}'", exception.getMessage());
       }
-      // don't log exception stacktrace here, exception will be propagated up.
-      LOG.warn("send failed : '{}'", exception.getMessage());
     }
   }
 }

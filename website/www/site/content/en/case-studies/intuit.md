@@ -176,6 +176,11 @@ Apache Beam and its abstraction of the execution engines allowed Intuit to seaml
 
 With Apache Beam, Intuit accelerated the development and launch of production-grade streaming data pipelines 3x,  from 3 months to just 1 month. The time to design pipelines for preproduction shrank to just 10 days. Migration from batch jobs to Apache Beam streaming pipelines resulted in a 5x memory and compute cost optimization. Intuit continues developing Apache Beam streaming pipelines for new use cases, 150 more pipelines are in preproduction and coming to production soon.
 
+## Learn More
+
+<iframe class="video video--medium-size" width="560" height="315" src="https://www.youtube.com/embed/H4s7rAlk68w" frameborder="0" allowfullscreen></iframe>
+<br><br>
+
 {{< case_study_feedback "Intuit" >}}
 
 </div>

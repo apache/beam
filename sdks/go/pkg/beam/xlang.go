@@ -26,7 +26,8 @@ import (
 // beam.CrossLanguage.
 //
 // Example:
-//    beam.CrossLanguage(s, urn, payload, addr, UnnamedInput(input), outputs)
+//
+//	beam.CrossLanguage(s, urn, payload, addr, UnnamedInput(input), outputs)
 func UnnamedInput(col PCollection) map[string]PCollection {
 	return map[string]PCollection{graph.UnnamedInputTag: col}
 }
@@ -35,8 +36,9 @@ func UnnamedInput(col PCollection) map[string]PCollection {
 // beam.CrossLanguage. The associated output can be accessed with beam.UnnamedOutputTag.
 //
 // Example:
-//    resultMap := beam.CrossLanguage(s, urn, payload, addr, inputs, UnnamedOutput(output));
-//    result := resultMap[beam.UnnamedOutputTag()]
+//
+//	resultMap := beam.CrossLanguage(s, urn, payload, addr, inputs, UnnamedOutput(output));
+//	result := resultMap[beam.UnnamedOutputTag()]
 func UnnamedOutput(t FullType) map[string]FullType {
 	return map[string]FullType{graph.UnnamedOutputTag: t}
 }
@@ -56,11 +58,12 @@ func UnnamedOutputTag() string {
 // schemas, and pkg/beam/core/runtime/graphx/schema for details on schemas in the Go SDK.
 //
 // Example:
-//    type stringPayload struct {
-//        Data string
-//    }
-//    encodedPl := beam.CrossLanguagePayload(stringPayload{Data: "foo"})
-func CrossLanguagePayload(pl interface{}) []byte {
+//
+//	type stringPayload struct {
+//	    Data string
+//	}
+//	encodedPl := beam.CrossLanguagePayload(stringPayload{Data: "foo"})
+func CrossLanguagePayload(pl any) []byte {
 	bytes, err := xlangx.EncodeStructPayload(pl)
 	if err != nil {
 		panic(err)
@@ -81,7 +84,7 @@ func CrossLanguagePayload(pl interface{}) []byte {
 // For more information on expansion services and other aspects of cross-language transforms in
 // general, refer to the Beam programming guide: https://beam.apache.org/documentation/programming-guide/#multi-language-pipelines
 //
-// Payload
+// # Payload
 //
 // Payloads are configuration data that some cross-language transforms require for expansion.
 // Consult the documentation of the transform in the source SDK to find out what payload data it
@@ -91,7 +94,7 @@ func CrossLanguagePayload(pl interface{}) []byte {
 // protobuf. The helper function beam.CrossLanguagePayload is the recommended way to easily encode
 // a standard Go struct for use as a payload.
 //
-// Inputs and Outputs
+// # Inputs and Outputs
 //
 // Like most transforms, any input PCollections must be provided. Unlike most transforms, output
 // types must be provided because Go cannot infer output types from external transforms.
@@ -103,11 +106,11 @@ func CrossLanguagePayload(pl interface{}) []byte {
 //
 // An example of defining named inputs and outputs:
 //
-//    namedInputs := map[string]beam.PCollection{"pcol1": pcol1, "pcol2": pcol2}
-//    namedOutputTypes := map[string]typex.FullType{
-//        "main": typex.New(reflectx.String),
-//        "side": typex.New(reflectx.Int64),
-//    }
+//	namedInputs := map[string]beam.PCollection{"pcol1": pcol1, "pcol2": pcol2}
+//	namedOutputTypes := map[string]typex.FullType{
+//	    "main": typex.New(reflectx.String),
+//	    "side": typex.New(reflectx.Int64),
+//	}
 //
 // CrossLanguage outputs a map of PCollections with associated names. These names will match those
 // from provided named outputs. If the beam.UnnamedOutput method was used, the PCollection can be
@@ -115,28 +118,28 @@ func CrossLanguagePayload(pl interface{}) []byte {
 //
 // An example of retrieving named outputs from a call to CrossLanguage:
 //
-//    outputs := beam.CrossLanguage(...)
-//    mainPcol := outputs["main"]
-//    sidePcol := outputs["side"]
+//	outputs := beam.CrossLanguage(...)
+//	mainPcol := outputs["main"]
+//	sidePcol := outputs["side"]
 //
-// Example
+// # Example
 //
 // This example shows using CrossLanguage to execute the Prefix cross-language transform using an
 // expansion service running on localhost:8099. Prefix requires a payload containing a prefix to
 // prepend to every input string.
 //
-//    type prefixPayload struct {
-//        Data string
-//    }
-//    encodedPl := beam.CrossLanguagePayload(prefixPayload{Data: "foo"})
-//    urn := "beam:transforms:xlang:test:prefix"
-//    expansionAddr := "localhost:8099"
-//    outputType := beam.UnnamedOutput(typex.New(reflectx.String))
-//    input := beam.UnnamedInput(inputPcol)
-//    outs := beam.CrossLanguage(s, urn, encodedPl, expansionAddr, input, outputType)
-//    outPcol := outputs[beam.UnnamedOutputTag()]
+//	type prefixPayload struct {
+//	    Data string
+//	}
+//	encodedPl := beam.CrossLanguagePayload(prefixPayload{Data: "foo"})
+//	urn := "beam:transforms:xlang:test:prefix"
+//	expansionAddr := "localhost:8099"
+//	outputType := beam.UnnamedOutput(typex.New(reflectx.String))
+//	input := beam.UnnamedInput(inputPcol)
+//	outs := beam.CrossLanguage(s, urn, encodedPl, expansionAddr, input, outputType)
+//	outPcol := outputs[beam.UnnamedOutputTag()]
 //
-// Alternative Expansion Handlers
+// # Alternative Expansion Handlers
 //
 // The xlangx.RegisterHandler function can be used to register alternative expansion
 // handlers to a namespace, for use with this function. This allows for custom handling

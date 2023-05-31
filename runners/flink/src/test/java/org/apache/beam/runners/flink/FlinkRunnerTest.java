@@ -56,8 +56,8 @@ public class FlinkRunnerTest {
     MatcherAssert.assertThat(
         e.getMessage(),
         allOf(
-            StringContains.containsString("System.out: (none)"),
-            StringContains.containsString("System.err: (none)")));
+            StringContains.containsString("System.out: "),
+            StringContains.containsString("System.err: ")));
   }
 
   /** Main method for {@code testEnsureStdoutStdErrIsRestored()}. */

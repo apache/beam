@@ -58,7 +58,7 @@ import org.joda.time.Instant;
  * grouping and expansion.
  *
  * <p>This implementation relies on implementation details of the Dataflow runner, specifically
- * standard fusion behavior of {@link ParDo} tranforms following a {@link GroupByKey}.
+ * standard fusion behavior of {@link ParDo} transforms following a {@link GroupByKey}.
  */
 public class BatchStatefulParDoOverrides {
 

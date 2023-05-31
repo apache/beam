@@ -42,6 +42,7 @@ class OutputPlacements extends StatelessWidget {
                         '${AppLocalizations.of(context)!.outputPlacementSemantic}'
                         ' ${placement.name(context)}',
                     child: IconButton(
+                      key: ValueKey(placement),
                       splashRadius: kIconButtonSplashRadius,
                       icon: SvgPicture.asset(
                         placement.icon,

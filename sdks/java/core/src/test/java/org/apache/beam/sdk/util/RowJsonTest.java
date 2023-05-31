@@ -32,7 +32,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
-import org.apache.beam.sdk.schemas.logicaltypes.PassThroughLogicalType;
+import org.apache.beam.sdk.schemas.logicaltypes.VariableString;
 import org.apache.beam.sdk.util.RowJson.RowJsonDeserializer;
 import org.apache.beam.sdk.util.RowJson.RowJsonDeserializer.NullBehavior;
 import org.apache.beam.sdk.util.RowJson.RowJsonSerializer;
@@ -133,12 +133,10 @@ public class RowJsonTest {
     private static Object[] makeLogicalTypeTestCase() {
       Schema schema =
           Schema.builder()
-              .addLogicalTypeField(
-                  "f_passThroughString",
-                  new PassThroughLogicalType<String>(
-                      "SqlCharType", FieldType.STRING, "", FieldType.STRING) {})
+              .addLogicalTypeField("f_passThroughString", VariableString.of(10))
               .build();
 
+      // fixed string will do padding
       String rowString = "{\n" + "\"f_passThroughString\" : \"hello\"\n" + "}";
 
       Row expectedRow = Row.withSchema(schema).addValues("hello").build();

@@ -1,0 +1,79 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# This workflow will take the release notes from 
+# /website/www/site/content/en/blog/beam-${RELEASE_VERSION}.md" 
+# and updated in beam repo. 
+
+name: Publish Github Release Notes
+
+on:
+  workflow_dispatch:
+    inputs:
+      RELEASE_VERSION:
+        description: Release Version to update notes into beam repo 
+        required: true
+permissions: read-all
+
+jobs:
+  set-properties:
+    runs-on: ubuntu-latest
+    outputs:
+      properties: ${{ steps.test-properties.outputs.properties }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3        
+      - id: test-properties
+        uses: ./.github/actions/setup-default-test-properties
+
+  publish_github_release_notes:
+    runs-on: ubuntu-latest
+    needs: set-properties
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      RELEASE_VERSION: ${{ github.event.inputs.RELEASE_VERSION}}
+    name: Publish Github Release Notes
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Publish github release notes
+        run: |
+          POST_PATH="website/www/site/content/en/blog/beam-${{env.RELEASE_VERSION}}.md"
+          RELEASE_NOTES=$(
+          cat ${POST_PATH} |                               # Read post's content
+          sed -n '/<!--/,$p' |                             # Remove post's metadata
+          sed -e :a -Ee 's/<!--.*-->.*//g;/<!--/N;//ba' |  # Remove license
+          sed '/./,$!d' |                                  # Remove leading whitespace
+          sed 's=](/=](https://beam.apache.org/=g'         # Replace relative website path with absolute
+          )
+          ESCAPED_NOTES=$(printf '%s' "${RELEASE_NOTES}" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')
+          REQUEST_JSON="$(cat <<-EOF
+          {
+            "tag_name": "v${RELEASE_VERSION}",
+            "name": "Beam ${RELEASE_VERSION} release",
+            "body": ${ESCAPED_NOTES},
+            "generate_release_notes": true
+          }
+          EOF
+          )"
+          echo -e "Below is the request JSON about to be sent to the Github API:\n\n ${REQUEST_JSON}\n\n"
+          curl https://api.github.com/repos/apache/beam/releases \
+          -X POST \
+          -H "Authorization: token ${{env.GITHUB_TOKEN}}" \
+          -H "Content-Type:application/json" \
+          -d "${REQUEST_JSON}"
+          echo -e "\n\nView the release on Github: https://github.com/apache/beam/releases/tag/v${RELEASE_VERSION}"

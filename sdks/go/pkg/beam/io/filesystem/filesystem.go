@@ -28,18 +28,20 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
 var registry = make(map[string]func(context.Context) Interface)
 
-// wellKnownSchemeImportPaths is used for deliverng useful error messages when a
+// wellKnownSchemeImportPaths is used for delivering useful error messages when a
 // scheme is not found.
 var wellKnownSchemeImportPaths = map[string]string{
 	"memfs":   "github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/memfs",
 	"default": "github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/local",
 	"gs":      "github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/gcs",
+	"s3":      "github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/s3",
 }
 
 // Register registers a file system backend under the given scheme.  For
@@ -76,6 +78,7 @@ type Interface interface {
 	io.Closer
 
 	// List expands a pattern to a list of filenames.
+	// Returns nil if there are no matching files.
 	List(ctx context.Context, glob string) ([]string, error)
 
 	// OpenRead opens a file for reading.
@@ -88,7 +91,13 @@ type Interface interface {
 }
 
 // The following interfaces are optional for the filesystems, but
-// to support
+// to support more efficient or composite operations when possible.
+
+// LastModifiedGetter is an interface for getting the last modified time
+// of a file.
+type LastModifiedGetter interface {
+	LastModified(ctx context.Context, filename string) (time.Time, error)
+}
 
 // Remover is an interface for removing files from the filesystem.
 // To be considered for promotion to Interface.

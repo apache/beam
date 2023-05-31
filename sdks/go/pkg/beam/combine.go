@@ -24,21 +24,21 @@ import (
 // Combine inserts a global Combine transform into the pipeline. It
 // expects a PCollection<T> as input where T is a concrete type.
 // Combine supports TypeDefinition options for binding generic types in combinefn.
-func Combine(s Scope, combinefn interface{}, col PCollection, opts ...Option) PCollection {
+func Combine(s Scope, combinefn any, col PCollection, opts ...Option) PCollection {
 	return Must(TryCombine(s, combinefn, col, opts...))
 }
 
 // CombinePerKey inserts a GBK and per-key Combine transform into the pipeline. It
 // expects a PCollection<KV<K,T>>. The CombineFn may optionally take a key parameter.
 // CombinePerKey supports TypeDefinition options for binding generic types in combinefn.
-func CombinePerKey(s Scope, combinefn interface{}, col PCollection, opts ...Option) PCollection {
+func CombinePerKey(s Scope, combinefn any, col PCollection, opts ...Option) PCollection {
 	return Must(TryCombinePerKey(s, combinefn, col, opts...))
 }
 
 // TryCombine attempts to insert a global Combine transform into the pipeline. It may fail
 // for multiple reasons, notably that the combinefn is not valid or cannot be bound
 // -- due to type mismatch, say -- to the incoming PCollections.
-func TryCombine(s Scope, combinefn interface{}, col PCollection, opts ...Option) (PCollection, error) {
+func TryCombine(s Scope, combinefn any, col PCollection, opts ...Option) (PCollection, error) {
 	pre := AddFixedKey(s, col)
 	post, err := TryCombinePerKey(s, combinefn, pre, opts...)
 	if err != nil {
@@ -54,7 +54,7 @@ func addCombinePerKeyCtx(err error, s Scope) error {
 // TryCombinePerKey attempts to insert a per-key Combine transform into the pipeline. It may fail
 // for multiple reasons, notably that the combinefn is not valid or cannot be bound
 // -- due to type mismatch, say -- to the incoming PCollection.
-func TryCombinePerKey(s Scope, combinefn interface{}, col PCollection, opts ...Option) (PCollection, error) {
+func TryCombinePerKey(s Scope, combinefn any, col PCollection, opts ...Option) (PCollection, error) {
 	s = s.Scope(graph.CombinePerKeyScope)
 	ValidateKVType(col)
 	side, typedefs, err := validate(s, col, opts)

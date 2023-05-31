@@ -32,7 +32,9 @@ import apache_beam as beam
 from apache_beam import Pipeline
 from apache_beam.coders import RowCoder
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.portability.api import beam_expansion_api_pb2
 from apache_beam.portability.api import external_transforms_pb2
+from apache_beam.portability.api import schema_pb2
 from apache_beam.runners import pipeline_context
 from apache_beam.runners.portability import expansion_service
 from apache_beam.runners.portability.expansion_service_test import FibTransform
@@ -44,6 +46,7 @@ from apache_beam.transforms.external import JavaClassLookupPayloadBuilder
 from apache_beam.transforms.external import JavaExternalTransform
 from apache_beam.transforms.external import JavaJarExpansionService
 from apache_beam.transforms.external import NamedTupleBasedPayloadBuilder
+from apache_beam.transforms.external import SchemaTransformPayloadBuilder
 from apache_beam.typehints import typehints
 from apache_beam.typehints.native_type_compatibility import convert_to_beam_type
 from apache_beam.utils import proto_utils
@@ -443,6 +446,98 @@ class ExternalDataclassesPayloadTest(PayloadBase, unittest.TestCase):
       expansion_service: dataclasses.InitVar[typehints.Optional[str]] = None
 
     return get_payload(DataclassTransform(**values))
+
+
+class SchemaTransformPayloadBuilderTest(unittest.TestCase):
+  def test_build_payload(self):
+    ComplexType = typing.NamedTuple(
+        "ComplexType", [
+            ("str_sub_field", str),
+            ("int_sub_field", int),
+        ])
+
+    payload_builder = SchemaTransformPayloadBuilder(
+        identifier='dummy_id',
+        str_field='aaa',
+        int_field=123,
+        object_field=ComplexType(str_sub_field="bbb", int_sub_field=456))
+    payload_bytes = payload_builder.payload()
+    payload_from_bytes = proto_utils.parse_Bytes(
+        payload_bytes, external_transforms_pb2.SchemaTransformPayload)
+
+    self.assertEqual('dummy_id', payload_from_bytes.identifier)
+
+    expected_coder = RowCoder(payload_from_bytes.configuration_schema)
+    schema_transform_config = expected_coder.decode(
+        payload_from_bytes.configuration_row)
+
+    self.assertEqual('aaa', schema_transform_config.str_field)
+    self.assertEqual(123, schema_transform_config.int_field)
+    self.assertEqual('bbb', schema_transform_config.object_field.str_sub_field)
+    self.assertEqual(456, schema_transform_config.object_field.int_sub_field)
+
+
+class SchemaAwareExternalTransformTest(unittest.TestCase):
+  class MockDiscoveryService:
+    # define context manager enter and exit functions
+    def __enter__(self):
+      return self
+
+    def __exit__(self, unusued1, unused2, unused3):
+      pass
+
+    def DiscoverSchemaTransform(self, unused_request=None):
+      test_config = beam_expansion_api_pb2.SchemaTransformConfig(
+          config_schema=schema_pb2.Schema(
+              fields=[
+                  schema_pb2.Field(
+                      name="str_field",
+                      type=schema_pb2.FieldType(atomic_type="STRING")),
+                  schema_pb2.Field(
+                      name="int_field",
+                      type=schema_pb2.FieldType(atomic_type="INT64"))
+              ],
+              id="test-id"),
+          input_pcollection_names=["input"],
+          output_pcollection_names=["output"])
+      return beam_expansion_api_pb2.DiscoverSchemaTransformResponse(
+          schema_transform_configs={"test_schematransform": test_config})
+
+  @mock.patch("apache_beam.transforms.external.ExternalTransform.service")
+  def test_discover_one_config(self, mock_service):
+    _mock = self.MockDiscoveryService()
+    mock_service.return_value = _mock
+    config = beam.SchemaAwareExternalTransform.discover_config(
+        "test_service", name="test_schematransform")
+    self.assertEqual(config.outputs[0], "output")
+    self.assertEqual(config.inputs[0], "input")
+    self.assertEqual(config.identifier, "test_schematransform")
+
+  @mock.patch("apache_beam.transforms.external.ExternalTransform.service")
+  def test_discover_one_config_fails_with_no_configs_found(self, mock_service):
+    mock_service.return_value = self.MockDiscoveryService()
+    with self.assertRaises(ValueError):
+      beam.SchemaAwareExternalTransform.discover_config(
+          "test_service", name="non_existent")
+
+  @mock.patch("apache_beam.transforms.external.ExternalTransform.service")
+  def test_rearrange_kwargs_based_on_discovery(self, mock_service):
+    mock_service.return_value = self.MockDiscoveryService()
+
+    identifier = "test_schematransform"
+    expansion_service = "test_service"
+    kwargs = {"int_field": 0, "str_field": "str"}
+
+    transform = beam.SchemaAwareExternalTransform(
+        identifier=identifier, expansion_service=expansion_service, **kwargs)
+    ordered_kwargs = transform._rearrange_kwargs(identifier)
+
+    schematransform_config = beam.SchemaAwareExternalTransform.discover_config(
+        expansion_service, identifier)
+    external_config_fields = schematransform_config.configuration_schema._fields
+
+    self.assertNotEqual(tuple(kwargs.keys()), external_config_fields)
+    self.assertEqual(tuple(ordered_kwargs.keys()), external_config_fields)
 
 
 class JavaClassLookupPayloadBuilderTest(unittest.TestCase):

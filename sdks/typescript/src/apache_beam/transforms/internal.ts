@@ -93,6 +93,20 @@ export function withCoderInternal<T>(
   );
 }
 
+/**
+ * Returns a PTransform returning a PCollection with the same contents as the
+ * input PCollection, but with the given Row (aka Schema'd) Coder, based on
+ * an "example" element. E.g.
+ *
+ *```js
+ * const unknown_schema_pcoll = ...
+ * const schema_pcoll = unknown_schema_pcoll.apply(
+ *     withRowCoder({int_field: 0, str_field: ""}));
+ *```
+ *
+ * This is particularly useful for declaring the type of the PCollection to
+ * invoke cross-language transforms.
+ */
 export function withRowCoder<T extends Object>(
   exemplar: T
 ): PTransform<PCollection<T>, PCollection<T>> {

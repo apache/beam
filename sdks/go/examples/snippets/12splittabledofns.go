@@ -28,7 +28,7 @@ type SomeService struct {
 	ThrottlingErr error
 }
 
-func (s *SomeService) readNextRecords(position interface{}) ([]Record, error) {
+func (s *SomeService) readNextRecords(position any) ([]Record, error) {
 	return []Record{}, nil
 }
 

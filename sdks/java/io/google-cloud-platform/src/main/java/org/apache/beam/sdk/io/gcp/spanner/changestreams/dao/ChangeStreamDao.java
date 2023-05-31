@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.spanner.changestreams.dao;
 
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.DatabaseClient;
+import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.Options;
 import com.google.cloud.spanner.Options.RpcPriority;
 import com.google.cloud.spanner.ResultSet;
@@ -35,6 +36,7 @@ public class ChangeStreamDao {
   private final DatabaseClient databaseClient;
   private final RpcPriority rpcPriority;
   private final String jobName;
+  private final Dialect dialect;
 
   /**
    * Constructs a change stream dao. All the queries performed by this class will be for the given
@@ -50,11 +52,13 @@ public class ChangeStreamDao {
       String changeStreamName,
       DatabaseClient databaseClient,
       RpcPriority rpcPriority,
-      String jobName) {
+      String jobName,
+      Dialect dialect) {
     this.changeStreamName = changeStreamName;
     this.databaseClient = databaseClient;
     this.rpcPriority = rpcPriority;
     this.jobName = jobName;
+    this.dialect = dialect;
   }
 
   /**
@@ -84,33 +88,54 @@ public class ChangeStreamDao {
     final String partitionTokenOrNull =
         InitialPartition.isInitialPartition(partitionToken) ? null : partitionToken;
 
-    final String query =
-        "SELECT * FROM READ_"
-            + changeStreamName
-            + "("
-            + "   start_timestamp => @startTimestamp,"
-            + "   end_timestamp => @endTimestamp,"
-            + "   partition_token => @partitionToken,"
-            + "   read_options => null,"
-            + "   heartbeat_milliseconds => @heartbeatMillis"
-            + ")";
+    String query = "";
+    Statement statement;
+    if (this.isPostgres()) {
+      query =
+          "SELECT * FROM \"spanner\".\"read_json_" + changeStreamName + "\"($1, $2, $3, $4, null)";
+      statement =
+          Statement.newBuilder(query)
+              .bind("p1")
+              .to(startTimestamp)
+              .bind("p2")
+              .to(endTimestamp)
+              .bind("p3")
+              .to(partitionTokenOrNull)
+              .bind("p4")
+              .to(heartbeatMillis)
+              .build();
+    } else {
+      query =
+          "SELECT * FROM READ_"
+              + changeStreamName
+              + "("
+              + "   start_timestamp => @startTimestamp,"
+              + "   end_timestamp => @endTimestamp,"
+              + "   partition_token => @partitionToken,"
+              + "   read_options => null,"
+              + "   heartbeat_milliseconds => @heartbeatMillis"
+              + ")";
+      statement =
+          Statement.newBuilder(query)
+              .bind("startTimestamp")
+              .to(startTimestamp)
+              .bind("endTimestamp")
+              .to(endTimestamp)
+              .bind("partitionToken")
+              .to(partitionTokenOrNull)
+              .bind("heartbeatMillis")
+              .to(heartbeatMillis)
+              .build();
+    }
     final ResultSet resultSet =
         databaseClient
             .singleUse()
-            .executeQuery(
-                Statement.newBuilder(query)
-                    .bind("startTimestamp")
-                    .to(startTimestamp)
-                    .bind("endTimestamp")
-                    .to(endTimestamp)
-                    .bind("partitionToken")
-                    .to(partitionTokenOrNull)
-                    .bind("heartbeatMillis")
-                    .to(heartbeatMillis)
-                    .build(),
-                Options.priority(rpcPriority),
-                Options.tag("job=" + jobName));
+            .executeQuery(statement, Options.priority(rpcPriority), Options.tag("job=" + jobName));
 
     return new ChangeStreamResultSet(resultSet);
+  }
+
+  private boolean isPostgres() {
+    return this.dialect == Dialect.POSTGRESQL;
   }
 }

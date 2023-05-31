@@ -183,7 +183,7 @@ Where parameters can be:
 ## Pipeline options
 Use Beam’s [Pipeline options](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/options/PipelineOptions.html) to set options via the command line.
 ### Snowflake Pipeline options
-Snowflake IO library supports following options that can be passed via the [command line](https://beam.apache.org/documentation/io/built-in/snowflake/#running-main-command-with-pipeline-options) by default when a Pipeline uses them:
+Snowflake IO library supports following options that can be passed via the [command line](/documentation/io/built-in/snowflake/#running-main-command-with-pipeline-options) by default when a Pipeline uses them:
 
 `--url` Snowflake's JDBC-like url including account name and region without any parameters.
 
@@ -318,7 +318,7 @@ Where all parameters are starting with “--”, they are surrounded with double
   - Name of storage integration created in [Snowflake](https://docs.snowflake.com/en/sql-reference/sql/create-storage-integration.html) for a cloud storage of choice.
   - Example: `--storageIntegrationName=my_google_integration`
 ## Running pipelines on Dataflow
-By default, pipelines are run on [Direct Runner](https://beam.apache.org/documentation/runners/direct/) on your local machine. To run a pipeline on [Google Dataflow](https://cloud.google.com/dataflow/), you must provide the following Pipeline options:
+By default, pipelines are run on [Direct Runner](/documentation/runners/direct/) on your local machine. To run a pipeline on [Google Dataflow](https://cloud.google.com/dataflow/), you must provide the following Pipeline options:
 
 - `--runner=DataflowRunner`
   - The Dataflow’s specific runner.
@@ -515,7 +515,7 @@ AS COPY INTO stream_table from @streamstage;
 
 **Note**: this is important to provide **schema** and **database** names.
 - `.withUserDataMapper()`
-  - Accepts the [UserDataMapper](https://beam.apache.org/documentation/io/built-in/snowflake/#userdatamapper-function) function that will map a user's PCollection to an array of String values `(String[]).`
+  - Accepts the [UserDataMapper](/documentation/io/built-in/snowflake/#userdatamapper-function) function that will map a user's PCollection to an array of String values `(String[]).`
 
 **Note**:
 
@@ -702,7 +702,7 @@ Then:
 {{< /highlight >}}
 
 - `.withCsvMapper(mapper)`
-  - Accepts a [CSVMapper](https://beam.apache.org/documentation/io/built-in/snowflake/#csvmapper) instance for mapping String[] to USER_DATA_TYPE.
+  - Accepts a [CSVMapper](/documentation/io/built-in/snowflake/#csvmapper) instance for mapping String[] to USER_DATA_TYPE.
 - `.withCoder(coder)`
   - Accepts the [Coder](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/coders/Coder.html) for USER_DATA_TYPE.
 
@@ -729,7 +729,7 @@ static SnowflakeIO.CsvMapper<GenericRecord> getCsvMapper() {
 {{< /highlight >}}
 ## Using SnowflakeIO with AWS S3
 To be able to use AWS S3 bucket as `stagingBucketName` is required to:
-1. Create `PipelineOptions` interface which is [extending](https://beam.apache.org/documentation/io/built-in/snowflake/#extending-pipeline-options) `SnowflakePipelineOptions` and [S3Options](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws2/options/S3Options.html)
+1. Create `PipelineOptions` interface which is [extending](/documentation/io/built-in/snowflake/#extending-pipeline-options) `SnowflakePipelineOptions` and [S3Options](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws2/options/S3Options.html)
 with `AwsAccessKey` and `AwsSecretKey` options. Example:
 
 {{< highlight >}}
@@ -768,11 +768,11 @@ Pipeline p = Pipeline.create(options);
 ## Using SnowflakeIO in Python SDK
 ### Intro
 Snowflake cross-language implementation is supporting both reading and writing operations for Python programming language, thanks to
-cross-language which is part of [Portability Framework Roadmap](https://beam.apache.org/roadmap/portability/) which aims to provide full interoperability
+cross-language which is part of [Portability Framework Roadmap](/roadmap/portability/) which aims to provide full interoperability
 across the Beam ecosystem. From a developer perspective it means the possibility of combining transforms written in different languages(Java/Python/Go).
 
-For more information about cross-language please see [multi sdk efforts](https://beam.apache.org/roadmap/connectors-multi-sdk/)
-and [Cross-language transforms API and expansion service](https://beam.apache.org/roadmap/connectors-multi-sdk/#cross-language-transforms-api-and-expansion-service) articles.
+For more information about cross-language please see [multi sdk efforts](/roadmap/connectors-multi-sdk/)
+and [Cross-language transforms API and expansion service](/roadmap/connectors-multi-sdk/#cross-language-transforms-api-and-expansion-service) articles.
 
 Additional resources:
 

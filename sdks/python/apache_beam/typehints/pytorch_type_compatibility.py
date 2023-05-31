@@ -37,29 +37,31 @@ class PytorchBatchConverter(BatchConverter):
     self.partition_dimension = partition_dimension
 
   @staticmethod
-  @BatchConverter.register
+  @BatchConverter.register(name="pytorch")
   def from_typehints(element_type,
                      batch_type) -> Optional['PytorchBatchConverter']:
     if not isinstance(element_type, PytorchTypeHint.PytorchTypeConstraint):
-      try:
-        element_type = PytorchTensor[element_type, ()]
-      except TypeError:
-        # TODO: Is there a better way to detect if element_type is a dtype?
-        return None
+      element_type = PytorchTensor[element_type, ()]
 
     if not isinstance(batch_type, PytorchTypeHint.PytorchTypeConstraint):
       if not batch_type == torch.Tensor:
-        # TODO: Include explanation for mismatch?
-        return None
+        raise TypeError(
+            "batch type must be torch.Tensor or "
+            "beam.typehints.pytorch_type_compatibility.PytorchTensor[..]")
       batch_type = PytorchTensor[element_type.dtype, (N, )]
 
     if not batch_type.dtype == element_type.dtype:
-      return None
-    batch_shape = list(batch_type.shape)
-    partition_dimension = batch_shape.index(N)
-    batch_shape.pop(partition_dimension)
-    if not tuple(batch_shape) == element_type.shape:
-      return None
+      raise TypeError(
+          "batch type and element type must have equivalent dtypes "
+          f"(batch={batch_type.dtype}, element={element_type.dtype})")
+    computed_element_shape = list(batch_type.shape)
+    partition_dimension = computed_element_shape.index(N)
+    computed_element_shape.pop(partition_dimension)
+    if not tuple(computed_element_shape) == element_type.shape:
+      raise TypeError(
+          "Could not align batch type's batch dimension with element type. "
+          f"(batch type dimensions: {batch_type.shape}, element type "
+          f"dimenstions: {element_type.shape}")
 
     return PytorchBatchConverter(
         batch_type,

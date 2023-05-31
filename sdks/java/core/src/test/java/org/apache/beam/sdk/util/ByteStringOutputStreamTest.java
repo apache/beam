@@ -22,7 +22,7 @@ import static org.junit.Assert.assertThrows;
 
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
-import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.UnsafeByteOperations;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.UnsafeByteOperations;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -69,6 +69,57 @@ public class ByteStringOutputStreamTest {
       }
       assertEquals(UnsafeByteOperations.unsafeWrap(testBuffer), out.toByteString());
       assertEquals(UnsafeByteOperations.unsafeWrap(testBuffer), out.toByteStringAndReset());
+    }
+  }
+
+  @Test
+  public void testWriteBytesConsumePrefix() throws Exception {
+    ByteStringOutputStream out = new ByteStringOutputStream();
+    assertEquals(0, out.size());
+    for (int numElements = 140; numElements < 1024 * 1024; numElements = next(numElements)) {
+      ByteArrayOutputStream baos = new ByteArrayOutputStream();
+      DataOutputStream dataOut = new DataOutputStream(baos);
+      try {
+        for (int i = 0; i < numElements; ++i) {
+          dataOut.writeInt(i);
+        }
+        dataOut.close();
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+      dataOut.close();
+      byte[] testBuffer = baos.toByteArray();
+
+      for (int pos = 0; pos < testBuffer.length; ) {
+        if (testBuffer[pos] == 0) {
+          out.write(testBuffer[pos]);
+          pos += 1;
+        } else {
+          int len = Math.min(testBuffer.length - pos, Math.abs(testBuffer[pos]));
+          out.write(testBuffer, pos, len);
+          pos += len;
+        }
+        assertEquals(pos, out.size());
+      }
+
+      assertEquals(UnsafeByteOperations.unsafeWrap(testBuffer), out.toByteString());
+      assertEquals(
+          UnsafeByteOperations.unsafeWrap(testBuffer, 0, 2), out.consumePrefixToByteString(2));
+      assertEquals(testBuffer.length - 2, out.size());
+      assertEquals(
+          UnsafeByteOperations.unsafeWrap(testBuffer, 2, 100), out.consumePrefixToByteString(100));
+      assertEquals(testBuffer.length - 102, out.size());
+      assertEquals(
+          UnsafeByteOperations.unsafeWrap(testBuffer, 102, 0), out.consumePrefixToByteString(0));
+      assertEquals(testBuffer.length - 102, out.size());
+      assertEquals(
+          UnsafeByteOperations.unsafeWrap(testBuffer, 102, testBuffer.length - 112),
+          out.consumePrefixToByteString(out.size() - 10));
+      assertEquals(10, out.size());
+      assertEquals(
+          UnsafeByteOperations.unsafeWrap(testBuffer, testBuffer.length - 10, 10),
+          out.consumePrefixToByteString(10));
+      assertEquals(0, out.size());
     }
   }
 

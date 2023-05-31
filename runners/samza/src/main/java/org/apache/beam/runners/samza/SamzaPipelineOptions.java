@@ -111,6 +111,12 @@ public interface SamzaPipelineOptions extends PipelineOptions {
 
   void setEnableMetrics(Boolean enableMetrics);
 
+  @Description("Enable/disable Beam Transform throughput, latency metrics in Samza Runner")
+  @Default.Boolean(false)
+  Boolean getEnableTransformMetrics();
+
+  void setEnableTransformMetrics(Boolean enableMetrics);
+
   @Description("The config for state to be durable")
   @Default.Boolean(false)
   Boolean getStateDurable();
@@ -134,6 +140,13 @@ public interface SamzaPipelineOptions extends PipelineOptions {
   long getMaxBundleTimeMs();
 
   void setMaxBundleTimeMs(long maxBundleTimeMs);
+
+  @Description(
+      "Wait if necessary for completing a remote bundle processing for at most the given time (in milliseconds). if the value of timeout is negative, wait forever until the bundle processing is completed. Used only in portable mode for now.")
+  @Default.Long(-1)
+  long getBundleProcessingTimeout();
+
+  void setBundleProcessingTimeout(long timeoutMs);
 
   @Description(
       "The number of threads to run DoFn.processElements in parallel within a bundle. Used only in non-portable mode.")

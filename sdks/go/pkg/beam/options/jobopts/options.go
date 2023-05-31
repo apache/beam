@@ -21,7 +21,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -30,6 +29,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/resource"
 )
 
 func init() {
@@ -45,6 +45,12 @@ func init() {
 			"have no more than 1 override applied to it. If multiple "+
 			"overrides match a container image it is arbitrary which "+
 			"will be applied.")
+	flag.Var(&ResourceHints,
+		"resource_hints",
+		"Set whole pipeline level resource hints, accepting values of the format '<urn>=<value>'. "+
+			"eg.'min_ram=12GB', 'beam:resources:accelerator:v1='runner_specific' "+
+			"In case of duplicate hint URNs, the last value specified will be used. "+
+			"See https://beam.apache.org/documentation/runtime/resource-hints/ for more information.")
 }
 
 var (
@@ -92,6 +98,9 @@ var (
 
 	// Flag to set the degree of parallelism. If not set, the configured Flink default is used, or 1 if none can be found.
 	Parallelism = flag.Int("parallelism", -1, "The degree of parallelism to be used when distributing operations onto Flink workers.")
+
+	// ResourceHints flag takes whole pipeline hints for resources.
+	ResourceHints stringSlice
 )
 
 type missingFlagError error
@@ -144,7 +153,7 @@ func IsLoopback() bool {
 // Convenience function.
 func GetEnvironmentConfig(ctx context.Context) string {
 	if *EnvironmentConfig == "" {
-		*EnvironmentConfig = os.ExpandEnv("apache/beam_go_sdk:" + core.SdkVersion)
+		*EnvironmentConfig = core.DefaultDockerImage
 		log.Infof(ctx, "No environment config specified. Using default config: '%v'", *EnvironmentConfig)
 	}
 	return *EnvironmentConfig
@@ -168,4 +177,50 @@ func GetExperiments() []string {
 		return nil
 	}
 	return strings.Split(*Experiments, ",")
+}
+
+// GetPipelineResourceHints parses known standard hints and returns the flag set hints for the pipeline.
+// In case of duplicate hint URNs, the last value specified will be used.
+func GetPipelineResourceHints() resource.Hints {
+	hints := make([]resource.Hint, 0, len(ResourceHints))
+	for _, hint := range ResourceHints {
+		name, val, ok := strings.Cut(hint, "=")
+		if !ok {
+			panic(fmt.Sprintf("unparsable resource hint: %q", hint))
+		}
+		var h resource.Hint
+		switch name {
+		case "min_ram", "beam:resources:min_ram_bytes:v1":
+			h = resource.ParseMinRAM(val)
+		case "accelerator", "beam:resources:accelerator:v1":
+			h = resource.Accelerator(val)
+		default:
+			if strings.HasPrefix(name, "beam:resources:") {
+				h = stringHint{urn: name, value: val}
+			} else {
+				panic(fmt.Sprintf("unknown resource hint: %v", hint))
+			}
+		}
+		hints = append(hints, h)
+	}
+	return resource.NewHints(hints...)
+}
+
+// stringHint is a backup implementation of hint for new standard hints.
+type stringHint struct {
+	urn, value string
+}
+
+func (h stringHint) URN() string {
+	return h.urn
+}
+
+func (h stringHint) Payload() []byte {
+	// Go strings are utf8, and if the string is ascii,
+	// byte conversion handles that directly.
+	return []byte(h.value)
+}
+
+func (h stringHint) MergeWithOuter(outer resource.Hint) resource.Hint {
+	return h
 }

@@ -35,8 +35,8 @@ import (
 // The consumer is responsible for converting the values to the correct type.
 // To represent a nested KV with FullValues, assign a *FullValue to Elm/Elm2.
 type FullValue struct {
-	Elm  interface{} // Element or KV key.
-	Elm2 interface{} // KV value, if not invalid
+	Elm  any // Element or KV key.
+	Elm2 any // KV value, if not invalid
 
 	Timestamp    typex.EventTime
 	Windows      []typex.Window
@@ -99,14 +99,14 @@ func (s *FixedStream) Read() (*FullValue, error) {
 
 // Convert converts type of the runtime value to the desired one. It is needed
 // to drop the universal type and convert Aggregate types.
-func Convert(v interface{}, to reflect.Type) interface{} {
+func Convert(v any, to reflect.Type) any {
 	from := reflect.TypeOf(v)
 	return ConvertFn(from, to)(v)
 }
 
 // ConvertFn returns a function that converts type of the runtime value to the desired one. It is needed
 // to drop the universal type and convert Aggregate types.
-func ConvertFn(from, to reflect.Type) func(interface{}) interface{} {
+func ConvertFn(from, to reflect.Type) func(any) any {
 	switch {
 	case from == to:
 		return identity
@@ -118,7 +118,7 @@ func ConvertFn(from, to reflect.Type) func(interface{}) interface{} {
 		fromE := from.Elem()
 		toE := to.Elem()
 		cvtFn := ConvertFn(fromE, toE)
-		return func(v interface{}) interface{} {
+		return func(v any) any {
 			// Convert []A to []B.
 			value := reflect.ValueOf(v)
 
@@ -131,7 +131,7 @@ func ConvertFn(from, to reflect.Type) func(interface{}) interface{} {
 
 	case typex.IsList(from) && typex.IsUniversal(from.Elem()) && typex.IsUniversal(to):
 		fromE := from.Elem()
-		return func(v interface{}) interface{} {
+		return func(v any) any {
 			// Convert []typex.T to the underlying type []T.
 
 			value := reflect.ValueOf(v)
@@ -162,12 +162,12 @@ func ConvertFn(from, to reflect.Type) func(interface{}) interface{} {
 }
 
 // identity is the identity function.
-func identity(v interface{}) interface{} {
+func identity(v any) any {
 	return v
 }
 
 // universal drops the universal type and re-interfaces it to the actual one.
-func universal(v interface{}) interface{} {
+func universal(v any) any {
 	return reflectx.UnderlyingType(reflect.ValueOf(v)).Interface()
 }
 

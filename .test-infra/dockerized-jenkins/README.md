@@ -156,9 +156,13 @@ have to git push every time changes were made.
 1. Build Jenkins image using provided scripts.
 1. Provide an environment variable *BEAM_HOME* pointing to the beam root
    directory, for example: `export BEAM_HOME=~/my/beam/directory`.
-1. Run image using the following command: `docker run -d -p 127.0.0.1:8080:8080
-   -v $BEAM_HOME:/var/jenkins_real_home/beam:ro beamjenkins`. The only difference is
-   the *-v* option which sets up a bind mount.
+1. Run the image using the command below that adds the bind mount option *-v*.
+   Additionally you have to permit doing a local checkout.
+   ```bash
+   docker run -d -p 127.0.0.1:8080:8080 \
+     -e _JAVA_OPTIONS=-Dhudson.plugins.git.GitSCM.ALLOW_LOCAL_CHECKOUT=true \
+     -v $BEAM_HOME:/var/jenkins_real_home/beam:ro beamjenkins
+   ```
 1. Sign in to Jenkins.
     1. Go to the *sample_seed_job* and open its configuration. Scroll down to
        the **Source Code Management** section.

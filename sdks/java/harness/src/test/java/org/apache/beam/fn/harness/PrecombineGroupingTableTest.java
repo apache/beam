@@ -25,6 +25,7 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.in;
+import static org.hamcrest.Matchers.lessThan;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertEquals;
 
@@ -118,8 +119,7 @@ public class PrecombineGroupingTableTest {
             Caches.forMaximumBytes(2500L),
             StringUtf8Coder.of(),
             GlobalCombineFnRunners.create(COMBINE_FN),
-            new StringPowerSizeEstimator(),
-            new IdentitySizeEstimator(),
+            new TestSizeEstimator(),
             false);
 
     TestOutputReceiver<WindowedValue<KV<String, Long>>> receiver = new TestOutputReceiver<>();
@@ -145,8 +145,7 @@ public class PrecombineGroupingTableTest {
             Caches.forMaximumBytes(2500L),
             StringUtf8Coder.of(),
             GlobalCombineFnRunners.create(COMBINE_FN),
-            new StringPowerSizeEstimator(),
-            new IdentitySizeEstimator(),
+            new TestSizeEstimator(),
             false);
 
     TestOutputReceiver<WindowedValue<KV<String, Long>>> receiver = new TestOutputReceiver<>();
@@ -158,19 +157,19 @@ public class PrecombineGroupingTableTest {
     assertThat(receiver.outputElems, empty());
 
     // Putting in other large keys should cause eviction.
-    table.put(valueInGlobalWindow(KV.of("BBB", 9)), receiver);
+    table.put(valueInGlobalWindow(KV.of("BB", 509)), receiver);
     table.put(valueInGlobalWindow(KV.of("CCC", 11)), receiver);
     assertThat(
         receiver.outputElems,
         containsInAnyOrder(
-            valueInGlobalWindow(KV.of("AAA", 1L + 2 + 4)), valueInGlobalWindow(KV.of("BBB", 9L))));
+            valueInGlobalWindow(KV.of("AAA", 1L + 2 + 4)), valueInGlobalWindow(KV.of("BB", 509L))));
 
     table.flush(receiver);
     assertThat(
         receiver.outputElems,
         containsInAnyOrder(
             valueInGlobalWindow(KV.of("AAA", 1L + 2 + 4)),
-            valueInGlobalWindow(KV.of("BBB", 9L)),
+            valueInGlobalWindow(KV.of("BB", 509L)),
             valueInGlobalWindow(KV.of("CCC", 11L))));
   }
 
@@ -182,8 +181,7 @@ public class PrecombineGroupingTableTest {
             Caches.forMaximumBytes(2500L),
             StringUtf8Coder.of(),
             GlobalCombineFnRunners.create(COMBINE_FN),
-            new StringPowerSizeEstimator(),
-            new IdentitySizeEstimator(),
+            new TestSizeEstimator(),
             false);
 
     TestOutputReceiver<WindowedValue<KV<String, Long>>> receiver = new TestOutputReceiver<>();
@@ -221,25 +219,27 @@ public class PrecombineGroupingTableTest {
             Caches.forMaximumBytes(2500L),
             StringUtf8Coder.of(),
             GlobalCombineFnRunners.create(COMBINE_FN),
-            new StringPowerSizeEstimator(),
-            new IdentitySizeEstimator(),
+            new TestSizeEstimator(),
             false);
 
     TestOutputReceiver<WindowedValue<KV<String, Long>>> receiver = new TestOutputReceiver<>();
 
     // Insert three compactable values which shouldn't lead to eviction even though we are over
     // the maximum size.
-    table.put(valueInGlobalWindow(KV.of("A", 1004)), receiver);
-    table.put(valueInGlobalWindow(KV.of("B", 1004)), receiver);
+    table.put(valueInGlobalWindow(KV.of("A", 804)), receiver);
+    table.put(valueInGlobalWindow(KV.of("B", 904)), receiver);
     table.put(valueInGlobalWindow(KV.of("C", 1004)), receiver);
     assertThat(receiver.outputElems, empty());
+
+    // Ensure that compaction occurred during the insertion of the above elements before flushing.
+    assertThat(table.getWeight(), lessThan(804L + 904L + 1004L));
 
     table.flush(receiver);
     assertThat(
         receiver.outputElems,
         containsInAnyOrder(
-            valueInGlobalWindow(KV.of("A", 1004L / 4)),
-            valueInGlobalWindow(KV.of("B", 1004L / 4)),
+            valueInGlobalWindow(KV.of("A", 804L / 4)),
+            valueInGlobalWindow(KV.of("B", 904L / 4)),
             valueInGlobalWindow(KV.of("C", 1004L / 4))));
   }
 
@@ -251,28 +251,27 @@ public class PrecombineGroupingTableTest {
             Caches.forMaximumBytes(2500L),
             StringUtf8Coder.of(),
             GlobalCombineFnRunners.create(COMBINE_FN),
-            new StringPowerSizeEstimator(),
-            new IdentitySizeEstimator(),
+            new TestSizeEstimator(),
             false);
 
     TestOutputReceiver<WindowedValue<KV<String, Long>>> receiver = new TestOutputReceiver<>();
 
     // Insert three values which even with compaction isn't enough so we evict A & B to get
     // under the max weight.
-    table.put(valueInGlobalWindow(KV.of("A", 1001)), receiver);
-    table.put(valueInGlobalWindow(KV.of("B", 1001)), receiver);
+    table.put(valueInGlobalWindow(KV.of("A", 801)), receiver);
+    table.put(valueInGlobalWindow(KV.of("B", 901)), receiver);
     table.put(valueInGlobalWindow(KV.of("C", 1001)), receiver);
     assertThat(
         receiver.outputElems,
         containsInAnyOrder(
-            valueInGlobalWindow(KV.of("A", 1001L)), valueInGlobalWindow(KV.of("B", 1001L))));
+            valueInGlobalWindow(KV.of("A", 801L)), valueInGlobalWindow(KV.of("B", 901L))));
 
     table.flush(receiver);
     assertThat(
         receiver.outputElems,
         containsInAnyOrder(
-            valueInGlobalWindow(KV.of("A", 1001L)),
-            valueInGlobalWindow(KV.of("B", 1001L)),
+            valueInGlobalWindow(KV.of("A", 801L)),
+            valueInGlobalWindow(KV.of("B", 901L)),
             valueInGlobalWindow(KV.of("C", 1001L))));
   }
 
@@ -302,8 +301,7 @@ public class PrecombineGroupingTableTest {
                         Caches.subCache(cache, currentI),
                         VarLongCoder.of(),
                         combineFnRunner,
-                        new IdentitySizeEstimator(),
-                        new IdentitySizeEstimator(),
+                        new TestSizeEstimator(),
                         false);
                 for (int j = 1; j <= 1000; ++j) {
                   table.put(
@@ -338,9 +336,8 @@ public class PrecombineGroupingTableTest {
 
   @Test
   public void testSampleFlatSizes() throws Exception {
-    IdentitySizeEstimator underlying = new IdentitySizeEstimator();
-    SizeEstimator<Long> estimator =
-        new SamplingSizeEstimator<>(underlying, 0.05, 1.0, 10, new Random(1));
+    TestSizeEstimator underlying = new TestSizeEstimator();
+    SizeEstimator estimator = new SamplingSizeEstimator(underlying, 0.05, 1.0, 10, new Random(1));
     // First 10 elements are always sampled.
     for (int k = 0; k < 10; k++) {
       assertEquals(100, estimator.estimateSize(100L));
@@ -361,9 +358,8 @@ public class PrecombineGroupingTableTest {
 
   @Test
   public void testSampleBoringSizes() throws Exception {
-    IdentitySizeEstimator underlying = new IdentitySizeEstimator();
-    SizeEstimator<Long> estimator =
-        new SamplingSizeEstimator<>(underlying, 0.05, 1.0, 10, new Random(1));
+    TestSizeEstimator underlying = new TestSizeEstimator();
+    SizeEstimator estimator = new SamplingSizeEstimator(underlying, 0.05, 1.0, 10, new Random(1));
     // First 10 elements are always sampled.
     for (int k = 0; k < 10; k += 2) {
       assertEquals(100, estimator.estimateSize(100L));
@@ -389,9 +385,8 @@ public class PrecombineGroupingTableTest {
   public void testSampleHighVarianceSizes() throws Exception {
     // The largest element is much larger than the average.
     List<Long> sizes = Arrays.asList(1L, 10L, 100L, 1000L);
-    IdentitySizeEstimator underlying = new IdentitySizeEstimator();
-    SizeEstimator<Long> estimator =
-        new SamplingSizeEstimator<>(underlying, 0.1, 0.2, 10, new Random(1));
+    TestSizeEstimator underlying = new TestSizeEstimator();
+    SizeEstimator estimator = new SamplingSizeEstimator(underlying, 0.1, 0.2, 10, new Random(1));
     // First 10 elements are always sampled.
     for (int k = 0; k < 10; k++) {
       long size = sizes.get(k % sizes.size());
@@ -430,9 +425,8 @@ public class PrecombineGroupingTableTest {
 
   @Test
   public void testSampleChangingSizes() throws Exception {
-    IdentitySizeEstimator underlying = new IdentitySizeEstimator();
-    SizeEstimator<Long> estimator =
-        new SamplingSizeEstimator<>(underlying, 0.05, 1.0, 10, new Random(1));
+    TestSizeEstimator underlying = new TestSizeEstimator();
+    SizeEstimator estimator = new SamplingSizeEstimator(underlying, 0.05, 1.0, 10, new Random(1));
     // First 10 elements are always sampled.
     for (int k = 0; k < 10; k++) {
       assertEquals(100, estimator.estimateSize(100L));
@@ -470,22 +464,31 @@ public class PrecombineGroupingTableTest {
     };
   }
 
-  /** "Estimate" the size of longs by looking at their value. */
-  private static class IdentitySizeEstimator implements SizeEstimator<Long> {
+  /**
+   * Used to simulate very specific compaction/eviction tests under certain scenarios instead of
+   * relying on JAMM for size estimation. Strings are 10^length and longs are their value.
+   */
+  private static class TestSizeEstimator implements SizeEstimator {
     int calls = 0;
 
     @Override
-    public long estimateSize(Long element) {
+    public long estimateSize(Object element) {
       calls++;
-      return element;
-    }
-  }
-
-  /** "Estimate" the size of strings by taking the tenth power of their length. */
-  private static class StringPowerSizeEstimator implements SizeEstimator<String> {
-    @Override
-    public long estimateSize(String element) {
-      return (long) Math.pow(10, element.length());
+      if (element instanceof PrecombineGroupingTable.GloballyWindowedTableGroupingKey) {
+        element =
+            ((PrecombineGroupingTable.GloballyWindowedTableGroupingKey) element).getStructuralKey();
+      } else if (element instanceof PrecombineGroupingTable.WindowedGroupingTableKey) {
+        element = ((PrecombineGroupingTable.WindowedGroupingTableKey) element).getStructuralKey();
+      } else if (element instanceof PrecombineGroupingTable.GroupingTableEntry) {
+        element = ((PrecombineGroupingTable.GroupingTableEntry) element).getAccumulator();
+      }
+      if (element instanceof String) {
+        return (long) Math.pow(10, ((String) element).length());
+      } else if (element instanceof Long) {
+        return (Long) element;
+      }
+      throw new IllegalArgumentException(
+          "Unknown type " + (element == null ? "null" : element.getClass().toString()));
     }
   }
 }

@@ -34,6 +34,7 @@ const (
 	defaultPythonFileName = "main.py"
 	defaultScioFileName   = "main.scala"
 	javaExt               = ".java"
+	classExt              = ".class"
 	goExt                 = ".go"
 	pythonExt             = ".py"
 	scioExt               = ".scala"
@@ -158,7 +159,7 @@ func IsFileMain(content string, sdk pb.Sdk) bool {
 // ToSDKFromExt returns SDK according to a specified extension.
 func ToSDKFromExt(ext string) pb.Sdk {
 	switch ext {
-	case javaExt:
+	case javaExt, classExt:
 		return pb.Sdk_SDK_JAVA
 	case goExt:
 		return pb.Sdk_SDK_GO
@@ -169,4 +170,8 @@ func ToSDKFromExt(ext string) pb.Sdk {
 	default:
 		return pb.Sdk_SDK_UNSPECIFIED
 	}
+}
+
+func TrimExtension(filename string) string {
+	return strings.TrimSuffix(filename, filepath.Ext(filename))
 }

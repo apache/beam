@@ -32,6 +32,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.not;
@@ -47,6 +48,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -65,6 +67,7 @@ import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.coders.AtomicCoder;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ListCoder;
@@ -83,6 +86,7 @@ import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.GroupingState;
 import org.apache.beam.sdk.state.MapState;
+import org.apache.beam.sdk.state.MultimapState;
 import org.apache.beam.sdk.state.OrderedListState;
 import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.SetState;
@@ -102,6 +106,7 @@ import org.apache.beam.sdk.testing.UsesBundleFinalizer;
 import org.apache.beam.sdk.testing.UsesKeyInParDo;
 import org.apache.beam.sdk.testing.UsesLoopingTimer;
 import org.apache.beam.sdk.testing.UsesMapState;
+import org.apache.beam.sdk.testing.UsesMultimapState;
 import org.apache.beam.sdk.testing.UsesOnWindowExpiration;
 import org.apache.beam.sdk.testing.UsesOrderedListState;
 import org.apache.beam.sdk.testing.UsesParDoLifecycle;
@@ -117,6 +122,7 @@ import org.apache.beam.sdk.testing.UsesTestStreamWithOutputTimestamp;
 import org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime;
 import org.apache.beam.sdk.testing.UsesTimerMap;
 import org.apache.beam.sdk.testing.UsesTimersInParDo;
+import org.apache.beam.sdk.testing.UsesTriggeredSideInputs;
 import org.apache.beam.sdk.testing.UsesUnboundedPCollections;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create.TimestampedValues;
@@ -167,6 +173,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -186,6 +193,8 @@ public class ParDoTest implements Serializable {
     @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
     @Rule public transient ExpectedException thrown = ExpectedException.none();
+
+    @Rule public transient Timeout globalTimeout = Timeout.seconds(1200);
   }
 
   private static class PrintingDoFn extends DoFn<String, String> {
@@ -2787,6 +2796,406 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesMultimapState.class})
+    public void testMultimapStatePut() {
+      final String stateId = "foo:";
+      final String countStateId = "count";
+      DoFn<KV<String, KV<String, Integer>>, KV<String, Integer>> fn =
+          new DoFn<KV<String, KV<String, Integer>>, KV<String, Integer>>() {
+
+            @StateId(stateId)
+            private final StateSpec<MultimapState<String, Integer>> multimapState =
+                StateSpecs.multimap(StringUtf8Coder.of(), VarIntCoder.of());
+
+            @StateId(countStateId)
+            private final StateSpec<CombiningState<Integer, int[], Integer>> countState =
+                StateSpecs.combiningFromInputInternal(VarIntCoder.of(), Sum.ofIntegers());
+
+            @ProcessElement
+            public void processElement(
+                ProcessContext c,
+                @Element KV<String, KV<String, Integer>> element,
+                @StateId(stateId) MultimapState<String, Integer> state,
+                @StateId(countStateId) CombiningState<Integer, int[], Integer> count,
+                OutputReceiver<KV<String, Integer>> r) {
+              ReadableState<Boolean> isEmptyView = state.isEmpty();
+              boolean isEmpty = state.isEmpty().read();
+
+              KV<String, Integer> value = element.getValue();
+              state.put(value.getKey(), value.getValue());
+              count.add(1);
+
+              if (count.read() == 1) {
+                // isEmpty before and after put:
+                assertTrue(isEmpty);
+                assertFalse(isEmptyView.read());
+                assertFalse(state.isEmpty().read());
+              }
+
+              if (count.read() >= 4) {
+                // those should be evaluated only when ReadableState.read is called.
+                ReadableState<Iterable<Entry<String, Integer>>> entriesView = state.entries();
+                ReadableState<Iterable<String>> keysView = state.keys();
+                ReadableState<Boolean> containsBadView = state.containsKey("BadKey");
+                ReadableState<Iterable<Integer>> getAView = state.get("a");
+
+                // those are evaluated immediately.
+                Iterable<Entry<String, Integer>> entries = state.entries().read();
+                Iterable<String> keys = state.keys().read();
+                boolean containsBad = state.containsKey("BadKey").read();
+                Iterable<Integer> getA = state.get("a").read();
+
+                state.put("BadKey", -1);
+                state.put("a", 2);
+
+                // entries before and after put:
+                assertEquals(4, Iterables.size(entries));
+                assertEquals(6, Iterables.size(entriesView.read()));
+                assertEquals(6, Iterables.size(state.entries().read()));
+
+                // keys before and after put:
+                assertThat(keys, containsInAnyOrder("a", "b"));
+                assertThat(keysView.read(), containsInAnyOrder("a", "b", "BadKey"));
+                assertThat(state.keys().read(), containsInAnyOrder("a", "b", "BadKey"));
+
+                // containsKey before and after put:
+                assertFalse(containsBad);
+                assertTrue(containsBadView.read());
+                assertTrue(state.containsKey("BadKey").read());
+
+                // get before and after put:
+                assertThat(getA, containsInAnyOrder(97, 97, 98));
+                assertThat(getAView.read(), containsInAnyOrder(97, 97, 98, 2));
+                assertThat(state.get("a").read(), containsInAnyOrder(97, 97, 98, 2));
+
+                // Should not output changes in side this if statement.
+                for (Entry<String, Integer> entry : entries) {
+                  r.output(KV.of(entry.getKey(), entry.getValue()));
+                }
+              }
+            }
+          };
+      PCollection<KV<String, Integer>> output =
+          pipeline
+              .apply(
+                  Create.of(
+                      KV.of("hello", KV.of("a", 97)), KV.of("hello", KV.of("a", 97)),
+                      KV.of("hello", KV.of("a", 98)), KV.of("hello", KV.of("b", 33))))
+              .apply(ParDo.of(fn));
+      PAssert.that(output)
+          .containsInAnyOrder(
+              KV.of("a", 97), KV.of("a", 97),
+              KV.of("a", 98), KV.of("b", 33));
+      pipeline.run();
+    }
+
+    @Test
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesMultimapState.class})
+    public void testMultimapStateRemove() {
+      final String stateId = "foo:";
+      final String countStateId = "count";
+      DoFn<KV<String, KV<String, Integer>>, KV<String, Integer>> fn =
+          new DoFn<KV<String, KV<String, Integer>>, KV<String, Integer>>() {
+
+            @StateId(stateId)
+            private final StateSpec<MultimapState<String, Integer>> multimapState =
+                StateSpecs.multimap(StringUtf8Coder.of(), VarIntCoder.of());
+
+            @StateId(countStateId)
+            private final StateSpec<CombiningState<Integer, int[], Integer>> countState =
+                StateSpecs.combiningFromInputInternal(VarIntCoder.of(), Sum.ofIntegers());
+
+            @ProcessElement
+            public void processElement(
+                ProcessContext c,
+                @Element KV<String, KV<String, Integer>> element,
+                @StateId(stateId) MultimapState<String, Integer> state,
+                @StateId(countStateId) CombiningState<Integer, int[], Integer> count,
+                OutputReceiver<KV<String, Integer>> r) {
+              KV<String, Integer> value = element.getValue();
+              state.put(value.getKey(), value.getValue());
+              count.add(1);
+
+              if (count.read() >= 4) {
+                // those should be evaluated only when ReadableState.read is called.
+                ReadableState<Iterable<Entry<String, Integer>>> entriesView = state.entries();
+                ReadableState<Iterable<String>> keysView = state.keys();
+                ReadableState<Boolean> containsBView = state.containsKey("b");
+                ReadableState<Iterable<Integer>> getBView = state.get("b");
+
+                // those are evaluated immediately.
+                Iterable<Entry<String, Integer>> entries = state.entries().read();
+                Iterable<String> keys = state.keys().read();
+                boolean containsB = state.containsKey("b").read();
+                Iterable<Integer> getB = state.get("b").read();
+
+                state.remove("b");
+
+                // entries before and after remove:
+                assertEquals(4, Iterables.size(entries));
+                assertEquals(3, Iterables.size(entriesView.read()));
+                assertEquals(3, Iterables.size(state.entries().read()));
+
+                // keys before and after remove:
+                assertThat(keys, containsInAnyOrder("a", "b"));
+                assertThat(keysView.read(), containsInAnyOrder("a"));
+                assertThat(state.keys().read(), containsInAnyOrder("a"));
+
+                // containsKey before and after remove:
+                assertTrue(containsB);
+                assertFalse(containsBView.read());
+                assertFalse(state.containsKey("b").read());
+
+                // get before and after remove:
+                assertThat(getB, containsInAnyOrder(33));
+                assertThat(getBView.read(), emptyIterable());
+                assertThat(state.get("b").read(), emptyIterable());
+
+                for (Entry<String, Integer> entry : entriesView.read()) {
+                  r.output(KV.of(entry.getKey(), entry.getValue()));
+                }
+              }
+            }
+          };
+      PCollection<KV<String, Integer>> output =
+          pipeline
+              .apply(
+                  Create.of(
+                      KV.of("hello", KV.of("a", 97)), KV.of("hello", KV.of("a", 97)),
+                      KV.of("hello", KV.of("a", 98)), KV.of("hello", KV.of("b", 33))))
+              .apply(ParDo.of(fn));
+      PAssert.that(output).containsInAnyOrder(KV.of("a", 97), KV.of("a", 97), KV.of("a", 98));
+      pipeline.run();
+    }
+
+    @Test
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesMultimapState.class})
+    public void testMultimapStateIsEmptyAfterRemove() {
+      final String stateId = "foo:";
+      final String countStateId = "count";
+      DoFn<KV<String, KV<String, Integer>>, KV<String, Integer>> fn =
+          new DoFn<KV<String, KV<String, Integer>>, KV<String, Integer>>() {
+
+            @StateId(stateId)
+            private final StateSpec<MultimapState<String, Integer>> multimapState =
+                StateSpecs.multimap(StringUtf8Coder.of(), VarIntCoder.of());
+
+            @StateId(countStateId)
+            private final StateSpec<CombiningState<Integer, int[], Integer>> countState =
+                StateSpecs.combiningFromInputInternal(VarIntCoder.of(), Sum.ofIntegers());
+
+            @ProcessElement
+            public void processElement(
+                ProcessContext c,
+                @Element KV<String, KV<String, Integer>> element,
+                @StateId(stateId) MultimapState<String, Integer> state,
+                @StateId(countStateId) CombiningState<Integer, int[], Integer> count,
+                OutputReceiver<KV<String, Integer>> r) {
+              KV<String, Integer> value = element.getValue();
+              state.put(value.getKey(), value.getValue());
+              count.add(1);
+
+              if (count.read() >= 4) {
+                ReadableState<Boolean> isEmptyView = state.isEmpty();
+                boolean isEmpty = state.isEmpty().read();
+
+                state.remove("a");
+
+                assertFalse(isEmpty);
+                assertFalse(isEmptyView.read());
+                assertFalse(state.isEmpty().read());
+
+                isEmptyView = state.isEmpty();
+                isEmpty = state.isEmpty().read();
+
+                // isEmpty after removing the only multimap key.
+                state.remove("b");
+
+                assertFalse(isEmpty);
+                assertTrue(isEmptyView.read());
+                assertTrue(state.isEmpty().read());
+              }
+            }
+          };
+      PCollection<KV<String, Integer>> output =
+          pipeline
+              .apply(
+                  Create.of(
+                      KV.of("hello", KV.of("a", 97)), KV.of("hello", KV.of("a", 97)),
+                      KV.of("hello", KV.of("a", 98)), KV.of("hello", KV.of("b", 33))))
+              .apply(ParDo.of(fn));
+      PAssert.that(output).empty();
+      pipeline.run();
+    }
+
+    @Test
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesMultimapState.class})
+    public void testMultimapStateClear() {
+      final String stateId = "foo:";
+      final String countStateId = "count";
+      DoFn<KV<String, KV<String, Integer>>, KV<String, Integer>> fn =
+          new DoFn<KV<String, KV<String, Integer>>, KV<String, Integer>>() {
+
+            @StateId(stateId)
+            private final StateSpec<MultimapState<String, Integer>> multimapState =
+                StateSpecs.multimap(StringUtf8Coder.of(), VarIntCoder.of());
+
+            @StateId(countStateId)
+            private final StateSpec<CombiningState<Integer, int[], Integer>> countState =
+                StateSpecs.combiningFromInputInternal(VarIntCoder.of(), Sum.ofIntegers());
+
+            @ProcessElement
+            public void processElement(
+                ProcessContext c,
+                @Element KV<String, KV<String, Integer>> element,
+                @StateId(stateId) MultimapState<String, Integer> state,
+                @StateId(countStateId) CombiningState<Integer, int[], Integer> count,
+                OutputReceiver<KV<String, Integer>> r) {
+              KV<String, Integer> value = element.getValue();
+              state.put(value.getKey(), value.getValue());
+              count.add(1);
+
+              if (count.read() >= 4) {
+                // those should be evaluated only when ReadableState.read is called.
+                ReadableState<Iterable<Entry<String, Integer>>> entriesView = state.entries();
+                ReadableState<Iterable<String>> keysView = state.keys();
+                ReadableState<Boolean> containsBView = state.containsKey("b");
+                ReadableState<Iterable<Integer>> getBView = state.get("b");
+                ReadableState<Boolean> isEmptyView = state.isEmpty();
+
+                // those are evaluated immediately.
+                Iterable<Entry<String, Integer>> entries = state.entries().read();
+                Iterable<String> keys = state.keys().read();
+                boolean containsB = state.containsKey("b").read();
+                Iterable<Integer> getB = state.get("b").read();
+                boolean isEmpty = state.isEmpty().read();
+
+                state.clear();
+
+                // entries before and after clear:
+                assertEquals(4, Iterables.size(entries));
+                assertThat(entriesView.read(), emptyIterable());
+                assertThat(state.entries().read(), emptyIterable());
+
+                // keys before and after clear:
+                assertThat(keys, containsInAnyOrder("a", "b"));
+                assertThat(keysView.read(), emptyIterable());
+                assertThat(state.keys().read(), emptyIterable());
+
+                // containsKey before and after clear:
+                assertTrue(containsB);
+                assertFalse(containsBView.read());
+                assertFalse(state.containsKey("b").read());
+
+                // get before and after clear:
+                assertThat(getB, containsInAnyOrder(33));
+                assertThat(getBView.read(), emptyIterable());
+                assertThat(state.get("b").read(), emptyIterable());
+
+                // isEmpty before and after clear:
+                assertFalse(isEmpty);
+                assertTrue(isEmptyView.read());
+                assertTrue(state.isEmpty().read());
+
+                for (Entry<String, Integer> entry : entriesView.read()) {
+                  r.output(KV.of(entry.getKey(), entry.getValue()));
+                }
+              }
+            }
+          };
+      PCollection<KV<String, Integer>> output =
+          pipeline
+              .apply(
+                  Create.of(
+                      KV.of("hello", KV.of("a", 97)), KV.of("hello", KV.of("a", 97)),
+                      KV.of("hello", KV.of("a", 98)), KV.of("hello", KV.of("b", 33))))
+              .apply(ParDo.of(fn));
+      PAssert.that(output).empty();
+      pipeline.run();
+    }
+
+    // Use byte[] as the key type of Multimap to test that Multimap should treat different keys with
+    // equivalent structural values as the same key.
+    @Test
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesMultimapState.class})
+    public void testMultimapStateStructuralValue() {
+      final String stateId = "foo:";
+      final String countStateId = "count";
+      final byte[] badKey = "BadKey".getBytes(StandardCharsets.UTF_8);
+      DoFn<KV<String, KV<String, Integer>>, KV<String, Integer>> fn =
+          new DoFn<KV<String, KV<String, Integer>>, KV<String, Integer>>() {
+
+            @StateId(stateId)
+            private final StateSpec<MultimapState<byte[], Integer>> multimapState =
+                StateSpecs.multimap(ByteArrayCoder.of(), VarIntCoder.of());
+
+            @StateId(countStateId)
+            private final StateSpec<CombiningState<Integer, int[], Integer>> countState =
+                StateSpecs.combiningFromInputInternal(VarIntCoder.of(), Sum.ofIntegers());
+
+            @ProcessElement
+            public void processElement(
+                ProcessContext c,
+                @Element KV<String, KV<String, Integer>> element,
+                @StateId(stateId) MultimapState<byte[], Integer> state,
+                @StateId(countStateId) CombiningState<Integer, int[], Integer> count,
+                OutputReceiver<KV<String, Integer>> r) {
+              KV<String, Integer> value = element.getValue();
+              ReadableState<Iterable<Entry<byte[], Integer>>> entriesView = state.entries();
+              state.put(value.getKey().getBytes(StandardCharsets.UTF_8), value.getValue());
+              count.add(1);
+              if (count.read() >= 4) {
+                // those should be evaluated only when ReadableState.read is called.
+                ReadableState<Iterable<byte[]>> keysView = state.keys();
+                ReadableState<Boolean> containsBadKeyView = state.containsKey(badKey);
+                ReadableState<Iterable<Integer>> getBadKeyView = state.get(badKey);
+
+                // those are evaluated immediately.
+                Iterable<Entry<byte[], Integer>> entries = state.entries().read();
+                boolean containsBadKey = state.containsKey(badKey).read();
+                Iterable<Integer> getBadKey = state.get(badKey).read();
+
+                // use a different object than badKey with the same structural value to put into the
+                // multimap.
+                state.put("BadKey".getBytes(StandardCharsets.UTF_8), -1);
+
+                // entries
+                assertEquals(4, Iterables.size(entries));
+                assertEquals(5, Iterables.size(entriesView.read()));
+                assertEquals(5, Iterables.size(state.entries().read()));
+
+                // get
+                assertThat(getBadKey, emptyIterable());
+                assertThat(getBadKeyView.read(), containsInAnyOrder(-1));
+                assertThat(state.get(badKey).read(), containsInAnyOrder(-1));
+
+                // containsKey
+                assertFalse(containsBadKey);
+                assertTrue(containsBadKeyView.read());
+                assertTrue(state.containsKey(badKey).read());
+
+                for (Entry<byte[], Integer> entry : entries) {
+                  r.output(
+                      KV.of(new String(entry.getKey(), StandardCharsets.UTF_8), entry.getValue()));
+                }
+              }
+            }
+          };
+      PCollection<KV<String, Integer>> output =
+          pipeline
+              .apply(
+                  Create.of(
+                      KV.of("hello", KV.of("a", 97)), KV.of("hello", KV.of("a", 97)),
+                      KV.of("hello", KV.of("a", 98)), KV.of("hello", KV.of("b", 33))))
+              .apply(ParDo.of(fn));
+      PAssert.that(output)
+          .containsInAnyOrder(
+              KV.of("a", 97), KV.of("a", 97),
+              KV.of("a", 98), KV.of("b", 33));
+      pipeline.run();
+    }
+
+    @Test
     @Category({
       ValidatesRunner.class,
       UsesStatefulParDo.class,
@@ -3175,7 +3584,12 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesSideInputs.class})
+    @Category({
+      ValidatesRunner.class,
+      UsesStatefulParDo.class,
+      UsesSideInputs.class,
+      UsesTriggeredSideInputs.class
+    })
     public void testStateSideInput() {
 
       // SideInput tag id
@@ -3736,6 +4150,116 @@ public class ParDoTest implements Serializable {
           .apply(ParDo.of(fn))
           .setCoder(KvCoder.of(StringUtf8Coder.of(), myIntegerCoder));
 
+      pipeline.run();
+    }
+
+    @Test
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesMultimapState.class})
+    public void testMultimapStateCoderInference() {
+      final String stateId = "foo:";
+      final String countStateId = "count";
+      Coder<MyInteger> myIntegerCoder = MyIntegerCoder.of();
+      pipeline.getCoderRegistry().registerCoderForClass(MyInteger.class, myIntegerCoder);
+
+      DoFn<KV<String, KV<String, Integer>>, KV<String, MyInteger>> fn =
+          new DoFn<KV<String, KV<String, Integer>>, KV<String, MyInteger>>() {
+
+            @StateId(stateId)
+            private final StateSpec<MultimapState<String, MyInteger>> multimapState =
+                StateSpecs.multimap();
+
+            @StateId(countStateId)
+            private final StateSpec<CombiningState<Integer, int[], Integer>> countState =
+                StateSpecs.combiningFromInputInternal(VarIntCoder.of(), Sum.ofIntegers());
+
+            @ProcessElement
+            public void processElement(
+                ProcessContext c,
+                @Element KV<String, KV<String, Integer>> element,
+                @StateId(stateId) MultimapState<String, MyInteger> state,
+                @StateId(countStateId) CombiningState<Integer, int[], Integer> count,
+                OutputReceiver<KV<String, MyInteger>> r) {
+              KV<String, Integer> value = element.getValue();
+              ReadableState<Iterable<Entry<String, MyInteger>>> entriesView = state.entries();
+              state.put(value.getKey(), new MyInteger(value.getValue()));
+              count.add(1);
+              if (count.read() >= 4) {
+                Iterable<Entry<String, MyInteger>> iterate = state.entries().read();
+                state.put("BadKey", new MyInteger(-1));
+                assertEquals(4, Iterables.size(iterate));
+                assertEquals(5, Iterables.size(entriesView.read()));
+                assertEquals(5, Iterables.size(state.entries().read()));
+
+                for (Entry<String, MyInteger> entry : iterate) {
+                  r.output(KV.of(entry.getKey(), entry.getValue()));
+                }
+              }
+            }
+          };
+      PCollection<KV<String, MyInteger>> output =
+          pipeline
+              .apply(
+                  Create.of(
+                      KV.of("hello", KV.of("a", 97)), KV.of("hello", KV.of("a", 97)),
+                      KV.of("hello", KV.of("a", 98)), KV.of("hello", KV.of("b", 33))))
+              .apply(ParDo.of(fn))
+              .setCoder(KvCoder.of(StringUtf8Coder.of(), myIntegerCoder));
+      PAssert.that(output)
+          .containsInAnyOrder(
+              KV.of("a", new MyInteger(97)), KV.of("a", new MyInteger(97)),
+              KV.of("a", new MyInteger(98)), KV.of("b", new MyInteger(33)));
+      pipeline.run();
+    }
+
+    @Test
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesMultimapState.class})
+    public void testMultimapStateCoderInferenceFailure() throws Exception {
+      final String stateId = "foo:";
+      final String countStateId = "count";
+      Coder<MyInteger> myIntegerCoder = MyIntegerCoder.of();
+
+      DoFn<KV<String, KV<String, Integer>>, KV<String, MyInteger>> fn =
+          new DoFn<KV<String, KV<String, Integer>>, KV<String, MyInteger>>() {
+
+            @StateId(stateId)
+            private final StateSpec<MultimapState<String, MyInteger>> multimapState =
+                StateSpecs.multimap();
+
+            @StateId(countStateId)
+            private final StateSpec<CombiningState<Integer, int[], Integer>> countState =
+                StateSpecs.combiningFromInputInternal(VarIntCoder.of(), Sum.ofIntegers());
+
+            @ProcessElement
+            public void processElement(
+                ProcessContext c,
+                @Element KV<String, KV<String, Integer>> element,
+                @StateId(stateId) MultimapState<String, MyInteger> state,
+                @StateId(countStateId) CombiningState<Integer, int[], Integer> count,
+                OutputReceiver<KV<String, MyInteger>> r) {
+              KV<String, Integer> value = element.getValue();
+              ReadableState<Iterable<Entry<String, MyInteger>>> entriesView = state.entries();
+              state.put(value.getKey(), new MyInteger(value.getValue()));
+              count.add(1);
+              if (count.read() >= 4) {
+                Iterable<Entry<String, MyInteger>> iterate = state.entries().read();
+                for (Entry<String, MyInteger> entry : iterate) {
+                  r.output(KV.of(entry.getKey(), entry.getValue()));
+                }
+              }
+            }
+          };
+
+      thrown.expect(RuntimeException.class);
+      thrown.expectMessage("Unable to infer a coder for MultimapState and no Coder was specified.");
+
+      PCollection<KV<String, MyInteger>> output =
+          pipeline
+              .apply(
+                  Create.of(
+                      KV.of("hello", KV.of("a", 97)), KV.of("hello", KV.of("a", 97)),
+                      KV.of("hello", KV.of("a", 98)), KV.of("hello", KV.of("b", 33))))
+              .apply(ParDo.of(fn))
+              .setCoder(KvCoder.of(StringUtf8Coder.of(), myIntegerCoder));
       pipeline.run();
     }
 

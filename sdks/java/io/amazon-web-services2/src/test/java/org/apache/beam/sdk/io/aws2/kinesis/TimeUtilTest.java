@@ -17,8 +17,11 @@
  */
 package org.apache.beam.sdk.io.aws2.kinesis;
 
+import static org.apache.beam.sdk.io.aws2.kinesis.TimeUtil.minTimestamp;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -38,5 +41,21 @@ public class TimeUtilTest {
     assertThat(TimeUtil.toJava(null)).isNull();
     assertThat(TimeUtil.toJava(org.joda.time.Instant.ofEpochMilli(0L)))
         .isEqualTo(java.time.Instant.ofEpochMilli(0L));
+  }
+
+  @Test
+  public void shouldGiveMinTs() {
+    assertThat(minTimestamp(ImmutableList.<org.joda.time.Instant>of().stream()))
+        .isEqualTo(BoundedWindow.TIMESTAMP_MAX_VALUE);
+
+    assertThat(minTimestamp(ImmutableList.of(org.joda.time.Instant.ofEpochMilli(1)).stream()))
+        .isEqualTo(org.joda.time.Instant.ofEpochMilli(1));
+
+    assertThat(
+            minTimestamp(
+                ImmutableList.of(
+                    org.joda.time.Instant.ofEpochMilli(1), org.joda.time.Instant.ofEpochMilli(2))
+                    .stream()))
+        .isEqualTo(org.joda.time.Instant.ofEpochMilli(1));
   }
 }

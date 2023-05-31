@@ -44,7 +44,8 @@ def spannerio_read_test_2gb = [
     input_options        : '\'{' +
     '"num_records": 2097152,' +
     '"key_size": 1,' +
-    '"value_size": 1024}\'',
+    '"value_size": 1024,' +
+    '"algorithm": "lcg"}\'',
     num_workers          : 5,
     autoscaling_algorithm: 'NONE',  // Disable autoscale the worker pool.
   ]
@@ -71,7 +72,8 @@ def spannerio_write_test_2gb = [
     input_options        : '\'{' +
     '"num_records": 2097152,' +
     '"key_size": 1,' +
-    '"value_size": 1024}\'',
+    '"value_size": 1024,' +
+    '"algorithm": "lcg"}\'',
     num_workers          : 5,
     autoscaling_algorithm: 'NONE',  // Disable autoscale the worker pool.
   ]
@@ -92,7 +94,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
       executeJob(delegate, spannerio_read_test_2gb)
     }
 
-CronJobBuilder.cronJob('beam_PerformanceTests_SpannerIO_Read_2GB_Python', 'H 15 * * *', this) {
+CronJobBuilder.cronJob('beam_PerformanceTests_SpannerIO_Read_2GB_Python', 'H H * * *', this) {
   executeJob(delegate, spannerio_read_test_2gb)
 }
 
@@ -105,6 +107,6 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
       executeJob(delegate, spannerio_write_test_2gb)
     }
 
-CronJobBuilder.cronJob('beam_PerformanceTests_SpannerIO_Write_2GB_Python_Batch', 'H 15 * * *', this) {
+CronJobBuilder.cronJob('beam_PerformanceTests_SpannerIO_Write_2GB_Python_Batch', 'H H * * *', this) {
   executeJob(delegate, spannerio_write_test_2gb)
 }

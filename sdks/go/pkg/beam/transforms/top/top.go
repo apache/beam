@@ -49,10 +49,9 @@ var (
 //
 // Example use:
 //
-//    col := beam.Create(s, 1, 11, 7, 5, 10)
-//    top2 := stats.Largest(s, col, 2, less)  // PCollection<[]int> with [11, 10] as the only element.
-//
-func Largest(s beam.Scope, col beam.PCollection, n int, less interface{}) beam.PCollection {
+//	col := beam.Create(s, 1, 11, 7, 5, 10)
+//	top2 := stats.Largest(s, col, 2, less)  // PCollection<[]int> with [11, 10] as the only element.
+func Largest(s beam.Scope, col beam.PCollection, n int, less any) beam.PCollection {
 	s = s.Scope(fmt.Sprintf("top.Largest(%v)", n))
 
 	t := beam.ValidateNonCompositeType(col)
@@ -64,7 +63,7 @@ func Largest(s beam.Scope, col beam.PCollection, n int, less interface{}) beam.P
 // LargestPerKey returns the largest N values for each key of a PCollection<KV<K,T>>.
 // The order is defined by the comparator, less : T x T -> bool. It returns a
 // PCollection<KV<K,[]T>> with a slice of the N largest elements for each key.
-func LargestPerKey(s beam.Scope, col beam.PCollection, n int, less interface{}) beam.PCollection {
+func LargestPerKey(s beam.Scope, col beam.PCollection, n int, less any) beam.PCollection {
 	s = s.Scope(fmt.Sprintf("top.LargestPerKey(%v)", n))
 
 	_, t := beam.ValidateKVType(col)
@@ -79,10 +78,9 @@ func LargestPerKey(s beam.Scope, col beam.PCollection, n int, less interface{}) 
 //
 // Example use:
 //
-//    col := beam.Create(s, 1, 11, 7, 5, 10)
-//    bottom2 := stats.Smallest(s, col, 2, less)  // PCollection<[]int> with [1, 5] as the only element.
-//
-func Smallest(s beam.Scope, col beam.PCollection, n int, less interface{}) beam.PCollection {
+//	col := beam.Create(s, 1, 11, 7, 5, 10)
+//	bottom2 := stats.Smallest(s, col, 2, less)  // PCollection<[]int> with [1, 5] as the only element.
+func Smallest(s beam.Scope, col beam.PCollection, n int, less any) beam.PCollection {
 	s = s.Scope(fmt.Sprintf("top.Smallest(%v)", n))
 
 	t := beam.ValidateNonCompositeType(col)
@@ -94,7 +92,7 @@ func Smallest(s beam.Scope, col beam.PCollection, n int, less interface{}) beam.
 // SmallestPerKey returns the smallest N values for each key of a PCollection<KV<K,T>>.
 // The order is defined by the comparator, less : T x T -> bool. It returns a
 // PCollection<KV<K,[]T>> with a slice of the N smallest elements for each key.
-func SmallestPerKey(s beam.Scope, col beam.PCollection, n int, less interface{}) beam.PCollection {
+func SmallestPerKey(s beam.Scope, col beam.PCollection, n int, less any) beam.PCollection {
 	s = s.Scope(fmt.Sprintf("top.SmallestPerKey(%v)", n))
 
 	_, t := beam.ValidateKVType(col)
@@ -103,14 +101,14 @@ func SmallestPerKey(s beam.Scope, col beam.PCollection, n int, less interface{})
 	return beam.CombinePerKey(s, newCombineFn(less, n, t.Type(), true), col)
 }
 
-func validate(t typex.FullType, n int, less interface{}) {
+func validate(t typex.FullType, n int, less any) {
 	if n < 1 {
 		panic("n must be > 0")
 	}
 	funcx.MustSatisfy(less, funcx.Replace(sig, beam.TType, t.Type()))
 }
 
-func newCombineFn(less interface{}, n int, t reflect.Type, reversed bool) *combineFn {
+func newCombineFn(less any, n int, t reflect.Type, reversed bool) *combineFn {
 	fn := &combineFn{Less: beam.EncodedFunc{Fn: reflectx.MakeFunc(less)}, N: n, Type: beam.EncodedType{T: t}, Reversed: reversed}
 	// Running SetupFn at pipeline construction helps validate the
 	// combineFn, and simplify testing.
@@ -126,7 +124,7 @@ type accum struct {
 
 	data [][]byte
 	// list stores the elements of type A in order. It has at most size N.
-	list []interface{}
+	list []any
 }
 
 func (a *accum) unmarshal() error {
@@ -260,7 +258,7 @@ func (f *combineFn) ExtractOutput(a accum) []beam.T {
 	return ret
 }
 
-func (f *combineFn) trim(ret []interface{}) accum {
+func (f *combineFn) trim(ret []any) accum {
 	if f.less == nil {
 		f.less = reflectx.ToFunc2x1(f.Less.Fn)
 	}

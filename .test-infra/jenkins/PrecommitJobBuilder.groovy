@@ -26,8 +26,11 @@ class PrecommitJobBuilder {
   /** Base name for each post-commit suite job, i.e. 'Go'. */
   String nameBase
 
-  /**  The Gradle task to execute. */
-  String gradleTask
+  /**  DEPRECATED: The Gradle task to execute. */
+  String gradleTask = null
+
+  /**  The Gradle tasks to execute. */
+  List<String> gradleTasks = []
 
   /** If defined, set of additional switches to pass to Gradle. */
   List<String> gradleSwitches = []
@@ -45,12 +48,29 @@ class PrecommitJobBuilder {
   boolean commitTriggering = true
 
   /**
+   * Whether to trigger on cron run. Useful to set jobs that runs tasks covered by
+   * other test suites but are deemed to triggered on pull request only.
+   */
+  boolean cronTriggering = true
+
+  /**
+   * Whether to configure defaultPathTriggers.
+   * Set to false for PreCommit only runs on certain code path change.
+   */
+  boolean defaultPathTriggering = true
+
+  /** Number of builds to retain in history. */
+  int numBuildsToRetain = -1
+
+  /**
    * Define a set of pre-commit jobs.
    *
    * @param additionalCustomization Job DSL closure with additional customization to apply to the job.
    */
   void build(Closure additionalCustomization = {}) {
-    defineCronJob additionalCustomization
+    if (cronTriggering) {
+      defineCronJob additionalCustomization
+    }
     if (commitTriggering) {
       defineCommitJob additionalCustomization
     }
@@ -79,7 +99,7 @@ class PrecommitJobBuilder {
       '^gradle.bat$',
       '^settings.gradle.kts$'
     ]
-    if (triggerPathPatterns) {
+    if (defaultPathTriggering && triggerPathPatterns) {
       triggerPathPatterns.addAll defaultPathTriggers
     }
     job.with {
@@ -112,11 +132,14 @@ class PrecommitJobBuilder {
       commonJobProperties.setTopLevelMainJobProperties(delegate,
           'master',
           timeoutMins,
-          allowRemotePoll) // needed for included regions PR triggering; see [JENKINS-23606]
+          allowRemotePoll,
+          'beam',
+          true,
+          numBuildsToRetain) // needed for included regions PR triggering; see [JENKINS-23606]
       steps {
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
-          tasks(gradleTask)
+          tasks(gradleTasks.join(' ') + (gradleTask ?: ""))
           gradleSwitches.each { switches(it) }
           commonJobProperties.setGradleSwitches(delegate)
         }

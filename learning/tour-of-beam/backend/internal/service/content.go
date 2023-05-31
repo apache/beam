@@ -22,7 +22,7 @@ import (
 
 	tob "beam.apache.org/learning/tour-of-beam/backend/internal"
 	"beam.apache.org/learning/tour-of-beam/backend/internal/storage"
-	pb "beam.apache.org/learning/tour-of-beam/backend/playground_api"
+	pb "beam.apache.org/learning/tour-of-beam/backend/playground_api/api/v1"
 )
 
 type IContent interface {
@@ -31,6 +31,7 @@ type IContent interface {
 	GetUserProgress(ctx context.Context, sdk tob.Sdk, userId string) (tob.SdkProgress, error)
 	SetUnitComplete(ctx context.Context, sdk tob.Sdk, unitId, uid string) error
 	SaveUserCode(ctx context.Context, sdk tob.Sdk, unitId, uid string, userRequest tob.UserCodeRequest) error
+	DeleteProgress(ctx context.Context, uid string) error
 }
 
 type Svc struct {
@@ -70,15 +71,39 @@ func (s *Svc) GetUserProgress(ctx context.Context, sdk tob.Sdk, userId string) (
 }
 
 func (s *Svc) SetUnitComplete(ctx context.Context, sdk tob.Sdk, unitId, uid string) error {
+	if err := s.Repo.CheckUnitExists(ctx, sdk, unitId); err != nil {
+		return err
+	}
+
 	return s.Repo.SetUnitComplete(ctx, sdk, unitId, uid)
 }
 
 func (s *Svc) SaveUserCode(ctx context.Context, sdk tob.Sdk, unitId, uid string, userRequest tob.UserCodeRequest) error {
-	req := MakePgSaveRequest(userRequest, sdk)
-	resp, err := s.PgClient.SaveSnippet(ctx, &req)
-	if err != nil {
+	if err := s.Repo.CheckUnitExists(ctx, sdk, unitId); err != nil {
 		return err
 	}
-	fmt.Println("SaveSnippet response:", resp)
-	return s.Repo.SaveUserSnippetId(ctx, sdk, unitId, uid, resp.GetId())
+
+	// two-phased commit for 2 resources: datastore tb_user_progress entity and Playground::SaveSnippet call
+	// In a datastore transaction:
+	// 1. Get tb_user_progress for (sdk, unit, user), if any.
+	//    Otherwise, fill in the default parameters and generate a new persistence_key
+	// 2. Call Playground::SaveSnippet GRPC call, return a SnippetId
+	// 3. Upsert into tb_user_progress with the obtained SnippetId and persistence_key
+
+	// callback: Playground::SaveSnippet GRPC call, return snippetID
+	savePgSnippet := func(persistenceKey string) (string, error) {
+		req := MakePgSaveRequest(userRequest, sdk, persistenceKey)
+		resp, err := s.PgClient.SaveSnippet(ctx, &req)
+		if err != nil {
+			return "", err
+		}
+		fmt.Println("SaveSnippet response:", resp)
+		return resp.GetId(), nil
+	}
+
+	return s.Repo.SaveUserSnippetId(ctx, sdk, unitId, uid, savePgSnippet)
+}
+
+func (s *Svc) DeleteProgress(ctx context.Context, uid string) error {
+	return s.Repo.DeleteProgress(ctx, uid)
 }

@@ -35,7 +35,7 @@ import (
 )
 
 // Execute submits a pipeline as a Dataflow job.
-func Execute(ctx context.Context, raw *pipepb.Pipeline, opts *JobOptions, workerURL, jarURL, modelURL, endpoint string, async bool) (*dataflowPipelineResult, error) {
+func Execute(ctx context.Context, raw *pipepb.Pipeline, opts *JobOptions, workerURL, modelURL, endpoint string, async bool) (*dataflowPipelineResult, error) {
 	// (1) Upload Go binary to GCS.
 	presult := &dataflowPipelineResult{}
 
@@ -75,15 +75,6 @@ func Execute(ctx context.Context, raw *pipepb.Pipeline, opts *JobOptions, worker
 		return presult, err
 	}
 
-	if opts.WorkerJar != "" {
-		log.Infof(ctx, "Staging Dataflow worker jar: %v", opts.WorkerJar)
-
-		if _, err := stageFile(ctx, opts.Project, jarURL, opts.WorkerJar); err != nil {
-			return presult, err
-		}
-		log.Infof(ctx, "Staged worker jar: %v", jarURL)
-	}
-
 	// (2) Upload model to GCS
 	log.Info(ctx, proto.MarshalTextString(raw))
 
@@ -94,7 +85,7 @@ func Execute(ctx context.Context, raw *pipepb.Pipeline, opts *JobOptions, worker
 
 	// (3) Translate to v1b3 and submit
 
-	job, err := Translate(ctx, raw, opts, workerURL, jarURL, modelURL)
+	job, err := Translate(ctx, raw, opts, workerURL, modelURL)
 	if err != nil {
 		return presult, err
 	}

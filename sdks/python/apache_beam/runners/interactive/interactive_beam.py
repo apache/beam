@@ -342,8 +342,17 @@ class Recordings():
 
 
 class Clusters:
-  """An interface to manage clusters running workers that are connected with
-  the current interactive environment.
+  """An interface to control clusters implicitly created and managed by
+  the current interactive environment. This class is not needed and
+  should not be used otherwise.
+
+  Do not use it for clusters a user explicitly manages: e.g., if you have
+  a Flink cluster running somewhere and provides the flink master when
+  running a pipeline with the FlinkRunner, the cluster will not be tracked
+  or managed by Beam.
+  To reuse the same cluster for your pipelines, use the same pipeline
+  options: e.g., a pipeline option with the same flink master if you are
+  using FlinkRunner.
 
   This module is experimental. No backwards-compatibility guarantees.
 

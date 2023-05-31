@@ -17,7 +17,7 @@
 #    Provide the following environment to run this script:
 #
 #    GCLOUD_ZONE: Google cloud zone. Optional. Default: "us-central1-a"
-#    DATAPROC_VERSION: Dataproc version. Optional. Default: 1.5
+#    DATAPROC_VERSION: Dataproc version. Optional. Default: 2.1
 #    CLUSTER_NAME: Cluster name
 #    GCS_BUCKET: GCS bucket url for Dataproc resources (init actions)
 #    HARNESS_IMAGES_TO_PULL: Urls to SDK Harness' images to pull on dataproc workers (optional: 0, 1 or multiple urls for every harness image)
@@ -46,8 +46,8 @@ set -Eeuxo pipefail
 
 # GCloud properties
 GCLOUD_ZONE="${GCLOUD_ZONE:=us-central1-a}"
-DATAPROC_VERSION="${DATAPROC_VERSION:=2.0}"
-GCLOUD_REGION="us-central1"
+DATAPROC_VERSION="${DATAPROC_VERSION:=2.1-debian}"
+GCLOUD_REGION=`echo $GCLOUD_ZONE | sed -E "s/(-[a-z])?$//"`
 
 MASTER_NAME="$CLUSTER_NAME-m"
 
@@ -79,9 +79,9 @@ function get_leader() {
   while read line; do
     echo $line
     application_ids[$i]=`echo $line | sed "s/ .*//"`
-    application_masters[$i]=`echo $line | sed "s/.*$CLUSTER_NAME/$CLUSTER_NAME/" | sed "s/ .*//"`
+    application_masters[$i]=`echo $line | sed -E "s#.*(https?://)##" | sed "s/ .*//"`
     i=$((i+1))
-  done <<< $(gcloud compute ssh --zone=$GCLOUD_ZONE --quiet yarn@$MASTER_NAME --command="yarn application -list" | grep "$CLUSTER_NAME")
+  done <<< $(gcloud compute ssh --zone=$GCLOUD_ZONE --quiet yarn@$MASTER_NAME --command="yarn application -list" | grep "Apache Flink")
 
   if [ $i != 1 ]; then
     echo "Multiple applications found. Make sure that only 1 application is running on the cluster."
@@ -129,12 +129,13 @@ function create_cluster() {
   local image_version=$DATAPROC_VERSION
   echo "Starting dataproc cluster. Dataproc version: $image_version"
 
-  # Create one extra Dataproc VM for Flink's Job Manager
-  local num_dataproc_workers="$(($FLINK_NUM_WORKERS + 1))"
-
   # Docker init action restarts yarn so we need to start yarn session after this restart happens.
   # This is why flink init action is invoked last.
-  gcloud dataproc clusters create $CLUSTER_NAME --region=$GCLOUD_REGION --num-workers=$num_dataproc_workers  --metadata "${metadata}", --image-version=$image_version --zone=$GCLOUD_ZONE  --optional-components=FLINK,DOCKER  --quiet
+  # TODO(11/11/2022) remove --worker-machine-type and --master-machine-type once N2 CPUs quota relaxed
+  # Dataproc 2.1 uses n2-standard-2 by default but there is N2 CPUs=24 quota limit
+  gcloud dataproc clusters create $CLUSTER_NAME --region=$GCLOUD_REGION --num-workers=$FLINK_NUM_WORKERS \
+  --master-machine-type=n1-standard-2 --worker-machine-type=n1-standard-2 --metadata "${metadata}", \
+  --image-version=$image_version --zone=$GCLOUD_ZONE  --optional-components=FLINK,DOCKER  --quiet
 }
 
 # Runs init actions for Docker, Portability framework (Beam) and Flink cluster

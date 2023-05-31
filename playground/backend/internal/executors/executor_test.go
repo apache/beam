@@ -16,14 +16,15 @@
 package executors
 
 import (
-	pb "beam.apache.org/playground/backend/internal/api/v1"
-	"beam.apache.org/playground/backend/internal/preparers"
-	"beam.apache.org/playground/backend/internal/validators"
 	"context"
 	"os/exec"
 	"reflect"
 	"sync"
 	"testing"
+
+	pb "beam.apache.org/playground/backend/internal/api/v1"
+	"beam.apache.org/playground/backend/internal/preparers"
+	"beam.apache.org/playground/backend/internal/validators"
 )
 
 const pipelineOptions = "--output t.txt"
@@ -43,16 +44,16 @@ func TestExecutor_Compile(t *testing.T) {
 			name: "TestCompile",
 			fields: fields{
 				compileArgs: CmdConfiguration{
-					fileName:        "filePath",
+					fileNames:       []string{"filePath"},
 					workingDir:      "./",
 					commandName:     "testCommand",
-					commandArgs:     []string{"-d", "bin", "-classpath", "/opt/apache/beam/jars/beam-sdks-java-harness.jar"},
+					commandArgs:     []string{"-d", "bin", "-parameters", "-classpath", "/opt/apache/beam/jars/beam-sdks-java-harness.jar"},
 					pipelineOptions: []string{""},
 				},
 			},
 			want: &exec.Cmd{
 				Path:         "testCommand",
-				Args:         []string{"javac", "-d", "bin", "-classpath", "/opt/apache/beam/jars/beam-sdks-java-harness.jar", "filePath"},
+				Args:         []string{"javac", "-d", "bin", "-parameters", "-classpath", "/opt/apache/beam/jars/beam-sdks-java-harness.jar", "filePath"},
 				Env:          nil,
 				Dir:          "",
 				Stdin:        nil,
@@ -96,7 +97,7 @@ func TestExecutor_Run(t *testing.T) {
 			name: "TestRun",
 			fields: fields{
 				runArgs: CmdConfiguration{
-					fileName:    "HelloWorld",
+					fileNames:   []string{"HelloWorld"},
 					workingDir:  "./",
 					commandName: "runCommand",
 					commandArgs: []string{"-cp", "bin:/opt/apache/beam/jars/beam-sdks-java-harness.jar:" +
@@ -123,7 +124,7 @@ func TestExecutor_Run(t *testing.T) {
 			name: "TestRun with pipelineOptions",
 			fields: fields{
 				runArgs: CmdConfiguration{
-					fileName:    "HelloWorld",
+					fileNames:   []string{"HelloWorld"},
 					workingDir:  "./",
 					commandName: "runCommand",
 					commandArgs: []string{"-cp", "bin:/opt/apache/beam/jars/beam-sdks-java-harness.jar:" +
@@ -184,7 +185,7 @@ func TestExecutor_RunTest(t *testing.T) {
 			name: "TestRunTest",
 			fields: fields{
 				testArgs: CmdConfiguration{
-					fileName:        "HelloWorld",
+					fileNames:       []string{"HelloWorld"},
 					workingDir:      "./",
 					commandName:     "testCommand",
 					commandArgs:     []string{"-cp", "option1:option2"},
@@ -225,9 +226,10 @@ func TestExecutor_RunTest(t *testing.T) {
 
 func TestExecutor_Prepare(t *testing.T) {
 	valResult := &sync.Map{}
+	prepareParams := make(map[string]string)
 	valResult.Store(validators.UnitTestValidatorName, false)
 	valResult.Store(validators.KatasValidatorName, false)
-	preparersArray, err := preparers.GetPreparers(pb.Sdk_SDK_JAVA, "./", valResult)
+	preparersArray, err := preparers.GetPreparers(pb.Sdk_SDK_JAVA, "./", valResult, prepareParams)
 	if err != nil {
 		panic(err)
 	}

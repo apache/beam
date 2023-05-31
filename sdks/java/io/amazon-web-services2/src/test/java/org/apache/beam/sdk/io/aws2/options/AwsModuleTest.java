@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.aws2.options;
 import static org.apache.beam.repackaged.core.org.apache.commons.lang3.reflect.FieldUtils.readField;
 import static org.apache.beam.sdk.io.aws2.options.SerializationTestUtil.serialize;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
@@ -50,6 +51,7 @@ import org.junit.Test;
 import org.junit.rules.ExternalResource;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
@@ -60,10 +62,14 @@ import software.amazon.awssdk.auth.credentials.EnvironmentVariableCredentialsPro
 import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.SystemPropertyCredentialsProvider;
+import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.http.apache.ProxyConfiguration;
+import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sts.StsClient;
 import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider;
+import software.amazon.awssdk.services.sts.auth.StsAssumeRoleWithWebIdentityCredentialsProvider;
 import software.amazon.awssdk.services.sts.model.AssumeRoleRequest;
+import software.amazon.awssdk.services.sts.model.AssumeRoleWithWebIdentityRequest;
 
 /** Tests {@link AwsModule}. */
 @RunWith(JUnit4.class)
@@ -143,11 +149,13 @@ public class AwsModuleTest {
           assertThat(serializedProvider).isEqualTo("{\"@type\":\"ProfileCredentialsProvider\"}");
 
           AwsCredentialsProvider actual = deserialize(serializedProvider);
-          assertThat(actual.resolveCredentials())
-              .isEqualToComparingFieldByField(DEFAULT_CREDENTIALS);
-          return assertThat(actual)
+          // compare providers before loading credentials (triggering lazy initialization)
+          assertThat(actual)
               .isExactlyInstanceOf(ProfileCredentialsProvider.class)
               .isEqualToComparingFieldByFieldRecursively(provider);
+
+          return assertThat(actual.resolveCredentials())
+              .isEqualToComparingFieldByField(DEFAULT_CREDENTIALS);
         });
   }
 
@@ -163,10 +171,13 @@ public class AwsModuleTest {
               .isEqualTo("{\"@type\":\"ProfileCredentialsProvider\",\"profileName\":\"other\"}");
 
           AwsCredentialsProvider actual = deserialize(serializedProvider);
-          assertThat(actual.resolveCredentials()).isEqualToComparingFieldByField(OTHER_CREDENTIALS);
-          return assertThat(actual)
+          // compare providers before loading credentials (triggering lazy initialization)
+          assertThat(actual)
               .isExactlyInstanceOf(ProfileCredentialsProvider.class)
               .isEqualToComparingFieldByFieldRecursively(provider);
+
+          return assertThat(actual.resolveCredentials())
+              .isEqualToComparingFieldByField(OTHER_CREDENTIALS);
         });
   }
 
@@ -181,11 +192,13 @@ public class AwsModuleTest {
           assertThat(serializedProvider).isEqualTo("{\"@type\":\"ProfileCredentialsProvider\"}");
 
           AwsCredentialsProvider actual = deserialize(serializedProvider);
-          assertThat(actual.resolveCredentials())
-              .isEqualToComparingFieldByFieldRecursively(OTHER_CREDENTIALS);
-          return assertThat(actual)
+          // compare providers before loading credentials (triggering lazy initialization)
+          assertThat(actual)
               .isExactlyInstanceOf(ProfileCredentialsProvider.class)
               .isEqualToComparingFieldByFieldRecursively(provider);
+
+          return assertThat(actual.resolveCredentials())
+              .isEqualToComparingFieldByFieldRecursively(OTHER_CREDENTIALS);
         });
   }
 
@@ -197,16 +210,20 @@ public class AwsModuleTest {
           AwsCredentialsProvider provider = ProfileCredentialsProvider.create("unknown");
           String serializedProvider = serialize(provider);
 
-          // ProfileCredentialsProvider SILENTLY drops unknown profiles
-          assertThat(serializedProvider).isEqualTo("{\"@type\":\"ProfileCredentialsProvider\"}");
+          assertThat(serializedProvider)
+              .isEqualTo("{\"@type\":\"ProfileCredentialsProvider\",\"profileName\":\"unknown\"}");
 
           AwsCredentialsProvider actual = deserialize(serializedProvider);
-          // NOTE: This documents the unexpected behavior in case a faulty provider is serialized
-          return assertThat(actual.resolveCredentials())
-              .isEqualToComparingFieldByField(DEFAULT_CREDENTIALS);
-        });
+          // compare providers before loading credentials (triggering lazy initialization)
+          assertThat(actual)
+              .isExactlyInstanceOf(ProfileCredentialsProvider.class)
+              .isEqualToComparingFieldByFieldRecursively(provider);
 
-    logs.verifyWarn("Serialized ProfileCredentialsProvider in faulty state.");
+          // Exceptions for invalid profiles are thrown lazily on resolve credentials
+          return assertThatThrownBy(() -> actual.resolveCredentials())
+              .isInstanceOf(SdkClientException.class)
+              .hasMessageContaining("Profile file contained no credentials for profile 'unknown'");
+        });
   }
 
   @Test
@@ -231,6 +248,34 @@ public class AwsModuleTest {
     Supplier<AssumeRoleRequest> requestSupplier =
         (Supplier<AssumeRoleRequest>)
             readField(deserializedProvider, "assumeRoleRequestSupplier", true);
+    assertThat(requestSupplier.get()).isEqualTo(req);
+  }
+
+  @Test
+  public void testStsAssumeRoleWithWebIdentityCredentialsProviderSerDe() throws Exception {
+    AssumeRoleWithWebIdentityRequest req =
+        AssumeRoleWithWebIdentityRequest.builder()
+            .roleArn("roleArn")
+            .policy("policy")
+            .webIdentityToken("idToken")
+            .build();
+    Supplier<AwsCredentialsProvider> provider =
+        () ->
+            StsAssumeRoleWithWebIdentityCredentialsProvider.builder()
+                .stsClient(
+                    StsClient.builder()
+                        .region(Region.AWS_GLOBAL)
+                        .credentialsProvider(AnonymousCredentialsProvider.create())
+                        .build())
+                .refreshRequest(req)
+                .build();
+
+    // Deserialize without credentials from system properties
+    AwsCredentialsProvider deserializedProvider = serializeAndDeserialize(provider.get());
+
+    Supplier<AssumeRoleWithWebIdentityRequest> requestSupplier =
+        (Supplier<AssumeRoleWithWebIdentityRequest>)
+            readField(deserializedProvider, "assumeRoleWithWebIdentityRequest", true);
     assertThat(requestSupplier.get()).isEqualTo(req);
   }
 

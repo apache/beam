@@ -60,8 +60,8 @@ var (
 type Transaction struct {
 	Key    string
 	Type   TransactionTypeEnum
-	MapKey interface{}
-	Val    interface{}
+	MapKey any
+	Val    any
 }
 
 // Provider represents the DoFn parameter used to get and manipulate pipeline state
@@ -69,18 +69,18 @@ type Transaction struct {
 // This should not be manipulated directly. Instead it should be used as a parameter
 // to functions on State objects like state.Value.
 type Provider interface {
-	ReadValueState(id string) (interface{}, []Transaction, error)
+	ReadValueState(id string) (any, []Transaction, error)
 	WriteValueState(val Transaction) error
 	ClearValueState(val Transaction) error
-	ReadBagState(id string) ([]interface{}, []Transaction, error)
+	ReadBagState(id string) ([]any, []Transaction, error)
 	WriteBagState(val Transaction) error
 	ClearBagState(val Transaction) error
 	CreateAccumulatorFn(userStateID string) reflectx.Func
 	AddInputFn(userStateID string) reflectx.Func
 	MergeAccumulatorsFn(userStateID string) reflectx.Func
 	ExtractOutputFn(userStateID string) reflectx.Func
-	ReadMapStateValue(userStateID string, key interface{}) (interface{}, []Transaction, error)
-	ReadMapStateKeys(userStateID string) ([]interface{}, []Transaction, error)
+	ReadMapStateValue(userStateID string, key any) (any, []Transaction, error)
+	ReadMapStateKeys(userStateID string) ([]any, []Transaction, error)
 	WriteMapState(val Transaction) error
 	ClearMapStateKey(val Transaction) error
 	ClearMapState(val Transaction) error
@@ -98,7 +98,7 @@ type PipelineState interface {
 // CombiningPipelineState is an interface representing combining pipeline state.
 // It is primarily meant for Beam packages to use and is probably not useful for most pipeline authors.
 type CombiningPipelineState interface {
-	GetCombineFn() interface{}
+	GetCombineFn() any
 }
 
 // Value is used to read and write global pipeline state representing a single value.
@@ -261,7 +261,7 @@ func MakeBagState[T any](k string) Bag[T] {
 // Key represents the key used to lookup this state.
 type Combining[T1, T2, T3 any] struct {
 	Key       string
-	combineFn interface{}
+	combineFn any
 }
 
 // Add is used to write add an element to the combining pipeline state.
@@ -283,11 +283,11 @@ func (s *Combining[T1, T2, T3]) Add(p Provider, val T2) error {
 	}
 
 	if ai := p.AddInputFn(s.Key); ai != nil {
-		var newVal interface{}
+		var newVal any
 		if f, ok := ai.(reflectx.Func2x1); ok {
 			newVal = f.Call2x1(acc, val)
 		} else {
-			newVal = f.Call([]interface{}{acc, val})[0]
+			newVal = f.Call([]any{acc, val})[0]
 		}
 		return p.WriteValueState(Transaction{
 			Key:  s.Key,
@@ -297,11 +297,11 @@ func (s *Combining[T1, T2, T3]) Add(p Provider, val T2) error {
 	}
 	// If AddInput isn't defined, that means we must just have one accumulator type identical to the input type.
 	if ma := p.MergeAccumulatorsFn(s.Key); ma != nil {
-		var newVal interface{}
+		var newVal any
 		if f, ok := ma.(reflectx.Func2x1); ok {
 			newVal = f.Call2x1(acc, val)
 		} else {
-			newVal = f.Call([]interface{}{acc, val})[0]
+			newVal = f.Call([]any{acc, val})[0]
 		}
 		return p.WriteValueState(Transaction{
 			Key:  s.Key,
@@ -328,7 +328,7 @@ func (s *Combining[T1, T2, T3]) Read(p Provider) (T3, bool, error) {
 		if ok {
 			return f.Call1x1(acc).(T3), true, nil
 		}
-		return f.Call([]interface{}{acc})[0].(T3), true, nil
+		return f.Call([]any{acc})[0].(T3), true, nil
 	}
 
 	return acc.(T3), true, nil
@@ -342,7 +342,7 @@ func (s *Combining[T1, T2, T3]) Clear(p Provider) error {
 	})
 }
 
-func (s *Combining[T1, T2, T3]) readAccumulator(p Provider) (interface{}, bool, error) {
+func (s *Combining[T1, T2, T3]) readAccumulator(p Provider) (any, bool, error) {
 	// This replays any writes that have happened to this value since we last read
 	// For more detail, see "State Transactionality" below for buffered transactions
 	cur, bufferedTransactions, err := p.ReadValueState(s.Key)
@@ -364,7 +364,7 @@ func (s *Combining[T1, T2, T3]) readAccumulator(p Provider) (interface{}, bool, 
 			if ok {
 				return f.Call0x1(), true, nil
 			}
-			return f.Call([]interface{}{})[0], true, nil
+			return f.Call([]any{})[0], true, nil
 		}
 		var val T1
 		return val, false, nil
@@ -395,7 +395,7 @@ func (s Combining[T1, T2, T3]) StateType() TypeEnum {
 }
 
 // GetCombineFn returns this state instance's CombineFn
-func (s Combining[T1, T2, T3]) GetCombineFn() interface{} {
+func (s Combining[T1, T2, T3]) GetCombineFn() any {
 	return s.combineFn
 }
 
@@ -403,7 +403,7 @@ func (s Combining[T1, T2, T3]) GetCombineFn() interface{} {
 // when the combiner may have different types for its accumulator, input, and output.
 // Takes 3 generic constraints [T1, T2, T3 any] representing the accumulator/input/output types respectively.
 // If no accumulator or output types are defined, use the input type.
-func MakeCombiningState[T1, T2, T3 any](k string, combiner interface{}) Combining[T1, T2, T3] {
+func MakeCombiningState[T1, T2, T3 any](k string, combiner any) Combining[T1, T2, T3] {
 	return Combining[T1, T2, T3]{
 		Key:       k,
 		combineFn: combiner,

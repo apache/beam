@@ -23,6 +23,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.MapState;
+import org.apache.beam.sdk.state.MultimapState;
 import org.apache.beam.sdk.state.OrderedListState;
 import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.state.State;
@@ -83,6 +84,9 @@ public interface StateTag<StateT extends State> extends Serializable {
         StateTag<MapState<KeyT, ValueT>> spec,
         Coder<KeyT> mapKeyCoder,
         Coder<ValueT> mapValueCoder);
+
+    <KeyT, ValueT> MultimapState<KeyT, ValueT> bindMultimap(
+        StateTag<MultimapState<KeyT, ValueT>> spec, Coder<KeyT> keyCoder, Coder<ValueT> valueCoder);
 
     <T> OrderedListState<T> bindOrderedList(StateTag<OrderedListState<T>> spec, Coder<T> elemCoder);
 

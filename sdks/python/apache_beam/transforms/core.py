@@ -25,9 +25,11 @@ import inspect
 import logging
 import random
 import sys
+import time
 import traceback
 import types
 import typing
+from itertools import dropwhile
 
 from apache_beam import coders
 from apache_beam import pvalue
@@ -50,6 +52,7 @@ from apache_beam.transforms.sideinputs import get_sideinput_index
 from apache_beam.transforms.userstate import StateSpec
 from apache_beam.transforms.userstate import TimerSpec
 from apache_beam.transforms.window import GlobalWindows
+from apache_beam.transforms.window import SlidingWindows
 from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.transforms.window import WindowedValue
@@ -122,8 +125,6 @@ class DoFnContext(object):
 class DoFnProcessContext(DoFnContext):
   """A processing context passed to DoFn process() during execution.
 
-  Experimental; no backwards-compatibility guarantees.
-
   Most importantly, a DoFn.process method will access context.element
   to get the element it is supposed to process.
 
@@ -174,8 +175,6 @@ class DoFnProcessContext(DoFnContext):
 class ProcessContinuation(object):
   """An object that may be produced as the last element of a process method
     invocation.
-
-  Experimental; no backwards-compatibility guarantees.
 
   If produced, indicates that there is more work to be done for the current
   input element.
@@ -315,6 +314,9 @@ class RestrictionProvider(object):
     of the restriction.
 
     The return value must be non-negative.
+
+    Must be thread safe. Will be invoked concurrently during bundle processing
+    due to runner initiated splitting and progress estimation.
 
     This API is required to be implemented.
     """
@@ -757,19 +759,19 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
 
   @property
   def _process_defined(self) -> bool:
-    # Check if this DoFn's process method has heen overriden
+    # Check if this DoFn's process method has been overridden
     # Note that we retrieve the __func__ attribute, if it exists, to get the
     # underlying function from the bound method.
-    # If __func__ doesn't exist, self.process was likely overriden with a free
+    # If __func__ doesn't exist, self.process was likely overridden with a free
     # function, as in CallableWrapperDoFn.
     return getattr(self.process, '__func__', self.process) != DoFn.process
 
   @property
   def _process_batch_defined(self) -> bool:
-    # Check if this DoFn's process_batch method has heen overriden
+    # Check if this DoFn's process_batch method has been overridden
     # Note that we retrieve the __func__ attribute, if it exists, to get the
     # underlying function from the bound method.
-    # If __func__ doesn't exist, self.process_batch was likely overriden with
+    # If __func__ doesn't exist, self.process_batch was likely overridden with
     # a free function.
     return getattr(
         self.process_batch, '__func__',
@@ -1383,6 +1385,59 @@ class CallableWrapperPartitionFn(PartitionFn):
     return self._fn(element, num_partitions, *args, **kwargs)
 
 
+def _get_function_body_without_inners(func):
+  source_lines = inspect.getsourcelines(func)[0]
+  source_lines = dropwhile(lambda x: x.startswith("@"), source_lines)
+  def_line = next(source_lines).strip()
+  if def_line.startswith("def ") and def_line.endswith(":"):
+    first_line = next(source_lines)
+    indentation = len(first_line) - len(first_line.lstrip())
+    final_lines = [first_line[indentation:]]
+
+    skip_inner_def = False
+    if first_line[indentation:].startswith("def "):
+      skip_inner_def = True
+    for line in source_lines:
+      line_indentation = len(line) - len(line.lstrip())
+
+      if line[indentation:].startswith("def "):
+        skip_inner_def = True
+        continue
+
+      if skip_inner_def and line_indentation == indentation:
+        skip_inner_def = False
+
+      if skip_inner_def and line_indentation > indentation:
+        continue
+      final_lines.append(line[indentation:])
+
+    return "".join(final_lines)
+  else:
+    return def_line.rsplit(":")[-1].strip()
+
+
+def _check_fn_use_yield_and_return(fn):
+  if isinstance(fn, types.BuiltinFunctionType):
+    return False
+  try:
+    source_code = _get_function_body_without_inners(fn)
+    has_yield = False
+    has_return = False
+    for line in source_code.split("\n"):
+      if line.lstrip().startswith("yield ") or line.lstrip().startswith(
+          "yield("):
+        has_yield = True
+      if line.lstrip().startswith("return ") or line.lstrip().startswith(
+          "return("):
+        has_return = True
+      if has_yield and has_return:
+        return True
+    return False
+  except Exception as e:
+    _LOGGER.debug(str(e))
+    return False
+
+
 class ParDo(PTransformWithSideInputs):
   """A :class:`ParDo` transform.
 
@@ -1423,6 +1478,14 @@ class ParDo(PTransformWithSideInputs):
     if not isinstance(self.fn, DoFn):
       raise TypeError('ParDo must be called with a DoFn instance.')
 
+    # DoFn.process cannot allow both return and yield
+    if _check_fn_use_yield_and_return(self.fn.process):
+      _LOGGER.warning(
+          'Using yield and return in the process method '
+          'of %s can lead to unexpected behavior, see:'
+          'https://github.com/apache/beam/issues/22969.',
+          self.fn.__class__)
+
     # Validate the DoFn by creating a DoFnSignature
     from apache_beam.runners.common import DoFnSignature
     self._signature = DoFnSignature(self.fn)
@@ -1436,7 +1499,8 @@ class ParDo(PTransformWithSideInputs):
       partial=False,
       use_subprocess=False,
       threshold=1,
-      threshold_windowing=None):
+      threshold_windowing=None,
+      timeout=None):
     """Automatically provides a dead letter output for skipping bad records.
     This can allow a pipeline to continue successfully rather than fail or
     continuously throw errors on retry when bad elements are encountered.
@@ -1482,6 +1546,8 @@ class ParDo(PTransformWithSideInputs):
           up to 100% of records can be bad and the pipeline will still succeed).
       threshold_windowing: Event-time windowing to use for threshold. Optional,
           defaults to the windowing of the input.
+      timeout: If the element has not finished processing in timeout seconds,
+          raise a TimeoutError.  Defaults to None, meaning no time limit.
     """
     args, kwargs = self.raw_side_inputs
     return self.label >> _ExceptionHandlingWrapper(
@@ -1494,7 +1560,8 @@ class ParDo(PTransformWithSideInputs):
         partial,
         use_subprocess,
         threshold,
-        threshold_windowing)
+        threshold_windowing,
+        timeout)
 
   def default_type_hints(self):
     return self.fn.get_type_hints()
@@ -2086,7 +2153,8 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
       partial,
       use_subprocess,
       threshold,
-      threshold_windowing):
+      threshold_windowing,
+      timeout):
     if partial and use_subprocess:
       raise ValueError('partial and use_subprocess are mutually incompatible.')
     self._fn = fn
@@ -2099,14 +2167,18 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
     self._use_subprocess = use_subprocess
     self._threshold = threshold
     self._threshold_windowing = threshold_windowing
+    self._timeout = timeout
 
   def expand(self, pcoll):
+    if self._use_subprocess:
+      wrapped_fn = _SubprocessDoFn(self._fn, timeout=self._timeout)
+    elif self._timeout:
+      wrapped_fn = _TimeoutDoFn(self._fn, timeout=self._timeout)
+    else:
+      wrapped_fn = self._fn
     result = pcoll | ParDo(
         _ExceptionHandlingWrapperDoFn(
-            _SubprocessDoFn(self._fn) if self._use_subprocess else self._fn,
-            self._dead_letter_tag,
-            self._exc_class,
-            self._partial),
+            wrapped_fn, self._dead_letter_tag, self._exc_class, self._partial),
         *self._args,
         **self._kwargs).with_outputs(
             self._dead_letter_tag, main=self._main_tag, allow_unknown_tags=True)
@@ -2175,9 +2247,10 @@ class _ExceptionHandlingWrapperDoFn(DoFn):
 class _SubprocessDoFn(DoFn):
   """Process method run in a subprocess, turning hard crashes into exceptions.
   """
-  def __init__(self, fn):
+  def __init__(self, fn, timeout=None):
     self._fn = fn
     self._serialized_fn = pickler.dumps(fn)
+    self._timeout = timeout
 
   def __getattribute__(self, name):
     if (name.startswith('__') or name in self.__dict__ or
@@ -2202,18 +2275,34 @@ class _SubprocessDoFn(DoFn):
 
   def teardown(self):
     self._call_remote(self._remote_teardown)
-    self._pool.shutdown()
-    self._pool = None
+    self._terminate_pool()
 
   def _call_remote(self, method, *args, **kwargs):
     if self._pool is None:
       self._pool = concurrent.futures.ProcessPoolExecutor(1)
       self._pool.submit(self._remote_init, self._serialized_fn).result()
     try:
-      return self._pool.submit(method, *args, **kwargs).result()
-    except concurrent.futures.process.BrokenProcessPool:
-      self._pool = None
+      return self._pool.submit(method, *args, **kwargs).result(
+          self._timeout if method == self._remote_process else None)
+    except (concurrent.futures.process.BrokenProcessPool,
+            TimeoutError,
+            concurrent.futures._base.TimeoutError):
+      self._terminate_pool()
       raise
+
+  def _terminate_pool(self):
+    """Forcibly terminate the pool, not leaving any live subprocesses."""
+    pool = self._pool
+    self._pool = None
+    processes = list(pool._processes.values())
+    pool.shutdown(wait=False)
+    for p in processes:
+      if p.is_alive():
+        p.kill()
+    time.sleep(1)
+    for p in processes:
+      if p.is_alive():
+        p.terminate()
 
   # These are classmethods to avoid picking the state of self.
   # They should only be called in an isolated process, so there's no concern
@@ -2253,6 +2342,43 @@ class _SubprocessDoFn(DoFn):
     if cls._fn:
       cls._fn.teardown()
     cls._fn = None
+
+
+class _TimeoutDoFn(DoFn):
+  """Process method run in a separate thread allowing timeouts.
+  """
+  def __init__(self, fn, timeout=None):
+    self._fn = fn
+    self._timeout = timeout
+    self._pool = None
+
+  def __getattribute__(self, name):
+    if (name.startswith('__') or name in self.__dict__ or
+        name in type(self).__dict__):
+      return object.__getattribute__(self, name)
+    else:
+      return getattr(self._fn, name)
+
+  def process(self, *args, **kwargs):
+    if self._pool is None:
+      self._pool = concurrent.futures.ThreadPoolExecutor(10)
+    # Ensure we iterate over the entire output list in the given amount of time.
+    try:
+      return self._pool.submit(
+          lambda: list(self._fn.process(*args, **kwargs))).result(
+              self._timeout)
+    except TimeoutError:
+      self._pool.shutdown(wait=False)
+      self._pool = None
+      raise
+
+  def teardown(self):
+    try:
+      self._fn.teardown()
+    finally:
+      if self._pool is not None:
+        self._pool.shutdown(wait=False)
+        self._pool = None
 
 
 def Filter(fn, *args, **kwargs):  # pylint: disable=invalid-name
@@ -2659,6 +2785,7 @@ class CombineValues(PTransformWithSideInputs):
 
 class CombineValuesDoFn(DoFn):
   """DoFn for performing per-key Combine transforms."""
+
   def __init__(
       self,
       input_pcoll_type,
@@ -2721,6 +2848,7 @@ class CombineValuesDoFn(DoFn):
 
 
 class _CombinePerKeyWithHotKeyFanout(PTransform):
+
   def __init__(
       self,
       combine_fn,  # type: CombineFn
@@ -2742,6 +2870,11 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
     from apache_beam.transforms.trigger import AccumulationMode
     combine_fn = self._combine_fn
     fanout_fn = self._fanout_fn
+
+    if isinstance(pcoll.windowing.windowfn, SlidingWindows):
+      raise ValueError(
+          'CombinePerKey.with_hot_key_fanout does not yet work properly with '
+          'SlidingWindows. See: https://github.com/apache/beam/issues/20528')
 
     class SplitHotCold(DoFn):
       def start_bundle(self):
@@ -2930,11 +3063,12 @@ class GroupBy(PTransform):
   The GroupBy operation can be made into an aggregating operation by invoking
   its `aggregate_field` method.
   """
+
   def __init__(
       self,
       *fields,  # type: typing.Union[str, typing.Callable]
       **kwargs  # type: typing.Union[str, typing.Callable]
-    ):
+  ):
     if len(fields) == 1 and not kwargs:
       self._force_tuple_keys = False
       name = fields[0] if isinstance(fields[0], str) else 'key'
@@ -2957,7 +3091,7 @@ class GroupBy(PTransform):
       field,  # type: typing.Union[str, typing.Callable]
       combine_fn,  # type: typing.Union[typing.Callable, CombineFn]
       dest,  # type: str
-    ):
+  ):
     """Returns a grouping operation that also aggregates grouped values.
 
     Args:
@@ -3045,7 +3179,7 @@ class _GroupAndAggregate(PTransform):
       field,  # type: typing.Union[str, typing.Callable]
       combine_fn,  # type: typing.Union[typing.Callable, CombineFn]
       dest,  # type: str
-      ):
+  ):
     field = _expr_to_callable(field, 0)
     return _GroupAndAggregate(
         self._grouping, list(self._aggregations) + [(field, combine_fn, dest)])
@@ -3087,10 +3221,12 @@ class Select(PTransform):
 
       pcoll | beam.Map(lambda x: beam.Row(a=x.a, b=foo(x)))
   """
-  def __init__(self,
-               *args,  # type: typing.Union[str, typing.Callable]
-               **kwargs  # type: typing.Union[str, typing.Callable]
-               ):
+
+  def __init__(
+      self,
+      *args,  # type: typing.Union[str, typing.Callable]
+      **kwargs  # type: typing.Union[str, typing.Callable]
+  ):
     self._fields = [(
         expr if isinstance(expr, str) else 'arg%02d' % ix,
         _expr_to_callable(expr, ix)) for (ix, expr) in enumerate(args)
@@ -3155,8 +3291,8 @@ class Windowing(object):
   def __init__(self,
                windowfn,  # type: WindowFn
                triggerfn=None,  # type: typing.Optional[TriggerFn]
-               accumulation_mode=None,  # type: typing.Optional[beam_runner_api_pb2.AccumulationMode.Enum]
-               timestamp_combiner=None,  # type: typing.Optional[beam_runner_api_pb2.OutputTime.Enum]
+               accumulation_mode=None,  # type: typing.Optional[beam_runner_api_pb2.AccumulationMode.Enum.ValueType]
+               timestamp_combiner=None,  # type: typing.Optional[beam_runner_api_pb2.OutputTime.Enum.ValueType]
                allowed_lateness=0, # type: typing.Union[int, float]
                environment_id=None, # type: typing.Optional[str]
                ):

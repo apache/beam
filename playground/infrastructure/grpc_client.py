@@ -19,19 +19,24 @@ Module contains the client to communicate with GRPC test Playground server
 import logging
 import os
 import uuid
+from typing import List
 
 import grpc
 import sonora.aio
 
 from api.v1 import api_pb2_grpc, api_pb2
 from config import Config
+from constants import BEAM_USE_WEBGRPC_ENV_VAR_KEY, GRPC_TIMEOUT_ENV_VAR_KEY
+from models import SdkEnum
 
 
 class GRPCClient:
     """GRPCClient is gRPC client for sending a request to the backend."""
 
-    def __init__(self, timeout=10, wait_for_ready=True):
-        use_webgrpc = os.getenv("BEAM_USE_WEBGRPC", False)
+    def __init__(self, wait_for_ready=True):
+        use_webgrpc = os.getenv(BEAM_USE_WEBGRPC_ENV_VAR_KEY, False)
+        timeout = int(os.getenv(GRPC_TIMEOUT_ENV_VAR_KEY, 30))
+        logging.info("grpc timeout: %d", timeout)
         if use_webgrpc:
             self._channel = sonora.aio.insecure_web_channel(Config.SERVER_ADDRESS)
         else:
@@ -49,9 +54,13 @@ class GRPCClient:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self._channel.__aexit__(exc_type, exc_val, exc_tb)
 
-    
-    async def run_code(
-          self, code: str, sdk: api_pb2.Sdk, pipeline_options: str) -> str:
+    async def run_code(self, 
+        code: str,
+        sdk: SdkEnum,
+        pipeline_options: str,
+        datasets: List[api_pb2.Dataset],
+        files: List[api_pb2.SnippetFile],
+        ) -> str:
         """
         Run example by his code and SDK
 
@@ -59,6 +68,7 @@ class GRPCClient:
             code: code of the example.
             sdk: SDK of the example.
             pipeline_options: pipeline options of the example.
+            datasets: datasets of the example.
 
         Returns:
             pipeline_uuid: uuid of the pipeline
@@ -69,7 +79,7 @@ class GRPCClient:
             raise Exception(
                 f'Incorrect sdk: must be from this pool: {", ".join(sdks)}')
         request = api_pb2.RunCodeRequest(
-            code=code, sdk=sdk, pipeline_options=pipeline_options)
+            code=code, sdk=sdk, pipeline_options=pipeline_options, datasets=datasets, files=files)
         response = await self._stub.RunCode(request, **self._kwargs)
         return response.pipeline_uuid
 
@@ -103,12 +113,13 @@ class GRPCClient:
         response = await self._stub.GetRunError(request, **self._kwargs)
         return response.output
 
-    async def get_run_output(self, pipeline_uuid: str) -> str:
+    async def get_run_output(self, pipeline_uuid: str, example_filepath: str) -> str:
         """
         Get the result of pipeline execution.
 
         Args:
             pipeline_uuid: uuid of the pipeline
+            example_filepath: path to the file of the example
 
         Returns:
             output: contain the result of pipeline execution
@@ -116,14 +127,17 @@ class GRPCClient:
         self._verify_pipeline_uuid(pipeline_uuid)
         request = api_pb2.GetRunOutputRequest(pipeline_uuid=pipeline_uuid)
         response = await self._stub.GetRunOutput(request, **self._kwargs)
+        if response.output == "":
+            logging.info("Run output for %s is empty", example_filepath)
         return response.output
 
-    async def get_log(self, pipeline_uuid: str) -> str:
+    async def get_log(self, pipeline_uuid: str, example_filepath: str) -> str:
         """
         Get the result of pipeline execution.
 
         Args:
             pipeline_uuid: uuid of the pipeline
+            example_filepath: path to the file of the example
 
         Returns:
             output: contain the result of pipeline execution
@@ -131,6 +145,8 @@ class GRPCClient:
         self._verify_pipeline_uuid(pipeline_uuid)
         request = api_pb2.GetLogsRequest(pipeline_uuid=pipeline_uuid)
         response = await self._stub.GetLogs(request, **self._kwargs)
+        if response.output == "":
+            logging.info("Log for %s is empty", example_filepath)
 
         return response.output
 

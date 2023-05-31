@@ -23,8 +23,6 @@ import com.azure.core.http.HttpPipeline;
 import com.azure.core.http.policy.HttpPipelinePolicy;
 import com.azure.identity.DefaultAzureCredentialBuilder;
 import com.azure.storage.blob.models.CustomerProvidedKey;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.azure.blobstore.DefaultBlobstoreClientBuilderFactory;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
@@ -34,7 +32,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 // TODO: Tag each option with @Default or @Nullable
 
-@Experimental(Kind.FILESYSTEM)
 /** Options used to configure Microsoft Azure Blob Storage. */
 public interface BlobstoreOptions extends PipelineOptions {
 

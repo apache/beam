@@ -232,7 +232,7 @@ func RemoveFakeImpulses(c *pipepb.Components, ext *pipepb.PTransform) {
 	}
 }
 
-// ExpandedComponents type asserts the Components field with interface{} type
+// ExpandedComponents type asserts the Components field with any type
 // and returns its pipeline component proto representation
 func ExpandedComponents(exp *graph.ExpandedTransform) (*pipepb.Components, error) {
 	if c, ok := exp.Components.(*pipepb.Components); ok {
@@ -241,7 +241,7 @@ func ExpandedComponents(exp *graph.ExpandedTransform) (*pipepb.Components, error
 	return nil, errors.Errorf("malformed components; %v lacks a conforming pipeline component", exp)
 }
 
-// ExpandedTransform type asserts the Transform field with interface{} type
+// ExpandedTransform type asserts the Transform field with any type
 // and returns its pipeline ptransform proto representation
 func ExpandedTransform(exp *graph.ExpandedTransform) (*pipepb.PTransform, error) {
 	if t, ok := exp.Transform.(*pipepb.PTransform); ok {

@@ -34,8 +34,6 @@ import java.util.Objects;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.Factory;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
@@ -85,7 +83,6 @@ import org.joda.time.ReadableInstant;
  *        .build();
  * }</pre>
  */
-@Experimental(Kind.SCHEMAS)
 @SuppressWarnings({
   "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes"
@@ -395,7 +392,9 @@ public abstract class Row implements Serializable {
     FieldType fieldType = getSchema().getField(idx).getType();
     if (fieldType.getTypeName().isLogicalType() && value != null) {
       while (fieldType.getTypeName().isLogicalType()) {
-        value = fieldType.getLogicalType().toBaseType(value);
+        Schema.LogicalType<Object, T> logicalType =
+            (Schema.LogicalType<Object, T>) fieldType.getLogicalType();
+        value = logicalType.toBaseType(value);
         fieldType = fieldType.getLogicalType().getBaseType();
       }
     }
@@ -461,10 +460,12 @@ public abstract class Row implements Serializable {
       if (a == null || b == null) {
         return a == b;
       } else if (fieldType.getTypeName() == TypeName.LOGICAL_TYPE) {
+        Schema.LogicalType<Object, Object> logicalType =
+            (Schema.LogicalType<Object, Object>) fieldType.getLogicalType();
         return deepEquals(
-            SchemaUtils.toLogicalBaseType(fieldType.getLogicalType(), a),
-            SchemaUtils.toLogicalBaseType(fieldType.getLogicalType(), b),
-            fieldType.getLogicalType().getBaseType());
+            SchemaUtils.toLogicalBaseType(logicalType, a),
+            SchemaUtils.toLogicalBaseType(logicalType, b),
+            logicalType.getBaseType());
       } else if (fieldType.getTypeName() == Schema.TypeName.BYTES) {
         return Arrays.equals((byte[]) a, (byte[]) b);
       } else if (fieldType.getTypeName() == TypeName.ARRAY) {
@@ -848,7 +849,12 @@ public abstract class Row implements Serializable {
         throw new IllegalArgumentException(
             "Row expected "
                 + schema.getFieldCount()
-                + " fields. initialized with "
+                + String.format(
+                    " fields (%s).",
+                    schema.getFields().stream()
+                        .map(Object::toString)
+                        .collect(Collectors.joining(", ")))
+                + " initialized with "
                 + values.size()
                 + " fields.");
       }

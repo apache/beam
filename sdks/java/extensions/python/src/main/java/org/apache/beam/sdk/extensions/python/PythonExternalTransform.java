@@ -55,7 +55,7 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
@@ -138,14 +138,14 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
    *         ...valuesForMyPTransformConstructorIfAny);
    * </pre>
    *
-   * @param tranformName fully qualified transform name.
+   * @param transformName fully qualified transform name.
    * @param <InputT> Input {@link PCollection} type
    * @param <OutputT> Output {@link PCollection} type
    * @return A {@link PythonExternalTransform} for the given transform name.
    */
   public static <InputT extends PInput, OutputT extends POutput>
-      PythonExternalTransform<InputT, OutputT> from(String tranformName) {
-    return new PythonExternalTransform<>(tranformName, "");
+      PythonExternalTransform<InputT, OutputT> from(String transformName) {
+    return new PythonExternalTransform<>(transformName, "");
   }
 
   /**
@@ -153,15 +153,15 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
    *
    * <p>See {@link PythonExternalTransform#from(String)} for the meaning of transformName.
    *
-   * @param tranformName fully qualified transform name.
+   * @param transformName fully qualified transform name.
    * @param expansionService address and port number for externally launched expansion service
    * @param <InputT> Input {@link PCollection} type
    * @param <OutputT> Output {@link PCollection} type
    * @return A {@link PythonExternalTransform} for the given transform name.
    */
   public static <InputT extends PInput, OutputT extends POutput>
-      PythonExternalTransform<InputT, OutputT> from(String tranformName, String expansionService) {
-    return new PythonExternalTransform<>(tranformName, expansionService);
+      PythonExternalTransform<InputT, OutputT> from(String transformName, String expansionService) {
+    return new PythonExternalTransform<>(transformName, expansionService);
   }
 
   /**
@@ -468,10 +468,13 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
                     "apache_beam.runners.portability.expansion_service_main", args.build())
                 .withExtraPackages(extraPackages);
         try (AutoCloseable p = service.start()) {
-          PythonService.waitForPort("localhost", port, 15000);
+          // allow more time waiting for the port ready for transient expansion service setup.
+          PythonService.waitForPort("localhost", port, 60000);
           return apply(input, String.format("localhost:%s", port), payload);
         }
       }
+    } catch (RuntimeException exn) {
+      throw exn;
     } catch (Exception exn) {
       throw new RuntimeException(exn);
     }

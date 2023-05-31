@@ -29,6 +29,7 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCaseFormat;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldName;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldNumber;
 import org.apache.beam.sdk.schemas.annotations.SchemaIgnore;
@@ -1374,4 +1375,26 @@ public class TestJavaBeans {
 
   public static final Schema PARAMETER_NULLABLE_BEAN_SCHEMA =
       Schema.builder().addNullableField("value", FieldType.INT64).build();
+
+  @DefaultSchema(JavaBeanSchema.class)
+  public static class FieldWithDescriptionBean {
+
+    @org.apache.avro.reflect.Nullable private Float value;
+
+    @SchemaFieldDescription("This value is the value stored in the object as a float.")
+    public @org.apache.avro.reflect.Nullable Float getValue() {
+      return value;
+    }
+
+    public void setValue(@org.apache.avro.reflect.Nullable Float value) {
+      this.value = value;
+    }
+  }
+
+  public static final Schema FIELD_WITH_DESCRIPTION_BEAN_SCHEMA =
+      Schema.builder()
+          .addField(
+              Schema.Field.nullable("value", FieldType.FLOAT)
+                  .withDescription("This value is the value stored in the object as a float."))
+          .build();
 }

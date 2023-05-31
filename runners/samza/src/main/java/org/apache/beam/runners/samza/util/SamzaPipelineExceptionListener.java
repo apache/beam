@@ -18,6 +18,7 @@
 package org.apache.beam.runners.samza.util;
 
 import org.apache.beam.runners.samza.SamzaPipelineExceptionContext;
+import org.apache.beam.runners.samza.SamzaPipelineOptions;
 
 /**
  * An ExceptionListener following Observer pattern. Any runtime exception caught by {@code
@@ -28,6 +29,6 @@ public interface SamzaPipelineExceptionListener {
   void onException(SamzaPipelineExceptionContext exceptionContext);
 
   interface Registrar {
-    SamzaPipelineExceptionListener getExceptionListener();
+    SamzaPipelineExceptionListener getExceptionListener(SamzaPipelineOptions samzaPipelineOptions);
   }
 }

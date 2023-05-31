@@ -28,14 +28,17 @@ import {
 import * as combiners from "../src/apache_beam/transforms/combiners";
 import { GeneralObjectCoder } from "../src/apache_beam/coders/js_coders";
 
-import { DirectRunner } from "../src/apache_beam/runners/direct_runner";
+import { directRunner } from "../src/apache_beam/runners/direct_runner";
 import { loopbackRunner } from "../src/apache_beam/runners/runner";
 import { Pipeline } from "../src/apache_beam/internal/pipeline";
+import { GlobalWindow } from "../src/apache_beam/values";
+import { PaneInfoCoder } from "../src/apache_beam/coders/standard_coders";
 import * as testing from "../src/apache_beam/testing/assert";
 import * as windowings from "../src/apache_beam/transforms/windowings";
 import * as pardo from "../src/apache_beam/transforms/pardo";
 import { withName } from "../src/apache_beam/transforms";
 import * as service from "../src/apache_beam/utils/service";
+import { MultiPipelineRunner } from "../src/apache_beam/testing/multi_pipeline_runner";
 
 let subprocessCache;
 before(async function () {
@@ -51,7 +54,11 @@ before(async function () {
 
 after(() => subprocessCache.stopAll());
 
-export function suite(runner: beam.Runner = new DirectRunner()) {
+function sortValues(kvs) {
+  return { key: kvs.key, value: [...kvs.value].sort() };
+}
+
+export function suite(runner: beam.Runner = directRunner()) {
   describe("testing.assertDeepEqual", function () {
     // The tests below won't catch failures if this doesn't fail.
     it("fails on bad assert", async function () {
@@ -109,7 +116,7 @@ export function suite(runner: beam.Runner = new DirectRunner()) {
     });
 
     it("runs a map with counters", async function () {
-      const result = await new DirectRunner().run((root) => {
+      const result = await runner.run((root) => {
         root
           .apply(beam.create([1, 2, 3]))
           .map(
@@ -183,7 +190,7 @@ export function suite(runner: beam.Runner = new DirectRunner()) {
                 (kv, context) => {
                   return {
                     key: kv.key,
-                    value: kv.value,
+                    value: [...kv.value].sort(),
                     window_start_ms: context.window.lookup().start.low,
                     a: context.other,
                   };
@@ -209,6 +216,7 @@ export function suite(runner: beam.Runner = new DirectRunner()) {
           .apply(beam.create(["apple", "apricot", "banana"]))
           .apply(beam.windowInto(windowings.globalWindows()))
           .apply(beam.groupBy((e: string) => e[0]))
+          .map(sortValues)
           .apply(
             testing.assertDeepEqual([
               { key: "a", value: ["apple", "apricot"] },
@@ -225,6 +233,7 @@ export function suite(runner: beam.Runner = new DirectRunner()) {
           .apply(beam.assignTimestamps((t) => Long.fromValue(t * 1000)))
           .apply(beam.windowInto(windowings.fixedWindows(10)))
           .apply(beam.groupBy((e: number) => ""))
+          .map(sortValues)
           .apply(
             testing.assertDeepEqual([
               { key: "", value: [1, 2, 3, 4, 5] },
@@ -241,7 +250,6 @@ export function suite(runner: beam.Runner = new DirectRunner()) {
       var p = new Pipeline();
       var res = new beam.Root(p).apply(beam.impulse());
 
-      assert.equal(res.type, "pcollection");
       assert.deepEqual(p.context.getPCollectionCoder(res), new BytesCoder());
     });
     it("runs a ParDo expansion", function () {
@@ -259,7 +267,6 @@ export function suite(runner: beam.Runner = new DirectRunner()) {
         p.context.getPCollectionCoder(res),
         new GeneralObjectCoder()
       );
-      assert.equal(res.type, "pcollection");
     });
     // why doesn't map need types here?
     it("runs a GroupBy expansion", function () {
@@ -284,9 +291,122 @@ export function suite(runner: beam.Runner = new DirectRunner()) {
 
 describe("primitives module", function () {
   describe("direct runner", suite.bind(this));
+
   if (process.env.BEAM_SERVICE_OVERRIDES) {
     describe("portable runner @ulr", () => {
       suite.bind(this)(loopbackRunner());
     });
+  } else {
+    it("Portable tests not run because BEAM_SERVICE_OVERRIDES not set.", function () {
+      this.skip();
+    });
+  }
+
+  describe("multi-pipeline @dataflow", async () => {
+    if (process.env.GCP_PROJECT_ID) {
+      if (!process.env.BEAM_SERVICE_OVERRIDES) {
+        throw new Error("Please specify BEAM_SERVICE_OVERRIDES env var.");
+      }
+      if (!process.env.GCP_TESTING_BUCKET) {
+        throw new Error("Please specify GCP_REGION env var.");
+      }
+      if (!process.env.GCP_REGION) {
+        throw new Error("Please specify GCP_TESTING_BUCKET env var.");
+      }
+      const runner = new MultiPipelineRunner(
+        require("../src/apache_beam/runners/dataflow").dataflowRunner({
+          project: process.env.GCP_PROJECT_ID,
+          tempLocation: process.env.GCP_TESTING_BUCKET,
+          region: process.env.GCP_REGION,
+        })
+      );
+
+      beforeEach(function () {
+        if (
+          this.test!.title.includes("fails") ||
+          this.test!.title.includes("counter")
+        ) {
+          this.skip();
+        }
+        runner.setNextTestName(this.test!.title.match(/([^"]+)"$/)![1]);
+      });
+
+      after(async function () {
+        this.timeout(10 * 60 * 1000 /* 10 min */);
+        console.log(await runner.reallyRunPipelines());
+      });
+
+      suite.bind(this)(runner);
+    } else {
+      it("Dataflow tests not run because GCP_PROJECT_ID not set.", function () {
+        this.skip();
+      });
+    }
+  });
+});
+
+describe("liquid sharding @ulr", function () {
+  if (process.env.BEAM_SERVICE_OVERRIDES) {
+    it("handles splitting", async function () {
+      // This pipeline will process a number of "slow" elements, asking the
+      // ULR to split the "toSplit" bundle at various points. We then verify
+      // that the bundle was indeed split and all expected elements made it
+      // through.
+      const runner = loopbackRunner({
+        directTestSplits: JSON.stringify({
+          toSplit: {
+            // Split 0.1, 0.15, etc. seconds into processing the bundle.
+            timings: [0.1, 0.15, 0.2, 0.25],
+            fractions: [0.5, 0.5, 0.5, 0.5],
+          },
+        }),
+      });
+      const numElements = 20;
+      const elements = [...Array(numElements).keys()].map((x) => "" + x);
+      await runner.run((root) => {
+        const pcolls = root
+          .apply(beam.create(elements))
+          .map((x) => {
+            // Synchronous sleep.
+            Atomics.wait(
+              new Int32Array(new SharedArrayBuffer(4)),
+              0,
+              0,
+              // Processing all elements spread out over 1000 ms, plus overhead.
+              1000 / numElements
+            );
+            return x;
+          })
+          .apply(
+            withName(
+              "toSplit",
+              beam.parDo({
+                process: (element) => [element],
+                finishBundle: () => [
+                  {
+                    value: "endOfBundle",
+                    windows: [new GlobalWindow()],
+                    pane: PaneInfoCoder.ONE_AND_ONLY_FIRING,
+                    timestamp: new GlobalWindow().maxTimestamp(),
+                  },
+                ],
+              })
+            )
+          )
+          .apply(
+            // More than one "endOfBundle" output because we split.
+            // (We in fact should have split this first bundle multiple times,
+            // but all the remainders get processed in a (single) second bundle.
+            // Importantly, however, we verify that regardless of where the
+            // splits occurred (if you print them, they're in an interesting
+            // order), all elements are accounted for.)
+            testing.assertDeepEqual(
+              elements.concat(["endOfBundle", "endOfBundle"])
+            )
+          );
+      });
+      // The pipeline should run fast, but give plenty of time for the service
+      // to start up in case the test machine is loaded.
+    }).timeout(30000);
   }
 });

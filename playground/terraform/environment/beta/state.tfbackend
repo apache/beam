@@ -17,4 +17,4 @@
 # under the License.
 #
 
-bucket  = "beam_playground_terraform"
+bucket  = "pg-second"

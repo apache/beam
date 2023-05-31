@@ -45,7 +45,6 @@ description = "Apache Beam :: Runners :: Google Cloud Dataflow"
 evaluationDependsOn(":sdks:java:io:google-cloud-platform")
 evaluationDependsOn(":sdks:java:core")
 evaluationDependsOn(":examples:java")
-evaluationDependsOn(":runners:google-cloud-dataflow-java:worker:legacy-worker")
 evaluationDependsOn(":runners:google-cloud-dataflow-java:worker")
 evaluationDependsOn(":sdks:java:container:java8")
 evaluationDependsOn(":sdks:java:container:java11")
@@ -54,8 +53,8 @@ processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
     'dataflow.legacy_environment_major_version' : '8',
     'dataflow.fnapi_environment_major_version' : '8',
-    'dataflow.legacy_container_version' : 'beam-master-20220816',
-    'dataflow.fnapi_container_version' : 'beam-master-20221022',
+    'dataflow.legacy_container_version' : 'beam-master-20230426',
+    'dataflow.fnapi_container_version' : 'beam-master-20230426',
     'dataflow.container_base_repository' : 'gcr.io/cloud-dataflow/v1beta3',
   ]
 }
@@ -82,6 +81,7 @@ dependencies {
   implementation library.java.vendored_guava_26_0_jre
   implementation project(path: ":model:pipeline", configuration: "shadow")
   implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(":sdks:java:extensions:avro")
   implementation project(":sdks:java:extensions:google-cloud-platform-core")
   implementation project(":sdks:java:io:kafka")
   implementation project(":sdks:java:io:google-cloud-platform")
@@ -96,7 +96,6 @@ dependencies {
   // Ensures SequencedMessage availability for Spotless
   implementation library.java.proto_google_cloud_pubsublite_v1
   permitUnusedDeclared library.java.proto_google_cloud_pubsublite_v1
-  implementation library.java.google_api_services_clouddebugger
   implementation library.java.google_api_services_dataflow
   implementation library.java.google_api_services_storage
   permitUnusedDeclared library.java.google_api_services_storage // BEAM-11761
@@ -111,11 +110,12 @@ dependencies {
   implementation library.java.jackson_databind
   implementation library.java.joda_time
   implementation library.java.slf4j_api
-  implementation library.java.vendored_grpc_1_48_1
+  implementation library.java.vendored_grpc_1_54_0
   testImplementation library.java.guava_testlib
   testImplementation library.java.junit
   testImplementation project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntimeMigration")
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+  testImplementation project(path: ":sdks:java:extensions:avro")
   testImplementation project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntimeMigration")
   testImplementation project(path: ":runners:core-construction-java", configuration: "testRuntimeMigration")
   testImplementation project(path: ":sdks:java:extensions:python", configuration: "testRuntimeMigration")
@@ -140,7 +140,7 @@ def dataflowPostCommitTempRoot = project.findProperty('dataflowTempRoot') ?: 'gs
 def dataflowPostCommitTempRootKms = project.findProperty('dataflowTempRootKms') ?: 'gs://temp-storage-for-end-to-end-tests-cmek'
 def dataflowUploadTemp = project.findProperty('dataflowTempRoot') ?: 'gs://temp-storage-for-upload-tests'
 def testFilesToStage = project.findProperty('filesToStage') ?: 'test.txt'
-def dataflowLegacyWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
+def dataflowLegacyWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
 def dataflowKmsKey = project.findProperty('dataflowKmsKey') ?: "projects/apache-beam-testing/locations/global/keyRings/beam-it/cryptoKeys/test"
 def firestoreDb = project.findProperty('firestoreDb') ?: 'firestoredb'
 
@@ -166,8 +166,7 @@ def runnerV2PipelineOptions = [
   "--region=${dataflowRegion}",
   "--tempRoot=${dataflowValidatesTempRoot}",
   "--sdkContainerImage=${dockerJavaImageContainer}:${dockerTag}",
-  // TODO(https://github.com/apache/beam/issues/20806) remove shuffle_mode=appliance with runner v2 once issue is resolved.
-  "--experiments=use_unified_worker,use_runner_v2,shuffle_mode=appliance",
+  "--experiments=use_unified_worker,use_runner_v2",
   "--firestoreDb=${firestoreDb}",
 ]
 
@@ -180,6 +179,7 @@ def commonLegacyExcludeCategories = [
   'org.apache.beam.sdk.testing.UsesPythonExpansionService',
   'org.apache.beam.sdk.testing.UsesDistributionMetrics',
   'org.apache.beam.sdk.testing.UsesGaugeMetrics',
+  'org.apache.beam.sdk.testing.UsesMultimapState',
   'org.apache.beam.sdk.testing.UsesTestStream',
   'org.apache.beam.sdk.testing.UsesParDoLifecycle',
   'org.apache.beam.sdk.testing.UsesMetricsPusher',
@@ -190,6 +190,7 @@ def commonRunnerV2ExcludeCategories = [
         'org.apache.beam.sdk.testing.UsesGaugeMetrics',
         'org.apache.beam.sdk.testing.UsesSetState',
         'org.apache.beam.sdk.testing.UsesMapState',
+        'org.apache.beam.sdk.testing.UsesMultimapState',
         'org.apache.beam.sdk.testing.UsesMetricsPusher',
         'org.apache.beam.sdk.testing.UsesOrderedListState',
         'org.apache.beam.sdk.testing.UsesTestStream',
@@ -206,7 +207,7 @@ def createLegacyWorkerValidatesRunnerTest = { Map args ->
   def excludedCategories = args.excludedCategories ?: []
 
   return tasks.create(name: name, type: Test, group: "Verification") {
-    dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
+    dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
 
     systemProperty "beamTestPipelineOptions", JsonOutput.toJson(pipelineOptions)
 
@@ -388,7 +389,7 @@ task validatesRunnerStreaming {
   description "Validates Dataflow runner forcing streaming mode"
   dependsOn(createLegacyWorkerValidatesRunnerTest(
     name: 'validatesRunnerLegacyWorkerTestStreaming',
-    pipelineOptions: legacyPipelineOptions + ['--streaming=true'],
+    pipelineOptions: legacyPipelineOptions + ['--streaming'],
     excludedCategories: [
       'org.apache.beam.sdk.testing.UsesCommittedMetrics',
       'org.apache.beam.sdk.testing.UsesMapState',
@@ -428,8 +429,6 @@ createCrossLanguageValidatesRunnerTask(
     "--project=${dataflowProject}",
     "--region=${dataflowRegion}",
     "--sdk_harness_container_image_overrides=.*java.*,${dockerJavaImageContainer}:${dockerTag}",
-    // TODO(https://github.com/apache/beam/issues/20806) remove shuffle_mode=appliance with runner v2 once issue is resolved
-    "--experiments=shuffle_mode=appliance",
   ],
   javaPipelineOptions: [
     "--runner=TestDataflowRunner",
@@ -438,8 +437,6 @@ createCrossLanguageValidatesRunnerTask(
     "--tempRoot=${dataflowValidatesTempRoot}",
     "--sdkContainerImage=${dockerJavaImageContainer}:${dockerTag}",
     "--sdkHarnessContainerImageOverrides=.*python.*,${dockerPythonImageContainer}:${dockerTag}",
-    // TODO(https://github.com/apache/beam/issues/20806) remove shuffle_mode=appliance with runner v2 once issue is resolved.
-    "--experiments=shuffle_mode=appliance",
   ],
   pytestOptions: [
     "--capture=no",
@@ -454,7 +451,6 @@ createCrossLanguageValidatesRunnerTask(
     "--region ${dataflowRegion}",
     "--tests \"./test/integration/xlang ./test/integration/io/xlang/...\"",
     "--sdk_overrides \".*java.*,${dockerJavaImageContainer}:${dockerTag}\"",
-    "--dataflow_worker_jar ${project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath}",
   ],
 )
 
@@ -463,6 +459,7 @@ task validatesRunnerV2 {
   description = "Runs the ValidatesRunner tests on Dataflow Runner V2"
   dependsOn(createRunnerV2ValidatesRunnerTest(
     name: 'validatesRunnerV2Test',
+    pipelineOptions: runnerV2PipelineOptions,
     excludedCategories: [
       'org.apache.beam.sdk.testing.UsesOnWindowExpiration',
       'org.apache.beam.sdk.testing.UsesStatefulParDo',
@@ -473,6 +470,7 @@ task validatesRunnerV2 {
     excludedTests: [
       'org.apache.beam.sdk.transforms.ReshuffleTest.testReshuffleWithTimestampsStreaming',
 
+      // TODO(https://github.com/apache/beam/issues/18592): respect ParDo lifecycle.
       'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testFnCallSequenceStateful',
       'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInFinishBundle',
       'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInFinishBundleStateful',
@@ -500,54 +498,20 @@ task validatesRunnerV2Streaming {
   description = "Runs the ValidatesRunner tests on Dataflow Runner V2 forcing streaming mode"
   dependsOn(createRunnerV2ValidatesRunnerTest(
     name: 'validatesRunnerV2TestStreaming',
-    pipelineOptions: runnerV2PipelineOptions + ['--streaming=true'],
+    pipelineOptions: runnerV2PipelineOptions + ['--streaming', '--experiments=enable_streaming_engine'],
     excludedCategories: [
       'org.apache.beam.sdk.testing.LargeKeys$Above10KB',
       'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo',
       'org.apache.beam.sdk.testing.UsesCommittedMetrics',
-      'org.apache.beam.sdk.testing.UsesStrictTimerOrdering' /* https://github.com/apache/beam/issues/19957 */,
-      'org.apache.beam.sdk.testing.UsesOnWindowExpiration',
+      'org.apache.beam.sdk.testing.UsesTriggeredSideInputs',
     ],
     excludedTests: [
-      'org.apache.beam.sdk.transforms.windowing.WindowTest.testMergingCustomWindows',
-      'org.apache.beam.sdk.transforms.windowing.WindowTest.testMergingCustomWindowsKeyedCollection',
-      'org.apache.beam.sdk.transforms.windowing.WindowTest.testMergingCustomWindowsWithoutCustomWindowTypes',
-      'org.apache.beam.examples.complete.TopWikipediaSessionsTest.testComputeTopUsers',
-      'org.apache.beam.sdk.transforms.windowing.WindowingTest.testNonPartitioningWindowing',
-
-      'org.apache.beam.sdk.io.AvroIOTest.testWriteWindowed',
-      'org.apache.beam.sdk.io.AvroIOTest.testWindowedAvroIOWriteViaSink',
-      'org.apache.beam.sdk.extensions.sql.BeamSqlDslAggregationTest.testTriggeredTumble',
+      // TestStream only (partially) supported on UW
       'org.apache.beam.sdk.transforms.ReshuffleTest.testReshuffleWithTimestampsStreaming',
 
-      // TODO(https://github.com/apache/beam/issues/20726) reading a side input twice fails
-      'org.apache.beam.sdk.transforms.ParDoTest$MultipleInputsAndOutputTests.testSameSideInputReadTwice',
-      'org.apache.beam.sdk.transforms.CombineFnsTest.testComposedCombineWithContext',
-      'org.apache.beam.sdk.transforms.CombineTest$CombineWithContextTests.testSimpleCombineWithContextEmpty',
-      'org.apache.beam.sdk.transforms.CombineTest$CombineWithContextTests.testSimpleCombineWithContext',
-      'org.apache.beam.sdk.transforms.CombineTest$WindowingTests.testFixedWindowsCombineWithContext',
-      'org.apache.beam.sdk.transforms.CombineTest$WindowingTests.testSessionsCombineWithContext',
-      'org.apache.beam.sdk.transforms.CombineTest$WindowingTests.testSlidingWindowsCombineWithContext',
-
-      'org.apache.beam.runners.dataflow.DataflowRunnerTest.testBatchGroupIntoBatchesOverride',
-
+      // TestStream with processing time control not supported
+      'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerUsingState',
       'org.apache.beam.sdk.transforms.GroupByKeyTest.testCombiningAccumulatingProcessingTime',
-
-      // TODO(https://github.com/apache/beam/issues/20601): Pipeline is hanging for these 3 tests.
-      'org.apache.beam.sdk.transforms.SplittableDoFnTest.testPairWithIndexBasicUnbounded',
-      'org.apache.beam.sdk.transforms.SplittableDoFnTest.testOutputAfterCheckpointUnbounded',
-      'org.apache.beam.sdk.transforms.SplittableDoFnTest.testBundleFinalizationOccursOnUnboundedSplittableDoFn',
-
-      'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testEventTimeTimerAlignAfterGcTimeUnbounded',
-
-      'org.apache.beam.sdk.metrics.MetricsTest$CommittedMetricTests.testCommittedCounterMetrics',
-
-      'org.apache.beam.sdk.transforms.WaitTest.testWaitWithSameFixedWindows',
-      'org.apache.beam.sdk.transforms.WaitTest.testWaitWithDifferentFixedWindows',
-      'org.apache.beam.sdk.transforms.WaitTest.testWaitWithSignalInSlidingWindows',
-      'org.apache.beam.sdk.transforms.WaitTest.testWaitInGlobalWindow',
-      'org.apache.beam.sdk.transforms.WaitTest.testWaitBoundedInDefaultWindow',
-      'org.apache.beam.sdk.transforms.WaitTest.testWaitWithSomeSignalWindowsEmpty',
 
       // TODO(https://github.com/apache/beam/issues/18592): respect ParDo lifecycle.
       'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInFinishBundle',
@@ -558,13 +522,6 @@ task validatesRunnerV2Streaming {
       'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInSetupStateful',
       'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInStartBundle',
       'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInStartBundleStateful',
-
-      // TODO(https://github.com/apache/beam/issues/20734) Empty flatten fails in streaming
-      "org.apache.beam.sdk.transforms.FlattenTest.testEmptyFlattenAsSideInput",
-      "org.apache.beam.sdk.transforms.FlattenTest.testFlattenPCollectionsEmptyThenParDo",
-      "org.apache.beam.sdk.transforms.FlattenTest.testFlattenPCollectionsEmpty",
-
-      'org.apache.beam.sdk.io.CountingSourceTest.testBoundedSourceSplits',
 
       // TODO(https://github.com/apache/beam/issues/20931): Identify whether it's bug or a feature gap.
       'org.apache.beam.sdk.transforms.GroupByKeyTest$WindowTests.testRewindowWithTimestampCombiner',
@@ -585,7 +542,7 @@ task copyGoogleCloudPlatformTestResources(type: Copy) {
 
 task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test, dependsOn: copyGoogleCloudPlatformTestResources) {
   group = "Verification"
-  dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
+  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=TestDataflowRunner",
           "--project=${dataflowProject}",
@@ -601,11 +558,7 @@ task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test, dependsOn: copyG
   exclude '**/BigQueryIOStorageReadTableRowIT.class'
   exclude '**/PubsubReadIT.class'
   exclude '**/FhirIOReadIT.class'
-  exclude '**/SpannerChangeStreamIT.class'
-  exclude '**/SpannerChangeStreamOrderedWithinKeyIT.class'
-  exclude '**/SpannerChangeStreamOrderedWithinKeyGloballyIT.class'
-  exclude '**/SpannerChangeStreamOrderedByTimestampAndTransactionIdIT.class'
-  exclude '**/SpannerChangeStreamTransactionBoundariesIT.class'
+  exclude '**/gcp/spanner/changestreams/it/*.class'
   maxParallelForks 4
   classpath = configurations.googleCloudPlatformIntegrationTest
   testClassesDirs = files(project(":sdks:java:io:google-cloud-platform").sourceSets.test.output.classesDirs)
@@ -616,7 +569,7 @@ task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test, dependsOn: copyG
 
 task googleCloudPlatformLegacyWorkerKmsIntegrationTest(type: Test) {
   group = "Verification"
-  dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
+  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=TestDataflowRunner",
           "--project=${dataflowProject}",
@@ -646,7 +599,6 @@ task googleCloudPlatformRunnerV2IntegrationTest(type: Test) {
 
   include '**/*IT.class'
   exclude '**/BigQueryIOStorageReadTableRowIT.class'
-  exclude '**/BigQueryIOStorageWriteIT.class'
   exclude '**/SpannerWriteIT.class'
   exclude '**/*KmsKeyIT.class'
   exclude '**/FhirIOReadIT.class'
@@ -663,7 +615,7 @@ task googleCloudPlatformRunnerV2IntegrationTest(type: Test) {
 
 task examplesJavaLegacyWorkerIntegrationTest(type: Test) {
   group = "Verification"
-  dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
+  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
 
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=TestDataflowRunner",
@@ -709,7 +661,7 @@ task examplesJavaRunnerV2IntegrationTest(type: Test) {
 
 task coreSDKJavaLegacyWorkerIntegrationTest(type: Test) {
   group = "Verification"
-  dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
+  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
 
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=TestDataflowRunner",

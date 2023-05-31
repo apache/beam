@@ -49,12 +49,9 @@ import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
-import org.apache.beam.sdk.options.ExperimentalOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.Validation;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.testutils.NamedTestResult;
 import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
@@ -113,14 +110,7 @@ public class SparkReceiverIOIT {
 
   private static InfluxDBSettings settings;
 
-  private static final ExperimentalOptions sdfPipelineOptions;
-
-  static {
-    sdfPipelineOptions = PipelineOptionsFactory.create().as(ExperimentalOptions.class);
-    sdfPipelineOptions.as(TestPipelineOptions.class).setBlockOnRun(false);
-  }
-
-  @Rule public TestPipeline readPipeline = TestPipeline.fromOptions(sdfPipelineOptions);
+  @Rule public TestPipeline readPipeline = TestPipeline.create();
 
   @BeforeClass
   public static void setup() throws IOException {

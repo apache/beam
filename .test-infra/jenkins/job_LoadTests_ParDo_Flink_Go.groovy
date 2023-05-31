@@ -127,7 +127,7 @@ def loadTestJob = { scope, triggeringContext, mode ->
         GO_SDK_CONTAINER
       ],
       numberOfWorkers,
-      "${DOCKER_CONTAINER_REGISTRY}/beam_flink1.13_job_server:latest")
+      "${DOCKER_CONTAINER_REGISTRY}/beam_flink${CommonTestProperties.getFlinkVersion()}_job_server:latest")
 
   loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.GO, batchScenarios(), 'ParDo', mode)
 }
@@ -142,7 +142,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
       loadTestJob(delegate, CommonTestProperties.TriggeringContext.PR, 'batch')
     }
 
-CronJobBuilder.cronJob('beam_LoadTests_Go_ParDo_Flink_Batch', 'H 10 * * *', this) {
+CronJobBuilder.cronJob('beam_LoadTests_Go_ParDo_Flink_Batch', 'H H * * *', this) {
   additionalPipelineArgs = [
     influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
     influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,

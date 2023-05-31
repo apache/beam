@@ -29,9 +29,11 @@ variable "environment" {
 
 variable "region" {
   description = "Infrastructure Region"
-  default     = "us-central1"
 }
 
+variable "env" {}
+
+variable "state_bucket" {}
 
 #IAM
 
@@ -43,23 +45,6 @@ variable "service_account_id" {
 variable "service_account" {
   description = "Service account email"
   default     = "service-account-playground"
-}
-
-#GCS
-
-variable "bucket_examples_name" {
-  description = "Name of Bucket to Store Playground Examples"
-  default     = "playground-examples"
-}
-
-variable "bucket_examples_location" {
-  description = "Location of Playground Examples Bucket"
-  default     = "US"
-}
-
-variable "bucket_examples_storage_class" {
-  description = "Examples Bucket Storage Class"
-  default     = "STANDARD"
 }
 
 variable "bucket_terraform_state_name" {
@@ -113,12 +98,12 @@ variable "redis_name" {
 
 variable "redis_tier" {
   description = "Tier of Redis"
-  default     = "STANDARD_HA"
+  default     = "BASIC"
 }
 
 variable "redis_replica_count" {
   description = "Redis's replica count"
-  default     = 1
+  default     = 0
 }
 
 variable "redis_memory_size_gb" {
@@ -128,7 +113,7 @@ variable "redis_memory_size_gb" {
 
 variable "read_replicas_mode" {
   description = "Read replica mode. Can only be specified when trying to create the instance."
-  default     = "READ_REPLICAS_ENABLED"
+  default     = "READ_REPLICAS_DISABLED"
 }
 
 #NETWORK
@@ -148,16 +133,23 @@ variable "network_region" {
   default     = "us-central1"
 }
 
+variable "ip_address_name" {
+  description = "Static IP address name"
+  default     = "pg-static-ip"
+}
+
+# APPENGINE
+variable "skip_appengine_deploy" {
+  description = "AppEngine enabled"
+  type        = bool
+  default     = false
+}
+
 # GKE
 
 variable "gke_machine_type" {
   description = "Node pool machine types"
-  default     = "e2-standard-4"
-}
-
-variable "gke_node_count" {
-  description = "Node pool size"
-  default     = 1
+  default     = "e2-standard-8"
 }
 
 variable "gke_name" {
@@ -167,5 +159,18 @@ variable "gke_name" {
 
 variable "gke_location" {
   description = "Location of GKE cluster"
-  default     = "us-central1-a"
+}
+
+variable "location" {
+  description = "Location of GKE cluster"
+}
+
+variable "min_count" {
+  description = "Min cluster node count"
+  default     = 2
+}
+
+variable "max_count" {
+  description = "Max cluster node count"
+  default     = 6
 }

@@ -763,7 +763,7 @@ illustrate the behavior of different query clauses.</p>
 <p>Table Roster:</p>
 
 {{< table >}}
-<table>
+<table class="table-wrapper--equal-p">
 <thead>
 <tr>
 <th>LastName</th>
@@ -799,8 +799,9 @@ illustrate the behavior of different query clauses.</p>
 assigned to their school (SchoolID).</p>
 <p>Table PlayerStats:</p>
 
+<div class="table-container-wrapper">
 {{< table >}}
-<table>
+<table class="table-wrapper--equal-p">
 <thead>
 <tr>
 <th>LastName</th>
@@ -837,6 +838,7 @@ assigned to their school (SchoolID).</p>
 </tbody>
 </table>
 {{< /table >}}
+</div>
 
 <p>The PlayerStats table includes a list of player names (LastName) and the unique
 ID assigned to the opponent they played in a given game (OpponentID) and the
@@ -884,8 +886,9 @@ mascot for that school (Mascot).</p>
 ON Roster.SchoolID = TeamMascot.SchoolID;</code></pre>
 <p>Results:</p>
 
+<div class="table-container-wrapper">
 {{< table >}}
-<table>
+<table class="table-wrapper--equal-p">
 <thead>
 <tr>
 <th>LastName</th>
@@ -922,14 +925,16 @@ ON Roster.SchoolID = TeamMascot.SchoolID;</code></pre>
 </tbody>
 </table>
 {{< /table >}}
+</div>
 
 <p>2) FULL [OUTER] JOIN</p>
 <p>Example:</p>
 <pre class="codehilite"><code>SELECT * FROM Roster FULL JOIN TeamMascot
 ON Roster.SchoolID = TeamMascot.SchoolID;</code></pre>
 
+<div class="table-container-wrapper">
 {{< table >}}
-<table>
+<table class="table-wrapper--equal-p">
 <thead>
 <tr>
 <th>LastName</th>
@@ -978,6 +983,7 @@ ON Roster.SchoolID = TeamMascot.SchoolID;</code></pre>
 </tbody>
 </table>
 {{< /table >}}
+</div>
 
 <p>3) LEFT [OUTER] JOIN</p>
 <p>Example:</p>
@@ -985,8 +991,9 @@ ON Roster.SchoolID = TeamMascot.SchoolID;</code></pre>
 ON Roster.SchoolID = TeamMascot.SchoolID;</code></pre>
 <p>Results:</p>
 
+<div class="table-container-wrapper">
 {{< table >}}
-<table>
+<table class="table-wrapper--equal-p">
 <thead>
 <tr>
 <th>LastName</th>
@@ -1029,6 +1036,7 @@ ON Roster.SchoolID = TeamMascot.SchoolID;</code></pre>
 </tbody>
 </table>
 {{< /table >}}
+</div>
 
 <p>4) RIGHT [OUTER] JOIN</p>
 <p>Example:</p>
@@ -1036,8 +1044,9 @@ ON Roster.SchoolID = TeamMascot.SchoolID;</code></pre>
 ON Roster.SchoolID = TeamMascot.SchoolID;</code></pre>
 <p>Results:</p>
 
+<div class="table-container-wrapper">
 {{< table >}}
-<table>
+<table class="table-wrapper--equal-p">
 <thead>
 <tr>
 <th>LastName</th>
@@ -1080,6 +1089,7 @@ ON Roster.SchoolID = TeamMascot.SchoolID;</code></pre>
 </tbody>
 </table>
 {{< /table >}}
+</div>
 
 ### GROUP BY clause
 <p>Example:</p>

@@ -75,18 +75,18 @@ public class HeartbeatRecordAction {
       ManualWatermarkEstimator<Instant> watermarkEstimator) {
 
     final String token = partition.getPartitionToken();
-    LOG.debug("[" + token + "] Processing heartbeat record " + record);
+    LOG.debug("[{}] Processing heartbeat record {}", token, record);
 
     final Timestamp timestamp = record.getTimestamp();
     final Instant timestampInstant = new Instant(timestamp.toSqlTimestamp().getTime());
     if (!tracker.tryClaim(timestamp)) {
-      LOG.debug("[" + token + "] Could not claim queryChangeStream(" + timestamp + "), stopping");
+      LOG.debug("[{}] Could not claim queryChangeStream({}), stopping", token, timestamp);
       return Optional.of(ProcessContinuation.stop());
     }
     metrics.incHeartbeatRecordCount();
     watermarkEstimator.setWatermark(timestampInstant);
 
-    LOG.debug("[" + token + "] Heartbeat record action completed successfully");
+    LOG.debug("[{}] Heartbeat record action completed successfully", token);
     return Optional.empty();
   }
 }

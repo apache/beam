@@ -54,7 +54,7 @@ export function directRunner(options: Object = {}): Runner {
   return new DirectRunner(options);
 }
 
-export class DirectRunner extends Runner {
+class DirectRunner extends Runner {
   // All the operators for a given pipeline should share the same state.
   // This global mapping allows operators to look up a shared state object for
   // a given pipeline on deserialization.
@@ -68,8 +68,7 @@ export class DirectRunner extends Runner {
     return [...this.unsupportedFeaturesIter(pipeline, options)];
   }
 
-  *unsupportedFeaturesIter(pipeline, options: Object = {}) {
-    const proto: runnerApi.Pipeline = pipeline.proto;
+  *unsupportedFeaturesIter(proto: runnerApi.Pipeline, options: Object = {}) {
     for (const requirement of proto.requirements) {
       if (!SUPPORTED_REQUIREMENTS.includes(requirement)) {
         yield requirement;
@@ -103,13 +102,13 @@ export class DirectRunner extends Runner {
     }
   }
 
-  async runPipeline(p): Promise<PipelineResult> {
+  async runPipeline(p: runnerApi.Pipeline): Promise<PipelineResult> {
     const stateProvider = new InMemoryStateProvider();
     const stateCacheRef = uuid.v4();
     DirectRunner.inMemoryStatesRefs.set(stateCacheRef, stateProvider);
 
     try {
-      const proto = rewriteSideInputs(p.proto, stateCacheRef);
+      const proto = rewriteSideInputs(p, stateCacheRef);
       const descriptor: ProcessBundleDescriptor = {
         id: "",
         transforms: proto.components!.transforms,

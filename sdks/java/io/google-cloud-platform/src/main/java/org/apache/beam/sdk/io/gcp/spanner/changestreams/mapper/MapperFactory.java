@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper;
 
+import com.google.cloud.spanner.Dialect;
 import java.io.Serializable;
 
 /**
@@ -25,13 +26,18 @@ import java.io.Serializable;
  */
 // transient fields are un-initialized, because we start them during the first fetch call (with the
 // singleton pattern)
-@SuppressWarnings("initialization.fields.uninitialized")
+@SuppressWarnings({"initialization.fields.uninitialized", "initialization.field.uninitialized"})
 public class MapperFactory implements Serializable {
 
   private static final long serialVersionUID = -813434573067800902L;
 
   private transient ChangeStreamRecordMapper changeStreamRecordMapperInstance;
   private transient PartitionMetadataMapper partitionMetadataMapperInstance;
+  private final Dialect spannerChangeStreamDatabaseDialect;
+
+  public MapperFactory(Dialect spannerChangeStreamDatabaseDialect) {
+    this.spannerChangeStreamDatabaseDialect = spannerChangeStreamDatabaseDialect;
+  }
 
   /**
    * Creates and returns a singleton instance of a mapper class capable of transforming a {@link
@@ -44,7 +50,8 @@ public class MapperFactory implements Serializable {
    */
   public synchronized ChangeStreamRecordMapper changeStreamRecordMapper() {
     if (changeStreamRecordMapperInstance == null) {
-      changeStreamRecordMapperInstance = new ChangeStreamRecordMapper();
+      changeStreamRecordMapperInstance =
+          new ChangeStreamRecordMapper(this.spannerChangeStreamDatabaseDialect);
     }
     return changeStreamRecordMapperInstance;
   }

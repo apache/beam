@@ -57,7 +57,7 @@ func WindowSums(s beam.Scope, sumPerKey func(beam.Scope, beam.PCollection) beam.
 
 	windowSize := 3 * time.Second
 
-	validate := func(s beam.Scope, wfn *window.Fn, in beam.PCollection, expected ...interface{}) {
+	validate := func(s beam.Scope, wfn *window.Fn, in beam.PCollection, expected ...any) {
 		// Window the data.
 		windowed := beam.WindowInto(s, wfn, in)
 		// Perform the appropriate sum operation.
@@ -107,7 +107,7 @@ func ValidateWindowedSideInputs(s beam.Scope) {
 
 	windowSize := 1 * time.Second
 
-	validateSums := func(s beam.Scope, wfn, sideFn *window.Fn, in, side beam.PCollection, expected ...interface{}) {
+	validateSums := func(s beam.Scope, wfn, sideFn *window.Fn, in, side beam.PCollection, expected ...any) {
 		wData := beam.WindowInto(s, wfn, in)
 		wSide := beam.WindowInto(s, sideFn, side)
 
@@ -149,7 +149,7 @@ func sumSideInputs(input int, iter func(*int) bool, emit func(int)) {
 	emit(sum)
 }
 
-func validateEquals(s beam.Scope, wfn *window.Fn, in beam.PCollection, opts []beam.WindowIntoOption, expected ...interface{}) {
+func validateEquals(s beam.Scope, wfn *window.Fn, in beam.PCollection, opts []beam.WindowIntoOption, expected ...any) {
 	windowed := beam.WindowInto(s, wfn, in, opts...)
 	sums := stats.Sum(s, windowed)
 	sums = beam.WindowInto(s, window.NewGlobalWindows(), sums)

@@ -26,7 +26,7 @@ import (
 func TestSatisfy(t *testing.T) {
 	tests := []struct {
 		Sig *Signature
-		Fn  interface{}
+		Fn  any
 		Ok  bool
 	}{
 		// Concrete signature

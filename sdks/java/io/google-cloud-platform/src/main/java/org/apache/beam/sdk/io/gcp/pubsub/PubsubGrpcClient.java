@@ -23,9 +23,14 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import com.google.auth.Credentials;
 import com.google.protobuf.Timestamp;
 import com.google.pubsub.v1.AcknowledgeRequest;
+import com.google.pubsub.v1.CreateSchemaRequest;
+import com.google.pubsub.v1.DeleteSchemaRequest;
 import com.google.pubsub.v1.DeleteSubscriptionRequest;
 import com.google.pubsub.v1.DeleteTopicRequest;
+import com.google.pubsub.v1.Encoding;
+import com.google.pubsub.v1.GetSchemaRequest;
 import com.google.pubsub.v1.GetSubscriptionRequest;
+import com.google.pubsub.v1.GetTopicRequest;
 import com.google.pubsub.v1.ListSubscriptionsRequest;
 import com.google.pubsub.v1.ListSubscriptionsResponse;
 import com.google.pubsub.v1.ListTopicsRequest;
@@ -39,6 +44,9 @@ import com.google.pubsub.v1.PubsubMessage;
 import com.google.pubsub.v1.PullRequest;
 import com.google.pubsub.v1.PullResponse;
 import com.google.pubsub.v1.ReceivedMessage;
+import com.google.pubsub.v1.SchemaServiceGrpc;
+import com.google.pubsub.v1.SchemaServiceGrpc.SchemaServiceBlockingStub;
+import com.google.pubsub.v1.SchemaSettings;
 import com.google.pubsub.v1.SubscriberGrpc;
 import com.google.pubsub.v1.SubscriberGrpc.SubscriberBlockingStub;
 import com.google.pubsub.v1.Subscription;
@@ -56,6 +64,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
@@ -111,7 +120,7 @@ public class PubsubGrpcClient extends PubsubClient {
     }
   }
 
-  /** Factory for creating Pubsub clients using gRCP transport. */
+  /** Factory for creating Pubsub clients using gRPC transport. */
   public static final PubsubClientFactory FACTORY = new PubsubGrpcClientFactory();
 
   /** Timeout for grpc calls (in s). */
@@ -137,6 +146,8 @@ public class PubsubGrpcClient extends PubsubClient {
 
   private SubscriberGrpc.SubscriberBlockingStub cachedSubscriberStub;
 
+  private SchemaServiceGrpc.SchemaServiceBlockingStub cachedSchemaServiceStub;
+
   @VisibleForTesting
   PubsubGrpcClient(
       @Nullable String timestampAttribute,
@@ -161,6 +172,7 @@ public class PubsubGrpcClient extends PubsubClient {
     // Can gc the underlying stubs.
     cachedPublisherStub = null;
     cachedSubscriberStub = null;
+    cachedSchemaServiceStub = null;
     // Mark the client as having been closed before going further
     // in case we have an exception from the channel.
     ManagedChannel publisherChannel = this.publisherChannel;
@@ -205,16 +217,24 @@ public class PubsubGrpcClient extends PubsubClient {
     return cachedSubscriberStub.withDeadlineAfter(timeoutSec, TimeUnit.SECONDS);
   }
 
+  /** Return a stub for making a schema service request with a timeout. */
+  private SchemaServiceBlockingStub schemaServiceStub() throws IOException {
+    if (cachedSchemaServiceStub == null) {
+      cachedSchemaServiceStub = SchemaServiceGrpc.newBlockingStub(newChannel());
+    }
+    return cachedSchemaServiceStub.withDeadlineAfter(timeoutSec, TimeUnit.SECONDS);
+  }
+
   @Override
   public int publish(TopicPath topic, List<OutgoingMessage> outgoingMessages) throws IOException {
     PublishRequest.Builder request = PublishRequest.newBuilder().setTopic(topic.getPath());
     for (OutgoingMessage outgoingMessage : outgoingMessages) {
       PubsubMessage.Builder message =
-          outgoingMessage.message().toBuilder().clearMessageId().clearPublishTime();
+          outgoingMessage.getMessage().toBuilder().clearMessageId().clearPublishTime();
 
       if (timestampAttribute != null) {
         message.putAttributes(
-            timestampAttribute, String.valueOf(outgoingMessage.timestampMsSinceEpoch()));
+            timestampAttribute, String.valueOf(outgoingMessage.getTimestampMsSinceEpoch()));
       }
 
       if (idAttribute != null && !Strings.isNullOrEmpty(outgoingMessage.recordId())) {
@@ -311,6 +331,20 @@ public class PubsubGrpcClient extends PubsubClient {
   }
 
   @Override
+  public void createTopic(TopicPath topic, SchemaPath schema) throws IOException {
+    Topic request =
+        Topic.newBuilder()
+            .setName(topic.getPath())
+            .setSchemaSettings(
+                SchemaSettings.newBuilder()
+                    .setSchema(schema.getPath())
+                    .setEncoding(Encoding.BINARY)
+                    .build())
+            .build();
+    publisherStub().createTopic(request); // ignore Topic result.
+  }
+
+  @Override
   public void deleteTopic(TopicPath topic) throws IOException {
     DeleteTopicRequest request = DeleteTopicRequest.newBuilder().setTopic(topic.getPath()).build();
     publisherStub().deleteTopic(request); // ignore Empty result.
@@ -395,5 +429,56 @@ public class PubsubGrpcClient extends PubsubClient {
   @Override
   public boolean isEOF() {
     return false;
+  }
+
+  /** Create {@link com.google.pubsub.v1.Schema} from Schema definition content. */
+  @Override
+  public void createSchema(
+      SchemaPath schemaPath, String schemaContent, com.google.pubsub.v1.Schema.Type type)
+      throws IOException {
+
+    CreateSchemaRequest request =
+        CreateSchemaRequest.newBuilder()
+            .setSchemaId(schemaPath.getId())
+            .setParent("projects/" + schemaPath.getProjectId())
+            .setSchema(
+                com.google.pubsub.v1.Schema.newBuilder()
+                    .setType(type)
+                    .setDefinition(schemaContent)
+                    .build())
+            .build();
+
+    schemaServiceStub().createSchema(request); // Result is ignored
+  }
+
+  /** Delete {@link SchemaPath}. */
+  @Override
+  public void deleteSchema(SchemaPath schemaPath) throws IOException {
+    DeleteSchemaRequest request =
+        DeleteSchemaRequest.newBuilder().setName(schemaPath.getPath()).build();
+    schemaServiceStub().deleteSchema(request);
+  }
+
+  /** Return {@link SchemaPath} from {@link TopicPath} if exists. */
+  @Override
+  public SchemaPath getSchemaPath(TopicPath topicPath) throws IOException {
+    GetTopicRequest request = GetTopicRequest.newBuilder().setTopic(topicPath.getPath()).build();
+    Topic topic = publisherStub().getTopic(request);
+    SchemaSettings schemaSettings = topic.getSchemaSettings();
+    if (schemaSettings.getSchema().isEmpty()) {
+      return null;
+    }
+    String schemaPath = schemaSettings.getSchema();
+    if (schemaPath.equals(SchemaPath.DELETED_SCHEMA_PATH)) {
+      return null;
+    }
+    return PubsubClient.schemaPathFromPath(schemaPath);
+  }
+
+  /** Return a Beam {@link Schema} from the Pub/Sub schema resource, if exists. */
+  @Override
+  public Schema getSchema(SchemaPath schemaPath) throws IOException {
+    GetSchemaRequest request = GetSchemaRequest.newBuilder().setName(schemaPath.getPath()).build();
+    return fromPubsubSchema(schemaServiceStub().getSchema(request));
   }
 }

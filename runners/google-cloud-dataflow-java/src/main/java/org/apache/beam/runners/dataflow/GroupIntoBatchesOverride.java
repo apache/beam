@@ -117,10 +117,19 @@ public class GroupIntoBatchesOverride {
                       List<V> currentBatch = Lists.newArrayList();
                       long batchSizeBytes = 0;
                       for (V element : c.element().getValue()) {
-                        currentBatch.add(element);
+                        long currentSizeBytes = 0;
                         if (weigher != null) {
-                          batchSizeBytes += weigher.apply(element);
+                          currentSizeBytes += weigher.apply(element);
+                          // Ensure that the batch is smaller than the byte size limit
+                          if (currentSizeBytes + batchSizeBytes > maxBatchSizeBytes
+                              && !currentBatch.isEmpty()) {
+                            c.output(KV.of(c.element().getKey(), currentBatch));
+                            currentBatch = Lists.newArrayList();
+                            batchSizeBytes = 0;
+                          }
                         }
+                        currentBatch.add(element);
+                        batchSizeBytes += currentSizeBytes;
                         if (currentBatch.size() == maxBatchSizeElements
                             || (maxBatchSizeBytes != Long.MAX_VALUE
                                 && batchSizeBytes >= maxBatchSizeBytes)) {

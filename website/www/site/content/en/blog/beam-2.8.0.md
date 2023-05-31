@@ -50,7 +50,7 @@ For more information on changes in 2.8.0, check out the
 
 ### Portability
 
-* [Python on Flink MVP](https://beam.apache.org/roadmap/portability/#python-on-flink) completed.
+* [Python on Flink MVP](/roadmap/portability/#python-on-flink) completed.
 
 ### I/Os
 

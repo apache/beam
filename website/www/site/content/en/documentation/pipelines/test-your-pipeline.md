@@ -157,6 +157,8 @@ public class CountTest {
 {{< /highlight >}}
 
 {{< highlight py >}}
+import unittest
+import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -244,6 +246,16 @@ public class WordCountTest {
 {{< /highlight >}}
 
 {{< highlight py >}}
+import unittest
+import apache_beam as beam
+from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
+
+class CountWords(beam.PTransform):
+    # CountWords transform omitted for conciseness.
+    # Full transform can be found here - https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/wordcount_debugging.py
+
 class WordCountTest(unittest.TestCase):
 
   # Our input data, which will make up the initial PCollection.

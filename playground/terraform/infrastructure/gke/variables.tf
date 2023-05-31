@@ -23,26 +23,19 @@ variable "project_id" {
 
 variable "machine_type" {
   description = "Node pool machine types , for prod set  c2d-highcpu-16"
-  default     = "e2-standard-4"
+  default     = "e2-standard-8"
 }
-
-variable "node_count" {
-  description = "Node pool size"
-  default     = 1
-}
-
 variable "service_account_email" {
   description = "Service account email"
 }
 
 variable "name" {
   description = "Name of GKE cluster"
-  default     = "playground-examples"
+  default     = "playground-backend"
 }
 
 variable "location" {
   description = "Location of GKE cluster"
-  default     = "us-central1-a"
 }
 
 variable "network" {
@@ -52,3 +45,18 @@ variable "network" {
 variable "subnetwork" {
   description = "GCP subnetwork within which resources are provisioned"
 }
+
+variable "min_count" {
+  description = "Min cluster node count"
+  default     = 2
+}
+
+variable "max_count" {
+  description = "Max cluster node count"
+  default     = 6
+}
+variable "control_plane_cidr" {
+  description = "CIDR block for GKE controlplane"
+  default     = "10.129.0.0/28"
+}
+

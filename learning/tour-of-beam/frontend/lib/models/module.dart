@@ -27,18 +27,27 @@ class ModuleModel extends ParentNodeModel {
 
   const ModuleModel({
     required super.id,
-    required super.title,
     required super.nodes,
+    required super.parent,
+    required super.title,
     required this.complexity,
   });
 
-  ModuleModel.fromResponse(ModuleResponseModel module)
-      : complexity = module.complexity,
-        super(
-          id: module.id,
-          title: module.title,
-          nodes: module.nodes
-              .map<NodeModel>(NodeModel.fromResponse)
-              .toList(growable: false),
-        );
+  factory ModuleModel.fromResponse(ModuleResponseModel moduleResponse) {
+    final module = ModuleModel(
+      complexity: moduleResponse.complexity,
+      nodes: [],
+      id: moduleResponse.id,
+      parent: null,
+      title: moduleResponse.title,
+    );
+
+    module.nodes.addAll(
+      moduleResponse.nodes.map<NodeModel>(
+        (node) => NodeModel.fromResponse(node, module),
+      ),
+    );
+
+    return module;
+  }
 }

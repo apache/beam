@@ -31,8 +31,8 @@ simple yet powerful pipelines and also provides an out-of-the-box solution that 
 plug'n'play"_.
 
 This end-to-end example is included
-in [Apache Beam release 2.27](https://beam.apache.org/blog/beam-2.27.0/)
-and can be downloaded [here](https://beam.apache.org/get-started/downloads/#2270-2020-12-22).
+in [Apache Beam release 2.27](/blog/beam-2.27.0/)
+and can be downloaded [here](/get-started/downloads/#2270-2020-12-22).
 
 We hope you will find this example useful for setting up data pipelines between Kafka and Pub/Sub.
 
@@ -85,5 +85,5 @@ you more understanding on how pipelines work and look like. If you are already u
 some code samples in it will be useful for your use cases.
 
 Please
-[let us know](https://beam.apache.org/community/contact-us/) if you encounter any issues.
+[let us know](/community/contact-us/) if you encounter any issues.
 

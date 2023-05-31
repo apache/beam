@@ -76,23 +76,23 @@ func TestAdvanceProcessingTime(t *testing.T) {
 func TestAddElements(t *testing.T) {
 	tests := []struct {
 		name          string
-		elementGroups [][]interface{}
+		elementGroups [][]any
 	}{
 		{
 			"bools",
-			[][]interface{}{{true, false}},
+			[][]any{{true, false}},
 		},
 		{
 			"multiple bools",
-			[][]interface{}{{true, false}, {true, false}},
+			[][]any{{true, false}, {true, false}},
 		},
 		{
 			"strings",
-			[][]interface{}{{"test", "other test"}},
+			[][]any{{"test", "other test"}},
 		},
 		{
 			"floats",
-			[][]interface{}{{1.1, 2.2, 3.3}},
+			[][]any{{1.1, 2.2, 3.3}},
 		},
 	}
 	for _, tc := range tests {
@@ -119,23 +119,23 @@ func TestAddElements(t *testing.T) {
 func TestAddElementList(t *testing.T) {
 	tests := []struct {
 		name          string
-		elementGroups [][]interface{}
+		elementGroups [][]any
 	}{
 		{
 			"bools",
-			[][]interface{}{{true, false}},
+			[][]any{{true, false}},
 		},
 		{
 			"multiple bools",
-			[][]interface{}{{true, false}, {true, false}},
+			[][]any{{true, false}, {true, false}},
 		},
 		{
 			"strings",
-			[][]interface{}{{"test", "other test"}},
+			[][]any{{"test", "other test"}},
 		},
 		{
 			"floats",
-			[][]interface{}{{1.1, 2.2, 3.3}},
+			[][]any{{1.1, 2.2, 3.3}},
 		},
 	}
 	for _, tc := range tests {

@@ -20,7 +20,7 @@
 
 import * as beam from "../../apache_beam";
 import * as textio from "../io/textio";
-import { DirectRunner } from "../runners/direct_runner";
+import { directRunner } from "../runners/direct_runner";
 import { PortableRunner } from "../runners/portable_runner/runner";
 
 import { countPerElement } from "../transforms/group_and_combine";

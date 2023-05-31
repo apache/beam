@@ -19,7 +19,7 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import static java.util.stream.Collectors.toList;
 import static org.apache.beam.sdk.values.PCollection.IsBounded.BOUNDED;
-import static org.apache.beam.vendor.calcite.v1_28_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.Serializable;
 import java.util.List;
@@ -32,6 +32,7 @@ import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.transforms.Group;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -263,7 +264,8 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
             .setRowSchema(outputSchema);
       }
       org.apache.beam.sdk.schemas.transforms.Group.AggregateCombiner<Row> globally =
-          org.apache.beam.sdk.schemas.transforms.Group.CombineFieldsGlobally.create();
+          (org.apache.beam.sdk.schemas.transforms.Group.AggregateCombiner<Row>)
+              org.apache.beam.sdk.schemas.transforms.Group.CombineFieldsGlobally.create();
       PTransform<PCollection<Row>, PCollection<Row>> combiner = createCombiner(globally);
       return windowedStream.apply(combiner).setRowSchema(outputSchema);
     }

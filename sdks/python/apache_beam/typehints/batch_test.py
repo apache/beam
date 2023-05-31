@@ -149,6 +149,38 @@ class BatchConverterTest(unittest.TestCase):
     self.assertEqual(hash(self.create_batch_converter()), hash(self.converter))
 
 
+class BatchConverterErrorsTest(unittest.TestCase):
+  @parameterized.expand([
+      (
+          typing.List[int],
+          str,
+          r'batch type must be List\[T\] for element type T',
+      ),
+      (
+          np.ndarray,
+          typing.Any,
+          r'Element type is not a dtype',
+      ),
+      (
+          np.array,
+          np.int64,
+          (
+              r'batch type must be np\.ndarray or '
+              r'beam\.typehints\.batch\.NumpyArray\[\.\.\]'),
+      ),
+      (
+          NumpyArray[np.int64, (3, N, 2)],
+          NumpyArray[np.int64, (3, 7)],
+          r'Failed to align batch type\'s batch dimension',
+      ),
+  ])
+  def test_construction_errors(
+      self, batch_typehint, element_typehint, error_regex):
+    with self.assertRaisesRegex(TypeError, error_regex):
+      BatchConverter.from_typehints(
+          element_type=element_typehint, batch_type=batch_typehint)
+
+
 @contextlib.contextmanager
 def temp_seed(seed):
   state = random.getstate()

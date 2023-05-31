@@ -24,34 +24,39 @@ import 'page.dart';
 
 class TourPath extends PagePath {
   final String sdkId;
-  final List<String> treeIds;
+  final List<String> breadcrumbIds;
 
-  static final _regExp = RegExp(r'^/tour/([a-z]+)(/[/-a-zA-Z0-9]+)?$');
+  static final _regExp =
+      RegExp(r'^/tour/([a-z]+)/?([-a-zA-Z0-9]+(/[-a-zA-Z0-9]+)*)?/?$');
 
   TourPath({
     required this.sdkId,
-    this.treeIds = const [],
+    this.breadcrumbIds = const [],
   }) : super(
           key: TourPage.classFactoryKey,
           state: {
             'sdkId': sdkId,
-            'treeIds': treeIds,
+            'breadcrumbIds': breadcrumbIds,
           },
         );
 
   @override
-  String get location => ['/tour/$sdkId', ...treeIds].join('/');
+  String get location => ['/tour/$sdkId', ...breadcrumbIds].join('/');
 
   static TourPath? tryParse(RouteInformation ri) {
     final matches = _regExp.firstMatch(ri.location ?? '');
     if (matches == null) return null;
 
     final sdkId = matches[1] ?? (throw Error());
-    final treeIds = matches[2]?.split('/') ?? const [];
+    final breadcrumbIdsString = matches[2];
+
+    final breadcrumbIds = breadcrumbIdsString == null
+        ? const <String>[]
+        : breadcrumbIdsString.split('/');
 
     return TourPath(
       sdkId: sdkId,
-      treeIds: treeIds,
+      breadcrumbIds: breadcrumbIds,
     );
   }
 

@@ -32,7 +32,7 @@ import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
-@SuppressWarnings({"nullness", "rawtypes", "uninitialized"})
+@SuppressWarnings({"nullness", "uninitialized"})
 public class DicomIOReadIT {
   private static final String TEST_FILE_PATH = "src/test/resources/DICOM/testDicomFile.dcm";
   private static final String TEST_FILE_STUDY_ID = "study_000000000";

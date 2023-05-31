@@ -29,7 +29,17 @@ class ComplexityWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(children: _dots[complexity]!);
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onTap: () {},
+      child: SizedBox.square(
+        dimension: 24,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: _dots[complexity]!,
+        ),
+      ),
+    );
   }
 
   static const Map<Complexity, List<Widget>> _dots = {

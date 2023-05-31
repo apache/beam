@@ -18,28 +18,25 @@
 
 import 'dart:async';
 
-import 'package:flutter/widgets.dart';
+import 'package:playground_components/playground_components.dart';
 
 import '../models/content_tree.dart';
-import '../repositories/client/client.dart';
+import 'cache.dart';
 
-class ContentTreeCache extends ChangeNotifier {
-  final TobClient client;
+class ContentTreeCache extends Cache {
+  ContentTreeCache({
+    required super.client,
+  });
 
   final _treesBySdkId = <String, ContentTreeModel>{};
   final _futuresBySdkId = <String, Future<ContentTreeModel>>{};
 
-  ContentTreeCache({
-    required this.client,
-  });
-
-  ContentTreeModel? getContentTree(String sdkId) {
-    final future = _futuresBySdkId[sdkId];
-    if (future == null) {
-      unawaited(_loadContentTree(sdkId));
+  ContentTreeModel? getContentTree(Sdk sdk) {
+    if (!_futuresBySdkId.containsKey(sdk.id)) {
+      unawaited(_loadContentTree(sdk.id));
     }
 
-    return _treesBySdkId[sdkId];
+    return _treesBySdkId[sdk.id];
   }
 
   Future<ContentTreeModel> _loadContentTree(String sdkId) async {

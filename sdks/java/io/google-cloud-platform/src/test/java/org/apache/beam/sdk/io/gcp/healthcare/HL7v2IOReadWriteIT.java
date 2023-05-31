@@ -22,14 +22,19 @@ import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.MESSAGES;
 import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.deleteAllHL7v2Messages;
 import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.writeHL7v2Messages;
 
+import com.google.api.services.healthcare.v1.model.Message;
 import java.io.IOException;
 import java.security.SecureRandom;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.ListHL7v2MessageIDs;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
 import org.junit.After;
@@ -55,6 +60,7 @@ public class HL7v2IOReadWriteIT {
       "hl7v2_store_rw_it_" + System.currentTimeMillis() + "_" + new SecureRandom().nextInt(32);
   private static final String INPUT_HL7V2_STORE_NAME = BASE + "INPUT";
   private static final String OUTPUT_HL7V2_STORE_NAME = BASE + "OUTPUT";
+  private static final String METADATA = "Metadata for message";
 
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
 
@@ -126,6 +132,84 @@ public class HL7v2IOReadWriteIT {
           Duration.standardMinutes(10));
     } catch (TimeoutException e) {
       Assert.fail(e.getMessage());
+    }
+  }
+
+  @Test
+  public void testHL7v2IOGetAllE2E() {
+    HL7v2IO.Read.Result actualResult =
+        pipeline
+            .apply(
+                new ListHL7v2MessageIDs(
+                    Collections.singletonList(
+                        healthcareDataset + "/hl7V2Stores/" + INPUT_HL7V2_STORE_NAME)))
+            .apply(HL7v2IO.getAll());
+    PCollection<HL7v2Message> actualMessages =
+        actualResult
+            .getMessages()
+            .apply(
+                "Convert to message to contains only data parameter for assert",
+                ParDo.of(new MapHl7MessagesToComparableMessages()));
+
+    PAssert.that(actualMessages).containsInAnyOrder(MESSAGES);
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testHL7v2IOGetAllByReadParameterE2E() {
+    PCollection<String> msgIds =
+        pipeline.apply(
+            new ListHL7v2MessageIDs(
+                Collections.singletonList(
+                    healthcareDataset + "/hl7V2Stores/" + INPUT_HL7V2_STORE_NAME)));
+    PCollection<HL7v2ReadParameter> readParameters =
+        msgIds.apply("Make read parameter lists", ParDo.of(new MapIdsToReadParameter()));
+    HL7v2IO.HL7v2Read.Result result = readParameters.apply(HL7v2IO.readAllRequests());
+    PCollection<HL7v2ReadResponse> actualResponse =
+        result
+            .getMessages()
+            .setCoder(HL7v2ReadResponseCoder.of())
+            .apply(ParDo.of(new MapHL7v2ReadResponseToComparableResponse()));
+
+    List<HL7v2ReadResponse> expectedResponse =
+        MESSAGES.stream()
+            .map((HL7v2Message message) -> HL7v2ReadResponse.of(METADATA, message))
+            .collect(Collectors.toList());
+
+    PAssert.that(actualResponse).containsInAnyOrder(expectedResponse);
+    pipeline.run().waitUntilFinish();
+  }
+
+  private static class MapHl7MessagesToComparableMessages extends DoFn<HL7v2Message, HL7v2Message> {
+
+    @ProcessElement
+    public void processElement(@Element HL7v2Message input, OutputReceiver<HL7v2Message> receiver) {
+      Message message = new Message();
+      message.setData(input.getData());
+      receiver.output(HL7v2Message.fromModel(message));
+    }
+  }
+
+  private static class MapIdsToReadParameter extends DoFn<String, HL7v2ReadParameter> {
+
+    @ProcessElement
+    public void processElement(@Element String msgId, OutputReceiver<HL7v2ReadParameter> receiver) {
+      HL7v2ReadParameter parameter = HL7v2ReadParameter.of(METADATA, msgId);
+      receiver.output(parameter);
+    }
+  }
+
+  private static class MapHL7v2ReadResponseToComparableResponse
+      extends DoFn<HL7v2ReadResponse, HL7v2ReadResponse> {
+
+    @ProcessElement
+    public void processElement(
+        @Element HL7v2ReadResponse input, OutputReceiver<HL7v2ReadResponse> receiver) {
+      Message message = new Message();
+      message.setData(input.getHL7v2Message().getData());
+      HL7v2ReadResponse response =
+          HL7v2ReadResponse.of(input.getMetadata(), HL7v2Message.fromModel(message));
+      receiver.output(response);
     }
   }
 }

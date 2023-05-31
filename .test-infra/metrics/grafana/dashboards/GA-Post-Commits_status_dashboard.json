@@ -1,0 +1,952 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "target": {
+          "limit": 100,
+          "matchAny": false,
+          "tags": [],
+          "type": "dashboard"
+        },
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "gnetId": null,
+  "graphTooltip": 0,
+  "links": [],
+  "panels": [
+    {
+      "id": 2,
+      "gridPos": {
+        "h": 32,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "type": "table",
+      "title": "GA Post-Commits Status",
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {
+            "reducers": []
+          }
+        }
+      ],
+      "datasource": "BeamPSQL",
+      "pluginVersion": "9.2.0",
+      "links": [],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto",
+            "inspect": false
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "index": 0,
+                  "text": "Fail",
+                  "color": "semi-dark-red"
+                },
+                "1": {
+                  "index": 1,
+                  "text": "Success",
+                  "color": "semi-dark-green"
+                },
+                "2": {
+                  "index": 2,
+                  "text": "Pending",
+                  "color": "semi-dark-yellow"
+                },
+                "3": {
+                  "index": 3,
+                  "text": "Cancelled",
+                  "color": "semi-dark-purple"
+                },
+                "4": {
+                  "index": 4,
+                  "text": "None",
+                  "color": "light-blue"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "semi-dark-red",
+                "value": null
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "job_name"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "targetBlank": true,
+                    "title": "",
+                    "url": "https://github.com/apache/beam/actions/${__data.fields.job_yml_filename}"
+                  }
+                ]
+              },
+              {
+                "id": "custom.align",
+                "value": "auto"
+              },
+              {
+                "id": "mappings",
+                "value": []
+              },
+              {
+                "id": "displayName",
+                "value": "Job Name"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "job_yml_filename"
+            },
+            "properties": [
+              {
+                "id": "custom.hidden",
+                "value": true
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "/run\\d+id/"
+            },
+            "properties": [
+              {
+                "id": "custom.hidden",
+                "value": true
+              },
+              {
+                "id": "custom.align",
+                "value": "center"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "run_1"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "dark-green"
+                }
+              },
+              {
+                "id": "custom.hidden",
+                "value": false
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "percentage",
+                  "steps": [
+                    {
+                      "color": "semi-dark-red",
+                      "value": null
+                    },
+                    {
+                      "color": "semi-dark-red",
+                      "value": 0
+                    },
+                    {
+                      "value": 1,
+                      "color": "semi-dark-green"
+                    },
+                    {
+                      "value": 2,
+                      "color": "semi-dark-yellow"
+                    },
+                    {
+                      "value": 3,
+                      "color": "light-blue"
+                    },
+                    {
+                      "value": 4,
+                      "color": "purple"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.displayMode",
+                "value": "color-background-solid"
+              },
+              {
+                "id": "custom.align",
+                "value": "center"
+              },
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "",
+                    "url": "${__data.fields.run1id}"
+                  }
+                ]
+              },
+              {
+                "id": "displayName",
+                "value": "Run"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "run_2"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "dark-green"
+                }
+              },
+              {
+                "id": "custom.hidden",
+                "value": false
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "percentage",
+                  "steps": [
+                    {
+                      "color": "semi-dark-red",
+                      "value": null
+                    },
+                    {
+                      "color": "semi-dark-red",
+                      "value": 0
+                    },
+                    {
+                      "value": 1,
+                      "color": "semi-dark-green"
+                    },
+                    {
+                      "value": 2,
+                      "color": "semi-dark-yellow"
+                    },
+                    {
+                      "value": 3,
+                      "color": "light-blue"
+                    },
+                    {
+                      "value": 4,
+                      "color": "purple"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.displayMode",
+                "value": "color-background-solid"
+              },
+              {
+                "id": "custom.align",
+                "value": "center"
+              },
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "",
+                    "url": "${__data.fields.run2id}"
+                  }
+                ]
+              },
+              {
+                "id": "displayName",
+                "value": "Run 2"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "run_3"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "dark-green"
+                }
+              },
+              {
+                "id": "custom.hidden",
+                "value": false
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "percentage",
+                  "steps": [
+                    {
+                      "color": "semi-dark-red",
+                      "value": null
+                    },
+                    {
+                      "color": "semi-dark-red",
+                      "value": 0
+                    },
+                    {
+                      "value": 1,
+                      "color": "semi-dark-green"
+                    },
+                    {
+                      "value": 2,
+                      "color": "semi-dark-yellow"
+                    },
+                    {
+                      "value": 3,
+                      "color": "light-blue"
+                    },
+                    {
+                      "value": 4,
+                      "color": "purple"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.displayMode",
+                "value": "color-background-solid"
+              },
+              {
+                "id": "custom.align",
+                "value": "center"
+              },
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "",
+                    "url": "${__data.fields.run3id}"
+                  }
+                ]
+              },
+              {
+                "id": "displayName",
+                "value": "Run 3"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "run_4"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "dark-green"
+                }
+              },
+              {
+                "id": "custom.hidden",
+                "value": false
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "percentage",
+                  "steps": [
+                    {
+                      "color": "semi-dark-red",
+                      "value": null
+                    },
+                    {
+                      "color": "semi-dark-red",
+                      "value": 0
+                    },
+                    {
+                      "value": 1,
+                      "color": "semi-dark-green"
+                    },
+                    {
+                      "value": 2,
+                      "color": "semi-dark-yellow"
+                    },
+                    {
+                      "value": 3,
+                      "color": "light-blue"
+                    },
+                    {
+                      "value": 4,
+                      "color": "purple"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.displayMode",
+                "value": "color-background-solid"
+              },
+              {
+                "id": "custom.align",
+                "value": "center"
+              },
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "",
+                    "url": "${__data.fields.run4id}"
+                  }
+                ]
+              },
+              {
+                "id": "displayName",
+                "value": "Run 4"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "run_5"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "dark-green"
+                }
+              },
+              {
+                "id": "custom.hidden",
+                "value": false
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "percentage",
+                  "steps": [
+                    {
+                      "color": "semi-dark-red",
+                      "value": null
+                    },
+                    {
+                      "color": "semi-dark-red",
+                      "value": 0
+                    },
+                    {
+                      "value": 1,
+                      "color": "semi-dark-green"
+                    },
+                    {
+                      "value": 2,
+                      "color": "semi-dark-yellow"
+                    },
+                    {
+                      "value": 3,
+                      "color": "light-blue"
+                    },
+                    {
+                      "value": 4,
+                      "color": "purple"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.displayMode",
+                "value": "color-background-solid"
+              },
+              {
+                "id": "custom.align",
+                "value": "center"
+              },
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "",
+                    "url": "${__data.fields.run5id}"
+                  }
+                ]
+              },
+              {
+                "id": "displayName",
+                "value": "Run 5"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "run_6"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "dark-green"
+                }
+              },
+              {
+                "id": "custom.hidden",
+                "value": false
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "percentage",
+                  "steps": [
+                    {
+                      "color": "semi-dark-red",
+                      "value": null
+                    },
+                    {
+                      "color": "semi-dark-red",
+                      "value": 0
+                    },
+                    {
+                      "value": 1,
+                      "color": "semi-dark-green"
+                    },
+                    {
+                      "value": 2,
+                      "color": "semi-dark-yellow"
+                    },
+                    {
+                      "value": 3,
+                      "color": "light-blue"
+                    },
+                    {
+                      "value": 4,
+                      "color": "purple"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.displayMode",
+                "value": "color-background-solid"
+              },
+              {
+                "id": "custom.align",
+                "value": "center"
+              },
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "",
+                    "url": "${__data.fields.run6id}"
+                  }
+                ]
+              },
+              {
+                "id": "displayName",
+                "value": "Run 6"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "run_7"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "dark-green"
+                }
+              },
+              {
+                "id": "custom.hidden",
+                "value": false
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "percentage",
+                  "steps": [
+                    {
+                      "color": "semi-dark-red",
+                      "value": null
+                    },
+                    {
+                      "color": "semi-dark-red",
+                      "value": 0
+                    },
+                    {
+                      "value": 1,
+                      "color": "semi-dark-green"
+                    },
+                    {
+                      "value": 2,
+                      "color": "semi-dark-yellow"
+                    },
+                    {
+                      "value": 3,
+                      "color": "light-blue"
+                    },
+                    {
+                      "value": 4,
+                      "color": "purple"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.displayMode",
+                "value": "color-background-solid"
+              },
+              {
+                "id": "custom.align",
+                "value": "center"
+              },
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "",
+                    "url": "${__data.fields.run7id}"
+                  }
+                ]
+              },
+              {
+                "id": "displayName",
+                "value": "Run 7"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "run_8"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "dark-green"
+                }
+              },
+              {
+                "id": "custom.hidden",
+                "value": false
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "percentage",
+                  "steps": [
+                    {
+                      "color": "semi-dark-red",
+                      "value": null
+                    },
+                    {
+                      "color": "semi-dark-red",
+                      "value": 0
+                    },
+                    {
+                      "value": 1,
+                      "color": "semi-dark-green"
+                    },
+                    {
+                      "value": 2,
+                      "color": "semi-dark-yellow"
+                    },
+                    {
+                      "value": 3,
+                      "color": "light-blue"
+                    },
+                    {
+                      "value": 4,
+                      "color": "purple"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.displayMode",
+                "value": "color-background-solid"
+              },
+              {
+                "id": "custom.align",
+                "value": "center"
+              },
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "",
+                    "url": "${__data.fields.run8id}"
+                  }
+                ]
+              },
+              {
+                "id": "displayName",
+                "value": "Run 8"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "run_9"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "dark-green"
+                }
+              },
+              {
+                "id": "custom.hidden",
+                "value": false
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "percentage",
+                  "steps": [
+                    {
+                      "color": "semi-dark-red",
+                      "value": null
+                    },
+                    {
+                      "color": "semi-dark-red",
+                      "value": 0
+                    },
+                    {
+                      "value": 1,
+                      "color": "semi-dark-green"
+                    },
+                    {
+                      "value": 2,
+                      "color": "semi-dark-yellow"
+                    },
+                    {
+                      "value": 3,
+                      "color": "light-blue"
+                    },
+                    {
+                      "value": 4,
+                      "color": "purple"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.displayMode",
+                "value": "color-background-solid"
+              },
+              {
+                "id": "custom.align",
+                "value": "center"
+              },
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "",
+                    "url": "${__data.fields.run9id}"
+                  }
+                ]
+              },
+              {
+                "id": "displayName",
+                "value": "Run 9"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "run_10"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "dark-green"
+                }
+              },
+              {
+                "id": "custom.hidden",
+                "value": false
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "percentage",
+                  "steps": [
+                    {
+                      "color": "semi-dark-red",
+                      "value": null
+                    },
+                    {
+                      "color": "semi-dark-red",
+                      "value": 0
+                    },
+                    {
+                      "value": 1,
+                      "color": "semi-dark-green"
+                    },
+                    {
+                      "value": 2,
+                      "color": "semi-dark-yellow"
+                    },
+                    {
+                      "value": 3,
+                      "color": "light-blue"
+                    },
+                    {
+                      "value": 4,
+                      "color": "purple"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.displayMode",
+                "value": "color-background-solid"
+              },
+              {
+                "id": "custom.align",
+                "value": "center"
+              },
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "",
+                    "url": "${__data.fields.run10id}"
+                  }
+                ]
+              },
+              {
+                "id": "displayName",
+                "value": "Run 10"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "fields": ""
+        }
+      },
+      "targets": [
+        {
+          "aggregation": "Last",
+          "alias": "job",
+          "decimals": 2,
+          "displayAliasType": "Warning / Critical",
+          "displayType": "Regular",
+          "displayValueWithAlias": "Never",
+          "format": "table",
+          "group": [],
+          "hide": false,
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "with workflows as (\n  select\n    *,\n    case when run1 like 'success' then 1 when run1 like 'in_progress' then 2 when run1 like 'queued' then 2 when run1 like 'waiting' then 2 when run1 like 'cancelled' then 3 when run1 like 'None' then 4 else 0 end as run_1,\n    case when run2 like 'success' then 1 when run2 like 'in_progress' then 2 when run2 like 'queued' then 2 when run2 like 'waiting' then 2 when run2 like 'cancelled' then 3 when run2 like 'None' then 4 else 0 end as run_2,\n    case when run3 like 'success' then 1 when run3 like 'in_progress' then 2 when run3 like 'queued' then 2 when run3 like 'waiting' then 2 when run3 like 'cancelled' then 3 when run3 like 'None' then 4 else 0 end as run_3,\n    case when run4 like 'success' then 1 when run4 like 'in_progress' then 2 when run4 like 'queued' then 2 when run4 like 'waiting' then 2 when run4 like 'cancelled' then 3 when run4 like 'None' then 4 else 0 end as run_4,\n    case when run5 like 'success' then 1 when run5 like 'in_progress' then 2 when run5 like 'queued' then 2 when run5 like 'waiting' then 2 when run5 like 'cancelled' then 3 when run5 like 'None' then 4 else 0 end as run_5,\n    case when run6 like 'success' then 1 when run6 like 'in_progress' then 2 when run6 like 'queued' then 2 when run6 like 'waiting' then 2 when run6 like 'cancelled' then 3 when run6 like 'None' then 4 else 0 end as run_6,\n    case when run7 like 'success' then 1 when run7 like 'in_progress' then 2 when run7 like 'queued' then 2 when run7 like 'waiting' then 2 when run7 like 'cancelled' then 3 when run7 like 'None' then 4 else 0 end as run_7,\n    case when run8 like 'success' then 1 when run8 like 'in_progress' then 2 when run8 like 'queued' then 2 when run8 like 'waiting' then 2 when run8 like 'cancelled' then 3 when run8 like 'None' then 4 else 0 end as run_8,\n    case when run9 like 'success' then 1 when run9 like 'in_progress' then 2 when run9 like 'queued' then 2 when run9 like 'waiting' then 2 when run9 like 'cancelled' then 3 when run9 like 'None' then 4 else 0 end as run_9,\n    case when run10 like 'success' then 1 when run10 like 'in_progress' then 2 when run10 like 'queued' then 2 when run10 like 'waiting' then 2 when run10 like 'cancelled' then 3 when run10 like 'None' then 4 else 0 end as run_10\n  from\n    github_workflows\n)\nselect\n  job_name,\n  job_yml_filename,\n  run_1,\n  run1Id,\n  run_2,\n  run2Id,\n  run_3,\n  run3Id,\n  run_4,\n  run4Id,\n  run_5,\n  run5Id,\n  run_6,\n  run6Id,\n  run_7,\n  run7Id,\n  run_8,\n  run8Id,\n  run_9,\n  run9Id,\n  run_10,\n  run10Id\nfrom\n  workflows;",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "timeColumn": "time",
+          "units": "none",
+          "valueHandler": "Number Threshold",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 30,
+  "style": "dark",
+  "tags": [],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "GA Post-Commits Status",
+  "uid": "CTYdoxP4z",
+  "version": 1
+}

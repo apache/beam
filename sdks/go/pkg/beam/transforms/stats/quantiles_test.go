@@ -31,7 +31,7 @@ func init() {
 
 	// In practice, this runs faster than plain reflection.
 	// TODO(https://github.com/apache/beam/issues/20271): Remove once collisions don't occur for starcgen over test code and an equivalent is generated for us.
-	reflectx.RegisterFunc(reflect.ValueOf(less).Type(), func(_ interface{}) reflectx.Func {
+	reflectx.RegisterFunc(reflect.ValueOf(less).Type(), func(_ any) reflectx.Func {
 		return newIntLess()
 	})
 }
@@ -54,8 +54,8 @@ func (i *intLess) Name() string {
 func (i *intLess) Type() reflect.Type {
 	return i.t
 }
-func (i *intLess) Call(args []interface{}) []interface{} {
-	return []interface{}{args[0].(int) < args[1].(int)}
+func (i *intLess) Call(args []any) []any {
+	return []any{args[0].(int) < args[1].(int)}
 }
 
 func less(a, b int) bool {

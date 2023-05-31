@@ -24,7 +24,6 @@ applyJavaNature( publish: false, exportJavadoc: false)
 // its sourceSets.test.output directly.
 evaluationDependsOn(":examples:java")
 evaluationDependsOn(":runners:google-cloud-dataflow-java")
-evaluationDependsOn(":runners:google-cloud-dataflow-java:worker:legacy-worker")
 evaluationDependsOn(":runners:google-cloud-dataflow-java:worker")
 evaluationDependsOn(":sdks:java:container")
 
@@ -85,14 +84,14 @@ def commonConfig = { Map args ->
  }
 
 task preCommitLegacyWorker(type: Test) {
-  dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
-  def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
+  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
+  def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
   with commonConfig(dataflowWorkerJar: dataflowWorkerJar)
 }
 
 task preCommitLegacyWorkerImpersonate(type: Test) {
-    dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
-    def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
+    dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
+    def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
     with commonConfig(
      dataflowWorkerJar: dataflowWorkerJar,
          gcsTempRoot: impersonationTempRoot,
@@ -117,8 +116,8 @@ task verifyFnApiWorker(type: Test) {
 }
 
 task postCommitLegacyWorkerJava11(type: Test) {
-  dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
-  def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
+  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
+  def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
   systemProperty "java.specification.version", "11"
   with commonConfig(dataflowWorkerJar: dataflowWorkerJar)
 }
@@ -128,8 +127,8 @@ task java11PostCommit() {
 }
 
 task postCommitLegacyWorkerJava17(type: Test) {
-    dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
-    def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
+    dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
+    def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
     systemProperty "java.specification.version", "17"
     with commonConfig(dataflowWorkerJar: dataflowWorkerJar)
 }

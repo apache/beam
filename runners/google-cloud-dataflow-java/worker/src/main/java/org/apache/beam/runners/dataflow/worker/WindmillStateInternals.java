@@ -68,6 +68,7 @@ import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.MapState;
+import org.apache.beam.sdk.state.MultimapState;
 import org.apache.beam.sdk.state.OrderedListState;
 import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.ReadableStates;
@@ -84,7 +85,7 @@ import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.CombineFnUtil;
 import org.apache.beam.sdk.util.Weighted;
 import org.apache.beam.sdk.values.TimestampedValue;
-import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
@@ -190,6 +191,15 @@ class WindmillStateInternals<K> implements StateInternals {
           }
           result.initializeForWorkItem(reader, scopedReadStateSupplier);
           return result;
+        }
+
+        @Override
+        public <KeyT, ValueT> MultimapState<KeyT, ValueT> bindMultimap(
+            StateTag<MultimapState<KeyT, ValueT>> spec,
+            Coder<KeyT> keyCoder,
+            Coder<ValueT> valueCoder) {
+          throw new UnsupportedOperationException(
+              String.format("%s is not supported", MultimapState.class.getSimpleName()));
         }
 
         @Override
@@ -653,8 +663,11 @@ class WindmillStateInternals<K> implements StateInternals {
     static final String IDS_AVAILABLE_STR = "IdsAvailable";
     static final String DELETIONS_STR = "Deletions";
 
-    static final long MIN_ID = Long.MIN_VALUE;
-    static final long MAX_ID = Long.MAX_VALUE;
+    // Note that this previously was Long.MIN_VALUE but ids are unsigned when
+    // sending to windmill for Streaming Engine. For updated appliance
+    // pipelines with existing state, there may be negative ids.
+    static final long NEW_RANGE_MIN_ID = 0;
+    static final long NEW_RANGE_MAX_ID = Long.MAX_VALUE;
 
     // We track ids on five-minute boundaries.
     private static final Duration RESOLUTION = Duration.standardMinutes(5);
@@ -755,7 +768,9 @@ class WindmillStateInternals<K> implements StateInternals {
           availableIdsForTsRange =
               idsAvailable.computeIfAbsent(
                   currentTsRange,
-                  r -> TreeRangeSet.create(ImmutableList.of(Range.closedOpen(MIN_ID, MAX_ID))));
+                  r ->
+                      TreeRangeSet.create(
+                          ImmutableList.of(Range.closedOpen(NEW_RANGE_MIN_ID, NEW_RANGE_MAX_ID))));
           idRangeIter = availableIdsForTsRange.asRanges().iterator();
           currentIdRange = null;
           currentTsRangeDeletions = subRangeDeletions.get(currentTsRange);

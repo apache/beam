@@ -31,24 +31,24 @@ class NewExampleIntent extends BeamIntent {
 }
 
 final kClearOutputShortcut = BeamShortcut(
-  shortcuts: LogicalKeySet(
-    LogicalKeyboardKey.meta,
+  keys: [
+    LogicalKeyboardKeyExtension.metaOrControl,
     LogicalKeyboardKey.keyB,
-  ),
+  ],
   actionIntent: const ClearOutputIntent(),
   createAction: (BuildContext context) => CallbackAction(
     onInvoke: (_) => Provider.of<PlaygroundController>(
       context,
       listen: false,
-    ).clearOutput(),
+    ).codeRunner.clearResult(),
   ),
 );
 
 final kNewExampleShortcut = BeamShortcut(
-  shortcuts: LogicalKeySet(
-    LogicalKeyboardKey.meta,
+  keys: [
+    LogicalKeyboardKeyExtension.metaOrControl,
     LogicalKeyboardKey.keyM,
-  ),
+  ],
   actionIntent: const NewExampleIntent(),
   createAction: (_) => CallbackAction(
     onInvoke: (_) => launchUrl(Uri.parse('/')),

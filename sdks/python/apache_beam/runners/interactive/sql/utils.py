@@ -161,7 +161,10 @@ class OptionsForm:
   generate PipelineOptions to run pipelines.
   """
   def __init__(self):
-    self.options = PipelineOptions()
+    # The current Python SDK incorrectly parses unparsable pipeline options
+    # Here we ignore all flags for the interactive beam_sql magic
+    # since the beam_sql magic does not use flags
+    self.options = PipelineOptions(flags={})
     self.entries = []
 
   def add(self, entry: OptionsEntry) -> 'OptionsForm':

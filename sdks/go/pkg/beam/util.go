@@ -36,7 +36,7 @@ func NewPipelineWithRoot() (*Pipeline, Scope) {
 
 // Seq is a convenience helper to chain single-input/single-output ParDos together
 // in a sequence.
-func Seq(s Scope, col PCollection, dofns ...interface{}) PCollection {
+func Seq(s Scope, col PCollection, dofns ...any) PCollection {
 	cur := col
 	for _, dofn := range dofns {
 		cur = ParDo(s, dofn, cur)

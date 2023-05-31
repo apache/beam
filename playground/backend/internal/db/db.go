@@ -16,7 +16,9 @@
 package db
 
 import (
+	"beam.apache.org/playground/backend/internal/db/datastore"
 	"context"
+	"time"
 
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/db/entity"
@@ -26,6 +28,7 @@ type Database interface {
 	SnippetDatabase
 	CatalogDatabase
 	ExampleDatabase
+	MigrationsDatabase
 }
 
 type SnippetDatabase interface {
@@ -35,14 +38,10 @@ type SnippetDatabase interface {
 
 	GetFiles(ctx context.Context, snipId string, numberOfFiles int) ([]*entity.FileEntity, error)
 
-	DeleteUnusedSnippets(ctx context.Context, dayDiff int32) error
+	DeleteUnusedSnippets(ctx context.Context, retentionPeriod time.Duration) error
 }
 
 type CatalogDatabase interface {
-	PutSchemaVersion(ctx context.Context, id string, schema *entity.SchemaEntity) error
-
-	PutSDKs(ctx context.Context, sdks []*entity.SDKEntity) error
-
 	GetSDKs(ctx context.Context) ([]*entity.SDKEntity, error)
 }
 
@@ -53,11 +52,17 @@ type ExampleDatabase interface {
 
 	GetExample(ctx context.Context, id string, sdks []*entity.SDKEntity) (*pb.PrecompiledObject, error)
 
-	GetExampleCode(ctx context.Context, id string) (string, error)
+	GetExampleCode(ctx context.Context, id string) ([]*entity.FileEntity, error)
 
 	GetExampleOutput(ctx context.Context, id string) (string, error)
 
 	GetExampleLogs(ctx context.Context, id string) (string, error)
 
 	GetExampleGraph(ctx context.Context, id string) (string, error)
+}
+
+type MigrationsDatabase interface {
+	GetCurrentDbMigrationVersion(ctx context.Context) (int, error)
+
+	ApplyMigrations(ctx context.Context, migrations []datastore.Migration, sdkConfigPath string) error
 }

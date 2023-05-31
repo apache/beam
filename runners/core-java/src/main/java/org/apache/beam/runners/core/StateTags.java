@@ -24,6 +24,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.MapState;
+import org.apache.beam.sdk.state.MultimapState;
 import org.apache.beam.sdk.state.OrderedListState;
 import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.state.State;
@@ -85,6 +86,15 @@ public class StateTags {
           Coder<KeyT> mapKeyCoder,
           Coder<ValueT> mapValueCoder) {
         return binder.bindMap(tagForSpec(id, spec), mapKeyCoder, mapValueCoder);
+      }
+
+      @Override
+      public <KeyT, ValueT> MultimapState<KeyT, ValueT> bindMultimap(
+          String id,
+          StateSpec<MultimapState<KeyT, ValueT>> spec,
+          Coder<KeyT> keyCoder,
+          Coder<ValueT> valueCoder) {
+        return binder.bindMultimap(tagForSpec(id, spec), keyCoder, valueCoder);
       }
 
       @Override
@@ -201,6 +211,11 @@ public class StateTags {
   public static <K, V> StateTag<MapState<K, V>> map(
       String id, Coder<K> keyCoder, Coder<V> valueCoder) {
     return new SimpleStateTag<>(new StructuredId(id), StateSpecs.map(keyCoder, valueCoder));
+  }
+
+  public static <K, V> StateTag<MultimapState<K, V>> multimap(
+      String id, Coder<K> keyCoder, Coder<V> valueCoder) {
+    return new SimpleStateTag<>(new StructuredId(id), StateSpecs.multimap(keyCoder, valueCoder));
   }
 
   public static <T> StateTag<OrderedListState<T>> orderedList(String id, Coder<T> elemCoder) {

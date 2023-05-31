@@ -22,6 +22,12 @@
 
 set -e
 
-ttsc -p .
+# Make the packaging version available to the code.
+echo "export const version = \"$npm_package_version\";" > src/apache_beam/version.ts
+
+# Using npx to execute ttsc from the local node_modules environment.
+npx ttsc -p .
+
+# Copy the python bootstrap script.
 mkdir -p dist/resources
 cp ../java/extensions/python/src/main/resources/org/apache/beam/sdk/extensions/python/bootstrap_beam_venv.py dist/resources

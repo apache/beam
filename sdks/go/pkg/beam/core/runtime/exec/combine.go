@@ -50,7 +50,7 @@ type Combine struct {
 	// reusable invokers
 	createAccumInv, addInputInv, mergeInv, extractOutputInv *invoker
 	// cached value converter for add input.
-	aiValConvert func(interface{}) interface{}
+	aiValConvert func(any) any
 
 	states *metrics.PTransformState
 }
@@ -100,7 +100,7 @@ func (n *Combine) optimizeMergeFn() {
 	}
 }
 
-func (n *Combine) mergeAccumulators(ctx context.Context, a, b interface{}) (interface{}, error) {
+func (n *Combine) mergeAccumulators(ctx context.Context, a, b any) (any, error) {
 	if n.binaryMergeFn != nil {
 		// Fast path for binary MergeAccumulatorsFn
 		return n.binaryMergeFn.Call2x1(a, b), nil
@@ -219,7 +219,7 @@ func (n *Combine) Down(ctx context.Context) error {
 	return n.err.Error()
 }
 
-func (n *Combine) newAccum(ctx context.Context, key interface{}) (interface{}, error) {
+func (n *Combine) newAccum(ctx context.Context, key any) (any, error) {
 	fn := n.Fn.CreateAccumulatorFn()
 	if fn == nil {
 		return reflect.Zero(n.Fn.MergeAccumulatorsFn().Ret[0].T).Interface(), nil
@@ -237,7 +237,7 @@ func (n *Combine) newAccum(ctx context.Context, key interface{}) (interface{}, e
 	return val.Elm, nil
 }
 
-func (n *Combine) addInput(ctx context.Context, accum, key, value interface{}, timestamp typex.EventTime, first bool) (interface{}, error) {
+func (n *Combine) addInput(ctx context.Context, accum, key, value any, timestamp typex.EventTime, first bool) (any, error) {
 	// log.Printf("AddInput: %v %v into %v", key, value, accum)
 
 	fn := n.Fn.AddInputFn()
@@ -280,7 +280,7 @@ func (n *Combine) addInput(ctx context.Context, accum, key, value interface{}, t
 	return val.Elm, err
 }
 
-func (n *Combine) extract(ctx context.Context, accum interface{}) (interface{}, error) {
+func (n *Combine) extract(ctx context.Context, accum any) (any, error) {
 	fn := n.Fn.ExtractOutputFn()
 	if fn == nil {
 		// Merge function only. Accumulator type is the output type.
@@ -380,7 +380,7 @@ func (n *LiftedCombine) processElementPerWindow(ctx context.Context, value *Full
 		return n.fail(err)
 	}
 
-	var a interface{}
+	var a any
 	if notfirst {
 		a = afv.Elm2
 	} else {

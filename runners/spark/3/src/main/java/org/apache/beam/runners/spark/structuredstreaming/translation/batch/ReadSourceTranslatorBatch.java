@@ -18,11 +18,12 @@
 package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
 import java.io.IOException;
-import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
+import java.util.function.Supplier;
 import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.spark.structuredstreaming.io.BoundedDatasetFactory;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
 import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PBegin;
@@ -37,18 +38,23 @@ import org.apache.spark.sql.SparkSession;
 class ReadSourceTranslatorBatch<T>
     extends TransformTranslator<PBegin, PCollection<T>, SplittableParDo.PrimitiveBoundedRead<T>> {
 
+  ReadSourceTranslatorBatch() {
+    super(0.05f);
+  }
+
   @Override
   public void translate(SplittableParDo.PrimitiveBoundedRead<T> transform, Context cxt)
       throws IOException {
     SparkSession session = cxt.getSparkSession();
     BoundedSource<T> source = transform.getSource();
-    SerializablePipelineOptions options = cxt.getSerializableOptions();
+    Supplier<PipelineOptions> options = cxt.getOptionsSupplier();
 
     Encoder<WindowedValue<T>> encoder =
         cxt.windowedEncoder(source.getOutputCoder(), GlobalWindow.Coder.INSTANCE);
 
     cxt.putDataset(
         cxt.getOutput(),
-        BoundedDatasetFactory.createDatasetFromRDD(session, source, options, encoder));
+        BoundedDatasetFactory.createDatasetFromRDD(session, source, options, encoder),
+        false);
   }
 }

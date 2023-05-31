@@ -23,9 +23,15 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.Schema.Options;
 import org.apache.beam.sdk.schemas.logicaltypes.PassThroughLogicalType;
 import org.junit.Rule;
 import org.junit.Test;
@@ -186,6 +192,81 @@ public class SchemaTest {
     assertEquals(FieldType.INT32, schema.getField(0).getType());
     assertEquals("f_string", schema.getField(1).getName());
     assertEquals(FieldType.STRING, schema.getField(1).getType());
+  }
+
+  @Test
+  public void testSorted() {
+    Options testOptions =
+        Options.builder()
+            .setOption("test_str_option", FieldType.STRING, "test_str")
+            .setOption("test_bool_option", FieldType.BOOLEAN, true)
+            .build();
+
+    Schema unorderedSchema =
+        Schema.builder()
+            .addStringField("d")
+            .addInt32Field("c")
+            .addStringField("b")
+            .addByteField("a")
+            .build()
+            .withOptions(testOptions);
+
+    Schema unorderedSchemaAfterSorting = unorderedSchema.sorted();
+
+    Schema sortedSchema =
+        Schema.builder()
+            .addByteField("a")
+            .addStringField("b")
+            .addInt32Field("c")
+            .addStringField("d")
+            .build()
+            .withOptions(testOptions);
+
+    assertEquals(true, unorderedSchema.equivalent(unorderedSchemaAfterSorting));
+    assertEquals(
+        true,
+        Objects.equals(unorderedSchemaAfterSorting.getFields(), sortedSchema.getFields())
+            && Objects.equals(unorderedSchemaAfterSorting.getOptions(), sortedSchema.getOptions())
+            && Objects.equals(
+                unorderedSchemaAfterSorting.getEncodingPositions(),
+                sortedSchema.getEncodingPositions()));
+  }
+
+  @Test
+  public void testSortedMethodIncludesAllSchemaFields() {
+    // This test is most likely to break when new Schema object attributes are added. It is designed
+    // this way to make sure that the Schema::sorted() method is updated to return a full sorted
+    // copy.
+
+    // Schema object attributes that are accounted for in Schema::sorted().
+    // Note: Only the appropriate ones are copied over.
+    List<String> attributesAccountedForInSorted =
+        Arrays.asList(
+            "fieldIndices",
+            "encodingPositions",
+            "encodingPositionsOverridden",
+            "fields",
+            "hashCode",
+            "uuid",
+            "options");
+
+    // Current attributes in Schema object.
+    List<String> currentAttributes =
+        Arrays.stream(Schema.class.getDeclaredFields())
+            .filter(field -> !field.isSynthetic())
+            .map(java.lang.reflect.Field::getName)
+            .collect(Collectors.toList());
+
+    List<String> differences = new ArrayList<>(currentAttributes);
+    differences.removeAll(attributesAccountedForInSorted);
+
+    assertEquals(
+        String.format(
+            "Detected attributes %s in Schema object that are not accounted for in Schema::sorted(). "
+                + "If appropriate, sorted() should copy over these attributes as well. Either way, update this test after checking.",
+            differences.toString()),
+        currentAttributes,
+        attributesAccountedForInSorted);
   }
 
   @Test

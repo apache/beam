@@ -43,8 +43,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.function.Supplier;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.Read.Unbounded;
@@ -134,7 +132,7 @@ import org.slf4j.LoggerFactory;
  *  .apply( ... ) // other transformations
  * }</pre>
  *
- * <p>There’s also possibility to start reading using arbitrary point in time - in this case you
+ * <p>There's also possibility to start reading using arbitrary point in time - in this case you
  * need to provide {@link Instant} object:
  *
  * <pre>{@code
@@ -319,7 +317,6 @@ import org.slf4j.LoggerFactory;
  *     removed. Please migrate to {@link org.apache.beam.sdk.io.aws2.kinesis.KinesisIO} in module
  *     <code>beam-sdks-java-io-amazon-web-services2</code>.
  */
-@Experimental(Kind.SOURCE_SINK)
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })

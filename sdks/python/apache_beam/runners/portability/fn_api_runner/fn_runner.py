@@ -23,6 +23,7 @@
 import contextlib
 import copy
 import itertools
+import json
 import logging
 import multiprocessing
 import os
@@ -41,6 +42,7 @@ from typing import MutableMapping
 from typing import Optional
 from typing import Set
 from typing import Tuple
+from typing import Type
 from typing import TypeVar
 from typing import Union
 
@@ -59,6 +61,7 @@ from apache_beam.portability.api import beam_provision_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners import runner
 from apache_beam.runners.common import group_by_key_input_visitor
+from apache_beam.runners.common import validate_pipeline_graph
 from apache_beam.runners.portability import portable_metrics
 from apache_beam.runners.portability.fn_api_runner import execution
 from apache_beam.runners.portability.fn_api_runner import translations
@@ -203,10 +206,19 @@ class FnApiRunner(runner.PipelineRunner):
 
   def run_via_runner_api(self, pipeline_proto, options):
     # type: (beam_runner_api_pb2.Pipeline, pipeline_options.PipelineOptions) -> RunnerResult
+    validate_pipeline_graph(pipeline_proto)
     self._validate_requirements(pipeline_proto)
     self._check_requirements(pipeline_proto)
-    if options.view_as(
-        pipeline_options.DirectOptions).direct_embed_docker_python:
+    direct_options = options.view_as(pipeline_options.DirectOptions)
+    test_splits = (
+        json.loads(direct_options.direct_test_splits) if isinstance(
+            direct_options.direct_test_splits, str) else
+        direct_options.direct_test_splits)
+    self._split_managers = _split_managers_from_context + [
+        (stage, create_test_split_manager(**data))
+        for (stage, data) in test_splits.items()
+    ]
+    if direct_options.direct_embed_docker_python:
       pipeline_proto = self.embed_default_docker_image(pipeline_proto)
     stage_context, stages = self.create_stages(pipeline_proto)
     return self.run_stages(stage_context, stages)
@@ -407,7 +419,8 @@ class FnApiRunner(runner.PipelineRunner):
         stage_context.components,
         stage_context.safe_coders,
         stage_context.data_channel_coders,
-        self._num_workers)
+        self._num_workers,
+        split_managers=self._split_managers)
 
     try:
       with self.maybe_profile():
@@ -894,7 +907,7 @@ class FnApiRunner(runner.PipelineRunner):
     cache_token_generator = FnApiRunner.get_cache_token_generator(static=False)
     if bundle_context_manager.num_workers == 1:
       # Avoid thread/processor pools for increased performance and debugability.
-      bundle_manager_type = BundleManager
+      bundle_manager_type = BundleManager  # type: Union[Type[BundleManager], Type[ParallelBundleManager]]
     elif bundle_context_manager.stage.is_stateful():
       # State is keyed, and a single key cannot be processed concurrently.
       # Alternatively, we could arrange to partition work by key.
@@ -1092,7 +1105,7 @@ class ExtendedProvisionInfo(object):
   def __init__(self,
                provision_info=None,  # type: Optional[beam_provision_api_pb2.ProvisionInfo]
                artifact_staging_dir=None,  # type: Optional[str]
-               job_name=None,  # type: Optional[str]
+               job_name='',  # type: str
               ):
     # type: (...) -> None
     self.provision_info = (
@@ -1111,7 +1124,7 @@ class ExtendedProvisionInfo(object):
       return self
 
 
-_split_managers = []
+_split_managers_from_context = []
 
 
 @contextlib.contextmanager
@@ -1125,10 +1138,32 @@ def split_manager(stage_name, split_manager):
   supported.
   """
   try:
-    _split_managers.append((stage_name, split_manager))
+    _split_managers_from_context.append((stage_name, split_manager))
     yield
   finally:
-    _split_managers.pop()
+    _split_managers_from_context.pop()
+
+
+def create_test_split_manager(timings, fractions):
+  # In general split managers can "wait" until events are observed in a
+  # pipeline DoFn, but this is non-trivial to do cross-process, so we provide
+  # a simple wall-clock-based splitter for out-of-process specification
+  # via a pipeline option (e.g. for other languages).
+  first = True
+
+  def time_based_split_manager(unused_num_elements):
+    nonlocal first
+    if not first:
+      return
+    first = False
+    start = time.time()
+    for timing, fraction in zip(timings, fractions):
+      now = time.time()
+      if start + timing > now:
+        time.sleep(start + timing - now)
+      yield fraction
+
+  return time_based_split_manager
 
 
 class BundleManager(object):
@@ -1150,7 +1185,8 @@ class BundleManager(object):
   def __init__(self,
                bundle_context_manager,  # type: execution.BundleContextManager
                progress_frequency=None,  # type: Optional[float]
-               cache_token_generator=FnApiRunner.get_cache_token_generator()
+               cache_token_generator=FnApiRunner.get_cache_token_generator(),
+               split_managers=()
               ):
     # type: (...) -> None
 
@@ -1163,6 +1199,7 @@ class BundleManager(object):
     self._progress_frequency = progress_frequency
     self._worker_handler = None  # type: Optional[WorkerHandler]
     self._cache_token_generator = cache_token_generator
+    self.split_managers = split_managers
 
   def _send_input_to_worker(self,
                             process_bundle_id,  # type: str
@@ -1187,20 +1224,18 @@ class BundleManager(object):
       timer_out.write(timer)
     timer_out.close()
 
-  def _select_split_manager(self):
-    """TODO(pabloem) WHAT DOES THIS DO"""
+  def _select_split_manager(self) -> Optional[Callable[[int], Iterable[float]]]:
+    """Returns the split manager, if any, associated with this stage."""
     unique_names = set(
         t.unique_name for t in self.bundle_context_manager.
         process_bundle_descriptor.transforms.values())
-    for stage_name, candidate in reversed(_split_managers):
+    for stage_name, candidate in reversed(
+        self.bundle_context_manager.split_managers):
       if (stage_name in unique_names or
           (stage_name + '/Process') in unique_names):
-        split_manager = candidate
-        break
-    else:
-      split_manager = None
+        return candidate
 
-    return split_manager
+    return None
 
   def _generate_splits_for_testing(self,
                                    split_manager,
@@ -1245,6 +1280,7 @@ class BundleManager(object):
                         fraction_of_remainder=split_fraction,
                         estimated_input_elements=num_elements)
                 }))
+        logging.info("Requesting split %s", split_request)
         split_response = self._worker_handler.control_conn.push(
             split_request).get()  # type: beam_fn_api_pb2.InstructionResponse
         for t in (0.05, 0.1, 0.2):
@@ -1254,6 +1290,7 @@ class BundleManager(object):
             time.sleep(t)
             split_response = self._worker_handler.control_conn.push(
                 split_request).get()
+        logging.info('Got split response %s', split_response)
         if ('Unknown process bundle' in split_response.error or
             split_response.process_bundle_split ==
             beam_fn_api_pb2.ProcessBundleSplitResponse()):
@@ -1286,6 +1323,8 @@ class BundleManager(object):
           len(self.bundle_context_manager.worker_handlers)]
 
     split_manager = self._select_split_manager()
+    if split_manager:
+      logging.info('Using split manager %s', split_manager)
     if not split_manager:
       # Send timers.
       for transform_id, timer_family_id in expected_output_timers.keys():
@@ -1548,3 +1587,7 @@ class RunnerResult(runner.PipelineResult):
       self._monitoring_metrics = FnApiMetrics(
           self._monitoring_infos_by_stage, user_metrics_only=False)
     return self._monitoring_metrics
+
+  def monitoring_infos(self):
+    for ms in self._monitoring_infos_by_stage.values():
+      yield from ms
