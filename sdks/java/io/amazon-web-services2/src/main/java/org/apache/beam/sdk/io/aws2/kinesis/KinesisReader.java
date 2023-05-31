@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import java.io.IOException;
 import java.util.NoSuchElementException;
 import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.io.aws2.kinesis.KinesisIO.Read;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.joda.time.Duration;
@@ -159,6 +160,11 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
    */
   @Override
   public long getSplitBacklogBytes() {
+    // Safety check in case a progress check is made for the start method is called.
+    if (shardReadersPool == null) {
+      return UnboundedReader.BACKLOG_UNKNOWN;
+    }
+
     Instant latestRecordTimestamp = shardReadersPool.getLatestRecordTimestamp();
 
     if (latestRecordTimestamp.equals(BoundedWindow.TIMESTAMP_MIN_VALUE)) {
