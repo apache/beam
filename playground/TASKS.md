@@ -155,7 +155,7 @@ cd beam
 4. Update `GO_BASE_IMAGE` parameter in [Python Dockerfile](backend/containers/python/Dockerfile) and [`build.gradle`](backend/containers/python/build.gradle)
 5. Update `GO_BASE_IMAGE` parameter in [Java Dockerfile](backend/containers/java/Dockerfile) and [`build.gradle`](backend/containers/java/build.gradle)
 6. Update `GO_BASE_IMAGE` parameter in [SCIO Dockerfile](backend/containers/scio/Dockerfile) and [`build.gradle`](backend/containers/scio/build.gradle)
-7. Update [Go runner `build.gradle`](backend/containers/go/build.gradle)
+7. Update `BASE_IMAGE` for `buildArgs` argument in [Go runner `build.gradle`](backend/containers/go/build.gradle)
 
 ## Update Python version
 
