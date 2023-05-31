@@ -402,14 +402,14 @@ class BigQueryAvroUtils {
         unionTypes.get(1).getType(), unionTypes.get(1).getLogicalType(), fieldSchema, v);
   }
 
+  static Schema toGenericAvroSchema(
+      String schemaName, List<TableFieldSchema> fieldSchemas, String namespace) {
 
-  static Schema toGenericAvroSchema(String schemaName, List<TableFieldSchema> fieldSchemas, String namespace) {
-
-    String nextNamespace = namespace == null ? null : String.format("%s.%s",namespace,schemaName);
+    String nextNamespace = namespace == null ? null : String.format("%s.%s", namespace, schemaName);
 
     List<Field> avroFields = new ArrayList<>();
     for (TableFieldSchema bigQueryField : fieldSchemas) {
-      avroFields.add(convertField(bigQueryField,nextNamespace));
+      avroFields.add(convertField(bigQueryField, nextNamespace));
     }
     return Schema.createRecord(
         schemaName,
@@ -420,7 +420,10 @@ class BigQueryAvroUtils {
   }
 
   static Schema toGenericAvroSchema(String schemaName, List<TableFieldSchema> fieldSchemas) {
-    return toGenericAvroSchema(schemaName,fieldSchemas, hasNamespaceCollision(fieldSchemas) ? "org.apache.beam.sdk.io.gcp.bigquery" : null);
+    return toGenericAvroSchema(
+        schemaName,
+        fieldSchemas,
+        hasNamespaceCollision(fieldSchemas) ? "org.apache.beam.sdk.io.gcp.bigquery" : null);
   }
 
   // To maintain backwards compatibility we only disambiguate collisions in the field namespaces as
@@ -429,10 +432,10 @@ class BigQueryAvroUtils {
     HashSet<String> recordTypeFieldNames = new HashSet<String>();
 
     List<TableFieldSchema> fieldsToCheck = new ArrayList<>();
-    for(fieldsToCheck.addAll(fieldSchemas);!fieldsToCheck.isEmpty();) {
+    for (fieldsToCheck.addAll(fieldSchemas); !fieldsToCheck.isEmpty(); ) {
       TableFieldSchema field = fieldsToCheck.remove(0);
-      if("STRUCT".equals(field.getType()) || "RECORD".equals(field.getType())) {
-        if(recordTypeFieldNames.contains(field.getName())) {
+      if ("STRUCT".equals(field.getType()) || "RECORD".equals(field.getType())) {
+        if (recordTypeFieldNames.contains(field.getName())) {
           return true;
         }
         recordTypeFieldNames.add(field.getName());
@@ -447,8 +450,7 @@ class BigQueryAvroUtils {
   @SuppressWarnings({
     "nullness" // Avro library not annotated
   })
-  private static Field convertField(TableFieldSchema bigQueryField,
-     String namespace) {
+  private static Field convertField(TableFieldSchema bigQueryField, String namespace) {
     ImmutableCollection<Type> avroTypes = BIG_QUERY_TO_AVRO_TYPES.get(bigQueryField.getType());
     if (avroTypes.isEmpty()) {
       throw new IllegalArgumentException(
@@ -458,7 +460,8 @@ class BigQueryAvroUtils {
     Type avroType = avroTypes.iterator().next();
     Schema elementSchema;
     if (avroType == Type.RECORD) {
-      elementSchema = toGenericAvroSchema(bigQueryField.getName(), bigQueryField.getFields(), namespace);
+      elementSchema =
+          toGenericAvroSchema(bigQueryField.getName(), bigQueryField.getFields(), namespace);
     } else {
       elementSchema = Schema.create(avroType);
     }

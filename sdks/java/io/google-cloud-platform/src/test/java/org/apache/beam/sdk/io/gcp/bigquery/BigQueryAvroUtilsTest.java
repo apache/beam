@@ -96,7 +96,6 @@ public class BigQueryAvroUtilsTest {
               .setFields(subFields),
           new TableFieldSchema().setName("geoPositions").setType("GEOGRAPHY").setMode("NULLABLE"));
 
-
   private Pair<LogicalType, byte[]> convertToByteBuffer(BigDecimal bigDecimal, Schema schema) {
     LogicalType bigDecimalLogicalType =
         LogicalTypes.decimal(bigDecimal.precision(), bigDecimal.scale());
@@ -389,26 +388,33 @@ public class BigQueryAvroUtilsTest {
                             .setName("value")
                             .setType("RECORD")
                             .setFields(
-                                Lists.newArrayList(new TableFieldSchema()
-                                    .setName("key_value_pair_1")
-                                    .setType("RECORD")
-                                    .setMode("REPEATED")
-                                    .setFields(
-                                        Lists.newArrayList(
-                                            new TableFieldSchema().setName("key").setType("STRING"),
-                                            new TableFieldSchema()
-                                                .setName("value")
-                                                .setType("RECORD")
-                                                .setFields(
-                                                    Lists.newArrayList(
-                                                        new TableFieldSchema()
-                                                            .setName("string_value")
-                                                            .setType("STRING"),
-                                                        new TableFieldSchema().setName("int_value").setType("INTEGER"),
-                                                        new TableFieldSchema().setName("double_value").setType("FLOAT"),
-                                                        new TableFieldSchema()
-                                                            .setName("float_value")
-                                                            .setType("FLOAT"))))))))),
+                                Lists.newArrayList(
+                                    new TableFieldSchema()
+                                        .setName("key_value_pair_1")
+                                        .setType("RECORD")
+                                        .setMode("REPEATED")
+                                        .setFields(
+                                            Lists.newArrayList(
+                                                new TableFieldSchema()
+                                                    .setName("key")
+                                                    .setType("STRING"),
+                                                new TableFieldSchema()
+                                                    .setName("value")
+                                                    .setType("RECORD")
+                                                    .setFields(
+                                                        Lists.newArrayList(
+                                                            new TableFieldSchema()
+                                                                .setName("string_value")
+                                                                .setType("STRING"),
+                                                            new TableFieldSchema()
+                                                                .setName("int_value")
+                                                                .setType("INTEGER"),
+                                                            new TableFieldSchema()
+                                                                .setName("double_value")
+                                                                .setType("FLOAT"),
+                                                            new TableFieldSchema()
+                                                                .setName("float_value")
+                                                                .setType("FLOAT"))))))))),
             new TableFieldSchema().setName("platform").setType("STRING")));
     String output = BigQueryAvroUtils.toGenericAvroSchema("root", schema.getFields()).toString();
     assertThat(output.length(), greaterThan(0));
