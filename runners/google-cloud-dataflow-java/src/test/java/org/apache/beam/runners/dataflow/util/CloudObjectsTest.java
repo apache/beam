@@ -112,6 +112,9 @@ public class CloudObjectsTest {
         if (tested instanceof ObjectCoder || tested instanceof ArbitraryCoder) {
           testedClasses.add(CustomCoder.class);
           assertThat(defaultCoderTranslators, hasItem(CustomCoder.class));
+        } else if (AvroCoder.class.isAssignableFrom(tested.getClass())) {
+          testedClasses.add(AvroCoder.class);
+          assertThat(defaultCoderTranslators, hasItem(AvroCoder.class));
         } else {
           testedClasses.add(tested.getClass());
           assertThat(defaultCoderTranslators, hasItem(tested.getClass()));
