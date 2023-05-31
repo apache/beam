@@ -347,7 +347,8 @@ public class AvroGenericRecordToStorageApiProtoTest {
     DescriptorProto descriptor =
         TableRowToStorageApiProto.descriptorSchemaFromTableSchema(
             AvroGenericRecordToStorageApiProto.protoTableSchemaFromAvroSchema(originalSchema),
-            true);
+            true,
+            false);
     Map<String, Type> types =
         descriptor.getFieldList().stream()
             .collect(
@@ -390,7 +391,9 @@ public class AvroGenericRecordToStorageApiProtoTest {
   public void testNestedFromSchema() {
     DescriptorProto descriptor =
         TableRowToStorageApiProto.descriptorSchemaFromTableSchema(
-            AvroGenericRecordToStorageApiProto.protoTableSchemaFromAvroSchema(NESTED_SCHEMA), true);
+            AvroGenericRecordToStorageApiProto.protoTableSchemaFromAvroSchema(NESTED_SCHEMA),
+            true,
+            false);
     Map<String, Type> expectedBaseTypes =
         BASE_SCHEMA_PROTO.getFieldList().stream()
             .collect(
@@ -446,9 +449,32 @@ public class AvroGenericRecordToStorageApiProtoTest {
   public void testMessageFromGenericRecord() throws Exception {
     Descriptors.Descriptor descriptor =
         TableRowToStorageApiProto.getDescriptorFromTableSchema(
-            AvroGenericRecordToStorageApiProto.protoTableSchemaFromAvroSchema(NESTED_SCHEMA), true);
+            AvroGenericRecordToStorageApiProto.protoTableSchemaFromAvroSchema(NESTED_SCHEMA),
+            true,
+            false);
     DynamicMessage msg =
-        AvroGenericRecordToStorageApiProto.messageFromGenericRecord(descriptor, nestedRecord);
+        AvroGenericRecordToStorageApiProto.messageFromGenericRecord(
+            descriptor, nestedRecord, null, -1);
+
+    assertEquals(2, msg.getAllFields().size());
+
+    Map<String, Descriptors.FieldDescriptor> fieldDescriptors =
+        descriptor.getFields().stream()
+            .collect(Collectors.toMap(Descriptors.FieldDescriptor::getName, Functions.identity()));
+    DynamicMessage nestedMsg = (DynamicMessage) msg.getField(fieldDescriptors.get("nested"));
+    assertBaseRecord(nestedMsg, baseProtoExpectedFields);
+  }
+
+  @Test
+  public void testCdcFields() throws Exception {
+    Descriptors.Descriptor descriptor =
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(
+            AvroGenericRecordToStorageApiProto.protoTableSchemaFromAvroSchema(NESTED_SCHEMA),
+            true,
+            false);
+    DynamicMessage msg =
+        AvroGenericRecordToStorageApiProto.messageFromGenericRecord(
+            descriptor, nestedRecord, null, -1);
 
     assertEquals(2, msg.getAllFields().size());
 
@@ -464,9 +490,11 @@ public class AvroGenericRecordToStorageApiProtoTest {
     Descriptors.Descriptor descriptor =
         TableRowToStorageApiProto.getDescriptorFromTableSchema(
             AvroGenericRecordToStorageApiProto.protoTableSchemaFromAvroSchema(LOGICAL_TYPES_SCHEMA),
-            true);
+            true,
+            false);
     DynamicMessage msg =
-        AvroGenericRecordToStorageApiProto.messageFromGenericRecord(descriptor, logicalTypesRecord);
+        AvroGenericRecordToStorageApiProto.messageFromGenericRecord(
+            descriptor, logicalTypesRecord, null, -1);
     assertEquals(7, msg.getAllFields().size());
     assertBaseRecord(msg, logicalTypesProtoExpectedFields);
   }

@@ -27,6 +27,7 @@ import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -44,6 +45,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Functions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.joda.time.Days;
 import org.joda.time.Instant;
 import org.joda.time.ReadableInstant;
@@ -53,6 +55,10 @@ import org.joda.time.ReadableInstant;
  * for use with the Storage write API.
  */
 public class AvroGenericRecordToStorageApiProto {
+  private static final String CDC_CHANGE_SQN_COLUMN = "_CHANGE_SEQUENCE_NUMBER";
+  private static final String CDC_CHANGE_TYPE_COLUMN = "_CHANGE_TYPE";
+  private static final Set<String> CDC_COLUMNS =
+      ImmutableSet.of(CDC_CHANGE_TYPE_COLUMN, CDC_CHANGE_SQN_COLUMN);
 
   static final Map<Schema.Type, TableFieldSchema.Type> PRIMITIVE_TYPES =
       ImmutableMap.<Schema.Type, TableFieldSchema.Type>builder()
@@ -84,7 +90,7 @@ public class AvroGenericRecordToStorageApiProto {
           .put(Schema.Type.LONG, Functions.identity())
           .put(Schema.Type.FLOAT, o -> Double.parseDouble(Float.valueOf((float) o).toString()))
           .put(Schema.Type.DOUBLE, Function.identity())
-          .put(Schema.Type.STRING, Function.identity())
+          .put(Schema.Type.STRING, Object::toString)
           .put(Schema.Type.BOOLEAN, Function.identity())
           .put(Schema.Type.ENUM, o -> o.toString())
           .put(Schema.Type.BYTES, o -> ByteString.copyFrom((byte[]) o))
@@ -172,7 +178,7 @@ public class AvroGenericRecordToStorageApiProto {
    * @return A dynamic message representation of a Proto payload to be used for StorageWrite API
    */
   public static DynamicMessage messageFromGenericRecord(
-      Descriptor descriptor, GenericRecord record) {
+      Descriptor descriptor, GenericRecord record, @Nullable String changeType, long csn) {
     Schema schema = record.getSchema();
     DynamicMessage.Builder builder = DynamicMessage.newBuilder(descriptor);
     for (Schema.Field field : schema.getFields()) {
@@ -185,12 +191,25 @@ public class AvroGenericRecordToStorageApiProto {
         builder.setField(fieldDescriptor, value);
       }
     }
+    if (changeType != null) {
+      builder.setField(
+          org.apache.beam.sdk.util.Preconditions.checkStateNotNull(
+              descriptor.findFieldByName(CDC_CHANGE_TYPE_COLUMN)),
+          changeType);
+      builder.setField(
+          org.apache.beam.sdk.util.Preconditions.checkStateNotNull(
+              descriptor.findFieldByName(CDC_CHANGE_SQN_COLUMN)),
+          csn);
+    }
     return builder.build();
   }
 
   private static TableFieldSchema fieldDescriptorFromAvroField(Schema.Field field) {
     @Nullable Schema schema = field.schema();
     Preconditions.checkNotNull(schema, "Unexpected null schema!");
+    if (CDC_COLUMNS.contains(field.name())) {
+      throw new RuntimeException("Reserved field name " + field.name() + " in user schema.");
+    }
     TableFieldSchema.Builder builder =
         TableFieldSchema.newBuilder().setName(field.name().toLowerCase());
     Schema elementType = null;
@@ -300,7 +319,8 @@ public class AvroGenericRecordToStorageApiProto {
       FieldDescriptor fieldDescriptor, Schema avroSchema, Object value) {
     switch (avroSchema.getType()) {
       case RECORD:
-        return messageFromGenericRecord(fieldDescriptor.getMessageType(), (GenericRecord) value);
+        return messageFromGenericRecord(
+            fieldDescriptor.getMessageType(), (GenericRecord) value, null, -1);
       case ARRAY:
         Iterable<Object> iterable = (Iterable<Object>) value;
         @Nullable Schema arrayElementType = avroSchema.getElementType();

@@ -52,6 +52,7 @@ import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.auth.oauth2.GoogleCredentials;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -329,6 +330,9 @@ public class BigqueryClient {
 
     final TableSchema schema = qResponse.getSchema();
     final List<TableRow> rows = qResponse.getRows();
+    if (rows == null) {
+      return Collections.EMPTY_LIST;
+    }
     deleteDataset(projectId, temporaryDatasetId);
     return !typed
         ? rows

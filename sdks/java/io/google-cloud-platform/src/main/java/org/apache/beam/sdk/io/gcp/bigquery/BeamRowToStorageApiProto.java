@@ -32,6 +32,7 @@ import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -49,6 +50,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Functions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Bytes;
 import org.joda.time.ReadableInstant;
 
@@ -57,6 +59,12 @@ import org.joda.time.ReadableInstant;
  * the Storage write API.
  */
 public class BeamRowToStorageApiProto {
+  private static final String CDC_CHANGE_SQN_COLUMN = "_CHANGE_SEQUENCE_NUMBER";
+  private static final String CDC_CHANGE_TYPE_COLUMN = "_CHANGE_TYPE";
+
+  private static final Set<String> CDC_COLUMNS =
+      ImmutableSet.of(CDC_CHANGE_TYPE_COLUMN, CDC_CHANGE_SQN_COLUMN);
+
   // Number of digits after the decimal point supported by the NUMERIC data type.
   private static final int NUMERIC_SCALE = 9;
   // Maximum and minimum allowed values for the NUMERIC data type.
@@ -147,7 +155,8 @@ public class BeamRowToStorageApiProto {
    * Given a Beam {@link Row} object, returns a protocol-buffer message that can be used to write
    * data using the BigQuery Storage streaming API.
    */
-  public static DynamicMessage messageFromBeamRow(Descriptor descriptor, Row row) {
+  public static DynamicMessage messageFromBeamRow(
+      Descriptor descriptor, Row row, @Nullable String changeType, long csn) {
     Schema beamSchema = row.getSchema();
     DynamicMessage.Builder builder = DynamicMessage.newBuilder(descriptor);
     for (int i = 0; i < row.getFieldCount(); ++i) {
@@ -160,6 +169,16 @@ public class BeamRowToStorageApiProto {
       if (value != null) {
         builder.setField(fieldDescriptor, value);
       }
+    }
+    if (changeType != null) {
+      builder.setField(
+          org.apache.beam.sdk.util.Preconditions.checkStateNotNull(
+              descriptor.findFieldByName(CDC_CHANGE_TYPE_COLUMN)),
+          changeType);
+      builder.setField(
+          org.apache.beam.sdk.util.Preconditions.checkStateNotNull(
+              descriptor.findFieldByName(CDC_CHANGE_SQN_COLUMN)),
+          csn);
     }
     return builder.build();
   }
@@ -177,6 +196,9 @@ public class BeamRowToStorageApiProto {
 
   private static TableFieldSchema fieldDescriptorFromBeamField(Field field) {
     TableFieldSchema.Builder builder = TableFieldSchema.newBuilder();
+    if (CDC_COLUMNS.contains(field.getName())) {
+      throw new RuntimeException("Reserved field name " + field.getName() + " in user schema.");
+    }
     builder = builder.setName(field.getName().toLowerCase());
 
     switch (field.getType().getTypeName()) {
@@ -258,7 +280,7 @@ public class BeamRowToStorageApiProto {
       FieldDescriptor fieldDescriptor, FieldType beamFieldType, Object value) {
     switch (beamFieldType.getTypeName()) {
       case ROW:
-        return messageFromBeamRow(fieldDescriptor.getMessageType(), (Row) value);
+        return messageFromBeamRow(fieldDescriptor.getMessageType(), (Row) value, null, -1);
       case ARRAY:
         List<Object> list = (List<Object>) value;
         @Nullable FieldType arrayElementType = beamFieldType.getCollectionElementType();
