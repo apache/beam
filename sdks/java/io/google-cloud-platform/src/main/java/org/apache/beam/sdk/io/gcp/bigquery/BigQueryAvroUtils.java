@@ -35,6 +35,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatterBuilder;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -401,23 +402,53 @@ class BigQueryAvroUtils {
         unionTypes.get(1).getType(), unionTypes.get(1).getLogicalType(), fieldSchema, v);
   }
 
-  static Schema toGenericAvroSchema(String schemaName, List<TableFieldSchema> fieldSchemas) {
+
+  static Schema toGenericAvroSchema(String schemaName, List<TableFieldSchema> fieldSchemas, String namespace) {
+
+    String nextNamespace = namespace == null ? null : String.format("%s.%s",namespace,schemaName);
+
     List<Field> avroFields = new ArrayList<>();
     for (TableFieldSchema bigQueryField : fieldSchemas) {
-      avroFields.add(convertField(bigQueryField));
+      avroFields.add(convertField(bigQueryField,nextNamespace));
     }
     return Schema.createRecord(
         schemaName,
         "Translated Avro Schema for " + schemaName,
-        "org.apache.beam.sdk.io.gcp.bigquery",
+        namespace == null ? "org.apache.beam.sdk.io.gcp.bigquery" : namespace,
         false,
         avroFields);
+  }
+
+  static Schema toGenericAvroSchema(String schemaName, List<TableFieldSchema> fieldSchemas) {
+    return toGenericAvroSchema(schemaName,fieldSchemas, hasNamespaceCollision(fieldSchemas) ? "org.apache.beam.sdk.io.gcp.bigquery" : null);
+  }
+
+  // To maintain backwards compatibility we only disambiguate collisions in the field namespaces as
+  // these never worked with this piece of code.
+  private static boolean hasNamespaceCollision(List<TableFieldSchema> fieldSchemas) {
+    HashSet<String> recordTypeFieldNames = new HashSet<String>();
+
+    List<TableFieldSchema> fieldsToCheck = new ArrayList<>();
+    for(fieldsToCheck.addAll(fieldSchemas);!fieldsToCheck.isEmpty();) {
+      TableFieldSchema field = fieldsToCheck.remove(0);
+      if("STRUCT".equals(field.getType()) || "RECORD".equals(field.getType())) {
+        if(recordTypeFieldNames.contains(field.getName())) {
+          return true;
+        }
+        recordTypeFieldNames.add(field.getName());
+        fieldsToCheck.addAll(field.getFields());
+      }
+    }
+
+    // No collisions present
+    return false;
   }
 
   @SuppressWarnings({
     "nullness" // Avro library not annotated
   })
-  private static Field convertField(TableFieldSchema bigQueryField) {
+  private static Field convertField(TableFieldSchema bigQueryField,
+     String namespace) {
     ImmutableCollection<Type> avroTypes = BIG_QUERY_TO_AVRO_TYPES.get(bigQueryField.getType());
     if (avroTypes.isEmpty()) {
       throw new IllegalArgumentException(
@@ -427,7 +458,7 @@ class BigQueryAvroUtils {
     Type avroType = avroTypes.iterator().next();
     Schema elementSchema;
     if (avroType == Type.RECORD) {
-      elementSchema = toGenericAvroSchema(bigQueryField.getName(), bigQueryField.getFields());
+      elementSchema = toGenericAvroSchema(bigQueryField.getName(), bigQueryField.getFields(), namespace);
     } else {
       elementSchema = Schema.create(avroType);
     }
