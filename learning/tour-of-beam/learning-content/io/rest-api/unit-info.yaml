@@ -20,12 +20,7 @@
 sdk:
   - Java
   - Python
-  - Go
-content:
-  - introduction
-  - common-transforms
-  - core-transforms
-  - schema-based-transforms
-  - windowing
-  - triggers
-  - io
+complexity: ADVANCED
+id: rest-api-io
+name: REST API
+taskName: rest-api-io

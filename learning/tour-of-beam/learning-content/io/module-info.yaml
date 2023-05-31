@@ -21,11 +21,11 @@ sdk:
   - Java
   - Python
   - Go
+id: io
+name: IO Connectors
+complexity: ADVANCED
 content:
-  - introduction
-  - common-transforms
-  - core-transforms
-  - schema-based-transforms
-  - windowing
-  - triggers
-  - io
+- text-io
+- big-query-io
+- kafka-io
+- rest-api
