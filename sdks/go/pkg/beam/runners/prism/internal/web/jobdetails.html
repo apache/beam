@@ -16,69 +16,95 @@ limitations under the License. See accompanying LICENSE file.
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta http-equiv="X-UA-Compatible" content="ie=edge" />
-    <title>Jobs Console - Beam Prism</title>
+    <title>{{.JobID}} - {{ .JobName }} - Job Details - Beam Prism</title>
     <link rel="stylesheet" href="/assets/style.css" />
-    <meta http-equiv="refresh" content="10"> {{/* refresh page every 10 seconds */}}
+    {{/*
+    <meta http-equiv="refresh" content="10"> refresh page every 10 seconds */}}
 </head>
 
 <body>
     <main>
         <header>
             <a class="logo" href="/">Job Details - Beam Prism</a>
+            <div>{{.JobID}} - {{ .JobName }}</div>
         </header>
         <section class="container">
-            {{.Title}}<br />
-            {{.WelcomeMessage}}<br />
-            <table class="main-table">
-                <thead>
-                    <td>Name</td>
-                    <td>Metrics</td>
-                </thead>
-                {{ range .Transforms }}
-                <tr class="transform-summary">
-                    <td class="transform-name">{{ .Transform.UniqueName }}</td>
-                    <td class="metrics">
-                        {{ range .Metrics }}
-                         {{.}} <br/>
-                        {{else}}
-                        None
-                        {{end}}
-                    </td>
-                </tr>
-                {{ else }}
-                <tr class="transform-summary">
-                    Pipeline has no transforms. 
-                </tr>
-                {{ end }}
-            </table>
-            <h3>PCollection Metrics</h3>
-            <table class="main-table">
-                <thead>
-                    <td>Name</td>
-                    <td>ElementCount</td>
-                    <td>SampledByteSize</td>
-                </thead>
-                {{ range .PCols }}
-                <tr class="pcollection-summary">
-                    <td>{{ .Key.Step }}</td>
-                    <td>
-                        {{ .Committed.ElementCount }} ({{ .Attempted.ElementCount }})
-                    </td>
-                    <td>
-                        {{with .Committed.SampledByteSize}}
-                        Count: {{ .Count }} Sum {{ .Sum }} Min:{{ .Min }} Max:{{ .Max }}
-                        {{end}}
-                        {{with .Attempted.SampledByteSize}}
-                        <br/>(Count: {{ .Count }} Sum {{ .Sum }} Min:{{ .Min }} Max:{{ .Max }})
-                        {{end}}
-                    </td>
-                </tr>
-                {{ else }}
-                <tr class="transform-summary">
-                    <td>Pipeline has no pcollection metrics. </td>
-                </tr>
-                {{ end }}
-            </table>
+            {{ if .Error}}<div class="child">{{.Error}}</div>{{end}}
+            <div class="child">
+                <h3>Transforms</h3>
+                <table class="main-table">
+                    <thead>
+                        <td>Name</td>
+                        <td>Metrics</td>
+                    </thead>
+                    {{ range .Transforms }}
+                    <tr class="transform-summary">
+                        <td class="transform-name">{{ .Transform.UniqueName }}</td>
+                        <td class="metrics">
+                            {{ range .Metrics }}
+                            {{.}} <br />
+                            {{else}}
+                            None
+                            {{end}}
+                        </td>
+                    </tr>
+                    {{ else }}
+                    <tr class="transform-summary">
+                        <td>Pipeline has no transforms.</td>
+                    </tr>
+                    {{ end }}
+                </table>
+            </div>
+            <div class="child">
+                <h3>PCollection Metrics</h3>
+                <table class="main-table">
+                    <thead>
+                        <td>Name</td>
+                        <td>ElementCount</td>
+                        <td>SampledByteSize</td>
+                    </thead>
+                    {{ range .PCols }}
+                    <tr class="pcollection-summary">
+                        <td>{{ .Key.Step }}</td>
+                        <td>
+                            {{ .Committed.ElementCount }}
+                        </td>
+                        <td>
+                            {{with .Committed.SampledByteSize}}
+                            Count: {{ .Count }} Sum {{ .Sum }} Min:{{ .Min }} Max:{{ .Max }}
+                            {{end}}
+                        </td>
+                    </tr>
+                    {{ else }}
+                    <tr class="transform-summary">
+                        <td>Pipeline has no pcollection metrics.</td>
+                    </tr>
+                    {{ end }}
+                </table>
+            </div>
+            <div class="child">
+                <h3>Display Data</h3>
+                <table class="main-table">
+                    <thead>
+                        <td>Key</td>
+                        <td>Label</td>
+                        <td>Namespace</td>
+                        <td>Value</td>
+                    </thead>
+                    {{ range .DisplayData }}
+                    <tr class="displaydata-summary">
+                        <td>{{ .Key }}</td>
+                        <td>{{ .Label }}</td>
+                        <td>{{ .Namespace }}</td>
+                        <td>{{ .Value}}</td>
+                    </tr>
+                    {{ else }}
+                    <tr class="transform-summary">
+                        <td>Pipeline has no Display Data.</td>
+                    </tr>
+                    {{ end }}
+                </table>
+            </div>
         </section>
     </main>
 </body>

@@ -27,8 +27,7 @@ limitations under the License. See accompanying LICENSE file.
       <a class="logo" href="/">Jobs Console - Beam Prism</a>
     </header>
     <section class="container">
-      {{.Title}}<br />
-      {{.WelcomeMessage}}<br />
+      {{ if .Error}}{{.Error}}{{end}}
       <table class="main-table">
         <thead>
           <td>ID</td>
