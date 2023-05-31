@@ -17,7 +17,7 @@
  */
 
 // beam-playground:
-//   name: beam-schema
+//   name: write-beam-schema
 //   description: BiqQueryIO beam-schema example.
 //   multifile: false
 //   context_line: 56

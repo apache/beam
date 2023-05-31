@@ -17,7 +17,7 @@
  */
 
 // beam-playground:
-//   name: table-schema
+//   name: write-table-schema
 //   description: BigQueryIO table-schema example.
 //   multifile: false
 //   context_line: 56

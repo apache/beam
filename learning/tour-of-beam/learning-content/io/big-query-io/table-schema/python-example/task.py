@@ -15,7 +15,7 @@
 #   limitations under the License.
 
 # beam-playground:
-#   name: table-schema
+#   name: write-table-schema
 #   description: TextIO table schema example.
 #   multifile: false
 #   context_line: 30

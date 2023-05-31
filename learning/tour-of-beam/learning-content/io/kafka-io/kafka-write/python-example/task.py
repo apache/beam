@@ -15,7 +15,7 @@
 #   limitations under the License.
 
 # beam-playground:
-#   name: kafkaIO
+#   name: kafka-write
 #   description: TextIO read query example.
 #   multifile: false
 #   context_line: 34

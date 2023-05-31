@@ -15,7 +15,7 @@
 #   limitations under the License.
 
 # beam-playground-broken:
-#   name: read-table
+#   name: read-query
 #   description: TextIO read query example.
 #   multifile: false
 #   context_line: 34
