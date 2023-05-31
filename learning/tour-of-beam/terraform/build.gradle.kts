@@ -324,7 +324,7 @@ tasks.register("flutterBuildWeb") {
     doLast {
         exec {
             executable("flutter")
-            args("build", "web", "-v", "--web-renderer=html", "--release")
+            args("build", "web", "-v", "--release")
             workingDir("../frontend")
         }
     }
