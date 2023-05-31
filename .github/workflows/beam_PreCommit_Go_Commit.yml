@@ -1,0 +1,34 @@
+name: beam_PreCommit_Go_Commit
+
+on:
+  pull_request:
+    branches: ['master']
+    paths: ['model/**', 'sdks/go.**', 'release/**']
+
+jobs:
+  beam_PreCommit_Go_Commit:
+        runs-on: self-hosted
+        name: beam_PreCommit_Go_Commit
+        steps:
+# The checkout step downloads a copy of your repository on the runner.          
+          - name: Git checkout
+            uses: actions/checkout@v3
+# Install Java
+          - name: Install Java
+            uses: actions/setup-java@v3.8.0
+            with:
+              distribution: 'zulu'
+              java-version: '8'
+# Install Go
+          - name: Install Go
+            uses: actions/setup-go@v3
+            with:
+              go-version: '1.20'
+# Install gradle with disabling caching (dependencies, wrapper distributions, local build cache)           
+          - name: Setup Gradle
+            uses: gradle/gradle-build-action@v2
+            with:
+              cache-read-only: false
+# Running a script from the repository              
+          - name: run goPreCommit script
+            run: ./gradlew :goPreCommit
