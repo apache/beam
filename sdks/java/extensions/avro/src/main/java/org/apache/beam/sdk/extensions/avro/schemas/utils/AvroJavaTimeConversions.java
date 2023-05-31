@@ -31,7 +31,7 @@ import org.apache.avro.Schema;
 /**
  * Avro 1.8 ships with joda time conversions only.
  *
- * <p>This code is copied from avro 1.8.2 TimeConversions.
+ * <p>This code is copied from avro 1.10.2 TimeConversions.
  */
 public class AvroJavaTimeConversions {
 
