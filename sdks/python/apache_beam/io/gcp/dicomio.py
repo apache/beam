@@ -22,7 +22,6 @@
 import warnings
 
 # pylint: disable=unused-import
-
 from apache_beam.io.gcp.healthcare import dicomclient
 from apache_beam.io.gcp.healthcare import dicomio
 
