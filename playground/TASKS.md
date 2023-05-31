@@ -32,6 +32,7 @@
   - [Update Go version](#update-go-version)
   - [Update Python version](#update-python-version)
   - [Update Java version](#update-java-version)
+  - [Update Flutter version](#update-flutter-version)
 - [Deployment](#deployment)
 - [Obtaining SCIO examples](#obtaining-scio-examples)
 - [Manual Example deployment](#manual-example-deployment)
@@ -164,6 +165,32 @@ Update `BASE_IMAGE` in [Python Dockerfile](backend/containers/python/Dockerfile)
 
 1. Update base images version in `FROM maven:3.8.6-openjdk-11 as dep` and `FROM apache/beam_java11_sdk:$BEAM_VERSION` lines in [Java Dockerfile](backend/containers/java/Dockerfile)
 2. Update `BASE_IMAGE` in [SCIO Dockerfile](backend/containers/scio/Dockerfile) and [`build.gradle`](backend/containers/scio/build.gradle)
+
+## Update Flutter version
+
+Update the version in the following locations:
+
+### Project files that declare minimal required versions as we desire, one per Flutter project
+
+- [frontend/playground_components/pubspec.yaml](frontend/playground_components/pubspec.yaml), the line with `flutter: '>=x.x.x'`.
+- [frontend/playground_components_dev/pubspec.yaml](frontend/playground_components_dev/pubspec.yaml), the line with `flutter: '>=x.x.x'`.
+- [frontend/pubspec.yaml](frontend/pubspec.yaml), the line with `flutter: '>=x.x.x'`.
+- In Tour of Beam: [../learning/tour-of-beam/frontend/pubspec.yaml](../learning/tour-of-beam/frontend/pubspec.yaml), the line with `flutter: '>=x.x.x'`.
+
+### Generated project files with computed minimal versions given the package requirements, one per runnable Flutter app
+
+Run `dart pub get` in all of these directories for these files to be updated.
+Verify and merge the changes.
+
+- Playground: [frontend/pubspec.lock](frontend/pubspec.lock), the line with `flutter: ">=x.x.x"`.
+- Tour of Beam: [../learning/tour-of-beam/frontend/pubspec.lock](../learning/tour-of-beam/frontend/pubspec.lock), the line with `flutter: ">=x.x.x"`.
+
+### CI
+
+- [frontend/Dockerfile](frontend/Dockerfile), the line with `ARG FLUTTER_VERSION=x.x.x`.
+- [/.github/workflows/build_playground_frontend.yml](../.github/workflows/build_playground_frontend.yml), the line with `FLUTTER_VERSION: x.x.x`.
+- [/.github/workflows/playground_frontend_test.yml](../.github/workflows/playground_frontend_test.yml), the line with `FLUTTER_VERSION: x.x.x`.
+- [/.github/workflows/tour_of_beam_frontend_test.yml](../.github/workflows/tour_of_beam_frontend_test.yml), the line with `FLUTTER_VERSION: x.x.x`.
 
 # Deployment
 
