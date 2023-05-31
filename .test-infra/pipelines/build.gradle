@@ -27,6 +27,7 @@ applyJavaNature(
         publish: false,
         // ShadowJar has a naming dependency with:
         // .test-infra/pipelines/infrastructure/04.template/dataflow-to-bigquery/template.tf
+        validateShadowJar: false,
         shadowClosure: {
             // TODO: determine how to create separate shadowJar tasks for each pipeline
             manifest {

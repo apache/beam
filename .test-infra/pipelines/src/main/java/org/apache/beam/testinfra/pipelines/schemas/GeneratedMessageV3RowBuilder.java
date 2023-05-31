@@ -66,7 +66,7 @@ public class GeneratedMessageV3RowBuilder<T extends GeneratedMessageV3> {
           .put(JavaType.STRING, "")
           .build();
 
-  private final ExecutorService threadPool = Executors.newCachedThreadPool();
+  private final ExecutorService threadPool = Executors.newSingleThreadExecutor();
   private final ListeningExecutorService service = MoreExecutors.listeningDecorator(threadPool);
 
   private static final Map<@NonNull String, Function<Object, Object>> CONVERTERS_MAP =
