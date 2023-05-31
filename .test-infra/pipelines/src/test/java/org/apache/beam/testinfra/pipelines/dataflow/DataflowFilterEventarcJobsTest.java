@@ -48,7 +48,7 @@ class DataflowFilterEventarcJobsTest {
     Pipeline pipeline = Pipeline.create();
 
     PCollection<String> json = readJsonAndCheckNotEmpty(pipeline);
-    WithFailures.Result<@NonNull PCollection<Job>, ConversionError<String>> jobs =
+    WithFailures.Result<@NonNull PCollection<Job>, ConversionError> jobs =
         json.apply(EventarcConversions.fromJson());
     PCollection<Job> result =
         jobs.output()
@@ -75,7 +75,7 @@ class DataflowFilterEventarcJobsTest {
     Pipeline pipeline = Pipeline.create();
 
     PCollection<String> json = readJsonAndCheckNotEmpty(pipeline);
-    WithFailures.Result<@NonNull PCollection<Job>, ConversionError<String>> jobs =
+    WithFailures.Result<@NonNull PCollection<Job>, ConversionError> jobs =
         json.apply(EventarcConversions.fromJson());
     PCollection<Job> result =
         jobs.output()
@@ -107,7 +107,7 @@ class DataflowFilterEventarcJobsTest {
     Pipeline pipeline = Pipeline.create();
 
     PCollection<String> json = readJsonAndCheckNotEmpty(pipeline);
-    WithFailures.Result<@NonNull PCollection<Job>, ConversionError<String>> jobs =
+    WithFailures.Result<@NonNull PCollection<Job>, ConversionError> jobs =
         json.apply(EventarcConversions.fromJson());
     PCollection<Job> result =
         jobs.output()

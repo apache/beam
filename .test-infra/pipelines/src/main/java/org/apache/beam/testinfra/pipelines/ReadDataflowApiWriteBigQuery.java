@@ -46,7 +46,6 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.testinfra.pipelines.bigquery.BigQueryWriteOptions;
 import org.apache.beam.testinfra.pipelines.bigquery.BigQueryWrites;
 import org.apache.beam.testinfra.pipelines.conversions.ConversionError;
-import org.apache.beam.testinfra.pipelines.conversions.ConversionErrorsToString;
 import org.apache.beam.testinfra.pipelines.conversions.EventarcConversions;
 import org.apache.beam.testinfra.pipelines.conversions.JobsToRow;
 import org.apache.beam.testinfra.pipelines.conversions.RowConversionResult;
@@ -124,7 +123,7 @@ public class ReadDataflowApiWriteBigQuery {
       Class<RequestT> requestTClass,
       Class<ResponseT> responseTClass,
       PCollection<DataflowRequestError> requestErrors,
-      PCollection<ConversionError<String>> responseConversionErrors) {
+      PCollection<ConversionError> responseConversionErrors) {
 
     // Write Dataflow API errors to BigQuery.
     PCollection<Row> requestErrorRows =
@@ -143,8 +142,8 @@ public class ReadDataflowApiWriteBigQuery {
         responseConversionErrors
             .apply(
                 tagOf(ConversionError.class, responseTClass),
-                MapElements.into(rows()).via(ConversionError.toRowFn()))
-            .setRowSchema(ConversionError.getSchema());
+                MapElements.into(rows()).via(ConversionError.TO_ROW_FN))
+            .setRowSchema(ConversionError.SCHEMA);
 
     conversionErrors.apply(
         tagOf(BigQueryWrites.class, responseTClass.getSimpleName(), "errors"),
@@ -165,8 +164,7 @@ public class ReadDataflowApiWriteBigQuery {
 
     // Encode Eventarc JSON payloads into Eventarc Dataflow Jobs.
     WithFailures.Result<
-            @NonNull PCollection<com.google.events.cloud.dataflow.v1beta3.Job>,
-            ConversionError<String>>
+            @NonNull PCollection<com.google.events.cloud.dataflow.v1beta3.Job>, ConversionError>
         events =
             json.apply(
                 tagOf(EventarcConversions.class, "fromJson"), EventarcConversions.fromJson());
@@ -188,8 +186,8 @@ public class ReadDataflowApiWriteBigQuery {
             .failures()
             .apply(
                 "Event Conversion Errors To Row",
-                MapElements.into(rows()).via(ConversionError.toRowFn()))
-            .setRowSchema(ConversionError.getSchema());
+                MapElements.into(rows()).via(ConversionError.TO_ROW_FN))
+            .setRowSchema(ConversionError.SCHEMA);
 
     eventConversionErrorRows.apply(
         tagOf(BigQueryWrites.class, com.google.events.cloud.dataflow.v1beta3.Job.class.getName()),
@@ -267,7 +265,7 @@ public class ReadDataflowApiWriteBigQuery {
             tagOf(DataflowGetJobs.class, "Read"), DataflowGetJobs.create(configuration));
 
     // Convert Jobs to Rows.
-    RowConversionResult<Job, ConversionError<Job>> jobsToRowResult =
+    RowConversionResult<Job, ConversionError> jobsToRowResult =
         getJobsResult.getSuccess().apply(tagOf(JobsToRow.class, "Job"), JobsToRow.create());
 
     jobsToRowResult
@@ -284,20 +282,13 @@ public class ReadDataflowApiWriteBigQuery {
         .getSuccess()
         .apply(tagOf(BigQueryWrites.class, "Job"), BigQueryWrites.dataflowJobs(options));
 
-    PCollection<ConversionError<String>> responseConversionErrors =
-        jobsToRowResult
-            .getFailure()
-            .apply(
-                tagOf(ConversionErrorsToString.class, Job.class),
-                ConversionErrorsToString.create());
-
     writeErrors(
         options,
         BigQueryWrites.JOB_ERRORS,
         GetJobRequest.class,
         Job.class,
         getJobsResult.getFailure(),
-        responseConversionErrors);
+        jobsToRowResult.getFailure());
 
     return getJobsResult.getSuccess();
   }
@@ -310,7 +301,7 @@ public class ReadDataflowApiWriteBigQuery {
       PCollection<Job> jobs,
       PTransform<PCollection<Job>, DataflowReadResult<ResponseT, DataflowRequestError>>
           callAPITransform,
-      PTransform<PCollection<ResponseT>, RowConversionResult<ResponseT, ConversionError<String>>>
+      PTransform<PCollection<ResponseT>, RowConversionResult<ResponseT, ConversionError>>
           detailsToRowTransform,
       PTransform<@NonNull PCollection<Row>, @NonNull WriteResult> bigQueryWriteTransform) {
 
@@ -319,7 +310,7 @@ public class ReadDataflowApiWriteBigQuery {
         jobs.apply(tagOf(callAPITransform.getClass(), responseTClass), callAPITransform);
 
     // Convert the Job details result to Beam Rows.
-    RowConversionResult<ResponseT, ConversionError<String>> toRowResult =
+    RowConversionResult<ResponseT, ConversionError> toRowResult =
         readResult
             .getSuccess()
             .apply(tagOf(detailsToRowTransform.getClass(), responseTClass), detailsToRowTransform);

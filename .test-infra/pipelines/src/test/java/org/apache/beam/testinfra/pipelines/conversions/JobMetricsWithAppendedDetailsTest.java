@@ -103,7 +103,7 @@ class JobMetricsWithAppendedDetailsTest
 
     PCollection<JobMetricsWithAppendedDetails> input = pipeline.apply(Create.of(input()));
 
-    RowConversionResult<JobMetricsWithAppendedDetails, ConversionError<String>> result =
+    RowConversionResult<JobMetricsWithAppendedDetails, ConversionError> result =
         input.apply(transform());
 
     PAssert.thatSingleton(result.getFailure().apply("count errors", Count.globally()))

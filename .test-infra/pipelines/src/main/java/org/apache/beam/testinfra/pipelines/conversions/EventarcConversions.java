@@ -41,15 +41,14 @@ public final class EventarcConversions {
       "type.googleapis.com/google.events.cloud.dataflow.v1beta3.JobEventData";
   private static final String PAYLOAD_NODE_KEY = "payload";
 
-  public static MapElements.MapWithFailures<String, Job, ConversionError<String>> fromJson() {
+  public static MapElements.MapWithFailures<String, Job, ConversionError> fromJson() {
     return MapElements.into(TypeDescriptor.of(Job.class))
         .via(new JsonToJobFn())
-        .exceptionsInto(new TypeDescriptor<ConversionError<String>>() {})
+        .exceptionsInto(new TypeDescriptor<ConversionError>() {})
         .exceptionsVia(
             exceptionElement ->
-                ConversionError.<String>builder()
+                ConversionError.builder()
                     .setObservedTime(Instant.now())
-                    .setSource(exceptionElement.element())
                     .setMessage(
                         Optional.ofNullable(exceptionElement.exception().getMessage()).orElse(""))
                     .setStackTrace(Throwables.getStackTraceAsString(exceptionElement.exception()))

@@ -19,15 +19,11 @@ package org.apache.beam.testinfra.pipelines.conversions;
 
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.dataflow.v1beta3.JobMetrics;
 import com.google.dataflow.v1beta3.StageSummary;
 import com.google.dataflow.v1beta3.WorkerDetails;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.GeneratedMessageV3;
-import com.google.protobuf.InvalidProtocolBufferException;
-import com.google.protobuf.util.JsonFormat;
 import java.util.Optional;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
@@ -52,15 +48,14 @@ import org.joda.time.Instant;
 
 public class WithAppendedDetailsToRow<AppendedDetailsT, EmbeddedT extends GeneratedMessageV3>
     extends PTransform<
-        PCollection<AppendedDetailsT>,
-        RowConversionResult<AppendedDetailsT, ConversionError<String>>> {
+        PCollection<AppendedDetailsT>, RowConversionResult<AppendedDetailsT, ConversionError>> {
 
   public static WithAppendedDetailsToRow<JobMetricsWithAppendedDetails, JobMetrics>
       jobMetricsWithAppendedDetailsToRow() {
     return new WithAppendedDetailsToRow<>(
         JobMetricsWithAppendedDetails.class,
         JobMetrics.class,
-        new TupleTag<ConversionError<String>>() {},
+        new TupleTag<ConversionError>() {},
         "job_metrics",
         clazz -> JobMetrics.getDescriptor(),
         element ->
@@ -92,7 +87,7 @@ public class WithAppendedDetailsToRow<AppendedDetailsT, EmbeddedT extends Genera
     return new WithAppendedDetailsToRow<>(
         StageSummaryWithAppendedDetails.class,
         StageSummary.class,
-        new TupleTag<ConversionError<String>>() {},
+        new TupleTag<ConversionError>() {},
         "stage_summary",
         clazz -> StageSummary.getDescriptor(),
         element ->
@@ -124,7 +119,7 @@ public class WithAppendedDetailsToRow<AppendedDetailsT, EmbeddedT extends Genera
     return new WithAppendedDetailsToRow<>(
         WorkerDetailsWithAppendedDetails.class,
         WorkerDetails.class,
-        new TupleTag<ConversionError<String>>() {},
+        new TupleTag<ConversionError>() {},
         "worker_details",
         clazz -> WorkerDetails.getDescriptor(),
         element ->
@@ -161,7 +156,7 @@ public class WithAppendedDetailsToRow<AppendedDetailsT, EmbeddedT extends Genera
 
   private final Class<EmbeddedT> embeddedTClass;
 
-  private final TupleTag<ConversionError<String>> failureTag;
+  private final TupleTag<ConversionError> failureTag;
 
   private final String embeddedFieldName;
 
@@ -179,7 +174,7 @@ public class WithAppendedDetailsToRow<AppendedDetailsT, EmbeddedT extends Genera
   private WithAppendedDetailsToRow(
       Class<AppendedDetailsT> containerClass,
       Class<EmbeddedT> embeddedTClass,
-      TupleTag<ConversionError<String>> failureTag,
+      TupleTag<ConversionError> failureTag,
       String embeddedFieldName,
       SerializableFunction<@NonNull Class<EmbeddedT>, @NonNull Descriptor> descriptorSupplier,
       SerializableFunction<@NonNull AppendedDetailsT, @NonNull String> jobIdSupplier,
@@ -197,7 +192,7 @@ public class WithAppendedDetailsToRow<AppendedDetailsT, EmbeddedT extends Genera
   }
 
   @Override
-  public RowConversionResult<AppendedDetailsT, ConversionError<String>> expand(
+  public RowConversionResult<AppendedDetailsT, ConversionError> expand(
       PCollection<AppendedDetailsT> input) {
     Descriptor descriptor = descriptorSupplier.apply(embeddedTClass);
     Schema embeddedSchema =
@@ -222,7 +217,6 @@ public class WithAppendedDetailsToRow<AppendedDetailsT, EmbeddedT extends Genera
 
   private static class ToRowFn<AppendedDetailsT, EmbeddedT extends GeneratedMessageV3>
       extends DoFn<AppendedDetailsT, Row> {
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private final @NonNull Schema schema;
     private final WithAppendedDetailsToRow<AppendedDetailsT, EmbeddedT> spec;
 
@@ -254,31 +248,12 @@ public class WithAppendedDetailsToRow<AppendedDetailsT, EmbeddedT extends Genera
         receiver
             .get(spec.failureTag)
             .output(
-                ConversionError.<String>builder()
+                ConversionError.builder()
                     .setObservedTime(Instant.now())
-                    .setSource(tryToJson(id, createTime, embeddedInstance))
                     .setMessage(Optional.ofNullable(e.getMessage()).orElse(""))
                     .setStackTrace(Throwables.getStackTraceAsString(e))
                     .build());
       }
-    }
-
-    private @NonNull String tryToJson(String id, Instant createTime, EmbeddedT embeddedInstant) {
-      ObjectNode result = OBJECT_MAPPER.createObjectNode();
-
-      result.put(JOB_ID_FIELD.getName(), id);
-      result.put(JOB_CREATE_TIME.getName(), createTime.toString());
-      String embeddedJson;
-      try {
-        embeddedJson =
-            JsonFormat.printer().omittingInsignificantWhitespace().print(embeddedInstant);
-      } catch (InvalidProtocolBufferException e) {
-        embeddedJson =
-            String.format(
-                "error converting %s to json: %s", embeddedInstant.getClass(), e.getMessage());
-      }
-      result.put(spec.embeddedFieldName, embeddedJson);
-      return result.toString();
     }
   }
 }

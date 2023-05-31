@@ -29,52 +29,42 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.CaseFormat;
-import org.checkerframework.checker.nullness.qual.NonNull;
 import org.joda.time.Instant;
 
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
 @SchemaCaseFormat(CaseFormat.LOWER_UNDERSCORE)
-public abstract class ConversionError<SourceT> implements Serializable {
+public abstract class ConversionError implements Serializable {
 
   private static final AutoValueSchema SCHEMA_PROVIDER = new AutoValueSchema();
 
-  public static <SourceT> @NonNull Schema getSchema() {
-    TypeDescriptor<ConversionError<SourceT>> type =
-        new TypeDescriptor<ConversionError<SourceT>>() {};
-    return checkStateNotNull(
-        SCHEMA_PROVIDER.schemaFor(type), "null schema for %s", ConversionError.class);
-  }
+  private static final TypeDescriptor<ConversionError> TYPE =
+      TypeDescriptor.of(ConversionError.class);
 
-  public static <SourceT> SerializableFunction<ConversionError<SourceT>, Row> toRowFn() {
-    TypeDescriptor<ConversionError<SourceT>> type =
-        new TypeDescriptor<ConversionError<SourceT>>() {};
-    return SCHEMA_PROVIDER.toRowFunction(type);
-  }
+  public static final Schema SCHEMA = checkStateNotNull(SCHEMA_PROVIDER.schemaFor(TYPE));
 
-  public static <SourceT> Builder<SourceT> builder() {
-    return new AutoValue_ConversionError.Builder<>();
+  public static final SerializableFunction<ConversionError, Row> TO_ROW_FN =
+      SCHEMA_PROVIDER.toRowFunction(TYPE);
+
+  public static Builder builder() {
+    return new AutoValue_ConversionError.Builder();
   }
 
   public abstract Instant getObservedTime();
-
-  public abstract SourceT getSource();
 
   public abstract String getMessage();
 
   public abstract String getStackTrace();
 
   @AutoValue.Builder
-  public abstract static class Builder<SourceT> {
+  public abstract static class Builder {
 
-    public abstract Builder<SourceT> setObservedTime(Instant value);
+    public abstract Builder setObservedTime(Instant value);
 
-    public abstract Builder<SourceT> setSource(SourceT value);
+    public abstract Builder setMessage(String value);
 
-    public abstract Builder<SourceT> setMessage(String value);
+    public abstract Builder setStackTrace(String value);
 
-    public abstract Builder<SourceT> setStackTrace(String value);
-
-    public abstract ConversionError<SourceT> build();
+    public abstract ConversionError build();
   }
 }

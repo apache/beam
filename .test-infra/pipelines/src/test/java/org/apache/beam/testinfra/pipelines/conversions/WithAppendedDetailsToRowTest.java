@@ -65,8 +65,7 @@ abstract class WithAppendedDetailsToRowTest<AppendedDetailsT, EmbeddedT extends 
 
     PCollection<AppendedDetailsT> input = pipeline.apply(Create.of(input()));
 
-    RowConversionResult<AppendedDetailsT, ConversionError<String>> result =
-        input.apply(transform());
+    RowConversionResult<AppendedDetailsT, ConversionError> result = input.apply(transform());
 
     PAssert.thatSingleton(result.getFailure().apply(Count.globally())).isEqualTo(0L);
 
@@ -83,8 +82,7 @@ abstract class WithAppendedDetailsToRowTest<AppendedDetailsT, EmbeddedT extends 
 
     PCollection<AppendedDetailsT> input = pipeline.apply(Create.of(input()));
 
-    RowConversionResult<AppendedDetailsT, ConversionError<String>> result =
-        input.apply(transform());
+    RowConversionResult<AppendedDetailsT, ConversionError> result = input.apply(transform());
 
     PAssert.thatSingleton(result.getFailure().apply(Count.globally())).isEqualTo(0L);
 
@@ -101,8 +99,7 @@ abstract class WithAppendedDetailsToRowTest<AppendedDetailsT, EmbeddedT extends 
 
     PCollection<AppendedDetailsT> input = pipeline.apply(Create.of(input()));
 
-    RowConversionResult<AppendedDetailsT, ConversionError<String>> result =
-        input.apply(transform());
+    RowConversionResult<AppendedDetailsT, ConversionError> result = input.apply(transform());
 
     PAssert.thatSingleton(result.getFailure().apply(Count.globally())).isEqualTo(0L);
 
@@ -130,7 +127,7 @@ abstract class WithAppendedDetailsToRowTest<AppendedDetailsT, EmbeddedT extends 
   }
 
   private PCollection<String> jobIdsFrom(
-      RowConversionResult<AppendedDetailsT, ConversionError<String>> result) {
+      RowConversionResult<AppendedDetailsT, ConversionError> result) {
     return result
         .getSuccess()
         .apply(
@@ -140,7 +137,7 @@ abstract class WithAppendedDetailsToRowTest<AppendedDetailsT, EmbeddedT extends 
   }
 
   private PCollection<Long> createTimesFrom(
-      RowConversionResult<AppendedDetailsT, ConversionError<String>> result) {
+      RowConversionResult<AppendedDetailsT, ConversionError> result) {
     return result
         .getSuccess()
         .apply(

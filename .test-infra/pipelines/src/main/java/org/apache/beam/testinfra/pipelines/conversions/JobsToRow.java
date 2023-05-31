@@ -39,7 +39,7 @@ import org.joda.time.Instant;
 
 public class JobsToRow
     extends PTransform<
-        @NonNull PCollection<Job>, @NonNull RowConversionResult<Job, ConversionError<Job>>> {
+        @NonNull PCollection<Job>, @NonNull RowConversionResult<Job, ConversionError>> {
 
   public static JobsToRow create() {
     return new JobsToRow();
@@ -52,24 +52,23 @@ public class JobsToRow
   }
 
   @Override
-  public @NonNull RowConversionResult<Job, ConversionError<Job>> expand(
+  public @NonNull RowConversionResult<Job, ConversionError> expand(
       @NonNull PCollection<Job> input) {
     TupleTag<Row> success = new TupleTag<Row>() {};
-    TupleTag<ConversionError<Job>> failure = new TupleTag<ConversionError<Job>>() {};
+    TupleTag<ConversionError> failure = new TupleTag<ConversionError>() {};
     Schema successSchema = SCHEMA_REGISTRY.getOrBuild(Job.getDescriptor());
-    Result<@NonNull PCollection<Row>, ConversionError<Job>> result =
+    Result<@NonNull PCollection<Row>, ConversionError> result =
         input.apply(
             "Jobs To Row",
             MapElements.into(rows())
                 .via(jobsToRowFn())
-                .exceptionsInto(new TypeDescriptor<ConversionError<Job>>() {})
+                .exceptionsInto(new TypeDescriptor<ConversionError>() {})
                 .exceptionsVia(
                     error ->
-                        ConversionError.<Job>builder()
+                        ConversionError.builder()
                             .setObservedTime(Instant.now())
                             .setMessage(
                                 Optional.ofNullable(error.exception().getMessage()).orElse(""))
-                            .setSource(error.element())
                             .setStackTrace(Throwables.getStackTraceAsString(error.exception()))
                             .build()));
 

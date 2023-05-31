@@ -103,7 +103,7 @@ class StageSummaryWithAppendedDetailsTest
 
     PCollection<StageSummaryWithAppendedDetails> input = pipeline.apply(Create.of(input()));
 
-    RowConversionResult<StageSummaryWithAppendedDetails, ConversionError<String>> result =
+    RowConversionResult<StageSummaryWithAppendedDetails, ConversionError> result =
         input.apply(transform());
 
     PAssert.thatSingleton(result.getFailure().apply("count errors", Count.globally()))

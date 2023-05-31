@@ -50,7 +50,7 @@ class EventarcConversionsTest {
   @Test
   void fromJson_emptyStrings_emitsAsConversionErrors() {
     Pipeline pipeline = Pipeline.create();
-    WithFailures.Result<@NonNull PCollection<Job>, ConversionError<String>> result =
+    WithFailures.Result<@NonNull PCollection<Job>, ConversionError> result =
         pipeline.apply(Create.of("")).apply(EventarcConversions.fromJson());
     PAssert.that(result.output()).empty();
     PAssert.thatSingleton(
@@ -68,7 +68,7 @@ class EventarcConversionsTest {
   @Test
   void fromJson_malformedJson_emitsAsConversionErrors() {
     Pipeline pipeline = Pipeline.create();
-    WithFailures.Result<@NonNull PCollection<Job>, ConversionError<String>> result =
+    WithFailures.Result<@NonNull PCollection<Job>, ConversionError> result =
         pipeline.apply(Create.of("{\"foo\", \"bar\"")).apply(EventarcConversions.fromJson());
     PAssert.that(result.output()).empty();
     PAssert.thatSingleton(
@@ -90,7 +90,7 @@ class EventarcConversionsTest {
   @Test
   void fromJson_missingDataKey_emitsAsConversionErrors() {
     Pipeline pipeline = Pipeline.create();
-    WithFailures.Result<@NonNull PCollection<Job>, ConversionError<String>> result =
+    WithFailures.Result<@NonNull PCollection<Job>, ConversionError> result =
         pipeline.apply(Create.of("{}")).apply(EventarcConversions.fromJson());
     PAssert.that(result.output()).empty();
     PAssert.thatSingleton(
@@ -108,7 +108,7 @@ class EventarcConversionsTest {
   @Test
   void fromJson_missingTypeKey_emitsAsConversionErrors() {
     Pipeline pipeline = Pipeline.create();
-    WithFailures.Result<@NonNull PCollection<Job>, ConversionError<String>> result =
+    WithFailures.Result<@NonNull PCollection<Job>, ConversionError> result =
         pipeline.apply(Create.of("{\"data\":{}}")).apply(EventarcConversions.fromJson());
     PAssert.that(result.output()).empty();
     PAssert.thatSingleton(
@@ -126,7 +126,7 @@ class EventarcConversionsTest {
   @Test
   void fromJson_typeMismatch_emitsAsConversionErrors() {
     Pipeline pipeline = Pipeline.create();
-    WithFailures.Result<@NonNull PCollection<Job>, ConversionError<String>> result =
+    WithFailures.Result<@NonNull PCollection<Job>, ConversionError> result =
         pipeline
             .apply(Create.of("{\"data\":{\"payload\": {},\"@type\": \"bad.type\"}}"))
             .apply(EventarcConversions.fromJson());
@@ -147,7 +147,7 @@ class EventarcConversionsTest {
   @Test
   void fromJson_missingPayloadKey_emitsAsConversionErrors() {
     Pipeline pipeline = Pipeline.create();
-    WithFailures.Result<@NonNull PCollection<Job>, ConversionError<String>> result =
+    WithFailures.Result<@NonNull PCollection<Job>, ConversionError> result =
         pipeline
             .apply(
                 Create.of(
@@ -169,9 +169,8 @@ class EventarcConversionsTest {
   @Test
   void fromJson_hasUnexpectedProperty_emitsAsConversionErrors() throws IOException {
     String resourceName = "eventarc_data/has_extra_data_payload_foo_property.json";
-    String payload = loadResource(resourceName);
     Pipeline pipeline = Pipeline.create();
-    WithFailures.Result<@NonNull PCollection<Job>, ConversionError<String>> result =
+    WithFailures.Result<@NonNull PCollection<Job>, ConversionError> result =
         readJsonThenApplyConversion(resourceName, pipeline);
     PAssert.that(result.output()).empty();
     PAssert.thatSingleton(
@@ -183,13 +182,6 @@ class EventarcConversionsTest {
                         .via(error -> checkStateNotNull(error).getMessage())))
         .isEqualTo(
             "com.google.protobuf.InvalidProtocolBufferException: Cannot find field: foo in message google.events.cloud.dataflow.v1beta3.Job");
-    PAssert.thatSingleton(
-            result
-                .failures()
-                .apply(
-                    "get error source",
-                    MapElements.into(strings()).via(error -> checkStateNotNull(error).getSource())))
-        .isEqualTo(payload);
 
     pipeline.run();
   }
@@ -198,7 +190,7 @@ class EventarcConversionsTest {
   void fromJson_JobStateCanceledStreaming_emitsJob() throws IOException {
     String resourceName = "eventarc_data/job_state_canceled_streaming.json";
     Pipeline pipeline = Pipeline.create();
-    WithFailures.Result<@NonNull PCollection<Job>, ConversionError<String>> result =
+    WithFailures.Result<@NonNull PCollection<Job>, ConversionError> result =
         readJsonThenApplyConversion(resourceName, pipeline);
 
     PAssert.thatSingleton(
@@ -262,7 +254,7 @@ class EventarcConversionsTest {
     assertEquals("2023-05-09_13_39_13-18226864771788319755", actual.getId());
   }
 
-  private static WithFailures.Result<@NonNull PCollection<Job>, ConversionError<String>>
+  private static WithFailures.Result<@NonNull PCollection<Job>, ConversionError>
       readJsonThenApplyConversion(String resourcePath, Pipeline pipeline) throws IOException {
 
     String payload = loadResource(resourcePath);
