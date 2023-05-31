@@ -1,6 +1,6 @@
 ---
 title:  "Apache Beam 2.48.0"
-date:   2023-06-02 12:00:00 -0500
+date:   2023-05-31 11:30:00 -0400
 categories:
   - blog
   - release
@@ -23,7 +23,7 @@ We are happy to present the new 2.48.0 release of Beam.
 This release includes both improvements and new functionality.
 See the [download page](/get-started/downloads/{$DOWNLOAD_ANCHOR}) for this release.
 
-<{$REMOVE_FOR_VALID_SUMMARY_BREAK}!--more-->
+<{!--more-->
 
 For more information on changes in 2.48.0, check out the [detailed release notes](https://github.com/apache/beam/milestone/12).
 
