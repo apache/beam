@@ -26,8 +26,8 @@ import 'package:playground_components/playground_components.dart';
 import 'package:playground_components_dev/playground_components_dev.dart';
 import 'package:tour_of_beam/cache/content_tree.dart';
 import 'package:tour_of_beam/components/builders/content_tree.dart';
-import 'package:tour_of_beam/models/group.dart';
 import 'package:tour_of_beam/models/module.dart';
+import 'package:tour_of_beam/models/parent_node.dart';
 import 'package:tour_of_beam/models/unit.dart';
 import 'package:tour_of_beam/pages/tour/screen.dart';
 import 'package:tour_of_beam/pages/tour/state.dart';
@@ -47,18 +47,16 @@ void main() {
       await wt.tapAndSettle(find.startTourButton());
 
       await _checkContentTreeBuildsProperly(wt);
-      await _checkContentTreeScrollsProperly(wt);
       await _checkHighlightsSelectedUnit(wt);
       // TODO(nausharipov): fix tests
       // await _checkRunCodeWorks(wt);
       // await _checkResizeUnitContent(wt);
 
-      if (ExamplesLoader.failedToLoadExamples.isNotEmpty) {
-        final tokens = ExamplesLoader.failedToLoadExamples.join(', ');
-        print(
-          'There are some havent loaded examples with tokens: $tokens',
-        );
-      }
+      expect(
+        ExamplesLoader.failedToLoadExamples,
+        isEmpty,
+        reason: 'Failed to load some examples.',
+      );
     },
   );
 }
@@ -67,7 +65,7 @@ Future<void> _checkContentTreeBuildsProperly(WidgetTester wt) async {
   final modules = _getModules(wt);
 
   for (final module in modules) {
-    await _checkModule(module, wt);
+    await _checkParent(module, wt);
   }
 }
 
@@ -78,18 +76,18 @@ List<ModuleModel> _getModules(WidgetTester wt) {
   return contentTree?.nodes ?? (throw Exception('Cannot load modules'));
 }
 
-Future<void> _checkModule(ModuleModel module, WidgetTester wt) async {
-  if (!_getExpandedIds(wt).contains(module.id)) {
-    await wt.ensureVisible(find.byKey(Key(module.id)));
-    await wt.tapAndSettle(find.byKey(Key(module.id)));
+Future<void> _checkParent(ParentNodeModel node, WidgetTester wt) async {
+  if (!_getExpandedIds(wt).contains(node.id)) {
+    await wt.ensureVisible(find.byKey(Key(node.id)));
+    await wt.tapAndSettle(find.byKey(Key(node.id)));
   }
 
-  for (final node in module.nodes) {
-    if (node is UnitModel) {
-      await _checkNode(node, wt);
+  for (final child in node.nodes) {
+    if (child is UnitModel) {
+      await _checkNode(child, wt);
     }
-    if (node is GroupModel) {
-      await _checkGroup(node, wt);
+    if (child is ParentNodeModel) {
+      await _checkParent(child, wt);
     }
   }
 }
@@ -131,28 +129,6 @@ Future<void> _checkUnitContentLoadsProperly(
     ),
     findsAtLeastNWidgets(1),
   );
-}
-
-Future<void> _checkGroup(GroupModel group, WidgetTester wt) async {
-  await wt.ensureVisible(find.byKey(Key(group.id)));
-  await wt.tapAndSettle(find.byKey(Key(group.id)));
-
-  for (final n in group.nodes) {
-    if (n is GroupModel) {
-      await _checkGroup(n, wt);
-    }
-    if (n is UnitModel) {
-      await _checkNode(n, wt);
-    }
-  }
-}
-
-Future<void> _checkContentTreeScrollsProperly(WidgetTester wt) async {
-  final modules = _getModules(wt);
-  final lastNode = modules.expand((m) => m.nodes).whereType<UnitModel>().last;
-
-  await wt.ensureVisible(find.byKey(Key(lastNode.id)));
-  await wt.pumpAndSettle();
 }
 
 Future<void> _checkHighlightsSelectedUnit(WidgetTester wt) async {

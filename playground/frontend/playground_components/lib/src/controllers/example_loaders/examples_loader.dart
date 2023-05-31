@@ -17,19 +17,14 @@
  */
 
 import 'package:collection/collection.dart';
-import 'package:easy_localization/easy_localization.dart';
 import 'package:get_it/get_it.dart';
 
 import '../../exceptions/example_loading_exception.dart';
-import '../../exceptions/examples_loading_exception.dart';
-import '../../exceptions/multiple_exceptions.dart';
 import '../../models/example.dart';
 import '../../models/example_loading_descriptors/empty_example_loading_descriptor.dart';
 import '../../models/example_loading_descriptors/example_loading_descriptor.dart';
 import '../../models/example_loading_descriptors/examples_loading_descriptor.dart';
 import '../../models/sdk.dart';
-import '../../models/toast.dart';
-import '../../models/toast_type.dart';
 import '../../services/toast_notifier.dart';
 import '../playground_controller.dart';
 import 'catalog_default_example_loader.dart';
@@ -82,7 +77,7 @@ class ExamplesLoader {
       await Future.wait(loadFutures);
     // ignore: avoid_catches_without_on_clauses
     } catch (_) {
-      _emptyMissing(loaders);
+      await _emptyMissing(loaders);
     }
 
     final sdk = descriptor.initialSdk;
@@ -106,8 +101,8 @@ class ExamplesLoader {
     return loader;
   }
 
-  void _emptyMissing(Iterable<ExampleLoader> loaders) {
-    loaders.forEach(_emptyIfMissing);
+  Future<void> _emptyMissing(Iterable<ExampleLoader> loaders) async {
+    await Future.wait(loaders.map(_emptyIfMissing));
   }
 
   Future<void> _emptyIfMissing(ExampleLoader loader) async {
