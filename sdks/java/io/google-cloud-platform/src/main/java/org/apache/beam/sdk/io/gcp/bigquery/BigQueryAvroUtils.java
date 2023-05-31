@@ -451,7 +451,7 @@ class BigQueryAvroUtils {
   @SuppressWarnings({
     "nullness" // Avro library not annotated
   })
-  private static Field convertField(TableFieldSchema bigQueryField, String namespace) {
+  private static Field convertField(TableFieldSchema bigQueryField, @Nullable String namespace) {
     ImmutableCollection<Type> avroTypes = BIG_QUERY_TO_AVRO_TYPES.get(bigQueryField.getType());
     if (avroTypes.isEmpty()) {
       throw new IllegalArgumentException(
