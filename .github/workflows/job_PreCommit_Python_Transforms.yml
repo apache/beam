@@ -9,7 +9,7 @@ on:
 
 jobs:
   PythonTransforms:
-    if: github.event.issue.pull_request && contains(github.event.comment.body, 'Run PythonLint PreCommit')
+    if: github.event.issue.pull_request && contains(github.event.comment.body, 'Run Python_Transforms PreCommit')
     runs-on: self-hosted
     defaults:
       run:
@@ -25,8 +25,8 @@ jobs:
         run:  pip install --retries 10 --upgrade pip && ls && pwd && pip install --retries 10 --upgrade tox==3.20.1 -r ./build-requirements.txt
         working-directory: sdks/python
       - name: Run python cloud 
-        run: tox -e py37-cloud,py39-cloud,py310-cloud,py311-cloud -- --ignore=apache_beam/dataframe/ --ignore=apache_beam/examples/ --ignore=apache_beam/runners/ --ignore=apache_beam/transforms/
+        run: tox -e py37-cloud,py39-cloud,py310-cloud,py311-cloud -- apache_beam/transforms/
         working-directory: sdks/python
       - name: Run cython
-        run: tox -e py37-cython,py38-cython,py39-cython,py310-cython,py311-cython -- --ignore=apache_beam/dataframe/ --ignore=apache_beam/examples/ --ignore=apache_beam/runners/ --ignore=apache_beam/transforms/
+        run: tox -e py37-cython,py38-cython,py39-cython,py310-cython,py311-cython -- apache_beam/transforms/
         working-directory: sdks/python

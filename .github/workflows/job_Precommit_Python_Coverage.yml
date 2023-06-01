@@ -15,7 +15,7 @@ on:
 
 jobs:
   PythonCoverage:
-    if: github.event.issue.pull_request && contains(github.event.comment.body, 'Run PythonLint PreCommit')
+    if: github.event.issue.pull_request && contains(github.event.comment.body, 'Run Python_Coverage PreCommit')
     runs-on: self-hosted
     defaults:
       run:
