@@ -147,6 +147,36 @@ public class CompressedSourceTest {
     runReadTest(input, Compression.MC4_HIGH);
   }
 
+  /**
+   * Test to verify that the Auto detect feature would work with .4mc file compressed any MC4_*
+   * compression types Do not provide the compression type while reading the file.
+   */
+  @Test
+  public void testFourmcAutoDetect() throws IOException {
+    // Testing for MC4_HIGH compression
+    byte[] input = generateInput(5000);
+
+    // Testing for MC4_HIGH compression
+    File mc4highFile = tmpFolder.newFile("input_mc4_high.4mc");
+    writeFile(mc4highFile, input, Compression.MC4_HIGH);
+    verifyReadContents(input, mc4highFile, null);
+
+    // Testing for MC4_MEDIUM compression
+    File mc4mediumFile = tmpFolder.newFile("input_mc4_medium.4mc");
+    writeFile(mc4mediumFile, input, Compression.MC4_MEDIUM);
+    verifyReadContents(input, mc4mediumFile, null);
+
+    // Testing for MC4_FAST compression
+    File mc4fastFile = tmpFolder.newFile("input_mc4_fast.4mc");
+    writeFile(mc4fastFile, input, Compression.MC4_FAST);
+    verifyReadContents(input, mc4fastFile, null);
+
+    // Testing for MC4_ULTRA compression
+    File mc4ultraFile = tmpFolder.newFile("input_mc4_ultra.4mc");
+    writeFile(mc4ultraFile, input, Compression.MC4_FAST);
+    verifyReadContents(input, mc4ultraFile, null);
+  }
+
   /** Test splittability of files in AUTO mode. */
   @Test
   public void testAutoSplittable() {
