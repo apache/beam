@@ -8,7 +8,7 @@ on:
 
 
 jobs:
-  Precommit Runner:
+  Precommit Runners:
     if: github.event.issue.pull_request && contains(github.event.comment.body, 'Run PythonLint PreCommit')
     runs-on: self-hosted
     defaults:
