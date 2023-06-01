@@ -157,7 +157,7 @@ class Timestamp(object):
     return 'Timestamp(%s%d)' % (sign, int_part)
 
   def to_utc_datetime(self, has_tz=False):
-    # type: () -> datetime.datetime
+    # type: (bool) -> datetime.datetime
 
     """Returns a ``datetime.datetime`` object of UTC for this Timestamp.
 
