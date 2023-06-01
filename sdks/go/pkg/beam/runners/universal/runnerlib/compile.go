@@ -46,20 +46,20 @@ var unique int32
 func BuildTempWorkerBinary(ctx context.Context) (string, error) {
 	id := atomic.AddInt32(&unique, 1)
 	filename := filepath.Join(os.TempDir(), fmt.Sprintf("worker-%v-%v", id, time.Now().UnixNano()))
-	if err := BuildWorkerBinary(ctx, filename); err != nil {
+	if err := buildWorkerBinary(ctx, filename); err != nil {
 		return "", err
 	}
 	return filename, nil
 }
 
-// BuildWorkerBinary creates a local worker binary for linux/amd64. It finds the filename
+// buildWorkerBinary creates a local worker binary for linux/amd64. It finds the filename
 // by examining the call stack. We want the user entry (*), for example:
 //
 //	  /Users/herohde/go/src/github.com/apache/beam/sdks/go/pkg/beam/runners/beamexec/main.go (skip: 2)
 //	* /Users/herohde/go/src/github.com/apache/beam/sdks/go/examples/wordcount/wordcount.go (skip: 3)
 //	  /usr/local/go/src/runtime/proc.go (skip: 4)      // not always present
 //	  /usr/local/go/src/runtime/asm_amd64.s (skip: 4 or 5)
-func BuildWorkerBinary(ctx context.Context, filename string) error {
+func buildWorkerBinary(ctx context.Context, filename string) error {
 	program := ""
 	var isTest bool
 	for i := 3; ; i++ {
@@ -75,23 +75,26 @@ func BuildWorkerBinary(ctx context.Context, filename string) error {
 	if !strings.HasSuffix(program, ".go") {
 		return errors.New("could not detect user main")
 	}
+	goos := "linux"
+	goarch := "amd64"
+	cgo := "0"
 
-	log.Infof(ctx, "Cross-compiling %v as %v", program, filename)
+	log.Infof(ctx, "Cross-compiling %v with GOOS=%s GOARCH=%s CGO_ENABLED=%s as %v", goos, goarch, cgo, program, filename)
 
 	// Cross-compile given go program. Not awesome.
 	program = program[:strings.LastIndex(program, "/")+1]
 	program = program + "."
 	var build []string
 	if isTest {
-		build = []string{"go", "test", "-c", "-o", filename, program}
+		build = []string{"go", "test", "-trimpath", "-c", "-o", filename, program}
 	} else {
-		build = []string{"go", "build", "-o", filename, program}
+		build = []string{"go", "build", "-trimpath", "-o", filename, program}
 	}
 
 	cmd := exec.Command(build[0], build[1:]...)
-	cmd.Env = append(os.Environ(), "GOOS=linux", "GOARCH=amd64")
+	cmd.Env = append(os.Environ(), "GOOS="+goos, "GOARCH="+goarch, "CGO_ENABLED="+cgo)
 	if out, err := cmd.CombinedOutput(); err != nil {
-		return errors.Errorf("failed to cross-compile %v: %v\n%v", program, err, string(out))
+		return errors.Errorf("failed to cross-compile %v, see https://beam.apache.org/documentation/sdks/go-cross-compilation/ for details: %v\n%v", program, err, string(out))
 	}
 	return nil
 }

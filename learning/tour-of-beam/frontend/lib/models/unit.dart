@@ -20,6 +20,7 @@ import '../repositories/models/unit.dart';
 import 'node.dart';
 import 'parent_node.dart';
 
+/// The data class for the Tour of Beam unit.
 class UnitModel extends NodeModel {
   UnitModel.fromResponse(UnitResponseModel unit, ParentNodeModel parent)
       : super(
@@ -29,8 +30,10 @@ class UnitModel extends NodeModel {
         );
 
   @override
-  NodeModel getFirstUnit() => this;
+  NodeModel? getLastNodeFromBreadcrumbIds(List<String> breadcrumbIds) => this;
 
   @override
-  NodeModel? getNodeByTreeIds(List<String> treeIds) => this;
+  List<UnitModel> getUnits() {
+    return [this];
+  }
 }

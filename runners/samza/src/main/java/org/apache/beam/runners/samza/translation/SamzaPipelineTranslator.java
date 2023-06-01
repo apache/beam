@@ -23,11 +23,10 @@ import com.google.auto.service.AutoService;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.ServiceLoader;
-import java.util.Set;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.TransformPayloadTranslatorRegistrar;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
-import org.apache.beam.runners.samza.SamzaPipelineOptions;
+import org.apache.beam.runners.samza.metrics.SamzaMetricOpFactory;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.Combine;
@@ -65,9 +64,17 @@ public class SamzaPipelineTranslator {
               Pipeline pipeline,
               TransformTranslator<T> translator) {
             ctx.setCurrentTransform(node.toAppliedPTransform(pipeline));
+            ctx.attachTransformMetricOp(
+                (PTransform<? extends PValue, ? extends PValue>) transform,
+                node,
+                SamzaMetricOpFactory.OpType.INPUT);
 
             translator.translate(transform, node, ctx);
 
+            ctx.attachTransformMetricOp(
+                (PTransform<? extends PValue, ? extends PValue>) transform,
+                node,
+                SamzaMetricOpFactory.OpType.OUTPUT);
             ctx.clearCurrentTransform();
           }
         };
@@ -76,12 +83,7 @@ public class SamzaPipelineTranslator {
   }
 
   public static void createConfig(
-      Pipeline pipeline,
-      SamzaPipelineOptions options,
-      Map<PValue, String> idMap,
-      Set<String> nonUniqueStateIds,
-      ConfigBuilder configBuilder) {
-    final ConfigContext ctx = new ConfigContext(idMap, nonUniqueStateIds, options);
+      Pipeline pipeline, ConfigContext ctx, ConfigBuilder configBuilder) {
 
     final TransformVisitorFn configFn =
         new TransformVisitorFn() {
@@ -107,7 +109,7 @@ public class SamzaPipelineTranslator {
     pipeline.traverseTopologically(visitor);
   }
 
-  private interface TransformVisitorFn {
+  public interface TransformVisitorFn {
     <T extends PTransform<?, ?>> void apply(
         T transform,
         TransformHierarchy.Node node,
@@ -115,10 +117,10 @@ public class SamzaPipelineTranslator {
         TransformTranslator<T> translator);
   }
 
-  private static class SamzaPipelineVisitor extends Pipeline.PipelineVisitor.Defaults {
+  public static class SamzaPipelineVisitor extends Pipeline.PipelineVisitor.Defaults {
     private final TransformVisitorFn visitorFn;
 
-    private SamzaPipelineVisitor(TransformVisitorFn visitorFn) {
+    public SamzaPipelineVisitor(TransformVisitorFn visitorFn) {
       this.visitorFn = visitorFn;
     }
 

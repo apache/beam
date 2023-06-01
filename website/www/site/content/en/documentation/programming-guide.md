@@ -35,7 +35,7 @@ programming guide, take a look at the
 {{< language-switcher java py go typescript >}}
 
 {{< paragraph class="language-py" >}}
-The Python SDK supports Python 3.7, 3.8, 3.9, and 3.10.
+The Python SDK supports Python 3.7, 3.8, 3.9, 3.10, and 3.11.
 {{< /paragraph >}}
 
 {{< paragraph class="language-go">}}
@@ -159,6 +159,10 @@ Pipeline p = Pipeline.create(options);
 {{< highlight typescript >}}
 {{< code_sample "sdks/typescript/test/docs/programming_guide.ts" pipelines_constructing_creating >}}
 {{< /highlight >}}
+
+For a more in-depth tutorial on creating basic pipelines
+in the Python SDK, please read and work through
+[this colab notebook](https://colab.sandbox.google.com/github/apache/beam/blob/master/examples/notebooks/get-started/learn_beam_basics_by_doing.ipynb).
 
 ### 2.1. Configuring pipeline options {#configuring-pipeline-options}
 
@@ -593,6 +597,10 @@ such as [ParDo](#pardo) or [Combine](#combine). There are also pre-written
 combine one or more of the core transforms in a useful processing pattern, such
 as counting or combining elements in a collection. You can also define your own
 more complex composite transforms to fit your pipeline's exact use case.
+
+For a more in-depth tutorial of applying various transforms
+in the Python SDK, please read and work through
+[this colab notebook](https://colab.sandbox.google.com/github/liferoad/beam/blob/learn-transforms/examples/notebooks/get-started/learn_beam_transforms_by_doing.ipynb).
 
 ### 4.1. Applying transforms {#applying-transforms}
 
@@ -1195,7 +1203,10 @@ Here is a sequence diagram that shows the lifecycle of the DoFn during
  the execution of the ParDo transform. The comments give useful
  information to pipeline developers such as the constraints that
  apply to the objects or particular cases such as failover or
- instance reuse. They also give instantiation use cases.
+ instance reuse. They also give instantiation use cases. Two key points
+ to note are that (1) teardown is done on a best effort basis and thus
+ isn't guaranteed and (2) the number of DoFn instances is runner
+ dependent.
 
 <!-- The source for the sequence diagram can be found in the SVG resource. -->
 ![This is a sequence diagram that shows the lifecycle of the DoFn](/images/dofn-sequence-diagram.svg)

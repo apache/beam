@@ -18,11 +18,8 @@
 package org.apache.beam.sdk.metrics;
 
 import java.io.Serializable;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 
 /** Marker interface for all user-facing metrics. */
-@Experimental(Kind.METRICS)
 public interface Metric extends Serializable {
 
   /** The {@link MetricName} given to this metric. */

@@ -26,10 +26,11 @@ Some examples are also used in [our benchmarks](http://s.apache.org/beam-communi
 
 ## Prerequisites
 
-You must have `apache-beam>=2.40.0` or greater installed in order to run these pipelines,
-because the `apache_beam.examples.inference` module was added in that release.
+You must have the latest (possibly unreleased) `apache-beam` or greater installed from the Beam repo in order to run these pipelines,
+because some examples rely on the latest features that are actively in development. To install Beam, run the following from the `sdks/python` directory:
 ```
-pip install apache-beam==2.40.0
+pip install -r build-requirements.txt
+pip install -e .[gcp]
 ```
 
 ### Tensorflow dependencies
@@ -38,7 +39,7 @@ The following installation requirement is for the Tensorflow model handler examp
 
 The RunInference API supports the Tensorflow framework. To use Tensorflow locally, first install `tensorflow`.
 ```
-pip install tensorflow==2.11.0
+pip install tensorflow==2.12.0
 ```
 
 ### PyTorch dependencies
@@ -321,9 +322,9 @@ the second item is the word that the model predicts for the mask.
 
 The pipeline reads rows of pixels corresponding to a digit, performs basic preprocessing, passes the pixels to the Scikit-learn implementation of RunInference, and then writes the predictions to a text file.
 
-### Dataset and model for language modeling
+### Dataset and model for MNIST digit classification
 
-To use this transform, you need a dataset and model for language modeling.
+To use this transform, you need a dataset and model for MNIST digit classification.
 
 1. Create a file named `INPUT.csv` that contains labels and pixels to feed into the model. Each row should have comma-separated elements. The first element is the label. All other elements are pixel values. The csv should not have column headers. The content of the file should be similar to the following example:
 ```
@@ -435,9 +436,9 @@ A comedy-drama of nearly epic proportions rooted in a sincere performance by the
 
 The pipeline reads rows of pixels corresponding to a digit, performs basic preprocessing(converts the input shape to 28x28), passes the pixels to the trained Tensorflow model with RunInference, and then writes the predictions to a text file.
 
-### Dataset and model for language modeling
+### Dataset and model for MNIST digit classification
 
-To use this transform, you need a dataset and model for language modeling.
+To use this transform, you need a dataset and model for MNIST digit classification.
 
 1. Create a file named [`INPUT.csv`](gs://apache-beam-ml/testing/inputs/it_mnist_data.csv) that contains labels and pixels to feed into the model. Each row should have comma-separated elements. The first element is the label. All other elements are pixel values. The csv should not have column headers. The content of the file should be similar to the following example:
 ```
@@ -535,9 +536,9 @@ The pipeline reads rows of pixels corresponding to a digit, performs basic prepr
 The model is loaded from the saved model weights. This can be done by passing a function which creates the model and setting the model type as
 `ModelType.SAVED_WEIGHTS` to the `TFModelHandler`. The path to saved weights saved using `model.save_weights(path)` should be passed to the `model_path` argument.
 
-### Dataset and model for language modeling
+### Dataset and model for MNIST digit classification
 
-To use this transform, you need a dataset and model for language modeling.
+To use this transform, you need a dataset and model for MNIST digit classification.
 
 1. Create a file named [`INPUT.csv`](gs://apache-beam-ml/testing/inputs/it_mnist_data.csv) that contains labels and pixels to feed into the model. Each row should have comma-separated elements. The first element is the label. All other elements are pixel values. The csv should not have column headers. The content of the file should be similar to the following example:
 ```
@@ -580,17 +581,17 @@ This writes the output to the `predictions.txt` with contents like:
 Each line has data separated by a comma ",". The first item is the actual label of the digit. The second item is the predicted label of the digit.
 ## Iris Classification
 
-[`xgboost_iris_classification.py.py`](./xgboost_iris_classification.py.py) contains an implementation for a RunInference pipeline that performs classification on tabular data from the [Iris Dataset](https://scikit-learn.org/stable/auto_examples/datasets/plot_iris_dataset.html).
+[`xgboost_iris_classification.py`](./xgboost_iris_classification.py) contains an implementation for a RunInference pipeline that performs classification on tabular data from the [Iris Dataset](https://scikit-learn.org/stable/auto_examples/datasets/plot_iris_dataset.html).
 
 The pipeline reads rows that contain the features of a given iris. The features are Sepal Length, Sepal Width, Petal Length and Petal Width. The pipeline passes those features to the XGBoost implementation of RunInference which writes the iris type predictions to a text file.
 
-### Dataset and model for language modeling
+### Dataset and model for iris classification
 
 To use this transform, you need to have sklearn installed. The dataset is loaded from using sklearn. The `_train_model` function can be used to train a simple classifier. The function outputs it's configuration in a file that can be loaded by the `XGBoostModelHandler`.
 
 ### Training a simple classifier
 
-The following function allows you to train a simple classifier using the sklearn Iris dataset. The trained model will be saved in the location passed as a parameter and can then later be loaded in an pipeline using the `XGBoostModelHandler`.
+The following function allows you to train a simple classifier using the sklearn Iris dataset. The trained model will be saved in the location passed as a parameter and can then later be loaded in a pipeline using the `XGBoostModelHandler`.
 ```
 import xgboost
 
@@ -644,4 +645,45 @@ When all elements are in a single batch the output looks like this:
 ```
 0,[1 1 1 0 0 0 0 1 2 0 0 2 0 2 1 2 2 2 2 0 0 0 0 2 2 0 2 2 2 1]
 
+```
+
+## Milk Quality Prediction Windowing Example
+
+`milk_quality_prediction_windowing.py` contains an implementation of a windowing pipeline making use of the RunInference transform. An XGBoost classification the quality of milk based on measurements of pH, temperature, taste, odor, fat, turbidity and color. The model labels a measurement as `bad`, `medium` or `good`. The model is trained on the [Kaggle Milk Quality Prediction dataset](https://www.kaggle.com/datasets/cpluzshrijayan/milkquality).
+
+#### Loading and preprocessing the dataset
+
+The `preprocess_data` function loads the Kaggle dataset from a csv file and splits it into a training and accompanying label set as well as a test set. In typical machine learning setting we would use the training set and the labels to train the model and the test set is used to calculate various metrics such as recall and precision.   We will use the test set data in a test streaming pipeline to showcase the windowing capabilities.
+
+#### Training an XGBoost classifier
+
+The `train_model` function allows you to train a simple XGBoost classifier using the Kaggle Milk Quality Prediction dataset. The trained model will be saved in JSON format at the location passed as a parameter and can then later be used for inference using by loading it via the XGBoostModelhandler.
+
+#### Running the pipeline
+
+```
+python -m apache_beam.examples.inference.milk_quality_prediction_windowing.py \
+    --dataset \
+    <DATASET> \
+    --pipeline_input_data \
+    <INPUT_DATA> \
+    --training_set \
+    <TRAINING_SET> \
+    --labels \
+    <LABELS> \
+    --model_state \
+    <MODEL_STATE>
+```
+
+Where `<DATASET>` is the path to a csv file containing the Kaggle Milk Quality prediction dataset, `<INPUT_DATA>` a filepath to save the data that will be used as input for the streaming pipeline (test set), `<TRAINING_SET>` a filepath to store the training set in csv format, `<LABELS>` a filepath to store the csv containing the labels used to train the model and  `<MODEL_STATE>` the path to the JSON file containing the trained model.
+`<INPUT_DATA>`, `<TRAINING_SET>`, and `<LABELS>` will all be parsed from `<DATASET>` and saved before pipeline execution.
+
+Using the test set, we simulate a streaming pipeline that a receives a new measurement of the milk quality parameters every minute. A sliding window keeps track of the measurement of the last 30 minutes and new window starts every 5 minutes. The model predicts the quality of each measurement. After 30 minutes the results are aggregated in a tuple containing the number of measurements that were predicted as bad, medium and high quality samples. The output of each window looks as follows:
+```
+MilkQualityAggregation(bad_quality_measurements=10, medium_quality_measurements=13, high_quality_measurements=6)
+MilkQualityAggregation(bad_quality_measurements=9, medium_quality_measurements=11, high_quality_measurements=4)
+MilkQualityAggregation(bad_quality_measurements=8, medium_quality_measurements=7, high_quality_measurements=4)
+MilkQualityAggregation(bad_quality_measurements=6, medium_quality_measurements=4, high_quality_measurements=4)
+MilkQualityAggregation(bad_quality_measurements=3, medium_quality_measurements=3, high_quality_measurements=3)
+MilkQualityAggregation(bad_quality_measurements=1, medium_quality_measurements=2, high_quality_measurements=1)
 ```

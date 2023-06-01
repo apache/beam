@@ -190,7 +190,6 @@ from apache_beam.transforms import window
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.typehints import with_input_types
 from apache_beam.typehints import with_output_types
-from apache_beam.utils.annotations import experimental
 
 # Protect against environments where spanner library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
@@ -676,7 +675,6 @@ class _ReadFromPartitionFn(DoFn):
       self._snapshot.close()
 
 
-@experimental(extra_message="No backwards-compatibility guarantees.")
 class ReadFromSpanner(PTransform):
   """
   A PTransform to perform reads from cloud spanner.
@@ -817,7 +815,6 @@ class ReadFromSpanner(PTransform):
     return res
 
 
-@experimental(extra_message="No backwards-compatibility guarantees.")
 class WriteToSpanner(PTransform):
   def __init__(
       self,

@@ -37,22 +37,6 @@ This section describes what is needed to run the backend application.
 
 ## Go commands to run/test application locally
 
-### Prerequisite
-
-> **Google Cloud Shell note:** `start_datastore_emulator.sh` script makes use of `nc` and `lsof` commands which are not installed on Google Cloud Shell machines. You can install them using `sudo apt install netcat lsof`.
-
-> **Google Cloud Shell note:** run `unset GOOGLE_CLOUD_PROJECT` before running tests so they would use locally running datastore emulator.
-
-Start datastore emulator
-```shell
-bash start_datastore_emulator.sh
-```
-
-After you have finished running tests
-```shell
-bash stop_datastore_emulator.sh
-```
-
 ### Run/build
 Go to the backend directory:
 
@@ -145,7 +129,6 @@ These properties are stored in `backend/properties.yaml` file:
 - `max_snippet_size` - is the file content size limit. Since 1 character occupies 1 byte of memory, and 1 MB is approximately equal to 1000000 bytes, then maximum size of the snippet is 1000000.
 - `id_length` - is the length of the identifier that is used to store data in the cloud datastore. It's appropriate length to save storage size in the cloud datastore and provide good randomnicity.
 - `removing_unused_snippets_cron` - is the cron expression for the scheduled task to remove unused snippets.
-- `removing_unused_snippets_days` - is the number of days after which a snippet becomes unused.
 
 ## Running the server app via Docker
 

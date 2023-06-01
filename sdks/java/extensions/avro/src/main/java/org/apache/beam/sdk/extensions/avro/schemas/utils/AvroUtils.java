@@ -34,14 +34,18 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import net.bytebuddy.description.type.TypeDescription.ForLoadedType;
+import net.bytebuddy.implementation.bytecode.Division;
 import net.bytebuddy.implementation.bytecode.Duplication;
+import net.bytebuddy.implementation.bytecode.Multiplication;
 import net.bytebuddy.implementation.bytecode.StackManipulation;
 import net.bytebuddy.implementation.bytecode.StackManipulation.Compound;
 import net.bytebuddy.implementation.bytecode.TypeCreation;
 import net.bytebuddy.implementation.bytecode.assign.TypeCasting;
+import net.bytebuddy.implementation.bytecode.constant.LongConstant;
 import net.bytebuddy.implementation.bytecode.member.MethodInvocation;
 import net.bytebuddy.matcher.ElementMatchers;
 import org.apache.avro.AvroRuntimeException;
@@ -59,8 +63,6 @@ import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.specific.SpecificData;
 import org.apache.avro.specific.SpecificRecord;
 import org.apache.avro.util.Utf8;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.extensions.avro.schemas.AvroRecordSchema;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
@@ -138,18 +140,26 @@ import org.joda.time.ReadableInstant;
  *
  * is used.
  */
-@Experimental(Kind.SCHEMAS)
 @SuppressWarnings({
   "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes"
 })
 public class AvroUtils {
+
   static {
     // This works around a bug in the Avro library (AVRO-1891) around SpecificRecord's handling
     // of DateTime types.
     SpecificData.get().addLogicalTypeConversion(new AvroCoder.JodaTimestampConversion());
     GenericData.get().addLogicalTypeConversion(new AvroCoder.JodaTimestampConversion());
   }
+
+  private static final ForLoadedType BYTES = new ForLoadedType(byte[].class);
+  private static final ForLoadedType JAVA_INSTANT = new ForLoadedType(java.time.Instant.class);
+  private static final ForLoadedType JAVA_LOCALE_DATE =
+      new ForLoadedType(java.time.LocalDate.class);
+  private static final ForLoadedType JODA_READABLE_INSTANT =
+      new ForLoadedType(ReadableInstant.class);
+  private static final ForLoadedType JODA_INSTANT = new ForLoadedType(Instant.class);
 
   // Unwrap an AVRO schema into the base type an whether it is nullable.
   public static class TypeWithNullability {
@@ -254,7 +264,10 @@ public class AvroUtils {
 
     @Override
     protected java.lang.reflect.Type convertDefault(TypeDescriptor<?> type) {
-      if (type.isSubtypeOf(TypeDescriptor.of(GenericFixed.class))) {
+      if (type.isSubtypeOf(TypeDescriptor.of(java.time.Instant.class))
+          || type.isSubtypeOf(TypeDescriptor.of(java.time.LocalDate.class))) {
+        return convertDateTime(type);
+      } else if (type.isSubtypeOf(TypeDescriptor.of(GenericFixed.class))) {
         return byte[].class;
       } else {
         return super.convertDefault(type);
@@ -282,10 +295,46 @@ public class AvroUtils {
             MethodInvocation.invoke(
                 new ForLoadedType(GenericFixed.class)
                     .getDeclaredMethods()
-                    .filter(
-                        ElementMatchers.named("bytes")
-                            .and(ElementMatchers.returns(new ForLoadedType(byte[].class))))
+                    .filter(ElementMatchers.named("bytes").and(ElementMatchers.returns(BYTES)))
                     .getOnly()));
+      } else if (java.time.Instant.class.isAssignableFrom(type.getRawType())) {
+        // Generates the following code:
+        //   return Instant.ofEpochMilli(value.toEpochMilli())
+        StackManipulation onNotNull =
+            new Compound(
+                readValue,
+                MethodInvocation.invoke(
+                    JAVA_INSTANT
+                        .getDeclaredMethods()
+                        .filter(ElementMatchers.named("toEpochMilli"))
+                        .getOnly()),
+                MethodInvocation.invoke(
+                    JODA_INSTANT
+                        .getDeclaredMethods()
+                        .filter(
+                            ElementMatchers.isStatic().and(ElementMatchers.named("ofEpochMilli")))
+                        .getOnly()));
+        return shortCircuitReturnNull(readValue, onNotNull);
+      } else if (java.time.LocalDate.class.isAssignableFrom(type.getRawType())) {
+        // Generates the following code:
+        //   return Instant.ofEpochMilli(value.toEpochDay() * TimeUnit.DAYS.toMillis(1))
+        StackManipulation onNotNull =
+            new Compound(
+                readValue,
+                MethodInvocation.invoke(
+                    JAVA_LOCALE_DATE
+                        .getDeclaredMethods()
+                        .filter(ElementMatchers.named("toEpochDay"))
+                        .getOnly()),
+                LongConstant.forValue(TimeUnit.DAYS.toMillis(1)),
+                Multiplication.LONG,
+                MethodInvocation.invoke(
+                    JODA_INSTANT
+                        .getDeclaredMethods()
+                        .filter(
+                            ElementMatchers.isStatic().and(ElementMatchers.named("ofEpochMilli")))
+                        .getOnly()));
+        return shortCircuitReturnNull(readValue, onNotNull);
       }
       return super.convertDefault(type);
     }
@@ -303,25 +352,60 @@ public class AvroUtils {
 
     @Override
     protected StackManipulation convertDefault(TypeDescriptor<?> type) {
-      final ForLoadedType byteArrayType = new ForLoadedType(byte[].class);
       if (type.isSubtypeOf(TypeDescriptor.of(GenericFixed.class))) {
         // Generate the following code:
-        // return new T((byte[]) value);
+        //   return new T((byte[]) value);
         ForLoadedType loadedType = new ForLoadedType(type.getRawType());
         return new Compound(
             TypeCreation.of(loadedType),
             Duplication.SINGLE,
             // Load the parameter and cast it to a byte[].
             readValue,
-            TypeCasting.to(byteArrayType),
+            TypeCasting.to(BYTES),
             // Create a new instance that wraps this byte[].
             MethodInvocation.invoke(
                 loadedType
                     .getDeclaredMethods()
                     .filter(
-                        ElementMatchers.isConstructor()
-                            .and(ElementMatchers.takesArguments(byteArrayType)))
+                        ElementMatchers.isConstructor().and(ElementMatchers.takesArguments(BYTES)))
                     .getOnly()));
+      } else if (java.time.Instant.class.isAssignableFrom(type.getRawType())) {
+        // Generates the following code:
+        //   return java.time.Instant.ofEpochMilli(value.getMillis())
+        StackManipulation onNotNull =
+            new Compound(
+                readValue,
+                MethodInvocation.invoke(
+                    JODA_READABLE_INSTANT
+                        .getDeclaredMethods()
+                        .filter(ElementMatchers.named("getMillis"))
+                        .getOnly()),
+                MethodInvocation.invoke(
+                    JAVA_INSTANT
+                        .getDeclaredMethods()
+                        .filter(
+                            ElementMatchers.isStatic().and(ElementMatchers.named("ofEpochMilli")))
+                        .getOnly()));
+        return shortCircuitReturnNull(readValue, onNotNull);
+      } else if (java.time.LocalDate.class.isAssignableFrom(type.getRawType())) {
+        // Generates the following code:
+        //   return java.time.LocalDate.ofEpochDay(value.getMillis() / TimeUnit.DAYS.toMillis(1))
+        StackManipulation onNotNull =
+            new Compound(
+                readValue,
+                MethodInvocation.invoke(
+                    JODA_READABLE_INSTANT
+                        .getDeclaredMethods()
+                        .filter(ElementMatchers.named("getMillis"))
+                        .getOnly()),
+                LongConstant.forValue(TimeUnit.DAYS.toMillis(1)),
+                Division.LONG,
+                MethodInvocation.invoke(
+                    JAVA_LOCALE_DATE
+                        .getDeclaredMethods()
+                        .filter(ElementMatchers.isStatic().and(ElementMatchers.named("ofEpochDay")))
+                        .getOnly()));
+        return shortCircuitReturnNull(readValue, onNotNull);
       }
       return super.convertDefault(type);
     }

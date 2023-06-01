@@ -29,7 +29,6 @@ from typing import Dict
 from typing import Iterable
 from typing import List
 from typing import Optional
-from typing import Tuple
 from typing import Union
 
 from apache_beam.coders.coder_impl import CoderImpl

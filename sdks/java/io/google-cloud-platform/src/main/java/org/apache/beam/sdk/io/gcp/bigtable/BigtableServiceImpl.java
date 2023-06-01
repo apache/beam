@@ -66,9 +66,12 @@ import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.ServiceCallMetric;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableIO.BigtableSource;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
+import org.apache.beam.sdk.metrics.Distribution;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Stopwatch;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ComparisonChain;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.FutureCallback;
@@ -77,6 +80,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * An implementation of {@link BigtableService} that actually communicates with the Cloud Bigtable
@@ -86,6 +91,9 @@ import org.joda.time.Duration;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class BigtableServiceImpl implements BigtableService {
+
+  private static final Logger LOG = LoggerFactory.getLogger(BigtableServiceImpl.class);
+
   // Default byte limit is a percentage of the JVM's available memory
   private static final double DEFAULT_BYTE_LIMIT_PERCENTAGE = .1;
   // Percentage of max number of rows allowed in the buffer
@@ -118,6 +126,7 @@ class BigtableServiceImpl implements BigtableService {
                   .setMaxRpcTimeout(org.threeten.bp.Duration.ofMillis(readWaitTimeout.getMillis()))
                   .build());
     }
+    LOG.info("Started Bigtable service with settings " + builder.build());
     this.client = BigtableDataClient.create(builder.build());
   }
 
@@ -475,9 +484,14 @@ class BigtableServiceImpl implements BigtableService {
   @VisibleForTesting
   static class BigtableWriterImpl implements Writer {
     private Batcher<RowMutationEntry, Void> bulkMutation;
+    private Integer outstandingMutations = 0;
+    private Stopwatch stopwatch = Stopwatch.createUnstarted();
     private String projectId;
     private String instanceId;
     private String tableId;
+
+    private Distribution bulkSize = Metrics.distribution("BigTable-" + tableId, "batchSize");
+    private Distribution latency = Metrics.distribution("BigTable-" + tableId, "batchLatencyMs");
 
     BigtableWriterImpl(
         BigtableDataClient client, String projectId, String instanceId, String tableId) {
@@ -491,7 +505,12 @@ class BigtableServiceImpl implements BigtableService {
     public void flush() throws IOException {
       if (bulkMutation != null) {
         try {
+          stopwatch.start();
           bulkMutation.flush();
+          bulkSize.update(outstandingMutations);
+          outstandingMutations = 0;
+          stopwatch.stop();
+          latency.update(stopwatch.elapsed(TimeUnit.MILLISECONDS));
         } catch (InterruptedException e) {
           Thread.currentThread().interrupt();
           // We fail since flush() operation was interrupted.
@@ -504,8 +523,13 @@ class BigtableServiceImpl implements BigtableService {
     public void close() throws IOException {
       if (bulkMutation != null) {
         try {
+          stopwatch.start();
           bulkMutation.flush();
           bulkMutation.close();
+          bulkSize.update(outstandingMutations);
+          outstandingMutations = 0;
+          stopwatch.stop();
+          latency.update(stopwatch.elapsed(TimeUnit.MILLISECONDS));
         } catch (InterruptedException e) {
           Thread.currentThread().interrupt();
           // We fail since flush() operation was interrupted.
@@ -542,6 +566,7 @@ class BigtableServiceImpl implements BigtableService {
 
       CompletableFuture<MutateRowResponse> result = new CompletableFuture<>();
 
+      outstandingMutations += 1;
       Futures.addCallback(
           new VendoredListenableFutureAdapter<>(bulkMutation.add(entry)),
           new FutureCallback<MutateRowResponse>() {

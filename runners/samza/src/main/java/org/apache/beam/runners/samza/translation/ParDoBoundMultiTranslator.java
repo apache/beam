@@ -42,6 +42,7 @@ import org.apache.beam.runners.samza.runtime.Op;
 import org.apache.beam.runners.samza.runtime.OpAdapter;
 import org.apache.beam.runners.samza.runtime.OpEmitter;
 import org.apache.beam.runners.samza.runtime.OpMessage;
+import org.apache.beam.runners.samza.runtime.PortableDoFnOp;
 import org.apache.beam.runners.samza.runtime.SamzaDoFnInvokerRegistrar;
 import org.apache.beam.runners.samza.util.SamzaPipelineTranslatorUtils;
 import org.apache.beam.runners.samza.util.StateUtils;
@@ -321,8 +322,8 @@ class ParDoBoundMultiTranslator<InT, OutT>
                 .getKeyCoder()
             : null;
 
-    final DoFnOp<InT, OutT, RawUnionValue> op =
-        new DoFnOp<>(
+    final PortableDoFnOp<InT, OutT, RawUnionValue> op =
+        new PortableDoFnOp<>(
             mainOutputTag,
             new NoOpDoFn<>(),
             keyCoder,

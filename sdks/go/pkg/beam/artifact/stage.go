@@ -159,11 +159,11 @@ func Stage(ctx context.Context, client jobpb.LegacyArtifactStagingServiceClient,
 	}
 	stagedHash, err := stageChunks(stream, fd)
 	if err != nil {
-		stream.CloseAndRecv() // ignore error
-		return nil, errors.Wrapf(err, "failed to send chunks for %v", filename)
+		_, errClose := stream.CloseAndRecv()
+		return nil, errors.Wrapf(err, "failed to send chunks for %v; close error: %v", filename, errClose)
 	}
-	if _, err := stream.CloseAndRecv(); err != nil && err != io.EOF {
-		return nil, errors.Wrapf(err, "failed to close stream for %v", filename)
+	if resp, err := stream.CloseAndRecv(); err != nil && err != io.EOF {
+		return nil, errors.Wrapf(err, "failed to close stream for %v; response: %v", filename, resp)
 	}
 	if hash != stagedHash {
 		return nil, errors.Errorf("unexpected SHA256 for sent chunks for %v: %v, want %v", filename, stagedHash, hash)
@@ -188,7 +188,11 @@ func stageChunks(stream jobpb.LegacyArtifactStagingService_PutArtifactClient, r 
 					},
 				},
 			}
-			if err := stream.Send(chunk); err != nil {
+			err := stream.Send(chunk)
+			if err == io.EOF {
+				return "", err
+			}
+			if err != nil {
 				return "", errors.Wrap(err, "chunk send failed")
 			}
 		}

@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.aws2.dynamodb;
 
-import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.IntStream.range;
 import static java.util.stream.IntStream.rangeClosed;
@@ -32,7 +31,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.io.Serializable;
-import java.net.URI;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -44,8 +42,6 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.io.aws2.MockClientBuilderFactory;
-import org.apache.beam.sdk.io.aws2.common.ClientConfiguration;
-import org.apache.beam.sdk.io.aws2.common.RetryConfiguration;
 import org.apache.beam.sdk.io.aws2.dynamodb.DynamoDBIO.Write;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -58,7 +54,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.joda.time.Duration;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -69,9 +64,6 @@ import org.mockito.ArgumentMatcher;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
-import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
-import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
-import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClientBuilder;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
@@ -97,23 +89,12 @@ public class DynamoDBIOWriteTest {
 
   @Test
   public void testWritePutItems() {
-    writePutItems(identity());
-  }
-
-  @Test
-  public void testWritePutItemsWithLegacyProvider() {
-    MockClientBuilderFactory.set(pipeline, DynamoDbClientBuilder.class, null);
-    writePutItems(
-        write -> write.withDynamoDbClientProvider(StaticDynamoDBClientProvider.of(client)));
-  }
-
-  private void writePutItems(Function<Write<Item>, Write<Item>> fn) {
     List<Item> items = Item.range(0, 100);
 
     Supplier<List<Item>> capturePuts = captureBatchWrites(client, req -> req.putRequest().item());
 
     Write<Item> write = DynamoDBIO.<Item>write().withWriteRequestMapperFn(putRequestMapper);
-    PCollection<Void> output = pipeline.apply(Create.of(items)).apply(fn.apply(write));
+    PCollection<Void> output = pipeline.apply(Create.of(items)).apply(write);
 
     PAssert.that(output).empty();
     pipeline.run().waitUntilFinish();
@@ -177,24 +158,13 @@ public class DynamoDBIOWriteTest {
 
   @Test
   public void testWriteDeleteItems() {
-    writeDeleteItems(identity());
-  }
-
-  @Test
-  public void testWriteDeleteItemsWithLegacyProvider() {
-    MockClientBuilderFactory.set(pipeline, DynamoDbClientBuilder.class, null);
-    writeDeleteItems(
-        write -> write.withDynamoDbClientProvider(StaticDynamoDBClientProvider.of(client)));
-  }
-
-  private void writeDeleteItems(Function<Write<Item>, Write<Item>> fn) {
     List<Item> items = Item.range(0, 100);
 
     Supplier<List<Item>> captureDeletes =
         captureBatchWrites(client, req -> req.deleteRequest().key());
 
     Write<Item> write = DynamoDBIO.<Item>write().withWriteRequestMapperFn(deleteRequestMapper);
-    PCollection<Void> output = pipeline.apply(Create.of(items)).apply(fn.apply(write));
+    PCollection<Void> output = pipeline.apply(Create.of(items)).apply(write);
 
     PAssert.that(output).empty();
     pipeline.run().waitUntilFinish();
@@ -249,45 +219,6 @@ public class DynamoDBIOWriteTest {
     ordered.verify(client).batchWriteItem(argThat(matchWritesUnordered(writes)));
     ordered.verify(client).batchWriteItem(argThat(matchWritesUnordered(writes.subList(4, 10))));
     ordered.verify(client).batchWriteItem(argThat(matchWritesUnordered(writes.subList(8, 10))));
-  }
-
-  @Test
-  public void testBuildWithCredentialsProviderAndRegion() {
-    Region region = Region.US_EAST_1;
-    AwsCredentialsProvider credentialsProvider = DefaultCredentialsProvider.create();
-
-    Write<Object> write =
-        DynamoDBIO.write().withDynamoDbClientProvider(credentialsProvider, region.id());
-    assertThat(write.getClientConfiguration())
-        .isEqualTo(ClientConfiguration.create(credentialsProvider, region, null));
-  }
-
-  @Test
-  public void testBuildWithCredentialsProviderAndRegionAndEndpoint() {
-    Region region = Region.US_EAST_1;
-    AwsCredentialsProvider credentialsProvider = DefaultCredentialsProvider.create();
-    URI endpoint = URI.create("localhost:9999");
-
-    Write<Object> write =
-        DynamoDBIO.write().withDynamoDbClientProvider(credentialsProvider, region.id(), endpoint);
-    assertThat(write.getClientConfiguration())
-        .isEqualTo(ClientConfiguration.create(credentialsProvider, region, endpoint));
-  }
-
-  @Test
-  public void testBuildWithRetryConfig() {
-    // sum up user level and sdk level retries
-    DynamoDBIO.RetryConfiguration retryConfig =
-        DynamoDBIO.RetryConfiguration.builder()
-            .setMaxAttempts(3)
-            .setMaxDuration(Duration.ZERO)
-            .build();
-    Write<Object> write = DynamoDBIO.write().withRetryConfiguration(retryConfig);
-    assertThat(write.getClientConfiguration())
-        .isEqualTo(
-            ClientConfiguration.builder()
-                .retry(RetryConfiguration.builder().numRetries(8).build())
-                .build());
   }
 
   @DefaultCoder(AvroCoder.class)

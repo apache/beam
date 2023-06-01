@@ -32,9 +32,9 @@ import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.SimpleExecutionState;
 import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.inprocess.InProcessServerBuilder;
-import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.inprocess.InProcessServerBuilder;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.StreamObserver;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.Scope;
@@ -43,6 +43,7 @@ import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.annotations.Threads;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 /** Benchmarks for {@link BeamFnLoggingClient}. */
 public class BeamFnLoggingClientBenchmark {
@@ -190,6 +191,19 @@ public class BeamFnLoggingClientBenchmark {
       LOG.warn("log me");
     }
     BeamFnLoggingMDC.setInstructionId(null);
+  }
+
+  @Benchmark
+  @Threads(16) // Use several threads since we expect contention during logging
+  public void testLoggingWithCustomData(
+      ManyExpectedCallsLoggingClientAndService client, ManageExecutionState executionState)
+      throws Exception {
+    try (Closeable state =
+        executionState.executionStateTracker.enterState(executionState.simpleExecutionState)) {
+      try (Closeable mdc = MDC.putCloseable("key", "value")) {
+        LOG.warn("log me");
+      }
+    }
   }
 
   @Benchmark

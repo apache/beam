@@ -40,8 +40,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
@@ -543,7 +541,6 @@ import org.slf4j.LoggerFactory;
  * corresponding code reviewers mentioned <a
  * href="https://github.com/apache/beam/blob/master/sdks/java/io/kafka/OWNERS">here</a>.
  */
-@Experimental(Kind.SOURCE_SINK)
 public class KafkaIO {
 
   /**
@@ -687,7 +684,6 @@ public class KafkaIO {
 
     abstract Builder<K, V> toBuilder();
 
-    @Experimental(Kind.PORTABILITY)
     @AutoValue.Builder
     abstract static class Builder<K, V> {
       abstract Builder<K, V> setConsumerConfig(Map<String, Object> config);
@@ -824,7 +820,6 @@ public class KafkaIO {
      * Exposes {@link KafkaIO.TypedWithoutMetadata} as an external transform for cross-language
      * usage.
      */
-    @Experimental(Kind.PORTABILITY)
     @AutoService(ExternalTransformRegistrar.class)
     public static class External implements ExternalTransformRegistrar {
 
@@ -1674,7 +1669,6 @@ public class KafkaIO {
       this.read = read;
     }
 
-    @Experimental(Kind.PORTABILITY)
     static class Builder<K, V>
         implements ExternalTransformBuilder<
             Read.External.Configuration, PBegin, PCollection<KV<K, V>>> {
@@ -1786,7 +1780,6 @@ public class KafkaIO {
       this.read = read;
     }
 
-    @Experimental(Kind.PORTABILITY)
     static class Builder<K, V>
         implements ExternalTransformBuilder<Read.External.Configuration, PBegin, PCollection<Row>> {
 
@@ -1879,7 +1872,6 @@ public class KafkaIO {
    *
    * . Note that this expansion is not supported when running with x-lang on Dataflow.
    */
-  @Experimental(Kind.PORTABILITY)
   @AutoValue
   @AutoValue.CopyAnnotations
   public abstract static class ReadSourceDescriptors<K, V>
@@ -2716,7 +2708,6 @@ public class KafkaIO {
 
     abstract Builder<K, V> toBuilder();
 
-    @Experimental(Kind.PORTABILITY)
     @AutoValue.Builder
     abstract static class Builder<K, V>
         implements ExternalTransformBuilder<
@@ -2751,7 +2742,6 @@ public class KafkaIO {
     }
 
     /** Exposes {@link KafkaIO.Write} as an external transform for cross-language usage. */
-    @Experimental(Kind.PORTABILITY)
     @AutoService(ExternalTransformRegistrar.class)
     public static class External implements ExternalTransformRegistrar {
 

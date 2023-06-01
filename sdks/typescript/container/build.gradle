@@ -71,7 +71,8 @@ if (project.rootProject.hasProperty(["docker-pull-licenses"])) {
 } else {
   def skipPullLicenses = tasks.register("skipPullLicenses", Exec) {
     executable "sh"
-    args "-c", "mkdir -p build/target/go-licenses"
+    // Touch a dummy file to ensure the directory exists.
+    args "-c", "mkdir -p build/target/go-licenses && touch build/target/go-licenses/skip"
   }
   dockerPrepare.dependsOn skipPullLicenses
 }

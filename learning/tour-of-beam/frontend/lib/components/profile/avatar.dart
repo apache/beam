@@ -32,7 +32,7 @@ class Avatar extends StatelessWidget {
     return GestureDetector(
       onTap: () {
         final closeNotifier = PublicNotifier();
-        openOverlay(
+        showOverlay(
           context: context,
           closeNotifier: closeNotifier,
           positioned: Positioned(

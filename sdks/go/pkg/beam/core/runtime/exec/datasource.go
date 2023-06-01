@@ -108,9 +108,9 @@ func (n *DataSource) StartBundle(ctx context.Context, id string, data DataContex
 	return n.Out.StartBundle(ctx, id, data)
 }
 
-// splitSuccess is a marker error to indicate we've reached the split index.
+// errSplitSuccess is a marker error to indicate we've reached the split index.
 // Akin to io.EOF.
-var splitSuccess = errors.New("split index reached")
+var errSplitSuccess = errors.New("split index reached")
 
 // process handles converting elements from the data source to timers.
 //
@@ -151,7 +151,7 @@ func (n *DataSource) process(ctx context.Context, data func(bcr *byteCountReader
 				err = timer(&bcr, e.PtransformID, e.TimerFamilyID)
 			}
 
-			if err == splitSuccess {
+			if err == errSplitSuccess {
 				// Returning splitSuccess means we've split, and aren't consuming the remaining buffer.
 				// We mark the PTransform done to ignore further data.
 				splitPrimaryComplete[e.PtransformID] = true
@@ -258,13 +258,21 @@ func (n *DataSource) Process(ctx context.Context) ([]*Checkpoint, error) {
 			}
 			//	We've finished processing an element, check if we have finished a split.
 			if n.incrementIndexAndCheckSplit() {
-				return splitSuccess
+				return errSplitSuccess
 			}
 		}
 	},
 		func(bcr *byteCountReader, ptransformID, timerFamilyID string) error {
-			tmap, err := decodeTimer(cp, wc, bcr)
-			log.Infof(ctx, "DEBUGLOG: timer received for: %v and %v - %+v  err: %v", ptransformID, timerFamilyID, tmap, err)
+
+			if fn, ok := n.OnTimerTransforms[ptransformID].Fn.OnTimerFn(); ok {
+				_, err := n.OnTimerTransforms[ptransformID].InvokeTimerFn(ctx, fn, timerFamilyID, bcr)
+				if err != nil {
+					log.Warnf(ctx, "expected transform %v to have an OnTimer method attached to handle"+
+						"Timer Family ID: %v callback, but it did not. Please file an issue with Apache Beam"+
+						"if you have defined OnTimer method with reproducible code at https://github.com/apache/beam/issues", ptransformID, timerFamilyID)
+					return errors.WithContext(err, "ontimer callback invocation failed")
+				}
+			}
 			return nil
 		})
 

@@ -40,31 +40,6 @@ task("tidy") {
   }
 }
 
-val startDatastoreEmulator by tasks.registering {
-    doFirst {
-        val process = ProcessBuilder()
-            .directory(projectDir)
-            .inheritIO()
-            .command("sh", "start_datastore_emulator.sh")
-            .start()
-            .waitFor()
-        if (process == 0) {
-            println("Datastore emulator started")
-        } else {
-            println("Failed to start datastore emulator")
-        }
-    }
-}
-
-val stopDatastoreEmulator by tasks.registering {
-    doLast {
-        exec {
-            executable("sh")
-            args("stop_datastore_emulator.sh")
-        }
-    }
-}
-
 val test by tasks.registering {
     group = "verification"
     description = "Test the backend"
@@ -93,17 +68,24 @@ val testWithoutCache by tasks.registering {
     }
 }
 
-test { dependsOn(startDatastoreEmulator) }
-test { finalizedBy(stopDatastoreEmulator) }
-
-testWithoutCache { dependsOn(startDatastoreEmulator) }
-testWithoutCache { finalizedBy(stopDatastoreEmulator) }
-
 task("removeUnusedSnippet") {
     doLast {
       exec {
          executable("go")
-         args("run", "cmd/remove_unused_snippets.go", System.getProperty("dayDiff"), System.getProperty("projectId"))
+         args("run", "cmd/remove_unused_snippets/remove_unused_snippets.go", "cleanup",
+          "-day_diff", System.getProperty("dayDiff"), "-project_id", System.getProperty("projectId"),
+          "-namespace", System.getProperty("namespace"))
+      }
+    }
+}
+
+task("removeSnippet") {
+    doLast {
+      exec {
+         executable("go")
+         args("run", "cmd/remove_unused_snippets/remove_unused_snippets.go", "remove",
+          "-snippet_id", System.getProperty("snippetId"), "-project_id", System.getProperty("projectId"),
+          "-namespace", System.getProperty("namespace"))
       }
     }
 }

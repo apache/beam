@@ -28,6 +28,7 @@ import java.util.stream.Collectors;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
@@ -152,10 +153,14 @@ public class SpannerWriteSchemaTransformProvider
   @AutoValue
   @DefaultSchema(AutoValueSchema.class)
   public abstract static class SpannerWriteSchemaTransformConfiguration implements Serializable {
+
+    @SchemaFieldDescription("Specifies the Cloud Spanner instance.")
     public abstract String getInstanceId();
 
+    @SchemaFieldDescription("Specifies the Cloud Spanner database.")
     public abstract String getDatabaseId();
 
+    @SchemaFieldDescription("Specifies the Cloud Spanner table.")
     public abstract String getTableId();
 
     public static Builder builder() {

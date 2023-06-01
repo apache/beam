@@ -116,6 +116,17 @@ func TryParDo(s Scope, dofn any, col PCollection, opts ...Option) ([]PCollection
 		}
 	}
 
+	wc := inWfn.Coder()
+	pipelineTimers, _ := fn.PipelineTimers()
+	if len(pipelineTimers) > 0 {
+		c, err := inferCoder(typex.New(reflect.TypeOf(col.Type())))
+		if err != nil {
+			return nil, addParDoCtx(errors.New("error infering coder from col"), s)
+		}
+		tc := coder.NewT(c, wc)
+		edge.TimerCoders = tc
+	}
+
 	var ret []PCollection
 	for _, out := range edge.Output {
 		c := PCollection{out.To}
@@ -270,10 +281,7 @@ func ParDo0(s Scope, dofn any, col PCollection, opts ...Option) {
 // DoFn instance via output PCollections, in the absence of external
 // communication mechanisms written by user code.
 //
-// Splittable DoFns (Experimental)
-//
-// Warning: Splittable DoFns are still experimental, largely untested, and
-// likely to have bugs.
+// # Splittable DoFns
 //
 // Splittable DoFns are DoFns that are able to split work within an element,
 // as opposed to only at element boundaries like normal DoFns. This is useful
