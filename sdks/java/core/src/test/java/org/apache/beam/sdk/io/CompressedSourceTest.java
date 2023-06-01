@@ -29,6 +29,10 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+import com.fing.compression.fourmc.FourMcCodec;
+import com.fing.compression.fourmc.FourMcHighCodec;
+import com.fing.compression.fourmc.FourMcMediumCodec;
+import com.fing.compression.fourmc.FourMcUltraCodec;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -67,6 +71,7 @@ import org.apache.commons.compress.compressors.deflate.DeflateCompressorOutputSt
 import org.apache.commons.compress.compressors.gzip.GzipCompressorOutputStream;
 import org.apache.commons.compress.compressors.snappy.SnappyCompressorOutputStream;
 import org.apache.commons.compress.compressors.zstandard.ZstdCompressorOutputStream;
+import org.apache.hadoop.conf.Configuration;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -112,6 +117,34 @@ public class CompressedSourceTest {
   public void testReadSnappy() throws Exception {
     byte[] input = generateInput(5000);
     runReadTest(input, Compression.SNAPPY);
+  }
+
+  /** Test reading nonempty input with Fourmc Fast. */
+  @Test
+  public void testFourmcFast() throws Exception {
+    byte[] input = generateInput(5000);
+    runReadTest(input, Compression.MC4_FAST);
+  }
+
+  /** Test reading nonempty input with Fourmc Medium. */
+  @Test
+  public void testFourmcMedium() throws Exception {
+    byte[] input = generateInput(5000);
+    runReadTest(input, Compression.MC4_MEDIUM);
+  }
+
+  /** Test reading nonempty input with Fourmc ULTRA. */
+  @Test
+  public void testFourmcUltra() throws Exception {
+    byte[] input = generateInput(5000);
+    runReadTest(input, Compression.MC4_ULTRA);
+  }
+
+  /** Test reading nonempty input with Fourmc High. */
+  @Test
+  public void testFourmcHigh() throws Exception {
+    byte[] input = generateInput(5000);
+    runReadTest(input, Compression.MC4_HIGH);
   }
 
   /** Test splittability of files in AUTO mode. */
@@ -173,6 +206,12 @@ public class CompressedSourceTest {
     assertTrue(source.isSplittable());
     source = CompressedSource.from(new ByteSource("input.csv", 1));
     assertTrue(source.isSplittable());
+
+    // Other extensions are assumed to be splittable.
+    source = CompressedSource.from(new ByteSource("input.4mc", 1));
+    assertFalse(source.isSplittable());
+    source = CompressedSource.from(new ByteSource("input.4MC", 1));
+    assertFalse(source.isSplittable());
   }
 
   /** Test splittability of files in GZIP mode -- none should be splittable. */
@@ -1005,6 +1044,25 @@ public class CompressedSourceTest {
         return LzoCompression.createLzopOutputStream(stream);
       case SNAPPY:
         return new SnappyCompressorOutputStream(stream, input.length);
+      case MC4_FAST:
+        FourMcCodec fourmcFast = new FourMcCodec();
+        fourmcFast.setConf(new Configuration());
+        return fourmcFast.createOutputStream(stream);
+      case MC4_MEDIUM:
+        FourMcMediumCodec fourmcMedium = new FourMcMediumCodec();
+        fourmcMedium.setConf(new Configuration());
+        return fourmcMedium.createOutputStream(stream);
+
+      case MC4_HIGH:
+        FourMcHighCodec fourmcHigh = new FourMcHighCodec();
+        fourmcHigh.setConf(new Configuration());
+        return fourmcHigh.createOutputStream(stream);
+
+      case MC4_ULTRA:
+        FourMcUltraCodec fourmcUltra = new FourMcUltraCodec();
+        fourmcUltra.setConf(new Configuration());
+        return fourmcUltra.createOutputStream(stream);
+
       default:
         throw new RuntimeException("Unexpected compression mode");
     }

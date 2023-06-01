@@ -17,6 +17,10 @@
  */
 package org.apache.beam.sdk.io;
 
+import com.fing.compression.fourmc.FourMcCodec;
+import com.fing.compression.fourmc.FourMcHighCodec;
+import com.fing.compression.fourmc.FourMcMediumCodec;
+import com.fing.compression.fourmc.FourMcUltraCodec;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PushbackInputStream;
@@ -27,10 +31,6 @@ import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
-import com.fing.compression.fourmc.FourMcCodec;
-import com.fing.compression.fourmc.FourMcHighCodec;
-import com.fing.compression.fourmc.FourMcMediumCodec;
-import com.fing.compression.fourmc.FourMcUltraCodec;
 import org.apache.beam.sdk.util.LzoCompression;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
@@ -246,60 +246,69 @@ public enum Compression {
     }
   },
 
-  /** Four MC Compression Splittable compressed file format leveraging LZ4
-   * Uses LZ4 Fast Compression*/
+  /**
+   * Four MC Compression Splittable compressed file format leveraging LZ4 Uses LZ4 Fast Compression
+   */
   MC4_FAST(".4mc", ".4mc") {
     @Override
     public WritableByteChannel writeCompressed(WritableByteChannel channel) throws IOException {
       return Channels.newChannel(
-              new FourMcCodec().createOutputStream(Channels.newOutputStream(channel)));
+          new FourMcCodec().createOutputStream(Channels.newOutputStream(channel)));
     }
 
     @Override
-    public ReadableByteChannel readDecompressed(ReadableByteChannel channel) {
-      return channel;
+    public ReadableByteChannel readDecompressed(ReadableByteChannel channel) throws IOException {
+      return Channels.newChannel(
+          new FourMcCodec().createInputStream(Channels.newInputStream(channel)));
     }
   },
-  /** Four MC Compression Splittable compressed file format leveraging LZ4
-   * Uses LZ4 MC Compression*/
+  /**
+   * Four MC Compression Splittable compressed file format leveraging LZ4 Uses LZ4 MC Compression
+   */
   MC4_MEDIUM(".4mc", ".4mc") {
     @Override
     public WritableByteChannel writeCompressed(WritableByteChannel channel) throws IOException {
       return Channels.newChannel(
-              new FourMcMediumCodec().createOutputStream(Channels.newOutputStream(channel)));
+          new FourMcMediumCodec().createOutputStream(Channels.newOutputStream(channel)));
     }
 
     @Override
-    public ReadableByteChannel readDecompressed(ReadableByteChannel channel) {
-      return channel;
+    public ReadableByteChannel readDecompressed(ReadableByteChannel channel) throws IOException {
+      return Channels.newChannel(
+          new FourMcCodec().createInputStream(Channels.newInputStream(channel)));
     }
   },
-  /** Four MC Compression Splittable compressed file format leveraging LZ4
-   * Uses LZ4 HC lvl 4 Compression */
+  /**
+   * Four MC Compression Splittable compressed file format leveraging LZ4 Uses LZ4 HC lvl 4
+   * Compression
+   */
   MC4_HIGH(".4mc", ".4mc") {
     @Override
     public WritableByteChannel writeCompressed(WritableByteChannel channel) throws IOException {
       return Channels.newChannel(
-              new FourMcHighCodec().createOutputStream(Channels.newOutputStream(channel)));
+          new FourMcHighCodec().createOutputStream(Channels.newOutputStream(channel)));
     }
 
     @Override
-    public ReadableByteChannel readDecompressed(ReadableByteChannel channel) {
-      return channel;
+    public ReadableByteChannel readDecompressed(ReadableByteChannel channel) throws IOException {
+      return Channels.newChannel(
+          new FourMcCodec().createInputStream(Channels.newInputStream(channel)));
     }
   },
-  /** Four MC Compression Splittable compressed file format leveraging LZ4
-   * LZ4 HC lvl 8 Compression */
+  /**
+   * Four MC Compression Splittable compressed file format leveraging LZ4 LZ4 HC lvl 8 Compression
+   */
   MC4_ULTRA(".4mc", ".4mc") {
     @Override
     public WritableByteChannel writeCompressed(WritableByteChannel channel) throws IOException {
       return Channels.newChannel(
-              new FourMcUltraCodec().createOutputStream(Channels.newOutputStream(channel)));
+          new FourMcUltraCodec().createOutputStream(Channels.newOutputStream(channel)));
     }
 
     @Override
-    public ReadableByteChannel readDecompressed(ReadableByteChannel channel) {
-      return channel;
+    public ReadableByteChannel readDecompressed(ReadableByteChannel channel) throws IOException {
+      return Channels.newChannel(
+          new FourMcCodec().createInputStream(Channels.newInputStream(channel)));
     }
   };
 

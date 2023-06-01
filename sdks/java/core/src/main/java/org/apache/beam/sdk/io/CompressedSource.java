@@ -108,7 +108,19 @@ public class CompressedSource<T> extends FileBasedSource<T> {
     DEFLATE(Compression.DEFLATE),
 
     /** @see Compression#SNAPPY */
-    SNAPPY(Compression.SNAPPY);
+    SNAPPY(Compression.SNAPPY),
+
+    /** @see Compression#MC4_FAST */
+    MC4_FAST(Compression.MC4_FAST),
+
+    /** @see Compression#MC4_MEDIUM */
+    MC4_MEDIUM(Compression.MC4_MEDIUM),
+
+    /** @see Compression#MC4_ULTRA */
+    MC4_ULTRA(Compression.MC4_ULTRA),
+
+    /** @see Compression#MC4_HIGH */
+    MC4_HIGH(Compression.MC4_HIGH);
 
     private final Compression canonical;
 
@@ -166,6 +178,18 @@ public class CompressedSource<T> extends FileBasedSource<T> {
 
         case SNAPPY:
           return SNAPPY;
+
+        case MC4_FAST:
+          return MC4_FAST;
+
+        case MC4_MEDIUM:
+          return MC4_MEDIUM;
+
+        case MC4_ULTRA:
+          return MC4_ULTRA;
+
+        case MC4_HIGH:
+          return MC4_HIGH;
 
         default:
           throw new IllegalArgumentException("Unsupported compression type: " + compression);

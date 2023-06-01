@@ -567,6 +567,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def arrow_version = "5.0.0"
     def jmh_version = "1.34"
     def jupiter_version = "5.7.0"
+    def fourmc_version = "3.0.0"
 
     // Export Spark versions, so they are defined in a single place only
     project.ext.spark3_version = spark3_version
@@ -824,6 +825,7 @@ class BeamModulePlugin implements Plugin<Project> {
         arrow_vector                                : "org.apache.arrow:arrow-vector:$arrow_version",
         arrow_memory_core                           : "org.apache.arrow:arrow-memory-core:$arrow_version",
         arrow_memory_netty                          : "org.apache.arrow:arrow-memory-netty:$arrow_version",
+        fourmc                                      :"com.fing.fourmc:hadoop-4mc:$fourmc_version",
       ],
       groovy: [
         groovy_all: "org.codehaus.groovy:groovy-all:2.4.13",
