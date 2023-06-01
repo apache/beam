@@ -470,6 +470,12 @@ tasks.register("pythonPreCommit") {
 }
 
 tasks.register("pythonNotebooksPreCommit") {
+  dependsOn(":sdks:python:test-suites:tox:pycommon:preCommitPyCommon")
+  dependsOn(":sdks:python:test-suites:tox:py37:preCommitPy37")
+  dependsOn(":sdks:python:test-suites:tox:py38:preCommitPy38")
+  dependsOn(":sdks:python:test-suites:tox:py39:preCommitPy39")
+  dependsOn(":sdks:python:test-suites:tox:py310:preCommitPy310")
+  dependsOn(":sdks:python:test-suites:tox:py311:preCommitPy311")
   dependsOn(":examples:notebooks:wordCount")
 }
 
