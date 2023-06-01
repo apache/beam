@@ -28,6 +28,7 @@ build, test, and deploy the frontend and backend services.
   - [Deploy examples](#deploy-examples)
 - [How to add your own example](#how-to-add-your-own-example)
 - [Deployment guide](#deployment-guide)
+- [Project structure](#project-structure)
 - [Contribution guide](#contribution-guide)
 
 # Setup development prerequisites
@@ -197,6 +198,25 @@ Please refer to [this document](load_your_code.md).
 
 # Deployment guide
 See deployment guide at [terraform/README.md](/playground/terraform/README.md)
+
+# Project structure
+
+Several directories in this repository are used for the Beam Playground project. The list of the directories used can be seen below.
+
+| Directory | Purpose |
+|-----------|---------|
+| [`/examples`](/examples) | Contains code of the examples for Java SDK. The examples are getting loaded into the main catalog. |
+| [`/learning/beamdoc`](/learning/beamdoc) | Contains code of the examples which should not be available in the main Playground catalog. |
+| [`/learning/katas`](/learning/katas) | Containes small code examples, loaded into main catalog.
+| [`/playground`](/playground) | Root of Playground sources. |
+| [`/playground/api`](/playground/api) | Protobuf definitions for the Playground gRPC API. |
+| [`/playground/backend`](/playground/backend) | Root of Playground backend sources. See [this document](/playground/backend/CONTRIBUTE.md) for detailed description. |
+| [`/playground/frontend`](/playground/frontend) | Root of Playground frontend sources. See [this document](/playground/frontend/CONTRIBUTE.md) for detailed description. |
+| [`/playground/infrastructure`](/playground/infrastructure) | Scripts used in Playground CI/CD pipelines for verifying and uploading examples. |
+| [`/playground/kafka-emulator`](/playground/kafka-emulator) | Sources of a Kafka emulator used for demonstrating KafkaIO examples. |
+| [`/playground/terraform`](/playground/terraform) | Terraform configuration files for Playground deployment to Google Cloud Platform. |
+| [`/sdks`](/sdks) | Source of the BEAM SDKs. Used by Playground as a source of examples for Go and Python SDKs. |
+
 # Contribution guide
 - Backend: see [backend/README.md](/playground/backend/README.md) and [backend/CONTRIBUTE.md](/playground/backend/CONTRIBUTE.md)
 - Frontend: see [frontend/README.md](/playground/frontend/README.md) and [frontend/CONTRIBUTE.md](/playground/frontend/CONTRIBUTE.md)
