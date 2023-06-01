@@ -22,7 +22,7 @@
 Check out the docs at https://github.com/actions/actions-runner-controller/blob/master/docs/about-arc.md
 
 # Installing
-1. Create a bucket for terraform state (or reuse existing that is noted in the environment file)
+1. Create a bucket for terraform state, making sure you disable public access and allow your account to access it. (or reuse existing that is noted in the environment file)
 
 2. Create a Github App in your account and install it in the repo you want to provide runners for.
 All is explained in : https://github.com/actions/actions-runner-controller/blob/master/docs/authenticating-to-the-github-api.md
@@ -55,13 +55,11 @@ webhook_scaling = "false"                                     # Enable webhook s
 ```
 5. Make sure you set the bucket name in the comment in the environment file for documentation purposes
 
-6. Create a google bucket for storing the terraform state. Make sure you disable public access and allow your account to access it.
-
-7.  From this directory, init terraform with:
+6.  From this directory, init terraform with:
 ```
 terraform init -backend-config="bucket=bucket_name"
 ```
-8. Terraform apply
+7. Terraform apply
 ```
 terraform apply -var-file=environments/environment_name.env
 ```
