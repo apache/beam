@@ -574,11 +574,6 @@ tasks.register("javaExamplesDataflowPrecommit") {
   dependsOn(":runners:google-cloud-dataflow-java:examples-streaming:preCommit")
 }
 
-tasks.register("runBeamDependencyCheck") {
-  dependsOn(":dependencyUpdates")
-  dependsOn(":sdks:python:dependencyUpdates")
-}
-
 tasks.register("whitespacePreCommit") {
   // TODO(https://github.com/apache/beam/issues/20209): Find a better way to specify the tasks without hardcoding py version.
   dependsOn(":sdks:python:test-suites:tox:py38:archiveFilesToLint")
