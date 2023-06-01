@@ -16,22 +16,26 @@
  * limitations under the License.
  */
 
-class BeamLinks {
-  // Website
-  static const website = 'https://beam.apache.org/';
-  static const about = 'https://beam.apache.org/get-started/beam-overview';
-  static const privacyPolicy = 'https://beam.apache.org/privacy_policy/';
+// ignore: avoid_web_libraries_in_flutter
 
-  // GitHub
-  static const github = 'https://github.com/apache/beam';
-  static const reportIssue = 'https://github.com/apache/beam/issues';
+import 'package:flutter/widgets.dart';
 
-  // Projects
-  static const playgroundGitHub =
-      'https://github.com/apache/beam/tree/master/playground';
-  static const scioGitHub = 'https://github.com/spotify/scio';
+class IFrameWidget extends StatefulWidget {
+  final String url;
+  final String viewType;
 
-  // Forms
-  static const feedbackGoogleForms =
-      'https://docs.google.com/forms/d/e/1FAIpQLSd5_5XeOwwW2yjEVHUXmiBad8Lxk-4OtNcgG45pbyAZzd4EbA/viewform?usp=pp_url';
+  const IFrameWidget({
+    required this.url,
+    required this.viewType,
+  });
+
+  @override
+  State<IFrameWidget> createState() => _IFrameWidgetState();
+}
+
+class _IFrameWidgetState extends State<IFrameWidget> {
+  @override
+  Widget build(BuildContext context) {
+    return ErrorWidget('This only works in web.');
+  }
 }
