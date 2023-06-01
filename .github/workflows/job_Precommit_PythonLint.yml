@@ -22,8 +22,8 @@ jobs:
         run:  pip install --retries 10 --upgrade pip && ls && pwd && pip install --retries 10 --upgrade tox==3.20.1 -r ./build-requirements.txt
         working-directory: sdks/python
       - name: Run python Lint 
-        run: tox run py37-lint
+        run: tox -e py37-lint
         working-directory: sdks/python
       - name: Run mypy
-        run: tox run py37-mypy
+        run: tox -e py37-mypy
         working-directory: sdks/python
