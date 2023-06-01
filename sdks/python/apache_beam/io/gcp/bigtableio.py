@@ -227,3 +227,79 @@ class WriteToBigTable(beam.PTransform):
                 beam_options['project_id'],
                 beam_options['instance_id'],
                 beam_options['table_id'])))
+
+
+class ExternalWriteToBigtable(beam.PTransform):
+
+  URN = "beam:schematransform:org.apache.beam:bigtable_write:v1"
+
+  def __init__(self, table_id, instance_id, project_id, expansion_service=None):
+    """Initialize an ExternalWriteToBigtable transform.
+    :param table_id:
+      The ID of the table to write to.
+    :param instance_id:
+      The ID of the instance where the table resides.
+    :param project_id:
+      The GCP project ID.
+    :param expansion_service:
+      The address of the expansion service. If no expansion service is
+      provided, will attempt to run the default GCP expansion service.
+    """
+    super().__init__()
+    self._table_id = table_id
+    self._instance_id = instance_id
+    self._project_id = project_id
+    self._expansion_service = (
+        expansion_service or BeamJarExpansionService(
+      'sdks:java:io:google-cloud-platform:expansion-service:build'))
+    self.schematransform_config = SchemaAwareExternalTransform.discover_config(
+      self._expansion_service, self.URN)
+
+  def expand(self, input):
+    external_write = SchemaAwareExternalTransform(
+      identifier=self.schematransform_config.identifier,
+      expansion_service=self._expansion_service,
+      rearrange_based_on_discovery=True,
+      tableId=self._table_id,
+      instanceId=self._instance_id,
+      projectId=self._project_id)
+
+    return (
+        input
+        | beam.Map(self.store_mutations_in_beam_rows)
+        | external_write)
+
+  def store_mutations_in_beam_rows(self, direct_row):
+    args = {"key": direct_row.row_key,
+            "mutations": []}
+    for mutation in direct_row._get_mutations():
+      if mutation.__contains__("set_cell"):
+        mutation_dict = {
+          "mutation": "SetCell",
+          "family_name": mutation.set_cell.family_name,
+          "column_qualifier": mutation.set_cell.column_qualifier,
+          "timestamp_micros": mutation.set_cell.timestamp_micros,
+          "value": mutation.set_cell.value}
+        print(mutation.set_cell)
+      elif mutation.__contains__("delete_from_column"):
+        mutation_dict = {
+          "mutation": "DeleteFromColumn",
+          "family_name": mutation.set_cell.family_name,
+          "column_qualifier": mutation.set_cell.column_qualifier}
+        print(mutation.delete_from_column)
+      elif mutation.__contains__("delete_from_family"):
+        mutation_dict = {
+          "mutation": "DeleteFromFamily",
+          "family_name": mutation.set_cell.family_name}
+        print(mutation.delete_from_family)
+      elif mutation.__contains__("delete_from_row"):
+        mutation_dict = {
+          "mutation": "DeleteFromRow"
+        }
+        print(mutation.delete_from_row)
+      else:
+        raise ValueError("Unexpected mutation: %s", mutation)
+
+      args["mutations"].append(mutation_dict)
+
+    return beam.Row(**args)
