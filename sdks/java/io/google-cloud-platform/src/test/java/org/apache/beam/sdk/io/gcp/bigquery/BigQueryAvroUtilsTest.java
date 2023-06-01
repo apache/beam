@@ -343,7 +343,7 @@ public class BigQueryAvroUtilsTest {
   }
 
   @Test
-  public void testAvroCollisionsToString() {
+  public void testSchemaCollisionsInAvroConversion() {
     TableSchema schema = new TableSchema();
     schema.setFields(
         Lists.newArrayList(
@@ -426,6 +426,7 @@ public class BigQueryAvroUtilsTest {
                                                                 .setName("float_value")
                                                                 .setType("FLOAT"))))))))),
             new TableFieldSchema().setName("platform").setType("STRING")));
+    // To string should be sufficient here as this exercises Avro's conversion feature
     String output = BigQueryAvroUtils.toGenericAvroSchema("root", schema.getFields()).toString();
     assertThat(output.length(), greaterThan(0));
   }
