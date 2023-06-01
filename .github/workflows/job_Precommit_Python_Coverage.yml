@@ -1,0 +1,45 @@
+name: Precommit Python coverage
+run-name: Python Precommit coverage
+on:
+  pull_request:
+    branches: [ "*" ]
+  issue_comment:
+    types: [created, edited]
+  workflow_dispatch:
+   inputs:
+     tags:
+        description: 'Test scenario tags'
+        required: false
+        type: boolean
+
+
+jobs:
+  PythonCoverage:
+    if: github.event.issue.pull_request && contains(github.event.comment.body, 'Run PythonLint PreCommit')
+    runs-on: self-hosted
+    defaults:
+      run:
+        working-directory: sdks/python
+
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install missing python versions
+        run: apt install -y python3.11-minimal python3.7-minimal python3.10-minimal python3.9-minimal
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.7 - 3.11'
+      - name: Install Dependencies
+        run:  pip install --retries 10 --upgrade pip && ls && pwd && pip install --retries 10 --upgrade tox==3.20.1 -r ./build-requirements.txt
+        working-directory: sdks/python
+      - name: Run python cloud coverage
+        run: tox -e py38-cloudcoverage
+        working-directory: sdks/python
+      - name: Run python pyarrow
+        run: tox -e py38-pyarrow-5
+        working-directory: sdks/python
+      - name: Archive code coverage results
+        uses: actions/upload-artifact@v3
+        with:
+          name: python-code-coverage-report
+          path: "**/pytest*.xml"
