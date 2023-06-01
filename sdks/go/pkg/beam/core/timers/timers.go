@@ -119,7 +119,7 @@ func (et EventTime) Clear(p Provider) {
 	p.Set(TimerMap{Family: et.Family, Clear: true})
 }
 
-// Clear clears this timer for the given tag.
+// ClearTag clears this timer for the given tag.
 func (pt EventTime) ClearTag(p Provider, tag string) {
 	p.Set(TimerMap{Family: pt.Family, Clear: true, Tag: tag})
 }
@@ -154,7 +154,7 @@ func (pt ProcessingTime) Clear(p Provider) {
 	p.Set(TimerMap{Family: pt.Family, Clear: true})
 }
 
-// Clear clears this timer for the given tag.
+// ClearTag clears this timer for the given tag.
 func (pt ProcessingTime) ClearTag(p Provider, tag string) {
 	p.Set(TimerMap{Family: pt.Family, Clear: true, Tag: tag})
 }
