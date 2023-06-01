@@ -1,6 +1,6 @@
 name: GitHub Actions Demo2
 run-name: ${{ github.actor }} is testing out GitHub Actions 🚀
-#COMMENT
+#COMMENT another
 
 on:
   pull_request:
