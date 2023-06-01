@@ -905,10 +905,10 @@ class GroupIntoBatchesTest(unittest.TestCase):
           ]))
 
   def test_in_global_window_with_text_file(self):
-    with self.assertRaises(NotImplementedError):
-      with tempfile.NamedTemporaryFile(suffix=".json") as f:
-        with open(f.name, "w") as fh:
-          json.dump(GroupIntoBatchesTest._create_test_data(), fh)
+    with tempfile.NamedTemporaryFile(suffix=".json") as f:
+      with open(f.name, "w") as fh:
+        json.dump(GroupIntoBatchesTest._create_test_data(), fh)
+      with self.assertRaises(RuntimeError):
         with TestPipeline() as pipeline:
           collection = pipeline \
                       | beam.io.ReadFromText(file_pattern=f.name) \
