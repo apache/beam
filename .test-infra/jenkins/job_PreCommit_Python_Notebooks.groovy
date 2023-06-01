@@ -21,13 +21,13 @@ import PrecommitJobBuilder
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
     nameBase: 'Python_Notebooks',
-    gradleTask: ':pythonPreCommit',
+    gradleTask: ':pythonNotebooksPreCommit',
+    gradleSwitches: [
+      '-Pposargs=apache_beam/examples/notebooks/'
+    ],
     timeoutMins: 180,
     triggerPathPatterns: [
       '^examples/notebooks/.*$',
-    ],
-    gradleSwitches: [
-      '-Pposargs=". ${envdir}/bin/activate && python -m apache_beam.examples.wordcount --runner DirectRunner --output /tmp/output.txt"'
     ],
     )
 builder.build {
