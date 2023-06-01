@@ -19,13 +19,11 @@ import tempfile
 import typing
 from typing import Dict
 from typing import List
-from typing import Optional
 from typing import Union
 
 import numpy as np
 
 import apache_beam as beam
-# from apache_beam.ml.transforms.base import MLTransformOutput
 from apache_beam.ml.transforms.base import ProcessHandler
 from apache_beam.ml.transforms.base import ProcessInputT
 from apache_beam.ml.transforms.base import ProcessOutputT
@@ -95,7 +93,6 @@ class TFTProcessHandler(ProcessHandler[ProcessInputT, ProcessOutputT]):
   def __init__(
       self,
       *,
-      input_types: Optional[Dict[str, type]] = None,
       transforms: List[_TFTOperation] = None,
       namespace: str = 'TFTProcessHandler',
   ):
@@ -105,26 +102,18 @@ class TFTProcessHandler(ProcessHandler[ProcessInputT, ProcessOutputT]):
     implementing the `preprocessing_fn` method.
 
     Args:
-      input_types: A dictionary of column names and types.
       transforms: A list of transforms to apply to the data. All the transforms
         are applied in the order they are specified. The input of the
         i-th transform is the output of the (i-1)-th transform. Multi-input
         transforms are not supported yet.
       namespace: A metrics namespace for the TFTProcessHandler.
     """
-    super().__init__()
-    self._input_types = input_types
     self.transforms = transforms if transforms else []
-    self._input_types = input_types
     self._artifact_location = None
     self._namespace = namespace
     self.transformed_schema = None
 
   def append_transform(self, transform: _TFTOperation):
-    if not isinstance(transform, _TFTOperation):
-      raise TypeError(
-          'The transform must be an instance of _TFTOperation, '
-          'but got %s' % type(transform))
     self.transforms.append(transform)
 
   def get_raw_data_feature_spec(
@@ -421,15 +410,14 @@ class TFTProcessHandlerDict(
         # Also, to maintain consistency by outputting numpy array all the time,
         #  we will convert scalar values to list values.
         | beam.ParDo(_ConvertScalarValuesToListValues()).with_output_types(
-            Dict[str, typing.Union[list(column_type_mapping.values())]]))
+            Dict[str, typing.Union[tuple(column_type_mapping.values())]]))
     raw_data_metadata = self.get_raw_data_metadata(
         input_types=column_type_mapping)
 
     return (
         raw_data
         | self._get_processing_data_ptransform(
-            raw_data_metadata=raw_data_metadata,
-            input_types=column_type_mapping))
+            raw_data_metadata=raw_data_metadata))
 
   def get_raw_data_metadata(self, input_types: Dict[str, type]):
     return self.get_raw_data_feature_spec(input_types)

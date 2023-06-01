@@ -69,6 +69,9 @@ class ProcessHandler(Generic[ProcessInputT, ProcessOutputT]):
     """
     raise NotImplementedError
 
+  def append_transform(self, transform: _BaseOperation):
+    raise NotImplementedError
+
 
 class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
                                   beam.PCollection[MLTransformOutputT]],
@@ -109,7 +112,7 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
     Returns:
       A MLTransform instance.
     """
-    self._process_handler.transforms.append(transform)
+    self._process_handler.append_transform(transform)
     return self
 
   def get_metrics_namespace(self):

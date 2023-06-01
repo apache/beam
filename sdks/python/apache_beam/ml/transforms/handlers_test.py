@@ -223,35 +223,6 @@ class TFTProcessHandlerDictTest(unittest.TestCase):
     with self.assertRaises(TypeError):
       _ = process_handler._map_column_names_to_types(element_type)
 
-  def test_validate_primitive_input_types(self):
-    input_types = dict(x=int, y=float, k=bytes, l=str)
-    process_handler = handlers.TFTProcessHandlerDict()
-    is_valid = process_handler._validate_input_types(input_types)
-    self.assertTrue(is_valid)
-
-  def test_validate_container_primitive_input_types(self):
-    input_types = dict([("x", List[int]), ("y", List[float]),
-                        ("k", List[bytes]), ("l", List[str])])
-    process_handler = handlers.TFTProcessHandlerDict()
-    is_valid = process_handler._validate_input_types(input_types)
-    self.assertTrue(is_valid)
-
-  def test_validate_numpy_input_types(self):
-    input_types = dict(x=np.int32, y=np.float32, k=np.bytes_, l=np.str_)
-    process_handler = handlers.TFTProcessHandlerDict()
-    is_valid = process_handler._validate_input_types(input_types)
-    self.assertTrue(is_valid)
-
-  def test_validate_numpy_input_types_wrapped_in_numpy_dtype(self):
-    input_types = dict(
-        x=np.dtype('int64'),
-        y=np.dtype('float32'),
-        k=np.dtype('bytes_'),
-        l=np.dtype('str_'))
-    process_handler = handlers.TFTProcessHandlerDict()
-    is_valid = process_handler._validate_input_types(input_types)
-    self.assertTrue(is_valid)
-
   def test_tensorflow_raw_data_metadata_primitive_types(self):
     input_types = dict(x=int, y=float, k=bytes, l=str)
     process_handler = handlers.TFTProcessHandlerDict()
