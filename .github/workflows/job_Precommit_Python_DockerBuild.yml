@@ -2,15 +2,10 @@ name: Precommit Python Docker Build
 run-name: Python Precommit Docker Build
 on:
   pull_request:
-    branches: [ "*" ]
+    branches: [ "master", "release-*" ]
+    paths: [ "model/.*","sdks/python/.*","release/.*"]
   issue_comment:
     types: [created, edited]
-  workflow_dispatch:
-   inputs:
-     tags:
-        description: 'Test scenario tags'
-        required: false
-        type: boolean
 
 
 jobs:

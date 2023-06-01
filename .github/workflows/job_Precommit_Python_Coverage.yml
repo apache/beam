@@ -2,15 +2,10 @@ name: Precommit Python coverage
 run-name: Python Precommit coverage
 on:
   pull_request:
-    branches: [ "*" ]
+    branches: [ "master", "release-*" ]
+    paths: [ "model/.*", "sdks/python/.*", "sdks/python/.*"]
   issue_comment:
     types: [created, edited]
-  workflow_dispatch:
-   inputs:
-     tags:
-        description: 'Test scenario tags'
-        required: false
-        type: boolean
 
 
 jobs:

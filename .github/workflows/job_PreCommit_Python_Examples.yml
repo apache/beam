@@ -2,7 +2,8 @@ name: Precommit Python Examples
 run-name: Python Precommit Examples
 on:
   pull_request:
-    branches: [ "*" ]
+    branches: [ "master", "release-*" ]
+    paths: [ "model/.*","sdks/python/.*","release/.*"]
   issue_comment:
     types: [created, edited]
 
