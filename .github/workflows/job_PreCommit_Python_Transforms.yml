@@ -1,5 +1,5 @@
-name: Precommit Python 
-run-name: Python Precommit
+name: Precommit Python Transforms
+run-name: Python Transforms
 on:
   pull_request:
     branches: [ "*" ]
@@ -8,7 +8,7 @@ on:
 
 
 jobs:
-  PythonPrecommit:
+  PythonTransforms:
     if: github.event.issue.pull_request && contains(github.event.comment.body, 'Run PythonLint PreCommit')
     runs-on: self-hosted
     defaults:
@@ -27,6 +27,6 @@ jobs:
       - name: Run python cloud 
         run: tox -e py37-cloud,py39-cloud,py310-cloud,py311-cloud -- --ignore=apache_beam/dataframe/ --ignore=apache_beam/examples/ --ignore=apache_beam/runners/ --ignore=apache_beam/transforms/
         working-directory: sdks/python
-      - name: Run mypy
+      - name: Run cython
         run: tox -e py37-cython,py38-cython,py39-cython,py310-cython,py311-cython -- --ignore=apache_beam/dataframe/ --ignore=apache_beam/examples/ --ignore=apache_beam/runners/ --ignore=apache_beam/transforms/
         working-directory: sdks/python
