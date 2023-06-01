@@ -6,7 +6,7 @@ on:
   pull_request:
     branches: ['master']
   issue_comment:
-    types: [created]
+    types: [created, edited, deleted]
 jobs:
   Explore-GitHub-Actions:
     strategy:
