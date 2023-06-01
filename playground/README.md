@@ -28,6 +28,8 @@ build, test, and deploy the frontend and backend services.
   - [Deploy examples](#deploy-examples)
 - [How to add your own example](#how-to-add-your-own-example)
 - [Deployment guide](#deployment-guide)
+  - [Manual deployment](#manual-deployment)
+  - [Manual CloudBuild setup](#manual-cloudbuild-setup)
 - [Project structure](#project-structure)
 - [Contribution guide](#contribution-guide)
 
@@ -197,7 +199,10 @@ To shut down the playground, run:
 Please refer to [this document](load_your_code.md).
 
 # Deployment guide
+## Manual deployment
 See deployment guide at [terraform/README.md](/playground/terraform/README.md)
+## Manual CloudBuild setup
+To set up CloudBuild triggers manually please refer to [this guide](/playground/terraform/infrastructure/cloudbuild-manual-setup/README.md)
 
 # Project structure
 
