@@ -1,0 +1,35 @@
+name: Precommit Python Formatter
+run-name: Python Formatter
+on:
+  pull_request:
+    branches: [ "*" ]
+  issue_comment:
+    types: [created, edited]
+  workflow_dispatch:
+   inputs:
+     tags:
+        description: 'Test scenario tags'
+        required: false
+        type: boolean
+
+
+jobs:
+  PythonLint:
+#    if: github.event.workflow_dispatch || (github.event.issue.pull_request && contains(github.event.comment.body, 'Run PythonLint PreCommit'))
+    runs-on: self-hosted
+    #defaults:
+      #run:
+        #working-directory: sdks/python
+
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.7 - 3.9'
+      - name: Install Dependencies
+        run:  pip install --retries 10 --upgrade pip && ls && pwd && pip install --retries 10 --upgrade tox==3.20.1 -r ./build-requirements.txt
+        working-directory: sdks/python
+      - name: Run python Lint 
+        run: tox -e py3-yapf-check
+        working-directory: sdks/python
