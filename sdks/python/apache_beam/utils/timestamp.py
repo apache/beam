@@ -156,12 +156,24 @@ class Timestamp(object):
       return 'Timestamp(%s%d.%06d)' % (sign, int_part, frac_part)
     return 'Timestamp(%s%d)' % (sign, int_part)
 
-  def to_utc_datetime(self):
+  def to_utc_datetime(self, has_tz=False):
     # type: () -> datetime.datetime
+
+    """Returns a ``datetime.datetime`` object of UTC for this Timestamp.
+
+    Args:
+      has_tz: whether the timezone info is attached, default to False.
+
+    Returns:
+      a ``datetime.datetime`` object of UTC for this Timestamp.
+    """
+
     # We can't easily construct a datetime object from microseconds, so we
     # create one at the epoch and add an appropriate timedelta interval.
-    return self._epoch_datetime_utc().replace(tzinfo=None) + datetime.timedelta(
-        microseconds=self.micros)
+    epoch = self._epoch_datetime_utc()
+    if not has_tz:
+      epoch = epoch.replace(tzinfo=None)
+    return epoch + datetime.timedelta(microseconds=self.micros)
 
   def to_rfc3339(self):
     # type: () -> str
