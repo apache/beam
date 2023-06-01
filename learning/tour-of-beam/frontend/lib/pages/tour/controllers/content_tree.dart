@@ -49,7 +49,6 @@ class ContentTreeController extends ChangeNotifier {
     _onContentTreeCacheChange();
   }
 
-  Sdk get sdk => GetIt.instance.get<AppNotifier>().sdk ?? initialSdk;
   List<String> get breadcrumbIds => _breadcrumbIds;
   NodeModel? get currentNode => _currentNode;
 
@@ -109,7 +108,9 @@ class ContentTreeController extends ChangeNotifier {
   }
 
   void _onContentTreeCacheChange() {
-    final contentTree = _contentTreeCache.getContentTree(sdk);
+    final contentTree = _contentTreeCache.getContentTree(
+      GetIt.instance.get<AppNotifier>().sdk,
+    );
     if (contentTree == null) {
       return;
     }

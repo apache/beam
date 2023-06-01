@@ -31,6 +31,7 @@ import 'package:tour_of_beam/pages/tour/screen.dart';
 import 'package:tour_of_beam/pages/tour/state.dart';
 import 'package:tour_of_beam/pages/tour/widgets/unit.dart';
 import 'package:tour_of_beam/pages/tour/widgets/unit_content.dart';
+import 'package:tour_of_beam/state.dart';
 
 import 'common/common.dart';
 import 'common/common_finders.dart';
@@ -64,8 +65,9 @@ Future<void> _checkContentTreeBuildsProperly(WidgetTester wt) async {
 
 List<ModuleModel> _getModules(WidgetTester wt) {
   final contentTreeCache = GetIt.instance.get<ContentTreeCache>();
-  final controller = getContentTreeController(wt);
-  final contentTree = contentTreeCache.getContentTree(controller.sdk);
+  final contentTree = contentTreeCache.getContentTree(
+    GetIt.instance.get<AppNotifier>().sdk,
+  );
   return contentTree?.nodes ?? (throw Exception('Cannot load modules'));
 }
 

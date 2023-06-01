@@ -105,10 +105,6 @@ void _checkModulesDisplayed() {
   final appNotifier = GetIt.instance.get<AppNotifier>();
   final sdkId = appNotifier.sdk;
 
-  if (sdkId == null) {
-    throw Exception('sdkId is null');
-  }
-
   final contentTree = contentTreeCache.getContentTree(sdkId);
   if (contentTree == null) {
     throw Exception('contentTree is null');

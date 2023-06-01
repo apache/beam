@@ -41,7 +41,7 @@ class ContentTreeWidget extends StatelessWidget {
       child: AnimatedBuilder(
         animation: GetIt.instance.get<AppNotifier>(),
         builder: (context, child) => ContentTreeBuilder(
-          sdk: controller.sdk,
+          sdk: GetIt.instance.get<AppNotifier>().sdk,
           builder: (context, contentTree, child) {
             if (contentTree == null) {
               return const Center(child: CircularProgressIndicator());

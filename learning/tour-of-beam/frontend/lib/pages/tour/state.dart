@@ -85,7 +85,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
 
   @override
   PagePath get path => TourPath(
-        sdkId: contentTreeController.sdk.id,
+        sdkId: GetIt.instance.get<AppNotifier>().sdk.id,
         breadcrumbIds: contentTreeController.breadcrumbIds,
       );
 
