@@ -1,0 +1,51 @@
+name: Precommit Python Docker Build
+run-name: Python Precommit Docker Build
+on:
+  pull_request:
+    branches: [ "*" ]
+  issue_comment:
+    types: [created, edited]
+  workflow_dispatch:
+   inputs:
+     tags:
+        description: 'Test scenario tags'
+        required: false
+        type: boolean
+
+
+jobs:
+  PythonLint:
+#    if: github.event.workflow_dispatch || (github.event.issue.pull_request && contains(github.event.comment.body, 'Run PythonLint PreCommit'))
+    runs-on: self-hosted
+    defaults:
+      run:
+        working-directory: sdks/python
+
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install missing python versions
+        run: apt install -y python3.11-minimal python3.7-minimal python3.10-minimal python3.9-minimal
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.7 - 3.11'
+      - name: Install Dependencies
+        run:  pip install --retries 10 --upgrade pip && ls && pwd && pip install --retries 10 --upgrade tox==3.20.1 -r ./build-requirements.txt
+        working-directory: sdks/python
+      - name: Copy licenses
+        run: mkdir -p build/target && cp LICENSE LICENSE.python NOTICE build/target/
+      - name: Docker build go-licenses py
+        run: docker build releases/go-licenses --build-arg	sdk_location=github.com/apache/beam/sdks/v2/python/container -t golicenses-python
+      - name: Go Build
+        run: go1.20.4 build -o ./build/target/launcher/linux_amd64/boot *go
+        working-directory: sdks/python
+      - name: Build Docker 3.7
+        run: docker build sdk/python/container/ --build-arg	py_version=3.7 --build-arg TARGETOS=linux --build-arg TARGETARCH=amd64 -t docker.io/apache/beam_python3.8_sdk
+      - name: Build Docker 3.8
+        run: docker build sdk/python/container/ --build-arg	py_version=3.8 --build-arg TARGETOS=linux --build-arg TARGETARCH=amd64 -t docker.io/apache/beam_python3.8_sdk
+      - name: Build Docker 3.9
+        run: docker build sdk/python/container/ --build-arg	py_version=3.9 --build-arg TARGETOS=linux --build-arg TARGETARCH=amd64 -t docker.io/apache/beam_python3.8_sdk
+      - name: Build Docker 3.10
+        run: docker build sdk/python/container/ --build-arg	py_version=3.10 --build-arg TARGETOS=linux --build-arg TARGETARCH=amd64 -t docker.io/apache/beam_python3.8_sdk
+      - name: Build Docker 3.11
+        run: docker build sdk/python/container/ --build-arg	py_version=3.11 --build-arg TARGETOS=linux --build-arg TARGETARCH=amd64 -t docker.io/apache/beam_python3.8_sdk
