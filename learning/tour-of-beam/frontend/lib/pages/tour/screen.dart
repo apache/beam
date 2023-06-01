@@ -44,7 +44,7 @@ class TourScreen extends StatelessWidget {
         return TobShortcutsManager(
           tourNotifier: tourNotifier,
           child: TobScaffold(
-            playgroundController: tourNotifier.isUnitContainsSnippet
+            playgroundController: tourNotifier.showPlayground
                 ? tourNotifier.playgroundController
                 : null,
             child:
@@ -87,18 +87,19 @@ class _UnitContentWidget extends StatelessWidget {
     return AnimatedBuilder(
       animation: tourNotifier,
       builder: (context, widget) {
-        return !tourNotifier.isUnitContainsSnippet
-            ? UnitContentWidget(tourNotifier)
-            : SplitView(
+        return tourNotifier.showPlayground
+            ? SplitView(
                 direction: Axis.horizontal,
                 dragHandleKey: TourScreen.dragHandleKey,
                 first: UnitContentWidget(tourNotifier),
-                second: tourNotifier.isSnippetLoading
+                second: tourNotifier.currentUnitContent == null ||
+                        tourNotifier.isSnippetLoading
                     ? const Center(child: CircularProgressIndicator())
                     : PlaygroundWidget(
                         tourNotifier: tourNotifier,
                       ),
-              );
+              )
+            : UnitContentWidget(tourNotifier);
       },
     );
   }

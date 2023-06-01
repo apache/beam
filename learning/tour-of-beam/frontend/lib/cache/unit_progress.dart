@@ -75,7 +75,7 @@ class UnitProgressCache extends ChangeNotifier {
 
   List<UnitProgressModel> _getUnitProgress() {
     if (_future == null) {
-      unawaited(loadUnitProgress(GetIt.instance.get<AppNotifier>().sdk!));
+      unawaited(loadUnitProgress(GetIt.instance.get<AppNotifier>().sdk));
     }
     return _unitProgress;
   }
@@ -87,7 +87,7 @@ class UnitProgressCache extends ChangeNotifier {
       addUpdatingUnitId(unitId);
       await _getUserProgressRepository().completeUnit(sdkId, unitId);
     } finally {
-      await loadUnitProgress(GetIt.instance.get<AppNotifier>().sdk!);
+      await loadUnitProgress(GetIt.instance.get<AppNotifier>().sdk);
       clearUpdatingUnitId(unitId);
     }
   }

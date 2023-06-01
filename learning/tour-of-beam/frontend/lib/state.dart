@@ -31,21 +31,17 @@ class AppNotifier extends ChangeNotifier {
     unawaited(_readSdk());
   }
 
-  Sdk? get sdk => _sdk;
+  Sdk get sdk => _sdk ?? Sdk.java;
 
-  set sdk(Sdk? newValue) {
+  set sdk(Sdk newValue) {
     _sdk = newValue;
     unawaited(_writeSdk(newValue));
     notifyListeners();
   }
 
-  Future<void> _writeSdk(Sdk? value) async {
+  Future<void> _writeSdk(Sdk value) async {
     final preferences = await SharedPreferences.getInstance();
-    if (value != null) {
-      await preferences.setString(StorageKeys.sdkId, value.id);
-    } else {
-      await preferences.remove(StorageKeys.sdkId);
-    }
+    await preferences.setString(StorageKeys.sdkId, value.id);
   }
 
   Future<void> _readSdk() async {

@@ -90,13 +90,9 @@ class _BeamVersion extends StatelessWidget {
   const _BeamVersion();
 
   Future<String?> _getBeamSdkVersion() async {
-    final sdk = GetIt.instance.get<AppNotifier>().sdk;
-    if (sdk == null) {
-      return null;
-    }
     final runnerVersion = await GetIt.instance
         .get<BuildMetadataController>()
-        .getRunnerVersion(sdk);
+        .getRunnerVersion(GetIt.instance.get<AppNotifier>().sdk);
     return runnerVersion.beamSdkVersion;
   }
 

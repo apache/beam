@@ -49,6 +49,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   final _unitContentCache = GetIt.instance.get<UnitContentCache>();
   final _unitProgressCache = GetIt.instance.get<UnitProgressCache>();
   UnitContentModel? _currentUnitContent;
+  UnitContentModel? _previousUnitContent;
   DateTime? _currentUnitOpenedAt;
 
   TobEventContext _tobEventContext = TobEventContext.empty;
@@ -62,7 +63,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
           initialBreadcrumbIds: initialBreadcrumbIds,
         ),
         playgroundController = _createPlaygroundController(initialSdk.id) {
-    _appNotifier.sdk ??= initialSdk;
+    _appNotifier.sdk = initialSdk;
     contentTreeController.addListener(_onUnitChanged);
     _unitContentCache.addListener(_onUnitChanged);
     _appNotifier.addListener(_onAppNotifierChanged);
@@ -90,11 +91,11 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
 
   bool get isAuthenticated => _authNotifier.isAuthenticated;
 
-  Sdk get currentSdk => _appNotifier.sdk!;
+  Sdk get currentSdk => _appNotifier.sdk;
   String? get currentUnitId => _currentUnitContent?.id;
   UnitContentModel? get currentUnitContent => _currentUnitContent;
 
-  bool get hasSolution => currentUnitContent?.solutionSnippetId != null;
+  bool get hasSolution => _currentUnitContent?.solutionSnippetId != null;
   bool get isCodeSaved => _unitProgressCache.hasSavedSnippet(currentUnitId);
 
   SnippetType _snippetType = SnippetType.original;
@@ -109,7 +110,9 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     notifyListeners();
   }
 
-  bool get isUnitContainsSnippet => currentUnitContent?.taskSnippetId != null;
+  bool get showPlayground => _currentUnitContent == null
+      ? _previousUnitContent?.taskSnippetId != null
+      : _currentUnitContent?.taskSnippetId != null;
   bool get isSnippetLoading => _isLoadingSnippet;
 
   Future<void> _onAuthChanged() async {
@@ -162,6 +165,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
       _trackUnitClosed();
     }
 
+    _previousUnitContent = _currentUnitContent;
     _currentUnitContent = unitContent;
 
     if (_currentUnitContent != null) {
