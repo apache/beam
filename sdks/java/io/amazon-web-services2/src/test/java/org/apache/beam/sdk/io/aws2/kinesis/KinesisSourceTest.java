@@ -26,6 +26,7 @@ import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.when;
 
 import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.sdk.io.aws2.MockClientBuilderFactory;
 import org.apache.beam.sdk.io.aws2.options.AwsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -38,12 +39,16 @@ import software.amazon.awssdk.core.exception.SdkServiceException;
 import software.amazon.awssdk.http.HttpStatusCode;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.kinesis.KinesisClient;
+import software.amazon.awssdk.services.kinesis.KinesisClientBuilder;
 import software.amazon.awssdk.services.kinesis.model.LimitExceededException;
 import software.amazon.awssdk.services.kinesis.model.ListShardsRequest;
 import software.amazon.kinesis.common.InitialPositionInStream;
 
 @RunWith(MockitoJUnitRunner.Silent.class)
 public class KinesisSourceTest {
+  @Mock private KinesisClient kinesisClient;
+  private PipelineOptions options = createOptions();
+
   @Test
   public void testCreateReaderOfCorrectType() throws Exception {
     KinesisIO.Read readSpec =
@@ -60,26 +65,23 @@ public class KinesisSourceTest {
     KinesisReaderCheckpoint initCheckpoint = new KinesisReaderCheckpoint(ImmutableList.of());
 
     UnboundedSource.UnboundedReader<KinesisRecord> reader =
-        new KinesisSource(readSpec, initCheckpoint).createReader(opts(), null);
+        new KinesisSource(readSpec, initCheckpoint).createReader(options, null);
     assertThat(reader).isInstanceOf(KinesisReader.class);
 
     UnboundedSource.UnboundedReader<KinesisRecord> efoReader =
-        new KinesisSource(readSpecEFO, initCheckpoint).createReader(opts(), null);
+        new KinesisSource(readSpecEFO, initCheckpoint).createReader(options, null);
     assertThat(efoReader).isInstanceOf(EFOKinesisReader.class);
   }
-
-  @Mock private KinesisClient kinesisClient;
-  private KinesisSource source;
 
   @Test
   public void testSplitGeneratesCorrectNumberOfSources() throws Exception {
     mockShards(kinesisClient, 3);
-    source = sourceWithMockedKinesisClient(spec());
-    assertThat(source.split(1, opts()).size()).isEqualTo(1);
-    assertThat(source.split(2, opts()).size()).isEqualTo(2);
-    assertThat(source.split(3, opts()).size()).isEqualTo(3);
+    KinesisSource source = sourceWithMockedKinesisClient(spec());
+    assertThat(source.split(1, options).size()).isEqualTo(1);
+    assertThat(source.split(2, options).size()).isEqualTo(2);
+    assertThat(source.split(3, options).size()).isEqualTo(3);
     // there are only 3 shards, no more than 3 splits can be created
-    assertThat(source.split(4, opts()).size()).isEqualTo(3);
+    assertThat(source.split(4, options).size()).isEqualTo(3);
   }
 
   @Test
@@ -96,15 +98,11 @@ public class KinesisSourceTest {
   }
 
   private KinesisSource sourceWithMockedKinesisClient(KinesisIO.Read read) {
-    return new KinesisSource(read) {
-      @Override
-      KinesisClient createKinesisClient(KinesisIO.Read spec, PipelineOptions options) {
-        return kinesisClient;
-      }
-    };
+    MockClientBuilderFactory.set(options, KinesisClientBuilder.class, kinesisClient);
+    return new KinesisSource(read);
   }
 
-  private PipelineOptions opts() {
+  private PipelineOptions createOptions() {
     AwsOptions options = PipelineOptionsFactory.fromArgs().as(AwsOptions.class);
     options.setAwsRegion(Region.AP_EAST_1);
     return options;
@@ -120,8 +118,8 @@ public class KinesisSourceTest {
       Exception thrownException, Class<? extends Exception> expectedExceptionClass) {
     when(kinesisClient.listShards(any(ListShardsRequest.class))).thenThrow(thrownException);
     try {
-      source = sourceWithMockedKinesisClient(spec());
-      source.split(1, opts());
+      KinesisSource source = sourceWithMockedKinesisClient(spec());
+      source.split(1, options);
       failBecauseExceptionWasNotThrown(expectedExceptionClass);
     } catch (Exception e) {
       assertThat(e).isExactlyInstanceOf(expectedExceptionClass);

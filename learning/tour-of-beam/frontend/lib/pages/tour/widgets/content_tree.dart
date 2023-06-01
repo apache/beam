@@ -17,9 +17,11 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 
 import '../../../components/builders/content_tree.dart';
+import '../../../state.dart';
 import '../controllers/content_tree.dart';
 import 'content_tree_title.dart';
 import 'module.dart';
@@ -36,31 +38,34 @@ class ContentTreeWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: 250,
-      child: ContentTreeBuilder(
-        sdk: controller.sdk,
-        builder: (context, contentTree, child) {
-          if (contentTree == null) {
-            return Container();
-          }
+      child: AnimatedBuilder(
+        animation: GetIt.instance.get<AppNotifier>(),
+        builder: (context, child) => ContentTreeBuilder(
+          sdk: controller.sdk,
+          builder: (context, contentTree, child) {
+            if (contentTree == null) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-          return SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(
-              horizontal: BeamSizes.size12,
-            ),
-            child: Column(
-              children: [
-                const ContentTreeTitleWidget(),
-                ...contentTree.modules.map(
-                  (module) => ModuleWidget(
-                    module: module,
-                    contentTreeController: controller,
+            return SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(
+                horizontal: BeamSizes.size12,
+              ),
+              child: Column(
+                children: [
+                  const ContentTreeTitleWidget(),
+                  ...contentTree.nodes.map(
+                    (module) => ModuleWidget(
+                      module: module,
+                      contentTreeController: controller,
+                    ),
                   ),
-                ),
-                const SizedBox(height: BeamSizes.size12),
-              ],
-            ),
-          );
-        },
+                  const SizedBox(height: BeamSizes.size12),
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }

@@ -247,17 +247,21 @@ public class ProtoCoder<T extends Message> extends CustomCoder<T> {
    */
   public ExtensionRegistry getExtensionRegistry() {
     if (memoizedExtensionRegistry == null) {
-      ExtensionRegistry registry = ExtensionRegistry.newInstance();
-      for (Class<?> extensionHost : extensionHostClasses) {
-        try {
-          extensionHost
-              .getDeclaredMethod("registerAllExtensions", ExtensionRegistry.class)
-              .invoke(null, registry);
-        } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
-          throw new IllegalStateException(e);
+      synchronized (this) {
+        if (memoizedExtensionRegistry == null) {
+          ExtensionRegistry registry = ExtensionRegistry.newInstance();
+          for (Class<?> extensionHost : extensionHostClasses) {
+            try {
+              extensionHost
+                  .getDeclaredMethod("registerAllExtensions", ExtensionRegistry.class)
+                  .invoke(null, registry);
+            } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
+              throw new IllegalStateException(e);
+            }
+          }
+          memoizedExtensionRegistry = registry.getUnmodifiable();
         }
       }
-      memoizedExtensionRegistry = registry.getUnmodifiable();
     }
     return memoizedExtensionRegistry;
   }
@@ -275,7 +279,7 @@ public class ProtoCoder<T extends Message> extends CustomCoder<T> {
   final Set<Class<?>> extensionHostClasses;
 
   // Transient fields that are lazy initialized and then memoized.
-  private transient ExtensionRegistry memoizedExtensionRegistry;
+  private transient volatile ExtensionRegistry memoizedExtensionRegistry;
   transient Parser<T> memoizedParser;
 
   /** Private constructor. */

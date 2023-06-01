@@ -51,14 +51,12 @@ class StandardExampleLoader extends ExampleLoader {
 
   Future<void> _load() async {
     try {
-      final exampleBase = await exampleCache.getPrecompiledObject(
+      final example = await exampleCache.getPrecompiledObject(
         descriptor.path,
         descriptor.sdk,
       );
 
-      _completer.complete(
-        await exampleCache.loadExampleInfo(exampleBase),
-      );
+      _completer.complete(example);
     } on Exception catch (ex, trace) {
       await _tryLoadSharedExample(
         previousExceptions: [ex],

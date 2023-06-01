@@ -20,8 +20,6 @@ package org.apache.beam.sdk.io.jdbc;
 import java.sql.JDBCType;
 import java.time.Instant;
 import java.util.Objects;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
@@ -36,7 +34,6 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Beam {@link org.apache.beam.sdk.schemas.Schema.LogicalType} implementations of JDBC types. */
-@Experimental(Kind.SCHEMAS)
 class LogicalTypes {
   static final Schema.FieldType JDBC_BIT_TYPE =
       Schema.FieldType.logicalType(

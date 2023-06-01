@@ -22,12 +22,44 @@ import (
 
 	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/urns"
 	"golang.org/x/exp/slog"
 )
 
 func (s *Server) nextId() string {
 	v := atomic.AddUint32(&s.index, 1)
 	return fmt.Sprintf("job-%03d", v)
+}
+
+type unimplementedError struct {
+	feature string
+	value   any
+}
+
+func (err unimplementedError) Error() string {
+	return fmt.Sprintf("unsupported feature %q set with value %v", err.feature, err.value)
+}
+
+func (err unimplementedError) LogValue() slog.Value {
+	return slog.GroupValue(
+		slog.String("feature", err.feature),
+		slog.Any("value", err.value))
+}
+
+// TODO migrate to errors.Join once Beam requires go1.20+
+type joinError struct {
+	errs []error
+}
+
+func (e *joinError) Error() string {
+	var b []byte
+	for i, err := range e.errs {
+		if i > 0 {
+			b = append(b, '\n')
+		}
+		b = append(b, err.Error()...)
+	}
+	return string(b)
 }
 
 func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (*jobpb.PrepareJobResponse, error) {
@@ -53,8 +85,62 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (*jo
 	job.stateChan <- job.state.Load().(jobpb.JobState_Enum)
 
 	if err := isSupported(job.Pipeline.GetRequirements()); err != nil {
-		slog.Error("unable to run job", err, slog.String("jobname", req.GetJobName()))
+		slog.Error("unable to run job", slog.String("error", err.Error()), slog.String("jobname", req.GetJobName()))
 		return nil, err
+	}
+	var errs []error
+	check := func(feature string, got, want any) {
+		if got != want {
+			err := unimplementedError{
+				feature: feature,
+				value:   got,
+			}
+			errs = append(errs, err)
+		}
+	}
+
+	// Inspect Transforms for unsupported features.
+	for _, t := range job.Pipeline.GetComponents().GetTransforms() {
+		urn := t.GetSpec().GetUrn()
+		switch urn {
+		case urns.TransformImpulse,
+			urns.TransformParDo,
+			urns.TransformGBK,
+			urns.TransformFlatten,
+			urns.TransformCombinePerKey,
+			urns.TransformAssignWindows:
+		// Very few expected transforms types for submitted pipelines.
+		// Most URNs are for the runner to communicate back to the SDK for execution.
+		case "":
+			// Composites can often have no spec
+			if len(t.GetSubtransforms()) > 0 {
+				continue
+			}
+			fallthrough
+		default:
+			check("PTransform.Spec.Urn", urn+" "+t.GetUniqueName(), "<doesn't exist>")
+		}
+	}
+
+	// Inspect Windowing strategies for unsupported features.
+	for _, ws := range job.Pipeline.GetComponents().GetWindowingStrategies() {
+		check("WindowingStrategy.AllowedLateness", ws.GetAllowedLateness(), int64(0))
+		check("WindowingStrategy.ClosingBehaviour", ws.GetClosingBehavior(), pipepb.ClosingBehavior_EMIT_IF_NONEMPTY)
+		check("WindowingStrategy.AccumulationMode", ws.GetAccumulationMode(), pipepb.AccumulationMode_DISCARDING)
+		if ws.GetWindowFn().GetUrn() != urns.WindowFnSession {
+			check("WindowingStrategy.MergeStatus", ws.GetMergeStatus(), pipepb.MergeStatus_NON_MERGING)
+		}
+		check("WindowingStrategy.OnTimerBehavior", ws.GetOnTimeBehavior(), pipepb.OnTimeBehavior_FIRE_IF_NONEMPTY)
+		check("WindowingStrategy.OutputTime", ws.GetOutputTime(), pipepb.OutputTime_END_OF_WINDOW)
+		// Non nil triggers should fail.
+		if ws.GetTrigger().GetDefault() == nil {
+			check("WindowingStrategy.Trigger", ws.GetTrigger(), &pipepb.Trigger_Default{})
+		}
+	}
+	if len(errs) > 0 {
+		err := &joinError{errs: errs}
+		slog.Error("unable to run job", slog.String("cause", "unimplemented features"), slog.String("jobname", req.GetJobName()), slog.String("errors", err.Error()))
+		return nil, fmt.Errorf("found %v uses of features unimplemented in prism in job %v: %v", len(errs), req.GetJobName(), err)
 	}
 	s.jobs[job.key] = job
 	return &jobpb.PrepareJobResponse{

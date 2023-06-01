@@ -37,6 +37,7 @@ try:
   import torch
   from apache_beam.ml.inference.base import PredictionResult
   from apache_beam.ml.inference.base import RunInference
+  from apache_beam.ml.inference import pytorch_inference
   from apache_beam.ml.inference.pytorch_inference import default_keyed_tensor_inference_fn
   from apache_beam.ml.inference.pytorch_inference import default_tensor_inference_fn
   from apache_beam.ml.inference.pytorch_inference import make_keyed_tensor_model_fn
@@ -491,6 +492,45 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
           equal_to(
               TWO_FEATURES_PREDICTIONS, equals_fn=_compare_prediction_result))
 
+  def test_pipeline_local_model_large(self):
+    with TestPipeline() as pipeline:
+
+      def batch_validator_tensor_inference_fn(
+          batch,
+          model,
+          device,
+          inference_args,
+          model_id,
+      ):
+        multi_process_shared_loaded = "multi_process_shared" in str(type(model))
+        if not multi_process_shared_loaded:
+          raise Exception(
+              f'Loaded model of type {type(model)}, was ' +
+              'expecting multi_process_shared_model')
+        return default_tensor_inference_fn(
+            batch, model, device, inference_args, model_id)
+
+      state_dict = OrderedDict([('linear.weight', torch.Tensor([[2.0, 3]])),
+                                ('linear.bias', torch.Tensor([0.5]))])
+      path = os.path.join(self.tmpdir, 'my_state_dict_path')
+      torch.save(state_dict, path)
+
+      model_handler = PytorchModelHandlerTensor(
+          state_dict_path=path,
+          model_class=PytorchLinearRegression,
+          model_params={
+              'input_dim': 2, 'output_dim': 1
+          },
+          inference_fn=batch_validator_tensor_inference_fn,
+          large_model=True)
+
+      pcoll = pipeline | 'start' >> beam.Create(TWO_FEATURES_EXAMPLES)
+      predictions = pcoll | RunInference(model_handler)
+      assert_that(
+          predictions,
+          equal_to(
+              TWO_FEATURES_PREDICTIONS, equals_fn=_compare_prediction_result))
+
   def test_pipeline_local_model_extra_inference_args(self):
     with TestPipeline() as pipeline:
       inference_args = {
@@ -510,6 +550,54 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
           model_params={
               'input_dim': 1, 'output_dim': 1
           })
+
+      pcoll = pipeline | 'start' >> beam.Create(KEYED_TORCH_EXAMPLES)
+      inference_args_side_input = (
+          pipeline | 'create side' >> beam.Create(inference_args))
+      predictions = pcoll | RunInference(
+          model_handler=model_handler,
+          inference_args=beam.pvalue.AsDict(inference_args_side_input))
+      assert_that(
+          predictions,
+          equal_to(
+              KEYED_TORCH_PREDICTIONS, equals_fn=_compare_prediction_result))
+
+  def test_pipeline_local_model_extra_inference_args_large(self):
+    with TestPipeline() as pipeline:
+      inference_args = {
+          'prediction_param_array': torch.from_numpy(
+              np.array([1, 2], dtype="float32")),
+          'prediction_param_bool': True
+      }
+
+      state_dict = OrderedDict([('linear.weight', torch.Tensor([[2.0]])),
+                                ('linear.bias', torch.Tensor([0.5]))])
+      path = os.path.join(self.tmpdir, 'my_state_dict_path')
+      torch.save(state_dict, path)
+
+      def batch_validator_keyed_tensor_inference_fn(
+          batch,
+          model,
+          device,
+          inference_args,
+          model_id,
+      ):
+        multi_process_shared_loaded = "multi_process_shared" in str(type(model))
+        if not multi_process_shared_loaded:
+          raise Exception(
+              f'Loaded model of type {type(model)}, was ' +
+              'expecting multi_process_shared_model')
+        return default_keyed_tensor_inference_fn(
+            batch, model, device, inference_args, model_id)
+
+      model_handler = PytorchModelHandlerKeyedTensor(
+          state_dict_path=path,
+          model_class=PytorchLinearRegressionKeyedBatchAndExtraInferenceArgs,
+          model_params={
+              'input_dim': 1, 'output_dim': 1
+          },
+          inference_fn=batch_validator_keyed_tensor_inference_fn,
+          large_model=True)
 
       pcoll = pipeline | 'start' >> beam.Create(KEYED_TORCH_EXAMPLES)
       inference_args_side_input = (
@@ -831,6 +919,116 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
       pcoll = pipeline | 'start' >> beam.Create(TWO_FEATURES_EXAMPLES)
       predictions = pcoll | RunInference(model_handler)
       _ = predictions | beam.Map(check_torch_script_model_id)
+
+  def test_env_vars_set_correctly_tensor_handler(self):
+    torch_model = PytorchLinearRegression(2, 1)
+    torch_model.load_state_dict(
+        OrderedDict([('linear.weight', torch.Tensor([[2.0, 3]])),
+                     ('linear.bias', torch.Tensor([0.5]))]))
+
+    torch_script_model = torch.jit.script(torch_model)
+
+    torch_script_path = os.path.join(self.tmpdir, 'torch_script_model.pt')
+
+    torch.jit.save(torch_script_model, torch_script_path)
+
+    handler_with_vars = PytorchModelHandlerTensor(
+        torch_script_model_path=torch_script_path, env_vars={'FOO': 'bar'})
+    os.environ.pop('FOO', None)
+    self.assertFalse('FOO' in os.environ)
+    with TestPipeline() as pipeline:
+      _ = (
+          pipeline
+          | 'start' >> beam.Create(TWO_FEATURES_EXAMPLES)
+          | RunInference(handler_with_vars))
+      pipeline.run()
+      self.assertTrue('FOO' in os.environ)
+      self.assertTrue((os.environ['FOO']) == 'bar')
+
+  def test_env_vars_set_correctly_keyed_tensor_handler(self):
+    os.environ.pop('FOO', None)
+    self.assertFalse('FOO' in os.environ)
+    with TestPipeline() as pipeline:
+      inference_args = {
+          'prediction_param_array': torch.from_numpy(
+              np.array([1, 2], dtype="float32")),
+          'prediction_param_bool': True
+      }
+
+      state_dict = OrderedDict([('linear.weight', torch.Tensor([[2.0]])),
+                                ('linear.bias', torch.Tensor([0.5]))])
+      path = os.path.join(self.tmpdir, 'my_state_dict_path')
+      torch.save(state_dict, path)
+
+      handler_with_vars = PytorchModelHandlerKeyedTensor(
+          env_vars={'FOO': 'bar'},
+          state_dict_path=path,
+          model_class=PytorchLinearRegressionKeyedBatchAndExtraInferenceArgs,
+          model_params={
+              'input_dim': 1, 'output_dim': 1
+          })
+      inference_args_side_input = (
+          pipeline | 'create side' >> beam.Create(inference_args))
+
+      _ = (
+          pipeline
+          | 'start' >> beam.Create(KEYED_TORCH_EXAMPLES)
+          | RunInference(
+              model_handler=handler_with_vars,
+              inference_args=beam.pvalue.AsDict(inference_args_side_input)))
+      pipeline.run()
+      self.assertTrue('FOO' in os.environ)
+      self.assertTrue((os.environ['FOO']) == 'bar')
+
+
+@pytest.mark.uses_pytorch
+class PytorchInferenceTestWithMocks(unittest.TestCase):
+  def setUp(self):
+    self._load_model = pytorch_inference._load_model
+    pytorch_inference._load_model = unittest.mock.MagicMock(
+        return_value=("model", "device"))
+    self.tmpdir = tempfile.mkdtemp()
+    self.state_dict = OrderedDict([('linear.weight', torch.Tensor([[2.0, 3]])),
+                                   ('linear.bias', torch.Tensor([0.5]))])
+    self.torch_path = os.path.join(self.tmpdir, 'torch_model.pt')
+    torch.save(self.state_dict, self.torch_path)
+    self.model_params = {'input_dim': 2, 'output_dim': 1}
+
+  def tearDown(self):
+    pytorch_inference._load_model = self._load_model
+    shutil.rmtree(self.tmpdir)
+
+  def test_load_model_args_tensor(self):
+    load_model_args = {'weights_only': True}
+    model_handler = PytorchModelHandlerTensor(
+        state_dict_path=self.torch_path,
+        model_class=PytorchLinearRegression,
+        model_params=self.model_params,
+        load_model_args=load_model_args)
+    model_handler.load_model()
+    pytorch_inference._load_model.assert_called_with(
+        model_class=PytorchLinearRegression,
+        state_dict_path=self.torch_path,
+        device=torch.device('cpu'),
+        model_params=self.model_params,
+        torch_script_model_path=None,
+        load_model_args=load_model_args)
+
+  def test_load_model_args_keyed_tensor(self):
+    load_model_args = {'weights_only': True}
+    model_handler = PytorchModelHandlerKeyedTensor(
+        state_dict_path=self.torch_path,
+        model_class=PytorchLinearRegression,
+        model_params=self.model_params,
+        load_model_args=load_model_args)
+    model_handler.load_model()
+    pytorch_inference._load_model.assert_called_with(
+        model_class=PytorchLinearRegression,
+        state_dict_path=self.torch_path,
+        device=torch.device('cpu'),
+        model_params=self.model_params,
+        torch_script_model_path=None,
+        load_model_args=load_model_args)
 
 
 if __name__ == '__main__':

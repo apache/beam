@@ -18,7 +18,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_code_editor/flutter_code_editor.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:flutter_markdown_selectionarea/flutter_markdown.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../playground_components.dart';
@@ -460,6 +460,10 @@ MarkdownStyleSheet _getMarkdownStyle(Brightness brightness) {
     h1: textTheme.headlineMedium,
     h3: textTheme.headlineSmall,
     h3Padding: EdgeInsets.only(top: BeamSizes.size4),
+    blockquoteDecoration: BoxDecoration(
+      color: codeblockBackgroundColor,
+      borderRadius: BorderRadius.circular(BeamSizes.size6),
+    ),
     code: GoogleFonts.sourceCodePro(
       color: textColor,
       backgroundColor: BeamColors.transparent,

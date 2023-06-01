@@ -54,6 +54,7 @@ func NewPlan(id string, units []Unit) (*Plan, error) {
 		callbacks:         []bundleFinalizationCallback{},
 		lastValidCallback: time.Now(),
 	}
+	var onTimers map[string]*ParDo
 
 	for _, u := range units {
 		if u == nil {
@@ -68,12 +69,22 @@ func NewPlan(id string, units []Unit) (*Plan, error) {
 		if p, ok := u.(*PCollection); ok {
 			pcols = append(pcols, p)
 		}
+		if pd, ok := u.(*ParDo); ok && pd.HasOnTimer() {
+			if onTimers == nil {
+				onTimers = map[string]*ParDo{}
+			}
+			onTimers[pd.PID] = pd
+		}
 		if p, ok := u.(needsBundleFinalization); ok {
 			p.AttachFinalizer(&bf)
 		}
 	}
 	if len(roots) == 0 {
 		return nil, errors.Errorf("no root units")
+	}
+
+	if len(onTimers) > 0 {
+		source.OnTimerTransforms = onTimers
 	}
 
 	return &Plan{

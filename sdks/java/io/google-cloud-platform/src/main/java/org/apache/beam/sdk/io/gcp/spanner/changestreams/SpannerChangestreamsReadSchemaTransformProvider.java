@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.changestreams;
 
+import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.Dialect;
@@ -44,7 +45,9 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.Mod;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
+import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -63,6 +66,7 @@ import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
 
+@AutoService(SchemaTransformProvider.class)
 public class SpannerChangestreamsReadSchemaTransformProvider
     extends TypedSchemaTransformProvider<
         SpannerChangestreamsReadSchemaTransformProvider.SpannerChangestreamsReadConfiguration> {
@@ -142,18 +146,26 @@ public class SpannerChangestreamsReadSchemaTransformProvider
   @DefaultSchema(AutoValueSchema.class)
   @AutoValue
   public abstract static class SpannerChangestreamsReadConfiguration implements Serializable {
+
+    @SchemaFieldDescription("Specifies the Cloud Spanner database.")
     public abstract String getDatabaseId();
 
+    @SchemaFieldDescription("Specifies the Cloud Spanner project.")
     public abstract String getProjectId();
 
+    @SchemaFieldDescription("Specifies the Cloud Spanner instance.")
     public abstract String getInstanceId();
 
+    @SchemaFieldDescription("Specifies the Cloud Spanner table.")
     public abstract String getTable();
 
+    @SchemaFieldDescription("Specifies the time that the change stream should be read from.")
     public abstract String getStartAtTimestamp();
 
+    @SchemaFieldDescription("Specifies the end time of the change stream.")
     public abstract @Nullable String getEndAtTimestamp();
 
+    @SchemaFieldDescription("Specifies the change stream name.")
     public abstract String getChangeStreamName();
 
     public static Builder builder() {

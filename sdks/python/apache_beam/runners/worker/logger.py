@@ -34,8 +34,6 @@ from typing import List
 
 from apache_beam.runners.worker import statesampler
 
-# This module is experimental. No backwards-compatibility guarantees.
-
 
 # Per-thread worker information. This is used only for logging to set
 # context information that changes while work items get executed:

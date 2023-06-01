@@ -68,6 +68,7 @@ var directFilters = []string{
 	"TestXLang.*",
 	"TestKafkaIO.*",
 	"TestBigQueryIO.*",
+	"TestSpannerIO.*",
 	"TestDebeziumIO_BasicRead",
 	"TestJDBCIO_BasicReadWrite",
 	"TestJDBCIO_PostgresReadWrite",
@@ -113,6 +114,7 @@ var portableFilters = []string{
 	"TestKafkaIO.*",
 	// TODO(BEAM-13215): GCP IOs currently do not work in non-Dataflow portable runners.
 	"TestBigQueryIO.*",
+	"TestSpannerIO.*",
 	// The portable runner does not support self-checkpointing
 	"TestCheckpointing",
 	// The portable runner does not support pipeline drain for SDF.
@@ -140,6 +142,7 @@ var flinkFilters = []string{
 	"TestDebeziumIO_BasicRead",
 	// TODO(BEAM-13215): GCP IOs currently do not work in non-Dataflow portable runners.
 	"TestBigQueryIO.*",
+	"TestSpannerIO.*",
 	// The number of produced outputs in AfterSynchronizedProcessingTime varies in different runs.
 	"TestTriggerAfterSynchronizedProcessingTime",
 	// The flink runner does not support pipeline drain for SDF.
@@ -168,6 +171,7 @@ var samzaFilters = []string{
 	"TestWordCount.*",
 	// TODO(BEAM-13215): GCP IOs currently do not work in non-Dataflow portable runners.
 	"TestBigQueryIO.*",
+	"TestSpannerIO.*",
 	// The Samza runner does not support self-checkpointing
 	"TestCheckpointing",
 	// The samza runner does not support pipeline drain for SDF.
@@ -205,6 +209,7 @@ var sparkFilters = []string{
 	"TestDebeziumIO_BasicRead",
 	// TODO(BEAM-13215): GCP IOs currently do not work in non-Dataflow portable runners.
 	"TestBigQueryIO.*",
+	"TestSpannerIO.*",
 	// The spark runner does not support self-checkpointing
 	"TestCheckpointing",
 	// The spark runner does not support pipeline drain for SDF.
@@ -235,6 +240,7 @@ var dataflowFilters = []string{
 	"TestPanes",
 	// There is no infrastructure for running KafkaIO tests with Dataflow.
 	"TestKafkaIO.*",
+	"TestSpannerIO.*",
 	// Dataflow doesn't support any test that requires loopback.
 	// Eg. For FileIO examples.
 	".*Loopback.*",
@@ -243,6 +249,8 @@ var dataflowFilters = []string{
 	"TestCheckpointing",
 	// TODO(21761): This test needs to provide GCP project to expansion service.
 	"TestBigQueryIO_BasicWriteQueryRead",
+	// Can't handle the test spanner container or access a local spanner. 
+	"TestSpannerIO.*",
 	// Dataflow does not drain jobs by itself.
 	"TestDrain",
 }

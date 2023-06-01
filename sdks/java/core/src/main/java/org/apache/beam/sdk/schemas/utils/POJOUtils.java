@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.schemas.utils;
 
+import static org.apache.beam.sdk.util.ByteBuddyUtils.getClassLoadingStrategy;
+
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -48,8 +50,6 @@ import net.bytebuddy.implementation.bytecode.member.MethodReturn;
 import net.bytebuddy.implementation.bytecode.member.MethodVariableAccess;
 import net.bytebuddy.jar.asm.ClassWriter;
 import net.bytebuddy.matcher.ElementMatchers;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.FieldValueSetter;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
@@ -67,7 +67,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A set of utilities to generate getter and setter classes for POJOs. */
-@Experimental(Kind.SCHEMAS)
 @SuppressWarnings({
   "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
@@ -156,7 +155,7 @@ public class POJOUtils {
           .make()
           .load(
               ReflectHelpers.findClassLoader(clazz.getClassLoader()),
-              ClassLoadingStrategy.Default.INJECTION)
+              getClassLoadingStrategy(clazz))
           .getLoaded()
           .getDeclaredConstructor()
           .newInstance();
@@ -208,7 +207,7 @@ public class POJOUtils {
           .make()
           .load(
               ReflectHelpers.findClassLoader(clazz.getClassLoader()),
-              ClassLoadingStrategy.Default.INJECTION)
+              getClassLoadingStrategy(clazz))
           .getLoaded()
           .getDeclaredConstructor()
           .newInstance();
@@ -299,7 +298,7 @@ public class POJOUtils {
           .make()
           .load(
               ReflectHelpers.findClassLoader(field.getDeclaringClass().getClassLoader()),
-              ClassLoadingStrategy.Default.INJECTION)
+              getClassLoadingStrategy(field.getDeclaringClass()))
           .getLoaded()
           .getDeclaredConstructor()
           .newInstance();
@@ -379,7 +378,7 @@ public class POJOUtils {
           .make()
           .load(
               ReflectHelpers.findClassLoader(field.getDeclaringClass().getClassLoader()),
-              ClassLoadingStrategy.Default.INJECTION)
+              getClassLoadingStrategy(field.getDeclaringClass()))
           .getLoaded()
           .getDeclaredConstructor()
           .newInstance();

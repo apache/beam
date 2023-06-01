@@ -32,19 +32,28 @@ import 'widgets/unit_content.dart';
 
 class TourScreen extends StatelessWidget {
   final TourNotifier tourNotifier;
+  static const dragHandleKey = Key('dragHandleKey');
 
   const TourScreen(this.tourNotifier);
 
   @override
   Widget build(BuildContext context) {
-    return TobShortcutsManager(
-      tourNotifier: tourNotifier,
-      child: TobScaffold(
-        playgroundController: tourNotifier.playgroundController,
-        child: MediaQuery.of(context).size.width > ScreenBreakpoints.twoColumns
-            ? _WideTour(tourNotifier)
-            : _NarrowTour(tourNotifier),
-      ),
+    return AnimatedBuilder(
+      animation: tourNotifier,
+      builder: (context, child) {
+        return TobShortcutsManager(
+          tourNotifier: tourNotifier,
+          child: TobScaffold(
+            playgroundController: tourNotifier.isUnitContainsSnippet
+                ? tourNotifier.playgroundController
+                : null,
+            child:
+                MediaQuery.of(context).size.width > ScreenBreakpoints.twoColumns
+                    ? _WideTour(tourNotifier)
+                    : _NarrowTour(tourNotifier),
+          ),
+        );
+      },
     );
   }
 }
@@ -61,15 +70,36 @@ class _WideTour extends StatelessWidget {
       children: [
         ContentTreeWidget(controller: tourNotifier.contentTreeController),
         Expanded(
-          child: SplitView(
-            direction: Axis.horizontal,
-            first: UnitContentWidget(tourNotifier),
-            second: PlaygroundWidget(
-              tourNotifier: tourNotifier,
-            ),
-          ),
+          child: _UnitContentWidget(tourNotifier: tourNotifier),
         ),
       ],
+    );
+  }
+}
+
+class _UnitContentWidget extends StatelessWidget {
+  const _UnitContentWidget({required this.tourNotifier});
+
+  final TourNotifier tourNotifier;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: tourNotifier,
+      builder: (context, widget) {
+        return !tourNotifier.isUnitContainsSnippet
+            ? UnitContentWidget(tourNotifier)
+            : SplitView(
+                direction: Axis.horizontal,
+                dragHandleKey: TourScreen.dragHandleKey,
+                first: UnitContentWidget(tourNotifier),
+                second: tourNotifier.isSnippetLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : PlaygroundWidget(
+                        tourNotifier: tourNotifier,
+                      ),
+              );
+      },
     );
   }
 }
@@ -81,6 +111,10 @@ class _NarrowTour extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final borderSide = BorderSide(
+      color: Theme.of(context).dividerColor,
+    );
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -90,13 +124,21 @@ class _NarrowTour extends StatelessWidget {
             keys: TourView.values,
             child: Column(
               children: [
-                KeyedTabBar.withDefaultController<TourView>(
-                  tabs: UnmodifiableTourViewMap(
-                    content: Tab(
-                      text: 'pages.tour.content'.tr(),
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    border: Border(
+                      left: borderSide,
+                      bottom: borderSide,
                     ),
-                    playground: Tab(
-                      text: 'pages.tour.playground'.tr(),
+                  ),
+                  child: KeyedTabBar.withDefaultController<TourView>(
+                    tabs: UnmodifiableTourViewMap(
+                      content: Tab(
+                        text: 'pages.tour.content'.tr(),
+                      ),
+                      playground: Tab(
+                        text: 'pages.tour.playground'.tr(),
+                      ),
                     ),
                   ),
                 ),

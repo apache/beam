@@ -21,74 +21,79 @@ import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 
 import '../../../cache/content_tree.dart';
-import '../../../models/group.dart';
+
 import '../../../models/node.dart';
+import '../../../models/parent_node.dart';
 import '../../../models/unit.dart';
+import '../../../state.dart';
 
 class ContentTreeController extends ChangeNotifier {
-  Sdk _sdk;
-  List<String> _treeIds;
+  final Sdk initialSdk;
+  List<String> _breadcrumbIds;
   NodeModel? _currentNode;
   final _contentTreeCache = GetIt.instance.get<ContentTreeCache>();
   final _expandedIds = <String>{};
 
+  final _units = <UnitModel>[];
+  int _currentUnitIndex = 0;
+
   Set<String> get expandedIds => _expandedIds;
 
   ContentTreeController({
-    required Sdk initialSdk,
-    List<String> initialTreeIds = const [],
-  })  : _sdk = initialSdk,
-        _treeIds = initialTreeIds {
-    _expandedIds.addAll(initialTreeIds);
+    required this.initialSdk,
+    List<String> initialBreadcrumbIds = const [],
+  }) : _breadcrumbIds = initialBreadcrumbIds {
+    _expandedIds.addAll(initialBreadcrumbIds);
 
     _contentTreeCache.addListener(_onContentTreeCacheChange);
     _onContentTreeCacheChange();
   }
 
-  Sdk get sdk => _sdk;
-
-  set sdk(Sdk newValue) {
-    _sdk = newValue;
-    notifyListeners();
-  }
-
-  List<String> get treeIds => _treeIds;
+  Sdk get sdk => GetIt.instance.get<AppNotifier>().sdk ?? initialSdk;
+  List<String> get breadcrumbIds => _breadcrumbIds;
   NodeModel? get currentNode => _currentNode;
 
   void onNodePressed(NodeModel node) {
-    if (node is GroupModel) {
-      _onGroupPressed(node);
-    } else if (node is UnitModel) {
-      if (node != _currentNode) {
-        _currentNode = node;
-      }
-    }
-
-    if (_currentNode != null) {
-      _treeIds = _getNodeAncestors(_currentNode!, [_currentNode!.id]);
-    }
+    _toggleNode(node);
     notifyListeners();
   }
 
-  void _onGroupPressed(GroupModel group) {
-    if (_expandedIds.contains(group.id)) {
-      _expandedIds.remove(group.id);
-      notifyListeners();
-    } else {
-      _expandedIds.add(group.id);
-      final groupFirstUnit = group.nodes.first;
-      if (groupFirstUnit != _currentNode) {
-        onNodePressed(groupFirstUnit);
+  void _toggleNode(NodeModel node) {
+    if (node is ParentNodeModel) {
+      _onParentNodePressed(node);
+    } else if (node is UnitModel) {
+      if (node != _currentNode) {
+        _setUnit(node);
       }
     }
   }
 
-  void expandGroup(GroupModel group) {
+  void _setUnit(UnitModel unit) {
+    _currentNode = unit;
+    _currentUnitIndex = _getCurrentUnitIndex();
+    _breadcrumbIds = _getNodeAncestors(_currentNode!, [_currentNode!.id]);
+  }
+
+  void _onParentNodePressed(ParentNodeModel node) {
+    if (_expandedIds.contains(node.id)) {
+      _expandedIds.remove(node.id);
+      notifyListeners();
+    } else {
+      _expandedIds.add(node.id);
+
+      final firstChildNode = node.nodes.first;
+      if (firstChildNode != _currentNode) {
+        _toggleNode(firstChildNode);
+      }
+    }
+  }
+
+  void expandParentNode(ParentNodeModel group) {
     _expandedIds.add(group.id);
     notifyListeners();
   }
 
-  void collapseGroup(GroupModel group) {
+  void collapseParentNode(ParentNodeModel group) {
     _expandedIds.remove(group.id);
     notifyListeners();
   }
@@ -104,16 +109,49 @@ class ContentTreeController extends ChangeNotifier {
   }
 
   void _onContentTreeCacheChange() {
-    final contentTree = _contentTreeCache.getContentTree(_sdk);
+    final contentTree = _contentTreeCache.getContentTree(sdk);
     if (contentTree == null) {
       return;
     }
 
-    onNodePressed(
-      contentTree.getNodeByTreeIds(_treeIds) ?? contentTree.getFirstUnit(),
+    _units.clear();
+    _units.addAll(contentTree.getUnits());
+
+    _toggleNode(
+      contentTree.getLastNodeFromBreadcrumbIds(_breadcrumbIds) ??
+          contentTree.nodes.first,
     );
 
     notifyListeners();
+  }
+
+  bool hasPreviousUnit() {
+    return _currentUnitIndex > 0;
+  }
+
+  bool hasNextUnit() {
+    return _currentUnitIndex < _units.length - 1;
+  }
+
+  void openPreviousUnit() {
+    final previousUnit = _units[_currentUnitIndex - 1];
+    _navigateToUnit(previousUnit);
+  }
+
+  void openNextUnit() {
+    final nextUnit = _units[_currentUnitIndex + 1];
+    _navigateToUnit(nextUnit);
+  }
+
+  int _getCurrentUnitIndex() {
+    return _units.indexWhere(
+      (unit) => unit.id == _currentNode?.id,
+    );
+  }
+
+  void _navigateToUnit(UnitModel unit) {
+    onNodePressed(unit);
+    _expandedIds.addAll(_breadcrumbIds);
   }
 
   @override

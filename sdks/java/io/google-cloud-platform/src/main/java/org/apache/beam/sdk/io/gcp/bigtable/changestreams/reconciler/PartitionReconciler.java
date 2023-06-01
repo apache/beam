@@ -17,18 +17,26 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams.reconciler;
 
+import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper.coverSameKeySpace;
 import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper.doPartitionsOverlap;
-import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper.isValidPartition;
+import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper.getMissingPartitionsFrom;
 
+import com.google.cloud.bigtable.data.v2.models.ChangeStreamContinuationToken;
 import com.google.cloud.bigtable.data.v2.models.Range.ByteStringRange;
-import com.google.protobuf.ByteString;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTableDao;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.model.NewPartition;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.model.PartitionRecord;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * There can be a race when many splits and merges happen to a single partition in quick succession.
@@ -58,15 +66,20 @@ import org.joda.time.Instant;
  */
 @Internal
 public class PartitionReconciler {
-  HashMap<ByteStringRange, Set<ByteString>> partitionsToReconcile = new HashMap<>();
-  HashMap<ByteStringRange, ByteString> newPartitions = new HashMap<>();
-  MetadataTableDao metadataTableDao;
+  private static final Logger LOG = LoggerFactory.getLogger(PartitionReconciler.class);
+
+  private HashMap<ByteStringRange, Instant> missingPartitionDurations = new HashMap<>();
+  private final List<NewPartition> newPartitions = new ArrayList<>();
+  private final MetadataTableDao metadataTableDao;
+  private final ChangeStreamMetrics metrics;
 
   // The amount of delay allowed before we consider a partition to be probably missing.
-  private static final long MISSING_PARTITION_DELAY_MILLI = 5 * 60 * 1000L;
+  private static final Duration MISSING_PARTITION_SHORT_DELAY = Duration.standardMinutes(1);
+  private static final Duration MISSING_PARTITION_LONG_DELAY = Duration.standardMinutes(10);
 
-  public PartitionReconciler(MetadataTableDao metadataTableDao) {
+  public PartitionReconciler(MetadataTableDao metadataTableDao, ChangeStreamMetrics metrics) {
     this.metadataTableDao = metadataTableDao;
+    this.metrics = metrics;
   }
 
   /**
@@ -87,67 +100,143 @@ public class PartitionReconciler {
    * @param missingPartitions partitions not being streamed.
    */
   public void addMissingPartitions(List<ByteStringRange> missingPartitions) {
-    HashMap<ByteStringRange, Long> alreadyMissingPartitions =
+    HashMap<ByteStringRange, Instant> alreadyMissingPartitionDurations =
         metadataTableDao.readDetectNewPartitionMissingPartitions();
-    HashMap<ByteStringRange, Long> missingPartitionDuration = new HashMap<>();
-    long now = Instant.now().getMillis();
+    missingPartitionDurations = new HashMap<>();
+    Instant now = Instant.now();
 
     for (ByteStringRange missingPartition : missingPartitions) {
-      if (!isValidPartition(missingPartition)) {
-        continue;
-      }
-      if (alreadyMissingPartitions.containsKey(missingPartition)) {
-        missingPartitionDuration.put(
-            missingPartition, alreadyMissingPartitions.get(missingPartition));
-        if (alreadyMissingPartitions.get(missingPartition) + MISSING_PARTITION_DELAY_MILLI < now) {
-          partitionsToReconcile.put(missingPartition, new HashSet<>());
-        }
-      } else {
-        missingPartitionDuration.put(missingPartition, now);
-      }
+      missingPartitionDurations.put(
+          missingPartition, alreadyMissingPartitionDurations.getOrDefault(missingPartition, now));
     }
-    metadataTableDao.writeDetectNewPartitionMissingPartitions(missingPartitionDuration);
+    metadataTableDao.writeDetectNewPartitionMissingPartitions(missingPartitionDurations);
   }
 
   /**
-   * Capture NewPartition row that's waiting to be created. If any of these NewPartition row
+   * Capture NewPartition row that cannot merge on its own. If any of these NewPartition row
    * overlaps with partition we notice are missing and needs to be reconciled, we will need to clean
    * up these NewPartition to avoid future conflicts and inconsistencies.
    *
-   * @param partition new partitions waiting to be created.
-   * @param rowKey the full row key of the new partition.
+   * @param newPartition new partition waiting to be created.
    */
-  public void addNewPartition(ByteStringRange partition, ByteString rowKey) {
-    newPartitions.put(partition, rowKey);
+  public void addIncompleteNewPartitions(NewPartition newPartition) {
+    newPartitions.add(newPartition);
   }
 
   /**
-   * Find overlapping partitions between partitionToReconcile and newPartitions. This is to support
-   * the effort of identifying the new partition rows that are stuck and needs to be cleaned up
-   * because we have successfully reconciled the problem and created a new partition.
+   * Get a list of single token new partitions that have parent partition overlapping
+   * missingPartitions. This is to support the effort of identifying the new partition rows that are
+   * stuck and needs to be cleaned up because we have successfully reconciled the problem and
+   * created a new partition.
    *
-   * @param partitionToReconcile partition that will be created
+   * @param missingPartition partition that will be created
    * @return a set of new partitions that overlaps with partitionToReconcile
    */
-  private Set<ByteString> findOverlappingNewPartitions(ByteStringRange partitionToReconcile) {
-    Set<ByteString> overlappingRowKey = new HashSet<>();
-    for (ByteStringRange newPartition : newPartitions.keySet()) {
-      if (doPartitionsOverlap(newPartition, partitionToReconcile)) {
-        overlappingRowKey.add(newPartitions.get(newPartition));
+  private List<NewPartition> findOverlappingNewPartitions(ByteStringRange missingPartition) {
+    // TODO: Possibly precompute a map from parentPartitions to newPartitions on the first call to
+    //  this function so we don't have to repeat it.
+    List<NewPartition> overlappingNewPartitions = new ArrayList<>();
+    for (NewPartition newPartition : newPartitions) {
+      for (ByteStringRange parentPartition : newPartition.getParentPartitions()) {
+        if (doPartitionsOverlap(parentPartition, missingPartition)) {
+          // Return a NewPartition that only contains the parentPartition.
+          NewPartition splicedNewPartition =
+              newPartition.getSingleTokenNewPartition(parentPartition);
+          if (splicedNewPartition == null) {
+            continue;
+          }
+          overlappingNewPartitions.add(splicedNewPartition);
+        }
       }
     }
-    return overlappingRowKey;
+    return overlappingNewPartitions;
   }
 
   /**
-   * Match partitions that have been missing for a while and need to be reconciled with NewPartition
-   * row key. Find NewPartition row key that overlaps with the reconciled partitions to clean them
-   * up.
+   * For missing partitions, try to organize the mismatched parent tokens in a way to fill the
+   * missing partitions.
    *
-   * @return missing partitions and related NewPartition rows keys to delete.
+   * <p>If there are parent tokens that when combined form a missing partition, it can be outputted
+   * as a merge of the missing partition.
+   *
+   * <p>If there are no parent tokens for a missing partition, it will need to be reconciled with
+   * adjusted low watermark. This is a catch-all solution. We don't expect to ever get into this
+   * situation. Missing partitions should all be mismatched merges that can be reconciled by
+   * organizing them correctly.
+   *
+   * @param lowWatermark watermark that all reconciled partition should have
+   * @param startTime to help compute optimal reconcile point
+   * @return reconciled PartitionRecord.
    */
-  public HashMap<ByteStringRange, Set<ByteString>> getPartitionsToReconcile() {
-    partitionsToReconcile.replaceAll((r, v) -> findOverlappingNewPartitions(r));
-    return partitionsToReconcile;
+  public List<PartitionRecord> getPartitionsToReconcile(Instant lowWatermark, Instant startTime) {
+    // This value is calculated in case that we reconcile without continuation tokens, we will use
+    // an hour prior to low watermark because low watermark is only an estimate. By reading back 1
+    // hour, it should cover any changes missed. We also want to make sure that the reconcile time
+    // isn't before the start time of the pipeline.
+    Instant reconciledTime = lowWatermark.minus(Duration.standardMinutes(60));
+    if (reconciledTime.compareTo(startTime) < 0) {
+      reconciledTime = startTime;
+    }
+    List<PartitionRecord> reconciledPartitions = new ArrayList<>();
+    for (Map.Entry<ByteStringRange, Instant> partitionDuration :
+        missingPartitionDurations.entrySet()) {
+      // The partition hasn't been missing for even the short duration.
+      if (!partitionDuration.getValue().plus(MISSING_PARTITION_SHORT_DELAY).isBeforeNow()) {
+        continue;
+      }
+      ByteStringRange missingPartition = partitionDuration.getKey();
+      List<NewPartition> overlappingNewPartitions = findOverlappingNewPartitions(missingPartition);
+      List<ByteStringRange> overlappingParentPartitions = new ArrayList<>();
+      for (NewPartition newPartition : overlappingNewPartitions) {
+        overlappingParentPartitions.add(newPartition.getParentPartitions().get(0));
+      }
+      // If the parents are equal to the missing partition, a new partition can be formed.
+      if (coverSameKeySpace(overlappingParentPartitions, missingPartition)) {
+        List<ChangeStreamContinuationToken> allTokens = new ArrayList<>();
+        for (NewPartition newPartition : overlappingNewPartitions) {
+          allTokens.add(newPartition.getChangeStreamContinuationTokens().get(0));
+        }
+
+        metrics.incPartitionReconciledWithTokenCount();
+        PartitionRecord record =
+            new PartitionRecord(
+                missingPartition, allTokens, lowWatermark, overlappingNewPartitions);
+        reconciledPartitions.add(record);
+        continue;
+      }
+      // The parents are not equal to the missing partition. If the missing partition has been
+      // around for more than 10 minutes, it needs to be reconciled.
+      if (partitionDuration.getValue().plus(MISSING_PARTITION_LONG_DELAY).isBeforeNow()) {
+        // Try outputting the parent partitions as their own new partition, so they can get more
+        // recent merge targets.
+        for (NewPartition newPartition : overlappingNewPartitions) {
+          metrics.incPartitionReconciledWithTokenCount();
+          PartitionRecord record =
+              new PartitionRecord(
+                  newPartition.getChangeStreamContinuationTokens().get(0).getPartition(),
+                  newPartition.getChangeStreamContinuationTokens(),
+                  lowWatermark,
+                  Collections.singletonList(newPartition));
+          reconciledPartitions.add(record);
+        }
+        // Also output partition not overlapped by new partitions.
+        // Get the missing partition from parentPartitions and missingPartition.
+        List<ByteStringRange> missingPartitionsFromParents =
+            getMissingPartitionsFrom(
+                overlappingParentPartitions,
+                missingPartition.getStart(),
+                missingPartition.getEnd());
+        for (ByteStringRange missing : missingPartitionsFromParents) {
+          // This partition is truly missing. There are no tokens representing this. We restart at
+          // the calculated reconcile time.
+          metrics.incPartitionReconciledWithoutTokenCount();
+          PartitionRecord record =
+              new PartitionRecord(missing, reconciledTime, lowWatermark, Collections.emptyList());
+          reconciledPartitions.add(record);
+          LOG.error("DNP: Reconciling partition because we're missing a token {}", record);
+        }
+      }
+    }
+    return reconciledPartitions;
   }
 }

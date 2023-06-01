@@ -43,6 +43,7 @@ import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.annotations.Threads;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 /** Benchmarks for {@link BeamFnLoggingClient}. */
 public class BeamFnLoggingClientBenchmark {
@@ -190,6 +191,19 @@ public class BeamFnLoggingClientBenchmark {
       LOG.warn("log me");
     }
     BeamFnLoggingMDC.setInstructionId(null);
+  }
+
+  @Benchmark
+  @Threads(16) // Use several threads since we expect contention during logging
+  public void testLoggingWithCustomData(
+      ManyExpectedCallsLoggingClientAndService client, ManageExecutionState executionState)
+      throws Exception {
+    try (Closeable state =
+        executionState.executionStateTracker.enterState(executionState.simpleExecutionState)) {
+      try (Closeable mdc = MDC.putCloseable("key", "value")) {
+        LOG.warn("log me");
+      }
+    }
   }
 
   @Benchmark
