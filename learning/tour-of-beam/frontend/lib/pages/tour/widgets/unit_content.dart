@@ -128,7 +128,7 @@ class _Title extends StatelessWidget {
       ),
       child: Text(
         title,
-        style: Theme.of(context).textTheme.headlineLarge,
+        style: Theme.of(context).textTheme.titleLarge,
         textAlign: TextAlign.start,
       ),
     );

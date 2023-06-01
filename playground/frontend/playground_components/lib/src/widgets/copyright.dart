@@ -17,13 +17,16 @@
  */
 
 import 'package:easy_localization/easy_localization.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 
 class CopyrightWidget extends StatelessWidget {
   const CopyrightWidget();
 
   @override
   Widget build(BuildContext context) {
-    return const Text('ui.copyright').tr();
+    return Text(
+      'ui.copyright',
+      style: Theme.of(context).textTheme.bodySmall,
+    ).tr();
   }
 }
