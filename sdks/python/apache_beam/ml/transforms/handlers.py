@@ -14,13 +14,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
+import logging
 import tempfile
 import typing
 from typing import Dict
 from typing import List
 from typing import Optional
-from typing import Tuple
 from typing import Union
 
 import numpy as np
@@ -121,6 +120,13 @@ class TFTProcessHandler(ProcessHandler[ProcessInputT, ProcessOutputT]):
     self._namespace = namespace
     self.transformed_schema = None
 
+  def append_transform(self, transform: _TFTOperation):
+    if not isinstance(transform, _TFTOperation):
+      raise TypeError(
+          'The transform must be an instance of _TFTOperation, '
+          'but got %s' % type(transform))
+    self.transforms.append(transform)
+
   def get_raw_data_feature_spec(
       self, input_types: Dict[str, type]) -> dataset_metadata.DatasetMetadata:
     """
@@ -151,29 +157,31 @@ class TFTProcessHandler(ProcessHandler[ProcessInputT, ProcessOutputT]):
     """
     # lets conver the builtin types to typing types for consistency.
     typ = native_type_compatibility.convert_builtin_to_typing(typ)
-    containers_type = (List._name, Tuple._name)
-    is_container = hasattr(typ, '_name') and typ._name in containers_type
+    primitive_containers_type = (
+        List._name,
+        typing.Sequence._name,
+    )
+    is_primitive_container = (
+        hasattr(typ, '_name') and typ._name in primitive_containers_type)
 
-    if is_container:
+    if is_primitive_container:
       dtype = typing.get_args(typ)[0]
       if len(typing.get_args(typ)) > 1 or typing.get_origin(dtype) == Union:
         raise RuntimeError(
-            f"Incorrect type specifications in {typ} for column {col_name}. "
-            f"Please specify a single type.")
-      if dtype not in _default_type_to_tensor_type_map:
-        raise TypeError(
-            f"Unable to identify type: {dtype} specified on column: {col_name}"
-            f". Please specify a valid type.")
-    else:
+            f"Union type is not supported for column: {col_name}. "
+            f"Please pass a PCollection with valid schema for column "
+            f"{col_name} by passing a single type "
+            "in container. For example, List[int].")
+    elif issubclass(typ, np.generic) or typ in _default_type_to_tensor_type_map:
       dtype = typ
-
-    is_container = is_container or issubclass(dtype, np.generic)
-    if is_container:
-      return tf.io.VarLenFeature(_default_type_to_tensor_type_map[dtype])
     else:
-      return tf.io.FixedLenFeature([], _default_type_to_tensor_type_map[dtype])
+      raise TypeError(
+          f"Unable to identify type: {typ} specified on column: {col_name}. "
+          f"Please provide a valid type from the following: "
+          f"{_default_type_to_tensor_type_map.keys()}")
+    return tf.io.VarLenFeature(_default_type_to_tensor_type_map[dtype])
 
-  def get_metadata(self, input_types: Dict[str, type]):
+  def get_raw_data_metadata(self, input_types: Dict[str, type]):
     """
     Return metadata to be used with tft_beam.AnalyzeAndTransformDataset
     Args:
@@ -194,9 +202,6 @@ class TFTProcessHandler(ProcessHandler[ProcessInputT, ProcessOutputT]):
         transform_fn
         | 'Write Transform Artifacts' >>
         transform_fn_io.WriteTransformFn(location))
-
-  def infer_output_type(self, input_types: Dict[str, type]):
-    return Dict[str, Union[tuple(input_types.values())]]
 
   def _get_artifact_location(self, pipeline: beam.Pipeline):
     """
@@ -235,7 +240,8 @@ class TFTProcessHandlerDict(
   """
     A subclass of TFTProcessHandler specifically for handling
     data in dictionary format. Applies TensorFlow Transform (TFT)
-    operations to the input data.
+    operations to the input data and outputs a beam.Row object containing
+    the transformed data as numpy arrays.
 
     This only works on the Schema'd PCollection. Please refer to
     https://beam.apache.org/documentation/programming-guide/#schemas
@@ -267,25 +273,9 @@ class TFTProcessHandlerDict(
 
     For any other types, TFTProcessHandler will raise a TypeError.
   """
-  def _validate_input_types(self, input_types: Dict[str, type]):
-    """
-    Validate the input types.
-    Args:
-      input_types: A dictionary of column names and types.
-    Returns:
-      True if the input types are valid, False otherwise.
-    """
-    # Fail for the cases like
-    # Union[List[int], float] and List[List[int]]
-    _valid_types_in_container = (int, str, bytes, float)
-    for _, typ in input_types.items():
-      if hasattr(typ, '__args__'):
-        args = typ.__args__
-        if len(args) > 1 and args[0] not in _valid_types_in_container:
-          return False
-    return True
-
-  def get_input_types(self, element_type) -> Dict[str, type]:
+  def _map_column_names_to_types(
+      self, element_type: typing.Union[typing.NamedTuple, RowTypeConstraint]
+  ) -> Dict[str, type]:
     """
     Return a dictionary of column names and types.
     Args:
@@ -302,6 +292,10 @@ class TFTProcessHandlerDict(
             "https://beam.apache.org/documentation/programming-guide/#schemas)"
             " for to use with MLTransform and TFTProcessHandlerDict.")
     inferred_types = {name: typ for name, typ in row_type._fields}
+
+    for k, t in inferred_types.items():
+      if t in _primitive_types:
+        inferred_types[k] = typing.List[t]
 
     # sometimes a numpy type can be provided as np.dtype('int64').
     # convert numpy.dtype to numpy type since both are same.
@@ -338,10 +332,32 @@ class TFTProcessHandlerDict(
         outputs[col] = intermediate_result
     return outputs
 
-  def _get_processing_data_ptransform(
+  def _get_transformed_data_schema(
       self,
-      raw_data_metadata: dataset_metadata.DatasetMetadata,
-      input_types: Dict[str, type]):
+      metadata: dataset_metadata.DatasetMetadata,
+  ):
+    schema = metadata._schema
+    transformed_types = {}
+    logging.info("Schema: %s", schema)
+    for feature in schema.feature:
+      name = feature.name
+      feature_type = feature.type
+      if feature_type == schema_pb2.FeatureType.FLOAT:
+        transformed_types[name] = typing.Sequence[np.float32]
+      elif feature_type == schema_pb2.FeatureType.INT:
+        transformed_types[name] = typing.Sequence[np.int64]
+      elif feature_type == schema_pb2.FeatureType.BYTES:
+        transformed_types[name] = typing.Sequence[bytes]
+      else:
+        # TODO: This else condition won't be hit since TFT doesn't output
+        # other than float, int and bytes. Refactor the code here.
+        raise RuntimeError(
+            'Unsupported feature type: %s encountered' % feature_type)
+    logging.info(transformed_types)
+    return transformed_types
+
+  def _get_processing_data_ptransform(
+      self, raw_data_metadata: dataset_metadata.DatasetMetadata):
     """
     Return a PTransform object that has the preprocessing logic
     using the AnalyzeAndTransformDataset step.
@@ -375,32 +391,17 @@ class TFTProcessHandlerDict(
         )
         self.write_transform_artifacts(transform_fn, self._artifact_location)
         self.transformed_schema = self._get_transformed_data_schema(
-            metadata=transformed_metadata.dataset_metadata,
-            original_types=input_types)
+            metadata=transformed_metadata.dataset_metadata)
 
-        # transformed_dataset |= (
-        #     beam.Map(
-        #         lambda x: self.convert_to_ml_transform_output(
-        #             x,
-        #             transformed_metadata.dataset_metadata,
-        #             transformed_metadata.asset_map)).with_output_types(
-        #                 MLTransformOutput))
-
-        # TODO: Should we output a Row object or a NamedTuple?
-        # TODO: If we are outputting beam.Row, remove the above code
-        # converting to NamedTuple.
-
-        # with NamedTuple, I am not able set the output type to the
-        # self.transformed_schema. With Row object, we can set the output type
-        # to the self.transformed_schema.
-
+        # We need to pass a schema'd PCollection to the next step.
+        # So we will use a RowTypeConstraint to create a schema'd PCollection.
+        # this is needed since new columns are included in the
+        # transformed_dataset.
         row_type = RowTypeConstraint.from_fields(
             list(self.transformed_schema.items()))
 
         transformed_dataset |= "ConvertToRowType" >> beam.Map(
             lambda x: beam.Row(**x)).with_output_types(row_type)
-
-        # transformed_dataset_pcoll.element_type = row_type
         return transformed_dataset
 
     return ptransform_fn()
@@ -409,57 +410,37 @@ class TFTProcessHandlerDict(
       self, pcoll: beam.PCollection[tft_process_handler_dict_input_type]
   ) -> beam.PCollection[beam.Row]:
     element_type = pcoll.element_type
-    input_types = self.get_input_types(element_type=element_type)
-
-    if not self._validate_input_types(input_types):
-      raise RuntimeError(
-          "Unable to infer schema. Please pass a schema'd PCollection")
-
+    column_type_mapping = self._map_column_names_to_types(
+        element_type=element_type)
     # AnalyzeAndTransformDataset raise type hint since we only accept
     # schema'd PCollection and the current output type would be a
     # custom type(NamedTuple) or a beam.Row type.
     raw_data = (
-        pcoll | ConvertNamedTupleToDict().with_output_types(
-            self.infer_output_type(input_types)))
-    raw_data_metadata = self.get_metadata(input_types=input_types)
-    return raw_data | self._get_processing_data_ptransform(
-        raw_data_metadata=raw_data_metadata, input_types=input_types)
+        pcoll
+        | ConvertNamedTupleToDict()
+        # Also, to maintain consistency by outputting numpy array all the time,
+        #  we will convert scalar values to list values.
+        | beam.ParDo(_ConvertScalarValuesToListValues()).with_output_types(
+            Dict[str, typing.Union[list(column_type_mapping.values())]]))
+    raw_data_metadata = self.get_raw_data_metadata(
+        input_types=column_type_mapping)
 
-  def _get_transformed_data_schema(
-      self,
-      metadata: dataset_metadata.DatasetMetadata,
-      original_types: Dict[str, type]):
-    schema = metadata._schema
-    transformed_types = {}
-    for feature in schema.feature:
-      name = feature.name
-      feature_type = feature.type
-      is_container = not (
-          name in original_types and original_types[name] in _primitive_types)
+    return (
+        raw_data
+        | self._get_processing_data_ptransform(
+            raw_data_metadata=raw_data_metadata,
+            input_types=column_type_mapping))
 
-      if feature_type == schema_pb2.FeatureType.FLOAT:
-        # wrapping np.float32 inside np.dtype. Coders expect np.float32 to be a
-        # scalar of type float but it is an np array of dtype float32.
-        # Error: https://paste.googleplex.com/4866630994624512
-        transformed_types[name] = np.dtype(
-            np.float32) if is_container else float
-        # transformed_types[name] = np.float32 if is_container else float
-      elif feature_type == schema_pb2.FeatureType.INT:
-        transformed_types[name] = np.dtype(np.int64) if is_container else int
-      elif feature_type == schema_pb2.FeatureType.BYTES:
-        transformed_types[name] = bytes
-      else:
-        # TODO: This else condition won't be hit since TFT doesn't output
-        # other than float, int and bytes. Refactor the code here.
-        raise RuntimeError(
-            'Unsupported feature type: %s encountered' % feature_type)
-    return transformed_types
-
-  # def convert_to_ml_transform_output(self, element, metadata, asset_map):
-  #   return MLTransformOutput(
-  #       transformed_data=element,
-  #       transformed_metadata=metadata,
-  #       asset_map=asset_map)
-
-  def get_metadata(self, input_types: Dict[str, type]):
+  def get_raw_data_metadata(self, input_types: Dict[str, type]):
     return self.get_raw_data_feature_spec(input_types)
+
+
+class _ConvertScalarValuesToListValues(beam.DoFn):
+  def process(self, element: Dict):
+    new_dict = {}
+    for key, value in element.items():
+      if isinstance(value, _primitive_types):
+        new_dict[key] = [value]
+      else:
+        new_dict[key] = value
+    yield new_dict

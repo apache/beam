@@ -15,11 +15,13 @@
 # limitations under the License.
 #
 
+import typing
 from typing import NamedTuple
 from typing import List
 from typing import Union
 
 import numpy as np
+from parameterized import param
 from parameterized import parameterized
 import unittest
 
@@ -146,8 +148,9 @@ class TFTProcessHandlerDictTest(unittest.TestCase):
               UnBatchedIntType))
     element_type = data.element_type
     process_handler = handlers.TFTProcessHandlerDict()
-    inferred_input_type = process_handler.get_input_types(element_type)
-    expected_input_type = dict(x=int)
+    inferred_input_type = process_handler._map_column_names_to_types(
+        element_type)
+    expected_input_type = dict(x=List[int])
 
     self.assertEqual(inferred_input_type, expected_input_type)
 
@@ -160,7 +163,8 @@ class TFTProcessHandlerDictTest(unittest.TestCase):
               BatchedIntType))
     element_type = data.element_type
     process_handler = handlers.TFTProcessHandlerDict()
-    inferred_input_type = process_handler.get_input_types(element_type)
+    inferred_input_type = process_handler._map_column_names_to_types(
+        element_type)
     expected_input_type = dict(x=List[int])
     self.assertEqual(inferred_input_type, expected_input_type)
 
@@ -172,8 +176,9 @@ class TFTProcessHandlerDictTest(unittest.TestCase):
           | beam.Map(lambda ele: beam.Row(x=int(ele['x']))))
     element_type = data.element_type
     process_handler = handlers.TFTProcessHandlerDict()
-    inferred_input_type = process_handler.get_input_types(element_type)
-    expected_input_type = dict(x=int)
+    inferred_input_type = process_handler._map_column_names_to_types(
+        element_type)
+    expected_input_type = dict(x=List[int])
     self.assertEqual(inferred_input_type, expected_input_type)
 
   def test_input_type_from_row_type_pcoll_batched(self):
@@ -186,7 +191,8 @@ class TFTProcessHandlerDictTest(unittest.TestCase):
 
     element_type = data.element_type
     process_handler = handlers.TFTProcessHandlerDict()
-    inferred_input_type = process_handler.get_input_types(element_type)
+    inferred_input_type = process_handler._map_column_names_to_types(
+        element_type)
     expected_input_type = dict(x=List[int])
     self.assertEqual(inferred_input_type, expected_input_type)
 
@@ -203,7 +209,8 @@ class TFTProcessHandlerDictTest(unittest.TestCase):
               BatchedNumpyType))
       element_type = data.element_type
       process_handler = handlers.TFTProcessHandlerDict()
-      inferred_input_type = process_handler.get_input_types(element_type)
+      inferred_input_type = process_handler._map_column_names_to_types(
+          element_type)
       expected_type = dict(x=np.int64)
       self.assertEqual(inferred_input_type, expected_type)
 
@@ -214,7 +221,7 @@ class TFTProcessHandlerDictTest(unittest.TestCase):
     element_type = data.element_type
     process_handler = handlers.TFTProcessHandlerDict()
     with self.assertRaises(TypeError):
-      _ = process_handler.get_input_types(element_type)
+      _ = process_handler._map_column_names_to_types(element_type)
 
   def test_validate_primitive_input_types(self):
     input_types = dict(x=int, y=float, k=bytes, l=str)
@@ -254,7 +261,7 @@ class TFTProcessHandlerDictTest(unittest.TestCase):
           typ=typ, col_name=col_name)
       self.assertEqual(
           handlers._default_type_to_tensor_type_map[typ], feature_spec.dtype)
-      self.assertIsInstance(feature_spec, tf.io.FixedLenFeature)
+      self.assertIsInstance(feature_spec, tf.io.VarLenFeature)
 
   def test_tensorflow_raw_data_metadata_primitive_types_in_containers(self):
     input_types = dict([("x", List[int]), ("y", List[float]),
@@ -299,12 +306,67 @@ class TFTProcessHandlerDictTest(unittest.TestCase):
           typ=typ, col_name=col_name)
       self.assertEqual(expected_dtype[col_name], feature_spec.dtype)
 
-  def test_tft_process_handler_dict_output_pcoll_schema(self):
-    input_types = dict(x=int, y=float)
-    input_data = [{'x': 1, 'y': 2.0}, {'x': 3, 'y': 4.0}]
-    expected_dtype = dict(
-        x=float, y=float, x_scaled=np.float32, x_min=np.int64, x_max=np.int64)
-
+  @parameterized.expand([
+      param(
+          input_data=[{
+              'x': 1,
+              'y': 2.0,
+          }],
+          input_types={
+              'x': int, 'y': float
+          },
+          expected_dtype={
+              'x': typing.Sequence[np.float32],
+              'y': typing.Sequence[np.float32]
+          }),
+      param(
+          input_data=[{
+              'x': np.array([1], dtype=np.int64),
+              'y': np.array([2.0], dtype=np.float32)
+          }],
+          input_types={
+              'x': np.int32, 'y': np.float32
+          },
+          expected_dtype={
+              'x': typing.Sequence[np.float32],
+              'y': typing.Sequence[np.float32]
+          }),
+      param(
+          input_data=[{
+              'x': [1, 2, 3], 'y': [2.0, 3.0, 4.0]
+          }],
+          input_types={
+              'x': List[int], 'y': List[float]
+          },
+          expected_dtype={
+              'x': typing.Sequence[np.float32],
+              'y': typing.Sequence[np.float32]
+          }),
+      param(
+          input_data=[{
+              'x': [1, 2, 3], 'y': [2.0, 3.0, 4.0]
+          }],
+          input_types={
+              'x': typing.Sequence[int], 'y': typing.Sequence[float]
+          },
+          expected_dtype={
+              'x': typing.Sequence[np.float32],
+              'y': typing.Sequence[np.float32]
+          }),
+      param(
+          input_data=[{
+              'x': [1, 2, 3], 'y': [2.0, 3.0, 4.0]
+          }],
+          input_types={
+              'x': list[int], 'y': list[float]
+          },
+          expected_dtype={
+              'x': typing.Sequence[np.float32],
+              'y': typing.Sequence[np.float32]
+          }),
+  ])
+  def test_tft_process_handler_dict_output_pcoll_schema(
+      self, input_data, input_types, expected_dtype):
     transforms = [
         tft_transforms.scale_to_0_1(
             columns=['x'], save_result=True, output_name='x_scaled')
@@ -320,7 +382,8 @@ class TFTProcessHandlerDictTest(unittest.TestCase):
       transformed_data = (
           schema_data | base.MLTransform(process_handler=process_handler))
     for name, typ in transformed_data.element_type._fields:
-      self.assertEqual(expected_dtype[name], typ)
+      if name in expected_dtype:
+        self.assertEqual(expected_dtype[name], typ)
 
   def test_tft_process_handler_dict_fail_for_non_schema_pcoll(self):
     transforms = [tft_transforms.scale_to_0_1(columns=['x'])]
