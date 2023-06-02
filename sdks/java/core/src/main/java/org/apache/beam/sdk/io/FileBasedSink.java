@@ -231,7 +231,6 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
         case MC4_ULTRA:
           return MC4_ULTRA;
 
-
         default:
           throw new UnsupportedOperationException("Unsupported compression type: " + canonical);
       }

@@ -78,6 +78,7 @@ dependencies {
   testImplementation library.java.hamcrest
   testImplementation "org.assertj:assertj-core:3.11.1"
   testImplementation library.java.testcontainers_localstack
+  testImplementation library.java.hadoop_client
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

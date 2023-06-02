@@ -40,6 +40,7 @@ dependencies {
     implementation "org.apache.thrift:libthrift:0.14.1"
     implementation project(path: ":sdks:java:core", configuration: "shadow")
     testImplementation library.java.junit
+    testImplementation library.java.hadoop_client
     testRuntimeOnly library.java.slf4j_jdk14
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

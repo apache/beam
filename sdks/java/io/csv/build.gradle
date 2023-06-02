@@ -30,6 +30,7 @@ dependencies {
     implementation library.java.vendored_guava_26_0_jre
     testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
     testImplementation library.java.junit
+    testImplementation library.java.hadoop_client
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
     testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
 }

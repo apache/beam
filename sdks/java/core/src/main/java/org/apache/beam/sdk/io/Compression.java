@@ -312,7 +312,6 @@ public enum Compression {
     }
   };
 
-
   private final String suggestedSuffix;
   private final ImmutableList<String> detectedSuffixes;
 
