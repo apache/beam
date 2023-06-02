@@ -906,10 +906,12 @@ class GroupIntoBatchesTest(unittest.TestCase):
           ]))
 
   def test_in_global_window_with_text_file(self):
-    # this test will raise asserts since DirectRunner misses features
-    with tempfile.NamedTemporaryFile(suffix=".json") as f:
-      with open(f.name, "w") as fh:
-        json.dump(GroupIntoBatchesTest._create_test_data(), fh)
+    # this test will raise asserts since DirectRunner misses this feature:
+    # sdf_direct_runner currently does not support GroupIntoBatches
+    # from bundles of SDF source and will throw this AttributeError
+    with tempfile.NamedTemporaryFile(suffix=".json", mode="w+t") as f:
+      f.write(json.dumps(GroupIntoBatchesTest._create_test_data()))
+      f.flush()
       with self.assertRaises((RuntimeError, AttributeError)):
         with TestPipeline() as pipeline:
           collection = pipeline \
@@ -920,7 +922,9 @@ class GroupIntoBatchesTest(unittest.TestCase):
           assert collection
 
   def test_in_global_window_with_synthetic_source(self):
-    # this test will raise asserts since DirectRunner misses features
+    # this test will raise asserts since DirectRunner misses this feature:
+    # sdf_direct_runner currently does not support GroupIntoBatches
+    # from bundles of SDF source and will throw this AttributeError
     with self.assertRaises((RuntimeError, AttributeError)):
       with beam.Pipeline() as pipeline:
         _ = (
