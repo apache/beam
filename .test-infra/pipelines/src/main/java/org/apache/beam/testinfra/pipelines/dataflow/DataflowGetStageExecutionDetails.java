@@ -19,7 +19,6 @@ package org.apache.beam.testinfra.pipelines.dataflow;
 
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
-import com.google.dataflow.v1beta3.GetJobRequest;
 import com.google.dataflow.v1beta3.GetStageExecutionDetailsRequest;
 import com.google.dataflow.v1beta3.Job;
 import com.google.dataflow.v1beta3.MetricsV1Beta3Grpc;
@@ -89,8 +88,14 @@ public class DataflowGetStageExecutionDetails
   private static class GetStageExecutionDetailsFn
       extends DoFn<Job, WorkerDetailsWithAppendedDetails> {
 
-    final Counter success = Metrics.counter(GetStageExecutionDetailsRequest.class, "get_stage_execution_details_success");
-    final Counter failure = Metrics.counter(GetStageExecutionDetailsRequest.class, "get_stage_execution_details_failure");
+    final Counter success =
+        Metrics.counter(
+            GetStageExecutionDetailsRequest.class, "get_stage_execution_details_success");
+    final Counter failure =
+        Metrics.counter(
+            GetStageExecutionDetailsRequest.class, "get_stage_execution_details_failure");
+
+    final Counter items = Metrics.counter(WorkerDetails.class, "stage_execution_details_items");
     private final DataflowGetStageExecutionDetails spec;
     private transient MetricsV1Beta3Grpc.@MonotonicNonNull MetricsV1Beta3BlockingStub client;
     private transient @MonotonicNonNull ManagedChannel channel;
@@ -129,6 +134,7 @@ public class DataflowGetStageExecutionDetails
         StageExecutionDetails response =
             checkStateNotNull(client).getStageExecutionDetails(request);
         success.inc();
+        items.inc(response.getWorkersCount());
         emitResponse(job, response, receiver.get(SUCCESS));
         while (!Strings.isNullOrEmpty(response.getNextPageToken())) {
           GetStageExecutionDetailsRequest requestWithPageToken =

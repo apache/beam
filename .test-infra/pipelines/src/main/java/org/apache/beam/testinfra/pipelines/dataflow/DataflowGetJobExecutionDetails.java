@@ -20,7 +20,6 @@ package org.apache.beam.testinfra.pipelines.dataflow;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import com.google.dataflow.v1beta3.GetJobExecutionDetailsRequest;
-import com.google.dataflow.v1beta3.GetJobRequest;
 import com.google.dataflow.v1beta3.Job;
 import com.google.dataflow.v1beta3.JobExecutionDetails;
 import com.google.dataflow.v1beta3.MetricsV1Beta3Grpc;
@@ -88,8 +87,11 @@ public class DataflowGetJobExecutionDetails
   }
 
   private static class GetJobExecutionDetailsFn extends DoFn<Job, StageSummaryWithAppendedDetails> {
-    final Counter success = Metrics.counter(GetJobExecutionDetailsRequest.class, "get_job_execution_details_success");
-    final Counter failure = Metrics.counter(GetJobExecutionDetailsRequest.class, "get_job_execution_details_failure");
+    final Counter success =
+        Metrics.counter(GetJobExecutionDetailsRequest.class, "get_job_execution_details_success");
+    final Counter failure =
+        Metrics.counter(GetJobExecutionDetailsRequest.class, "get_job_execution_details_failure");
+    final Counter items = Metrics.counter(StageSummary.class, "job_execution_details_items");
     private final DataflowGetJobExecutionDetails spec;
     private transient MetricsV1Beta3Grpc.@MonotonicNonNull MetricsV1Beta3BlockingStub client;
     private transient @MonotonicNonNull ManagedChannel channel;
@@ -126,12 +128,14 @@ public class DataflowGetJobExecutionDetails
       try {
         JobExecutionDetails response = checkStateNotNull(client).getJobExecutionDetails(request);
         success.inc();
+        items.inc(response.getStagesCount());
         emitResponse(job, response, receiver.get(SUCCESS));
         while (!Strings.isNullOrEmpty(response.getNextPageToken())) {
           GetJobExecutionDetailsRequest requestWithPageToken =
               request.toBuilder().setPageToken(response.getNextPageToken()).build();
           response = client.getJobExecutionDetails(requestWithPageToken);
           success.inc();
+          items.inc(response.getStagesCount());
           emitResponse(job, response, receiver.get(SUCCESS));
         }
       } catch (StatusRuntimeException e) {

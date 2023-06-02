@@ -20,7 +20,6 @@ package org.apache.beam.testinfra.pipelines.dataflow;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import com.google.dataflow.v1beta3.GetJobMetricsRequest;
-import com.google.dataflow.v1beta3.GetJobRequest;
 import com.google.dataflow.v1beta3.Job;
 import com.google.dataflow.v1beta3.JobMetrics;
 import com.google.dataflow.v1beta3.MetricsV1Beta3Grpc;
@@ -85,6 +84,7 @@ public class DataflowGetJobMetrics
 
     final Counter success = Metrics.counter(GetJobMetricsRequest.class, "get_jobs_metrics_success");
     final Counter failure = Metrics.counter(GetJobMetricsRequest.class, "get_jobs_metrics_failure");
+    final Counter items = Metrics.counter(JobMetrics.class, "job_metrics_items");
     private final DataflowGetJobMetrics spec;
     private transient MetricsV1Beta3Grpc.@MonotonicNonNull MetricsV1Beta3BlockingStub client;
     private transient @MonotonicNonNull ManagedChannel channel;
@@ -122,6 +122,7 @@ public class DataflowGetJobMetrics
 
         JobMetrics response = checkStateNotNull(client).getJobMetrics(request);
         success.inc();
+        items.inc(response.getMetricsCount());
         com.google.protobuf.Timestamp timestamp = job.getCreateTime();
         JobMetricsWithAppendedDetails result = new JobMetricsWithAppendedDetails();
         result.setJobId(request.getJobId());
