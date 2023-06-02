@@ -19,8 +19,9 @@
 
 # Overview
 
-This directory provisions Google Cloud project resources of which the
-Apache Beam pipeline will read from and write to.
+This directory holds terraform code to provision resources that
+[org.apache.beam.testinfra.pipelines.ReadDataflowApiWriteBigQuery](../../../src/main/java/org/apache/beam/testinfra/pipelines/ReadDataflowApiWriteBigQuery.java)
+reads from and writes to.
 
 # List of all provision GCP resources
 
@@ -41,13 +42,45 @@ Follow terraform workflow convention to apply this module. It assumes the
 working directory is at
 [.test-infra/pipelines](../../..)
 
+## Terraform Init
+
+This module uses a Google Cloud Storage bucket backend.
+
+Initialize the terraform workspace for the `apache-beam-testing` project:
+
+```
+DIR=infrastructure/03.io/dataflow-to-bigquery
+terraform -chdir=$DIR init -backend-config=apache-beam-testing.tfbackend
+```
+
+or for your own Google Cloud project:
+
+```
+DIR=infrastructure/03.io/dataflow-to-bigquery
+terraform init -backend-config=path/to/your/backend-config-file.tfbackend
+```
+
+where your `backend-config-file.tfbackend` contains:
+
+```
+bucket = <Google Cloud Storage Bucket Name>
+```
+
+## Terraform Apply
+
 Notice the `-var-file` flag referencing [common.tfvars](common.tfvars) that
 provides opinionated variable defaults.
 
-For example:
+For `apache-beam-testing`:
 
 ```
-DIR=infrastructure/03.io/eventarc_workflow
-terraform -chdir=$DIR init
-terraform -chdir=$DIR apply -var-file=common.tfvars -var=project=$(gcloud config get-value project)
+DIR=infrastructure/03.io/dataflow-to-bigquery
+terraform -chdir=$DIR apply -var-file=common.tfvars -var-file=apache-beam-testing.tfvars
+```
+
+or for your own Google Cloud project:
+
+```
+DIR=infrastructure/03.io/dataflow-to-bigquery
+terraform -chdir=$DIR apply -var-file=common.tfvars
 ```

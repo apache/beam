@@ -20,6 +20,7 @@ locals {
   beam_root = "${path.module}/../../../../.."
 }
 
+// Builds the Shadow jar via the gradle command.
 resource "null_resource" "shadowjar" {
   triggers = {
     id = uuid()
@@ -30,6 +31,7 @@ resource "null_resource" "shadowjar" {
   }
 }
 
+// Builds the Dataflow Flex template by invoking the gcloud command.
 resource "null_resource" "build_template" {
   triggers = {
     id = uuid()
@@ -38,7 +40,7 @@ resource "null_resource" "build_template" {
   provisioner "local-exec" {
     command = <<EOF
       gcloud dataflow flex-template build \
-        gs://${data.google_storage_bucket.default.name}/templates/dataflow-to-bigquery.json \
+        ${local.template_file_gcs_path} \
         --project=${var.project} \
         --image-gcr-path=${var.region}-docker.pkg.dev/${var.project}/${data.google_artifact_registry_repository.default.name}/${var.template_image_prefix} \
         --metadata-file=${local.beam_root}/.test-infra/pipelines/infrastructure/04.template/dataflow-to-bigquery/dataflow-template.json \

@@ -30,6 +30,8 @@ The following table lists all provisioned resources and their rationale.
 | API services                    | Required by GCP to provision resources     | 
 | Dataflow Worker Service Account | Use GCP service account other than default | 
 | Worker IAM Roles                | Follow principle of least privilege        |
+| Artifact Registry Repository    | Required to store template artifacts       |
+| Google Cloud Storage bucket     | Required for various storage needs         |
 
 # Usage
 
@@ -37,13 +39,45 @@ Follow terraform workflow convention to apply this module. It assumes the
 working directory is at
 [.test-infra/pipelines](../..).
 
-Notice the `-var-file` flag referencing [common.tfvars](common.tfvars) that
-provides opinionated variable defaults.
+## Terraform Init
 
-For example:
+This module uses a Google Cloud Storage bucket backend.
+
+Initialize the terraform workspace for the `apache-beam-testing` project:
 
 ```
 DIR=infrastructure/01.setup
-terraform -chdir=$DIR init
-terraform -chdir=$DIR apply -var-file=common.tfvars -var=project=$(gcloud config get-value project)
+terraform -chdir=$DIR init -backend-config=apache-beam-testing.tfbackend
+```
+
+or for your own Google Cloud project:
+
+```
+DIR=infrastructure/01.setup
+terraform -chdir=$DIR init -backend-config=path/to/your/backend-config-file.tfbackend
+```
+
+where your `backend-config-file.tfbackend` contains:
+
+```
+bucket = <Google Cloud Storage Bucket Name>
+```
+
+## Terraform Apply
+
+Notice the `-var-file` flag referencing [common.tfvars](common.tfvars) that
+provides opinionated variable defaults.
+
+For `apache-beam-testing`:
+
+```
+DIR=infrastructure/01.setup
+terraform -chdir=$DIR apply -var-file=common.tfvars -var-file=apache-beam-testing.tfvars
+```
+
+or for your own Google Cloud project:
+
+```
+DIR=infrastructure/01.setup
+terraform -chdir=$DIR apply -var-file=common.tfvars
 ```

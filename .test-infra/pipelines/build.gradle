@@ -45,6 +45,7 @@ def googleCloudEventsVersion = "0.8.1"
 def grpcDataflowProtoVersion = "0.17.0"
 def ioGrpcApiVersion = "1.53.0"
 def jupiterVersion = "5.9.3"
+def nettyVersion = "1.53.0"
 
 dependencies {
     implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
@@ -61,6 +62,7 @@ dependencies {
     implementation library.java.slf4j_api
     implementation "com.google.api.grpc:proto-google-cloud-dataflow-v1beta3:${grpcDataflowProtoVersion}"
     implementation "io.grpc:grpc-api:${ioGrpcApiVersion}"
+    implementation "io.grpc:grpc-netty:${nettyVersion}"
     implementation "com.google.cloud:google-cloudevent-types:${googleCloudEventsVersion}"
     implementation 'com.google.api.grpc:grpc-google-cloud-dataflow-v1beta3'
     implementation project(":sdks:java:io:google-cloud-platform")

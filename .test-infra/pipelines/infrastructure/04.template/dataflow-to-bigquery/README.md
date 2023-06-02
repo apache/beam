@@ -19,21 +19,24 @@
 
 # Overview
 
-This directory provisions Google Cloud project resources of which the
-Apache Beam pipeline will read from and write to.
+This directory holds terraform code to build the
+[org.apache.beam.testinfra.pipelines.ReadDataflowApiWriteBigQuery](../../../src/main/java/org/apache/beam/testinfra/pipelines/ReadDataflowApiWriteBigQuery.java)
+pipeline for use as a [Dataflow Flex Template](https://cloud.google.com/dataflow/docs/guides/templates/using-flex-templates).
 
-# List of all provision GCP resources
+# Why terraform?
 
-The following lists all provisioned resources and their rationale
-categorized by GCP service.
+As of this README's writing, there is no resource block for the Google Cloud
+terraform provider to provision Dataflow Templates. Therefore, this solution
+makes use of the
+[null_resource](https://registry.terraform.io/providers/hashicorp/null/latest/docs/resources/resource)
+along with the
+[local-exec](https://developer.hashicorp.com/terraform/language/resources/provisioners/local-exec)
+provisioner.
 
-| resource                    | reason                                                |
-|-----------------------------|-------------------------------------------------------|
-| Eventarc Workflow           | Intended for listening to Dataflow Status Changes     |
-| Pub/Sub topic               | Required for Eventarc Workflow                        |
-| Pub/Sub subscription        | Intended as a source; subscribes to Eventarc Workflow |
-| Google Cloud Storage Bucket | Intended for temporary storage                        |
-| BigQuery Datasets           | Intended as sink                                      |
+The benefit of using terraform is that it provides clean resource lookups,
+within its workflow, known to make submitting the Dataflow job
+cumbersome through other means, such as through a gradle command, bash script,
+etc.
 
 # Usage
 
@@ -41,31 +44,7 @@ Follow terraform workflow convention to apply this module. It assumes the
 working directory is at
 [.test-infra/pipelines](../../..)
 
-## Terraform Init
-
-This module uses a Google Cloud Storage bucket backend.
-
-Initialize the terraform workspace for the `apache-beam-testing` project:
-
-```
-DIR=infrastructure/03.io/dataflow-to-bigquery
-terraform -chdir=$DIR init -backend-config=apache-beam-testing.tfbackend
-```
-
-or for your own Google Cloud project:
-
-```
-DIR=infrastructure/03.io/dataflow-to-bigquery
-terraform init -backend-config=path/to/your/backend-config-file.tfbackend
-```
-
-where your `backend-config-file.tfbackend` contains:
-
-```
-bucket = <Google Cloud Storage Bucket Name>
-```
-
-## Terraform Apply
+This module does not use a state backend.
 
 Notice the `-var-file` flag referencing [common.tfvars](common.tfvars) that
 provides opinionated variable defaults.
@@ -73,13 +52,15 @@ provides opinionated variable defaults.
 For `apache-beam-testing`:
 
 ```
-DIR=infrastructure/03.io/dataflow-to-bigquery
+DIR=infrastructure/04.template/dataflow-to-bigquery
+terraform -chdir=$DIR init
 terraform -chdir=$DIR apply -var-file=common.tfvars -var-file=apache-beam-testing.tfvars
 ```
 
 or for your own Google Cloud project:
 
 ```
-DIR=infrastructure/03.io/dataflow-to-bigquery
+DIR=infrastructure/04.template/dataflow-to-bigquery
+terraform -chdir=$DIR init
 terraform -chdir=$DIR apply -var-file=common.tfvars
 ```

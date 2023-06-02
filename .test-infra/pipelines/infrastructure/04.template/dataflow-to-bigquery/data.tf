@@ -16,17 +16,18 @@
  * limitations under the License.
  */
 
+// Query the Artifact Registry repository.
 data "google_artifact_registry_repository" "default" {
   location      = var.region
   repository_id = var.artifact_registry_id
 }
 
-// Query the Dataflow Worker service account
+// Query the Dataflow Worker service account.
 data "google_service_account" "dataflow_worker" {
   account_id = var.dataflow_worker_service_account_id
 }
 
-// Query the GCP project. Needed to acquire the project number.
+// Query the GCP project.
 data "google_project" "default" {
   project_id = var.project
 }
@@ -45,4 +46,8 @@ data "google_compute_subnetwork" "default" {
 // Query the Storage bucket.
 data "google_storage_bucket" "default" {
   name = var.storage_bucket_name
+}
+
+locals {
+  template_file_gcs_path = "gs://${data.google_storage_bucket.default.name}/templates/dataflow-to-bigquery.json"
 }

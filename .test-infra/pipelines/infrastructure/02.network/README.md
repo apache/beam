@@ -37,13 +37,45 @@ Follow terraform workflow convention to apply this module. It assumes the
 working directory is at
 [.test-infra/pipelines](../..)
 
-Notice the `-var-file` flag referencing [common.tfvars](common.tfvars) that
-provides opinionated variable defaults.
+## Terraform Init
 
-For example:
+This module uses a Google Cloud Storage bucket backend.
+
+Initialize the terraform workspace for the `apache-beam-testing` project:
 
 ```
 DIR=infrastructure/02.network
-terraform -chdir=$DIR init
-terraform -chdir=$DIR apply -var-file=common.tfvars -var=project=$(gcloud config get-value project)
+terraform -chdir=$DIR init -backend-config=apache-beam-testing.tfbackend
+```
+
+or for your own Google Cloud project:
+
+```
+DIR=infrastructure/02.network
+terraform init -backend-config=path/to/your/backend-config-file.tfbackend
+```
+
+where your `backend-config-file.tfbackend` contains:
+
+```
+bucket = <Google Cloud Storage Bucket Name>
+```
+
+## Terraform Apply
+
+Notice the `-var-file` flag referencing [common.tfvars](common.tfvars) that
+provides opinionated variable defaults.
+
+For `apache-beam-testing`:
+
+```
+DIR=infrastructure/02.network
+terraform -chdir=$DIR apply -var-file=common.tfvars -var-file=apache-beam-testing.tfvars
+```
+
+or for your own Google Cloud project:
+
+```
+DIR=infrastructure/02.network
+terraform -chdir=$DIR apply -var-file=common.tfvars
 ```
