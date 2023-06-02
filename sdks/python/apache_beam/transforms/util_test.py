@@ -46,6 +46,7 @@ from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.pvalue import AsList
 from apache_beam.pvalue import AsSingleton
 from apache_beam.runners import pipeline_context
+from apache_beam.testing.synthetic_pipeline import SyntheticSource
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import SortLists
@@ -905,6 +906,7 @@ class GroupIntoBatchesTest(unittest.TestCase):
           ]))
 
   def test_in_global_window_with_text_file(self):
+    # this test will raise asserts since DirectRunner misses features
     with tempfile.NamedTemporaryFile(suffix=".json") as f:
       with open(f.name, "w") as fh:
         json.dump(GroupIntoBatchesTest._create_test_data(), fh)
@@ -916,6 +918,19 @@ class GroupIntoBatchesTest(unittest.TestCase):
                       | beam.Map(lambda e: (e["key"], e)) \
                       | util.GroupIntoBatches(GroupIntoBatchesTest.BATCH_SIZE)
           assert collection
+
+  def test_in_global_window_with_synthetic_source(self):
+    # this test will raise asserts since DirectRunner misses features
+    with self.assertRaises((RuntimeError, AttributeError)):
+      with beam.Pipeline() as pipeline:
+        _ = (
+            pipeline
+            | beam.io.Read(
+                SyntheticSource({
+                    "numRecords": 10, "keySizeBytes": 1, "valueSizeBytes": 1
+                }))
+            | "Group key" >> beam.GroupIntoBatches(2, 1)
+            | beam.Map(print))
 
   def test_with_sharded_key_in_global_window(self):
     with TestPipeline() as pipeline:
