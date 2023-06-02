@@ -157,7 +157,7 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
       long csn = -1;
       Descriptor descriptorToUse = descriptor;
       if (rowMutationInformation != null) {
-        changeType = rowMutationInformation.getUpdateType().toString();
+        changeType = rowMutationInformation.getMutationType().toString();
         csn = rowMutationInformation.getSequenceNumber();
         descriptorToUse = Preconditions.checkStateNotNull(cdcDescriptor);
       }

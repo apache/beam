@@ -2160,7 +2160,7 @@ public class BigQueryIO {
   public static Write<RowMutation> applyRowMutations() {
     return BigQueryIO.<RowMutation>write()
         .withFormatFunction(RowMutation::getTableRow)
-        .withRowMutationFn(RowMutation::getUpdateInformation);
+        .withRowMutationFn(RowMutation::getMutationInformation);
   }
   /**
    * A {@link PTransform} that writes a {@link PCollection} containing {@link GenericRecord

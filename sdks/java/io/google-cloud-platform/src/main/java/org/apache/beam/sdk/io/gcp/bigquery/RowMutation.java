@@ -36,7 +36,7 @@ import org.apache.beam.sdk.coders.VarLongCoder;
 public abstract class RowMutation {
   public abstract TableRow getTableRow();
 
-  public abstract RowMutationInformation getUpdateInformation();
+  public abstract RowMutationInformation getMutationInformation();
 
   public static RowMutation of(TableRow tableRow, RowMutationInformation rowMutationInformation) {
     return new AutoValue_RowMutation(tableRow, rowMutationInformation);
@@ -52,8 +52,9 @@ public abstract class RowMutation {
     @Override
     public void encode(RowMutation value, OutputStream outStream) throws IOException {
       TableRowJsonCoder.of().encode(value.getTableRow(), outStream);
-      VarIntCoder.of().encode(value.getUpdateInformation().getUpdateType().ordinal(), outStream);
-      VarLongCoder.of().encode(value.getUpdateInformation().getSequenceNumber(), outStream);
+      VarIntCoder.of()
+          .encode(value.getMutationInformation().getMutationType().ordinal(), outStream);
+      VarLongCoder.of().encode(value.getMutationInformation().getSequenceNumber(), outStream);
     }
 
     @Override

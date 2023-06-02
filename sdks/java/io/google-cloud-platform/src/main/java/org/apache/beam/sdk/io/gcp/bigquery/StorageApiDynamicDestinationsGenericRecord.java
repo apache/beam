@@ -86,7 +86,7 @@ class StorageApiDynamicDestinationsGenericRecord<T, DestinationT extends @NonNul
       long csn = -1;
       Descriptor descriptorToUse = descriptor;
       if (rowMutationInformation != null) {
-        changeType = rowMutationInformation.getUpdateType().toString();
+        changeType = rowMutationInformation.getMutationType().toString();
         csn = rowMutationInformation.getSequenceNumber();
         descriptorToUse = cdcDescriptor;
       }

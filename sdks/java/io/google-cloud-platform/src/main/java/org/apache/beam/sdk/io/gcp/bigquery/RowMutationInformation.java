@@ -20,9 +20,9 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import com.google.auto.value.AutoValue;
 
 /**
- * This class indicates how to apply a row update to BigQuery. If UPDATE or DELETE is selected as
- * the update type, then a sequence number must also be supplied to order the updates. Incorrect
- * sequence numbers will result in unexpected state in the BigQuery table.
+ * This class indicates how to apply a row update to BigQuery. A sequence number must always be
+ * supplied to order the updates. Incorrect sequence numbers will result in unexpected state in the
+ * BigQuery table.
  */
 @AutoValue
 public abstract class RowMutationInformation {
@@ -35,7 +35,7 @@ public abstract class RowMutationInformation {
     DELETE
   }
 
-  public abstract MutationType getUpdateType();
+  public abstract MutationType getMutationType();
 
   // The sequence number used
   public abstract long getSequenceNumber();

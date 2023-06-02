@@ -139,7 +139,7 @@ abstract class AppendClientInfo {
   @Memoized
   Descriptors.Descriptor getDescriptorIgnoreRequired() {
     try {
-      // FIX
+      // Ignore CDC columns since this is just for unknown fields.
       return TableRowToStorageApiProto.getDescriptorFromTableSchema(getTableSchema(), false, false);
     } catch (Exception e) {
       throw new RuntimeException(e);

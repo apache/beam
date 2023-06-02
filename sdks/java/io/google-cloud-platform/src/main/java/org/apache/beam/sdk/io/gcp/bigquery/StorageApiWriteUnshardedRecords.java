@@ -333,7 +333,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
           // The storage write API doesn't currently allow both inserts and updates/deletes on the
           // same connection.
           // Once this limitation is removed, we can remove this.
-          return includeCdcColumns ? defaultStreamKey + "-cdc" : streamName;
+          return includeCdcColumns ? defaultStreamKey + "-cdc" : defaultStreamKey;
         }
         return this.streamName;
       }
@@ -769,9 +769,6 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       }
     }
 
-    // We key the map on both the destination and whether CDC columns are used. This is because BQ
-    // currently doesn't
-    // allow both insert and update/delete events on the same stream.
     private @Nullable Map<DestinationT, DestinationState> destinations = Maps.newHashMap();
     private final TwoLevelMessageConverterCache<DestinationT, ElementT> messageConverters;
     private transient @Nullable DatasetService maybeDatasetService;

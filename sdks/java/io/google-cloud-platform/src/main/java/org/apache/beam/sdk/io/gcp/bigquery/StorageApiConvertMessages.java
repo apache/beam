@@ -49,7 +49,7 @@ public class StorageApiConvertMessages<DestinationT, ElementT>
   private final Coder<BigQueryStorageApiInsertError> errorCoder;
   private final Coder<KV<DestinationT, StorageApiWritePayload>> successCoder;
 
-  private final @Nullable SerializableFunction<ElementT, RowMutationInformation> rowUpdateFn;
+  private final @Nullable SerializableFunction<ElementT, RowMutationInformation> rowMutationFn;
 
   public StorageApiConvertMessages(
       StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations,
@@ -58,14 +58,14 @@ public class StorageApiConvertMessages<DestinationT, ElementT>
       TupleTag<KV<DestinationT, StorageApiWritePayload>> successfulWritesTag,
       Coder<BigQueryStorageApiInsertError> errorCoder,
       Coder<KV<DestinationT, StorageApiWritePayload>> successCoder,
-      @Nullable SerializableFunction<ElementT, RowMutationInformation> rowUpdateFn) {
+      @Nullable SerializableFunction<ElementT, RowMutationInformation> rowMutationFn) {
     this.dynamicDestinations = dynamicDestinations;
     this.bqServices = bqServices;
     this.failedWritesTag = failedWritesTag;
     this.successfulWritesTag = successfulWritesTag;
     this.errorCoder = errorCoder;
     this.successCoder = successCoder;
-    this.rowUpdateFn = rowUpdateFn;
+    this.rowMutationFn = rowMutationFn;
   }
 
   @Override
@@ -82,7 +82,7 @@ public class StorageApiConvertMessages<DestinationT, ElementT>
                         operationName,
                         failedWritesTag,
                         successfulWritesTag,
-                        rowUpdateFn))
+                        rowMutationFn))
                 .withOutputTags(successfulWritesTag, TupleTagList.of(failedWritesTag))
                 .withSideInputs(dynamicDestinations.getSideInputs()));
     result.get(successfulWritesTag).setCoder(successCoder);
@@ -97,7 +97,7 @@ public class StorageApiConvertMessages<DestinationT, ElementT>
     private final BigQueryServices bqServices;
     private final TupleTag<BigQueryStorageApiInsertError> failedWritesTag;
     private final TupleTag<KV<DestinationT, StorageApiWritePayload>> successfulWritesTag;
-    private final @Nullable SerializableFunction<ElementT, RowMutationInformation> rowUpdateFn;
+    private final @Nullable SerializableFunction<ElementT, RowMutationInformation> rowMutationFn;
     private transient @Nullable DatasetService datasetServiceInternal = null;
 
     ConvertMessagesDoFn(
@@ -106,13 +106,13 @@ public class StorageApiConvertMessages<DestinationT, ElementT>
         String operationName,
         TupleTag<BigQueryStorageApiInsertError> failedWritesTag,
         TupleTag<KV<DestinationT, StorageApiWritePayload>> successfulWritesTag,
-        @Nullable SerializableFunction<ElementT, RowMutationInformation> rowUpdateFn) {
+        @Nullable SerializableFunction<ElementT, RowMutationInformation> rowMutationFn) {
       this.dynamicDestinations = dynamicDestinations;
       this.messageConverters = new TwoLevelMessageConverterCache<>(operationName);
       this.bqServices = bqServices;
       this.failedWritesTag = failedWritesTag;
       this.successfulWritesTag = successfulWritesTag;
-      this.rowUpdateFn = rowUpdateFn;
+      this.rowMutationFn = rowMutationFn;
     }
 
     private DatasetService getDatasetService(PipelineOptions pipelineOptions) throws IOException {
@@ -149,9 +149,9 @@ public class StorageApiConvertMessages<DestinationT, ElementT>
               element.getKey(), dynamicDestinations, getDatasetService(pipelineOptions));
 
       RowMutationInformation rowMutationInformation = null;
-      if (rowUpdateFn != null) {
+      if (rowMutationFn != null) {
         rowMutationInformation =
-            Preconditions.checkStateNotNull(rowUpdateFn).apply(element.getValue());
+            Preconditions.checkStateNotNull(rowMutationFn).apply(element.getValue());
       }
       try {
         StorageApiWritePayload payload =
