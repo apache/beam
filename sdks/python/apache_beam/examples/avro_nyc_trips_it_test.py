@@ -179,10 +179,9 @@ class AvroNycTripsIT(unittest.TestCase):
     test_pipeline = TestPipeline(is_integration_test=True)
 
     # set up the files with expected content.
-    test_output = '/'.join(
-        (test_pipeline.get_option('output'), str(uuid.uuid4()), 'result'))
-    test_input = '/'.join(
-        (test_pipeline.get_option('input'), str(uuid.uuid4()), 'input.avro'))
+    temp_location = test_pipeline.get_option('temp_location')
+    test_output = '/'.join((temp_location, str(uuid.uuid4()), 'result'))
+    test_input = '/'.join((temp_location, str(uuid.uuid4()), 'input.avro'))
 
     # create avro data
     fo = BytesIO()
