@@ -194,11 +194,11 @@ healthcheck:
    readPeriodSeconds: 30
 autoscaling:
    runners:
- 	maxReplicas: 4
- 	minReplicas: 2
+ 	  maxReplicas: 4
+ 	  minReplicas: 2
    rest:
- 	maxReplicas: 4
- 	minReplicas: 1
+ 	  maxReplicas: 4
+ 	  minReplicas: 1
    utilization:
  	memoryUtilization: 80
  	cpuUtilization: 95
@@ -214,26 +214,33 @@ func_clean: playground-function-cleanup-<env>
 func_put: playground-function-delete-<env>
 func_view: playground-function-view-<env>
 ```
-Execute following command to update HELM:
-6. helm upgrade playground /playground/infrastructure/helm-helm-playground
-
+6. Execute following command to update HELM:
+```
+helm upgrade playground /playground/infrastructure/helm-helm-playground
+```
 ## Variables description for "values.yaml"
+See Also:
 
-|Variable               |Description                                        |
-|-----------------------|:-------------------------------------------------:|
-|type                   |connection type in the service                     |
-|targetPort             |Port, POD access                                   |
-|port                   |Port on which external connection occurs           |
-|Healthcheck            |Checking the health of pods                        |
-|port                   |Internal POD port                                  |
-|livInitialDelaySeconds |pre-polling delay                                  |
-|livPeriodSeconds       |Poll period                                        |
-|readInitialDelaySeconds|Check if POD is ready                              |
-|readPeriodSeconds      |Poll period                                        |
-|autoscaling            |horizontal POD scaling                             |
-|maxReplicas            |maximum number of PODs for a runner                |
-|minReplicas            |minimum number of PODs for a runner                |
-|rest/maxReplicas       |max number of PODs per computer                    |
-|rest/minReplicas       |minimum number of PODs for a router                |
-|memoryUtilization      |POD scaling activation threshold based on RAM usage|
-|cpuUtilization         |POD scaling activation threshold based on CPU usage|
+[Services](https://cloud.google.com/kubernetes-engine/docs/concepts/service)
+
+[Configure Liveness, Readiness and Startup Probes](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/)
+
+[Cluster autoscaling](https://cloud.google.com/kubernetes-engine/docs/concepts/cluster-autoscaler#:~:text=GKE's%20cluster%20autoscaler%20automatically%20resizes,minimum%20size%20that%20you%20designate.)
+
+
+|Variable                           |Description                                        |
+|-----------------------------------|:--------------------------------------------------|
+|service/type                       |connection type for service in the GKE Cluster     |
+|service/targetPort                 |Service target port, connection from Service to POD|
+|service/port                       |Service port, connection from ingress to service   |
+|healthcheck/port                   |Internal POD port for Healthcheck                  |
+|healthcheck/livInitialDelaySeconds |pre-polling delay                                  |
+|healthcheck/livPeriodSeconds       |Poll period                                        |
+|healthcheck/readInitialDelaySeconds|Check if POD is ready                              |
+|healthcheck/readPeriodSeconds      |Poll period for checking if POD is ready           |
+|autoscaling/runners/maxReplicas    |maximum number of PODs for a runner                |
+|autoscaling/runners/minReplicas    |minimum number of PODs for a runner                |
+|autoscaling/rest/maxReplicas       |max number of PODs per computer                    |
+|autoscaling/rest/minReplicas       |minimum number of PODs for a router                |
+|autoscaling/memoryUtilization      |POD scaling activation threshold based on RAM usage|
+|autoscaling/cpuUtilization         |POD scaling activation threshold based on CPU usage|
