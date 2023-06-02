@@ -47,8 +47,6 @@ class ExamplesLoader {
   PlaygroundController? _playgroundController;
   ExamplesLoadingDescriptor? _descriptor;
 
-  static final failedToLoadExamples = <String>[];
-
   ExamplesLoader() {
     defaultFactory.add(CatalogDefaultExampleLoader.new);
     defaultFactory.add(ContentExampleLoader.new);
@@ -81,8 +79,9 @@ class ExamplesLoader {
       final loadFutures = loaders.map(_loadOne);
       await Future.wait(loadFutures);
     // ignore: avoid_catches_without_on_clauses
-    } catch (_) {
+    } on Exception catch (ex) {
       _emptyMissing(loaders);
+      throw ExamplesLoadingException(ex);
     }
 
     final sdk = descriptor.initialSdk;
@@ -153,25 +152,9 @@ class ExamplesLoader {
     Example example;
     try {
       example = await loader.future;
-    // ignore: avoid_catches_without_on_clauses
-    } catch (ex) {
-      example = Example.empty(loader.sdk ?? Sdk.java);
-      _handleLoadException(loader, ex as Exception);
+    } on Exception {
       throw ExampleLoadingException(token: loader.descriptor.token);
     }
-    _playgroundController!.setExample(
-      example,
-      descriptor: loader.descriptor,
-      setCurrentSdk: _shouldSetCurrentSdk(example.sdk),
-    );
-  }
-
-  void _handleLoadException(ExampleLoader loader, Exception ex) {
-    if (loader.descriptor.token != null) {
-      failedToLoadExamples.add(loader.descriptor.token!);
-    }
-    GetIt.instance.get<ToastNotifier>().addException(ex);
-    final example = Example.empty(loader.sdk ?? Sdk.java);
     _playgroundController!.setExample(
       example,
       descriptor: loader.descriptor,
