@@ -30,6 +30,7 @@ import '../../cache/unit_progress.dart';
 import '../../enums/save_code_status.dart';
 import '../../enums/snippet_type.dart';
 import '../../models/event_context.dart';
+import '../../models/node.dart';
 import '../../models/unit.dart';
 import '../../models/unit_content.dart';
 import '../../services/analytics/events/unit_closed.dart';
@@ -124,10 +125,8 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   Future<void> _onAppNotifierChanged() async {
     playgroundController.setSdk(currentSdk);
     _listenToCurrentSnippetEditingController();
-
-    await _unitProgressCache.loadUnitProgress(currentSdk);
-    _trySetSnippetType(SnippetType.saved);
-    await _loadSnippetByType();
+    final currentNode = contentTreeController.currentNode;
+    await _updateUnitState(currentNode);
   }
 
   Future<void> _onUnitChanged() async {
@@ -136,20 +135,25 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     if (currentNode is! UnitModel) {
       await _emptyPlayground();
     } else {
-      _setUnitContent(null);
-      notifyListeners();
-
-      final content = await _unitContentCache.getUnitContent(
-        currentSdk.id,
-        currentNode.id,
-      );
-
-      _setUnitContent(content);
-      await _unitProgressCache.loadUnitProgress(currentSdk);
-      _trySetSnippetType(SnippetType.saved);
-      await _loadSnippetByType();
+      await _updateUnitState(currentNode);
     }
     notifyListeners();
+  }
+
+  Future<void> _updateUnitState(NodeModel? currentNode) async {    
+    _setUnitContent(null);
+    notifyListeners();
+
+    final content = await _unitContentCache.getUnitContent(
+      currentSdk.id,
+      currentNode?.id ?? '',
+    );
+
+    _setUnitContent(content);
+
+    await _unitProgressCache.loadUnitProgress(currentSdk);
+    _trySetSnippetType(SnippetType.saved);
+    await _loadSnippetByType();
   }
 
   void _setUnitContent(UnitContentModel? unitContent) {
