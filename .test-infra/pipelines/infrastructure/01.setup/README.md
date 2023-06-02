@@ -27,8 +27,8 @@ The following table lists all provisioned resources and their rationale.
 
 | Resource                        | Reason                                     |
 |---------------------------------|--------------------------------------------|
-| API services                    | Required by GCP to provision resources     | 
-| Dataflow Worker Service Account | Use GCP service account other than default | 
+| API services                    | Required by GCP to provision resources     |
+| Dataflow Worker Service Account | Use GCP service account other than default |
 | Worker IAM Roles                | Follow principle of least privilege        |
 | Artifact Registry Repository    | Required to store template artifacts       |
 | Google Cloud Storage bucket     | Required for various storage needs         |
