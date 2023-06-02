@@ -150,3 +150,90 @@ NAME               AGE     STATUS
 GCP Project       time     Active
 ```
 3. Open Beam Playground frontend webpage in a web browser (e.g. https://playground.zone) to ensure that Playground frontend page is available
+
+# Use HELM to update environment
+Helm is responsible for deploying Beam Playground on the GKE cluster
+Use the steps below to update HELM Chart and apply it:
+
+1. Configure authentication for the Google Cloud Platform:
+```
+gcloud init
+```
+```
+gcloud auth application-default login
+```
+2. Run the following command to authenticate in the Docker registry:
+```
+gcloud auth configure-docker <region>-docker.pkg.dev
+```
+3. Run the following command to authenticate in GKE:
+```
+gcloud container clusters get-credentials --region <zone> <gke_name> --project <project_id>
+```
+4. Clone Apache BEAM repository from Git
+5. Make required changes in playground/infrastructure/helm-playground/values.yaml file:
+```
+replicaCount: 1
+image:
+   java_image: beam_playground-backend-java
+   go_image: beam_playground-backend-go
+   router_image: beam_playground-backend-router
+   scio_image: beam_playground-backend-scio
+   python_image: beam_playground-backend-python
+   frontend_image: beam_playground-frontend
+   pullPolicy: Always
+service:
+   type: NodePort
+   targetPort: 8080
+   port: 443
+healthcheck:
+   port: 8080
+   livInitialDelaySeconds: 30
+   livPeriodSeconds: 30
+   readInitialDelaySeconds: 30
+   readPeriodSeconds: 30
+autoscaling:
+   runners:
+ 	maxReplicas: 4
+ 	minReplicas: 2
+   rest:
+ 	maxReplicas: 4
+ 	minReplicas: 1
+   utilization:
+ 	memoryUtilization: 80
+ 	cpuUtilization: 95
+static_ip: <external IP address>
+redis_ip: <REDIS IP address>:6379
+project_id: <Project ID>
+registry: <region>-docker.pkg.dev/<project_id>/<repository_id>
+static_ip_name: <ip_address_name>
+tag: <docker-tag>
+datastore_name: <datastore-namespace>
+dns_name: <dns-name>
+func_clean: playground-function-cleanup-<env>
+func_put: playground-function-delete-<env>
+func_view: playground-function-view-<env>
+```
+Execute following command to update HELM:
+6. helm upgrade playground /playground/infrastructure/helm-helm-playground
+
+## Variables description for "values.yaml"
+
+|Variable               |Description                                        |
+|-----------------------|:-------------------------------------------------:|
+|type                   |connection type in the service                     |
+|targetPort             |Port, POD access                                   |
+|port                   |Port on which external connection occurs           |
+|Healthcheck            |Checking the health of pods                        |
+|port                   |Internal POD port                                  |
+|livInitialDelaySeconds |pre-polling delay                                  |
+|livPeriodSeconds       |Poll period                                        |
+|readInitialDelaySeconds|Check if POD is ready                              |
+|readPeriodSeconds      |Poll period                                        |
+|autoscaling            |horizontal POD scaling                             |
+|maxReplicas            |maximum number of PODs for a runner                |
+|minReplicas            |minimum number of PODs for a runner                |
+|rest/maxReplicas       |max number of PODs per computer                    |
+|rest/minReplicas       |minimum number of PODs for a router                |
+|memoryUtilization      |POD scaling activation threshold based on RAM usage|
+|cpuUtilization         |POD scaling activation threshold based on CPU usage|
