@@ -90,6 +90,14 @@ If you have additional material that you would like to see here, please let us k
 
 **[Streaming Systems: The What, Where, When, and How of Large-Scale Data Processing](https://learning.oreilly.com/library/view/streaming-systems/9781491983867/)** by Tyler Akidau, Slava Chernyak, Reuven Lax. (August 2018). Expanded from Tyler Akidau’s popular blog posts "Streaming 101" and "Streaming 102", this book takes you from an introductory level to a nuanced understanding of the what, where, when, and how of processing real-time data streams.
 
+
+## Certifications {#certifications}
+
+### Getting Started with Apache Beam Quest
+
+**[Getting Started with Apache Beam](https://www.cloudskillsboost.google/quests/310)**  This quest walks you through four qwiklabs regarding Apache Beam (3 Java, 1 Python). The time limit for each lab is 1 hour 30 min, and upon completion, you are granted with a badge you can share on social media.
+
+
 ## Interactive Labs {#interactive-labs}
 
 ### Java
