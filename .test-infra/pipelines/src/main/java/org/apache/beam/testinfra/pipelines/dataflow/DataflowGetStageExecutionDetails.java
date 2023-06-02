@@ -19,6 +19,7 @@ package org.apache.beam.testinfra.pipelines.dataflow;
 
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
+import com.google.dataflow.v1beta3.GetJobRequest;
 import com.google.dataflow.v1beta3.GetStageExecutionDetailsRequest;
 import com.google.dataflow.v1beta3.Job;
 import com.google.dataflow.v1beta3.MetricsV1Beta3Grpc;
@@ -28,6 +29,8 @@ import io.grpc.ManagedChannel;
 import io.grpc.StatusRuntimeException;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -85,6 +88,9 @@ public class DataflowGetStageExecutionDetails
 
   private static class GetStageExecutionDetailsFn
       extends DoFn<Job, WorkerDetailsWithAppendedDetails> {
+
+    final Counter success = Metrics.counter(GetStageExecutionDetailsRequest.class, "get_stage_execution_details_success");
+    final Counter failure = Metrics.counter(GetStageExecutionDetailsRequest.class, "get_stage_execution_details_failure");
     private final DataflowGetStageExecutionDetails spec;
     private transient MetricsV1Beta3Grpc.@MonotonicNonNull MetricsV1Beta3BlockingStub client;
     private transient @MonotonicNonNull ManagedChannel channel;
@@ -122,14 +128,17 @@ public class DataflowGetStageExecutionDetails
       try {
         StageExecutionDetails response =
             checkStateNotNull(client).getStageExecutionDetails(request);
+        success.inc();
         emitResponse(job, response, receiver.get(SUCCESS));
         while (!Strings.isNullOrEmpty(response.getNextPageToken())) {
           GetStageExecutionDetailsRequest requestWithPageToken =
               request.toBuilder().setPageToken(response.getNextPageToken()).build();
           response = client.getStageExecutionDetails(requestWithPageToken);
+          success.inc();
           emitResponse(job, response, receiver.get(SUCCESS));
         }
       } catch (StatusRuntimeException e) {
+        failure.inc();
         receiver
             .get(FAILURE)
             .output(

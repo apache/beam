@@ -20,6 +20,7 @@ package org.apache.beam.testinfra.pipelines.dataflow;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import com.google.dataflow.v1beta3.GetJobMetricsRequest;
+import com.google.dataflow.v1beta3.GetJobRequest;
 import com.google.dataflow.v1beta3.Job;
 import com.google.dataflow.v1beta3.JobMetrics;
 import com.google.dataflow.v1beta3.MetricsV1Beta3Grpc;
@@ -27,6 +28,8 @@ import io.grpc.ManagedChannel;
 import io.grpc.StatusRuntimeException;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -80,6 +83,8 @@ public class DataflowGetJobMetrics
 
   private static class GetJobMetricsFn extends DoFn<Job, JobMetricsWithAppendedDetails> {
 
+    final Counter success = Metrics.counter(GetJobMetricsRequest.class, "get_jobs_metrics_success");
+    final Counter failure = Metrics.counter(GetJobMetricsRequest.class, "get_jobs_metrics_failure");
     private final DataflowGetJobMetrics spec;
     private transient MetricsV1Beta3Grpc.@MonotonicNonNull MetricsV1Beta3BlockingStub client;
     private transient @MonotonicNonNull ManagedChannel channel;
@@ -114,7 +119,9 @@ public class DataflowGetJobMetrics
               .setLocation(job.getLocation())
               .build();
       try {
+
         JobMetrics response = checkStateNotNull(client).getJobMetrics(request);
+        success.inc();
         com.google.protobuf.Timestamp timestamp = job.getCreateTime();
         JobMetricsWithAppendedDetails result = new JobMetricsWithAppendedDetails();
         result.setJobId(request.getJobId());
@@ -124,6 +131,7 @@ public class DataflowGetJobMetrics
         receiver.get(SUCCESS).output(result);
 
       } catch (StatusRuntimeException e) {
+        failure.inc();
         receiver
             .get(FAILURE)
             .output(

@@ -20,6 +20,7 @@ package org.apache.beam.testinfra.pipelines.dataflow;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import com.google.dataflow.v1beta3.GetJobExecutionDetailsRequest;
+import com.google.dataflow.v1beta3.GetJobRequest;
 import com.google.dataflow.v1beta3.Job;
 import com.google.dataflow.v1beta3.JobExecutionDetails;
 import com.google.dataflow.v1beta3.MetricsV1Beta3Grpc;
@@ -28,6 +29,8 @@ import io.grpc.ManagedChannel;
 import io.grpc.StatusRuntimeException;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -85,6 +88,8 @@ public class DataflowGetJobExecutionDetails
   }
 
   private static class GetJobExecutionDetailsFn extends DoFn<Job, StageSummaryWithAppendedDetails> {
+    final Counter success = Metrics.counter(GetJobExecutionDetailsRequest.class, "get_job_execution_details_success");
+    final Counter failure = Metrics.counter(GetJobExecutionDetailsRequest.class, "get_job_execution_details_failure");
     private final DataflowGetJobExecutionDetails spec;
     private transient MetricsV1Beta3Grpc.@MonotonicNonNull MetricsV1Beta3BlockingStub client;
     private transient @MonotonicNonNull ManagedChannel channel;
@@ -120,14 +125,17 @@ public class DataflowGetJobExecutionDetails
               .build();
       try {
         JobExecutionDetails response = checkStateNotNull(client).getJobExecutionDetails(request);
+        success.inc();
         emitResponse(job, response, receiver.get(SUCCESS));
         while (!Strings.isNullOrEmpty(response.getNextPageToken())) {
           GetJobExecutionDetailsRequest requestWithPageToken =
               request.toBuilder().setPageToken(response.getNextPageToken()).build();
           response = client.getJobExecutionDetails(requestWithPageToken);
+          success.inc();
           emitResponse(job, response, receiver.get(SUCCESS));
         }
       } catch (StatusRuntimeException e) {
+        failure.inc();
         receiver
             .get(FAILURE)
             .output(
