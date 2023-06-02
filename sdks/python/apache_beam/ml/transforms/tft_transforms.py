@@ -16,8 +16,10 @@
 
 from typing import Any
 from typing import Dict
+from typing import Iterable
 from typing import List
 from typing import Optional
+from typing import Union
 
 from apache_beam.ml.transforms.base import _BaseOperation
 import tensorflow as tf
@@ -37,7 +39,12 @@ __all__ = [
 
 class _TFTOperation(_BaseOperation):
   def __init__(
-      self, columns, save_result=False, output_name=None, *args, **kwargs):
+      self,
+      columns: List[str],
+      save_result: bool = False,
+      output_name: Optional[str] = None,
+      *args,
+      **kwargs):
     """
     When subclassing _TFTOperation, please make sure
     positional arguments are part of the instance variables.
@@ -60,14 +67,11 @@ class _TFTOperation(_BaseOperation):
           " is not specified. Please specify the output name for "
           " the op %s" % self)
 
-  def apply(self, inputs, *args, **kwargs):
+  def apply(self, inputs: common_types.TensorType, *args, **kwargs):
     raise NotImplementedError
 
   def validate_args(self):
     raise NotImplementedError
-
-  def __call__(self, data):
-    return self.apply(data, *self._args, **self._kwargs)
 
   def get_artifacts(self, data, col_name):
     return None
@@ -75,7 +79,7 @@ class _TFTOperation(_BaseOperation):
 
 class _ComputeAndApplyVocab(_TFTOperation):
   # TODO: Pending outputting artifact.
-  def apply(self, data: common_types.ConsistentTensorType):
+  def apply(self, data: common_types.TensorType) -> common_types.TensorType:
     return tft.compute_and_apply_vocabulary(x=data, *self._args, **self._kwargs)
 
   def __str__(self):
@@ -83,13 +87,14 @@ class _ComputeAndApplyVocab(_TFTOperation):
 
 
 class _Scale_To_Z_Score(_TFTOperation):
-  def __init__(self, columns, *args, **kwargs):
+  def __init__(self, columns: List[str], *args, **kwargs):
     super().__init__(columns, *args, **kwargs)
 
-  def apply(self, data):
+  def apply(self, data: common_types.TensorType) -> common_types.TensorType:
     return tft.scale_to_z_score(x=data, *self._args, **self._kwargs)
 
-  def get_artifacts(self, data, col_name):
+  def get_artifacts(self, data: common_types.TensorType,
+                    col_name: str) -> Dict[str, tf.Tensor]:
     mean_var = tft.analyzers._mean_and_var(data)
     shape = [tf.shape(data)[0], 1]
     return {
@@ -102,17 +107,18 @@ class _Scale_To_Z_Score(_TFTOperation):
 
 
 class _Scale_to_0_1(_TFTOperation):
-  def __init__(self, columns, *args, **kwargs):
+  def __init__(self, columns: List[str], *args, **kwargs):
     super().__init__(columns, *args, **kwargs)
 
-  def get_artifacts(self, data, col_name) -> Dict[str, tf.Tensor]:
+  def get_artifacts(self, data: common_types.TensorType,
+                    col_name: str) -> Dict[str, tf.Tensor]:
     shape = [tf.shape(data)[0], 1]
     return {
         col_name + '_min': tf.broadcast_to(tft.min(data), shape),
         col_name + '_max': tf.broadcast_to(tft.max(data), shape)
     }
 
-  def apply(self, data: tf.Tensor):
+  def apply(self, data: common_types.TensorType) -> common_types.TensorType:
     return tft.scale_to_0_1(x=data, *self._args, **self._kwargs)
 
   def __str__(self):
@@ -120,12 +126,18 @@ class _Scale_to_0_1(_TFTOperation):
 
 
 class _ApplyBuckets(_TFTOperation):
-  def __init__(self, columns, bucket_boundaries, name=None, *args, **kwargs):
+  def __init__(
+      self,
+      columns: List[str],
+      bucket_boundaries: Iterable[Union[int, float]],
+      name: Optional[str] = None,
+      *args,
+      **kwargs):
     super().__init__(columns, *args, **kwargs)
     self.bucket_boundaries = [bucket_boundaries]
     self.name = name
 
-  def apply(self, data: tf.Tensor):
+  def apply(self, data: common_types.TensorType) -> common_types.TensorType:
     return tft.apply_buckets(
         x=data, bucket_boundaries=self.bucket_boundaries, name=self.name)
 
@@ -141,10 +153,10 @@ class _Bucketize(_TFTOperation):
     super().__init__(columns, *args, **kwrags)
     self.num_buckets = num_buckets
 
-  def get_artifacts(self, data, col_name):
+  def get_artifacts(self, data: common_types.TensorType,
+                    col_name: str) -> Dict[str, tf.Tensor]:
     num_buckets = self.num_buckets
     epsilon = self._kwargs['epsilon']
-    weights = self._kwargs['weights']
     elementwise = self._kwargs['elementwise']
 
     if num_buckets < 1:
@@ -161,11 +173,7 @@ class _Bucketize(_TFTOperation):
       epsilon = min(1.0 / num_buckets, 0.01)
 
     quantiles = analyzers.quantiles(
-        x_values,
-        num_buckets,
-        epsilon,
-        weights,
-        reduce_instance_dims=not elementwise)
+        x_values, num_buckets, epsilon, reduce_instance_dims=not elementwise)
     shape = [
         tf.shape(data)[0], num_buckets - 1 if num_buckets > 1 else num_buckets
     ]
@@ -173,12 +181,12 @@ class _Bucketize(_TFTOperation):
     # Should we change the prefix _quantiles to _bucket_boundaries?
     return {col_name + '_quantiles': tf.broadcast_to(quantiles, shape)}
 
-  def apply(self, data):
+  def apply(self, data: common_types.TensorType) -> common_types.TensorType:
     return tft.bucketize(data, self.num_buckets, *self._args, **self._kwargs)
 
 
 def scale_to_0_1(
-    columns,
+    columns: List[str],
     elementwise: bool = False,
     name: Optional[str] = None,
     *args,
@@ -207,8 +215,8 @@ def scale_to_0_1(
 
 
 def apply_buckets(
-    bucket_boundaries: Optional[common_types.BucketBoundariesType],
-    columns: Optional[List[str]],
+    bucket_boundaries: Iterable[Union[int, float]],
+    columns: List[str],
     *,
     name: Optional[str] = None):
   """
@@ -217,14 +225,6 @@ def apply_buckets(
   If input < bucket_boundaries[0], then element is mapped to 0.
   If element >= bucket_boundaries[-1], then element is mapped to
   len(bucket_boundaries). NaNs are mapped to len(bucket_boundaries)
-
-  Example usage:
-  bucket_boundaries = [1, 10, 3]
-  with beam.Pipeline() as p:
-    data = <data_pcoll>
-    data | beam.MLTransform(process_handler=<process_handler>
-    ).with_transform(apply_buckets(columns=['col1'],
-                    bucket_boundaries=bucket_boundaries)
 
   Args:
     columns: A list of column names to apply the transformation on.
@@ -241,7 +241,6 @@ def bucketize(
     num_buckets: int,
     *,
     epsilon: Optional[float] = None,
-    weights: Optional[tf.Tensor] = None,
     elementwise: bool = False,
     name: Optional[str] = None):
   """
@@ -249,14 +248,6 @@ def bucketize(
   of incoming data. The transformation splits the input data range into
   a set of consecutive bins/buckets, and converts the input values to
   bucket IDs (integers) where each ID corresponds to a particular bin.
-
-  This operation is used within the beam.MLTransform process.
-
-  Example usage:
-  with beam.Pipeline() as p:
-    data = <data_pcoll>
-    data | beam.MLTransform(process_handler=<process_handler>
-    ).with_transform(bucketize(columns=['col1'], num_buckets=10)
 
   Args:
     columns: List of column names to apply the transformation.
@@ -266,8 +257,6 @@ def bucketize(
       have a quantile q such that x is in the interval
       [q - epsilon, q + epsilon] (or the symmetric interval for even
       num_buckets). Must be greater than 0.0.
-    weights: (Optional) A Tensor. The weight column to be used for
-      quantile computation.
     elementwise: (Optional) A boolean that specifies whether the quantiles
       should be computed on an element-wise basis. If False, the quantiles
       are computed globally.
@@ -277,20 +266,18 @@ def bucketize(
       columns=columns,
       num_buckets=num_buckets,
       epsilon=epsilon,
-      weights=weights,
       elementwise=elementwise,
       name=name)
 
 
 def compute_and_apply_vocabulary(
-    columns: Optional[List[str]] = None,
+    columns: List[str],
     *,
     default_value: Any = -1,
     top_k: Optional[int] = None,
     frequency_threshold: Optional[int] = None,
     num_oov_buckets: int = 0,
     vocab_filename: Optional[str] = None,
-    weights: Optional[tf.Tensor] = None,
     name: Optional[str] = None,
 ):
   """
@@ -314,8 +301,6 @@ def compute_and_apply_vocabulary(
       NOTE in order to make your pipelines resilient to implementation details
       please set `vocab_filename` when you are using the vocab_filename on a
       downstream component.
-    weights: (Optional) Weights for the vocabulary. It must have the same shape
-      as the incoming data.
     """
   return _ComputeAndApplyVocab(
       columns=columns,
@@ -324,16 +309,14 @@ def compute_and_apply_vocabulary(
       frequency_threshold=frequency_threshold,
       num_oov_buckets=num_oov_buckets,
       vocab_filename=vocab_filename,
-      weights=weights,
       name=name)
 
 
 def scale_to_z_score(
-    columns: Optional[List[str]] = None,
+    columns: List[str] = None,
     *,
     elementwise: bool = False,
-    name: Optional[str] = None,
-    output_dtype: Optional[tf.DType] = None):
+    name: Optional[str] = None):
   """
   This function performs a scaling transformation on the specified columns of
   the incoming data. It processes the input tensor such that it's normalized
@@ -354,8 +337,4 @@ def scale_to_z_score(
   respectively.
   """
 
-  return _Scale_To_Z_Score(
-      columns=columns,
-      elementwise=elementwise,
-      name=name,
-      output_dtype=output_dtype)
+  return _Scale_To_Z_Score(columns=columns, elementwise=elementwise, name=name)
