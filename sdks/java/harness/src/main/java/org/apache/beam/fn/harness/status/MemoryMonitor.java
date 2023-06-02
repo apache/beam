@@ -43,6 +43,7 @@ import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.CreateOptions.StandardCreateOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
@@ -202,7 +203,8 @@ public class MemoryMonitor implements Runnable {
 
   public static MemoryMonitor fromOptions(PipelineOptions options) {
     String uploadFilePath = options.getTempLocation();
-    boolean canDumpHeap = uploadFilePath != null;
+    PortablePipelineOptions portableOptions = options.as(PortablePipelineOptions.class);
+    boolean canDumpHeap = uploadFilePath != null && portableOptions.getEnableHeapDumps();
 
     return new MemoryMonitor(
         new SystemGCStatsProvider(),
