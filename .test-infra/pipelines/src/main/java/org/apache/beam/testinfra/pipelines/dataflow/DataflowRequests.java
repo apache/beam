@@ -25,12 +25,15 @@ import com.google.events.cloud.dataflow.v1beta3.Job;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
+/** Various methods to create Dataflow API requests. */
 public final class DataflowRequests {
 
+  /** Creates {@link GetJobRequest}s from {@link Job}s with {@link JobView#JOB_VIEW_ALL}. */
   public static MapElements<Job, GetJobRequest> jobRequestsFromEventsViewAll() {
     return jobRequests(JobView.JOB_VIEW_ALL);
   }
 
+  /** Creates {@link GetJobRequest}s from {@link Job}s with the assigned {@link JobView}. */
   public static MapElements<Job, GetJobRequest> jobRequests(JobView view) {
     return MapElements.into(TypeDescriptor.of(GetJobRequest.class))
         .via(

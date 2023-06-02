@@ -49,6 +49,7 @@ public class DatasetReferenceOptionValue implements Serializable {
     this.dataset = checkStateNotNull(m.group("DATASET"), "DATASET not found in %s", input);
   }
 
+  /** Get the parsed String as a {@link DatasetReference}. */
   public DatasetReference getValue() {
     return new DatasetReference().setProjectId(this.project).setDatasetId(this.dataset);
   }

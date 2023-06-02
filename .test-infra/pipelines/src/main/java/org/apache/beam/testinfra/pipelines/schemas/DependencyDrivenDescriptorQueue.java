@@ -33,12 +33,21 @@ import java.util.Map;
 import java.util.Set;
 import org.checkerframework.checker.nullness.qual.NonNull;
 
+/**
+ * Prevents stack overflow errors when parsing a {@link Descriptor}. Orders {@link Descriptor} by
+ * their interdependencies such that the first has no dependencies i.e. only primitive types and
+ * subsequent {@link Descriptor}s contain {@link JavaType#MESSAGE} types.
+ */
 class DependencyDrivenDescriptorQueue implements Iterable<Descriptor>, Comparator<Descriptor> {
   private final Map<@NonNull String, @NonNull Descriptor> descriptorMap = new HashMap<>();
   private final Map<@NonNull String, @NonNull Set<String>> dependencyMap = new HashMap<>();
 
   private final Map<@NonNull String, @NonNull Integer> messageFieldCounts = new HashMap<>();
 
+  /**
+   * Enqueues a {@link Descriptor}. Walks down its dependency tree of any nested {@link
+   * JavaType#MESSAGE} types, further enqueuing these types' {@link Descriptor}s.
+   */
   void enqueue(@NonNull Descriptor descriptor) {
     List<@NonNull Descriptor> descriptorStack = new ArrayList<>();
     descriptorStack.add(descriptor);
@@ -71,6 +80,10 @@ class DependencyDrivenDescriptorQueue implements Iterable<Descriptor>, Comparato
     }
   }
 
+  /**
+   * Returns an iteration of {@link Descriptor}s ordered by increasing dependency such that the
+   * first has no nested {@link JavaType#MESSAGE} types.
+   */
   @Override
   public Iterator<Descriptor> iterator() {
     return descriptorMap.values().stream().sorted(this).iterator();

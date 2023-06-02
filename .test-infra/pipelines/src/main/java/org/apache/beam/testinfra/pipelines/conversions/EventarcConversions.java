@@ -33,6 +33,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
 import org.joda.time.Instant;
 
+/** Methods for converting from Eventarc JSON payloads. */
 public final class EventarcConversions {
 
   private static final String DATA_NODE_KEY = "data";
@@ -41,6 +42,7 @@ public final class EventarcConversions {
       "type.googleapis.com/google.events.cloud.dataflow.v1beta3.JobEventData";
   private static final String PAYLOAD_NODE_KEY = "payload";
 
+  /** Parses Eventarc JSON strings to {@link Job}s. */
   public static MapElements.MapWithFailures<String, Job, ConversionError> fromJson() {
     return MapElements.into(TypeDescriptor.of(Job.class))
         .via(new JsonToJobFn())
@@ -55,6 +57,7 @@ public final class EventarcConversions {
                     .build());
   }
 
+  /** {@link SerializableFunction} that parses an Eventarc JSON string into a {@link Job}. */
   static class JsonToJobFn implements SerializableFunction<String, Job> {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 

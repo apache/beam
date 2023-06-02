@@ -26,6 +26,7 @@ import java.util.concurrent.TimeUnit;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
+/** Produces and caches blocking stub gRPC clients for the Dataflow API. */
 @SuppressWarnings("ForbidNonVendoredGrpcProtobuf")
 final class DataflowClientFactory {
 

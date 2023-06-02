@@ -30,8 +30,10 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
 
+/** Controls the rate of elements. */
 class Throttle<T> extends PTransform<PCollection<T>, PCollection<T>> {
 
+  /** Control the rate of elements, emitting each element per {@link Duration}. */
   static <T> Throttle<T> of(String name, Duration duration) {
     return new Throttle<>(name, duration);
   }

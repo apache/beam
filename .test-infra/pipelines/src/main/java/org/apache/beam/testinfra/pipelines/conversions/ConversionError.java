@@ -31,6 +31,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.CaseFormat;
 import org.joda.time.Instant;
 
+/** Stores errors related to conversions. */
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
 @SchemaCaseFormat(CaseFormat.LOWER_UNDERSCORE)

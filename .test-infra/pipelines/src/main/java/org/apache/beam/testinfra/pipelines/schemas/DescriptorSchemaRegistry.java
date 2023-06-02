@@ -30,6 +30,7 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.NonNull;
 
+/** Registers and builds {@link Schema}s of {@link Descriptor} based types. */
 public class DescriptorSchemaRegistry {
 
   public static final DescriptorSchemaRegistry INSTANCE = new DescriptorSchemaRegistry();

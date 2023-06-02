@@ -33,6 +33,10 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.junit.jupiter.api.Test;
 
+/**
+ * Tests for converting an {@link Environment} to a {@link Row} using {@link
+ * GeneratedMessageV3RowBuilder}.
+ */
 class EnvironmentRowBuilderTest extends AbstractGeneratedMessageV3RowBuilderTest<Environment> {
 
   @Override

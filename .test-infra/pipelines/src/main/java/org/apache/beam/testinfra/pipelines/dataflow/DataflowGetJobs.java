@@ -39,6 +39,10 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
+/**
+ * {@link PTransform} for executing {@link GetJobRequest}s using the {@link JobsV1Beta3Grpc}. Emits
+ * {@link Job}s or {@link DataflowRequestError}s.
+ */
 public class DataflowGetJobs
     extends PTransform<
         @NonNull PCollection<GetJobRequest>,

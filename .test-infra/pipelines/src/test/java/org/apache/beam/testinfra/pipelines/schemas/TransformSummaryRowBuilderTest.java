@@ -20,9 +20,14 @@ package org.apache.beam.testinfra.pipelines.schemas;
 import com.google.dataflow.v1beta3.TransformSummary;
 import com.google.protobuf.Descriptors.Descriptor;
 import java.util.Set;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.checkerframework.checker.nullness.qual.NonNull;
 
+/**
+ * Tests for converting a {@link TransformSummary} to a {@link Row} using {@link
+ * GeneratedMessageV3RowBuilder}.
+ */
 class TransformSummaryRowBuilderTest
     extends AbstractGeneratedMessageV3RowBuilderTest<TransformSummary> {
 

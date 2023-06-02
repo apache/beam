@@ -32,6 +32,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.NonNull;
 
+/** Filters Eventarc {@link Job}s. */
 @AutoValue
 public abstract class DataflowFilterEventarcJobs
     extends PTransform<@NonNull PCollection<Job>, @NonNull PCollection<Job>> {

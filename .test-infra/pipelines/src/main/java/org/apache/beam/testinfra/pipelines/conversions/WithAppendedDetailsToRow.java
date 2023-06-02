@@ -46,6 +46,10 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.joda.time.Instant;
 
+/**
+ * Convenience methods for converted enriched types such as {@link JobMetricsWithAppendedDetails}
+ * and {@link StageSummaryWithAppendedDetails} into {@link Row}s.
+ */
 public class WithAppendedDetailsToRow<AppendedDetailsT, EmbeddedT extends GeneratedMessageV3>
     extends PTransform<
         PCollection<AppendedDetailsT>, RowConversionResult<AppendedDetailsT, ConversionError>> {

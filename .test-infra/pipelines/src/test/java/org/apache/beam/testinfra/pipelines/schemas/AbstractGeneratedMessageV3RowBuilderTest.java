@@ -52,6 +52,7 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.joda.time.ReadableDateTime;
 import org.junit.jupiter.api.Test;
 
+/** Base class for {@link GeneratedMessageV3RowBuilder} based tests of various types. */
 abstract class AbstractGeneratedMessageV3RowBuilderTest<T extends GeneratedMessageV3> {
   private static final Map<@NonNull String, GeneratedMessageV3> DEFAULT_INSTANCE_MAP =
       ImmutableMap.<@NonNull String, GeneratedMessageV3>builder()

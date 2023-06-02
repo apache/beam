@@ -25,6 +25,7 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+/** Tests for {@link DescriptorSchemaRegistry}. */
 class DescriptorSchemaRegistryTest {
 
   private static final DescriptorSchemaRegistry REGISTRY = DescriptorSchemaRegistry.INSTANCE;

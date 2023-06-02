@@ -31,6 +31,7 @@ import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 
+/** Convenience class for bundling Dataflow API successful request responses and failures. */
 public class DataflowReadResult<ResponseT, FailureT> implements POutput {
 
   public static <ResponseT, FailureT> DataflowReadResult<ResponseT, FailureT> of(

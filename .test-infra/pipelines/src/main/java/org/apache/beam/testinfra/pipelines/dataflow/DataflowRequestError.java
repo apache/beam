@@ -35,6 +35,7 @@ import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/** Stores errors related to Dataflow API request executions. */
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
 @SchemaCaseFormat(CaseFormat.LOWER_UNDERSCORE)

@@ -47,6 +47,7 @@ import org.joda.time.Instant;
 import org.joda.time.ReadableDateTime;
 import org.junit.jupiter.api.Test;
 
+/** Tests for {@link WithAppendedDetailsToRow} of {@link JobMetricsWithAppendedDetails}. */
 class JobMetricsWithAppendedDetailsTest
     extends WithAppendedDetailsToRowTest<JobMetricsWithAppendedDetails, JobMetrics> {
 

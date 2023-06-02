@@ -42,6 +42,7 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.joda.time.Instant;
 import org.junit.jupiter.api.Test;
 
+/** Base class for testing {@link WithAppendedDetailsToRow} transforms. */
 abstract class WithAppendedDetailsToRowTest<AppendedDetailsT, EmbeddedT extends GeneratedMessageV3>
     implements Serializable {
 

@@ -21,6 +21,7 @@ import java.io.Serializable;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
 
+/** Converts a String Pub/Sub subscription path into a {@link SubscriptionPath}. */
 public class SubscriptionPathOptionValue implements Serializable {
   private final SubscriptionPath subscriptionPath;
 

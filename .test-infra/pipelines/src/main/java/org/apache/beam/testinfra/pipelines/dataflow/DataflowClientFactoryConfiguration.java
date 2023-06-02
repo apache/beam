@@ -22,6 +22,7 @@ import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 
+/** Configures the Dataflow API client. */
 @AutoValue
 public abstract class DataflowClientFactoryConfiguration implements Serializable {
 

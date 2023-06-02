@@ -65,6 +65,10 @@ import org.apache.beam.testinfra.pipelines.pubsub.PubsubReadOptions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.NonNull;
 
+/**
+ * Constructs and executes a {@link Pipeline} that reads from the Dataflow API and writes to
+ * BigQuery.
+ */
 public class ReadDataflowApiWriteBigQuery {
 
   public interface Options extends DataflowJobsOptions, PubsubReadOptions, BigQueryWriteOptions {}

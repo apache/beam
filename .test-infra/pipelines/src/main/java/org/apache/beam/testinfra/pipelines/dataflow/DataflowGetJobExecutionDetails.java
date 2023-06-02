@@ -42,6 +42,11 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
+/**
+ * {@link PTransform} for executing {@link GetJobExecutionDetailsRequest}s using the {@link
+ * MetricsV1Beta3Grpc} client. Emits {@link StageSummaryWithAppendedDetails} or {@link
+ * DataflowRequestError}s.
+ */
 public class DataflowGetJobExecutionDetails
     extends PTransform<
         @NonNull PCollection<Job>,

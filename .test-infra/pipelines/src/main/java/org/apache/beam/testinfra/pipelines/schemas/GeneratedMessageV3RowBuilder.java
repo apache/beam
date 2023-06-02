@@ -52,6 +52,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.joda.time.Instant;
 
+/** Converts a {@link GeneratedMessageV3} type to a {@link Row}. */
 public class GeneratedMessageV3RowBuilder<T extends GeneratedMessageV3> {
   public static <T extends GeneratedMessageV3> GeneratedMessageV3RowBuilder<T> of(T source) {
     return new GeneratedMessageV3RowBuilder<>(source);
@@ -89,6 +90,10 @@ public class GeneratedMessageV3RowBuilder<T extends GeneratedMessageV3> {
     builder = Row.withSchema(schema).withFieldValues(ImmutableMap.of());
   }
 
+  /**
+   * Builds a {@link Row} from a {@link GeneratedMessageV3} type submitting nested types to an
+   * {@link ExecutorService} to prevent stack overflow errors.
+   */
   public Row build() {
     for (FieldDescriptor fieldDescriptor : source.getDescriptorForType().getFields()) {
       if (shouldSkip(fieldDescriptor)) {

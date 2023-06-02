@@ -26,6 +26,7 @@ import com.google.protobuf.Descriptors.FieldDescriptor.JavaType;
 import java.util.Iterator;
 import org.junit.jupiter.api.Test;
 
+/** Tests for {@link DependencyDrivenDescriptorQueue}. */
 class DependencyDrivenDescriptorQueueTest {
   @Test
   void iterator_Job_isInDependencyOrder() {

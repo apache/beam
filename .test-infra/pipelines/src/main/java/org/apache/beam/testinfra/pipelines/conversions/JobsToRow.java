@@ -37,6 +37,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.joda.time.Instant;
 
+/** {@link PTransform} that converts {@link Job}s to {@link Row}s. */
 public class JobsToRow
     extends PTransform<
         @NonNull PCollection<Job>, @NonNull RowConversionResult<Job, ConversionError>> {
