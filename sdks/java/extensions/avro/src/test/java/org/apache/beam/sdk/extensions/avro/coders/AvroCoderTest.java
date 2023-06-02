@@ -50,18 +50,21 @@ import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.io.DatumReader;
 import org.apache.avro.reflect.AvroName;
 import org.apache.avro.reflect.AvroSchema;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.Stringable;
 import org.apache.avro.reflect.Union;
 import org.apache.avro.specific.SpecificData;
+import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.avro.specific.SpecificRecord;
 import org.apache.avro.util.Utf8;
 import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.extensions.avro.io.AvroDatumFactory;
 import org.apache.beam.sdk.extensions.avro.schemas.TestAvro;
 import org.apache.beam.sdk.extensions.avro.schemas.TestAvroFactory;
 import org.apache.beam.sdk.extensions.avro.schemas.TestAvroNested;
@@ -122,7 +125,6 @@ public class AvroCoderTest {
           AVRO_NESTED_SPECIFIC_RECORD,
           ImmutableList.of(AVRO_NESTED_SPECIFIC_RECORD, AVRO_NESTED_SPECIFIC_RECORD),
           ImmutableMap.of("k1", AVRO_NESTED_SPECIFIC_RECORD, "k2", AVRO_NESTED_SPECIFIC_RECORD));
-  private static final String VERSION_AVRO = Schema.class.getPackage().getImplementationVersion();
 
   @DefaultCoder(AvroCoder.class)
   private static class Pojo {
@@ -319,21 +321,57 @@ public class AvroCoderTest {
 
   @Test
   public void testSpecificRecordEncoding() throws Exception {
-    if (isBrokenMapComparison()) {
-      // Don't compare the map values because of AVRO-2943
-      AVRO_SPECIFIC_RECORD.setMap(ImmutableMap.of());
-    }
-    AvroCoder<TestAvro> coder =
+    // Don't compare the map values because of AVRO-2943
+    AVRO_SPECIFIC_RECORD.setMap(ImmutableMap.of());
+
+    AvroCoder<TestAvro> coder = AvroCoder.specific(TestAvro.class);
+    AvroCoder<TestAvro> coderWithSchema =
         AvroCoder.specific(TestAvro.class, AVRO_SPECIFIC_RECORD.getSchema());
 
     assertTrue(SpecificRecord.class.isAssignableFrom(coder.getType()));
+    assertTrue(SpecificRecord.class.isAssignableFrom(coderWithSchema.getType()));
+
     CoderProperties.coderDecodeEncodeEqual(coder, AVRO_SPECIFIC_RECORD);
+    CoderProperties.coderDecodeEncodeEqual(coderWithSchema, AVRO_SPECIFIC_RECORD);
   }
 
-  private boolean isBrokenMapComparison() {
-    return VERSION_AVRO.equals("1.9.2")
-        || VERSION_AVRO.equals("1.10.2")
-        || VERSION_AVRO.equals("1.11.1");
+  // example to overcome AVRO-2943 limitation with custom datum factory
+  // force usage of String instead of Utf8 when avro type is set to CharSequence
+  static class CustomSpecificDatumFactory<T> extends AvroDatumFactory.SpecificDatumFactory<T> {
+
+    private static class CustomSpecificDatumReader<T> extends SpecificDatumReader<T> {
+      CustomSpecificDatumReader(Class<T> c) {
+        super(c);
+      }
+
+      // always use String instead of CharSequence
+      @Override
+      protected Class<?> findStringClass(Schema schema) {
+        final Class<?> stringClass = super.findStringClass(schema);
+        return stringClass == CharSequence.class ? String.class : stringClass;
+      }
+    }
+
+    CustomSpecificDatumFactory(Class<T> type) {
+      super(type);
+    }
+
+    @Override
+    public DatumReader<T> apply(Schema writer, Schema reader) {
+      CustomSpecificDatumReader<T> datumReader = new CustomSpecificDatumReader<>(this.type);
+      datumReader.setExpected(reader);
+      datumReader.setSchema(writer);
+      return datumReader;
+    }
+  }
+
+  @Test
+  public void testCustomRecordEncoding() throws Exception {
+    AvroCoder<TestAvro> coder =
+        AvroCoder.of(
+            new CustomSpecificDatumFactory<>(TestAvro.class), AVRO_SPECIFIC_RECORD.getSchema());
+    assertTrue(SpecificRecord.class.isAssignableFrom(coder.getType()));
+    CoderProperties.coderDecodeEncodeEqual(coder, AVRO_SPECIFIC_RECORD);
   }
 
   @Test

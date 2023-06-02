@@ -126,7 +126,7 @@ public abstract class AvroDatumFactory<T>
 
   /** Specialized {@link AvroDatumFactory} for {@link org.apache.avro.specific.SpecificRecord}. */
   public static class SpecificDatumFactory<T> extends AvroDatumFactory<T> {
-    SpecificDatumFactory(Class<T> type) {
+    public SpecificDatumFactory(Class<T> type) {
       super(type);
     }
 
@@ -162,7 +162,7 @@ public abstract class AvroDatumFactory<T>
    * Specialized {@link AvroDatumFactory} for java classes transforming to avro through reflection.
    */
   public static class ReflectDatumFactory<T> extends AvroDatumFactory<T> {
-    ReflectDatumFactory(Class<T> type) {
+    public ReflectDatumFactory(Class<T> type) {
       super(type);
     }
 
