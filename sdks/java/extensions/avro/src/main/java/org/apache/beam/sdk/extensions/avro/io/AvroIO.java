@@ -744,7 +744,10 @@ public class AvroIO {
       return toBuilder().setCoder(coder).build();
     }
 
-    /** Sets a custom {@link AvroSource.DatumReaderFactory} for reading. */
+    /**
+     * Sets a custom {@link AvroSource.DatumReaderFactory} for reading. Pass a {@link
+     * AvroDatumFactory} to also use the factory for the default output {@link AvroCoder}
+     */
     public Read<T> withDatumReaderFactory(AvroSource.DatumReaderFactory<T> readerFactory) {
       return toBuilder().setDatumReaderFactory(readerFactory).build();
     }
@@ -808,15 +811,21 @@ public class AvroIO {
         Schema schema,
         @Nullable Coder<T> coder,
         AvroSource.@Nullable DatumReaderFactory<T> readerFactory) {
-      AvroSource<?> source =
+      AvroSource<?> base =
           AvroSource.from(filepattern).withEmptyMatchTreatment(emptyMatchTreatment);
+
+      AvroSource<T> source =
+          recordClass == GenericRecord.class
+              ? (AvroSource<T>) base.withSchema(schema)
+              : base.withSchema(recordClass);
 
       if (readerFactory != null) {
         source = source.withDatumReaderFactory(readerFactory);
       }
-      return recordClass == GenericRecord.class
-          ? (AvroSource<T>) source.withSchema(schema)
-          : source.withSchema(recordClass, coder);
+      if (coder != null) {
+        source = source.withCoder(coder);
+      }
+      return source;
     }
   }
 
@@ -899,7 +908,10 @@ public class AvroIO {
       return toBuilder().setCoder(coder).build();
     }
 
-    /** Sets a custom {@link AvroSource.DatumReaderFactory} for reading. */
+    /**
+     * Sets a custom {@link AvroSource.DatumReaderFactory} for reading. Pass a {@link
+     * AvroDatumFactory} to also use the factory for the default output {@link AvroCoder}
+     */
     public ReadFiles<T> withDatumReaderFactory(AvroSource.DatumReaderFactory<T> factory) {
       return toBuilder().setDatumReaderFactory(factory).build();
     }
