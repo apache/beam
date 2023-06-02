@@ -96,7 +96,9 @@ public class AvroSourceTest {
     codecs.add(DataFileConstants.DEFLATE_CODEC);
     codecs.add(DataFileConstants.SNAPPY_CODEC);
     codecs.add(DataFileConstants.XZ_CODEC);
-    if (!VERSION_AVRO.equals("1.8.2")) codecs.add("zstandard");
+    if (!VERSION_AVRO.equals("1.8.2")) {
+      codecs.add("zstandard");
+    }
     return codecs;
   }
 
