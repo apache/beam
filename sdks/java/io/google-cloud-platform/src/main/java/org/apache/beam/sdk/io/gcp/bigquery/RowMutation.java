@@ -43,7 +43,7 @@ public abstract class RowMutation {
   }
 
   public static class RowMutationCoder extends AtomicCoder<RowMutation> {
-    private static RowMutationCoder INSTANCE = new RowMutationCoder();
+    private static final RowMutationCoder INSTANCE = new RowMutationCoder();
 
     public static RowMutationCoder of() {
       return INSTANCE;
