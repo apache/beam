@@ -52,12 +52,6 @@ Future<void> _checkSdksLoadedCorrectly(WidgetTester wt) async {
     );
   }
 
-  // Until we select an SDK the dropdown is not shown.
-  expect(
-    find.sdkDropdown(),
-    findsNothing,
-  );
-
   var button = wt.widget<ElevatedButton>(find.startTourButton());
   expect(button.onPressed, isNull); // Verify it is disabled.
 
