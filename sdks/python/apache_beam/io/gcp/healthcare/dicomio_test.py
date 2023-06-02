@@ -37,9 +37,9 @@ from apache_beam.testing.util import equal_to
 # Protect against environments where gcp library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
-  from apache_beam.io.gcp.dicomio import DicomSearch
-  from apache_beam.io.gcp.dicomio import FormatToQido
-  from apache_beam.io.gcp.dicomio import UploadToDicomStore
+  from apache_beam.io.gcp.healthcare.dicomio import DicomSearch
+  from apache_beam.io.gcp.healthcare.dicomio import FormatToQido
+  from apache_beam.io.gcp.healthcare.dicomio import UploadToDicomStore
 except ImportError:
   DicomSearch = None  # type: ignore
 # pylint: enable=wrong-import-order, wrong-import-position
@@ -165,7 +165,7 @@ class TestFormatToQido(unittest.TestCase):
 
 @unittest.skipIf(DicomSearch is None, 'GCP dependencies are not installed')
 class TestDicomSearch(unittest.TestCase):
-  @patch("apache_beam.io.gcp.dicomio.DicomApiHttpClient")
+  @patch("apache_beam.io.gcp.healthcare.dicomio.DicomApiHttpClient")
   def test_successful_search(self, FakeClient):
     input_dict = {}
     input_dict['project_id'] = "test_project"
@@ -187,7 +187,7 @@ class TestDicomSearch(unittest.TestCase):
       results = (p | beam.Create([input_dict]) | DicomSearch())
       assert_that(results, equal_to([expected_dict]))
 
-  @patch("apache_beam.io.gcp.dicomio.DicomApiHttpClient")
+  @patch("apache_beam.io.gcp.healthcare.dicomio.DicomApiHttpClient")
   def test_Qido_search_small_buffer_flush(self, FakeClient):
     input_dict = {}
     input_dict['project_id'] = "test_project"
@@ -209,7 +209,7 @@ class TestDicomSearch(unittest.TestCase):
       results = (p | beam.Create([input_dict] * 5) | DicomSearch(buffer_size=1))
       assert_that(results, equal_to([expected_dict] * 5))
 
-  @patch("apache_beam.io.gcp.dicomio.DicomApiHttpClient")
+  @patch("apache_beam.io.gcp.healthcare.dicomio.DicomApiHttpClient")
   def test_param_dict_passing(self, FakeClient):
     input_dict = {}
     input_dict = {}
@@ -234,7 +234,7 @@ class TestDicomSearch(unittest.TestCase):
       results = (p | beam.Create([input_dict]) | DicomSearch())
       assert_that(results, equal_to([expected_dict]))
 
-  @patch("apache_beam.io.gcp.dicomio.DicomApiHttpClient")
+  @patch("apache_beam.io.gcp.healthcare.dicomio.DicomApiHttpClient")
   def test_wrong_input_type(self, FakeClient):
     input_dict = {}
     input_dict['project_id'] = "test_project"
@@ -256,7 +256,7 @@ class TestDicomSearch(unittest.TestCase):
       results = (p | beam.Create([input_dict]) | DicomSearch())
       assert_that(results, equal_to([expected_invalid_dict]))
 
-  @patch("apache_beam.io.gcp.dicomio.DicomApiHttpClient")
+  @patch("apache_beam.io.gcp.healthcare.dicomio.DicomApiHttpClient")
   def test_missing_parameters(self, FakeClient):
     input_dict = {}
     input_dict['project_id'] = "test_project"
@@ -274,7 +274,7 @@ class TestDicomSearch(unittest.TestCase):
       results = (p | beam.Create([input_dict]) | DicomSearch())
       assert_that(results, equal_to([expected_invalid_dict]))
 
-  @patch("apache_beam.io.gcp.dicomio.DicomApiHttpClient")
+  @patch("apache_beam.io.gcp.healthcare.dicomio.DicomApiHttpClient")
   def test_client_search_notfound(self, FakeClient):
     input_dict = {}
     # search instances in a not exist store
@@ -299,7 +299,7 @@ class TestDicomSearch(unittest.TestCase):
 
 @unittest.skipIf(DicomSearch is None, 'GCP dependencies are not installed')
 class TestDicomStoreInstance(_TestCaseWithTempDirCleanUp):
-  @patch("apache_beam.io.gcp.dicomio.DicomApiHttpClient")
+  @patch("apache_beam.io.gcp.healthcare.dicomio.DicomApiHttpClient")
   def test_store_byte_file(self, FakeClient):
     input_dict = {}
     input_dict['project_id'] = "test_project"
@@ -322,7 +322,7 @@ class TestDicomStoreInstance(_TestCaseWithTempDirCleanUp):
       assert_that(results, equal_to([True]))
     self.assertTrue(dict_input in fc.dicom_metadata)
 
-  @patch("apache_beam.io.gcp.dicomio.DicomApiHttpClient")
+  @patch("apache_beam.io.gcp.healthcare.dicomio.DicomApiHttpClient")
   def test_store_byte_file_small_buffer_flush(self, FakeClient):
     input_dict = {}
     input_dict['project_id'] = "test_project"
@@ -355,7 +355,7 @@ class TestDicomStoreInstance(_TestCaseWithTempDirCleanUp):
     self.assertTrue(dict_input_2 in fc.dicom_metadata)
     self.assertTrue(dict_input_3 in fc.dicom_metadata)
 
-  @patch("apache_beam.io.gcp.dicomio.DicomApiHttpClient")
+  @patch("apache_beam.io.gcp.healthcare.dicomio.DicomApiHttpClient")
   def test_store_fileio_file(self, FakeClient):
     input_dict = {}
     input_dict['project_id'] = "test_project"
@@ -382,7 +382,7 @@ class TestDicomStoreInstance(_TestCaseWithTempDirCleanUp):
       assert_that(results, equal_to([True]))
     self.assertTrue(dict_input in fc.dicom_metadata)
 
-  @patch("apache_beam.io.gcp.dicomio.DicomApiHttpClient")
+  @patch("apache_beam.io.gcp.healthcare.dicomio.DicomApiHttpClient")
   def test_store_fileio_file_small_buffer_flush(self, FakeClient):
     input_dict = {}
     input_dict['project_id'] = "test_project"
@@ -419,7 +419,7 @@ class TestDicomStoreInstance(_TestCaseWithTempDirCleanUp):
     self.assertTrue(dict_input_2 in fc.dicom_metadata)
     self.assertTrue(dict_input_3 in fc.dicom_metadata)
 
-  @patch("apache_beam.io.gcp.dicomio.DicomApiHttpClient")
+  @patch("apache_beam.io.gcp.healthcare.dicomio.DicomApiHttpClient")
   def test_destination_notfound(self, FakeClient):
     input_dict = {}
     # search instances in a not exist store
@@ -440,7 +440,7 @@ class TestDicomStoreInstance(_TestCaseWithTempDirCleanUp):
           p | beam.Create(['']) | UploadToDicomStore(input_dict, 'bytes'))
       assert_that(results, equal_to([expected_invalid_dict]))
 
-  @patch("apache_beam.io.gcp.dicomio.DicomApiHttpClient")
+  @patch("apache_beam.io.gcp.healthcare.dicomio.DicomApiHttpClient")
   def test_missing_parameters(self, FakeClient):
     input_dict = {}
     input_dict['project_id'] = "test_project"
