@@ -18,16 +18,24 @@
 from typing import List
 from typing import NamedTuple
 
+import unittest
 import numpy as np
 from parameterized import parameterized
-import unittest
 
 import apache_beam as beam
-from apache_beam.ml.transforms import base
-from apache_beam.ml.transforms import tft_transforms
-from apache_beam.ml.transforms import handlers
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+
+# pylint: disable=wrong-import-order, wrong-import-position
+try:
+  from apache_beam.ml.transforms import base
+  from apache_beam.ml.transforms import tft_transforms
+  from apache_beam.ml.transforms import handlers
+except ImportError:
+  tft_transforms = None
+
+skip_if_tft_not_available = unittest.skipIf(
+    tft_transforms is None, 'tensorflow_transform is not installed.')
 
 
 class MyTypesUnbatched(NamedTuple):
@@ -64,11 +72,8 @@ def assert_bucketize_artifacts(element):
       element['x_quantiles'], np.array([3, 5], dtype=np.float32))
 
 
+@skip_if_tft_not_available
 class ScaleZScoreTest(unittest.TestCase):
-  def test_z_score_artifacts_enables(self):
-    z_score = tft_transforms._Scale_To_Z_Score(columns=['x'])
-    self.assertTrue(z_score.has_artifacts)
-
   def test_z_score_unbatched(self):
     unbatched_data = [{
         'x': 1
@@ -111,6 +116,7 @@ class ScaleZScoreTest(unittest.TestCase):
       _ = (batched_result | beam.Map(assert_z_score_artifacts))
 
 
+@skip_if_tft_not_available
 class ScaleTo01Test(unittest.TestCase):
   def test_scale_to_0_1_batched(self):
     batched_data = [{'x': [1, 2, 3]}, {'x': [4, 5, 6]}]
@@ -171,16 +177,9 @@ class ScaleTo01Test(unittest.TestCase):
       assert_that(
           actual_output, equal_to(expected_output, equals_fn=np.array_equal))
 
-  def test_scale_to_0_1_artifacts_enabled(self):
-    scale_to_0_1 = tft_transforms._Scale_to_0_1(columns=['x'])
-    self.assertTrue(scale_to_0_1.has_artifacts)
 
-
+@skip_if_tft_not_available
 class BucketizeTest(unittest.TestCase):
-  def test_bucketize_artifacts_enabled(self):
-    bucketize = tft_transforms._Bucketize(columns=['x'], num_buckets=3)
-    self.assertTrue(bucketize.has_artifacts)
-
   def test_bucketize_unbatched(self):
     unbatched = [{'x': 1}, {'x': 2}, {'x': 3}, {'x': 4}, {'x': 5}, {'x': 6}]
     with beam.Pipeline() as p:
@@ -265,6 +264,7 @@ class BucketizeTest(unittest.TestCase):
       _ = (actual_boundaries | beam.Map(assert_boundaries))
 
 
+@skip_if_tft_not_available
 class ApplyBucketsTest(unittest.TestCase):
   @parameterized.expand([
       (range(1, 100), [25, 50, 75]),
@@ -304,6 +304,7 @@ class ComputeAndVocabBatchedInputType(NamedTuple):
   x: List[str]
 
 
+@skip_if_tft_not_available
 class ComputeAndApplyVocabTest(unittest.TestCase):
   def test_compute_and_apply_vocabulary_unbatched_inputs(self):
     batch_size = 100

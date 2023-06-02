@@ -20,17 +20,25 @@ from typing import NamedTuple
 from typing import List
 from typing import Union
 
+import unittest
 import numpy as np
 from parameterized import param
 from parameterized import parameterized
-import unittest
 
 import apache_beam as beam
-from apache_beam.ml.transforms import base
-from apache_beam.ml.transforms import handlers
-from apache_beam.ml.transforms import tft_transforms
 from apache_beam.testing.test_pipeline import TestPipeline
 import tensorflow as tf
+
+# pylint: disable=wrong-import-position, ungrouped-imports
+try:
+  from apache_beam.ml.transforms import base
+  from apache_beam.ml.transforms import handlers
+  from apache_beam.ml.transforms import tft_transforms
+except ImportError:
+  tft_transforms = None
+
+skip_if_tft_not_available = unittest.skipIf(
+    tft_transforms is None, 'tensorflow_transform is not installed.')
 
 
 class _FakeOperation(tft_transforms._TFTOperation):
@@ -76,6 +84,7 @@ class BatchedNumpyType(NamedTuple):
   x: np.int64
 
 
+@skip_if_tft_not_available
 class TFTProcessHandlerDictTest(unittest.TestCase):
   def setUp(self) -> None:
     self.pipeline = TestPipeline()

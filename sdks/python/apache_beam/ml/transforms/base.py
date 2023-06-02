@@ -75,13 +75,10 @@ class ProcessHandler(Generic[ProcessInputT, ProcessOutputT]):
 
 class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
                                   beam.PCollection[MLTransformOutputT]],
-                  Generic[ExampleT,
-                          MLTransformOutputT,
-                          ProcessInputT,
-                          ProcessOutputT]):
+                  Generic[ExampleT, MLTransformOutputT, ]):
   def __init__(
       self,
-      process_handler: ProcessHandler[ProcessInputT, ProcessOutputT],
+      process_handler: ProcessHandler[ExampleT, MLTransformOutputT],
   ):
     """
     Args:

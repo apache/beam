@@ -45,7 +45,6 @@ class _TFTOperation(_BaseOperation):
     self.columns = columns
     self._args = args
     self._kwargs = kwargs
-    self.has_artifacts = False
 
     self._save_result = save_result
     self._output_name = output_name
@@ -70,8 +69,8 @@ class _TFTOperation(_BaseOperation):
   def __call__(self, data):
     return self.apply(data, *self._args, **self._kwargs)
 
-  def get_analyzer_artifacts(self, data, col_name):
-    pass
+  def get_artifacts(self, data, col_name):
+    return None
 
 
 class _ComputeAndApplyVocab(_TFTOperation):
@@ -86,12 +85,11 @@ class _ComputeAndApplyVocab(_TFTOperation):
 class _Scale_To_Z_Score(_TFTOperation):
   def __init__(self, columns, *args, **kwargs):
     super().__init__(columns, *args, **kwargs)
-    self.has_artifacts = True
 
   def apply(self, data):
     return tft.scale_to_z_score(x=data, *self._args, **self._kwargs)
 
-  def get_analyzer_artifacts(self, data, col_name):
+  def get_artifacts(self, data, col_name):
     mean_var = tft.analyzers._mean_and_var(data)
     shape = [tf.shape(data)[0], 1]
     return {
@@ -106,9 +104,8 @@ class _Scale_To_Z_Score(_TFTOperation):
 class _Scale_to_0_1(_TFTOperation):
   def __init__(self, columns, *args, **kwargs):
     super().__init__(columns, *args, **kwargs)
-    self.has_artifacts = True
 
-  def get_analyzer_artifacts(self, data, col_name) -> Dict[str, tf.Tensor]:
+  def get_artifacts(self, data, col_name) -> Dict[str, tf.Tensor]:
     shape = [tf.shape(data)[0], 1]
     return {
         col_name + '_min': tf.broadcast_to(tft.min(data), shape),
@@ -143,9 +140,8 @@ class _Bucketize(_TFTOperation):
   def __init__(self, columns: List[str], num_buckets: int, *args, **kwrags):
     super().__init__(columns, *args, **kwrags)
     self.num_buckets = num_buckets
-    self.has_artifacts = True
 
-  def get_analyzer_artifacts(self, data, col_name):
+  def get_artifacts(self, data, col_name):
     num_buckets = self.num_buckets
     epsilon = self._kwargs['epsilon']
     weights = self._kwargs['weights']
@@ -187,6 +183,25 @@ def scale_to_0_1(
     name: Optional[str] = None,
     *args,
     **kwargs):
+  """
+  This function applies a scaling transformation on the given columns
+  of incoming data. The transformation scales the input values to the
+  range [0, 1] by dividing each value by the maximum value in the
+  column.
+
+  Args:
+    columns: A list of column names to apply the transformation on.
+    elementwise: If True, the transformation is applied elementwise.
+      Otherwise, the transformation is applied on the entire column.
+    name: A name for the operation (optional).
+
+  scale_to_0_1 also outputs additional artifacts. The artifacts are
+  max, which is the maximum value in the column, and min, which is the
+  minimum value in the column. The artifacts are stored in the column
+  named with the suffix <original_col_name>_min and <original_col_name>_max
+  respectively.
+
+  """
   return _Scale_to_0_1(
       columns=columns, elementwise=elementwise, name=name, *args, **kwargs)
 
@@ -298,6 +313,25 @@ def scale_to_z_score(
     elementwise: bool = False,
     name: Optional[str] = None,
     output_dtype: Optional[tf.DType] = None):
+  """
+  This function performs a scaling transformation on the specified columns of
+  the incoming data. It processes the input tensor such that it's normalized
+  to have a mean of 0 and a variance of 1. The transformation achieves this
+  by subtracting the mean from the input tensor and then dividing it by the
+  square root of the variance.
+
+  Args:
+    columns: A list of column names to apply the transformation on.
+    elementwise: If True, the transformation is applied elementwise.
+      Otherwise, the transformation is applied on the entire column.
+    name: A name for the operation (optional).
+
+  scale_to_z_score also outputs additional artifacts. The artifacts are
+  mean, which is the mean value in the column, and var, which is the
+  variance in the column. The artifacts are stored in the column
+  named with the suffix <original_col_name>_mean and <original_col_name>_var
+  respectively.
+  """
 
   return _Scale_To_Z_Score(
       columns=columns,

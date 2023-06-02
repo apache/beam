@@ -95,6 +95,7 @@ class TFTProcessHandler(ProcessHandler[ProcessInputT, ProcessOutputT]):
       *,
       transforms: List[_TFTOperation] = None,
       namespace: str = 'TFTProcessHandler',
+      artifact_location: typing.Optional[str] = None,
   ):
     """
     A handler class for processing data with TensorFlow Transform (TFT)
@@ -107,11 +108,18 @@ class TFTProcessHandler(ProcessHandler[ProcessInputT, ProcessOutputT]):
         i-th transform is the output of the (i-1)-th transform. Multi-input
         transforms are not supported yet.
       namespace: A metrics namespace for the TFTProcessHandler.
+      artifact_location: A location to store the artifacts, which includes
+        the tensorflow graph produced by analyzers such as scale_to_0_1,
+        sclaed_to_z_score, etc.
+        Note: If not specified, the artifacts will be stored
+        in a temporary directory for DirectRunner and staging location for
+        DataflowRunner.
     """
     self.transforms = transforms if transforms else []
     self._artifact_location = None
     self._namespace = namespace
     self.transformed_schema = None
+    self.artifact_location = artifact_location
 
   def append_transform(self, transform: _TFTOperation):
     self.transforms.append(transform)
@@ -310,9 +318,8 @@ class TFTProcessHandlerDict(
     for transform in self.transforms:
       columns = transform.columns
       for col in columns:
-        if transform.has_artifacts:
-          artifacts = transform.get_analyzer_artifacts(
-              inputs[col], col_name=col)
+        artifacts = transform.get_artifacts(inputs[col], col_name=col)
+        if artifacts:
           for key, value in artifacts.items():
             outputs[key] = value
         intermediate_result = transform.apply(outputs[col])
@@ -324,7 +331,7 @@ class TFTProcessHandlerDict(
   def _get_transformed_data_schema(
       self,
       metadata: dataset_metadata.DatasetMetadata,
-  ):
+  ) -> Dict[str, type]:
     schema = metadata._schema
     transformed_types = {}
     logging.info("Schema: %s", schema)
@@ -346,7 +353,9 @@ class TFTProcessHandlerDict(
     return transformed_types
 
   def _get_processing_data_ptransform(
-      self, raw_data_metadata: dataset_metadata.DatasetMetadata):
+      self, raw_data_metadata: dataset_metadata.DatasetMetadata
+  ) -> beam.PTransform[beam.PCollection[tft_process_handler_dict_input_type],
+                       beam.PCollection[beam.Row]]:
     """
     Return a PTransform object that has the preprocessing logic
     using the AnalyzeAndTransformDataset step.
@@ -368,7 +377,8 @@ class TFTProcessHandlerDict(
       # Also, we will be using the same location to store the transform_fn
       # articats.
 
-      self._artifact_location = self._get_artifact_location(raw_data.pipeline)
+      if not self._artifact_location:
+        self._artifact_location = self._get_artifact_location(raw_data.pipeline)
       with tft_beam.Context(temp_dir=self._artifact_location):
         data = (raw_data, raw_data_metadata)
         transformed_metadata: beam_metadata_io.BeamDatasetMetadata
@@ -419,12 +429,15 @@ class TFTProcessHandlerDict(
         | self._get_processing_data_ptransform(
             raw_data_metadata=raw_data_metadata))
 
-  def get_raw_data_metadata(self, input_types: Dict[str, type]):
+  def get_raw_data_metadata(
+      self, input_types: Dict[str, type]) -> dataset_metadata.DatasetMetadata:
     return self.get_raw_data_feature_spec(input_types)
 
 
 class _ConvertScalarValuesToListValues(beam.DoFn):
-  def process(self, element: Dict):
+  def process(
+      self, element: Dict[str, typing.Any]
+  ) -> typing.Iterable[Dict[str, typing.List[typing.Any]]]:
     new_dict = {}
     for key, value in element.items():
       if isinstance(value, _primitive_types):
