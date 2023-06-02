@@ -122,7 +122,7 @@ class StorageApiFinalizeWritesDoFn extends DoFn<KV<String, String>, Void> {
               Preconditions.checkArgumentNotNull(
                   c.getResult(),
                   "Finalize of write stream " + streamId + " finished, but with null result");
-          LOG.info("Finalize of stream " + streamId + " finished with " + response);
+          LOG.debug("Finalize of stream " + streamId + " finished with " + response);
           rowsFinalized.inc(response.getRowCount());
 
           finalizeOperationsSucceeded.inc();
