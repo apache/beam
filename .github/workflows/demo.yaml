@@ -2,6 +2,8 @@ name: vdjerek_testing
 on:
   pull_request:
     branches: ['master']
+  issue_comment:
+    types: [created, edited]
 
 jobs:
   beam_PreCommit_Go:
