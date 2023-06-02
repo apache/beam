@@ -214,7 +214,7 @@ def insert_tag_into_source(tag_yaml: str, source: str) -> str:
             break
 
     tag_lines_number = tag_yaml.count("\n")
-    tag_yaml = re.sub(r"context_line: \d+", f"context_line: {object_line + tag_lines_number + 2}", tag_yaml)
+    tag_yaml = re.sub(r"context_line: \d+", f"context_line: {object_line + tag_lines_number + 3}", tag_yaml)
     tag_yaml = "// " + tag_yaml.replace("\n", "\n// ")
     tag_yaml = "\n" + tag_yaml
 

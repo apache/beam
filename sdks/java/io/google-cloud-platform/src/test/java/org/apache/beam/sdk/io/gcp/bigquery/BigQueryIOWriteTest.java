@@ -222,7 +222,6 @@ public class BigQueryIOWriteTest implements Serializable {
                       bqOptions.setUseStorageWriteApiAtLeastOnce(true);
                     }
                     if (useStreaming) {
-                      bqOptions.setNumStorageWriteApiStreams(2);
                       bqOptions.setStorageWriteApiTriggeringFrequencySec(1);
                     }
                   }
@@ -299,7 +298,6 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testWriteDynamicDestinationsStreamingWithAutoSharding() throws Exception {
-    assumeTrue(!useStorageApi);
     assumeTrue(useStreaming);
     writeDynamicDestinations(true, true);
   }
@@ -1861,6 +1859,7 @@ public class BigQueryIOWriteTest implements Serializable {
             .to(tableRef)
             .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
             .withSchema(new TableSchema())
+            .withNumStorageWriteApiStreams(2)
             .withTestServices(fakeBqServices));
     p.run();
   }
@@ -1902,6 +1901,7 @@ public class BigQueryIOWriteTest implements Serializable {
             .to(tableRef)
             .withMethod(method)
             .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER)
+            .withNumStorageWriteApiStreams(2)
             .withTestServices(fakeBqServices)
             .withoutValidation());
     p.run();
@@ -2978,6 +2978,32 @@ public class BigQueryIOWriteTest implements Serializable {
   @Test
   public void testWriteWithStorageApiWithDefaultProject() throws Exception {
     assumeTrue(useStorageApi);
+    BigQueryIO.Write<TableRow> write =
+        BigQueryIO.writeTableRows()
+            .to("dataset-id.table-id")
+            .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+            .withSchema(
+                new TableSchema()
+                    .setFields(
+                        ImmutableList.of(new TableFieldSchema().setName("name").setType("STRING"))))
+            .withMethod(Method.STORAGE_WRITE_API)
+            .withoutValidation()
+            .withTestServices(fakeBqServices);
+
+    p.apply(
+            Create.of(new TableRow().set("name", "a"), new TableRow().set("name", "b"))
+                .withCoder(TableRowJsonCoder.of()))
+        .apply("WriteToBQ", write);
+    p.run();
+    assertThat(
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
+        containsInAnyOrder(new TableRow().set("name", "a"), new TableRow().set("name", "b")));
+  }
+
+  @Test
+  public void testWriteWithStorageApiWithoutSettingShardsEnableAutoSharding() throws Exception {
+    assumeTrue(useStorageApi);
+    assumeTrue(p.getOptions().as(BigQueryOptions.class).getNumStorageWriteApiStreams() == 0);
     BigQueryIO.Write<TableRow> write =
         BigQueryIO.writeTableRows()
             .to("dataset-id.table-id")

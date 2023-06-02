@@ -16,6 +16,6 @@
 # under the License.
 
 # Output used to assign service account to cloud functions
-output "service-account-email" {
+output "cf-service-account-id" {
   value = google_service_account.cloud_function_sa.email
 }

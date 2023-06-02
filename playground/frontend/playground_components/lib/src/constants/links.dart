@@ -31,4 +31,8 @@ class BeamLinks {
   static const playgroundGitHub =
       'https://github.com/apache/beam/tree/master/playground';
   static const scioGitHub = 'https://github.com/spotify/scio';
+
+  // Forms
+  static const feedbackGoogleForms =
+      'https://docs.google.com/forms/d/e/1FAIpQLSd5_5XeOwwW2yjEVHUXmiBad8Lxk-4OtNcgG45pbyAZzd4EbA/viewform?usp=pp_url';
 }

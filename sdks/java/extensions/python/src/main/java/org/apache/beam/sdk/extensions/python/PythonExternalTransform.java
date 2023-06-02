@@ -36,6 +36,7 @@ import org.apache.beam.runners.core.construction.External;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.RowCoder;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
@@ -45,8 +46,10 @@ import org.apache.beam.sdk.schemas.logicaltypes.PythonCallable;
 import org.apache.beam.sdk.schemas.utils.StaticSchemaInference;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transformservice.launcher.TransformServiceLauncher;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.PythonCallableSource;
+import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -447,30 +450,64 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
             15000);
         return apply(input, expansionService, payload);
       } else {
+        OutputT output = null;
         int port = PythonService.findAvailablePort();
-        ImmutableList.Builder<String> args = ImmutableList.builder();
-        args.add("--port=" + port, "--fully_qualified_name_glob=*", "--pickle_library=cloudpickle");
-        if (!extraPackages.isEmpty()) {
-          File requirementsFile = File.createTempFile("requirements", ".txt");
-          requirementsFile.deleteOnExit();
-          try (Writer fout =
-              new OutputStreamWriter(
-                  new FileOutputStream(requirementsFile.getAbsolutePath()), Charsets.UTF_8)) {
-            for (String pkg : extraPackages) {
-              fout.write(pkg);
-              fout.write('\n');
-            }
+        PipelineOptionsFactory.register(PythonExternalTransformOptions.class);
+        if (input
+            .getPipeline()
+            .getOptions()
+            .as(PythonExternalTransformOptions.class)
+            .getUseTransformService()) {
+          // A unique project name ensures that this expansion gets a dedicated instance of the
+          // transform service.
+          String projectName = UUID.randomUUID().toString();
+          TransformServiceLauncher service = TransformServiceLauncher.forProject(projectName, port);
+          service.setBeamVersion(ReleaseInfo.getReleaseInfo().getSdkVersion());
+          // TODO(https://github.com/apache/beam/issues/26833): add support for installing extra
+          // packages.
+          if (!extraPackages.isEmpty()) {
+            throw new RuntimeException(
+                "Transform Service does not support installing extra packages yet");
           }
-          args.add("--requirements_file=" + requirementsFile.getAbsolutePath());
-        }
-        PythonService service =
-            new PythonService(
-                    "apache_beam.runners.portability.expansion_service_main", args.build())
-                .withExtraPackages(extraPackages);
-        try (AutoCloseable p = service.start()) {
-          // allow more time waiting for the port ready for transient expansion service setup.
-          PythonService.waitForPort("localhost", port, 60000);
-          return apply(input, String.format("localhost:%s", port), payload);
+          try {
+            // Starting the transform service.
+            service.start();
+            // Waiting the service to be ready.
+            service.waitTillUp(15000);
+            // Expanding the transform.
+            output = apply(input, String.format("localhost:%s", port), payload);
+          } finally {
+            // Shutting down the transform service.
+            service.shutdown();
+          }
+          return output;
+        } else {
+
+          ImmutableList.Builder<String> args = ImmutableList.builder();
+          args.add(
+              "--port=" + port, "--fully_qualified_name_glob=*", "--pickle_library=cloudpickle");
+          if (!extraPackages.isEmpty()) {
+            File requirementsFile = File.createTempFile("requirements", ".txt");
+            requirementsFile.deleteOnExit();
+            try (Writer fout =
+                new OutputStreamWriter(
+                    new FileOutputStream(requirementsFile.getAbsolutePath()), Charsets.UTF_8)) {
+              for (String pkg : extraPackages) {
+                fout.write(pkg);
+                fout.write('\n');
+              }
+            }
+            args.add("--requirements_file=" + requirementsFile.getAbsolutePath());
+          }
+          PythonService service =
+              new PythonService(
+                      "apache_beam.runners.portability.expansion_service_main", args.build())
+                  .withExtraPackages(extraPackages);
+          try (AutoCloseable p = service.start()) {
+            // allow more time waiting for the port ready for transient expansion service setup.
+            PythonService.waitForPort("localhost", port, 60000);
+            return apply(input, String.format("localhost:%s", port), payload);
+          }
         }
       }
     } catch (RuntimeException exn) {
