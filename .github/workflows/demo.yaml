@@ -1,28 +1,27 @@
-name: GitHub Actions Demo2
-run-name: ${{ github.actor }} is testing out GitHub Actions 🚀
-#COMMENT another
-
+name: vdjerek_testing
 on:
-  pull_request:
-    branches: ['master']
-  issue_comment:
-    types: [created, edited, deleted]
+  workflow_dispatch:
+    
+
 jobs:
-  Explore-GitHub-Actions:
-    strategy:
-      matrix:
-        instance: [1 ,2 ,3 ,4 ,5]
-    runs-on: [self-hosted, ubuntu-20.04 , vdjerek-test]
-    steps:
-      - run: echo "this is ${{ matrix.instance}} instance"
-      - run: echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
-      - run: echo "🐧 This job is now running on a ${{ runner.os }} server hosted by GitHub!"
-      - run: echo "🔎 The name of your branch is ${{ github.ref }} and your repository is ${{ github.repository }}."
-      - name: Check out repository code
-        uses: actions/checkout@v3
-      - run: echo "💡 The ${{ github.repository }} repository has been cloned to the runner."
-      - run: echo "🖥 The workflow is now ready to test your code on the runner."
-      - name: List files in the repository
-        run: |
-          ls ${{ github.workspace }}
-      - run: echo "🍏 This job's status is ${{ job.status }}."
+  beam_PreCommit_Go:
+        runs-on: [self-hosted, ubuntu-20.04, vdjerek-test]
+        name: beam_PreCommit_Go
+        steps:       
+          - name: Git checkout
+            uses: actions/checkout@v3
+          - name: Install Java
+            uses: actions/setup-java@v3.8.0
+            with:
+              distribution: 'zulu'
+              java-version: '8'
+          - name: Install Go
+            uses: actions/setup-go@v3
+            with:
+              go-version: '1.20'
+          - name: Setup Gradle
+            uses: gradle/gradle-build-action@v2
+            with:
+              cache-read-only: false
+          - name: run goPreCommit script
+            run: ./gradlew :goPreCommit
