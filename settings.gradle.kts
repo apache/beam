@@ -61,6 +61,7 @@ include(":release:go-licenses:go")
 include(":release:go-licenses:java")
 include(":release:go-licenses:py")
 
+include(":word-count-beam")
 include(":examples:java")
 include(":examples:java:twitter")
 include(":examples:java:cdap")
