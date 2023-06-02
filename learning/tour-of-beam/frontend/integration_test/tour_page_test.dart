@@ -31,10 +31,11 @@ import 'package:tour_of_beam/pages/tour/screen.dart';
 import 'package:tour_of_beam/pages/tour/state.dart';
 import 'package:tour_of_beam/pages/tour/widgets/unit.dart';
 import 'package:tour_of_beam/pages/tour/widgets/unit_content.dart';
-import 'package:tour_of_beam/state.dart';
 
 import 'common/common.dart';
 import 'common/common_finders.dart';
+
+const _sdk = Sdk.python;
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -42,7 +43,7 @@ void main() {
     'ToB miscellaneous ui',
     (wt) async {
       await init(wt);
-      await wt.tapAndSettle(find.text(Sdk.python.title));
+      await wt.tapAndSettle(find.text(_sdk.title));
       await wt.tapAndSettle(find.startTourButton());
 
       await _checkContentTreeBuildsProperly(wt);
@@ -65,9 +66,7 @@ Future<void> _checkContentTreeBuildsProperly(WidgetTester wt) async {
 
 List<ModuleModel> _getModules(WidgetTester wt) {
   final contentTreeCache = GetIt.instance.get<ContentTreeCache>();
-  final contentTree = contentTreeCache.getContentTree(
-    GetIt.instance.get<AppNotifier>().sdk,
-  );
+  final contentTree = contentTreeCache.getContentTree(_sdk);
   return contentTree?.nodes ?? (throw Exception('Cannot load modules'));
 }
 
