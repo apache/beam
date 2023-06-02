@@ -159,7 +159,7 @@ class _SdkSelection extends StatelessWidget {
     if (sdk == null) {
       return;
     }
-    await GetIt.instance.get<PageStack>().push(TourPage(sdk: sdk));
+    await GetIt.instance.get<PageStack>().push(TourPage());
   }
 }
 

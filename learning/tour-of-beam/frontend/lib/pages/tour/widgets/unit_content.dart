@@ -295,6 +295,7 @@ class _ContentFooter extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(BeamSizes.size10),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           IconButton(
             color: Theme.of(context).primaryColor,

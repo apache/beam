@@ -16,38 +16,6 @@
  * limitations under the License.
  */
 
-import 'dart:async';
-
-import 'package:flutter/material.dart';
 import 'package:playground_components/playground_components.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
-import 'constants/params.dart';
-import 'constants/storage_keys.dart';
-
-class AppNotifier extends ChangeNotifier {
-  Sdk? _sdk;
-
-  AppNotifier() {
-    unawaited(_readSdk());
-  }
-
-  Sdk get sdk => _sdk ?? defaultSdk;
-
-  set sdk(Sdk newValue) {
-    _sdk = newValue;
-    unawaited(_writeSdk(newValue));
-    notifyListeners();
-  }
-
-  Future<void> _writeSdk(Sdk value) async {
-    final preferences = await SharedPreferences.getInstance();
-    await preferences.setString(StorageKeys.sdkId, value.id);
-  }
-
-  Future<void> _readSdk() async {
-    final preferences = await SharedPreferences.getInstance();
-    _sdk = Sdk.tryParse(preferences.getString(StorageKeys.sdkId));
-    notifyListeners();
-  }
-}
+const defaultSdk = Sdk.java;

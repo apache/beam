@@ -42,7 +42,7 @@ void main() {
     'ToB miscellaneous ui',
     (wt) async {
       await init(wt);
-      await wt.tapAndSettle(find.text(Sdk.java.title));
+      await wt.tapAndSettle(find.text(Sdk.python.title));
       await wt.tapAndSettle(find.startTourButton());
 
       await _checkContentTreeBuildsProperly(wt);
@@ -186,7 +186,7 @@ public class MyClass {
 }
 ''';
 
-  await _selectExampleWithSnippet(wt);
+  await _selectUnitWithSnippet(wt);
   await wt.pumpAndSettle();
 
   await wt.enterText(find.snippetCodeField(), code);
@@ -231,7 +231,7 @@ Future<void> _checkResizeUnitContent(WidgetTester wt) async {
   expectSimilar(startHandlePosition.dx, movedHandlePosition.dx - 100);
 }
 
-Future<void> _selectExampleWithSnippet(WidgetTester wt) async {
+Future<void> _selectUnitWithSnippet(WidgetTester wt) async {
   final tourNotifier = _getTourNotifier(wt);
   final modules = _getModules(wt);
 
@@ -239,7 +239,7 @@ Future<void> _selectExampleWithSnippet(WidgetTester wt) async {
     for (final node in module.nodes) {
       if (node is UnitModel) {
         await _checkNode(node, wt);
-        if (tourNotifier.showPlayground) {
+        if (tourNotifier.isPlaygroundShown) {
           return;
         }
       }

@@ -24,9 +24,6 @@ class CopyrightWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      'ui.copyright',
-      style: Theme.of(context).textTheme.bodySmall,
-    ).tr();
+    return const Text('ui.copyright').tr();
   }
 }
