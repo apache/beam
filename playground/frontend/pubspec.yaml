@@ -21,8 +21,8 @@ publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  sdk: '>=2.19.2 <4.0.0'
-  flutter: '>=3.7.3'
+  sdk: '>=3.0.2 <4.0.0'
+  flutter: '>=3.10.2'
 
 dependencies:
   akvelon_flutter_issue_106664_workaround: ^0.1.2

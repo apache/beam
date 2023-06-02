@@ -18,7 +18,7 @@
 # Service account for GCP Cloud Functions
 resource "google_service_account" "cloud_function_sa" {
   account_id   = local.cloudfunctions_service_account
-  display_name = "Service Account to run Cloud Functions"
+  display_name = "Tour of Beam CF Service Account-${var.environment}"
 }
 
 # IAM roles for Cloud Functions service account
@@ -30,15 +30,5 @@ resource "google_project_iam_member" "terraform_service_account_roles" {
   ])
   role    = each.key
   member  = "serviceAccount:${google_service_account.cloud_function_sa.email}"
-  project = var.project_id
-}
-
-# IAM roles to be granted for user account that will be running terraform scripts
-resource "google_project_iam_member" "gcloud_user_required_roles" {
-  for_each = toset([
-    "roles/cloudfunctions.admin", "roles/firebase.admin"
-  ])
-  role    = each.key
-  member  = "user:${var.gcloud_init_account}"
   project = var.project_id
 }
