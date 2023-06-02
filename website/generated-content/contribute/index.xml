@@ -311,7 +311,7 @@ docker-ce
 &lt;li>At the end, it should look like this: &lt;code>$GOPATH/src/github.com/apache/beam&lt;/code>&lt;/li>
 &lt;li>Once Go is installed, install goavro:
 &lt;pre>&lt;code>$ export GOPATH=`pwd`/sdks/go/examples/.gogradle/project_gopath
-$ go get github.com/linkedin/goavro
+$ go get github.com/linkedin/goavro/v2
 &lt;/code>&lt;/pre>&lt;/li>
 &lt;/ol>
 &lt;p>&lt;strong>Important&lt;/strong>: gLinux users should configure their machines for sudoless Docker.&lt;/p>

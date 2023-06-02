@@ -49,7 +49,7 @@ The command will be ignored if it is surrounded by ``` markdown characters.</li>
    docker-ce
 </code></pre></li><li>On some systems, like Ubuntu 20.04, install these:<pre><code>pip3 install grpcio-tools mypy-protobuf
 </code></pre></li><li>If you develop in GO:</li><li>Install <a href=https://golang.org/doc/install>Go</a>.</li><li>Check BEAM repo is in: <code>$GOPATH/src/github.com/apache/</code></li><li>At the end, it should look like this: <code>$GOPATH/src/github.com/apache/beam</code></li><li>Once Go is installed, install goavro:<pre><code>$ export GOPATH=`pwd`/sdks/go/examples/.gogradle/project_gopath
-$ go get github.com/linkedin/goavro
+$ go get github.com/linkedin/goavro/v2
 </code></pre></li></ol><p><strong>Important</strong>: gLinux users should configure their machines for sudoless Docker.</p><h6 id=automated-script-for-linux-and-macos>Automated script for Linux and macOS</h6><p>You can install these in a Debian-based distribution for Linux or macOs using the <a href=https://github.com/apache/beam/blob/master/local-env-setup.sh>local-env-setup.sh</a> script, which is part of the Beam repo. It contains:</p><ul><li>pip3 packages</li><li>go packages</li><li>goavro</li><li>JDK 8</li><li>Python</li><li>Docker</li></ul><p>To install execute:</p><pre><code>./local-env-setup.sh
 </code></pre><h5 id=container-docker-based>Container: Docker-based</h5><p>Alternatively, you can use the Docker based local development environment to wrap your clone of the Beam repo
 into a container meeting the requirements above.</p><p>You can start this container using the <a href=https://github.com/apache/beam/blob/master/start-build-env.sh>start-build-env.sh</a> script which is part of the Beam repo.</p><p>Execute:</p><pre><code>./start-build-env.sh
