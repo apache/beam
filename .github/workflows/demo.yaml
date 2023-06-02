@@ -12,7 +12,7 @@ jobs:
     strategy:
       matrix:
         instance: [1 ,2 ,3 ,4 ,5]
-    runs-on: [self-hosted, ubuntu-20.04]
+    runs-on: [self-hosted, ubuntu-20.04 , vdjerek-test]
     steps:
       - run: echo "this is ${{ matrix.instance}} instance"
       - run: echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
