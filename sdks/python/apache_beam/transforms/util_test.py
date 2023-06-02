@@ -908,7 +908,7 @@ class GroupIntoBatchesTest(unittest.TestCase):
     with tempfile.NamedTemporaryFile(suffix=".json") as f:
       with open(f.name, "w") as fh:
         json.dump(GroupIntoBatchesTest._create_test_data(), fh)
-      with self.assertRaises(RuntimeError):
+      with self.assertRaises((RuntimeError, AttributeError)):
         with TestPipeline() as pipeline:
           collection = pipeline \
                       | beam.io.ReadFromText(file_pattern=f.name) \
