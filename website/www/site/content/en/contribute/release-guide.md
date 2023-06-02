@@ -463,6 +463,7 @@ Consider adding known issues there for minor issues instead of accepting cherry 
 
 * Release Manager’s GPG key is published to `dist.apache.org`;
 * Release Manager’s GPG key is configured in `git` configuration;
+* Set `SIGNING_KEY` to the public key of the Manager's GPG key;
 * Release Manager has `org.apache.beam` listed under `Staging Profiles` in Nexus;
 * Release Manager’s Nexus User Token is configured in `settings.xml`;
 * GitHub issue release item for the subsequent release has been created;
@@ -516,7 +517,7 @@ See the source of the script for more details, or to run commands manually in ca
 Note: This step is partially automated (in progress), so part of the rc creation is done by GitHub Actions and the rest is done by a script.
 You don't need to wait for the action to complete to start running the script.
 
-* **Action** [build_release_candidate](https://github.com/damccorm/beam/actions/workflows/build_release_candidate.yml) (click `run workflow`)
+* **Action** [build_release_candidate](https://github.com/apache/beam/actions/workflows/build_release_candidate.yml) (click `run workflow`)
 
 * **The script will:**
   1. Clone the repo at the selected RC tag.
@@ -542,7 +543,7 @@ You don't need to wait for the action to complete to start running the script.
 
 * **Usage**
 
-      ./beam/release/src/main/scripts/build_release_candidate.sh --release "${RELEASE_VERSION}" --rc "${RC_NUM}" --github-user "${GITHUB_USER}" --java11-home "${JAVA11_HOME}"
+      ./beam/release/src/main/scripts/build_release_candidate.sh --release "${RELEASE_VERSION}" --rc "${RC_NUM}" --github-user "${GITHUB_USER}" --java11-home "${JAVA11_HOME}" --signing-key "${SIGNING_KEY}"
 
 * **The script will:**
   1. Clone the repo at the selected RC tag.
@@ -1191,15 +1192,11 @@ After pushing the tag, the tag should be visible on Github's [Tags](https://gith
 
 ### Publish release to Github
 
-Once the tag is uploaded, publish the release notes to Github, as follows:
+Once the tag is uploaded, publish the release notes to Github. From the [Beam release page on Github](https://github.com/apache/beam/releases) select
+"Draft a new release." Title the release "Beam ${RELEASE_VERSION} release" and set the release at the version tag created above. Use the content of the
+release blog post as the body of the release notes, set this version as the latest release, and publish it.
 
-```
-./beam/release/src/main/scripts/publish_github_release_notes.sh
-```
-
-Note this script reads the release notes from the blog post, so you should make sure to run this from master _after_ merging the blog post PR.
-
-After running the script, the release notes should be visible on Github's [Releases](https://github.com/apache/beam/releases) page.
+The release notes should now be visible on Github's [Releases](https://github.com/apache/beam/releases) page.
 
 ### Mark the version as released in GitHub
 

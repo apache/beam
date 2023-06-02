@@ -32,8 +32,6 @@ import 'router/page_factory.dart';
 import 'router/route_information_parser.dart';
 import 'state.dart';
 
-final _client = CloudFunctionsTobClient();
-
 Future<void> initializeServiceLocator() async {
   await _initializeRepositories();
   _initializeAuth();
@@ -57,7 +55,6 @@ Future<void> _initializeRepositories() async {
   final exampleClient = GrpcExampleClient(url: routerUrl);
 
   GetIt.instance.registerSingleton<CodeClient>(codeClient);
-  GetIt.instance.registerSingleton(CodeRepository(client: codeClient));
   GetIt.instance.registerSingleton<ExampleClient>(exampleClient);
   GetIt.instance.registerSingleton(ExampleRepository(client: exampleClient));
 }

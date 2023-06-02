@@ -46,12 +46,13 @@ from helper import (
     _load_example,
     get_tag,
     Tag,
-    get_statuses,
     _check_no_nested,
-    _update_example_status,
+    update_example_status,
     _get_object_type,
     validate_examples_for_duplicates_by_name,
+    validate_examples_for_conflicting_datasets,
     DuplicatesError,
+    ConflictingDatasetsError,
 )
 
 
@@ -114,16 +115,6 @@ def test_find_examples(
             ),
         ]
     )
-
-
-@pytest.mark.asyncio
-@mock.patch("helper._update_example_status")
-async def test_get_statuses(mock_update_example_status, create_test_example):
-    example = create_test_example()
-    client = mock.sentinel
-    await get_statuses(client, [example])
-
-    mock_update_example_status.assert_called_once_with(example, client)
 
 
 @mock.patch(
@@ -452,7 +443,7 @@ async def test__update_example_status(
     mock_grpc_client_run_code.return_value = "pipeline_id"
     mock_grpc_client_check_status.side_effect = [STATUS_VALIDATING, STATUS_FINISHED]
 
-    await _update_example_status(example, GRPCClient())
+    await update_example_status(example, GRPCClient())
 
     assert example.pipeline_id == "pipeline_id"
     assert example.status == STATUS_FINISHED
@@ -507,6 +498,58 @@ def test_validate_examples_for_duplicates_by_name_when_examples_have_duplicates(
         match="Examples have duplicate names.\nDuplicates: \n - path #1: MOCK_FILEPATH \n - path #2: MOCK_FILEPATH",
     ):
         validate_examples_for_duplicates_by_name(examples)
+
+
+def test_validate_examples_for_conflicting_datasets_same_datasets_no_conflicts(
+    create_test_example,
+):
+    examples_names = ["MOCK_NAME_1", "MOCK_NAME_2", "MOCK_NAME_3"]
+    examples = list(
+        map(lambda name: create_test_example(tag_meta=dict(name=name,
+                                                           kafka_datasets={"dataset_id_1": {"format": "avro", "location": "local"}}),
+                                             with_kafka=True),
+            examples_names)
+    )
+    try:
+        validate_examples_for_conflicting_datasets(examples)
+    except ConflictingDatasetsError:
+        pytest.fail("Unexpected ConflictingDatasetsError")
+
+
+def test_validate_examples_for_conflicting_datasets_different_datasets_have_conflict(
+    create_test_example,
+):
+    examples_names = ["MOCK_NAME_1", "MOCK_NAME_2", "MOCK_NAME_3"]
+    datasets = [{"dataset_id_1": {"format": "avro", "location": "local"}},
+                {"dataset_id_1": {"format": "json", "location": "local"}},
+                {"dataset_id_3": {"format": "avro", "location": "local"}}]
+    examples = list(
+        map(lambda p: create_test_example(tag_meta=dict(name=p[0],
+                                                        kafka_datasets=p[1]),
+                                          with_kafka=True),
+            zip(examples_names, datasets))
+    )
+    with pytest.raises(ConflictingDatasetsError):
+        validate_examples_for_conflicting_datasets(examples)
+
+
+def test_validate_examples_for_conflicting_datasets_different_datasets_no_conflicts(
+    create_test_example,
+):
+    examples_names = ["MOCK_NAME_1", "MOCK_NAME_2", "MOCK_NAME_3"]
+    datasets = [{"dataset_id_1": {"format": "avro", "location": "local"}},
+                {"dataset_id_2": {"format": "json", "location": "local"}},
+                {"dataset_id_3": {"format": "avro", "location": "local"}}]
+    examples = list(
+        map(lambda p: create_test_example(tag_meta=dict(name=p[0],
+                                                        kafka_datasets=p[1]),
+                                          with_kafka=True),
+            zip(examples_names, datasets))
+    )
+    try:
+        validate_examples_for_conflicting_datasets(examples)
+    except ConflictingDatasetsError:
+        pytest.fail("Unexpected ConflictingDatasetsError")
 
 
 def test_validate_example_fields_when_filepath_is_invalid(create_test_example):

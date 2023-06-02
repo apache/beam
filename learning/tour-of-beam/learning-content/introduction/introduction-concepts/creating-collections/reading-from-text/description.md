@@ -27,7 +27,7 @@ func main() {
     p, s := beam.NewPipelineWithRoot()
 
     // Now create the PCollection by reading text files. Separate elements will be added for each line in the input file
-    lines :=  textio.Read(scope, 'gs://some/inputData.txt')
+    input :=  textio.Read(scope, 'gs://some/inputData.txt')
 
 }
 ```
@@ -40,7 +40,7 @@ public static void main(String[] args) {
     Pipeline pipeline = Pipeline.create(options);
 
     // Now create the PCollection by reading text files. Separate elements will be added for each line in the input file
-    PCollection<String> lines =
+    PCollection<String> input =
         pipeline.apply(“King Lear”,TextIO.read().from("gs://apache-beam-samples/shakespeare/kinglear.txt")
 );
 

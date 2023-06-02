@@ -42,7 +42,9 @@ public class ActionFactory implements Serializable {
 
   private transient ChangeStreamAction changeStreamAction;
   private transient DetectNewPartitionsAction detectNewPartitionsAction;
+  private transient ProcessNewPartitionsAction processNewPartitionsAction;
   private transient GenerateInitialPartitionsAction generateInitialPartitionsAction;
+  private transient ResumeFromPreviousPipelineAction resumeFromPreviousPipelineAction;
   private transient ReadChangeStreamPartitionAction readChangeStreamPartitionAction;
 
   /**
@@ -75,13 +77,29 @@ public class ActionFactory implements Serializable {
       ChangeStreamMetrics metrics,
       MetadataTableDao metadataTableDao,
       @Nullable Instant endTime,
-      GenerateInitialPartitionsAction generateInitialPartitionsAction) {
+      GenerateInitialPartitionsAction generateInitialPartitionsAction,
+      ResumeFromPreviousPipelineAction resumeFromPreviousPipelineAction,
+      ProcessNewPartitionsAction processNewPartitionsAction) {
     if (detectNewPartitionsAction == null) {
       detectNewPartitionsAction =
           new DetectNewPartitionsAction(
-              metrics, metadataTableDao, endTime, generateInitialPartitionsAction);
+              metrics,
+              metadataTableDao,
+              endTime,
+              generateInitialPartitionsAction,
+              resumeFromPreviousPipelineAction,
+              processNewPartitionsAction);
     }
     return detectNewPartitionsAction;
+  }
+
+  public synchronized ProcessNewPartitionsAction processNewPartitionsAction(
+      ChangeStreamMetrics metrics, MetadataTableDao metadataTableDao, @Nullable Instant endTime) {
+    if (processNewPartitionsAction == null) {
+      processNewPartitionsAction =
+          new ProcessNewPartitionsAction(metrics, metadataTableDao, endTime);
+    }
+    return processNewPartitionsAction;
   }
 
   /**
@@ -99,6 +117,19 @@ public class ActionFactory implements Serializable {
           new GenerateInitialPartitionsAction(metrics, changeStreamDao, endTime);
     }
     return generateInitialPartitionsAction;
+  }
+
+  public synchronized ResumeFromPreviousPipelineAction resumeFromPreviousPipelineAction(
+      ChangeStreamMetrics metrics,
+      MetadataTableDao metadataTableDao,
+      @Nullable Instant endTime,
+      ProcessNewPartitionsAction processNewPartitionsAction) {
+    if (resumeFromPreviousPipelineAction == null) {
+      resumeFromPreviousPipelineAction =
+          new ResumeFromPreviousPipelineAction(
+              metrics, metadataTableDao, endTime, processNewPartitionsAction);
+    }
+    return resumeFromPreviousPipelineAction;
   }
 
   /**

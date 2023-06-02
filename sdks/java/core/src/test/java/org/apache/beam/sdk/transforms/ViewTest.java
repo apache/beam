@@ -50,6 +50,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.UsesSideInputs;
 import org.apache.beam.sdk.testing.UsesTestStream;
+import org.apache.beam.sdk.testing.UsesTriggeredSideInputs;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
@@ -278,7 +279,7 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category({ValidatesRunner.class, UsesTriggeredSideInputs.class})
   public void testTriggeredLatestSingleton() {
     IntervalWindow zeroWindow = new IntervalWindow(new Instant(0), new Instant(1000));
 

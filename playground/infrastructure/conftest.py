@@ -41,6 +41,10 @@ def mock_files(mocker: MockerFixture):
             # datasets
             "../backend/datasets/dataset_id_1.json",
             "../backend/datasets/dataset_id_1.avro",
+            "../backend/datasets/dataset_id_2.json",
+            "../backend/datasets/dataset_id_2.avro",
+            "../backend/datasets/dataset_id_3.json",
+            "../backend/datasets/dataset_id_3.avro",
         ]:
             return True
         raise FileNotFoundError(filepath)
@@ -52,7 +56,7 @@ def mock_files(mocker: MockerFixture):
 @pytest.fixture
 def create_test_example(create_test_tag):
     def _create_test_example(
-        is_multifile=False, with_kafka=False, tag_meta: Optional[Dict[str, Any]] = None, **example_meta
+            is_multifile=False, with_kafka=False, tag_meta: Optional[Dict[str, Any]] = None, **example_meta
     ) -> Example:
         if tag_meta is None:
             tag_meta = {}
@@ -78,7 +82,8 @@ def create_test_example(create_test_tag):
 
 @pytest.fixture
 def create_test_tag():
-    def _create_test_tag(with_kafka=False, is_multifile=False, context_line=30, line_start=10, line_finish=20, **tag_meta) -> Tag:
+    def _create_test_tag(with_kafka=False, kafka_datasets=None, is_multifile=False, context_line=30, line_start=10,
+                         line_finish=20, **tag_meta) -> Tag:
         meta = {
             "name": "MOCK_NAME",
             "description": "MOCK_DESCRIPTION",
@@ -88,14 +93,16 @@ def create_test_tag():
             "pipeline_options": "--MOCK_OPTION MOCK_OPTION_VALUE",
         }
         if with_kafka:
+            if kafka_datasets is None:
+                kafka_datasets = {"dataset_id_1": {"format": "avro", "location": "local"}}
+            emulators = [
+                {
+                    "type": "kafka",
+                    "topic": {"id": "topic1", "source_dataset": k},
+                } for k in kafka_datasets.keys()]
             meta.update(
-                emulators=[
-                    {
-                        "type": "kafka",
-                        "topic": {"id": "topic1", "source_dataset": "dataset_id_1"},
-                    }
-                ],
-                datasets={"dataset_id_1": {"format": "avro", "location": "local"}},
+                emulators=emulators,
+                datasets=kafka_datasets
             )
         if is_multifile:
             meta.update(

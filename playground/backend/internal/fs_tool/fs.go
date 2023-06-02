@@ -43,7 +43,7 @@ type LifeCyclePaths struct {
 	AbsoluteExecutableFilePath       string // /path/to/workingDir/pipelinesFolder/{pipelineId}/bin/{pipelineId}.{executableFileExtension}
 	AbsoluteBaseFolderPath           string // /path/to/workingDir/pipelinesFolder/{pipelineId}
 	AbsoluteLogFilePath              string // /path/to/workingDir/pipelinesFolder/{pipelineId}/logs.log
-	AbsoluteGraphFilePath            string // /path/to/workingDir/pipelinesFolder/{pipelineId}/graph.dot
+	AbsoluteGraphFilePath            string // /path/to/workingDir/pipelinesFolder/{pipelineId}/src/graph.dot
 	ProjectDir                       string // /path/to/workingDir/
 	FindExecutableName               func(context.Context, string) (string, error)
 	FindTestExecutableName           func(context.Context, string) (string, error)

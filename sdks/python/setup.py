@@ -256,7 +256,7 @@ if __name__ == '__main__':
         # does not exceed the minor version at runtime.
         # To avoid depending on an old dependency, update the minor version on
         # every Beam release, see: https://github.com/apache/beam/issues/25590
-        'protobuf>=3.20.3,<4.23.0',
+        'protobuf>=3.20.3,<4.24.0',
         'pydot>=1.2.0,<2',
         'python-dateutil>=2.8.0,<3',
         'pytz>=2018.3',
@@ -313,7 +313,9 @@ if __name__ == '__main__':
             'google-cloud-bigquery>=2.0.0,<4',
             'google-cloud-bigquery-storage>=2.6.3,<3',
             'google-cloud-core>=2.0.0,<3',
-            'google-cloud-bigtable>=2.0.0,<3,!=2.18.0',
+            # TODO(https://github.com/apache/beam/issues/26673)
+            # 2.18.x breaks unit test
+            'google-cloud-bigtable>=2.0.0,<2.18.0',
             'google-cloud-spanner>=3.0.0,<4',
             # GCP Packages required by ML functionality
             'google-cloud-dlp>=3.0.0,<4',
@@ -334,11 +336,10 @@ if __name__ == '__main__':
             # https://github.com/jupyter/jupyter_client/issues/637
             'jupyter-client>=6.1.11,!=6.1.13,<8.2.1',
             'timeloop>=1.0.2,<2',
-          ] + dataframe_dependency,
-          'interactive_test': [
-            # notebok utils
             'nbformat>=5.0.5,<6',
             'nbconvert>=6.2.0,<8',
+          ] + dataframe_dependency,
+          'interactive_test': [
             # headless chrome based integration tests
             'needle>=0.5.0,<1',
             'chromedriver-binary>=100,<114',

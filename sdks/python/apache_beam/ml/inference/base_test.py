@@ -50,11 +50,17 @@ class FakeModel:
 
 class FakeModelHandler(base.ModelHandler[int, int, FakeModel]):
   def __init__(
-      self, clock=None, min_batch_size=1, max_batch_size=9999, **kwargs):
+      self,
+      clock=None,
+      min_batch_size=1,
+      max_batch_size=9999,
+      multi_process_shared=False,
+      **kwargs):
     self._fake_clock = clock
     self._min_batch_size = min_batch_size
     self._max_batch_size = max_batch_size
     self._env_vars = kwargs.get('env_vars', {})
+    self._multi_process_shared = multi_process_shared
 
   def load_model(self):
     if self._fake_clock:
@@ -66,6 +72,12 @@ class FakeModelHandler(base.ModelHandler[int, int, FakeModel]):
       batch: Sequence[int],
       model: FakeModel,
       inference_args=None) -> Iterable[int]:
+    multi_process_shared_loaded = "multi_process_shared" in str(type(model))
+    if self._multi_process_shared != multi_process_shared_loaded:
+      raise Exception(
+          f'Loaded model of type {type(model)}, was' +
+          f'{"" if self._multi_process_shared else " not"} ' +
+          'expecting multi_process_shared_model')
     if self._fake_clock:
       self._fake_clock.current_time_ns += 3_000_000  # 3 milliseconds
     for example in batch:
@@ -80,13 +92,21 @@ class FakeModelHandler(base.ModelHandler[int, int, FakeModel]):
         'max_batch_size': self._max_batch_size
     }
 
+  def share_model_across_processes(self):
+    return self._multi_process_shared
+
 
 class FakeModelHandlerReturnsPredictionResult(
     base.ModelHandler[int, base.PredictionResult, FakeModel]):
-  def __init__(self, clock=None, model_id='fake_model_id_default'):
+  def __init__(
+      self,
+      clock=None,
+      model_id='fake_model_id_default',
+      multi_process_shared=False):
     self.model_id = model_id
     self._fake_clock = clock
     self._env_vars = {}
+    self._multi_process_shared = multi_process_shared
 
   def load_model(self):
     return FakeModel()
@@ -96,6 +116,12 @@ class FakeModelHandlerReturnsPredictionResult(
       batch: Sequence[int],
       model: FakeModel,
       inference_args=None) -> Iterable[base.PredictionResult]:
+    multi_process_shared_loaded = "multi_process_shared" in str(type(model))
+    if self._multi_process_shared != multi_process_shared_loaded:
+      raise Exception(
+          f'Loaded model of type {type(model)}, was' +
+          f'{"" if self._multi_process_shared else " not"} ' +
+          'expecting multi_process_shared_model')
     for example in batch:
       yield base.PredictionResult(
           model_id=self.model_id,
@@ -104,6 +130,9 @@ class FakeModelHandlerReturnsPredictionResult(
 
   def update_model_path(self, model_path: Optional[str] = None):
     self.model_id = model_path if model_path else self.model_id
+
+  def share_model_across_processes(self):
+    return self._multi_process_shared
 
 
 class FakeModelHandlerNoEnvVars(base.ModelHandler[int, int, FakeModel]):
@@ -188,6 +217,15 @@ class RunInferenceBaseTest(unittest.TestCase):
       actual = pcoll | base.RunInference(FakeModelHandler())
       assert_that(actual, equal_to(expected), label='assert:inferences')
 
+  def test_run_inference_impl_simple_examples_multi_process_shared(self):
+    with TestPipeline() as pipeline:
+      examples = [1, 5, 3, 10]
+      expected = [example + 1 for example in examples]
+      pcoll = pipeline | 'start' >> beam.Create(examples)
+      actual = pcoll | base.RunInference(
+          FakeModelHandler(multi_process_shared=True))
+      assert_that(actual, equal_to(expected), label='assert:inferences')
+
   def test_run_inference_impl_with_keyed_examples(self):
     with TestPipeline() as pipeline:
       examples = [1, 5, 3, 10]
@@ -205,6 +243,35 @@ class RunInferenceBaseTest(unittest.TestCase):
       expected = [example + 1 for example in examples]
       keyed_expected = [(i, example + 1) for i, example in enumerate(examples)]
       model_handler = base.MaybeKeyedModelHandler(FakeModelHandler())
+
+      pcoll = pipeline | 'Unkeyed' >> beam.Create(examples)
+      actual = pcoll | 'RunUnkeyed' >> base.RunInference(model_handler)
+      assert_that(actual, equal_to(expected), label='CheckUnkeyed')
+
+      keyed_pcoll = pipeline | 'Keyed' >> beam.Create(keyed_examples)
+      keyed_actual = keyed_pcoll | 'RunKeyed' >> base.RunInference(
+          model_handler)
+      assert_that(keyed_actual, equal_to(keyed_expected), label='CheckKeyed')
+
+  def test_run_inference_impl_with_keyed_examples_multi_process_shared(self):
+    with TestPipeline() as pipeline:
+      examples = [1, 5, 3, 10]
+      keyed_examples = [(i, example) for i, example in enumerate(examples)]
+      expected = [(i, example + 1) for i, example in enumerate(examples)]
+      pcoll = pipeline | 'start' >> beam.Create(keyed_examples)
+      actual = pcoll | base.RunInference(
+          base.KeyedModelHandler(FakeModelHandler(multi_process_shared=True)))
+      assert_that(actual, equal_to(expected), label='assert:inferences')
+
+  def test_run_inference_impl_with_maybe_keyed_examples_multi_process_shared(
+      self):
+    with TestPipeline() as pipeline:
+      examples = [1, 5, 3, 10]
+      keyed_examples = [(i, example) for i, example in enumerate(examples)]
+      expected = [example + 1 for example in examples]
+      keyed_expected = [(i, example + 1) for i, example in enumerate(examples)]
+      model_handler = base.MaybeKeyedModelHandler(
+          FakeModelHandler(multi_process_shared=True))
 
       pcoll = pipeline | 'Unkeyed' >> beam.Create(examples)
       actual = pcoll | 'RunUnkeyed' >> base.RunInference(model_handler)
@@ -666,6 +733,31 @@ class RunInferenceBaseTest(unittest.TestCase):
         'singleton view. First two elements encountered are' in str(
             e.exception))
 
+  def test_run_inference_with_iterable_side_input_multi_process_shared(self):
+    test_pipeline = TestPipeline()
+    side_input = (
+        test_pipeline | "CreateDummySideInput" >> beam.Create(
+            [base.ModelMetadata(1, 1), base.ModelMetadata(2, 2)])
+        | "ApplySideInputWindow" >> beam.WindowInto(
+            window.GlobalWindows(),
+            trigger=trigger.Repeatedly(trigger.AfterProcessingTime(1)),
+            accumulation_mode=trigger.AccumulationMode.DISCARDING))
+
+    test_pipeline.options.view_as(StandardOptions).streaming = True
+    with self.assertRaises(ValueError) as e:
+      _ = (
+          test_pipeline
+          | beam.Create([1, 2, 3, 4])
+          | base.RunInference(
+              FakeModelHandler(multi_process_shared=True),
+              model_metadata_pcoll=side_input))
+      test_pipeline.run()
+
+    self.assertTrue(
+        'PCollection of size 2 with more than one element accessed as a '
+        'singleton view. First two elements encountered are' in str(
+            e.exception))
+
   def test_run_inference_empty_side_input(self):
     model_handler = FakeModelHandlerReturnsPredictionResult()
     main_input_elements = [1, 2]
@@ -709,6 +801,84 @@ class RunInferenceBaseTest(unittest.TestCase):
     ]
 
     model_handler = FakeModelHandlerReturnsPredictionResult()
+
+    # applying GroupByKey to utilize windowing according to
+    # https://beam.apache.org/documentation/programming-guide/#windowing-bounded-collections
+    class _EmitElement(beam.DoFn):
+      def process(self, element):
+        for e in element:
+          yield e
+
+    with TestPipeline() as pipeline:
+      side_input = (
+          pipeline
+          |
+          "CreateSideInputElements" >> beam.Create(sample_side_input_elements)
+          | beam.Map(lambda x: TimestampedValue(x[1], x[0]))
+          | beam.WindowInto(
+              window.FixedWindows(interval),
+              accumulation_mode=trigger.AccumulationMode.DISCARDING)
+          | beam.Map(lambda x: ('key', x))
+          | beam.GroupByKey()
+          | beam.Map(lambda x: x[1])
+          | "EmitSideInput" >> beam.ParDo(_EmitElement()))
+
+      result_pcoll = (
+          pipeline
+          | beam.Create(sample_main_input_elements)
+          | "MapTimeStamp" >> beam.Map(lambda x: TimestampedValue(x, x))
+          | "ApplyWindow" >> beam.WindowInto(window.FixedWindows(interval))
+          | beam.Map(lambda x: ('key', x))
+          | "MainInputGBK" >> beam.GroupByKey()
+          | beam.Map(lambda x: x[1])
+          | beam.ParDo(_EmitElement())
+          | "RunInference" >> base.RunInference(
+              model_handler, model_metadata_pcoll=side_input))
+
+      expected_model_id_order = [
+          'fake_model_id_default',
+          'fake_model_id_default',
+          'fake_model_id_1',
+          'fake_model_id_2',
+          'fake_model_id_2'
+      ]
+      expected_result = [
+          base.PredictionResult(
+              example=sample_main_input_elements[i],
+              inference=sample_main_input_elements[i] + 1,
+              model_id=expected_model_id_order[i]) for i in range(5)
+      ]
+
+      assert_that(result_pcoll, equal_to(expected_result))
+
+  def test_run_inference_side_input_in_batch_multi_process_shared(self):
+    first_ts = math.floor(time.time()) - 30
+    interval = 7
+
+    sample_main_input_elements = ([
+        first_ts - 2,
+        first_ts + 1,
+        first_ts + 8,
+        first_ts + 15,
+        first_ts + 22,
+    ])
+
+    sample_side_input_elements = [
+        (first_ts + 1, base.ModelMetadata(model_id='', model_name='')),
+        # if model_id is empty string, we use the default model
+        # handler model URI.
+        (
+            first_ts + 8,
+            base.ModelMetadata(
+                model_id='fake_model_id_1', model_name='fake_model_id_1')),
+        (
+            first_ts + 15,
+            base.ModelMetadata(
+                model_id='fake_model_id_2', model_name='fake_model_id_2'))
+    ]
+
+    model_handler = FakeModelHandlerReturnsPredictionResult(
+        multi_process_shared=True)
 
     # applying GroupByKey to utilize windowing according to
     # https://beam.apache.org/documentation/programming-guide/#windowing-bounded-collections

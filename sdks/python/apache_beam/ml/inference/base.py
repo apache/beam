@@ -33,6 +33,7 @@ import pickle
 import sys
 import threading
 import time
+import uuid
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -47,6 +48,7 @@ from typing import TypeVar
 from typing import Union
 
 import apache_beam as beam
+from apache_beam.utils import multi_process_shared
 from apache_beam.utils import shared
 
 try:
@@ -230,6 +232,15 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
     inference result in order from first applied to last applied."""
     return _PostProcessingModelHandler(self, fn)
 
+  def share_model_across_processes(self) -> bool:
+    """Returns a boolean representing whether or not a model should
+    be shared across multiple processes instead of being loaded per process.
+    This is primary useful for large models that  can't fit multiple copies in
+    memory. Multi-process support may vary by runner, but this will fallback to
+    loading per process as necessary. See
+    https://beam.apache.org/releases/pydoc/current/apache_beam.utils.multi_process_shared.html"""
+    return False
+
 
 class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
                         ModelHandler[Tuple[KeyT, ExampleT],
@@ -292,6 +303,9 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
 
   def get_postprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
     return self._unkeyed.get_postprocess_fns()
+
+  def share_model_across_processes(self) -> bool:
+    return self._unkeyed.share_model_across_processes()
 
 
 class MaybeKeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
@@ -381,6 +395,9 @@ class MaybeKeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
 
   def get_postprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
     return self._unkeyed.get_postprocess_fns()
+
+  def share_model_across_processes(self) -> bool:
+    return self._unkeyed.share_model_across_processes()
 
 
 class _PreProcessingModelHandler(Generic[ExampleT,
@@ -541,6 +558,9 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
     self._with_exception_handling = False
     self._watch_model_pattern = watch_model_pattern
     self._kwargs = kwargs
+    # Generate a random tag to use for shared.py and multi_process_shared.py to
+    # allow us to effectively disambiguate in multi-model settings.
+    self._model_tag = uuid.uuid4().hex
 
   def _get_model_metadata_pcoll(self, pipeline):
     # avoid circular imports.
@@ -626,7 +646,8 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
             self._model_handler,
             self._clock,
             self._metrics_namespace,
-            self._enable_side_input_loading),
+            self._enable_side_input_loading,
+            self._model_tag),
         self._inference_args,
         beam.pvalue.AsSingleton(
             self._model_metadata_pcoll,
@@ -783,7 +804,8 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
       model_handler: ModelHandler[ExampleT, PredictionT, Any],
       clock,
       metrics_namespace,
-      enable_side_input_loading: bool = False):
+      enable_side_input_loading: bool = False,
+      model_tag: str = "RunInference"):
     """A DoFn implementation generic to frameworks.
 
       Args:
@@ -792,6 +814,7 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
         metrics_namespace: Namespace of the transform to collect metrics.
         enable_side_input_loading: Bool to indicate if model updates
             with side inputs.
+        model_tag: Tag to use to disambiguate models in multi-model settings.
     """
     self._model_handler = model_handler
     self._shared_model_handle = shared.Shared()
@@ -800,6 +823,7 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     self._metrics_namespace = metrics_namespace
     self._enable_side_input_loading = enable_side_input_loading
     self._side_input_path = None
+    self._model_tag = model_tag
 
   def _load_model(self, side_input_model_path: Optional[str] = None):
     def load():
@@ -818,7 +842,12 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
 
     # TODO(https://github.com/apache/beam/issues/21443): Investigate releasing
     # model.
-    model = self._shared_model_handle.acquire(load, tag=side_input_model_path)
+    if self._model_handler.share_model_across_processes():
+      model = multi_process_shared.MultiProcessShared(
+          load, tag=side_input_model_path or self._model_tag).acquire()
+    else:
+      model = self._shared_model_handle.acquire(
+          load, tag=side_input_model_path or self._model_tag)
     # since shared_model_handle is shared across threads, the model path
     # might not get updated in the model handler
     # because we directly get cached weak ref model from shared cache, instead

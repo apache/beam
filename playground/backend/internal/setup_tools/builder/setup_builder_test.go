@@ -484,14 +484,14 @@ func TestRunnerBuilder(t *testing.T) {
 	wantJavaExecutor := executors.NewExecutorBuilder().
 		WithRunner().
 		WithExecutableFileNames(javaClassName).
-		WithWorkingDir(javaPaths.AbsoluteBaseFolderPath).
+		WithWorkingDir(javaPaths.AbsoluteSourceFileFolderPath).
 		WithCommand(javaSdkEnv.ExecutorConfig.RunCmd).
 		WithArgs(arg).
 		WithPipelineOptions(strings.Split("", " "))
 
 	wantGoExecutor := executors.NewExecutorBuilder().
 		WithRunner().
-		WithWorkingDir(goPaths.AbsoluteBaseFolderPath).
+		WithWorkingDir(goPaths.AbsoluteSourceFileFolderPath).
 		WithCommand(goPaths.AbsoluteExecutableFilePath).
 		WithExecutableFileNames("").
 		WithArgs(goSdkEnv.ExecutorConfig.RunArgs).

@@ -52,6 +52,7 @@ def test_save_to_cloud_datastore_when_schema_version_not_found(
     "origin, key_prefix",
     [
         pytest.param(Origin.PG_EXAMPLES, "", id="PG_EXAMPLES"),
+        pytest.param(Origin.PG_BEAMDOC, "PG_BEAMDOC_", id="PG_BEAMDOC"),
         pytest.param(Origin.TB_EXAMPLES, "TB_EXAMPLES_", id="TB_EXAMPLES"),
     ],
 )
