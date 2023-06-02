@@ -24,10 +24,8 @@ import com.google.dataflow.v1beta3.Job;
 import com.google.dataflow.v1beta3.JobExecutionDetails;
 import com.google.dataflow.v1beta3.MetricsV1Beta3Grpc;
 import com.google.dataflow.v1beta3.StageSummary;
-import io.grpc.ManagedChannel;
 import io.grpc.StatusRuntimeException;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -94,7 +92,6 @@ public class DataflowGetJobExecutionDetails
     final Counter items = Metrics.counter(StageSummary.class, "job_execution_details_items");
     private final DataflowGetJobExecutionDetails spec;
     private transient MetricsV1Beta3Grpc.@MonotonicNonNull MetricsV1Beta3BlockingStub client;
-    private transient @MonotonicNonNull ManagedChannel channel;
 
     private GetJobExecutionDetailsFn(DataflowGetJobExecutionDetails spec) {
       this.spec = spec;
@@ -102,19 +99,7 @@ public class DataflowGetJobExecutionDetails
 
     @Setup
     public void setup() {
-      channel = checkStateNotNull(DataflowClientFactory.channel(spec.configuration));
-      client = DataflowClientFactory.createMetricsClient(spec.configuration, channel);
-    }
-
-    @Teardown
-    public void teardown() {
-      ManagedChannel safeChannel = checkStateNotNull(channel);
-      safeChannel.shutdown();
-      try {
-        safeChannel.awaitTermination(1000L, TimeUnit.MILLISECONDS);
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-      }
+      client = DataflowClientFactory.INSTANCE.getOrCreateMetricsClient(spec.configuration);
     }
 
     @ProcessElement
