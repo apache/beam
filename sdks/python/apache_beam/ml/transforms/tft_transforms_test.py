@@ -282,7 +282,7 @@ class ApplyBucketsTest(unittest.TestCase):
           | "MLTransform" >>
           base.MLTransform(process_handler=process_handler).with_transform(
               tft_transforms.apply_buckets(
-                  columns=['x'], bucket_boundaries=[bucket_boundaries])))
+                  columns=['x'], bucket_boundaries=bucket_boundaries)))
       expected_output = []
       bucket = 0
       for x in sorted(test_inputs):

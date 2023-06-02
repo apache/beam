@@ -27,13 +27,14 @@ from parameterized import parameterized
 
 import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
-import tensorflow as tf
 
 # pylint: disable=wrong-import-position, ungrouped-imports
 try:
   from apache_beam.ml.transforms import base
   from apache_beam.ml.transforms import handlers
   from apache_beam.ml.transforms import tft_transforms
+  from apache_beam.ml.transforms.tft_transforms import _TFTOperation
+  import tensorflow as tf
 except ImportError:
   tft_transforms = None
 
@@ -41,7 +42,7 @@ skip_if_tft_not_available = unittest.skipIf(
     tft_transforms is None, 'tensorflow_transform is not installed.')
 
 
-class _FakeOperation(tft_transforms._TFTOperation):
+class _FakeOperation(_TFTOperation):
   def __init__(self, name, *args, **kwargs):
     super().__init__(*args, **kwargs)
     self.name = name
@@ -50,17 +51,17 @@ class _FakeOperation(tft_transforms._TFTOperation):
     return inputs
 
 
-class _AddOperation(tft_transforms._TFTOperation):
+class _AddOperation(_TFTOperation):
   def apply(self, inputs, *args, **kwargs):
     return inputs + 1
 
 
-class _MultiplyOperation(tft_transforms._TFTOperation):
+class _MultiplyOperation(_TFTOperation):
   def apply(self, inputs, *args, **kwargs):
     return inputs * 10
 
 
-class _FakeOperationWithArtifacts(tft_transforms._TFTOperation):
+class _FakeOperationWithArtifacts(_TFTOperation):
   def __init__(self, *args, **kwargs):
     super().__init__(*args, **kwargs)
     self.has_artifacts = True
