@@ -52,12 +52,7 @@ Future<void> _checkSdksLoadedCorrectly(WidgetTester wt) async {
     );
   }
 
-  var button = wt.widget<ElevatedButton>(find.startTourButton());
-  expect(button.onPressed, isNull); // Verify it is disabled.
-
-  await wt.tapAndSettle(find.outlinedButtonWithText(sdks[0].title));
-
-  button = wt.widget<ElevatedButton>(find.startTourButton());
+  final button = wt.widget<ElevatedButton>(find.startTourButton());
   expect(button.onPressed, isNotNull); // Verify it is enabled.
 
   await wt.tapAndSettle(find.sdkDropdown());
