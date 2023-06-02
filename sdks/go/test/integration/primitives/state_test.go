@@ -24,50 +24,50 @@ import (
 
 func TestValueState(t *testing.T) {
 	integration.CheckFilters(t)
-	ptest.RunAndValidate(t, ValueStateParDo())
+	ptest.BuildAndRun(t, ValueStateParDo)
 }
 
 func TestValueStateWindowed(t *testing.T) {
 	integration.CheckFilters(t)
-	ptest.RunAndValidate(t, ValueStateParDoWindowed())
+	ptest.BuildAndRun(t, ValueStateParDoWindowed)
 }
 
 func TestValueStateClear(t *testing.T) {
 	integration.CheckFilters(t)
-	ptest.RunAndValidate(t, ValueStateParDoClear())
+	ptest.BuildAndRun(t, ValueStateParDoClear)
 }
 
 func TestBagState(t *testing.T) {
 	integration.CheckFilters(t)
-	ptest.RunAndValidate(t, BagStateParDo())
+	ptest.BuildAndRun(t, BagStateParDo)
 }
 
 func TestBagStateClear(t *testing.T) {
 	integration.CheckFilters(t)
-	ptest.RunAndValidate(t, BagStateParDoClear())
+	ptest.BuildAndRun(t, BagStateParDoClear)
 }
 
 func TestCombiningState(t *testing.T) {
 	integration.CheckFilters(t)
-	ptest.RunAndValidate(t, CombiningStateParDo())
+	ptest.BuildAndRun(t, CombiningStateParDo)
 }
 
 func TestMapState(t *testing.T) {
 	integration.CheckFilters(t)
-	ptest.RunAndValidate(t, MapStateParDo())
+	ptest.BuildAndRun(t, MapStateParDo)
 }
 
 func TestMapStateClear(t *testing.T) {
 	integration.CheckFilters(t)
-	ptest.RunAndValidate(t, MapStateParDoClear())
+	ptest.BuildAndRun(t, MapStateParDoClear)
 }
 
 func TestSetState(t *testing.T) {
 	integration.CheckFilters(t)
-	ptest.RunAndValidate(t, SetStateParDo())
+	ptest.BuildAndRun(t, SetStateParDo)
 }
 
 func TestSetStateClear(t *testing.T) {
 	integration.CheckFilters(t)
-	ptest.RunAndValidate(t, SetStateParDoClear())
+	ptest.BuildAndRun(t, SetStateParDoClear)
 }

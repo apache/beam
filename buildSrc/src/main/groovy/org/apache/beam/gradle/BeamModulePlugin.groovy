@@ -2439,7 +2439,6 @@ class BeamModulePlugin implements Plugin<Project> {
       project.evaluationDependsOn(":sdks:java:extensions:python")
 
       // Setting up args to launch the expansion service
-      def envDir = project.project(":sdks:python").envdir
       def pythonDir = project.project(":sdks:python").projectDir
       def javaExpansionPort = -1 // will be populated in setupTask
       def expansionJar = project.project(config.expansionProjectPath).shadowJar.archivePath
@@ -2466,9 +2465,9 @@ class BeamModulePlugin implements Plugin<Project> {
       def setupTask = project.tasks.register(config.name+"Setup") {
         dependsOn ':sdks:java:container:' + javaContainerSuffix + ':docker'
         dependsOn project.project(config.expansionProjectPath).shadowJar.getPath()
-        dependsOn ":sdks:python:installGcpTest"
+        dependsOn 'installGcpTest'
         if (usesDataflowRunner) {
-          dependsOn ":sdks:python:test-suites:dataflow:py" + project.ext.pythonVersion.replace('.', '') + ":initializeForDataflowJob"
+          dependsOn ":sdks:python:test-suites:dataflow:py${project.ext.pythonVersion.replace('.', '')}:initializeForDataflowJob"
         }
         doLast {
           project.exec {
@@ -2478,7 +2477,7 @@ class BeamModulePlugin implements Plugin<Project> {
             // setup test env
             def serviceArgs = project.project(':sdks:python').mapToArgString(expansionServiceOpts)
             executable 'sh'
-            args '-c', "$pythonDir/scripts/run_expansion_services.sh stop --group_id ${project.name} && $pythonDir/scripts/run_expansion_services.sh start $serviceArgs"
+            args '-c', ". ${project.ext.envdir}/bin/activate && $pythonDir/scripts/run_expansion_services.sh stop --group_id ${project.name} && $pythonDir/scripts/run_expansion_services.sh start $serviceArgs"
           }
         }
       }
@@ -2504,7 +2503,7 @@ class BeamModulePlugin implements Plugin<Project> {
             environment "EXPANSION_JAR", expansionJar
             environment "EXPANSION_PORT", javaExpansionPort
             executable 'sh'
-            args '-c', ". $envDir/bin/activate && cd $pythonDir && ./scripts/run_integration_test.sh $cmdArgs"
+            args '-c', ". ${project.ext.envdir}/bin/activate && cd $pythonDir && ./scripts/run_integration_test.sh $cmdArgs"
           }
         }
       }
@@ -2513,7 +2512,7 @@ class BeamModulePlugin implements Plugin<Project> {
       def cleanupTask = project.tasks.register(config.name+'Cleanup', Exec) {
         // teardown test env
         executable 'sh'
-        args '-c', "$pythonDir/scripts/run_expansion_services.sh stop --group_id ${project.name}"
+        args '-c', ". ${project.ext.envdir}/bin/activate && $pythonDir/scripts/run_expansion_services.sh stop --group_id ${project.name}"
       }
 
       setupTask.configure {finalizedBy cleanupTask}
