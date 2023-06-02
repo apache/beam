@@ -358,7 +358,7 @@ public class AvroCoder<T> extends CustomCoder<T> {
   private final EmptyOnDeserializationThreadLocal<DatumReader<T>> reader;
 
   protected AvroCoder(Class<T> type, Schema schema) {
-    this(type, schema, true);
+    this(type, schema, false);
   }
 
   protected AvroCoder(Class<T> type, Schema schema, boolean useReflectApi) {
