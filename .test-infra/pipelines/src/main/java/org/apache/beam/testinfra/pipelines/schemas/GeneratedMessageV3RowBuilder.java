@@ -39,6 +39,8 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
@@ -96,7 +98,9 @@ public class GeneratedMessageV3RowBuilder<T extends GeneratedMessageV3> {
       builder.withFieldValue(fieldDescriptor.getName(), value);
     }
 
-    return builder.build();
+    Row result = builder.build();
+    shutdownAwaitTermination();
+    return result;
   }
 
   Object getValue(FieldDescriptor fieldDescriptor) {
@@ -229,6 +233,41 @@ public class GeneratedMessageV3RowBuilder<T extends GeneratedMessageV3> {
       return JsonFormat.printer().omittingInsignificantWhitespace().print(value);
     } catch (InvalidProtocolBufferException e) {
       throw new IllegalStateException(e);
+    }
+  }
+
+  private void shutdownAwaitTermination() {
+    if (shutdownConsumeTerminationInterruptIfNeeded(
+        service,
+        e -> {
+          shutdownAndIgnoreInterruptIfNeeded(threadPool);
+        })) {
+      shutdownAndIgnoreInterruptIfNeeded(threadPool);
+    }
+  }
+
+  private boolean shutdownConsumeTerminationInterruptIfNeeded(
+      ExecutorService executorService, Consumer<InterruptedException> handleInterrupt) {
+    try {
+      if (executorService.isShutdown()) {
+        return true;
+      }
+      executorService.shutdown();
+      return executorService.awaitTermination(1L, TimeUnit.SECONDS);
+    } catch (InterruptedException e) {
+      handleInterrupt.accept(e);
+      return true;
+    }
+  }
+
+  private void shutdownAndIgnoreInterruptIfNeeded(ExecutorService executorService) {
+    try {
+      if (executorService.isShutdown()) {
+        return;
+      }
+      executorService.shutdown();
+      boolean ignored = executorService.awaitTermination(1L, TimeUnit.SECONDS);
+    } catch (InterruptedException ignored) {
     }
   }
 }
