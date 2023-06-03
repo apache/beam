@@ -24,10 +24,7 @@ ARG TARGETARCH
 
 COPY target/base_image_requirements.txt /tmp/base_image_requirements.txt
 COPY target/apache-beam.tar.gz /opt/apache/beam/tars/
-COPY target/LICENSE /opt/apache/beam/
-COPY target/LICENSE.python /opt/apache/beam/
-COPY target/NOTICE /opt/apache/beam/
-COPY target/launcher/${TARGETOS}_${TARGETARCH}/boot /opt/apache/beam/
+COPY target/launcher/${TARGETOS}_${TARGETARCH}/boot target/LICENSE target/NOTICE target/LICENSE.python /opt/apache/beam/
 
 ENV CLOUDSDK_CORE_DISABLE_PROMPTS yes
 ENV PATH $PATH:/usr/local/gcloud/google-cloud-sdk/bin
