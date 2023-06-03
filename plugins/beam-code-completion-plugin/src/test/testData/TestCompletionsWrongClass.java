@@ -16,12 +16,21 @@
  * limitations under the License.
  */
 
+import java.util.Arrays;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.transforms.Count;
+import org.apache.beam.sdk.transforms.Filter;
+import org.apache.beam.sdk.transforms.FlatMapElements;
+import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.TypeDescriptors;
 
-import com.intellij.testFramework.fixtures.BasePlatformTestCase;
-import org.junit.Assert;
-
-public class BeamCompletionContributorTestcase extends BasePlatformTestCase {
-    public void testAutoPopupCompletions() {
-        Assert.assertEquals(2,2);
+public class TestCompletionsWrongClass {
+    public static void main(String[] args) {
+        String test = "Test";
+        test.apply(T<caret>);
     }
 }
