@@ -16,20 +16,18 @@
  * limitations under the License.
  */
 
-plugins {
-    id 'org.apache.beam.module'
-    id 'com.github.johnrengelman.shadow'
-}
-
 apply plugin: 'org.apache.beam.module'
+
 applyJavaNature(
         automaticModuleName: 'org.apache.beam.sdk.transform.service',
+        exportJavadoc: false,
+        validateShadowJar: false,
+        shadowClosure: {},
 )
 
 
 description = "Apache Beam :: SDKs :: Java :: Transform Service"
-ext.summary = """Contains code that can be used to run an transform service."""
-
+ext.summary = """Contains core code of the transform service."""
 
 // Exclude tests that need a runner
 test {

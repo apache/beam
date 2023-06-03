@@ -21,8 +21,8 @@ publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  sdk: '>=2.19.2 <4.0.0'
-  flutter: '>=3.7.3'
+  sdk: '>=3.0.2 <4.0.0'
+  flutter: '>=3.10.2'
 
 dependencies:
   akvelon_flutter_issue_106664_workaround: ^0.1.2
@@ -41,7 +41,7 @@ dependencies:
   get_it: ^7.2.0
   google_fonts: ^4.0.3
   highlight: ^0.7.0
-  intl: ^0.17.0
+  intl: ^0.18.0
   onmessage: ^0.2.0
   playground_components: { path: playground_components }
   provider: ^6.0.0
