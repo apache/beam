@@ -44,6 +44,7 @@ import org.apache.commons.compress.compressors.snappy.SnappyCompressorInputStrea
 import org.apache.commons.compress.compressors.snappy.SnappyCompressorOutputStream;
 import org.apache.commons.compress.compressors.zstandard.ZstdCompressorInputStream;
 import org.apache.commons.compress.compressors.zstandard.ZstdCompressorOutputStream;
+import org.apache.hadoop.io.compress.CompressionInputStream;
 
 /** Various compression types for reading/writing files. */
 @SuppressWarnings("ImmutableEnumChecker")
@@ -258,8 +259,9 @@ public enum Compression {
 
     @Override
     public ReadableByteChannel readDecompressed(ReadableByteChannel channel) throws IOException {
-      return Channels.newChannel(
-          new FourMcCodec().createInputStream(Channels.newInputStream(channel)));
+      CompressionInputStream cis =
+          new FourMcCodec().createInputStream(Channels.newInputStream(channel));
+      return Channels.newChannel(cis);
     }
   },
   /**
