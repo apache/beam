@@ -2581,7 +2581,7 @@ class CombineGlobally(PTransform):
       if pcoll.windowing.windowfn != GlobalWindows():
         raise ValueError(
             "Default values are not yet supported in CombineGlobally() if the "
-            "output  PCollection is not windowed by GlobalWindows. "
+            "output PCollection is not windowed by GlobalWindows. "
             "Instead, use CombineGlobally().without_defaults() to output "
             "an empty PCollection if the input PCollection is empty, "
             "or CombineGlobally().as_singleton_view() to get the default "
@@ -2598,8 +2598,15 @@ class CombineGlobally(PTransform):
 
       def inject_default(_, combined):
         if combined:
-          assert len(combined) == 1
-          return combined[0]
+          if len(combined) > 1:
+            _LOGGER.warning('Apply Combined Fn with this list: %s', combined)
+            try:
+              combine_fn.setup(*args, **kwargs)
+              return combine_fn.apply(combined, *args, **kwargs)
+            finally:
+              combine_fn.teardown(*args, **kwargs)
+          else:
+            return combined[0]
         else:
           try:
             combine_fn.setup(*args, **kwargs)
