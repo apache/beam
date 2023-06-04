@@ -36,6 +36,11 @@ func init() {
 	beam.RegisterRunner("PrismRunner", Execute)
 }
 
+// Execute runs the given pipeline on prism. If no endpoint is set, then an in process instance
+// is started, and the job run against that.
+//
+// At present, loopback mode is forced, though this will change once prism is able to
+// use SDK containers.
 func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error) {
 	if *jobopts.Endpoint == "" {
 		// One hasn't been selected, so lets start one up and set the address.
@@ -51,6 +56,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 	return universal.Execute(ctx, p)
 }
 
+// Options for in process server creation.
 type Options struct {
 	Port int
 }
