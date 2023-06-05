@@ -101,6 +101,7 @@ dependencies {
   examplesJavaIntegrationTest project(project.path)
   examplesJavaIntegrationTest project(":examples:java")
   examplesJavaIntegrationTest project(path: ":examples:java", configuration: "testRuntimeMigration")
+  testImplementation library.java.hadoop_client
 }
 
 // windows handles quotes differently from linux,
