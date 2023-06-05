@@ -268,7 +268,6 @@ public class SpannerChangestreamsReadSchemaTransformProvider
                   .map(nonNullValues -> getGson().fromJson(nonNullValues, Map.class))
                   .orElseGet(Collections::emptyMap);
 
-        try {
           for (Map.Entry<String, String> valueEntry : newValues.entrySet()) {
             if (valueEntry.getValue() == null) {
               continue;
