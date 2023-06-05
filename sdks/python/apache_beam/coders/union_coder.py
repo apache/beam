@@ -22,7 +22,6 @@ from typing import Any
 from typing import Dict
 from typing import Iterable
 from typing import List
-from typing import Optional
 from typing import Tuple
 
 from apache_beam.coders import Coder
@@ -51,7 +50,7 @@ class UnionCoder(FastCoder):
       else:
         self._coder_typehints[type_hint] = (struct.pack("B", i), c)
 
-  def _get_coder(self, value) -> Optional[Tuple[bytes, Coder]]:
+  def _get_coder(self, value):
     # have to linearly scan the typehints since type could be composite
     # simple type(value) does not work
     typehint_type = None
@@ -73,14 +72,12 @@ class UnionCoder(FastCoder):
         'in the coder {} to encode a value {} with a typehint {}.'.format(
             self, value, typehint_type))
 
-  def encode(self, value) -> bytes:
+  def encode(self, value):
     """
         Encodes the given Union value into bytes.
         """
-    coder_res = self._get_coder(value)
-    if coder_res:
-      coder_tag, real_coder = coder_res
-      return coder_tag + real_coder.encode(value)
+    coder_tag, real_coder = self._get_coder(value)
+    return coder_tag + real_coder.encode(value)
 
   def decode(self, encoded: bytes):
     """
