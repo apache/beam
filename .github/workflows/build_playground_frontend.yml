@@ -37,7 +37,7 @@ jobs:
       GO_VERSION: 1.19.6
       BEAM_VERSION: 2.40.0
       TERRAFORM_VERSION: 1.0.9
-      FLUTTER_VERSION: 3.3.2
+      FLUTTER_VERSION: 3.10.2
       STAND_SUFFIX: ''
       GOOGLE_DOMAIN: '-dot-apache-beam-testing.appspot.com'
     steps:

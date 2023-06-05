@@ -36,8 +36,6 @@ import java.util.UUID;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
 import javax.annotation.concurrent.Immutable;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.BiMap;
@@ -51,7 +49,6 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** {@link Schema} describes the fields in {@link Row}. */
-@Experimental(Kind.SCHEMAS)
 @SuppressWarnings({
   "keyfor",
   "nullness", // TODO(https://github.com/apache/beam/issues/20497)

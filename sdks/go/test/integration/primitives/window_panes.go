@@ -27,13 +27,13 @@ import (
 )
 
 func init() {
-	register.Function3x0(PanesFn)
+	register.Function3x0(panesFn)
 
 	register.Emitter1[int]()
 }
 
-// PanesFn is DoFn that simply emits the pane timing value.
-func PanesFn(pn beam.PaneInfo, value float64, emit func(int)) {
+// panesFn is DoFn that simply emits the pane timing value.
+func panesFn(pn beam.PaneInfo, value float64, emit func(int)) {
 	emit(int(pn.Timing))
 }
 
@@ -49,7 +49,7 @@ func Panes(s beam.Scope) {
 	windowed := beam.WindowInto(s, window.NewFixedWindows(windowSize), col, []beam.WindowIntoOption{
 		beam.Trigger(trigger.Always()),
 	}...)
-	sums := beam.ParDo(s, PanesFn, windowed)
+	sums := beam.ParDo(s, panesFn, windowed)
 	sums = beam.WindowInto(s, window.NewGlobalWindows(), sums)
 	passert.Count(s, sums, "number of firings", 3)
 }

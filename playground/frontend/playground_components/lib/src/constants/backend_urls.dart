@@ -19,7 +19,7 @@
 // ignore_for_file: prefer_interpolation_to_compose_strings
 
 /// The template for production backend URL.
-const defaultBackendUrlTemplate = 'https://{node}.play-dev.beam.apache.org';
+const defaultBackendUrlTemplate = 'https://{node}.play.beam.apache.org';
 
 /// The URLs for local backend development.
 const backendUrlOverrides = <String, String>{

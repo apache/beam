@@ -188,11 +188,11 @@ class _TourSummary extends StatelessWidget {
               }
 
               return Column(
-                children: contentTree.modules
+                children: contentTree.nodes
                     .map(
                       (module) => _Module(
                         module: module,
-                        isLast: module == contentTree.modules.last,
+                        isLast: module == contentTree.nodes.last,
                       ),
                     )
                     .toList(growable: false),

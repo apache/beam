@@ -756,7 +756,6 @@ class GoogleCloudOptions(PipelineOptions):
         default=False,
         action='store_true',
         help='Update an existing streaming Cloud Dataflow job. '
-        'Experimental. '
         'See https://cloud.google.com/dataflow/docs/guides/'
         'updating-a-pipeline')
     parser.add_argument(
@@ -766,7 +765,6 @@ class GoogleCloudOptions(PipelineOptions):
         help='The transform mapping that maps the named '
         'transforms in your prior pipeline code to names '
         'in your replacement pipeline code.'
-        'Experimental. '
         'See https://cloud.google.com/dataflow/docs/guides/'
         'updating-a-pipeline')
     parser.add_argument(

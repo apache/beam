@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.state;
 
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -26,7 +24,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * @param <T> The type of value being stored.
  */
-@Experimental(Kind.STATE)
 public interface ValueState<T> extends ReadableState<@Nullable T>, State {
   /** Set the value. */
   void write(T input);

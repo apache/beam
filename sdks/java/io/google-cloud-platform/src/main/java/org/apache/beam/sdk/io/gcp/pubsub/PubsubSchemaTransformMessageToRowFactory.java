@@ -23,8 +23,6 @@ import static org.apache.beam.sdk.schemas.Schema.TypeName.ROW;
 
 import java.util.HashMap;
 import java.util.Map;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializer;
@@ -41,7 +39,6 @@ import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializers;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 @Internal
-@Experimental(Kind.SCHEMAS)
 class PubsubSchemaTransformMessageToRowFactory {
   private static final String DEFAULT_FORMAT = "json";
 
