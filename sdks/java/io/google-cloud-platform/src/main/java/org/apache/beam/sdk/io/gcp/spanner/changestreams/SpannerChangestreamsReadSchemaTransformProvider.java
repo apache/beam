@@ -65,6 +65,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.gson.Gson;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -218,6 +219,7 @@ public class SpannerChangestreamsReadSchemaTransformProvider
     }
   }
 
+  @VisibleForTesting
   public static final class DataChangeRecordToRow extends DoFn<DataChangeRecord, Row> {
     private final Schema tableChangeRecordSchema;
     private final String tableName;
@@ -254,17 +256,18 @@ public class SpannerChangestreamsReadSchemaTransformProvider
         if (internalRowSchema == null) {
           throw new RuntimeException("Row schema for internal row is null and cannot be utilized.");
         }
-        Row.FieldValueBuilder rowBuilder = Row.fromRow(Row.nullRow(internalRowSchema));
-        final Map<String, String> newValues =
-            Optional.ofNullable(mod.getNewValuesJson())
-                .map(nonNullValues -> getGson().fromJson(nonNullValues, Map.class))
-                .orElseGet(Collections::emptyMap);
-        final Map<String, String> keyValues =
-            Optional.ofNullable(mod.getKeysJson())
-                .map(nonNullValues -> getGson().fromJson(nonNullValues, Map.class))
-                .orElseGet(Collections::emptyMap);
 
         try {
+          Row.FieldValueBuilder rowBuilder = Row.fromRow(Row.nullRow(internalRowSchema));
+          final Map<String, String> newValues =
+              Optional.ofNullable(mod.getNewValuesJson())
+                  .map(nonNullValues -> getGson().fromJson(nonNullValues, Map.class))
+                  .orElseGet(Collections::emptyMap);
+          final Map<String, String> keyValues =
+              Optional.ofNullable(mod.getKeysJson())
+                  .map(nonNullValues -> getGson().fromJson(nonNullValues, Map.class))
+                  .orElseGet(Collections::emptyMap);
+
           for (Map.Entry<String, String> valueEntry : newValues.entrySet()) {
             if (valueEntry.getValue() == null) {
               continue;
