@@ -14,8 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TypeVar
 from typing import Generic
+from typing import TypeVar
 
 import apache_beam as beam
 
@@ -50,13 +50,6 @@ class _BaseOperation():
       inputs: input data.
     """
     raise NotImplementedError
-
-
-# TODO: Add metrics namespace.
-# class MLTransformOutput(typing.NamedTuple):
-#   transformed_data: TransformedDatasetT
-#   transformed_metadata: Optional[TransformedMetadataT] = None
-#   asset_map: Optional[Dict[str, str]] = None
 
 
 class ProcessHandler(Generic[ProcessInputT, ProcessOutputT]):
@@ -94,12 +87,16 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
     This is the entrypoint for the MLTransform. This method will
     invoke the process_data() method of the ProcessHandler instance
     to process the incoming data.
+
+    process_data takes in a PCollection and applies the PTransforms
+    necessary to process the data and returns a PCollection of
+    transformed data.
     Args:
       pcoll: A PCollection of ExampleT type.
     Returns:
       A PCollection of MLTransformOutputT type.
     """
-    return "Beam_MLTransform" >> self._process_handler.process_data(pcoll)
+    return self._process_handler.process_data(pcoll)
 
   def with_transform(self, transform: _BaseOperation):
     """
@@ -111,6 +108,3 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
     """
     self._process_handler.append_transform(transform)
     return self
-
-  def get_metrics_namespace(self):
-    return "MLTransform"

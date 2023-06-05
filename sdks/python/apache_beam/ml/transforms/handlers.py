@@ -88,13 +88,11 @@ class ConvertNamedTupleToDict(
       return pcoll | beam.Map(lambda x: x._asdict())
 
 
-# TODO: Add metrics namespace.
 class TFTProcessHandler(ProcessHandler[ProcessInputT, ProcessOutputT]):
   def __init__(
       self,
       *,
       transforms: List[_TFTOperation] = None,
-      namespace: str = 'TFTProcessHandler',
       artifact_location: typing.Optional[str] = None,
   ):
     """
@@ -107,7 +105,6 @@ class TFTProcessHandler(ProcessHandler[ProcessInputT, ProcessOutputT]):
         are applied in the order they are specified. The input of the
         i-th transform is the output of the (i-1)-th transform. Multi-input
         transforms are not supported yet.
-      namespace: A metrics namespace for the TFTProcessHandler.
       artifact_location: A location to store the artifacts, which includes
         the tensorflow graph produced by analyzers such as scale_to_0_1,
         sclaed_to_z_score, etc.
@@ -117,7 +114,6 @@ class TFTProcessHandler(ProcessHandler[ProcessInputT, ProcessOutputT]):
     """
     self.transforms = transforms if transforms else []
     self._artifact_location = None
-    self._namespace = namespace
     self.transformed_schema = None
     self.artifact_location = artifact_location
 
@@ -426,8 +422,8 @@ class TFTProcessHandlerDict(
 
     return (
         raw_data
-        | self._get_processing_data_ptransform(
-            raw_data_metadata=raw_data_metadata))
+        | "Beam_MLTransform_TFTProcessHandlerDict" >> self.
+        _get_processing_data_ptransform(raw_data_metadata=raw_data_metadata))
 
   def get_raw_data_metadata(
       self, input_types: Dict[str, type]) -> dataset_metadata.DatasetMetadata:
