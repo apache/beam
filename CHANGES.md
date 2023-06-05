@@ -75,13 +75,14 @@
 ## Bugfixes
 
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Fixed KinesisIO `NullPointerException` when a progress check is made before the reader is started (IO) ([#23868](https://github.com/apache/beam/issues/23868))
 
 ## Known Issues
 
 * ([#X](https://github.com/apache/beam/issues/X)).
 
 
-# [2.48.0] - Unreleased
+# [2.48.0] - 2023-05-31
 
 ## Highlights
 

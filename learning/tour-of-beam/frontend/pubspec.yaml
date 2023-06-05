@@ -23,12 +23,12 @@ publish_to: 'none'
 version: 0.1.0
 
 environment:
-  sdk: '>=2.19.2 <4.0.0'
-  flutter: '>=3.7.3'
+  sdk: '>=3.0.2 <4.0.0'
+  flutter: '>=3.10.2'
 
 dependencies:
   app_state: ^0.9.3
-  collection: ^1.16.0
+  collection: ^1.17.1
   easy_localization: ^3.0.1
   easy_localization_ext: ^0.1.0
   easy_localization_loader: ^1.0.0
@@ -66,7 +66,7 @@ dev_dependencies:
   flutter_gen_runner: ^5.2.0
   flutter_test: { sdk: flutter }
   integration_test: { sdk: flutter }
-  json_serializable: ^6.4.1
+  json_serializable: ^6.5.4
   total_lints: ^2.17.0
 
 flutter:

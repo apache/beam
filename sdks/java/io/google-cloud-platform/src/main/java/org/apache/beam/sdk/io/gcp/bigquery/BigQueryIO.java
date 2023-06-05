@@ -2741,13 +2741,9 @@ public class BigQueryIO {
     /**
      * Control how many parallel streams are used when using Storage API writes. Applicable only
      * when also setting {@link #withTriggeringFrequency}. To let runner determine the sharding at
-     * runtime, set {@link #withAutoSharding()} instead.
+     * runtime, set this to zero, or {@link #withAutoSharding()} instead.
      */
     public Write<T> withNumStorageWriteApiStreams(int numStorageWriteApiStreams) {
-      checkArgument(
-          numStorageWriteApiStreams > 0,
-          "numStorageWriteApiStreams must be > 0, but was: %s",
-          numStorageWriteApiStreams);
       return toBuilder().setNumStorageWriteApiStreams(numStorageWriteApiStreams).build();
     }
 
@@ -3396,6 +3392,11 @@ public class BigQueryIO {
                   getIgnoreUnknownValues(),
                   getAutoSchemaUpdate());
         }
+        int numShards = getStorageApiNumStreams(bqOptions);
+        boolean enableAutoSharding = getAutoSharding();
+        if (numShards == 0) {
+          enableAutoSharding = true;
+        }
 
         StorageApiLoads<DestinationT, T> storageApiLoads =
             new StorageApiLoads<>(
@@ -3407,7 +3408,7 @@ public class BigQueryIO {
                 getBigQueryServices(),
                 getStorageApiNumStreams(bqOptions),
                 method == Method.STORAGE_API_AT_LEAST_ONCE,
-                getAutoSharding(),
+                enableAutoSharding,
                 getAutoSchemaUpdate(),
                 getIgnoreUnknownValues(),
                 getPropagateSuccessfulStorageApiWrites());
