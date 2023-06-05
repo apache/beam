@@ -16,8 +16,13 @@
  * limitations under the License.
  */
 
+import 'package:json_annotation/json_annotation.dart';
+
 import '../enums/emulator_type.dart';
 
+part 'dataset.g.dart';
+
+@JsonSerializable()
 class Dataset {
   final EmulatorType? type;
   final Map<String, String> options;
@@ -28,4 +33,9 @@ class Dataset {
     required this.options,
     required this.datasetPath,
   });
+
+  factory Dataset.fromJson(Map<String, dynamic> json) =>
+      _$DatasetFromJson(json);
+
+  Map<String, dynamic> toJson() => _$DatasetToJson(this);
 }

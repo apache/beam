@@ -115,9 +115,8 @@ dependencies {
   implementation library.java.grpc_google_cloud_pubsublite_v1
   permitUnusedDeclared library.java.grpc_google_cloud_pubsublite_v1 // BEAM-11761
   implementation library.java.guava
-  implementation library.java.hamcrest
   implementation library.java.http_client
-  implementation library.java.hamcrest
+  provided library.java.hamcrest
   permitUnusedDeclared library.java.hamcrest // BEAM-11761
   implementation library.java.http_core
   implementation library.java.jackson_core
@@ -125,7 +124,7 @@ dependencies {
   implementation library.java.jackson_datatype_joda
   implementation library.java.jackson_datatype_jsr310
   implementation library.java.joda_time
-  implementation library.java.junit
+  provided library.java.junit
   implementation library.java.netty_handler
   implementation library.java.netty_tcnative_boringssl_static
   permitUnusedDeclared library.java.netty_tcnative_boringssl_static // BEAM-11761
@@ -142,7 +141,7 @@ dependencies {
   implementation library.java.protobuf_java
   implementation library.java.protobuf_java_util
   implementation library.java.slf4j_api
-  implementation library.java.vendored_grpc_1_48_1
+  implementation library.java.vendored_grpc_1_54_0
   implementation library.java.vendored_guava_26_0_jre
   implementation library.java.arrow_memory_core
   implementation library.java.arrow_vector

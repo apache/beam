@@ -578,6 +578,36 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 			}
 			payload.StateSpecs = stateSpecs
 		}
+		if _, ok := edge.Edge.DoFn.ProcessElementFn().TimerProvider(); ok {
+			m.requirements[URNRequiresStatefulProcessing] = true
+			timerSpecs := make(map[string]*pipepb.TimerFamilySpec)
+			pipelineTimers, _ := edge.Edge.DoFn.PipelineTimers()
+
+			// All timers for a single DoFn have the same key and window coders, that match the input PCollection.
+			mainInputID := inputs["i0"]
+			pCol := m.pcollections[mainInputID]
+			kvCoder := m.coders.coders[pCol.CoderId]
+			if kvCoder.GetSpec().GetUrn() != urnKVCoder {
+				return nil, errors.Errorf("timer using DoFn %v doesn't use a KV as PCollection input. Unable to extract key coder for timers, got %v", edge.Name, kvCoder.GetSpec().GetUrn())
+			}
+			keyCoderID := kvCoder.GetComponentCoderIds()[0]
+
+			wsID := pCol.GetWindowingStrategyId()
+			ws := m.windowing[wsID]
+			windowCoderID := ws.GetWindowCoderId()
+
+			timerCoderID := m.coders.internBuiltInCoder(urnTimerCoder, keyCoderID, windowCoderID)
+
+			for _, pt := range pipelineTimers {
+				for timerFamilyID, timeDomain := range pt.Timers() {
+					timerSpecs[timerFamilyID] = &pipepb.TimerFamilySpec{
+						TimeDomain:         pipepb.TimeDomain_Enum(timeDomain),
+						TimerFamilyCoderId: timerCoderID,
+					}
+				}
+			}
+			payload.TimerFamilySpecs = timerSpecs
+		}
 		spec = &pipepb.FunctionSpec{Urn: URNParDo, Payload: protox.MustEncode(payload)}
 		annotations = edge.Edge.DoFn.Annotations()
 
@@ -940,11 +970,11 @@ func (m *marshaller) expandReshuffle(edge NamedEdge) (string, error) {
 		if err != nil {
 			return handleErr(err)
 		}
-		coderID, err := makeWindowCoder(wfn)
+		windowCoder, err := makeWindowCoder(wfn)
 		if err != nil {
 			return handleErr(err)
 		}
-		windowCoderID, err := m.coders.AddWindowCoder(coderID)
+		windowCoderID, err := m.coders.AddWindowCoder(windowCoder)
 		if err != nil {
 			return handleErr(err)
 		}

@@ -71,7 +71,7 @@ task pullLicenses(type: Exec) {
 
 task downloadCloudProfilerAgent(type: Exec) {
   executable "sh"
-  args "-c", "wget -q -O- https://storage.googleapis.com/cloud-profiler/java/latest/profiler_java_agent.tar.gz | tar xzv -C build/target/profiler/"
+  args "-c", "curl https://storage.googleapis.com/cloud-profiler/java/latest/profiler_java_agent.tar.gz | tar xzv -C build/target/profiler/"
   outputs.dir('build/target/profiler')
 }
 

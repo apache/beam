@@ -60,7 +60,7 @@ abstract class NodeModel {
     }
   }
 
-  NodeModel getFirstUnit();
+  NodeModel? getLastNodeFromBreadcrumbIds(List<String> breadcrumbIds);
 
-  NodeModel? getNodeByTreeIds(List<String> treeIds);
+  List<UnitModel> getUnits();
 }

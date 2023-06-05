@@ -60,6 +60,7 @@ RUN mkdir -p /usr/local/gcloud && \
     curl -s -O https://dl.google.com/dl/cloudsdk/release/google-cloud-sdk.tar.gz && \
     tar -xf google-cloud-sdk.tar.gz && \
     /usr/local/gcloud/google-cloud-sdk/install.sh && \
+    rm -rf /usr/local/gcloud/google-cloud-sdk/.install/.backup && \
     rm google-cloud-sdk.tar.gz
 
 # Configure ccache prior to installing Beam SDK.
@@ -109,5 +110,3 @@ COPY --from=third_party_licenses /opt/apache/beam/third_party_licenses /opt/apac
 RUN if [ "$pull_licenses" != "true" ] ; then \
       rm -rf /opt/apache/beam/third_party_licenses ; \
     fi
-
-

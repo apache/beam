@@ -19,10 +19,12 @@
 
 # pytype: skip-file
 
+import json
 import logging
 import math
 import random
 import re
+import tempfile
 import time
 import unittest
 import warnings
@@ -44,6 +46,7 @@ from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.pvalue import AsList
 from apache_beam.pvalue import AsSingleton
 from apache_beam.runners import pipeline_context
+from apache_beam.testing.synthetic_pipeline import SyntheticSource
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import SortLists
@@ -901,6 +904,37 @@ class GroupIntoBatchesTest(unittest.TestCase):
                       GroupIntoBatchesTest.NUM_ELEMENTS /
                       GroupIntoBatchesTest.BATCH_SIZE))
           ]))
+
+  def test_in_global_window_with_text_file(self):
+    # this test will raise asserts since DirectRunner misses this feature:
+    # sdf_direct_runner currently does not support GroupIntoBatches
+    # from bundles of SDF source and will throw this AttributeError
+    with tempfile.NamedTemporaryFile(suffix=".json", mode="w+t") as f:
+      f.write(json.dumps(GroupIntoBatchesTest._create_test_data()))
+      f.flush()
+      with self.assertRaises((RuntimeError, AttributeError)):
+        with TestPipeline() as pipeline:
+          collection = pipeline \
+                      | beam.io.ReadFromText(file_pattern=f.name) \
+                      | beam.Map(lambda e: json.loads(e)) \
+                      | beam.Map(lambda e: (e["key"], e)) \
+                      | util.GroupIntoBatches(GroupIntoBatchesTest.BATCH_SIZE)
+          assert collection
+
+  def test_in_global_window_with_synthetic_source(self):
+    # this test will raise asserts since DirectRunner misses this feature:
+    # sdf_direct_runner currently does not support GroupIntoBatches
+    # from bundles of SDF source and will throw this AttributeError
+    with self.assertRaises((RuntimeError, AttributeError)):
+      with beam.Pipeline() as pipeline:
+        _ = (
+            pipeline
+            | beam.io.Read(
+                SyntheticSource({
+                    "numRecords": 10, "keySizeBytes": 1, "valueSizeBytes": 1
+                }))
+            | "Group key" >> beam.GroupIntoBatches(2, 1)
+            | beam.Map(print))
 
   def test_with_sharded_key_in_global_window(self):
     with TestPipeline() as pipeline:

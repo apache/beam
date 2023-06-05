@@ -17,11 +17,10 @@
 #
 
 # This script will create a Release Candidate, includes:
-# 1. Build and stage java artifacts
-# 2. Stage source release on dist.apache.org
-# 3. Stage python source distribution and wheels on dist.apache.org
-# 4. Stage SDK docker images
-# 5. Create a PR to update beam-site
+# 1. Stage source release on dist.apache.org
+# 2. Stage python source distribution and wheels on dist.apache.org
+# 3. Stage SDK docker images
+# 4. Create a PR to update beam-site
 
 set -e
 
@@ -174,36 +173,6 @@ read confirmation
 if [[ $confirmation != "y" ]]; then
   echo "Please rerun this script and make sure you have the right inputs."
   exit
-fi
-
-echo "[Current Step]: Build and stage java artifacts"
-echo "Do you want to proceed? [y|N]"
-read confirmation
-if [[ $confirmation = "y" ]]; then
-  echo "============Building and Staging Java Artifacts============="
-  echo "--------Cloning Beam Repo and Checkout Release Tag-------"
-  cd ~
-  wipe_local_clone_dir
-  mkdir -p ${LOCAL_CLONE_DIR}
-  cd ${LOCAL_CLONE_DIR}
-  git clone --depth 1 --branch "${RC_TAG}" ${GIT_REPO_URL} "${BEAM_ROOT_DIR}"
-  cd ${BEAM_ROOT_DIR}
-
-  echo "-------------Building Java Artifacts with Gradle-------------"
-  git config credential.helper store
-
-  echo "-------------Staging Java Artifacts into Maven---------------"
-  # Cache the key/passphrase in gpg-agent by signing an arbitrary file.
-  gpg --local-user ${SIGNING_KEY} --output /dev/null --sign ~/.bashrc
-  # Too many workers can overload (?) gpg-agent, causing gpg to prompt for a
-  # passphrase, and gradle doesn't play nice with pinentry.
-  # https://github.com/gradle/gradle/issues/11706
-  # --max-workers=6 works, but parallelism also seems to cause
-  # multiple Nexus repos to be created, so parallelism is disabled.
-  # https://issues.apache.org/jira/browse/BEAM-11813
-  ./gradlew publish -Psigning.gnupg.keyName=${SIGNING_KEY} -PisRelease --no-daemon --no-parallel
-  echo "You need to close the staging repository manually on Apache Nexus. See the release guide for instructions."
-  wipe_local_clone_dir
 fi
 
 echo "[Current Step]: Stage source release on dist.apache.org"

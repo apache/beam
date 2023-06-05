@@ -35,6 +35,7 @@ services:
       CACHE_TYPE: remote
       CACHE_ADDRESS: redis:6379
       SDK_CONFIG: /opt/playground/backend/sdks-emulator.yaml
+      APPLY_MIGRATIONS: "True"
     ports:
       - "8080:8080"
     depends_on:

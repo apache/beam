@@ -18,6 +18,8 @@
 
 import 'dart:async';
 
+import 'package:playground_components/playground_components.dart';
+
 import '../models/content_tree.dart';
 import 'cache.dart';
 
@@ -29,12 +31,12 @@ class ContentTreeCache extends Cache {
   final _treesBySdkId = <String, ContentTreeModel>{};
   final _futuresBySdkId = <String, Future<ContentTreeModel>>{};
 
-  ContentTreeModel? getContentTree(String sdkId) {
-    if (!_futuresBySdkId.containsKey(sdkId)) {
-      unawaited(_loadContentTree(sdkId));
+  ContentTreeModel? getContentTree(Sdk sdk) {
+    if (!_futuresBySdkId.containsKey(sdk.id)) {
+      unawaited(_loadContentTree(sdk.id));
     }
 
-    return _treesBySdkId[sdkId];
+    return _treesBySdkId[sdk.id];
   }
 
   Future<ContentTreeModel> _loadContentTree(String sdkId) async {

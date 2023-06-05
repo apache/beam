@@ -491,8 +491,11 @@ class SchemaAwareExternalTransformTest(unittest.TestCase):
           config_schema=schema_pb2.Schema(
               fields=[
                   schema_pb2.Field(
-                      name="test_field",
-                      type=schema_pb2.FieldType(atomic_type="STRING"))
+                      name="str_field",
+                      type=schema_pb2.FieldType(atomic_type="STRING")),
+                  schema_pb2.Field(
+                      name="int_field",
+                      type=schema_pb2.FieldType(atomic_type="INT64"))
               ],
               id="test-id"),
           input_pcollection_names=["input"],
@@ -516,6 +519,25 @@ class SchemaAwareExternalTransformTest(unittest.TestCase):
     with self.assertRaises(ValueError):
       beam.SchemaAwareExternalTransform.discover_config(
           "test_service", name="non_existent")
+
+  @mock.patch("apache_beam.transforms.external.ExternalTransform.service")
+  def test_rearrange_kwargs_based_on_discovery(self, mock_service):
+    mock_service.return_value = self.MockDiscoveryService()
+
+    identifier = "test_schematransform"
+    expansion_service = "test_service"
+    kwargs = {"int_field": 0, "str_field": "str"}
+
+    transform = beam.SchemaAwareExternalTransform(
+        identifier=identifier, expansion_service=expansion_service, **kwargs)
+    ordered_kwargs = transform._rearrange_kwargs(identifier)
+
+    schematransform_config = beam.SchemaAwareExternalTransform.discover_config(
+        expansion_service, identifier)
+    external_config_fields = schematransform_config.configuration_schema._fields
+
+    self.assertNotEqual(tuple(kwargs.keys()), external_config_fields)
+    self.assertEqual(tuple(ordered_kwargs.keys()), external_config_fields)
 
 
 class JavaClassLookupPayloadBuilderTest(unittest.TestCase):

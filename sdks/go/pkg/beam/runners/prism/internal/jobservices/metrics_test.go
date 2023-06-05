@@ -33,7 +33,7 @@ import (
 var metSpecs = (pipepb.MonitoringInfoSpecs_Enum)(0).Descriptor().Values()
 
 // makeInfo generates dummy Monitoring infos from a spec.
-func makeInfo(enum pipepb.MonitoringInfoSpecs_Enum, payload []byte) *pipepb.MonitoringInfo {
+func makeInfo(enum pipepb.MonitoringInfoSpecs_Enum) *pipepb.MonitoringInfo {
 	spec := proto.GetExtension(metSpecs.ByNumber(protoreflect.EnumNumber(enum)).Options(), pipepb.E_MonitoringInfoSpec).(*pipepb.MonitoringInfoSpec)
 
 	labels := map[string]string{}
@@ -41,11 +41,16 @@ func makeInfo(enum pipepb.MonitoringInfoSpecs_Enum, payload []byte) *pipepb.Moni
 		labels[l] = l
 	}
 	return &pipepb.MonitoringInfo{
-		Urn:     spec.GetUrn(),
-		Type:    spec.GetType(),
-		Labels:  labels,
-		Payload: payload,
+		Urn:    spec.GetUrn(),
+		Type:   spec.GetType(),
+		Labels: labels,
 	}
+}
+
+func makeInfoWBytes(enum pipepb.MonitoringInfoSpecs_Enum, payload []byte) *pipepb.MonitoringInfo {
+	info := makeInfo(enum)
+	info.Payload = payload
+	return info
 }
 
 // This test validates that multiple contributions are correctly summed up and accumulated.
@@ -70,45 +75,58 @@ func Test_metricsStore_ContributeMetrics(t *testing.T) {
 		name string
 
 		// TODO convert input to non-legacy metrics once we support, and then delete these.
-		input [][]*pipepb.MonitoringInfo
+		input    []map[string][]byte
+		shortIDs map[string]*pipepb.MonitoringInfo
 
 		want []*pipepb.MonitoringInfo
 	}{
 		{
 			name: "int64Sum",
-			input: [][]*pipepb.MonitoringInfo{
-				{makeInfo(pipepb.MonitoringInfoSpecs_USER_SUM_INT64, []byte{3})},
-				{makeInfo(pipepb.MonitoringInfoSpecs_USER_SUM_INT64, []byte{5})},
+			input: []map[string][]byte{
+				{"a": []byte{3}},
+				{"a": []byte{5}},
+			},
+			shortIDs: map[string]*pipepb.MonitoringInfo{
+				"a": makeInfo(pipepb.MonitoringInfoSpecs_USER_SUM_INT64),
 			},
 			want: []*pipepb.MonitoringInfo{
-				makeInfo(pipepb.MonitoringInfoSpecs_USER_SUM_INT64, []byte{8}),
+				makeInfoWBytes(pipepb.MonitoringInfoSpecs_USER_SUM_INT64, []byte{8}),
 			},
 		}, {
 			name: "float64Sum",
-			input: [][]*pipepb.MonitoringInfo{
-				{makeInfo(pipepb.MonitoringInfoSpecs_USER_SUM_DOUBLE, doubleBytes(3.14))},
-				{makeInfo(pipepb.MonitoringInfoSpecs_USER_SUM_DOUBLE, doubleBytes(1.06))},
+			input: []map[string][]byte{
+				{"a": doubleBytes(3.14)},
+				{"a": doubleBytes(1.06)},
+			},
+			shortIDs: map[string]*pipepb.MonitoringInfo{
+				"a": makeInfo(pipepb.MonitoringInfoSpecs_USER_SUM_DOUBLE),
 			},
 			want: []*pipepb.MonitoringInfo{
-				makeInfo(pipepb.MonitoringInfoSpecs_USER_SUM_DOUBLE, doubleBytes(4.20)),
+				makeInfoWBytes(pipepb.MonitoringInfoSpecs_USER_SUM_DOUBLE, doubleBytes(4.20)),
 			},
 		}, {
 			name: "progress",
-			input: [][]*pipepb.MonitoringInfo{
-				{makeInfo(pipepb.MonitoringInfoSpecs_WORK_REMAINING, progress(1, 2.2, 78))},
-				{makeInfo(pipepb.MonitoringInfoSpecs_WORK_REMAINING, progress(0, 7.8, 22))},
+			input: []map[string][]byte{
+				{"a": progress(1, 2.2, 78)},
+				{"a": progress(0, 7.8, 22)},
+			},
+			shortIDs: map[string]*pipepb.MonitoringInfo{
+				"a": makeInfo(pipepb.MonitoringInfoSpecs_WORK_REMAINING),
 			},
 			want: []*pipepb.MonitoringInfo{
-				makeInfo(pipepb.MonitoringInfoSpecs_WORK_REMAINING, progress(0, 7.8, 22)),
+				makeInfoWBytes(pipepb.MonitoringInfoSpecs_WORK_REMAINING, progress(0, 7.8, 22)),
 			},
 		}, {
 			name: "int64Distribution",
-			input: [][]*pipepb.MonitoringInfo{
-				{makeInfo(pipepb.MonitoringInfoSpecs_USER_DISTRIBUTION_INT64, []byte{1, 2, 2, 2})},
-				{makeInfo(pipepb.MonitoringInfoSpecs_USER_DISTRIBUTION_INT64, []byte{3, 17, 5, 7})},
+			input: []map[string][]byte{
+				{"a": []byte{1, 2, 2, 2}},
+				{"a": []byte{3, 17, 5, 7}},
+			},
+			shortIDs: map[string]*pipepb.MonitoringInfo{
+				"a": makeInfo(pipepb.MonitoringInfoSpecs_USER_DISTRIBUTION_INT64),
 			},
 			want: []*pipepb.MonitoringInfo{
-				makeInfo(pipepb.MonitoringInfoSpecs_USER_DISTRIBUTION_INT64, []byte{4, 19, 2, 7}),
+				makeInfoWBytes(pipepb.MonitoringInfoSpecs_USER_DISTRIBUTION_INT64, []byte{4, 19, 2, 7}),
 			},
 		},
 	}
@@ -117,11 +135,14 @@ func Test_metricsStore_ContributeMetrics(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			ms := metricsStore{}
 
+			ms.AddShortIDs(&fnpb.MonitoringInfosMetadataResponse{
+				MonitoringInfo: test.shortIDs,
+			})
+
 			for _, payload := range test.input {
-				resp := &fnpb.ProcessBundleResponse{
-					MonitoringInfos: payload,
-				}
-				ms.ContributeMetrics(resp)
+				ms.ContributeFinalMetrics(&fnpb.ProcessBundleResponse{
+					MonitoringData: payload,
+				})
 			}
 
 			got := ms.Results(committed)
