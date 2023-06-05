@@ -40,9 +40,9 @@ from apache_beam.testing.util import equal_to
 
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
-  from apache_beam.io.gcp.dicomclient import DicomApiHttpClient
-  from apache_beam.io.gcp.dicomio import DicomSearch
-  from apache_beam.io.gcp.dicomio import UploadToDicomStore
+  from apache_beam.io.gcp.healthcare.dicomclient import DicomApiHttpClient
+  from apache_beam.io.gcp.healthcare.dicomio import DicomSearch
+  from apache_beam.io.gcp.healthcare.dicomio import UploadToDicomStore
   from google.auth import default
   from google.auth.transport import requests
 except ImportError:

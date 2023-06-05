@@ -27,6 +27,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
 	v1pb "github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/timers"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/protox"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
@@ -592,12 +593,17 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 
 					if len(userTimers) > 0 {
 						sID := StreamID{Port: Port{URL: b.desc.GetTimerApiServiceDescriptor().GetUrl()}, PtransformID: id.to}
-						ec, wc, err := b.makeCoderForPCollection(input[0])
-						if err != nil {
-							return nil, err
+
+						familyToSpec := map[string]timerFamilySpec{}
+						for fam, spec := range userTimers {
+							domain := timers.TimeDomain(spec.GetTimeDomain())
+							timerCoder, err := b.coders.Coder(spec.GetTimerFamilyCoderId())
+							if err != nil {
+								return nil, errors.WithContextf(err, "couldn't retreive coder for timer %v in DoFn %v, ID %v", fam, dofn.Name(), n.PID)
+							}
+							familyToSpec[fam] = newTimerFamilySpec(domain, timerCoder)
 						}
-						timerCoder := coder.NewT(ec.Components[0], wc)
-						n.Timer = NewUserTimerAdapter(sID, coder.NewW(ec, wc), timerCoder)
+						n.TimerTracker = newUserTimerAdapter(sID, familyToSpec)
 					}
 
 					for i := 1; i < len(input); i++ {

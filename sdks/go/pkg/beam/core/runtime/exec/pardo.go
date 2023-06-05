@@ -17,7 +17,9 @@ package exec
 
 import (
 	"context"
+	goerrors "errors"
 	"fmt"
+	"io"
 	"path"
 	"reflect"
 
@@ -27,6 +29,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/timers"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/errorx"
@@ -34,12 +37,13 @@ import (
 
 // ParDo is a DoFn executor.
 type ParDo struct {
-	UID     UnitID
-	Fn      *graph.DoFn
-	Inbound []*graph.Inbound
-	Side    []SideInputAdapter
-	UState  UserStateAdapter
-	Out     []Node
+	UID          UnitID
+	Fn           *graph.DoFn
+	Inbound      []*graph.Inbound
+	Side         []SideInputAdapter
+	UState       UserStateAdapter
+	TimerTracker *userTimerAdapter
+	Out          []Node
 
 	PID      string
 	emitters []ReusableEmitter
@@ -49,7 +53,6 @@ type ParDo struct {
 	we       sdf.WatermarkEstimator
 
 	onTimerInvoker *invoker
-	Timer          UserTimerAdapter
 	timerManager   DataManager
 	reader         StateReader
 	cache          *cacheElm
@@ -79,7 +82,7 @@ func (n *ParDo) ID() UnitID {
 
 // HasOnTimer returns if this ParDo wraps a DoFn that has an OnTimer method.
 func (n *ParDo) HasOnTimer() bool {
-	return n.Timer != nil
+	return n.TimerTracker != nil
 }
 
 // Up initializes this ParDo and does one-time DoFn setup.
@@ -158,6 +161,7 @@ func (n *ParDo) ProcessElement(_ context.Context, elm *FullValue, values ...ReSt
 // a ParDo's ProcessElement functionality with their own construction of
 // MainInputs.
 func (n *ParDo) processMainInput(mainIn *MainInput) error {
+	n.TimerTracker.SetCurrentKey(mainIn)
 	elm := &mainIn.Key
 
 	// If the function observes windows or uses per window state, we must invoke it for each window.
@@ -247,6 +251,10 @@ func (n *ParDo) FinishBundle(_ context.Context) error {
 	n.states.Set(n.ctx, metrics.FinishBundle)
 
 	if _, err := n.invokeDataFn(n.ctx, typex.NoFiringPane(), window.SingleGlobalWindow, mtime.ZeroTimestamp, n.Fn.FinishBundleFn(), nil); err != nil {
+		return n.fail(err)
+	}
+	// Flush timers if any.
+	if err := n.TimerTracker.FlushAndReset(n.ctx, n.timerManager); err != nil {
 		return n.fail(err)
 	}
 	n.reader = nil
@@ -362,47 +370,128 @@ func (n *ParDo) invokeDataFn(ctx context.Context, pn typex.PaneInfo, ws []typex.
 	return val, nil
 }
 
-func (n *ParDo) InvokeTimerFn(ctx context.Context, fn *funcx.Fn, timerFamilyID string, bcr *byteCountReader) (*FullValue, error) {
-	timerAdapter, ok := n.Timer.(*userTimerAdapter)
-	if !ok {
-		return nil, fmt.Errorf("userTimerAdapter empty for ParDo: %v", n.GetPID())
+// decodeBundleTimers is a helper to decode a batch of timers for a bundle, handling the io.EOF from the reader.
+func decodeBundleTimers(spec timerFamilySpec, r io.Reader) ([]TimerRecv, error) {
+	var bundleTimers []TimerRecv
+	for {
+		tmap, err := decodeTimer(spec.KeyDecoder, spec.WinDecoder, r)
+		if err != nil {
+			if goerrors.Is(err, io.EOF) {
+				break
+			}
+			return nil, errors.WithContext(err, "error decoding received timer callback")
+		}
+		bundleTimers = append(bundleTimers, tmap)
 	}
-	tmap, err := decodeTimer(timerAdapter.dc, timerAdapter.wc, bcr)
-	if err != nil {
-		return nil, errors.WithContext(err, "error decoding received timer callback")
-	}
+	return bundleTimers, nil
+}
 
+// ProcessTimers processes all timers in firing order from the runner for a timer family ID.
+//
+// A timer refers to a specific combination of Key+Window + Family + Tag. They also
+// have a fireing time, and a data watermark hold time. The SDK doesn't determine
+// if a timer is ready to fire or not, that's up to the runner.
+//
+// This method fires timers in the order from the runner. During this process, the user
+// code may set additional firings for one or more timers, which may overwrite orderings
+// from the runner.
+//
+// In particular, if runner sent timer produces a new firing that is earlier than a 2nd runner sent timer,
+// then it is processed before that 2nd timer. This will override any subsequent firing of the same timer,
+// and as a result, must add a clear to the set of timer modifications.
+func (n *ParDo) ProcessTimers(timerFamilyID string, r io.Reader) (err error) {
+	// Lookup actual domain for family here.
+	spec := n.TimerTracker.familyToSpec[timerFamilyID]
+
+	bundleTimers, err := decodeBundleTimers(spec, r)
+	if err != nil {
+		return err
+	}
+	for _, tmap := range bundleTimers {
+		n.TimerTracker.SetCurrentKeyString(tmap.KeyString)
+		for i, w := range tmap.Windows {
+			ws := tmap.Windows[i : i+1]
+			modifications := n.TimerTracker.GetModifications(windowKeyPair{window: w, key: tmap.KeyString})
+
+			indexKey := sortableTimer{
+				Domain: spec.Domain,
+				TimerMap: timers.TimerMap{
+					Family:        timerFamilyID,
+					Tag:           tmap.Tag,
+					Clear:         tmap.Clear,
+					FireTimestamp: tmap.FireTimestamp,
+					HoldTimestamp: tmap.HoldTimestamp,
+				},
+				Pane: tmap.Pane,
+			}
+
+			iter := modifications.earlierTimers[int(spec.Domain)].HeadSetIter(indexKey)
+			for {
+				insertedTimer, ok := iter()
+				if !ok {
+					break
+				}
+				// Check if this timer is still valid (no other timers have overwritten it.)
+				if modifications.IsModified(insertedTimer) {
+					continue
+				}
+
+				// If so, add a clear to the set for the tag + family, and process the inserted timer.
+				// This clear is necessary to prevent double firing the same timer.
+				// Timers may only have one active expiry (the last one set), and this timer is set
+				// to fire before the next one in the same bundle.
+				modifications.modified[timerKey{family: insertedTimer.Family, tag: insertedTimer.Tag}] = insertedTimer.Cleared()
+
+				err := n.processTimer(timerFamilyID, ws, TimerRecv{
+					Key:       tmap.Key,
+					KeyString: tmap.KeyString,
+					Windows:   ws,
+					TimerMap:  insertedTimer.TimerMap,
+					Pane:      insertedTimer.Pane,
+				})
+				if err != nil {
+					return errors.WithContextf(err, "error processing inline timer %v", tmap)
+				}
+			}
+
+			// If not modified by inserted timers, execute the timer from the bundle.
+			if !modifications.IsModified(indexKey) {
+				// Not modified means we can process the original timer.
+				err := n.processTimer(timerFamilyID, ws, tmap)
+				if err != nil {
+					return errors.WithContextf(err, "error processing timer %v", tmap)
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func (n *ParDo) processTimer(timerFamilyID string, singleWindow []typex.Window, tmap TimerRecv) (err error) {
 	// Defer side input clean-up in case of panic
 	defer func() {
 		if postErr := n.postInvoke(); postErr != nil {
 			err = postErr
 		}
 	}()
-	if err := n.preInvoke(ctx, tmap.Windows, tmap.HoldTimestamp); err != nil {
-		return nil, err
+	if err := n.preInvoke(n.ctx, singleWindow, tmap.HoldTimestamp); err != nil {
+		return err
 	}
 
 	var extra []any
-	extra = append(extra, timerFamilyID)
-
-	if tmap.Tag != "" {
-		extra = append(extra, tmap.Tag)
-	}
+	extra = append(extra, timers.Context{Family: timerFamilyID, Tag: tmap.Tag})
 	extra = append(extra, n.cache.extra...)
-	val, err := n.onTimerInvoker.invokeWithOpts(ctx, tmap.Pane, tmap.Windows, tmap.HoldTimestamp, InvokeOpts{
+	_, err = n.onTimerInvoker.invokeWithOpts(n.ctx, tmap.Pane, singleWindow, tmap.HoldTimestamp, InvokeOpts{
 		opt:   &MainInput{Key: *tmap.Key},
 		bf:    n.bf,
 		we:    n.we,
 		sa:    n.UState,
 		sr:    n.reader,
-		ta:    n.Timer,
+		ta:    n.TimerTracker,
 		tm:    n.timerManager,
 		extra: extra,
 	})
-	if err != nil {
-		return nil, err
-	}
-	return val, err
+	return err
 }
 
 // invokeProcessFn handles the per element invocations
@@ -416,7 +505,7 @@ func (n *ParDo) invokeProcessFn(ctx context.Context, pn typex.PaneInfo, ws []typ
 	if err := n.preInvoke(ctx, ws, ts); err != nil {
 		return nil, err
 	}
-	val, err = n.inv.invokeWithOpts(ctx, pn, ws, ts, InvokeOpts{opt: opt, bf: n.bf, we: n.we, sa: n.UState, sr: n.reader, ta: n.Timer, tm: n.timerManager, extra: n.cache.extra})
+	val, err = n.inv.invokeWithOpts(ctx, pn, ws, ts, InvokeOpts{opt: opt, bf: n.bf, we: n.we, sa: n.UState, sr: n.reader, ta: n.TimerTracker, tm: n.timerManager, extra: n.cache.extra})
 	if err != nil {
 		return nil, err
 	}
