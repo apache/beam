@@ -45,6 +45,7 @@ class WordCountIT(unittest.TestCase):
   DEFAULT_CHECKSUM = '33535a832b7db6d78389759577d4ff495980b9c0'
 
   @pytest.mark.it_postcommit
+  @pytest.mark.timeout(3600)
   def test_wordcount_it(self):
     self._run_wordcount_it(wordcount.run)
 
