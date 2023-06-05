@@ -3,7 +3,7 @@
   "reviewersAssignedForLabels": {
     "no-matching-label": "tvalentyn"
   },
-  "nextAction": "Author",
+  "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
   "remindAfterTestsPass": [],
   "committerAssigned": false
