@@ -84,7 +84,7 @@ class BatchedNumpyType(NamedTuple):
   x: np.int64
 
 
-class TFTProcessHandlerDictTest(unittest.TestCase):
+class TFTProcessHandlerSchemaTest(unittest.TestCase):
   def setUp(self) -> None:
     self.pipeline = TestPipeline()
 
@@ -104,7 +104,7 @@ class TFTProcessHandlerDictTest(unittest.TestCase):
       self, inputs, columns, expected_result):
     add_fn = _AddOperation(columns=columns)
     mul_fn = _MultiplyOperation(columns=columns)
-    process_handler = handlers.TFTProcessHandlerDict(
+    process_handler = handlers.TFTProcessHandlerSchema(
         transforms=[add_fn, mul_fn])
 
     actual_result = process_handler.preprocessing_fn(inputs)
@@ -117,7 +117,7 @@ class TFTProcessHandlerDictTest(unittest.TestCase):
         save_result=True,
         output_name='x_fake_fn_1')
     fake_fn_2 = _FakeOperation(columns=['x'], name='fake_fn_2')
-    process_handler = handlers.TFTProcessHandlerDict(
+    process_handler = handlers.TFTProcessHandlerSchema(
         transforms=[fake_fn_1, fake_fn_2])
 
     inputs = {'x': [1, 2, 3]}
@@ -126,7 +126,7 @@ class TFTProcessHandlerDictTest(unittest.TestCase):
     self.assertDictEqual(actual_result, expected_result)
 
   def test_preprocessing_fn_with_artifacts(self):
-    process_handler = handlers.TFTProcessHandlerDict(
+    process_handler = handlers.TFTProcessHandlerSchema(
         transforms=[_FakeOperationWithArtifacts(columns=['x'])])
     inputs = {'x': [1, 2, 3]}
     actual_result = process_handler.preprocessing_fn(inputs)
@@ -136,7 +136,7 @@ class TFTProcessHandlerDictTest(unittest.TestCase):
   def test_ml_transform_appends_transforms_to_process_handler_correctly(self):
     fake_fn_1 = _FakeOperation(name='fake_fn_1', columns=['x'])
     transforms = [fake_fn_1]
-    process_handler = handlers.TFTProcessHandlerDict(transforms=transforms)
+    process_handler = handlers.TFTProcessHandlerSchema(transforms=transforms)
     ml_transform = base.MLTransform(process_handler=process_handler)
     ml_transform = ml_transform.with_transform(
         transform=_FakeOperation(name='fake_fn_2', columns=['x']))
@@ -155,7 +155,7 @@ class TFTProcessHandlerDictTest(unittest.TestCase):
           | beam.Map(lambda x: UnBatchedIntType(**x)).with_output_types(
               UnBatchedIntType))
     element_type = data.element_type
-    process_handler = handlers.TFTProcessHandlerDict()
+    process_handler = handlers.TFTProcessHandlerSchema()
     inferred_input_type = process_handler._map_column_names_to_types(
         element_type)
     expected_input_type = dict(x=List[int])
@@ -170,7 +170,7 @@ class TFTProcessHandlerDictTest(unittest.TestCase):
           | beam.Map(lambda x: BatchedIntType(**x)).with_output_types(
               BatchedIntType))
     element_type = data.element_type
-    process_handler = handlers.TFTProcessHandlerDict()
+    process_handler = handlers.TFTProcessHandlerSchema()
     inferred_input_type = process_handler._map_column_names_to_types(
         element_type)
     expected_input_type = dict(x=List[int])
@@ -183,7 +183,7 @@ class TFTProcessHandlerDictTest(unittest.TestCase):
           p | beam.Create(non_batched_data)
           | beam.Map(lambda ele: beam.Row(x=int(ele['x']))))
     element_type = data.element_type
-    process_handler = handlers.TFTProcessHandlerDict()
+    process_handler = handlers.TFTProcessHandlerSchema()
     inferred_input_type = process_handler._map_column_names_to_types(
         element_type)
     expected_input_type = dict(x=List[int])
@@ -198,7 +198,7 @@ class TFTProcessHandlerDictTest(unittest.TestCase):
               beam.row_type.RowTypeConstraint.from_fields([('x', List[int])])))
 
     element_type = data.element_type
-    process_handler = handlers.TFTProcessHandlerDict()
+    process_handler = handlers.TFTProcessHandlerSchema()
     inferred_input_type = process_handler._map_column_names_to_types(
         element_type)
     expected_input_type = dict(x=List[int])
@@ -216,7 +216,7 @@ class TFTProcessHandlerDictTest(unittest.TestCase):
           | beam.Map(lambda x: BatchedNumpyType(**x)).with_output_types(
               BatchedNumpyType))
       element_type = data.element_type
-      process_handler = handlers.TFTProcessHandlerDict()
+      process_handler = handlers.TFTProcessHandlerSchema()
       inferred_input_type = process_handler._map_column_names_to_types(
           element_type)
       expected_type = dict(x=np.int64)
@@ -227,13 +227,13 @@ class TFTProcessHandlerDictTest(unittest.TestCase):
     with beam.Pipeline() as p:
       data = (p | beam.Create(non_batched_data))
     element_type = data.element_type
-    process_handler = handlers.TFTProcessHandlerDict()
+    process_handler = handlers.TFTProcessHandlerSchema()
     with self.assertRaises(TypeError):
       _ = process_handler._map_column_names_to_types(element_type)
 
   def test_tensorflow_raw_data_metadata_primitive_types(self):
     input_types = dict(x=int, y=float, k=bytes, l=str)
-    process_handler = handlers.TFTProcessHandlerDict()
+    process_handler = handlers.TFTProcessHandlerSchema()
 
     for col_name, typ in input_types.items():
       feature_spec = process_handler._get_raw_data_feature_spec_per_column(
@@ -245,7 +245,7 @@ class TFTProcessHandlerDictTest(unittest.TestCase):
   def test_tensorflow_raw_data_metadata_primitive_types_in_containers(self):
     input_types = dict([("x", List[int]), ("y", List[float]),
                         ("k", List[bytes]), ("l", List[str])])
-    process_handler = handlers.TFTProcessHandlerDict()
+    process_handler = handlers.TFTProcessHandlerSchema()
     for col_name, typ in input_types.items():
       feature_spec = process_handler._get_raw_data_feature_spec_per_column(
           typ=typ, col_name=col_name)
@@ -254,7 +254,7 @@ class TFTProcessHandlerDictTest(unittest.TestCase):
   def test_tensorflow_raw_data_metadata_primitive_native_container_types(self):
     input_types = dict([("x", list[int]), ("y", list[float]),
                         ("k", list[bytes]), ("l", list[str])])
-    process_handler = handlers.TFTProcessHandlerDict()
+    process_handler = handlers.TFTProcessHandlerSchema()
     for col_name, typ in input_types.items():
       feature_spec = process_handler._get_raw_data_feature_spec_per_column(
           typ=typ, col_name=col_name)
@@ -262,7 +262,7 @@ class TFTProcessHandlerDictTest(unittest.TestCase):
 
   def test_tensorflow_raw_data_metadata_numpy_types(self):
     input_types = dict(x=np.int64, y=np.float32, z=List[np.int64])
-    process_handler = handlers.TFTProcessHandlerDict()
+    process_handler = handlers.TFTProcessHandlerSchema()
     for col_name, typ in input_types.items():
       feature_spec = process_handler._get_raw_data_feature_spec_per_column(
           typ=typ, col_name=col_name)
@@ -270,7 +270,7 @@ class TFTProcessHandlerDictTest(unittest.TestCase):
 
   def test_tensorflow_raw_data_metadata_union_type_in_single_column(self):
     input_types = dict(x=Union[int, float])
-    process_handler = handlers.TFTProcessHandlerDict()
+    process_handler = handlers.TFTProcessHandlerSchema()
     with self.assertRaises(TypeError):
       for col_name, typ in input_types.items():
         _ = process_handler._get_raw_data_feature_spec_per_column(
@@ -279,7 +279,7 @@ class TFTProcessHandlerDictTest(unittest.TestCase):
   def test_tensorflow_raw_data_metadata_dtypes(self):
     input_types = dict(x=np.int32, y=np.float64)
     expected_dtype = dict(x=np.int64, y=np.float32)
-    process_handler = handlers.TFTProcessHandlerDict()
+    process_handler = handlers.TFTProcessHandlerSchema()
     for col_name, typ in input_types.items():
       feature_spec = process_handler._get_raw_data_feature_spec_per_column(
           typ=typ, col_name=col_name)
@@ -351,7 +351,7 @@ class TFTProcessHandlerDictTest(unittest.TestCase):
         tft_transforms.scale_to_0_1(
             columns=['x'], save_result=True, output_name='x_scaled')
     ]
-    process_handler = handlers.TFTProcessHandlerDict(transforms=transforms)
+    process_handler = handlers.TFTProcessHandlerSchema(transforms=transforms)
     with beam.Pipeline() as p:
       schema_data = (
           p
@@ -367,7 +367,7 @@ class TFTProcessHandlerDictTest(unittest.TestCase):
 
   def test_tft_process_handler_dict_fail_for_non_schema_pcoll(self):
     transforms = [tft_transforms.scale_to_0_1(columns=['x'])]
-    process_handler = handlers.TFTProcessHandlerDict(transforms=transforms)
+    process_handler = handlers.TFTProcessHandlerSchema(transforms=transforms)
     with beam.Pipeline() as p:
       with self.assertRaises(TypeError):
         _ = (

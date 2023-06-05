@@ -42,7 +42,7 @@ from tensorflow_transform.tf_metadata import dataset_metadata
 from tensorflow_transform.tf_metadata import schema_utils
 
 __all__ = [
-    'TFTProcessHandlerDict',
+    'TFTProcessHandlerSchema',
 ]
 
 # tensorflow transform doesn't support the types other than tf.int64,
@@ -63,11 +63,12 @@ _primitive_types_to_typing_container_type = {
     int: List[int], float: List[float], str: List[str], bytes: List[bytes]
 }
 
-tft_process_handler_dict_input_type = typing.Union[typing.NamedTuple, beam.Row]
+tft_process_handler_schema_input_type = typing.Union[typing.NamedTuple,
+                                                     beam.Row]
 
 
 class ConvertNamedTupleToDict(
-    beam.PTransform[beam.PCollection[tft_process_handler_dict_input_type],
+    beam.PTransform[beam.PCollection[tft_process_handler_schema_input_type],
                     beam.PCollection[Dict[str,
                                           common_types.InstanceDictType]]]):
   """
@@ -75,7 +76,7 @@ class ConvertNamedTupleToDict(
     collection of dictionaries.
   """
   def expand(
-      self, pcoll: beam.PCollection[tft_process_handler_dict_input_type]
+      self, pcoll: beam.PCollection[tft_process_handler_schema_input_type]
   ) -> beam.PCollection[common_types.InstanceDictType]:
     """
     Args:
@@ -231,13 +232,14 @@ class TFTProcessHandler(ProcessHandler[ProcessInputT, ProcessOutputT]):
     raise NotImplementedError
 
 
-class TFTProcessHandlerDict(
-    TFTProcessHandler[tft_process_handler_dict_input_type, beam.Row]):
+class TFTProcessHandlerSchema(
+    TFTProcessHandler[tft_process_handler_schema_input_type, beam.Row]):
   """
     A subclass of TFTProcessHandler specifically for handling
-    data in dictionary format. Applies TensorFlow Transform (TFT)
-    operations to the input data and outputs a beam.Row object containing
-    the transformed data as numpy arrays.
+    data in beam.Row or NamedTuple format.
+    TFTProcessHandlerSchema creates a beam graph that applies
+    TensorFlow Transform (TFT) operations to the input data and
+    outputs a beam.Row object containing the transformed data as numpy arrays.
 
     This only works on the Schema'd PCollection. Please refer to
     https://beam.apache.org/documentation/programming-guide/#schemas
@@ -262,7 +264,7 @@ class TFTProcessHandlerDict(
           purchases = (p | beam.Create(...)
                         | beam.Map(lambda x: beam.Row(item_name=unicode(..),
                                                       price=float(..))))
-    In the schema, TFTProcessHandlerDict accepts the following types:
+    In the schema, TFTProcessHandlerSchema accepts the following types:
     1. Primitive types: int, float, str, bytes
     2. List of the primitive types.
     3. Numpy arrays.
@@ -284,7 +286,7 @@ class TFTProcessHandlerDict(
         raise TypeError(
             "Element type must be compatible with Beam Schemas ("
             "https://beam.apache.org/documentation/programming-guide/#schemas)"
-            " for to use with MLTransform and TFTProcessHandlerDict.")
+            " for to use with MLTransform and TFTProcessHandlerSchema.")
     inferred_types = {name: typ for name, typ in element_type._fields}
 
     for k, t in inferred_types.items():
@@ -328,7 +330,7 @@ class TFTProcessHandlerDict(
   def _get_transformed_data_schema(
       self,
       metadata: dataset_metadata.DatasetMetadata,
-  ) -> Dict[str, typing.Sequence[typing.Union[np.dtype, bytes]]]:
+  ) -> Dict[str, typing.Sequence[typing.Union[np.float32, np.int64, bytes]]]:
     schema = metadata._schema
     transformed_types = {}
     logging.info("Schema: %s", schema)
@@ -351,7 +353,7 @@ class TFTProcessHandlerDict(
 
   def _get_processing_data_ptransform(
       self, raw_data_metadata: dataset_metadata.DatasetMetadata
-  ) -> beam.PTransform[beam.PCollection[tft_process_handler_dict_input_type],
+  ) -> beam.PTransform[beam.PCollection[tft_process_handler_schema_input_type],
                        beam.PCollection[beam.Row]]:
     """
     Return a PTransform object that has the preprocessing logic
@@ -359,7 +361,7 @@ class TFTProcessHandlerDict(
     """
     @beam.ptransform_fn
     def ptransform_fn(
-        raw_data: beam.PCollection[tft_process_handler_dict_input_type]
+        raw_data: beam.PCollection[tft_process_handler_schema_input_type]
     ) -> beam.PCollection[beam.Row]:
       """
       Args:
@@ -403,7 +405,7 @@ class TFTProcessHandlerDict(
     return ptransform_fn()
 
   def process_data(
-      self, pcoll: beam.PCollection[tft_process_handler_dict_input_type]
+      self, pcoll: beam.PCollection[tft_process_handler_schema_input_type]
   ) -> beam.PCollection[beam.Row]:
     element_type = pcoll.element_type
     column_type_mapping = self._map_column_names_to_types(
@@ -423,7 +425,7 @@ class TFTProcessHandlerDict(
 
     return (
         raw_data
-        | "Beam_MLTransform_TFTProcessHandlerDict" >> self.
+        | "Beam_MLTransform_TFTProcessHandlerSchema" >> self.
         _get_processing_data_ptransform(raw_data_metadata=raw_data_metadata))
 
   def get_raw_data_metadata(

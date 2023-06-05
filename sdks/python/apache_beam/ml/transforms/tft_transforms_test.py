@@ -90,7 +90,7 @@ class ScaleZScoreTest(unittest.TestCase):
     }]
 
     with beam.Pipeline() as p:
-      process_handler = handlers.TFTProcessHandlerDict()
+      process_handler = handlers.TFTProcessHandlerSchema()
       unbatched_result = (
           p
           | "unbatchedCreate" >> beam.Create(unbatched_data)
@@ -104,7 +104,7 @@ class ScaleZScoreTest(unittest.TestCase):
   def test_z_score_batched(self):
     batched_data = [{'x': [1, 2, 3]}, {'x': [4, 5, 6]}]
     with beam.Pipeline() as p:
-      process_handler = handlers.TFTProcessHandlerDict()
+      process_handler = handlers.TFTProcessHandlerSchema()
       batched_result = (
           p
           | "batchedCreate" >> beam.Create(batched_data)
@@ -121,7 +121,7 @@ class ScaleTo01Test(unittest.TestCase):
   def test_scale_to_0_1_batched(self):
     batched_data = [{'x': [1, 2, 3]}, {'x': [4, 5, 6]}]
     with beam.Pipeline() as p:
-      process_handler = handlers.TFTProcessHandlerDict()
+      process_handler = handlers.TFTProcessHandlerSchema()
       batched_result = (
           p
           | "batchedCreate" >> beam.Create(batched_data)
@@ -155,7 +155,7 @@ class ScaleTo01Test(unittest.TestCase):
         'x': 6
     }]
     with beam.Pipeline() as p:
-      process_handler = handlers.TFTProcessHandlerDict()
+      process_handler = handlers.TFTProcessHandlerSchema()
       unbatched_result = (
           p
           | "unbatchedCreate" >> beam.Create(unbatched_data)
@@ -183,7 +183,7 @@ class BucketizeTest(unittest.TestCase):
   def test_bucketize_unbatched(self):
     unbatched = [{'x': 1}, {'x': 2}, {'x': 3}, {'x': 4}, {'x': 5}, {'x': 6}]
     with beam.Pipeline() as p:
-      process_handler = handlers.TFTProcessHandlerDict()
+      process_handler = handlers.TFTProcessHandlerSchema()
       unbatched_result = (
           p
           | "unbatchedCreate" >> beam.Create(unbatched)
@@ -209,7 +209,7 @@ class BucketizeTest(unittest.TestCase):
   def test_bucketize_batched(self):
     batched = [{'x': [1, 2, 3]}, {'x': [4, 5, 6]}]
     with beam.Pipeline() as p:
-      process_handler = handlers.TFTProcessHandlerDict()
+      process_handler = handlers.TFTProcessHandlerSchema()
       batched_result = (
           p
           | "batchedCreate" >> beam.Create(batched)
@@ -244,7 +244,7 @@ class BucketizeTest(unittest.TestCase):
     data = [{'x': [i]} for i in test_input]
     num_buckets = len(expected_boundaries) + 1
     with beam.Pipeline() as p:
-      process_handler = handlers.TFTProcessHandlerDict()
+      process_handler = handlers.TFTProcessHandlerSchema()
       result = (
           p
           | "Create" >> beam.Create(data)
@@ -273,7 +273,7 @@ class ApplyBucketsTest(unittest.TestCase):
   def test_apply_buckets(self, test_inputs, bucket_boundaries):
     with beam.Pipeline() as p:
       data = [{'x': [i]} for i in test_inputs]
-      process_handler = handlers.TFTProcessHandlerDict()
+      process_handler = handlers.TFTProcessHandlerSchema()
       result = (
           p
           | "Create" >> beam.Create(data)
@@ -318,7 +318,7 @@ class ComputeAndApplyVocabTest(unittest.TestCase):
     } for i in range(len(input_data))]
 
     with beam.Pipeline() as p:
-      process_handler = handlers.TFTProcessHandlerDict()
+      process_handler = handlers.TFTProcessHandlerSchema()
       actual_data = (
           p
           | "Create" >> beam.Create(input_data)
@@ -353,7 +353,7 @@ class ComputeAndApplyVocabTest(unittest.TestCase):
     ]
 
     with beam.Pipeline() as p:
-      process_handler = handlers.TFTProcessHandlerDict()
+      process_handler = handlers.TFTProcessHandlerSchema()
       result = (
           p
           | "Create" >> beam.Create(input_data)
