@@ -18,7 +18,8 @@
 import unittest
 
 import apache_beam as beam
-from apache_beam.typehints import Dict, Any, List
+from typing import Dict, Any
+import apache_beam.typehints as th
 from apache_beam.typehints.decorators import TypeCheckError
 from apache_beam.transforms.window import TimestampedValue
 
@@ -32,8 +33,8 @@ def ConvertToTimestampedValue_1(plant: Dict[str, Any]) -> TimestampedValue:
 
 
 def ConvertToTimestampedValue_2(
-    plant: Dict[str, Any]) -> TimestampedValue[List[str]]:
-  return TimestampedValue[List[str]](plant["name"], plant["season"])
+    plant: Dict[str, Any]) -> TimestampedValue[th.List[str]]:
+  return TimestampedValue[th.List[str]](plant["name"], plant["season"])
 
 
 class TypeCheckTimestampedValueTestCase(unittest.TestCase):
@@ -67,7 +68,7 @@ class TypeCheckTimestampedValueTestCase(unittest.TestCase):
       ht = pc.default_type_hints()
       assert len(ht) == 3
       # assert ht.output_types[0][0] == TimestampedValue[str]
-      assert ht.output_types[0][0] == Any
+      assert ht.output_types[0][0] == th.Any
 
   def test_opts_with_check(self):
     with beam.Pipeline(options=self.opts) as p:
