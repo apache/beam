@@ -34,8 +34,8 @@ def ConvertToTimestampedValue_1(plant: Dict[str, Any]) -> TimestampedValue:
 
 
 def ConvertToTimestampedValue_2(
-    plant: Dict[str, Any]) -> TimestampedValue[th.List[str]]:
-  return TimestampedValue[th.List[str]](plant["name"], plant["season"])
+    plant: Dict[str, Any]) -> TimestampedValue[th.List[str]]:  # type: ignore
+  return TimestampedValue[th.List[str]](plant["name"], plant["season"])  # type: ignore
 
 
 class TypeCheckTimestampedValueTestCase(unittest.TestCase):
