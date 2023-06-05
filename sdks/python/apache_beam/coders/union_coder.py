@@ -22,6 +22,7 @@ from typing import Any
 from typing import Dict
 from typing import Iterable
 from typing import List
+from typing import Optional
 from typing import Tuple
 
 from apache_beam.coders import Coder
@@ -50,7 +51,7 @@ class UnionCoder(FastCoder):
       else:
         self._coder_typehints[type_hint] = (struct.pack("B", i), c)
 
-  def _get_coder(self, value) -> Tuple[bytes, Coder]:
+  def _get_coder(self, value) -> Optional[Tuple[bytes, Coder]]:
     # have to linearly scan the typehints since type could be composite
     # simple type(value) does not work
     typehint_type = None
@@ -89,7 +90,8 @@ class UnionCoder(FastCoder):
 
       return coder.decode(encoded[1:])
     except Exception:  # pylint: disable=broad-except
-      raise ValueError(f'cannot decode {encoded} with the coder {self}')
+      raise ValueError(
+          'cannot decode {!r} with the coder {}'.format(encoded, self))
 
   def is_deterministic(self) -> bool:
     """
