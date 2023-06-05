@@ -77,7 +77,7 @@ class UnionCoder(FastCoder):
     """
         Encodes the given Union value into bytes.
         """
-    coder_tag, real_coder = self._get_coder(value)
+    coder_tag, real_coder = self._get_coder(value)  # pylint: disable=not-an-iterable
     return coder_tag + real_coder.encode(value)
 
   def decode(self, encoded: bytes):
