@@ -94,4 +94,3 @@ class MovingSum(object):
 
   def has_data(self, now):
     return self.count(now) > 0
-  
