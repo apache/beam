@@ -17,214 +17,211 @@
     under the License.
 -->
 
-# Playground
-
 The Beam Playground is a web application to run Beam code snippets in a modern browser. This directory holds code to
 build, test, and deploy the frontend and backend services.
 
-# Development Requirements
+- [Setup development prerequisites](#setup-development-prerequisites)
+- [Common tasks](#common-tasks)
+- [Run Beam Playground locally](#run-beam-playground-locally)
+  - [Configure frontend to use local backend](#configure-frontend-to-use-local-backend)
+  - [Run local deployment using Gradle task](#run-local-deployment-using-gradle-task)
+  - [Deploy examples](#deploy-examples)
+- [How to add your own example](#how-to-add-your-own-example)
+- [Deployment guide](#deployment-guide)
+  - [Manual deployment](#manual-deployment)
+  - [Manual CloudBuild setup](#manual-cloudbuild-setup)
+- [Project structure](#project-structure)
+- [Contribution guide](#contribution-guide)
 
-The following requirements are needed for development, testing, and deploying.
+# Setup development prerequisites
+> ***Google Cloud Shell note***: Google Cloud Shell already has most of the prerequisites installed. Only the following has to be installed manually:
+> - Flutter - run `flutter precache`
+> - Go protobuf dependencies
+> - Dart protobuf dependencies
+> - buf
+> - sbt
 
-- [go 1.18+](https://golang.org)
-- [flutter](https://flutter.dev/)
-- Go protobuf dependencies (See [Go gRPC Quickstart](https://grpc.io/docs/languages/go/quickstart/))
-- Dart protobuf dependencies (See [Dart gRPC Quickstart](https://grpc.io/docs/languages/dart/))
-- [buf](https://docs.buf.build/installation)
-- [Docker](https://docs.docker.com/desktop/)
-- [Docker Compose](https://docs.docker.com/compose/install/)
-- [gcloud CLI](https://cloud.google.com/sdk/docs/install)
-- [gcloud Beta Commands](https://cloud.google.com/sdk/gcloud/reference/components/install)
-- [Cloud Datastore Emulator](https://cloud.google.com/datastore/docs/tools/datastore-emulator)
-- [sbt](https://www.scala-sbt.org/1.x/docs/Installing-sbt-on-Linux.html)
+1. Install Go 1.18+
 
-### Google Cloud Shell Prerequisites Installation
-Google Cloud Shell already has most of the prerequisites installed. Only few tools need to be installed separately
+    **Ubuntu 22.04 and newer:**
+    ```shell
+    sudo apt install golang`
+    ```
 
-#### Flutter
+    **Other Linux variants:** Follow manual at https://go.dev/doc/install
+1. Install [flutter](https://docs.flutter.dev/get-started/install/linux)
+
+    **Ubuntu 22.04 or newer:**
+    ```shell
+    sudo apt install flutter
+    ```
+
+    **Other Linux variants:** Follow manual at https://flutter.dev/docs/get-started/install/linux
+
+1. Install [protoc](https://grpc.io/docs/protoc-installation/)
+
+    **Ubuntu 22.04 or newer/Debian 11 or newer:**
+    ```shell
+    sudo apt install protobuf-compiler
+    ```
+    **Other Linux variants:** Follow manual at https://grpc.io/docs/protoc-installation/
+
+1. Install Go protobuf dependencies: [Go gRPC Quickstart](https://grpc.io/docs/languages/go/quickstart/)
+    > Do not forget to update your `PATH` environment variable
+1. Install Dart protobuf dependencies: [Dart gRPC Quickstart](https://grpc.io/docs/languages/dart/quickstart/)
+    > Do not forget to update your `PATH` environment variable
+1. Install npm
+    **Ubuntu 22.04 and newer/Debian 11 and newer:**
+    ```shell
+    sudo apt install npm
+    ```
+    **Other Linux variants:** Follow manual at https://docs.npmjs.com/downloading-and-installing-node-js-and-npm
+1. Install [buf](https://docs.buf.build/installation)
+    ```shell
+    npm install -g @bufbuild/buf
+    ```
+1. Install Docker
+    **Ubuntu 22.04 and newer/Debian 11 and newer:**
+    ```shell
+    sudo apt install docker.io
+    ```
+    **Other Linux variants:** Follow manual at https://docs.docker.com/engine/install/
+
+    To verify your docker installation, run:
+    ```shell
+    docker ps
+    ```
+    It should finish without any errors. If you get a permission denied error, you need to add your user to the docker group:
+    ```shell
+    sudo usermod -aG docker $USER
+    ```
+    Then, log out and log back in to apply the changes.
+1. Install Docker Compose
+    **Ubuntu 22.04 and newer/Debian 11 and newer:**
+    ```shell
+    sudo apt install docker-compose
+    ```
+    **Other Linux variants:** Follow manual at https://docs.docker.com/compose/install/
+1. Install gcloud CLI by following the [manual](https://cloud.google.com/sdk/docs/install) for your system
+1. Install Cloud Datastore Emulator
+    ```shell
+    gcloud components install cloud-datastore-emulator
+    ```
+    or, if you have install gcloud CLI using APT:
+    ```shell
+    sudo apt install google-cloud-cli-datastore-emulator
+    ```
+1. Install `sbt` following instruction at https://www.scala-sbt.org/1.x/docs/Installing-sbt-on-Linux.html
+    > **Optional**: Run `sbt` comamnd once after installation to let it cache its dependencies
+1. Make sure that you have the full installation of Python 3.8 or newer. On Debian or Ubuntu it can be installed using `sudo apt install python3-full`.
+
+# Common tasks
+To get an overview of common tasks, see [TASKS.md](TASKS.md)
+
+# Run Beam Playground locally
+## Configure frontend to use local backend
+> **Note:** Follow this step only if you want to have a local deployment of Playground. Skip this step entirely if you want to deploy Playground to Google Cloud.
+
+Uncommend lines after `// Uncomment the following lines to use local backend.` in [frontend/playground_components/lib/src/constants/backend_urls.dart](/playground/frontend/playground_components/lib/src/constants/backend_urls.dart)
+
+## Run local deployment using Gradle task
+> For more information read the corresponding section in [TASKS.md](./TASKS.md#router-runners-and-frontend)
+
+Run the deployment script:
 ```shell
-git config --global --add safe.directory /google/flutter
-flutter doctor
+./gradlew :playground:dockerComposeLocalUp
 ```
 
-#### Protobuf
+To shut down the playground, run:
 ```shell
-go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28
-go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2
-dart pub global activate protoc_plugin
-npm install -g @bufbuild/buf
+./gradlew :playground:dockerComposeLocalDown
 ```
 
-#### sbt
-```shell
-echo "deb https://repo.scala-sbt.org/scalasbt/debian all main" | sudo tee /etc/apt/sources.list.d/sbt.list
-echo "deb https://repo.scala-sbt.org/scalasbt/debian /" | sudo tee /etc/apt/sources.list.d/sbt_old.list
-curl -sL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x2EE0EA64E40A89B84B2DF73499E82A75642AC823" | sudo -H gpg --no-default-keyring --keyring gnupg-ring:/etc/apt/trusted.gpg.d/scalasbt-release.gpg --import
-sudo chmod 644 /etc/apt/trusted.gpg.d/scalasbt-release.gpg
-sudo apt-get update
-sudo apt-get install sbt
-```
+## Deploy examples
+1. Go to `/playground/infrastucture` directory
+    ```shell
+    cd playground/infrastucture
+    ```
+1. Setup python venv
+    ```shell
+    python3 -m venv venv
+    ```
+1. Activate venv
+    ```shell
+    source venv/bin/activate
+    ```
+1. Install dependencies
+    ```shell
+    pip install -r requirements.txt
+    ```
+1. Setup the environment variables
+    ```shell
+    export BEAM_ROOT_DIR=$(realpath ../../)
+    export SDK_CONFIG="../../playground/sdks.yaml"
+    export BEAM_EXAMPLE_CATEGORIES="../categories.yaml"
+    export BEAM_USE_WEBGRPC=yes
+    export BEAM_CONCURRENCY=4
+    export DATASTORE_EMULATOR_HOST=localhost:8081
+    ```
 
-# Available Gradle Tasks
+1. Run the `ci_cd.py` script
 
-## Perform overall pre-commit checks
+    ```shell
+    export SERVER_ADDRESS=<runner_address> # see the note below
+    python ci_cd.py --step CD \
+                    --sdk <SDK> \ # SDK_GO, SDK_JAVA, SDK_PYTHON, SDK_SCIO
+                    --namespace Playground \
+                    --datastore-project test \
+                    --origin PG_EXAMPLES \
+                    --subdirs $BEAM_ROOT_DIR/sdks $BEAM_ROOT_DIR/examples $BEAM_ROOT_DIR/learning/katas # For SCIO examples see note below
+    ```
+    > **Note:** The `SERVER_ADDRESS` variable should be set to the address of the runner server for the particular SDK. For the local deployment the default values are:
+    > | SDK | Address |
+    > | --- | --- |
+    > | Go | `localhost:8084` |
+    > | Java | `localhost:8086` |
+    > | Python | `localhost:8088` |
+    > | SCIO | `localhost:8090` |
 
-```
-cd beam
-./gradlew playgroundPrecommit
-```
+    > **Note:** SCIO examples are not committed to the Beam tree. You will need to use [`fetch_scala_examples.py`](infrastructure/fetch_scala_examples.py) script to download them to some directory and then use `--subdirs` option to point to that directory. For example:
+    > ```shell
+    > python fetch_scala_examples.py --output-dir /tmp/scio-examples
+    > python ci_cd.py --step CD \
+    >                 --sdk SDK_SCIO \
+    >                 --namespace Playground \
+    >                 --datastore-project test \
+    >                 --origin PG_EXAMPLES \
+    >                 --subdirs /tmp/scio-examples
+    > ```
+    > See [this section](TASKS.md##obtaining-scio-examples) for more information.
 
-## To see available gradle tasks for playground:
+# How to add your own example
+Please refer to [this document](load_your_code.md).
 
-```
-cd beam
-./gradlew playground:tasks
-```
+# Deployment guide
+## Manual deployment
+See deployment guide at [terraform/README.md](/playground/terraform/README.md)
+## Manual CloudBuild setup
+To set up CloudBuild triggers manually please refer to [this guide](/playground/terraform/infrastructure/cloudbuild-manual-setup/README.md)
 
-## Re-generate protobuf
+# Project structure
 
-```
-cd beam
-./gradlew playground:generateProto
-```
+Several directories in this repository are used for the Beam Playground project. The list of the directories used can be seen below.
 
-## Run local environment using docker compose
+| Directory | Purpose |
+|-----------|---------|
+| [`/examples`](/examples) | Contains code of the examples for Java SDK. The examples are getting loaded into the main catalog. |
+| [`/learning/beamdoc`](/learning/beamdoc) | Contains code of the examples which should not be available in the main Playground catalog. |
+| [`/learning/katas`](/learning/katas) | Containes small code examples, loaded into main catalog.
+| [`/playground`](/playground) | Root of Playground sources. |
+| [`/playground/api`](/playground/api) | Protobuf definitions for the Playground gRPC API. |
+| [`/playground/backend`](/playground/backend) | Root of Playground backend sources. See [this document](/playground/backend/CONTRIBUTE.md) for detailed description. |
+| [`/playground/frontend`](/playground/frontend) | Root of Playground frontend sources. See [this document](/playground/frontend/CONTRIBUTE.md) for detailed description. |
+| [`/playground/infrastructure`](/playground/infrastructure) | Scripts used in Playground CI/CD pipelines for verifying and uploading examples. |
+| [`/playground/kafka-emulator`](/playground/kafka-emulator) | Sources of a Kafka emulator used for demonstrating KafkaIO examples. |
+| [`/playground/terraform`](/playground/terraform) | Terraform configuration files for Playground deployment to Google Cloud Platform. |
+| [`/sdks`](/sdks) | Source of the BEAM SDKs. Used by Playground as a source of examples for Go and Python SDKs. |
 
-### Router only
-
-Start:
-
-```bash
-cd beam
-./gradlew playground:backend:containers:router:dockerComposeLocalUp
-```
-
-Stop:
-
-```bash
-cd beam
-./gradlew playground:backend:containers:router:dockerComposeLocalDown
-```
-
-### Router, runners, and frontend
-
-1. Edit `/playground/frontend/playground_components/lib/src/constants/backend_urls.dart`
-to override backend URLs with yours found in `/playground/docker-compose.local.yaml`.
-2. To start, run:
-
-```bash
-cd beam
-./gradlew playground:dockerComposeLocalUp
-```
-
-3. To stop, run:
-
-```bash
-cd beam
-./gradlew playground:dockerComposeLocalDown
-```
-
-This way of running may not work in all environments because it is not maintained.
-It is used occasionally by the Frontend team to test complex tasks against
-a not-yet-deployed backend.
-The full start may take ~30 minutes and is demanding, so you should likely enable
-only one backend runner for the SDK you need.
-
-If you do not need particular runners, comment out:
-1. Dependencies on them in `/playground/build.gradle.kts` in `dockerComposeLocalUp` task.
-2. Their Docker image configurations in `/playground/docker-compose.local.yaml`.
-
-See also [Backend Lookup](frontend/README.md#backend-lookup) in the Frontend.
-
-## Removing old snippets
-
-Run the method to remove unused code snippets from the Cloud Datastore. Unused snippets are snippets that are out of date. If the last visited date property less or equals than the current date minus dayDiff parameter then a snippet is out of date
-
-```
-cd beam
-./gradlew playground:backend:removeUnusedSnippet -DdayDiff={int} -DprojectId={string} -Dnamespace={datastore namespace}
-```
-
-## Removing a specific snippet
-
-Run the method to remove a specific code snippet from the Cloud Datastore.
-
-```
-cd beam
-./gradlew playground:backend:removeSnippet -DsnippetId={string} -DprojectId={string} -Dnamespace={datastore namespace}
-```
-
-## Run playground tests without cache
-
-```
-cd beam
- ./gradlew playground:backend:testWithoutCache
-```
-
-# Deployment
-
-See [terraform](./terraform/README.md) for details on how to build and deploy
-the application and its dependent infrastructure.
-
-# Manual Example deployment
-
-The following requirements are needed for deploying examples manually:
-
-1. GCP project with deployed Playground backend
-2. Python (3.9.x)
-3. Login into GCP (gcloud default login or using service account key)
-
-## Run example deployment script
-Example deployment scripts uses following environment variables:
-
-- GOOGLE_CLOUD_PROJECT    - GCP project id where Playground backend is deployed
-- BEAM_ROOT_DIR           - root folder to search for playground examples
-- SDK_CONFIG              - location of sdk and default example configuration file
-- BEAM_EXAMPLE_CATEGORIES - location of example category configuration file
-- BEAM_USE_WEBGRPC        - use grpc-Web instead of grpc (default)
-- GRPC_TIMEOUT            - timeout for grpc calls (defaults to 10 sec)
-- BEAM_CONCURRENCY        - number of eaxmples to run in parallel (defaults to 10)
-- SERVER_ADDRESS          - address of the backend runnner service for a particular SDK
-
-```
-usage: ci_cd.py [-h] --step {CI,CD} [--namespace NAMESPACE] --datastore-project DATASTORE_PROJECT --sdk {SDK_JAVA,SDK_GO,SDK_PYTHON,SDK_SCIO} --origin {PG_EXAMPLES,TB_EXAMPLES} --subdirs SUBDIRS [SUBDIRS ...]
-
-CI/CD Steps for Playground objects
-
-optional arguments:
-  -h, --help            show this help message and exit
-  --step {CI,CD}        CI step to verify all beam examples/tests/katas. CD step to save all beam examples/tests/katas and their outputs on the GCD
-  --namespace NAMESPACE
-                        Datastore namespace to use when saving data (default: Playground)
-  --datastore-project DATASTORE_PROJECT
-                        Datastore project to use when saving data
-  --sdk {SDK_JAVA,SDK_GO,SDK_PYTHON,SDK_SCIO}
-                        Supported SDKs
-  --origin {PG_EXAMPLES,TB_EXAMPLES}
-                        ORIGIN field of pg_examples/pg_snippets
-  --subdirs SUBDIRS [SUBDIRS ...]
-                        limit sub directories to walk through, relative to BEAM_ROOT_DIR
-```
-
-Helper script to deploy examples for all supported sdk's:
-
-```shell
-cd playground/infrastructure
-
-export BEAM_ROOT_DIR="../../"
-export SDK_CONFIG="../../playground/sdks.yaml"
-export BEAM_EXAMPLE_CATEGORIES="../categories.yaml"
-export BEAM_USE_WEBGRPC=yes
-export BEAM_CONCURRENCY=4
-export PLAYGROUND_DNS_NAME="your registered dns name for Playground"
-
-for sdk in go java python scio; do
-    export SDK=$sdk &&
-    export SERVER_ADDRESS=https://${SDK}.$PLAYGROUND_DNS_NAME &&
-
-    python3 ci_cd.py --datastore-project $GOOGLE_CLOUD_PROJECT \
-                     --step CD --sdk SDK_${SDK^^} \
-                     --origin PG_EXAMPLES \
-                     --subdirs ./learning/katas ./examples ./sdks
-done
-```
+# Contribution guide
+- Backend: see [backend/README.md](/playground/backend/README.md) and [backend/CONTRIBUTE.md](/playground/backend/CONTRIBUTE.md)
+- Frontend: see [frontend/README.md](/playground/frontend/README.md) and [frontend/CONTRIBUTE.md](/playground/frontend/CONTRIBUTE.md)
