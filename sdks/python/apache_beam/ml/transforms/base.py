@@ -99,7 +99,7 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
     Returns:
       A PCollection of MLTransformOutputT type.
     """
-    return self._process_handler.process_data(pcoll)
+    return "Beam_MLTransform" >> self._process_handler.process_data(pcoll)
 
   def with_transform(self, transform: _BaseOperation):
     """

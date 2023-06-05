@@ -38,8 +38,8 @@ try:
 except ImportError:
   tft_transforms = None
 
-skip_if_tft_not_available = unittest.skipIf(
-    tft_transforms is None, 'tensorflow_transform is not installed.')
+if not tft_transforms:
+  raise unittest.SkipTest('tensorflow_transform is not installed.')
 
 
 class _FakeOperation(_TFTOperation):
@@ -64,12 +64,11 @@ class _MultiplyOperation(_TFTOperation):
 class _FakeOperationWithArtifacts(_TFTOperation):
   def __init__(self, *args, **kwargs):
     super().__init__(*args, **kwargs)
-    self.has_artifacts = True
 
   def apply(self, inputs, *args, **kwargs):
     return inputs
 
-  def get_analyzer_artifacts(self, data, col_name):
+  def get_artifacts(self, data, col_name):
     return {'artifact': 1}
 
 
@@ -85,7 +84,6 @@ class BatchedNumpyType(NamedTuple):
   x: np.int64
 
 
-@skip_if_tft_not_available
 class TFTProcessHandlerDictTest(unittest.TestCase):
   def setUp(self) -> None:
     self.pipeline = TestPipeline()
@@ -334,17 +332,18 @@ class TFTProcessHandlerDictTest(unittest.TestCase):
               'x': typing.Sequence[np.float32],
               'y': typing.Sequence[np.float32]
           }),
-      param(
-          input_data=[{
-              'x': [1, 2, 3], 'y': [2.0, 3.0, 4.0]
-          }],
-          input_types={
-              'x': list[int], 'y': list[float]
-          },
-          expected_dtype={
-              'x': typing.Sequence[np.float32],
-              'y': typing.Sequence[np.float32]
-          }),
+      # this fails on Python 3.8 since tpye subscripting is not supported
+      # param(
+      #     input_data=[{
+      #         'x': [1, 2, 3], 'y': [2.0, 3.0, 4.0]
+      #     }],
+      #     input_types={
+      #         'x': list[int], 'y': list[float]
+      #     },
+      #     expected_dtype={
+      #         'x': typing.Sequence[np.float32],
+      #         'y': typing.Sequence[np.float32]
+      #     }),
   ])
   def test_tft_process_handler_dict_output_pcoll_schema(
       self, input_data, input_types, expected_dtype):
