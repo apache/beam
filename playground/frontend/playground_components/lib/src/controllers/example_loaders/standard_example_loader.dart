@@ -48,9 +48,13 @@ class StandardExampleLoader extends ExampleLoader {
 
   Future<Example> _load() async {
     try {
-      return await exampleCache.getPrecompiledObject(
+      final exampleWithoutOptions = await exampleCache.getPrecompiledObject(
         descriptor.path,
         descriptor.sdk,
+      );
+
+      return exampleWithoutOptions.copyWith(
+        viewOptions: descriptor.viewOptions,
       );
     } on Exception catch (ex, trace) {
       return _tryLoadSharedExample(
