@@ -24,6 +24,26 @@ import 'package:playground_components/playground_components.dart';
 import 'examples/example_descriptor.dart';
 import 'widget_tester.dart';
 
+void expectContextLine(
+  int contextLine1Based,
+  WidgetTester wt, {
+  String? reason,
+}) {
+  final controller = wt.findOneCodeController();
+  final selection = controller.selection;
+  final position = controller.code.hiddenRanges.recoverPosition(
+    selection.baseOffset,
+    placeHiddenRanges: TextAffinity.downstream,
+  );
+
+  expect(selection.isCollapsed, true);
+  expect(
+    controller.code.lines.characterIndexToLineIndex(position),
+    contextLine1Based - 1,
+    reason: reason,
+  );
+}
+
 void expectOutput(ExampleDescriptor example, WidgetTester wt) {
   if (example.outputTail != null) {
     expectOutputEndsWith(example.outputTail, wt);
@@ -64,25 +84,17 @@ void expectSdk(Sdk sdk, WidgetTester wt) {
   expect(controller.sdk, sdk);
 }
 
+void expectSimilar(double a, double b) {
+  Matcher closeToFraction(num value, double fraction) =>
+      closeTo(value, value * fraction);
+  Matcher onePerCentTolerance(num value) => closeToFraction(value, 0.01);
+  expect(a, onePerCentTolerance(b));
+}
+
 void expectVisibleText(String? visibleText, WidgetTester wt) {
   final controller = wt.findOneCodeController();
   expect(visibleText, isNotNull);
   expect(controller.text, visibleText);
-}
-
-void expectContextLine(int contextLine1Based, WidgetTester wt) {
-  final controller = wt.findOneCodeController();
-  final selection = controller.selection;
-  final position = controller.code.hiddenRanges.recoverPosition(
-    selection.baseOffset,
-    placeHiddenRanges: TextAffinity.downstream,
-  );
-
-  expect(selection.isCollapsed, true);
-  expect(
-    controller.code.lines.characterIndexToLineIndex(position),
-    contextLine1Based - 1,
-  );
 }
 
 void expectLastAnalyticsEvent(

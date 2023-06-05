@@ -71,7 +71,6 @@ from apache_beam.typehints.decorators import get_signature
 from apache_beam.typehints.sharded_key_type import ShardedKeyType
 from apache_beam.utils import windowed_value
 from apache_beam.utils.annotations import deprecated
-from apache_beam.utils.annotations import experimental
 from apache_beam.utils.sharded_key import ShardedKey
 
 if TYPE_CHECKING:
@@ -766,8 +765,6 @@ class ReshufflePerKey(PTransform):
   but operationally provides some of the side effects of a GroupByKey,
   in particular checkpointing, and preventing fusion of the surrounding
   transforms.
-
-  ReshufflePerKey is experimental. No backwards compatibility guarantees.
   """
   def expand(self, pcoll):
     windowing_saved = pcoll.windowing
@@ -831,8 +828,6 @@ class Reshuffle(PTransform):
 
   Reshuffle adds a temporary random key to each element, performs a
   ReshufflePerKey, and finally removes the temporary key.
-
-  Reshuffle is experimental. No backwards compatibility guarantees.
   """
 
   # We use 32-bit integer as the default number of buckets.
@@ -911,7 +906,6 @@ def WithKeys(pcoll, k, *args, **kwargs):
   return pcoll | Map(lambda v: (k, v))
 
 
-@experimental()
 @typehints.with_input_types(Tuple[K, V])
 @typehints.with_output_types(Tuple[K, Iterable[V]])
 class GroupIntoBatches(PTransform):
@@ -920,9 +914,6 @@ class GroupIntoBatches(PTransform):
   point they are output to the output Pcollection.
 
   Windows are preserved (batches will contain elements from the same window)
-
-  GroupIntoBatches is experimental. Its use case will depend on the runner if
-  it has support of States and Timers.
   """
   def __init__(
       self, batch_size, max_buffering_duration_secs=None, clock=time.time):

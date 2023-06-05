@@ -25,7 +25,6 @@ import 'cache/content_tree.dart';
 import 'cache/sdk.dart';
 import 'cache/unit_content.dart';
 import 'cache/unit_progress.dart';
-import 'config.dart';
 import 'pages/welcome/page.dart';
 import 'repositories/client/client.dart';
 import 'repositories/client/cloud_functions_client.dart';
@@ -34,10 +33,30 @@ import 'router/route_information_parser.dart';
 import 'state.dart';
 
 Future<void> initializeServiceLocator() async {
+  await _initializeRepositories();
   _initializeAuth();
   _initializeState();
   _initializeServices();
   _initializeCaches();
+}
+
+Future<void> _initializeRepositories() async {
+  final routerUrl = await getRouterUrl();
+
+  final codeClient = GrpcCodeClient(
+    url: routerUrl,
+    // TODO(nausharipov): Remove the hardcoded SDKs when runners are hidden.
+    runnerUrlsById: {
+      Sdk.java.id: await getRunnerUrl(Sdk.java),
+      Sdk.go.id: await getRunnerUrl(Sdk.go),
+      Sdk.python.id: await getRunnerUrl(Sdk.python),
+    },
+  );
+  final exampleClient = GrpcExampleClient(url: routerUrl);
+
+  GetIt.instance.registerSingleton<CodeClient>(codeClient);
+  GetIt.instance.registerSingleton<ExampleClient>(exampleClient);
+  GetIt.instance.registerSingleton(ExampleRepository(client: exampleClient));
 }
 
 void _initializeAuth() {
@@ -51,18 +70,18 @@ void _initializeCaches() {
   GetIt.instance.registerSingleton(ContentTreeCache(client: client));
   GetIt.instance.registerSingleton(SdkCache(client: client));
   GetIt.instance.registerSingleton(UnitContentCache(client: client));
-  GetIt.instance.registerSingleton(UnitProgressCache(client: client));
+  GetIt.instance.registerSingleton(UnitProgressCache());
 }
 
 void _initializeState() {
-  GetIt.instance.registerSingleton(AppNotifier());
-  GetIt.instance.registerSingleton(
-    PageStack(
-      bottomPage: WelcomePage(),
-      createPage: PageFactory.createPage,
-      routeInformationParser: TobRouteInformationParser(),
-    ),
+  final pageStack = PageStack(
+    bottomPage: WelcomePage(),
+    createPage: PageFactory.createPage,
+    routeInformationParser: TobRouteInformationParser(),
   );
+  GetIt.instance.registerSingleton(AppNotifier());
+  GetIt.instance.registerSingleton(pageStack);
+  GetIt.instance.registerSingleton(BeamRouterDelegate(pageStack));
 }
 
 void _initializeServices() {

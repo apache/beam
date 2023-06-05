@@ -18,15 +18,12 @@
 package org.apache.beam.sdk.io;
 
 import com.google.auto.service.AutoService;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** {@link AutoService} registrar for the {@link LocalFileSystem}. */
 @AutoService(FileSystemRegistrar.class)
-@Experimental(Kind.FILESYSTEM)
 public class LocalFileSystemRegistrar implements FileSystemRegistrar {
   @Override
   public Iterable<FileSystem<?>> fromOptions(@Nullable PipelineOptions options) {

@@ -46,6 +46,8 @@ public class StorageApiWriteRecordsInconsistent<DestinationT, ElementT>
   private final Coder<TableRow> successfulRowsCoder;
   private final boolean autoUpdateSchema;
   private final boolean ignoreUnknownValues;
+  private final BigQueryIO.Write.CreateDisposition createDisposition;
+  private final @Nullable String kmsKey;
 
   public StorageApiWriteRecordsInconsistent(
       StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations,
@@ -55,7 +57,9 @@ public class StorageApiWriteRecordsInconsistent<DestinationT, ElementT>
       Coder<BigQueryStorageApiInsertError> failedRowsCoder,
       Coder<TableRow> successfulRowsCoder,
       boolean autoUpdateSchema,
-      boolean ignoreUnknownValues) {
+      boolean ignoreUnknownValues,
+      BigQueryIO.Write.CreateDisposition createDisposition,
+      @Nullable String kmsKey) {
     this.dynamicDestinations = dynamicDestinations;
     this.bqServices = bqServices;
     this.failedRowsTag = failedRowsTag;
@@ -64,6 +68,8 @@ public class StorageApiWriteRecordsInconsistent<DestinationT, ElementT>
     this.successfulRowsTag = successfulRowsTag;
     this.autoUpdateSchema = autoUpdateSchema;
     this.ignoreUnknownValues = ignoreUnknownValues;
+    this.createDisposition = createDisposition;
+    this.kmsKey = kmsKey;
   }
 
   @Override
@@ -91,7 +97,9 @@ public class StorageApiWriteRecordsInconsistent<DestinationT, ElementT>
                         failedRowsTag,
                         successfulRowsTag,
                         autoUpdateSchema,
-                        ignoreUnknownValues))
+                        ignoreUnknownValues,
+                        createDisposition,
+                        kmsKey))
                 .withOutputTags(finalizeTag, tupleTagList)
                 .withSideInputs(dynamicDestinations.getSideInputs()));
     result.get(failedRowsTag).setCoder(failedRowsCoder);

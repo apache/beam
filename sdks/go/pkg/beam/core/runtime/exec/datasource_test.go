@@ -16,6 +16,7 @@
 package exec
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -306,7 +307,7 @@ func TestDataSource_Split(t *testing.T) {
 					t.Fatalf("error in root[%d].Up: %v", i, err)
 				}
 			}
-			p.status = Active
+			p.setStatus(Active)
 
 			runOnRoots(ctx, t, p, "StartBundle", func(root Root, ctx context.Context) error { return root.StartBundle(ctx, "1", dc) })
 
@@ -444,7 +445,7 @@ func TestDataSource_Split(t *testing.T) {
 				t.Fatalf("error in root[%d].Up: %v", i, err)
 			}
 		}
-		p.status = Active
+		p.setStatus(Active)
 
 		runOnRoots(ctx, t, p, "StartBundle", func(root Root, ctx context.Context) error { return root.StartBundle(ctx, "1", dc) })
 
@@ -588,7 +589,7 @@ func TestDataSource_Split(t *testing.T) {
 				t.Fatalf("error in root[%d].Up: %v", i, err)
 			}
 		}
-		p.status = Active
+		p.setStatus(Active)
 		if sr, err := p.Split(ctx, SplitPoints{Splits: []int64{0, 3}, Frac: -1}); err != nil || !sr.Unsuccessful {
 			t.Fatalf("p.Split(active, not started) = %v,%v want unsuccessful split & nil err", sr, err)
 		}
@@ -1020,6 +1021,8 @@ func runOnRoots(ctx context.Context, t *testing.T, p *Plan, name string, mthd fu
 
 type TestDataManager struct {
 	Ch chan Elements
+
+	TimerWrites map[string]*bytes.Buffer
 }
 
 func (dm *TestDataManager) OpenElementChan(ctx context.Context, id StreamID, expectedTimerTransforms []string) (<-chan Elements, error) {
@@ -1031,8 +1034,26 @@ func (dm *TestDataManager) OpenWrite(ctx context.Context, id StreamID) (io.Write
 }
 
 func (dm *TestDataManager) OpenTimerWrite(ctx context.Context, id StreamID, family string) (io.WriteCloser, error) {
-	return nil, nil
+	if dm.TimerWrites == nil {
+		dm.TimerWrites = map[string]*bytes.Buffer{}
+	}
+	buf, ok := dm.TimerWrites[family]
+	if !ok {
+		buf = &bytes.Buffer{}
+		dm.TimerWrites[family] = buf
+	}
+	return struct {
+		*bytes.Buffer
+		io.Closer
+	}{
+		Buffer: buf,
+		Closer: noopCloser{},
+	}, nil
 }
+
+type noopCloser struct{}
+
+func (noopCloser) Close() error { return nil }
 
 type chanWriter struct {
 	Ch  chan Elements

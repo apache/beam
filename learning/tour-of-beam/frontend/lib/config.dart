@@ -18,8 +18,10 @@
 
 // TODO(alexeyinkin): Generate this file on deployment.
 
-const _cloudFunctionsProjectRegion = 'us-central1';
-const _cloudFunctionsProjectId = 'tour-of-beam-2';
+const environment = 'stg_';
+
+const _cloudFunctionsProjectRegion = 'us-west1';
+const _cloudFunctionsProjectId = 'apache-beam-testing';
 const cloudFunctionsBaseUrl = 'https://'
     '$_cloudFunctionsProjectRegion-$_cloudFunctionsProjectId'
-    '.cloudfunctions.net';
+    '.cloudfunctions.net/$environment';

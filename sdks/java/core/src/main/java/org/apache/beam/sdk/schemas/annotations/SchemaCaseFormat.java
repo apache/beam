@@ -23,8 +23,6 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import javax.annotation.Nonnull;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.CaseFormat;
 
 /**
@@ -64,7 +62,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.CaseFormat;
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.FIELD, ElementType.METHOD, ElementType.TYPE})
 @SuppressWarnings("rawtypes")
-@Experimental(Kind.SCHEMAS)
 public @interface SchemaCaseFormat {
 
   /** The name to use for the generated schema field. */

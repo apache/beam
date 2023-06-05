@@ -17,8 +17,4 @@
  */
 
 /** Transforms for reading from Amazon Kinesis. */
-@Experimental(Kind.SOURCE_SINK)
 package org.apache.beam.sdk.io.aws2.kinesis;
-
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;

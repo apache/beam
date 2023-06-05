@@ -19,18 +19,22 @@ package org.apache.beam.sdk.schemas.utils;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
 import java.util.Map;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
+import java.util.Optional;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.Field;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.util.RowJson;
 import org.apache.beam.sdk.util.RowJsonUtils;
 import org.apache.beam.sdk.values.Row;
 import org.everit.json.schema.ArraySchema;
+import org.everit.json.schema.BooleanSchema;
 import org.everit.json.schema.NumberSchema;
 import org.everit.json.schema.ObjectSchema;
 import org.everit.json.schema.ReferenceSchema;
+import org.everit.json.schema.StringSchema;
 import org.json.JSONObject;
 
 /**
@@ -83,7 +87,6 @@ import org.json.JSONObject;
  *       of other schemas</a>)
  * </ul>
  */
-@Experimental(Kind.SCHEMAS)
 public class JsonUtils {
 
   /** Returns a {@link SimpleFunction} mapping JSON byte[] arrays to Beam {@link Row}s. */
@@ -128,6 +131,73 @@ public class JsonUtils {
     };
   }
 
+  public static String jsonSchemaStringFromBeamSchema(Schema beamSchema) {
+    return jsonSchemaFromBeamSchema(beamSchema).toString();
+  }
+
+  public static ObjectSchema jsonSchemaFromBeamSchema(Schema beamSchema) {
+    return jsonSchemaBuilderFromBeamSchema(beamSchema).build();
+  }
+
+  private static ObjectSchema.Builder jsonSchemaBuilderFromBeamSchema(Schema beamSchema) {
+    // Beam Schema is strict, so we should not accept additional properties
+    ObjectSchema.Builder jsonSchemaBuilder = ObjectSchema.builder().additionalProperties(false);
+
+    for (Field field : beamSchema.getFields()) {
+      String name = field.getName();
+      org.everit.json.schema.Schema propertySchema = jsonPropertyFromBeamType(field.getType());
+
+      // Add property and make it required
+      jsonSchemaBuilder = jsonSchemaBuilder.addPropertySchema(name, propertySchema);
+      jsonSchemaBuilder.addRequiredProperty(name);
+    }
+
+    return jsonSchemaBuilder;
+  }
+
+  private static org.everit.json.schema.Schema jsonPropertyFromBeamType(FieldType beamType) {
+    org.everit.json.schema.Schema.Builder<? extends org.everit.json.schema.Schema> propertySchema;
+
+    switch (beamType.getTypeName()) {
+      case BYTE:
+      case INT16:
+      case INT32:
+      case INT64:
+        propertySchema = NumberSchema.builder().requiresInteger(true);
+        break;
+      case DECIMAL:
+      case FLOAT:
+      case DOUBLE:
+        propertySchema = NumberSchema.builder();
+        break;
+      case STRING:
+        propertySchema = StringSchema.builder();
+        break;
+      case BOOLEAN:
+        propertySchema = BooleanSchema.builder();
+        break;
+      case ARRAY:
+      case ITERABLE:
+        Schema.FieldType fieldType = Optional.ofNullable(beamType.getCollectionElementType()).get();
+        propertySchema = ArraySchema.builder().allItemSchema(jsonPropertyFromBeamType(fieldType));
+        break;
+      case ROW:
+        Schema rowSchema = Optional.ofNullable(beamType.getRowSchema()).get();
+        propertySchema = jsonSchemaBuilderFromBeamSchema(rowSchema);
+        break;
+
+        // add more Beam to JSON types
+      default:
+        throw new IllegalArgumentException("Unsupported Beam to JSON type: " + beamType);
+    }
+
+    if (beamType.getNullable()) {
+      propertySchema = propertySchema.nullable(true);
+    }
+
+    return propertySchema.build();
+  }
+
   public static Schema beamSchemaFromJsonSchema(String jsonSchemaStr) {
     org.everit.json.schema.ObjectSchema jsonSchema = jsonSchemaFromString(jsonSchemaStr);
     return beamSchemaFromJsonSchema(jsonSchema);
@@ -135,43 +205,77 @@ public class JsonUtils {
 
   private static Schema beamSchemaFromJsonSchema(org.everit.json.schema.ObjectSchema jsonSchema) {
     Schema.Builder beamSchemaBuilder = Schema.builder();
-    for (Map.Entry<String, org.everit.json.schema.Schema> entry :
-        jsonSchema.getPropertySchemas().entrySet()) {
-      String propertyName = entry.getKey();
-      org.everit.json.schema.Schema propertySchema = entry.getValue();
+    Map<String, org.everit.json.schema.Schema> properties =
+        new HashMap<>(jsonSchema.getPropertySchemas());
+    // Properties in a JSON Schema are stored in a Map object and unfortunately don't maintain
+    // order. However, the schema's required properties is a list of property names that is
+    // consistent and is in the same order as when the schema was first created. To create a
+    // consistent Beam Schema from the same JSON schema, we add Schema Fields following this order.
+    // We can guarantee a consistent Beam schema when all JSON properties are required.
+    for (String propertyName : jsonSchema.getRequiredProperties()) {
+      org.everit.json.schema.Schema propertySchema = properties.get(propertyName);
       if (propertySchema == null) {
         throw new IllegalArgumentException("Unable to parse schema " + jsonSchema);
       }
-      java.util.function.BiFunction<String, Schema.FieldType, Schema.Field> fieldConstructor =
-          jsonSchema.getRequiredProperties().contains(propertyName)
-              ? Schema.Field::of
-              : Schema.Field::nullable;
-      if (propertySchema instanceof org.everit.json.schema.ArraySchema) {
-        if (((ArraySchema) propertySchema).getAllItemSchema() == null) {
-          throw new IllegalArgumentException(
-              "Tuple-like arrays are unsupported. Expected a single item type for field "
-                  + propertyName);
-        }
+
+      Boolean isNullable =
+          Boolean.TRUE.equals(propertySchema.getUnprocessedProperties().get("nullable"));
+      beamSchemaBuilder =
+          addPropertySchemaToBeamSchema(
+              propertyName, propertySchema, beamSchemaBuilder, isNullable);
+      // Remove properties we already added.
+      properties.remove(propertyName, propertySchema);
+    }
+
+    // Now we are potentially left with properties that are not required. Add them too.
+    // Note: having more than one non-required properties may result in  inconsistent
+    // Beam schema field orderings.
+    for (Map.Entry<String, org.everit.json.schema.Schema> entry : properties.entrySet()) {
+      String propertyName = entry.getKey();
+      org.everit.json.schema.Schema propertySchema = entry.getValue();
+
+      if (propertySchema == null) {
+        throw new IllegalArgumentException("Unable to parse schema " + jsonSchema);
+      }
+      // Consider non-required properties to be nullable
+      beamSchemaBuilder =
+          addPropertySchemaToBeamSchema(propertyName, propertySchema, beamSchemaBuilder, true);
+    }
+
+    return beamSchemaBuilder.build();
+  }
+
+  private static Schema.Builder addPropertySchemaToBeamSchema(
+      String propertyName,
+      org.everit.json.schema.Schema propertySchema,
+      Schema.Builder beamSchemaBuilder,
+      Boolean isNullable) {
+    java.util.function.BiFunction<String, Schema.FieldType, Schema.Field> fieldConstructor =
+        isNullable ? Schema.Field::nullable : Schema.Field::of;
+    if (propertySchema instanceof org.everit.json.schema.ArraySchema) {
+      if (((ArraySchema) propertySchema).getAllItemSchema() == null) {
+        throw new IllegalArgumentException(
+            "Tuple-like arrays are unsupported. Expected a single item type for field "
+                + propertyName);
+      }
+      beamSchemaBuilder =
+          beamSchemaBuilder.addField(
+              fieldConstructor.apply(
+                  propertyName,
+                  Schema.FieldType.array(
+                      beamTypeFromJsonSchemaType(
+                          ((ArraySchema) propertySchema).getAllItemSchema()))));
+    } else {
+      try {
         beamSchemaBuilder =
             beamSchemaBuilder.addField(
-                fieldConstructor.apply(
-                    propertyName,
-                    Schema.FieldType.array(
-                        beamTypeFromJsonSchemaType(
-                            ((ArraySchema) propertySchema).getAllItemSchema()))));
-      } else {
-        try {
-          beamSchemaBuilder =
-              beamSchemaBuilder.addField(
-                  fieldConstructor.apply(propertyName, beamTypeFromJsonSchemaType(propertySchema)));
-        } catch (IllegalArgumentException e) {
-          throw new IllegalArgumentException(
-              "Unsupported field type " + propertySchema.getClass() + " in field " + propertyName,
-              e);
-        }
+                fieldConstructor.apply(propertyName, beamTypeFromJsonSchemaType(propertySchema)));
+      } catch (IllegalArgumentException e) {
+        throw new IllegalArgumentException(
+            "Unsupported field type " + propertySchema.getClass() + " in field " + propertyName, e);
       }
     }
-    return beamSchemaBuilder.build();
+    return beamSchemaBuilder;
   }
 
   private static Schema.FieldType beamTypeFromJsonSchemaType(

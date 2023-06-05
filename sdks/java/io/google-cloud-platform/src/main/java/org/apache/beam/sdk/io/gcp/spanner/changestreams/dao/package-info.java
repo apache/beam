@@ -20,7 +20,4 @@
  * Database Access Objects for querying change streams and modifying the Connector's metadata
  * tables.
  */
-@Experimental
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.dao;
-
-import org.apache.beam.sdk.annotations.Experimental;

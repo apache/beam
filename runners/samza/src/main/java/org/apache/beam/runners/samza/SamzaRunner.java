@@ -66,7 +66,7 @@ import org.slf4j.LoggerFactory;
 public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
   private static final Logger LOG = LoggerFactory.getLogger(SamzaRunner.class);
   private static final String BEAM_DOT_GRAPH = "beamDotGraph";
-  private static final String BEAM_JSON_GRAPH = "beamJsonGraph";
+  public static final String BEAM_JSON_GRAPH = "beamJsonGraph";
 
   public static SamzaRunner fromOptions(PipelineOptions opts) {
     final SamzaPipelineOptions samzaOptions =

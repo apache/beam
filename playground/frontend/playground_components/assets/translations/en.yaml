@@ -15,20 +15,23 @@
 #  specific language governing permissions and limitations
 #  under the License.
 
+dialogs:
+  cancel: Cancel
+
 errors:
   error: 'Error'
-  failedParseOptions: >
-    Failed to parse pipeline options, please check the format (example: --key1 value1 --key2 value2), only alphanumeric and ",*,/,-,:,;,',. symbols are allowed
+  failedParseOptions: Failed to parse pipeline options.
   internetUnavailable: 'Internet connection is unavailable'
   loading: 'Error while loading.'
   loadingCatalog: 'Cannot load the example catalog.'
   loadingExample: 'Cannot load the example.'
+  failedLoadExampleWithToken: 'Failed to load the example: {token}.'
   savingSnippet: 'Cannot create a shareable link.'
   unknownError: 'Unknown error. Possibly internet connection problem or CORS issue'
 
 examples:
   defaultTitle: 'Catalog'
-  userSharedName: 'User Shared Code'
+  userSharedName: 'User Snippet'
 
 ui:
   copyright: '© The Apache Software Foundation'
@@ -43,12 +46,18 @@ intents:
     reset: 'Reset Code'
 
 widgets:
-
   codeEditor:
     label: 'Code Text Area'
   
   closeButton:
     label: 'Close'
+  
+  feedback:
+    hint: "Have feedback? We'd love to hear it, but please don't share sensitive information."
+    negative: 'Bad Experience'
+    positive: 'Good Experience'
+    send: 'Send Feedback'
+    title: 'Feedback'
 
   output:
     filter:
@@ -72,6 +81,17 @@ widgets:
     notificationTitles:
       run: 'Run Code'
       cancelExecution: 'Cancel Execution'
+  
+  pipelineOptions:
+    options: 'Options'
+    raw: 'Raw'
+    error: 'Please check the format (example: --key1 value1 --key2 value2)'
+    addParameter: Add parameter
+    saveAndClose: Save & close
+    input: Input
+    pipelineOptions: Pipeline Options
+    name: Name
+    value: Value
 
   versions:
     beam: 'Beam {version}'

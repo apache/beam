@@ -22,8 +22,6 @@ import java.lang.reflect.Method;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.annotations.SchemaCaseFormat;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldName;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldNumber;
@@ -51,7 +49,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>TODO: Validate equals() method is provided, and if not generate a "slow" equals method based
  * on the schema.
  */
-@Experimental(Kind.SCHEMAS)
 @SuppressWarnings({
   "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes"
@@ -215,7 +212,6 @@ public class JavaBeanSchema extends GetterBasedSchemaProvider {
   }
 
   /** A factory for creating {@link FieldValueSetter} objects for a JavaBean object. */
-  @Experimental(Kind.SCHEMAS)
   private static class JavaBeanSetterFactory implements Factory<List<FieldValueSetter>> {
     @Override
     public List<FieldValueSetter> create(Class<?> targetClass, Schema schema) {

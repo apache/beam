@@ -22,8 +22,6 @@ import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
 import com.google.auto.service.AutoService;
 import java.util.Map;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.schemas.RowMessages;
@@ -37,7 +35,6 @@ import org.apache.thrift.TBase;
 import org.apache.thrift.protocol.TProtocolFactory;
 
 @Internal
-@Experimental(Kind.SCHEMAS)
 @SuppressWarnings("rawtypes")
 @AutoService(PayloadSerializerProvider.class)
 public class ThriftPayloadSerializerProvider implements PayloadSerializerProvider {
