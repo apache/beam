@@ -248,7 +248,7 @@ public enum Compression {
   },
 
   /**
-   * Four MC Compression Splittable compressed file format leveraging LZ4 Uses LZ4 Fast Compression
+   * Four MC Compression Splittable compressed file format leveraging LZ4 Uses LZ4 Fast Compression.
    */
   MC4_FAST(".4mc", ".4mc") {
     @Override
@@ -265,7 +265,7 @@ public enum Compression {
     }
   },
   /**
-   * Four MC Compression Splittable compressed file format leveraging LZ4 Uses LZ4 MC Compression
+   * Four MC Compression Splittable compressed file format leveraging LZ4 Uses LZ4 MC Compression.
    */
   MC4_MEDIUM(".4mc", ".4mc") {
     @Override
@@ -282,7 +282,7 @@ public enum Compression {
   },
   /**
    * Four MC Compression Splittable compressed file format leveraging LZ4 Uses LZ4 HC lvl 4
-   * Compression
+   * Compression.
    */
   MC4_HIGH(".4mc", ".4mc") {
     @Override
@@ -298,7 +298,7 @@ public enum Compression {
     }
   },
   /**
-   * Four MC Compression Splittable compressed file format leveraging LZ4 LZ4 HC lvl 8 Compression
+   * Four MC Compression Splittable compressed file format leveraging LZ4 LZ4 HC lvl 8 Compression.
    */
   MC4_ULTRA(".4mc", ".4mc") {
     @Override
