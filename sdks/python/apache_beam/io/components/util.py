@@ -23,19 +23,6 @@
 
 import math
 
-# Constants used in batched mutation RPCs:
-WRITE_BATCH_INITIAL_SIZE = 50
-# Max allowed Datastore writes per batch, and max bytes per batch.
-# Note that the max bytes per batch set here is lower than the 10MB limit
-# actually enforced by the API, to leave space for the CommitRequest wrapper
-# around the mutations.
-# https://cloud.google.com/datastore/docs/concepts/limits
-WRITE_BATCH_MAX_SIZE = 500
-WRITE_BATCH_MAX_BYTES_SIZE = 9000000
-WRITE_BATCH_MIN_SIZE = 5
-WRITE_BATCH_TARGET_LATENCY_MS = 6000
-
-
 class MovingSum(object):
   """Class that keeps track of a rolling window sum.
 
