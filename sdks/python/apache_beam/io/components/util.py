@@ -23,6 +23,7 @@
 
 import math
 
+
 class MovingSum(object):
   """Class that keeps track of a rolling window sum.
 
@@ -93,3 +94,4 @@ class MovingSum(object):
 
   def has_data(self, now):
     return self.count(now) > 0
+  
