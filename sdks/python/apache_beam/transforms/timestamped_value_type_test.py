@@ -16,12 +16,13 @@
 #
 
 import unittest
+from typing import Any
+from typing import Dict
 
 import apache_beam as beam
-from typing import Dict, Any
 import apache_beam.typehints as th
-from apache_beam.typehints.decorators import TypeCheckError
 from apache_beam.transforms.window import TimestampedValue
+from apache_beam.typehints.decorators import TypeCheckError
 
 
 def ConvertToTimestampedValue(plant: Dict[str, Any]) -> TimestampedValue[str]:
