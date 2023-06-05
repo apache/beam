@@ -46,9 +46,9 @@ and it must return an integer in the range `0` to `num_partitions-1`.
 In the following example, we have a known list of durations.
 We partition the `PCollection` into one `PCollection` for every duration type.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py"
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition_function.py"
   notebook="examples/notebooks/documentation/transforms/python/elementwise/partition" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py" partition_function >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition_function.py" partition_function >}}
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
@@ -63,9 +63,9 @@ Output:
 
 We can also use lambda functions to simplify **Example 1**.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py"
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition_lambda.py"
   notebook="examples/notebooks/documentation/transforms/python/elementwise/partition" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py" partition_lambda >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition_lambda.py" partition_lambda >}}
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
@@ -108,9 +108,9 @@ identify the partition index to which that bucket corresponds.
 This `split_dataset` function is generic enough to support any number of partitions by any ratio.
 You might want to adapt the bucket assignment to use a more appropriate or randomized hash for your dataset.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py"
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition_multiple_arguments.py"
   notebook="examples/notebooks/documentation/transforms/python/elementwise/partition" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py" partition_multiple_arguments >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition_multiple_arguments.py" partition_multiple_arguments >}}
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
