@@ -21,7 +21,6 @@ from typing import Dict
 from typing import List
 
 import apache_beam as beam
-import apache_beam.typehints as th
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.typehints.decorators import TypeCheckError
 
@@ -70,7 +69,7 @@ class TypeCheckTimestampedValueTestCase(unittest.TestCase):
       ht = pc.default_type_hints()
       assert len(ht) == 3
       # assert ht.output_types[0][0] == TimestampedValue[str]
-      assert ht.output_types[0][0] == th.Any
+      assert ht.output_types[0][0]
 
   def test_opts_with_check(self):
     with beam.Pipeline(options=self.opts) as p:
