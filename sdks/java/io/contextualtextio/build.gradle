@@ -37,5 +37,6 @@ dependencies {
     testImplementation library.java.junit
     testImplementation library.java.hamcrest
     testRuntimeOnly library.java.slf4j_jdk14
+    testImplementation library.java.hadoop_client
     testImplementation project(path: ":runners:direct-java", configuration: "shadow")
 }

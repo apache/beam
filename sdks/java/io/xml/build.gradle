@@ -34,6 +34,7 @@ dependencies {
   permitUnusedDeclared library.java.woodstox_core_asl // BEAM-11761
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   testImplementation library.java.junit
+  testImplementation library.java.hadoop_client
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

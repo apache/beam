@@ -197,6 +197,7 @@ dependencies {
   testImplementation library.java.google_api_services_bigquery
   testImplementation project(":sdks:java:io:google-cloud-platform")
   testImplementation library.java.jackson_dataformat_yaml
+  testImplementation library.java.hadoop_client
   testImplementation "org.apache.flink:flink-core:$flink_version:tests"
   testImplementation "org.apache.flink:flink-connector-test-utils:$flink_version"
   testImplementation project(":sdks:java:harness")
