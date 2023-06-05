@@ -105,6 +105,7 @@
 * Dead letter queue support added to RunInference in Python ([#24209](https://github.com/apache/beam/issues/24209)).
 * Support added for defining pre/postprocessing operations on the RunInference transform ([#26308](https://github.com/apache/beam/issues/26308))
 * Adds a Docker Compose based transform service that can be used to discover and use portable Beam transforms ([#26023](https://github.com/apache/beam/pull/26023)).
+* Allow prebuilding large images when using `--prebuild_sdk_container_engine=cloud_build`, like images depending on `tensorflow` or `torch` ([#27023](https://github.com/apache/beam/pull/27023))
 
 ## Breaking Changes
 
