@@ -52,10 +52,10 @@ WindowFn.
 import abc
 from functools import total_ordering
 from typing import Any
+from typing import Generic
 from typing import Iterable
 from typing import List
 from typing import Optional
-from typing import Generic
 from typing import TypeVar
 
 from google.protobuf import duration_pb2
