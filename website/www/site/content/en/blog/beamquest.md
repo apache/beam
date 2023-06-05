@@ -34,4 +34,4 @@ Individuals aren’t the only ones who can benefit from completing this quest - 
 
 Given the recent advancements in artificial intelligence, now’s the time to jump into the world of data processing! Get started on your journey [here](https://www.cloudskillsboost.google/quests/310), whether you’re a long time Beam expert or looking to write your first “wordcount” job.
 
-Please [reach out](/community/contact-us) or email `support@qwiklabs.com` if you have any feedback or encounter any issues!
+If you have feedback or encounter issues, [reach out](/community/contact-us) or email `support@qwiklabs.com`!
