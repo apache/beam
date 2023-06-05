@@ -30,7 +30,7 @@ the timestamp and windowing information.</p><h3 id=example-1-pardo-with-a-simple
 which stores the <code>delimiter</code> as an object field.
 The <code>process</code> method is called once per element,
 and it can yield zero or more output elements.</p><div class="language-py snippet"><div class="notebook-skip code-snippet"><a target=_blank type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Run code" href=https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/pardo-py.ipynb><img src=/images/run-icon.svg></a>
-<a target=_blank type=button data-bs-toggle=tooltip data-bs-placement=bottom title="View source code" href=https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py><img src=/images/code-icon.svg></a>
+<a target=_blank type=button data-bs-toggle=tooltip data-bs-placement=bottom title="View source code" href=https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo_dofn.py><img src=/images/code-icon.svg></a>
 <a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-py data-lang=py><span class=kn>import</span> <span class=nn>apache_beam</span> <span class=kn>as</span> <span class=nn>beam</span>
 
 <span class=k>class</span> <span class=nc>SplitWords</span><span class=p>(</span><span class=n>beam</span><span class=o>.</span><span class=n>DoFn</span><span class=p>):</span>
@@ -60,7 +60,7 @@ object.</li><li><a href=https://beam.apache.org/releases/pydoc/current/apache_be
 binds the window information as the appropriate
 <a href=https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.window.html><code>apache_beam.transforms.window.*Window</code></a>
 object.</li></ul><div class="language-py snippet"><div class="notebook-skip code-snippet"><a target=_blank type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Run code" href=https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/pardo-py.ipynb><img src=/images/run-icon.svg></a>
-<a target=_blank type=button data-bs-toggle=tooltip data-bs-placement=bottom title="View source code" href=https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py><img src=/images/code-icon.svg></a>
+<a target=_blank type=button data-bs-toggle=tooltip data-bs-placement=bottom title="View source code" href=https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo_dofn_params.py><img src=/images/code-icon.svg></a>
 <a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-py data-lang=py><span class=kn>import</span> <span class=nn>apache_beam</span> <span class=kn>as</span> <span class=nn>beam</span>
 
 <span class=k>class</span> <span class=nc>AnalyzeElement</span><span class=p>(</span><span class=n>beam</span><span class=o>.</span><span class=n>DoFn</span><span class=p>):</span>
@@ -132,7 +132,7 @@ You also need to provide a window, which you can get from the last processed ele
 Called <em>once (as a best effort) per <code>DoFn</code> instance</em> when the <code>DoFn</code> instance is shutting down.
 This is a good place to close database instances, close network connections or other resources.</p><p>Note that <code>teardown</code> is called as a <em>best effort</em> and is <em>not guaranteed</em>.
 For example, if the worker crashes, <code>teardown</code> might not be called.</p></li></ul><div class="language-py snippet"><div class="notebook-skip code-snippet"><a target=_blank type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Run code" href=https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/pardo-py.ipynb><img src=/images/run-icon.svg></a>
-<a target=_blank type=button data-bs-toggle=tooltip data-bs-placement=bottom title="View source code" href=https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py><img src=/images/code-icon.svg></a>
+<a target=_blank type=button data-bs-toggle=tooltip data-bs-placement=bottom title="View source code" href=https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo_dofn_methods.py><img src=/images/code-icon.svg></a>
 <a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-py data-lang=py><span class=kn>import</span> <span class=nn>apache_beam</span> <span class=kn>as</span> <span class=nn>beam</span>
 
 <span class=k>class</span> <span class=nc>DoFnMethods</span><span class=p>(</span><span class=n>beam</span><span class=o>.</span><span class=n>DoFn</span><span class=p>):</span>

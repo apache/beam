@@ -15944,7 +15944,7 @@ It allows to do additional calculations before extracting a result.&lt;/p>
 &lt;/ul>
 &lt;div class='language-py snippet'>
 &lt;div class="notebook-skip code-snippet">
-&lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey.py">
+&lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey_combinefn.py">
 &lt;img src="/images/code-icon.svg"/>
 &lt;/a>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -16070,7 +16070,7 @@ Then, we apply &lt;code>CombineValues&lt;/code> in multiple ways to combine the 
 which takes an &lt;code>iterable&lt;/code> of numbers and adds them together.&lt;/p>
 &lt;div class='language-py snippet'>
 &lt;div class="notebook-skip code-snippet">
-&lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues.py">
+&lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues_simple.py">
 &lt;img src="/images/code-icon.svg"/>
 &lt;/a>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -16106,7 +16106,7 @@ which takes an &lt;code>iterable&lt;/code> of numbers and adds them together.&lt
 &lt;p>We define a function &lt;code>saturated_sum&lt;/code> which takes an &lt;code>iterable&lt;/code> of numbers and adds them together, up to a predefined maximum number.&lt;/p>
 &lt;div class='language-py snippet'>
 &lt;div class="notebook-skip code-snippet">
-&lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues.py">
+&lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues_function.py">
 &lt;img src="/images/code-icon.svg"/>
 &lt;/a>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -16143,7 +16143,7 @@ which takes an &lt;code>iterable&lt;/code> of numbers and adds them together.&lt
 &lt;p>We can also use lambda functions to simplify &lt;strong>Example 2&lt;/strong>.&lt;/p>
 &lt;div class='language-py snippet'>
 &lt;div class="notebook-skip code-snippet">
-&lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues.py">
+&lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues_lambda.py">
 &lt;img src="/images/code-icon.svg"/>
 &lt;/a>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -16180,7 +16180,7 @@ They are passed as additional positional arguments or keyword arguments to the f
 &lt;p>In this example, the lambda function takes &lt;code>values&lt;/code> and &lt;code>max_value&lt;/code> as arguments.&lt;/p>
 &lt;div class='language-py snippet'>
 &lt;div class="notebook-skip code-snippet">
-&lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues.py">
+&lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues_multiple_arguments.py">
 &lt;img src="/images/code-icon.svg"/>
 &lt;/a>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -16235,7 +16235,7 @@ It allows to do additional calculations before extracting a result.&lt;/p>
 &lt;/ul>
 &lt;div class='language-py snippet'>
 &lt;div class="notebook-skip code-snippet">
-&lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues.py">
+&lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues_combinefn.py">
 &lt;img src="/images/code-icon.svg"/>
 &lt;/a>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -16724,7 +16724,7 @@ Then, we apply &lt;code>Count&lt;/code> to get the total number of elements in d
 &lt;p>We use &lt;code>Count.Globally()&lt;/code> to count &lt;em>all&lt;/em> elements in a &lt;code>PCollection&lt;/code>, even if there are duplicate elements.&lt;/p>
 &lt;div class='language-py snippet'>
 &lt;div class="notebook-skip code-snippet">
-&lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/aggregation/count.py">
+&lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/aggregation/count_globally.py">
 &lt;img src="/images/code-icon.svg"/>
 &lt;/a>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -16753,7 +16753,7 @@ Then, we apply &lt;code>Count&lt;/code> to get the total number of elements in d
 &lt;p>We use &lt;code>Count.PerKey()&lt;/code> to count the elements for each unique key in a &lt;code>PCollection&lt;/code> of key-values.&lt;/p>
 &lt;div class='language-py snippet'>
 &lt;div class="notebook-skip code-snippet">
-&lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/aggregation/count.py">
+&lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/aggregation/count_per_key.py">
 &lt;img src="/images/code-icon.svg"/>
 &lt;/a>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -16795,7 +16795,7 @@ Then, we apply &lt;code>Count&lt;/code> to get the total number of elements in d
 &lt;p>We use &lt;code>Count.PerElement()&lt;/code> to count the only the unique elements in a &lt;code>PCollection&lt;/code>.&lt;/p>
 &lt;div class='language-py snippet'>
 &lt;div class="notebook-skip code-snippet">
-&lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/aggregation/count.py">
+&lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/aggregation/count_per_element.py">
 &lt;img src="/images/code-icon.svg"/>
 &lt;/a>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -18095,7 +18095,7 @@ Then, we apply &lt;code>Filter&lt;/code> in multiple ways to filter out produce 
 &lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Run code" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/filter-py.ipynb">
 &lt;img src="/images/run-icon.svg"/>
 &lt;/a>
-&lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter.py">
+&lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter_function.py">
 &lt;img src="/images/code-icon.svg"/>
 &lt;/a>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -18146,7 +18146,7 @@ Then, we apply &lt;code>Filter&lt;/code> in multiple ways to filter out produce 
 &lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Run code" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/filter-py.ipynb">
 &lt;img src="/images/run-icon.svg"/>
 &lt;/a>
-&lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter.py">
+&lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter_lambda.py">
 &lt;img src="/images/code-icon.svg"/>
 &lt;/a>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -18198,7 +18198,7 @@ They are passed as additional positional arguments or keyword arguments to the f
 &lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Run code" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/filter-py.ipynb">
 &lt;img src="/images/run-icon.svg"/>
 &lt;/a>
-&lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter.py">
+&lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter_multiple_arguments.py">
 &lt;img src="/images/code-icon.svg"/>
 &lt;/a>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -18252,7 +18252,7 @@ We then use that value to filter out perennials.&lt;/p>
 &lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Run code" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/filter-py.ipynb">
 &lt;img src="/images/run-icon.svg"/>
 &lt;/a>
-&lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter.py">
+&lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter_side_inputs_singleton.py">
 &lt;img src="/images/code-icon.svg"/>
 &lt;/a>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -18308,7 +18308,7 @@ so it is possible to iterate over large &lt;code>PCollection&lt;/code>s that won
 &lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Run code" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/filter-py.ipynb">
 &lt;img src="/images/run-icon.svg"/>
 &lt;/a>
-&lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter.py">
+&lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter_side_inputs_iter.py">
 &lt;img src="/images/code-icon.svg"/>
 &lt;/a>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -18374,7 +18374,7 @@ If the &lt;code>PCollection&lt;/code> won&amp;rsquo;t fit into memory, use &lt;c
 &lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Run code" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/filter-py.ipynb">
 &lt;img src="/images/run-icon.svg"/>
 &lt;/a>
-&lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter.py">
+&lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter_side_inputs_dict.py">
 &lt;img src="/images/code-icon.svg"/>
 &lt;/a>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -18496,7 +18496,7 @@ This pipeline splits the input element using whitespaces, creating a list of zer
 &lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Run code" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/flatmap-py.ipynb">
 &lt;img src="/images/run-icon.svg"/>
 &lt;/a>
-&lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py">
+&lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap_simple.py">
 &lt;img src="/images/code-icon.svg"/>
 &lt;/a>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -18534,7 +18534,7 @@ This pipeline splits the input element using whitespaces, creating a list of zer
 &lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Run code" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/flatmap-py.ipynb">
 &lt;img src="/images/run-icon.svg"/>
 &lt;/a>
-&lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py">
+&lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap_function.py">
 &lt;img src="/images/code-icon.svg"/>
 &lt;/a>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -18576,7 +18576,7 @@ We use a lambda function that returns the same input element it received.&lt;/p>
 &lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Run code" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/flatmap-py.ipynb">
 &lt;img src="/images/run-icon.svg"/>
 &lt;/a>
-&lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py">
+&lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap_lambda.py">
 &lt;img src="/images/code-icon.svg"/>
 &lt;/a>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -18616,7 +18616,7 @@ Each yielded result in the generator is an element in the resulting &lt;code>PCo
 &lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Run code" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/flatmap-py.ipynb">
 &lt;img src="/images/run-icon.svg"/>
 &lt;/a>
-&lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py">
+&lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap_generator.py">
 &lt;img src="/images/code-icon.svg"/>
 &lt;/a>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -18658,7 +18658,7 @@ you can use &lt;code>FlatMapTuple&lt;/code> to unpack them into different functi
 &lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Run code" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/flatmap-py.ipynb">
 &lt;img src="/images/run-icon.svg"/>
 &lt;/a>
-&lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py">
+&lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap_tuple.py">
 &lt;img src="/images/code-icon.svg"/>
 &lt;/a>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -18705,7 +18705,7 @@ They are passed as additional positional arguments or keyword arguments to the f
 &lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Run code" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/flatmap-py.ipynb">
 &lt;img src="/images/run-icon.svg"/>
 &lt;/a>
-&lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py">
+&lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap_multiple_arguments.py">
 &lt;img src="/images/code-icon.svg"/>
 &lt;/a>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -18748,7 +18748,7 @@ We then use that value as the delimiter for the &lt;code>str.split&lt;/code> met
 &lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Run code" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/flatmap-py.ipynb">
 &lt;img src="/images/run-icon.svg"/>
 &lt;/a>
-&lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py">
+&lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap_side_inputs_singleton.py">
 &lt;img src="/images/code-icon.svg"/>
 &lt;/a>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -18793,7 +18793,7 @@ so it is possible to iterate over large &lt;code>PCollection&lt;/code>s that won
 &lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Run code" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/flatmap-py.ipynb">
 &lt;img src="/images/run-icon.svg"/>
 &lt;/a>
-&lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py">
+&lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap_side_inputs_iter.py">
 &lt;img src="/images/code-icon.svg"/>
 &lt;/a>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -18862,7 +18862,7 @@ If the &lt;code>PCollection&lt;/code> won&amp;rsquo;t fit into memory, use &lt;c
 &lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Run code" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/flatmap-py.ipynb">
 &lt;img src="/images/run-icon.svg"/>
 &lt;/a>
-&lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py">
+&lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap_side_inputs_dict.py">
 &lt;img src="/images/code-icon.svg"/>
 &lt;/a>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">

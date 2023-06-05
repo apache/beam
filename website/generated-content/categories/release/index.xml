@@ -12,8 +12,7 @@ limitations under the License.
 -->
 &lt;p>We are happy to present the new 2.48.0 release of Beam.
 This release includes both improvements and new functionality.
-See the &lt;a href="/get-started/downloads/%7B$DOWNLOAD_ANCHOR%7D">download page&lt;/a> for this release.&lt;/p>
-&lt;p>&amp;lt;{!&amp;ndash;more&amp;ndash;&amp;gt;&lt;/p>
+See the &lt;a href="/get-started/downloads/#2480-2023-05-31">download page&lt;/a> for this release.&lt;/p>
 &lt;p>For more information on changes in 2.48.0, check out the &lt;a href="https://github.com/apache/beam/milestone/12">detailed release notes&lt;/a>.&lt;/p>
 &lt;h2 id="highlights">Highlights&lt;/h2>
 &lt;ul>
@@ -133,7 +132,7 @@ limitations under the License.
 -->
 &lt;p>We are happy to present the new 2.47.0 release of Beam.
 This release includes both improvements and new functionality.
-See the &lt;a href="/get-started/downloads/%7B$DOWNLOAD_ANCHOR%7D">download page&lt;/a> for this release.&lt;/p>
+See the &lt;a href="/get-started/downloads/#2470-2023-05-10">download page&lt;/a> for this release.&lt;/p>
 &lt;p>For more information on changes in 2.47.0, check out the &lt;a href="https://github.com/apache/beam/milestone/10">detailed release notes&lt;/a>.&lt;/p>
 &lt;h2 id="highlights">Highlights&lt;/h2>
 &lt;ul>
