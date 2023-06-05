@@ -21,7 +21,7 @@ limitations under the License.
 -->
 
 ### **What is the quest?**
-[Get Started with Apache Beam Quest](https://www.cloudskillsboost.google/quests/310) is a series of four qwiklabs that test proficiency in Apache Beam. Upon completion, a sharable credential badge is granted!
+The [Get Started with Apache Beam quest](https://www.cloudskillsboost.google/quests/310) is a series of four labs that teach and test proficiency in Apache Beam. Upon completion, you're granted a sharable credential badge!
 
 
 ### **Apache Beam Playground Features**
