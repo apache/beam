@@ -23,54 +23,29 @@ import unittest
 
 import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.transforms import window
+from apache_beam.transforms import trigger, window
 from apache_beam.transforms.periodicsequence import PeriodicImpulse
-from apache_beam.utils.timestamp import Timestamp
 
 
 class CombineGloballyTest(unittest.TestCase):
-  def test_with_fixed_windows(self):
-    with TestPipeline() as p:
-      input = (
-          p
-          | beam.Create([
-              window.TimestampedValue(("c", 1), Timestamp(seconds=1666707510)),
-              window.TimestampedValue(("c", 1), Timestamp(seconds=1666707511)),
-              window.TimestampedValue(("c", 1), Timestamp(seconds=1666707512)),
-              window.TimestampedValue(("c", 1), Timestamp(seconds=1666707513)),
-              window.TimestampedValue(("c", 1), Timestamp(seconds=1666707515)),
-              window.TimestampedValue(("c", 1), Timestamp(seconds=1666707516)),
-              window.TimestampedValue(("c", 1), Timestamp(seconds=1666707517)),
-              window.TimestampedValue(("c", 1), Timestamp(seconds=1666707518))
-          ])
-          | beam.WindowInto(window.FixedWindows(4))
-          | "Print Windows" >> beam.transforms.util.LogElements(
-              with_timestamp=True, with_window=True))
-
-      window_sum = input | beam.Values() | beam.CombineGlobally(
-          sum).without_defaults()
-      _ = window_sum | "Print Window Sum" >> beam.transforms.util.LogElements(
-          with_timestamp=True, with_window=True)
-
   def test_with_periodic_impulse(self):
     with TestPipeline() as p:
-      input = (
+      _ = (
           p
           | PeriodicImpulse(
               start_timestamp=time.time(),
-              stop_timestamp=time.time() + 16,
+              stop_timestamp=time.time() + 4,
               fire_interval=1,
               apply_windowing=False,
           )
           | beam.Map(lambda x: ('c', 1))
-          | beam.WindowInto(window.FixedWindows(4))
-          | "Print Windows" >> beam.transforms.util.LogElements(
-              with_timestamp=True, with_window=True))
-
-      window_sum = input | beam.Values() | beam.CombineGlobally(
-          sum).without_defaults()
-      _ = window_sum | "Print Window Sum" >> beam.transforms.util.LogElements(
-          with_timestamp=True, with_window=True)
+          | beam.WindowInto(
+              window.GlobalWindows(),
+              trigger=trigger.Repeatedly(trigger.AfterCount(2)),
+              accumulation_mode=trigger.AccumulationMode.DISCARDING,
+          )
+          | beam.combiners.Count.Globally()
+          | "Print Windows" >> beam.Map(print))
 
 
 if __name__ == '__main__':
