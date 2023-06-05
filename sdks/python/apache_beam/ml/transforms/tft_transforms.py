@@ -42,7 +42,7 @@ class _TFTOperation(_BaseOperation):
       self,
       columns: List[str],
       save_result: bool = False,
-      output_name: Optional[str] = None,
+      output_name: str = '',
       *args,
       **kwargs):
     """
@@ -67,13 +67,11 @@ class _TFTOperation(_BaseOperation):
           " is not specified. Please specify the output name for "
           " the op %s" % self)
 
-  def apply(self, inputs: common_types.TensorType, *args, **kwargs):
-    raise NotImplementedError
-
   def validate_args(self):
     raise NotImplementedError
 
-  def get_artifacts(self, data, col_name):
+  def get_artifacts(self, data: common_types.TensorType,
+                    col_name) -> Optional[Dict[str, tf.Tensor]]:
     return None
 
 
@@ -313,7 +311,7 @@ def compute_and_apply_vocabulary(
 
 
 def scale_to_z_score(
-    columns: List[str] = None,
+    columns: List[str],
     *,
     elementwise: bool = False,
     name: Optional[str] = None):

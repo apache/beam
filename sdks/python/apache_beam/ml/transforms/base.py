@@ -38,9 +38,12 @@ ProcessInputT = TypeVar('ProcessInputT')
 # from MLTransformOutputT
 ProcessOutputT = TypeVar('ProcessOutputT')
 
+# Input to the apply() method of _BaseOperation.
+OperationInputT = TypeVar('OperationInputT')
+
 
 class _BaseOperation():
-  def apply(self, inputs, *args, **kwargs):
+  def apply(self, inputs: OperationInputT, *args, **kwargs):
     """
     Define any processing logic in the apply() method.
     processing logics are applied on inputs and returns a transformed

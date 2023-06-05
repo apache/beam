@@ -19,6 +19,7 @@ import tempfile
 import typing
 from typing import Dict
 from typing import List
+from typing import Optional
 from typing import Union
 
 import numpy as np
@@ -58,7 +59,9 @@ _default_type_to_tensor_type_map = {
     np.bytes_: tf.string,
     np.str_: tf.string,
 }
-_primitive_types = (int, float, str, bytes)
+_primitive_types_to_typing_container_type = {
+    int: List[int], float: List[float], str: List[str], bytes: List[bytes]
+}
 
 tft_process_handler_dict_input_type = typing.Union[typing.NamedTuple, beam.Row]
 
@@ -92,7 +95,7 @@ class TFTProcessHandler(ProcessHandler[ProcessInputT, ProcessOutputT]):
   def __init__(
       self,
       *,
-      transforms: List[_TFTOperation] = None,
+      transforms: Optional[List[_TFTOperation]] = None,
       artifact_location: typing.Optional[str] = None,
   ):
     """
@@ -117,7 +120,7 @@ class TFTProcessHandler(ProcessHandler[ProcessInputT, ProcessOutputT]):
     self.transformed_schema = None
     self.artifact_location = artifact_location
 
-  def append_transform(self, transform: _TFTOperation):
+  def append_transform(self, transform):
     self.transforms.append(transform)
 
   def get_raw_data_feature_spec(
@@ -151,15 +154,15 @@ class TFTProcessHandler(ProcessHandler[ProcessInputT, ProcessOutputT]):
     # lets conver the builtin types to typing types for consistency.
     typ = native_type_compatibility.convert_builtin_to_typing(typ)
     primitive_containers_type = (
-        List._name,
-        typing.Sequence._name,
+        List.__name__,
+        typing.Sequence.__name__,
     )
     is_primitive_container = (
-        hasattr(typ, '_name') and typ._name in primitive_containers_type)
+        hasattr(typ, '__name__') and typ.__name__ in primitive_containers_type)
 
     if is_primitive_container:
-      dtype = typing.get_args(typ)[0]
-      if len(typing.get_args(typ)) > 1 or typing.get_origin(dtype) == Union:
+      dtype = typing.get_args(typ)[0]  # type: ignore[attr-defined]
+      if len(typing.get_args(typ)) > 1 or typing.get_origin(dtype) == Union:  # type: ignore[attr-defined]
         raise RuntimeError(
             f"Union type is not supported for column: {col_name}. "
             f"Please pass a PCollection with valid schema for column "
@@ -266,9 +269,7 @@ class TFTProcessHandlerDict(
 
     For any other types, TFTProcessHandler will raise a TypeError.
   """
-  def _map_column_names_to_types(
-      self, element_type: typing.Union[typing.NamedTuple, RowTypeConstraint]
-  ) -> Dict[str, type]:
+  def _map_column_names_to_types(self, element_type):
     """
     Return a dictionary of column names and types.
     Args:
@@ -276,19 +277,19 @@ class TFTProcessHandlerDict(
     Returns:
       A dictionary of column names and types.
     """
-    row_type = element_type
-    if not isinstance(row_type, RowTypeConstraint):
-      row_type = RowTypeConstraint.from_user_type(row_type)
+
+    if not isinstance(element_type, RowTypeConstraint):
+      row_type = RowTypeConstraint.from_user_type(element_type)
       if not row_type:
         raise TypeError(
             "Element type must be compatible with Beam Schemas ("
             "https://beam.apache.org/documentation/programming-guide/#schemas)"
             " for to use with MLTransform and TFTProcessHandlerDict.")
-    inferred_types = {name: typ for name, typ in row_type._fields}
+    inferred_types = {name: typ for name, typ in element_type._fields}
 
     for k, t in inferred_types.items():
-      if t in _primitive_types:
-        inferred_types[k] = typing.List[t]
+      if t in _primitive_types_to_typing_container_type:
+        inferred_types[k] = _primitive_types_to_typing_container_type[t]
 
     # sometimes a numpy type can be provided as np.dtype('int64').
     # convert numpy.dtype to numpy type since both are same.
@@ -327,7 +328,7 @@ class TFTProcessHandlerDict(
   def _get_transformed_data_schema(
       self,
       metadata: dataset_metadata.DatasetMetadata,
-  ) -> Dict[str, type]:
+  ) -> Dict[str, typing.Sequence[typing.Union[np.dtype, bytes]]]:
     schema = metadata._schema
     transformed_types = {}
     logging.info("Schema: %s", schema)
