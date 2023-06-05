@@ -40,6 +40,7 @@ from apache_beam.typehints.decorators import getcallargs_forhints
 from apache_beam.typehints.typehints import CompositeTypeHintError
 from apache_beam.typehints.typehints import SimpleTypeHintError
 from apache_beam.typehints.typehints import check_constraint
+from apache_beam.typehints.typehints import normalize
 
 
 class AbstractDoFnWrapper(DoFn):
@@ -150,7 +151,8 @@ class TypeCheckWrapperDoFn(AbstractDoFnWrapper):
       if isinstance(o, TimestampedValue) and hasattr(o, "__orig_class__"):
         # when a typed TimestampedValue is set, check the value type
         x = o.value
-        self.type_check(o.__orig_class__.__args__[0], x, is_input=False)
+        beam_type = normalize(o.__orig_class__.__args__[0])
+        self.type_check(beam_type, x, is_input=False)
       else:
         # TODO(robertwb): Multi-output.
         x = o.value if isinstance(o, (TaggedOutput, WindowedValue)) else o

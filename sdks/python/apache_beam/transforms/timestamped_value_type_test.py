@@ -18,6 +18,7 @@
 import unittest
 from typing import Any
 from typing import Dict
+from typing import List
 
 import apache_beam as beam
 import apache_beam.typehints as th
@@ -34,8 +35,8 @@ def ConvertToTimestampedValue_1(plant: Dict[str, Any]) -> TimestampedValue:
 
 
 def ConvertToTimestampedValue_2(
-    plant: Dict[str, Any]) -> TimestampedValue[th.List[str]]:  # type: ignore
-  return TimestampedValue[th.List[str]](plant["name"], plant["season"])  # type: ignore
+    plant: Dict[str, Any]) -> TimestampedValue[List[str]]:
+  return TimestampedValue[List[str]](plant["name"], plant["season"])
 
 
 class TypeCheckTimestampedValueTestCase(unittest.TestCase):
