@@ -18,7 +18,8 @@
 # pytype: skip-file
 
 import struct
-
+from typing import Any
+from typing import Dict
 from typing import Iterable
 from typing import List
 from typing import Tuple
@@ -39,7 +40,7 @@ class UnionCoder(FastCoder):
           'The number of components for UnionCoder must be between 2 and 255.')
 
     self._coders = components
-    self._coder_typehints = {}
+    self._coder_typehints = {}  # type: Dict[Any, Tuple[bytes, Coder]]
     for i, c in enumerate(self._coders):
       type_hint = c.to_type_hint()
       if type_hint in self._coder_typehints:
