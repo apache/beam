@@ -1,5 +1,5 @@
 ---
-title:  "Get Started with Apache Beam: An Open Source Quest sponsored by Google Cloud"
+title:  "Get started with Apache Beam: An open source quest sponsored by Google Cloud"
 date:   2023-06-09 00:00:01 -0800
 categories:
   - blog
