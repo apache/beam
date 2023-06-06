@@ -4,7 +4,7 @@ date:   2023-06-06 00:00:01 -0800
 categories:
   - blog
 aliases:
-  - /blog/2023/06/09/beam-quest.html
+  - /blog/2023/06/06/beam-quest.html
 authors:
   - svetakvsundhar
 ---
