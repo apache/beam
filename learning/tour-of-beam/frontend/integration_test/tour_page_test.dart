@@ -135,13 +135,23 @@ Future<void> _checkUnitContentLoadsProperly(
 Future<void> _checkSdkChangesProperly(WidgetTester wt, UnitModel node) async {
   final defaultSdk = _getTourNotifier(wt).playgroundController.sdk;
   final sdkCache = GetIt.instance.get<SdkCache>();
-  String? previousId;
+  String? previousPath;
+  Sdk? previousSdk;
   for (final sdk in sdkCache.getSdks()) {
+    if (sdk.title == defaultSdk?.title) {
+      continue;
+    }
+
     await _setSdk(sdk.title, wt);
-    final actualId =
-        _getTourNotifier(wt).playgroundController.selectedExample?.path;
-    expect(actualId, isNot(previousId));
-    previousId = actualId;
+    
+    final selectedExample =
+        _getTourNotifier(wt).playgroundController.selectedExample;
+    final actualPath = selectedExample?.path;
+    final actualSdk = selectedExample?.sdk;
+    expect(actualPath, isNot(previousPath));
+    expect(actualSdk, isNot(previousSdk));
+    previousPath = actualPath;
+    previousSdk = actualSdk;
   }
 
   await _setSdk(defaultSdk!.title, wt);
