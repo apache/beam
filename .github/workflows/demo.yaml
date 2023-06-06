@@ -23,5 +23,7 @@ jobs:
             uses: gradle/gradle-build-action@v2
             with:
               cache-read-only: false
+          - name: debug
+            run: env
           - name: run goPreCommit script
             run: ./gradlew :goPreCommit
