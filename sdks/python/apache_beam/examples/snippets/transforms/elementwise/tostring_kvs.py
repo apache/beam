@@ -53,3 +53,7 @@ def tostring_kvs(test=None):
     # [END tostring_kvs]
     if test:
       test(plants)
+
+
+if __name__ == '__main__':
+  tostring_kvs()

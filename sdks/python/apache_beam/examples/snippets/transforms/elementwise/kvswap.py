@@ -52,3 +52,7 @@ def kvswap(test=None):
     # [END kvswap]
     if test:
       test(plants)
+
+
+if __name__ == '__main__':
+  kvswap()
