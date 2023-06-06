@@ -1,4 +1,22 @@
-<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Apache Beam</title><description>Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.</description><link>/</link><generator>Hugo -- gohugo.io</generator><item><title>Apache Beam 2.48.0</title><description>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Apache Beam</title><description>Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.</description><link>/</link><generator>Hugo -- gohugo.io</generator><item><title>Getting started with Apache Beam: An open source proficiency credential sponsored by Google Cloud</title><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>&lt;img class="center-block"
+src="/images/blog/apch-beam-w_bdg_c_en.png"
+alt="Quest image">&lt;/p>
+&lt;p>We’re excited to announce the release of the &lt;a href="https://www.cloudskillsboost.google/quests/310">“Getting Started with Apache Beam” quest&lt;/a>, a series of four online labs that venture into different Apache Beam concepts. When you complete all four labs, you’ll earn a Google Cloud badge that you can share on platforms like LinkedIn. Earning this badge should take less than seven hours total, and signing up for the quest costs $20 (there are often free specials for people who attend Beam events, such as &lt;a href="https://www.meetup.com/topics/apache-beam/">Meetups&lt;/a>, &lt;a href="https://beamsummit.org/">Beam Summit&lt;/a>, and &lt;a href="https://beamcollege.dev/">Beam College&lt;/a>).&lt;/p>
+&lt;p>Beam is one of the largest big data open source projects actively in development. Over the past six years, the Apache Beam community has seen tremendous growth in the number of contributors, committers, and users. If you’re a long time Beam user, you can now earn a badge to show your skills to potential employers. If you’re new to Beam, you can begin your learning journey with this quest. To attempt this quest, you don’t need any prior knowledge of data processing or distributed systems. All you need is elementary knowledge about programming.&lt;/p>
+&lt;p>Individuals aren’t the only ones who can benefit from completing this quest - organizations can too! Because earning this badge represents deep knowledge of an industry leading big data library, having the badge validates your organization’s understanding of Beam. In addition, you can run the Beam library on a wide variety of runners, including Google Cloud Dataflow, Flink, Spark, and more, making knowledge about this library highly transferable. Finally, your organization can use this quest as onboarding material for new hires on big data teams, allowing teams and organizations to get their newest employees up-to-date on the latest and greatest that Apache Beam has to offer.&lt;/p>
+&lt;p>Data Processing is a key part of AI/ML workflows. Given the recent advancements in artificial intelligence, now’s the time to jump into the world of data processing! Get started on your journey &lt;a href="https://www.cloudskillsboost.google/quests/310">here&lt;/a>.&lt;/p></description><link>/blog/beamquest/</link><pubDate>Tue, 06 Jun 2023 00:00:01 -0800</pubDate><guid>/blog/beamquest/</guid><category>blog</category></item><item><title>Apache Beam 2.48.0</title><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -903,117 +921,4 @@ python -m unittest
 &lt;li>&lt;strong>[Scala]&lt;/strong> &lt;a href="https://github.com/apache/beam-starter-scala">github.com/apache/beam-starter-scala&lt;/a> – Coming soon!&lt;/li>
 &lt;/ul>
 &lt;p>We have updated the &lt;a href="/get-started/quickstart/java/">Java quickstart&lt;/a> to use the new starter project, and we&amp;rsquo;re working on updating the Python and Go quickstarts as well.&lt;/p>
-&lt;p>We hope you find this useful. Feedback and contributions are always welcome! So feel free to create a GitHub issue, or open a Pull Request to any of the starter project repositories.&lt;/p></description><link>/blog/beam-starter-projects/</link><pubDate>Thu, 03 Nov 2022 09:00:00 -0700</pubDate><guid>/blog/beam-starter-projects/</guid><category>blog</category></item><item><title>Apache Beam 2.42.0</title><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>We are happy to present the new 2.42.0 release of Beam.
-This release includes both improvements and new functionality.
-See the &lt;a href="/get-started/downloads/#2420-2022-10-17">download page&lt;/a> for this release.&lt;/p>
-&lt;p>For more information on changes in 2.42.0, check out the &lt;a href="https://github.com/apache/beam/milestone/4?closed=1">detailed release notes&lt;/a>.&lt;/p>
-&lt;h2 id="highlights">Highlights&lt;/h2>
-&lt;ul>
-&lt;li>Added support for stateful DoFns to the Go SDK.&lt;/li>
-&lt;li>Added support for &lt;a href="/documentation/programming-guide/#batched-dofns">Batched
-DoFns&lt;/a>
-to the Python SDK.&lt;/li>
-&lt;/ul>
-&lt;h2 id="new-features--improvements">New Features / Improvements&lt;/h2>
-&lt;ul>
-&lt;li>Added support for Zstd compression to the Python SDK.&lt;/li>
-&lt;li>Added support for Google Cloud Profiler to the Go SDK.&lt;/li>
-&lt;li>Added support for stateful DoFns to the Go SDK.&lt;/li>
-&lt;/ul>
-&lt;h2 id="breaking-changes">Breaking Changes&lt;/h2>
-&lt;ul>
-&lt;li>The Go SDK&amp;rsquo;s Row Coder now uses a different single-precision float encoding for float32 types to match Java&amp;rsquo;s behavior (&lt;a href="https://github.com/apache/beam/issues/22629">#22629&lt;/a>).&lt;/li>
-&lt;/ul>
-&lt;h2 id="bugfixes">Bugfixes&lt;/h2>
-&lt;ul>
-&lt;li>Fixed Python cross-language JDBC IO Connector cannot read or write rows containing Timestamp type values &lt;a href="https://github.com/apache/beam/issues/19817">19817&lt;/a>.&lt;/li>
-&lt;/ul>
-&lt;h3 id="known-issues">Known Issues&lt;/h3>
-&lt;ul>
-&lt;li>Go SDK doesn&amp;rsquo;t yet support Slowly Changing Side Input pattern (&lt;a href="https://github.com/apache/beam/issues/23106">#23106&lt;/a>)&lt;/li>
-&lt;li>See a full list of open &lt;a href="https://github.com/apache/beam/milestone/4">issues that affect&lt;/a> this version.&lt;/li>
-&lt;/ul>
-&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
-&lt;p>According to git shortlog, the following people contributed to the 2.42.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>Abirdcfly
-Ahmed Abualsaud
-Alexander Zhuravlev
-Alexey Inkin
-Alexey Romanenko
-Anand Inguva
-Andrej Galad
-Andrew Pilloud
-Andy Ye
-Balázs Németh
-Brian Hulette
-Bruno Volpato
-bulat safiullin
-bullet03
-Chamikara Jayalath
-ChangyuLi28
-Clément Guillaume
-Damon
-Danny McCormick
-Darkhan Nausharipov
-David Huntsperger
-dpcollins-google
-Evgeny Antyshev
-grufino
-Heejong Lee
-Ismaël Mejía
-Jack McCluskey
-johnjcasey
-Jonathan Shen
-Kenneth Knowles
-Ke Wu
-Kiley Sok
-Liam Miller-Cushon
-liferoad
-Lucas Nogueira
-Luke Cwik
-MakarkinSAkvelon
-Manit Gupta
-masahitojp
-Michael Hu
-Michel Davit
-Moritz Mack
-Naireen Hussain
-nancyxu123
-Nikhil Nadig
-oborysevych
-Pablo Estrada
-Pranav Bhandari
-Rajat Bhatta
-Rebecca Szper
-Reuven Lax
-Ritesh Ghorse
-Robert Bradshaw
-Robert Burke
-Ryan Thompson
-Sam Whittle
-Sergey Pronin
-Shivam
-Shunsuke Otani
-Shunya Ueta
-Steven Niemitz
-Stuart
-Svetak Sundhar
-Valentyn Tymofieiev
-Vitaly Terentyev
-Vlad
-Vladislav Chunikhin
-Yichi Zhang
-Yi Hu
-Yixiao Shen&lt;/p></description><link>/blog/beam-2.42.0/</link><pubDate>Mon, 17 Oct 2022 09:00:00 -0700</pubDate><guid>/blog/beam-2.42.0/</guid><category>blog</category><category>release</category></item></channel></rss>
+&lt;p>We hope you find this useful. Feedback and contributions are always welcome! So feel free to create a GitHub issue, or open a Pull Request to any of the starter project repositories.&lt;/p></description><link>/blog/beam-starter-projects/</link><pubDate>Thu, 03 Nov 2022 09:00:00 -0700</pubDate><guid>/blog/beam-starter-projects/</guid><category>blog</category></item></channel></rss>
