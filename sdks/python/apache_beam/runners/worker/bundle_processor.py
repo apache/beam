@@ -230,6 +230,7 @@ class DataInputOperation(RunnerIOOperation):
         decoded_value = self.windowed_coder_impl.decode_from_stream(
             input_stream, True)
       except Exception as exn:
+        logging.error("Input data: " + repr(encoded_windowed_values))
         raise ValueError(
             "Error decoding input stream with coder " +
             self.windowed_coder) from exn
