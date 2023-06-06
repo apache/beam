@@ -24,7 +24,6 @@ limitations under the License.
      src="/images/blog/apch-beam-w_bdg_c_en.png"
      alt="Quest image">
 
-The [Getting Started with Apache Beam quest](https://www.cloudskillsboost.google/quests/310) is a series of four labs that teach and test proficiency in Apache Beam. Upon completion, you're granted a sharable credential badge!
 
 We’re excited to announce the release of the “Getting Started with Apache Beam” quest, a series of four online labs that venture into different Apache Beam concepts. When you complete all four labs, you’ll earn a [Google Cloud badge](https://www.cloudskillsboost.google/quests/310) that you can share on platforms like LinkedIn. Earning this badge should take less than seven hours total, and signing up for the quest costs $20 (there are often free specials for people who attend Beam events, such as [Meetups](https://www.meetup.com/topics/apache-beam/), [Beam Summit](https://beamsummit.org/), and [Beam College](https://beamcollege.dev/)).
 
