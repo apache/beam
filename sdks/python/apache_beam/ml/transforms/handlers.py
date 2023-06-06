@@ -354,59 +354,6 @@ class TFTProcessHandlerSchema(
     logging.info(transformed_types)
     return transformed_types
 
-  def _get_processing_data_ptransform(
-      self, raw_data_metadata: dataset_metadata.DatasetMetadata
-  ) -> beam.PTransform[beam.PCollection[tft_process_handler_schema_input_type],
-                       beam.PCollection[beam.Row]]:
-    """
-    Return a PTransform object that has the preprocessing logic
-    using the AnalyzeAndTransformDataset step.
-    """
-    @beam.ptransform_fn
-    def ptransform_fn(
-        raw_data: beam.PCollection[tft_process_handler_schema_input_type]
-    ) -> beam.PCollection[beam.Row]:
-      """
-      Args:
-        raw_data: A PCollection of NamedTuples or Rows.
-      Returns:
-        A PCollection of beam.Row.
-      """
-      # According to
-      # https://www.tensorflow.org/tfx/transform/api_docs/python/tft_beam/Context # pylint: disable=line-too-long
-      # context location should be on accessible by all workers.
-      # So we will use the staging location for tft_beam.Context.
-      # Also, we will be using the same location to store the transform_fn
-      # articats.
-
-      if not self._artifact_location:
-        self._artifact_location = self._get_artifact_location(raw_data.pipeline)
-      with tft_beam.Context(temp_dir=self._artifact_location):
-        data = (raw_data, raw_data_metadata)
-        transformed_metadata: beam_metadata_io.BeamDatasetMetadata
-        (transformed_dataset, transformed_metadata), transform_fn = (
-        data
-        | "AnalyzeAndTransformDataset" >> tft_beam.AnalyzeAndTransformDataset(
-        self.preprocessing_fn,
-          )
-        )
-        self.write_transform_artifacts(transform_fn, self._artifact_location)
-        self.transformed_schema = self._get_transformed_data_schema(
-            metadata=transformed_metadata.dataset_metadata)
-
-        # We need to pass a schema'd PCollection to the next step.
-        # So we will use a RowTypeConstraint to create a schema'd PCollection.
-        # this is needed since new columns are included in the
-        # transformed_dataset.
-        row_type = RowTypeConstraint.from_fields(
-            list(self.transformed_schema.items()))
-
-        transformed_dataset |= "ConvertToRowType" >> beam.Map(
-            lambda x: beam.Row(**x)).with_output_types(row_type)
-        return transformed_dataset
-
-    return ptransform_fn()
-
   def process_data(
       self, pcoll: beam.PCollection[tft_process_handler_schema_input_type]
   ) -> beam.PCollection[beam.Row]:
@@ -423,13 +370,36 @@ class TFTProcessHandlerSchema(
         #  we will convert scalar values to list values.
         | beam.ParDo(_ConvertScalarValuesToListValues()).with_output_types(
             Dict[str, typing.Union[tuple(column_type_mapping.values())]]))
+
     raw_data_metadata = self.get_raw_data_metadata(
         input_types=column_type_mapping)
 
-    return (
-        raw_data
-        | "Beam_MLTransform_TFTProcessHandlerSchema" >> self.
-        _get_processing_data_ptransform(raw_data_metadata=raw_data_metadata))
+    if not self._artifact_location:
+      self._artifact_location = self._get_artifact_location(raw_data.pipeline)
+
+    with tft_beam.Context(temp_dir=self._artifact_location):
+      data = (raw_data, raw_data_metadata)
+      transformed_metadata: beam_metadata_io.BeamDatasetMetadata
+      (transformed_dataset, transformed_metadata), transform_fn = (
+      data
+      | "AnalyzeAndTransformDataset" >> tft_beam.AnalyzeAndTransformDataset(
+      self.preprocessing_fn,
+        )
+      )
+      self.write_transform_artifacts(transform_fn, self._artifact_location)
+      self.transformed_schema = self._get_transformed_data_schema(
+          metadata=transformed_metadata.dataset_metadata)
+
+      # We need to pass a schema'd PCollection to the next step.
+      # So we will use a RowTypeConstraint to create a schema'd PCollection.
+      # this is needed since new columns are included in the
+      # transformed_dataset.
+      row_type = RowTypeConstraint.from_fields(
+          list(self.transformed_schema.items()))
+
+      transformed_dataset |= "ConvertToRowType" >> beam.Map(
+          lambda x: beam.Row(**x)).with_output_types(row_type)
+      return transformed_dataset
 
   def get_raw_data_metadata(
       self, input_types: Dict[str, type]) -> dataset_metadata.DatasetMetadata:
