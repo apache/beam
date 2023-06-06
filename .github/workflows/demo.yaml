@@ -2,9 +2,10 @@
 name: vdjerek_testing
 on:
   pull_request:
-    branches: ['master']
+    branches: ['*']
   issue_comment:
-    types: [created, edited]
+    types: [created]
+
 
 jobs:
   beam_PreCommit_Go:
