@@ -6,7 +6,7 @@ categories:
 aliases:
   - /blog/2023/06/09/beam-quest.html
 authors:
-  - svetaksundhar
+  - svetakvsundhar
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
