@@ -23,18 +23,20 @@ import 'package:integration_test/integration_test.dart';
 import 'package:playground_components/playground_components.dart';
 import 'package:playground_components_dev/playground_components_dev.dart';
 import 'package:tour_of_beam/cache/content_tree.dart';
+import 'package:tour_of_beam/cache/sdk.dart';
 import 'package:tour_of_beam/components/builders/content_tree.dart';
 import 'package:tour_of_beam/models/group.dart';
 import 'package:tour_of_beam/models/module.dart';
 import 'package:tour_of_beam/models/unit.dart';
 import 'package:tour_of_beam/pages/tour/screen.dart';
 import 'package:tour_of_beam/pages/tour/state.dart';
-import 'package:tour_of_beam/pages/tour/widgets/playground.dart';
 import 'package:tour_of_beam/pages/tour/widgets/unit.dart';
 import 'package:tour_of_beam/pages/tour/widgets/unit_content.dart';
 
 import 'common/common.dart';
 import 'common/common_finders.dart';
+
+bool _isSdkChangingChecked = false;
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -100,6 +102,11 @@ Future<void> _checkNode(UnitModel node, WidgetTester wt) async {
   );
 
   await _checkUnitContentLoadsProperly(node, wt);
+
+  final hasSnippet = _getTourNotifier(wt).isUnitContainsSnippet;
+  if (!_isSdkChangingChecked && hasSnippet) {
+    await _checkSdkChangesProperly(wt, node);
+  }
 }
 
 Future<void> _checkUnitContentLoadsProperly(
@@ -122,6 +129,30 @@ Future<void> _checkUnitContentLoadsProperly(
       matching: find.text(unit.title),
     ),
     findsAtLeastNWidgets(1),
+  );
+}
+
+Future<void> _checkSdkChangesProperly(WidgetTester wt, UnitModel node) async {
+  final defaultSdk = _getTourNotifier(wt).playgroundController.sdk;
+  final sdkCache = GetIt.instance.get<SdkCache>();
+  String? previousId;
+  for (final sdk in sdkCache.getSdks()) {
+    await _setSdk(sdk.title, wt);
+    final actualId =
+        _getTourNotifier(wt).playgroundController.selectedExample?.path;
+    expect(actualId, isNot(previousId));
+    previousId = actualId;
+  }
+
+  await _setSdk(defaultSdk!.title, wt);
+  _isSdkChangingChecked = true;
+}
+
+Future<void> _setSdk(String title, WidgetTester wt) async {
+  await wt.tapAndSettle(find.sdkDropdown());
+  await wt.tapAndSettle(
+    find.dropdownMenuItemWithText(title).first,
+    warnIfMissed: false,
   );
 }
 
