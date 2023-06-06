@@ -14,10 +14,6 @@ jobs:
         steps:       
           - name: Git checkout
             uses: actions/checkout@v3
-          - name: Setup Gradle
-            uses: gradle/gradle-build-action@v2
-            with:
-              cache-read-only: false
           - name: debug
             run: env
           - name: run goPreCommit script
