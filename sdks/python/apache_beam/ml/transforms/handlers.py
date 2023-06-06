@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import collections
 import logging
 import tempfile
 import typing
@@ -155,11 +156,11 @@ class TFTProcessHandler(ProcessHandler[ProcessInputT, ProcessOutputT]):
     # lets conver the builtin types to typing types for consistency.
     typ = native_type_compatibility.convert_builtin_to_typing(typ)
     primitive_containers_type = (
-        List.__name__,
-        typing.Sequence.__name__,
+        list,
+        collections.abc.Sequence,
     )
     is_primitive_container = (
-        hasattr(typ, '__name__') and typ.__name__ in primitive_containers_type)
+        typing.get_origin(typ) in primitive_containers_type)
 
     if is_primitive_container:
       dtype = typing.get_args(typ)[0]  # type: ignore[attr-defined]
@@ -287,7 +288,9 @@ class TFTProcessHandlerSchema(
             "Element type must be compatible with Beam Schemas ("
             "https://beam.apache.org/documentation/programming-guide/#schemas)"
             " for to use with MLTransform and TFTProcessHandlerSchema.")
-    inferred_types = {name: typ for name, typ in element_type._fields}
+    else:
+      row_type = element_type
+    inferred_types = {name: typ for name, typ in row_type._fields}
 
     for k, t in inferred_types.items():
       if t in _primitive_types_to_typing_container_type:
@@ -439,7 +442,8 @@ class _ConvertScalarValuesToListValues(beam.DoFn):
   ) -> typing.Iterable[Dict[str, typing.List[typing.Any]]]:
     new_dict = {}
     for key, value in element.items():
-      if isinstance(value, _primitive_types):
+      if isinstance(value,
+                    tuple(_primitive_types_to_typing_container_type.keys())):
         new_dict[key] = [value]
       else:
         new_dict[key] = value
