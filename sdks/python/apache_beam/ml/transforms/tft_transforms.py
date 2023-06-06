@@ -14,6 +14,30 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""
+This module defines a set of data processing transforms that can be used
+to perform common data transformations on a dataset. These transforms are
+implemented using the TensorFlow Transform (TFT) library. The transforms
+in this module are intended to be used in conjunction with the
+beam.ml.MLTransform class, which provides a convenient interface for
+applying a sequence of data processing transforms to a dataset with the
+help of the ProcessHandler class.
+
+See the documentation for beam.ml.MLTransform for more details.
+
+Since the transforms in this module are implemented using TFT, they
+should be wrapped inside a TFTProcessHandler object before being passed
+to the beam.ml.MLTransform class. The ProcessHandler will let MLTransform
+know which type of input is expected and infers the relevant schema required
+for the TFT library.
+
+Note: The data processing transforms defined in this module don't
+perform the transformation immediately. Instead, it returns a
+configured operation object, which encapsulates the details of the
+transformation. The actual computation takes place later in the Apache Beam
+pipeline, after all transformations are set up and the pipeline is run.
+"""
+
 from typing import Any
 from typing import Dict
 from typing import Iterable
@@ -317,9 +341,9 @@ def scale_to_z_score(
     name: Optional[str] = None):
   """
   This function performs a scaling transformation on the specified columns of
-  the incoming data. It processes the input tensor such that it's normalized
+  the incoming data. It processes the input data such that it's normalized
   to have a mean of 0 and a variance of 1. The transformation achieves this
-  by subtracting the mean from the input tensor and then dividing it by the
+  by subtracting the mean from the input data and then dividing it by the
   square root of the variance.
 
   Args:
