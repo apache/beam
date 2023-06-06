@@ -62,6 +62,7 @@
 
 ## New Features / Improvements
 
+* Reduce the prebuilt Python container image size by not caching dependencies ([#27035](https://github.com/apache/beam/pull/27035))
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Breaking Changes
