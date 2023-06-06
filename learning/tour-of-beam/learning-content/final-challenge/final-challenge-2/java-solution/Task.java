@@ -166,9 +166,7 @@ public class Task {
 
     public static PCollection<String> getPCollection(Pipeline pipeline) {
         PCollection<String> rides = pipeline.apply(TextIO.read().from("gs://apache-beam-samples/shakespeare/kinglear.txt"));
-        return rides.apply(FlatMapElements.into(TypeDescriptors.strings()).via(line -> Arrays.asList(line
-                        .replaceAll("[^A-Za-z0-9 ]", "").replaceAll("\\d+", "")
-                        .toLowerCase().split(" "))))
+        return rides.apply(FlatMapElements.into(TypeDescriptors.strings()).via(line -> Arrays.asList(line.toLowerCase().split(" "))))
                 .apply(Filter.by((String word) -> !word.isEmpty()));
     }
 

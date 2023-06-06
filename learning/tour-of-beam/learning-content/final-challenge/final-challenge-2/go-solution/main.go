@@ -31,16 +31,15 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window/trigger"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/filter"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
 	"os"
-	"regexp"
 	"strings"
 	"time"
 )
@@ -56,7 +55,10 @@ type Analysis struct {
 	Constraining string
 }
 
-var wordRE = regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)
+func (a Analysis) toString() string {
+	return fmt.Sprintf("Word: %s, Negative: %s, Positive: %s, Uncertainty: %s, Litigious: %s, Strong: %s, Weak: %s, Constraining: %s",
+		a.Word, a.Negative, a.Positive, a.Uncertainty, a.Litigious, a.Strong, a.Weak, a.Constraining)
+}
 
 func main() {
 	os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", "")
@@ -70,14 +72,12 @@ func main() {
 
 	shakespeare := textio.Read(s, "gs://apache-beam-samples/shakespeare/kinglear.txt")
 	shakespeareWords := getWords(s, shakespeare)
-
 	analysis := textio.Read(s, "analysis.csv")
 	analysisRecords := parseAnalysis(s, analysis)
 
 	trigger := trigger.AfterEndOfWindow().
 		EarlyFiring(trigger.AfterProcessingTime().
-			PlusDelay(5 * time.Second)).
-		LateFiring(trigger.Repeat(trigger.AfterCount(1)))
+			PlusDelay(5 * time.Second))
 
 	fixedWindowedItems := beam.WindowInto(s, window.NewFixedWindows(30*time.Second), shakespeareWords,
 		beam.Trigger(trigger),
@@ -92,8 +92,15 @@ func main() {
 	negativeWords := parts[0]
 	positiveWords := parts[1]
 
-	debug.Print(s, stats.CountElms(s, negativeWords))
-	debug.Print(s, stats.CountElms(s, positiveWords))
+	negativeWordsCount := extractCountFn("negative", s, negativeWords)
+	positiveWordsCount := extractCountFn("positive", s, positiveWords)
+	debug.Print(s, negativeWordsCount)
+	debug.Print(s, positiveWordsCount)
+
+	negativeWordsCountWithModel := extractModelCountFn("negative-with-model", s, negativeWords)
+	positiveWordsCountWithModel := extractModelCountFn("positive-with-model", s, positiveWords)
+	debug.Print(s, negativeWordsCountWithModel)
+	debug.Print(s, positiveWordsCountWithModel)
 
 	err := beamx.Run(ctx, p)
 
@@ -105,7 +112,7 @@ func main() {
 func parseAnalysis(s beam.Scope, input beam.PCollection) beam.PCollection {
 	return beam.ParDo(s, func(line string, emit func(analysis Analysis)) {
 		parts := strings.Split(line, ",")
-		if parts[0] != "Word" {
+		if parts[1] != "Negative" {
 			emit(Analysis{
 				Word:         strings.ToLower(parts[0]),
 				Negative:     parts[1],
@@ -122,8 +129,9 @@ func parseAnalysis(s beam.Scope, input beam.PCollection) beam.PCollection {
 
 func getWords(s beam.Scope, input beam.PCollection) beam.PCollection {
 	return beam.ParDo(s, func(line string, emit func(string)) {
-		for _, word := range wordRE.FindAllString(line, -1) {
-			emit(strings.ToLower(word))
+		c := strings.Split(strings.ToLower(line), " ")
+		for _, word := range c {
+			emit(word)
 		}
 	}, input)
 }
@@ -135,7 +143,7 @@ func matchWords(s beam.Scope, input beam.PCollection, viewPCollection beam.PColl
 	return beam.ParDo(s, matchFn, input, view)
 }
 
-func matchFn(word string, view func(analysis *Analysis) bool, emit func(analysis Analysis)) {
+func matchFn(word string, view func(analysis *Analysis) bool, emit func(Analysis)) {
 	var newAnalysis Analysis
 	for view(&newAnalysis) {
 		if word == newAnalysis.Word {
@@ -154,4 +162,21 @@ func partition(s beam.Scope, input beam.PCollection) []beam.PCollection {
 		}
 		return 2
 	}, input)
+}
+
+func extractCountFn(prefix string, s beam.Scope, input beam.PCollection) beam.PCollection {
+	col := beam.ParDo(s, func(analysis Analysis, emit func(string2 string)) {
+		emit(prefix)
+	}, input)
+	return stats.Count(s, col)
+}
+
+func extractModelCountFn(prefix string, s beam.Scope, input beam.PCollection) beam.PCollection {
+	col := filter.Include(s, input, func(analysis Analysis) bool {
+		return analysis.Strong != "0" || analysis.Weak != "0"
+	})
+	result := beam.ParDo(s, func(analysis Analysis, emit func(string2 string)) {
+		emit(prefix)
+	}, col)
+	return stats.Count(s, result)
 }

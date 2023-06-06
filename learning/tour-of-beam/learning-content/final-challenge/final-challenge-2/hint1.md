@@ -71,9 +71,26 @@ limitations under the License.
    }, input)
    }
    `
-5. To calculate the count with windows, use `Combine.globally` with `withoutDefaults()`. Apply the transformation `.apply(Combine.globally(Count.<Analysis>combineFn()).withoutDefaults())`
+5. To calculate the count with windows, use `ParDo` with `stats.Count(s, col)`. 
 
-6. To identify words with amplifying effects, you need to add a filter `.apply(Filter.by(it -> !it.strong.equals("0") || !it.weak.equals("0")))`
+   Apply the transformation: `func extractCountFn(prefix string, s beam.Scope, input beam.PCollection) beam.PCollection {
+   col := beam.ParDo(s, func(analysis Analysis, emit func(string2 string)) {
+   emit(prefix)
+   }, input)
+   return stats.Count(s, col)
+   }`
+
+6. To identify words with amplifying effects, you need to add a filter.
+
+   Function: `func extractModelCountFn(prefix string, s beam.Scope, input beam.PCollection) beam.PCollection {
+   col := filter.Include(s, input, func(analysis Analysis) bool {
+   return analysis.Strong != "0" || analysis.Weak != "0"
+   })
+   result := beam.ParDo(s, func(analysis Analysis, emit func(string2 string)) {
+   emit(prefix)
+   }, col)
+   return stats.Count(s, result)
+   }`
 {{end}}
 
 {{if (eq .Sdk "java")}}

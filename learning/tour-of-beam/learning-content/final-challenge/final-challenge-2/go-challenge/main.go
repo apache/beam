@@ -33,7 +33,6 @@ import (
 	"context"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
 	"log"
 	"os"
@@ -50,10 +49,8 @@ func main() {
 	s := p.Root()
 
 	shakespeare := textio.Read(s, "gs://apache-beam-samples/shakespeare/kinglear.txt")
-	analysis := textio.Read(s, "analysis.csv")
 
-	debug.Print(s, stats.CountElms(s, getWords(s, shakespeare)))
-	debug.Print(s, stats.CountElms(s, analysis))
+	debug.Print(s, getWords(s, shakespeare))
 
 	err := beam.Run(context.Background(), "direct", p)
 	if err != nil {
@@ -63,8 +60,9 @@ func main() {
 
 func getWords(s beam.Scope, input beam.PCollection) beam.PCollection {
 	return beam.ParDo(s, func(line string, emit func(string)) {
-		for _, word := range wordRE.FindAllString(line, -1) {
-			emit(strings.ToLower(word))
+		c := strings.Split(strings.ToLower(line), " ")
+		for _, word := range c {
+			emit(word)
 		}
 	}, input)
 }

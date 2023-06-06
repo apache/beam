@@ -35,7 +35,7 @@ from apache_beam.transforms.combiners import CountCombineFn
 
 class SplitWords(beam.DoFn):
     def process(self, element):
-        return re.sub(r"[^A-Za-z0-9 ]", "", element).lower().split(" ")
+        return element.lower().split(" ")
 
 
 class Analysis:
