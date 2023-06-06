@@ -37,7 +37,7 @@ jobs:
             run: ./gradlew :goPreCommit
 
   beam_PreCommit_Go_Phrase:
-    if: ${{github.event.issue.pull_request == 'Run Go PreCommit'}}
+    if: github.event.issue.pull_request && ${{github.event.comment.body =='Run Go PreCommit'}}
     runs-on: [self-hosted, ubuntu-20.04]
     name: beam_PreCommit_Go
     steps:  
