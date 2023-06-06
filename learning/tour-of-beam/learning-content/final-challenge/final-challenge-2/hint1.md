@@ -31,10 +31,10 @@ limitations under the License.
    }`
 2. Add a fixed-window that runs for 30 seconds. And add a trigger that works after the first element with a delay of 5 seconds.
 
-   Window and trigger: `trigger := trigger.AfterEndOfWindow().EarlyFiring(trigger.AfterProcessingTime(). 
+   Window and trigger: `trigger := trigger.AfterEndOfWindow().EarlyFiring(trigger.AfterProcessingTime().
    PlusDelay(5 * time.Second)).
    LateFiring(trigger.Repeat(trigger.AfterCount(1)))
-   fixedWindowedItems := beam.WindowInto(s, window.NewFixedWindows(30*time.Second), shakespeareWords, 
+   fixedWindowedItems := beam.WindowInto(s, window.NewFixedWindows(30*time.Second), shakespeareWords,
    beam.Trigger(trigger),
    beam.AllowedLateness(30*time.Second),
    beam.PanesDiscard(),
@@ -71,7 +71,7 @@ limitations under the License.
    }, input)
    }
    `
-5. To calculate the count with windows, use `ParDo` with `stats.Count(s, col)`. 
+5. To calculate the count with windows, use `ParDo` with `stats.Count(s, col)`.
 
    Apply the transformation: `func extractCountFn(prefix string, s beam.Scope, input beam.PCollection) beam.PCollection {
    col := beam.ParDo(s, func(analysis Analysis, emit func(string2 string)) {
@@ -106,7 +106,7 @@ limitations under the License.
    }`
 2. To use the analyzed words in the `side-input`, turn to `.apply(View.asList())`
 3. Add a fixed-window that runs for 30 seconds `Window.into(Fixed Windows.of(Duration.standard Seconds(30)))`. And add a trigger that works after the first element with a delay of 5 seconds `AfterProcessingTime.pastFirstElementInPane().plusDelayOf(Duration.standardSeconds(5))`
-4. Write your own function that works with `side-input`. Its logic should check whether the words from shakespeare are contained in the list of analyzed words 
+4. Write your own function that works with `side-input`. Its logic should check whether the words from shakespeare are contained in the list of analyzed words
 
    Function: `static PCollection<Analysis> getAnalysis(PCollection<String> pCollection, PCollectionView<List<Analysis>> viewAnalysisPCollection) {
    return pCollection.apply(ParDo.of(new DoFn<String, Analysis>() {

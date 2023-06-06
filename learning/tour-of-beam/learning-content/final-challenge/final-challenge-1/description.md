@@ -17,4 +17,4 @@ You have a transaction file with data. You need to parse the csv file. And write
 |---------------|-----------|-----------|-------------------------------------|-------|----------|------------|----------------|
 | 581482        | 12/9/2019 | 22485     | Set Of 2 Wooden Market Crates       | 21    | 47       | 17490      | United Kingdom |
 | 581475        | 12/9/2019 | 22596     | Christmas Star Wish List Chalkboard | 10.65 | 36       | 13069      | United Kingdom |
-| 581475        | 12/9/2019 | 23235     | Storage Tin Vintage Leaf            | 11.53 | 12       | 13069      | United Kingdom |      
+| 581475        | 12/9/2019 | 23235     | Storage Tin Vintage Leaf            | 11.53 | 12       | 13069      | United Kingdom |

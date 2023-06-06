@@ -33,16 +33,16 @@ limitations under the License.
    	}
    }, input)
    }`
-2. Add a fixed-window that runs for 30 seconds 
+2. Add a fixed-window that runs for 30 seconds
 
    Window: `fixedWindowedItems := beam.WindowInto(s, window.NewFixedWindows(30*time.Second), transactions,
    beam.Trigger(trigger),
    beam.AllowedLateness(30*time.Minute),
    beam.PanesDiscard(),
-   )`. 
+   )`.
 
    And add a trigger that works after the first element with a delay of 5 seconds.
-   
+
    Trigger: `trigger := trigger.AfterEndOfWindow().
    EarlyFiring(trigger.AfterProcessingTime().
    PlusDelay(5 * time.Second)).
@@ -57,7 +57,7 @@ limitations under the License.
    }`
 
 4. Divide transactions into parts, the first contains transactions whose **price** is more than 10. And the rest are in the second.
-   
+
    Partition: `func getPartition(s beam.Scope, input beam.PCollection) []beam.PCollection {
    return beam.Partition(s, 2, func(element Transaction) int {
    if element.Price >= 10 {
@@ -88,7 +88,7 @@ limitations under the License.
 {{end}}
 
 {{if (eq .Sdk "java")}}
-1. Parse the csv file into a `Transaction` object. 
+1. Parse the csv file into a `Transaction` object.
 
    Extract: `static class ExtractDataFn extends DoFn<String, Transaction> {
    @ProcessElement
@@ -119,7 +119,7 @@ limitations under the License.
    }
    }`
 5. Create a map function `MapElements.into(TypeDescriptors.kvs(TypeDescriptors.longs(), TypeDescriptors.doubles())).via(it->KV.of(it.id,it.price))` for group
-6. Combine by key, the function that summarizes the prices `Combine.perKey(new SumDoubleBinaryCombineFn())`. 
+6. Combine by key, the function that summarizes the prices `Combine.perKey(new SumDoubleBinaryCombineFn())`.
 
    Sum function: `static class SumDoubleBinaryCombineFn extends Combine.BinaryCombineFn<Double> {
    @Override
@@ -131,7 +131,7 @@ limitations under the License.
 7. To write to a file, first you need to convert to a string `.apply(MapElements.into(TypeDescriptor.of(String.class)).via(it -> it.toString()))`
 
 8. Write to a txt file: `TextIO.write().to("biggerThan10").withSuffix(".txt")`
-{{end}} 
+{{end}}
 
 {{if (eq .Sdk "python")}}
 1. Parse the csv file into a `Transaction` object.
