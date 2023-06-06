@@ -10,7 +10,7 @@ on:
 jobs:
   beam_PreCommit_Go_vdjerek_test:
         runs-on: [self-hosted, ubuntu-20.04, vdjerek-test]
-        name: beam_PreCommit_Go
+        name: beam_PreCommit_Go_vdjerek_test
         steps:       
           - name: Git checkout
             uses: actions/checkout@v3
