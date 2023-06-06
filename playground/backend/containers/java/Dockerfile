@@ -88,6 +88,26 @@ RUN wget https://repo1.maven.org/maven2/org/springframework/spring-core/$SPRING_
 # Install Spring JCL
 RUN wget https://repo1.maven.org/maven2/org/springframework/spring-jcl/$SPRING_VERSION/spring-jcl-$SPRING_VERSION.jar &&\
     mv spring-jcl-$SPRING_VERSION.jar /opt/apache/beam/jars/spring-jcl.jar
+
+# Install sql extensions service and dependencies for Beam
+RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-sdks-java-extensions-sql/$BEAM_VERSION/beam-sdks-java-extensions-sql-$BEAM_VERSION.jar &&\
+    mv beam-sdks-java-extensions-sql-$BEAM_VERSION.jar /opt/apache/beam/jars/beam-sdks-java-extensions-sql.jar
+
+RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-vendor-calcite-1_28_0/0.2/beam-vendor-calcite-1_28_0-0.2.jar &&\
+    mv beam-vendor-calcite-1_28_0-0.2.jar /opt/apache/beam/jars/beam-vendor-calcite-1_28_0.jar
+
+RUN wget  https://repo1.maven.org/maven2/net/bytebuddy/byte-buddy/1.12.14/byte-buddy-1.12.14.jar &&\
+    mv byte-buddy-1.12.14.jar /opt/apache/beam/jars/byte-buddy-1.12.14.jar
+
+RUN wget  https://repo1.maven.org/maven2/com/alibaba/fastjson/1.2.69/fastjson-1.2.69.jar &&\
+    mv fastjson-1.2.69.jar /opt/apache/beam/jars/fastjson-1.2.69.jar
+
+RUN wget  https://repo1.maven.org/maven2/org/codehaus/janino/janino/3.0.11/janino-3.0.11.jar &&\
+    mv janino-3.0.11.jar /opt/apache/beam/jars/janino-3.0.11.jar
+
+RUN wget  https://repo1.maven.org/maven2/org/codehaus/janino/commons-compiler/3.0.11/commons-compiler-3.0.11.jar &&\
+    mv commons-compiler-3.0.11.jar /opt/apache/beam/jars/commons-compiler-3.0.11.jar
+    
 # Install Java Katas Utils
 COPY katas /go/src/katas
 RUN cd /go/src/katas &&\

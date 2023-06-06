@@ -31,8 +31,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.schemas.JavaBeanSchema;
-import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -41,8 +40,6 @@ import org.apache.beam.sdk.values.Row;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.Serializable;
-
 public class Task {
     public static void main(String[] args) {
         PipelineOptions options = PipelineOptionsFactory.create();
@@ -50,55 +47,23 @@ public class Task {
         // Create the Pipeline object with the options we defined above
         Pipeline pipeline = Pipeline.create(options);
 
-        PCollection<User> input = pipeline
-                .apply(Create.of(new User(1, "Josh"), new User(103, "Anna")));
+        Schema schema = Schema.builder()
+                .addField("id", Schema.FieldType.INT32)
+                .addField("name", Schema.FieldType.STRING)
+                .build();
+
+        PCollection<Row> input = pipeline.apply(Create.of(
+                Row.withSchema(schema).addValues(1, "Josh").build(),
+                Row.withSchema(schema).addValues(103, "Anna").build()
+        ).withRowSchema(schema));
 
         PCollection<Row> result = input
-                .apply(SqlTransform.query("SELECT id,name FROM PCOLLECTION where id > 100"));
+                .apply(SqlTransform.query("SELECT id, name FROM PCOLLECTION where id > 100"));
 
         result.apply(ParDo.of(new LogOutput<>("Sql result")));
 
         pipeline.run().waitUntilFinish();
 
-    }
-
-    @DefaultSchema(JavaBeanSchema.class)
-    public static class User implements Serializable {
-        private Integer id;
-
-        private String name;
-
-        @Override
-        public String toString() {
-            return "User{" +
-                    "id=" + id +
-                    ", name='" + name + '\'' +
-                    '}';
-        }
-
-        public User() {
-        }
-
-        public User(Integer id, String name) {
-            this.id = id;
-            this.name = name;
-        }
-
-        public Integer getId() {
-            return id;
-        }
-
-        public void setId(Integer id) {
-            this.id = id;
-        }
-
-        public String getName() {
-            return name;
-        }
-
-        public void setName(String name) {
-            this.name = name;
-        }
     }
 
     static class LogOutput<T> extends DoFn<T, T> {
