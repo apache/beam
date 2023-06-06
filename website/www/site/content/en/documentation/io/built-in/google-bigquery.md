@@ -782,7 +782,7 @@ from the BigQueryIO connector.
 Also after version 2.47.0 of Beam SDK for Python, SDK supports BigQuery Storage Write API.
 
 {{< paragraph class="language-py" >}}
-BigQuery Storage Write API for Python SDK has some limitations on supported data types. This is due to that the Python SDK uses cross-language transforms for the feature. For example, `decimal.Decimal` in Python is needed to write a `NUMERIC` type in BigQuery. Also `DATETIME` in Python is not supported yet. For more details, please refer to the [type mapping](https://github.com/apache/beam/blob/0b430748cdd2e25edc553747ce018195e9cce888/sdks/python/apache_beam/io/gcp/bigquery_tools.py#L112-L123).
+BigQuery Storage Write API for Python SDK currently has some limitations on supported data types. As this method makes use of cross-language transforms, we are limited to the types supported at the cross-language boundary. For example, `apache_beam.utils.timestamp.Timestamp` is needed to write a `TIMESTAMP` BigQuery type. Also, some types (e.g. `DATETIME`) are not supported yet. For more details, please refer to the [full type mapping](https://github.com/apache/beam/blob/0b430748cdd2e25edc553747ce018195e9cce888/sdks/python/apache_beam/io/gcp/bigquery_tools.py#L112-L123).
 {{< /paragraph >}}
 
 {{< paragraph class="language-py" >}}
