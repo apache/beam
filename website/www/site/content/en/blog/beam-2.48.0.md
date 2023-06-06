@@ -21,9 +21,9 @@ limitations under the License.
 
 We are happy to present the new 2.48.0 release of Beam.
 This release includes both improvements and new functionality.
-See the [download page](/get-started/downloads/{$DOWNLOAD_ANCHOR}) for this release.
+See the [download page](/get-started/downloads/#2480-2023-05-31) for this release.
 
-<{!--more-->
+<!--more-->
 
 For more information on changes in 2.48.0, check out the [detailed release notes](https://github.com/apache/beam/milestone/12).
 
