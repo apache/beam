@@ -160,6 +160,10 @@ Pipeline p = Pipeline.create(options);
 {{< code_sample "sdks/typescript/test/docs/programming_guide.ts" pipelines_constructing_creating >}}
 {{< /highlight >}}
 
+For a more in-depth tutorial on creating basic pipelines
+in the Python SDK, please read and work through
+[this colab notebook](https://colab.sandbox.google.com/github/apache/beam/blob/master/examples/notebooks/get-started/learn_beam_basics_by_doing.ipynb).
+
 ### 2.1. Configuring pipeline options {#configuring-pipeline-options}
 
 Use the pipeline options to configure different aspects of your pipeline, such
@@ -593,6 +597,10 @@ such as [ParDo](#pardo) or [Combine](#combine). There are also pre-written
 combine one or more of the core transforms in a useful processing pattern, such
 as counting or combining elements in a collection. You can also define your own
 more complex composite transforms to fit your pipeline's exact use case.
+
+For a more in-depth tutorial of applying various transforms
+in the Python SDK, please read and work through
+[this colab notebook](https://colab.sandbox.google.com/github/liferoad/beam/blob/learn-transforms/examples/notebooks/get-started/learn_beam_transforms_by_doing.ipynb).
 
 ### 4.1. Applying transforms {#applying-transforms}
 

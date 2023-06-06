@@ -18,14 +18,11 @@
 package org.apache.beam.sdk.schemas.io.payloads;
 
 import java.util.Map;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.io.Providers.Identifyable;
 
 @Internal
-@Experimental(Kind.SCHEMAS)
 public interface PayloadSerializerProvider extends Identifyable {
   /**
    * Get a PayloadSerializer.

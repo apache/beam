@@ -61,6 +61,10 @@ from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils.windowed_value import WindowedValue
 
+from . import snippets_examples_wordcount_debugging
+from . import snippets_examples_wordcount_minimal
+from . import snippets_examples_wordcount_wordcount
+
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
@@ -787,8 +791,8 @@ class SnippetsTest(unittest.TestCase):
         sorted(' '.join(lines).split(' ')), self.get_output(result_path))
 
   @parameterized.parameterized.expand([
-      [snippets.examples_wordcount_minimal],
-      [snippets.examples_wordcount_wordcount],
+      [snippets_examples_wordcount_minimal.examples_wordcount_minimal],
+      [snippets_examples_wordcount_wordcount.examples_wordcount_wordcount],
       [snippets.pipeline_monitoring],
       [snippets.examples_wordcount_templated],
   ])
@@ -818,7 +822,7 @@ class SnippetsTest(unittest.TestCase):
     temp_path = self.create_temp_file(
         'Flourish Flourish Flourish stomach abc def')
     result_path = self.create_temp_file()
-    snippets.examples_wordcount_debugging({
+    snippets_examples_wordcount_debugging.examples_wordcount_debugging({
         'read': temp_path, 'write': result_path
     })
     self.assertEqual(

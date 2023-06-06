@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.spark;
 
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -70,7 +69,6 @@ public interface SparkPipelineOptions extends SparkCommonPipelineOptions {
   @Default.Long(0)
   Long getBundleSize();
 
-  @Experimental
   void setBundleSize(Long value);
 
   @Description(

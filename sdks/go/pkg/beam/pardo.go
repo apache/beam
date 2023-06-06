@@ -116,17 +116,6 @@ func TryParDo(s Scope, dofn any, col PCollection, opts ...Option) ([]PCollection
 		}
 	}
 
-	wc := inWfn.Coder()
-	pipelineTimers, _ := fn.PipelineTimers()
-	if len(pipelineTimers) > 0 {
-		c, err := inferCoder(typex.New(reflect.TypeOf(col.Type())))
-		if err != nil {
-			return nil, addParDoCtx(errors.New("error infering coder from col"), s)
-		}
-		tc := coder.NewT(c, wc)
-		edge.TimerCoders = tc
-	}
-
 	var ret []PCollection
 	for _, out := range edge.Output {
 		c := PCollection{out.To}

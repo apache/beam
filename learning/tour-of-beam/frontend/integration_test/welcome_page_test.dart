@@ -114,7 +114,7 @@ void _checkModulesDisplayed() {
     throw Exception('contentTree is null');
   }
 
-  for (final module in contentTree.modules) {
+  for (final module in contentTree.nodes) {
     expect(find.text(module.title), findsOneWidget);
   }
 }

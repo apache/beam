@@ -26,6 +26,7 @@ import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,20 +36,27 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.transforms.Convert;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.schemas.utils.JsonUtils;
-import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.FinishBundle;
+import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
@@ -66,6 +74,11 @@ public class KafkaReadSchemaTransformProvider
     extends TypedSchemaTransformProvider<KafkaReadSchemaTransformConfiguration> {
 
   private static final Logger LOG = LoggerFactory.getLogger(KafkaReadSchemaTransformProvider.class);
+
+  public static final TupleTag<Row> OUTPUT_TAG = new TupleTag<Row>() {};
+  public static final TupleTag<Row> ERROR_TAG = new TupleTag<Row>() {};
+  public static final Schema ERROR_SCHEMA =
+      Schema.builder().addStringField("error").addNullableByteArrayField("row").build();
 
   final Boolean isTest;
   final Integer testTimeoutSecs;
@@ -102,7 +115,37 @@ public class KafkaReadSchemaTransformProvider
 
   @Override
   public List<String> outputCollectionNames() {
-    return Lists.newArrayList("output");
+    return Arrays.asList("output", "errors");
+  }
+
+  public static class ErrorFn extends DoFn<byte[], Row> {
+    private SerializableFunction<byte[], Row> valueMapper;
+    private Counter errorCounter;
+    private Long errorsInBundle = 0L;
+
+    public ErrorFn(String name, SerializableFunction<byte[], Row> valueMapper) {
+      this.errorCounter = Metrics.counter(KafkaReadSchemaTransformProvider.class, name);
+      this.valueMapper = valueMapper;
+    }
+
+    @ProcessElement
+    public void process(@DoFn.Element byte[] msg, MultiOutputReceiver receiver) {
+      try {
+        receiver.get(OUTPUT_TAG).output(valueMapper.apply(msg));
+      } catch (Exception e) {
+        errorsInBundle += 1;
+        LOG.warn("Error while parsing the element", e);
+        receiver
+            .get(ERROR_TAG)
+            .output(Row.withSchema(ERROR_SCHEMA).addValues(e.toString(), msg).build());
+      }
+    }
+
+    @FinishBundle
+    public void finish(FinishBundleContext c) {
+      errorCounter.inc(errorsInBundle);
+      errorsInBundle = 0L;
+    }
   }
 
   private static class KafkaReadSchemaTransform implements SchemaTransform {
@@ -160,14 +203,19 @@ public class KafkaReadSchemaTransformProvider
               kafkaRead = kafkaRead.withMaxReadTime(Duration.standardSeconds(testTimeoutSeconds));
             }
 
+            PCollection<byte[]> kafkaValues =
+                input.getPipeline().apply(kafkaRead.withoutMetadata()).apply(Values.create());
+
+            PCollectionTuple outputTuple =
+                kafkaValues.apply(
+                    ParDo.of(new ErrorFn("Kafka-read-error-counter", valueMapper))
+                        .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
+
             return PCollectionRowTuple.of(
                 "output",
-                input
-                    .getPipeline()
-                    .apply(kafkaRead.withoutMetadata())
-                    .apply(Values.create())
-                    .apply(MapElements.into(TypeDescriptors.rows()).via(valueMapper))
-                    .setRowSchema(beamSchema));
+                outputTuple.get(OUTPUT_TAG).setRowSchema(beamSchema),
+                "errors",
+                outputTuple.get(ERROR_TAG).setRowSchema(ERROR_SCHEMA));
           }
         };
       } else {

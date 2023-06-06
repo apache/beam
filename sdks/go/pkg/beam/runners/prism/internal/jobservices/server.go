@@ -20,6 +20,7 @@ import (
 	"net"
 	"sync"
 
+	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
 	"golang.org/x/exp/slog"
 	"google.golang.org/grpc"
@@ -28,6 +29,7 @@ import (
 type Server struct {
 	jobpb.UnimplementedJobServiceServer
 	jobpb.UnimplementedArtifactStagingServiceServer
+	fnpb.UnimplementedProvisionServiceServer
 
 	// Server management
 	lis    net.Listener

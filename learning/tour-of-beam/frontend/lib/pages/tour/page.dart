@@ -29,23 +29,24 @@ class TourPage extends StatefulMaterialPage<void, TourNotifier> {
   /// Called when navigating to the page programmatically.
   TourPage({
     required Sdk sdk,
-    List<String> treeIds = const [],
+    List<String> breadcrumbIds = const [],
   }) : super(
           key: const ValueKey(classFactoryKey),
           state: TourNotifier(
             initialSdk: sdk,
-            initialTreeIds: treeIds,
+            initialBreadcrumbIds: breadcrumbIds,
           ),
           createScreen: TourScreen.new,
         );
 
   /// Called when re-creating the page at a navigation intent.
   factory TourPage.fromStateMap(Map state) {
-    final treeIds = state['treeIds'];
+    final breadcrumbIds = state['breadcrumbIds'];
 
     return TourPage(
       sdk: Sdk.parseOrCreate(state['sdkId']),
-      treeIds: treeIds is List ? treeIds.cast<String>() : const [],
+      breadcrumbIds:
+          breadcrumbIds is List ? breadcrumbIds.cast<String>() : const [],
     );
   }
 }

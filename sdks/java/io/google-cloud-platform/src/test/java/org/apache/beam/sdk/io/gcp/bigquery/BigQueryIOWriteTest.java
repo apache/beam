@@ -222,7 +222,6 @@ public class BigQueryIOWriteTest implements Serializable {
                       bqOptions.setUseStorageWriteApiAtLeastOnce(true);
                     }
                     if (useStreaming) {
-                      bqOptions.setNumStorageWriteApiStreams(2);
                       bqOptions.setStorageWriteApiTriggeringFrequencySec(1);
                     }
                   }
@@ -299,7 +298,6 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testWriteDynamicDestinationsStreamingWithAutoSharding() throws Exception {
-    assumeTrue(!useStorageApi);
     assumeTrue(useStreaming);
     writeDynamicDestinations(true, true);
   }
@@ -1861,6 +1859,7 @@ public class BigQueryIOWriteTest implements Serializable {
             .to(tableRef)
             .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
             .withSchema(new TableSchema())
+            .withNumStorageWriteApiStreams(2)
             .withTestServices(fakeBqServices));
     p.run();
   }
@@ -1902,6 +1901,7 @@ public class BigQueryIOWriteTest implements Serializable {
             .to(tableRef)
             .withMethod(method)
             .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER)
+            .withNumStorageWriteApiStreams(2)
             .withTestServices(fakeBqServices)
             .withoutValidation());
     p.run();
@@ -1985,9 +1985,13 @@ public class BigQueryIOWriteTest implements Serializable {
         new TableSchema()
             .setFields(
                 ImmutableList.of(
-                    new TableFieldSchema().setName("name").setType("STRING"),
                     new TableFieldSchema().setName("number").setType("INTEGER"),
+                    new TableFieldSchema().setName("name").setType("STRING"),
                     new TableFieldSchema().setName("req").setType("STRING").setMode("REQUIRED")));
+
+    // Add new fields to the update schema. Also reorder some existing fields to validate that we
+    // handle update
+    // field reordering correctly.
     TableSchema tableSchemaUpdated =
         new TableSchema()
             .setFields(
@@ -2018,8 +2022,8 @@ public class BigQueryIOWriteTest implements Serializable {
                 new TableRow()
                     .setF(
                         ImmutableList.of(
-                            new TableCell().setV("name" + i),
                             new TableCell().setV(Long.toString(i)),
+                            new TableCell().setV("name" + i),
                             new TableCell().setV(i > 5 ? null : "foo"),
                             new TableCell().setV(Long.toString(i * 2))));
 
@@ -2994,5 +2998,77 @@ public class BigQueryIOWriteTest implements Serializable {
     assertThat(
         fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
         containsInAnyOrder(new TableRow().set("name", "a"), new TableRow().set("name", "b")));
+  }
+
+  @Test
+  public void testWriteWithStorageApiWithoutSettingShardsEnableAutoSharding() throws Exception {
+    assumeTrue(useStorageApi);
+    assumeTrue(p.getOptions().as(BigQueryOptions.class).getNumStorageWriteApiStreams() == 0);
+    BigQueryIO.Write<TableRow> write =
+        BigQueryIO.writeTableRows()
+            .to("dataset-id.table-id")
+            .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+            .withSchema(
+                new TableSchema()
+                    .setFields(
+                        ImmutableList.of(new TableFieldSchema().setName("name").setType("STRING"))))
+            .withMethod(Method.STORAGE_WRITE_API)
+            .withoutValidation()
+            .withTestServices(fakeBqServices);
+
+    p.apply(
+            Create.of(new TableRow().set("name", "a"), new TableRow().set("name", "b"))
+                .withCoder(TableRowJsonCoder.of()))
+        .apply("WriteToBQ", write);
+    p.run();
+    assertThat(
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
+        containsInAnyOrder(new TableRow().set("name", "a"), new TableRow().set("name", "b")));
+  }
+
+  @Test
+  public void testBatchStorageWriteWithMultipleAppendsPerStream() throws Exception {
+    assumeTrue(useStorageApi);
+    assumeTrue(!useStreaming);
+
+    // reduce threshold to trigger multiple stream appends
+    p.getOptions().as(BigQueryOptions.class).setStorageApiAppendThresholdRecordCount(0);
+    // limit parallelism to limit the number of write streams we have open
+    p.getOptions().as(DirectOptions.class).setTargetParallelism(1);
+
+    TableSchema schema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("num").setType("INTEGER"),
+                    new TableFieldSchema().setName("name").setType("STRING")));
+    Table fakeTable = new Table();
+    TableReference ref =
+        new TableReference()
+            .setProjectId("project-id")
+            .setDatasetId("dataset-id")
+            .setTableId("table-id");
+    fakeTable.setSchema(schema);
+    fakeTable.setTableReference(ref);
+    fakeDatasetService.createTable(fakeTable);
+
+    List<TableRow> rows = new ArrayList<TableRow>(100);
+    for (int i = 0; i < 100; i++) {
+      rows.add(new TableRow().set("num", String.valueOf(i)).set("name", String.valueOf(i)));
+    }
+    p.apply(Create.of(rows))
+        .apply(
+            "Save Events To BigQuery",
+            BigQueryIO.writeTableRows()
+                .to(ref)
+                .withMethod(Write.Method.STORAGE_WRITE_API)
+                .withCreateDisposition(CreateDisposition.CREATE_NEVER)
+                .withTestServices(fakeBqServices));
+
+    p.run();
+
+    assertThat(
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
+        containsInAnyOrder(Iterables.toArray(rows, TableRow.class)));
   }
 }
