@@ -66,6 +66,10 @@ result.apply(ParDo.of(new DoFn<KV<K, CoGbkResult>, /* some result */>() {
 }));
 {{< /highlight >}}
 
+{{< playground height="700px" >}}
+{{< playground_snippet language="java" path="SDK_JAVA_GroupByKey" show="main_section" >}}
+{{< /playground >}}
+
 ## Related transforms
 * [GroupByKey](/documentation/transforms/java/aggregation/groupbykey)
   takes one input collection.

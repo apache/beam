@@ -33,22 +33,11 @@ values for each key.
 
 ## Examples
 
-**Example 1** Find the distinct element from a `PCollection` of `String`.
+**Example 1**: Find the distinct element from a `PCollection` of `String`.
 
-{{< highlight java >}}
-
-static final String[] WORDS_ARRAY = new String[]{
-            "hi", "hi", "sue",
-            "sue",  "bob"
-    };
-static final List<String> WORDS = Arrays.asList(WORDS_ARRAY);
-
-PCollection<String> input =
-        pipeline.apply(Create.of(WORDS)).withCoder(StringUtf8Coder.of());
-
-PCollection<String> distinctWords = input.apply(Distinct.create());
-
-{{< /highlight >}}
+{{< playground height="700px" >}}
+{{< playground_snippet language="java" path="SDK_JAVA_Distinct" show="main_section" >}}
+{{< /playground >}}
 
 ## Related transforms
 * [Count](/documentation/transforms/java/aggregation/count)

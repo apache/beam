@@ -42,19 +42,16 @@ commumative operation. But, it allows the use of partial sums to be precomputed.
 See more information in the [Beam Programming Guide](/documentation/programming-guide/#combine).
 
 ## Examples
+
 **Example 1**: Global combine
 Use the global combine to combine all of the elements in a given `PCollection`
 into a single value, represented in your pipeline as a new `PCollection` containing
 one element. The following example code shows how to apply the Beam-provided
 sum combine function to produce a single sum value for a `PCollection` of integers.
 
-{{< highlight java >}}
-// Sum.SumIntegerFn() combines the elements in the input PCollection. The resulting PCollection, called sum,
-// contains one value: the sum of all the elements in the input PCollection.
-PCollection<Integer> pc = ...;
-PCollection<Integer> sum = pc.apply(
-   Combine.globally(new Sum.SumIntegerFn()));
-{{< /highlight >}}
+{{< playground height="700px" >}}
+{{< playground_snippet language="java" path="SDK_JAVA_Combine" show="main_section" >}}
+{{< /playground >}}
 
 **Example 2**: Keyed combine
 Use a keyed combine to combine all of the values associated with each key

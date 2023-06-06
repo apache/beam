@@ -29,7 +29,18 @@ Provides a variety of different transforms for computing the minimum
 values in a collection, either globally or for each key.
 
 ## Examples
-See [BEAM-7703](https://issues.apache.org/jira/browse/BEAM-7703) for updates.
+
+**Example 1**:
+
+{{< playground height="700px" >}}
+{{< playground_snippet language="java" path="SDK_JAVA_Min" show="main_section" >}}
+{{< /playground >}}
+
+**Example 2**:
+
+{{< playground height="700px" >}}
+{{< playground_snippet language="java" path="SDK_JAVA_MinPerKey" show="main_section" >}}
+{{< /playground >}}
 
 ## Related transforms
 * [Max](/documentation/transforms/java/aggregation/max)

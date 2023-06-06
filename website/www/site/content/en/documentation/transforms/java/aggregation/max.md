@@ -31,19 +31,16 @@ values in a collection, either globally or for each key.
 ## Examples
 **Example 1**: get the maximum of a `PCollection` of `Doubles`.
 
-{{< highlight java >}}
-PCollection<Double> input = ...;
-PCollection<Double> max = input.apply(Max.doublesGlobally());
-{{< /highlight >}}
+{{< playground height="700px" >}}
+{{< playground_snippet language="java" path="SDK_JAVA_Max" show="main_section" >}}
+{{< /playground >}}
 
 **Example 2**: calculate the maximum of the `Integers` associated
 with each unique key (which is of type `String`).
 
-{{< highlight java >}}
-PCollection<KV<String, Integer>> input = ...;
-PCollection<KV<String, Integer>> maxPerKey = input
-     .apply(Max.integersPerKey());
-{{< /highlight >}}
+{{< playground height="700px" >}}
+{{< playground_snippet language="java" path="SDK_JAVA_MaxPerKey" show="main_section" >}}
+{{< /playground >}}
 
 ## Related transforms
 * [Min](/documentation/transforms/java/aggregation/min)
