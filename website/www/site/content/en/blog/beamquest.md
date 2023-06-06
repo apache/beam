@@ -1,6 +1,6 @@
 ---
 title:  "Getting started with Apache Beam: An open source proficiency credential sponsored by Google Cloud"
-date:   2023-06-09 00:00:01 -0800
+date:   2023-06-06 00:00:01 -0800
 categories:
   - blog
 aliases:
