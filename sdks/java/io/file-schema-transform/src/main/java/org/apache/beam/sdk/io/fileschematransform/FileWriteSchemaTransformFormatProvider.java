@@ -22,6 +22,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.io.Providers;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 
 /**
@@ -38,6 +39,6 @@ public interface FileWriteSchemaTransformFormatProvider extends Providers.Identi
    * Builds a {@link PTransform} that writes a {@link Row} {@link PCollection} and outputs the
    * resulting {@link PCollection} of the file names.
    */
-  PTransform<PCollection<Row>, PCollection<String>> buildTransform(
+  PTransform<PCollection<Row>, PCollectionTuple> buildTransform(
       FileWriteSchemaTransformConfiguration configuration, Schema schema);
 }

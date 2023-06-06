@@ -32,6 +32,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.parquet.hadoop.metadata.CompressionCodecName;
 
@@ -53,11 +54,11 @@ public class ParquetWriteSchemaTransformFormatProvider
    * {@link PCollection} file names written using {@link ParquetIO.Sink} and {@link FileIO.Write}.
    */
   @Override
-  public PTransform<PCollection<Row>, PCollection<String>> buildTransform(
+  public PTransform<PCollection<Row>, PCollectionTuple> buildTransform(
       FileWriteSchemaTransformConfiguration configuration, Schema schema) {
-    return new PTransform<PCollection<Row>, PCollection<String>>() {
+    return new PTransform<PCollection<Row>, PCollectionTuple>() {
       @Override
-      public PCollection<String> expand(PCollection<Row> input) {
+      public PCollectionTuple expand(PCollection<Row> input) {
         org.apache.avro.Schema avroSchema = AvroUtils.toAvroSchema(schema);
         AvroCoder<GenericRecord> coder = AvroCoder.of(avroSchema);
 
@@ -69,14 +70,16 @@ public class ParquetWriteSchemaTransformFormatProvider
 
         write = applyCommonFileIOWriteFeatures(write, configuration);
 
-        return input
-            .apply(
-                "Row To GenericRecord",
-                FileWriteSchemaTransformFormatProviders.mapRowsToGenericRecords(schema))
-            .setCoder(coder)
-            .apply("Write Parquet", write)
-            .getPerDestinationOutputFilenames()
-            .apply("perDestinationOutputFilenames", Values.create());
+        PCollection<String> output =
+            input
+                .apply(
+                    "Row To GenericRecord",
+                    FileWriteSchemaTransformFormatProviders.mapRowsToGenericRecords(schema))
+                .setCoder(coder)
+                .apply("Write Parquet", write)
+                .getPerDestinationOutputFilenames()
+                .apply("perDestinationOutputFilenames", Values.create());
+        return PCollectionTuple.of("output", output);
       }
     };
   }

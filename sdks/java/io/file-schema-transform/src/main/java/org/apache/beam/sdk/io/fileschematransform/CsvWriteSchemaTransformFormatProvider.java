@@ -32,6 +32,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.commons.csv.CSVFormat;
@@ -49,12 +50,12 @@ public class CsvWriteSchemaTransformFormatProvider
   }
 
   @Override
-  public PTransform<PCollection<Row>, PCollection<String>> buildTransform(
+  public PTransform<PCollection<Row>, PCollectionTuple> buildTransform(
       FileWriteSchemaTransformConfiguration configuration, Schema schema) {
 
-    return new PTransform<PCollection<Row>, PCollection<String>>() {
+    return new PTransform<PCollection<Row>, PCollectionTuple>() {
       @Override
-      public PCollection<String> expand(PCollection<Row> input) {
+      public PCollectionTuple expand(PCollection<Row> input) {
         FileWriteSchemaTransformConfiguration.CsvConfiguration csvConfiguration =
             getCSVConfiguration(configuration);
         CSVFormat csvFormat =
@@ -83,9 +84,11 @@ public class CsvWriteSchemaTransformFormatProvider
         }
 
         WriteFilesResult<String> result = input.apply("Row to CSV", write);
-        return result
-            .getPerDestinationOutputFilenames()
-            .apply("perDestinationOutputFilenames", Values.create());
+        PCollection<String> output =
+            result
+                .getPerDestinationOutputFilenames()
+                .apply("perDestinationOutputFilenames", Values.create());
+        return PCollectionTuple.of("ouput", output);
       }
     };
   }

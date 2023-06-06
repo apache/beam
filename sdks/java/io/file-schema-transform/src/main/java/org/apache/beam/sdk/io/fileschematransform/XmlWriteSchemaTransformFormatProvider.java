@@ -34,6 +34,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
@@ -55,11 +56,11 @@ public class XmlWriteSchemaTransformFormatProvider
    * {@link PCollection} file names written using {@link XmlIO.Sink} and {@link FileIO.Write}.
    */
   @Override
-  public PTransform<PCollection<Row>, PCollection<String>> buildTransform(
+  public PTransform<PCollection<Row>, PCollectionTuple> buildTransform(
       FileWriteSchemaTransformConfiguration configuration, Schema schema) {
-    return new PTransform<PCollection<Row>, PCollection<String>>() {
+    return new PTransform<PCollection<Row>, PCollectionTuple>() {
       @Override
-      public PCollection<String> expand(PCollection<Row> input) {
+      public PCollectionTuple expand(PCollection<Row> input) {
 
         PCollection<XmlRowAdapter> xml =
             input.apply(
@@ -87,9 +88,11 @@ public class XmlWriteSchemaTransformFormatProvider
 
         write = applyCommonFileIOWriteFeatures(write, configuration);
 
-        return xml.apply("Write XML", write)
-            .getPerDestinationOutputFilenames()
-            .apply("perDestinationOutputFilenames", Values.create());
+        PCollection<String> output =
+            xml.apply("Write XML", write)
+                .getPerDestinationOutputFilenames()
+                .apply("perDestinationOutputFilenames", Values.create());
+        return PCollectionTuple.of("output", output);
       }
     };
   }

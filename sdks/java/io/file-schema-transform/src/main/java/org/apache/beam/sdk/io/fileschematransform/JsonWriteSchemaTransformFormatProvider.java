@@ -31,6 +31,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
@@ -51,11 +52,11 @@ public class JsonWriteSchemaTransformFormatProvider
    * {@link PCollection} file names written using {@link TextIO.Write}.
    */
   @Override
-  public PTransform<PCollection<Row>, PCollection<String>> buildTransform(
+  public PTransform<PCollection<Row>, PCollectionTuple> buildTransform(
       FileWriteSchemaTransformConfiguration configuration, Schema schema) {
-    return new PTransform<PCollection<Row>, PCollection<String>>() {
+    return new PTransform<PCollection<Row>, PCollectionTuple>() {
       @Override
-      public PCollection<String> expand(PCollection<Row> input) {
+      public PCollectionTuple expand(PCollection<Row> input) {
 
         PCollection<String> json = input.apply("Row To Json", mapRowsToJsonStrings(schema));
 
@@ -64,9 +65,11 @@ public class JsonWriteSchemaTransformFormatProvider
 
         write = applyCommonTextIOWriteFeatures(write, configuration);
 
-        return json.apply("Write Json", write.withOutputFilenames())
-            .getPerDestinationOutputFilenames()
-            .apply("perDestinationOutputFilenames", Values.create());
+        PCollection<String> output =
+            json.apply("Write Json", write.withOutputFilenames())
+                .getPerDestinationOutputFilenames()
+                .apply("perDestinationOutputFilenames", Values.create());
+        return PCollectionTuple.of("output", output);
       }
     };
   }
