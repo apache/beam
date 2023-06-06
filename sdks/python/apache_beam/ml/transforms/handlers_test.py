@@ -377,6 +377,19 @@ class TFTProcessHandlerSchemaTest(unittest.TestCase):
             }])
             | base.MLTransform(process_handler=process_handler))
 
+  def test_tft_process_handler_fail_for_non_global_windows(self):
+    transforms = [tft_transforms.scale_to_0_1(columns=['x'])]
+    process_handler = handlers.TFTProcessHandlerSchema(transforms=transforms)
+    with beam.Pipeline() as p:
+      with self.assertRaises(RuntimeError):
+        _ = (
+            p
+            | beam.Create([{
+                'x': 1, 'y': 2.0
+            }])
+            | beam.WindowInto(beam.window.FixedWindows(1))
+            | base.MLTransform(process_handler=process_handler))
+
 
 if __name__ == '__main__':
   unittest.main()
