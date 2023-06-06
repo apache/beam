@@ -134,16 +134,14 @@ if __name__ == '__main__':
       f.write(contents.encode('utf-8'))
       return f.name
 
-  # Replace Beam ReadFromText and WriteToText to redirect input and output to and from files
+  # Replace Beam ReadFromText and WriteToText to redirect
+  # input and output to and from files
   beam.io.ReadFromText = SnippetsTest.DummyReadTransform
   beam.io.WriteToText = SnippetsTest.DummyWriteTransform
 
-  temp_path = create_temp_file(
-        'Flourish Flourish Flourish stomach abc def')
+  temp_path = create_temp_file('Flourish Flourish Flourish stomach abc def')
   result_path = create_temp_file()
-  examples_wordcount_debugging({
-        'read': temp_path, 'write': result_path
-    })
+  examples_wordcount_debugging({'read': temp_path, 'write': result_path})
 
   for file_name in glob.glob(result_path + '*'):
     with open(file_name) as f:
