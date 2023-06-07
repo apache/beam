@@ -33,4 +33,4 @@ Individuals aren’t the only ones who can benefit from completing this quest - 
 
 Data Processing is a key part of AI/ML workflows. Given the recent advancements in artificial intelligence, now’s the time to jump into the world of data processing! Get started on your journey [here](https://www.cloudskillsboost.google/quests/310).
 
-We are currently offering this quest **FREE OF CHARGE** till **July 8, 2023** for the **first 2,000** people. Obtain your badge for **FREE** using [Access Code](https://www.cloudskillsboost.google/catalog?qlcampaign=1h-swiss-19), creating an account and searching ["Getting Started with Apache Beam"](https://www.cloudskillsboost.google/quests/310).
+We are currently offering this quest **FREE OF CHARGE** until **July 8, 2023** for the **first 2,000** people. To obtain your badge for **FREE**, use the [Access Code](https://www.cloudskillsboost.google/catalog?qlcampaign=1h-swiss-19), create an account, and search ["Getting Started with Apache Beam"](https://www.cloudskillsboost.google/quests/310).
