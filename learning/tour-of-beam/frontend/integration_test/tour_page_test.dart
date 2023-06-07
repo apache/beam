@@ -269,6 +269,18 @@ Future<void> _checkSdkChanges(WidgetTester wt) async {
 }
 
 Future<void> _selectUnitWithSnippetsInAllSdks(WidgetTester wt) async {
+  final unitWithSnippets = await _findUnitWithSnippetsInAllSdks(wt);
+
+  if (unitWithSnippets == null) {
+    fail('No unit with snippets in all sdks');
+  }
+
+  final controller = getContentTreeController(wt);
+  controller.onNodePressed(unitWithSnippets);
+  await wt.pumpAndSettle();
+}
+
+Future<UnitModel?> _findUnitWithSnippetsInAllSdks(WidgetTester wt) async {
   final unitContentCache = GetIt.instance.get<UnitContentCache>();
   final commonUnits = await _getCommonUnitsInAllSdks(wt);
   final sdks = GetIt.instance.get<SdkCache>().getSdks();
@@ -289,14 +301,7 @@ Future<void> _selectUnitWithSnippetsInAllSdks(WidgetTester wt) async {
       break;
     }
   }
-
-  if (unitWithSnippets == null) {
-    fail('No unit with snippets in all sdks');
-  }
-  
-  final controller = getContentTreeController(wt);
-  controller.onNodePressed(unitWithSnippets);
-  await wt.pumpAndSettle();
+  return unitWithSnippets;
 }
 
 Future<List<UnitModel>> _getCommonUnitsInAllSdks(WidgetTester wt) async {
