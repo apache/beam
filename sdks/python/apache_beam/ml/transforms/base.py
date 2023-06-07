@@ -38,11 +38,11 @@ ProcessInputT = TypeVar('ProcessInputT')
 # from MLTransformOutputT
 ProcessOutputT = TypeVar('ProcessOutputT')
 
-# Input to the apply() method of _BaseOperation.
+# Input to the apply() method of BaseOperation.
 OperationInputT = TypeVar('OperationInputT')
 
 
-class _BaseOperation():
+class BaseOperation():
   def apply(self, inputs: OperationInputT, *args, **kwargs):
     """
     Define any processing logic in the apply() method.
@@ -65,7 +65,7 @@ class ProcessHandler(Generic[ProcessInputT, ProcessOutputT]):
     """
     raise NotImplementedError
 
-  def append_transform(self, transform: _BaseOperation):
+  def append_transform(self, transform: BaseOperation):
     raise NotImplementedError
 
 
@@ -101,11 +101,11 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
     """
     return self._process_handler.process_data(pcoll)
 
-  def with_transform(self, transform: _BaseOperation):
+  def with_transform(self, transform: BaseOperation):
     """
     Add a transform to the MLTransform pipeline.
     Args:
-      transform: A _BaseOperation instance.
+      transform: A BaseOperation instance.
     Returns:
       A MLTransform instance.
     """

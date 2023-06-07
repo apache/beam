@@ -29,7 +29,7 @@ import apache_beam as beam
 from apache_beam.ml.transforms.base import ProcessHandler
 from apache_beam.ml.transforms.base import ProcessInputT
 from apache_beam.ml.transforms.base import ProcessOutputT
-from apache_beam.ml.transforms.tft_transforms import _TFTOperation
+from apache_beam.ml.transforms.tft_transforms import TFTOperation
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.typehints import native_type_compatibility
@@ -98,8 +98,9 @@ class TFTProcessHandler(ProcessHandler[ProcessInputT, ProcessOutputT]):
   def __init__(
       self,
       *,
-      transforms: Optional[List[_TFTOperation]] = None,
+      transforms: Optional[List[TFTOperation]] = None,
       artifact_location: typing.Optional[str] = None,
+      preprocessing_fn: typing.Optional[typing.Callable] = None,
   ):
     """
     A handler class for processing data with TensorFlow Transform (TFT)
@@ -122,6 +123,7 @@ class TFTProcessHandler(ProcessHandler[ProcessInputT, ProcessOutputT]):
     self._artifact_location = None
     self.transformed_schema = None
     self.artifact_location = artifact_location
+    self.preprocessing_fn = preprocessing_fn
 
   def append_transform(self, transform):
     self.transforms.append(transform)
@@ -221,7 +223,7 @@ class TFTProcessHandler(ProcessHandler[ProcessInputT, ProcessOutputT]):
     else:
       return staging_location
 
-  def preprocessing_fn(
+  def get_preprocessing_fn(
       self, inputs: Dict[str, common_types.ConsistentTensorType]
   ) -> Dict[str, common_types.ConsistentTensorType]:
     """
@@ -313,7 +315,7 @@ class TFTProcessHandlerSchema(
 
     return inferred_types
 
-  def preprocessing_fn(
+  def get_preprocessing_fn(
       self, inputs: Dict[str, common_types.ConsistentTensorType]
   ) -> Dict[str, common_types.ConsistentTensorType]:
     """
@@ -389,13 +391,15 @@ class TFTProcessHandlerSchema(
     if not self._artifact_location:
       self._artifact_location = self._get_artifact_location(raw_data.pipeline)
 
+    preprocessing_fn = self.preprocessing_fn if self.preprocessing_fn else (
+        self.get_preprocessing_fn)
     with tft_beam.Context(temp_dir=self._artifact_location):
       data = (raw_data, raw_data_metadata)
       transformed_metadata: beam_metadata_io.BeamDatasetMetadata
       (transformed_dataset, transformed_metadata), transform_fn = (
       data
       | "AnalyzeAndTransformDataset" >> tft_beam.AnalyzeAndTransformDataset(
-      self.preprocessing_fn,
+      preprocessing_fn,
         )
       )
       self.write_transform_artifacts(transform_fn, self._artifact_location)

@@ -33,7 +33,7 @@ try:
   from apache_beam.ml.transforms import base
   from apache_beam.ml.transforms import handlers
   from apache_beam.ml.transforms import tft_transforms
-  from apache_beam.ml.transforms.tft_transforms import _TFTOperation
+  from apache_beam.ml.transforms.tft_transforms import TFTOperation
   import tensorflow as tf
 except ImportError:
   tft_transforms = None
@@ -42,7 +42,7 @@ if not tft_transforms:
   raise unittest.SkipTest('tensorflow_transform is not installed.')
 
 
-class _FakeOperation(_TFTOperation):
+class _FakeOperation(TFTOperation):
   def __init__(self, name, *args, **kwargs):
     super().__init__(*args, **kwargs)
     self.name = name
@@ -51,20 +51,17 @@ class _FakeOperation(_TFTOperation):
     return inputs
 
 
-class _AddOperation(_TFTOperation):
+class _AddOperation(TFTOperation):
   def apply(self, inputs, *args, **kwargs):
     return inputs + 1
 
 
-class _MultiplyOperation(_TFTOperation):
+class _MultiplyOperation(TFTOperation):
   def apply(self, inputs, *args, **kwargs):
     return inputs * 10
 
 
-class _FakeOperationWithArtifacts(_TFTOperation):
-  def __init__(self, *args, **kwargs):
-    super().__init__(*args, **kwargs)
-
+class _FakeOperationWithArtifacts(TFTOperation):
   def apply(self, inputs, *args, **kwargs):
     return inputs
 
