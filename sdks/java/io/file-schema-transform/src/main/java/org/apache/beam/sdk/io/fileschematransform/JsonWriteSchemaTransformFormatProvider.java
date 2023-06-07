@@ -66,7 +66,6 @@ public class JsonWriteSchemaTransformFormatProvider
       @Override
       public PCollectionTuple expand(PCollection<Row> input) {
 
-        // PCollection<String> json = input.apply("Row To Json", mapRowsToJsonStrings(schema));
         PCollectionTuple json =
             input.apply(
                 ParDo.of(

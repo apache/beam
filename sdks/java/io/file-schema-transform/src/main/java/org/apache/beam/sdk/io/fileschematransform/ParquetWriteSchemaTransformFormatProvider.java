@@ -18,6 +18,9 @@
 package org.apache.beam.sdk.io.fileschematransform;
 
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.applyCommonFileIOWriteFeatures;
+import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformProvider.ERROR_SCHEMA;
+import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformProvider.ERROR_TAG;
+import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformProvider.RESULT_TAG;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.service.AutoService;
@@ -27,13 +30,17 @@ import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformConfiguration.ParquetConfiguration;
+import org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.ErrorCounterFn;
 import org.apache.beam.sdk.io.parquet.ParquetIO;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.parquet.hadoop.metadata.CompressionCodecName;
 
 /** A {@link FileWriteSchemaTransformFormatProvider} for Parquet format. */
@@ -43,6 +50,9 @@ public class ParquetWriteSchemaTransformFormatProvider
 
   private static final String SUFFIX =
       String.format(".%s", FileWriteSchemaTransformFormatProviders.PARQUET);
+
+  private static final TupleTag<GenericRecord> ERROR_FN_OUPUT_TAG =
+      new TupleTag<GenericRecord>() {};
 
   @Override
   public String identifier() {
@@ -70,16 +80,25 @@ public class ParquetWriteSchemaTransformFormatProvider
 
         write = applyCommonFileIOWriteFeatures(write, configuration);
 
+        PCollectionTuple avro =
+            input.apply(
+                "Row To GenericRecord",
+                ParDo.of(
+                        new ErrorCounterFn<GenericRecord>(
+                            "Parquet-write-error-counter",
+                            AvroUtils.getRowToGenericRecordFunction(AvroUtils.toAvroSchema(schema)),
+                            ERROR_FN_OUPUT_TAG))
+                    .withOutputTags(ERROR_FN_OUPUT_TAG, TupleTagList.of(ERROR_TAG)));
+
         PCollection<String> output =
-            input
-                .apply(
-                    "Row To GenericRecord",
-                    FileWriteSchemaTransformFormatProviders.mapRowsToGenericRecords(schema))
+            avro.get(ERROR_FN_OUPUT_TAG)
                 .setCoder(coder)
                 .apply("Write Parquet", write)
                 .getPerDestinationOutputFilenames()
                 .apply("perDestinationOutputFilenames", Values.create());
-        return PCollectionTuple.of("output", output);
+
+        return PCollectionTuple.of(RESULT_TAG, output)
+            .and(ERROR_TAG, avro.get(ERROR_TAG).setRowSchema(ERROR_SCHEMA));
       }
     };
   }
