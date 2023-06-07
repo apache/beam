@@ -648,6 +648,25 @@ class UtilTest(unittest.TestCase):
     self.assertEqual(
         env.proto.workerPools[0].workerHarnessContainerImage,
         (
+            names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
+            '/beam_python%d.%d_sdk:%s' % (
+                sys.version_info[0],
+                sys.version_info[1],
+                names.BEAM_FNAPI_CONTAINER_VERSION)))
+
+    pipeline_options = pipeline_options = PipelineOptions([
+        '--temp_location',
+        'gs://any-location/temp',
+        '--experiments=disable_runner_v2'
+    ])
+    env = apiclient.Environment(
+        [],  #packages
+        pipeline_options,
+        '2.0.0',  #any environment version
+        FAKE_PIPELINE_URL)
+    self.assertEqual(
+        env.proto.workerPools[0].workerHarnessContainerImage,
+        (
             names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/python%d%d:%s' % (
                 sys.version_info[0],
                 sys.version_info[1],
@@ -684,6 +703,23 @@ class UtilTest(unittest.TestCase):
     self.assertEqual(
         env.proto.workerPools[0].workerHarnessContainerImage,
         (
+            names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
+            '/beam_python%d.%d_sdk:2.2.0' %
+            (sys.version_info[0], sys.version_info[1])))
+
+    pipeline_options = pipeline_options = PipelineOptions([
+        '--temp_location',
+        'gs://any-location/temp',
+        '--experiments=disable_runner_v2'
+    ])
+    env = apiclient.Environment(
+        [],  #packages
+        pipeline_options,
+        '2.0.0',  #any environment version
+        FAKE_PIPELINE_URL)
+    self.assertEqual(
+        env.proto.workerPools[0].workerHarnessContainerImage,
+        (
             names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/python%d%d:2.2.0' %
             (sys.version_info[0], sys.version_info[1])))
 
@@ -710,6 +746,23 @@ class UtilTest(unittest.TestCase):
     # batch, legacy pipeline.
     pipeline_options = PipelineOptions(
         ['--temp_location', 'gs://any-location/temp'])
+    env = apiclient.Environment(
+        [],  #packages
+        pipeline_options,
+        '2.0.0',  #any environment version
+        FAKE_PIPELINE_URL)
+    self.assertEqual(
+        env.proto.workerPools[0].workerHarnessContainerImage,
+        (
+            names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
+            '/beam_python%d.%d_sdk:2.2.0' %
+            (sys.version_info[0], sys.version_info[1])))
+
+    pipeline_options = pipeline_options = PipelineOptions([
+        '--temp_location',
+        'gs://any-location/temp',
+        '--experiments=disable_runner_v2'
+    ])
     env = apiclient.Environment(
         [],  #packages
         pipeline_options,
