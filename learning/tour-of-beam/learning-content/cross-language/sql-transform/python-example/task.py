@@ -22,7 +22,7 @@
 #   categories:
 #     - Quickstart
 #   complexity: BASIC
-#   neverRun: true
+#   never_run: true
 #   tags:
 #     - hellobeam
 

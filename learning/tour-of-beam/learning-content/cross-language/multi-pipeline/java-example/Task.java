@@ -24,7 +24,7 @@
 //   categories:
 //     - Quickstart
 //   complexity: ADVANCED
-//   neverRun: true
+//   never_run: true
 //   tags:
 //     - hellobeam
 
