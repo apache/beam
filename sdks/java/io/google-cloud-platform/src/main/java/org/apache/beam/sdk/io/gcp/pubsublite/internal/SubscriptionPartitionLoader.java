@@ -17,6 +17,10 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsublite.internal;
 
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+
+import autovalue.shaded.org.checkerframework.checker.nullness.qual.Nullable;
 import com.google.cloud.pubsublite.Partition;
 import com.google.cloud.pubsublite.PartitionLookupUtils;
 import com.google.cloud.pubsublite.SubscriptionPath;
@@ -29,6 +33,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -80,7 +85,51 @@ class SubscriptionPartitionLoader extends PTransform<PBegin, PCollection<Subscri
 
     @NewTracker
     public RestrictionTracker<Integer, Integer> newTracker(@Restriction Integer input) {
-      return new SubscriptionPartitionRestrictionTracker(input, terminate);
+      return new RestrictionTracker<Integer, Integer>() {
+        private boolean terminated = false;
+        private int position = input;
+
+        @Override
+        public boolean tryClaim(Integer newPosition) {
+          checkArgument(newPosition >= position);
+          if (terminated) {
+            return false;
+          }
+          if (terminate.get()) {
+            terminated = true;
+            return false;
+          }
+          position = newPosition;
+          return true;
+        }
+
+        @Override
+        public Integer currentRestriction() {
+          return position;
+        }
+
+        @Override
+        public @Nullable SplitResult<Integer> trySplit(double fractionOfRemainder) {
+          if (fractionOfRemainder != 0) {
+            return null;
+          }
+          if (terminated) {
+            return null;
+          }
+          terminated = true;
+          return SplitResult.of(position, position);
+        }
+
+        @Override
+        public void checkDone() throws IllegalStateException {
+          checkState(terminated);
+        }
+
+        @Override
+        public IsBounded isBounded() {
+          return IsBounded.UNBOUNDED;
+        }
+      };
     }
 
     @NewWatermarkEstimator

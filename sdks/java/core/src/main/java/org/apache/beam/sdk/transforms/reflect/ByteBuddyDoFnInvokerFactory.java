@@ -432,7 +432,7 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
             .getProgress()
             .getWorkRemaining();
       } else {
-        return 1.0;
+        return 0.0;
       }
     }
 
