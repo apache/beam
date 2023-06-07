@@ -126,7 +126,8 @@ def examples_wordcount_debugging(renames):
 
 
 if __name__ == '__main__':
-  import tempfile, glob
+  import tempfile
+  import glob
   from apache_beam.examples.snippets.snippets_test import SnippetsTest
 
   def create_temp_file(contents=''):
