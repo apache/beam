@@ -155,7 +155,7 @@ public interface DataflowPipelineOptions
 
   // Disable this support for now until the Dataflow backend fully supports this option.
   @Description("Whether to allow dynamic pubsub destinations. Temporary option: will be removed.")
-  @Default.Boolean(false)
+  @Default.Boolean(true)
   Boolean getEnableDynamicPubsubDestinations();
 
   void setEnableDynamicPubsubDestinations(Boolean enable);
