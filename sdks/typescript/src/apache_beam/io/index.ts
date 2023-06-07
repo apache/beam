@@ -16,8 +16,14 @@
  * limitations under the License.
  */
 
-export * from "./pvalue";
-export * from "./transforms";
-export * from "./values";
-export * from "./runners";
-export * from "./io";
+// A basic subset.
+export * from "./avroio";
+export * from "./bigqueryio";
+export * from "./kafka";
+export * from "./parquetio";
+export * from "./pubsub";
+export * from "./pubsublite";
+export * from "./schemaio";
+
+import { requireForSerialization } from "../serialization";
+requireForSerialization("apache-beam/io", exports);
