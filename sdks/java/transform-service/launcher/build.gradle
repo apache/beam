@@ -1,0 +1,61 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+apply plugin: 'org.apache.beam.module'
+apply plugin: 'application'
+mainClassName = "org.apache.beam.sdk.transformservice.launcher.TransformServiceLauncher"
+
+applyJavaNature(
+        automaticModuleName: 'org.apache.beam.sdk.transform.service',
+        exportJavadoc: false,
+        validateShadowJar: false,
+        shadowClosure: {},
+)
+
+
+description = "Apache Beam :: SDKs :: Java :: Transform Service :: Launcher"
+ext.summary = """Contains code that can be used to run an transform service."""
+
+
+// Exclude tests that need a runner
+test {
+    systemProperty "beamUseDummyRunner", "true"
+    useJUnit {
+        excludeCategories "org.apache.beam.sdk.testing.NeedsRunner"
+    }
+}
+
+dependencies {
+    shadow library.java.vendored_guava_26_0_jre
+    shadow library.java.slf4j_api
+    shadow library.java.args4j
+}
+
+sourceSets {
+    main {
+        resources {
+            srcDirs "../docker-compose"
+        }
+        output.resourcesDir = "$buildDir/resources/docker-compose/$name"
+    }
+}
+
+jar {
+    manifest {
+        attributes 'Main-Class': application.mainClass
+    }
+}

@@ -18,11 +18,6 @@
 
 plugins {
   base
-  // This plugin provides a task to determine which dependencies have updates.
-  // Additionally, the plugin checks for updates to Gradle itself.
-  //
-  // See https://github.com/ben-manes/gradle-versions-plugin for further details.
-  id("com.github.ben-manes.versions") version "0.33.0"
   // Apply one top level rat plugin to perform any required license enforcement analysis
   id("org.nosphere.apache.rat") version "0.8.0"
   // Enable gradle-based release management
@@ -578,11 +573,6 @@ tasks.register("communityMetricsProber") {
 tasks.register("javaExamplesDataflowPrecommit") {
   dependsOn(":runners:google-cloud-dataflow-java:examples:preCommit")
   dependsOn(":runners:google-cloud-dataflow-java:examples-streaming:preCommit")
-}
-
-tasks.register("runBeamDependencyCheck") {
-  dependsOn(":dependencyUpdates")
-  dependsOn(":sdks:python:dependencyUpdates")
 }
 
 tasks.register("whitespacePreCommit") {

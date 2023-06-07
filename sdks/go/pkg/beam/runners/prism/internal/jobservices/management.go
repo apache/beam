@@ -226,3 +226,34 @@ func (s *Server) GetJobMetrics(ctx context.Context, req *jobpb.GetJobMetricsRequ
 		},
 	}, nil
 }
+
+// GetJobs returns the set of active jobs and associated metadata.
+func (s *Server) GetJobs(context.Context, *jobpb.GetJobsRequest) (*jobpb.GetJobsResponse, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	resp := &jobpb.GetJobsResponse{}
+	for key, job := range s.jobs {
+		resp.JobInfo = append(resp.JobInfo, &jobpb.JobInfo{
+			JobId:           key,
+			JobName:         job.jobName,
+			State:           job.state.Load().(jobpb.JobState_Enum),
+			PipelineOptions: job.options,
+		})
+	}
+	return resp, nil
+}
+
+// GetPipeline returns pipeline proto of the requested job id.
+func (s *Server) GetPipeline(_ context.Context, req *jobpb.GetJobPipelineRequest) (*jobpb.GetJobPipelineResponse, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	j, ok := s.jobs[req.GetJobId()]
+	if !ok {
+		return nil, fmt.Errorf("job with id %v not found", req.GetJobId())
+	}
+	return &jobpb.GetJobPipelineResponse{
+		Pipeline: j.Pipeline,
+	}, nil
+}

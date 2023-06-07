@@ -34,8 +34,8 @@ Then, we get the largest or smallest elements in different ways.
 
 We use `Top.Largest()` to get the largest elements from the *entire* `PCollection`.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/top.py" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/top.py" top_largest >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/top_largest.py" >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/top_largest.py" top_largest >}}
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
@@ -50,8 +50,8 @@ Output:
 
 We use `Top.LargestPerKey()` to get the largest elements for each unique key in a `PCollection` of key-values.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/top.py" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/top.py" top_largest_per_key >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/top_largest_per_key.py" >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/top_largest_per_key.py" top_largest_per_key >}}
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
@@ -66,8 +66,8 @@ Output:
 
 We use `Top.Smallest()` to get the smallest elements from the *entire* `PCollection`.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/top.py" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/top.py" top_smallest >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/top_smallest.py" >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/top_smallest.py" top_smallest >}}
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
@@ -82,8 +82,8 @@ Output:
 
 We use `Top.SmallestPerKey()` to get the smallest elements for each unique key in a `PCollection` of key-values.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/top.py" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/top.py" top_smallest_per_key >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/top_smallest_per_key.py" >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/top_smallest_per_key.py" top_smallest_per_key >}}
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
@@ -101,8 +101,8 @@ We use `Top.Of()` to get elements with customized rules from the *entire* `PColl
 You can change how the elements are compared with `key`.
 By default you get the largest elements, but you can get the smallest by setting `reverse=True`.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/top.py" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/top.py" top_of >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/top_of.py" >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/top_of.py" top_of >}}
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
@@ -120,8 +120,8 @@ We use `Top.PerKey()` to get elements with customized rules for each unique key 
 You can change how the elements are compared with `key`.
 By default you get the largest elements, but you can get the smallest by setting `reverse=True`.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/top.py" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/top.py" top_per_key >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/top_per_key.py" >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/top_per_key.py" top_per_key >}}
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}

@@ -123,7 +123,7 @@ sections, we will specify the pipeline's runner.
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" examples_wordcount_minimal_options >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_examples_wordcount_minimal.py" examples_wordcount_minimal_options >}}
 {{< /highlight >}}
 
 {{< paragraph class="language-java language-py" >}}
@@ -143,7 +143,7 @@ Pipeline p = Pipeline.create(options);
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" examples_wordcount_minimal_create >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_examples_wordcount_minimal.py" examples_wordcount_minimal_create >}}
 {{< /highlight >}}
 
 {{< highlight go >}}
@@ -179,7 +179,7 @@ p.apply(TextIO.read().from("gs://apache-beam-samples/shakespeare/*"))
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" examples_wordcount_minimal_read >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_examples_wordcount_minimal.py" examples_wordcount_minimal_read >}}
 {{< /highlight >}}
 
 {{< highlight go >}}
@@ -204,7 +204,7 @@ lines := textio.Read(s, "gs://apache-beam-samples/shakespeare/*")
 
 {{< highlight py >}}
 # The Flatmap transform is a simplified version of ParDo.
-{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" examples_wordcount_minimal_pardo >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_examples_wordcount_minimal.py" examples_wordcount_minimal_pardo >}}
 {{< /highlight >}}
 
 {{< highlight go >}}
@@ -231,7 +231,7 @@ words := beam.ParDo(s, func(line string, emit func(string)) {
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" examples_wordcount_minimal_count >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_examples_wordcount_minimal.py" examples_wordcount_minimal_count >}}
 {{< /highlight >}}
 
 {{< highlight go >}}
@@ -253,7 +253,7 @@ counted := stats.Count(s, words)
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" examples_wordcount_minimal_map >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_examples_wordcount_minimal.py" examples_wordcount_minimal_map >}}
 {{< /highlight >}}
 
 {{< highlight go >}}
@@ -272,7 +272,7 @@ formatted := beam.ParDo(s, func(w string, c int) string {
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" examples_wordcount_minimal_write >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_examples_wordcount_minimal.py" examples_wordcount_minimal_write >}}
 {{< /highlight >}}
 
 {{< highlight go >}}
@@ -529,7 +529,7 @@ static class ExtractWordsFn extends DoFn<String, String> {
 {{< highlight py >}}
 # In this example, the DoFns are defined as classes:
 
-{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" examples_wordcount_wordcount_dofn >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_examples_wordcount_wordcount.py" examples_wordcount_wordcount_dofn >}}
 {{< /highlight >}}
 
 {{< highlight go >}}
@@ -598,7 +598,7 @@ public static void main(String[] args) throws IOException {
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" examples_wordcount_wordcount_composite >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_examples_wordcount_wordcount.py" examples_wordcount_wordcount_composite >}}
 {{< /highlight >}}
 
 {{< highlight go >}}
@@ -647,7 +647,7 @@ public static void main(String[] args) {
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" examples_wordcount_wordcount_options >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_examples_wordcount_wordcount.py" examples_wordcount_wordcount_options >}}
 {{< /highlight >}}
 
 {{< highlight go >}}
@@ -844,7 +844,7 @@ public class DebuggingWordCount {
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" example_wordcount_debugging_logging >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_examples_wordcount_debugging.py" example_wordcount_debugging_logging >}}
 {{< /highlight >}}
 
 {{< highlight go >}}
