@@ -120,30 +120,14 @@ def examples_wordcount_debugging(renames):
     output = (
         filtered_words
         | 'format' >> beam.Map(format_result)
-        | 'Write' >> beam.io.WriteToText('gs://my-bucket/counts.txt'))
+        | 'Write' >> beam.io.WriteToText('output.txt'))
 
     pipeline.visit(SnippetUtils.RenameFiles(renames))
 
 
 if __name__ == '__main__':
-  import tempfile
   import glob
-  from apache_beam.examples.snippets.snippets_test import SnippetsTest
-
-  def create_temp_file(contents=''):
-    with tempfile.NamedTemporaryFile(delete=False) as f:
-      f.write(contents.encode('utf-8'))
-      return f.name
-
-  # Replace Beam ReadFromText and WriteToText to redirect
-  # input and output to and from files
-  beam.io.ReadFromText = SnippetsTest.DummyReadTransform
-  beam.io.WriteToText = SnippetsTest.DummyWriteTransform
-
-  temp_path = create_temp_file('Flourish Flourish Flourish stomach abc def')
-  result_path = create_temp_file()
-  examples_wordcount_debugging({'read': temp_path, 'write': result_path})
-
-  for file_name in glob.glob(result_path + '*'):
+  examples_wordcount_debugging(None)
+  for file_name in glob.glob('output.txt*'):
     with open(file_name) as f:
       print(f.read())
