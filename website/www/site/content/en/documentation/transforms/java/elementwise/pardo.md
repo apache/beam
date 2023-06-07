@@ -143,7 +143,7 @@ See more information in the [Beam Programming Guide](/documentation/programming-
      }}));
 {{< /highlight >}}
 
-**Example 4**: TODO: Title
+**Example 4**: Apply a simple custom function
 
 {{< playground height="700px" >}}
 {{< playground_snippet language="java" path="SDK_JAVA_FilterParDo" >}}

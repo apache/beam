@@ -39,7 +39,7 @@ We use the function
 which takes an `iterable` of numbers and adds them together.
 
 {{< playground height="700px" >}}
-{{< playground_snippet language="py" path="" show="" >}}
+{{< playground_snippet language="py" path="SDK_PYTHON_CombinePerKeySimple" show="combineperkey_simple" >}}
 {{< /playground >}}
 
 ### Example 2: Combining with a function
