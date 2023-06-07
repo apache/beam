@@ -232,7 +232,9 @@ public class CsvWriteSchemaTransformFormatProviderTest
     Schema modifiedSchema = modifiedInput.getSchema();
     FileWriteSchemaTransformConfiguration configuration = buildConfiguration(prefix);
     PCollection<String> result =
-        modifiedInput.apply(getProvider().buildTransform(configuration, modifiedSchema)).get(RESULT_TAG);
+        modifiedInput
+            .apply(getProvider().buildTransform(configuration, modifiedSchema))
+            .get(RESULT_TAG);
     PCollection<Long> numFiles = result.apply(Count.globally());
     PAssert.thatSingleton(numFiles).isEqualTo(1L);
     writePipeline.run().waitUntilFinish();
@@ -260,7 +262,9 @@ public class CsvWriteSchemaTransformFormatProviderTest
     Schema modifiedSchema = modifiedInput.getSchema();
     FileWriteSchemaTransformConfiguration configuration = buildConfiguration(prefix);
     PCollection<String> result =
-        modifiedInput.apply(getProvider().buildTransform(configuration, modifiedSchema)).get(RESULT_TAG);
+        modifiedInput
+            .apply(getProvider().buildTransform(configuration, modifiedSchema))
+            .get(RESULT_TAG);
     PCollection<Long> numFiles = result.apply(Count.globally());
     PAssert.thatSingleton(numFiles).isEqualTo(1L);
     writePipeline.run().waitUntilFinish();
