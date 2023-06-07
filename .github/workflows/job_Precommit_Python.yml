@@ -10,6 +10,9 @@ on:
 
 jobs:
   PythonPrecommit:
+    strategy:
+      matrix:
+        python_version:['37,'38','39','310','311']
     if: ${{github.event.issue.pull_request}} || ${{github.event.comment.body == 'Run Python PreCommit'}} || ${{github.event.schedule == '* */6 * * *'}}
     runs-on: [self-hosted, ubuntu-20.04]
     defaults:
@@ -19,15 +22,12 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
-        with:
-          python-version: '3.7 - 3.11'
       - name: Install Dependencies
         run:  pip install --retries 10 --upgrade pip && ls && pwd && pip install --retries 10 --upgrade tox==3.20.1 -r ./build-requirements.txt
         working-directory: sdks/python
       - name: Run python cloud 
-        run: tox -e py37-cloud,py39-cloud,py310-cloud,py311-cloud -- --ignore=apache_beam/dataframe/ --ignore=apache_beam/examples/ --ignore=apache_beam/runners/ --ignore=apache_beam/transforms/
+        run: tox -e py${{ matrix.python_version }}-cloud -- --ignore=apache_beam/dataframe/ --ignore=apache_beam/examples/ --ignore=apache_beam/runners/ --ignore=apache_beam/transforms/
         working-directory: sdks/python
       - name: Run mypy
-        run: tox -e py37-cython,py38-cython,py39-cython,py310-cython,py311-cython -- --ignore=apache_beam/dataframe/ --ignore=apache_beam/examples/ --ignore=apache_beam/runners/ --ignore=apache_beam/transforms/
+        run: tox -e py${{ matrix.python_version }}-cython -- --ignore=apache_beam/dataframe/ --ignore=apache_beam/examples/ --ignore=apache_beam/runners/ --ignore=apache_beam/transforms/
         working-directory: sdks/python
