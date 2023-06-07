@@ -10,7 +10,7 @@ on:
 
 jobs:
   PythonLint:
-		if: ${{github.event.issue.pull_request}} || ${{github.event.comment.body == 'Run PythonLint PreCommit'}} || ${{github.event.schedule == '* */6 * * *'}}
+    if: ${{github.event.issue.pull_request}} || ${{github.event.comment.body == 'Run PythonLint PreCommit'}} || ${{github.event.schedule == '* */6 * * *'}}
     runs-on: [self-hosted, ubuntu-latest ]
 
     steps:

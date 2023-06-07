@@ -10,7 +10,7 @@ on:
 
 jobs:
   PythonCoverage:
-		if: ${{github.event.issue.pull_request}} || ${{github.event.comment.body == 'Run Python_Coverage PreCommit'}} || ${{github.event.schedule == '* */6 * * *'}}
+    if: ${{github.event.issue.pull_request}} || ${{github.event.comment.body == 'Run Python_Coverage PreCommit'}} || ${{github.event.schedule == '* */6 * * *'}}
     runs-on: [self-hosted, ubuntu-20.04]
     defaults:
       run:
