@@ -19,6 +19,7 @@ package org.apache.beam.testinfra.pipelines.conversions;
 
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
@@ -31,6 +32,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /** Convenience class for bundling {@link Row} conversion successes and failures. */
+@Internal
 public class RowConversionResult<SourceT, FailureT> implements POutput {
 
   private final Pipeline pipeline;

@@ -31,6 +31,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.apache.beam.sdk.annotations.Internal;
 import org.checkerframework.checker.nullness.qual.NonNull;
 
 /**
@@ -38,6 +39,7 @@ import org.checkerframework.checker.nullness.qual.NonNull;
  * their interdependencies such that the first has no dependencies i.e. only primitive types and
  * subsequent {@link Descriptor}s contain {@link JavaType#MESSAGE} types.
  */
+@Internal
 class DependencyDrivenDescriptorQueue implements Iterable<Descriptor>, Comparator<Descriptor> {
   private final Map<@NonNull String, @NonNull Descriptor> descriptorMap = new HashMap<>();
   private final Map<@NonNull String, @NonNull Set<String>> dependencyMap = new HashMap<>();

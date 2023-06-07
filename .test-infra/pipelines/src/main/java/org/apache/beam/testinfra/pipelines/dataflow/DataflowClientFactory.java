@@ -23,11 +23,13 @@ import io.grpc.ManagedChannel;
 import io.grpc.auth.MoreCallCredentials;
 import io.grpc.netty.NettyChannelBuilder;
 import java.util.concurrent.TimeUnit;
+import org.apache.beam.sdk.annotations.Internal;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Produces and caches blocking stub gRPC clients for the Dataflow API. */
 @SuppressWarnings("ForbidNonVendoredGrpcProtobuf")
+@Internal
 final class DataflowClientFactory {
 
   static final DataflowClientFactory INSTANCE = new DataflowClientFactory();

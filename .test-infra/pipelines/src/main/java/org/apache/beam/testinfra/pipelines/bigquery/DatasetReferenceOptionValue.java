@@ -24,8 +24,10 @@ import com.google.api.services.bigquery.model.DatasetReference;
 import java.io.Serializable;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.apache.beam.sdk.annotations.Internal;
 
 /** Parses Pipeline option value into a {@link DatasetReference}. */
+@Internal
 public class DatasetReferenceOptionValue implements Serializable {
 
   // For parsing the format used to parse a String into a dataset reference.

@@ -24,6 +24,7 @@ import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor.JavaType;
 import java.util.HashMap;
 import java.util.Map;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -31,6 +32,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.checkerframework.checker.nullness.qual.NonNull;
 
 /** Registers and builds {@link Schema}s of {@link Descriptor} based types. */
+@Internal
 public class DescriptorSchemaRegistry {
 
   public static final DescriptorSchemaRegistry INSTANCE = new DescriptorSchemaRegistry();

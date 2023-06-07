@@ -19,6 +19,7 @@ package org.apache.beam.testinfra.pipelines.dataflow;
 
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -32,6 +33,7 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 
 /** Convenience class for bundling Dataflow API successful request responses and failures. */
+@Internal
 public class DataflowReadResult<ResponseT, FailureT> implements POutput {
 
   public static <ResponseT, FailureT> DataflowReadResult<ResponseT, FailureT> of(

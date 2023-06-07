@@ -17,12 +17,14 @@
  */
 package org.apache.beam.testinfra.pipelines.dataflow;
 
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.Hidden;
 import org.apache.beam.sdk.options.PipelineOptions;
 
 /** Options required for calling the Dataflow API. */
+@Internal
 public interface DataflowJobsOptions extends PipelineOptions {
 
   @Description("Target for use with the Google Cloud Dataflow API")

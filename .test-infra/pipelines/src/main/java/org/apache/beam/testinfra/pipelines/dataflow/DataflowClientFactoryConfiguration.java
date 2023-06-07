@@ -20,9 +20,11 @@ package org.apache.beam.testinfra.pipelines.dataflow;
 import com.google.auth.Credentials;
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 
 /** Configures the Dataflow API client. */
+@Internal
 @AutoValue
 public abstract class DataflowClientFactoryConfiguration implements Serializable {
 

@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.values.TypeDescriptors.rows;
 
 import com.google.dataflow.v1beta3.Job;
 import java.util.Optional;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -38,6 +39,7 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.joda.time.Instant;
 
 /** {@link PTransform} that converts {@link Job}s to {@link Row}s. */
+@Internal
 public class JobsToRow
     extends PTransform<
         @NonNull PCollection<Job>, @NonNull RowConversionResult<Job, ConversionError>> {

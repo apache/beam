@@ -18,11 +18,13 @@
 package org.apache.beam.testinfra.pipelines.bigquery;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.Validation.Required;
 
 /** Options for writing to BigQuery. */
+@Internal
 public interface BigQueryWriteOptions extends PipelineOptions {
   @Description("BigQuery Dataset")
   @Required

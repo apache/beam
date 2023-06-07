@@ -25,6 +25,7 @@ import com.google.dataflow.v1beta3.WorkerDetails;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.GeneratedMessageV3;
 import java.util.Optional;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -50,6 +51,7 @@ import org.joda.time.Instant;
  * Convenience methods for converted enriched types such as {@link JobMetricsWithAppendedDetails}
  * and {@link StageSummaryWithAppendedDetails} into {@link Row}s.
  */
+@Internal
 public class WithAppendedDetailsToRow<AppendedDetailsT, EmbeddedT extends GeneratedMessageV3>
     extends PTransform<
         PCollection<AppendedDetailsT>, RowConversionResult<AppendedDetailsT, ConversionError>> {

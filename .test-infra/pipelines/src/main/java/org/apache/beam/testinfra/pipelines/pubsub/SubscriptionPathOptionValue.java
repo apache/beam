@@ -18,10 +18,12 @@
 package org.apache.beam.testinfra.pipelines.pubsub;
 
 import java.io.Serializable;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
 
 /** Converts a String Pub/Sub subscription path into a {@link SubscriptionPath}. */
+@Internal
 public class SubscriptionPathOptionValue implements Serializable {
   private final SubscriptionPath subscriptionPath;
 

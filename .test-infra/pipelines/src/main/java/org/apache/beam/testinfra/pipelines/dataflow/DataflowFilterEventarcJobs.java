@@ -26,6 +26,7 @@ import com.google.events.cloud.dataflow.v1beta3.JobType;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
@@ -33,6 +34,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.checkerframework.checker.nullness.qual.NonNull;
 
 /** Filters Eventarc {@link Job}s. */
+@Internal
 @AutoValue
 public abstract class DataflowFilterEventarcJobs
     extends PTransform<@NonNull PCollection<Job>, @NonNull PCollection<Job>> {

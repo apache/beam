@@ -23,6 +23,7 @@ import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TimePartitioning;
 import com.google.dataflow.v1beta3.Job;
 import java.time.Instant;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteResult;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -38,6 +39,7 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Convenience methods for {@link BigQueryIO.Write}s. */
+@Internal
 public class BigQueryWrites {
 
   public static final String JOB_EXECUTION_DETAILS_ERRORS = "errors_job_execution_details_requests";

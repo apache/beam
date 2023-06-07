@@ -17,6 +17,7 @@
  */
 package org.apache.beam.testinfra.pipelines.dataflow;
 
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
@@ -31,6 +32,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
 
 /** Controls the rate of elements. */
+@Internal
 class Throttle<T> extends PTransform<PCollection<T>, PCollection<T>> {
 
   /** Control the rate of elements, emitting each element per {@link Duration}. */

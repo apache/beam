@@ -27,6 +27,7 @@ import com.google.events.cloud.dataflow.v1beta3.Job;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
 import java.util.Optional;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -34,6 +35,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
 import org.joda.time.Instant;
 
 /** Methods for converting from Eventarc JSON payloads. */
+@Internal
 public final class EventarcConversions {
 
   private static final String DATA_NODE_KEY = "data";

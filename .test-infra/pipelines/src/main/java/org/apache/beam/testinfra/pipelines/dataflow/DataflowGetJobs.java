@@ -24,6 +24,7 @@ import com.google.dataflow.v1beta3.Job;
 import com.google.dataflow.v1beta3.JobsV1Beta3Grpc;
 import io.grpc.StatusRuntimeException;
 import java.util.Optional;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -43,6 +44,7 @@ import org.joda.time.Instant;
  * {@link PTransform} for executing {@link GetJobRequest}s using the {@link JobsV1Beta3Grpc}. Emits
  * {@link Job}s or {@link DataflowRequestError}s.
  */
+@Internal
 public class DataflowGetJobs
     extends PTransform<
         @NonNull PCollection<GetJobRequest>,

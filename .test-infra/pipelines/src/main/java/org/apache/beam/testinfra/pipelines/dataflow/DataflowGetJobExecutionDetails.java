@@ -26,6 +26,7 @@ import com.google.dataflow.v1beta3.MetricsV1Beta3Grpc;
 import com.google.dataflow.v1beta3.StageSummary;
 import io.grpc.StatusRuntimeException;
 import java.util.Optional;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -47,6 +48,7 @@ import org.joda.time.Instant;
  * MetricsV1Beta3Grpc} client. Emits {@link StageSummaryWithAppendedDetails} or {@link
  * DataflowRequestError}s.
  */
+@Internal
 public class DataflowGetJobExecutionDetails
     extends PTransform<
         @NonNull PCollection<Job>,

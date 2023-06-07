@@ -22,10 +22,12 @@ import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import com.google.dataflow.v1beta3.GetJobRequest;
 import com.google.dataflow.v1beta3.JobView;
 import com.google.events.cloud.dataflow.v1beta3.Job;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /** Various methods to create Dataflow API requests. */
+@Internal
 public final class DataflowRequests {
 
   /** Creates {@link GetJobRequest}s from {@link Job}s with {@link JobView#JOB_VIEW_ALL}. */

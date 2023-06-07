@@ -19,7 +19,7 @@
 
 # Overview
 
-This directory holds pipelines that support testing infrastructure.
+This directory holds pipelines that support testing infrastructure and are meant for internal use.
 
 # Infrastructure
 

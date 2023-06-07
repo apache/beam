@@ -29,6 +29,7 @@ import com.google.protobuf.GeneratedMessageV3;
 import java.util.Arrays;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteResult;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.metrics.Counter;
@@ -67,8 +68,9 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 
 /**
  * Constructs and executes a {@link Pipeline} that reads from the Dataflow API and writes to
- * BigQuery.
+ * BigQuery. For internal use only.
  */
+@Internal
 public class ReadDataflowApiWriteBigQuery {
 
   public interface Options extends DataflowJobsOptions, PubsubReadOptions, BigQueryWriteOptions {}
@@ -80,10 +82,10 @@ public class ReadDataflowApiWriteBigQuery {
         DataflowClientFactoryConfiguration.builder(options).build();
 
     // Retrieve Jobs calling the JobsV1Beta3.GetJob rpc.
-    PCollection<Job> jobs = getJobs(options, pipeline);
+    PCollection<Job> jobs = readEvents(options, pipeline);
 
     // Retrieve JobMetrics calling the MetricsV1Beta3.GetJobMetrics rpc.
-    jobDetails(
+    readDetailsFromDataflowJobs(
         options,
         BigQueryWrites.JOB_METRICS_ERRORS,
         GetJobMetricsRequest.class,
@@ -95,7 +97,7 @@ public class ReadDataflowApiWriteBigQuery {
 
     // Retrieve StageSummary entries (from JobExecutionDetails) calling the
     // MetricsV1Beta3.GetJobExecutionDetails rpc.
-    jobDetails(
+    readDetailsFromDataflowJobs(
         options,
         BigQueryWrites.JOB_EXECUTION_DETAILS_ERRORS,
         GetJobExecutionDetailsRequest.class,
@@ -121,7 +123,7 @@ public class ReadDataflowApiWriteBigQuery {
     pipeline.run();
   }
 
-  static <RequestT extends GeneratedMessageV3, ResponseT> void writeErrors(
+  private static <RequestT extends GeneratedMessageV3, ResponseT> void writeErrors(
       Options options,
       String requestErrorTableIdPrefix,
       Class<RequestT> requestTClass,
@@ -154,7 +156,7 @@ public class ReadDataflowApiWriteBigQuery {
         BigQueryWrites.writeConversionErrors(options));
   }
 
-  static PCollection<Job> getJobs(Options options, Pipeline pipeline) {
+  private static PCollection<Job> readEvents(Options options, Pipeline pipeline) {
 
     // Read from Eventarc published Pub/Sub events.
     PCollection<String> json =
@@ -197,10 +199,10 @@ public class ReadDataflowApiWriteBigQuery {
         tagOf(BigQueryWrites.class, com.google.events.cloud.dataflow.v1beta3.Job.class.getName()),
         BigQueryWrites.writeConversionErrors(options));
 
-    return getJobs(options, events.output());
+    return readDataflowJobsFromEvents(options, events.output());
   }
 
-  static PCollection<Job> getJobs(
+  private static PCollection<Job> readDataflowJobsFromEvents(
       Options options, PCollection<com.google.events.cloud.dataflow.v1beta3.Job> events) {
     DataflowClientFactoryConfiguration configuration =
         DataflowClientFactoryConfiguration.builder(options).build();
@@ -297,7 +299,7 @@ public class ReadDataflowApiWriteBigQuery {
     return getJobsResult.getSuccess();
   }
 
-  static <RequestT extends GeneratedMessageV3, ResponseT> void jobDetails(
+  private static <RequestT extends GeneratedMessageV3, ResponseT> void readDetailsFromDataflowJobs(
       Options options,
       String requestErrorTableIdPrefix,
       Class<RequestT> requestTClass,

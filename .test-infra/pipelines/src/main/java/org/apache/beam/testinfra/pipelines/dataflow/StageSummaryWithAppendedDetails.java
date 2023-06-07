@@ -20,6 +20,7 @@ package org.apache.beam.testinfra.pipelines.dataflow;
 import com.google.dataflow.v1beta3.Job;
 import com.google.dataflow.v1beta3.StageSummary;
 import java.io.Serializable;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -29,6 +30,7 @@ import org.joda.time.Instant;
  * A {@link StageSummary} enrichment with a {@link Job}'s id and create time. The purpose of this
  * enrichment is to join stage summaries with their Job while partitioning on the Job's create time.
  */
+@Internal
 public class StageSummaryWithAppendedDetails implements Serializable {
 
   private String jobId = "";

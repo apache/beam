@@ -42,6 +42,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.values.Row;
@@ -53,6 +54,7 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.joda.time.Instant;
 
 /** Converts a {@link GeneratedMessageV3} type to a {@link Row}. */
+@Internal
 public class GeneratedMessageV3RowBuilder<T extends GeneratedMessageV3> {
   public static <T extends GeneratedMessageV3> GeneratedMessageV3RowBuilder<T> of(T source) {
     return new GeneratedMessageV3RowBuilder<>(source);
