@@ -173,4 +173,11 @@ public interface SamzaPipelineOptions extends PipelineOptions {
           new ThreadFactoryBuilder().setNameFormat("Process Element Thread-%d").build());
     }
   }
+
+  @Description(
+      "The config for enabling fusion for stateful ParDos. Used only in portable mode for now.")
+  @Default.Boolean(false)
+  Boolean getEnableFusionOnStatefulParDos();
+
+  void setEnableFusionOnStatefulParDos(Boolean enableFusion);
 }

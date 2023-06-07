@@ -124,6 +124,7 @@ public class GreedyStageFuser {
             // themselves fused away, so add them to the set of candidates.
             fusionCandidates.addAll(pipeline.getOutputPCollections(consumer));
             sideInputs.addAll(pipeline.getSideInputs(consumer));
+            userStates.addAll(pipeline.getUserStates(consumer));
           }
           break;
         default:
