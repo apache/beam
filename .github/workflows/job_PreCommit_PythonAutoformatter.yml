@@ -6,6 +6,9 @@ on:
     paths: [ "sdks/python/apache_beam/.*"]
   issue_comment:
     types: [created, edited]
+  push:
+    tags: ['v*']
+    branches: ['master', 'release-*']
 
 
 jobs:

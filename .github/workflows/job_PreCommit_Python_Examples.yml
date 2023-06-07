@@ -12,7 +12,7 @@ jobs:
   PythonPrecommit:
     strategy:
       matrix:
-        python_version:['37,'38','39','310','311']
+        python_version: ['37','38','39','310','311']
     if: ${{github.event.issue.pull_request}} || ${{github.event.comment.body == 'Run Python_Examples PreCommit'}} || ${{github.event.schedule == '* */6 * * *'}}
     runs-on: [self-hosted, ubuntu-20.04]
     defaults:
