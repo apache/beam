@@ -1,5 +1,5 @@
 name: Precommit Python Lint
-run-name: Python Lint
+run-name: Python Precommit Lint
 on:
   pull_request:
     branches: [ "master", "release-*" ]
@@ -10,14 +10,14 @@ on:
 
 jobs:
   PythonLint:
-    if:  github.event.issue.pull_request && contains(github.event.comment.body, 'Run PythonLint PreCommit')
+		if: ${{github.event.issue.pull_request}} || ${{github.event.comment.body == 'Run PythonLint PreCommit'}} || ${{github.event.schedule == '* */6 * * *'}}
     runs-on: [self-hosted, ubuntu-latest ]
 
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.7 - 3.9'
+          python-version: '3.7'
       - name: Install Dependencies
         run:  pip install --retries 10 --upgrade pip && ls && pwd && pip install --retries 10 --upgrade tox==3.20.1 -r ./build-requirements.txt
         working-directory: sdks/python

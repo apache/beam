@@ -10,8 +10,8 @@ on:
 
 jobs:
   PythonCoverage:
-    if: github.event.issue.pull_request && contains(github.event.comment.body, 'Run Python_Coverage PreCommit')
-    runs-on: self-hosted
+		if: ${{github.event.issue.pull_request}} || ${{github.event.comment.body == 'Run Python_Coverage PreCommit'}} || ${{github.event.schedule == '* */6 * * *'}}
+    runs-on: [self-hosted, ubuntu-20.04]
     defaults:
       run:
         working-directory: sdks/python
@@ -23,7 +23,7 @@ jobs:
         run: apt install -y python3.11-minimal python3.7-minimal python3.10-minimal python3.9-minimal
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.7 - 3.11'
+          python-version: '3.8'
       - name: Install Dependencies
         run:  pip install --retries 10 --upgrade pip && ls && pwd && pip install --retries 10 --upgrade tox==3.20.1 -r ./build-requirements.txt
         working-directory: sdks/python

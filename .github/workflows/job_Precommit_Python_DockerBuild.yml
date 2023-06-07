@@ -9,9 +9,9 @@ on:
 
 
 jobs:
-  PythonLint:
-    if: github.event.issue.pull_request && contains(github.event.comment.body, 'Run PythonDocker PreCommit'))
-    runs-on: self-hosted
+  PythonDocker:
+		if: ${{github.event.issue.pull_request}} || ${{github.event.comment.body == 'Run PythonDocker PreCommit'}} || ${{github.event.schedule == '* */6 * * *'}}
+    runs-on: [self-hosted, ubuntu-20.04]
     defaults:
       run:
         working-directory: sdks/python
@@ -19,28 +19,17 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
-      - name: Install missing python versions
-        run: apt install -y python3.11-minimal python3.7-minimal python3.10-minimal python3.9-minimal
+      - name: Install Java
+        uses: actions/setup-java@v3.8.0
+        with:
+          distribution: 'zulu'
+          java-version: '8'
       - uses: actions/setup-python@v4
         with:
           python-version: '3.7 - 3.11'
-      - name: Install Dependencies
-        run:  pip install --retries 10 --upgrade pip && ls && pwd && pip install --retries 10 --upgrade tox==3.20.1 -r ./build-requirements.txt
-        working-directory: sdks/python
-      - name: Copy licenses
-        run: mkdir -p build/target && cp LICENSE LICENSE.python NOTICE build/target/
-      - name: Docker build go-licenses py
-        run: docker build releases/go-licenses --build-arg	sdk_location=github.com/apache/beam/sdks/v2/python/container -t golicenses-python
-      - name: Go Build
-        run: go1.20.4 build -o ./build/target/launcher/linux_amd64/boot *go
-        working-directory: sdks/python
-      - name: Build Docker 3.7
-        run: docker build sdk/python/container/ --build-arg	py_version=3.7 --build-arg TARGETOS=linux --build-arg TARGETARCH=amd64 -t docker.io/apache/beam_python3.8_sdk
-      - name: Build Docker 3.8
-        run: docker build sdk/python/container/ --build-arg	py_version=3.8 --build-arg TARGETOS=linux --build-arg TARGETARCH=amd64 -t docker.io/apache/beam_python3.8_sdk
-      - name: Build Docker 3.9
-        run: docker build sdk/python/container/ --build-arg	py_version=3.9 --build-arg TARGETOS=linux --build-arg TARGETARCH=amd64 -t docker.io/apache/beam_python3.8_sdk
-      - name: Build Docker 3.10
-        run: docker build sdk/python/container/ --build-arg	py_version=3.10 --build-arg TARGETOS=linux --build-arg TARGETARCH=amd64 -t docker.io/apache/beam_python3.8_sdk
-      - name: Build Docker 3.11
-        run: docker build sdk/python/container/ --build-arg	py_version=3.11 --build-arg TARGETOS=linux --build-arg TARGETARCH=amd64 -t docker.io/apache/beam_python3.8_sdk
+      - name: Setup Gradle
+        uses: gradle/gradle-build-action@v2
+        with:
+          cache-read-only: false
+      - name: run PythonDockerPrecommit script
+        run: ./gradlew :pythonDockerBuildPreCommit

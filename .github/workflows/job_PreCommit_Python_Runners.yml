@@ -10,8 +10,8 @@ on:
 
 jobs:
   PrecommitRunners:
-    if: github.event.issue.pull_request && contains(github.event.comment.body, 'Run Python_Runners PreCommit')
-    runs-on: self-hosted
+		if: ${{github.event.issue.pull_request}} || ${{github.event.comment.body == 'Run Python_Runners PreCommit'}} || ${{github.event.schedule == '* */6 * * *'}}
+    runs-on: [self-hosted, ubuntu-20.04]
     defaults:
       run:
         working-directory: sdks/python
