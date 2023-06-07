@@ -412,7 +412,7 @@ Additionally, you can read more about the Samza Runner [here](https://beam.apach
 
 Need import:
 ```
-"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/spark"
+"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/samza"
 ```
 
 It is necessary to give an endpoint where the runner is raised with `--endpoint`:
