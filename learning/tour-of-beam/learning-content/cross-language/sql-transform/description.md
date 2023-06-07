@@ -40,7 +40,11 @@ Schema schema = Schema.builder()
         .build();
 
 // Assume input is a PCollection<Row> with the above schema
-PCollection<Row> input = ...;
+PCollection<Row> input = pipeline.apply(Create.of(
+                Row.withSchema(schema).addValues(1, "Josh").build(),
+                Row.withSchema(schema).addValues(103, "Anna").build()
+        ).withRowSchema(schema));
+
 
 // Apply the SQL transform
 PCollection<Row> result = input.apply(
