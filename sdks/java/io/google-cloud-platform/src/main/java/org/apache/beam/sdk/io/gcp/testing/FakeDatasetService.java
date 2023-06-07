@@ -23,6 +23,8 @@ import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.http.HttpHeaders;
 import com.google.api.core.ApiFuture;
 import com.google.api.core.ApiFutures;
+import com.google.api.gax.grpc.GrpcStatusCode;
+import com.google.api.gax.rpc.ApiException;
 import com.google.api.services.bigquery.model.Dataset;
 import com.google.api.services.bigquery.model.DatasetReference;
 import com.google.api.services.bigquery.model.Table;
@@ -45,6 +47,7 @@ import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.Timestamp;
 import com.google.rpc.Code;
+import io.grpc.Status;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.HashMap;
@@ -509,20 +512,24 @@ public class FakeDatasetService implements DatasetService, Serializable {
   }
 
   @Override
-  public WriteStream createWriteStream(String tableUrn, Type type)
-      throws IOException, InterruptedException {
-    TableReference tableReference =
-        BigQueryHelpers.parseTableUrn(BigQueryHelpers.stripPartitionDecorator(tableUrn));
-    synchronized (FakeDatasetService.class) {
-      TableContainer tableContainer =
-          getTableContainer(
-              tableReference.getProjectId(),
-              tableReference.getDatasetId(),
-              tableReference.getTableId());
-      String streamName = UUID.randomUUID().toString();
-      Stream stream = new Stream(streamName, tableContainer, type);
-      writeStreams.put(streamName, stream);
-      return stream.toWriteStream();
+  public WriteStream createWriteStream(String tableUrn, Type type) throws InterruptedException {
+    try {
+      TableReference tableReference =
+          BigQueryHelpers.parseTableUrn(BigQueryHelpers.stripPartitionDecorator(tableUrn));
+      synchronized (FakeDatasetService.class) {
+        TableContainer tableContainer =
+            getTableContainer(
+                tableReference.getProjectId(),
+                tableReference.getDatasetId(),
+                tableReference.getTableId());
+        String streamName = UUID.randomUUID().toString();
+        Stream stream = new Stream(streamName, tableContainer, type);
+        writeStreams.put(streamName, stream);
+        return stream.toWriteStream();
+      }
+    } catch (IOException e) {
+      // TODO(relax): Return the exact error that BigQuery returns.
+      throw new ApiException(e, GrpcStatusCode.of(Status.Code.NOT_FOUND), false);
     }
   }
 
@@ -535,7 +542,8 @@ public class FakeDatasetService implements DatasetService, Serializable {
         return stream.toWriteStream();
       }
     }
-    return null;
+    // TODO(relax): Return the exact error that BigQuery returns.
+    throw new ApiException(null, GrpcStatusCode.of(Status.Code.NOT_FOUND), false);
   }
 
   @Override
@@ -550,6 +558,10 @@ public class FakeDatasetService implements DatasetService, Serializable {
         this.protoDescriptor = descriptor;
         synchronized (FakeDatasetService.class) {
           Stream stream = writeStreams.get(streamName);
+          if (stream == null) {
+            // TODO(relax): Return the exact error that BigQuery returns.
+            throw new ApiException(null, GrpcStatusCode.of(Status.Code.NOT_FOUND), false);
+          }
           currentSchema = stream.tableContainer.getTable().getSchema();
         }
       }

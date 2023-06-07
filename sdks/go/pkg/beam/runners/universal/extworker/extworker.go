@@ -103,7 +103,7 @@ func harnessOptions(ctx context.Context, endpoint string) harness.Options {
 	}
 	info, err := tools.ProvisionInfo(ctx, endpoint)
 	if err != nil {
-		log.Infof(ctx, "error talking to provision service worker, using defaults:%v", err)
+		log.Debugf(ctx, "error talking to provision service worker, using defaults: %v", err)
 		return opts
 	}
 

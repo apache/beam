@@ -25,7 +25,6 @@ from typing import List, Optional, Dict
 from api.v1 import api_pb2
 
 import pydantic
-from tqdm.asyncio import tqdm
 import yaml
 
 from api.v1.api_pb2 import (
@@ -122,41 +121,6 @@ def find_examples(root_dir: str, subdirs: List[str], sdk: SdkEnum) -> List[Examp
             "an incorrect format"
         )
     return examples
-
-
-async def get_statuses(
-    client: GRPCClient, examples: List[Example], concurrency: int = 10
-):
-    """
-    Receive status and update example.status and example.pipeline_id for
-    each example
-
-    Args:
-        examples: beam examples for processing and updating statuses and
-        pipeline_id values.
-    """
-    tasks = []
-    try:
-        concurrency = int(os.environ["BEAM_CONCURRENCY"])
-        logging.info("override default concurrency: %d", concurrency)
-    except (KeyError, ValueError):
-        pass
-
-    semaphore = asyncio.Semaphore(concurrency)
-
-    async def _semaphored_task(example):
-        await semaphore.acquire()
-        try:
-            await _update_example_status(example, client)
-        finally:
-            semaphore.release()
-
-    for example in examples:
-        if example.tag.never_run:
-            logging.info("skipping non runnable example %s", example.filepath)
-        else:
-            tasks.append(_semaphored_task(example))
-    await tqdm.gather(*tasks)
 
 
 def get_tag(filepath: PurePath) -> Optional[Tag]:
@@ -299,7 +263,7 @@ def _get_example(filepath: str, filename: str, tag: Tag, sdk: int) -> Example:
     )
 
 
-async def _update_example_status(example: Example, client: GRPCClient):
+async def update_example_status(example: Example, client: GRPCClient):
     """
     Receive status for examples and update example.status and pipeline_id
 

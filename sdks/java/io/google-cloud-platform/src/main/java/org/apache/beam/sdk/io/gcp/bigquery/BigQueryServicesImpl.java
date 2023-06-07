@@ -1098,10 +1098,11 @@ class BigQueryServicesImpl implements BigQueryServices {
             if (isRetry) {
               throw new RuntimeException(
                   String.format(
-                      "We have observed a row that is %s bytes in size. BigQuery supports"
-                          + " request sizes up to 10MB, and this row is too large. "
-                          + " You may change your retry strategy to unblock this pipeline, and "
-                          + " the row will be output as a failed insert.",
+                      "We have observed a row that is %s bytes in size and exceeded BigQueryIO"
+                          + " limit of 9MB. While BigQuery supports request sizes up to 10MB,"
+                          + " BigQueryIO sets the limit at 9MB to leave room for request"
+                          + " overhead. You may change your retry strategy to unblock this"
+                          + " pipeline, and the row will be output as a failed insert.",
                       nextRowSize));
             } else {
               errorContainer.add(failedInserts, error, ref, rowsToPublish.get(rowIndex));

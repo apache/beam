@@ -88,7 +88,7 @@ class FnApiWorkerStatusHandlerTest(unittest.TestCase):
 
   def test_log_lull_in_bundle_processor(self):
     def get_state_sampler_info_for_lull(lull_duration_s):
-      return statesampler.StateSamplerInfo(
+      return "bundle-id", statesampler.StateSamplerInfo(
           CounterName('progress-msecs', 'stage_name', 'step_name'),
           1,
           lull_duration_s * 1e9,
@@ -98,31 +98,33 @@ class FnApiWorkerStatusHandlerTest(unittest.TestCase):
     with mock.patch('logging.Logger.warning') as warn_mock:
       with mock.patch('time.time') as time_mock:
         time_mock.return_value = now
-        sampler_info = get_state_sampler_info_for_lull(21 * 60)
-        self.fn_status_handler._log_lull_sampler_info(sampler_info)
+        bundle_id, sampler_info = get_state_sampler_info_for_lull(21 * 60)
+        self.fn_status_handler._log_lull_sampler_info(sampler_info, bundle_id)
 
-        processing_template = warn_mock.call_args[0][1]
+        bundle_id_template = warn_mock.call_args[0][1]
         step_name_template = warn_mock.call_args[0][2]
-        traceback = warn_mock.call_args = warn_mock.call_args[0][3]
+        processing_template = warn_mock.call_args[0][3]
+        traceback = warn_mock.call_args = warn_mock.call_args[0][4]
 
-        self.assertIn('progress-msecs', processing_template)
+        self.assertIn('bundle-id', bundle_id_template)
         self.assertIn('step_name', step_name_template)
+        self.assertEqual(21 * 60, processing_template)
         self.assertIn('test_log_lull_in_bundle_processor', traceback)
 
       with mock.patch('time.time') as time_mock:
         time_mock.return_value = now + 6 * 60  # 6 minutes
-        sampler_info = get_state_sampler_info_for_lull(21 * 60)
-        self.fn_status_handler._log_lull_sampler_info(sampler_info)
+        bundle_id, sampler_info = get_state_sampler_info_for_lull(21 * 60)
+        self.fn_status_handler._log_lull_sampler_info(sampler_info, bundle_id)
 
       with mock.patch('time.time') as time_mock:
         time_mock.return_value = now + 21 * 60  # 21 minutes
-        sampler_info = get_state_sampler_info_for_lull(10 * 60)
-        self.fn_status_handler._log_lull_sampler_info(sampler_info)
+        bundle_id, sampler_info = get_state_sampler_info_for_lull(10 * 60)
+        self.fn_status_handler._log_lull_sampler_info(sampler_info, bundle_id)
 
       with mock.patch('time.time') as time_mock:
         time_mock.return_value = now + 42 * 60  # 21 minutes after previous one
-        sampler_info = get_state_sampler_info_for_lull(21 * 60)
-        self.fn_status_handler._log_lull_sampler_info(sampler_info)
+        bundle_id, sampler_info = get_state_sampler_info_for_lull(21 * 60)
+        self.fn_status_handler._log_lull_sampler_info(sampler_info, bundle_id)
 
 
 class HeapDumpTest(unittest.TestCase):

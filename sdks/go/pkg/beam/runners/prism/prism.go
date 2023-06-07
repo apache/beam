@@ -21,10 +21,14 @@ import (
 	"context"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/jobopts"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/jobservices"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/web"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/universal"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func init() {
@@ -32,6 +36,11 @@ func init() {
 	beam.RegisterRunner("PrismRunner", Execute)
 }
 
+// Execute runs the given pipeline on prism. If no endpoint is set, then an in process instance
+// is started, and the job run against that.
+//
+// At present, loopback mode is forced, though this will change once prism is able to
+// use SDK containers.
 func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error) {
 	if *jobopts.Endpoint == "" {
 		// One hasn't been selected, so lets start one up and set the address.
@@ -45,4 +54,27 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 		*jobopts.EnvironmentType = "loopback"
 	}
 	return universal.Execute(ctx, p)
+}
+
+// Options for in process server creation.
+type Options struct {
+	Port int
+}
+
+// CreateJobServer returns a Beam JobServicesClient connected to an in memory JobServer.
+// This call is non-blocking.
+func CreateJobServer(ctx context.Context, opts Options) (jobpb.JobServiceClient, error) {
+	s := jobservices.NewServer(opts.Port, internal.RunPipeline)
+	go s.Serve()
+	clientConn, err := grpc.DialContext(ctx, s.Endpoint(), grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
+	if err != nil {
+		return nil, err
+	}
+	return jobpb.NewJobServiceClient(clientConn), nil
+}
+
+// CreateWebServer initialises the web UI for prism against the given JobsServiceClient.
+// This call is blocking.
+func CreateWebServer(ctx context.Context, cli jobpb.JobServiceClient, opts Options) error {
+	return web.Initialize(ctx, opts.Port, cli)
 }

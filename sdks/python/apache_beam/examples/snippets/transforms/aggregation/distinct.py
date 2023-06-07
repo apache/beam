@@ -17,6 +17,21 @@
 #
 
 # pytype: skip-file
+# pylint:disable=line-too-long
+
+# beam-playground:
+#   name: Distinct
+#   description: Demonstration of Distinct transform usage.
+#   multifile: false
+#   default_example: false
+#   context_line: 39
+#   categories:
+#     - Core Transforms
+#   complexity: BASIC
+#   tags:
+#     - transforms
+#     - numbers
+#     - distinct
 
 
 def distinct(test=None):

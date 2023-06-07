@@ -35,9 +35,9 @@ expect their input elements to be strings.
 The following example converts a `(key, value)` pair into a string delimited by `','`.
 You can specify a different delimiter using the `delimiter` argument.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring.py"
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring_kvs.py"
   notebook="examples/notebooks/documentation/transforms/python/elementwise/tostring" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring.py" tostring_kvs >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring_kvs.py" tostring_kvs >}}
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
@@ -53,9 +53,9 @@ Output:
 The following example converts a dictionary into a string.
 The string output will be equivalent to `str(element)`.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring.py"
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring_element.py"
   notebook="examples/notebooks/documentation/transforms/python/elementwise/tostring" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring.py" tostring_element >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring_element.py" tostring_element >}}
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
@@ -73,9 +73,9 @@ into a string delimited by `','`.
 You can specify a different delimiter using the `delimiter` argument.
 The string output will be equivalent to `iterable.join(delimiter)`.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring.py"
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring_iterables.py"
   notebook="examples/notebooks/documentation/transforms/python/elementwise/tostring" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring.py" tostring_iterables >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring_iterables.py" tostring_iterables >}}
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}

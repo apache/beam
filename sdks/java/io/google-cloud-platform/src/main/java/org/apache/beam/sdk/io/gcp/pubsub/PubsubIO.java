@@ -1410,7 +1410,7 @@ public class PubsubIO {
       public void processElement(@Element PubsubMessage message, @Timestamp Instant timestamp)
           throws IOException, SizeLimitExceededException {
         // Validate again here just as a sanity check.
-        PreparePubsubWriteDoFn.validatePubsubMessageSize(message, maxPublishBatchSize);
+        PreparePubsubWriteDoFn.validatePubsubMessageSize(message, maxPublishBatchByteSize);
         byte[] payload = message.getPayload();
         int messageSize = payload.length;
 

@@ -33,9 +33,9 @@ The elements themselves often already contain a timestamp field.
 [Unix timestamp](https://en.wikipedia.org/wiki/Unix_time)
 in the form of seconds.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py"
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps_event_time.py"
   notebook="examples/notebooks/documentation/transforms/python/elementwise/withtimestamps" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py" withtimestamps_event_time >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps_event_time.py" withtimestamps_event_time >}}
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
@@ -72,9 +72,9 @@ If each element has a chronological number, these numbers can be used as a
 [logical clock](https://en.wikipedia.org/wiki/Logical_clock).
 These numbers have to be converted to a *"seconds"* equivalent, which can be especially important depending on your windowing and late data rules.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py"
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps_logical_clock.py"
   notebook="examples/notebooks/documentation/transforms/python/elementwise/withtimestamps" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py" withtimestamps_logical_clock >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps_logical_clock.py" withtimestamps_logical_clock >}}
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
@@ -93,9 +93,9 @@ Workers might have time deltas, so using this method is not a reliable way to do
 
 By using processing time, there is no way of knowing if data is arriving late because the timestamp is attached when the element *enters* into the pipeline.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py"
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps_processing_time.py"
   notebook="examples/notebooks/documentation/transforms/python/elementwise/withtimestamps" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py" withtimestamps_processing_time >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps_processing_time.py" withtimestamps_processing_time >}}
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}

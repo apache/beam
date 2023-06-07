@@ -18,6 +18,7 @@
 import collections
 import json
 import logging
+import os
 import pprint
 import re
 import uuid
@@ -35,6 +36,24 @@ __all__ = ["YamlTransform"]
 
 _LOGGER = logging.getLogger(__name__)
 yaml_provider.fix_pycallable()
+
+try:
+  import jsonschema
+except ImportError:
+  jsonschema = None
+
+if jsonschema is not None:
+  with open(os.path.join(os.path.dirname(__file__),
+                         'pipeline.schema.yaml')) as yaml_file:
+    pipeline_schema = yaml.safe_load(yaml_file)
+
+
+def validate_against_schema(pipeline):
+  try:
+    jsonschema.validate(pipeline, pipeline_schema)
+  except jsonschema.ValidationError as exn:
+    exn.message += f" at line {SafeLineLoader.get_line(exn.instance)}"
+    raise exn
 
 
 def memoize_method(func):
@@ -110,12 +129,12 @@ class LightweightScope(object):
   def __init__(self, transforms):
     self._transforms = transforms
     self._transforms_by_uuid = {t['__uuid__']: t for t in self._transforms}
-    self._uuid_by_name = collections.defaultdict(list)
+    self._uuid_by_name = collections.defaultdict(set)
     for spec in self._transforms:
       if 'name' in spec:
-        self._uuid_by_name[spec['name']].append(spec['__uuid__'])
+        self._uuid_by_name[spec['name']].add(spec['__uuid__'])
       if 'type' in spec:
-        self._uuid_by_name[spec['type']].append(spec['__uuid__'])
+        self._uuid_by_name[spec['type']].add(spec['__uuid__'])
 
   def get_transform_id_and_output_name(self, name):
     if '.' in name:
@@ -627,6 +646,7 @@ class YamlTransform(beam.PTransform):
   def __init__(self, spec, providers={}):  # pylint: disable=dangerous-default-value
     if isinstance(spec, str):
       spec = yaml.load(spec, Loader=SafeLineLoader)
+    # TODO(BEAM-26941): Validate as a transform.
     self._spec = preprocess(spec)
     self._providers = yaml_provider.merge_providers(
         {
@@ -653,9 +673,17 @@ class YamlTransform(beam.PTransform):
       return result
 
 
-def expand_pipeline(pipeline, pipeline_spec, providers=None):
+def expand_pipeline(
+    pipeline,
+    pipeline_spec,
+    providers=None,
+    validate_schema=jsonschema is not None):
   if isinstance(pipeline_spec, str):
     pipeline_spec = yaml.load(pipeline_spec, Loader=SafeLineLoader)
+  # TODO(robertwb): It's unclear whether this gives as good of errors, but
+  # this could certainly be handy as a first pass when Beam is not available.
+  if validate_schema:
+    validate_against_schema(pipeline_spec)
   # Calling expand directly to avoid outer layer of nesting.
   return YamlTransform(
       pipeline_as_composite(pipeline_spec['pipeline']),

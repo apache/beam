@@ -23,7 +23,7 @@ apply from: "$project.rootDir/playground/backend/containers/git-functions.gradle
 applyDockerNature()
 
 def playgroundJobServerProject = "${project.path.replace('-container', '')}"
-
+def default_beam_version = "2.44.0"
 description = project(playgroundJobServerProject).description + " :: Container"
 
 configurations {
@@ -77,7 +77,7 @@ docker {
                project.rootProject["go-base-image"] :
                "golang:1.18-bullseye",
           'SDK_TAG'      : project.rootProject.hasProperty(["sdk-tag"]) ?
-                project.rootProject["sdk-tag"] : project.rootProject.sdk_version,
+                project.rootProject["sdk-tag"] : default_beam_version,
           'GIT_COMMIT'   : getGitCommitHash(),
           'GIT_TIMESTAMP': getGitCommitTimestamp()])
 }

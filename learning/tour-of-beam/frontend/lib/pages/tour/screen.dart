@@ -111,6 +111,10 @@ class _NarrowTour extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final borderSide = BorderSide(
+      color: Theme.of(context).dividerColor,
+    );
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -120,13 +124,21 @@ class _NarrowTour extends StatelessWidget {
             keys: TourView.values,
             child: Column(
               children: [
-                KeyedTabBar.withDefaultController<TourView>(
-                  tabs: UnmodifiableTourViewMap(
-                    content: Tab(
-                      text: 'pages.tour.content'.tr(),
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    border: Border(
+                      left: borderSide,
+                      bottom: borderSide,
                     ),
-                    playground: Tab(
-                      text: 'pages.tour.playground'.tr(),
+                  ),
+                  child: KeyedTabBar.withDefaultController<TourView>(
+                    tabs: UnmodifiableTourViewMap(
+                      content: Tab(
+                        text: 'pages.tour.content'.tr(),
+                      ),
+                      playground: Tab(
+                        text: 'pages.tour.playground'.tr(),
+                      ),
                     ),
                   ),
                 ),

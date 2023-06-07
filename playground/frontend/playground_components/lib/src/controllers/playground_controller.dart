@@ -36,7 +36,7 @@ import '../models/example_loading_descriptors/user_shared_example_loading_descri
 import '../models/intents.dart';
 import '../models/sdk.dart';
 import '../models/shortcut.dart';
-import '../repositories/code_repository.dart';
+import '../repositories/code_client/code_client.dart';
 import '../services/symbols/loaders/map.dart';
 import '../services/symbols/symbols_notifier.dart';
 import '../util/logical_keyboard_key.dart';
@@ -67,12 +67,12 @@ class PlaygroundController with ChangeNotifier {
   PlaygroundController({
     required this.exampleCache,
     required this.examplesLoader,
-    CodeRepository? codeRepository,
+    CodeClient? codeClient,
   }) {
     examplesLoader.setPlaygroundController(this);
 
     codeRunner = CodeRunner(
-      codeRepository: codeRepository,
+      codeClient: codeClient,
       snippetEditingControllerGetter: requireSnippetEditingController,
     )..addListener(notifyListeners);
   }
