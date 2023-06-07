@@ -345,7 +345,7 @@ class TFTProcessHandlerSchemaTest(unittest.TestCase):
   def test_tft_process_handler_dict_output_pcoll_schema(
       self, input_data, input_types, expected_dtype):
     transforms = [
-        tft_transforms.scale_to_0_1(
+        tft_transforms.Scale_To_0_1(
             columns=['x'], save_result=True, output_name='x_scaled')
     ]
     process_handler = handlers.TFTProcessHandlerSchema(transforms=transforms)
@@ -363,7 +363,7 @@ class TFTProcessHandlerSchemaTest(unittest.TestCase):
         self.assertEqual(expected_dtype[name], typ)
 
   def test_tft_process_handler_dict_fail_for_non_schema_pcoll(self):
-    transforms = [tft_transforms.scale_to_0_1(columns=['x'])]
+    transforms = [tft_transforms.Scale_To_0_1(columns=['x'])]
     process_handler = handlers.TFTProcessHandlerSchema(transforms=transforms)
     with beam.Pipeline() as p:
       with self.assertRaises(TypeError):
@@ -375,7 +375,7 @@ class TFTProcessHandlerSchemaTest(unittest.TestCase):
             | base.MLTransform(process_handler=process_handler))
 
   def test_tft_process_handler_fail_for_non_global_windows(self):
-    transforms = [tft_transforms.scale_to_0_1(columns=['x'])]
+    transforms = [tft_transforms.Scale_To_0_1(columns=['x'])]
     process_handler = handlers.TFTProcessHandlerSchema(transforms=transforms)
     with beam.Pipeline() as p:
       with self.assertRaises(RuntimeError):
