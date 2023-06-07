@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
@@ -34,6 +35,7 @@ import 'package:tour_of_beam/pages/tour/screen.dart';
 import 'package:tour_of_beam/pages/tour/state.dart';
 import 'package:tour_of_beam/pages/tour/widgets/unit.dart';
 import 'package:tour_of_beam/pages/tour/widgets/unit_content.dart';
+import 'package:tour_of_beam/state.dart';
 
 import 'common/common.dart';
 import 'common/common_finders.dart';
@@ -281,27 +283,25 @@ Future<void> _selectUnitWithSnippetsInAllSdks(WidgetTester wt) async {
 }
 
 Future<UnitModel?> _findUnitWithSnippetsInAllSdks(WidgetTester wt) async {
-  final unitContentCache = GetIt.instance.get<UnitContentCache>();
   final commonUnits = await _getCommonUnitsInAllSdks(wt);
-  final sdks = GetIt.instance.get<SdkCache>().getSdks();
-
-  UnitModel? unitWithSnippets;
   for (final unit in commonUnits) {
-    var areAllSdksContainsSnippet = true;
-    for (final sdk in sdks) {
-      final unitContent =
-          await unitContentCache.getUnitContent(sdk.id, unit.id);
-      if (unitContent.taskSnippetId == null) {
-        areAllSdksContainsSnippet = false;
-        break;
-      }
-    }
-    if (areAllSdksContainsSnippet) {
-      unitWithSnippets = unit;
-      break;
+    if (await _hasSnippetsInAllSdks(unit)) {
+      return unit;
     }
   }
-  return unitWithSnippets;
+  return null;
+}
+
+Future<bool> _hasSnippetsInAllSdks(UnitModel unit) async {
+  final unitContentCache = GetIt.instance.get<UnitContentCache>();
+  final sdks = GetIt.instance.get<SdkCache>().getSdks();
+  for (final sdk in sdks) {
+    final unitContent = await unitContentCache.getUnitContent(sdk.id, unit.id);
+    if (unitContent.taskSnippetId == null) {
+      return false;
+    }
+  }
+  return true;
 }
 
 Future<List<UnitModel>> _getCommonUnitsInAllSdks(WidgetTester wt) async {
@@ -311,6 +311,9 @@ Future<List<UnitModel>> _getCommonUnitsInAllSdks(WidgetTester wt) async {
     sdkUnits.add(tree.getUnits().toList());
   }
 
+  // Identifies and stores the common units across all lists within
+  // the 'sdkUnits' list by iteratively removing elements from the first list
+  // that don't exist in the subsequent lists.
   final commonUnitTitles = sdkUnits.first;
   for (final units in sdkUnits.skip(1)) {
     commonUnitTitles.removeWhere((u) => !units.contains(u));
@@ -327,7 +330,7 @@ Future<List<ContentTreeModel>> _loadAllContentTrees(WidgetTester wt) async {
     sdks.map((sdk) async => contentTreeCache.getContentTree(sdk)),
   );
 
-  return nullableTrees.where((t) => t != null).map((t) => t!).toList();
+  return nullableTrees.whereNotNull().toList(growable: false);
 }
 
 Future<void> _checkSnippetChangesOnSdkChanging(WidgetTester wt) async {
@@ -335,9 +338,8 @@ Future<void> _checkSnippetChangesOnSdkChanging(WidgetTester wt) async {
   final sdkCache = GetIt.instance.get<SdkCache>();
 
   String? previousPath;
-  Sdk? previousSdk;
   for (final sdk in sdkCache.getSdks()) {
-    if (sdk.title == defaultSdk?.title) {
+    if (sdk == defaultSdk) {
       continue;
     }
 
@@ -345,12 +347,12 @@ Future<void> _checkSnippetChangesOnSdkChanging(WidgetTester wt) async {
 
     final selectedExample =
         _getTourNotifier(wt).playgroundController.selectedExample;
+    final appNotifier = GetIt.instance.get<AppNotifier>();
     final actualPath = selectedExample?.path;
     final actualSdk = selectedExample?.sdk;
     expect(actualPath, isNot(previousPath));
-    expect(actualSdk, isNot(previousSdk));
+    expect(actualSdk, appNotifier.sdk);
     previousPath = actualPath;
-    previousSdk = actualSdk;
   }
 
   await _setSdk(defaultSdk!.title, wt);
@@ -360,6 +362,5 @@ Future<void> _setSdk(String title, WidgetTester wt) async {
   await wt.tapAndSettle(find.sdkDropdown());
   await wt.tapAndSettle(
     find.dropdownMenuItemWithText(title).first,
-    warnIfMissed: false,
   );
 }
