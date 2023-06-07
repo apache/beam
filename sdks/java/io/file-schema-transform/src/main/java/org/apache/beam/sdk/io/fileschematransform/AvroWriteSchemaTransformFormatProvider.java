@@ -69,15 +69,11 @@ public class AvroWriteSchemaTransformFormatProvider
             input.apply(
                 "Row To Avro Generic Record",
                 ParDo.of(
-                        new
-        FileWriteSchemaTransformFormatProviders.ErrorCounterFn<GenericRecord>(
+                        new FileWriteSchemaTransformFormatProviders.ErrorCounterFn<GenericRecord>(
                             "Avro-write-error-counter",
-        
-        AvroUtils.getRowToGenericRecordFunction(AvroUtils.toAvroSchema(schema)),
+                            AvroUtils.getRowToGenericRecordFunction(AvroUtils.toAvroSchema(schema)),
                             ERROR_FN_OUPUT_TAG))
-                    .withOutputTags(
-                        ERROR_FN_OUPUT_TAG,
-                        TupleTagList.of(ERROR_TAG)));
+                    .withOutputTags(ERROR_FN_OUPUT_TAG, TupleTagList.of(ERROR_TAG)));
 
         PCollection<GenericRecord> avro = tuple.get(ERROR_FN_OUPUT_TAG).setCoder(coder);
 

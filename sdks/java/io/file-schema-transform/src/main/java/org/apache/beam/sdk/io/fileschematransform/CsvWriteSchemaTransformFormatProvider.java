@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.io.fileschematransform;
 
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.CSV;
+import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformProvider.RESULT_TAG;
+
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.getCompression;
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.getFilenameSuffix;
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.getNumShards;
@@ -34,6 +36,7 @@ import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.commons.csv.CSVFormat;
 
@@ -88,7 +91,7 @@ public class CsvWriteSchemaTransformFormatProvider
             result
                 .getPerDestinationOutputFilenames()
                 .apply("perDestinationOutputFilenames", Values.create());
-        return PCollectionTuple.of("ouput", output);
+        return PCollectionTuple.of(RESULT_TAG, output);
       }
     };
   }

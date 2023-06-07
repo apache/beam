@@ -25,6 +25,8 @@ import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.DOUBLY_NESTED_D
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.NULLABLE_ALL_PRIMITIVE_DATA_TYPES_SCHEMA;
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.SINGLY_NESTED_DATA_TYPES_SCHEMA;
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.TIME_CONTAINING_SCHEMA;
+import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformProvider.RESULT_TAG;
+
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformConfiguration.csvConfigurationBuilder;
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformConfiguration.parquetConfigurationBuilder;
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformConfiguration.xmlConfigurationBuilder;
@@ -455,7 +457,7 @@ abstract class FileWriteSchemaTransformFormatProviderTest {
   private PCollection<String> applyProviderAndAssertFilesWritten(
       List<Row> rows, Schema schema, FileWriteSchemaTransformConfiguration configuration) {
     PCollection<Row> input = writePipeline.apply(Create.of(rows).withRowSchema(schema));
-    PCollection<String> files = input.apply(getProvider().buildTransform(configuration, schema));
+    PCollection<String> files = input.apply(getProvider().buildTransform(configuration, schema)).get(RESULT_TAG);
     PCollection<Long> count = files.apply("count number of files", Count.globally());
     PAssert.thatSingleton("At least one file should be written", count).notEqualTo(0L);
     return files;
