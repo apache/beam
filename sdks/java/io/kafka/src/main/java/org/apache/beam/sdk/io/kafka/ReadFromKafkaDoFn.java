@@ -324,6 +324,57 @@ abstract class ReadFromKafkaDoFn<K, V>
     return new GrowableOffsetRangeTracker(restriction.getFrom(), offsetPoller);
   }
 
+  private static class PoolLoopStats {
+    long polls = 0;
+    long count = 0;
+    Duration pollDuration = Duration.ZERO;
+    long successfulPolls = 0;
+    Duration successfulPollDuration = Duration.ZERO;
+    long offers = 0;
+    Duration offerDuration = Duration.ZERO;
+    long successfulOffers = 0;
+    Duration successfulOfferDuration = Duration.ZERO;
+
+    public void pollComplete(Duration duration, boolean success, int count) {
+      polls += 1;
+      if (success) {
+        successfulPolls += 1;
+        this.count += count;
+        successfulPollDuration = successfulPollDuration.plus(duration);
+      }
+      pollDuration = pollDuration.plus(duration);
+    }
+
+    public void claimComplete(Duration duration, boolean success) {
+      offers += 1;
+      if (success) {
+        successfulOffers += 1;
+        successfulOfferDuration = successfulOfferDuration.plus(duration);
+      }
+      offerDuration = offerDuration.plus(duration);
+    }
+
+    private Duration totalDuration() {
+      return pollDuration.plus(offerDuration);
+    }
+
+    public void log(String prefix) {
+      Duration avgSuccessfulPollDuration =
+          successfulPolls != 0 ? successfulPollDuration.dividedBy(successfulPolls) : Duration.ZERO;
+      long countPerPoll = successfulPolls != 0 ? count /  successfulPolls: 0;
+      Duration avgSuccessfulOfferDuration =
+          successfulOffers != 0 ? successfulOfferDuration.dividedBy(successfulOffers)
+              : Duration.ZERO;
+      LOG.info(
+          "{} consumerPollLoop stats: polls -- {} total, {}ms total, {} ok, {}ms avg ok; " +
+              "claim -- {} total, {}ms total, {} ok, {}ms avg ok; " +
+              "count -- {}, {} avg per ok poll",
+          prefix, polls, pollDuration.getMillis(), successfulPolls, avgSuccessfulPollDuration.getMillis(),
+          offers, offerDuration.getMillis(), successfulOffers,
+          avgSuccessfulOfferDuration.getMillis(), count, countPerPoll);
+    }
+  }
+
   @ProcessElement
   public ProcessContinuation processElement(
       @Element KafkaSourceDescriptor kafkaSourceDescriptor,
@@ -377,20 +428,29 @@ abstract class ReadFromKafkaDoFn<K, V>
       consumer.seek(kafkaSourceDescriptor.getTopicPartition(), startOffset);
       ConsumerRecords<byte[], byte[]> rawRecords = ConsumerRecords.empty();
 
+      LOG.info("beam-io-sdf: Enter pool loop");
+      PoolLoopStats stats = new PoolLoopStats();
       while (true) {
+        Instant pollStart = Instant.now();
         rawRecords = poll(consumer, kafkaSourceDescriptor.getTopicPartition());
+        stats.pollComplete(new Duration(pollStart, Instant.now()), !rawRecords.isEmpty(), rawRecords.count());
         // When there are no records available for the current TopicPartition, self-checkpoint
         // and move to process the next element.
         if (rawRecords.isEmpty()) {
+          stats.log("beam-io-sdf: resume, rawRecords.isEmpty()");
           if (timestampPolicy != null) {
             updateWatermarkManually(timestampPolicy, watermarkEstimator, tracker);
           }
           return ProcessContinuation.resume();
         }
         for (ConsumerRecord<byte[], byte[]> rawRecord : rawRecords) {
+          Instant claimStart = Instant.now();
           if (!tracker.tryClaim(rawRecord.offset())) {
+            stats.claimComplete(new Duration(claimStart, Instant.now()), false);
+            stats.log("beam-io-sdf: stop, !tryClaim()");
             return ProcessContinuation.stop();
           }
+          stats.claimComplete(new Duration(claimStart, Instant.now()), true);
           KafkaRecord<K, V> kafkaRecord =
               new KafkaRecord<>(
                   rawRecord.topic(),
@@ -420,6 +480,10 @@ abstract class ReadFromKafkaDoFn<K, V>
             outputTimestamp = extractOutputTimestampFn.apply(kafkaRecord);
           }
           receiver.outputWithTimestamp(KV.of(kafkaSourceDescriptor, kafkaRecord), outputTimestamp);
+        }
+        if (stats.totalDuration().getStandardSeconds() >= 30) {
+          stats.log("beam-io-sdf: periodic");
+          stats = new PoolLoopStats();
         }
       }
     }

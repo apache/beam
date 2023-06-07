@@ -568,11 +568,17 @@ public class Read {
 
       @SuppressWarnings("rawtypes") // most straightforward way to create array with type parameter
       UnboundedSourceValue<OutputT>[] out = new UnboundedSourceValue[1];
+      Instant claimLoopStart = Instant.now();
+      long claimLoopCount = 0;
+      LOG.debug("beam-io-read: entering tracker.tryClaim(out) loop");
       while (tracker.tryClaim(out) && out[0] != null) {
+        claimLoopCount++;
         watermarkEstimator.setWatermark(out[0].getWatermark());
         receiver.outputWithTimestamp(
             new ValueWithRecordId<>(out[0].getValue(), out[0].getId()), out[0].getTimestamp());
       }
+      LOG.debug("beam-io-read: tracker.tryClaim(out) looped {} times in {}",
+          claimLoopCount, new Duration(claimLoopStart, Instant.now()));
 
       UnboundedSourceRestriction<OutputT, CheckpointT> currentRestriction =
           tracker.currentRestriction();
@@ -895,6 +901,7 @@ public class Read {
           }
           checkStateNotNull(currentReader, "currentReader null after initialization");
           if (currentReader instanceof EmptyUnboundedSource.EmptyUnboundedReader) {
+            LOG.info("beam-io-read: reader changed into an EmptyUnboundedReader");
             return false;
           }
           if (!readerHasBeenStarted) {
@@ -904,6 +911,7 @@ public class Read {
               return true;
             }
           } else if (!currentReader.advance()) {
+            LOG.info("beam-io-read: currentReader.advance() returned false");
             position[0] = null;
             return true;
           }

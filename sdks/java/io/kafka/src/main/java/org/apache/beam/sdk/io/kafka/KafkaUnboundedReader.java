@@ -536,22 +536,89 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     backlogElementsOfSplit = SourceMetrics.backlogElementsOfSplit(splitId);
   }
 
+  private static class PoolLoopStats {
+    long polls = 0;
+    Duration pollDuration = Duration.ZERO;
+    long successfulPolls = 0;
+    Duration successfulPollDuration = Duration.ZERO;
+    long offers = 0;
+    Duration offerDuration = Duration.ZERO;
+    long successfulOffers = 0;
+    Duration successfulOfferDuration = Duration.ZERO;
+    Duration checkpointDuration = Duration.ZERO;
+
+    public void pollComplete(Duration duration, boolean success) {
+      polls += 1;
+      if (success) {
+        successfulPolls += 1;
+        successfulPollDuration = successfulPollDuration.plus(duration);
+      }
+      pollDuration = pollDuration.plus(duration);
+    }
+
+    public void offerComplete(Duration duration, boolean success) {
+      offers += 1;
+      if (success) {
+        successfulOffers += 1;
+        successfulOfferDuration = successfulOfferDuration.plus(duration);
+      }
+      offerDuration = offerDuration.plus(duration);
+    }
+
+    public void checkpointComplete(Duration duration) {
+      checkpointDuration = checkpointDuration.plus(duration);
+    }
+
+    private Duration totalDuration() {
+      return pollDuration.plus(offerDuration).plus(checkpointDuration);
+    }
+
+    public void log() {
+      Duration avgSuccessfulPollDuration =
+          successfulPolls != 0 ? successfulPollDuration.dividedBy(successfulPolls) : Duration.ZERO;
+      Duration avgSuccessfulOfferDuration =
+          successfulOffers != 0 ? successfulOfferDuration.dividedBy(successfulOffers)
+              : Duration.ZERO;
+      LOG.debug(
+          "consumerPollLoop stats: polls -- {} total, {}ms total, {} ok, {}ms avg ok; " +
+              "offers -- {} total, {}ms total, {} ok, {}ms avg ok.",
+          polls, pollDuration.getMillis(), successfulPolls, avgSuccessfulPollDuration.getMillis(),
+          offers, offerDuration.getMillis(), successfulOffers,
+          avgSuccessfulOfferDuration.getMillis());
+    }
+  }
+
   private void consumerPollLoop() {
+    LOG.debug("Starting consumerPollLoop()");
     // Read in a loop and enqueue the batch of records, if any, to availableRecordsQueue.
     Consumer<byte[], byte[]> consumer = Preconditions.checkStateNotNull(this.consumer);
 
     try {
+      PoolLoopStats stats = new PoolLoopStats();
       ConsumerRecords<byte[], byte[]> records = ConsumerRecords.empty();
       while (!closed.get()) {
         try {
           if (records.isEmpty()) {
+            Instant pollStart = Instant.now();
             records = consumer.poll(KAFKA_POLL_TIMEOUT.getMillis());
-          } else if (availableRecordsQueue.offer(
-              records, RECORDS_ENQUEUE_POLL_TIMEOUT.getMillis(), TimeUnit.MILLISECONDS)) {
-            records = ConsumerRecords.empty();
+            stats.pollComplete(new Duration(pollStart, Instant.now()), !records.isEmpty());
+          } else {
+            bool offerOk = availableRecordsQueue.offer(
+                records, RECORDS_ENQUEUE_POLL_TIMEOUT.getMillis(), TimeUnit.MILLISECONDS);
+            stats.offerComplete(new Duration(offerStart, Instant.now()), offerOk);
+            if (offerOk) {
+              records = ConsumerRecords.empty();
+            }
           }
-
-          commitCheckpointMark();
+          Instant checkpointStart = Instant.now();
+          if (commitCheckpointMark()) {
+            stats.checkpointComplete(new Duration(checkpointStart, Instant.now()));
+          }
+          // Flush stats once they accumulate 30s of measurements.
+          if (stats.totalDuration().getStandardSeconds() >= 30) {
+            stats.log();
+            stats = new PoolLoopStats();
+          }
         } catch (InterruptedException e) {
           LOG.warn("{}: consumer thread is interrupted", this, e); // not expected
           break;
@@ -559,7 +626,8 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
           break;
         }
       }
-      LOG.info("{}: Returning from consumer pool loop", this);
+      LOG.debug("{}: Returning from consumer pool loop", this);
+      stats.log();
     } catch (Exception e) { // mostly an unrecoverable KafkaException.
       LOG.error("{}: Exception while reading from Kafka", this, e);
       consumerPollException.set(e);
@@ -567,21 +635,22 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     }
   }
 
-  private void commitCheckpointMark() {
+  private bool commitCheckpointMark() {
     KafkaCheckpointMark checkpointMark = finalizedCheckpointMark.getAndSet(null);
-
-    if (checkpointMark != null) {
-      LOG.debug("{}: Committing finalized checkpoint {}", this, checkpointMark);
-      Consumer<byte[], byte[]> consumer = Preconditions.checkStateNotNull(this.consumer);
-
-      consumer.commitSync(
-          checkpointMark.getPartitions().stream()
-              .filter(p -> p.getNextOffset() != UNINITIALIZED_OFFSET)
-              .collect(
-                  Collectors.toMap(
-                      p -> new TopicPartition(p.getTopic(), p.getPartition()),
-                      p -> new OffsetAndMetadata(p.getNextOffset()))));
+    if (checkpointMark == null) {
+      return false;
     }
+    LOG.debug("{}: Committing finalized checkpoint {}", this, checkpointMark);
+    Consumer<byte[], byte[]> consumer = Preconditions.checkStateNotNull(this.consumer);
+
+    consumer.commitSync(
+        checkpointMark.getPartitions().stream()
+            .filter(p -> p.getNextOffset() != UNINITIALIZED_OFFSET)
+            .collect(
+                Collectors.toMap(
+                    p -> new TopicPartition(p.getTopic(), p.getPartition()),
+                    p -> new OffsetAndMetadata(p.getNextOffset()))));
+    return true;
   }
 
   /**
