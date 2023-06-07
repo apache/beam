@@ -66,6 +66,8 @@ import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.extensions.avro.io.AvroDatumFactory;
 import org.apache.beam.sdk.extensions.avro.schemas.TestAvro;
+import org.apache.beam.sdk.extensions.avro.schemas.TestAvroConversion;
+import org.apache.beam.sdk.extensions.avro.schemas.TestAvroConversionFactory;
 import org.apache.beam.sdk.extensions.avro.schemas.TestAvroFactory;
 import org.apache.beam.sdk.extensions.avro.schemas.TestAvroNested;
 import org.apache.beam.sdk.extensions.avro.schemas.TestEnum;
@@ -125,6 +127,8 @@ public class AvroCoderTest {
           AVRO_NESTED_SPECIFIC_RECORD,
           ImmutableList.of(AVRO_NESTED_SPECIFIC_RECORD, AVRO_NESTED_SPECIFIC_RECORD),
           ImmutableMap.of("k1", AVRO_NESTED_SPECIFIC_RECORD, "k2", AVRO_NESTED_SPECIFIC_RECORD));
+
+  private static final String VERSION_AVRO = Schema.class.getPackage().getImplementationVersion();
 
   @DefaultCoder(AvroCoder.class)
   private static class Pojo {
@@ -372,6 +376,31 @@ public class AvroCoderTest {
             new CustomSpecificDatumFactory<>(TestAvro.class), AVRO_SPECIFIC_RECORD.getSchema());
     assertTrue(SpecificRecord.class.isAssignableFrom(coder.getType()));
     CoderProperties.coderDecodeEncodeEqual(coder, AVRO_SPECIFIC_RECORD);
+  }
+
+  @Test
+  public void testSpecificRecordConversionEncoding() throws Exception {
+    TestAvroConversion record =
+        TestAvroConversionFactory.newInstance(new org.joda.time.LocalDate(1979, 3, 14));
+    AvroCoder<TestAvroConversion> coder = AvroCoder.specific(TestAvroConversion.class);
+    AvroCoder<TestAvroConversion> coderWithSchema =
+        AvroCoder.specific(TestAvroConversion.class, record.getSchema());
+
+    assertTrue(SpecificRecord.class.isAssignableFrom(coder.getType()));
+    assertTrue(SpecificRecord.class.isAssignableFrom(coderWithSchema.getType()));
+
+    try {
+      CoderProperties.coderDecodeEncodeEqual(coder, record);
+      CoderProperties.coderDecodeEncodeEqual(coderWithSchema, record);
+    } catch (org.apache.avro.AvroRuntimeException e) {
+      if (VERSION_AVRO.equals("1.8.2")) {
+        // it is expected to fail in avro 1.8.2 but pass for other versions
+        // https://issues.apache.org/jira/browse/AVRO-1891
+        assertEquals("Unknown datum type org.joda.time.LocalDate: 1979-03-14", e.getMessage());
+      } else {
+        throw e;
+      }
+    }
   }
 
   @Test
