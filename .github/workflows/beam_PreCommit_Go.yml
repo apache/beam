@@ -3,7 +3,7 @@ name: beam_PreCommit_Go
 on:
   push:
     tags: ['v*']
-    branches: ['main', 'release-*']
+    branches: ['master', 'release-*']
   pull_request:
     branches: ['master']
     paths: ['model/**', 'sdks/go.**', 'release/**']
@@ -14,7 +14,7 @@ on:
 
 jobs:
   beam_PreCommit_Go:
-        if: ${{github.event.issue.pull_request}} || ${{github.event.comment.body == 'Run Go PreCommit'}} || ${{github.event.schedule == '* */6 * * *'}}
+        if: ${{github.event.issue.pull_request}} || ${{github.event.comment.body == 'Run Go PreCommit'}} || ${{github.event.schedule}}
         runs-on: [self-hosted, ubuntu-20.04]
         name: beam_PreCommit_Go
         steps:       
