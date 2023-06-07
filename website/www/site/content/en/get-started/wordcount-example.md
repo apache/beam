@@ -1487,10 +1487,6 @@ using [`beam.io.WriteToPubSub`](https://beam.apache.org/releases/pydoc/{{< param
   // This example is not currently available for the Beam SDK for Go.
 {{< /highlight >}}
 
-{{< paragraph class="language-py" >}}
-### Try the full example in Playground
-{{< /paragraph >}}
-
 ## Next Steps
 
 * Walk through the Mobile Gaming examples in the [Mobile Gaming Example Walkthrough](/get-started/mobile-gaming-example).

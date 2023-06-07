@@ -54,7 +54,7 @@ PCollection<Long> smallNumbers = numbers.apply(Filter.lessThanEq(3));
 {{< /highlight >}}
 Other variants include `Filter.greaterThanEq`, `Filter.lessThan` and `Filter.equal`.
 
-**Example 3**: TODO: Title?
+**Example 3**: Filtering with lambda
 
 {{< playground height="700px" >}}
 {{< playground_snippet language="java" path="SDK_JAVA_Filter" >}}

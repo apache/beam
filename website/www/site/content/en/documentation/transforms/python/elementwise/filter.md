@@ -68,7 +68,7 @@ In this example, we pass a `PCollection` the value `'perennial'` as a singleton.
 We then use that value to filter out perennials.
 
 {{< playground height="700px" >}}
-{{< playground_snippet language="py" path="SDK_PYTHON_FilterSideInputsDict" show="filter_side_inputs_dict" >}}
+{{< playground_snippet language="py" path="SDK_PYTHON_FilterSideInputsSingleton" show="filter_side_inputs_singleton" >}}
 {{< /playground >}}
 
 ### Example 5: Filtering with side inputs as iterators
@@ -92,7 +92,7 @@ Note that all the elements of the `PCollection` must fit into memory for this.
 If the `PCollection` won't fit into memory, use `beam.pvalue.AsIter(pcollection)` instead.
 
 {{< playground height="700px" >}}
-{{< playground_snippet language="py" path="SDK_PYTHON_FilterSideInputsSingleton" show="filter_side_inputs_singleton" >}}
+{{< playground_snippet language="py" path="SDK_PYTHON_FilterSideInputsDict" show="filter_side_inputs_dict" >}}
 {{< /playground >}}
 
 ## Related transforms

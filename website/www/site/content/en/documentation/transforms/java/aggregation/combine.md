@@ -44,6 +44,7 @@ See more information in the [Beam Programming Guide](/documentation/programming-
 ## Examples
 
 **Example 1**: Global combine
+
 Use the global combine to combine all of the elements in a given `PCollection`
 into a single value, represented in your pipeline as a new `PCollection` containing
 one element. The following example code shows how to apply the Beam-provided
@@ -54,6 +55,7 @@ sum combine function to produce a single sum value for a `PCollection` of intege
 {{< /playground >}}
 
 **Example 2**: Keyed combine
+
 Use a keyed combine to combine all of the values associated with each key
 into a single output value for each key. As with the global combine, the
 function passed to a keyed combine must be associative and commutative.
