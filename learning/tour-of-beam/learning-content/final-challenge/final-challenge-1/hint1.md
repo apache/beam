@@ -155,6 +155,6 @@ limitations under the License.
 5. Create a map function `'Map id and price for bigger' >> beam.Map(lambda transaction: (transaction.transaction_no, float(transaction.price)))` for group
 6. Combine by key, the function that summarizes the prices.
    Sum function: `'Calculate sum for biggerThan10' >> beam.CombinePerKey(sum)`
-   
+
 7. Write to a txt file: `'Write biggerThan10 results to text file' >> beam.io.WriteToText('biggerThan10', '.txt', shard_name_template=''))`
 {{end}}
