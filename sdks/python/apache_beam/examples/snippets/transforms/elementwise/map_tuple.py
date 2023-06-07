@@ -54,3 +54,7 @@ def map_tuple(test=None):
     # [END map_tuple]
     if test:
       test(plants)
+
+
+if __name__ == '__main__':
+  map_tuple()
