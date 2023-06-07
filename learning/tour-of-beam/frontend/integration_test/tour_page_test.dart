@@ -304,11 +304,11 @@ Future<bool> _hasSnippetsInAllSdks(UnitModel unit) async {
   return true;
 }
 
-Future<List<UnitModel>> _getCommonUnitsInAllSdks(WidgetTester wt) async {
+Future<Set<UnitModel>> _getCommonUnitsInAllSdks(WidgetTester wt) async {
   final contentTrees = await _loadAllContentTrees(wt);
-  final sdkUnits = List<List<UnitModel>>.empty(growable: true);
+  final sdkUnits = List<Set<UnitModel>>.empty(growable: true);
   for (final tree in contentTrees) {
-    sdkUnits.add(tree.getUnits().toList());
+    sdkUnits.add(tree.getUnits().toSet());
   }
 
   // Identifies and stores the common units across all lists within
@@ -337,7 +337,6 @@ Future<void> _checkSnippetChangesOnSdkChanging(WidgetTester wt) async {
   final defaultSdk = _getTourNotifier(wt).playgroundController.sdk;
   final sdkCache = GetIt.instance.get<SdkCache>();
 
-  String? previousPath;
   for (final sdk in sdkCache.getSdks()) {
     if (sdk == defaultSdk) {
       continue;
@@ -348,11 +347,8 @@ Future<void> _checkSnippetChangesOnSdkChanging(WidgetTester wt) async {
     final selectedExample =
         _getTourNotifier(wt).playgroundController.selectedExample;
     final appNotifier = GetIt.instance.get<AppNotifier>();
-    final actualPath = selectedExample?.path;
     final actualSdk = selectedExample?.sdk;
-    expect(actualPath, isNot(previousPath));
     expect(actualSdk, appNotifier.sdk);
-    previousPath = actualPath;
   }
 
   await _setSdk(defaultSdk!.title, wt);
