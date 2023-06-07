@@ -136,7 +136,11 @@ public class FileWriteSchemaTransformProvider
                                   .build()))
               .setRowSchema(OUTPUT_SCHEMA);
 
-      return PCollectionRowTuple.of(OUTPUT_TAG, output).and("error", files.get(ERROR_TAG));
+      if (files.has(ERROR_TAG)) {
+        return PCollectionRowTuple.of(OUTPUT_TAG, output).and("error", files.get(ERROR_TAG));
+      } else {
+        return PCollectionRowTuple.of(OUTPUT_TAG, output);
+      }
     }
 
     @Override

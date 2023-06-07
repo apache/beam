@@ -18,21 +18,28 @@
 package org.apache.beam.sdk.io.fileschematransform;
 
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.applyCommonTextIOWriteFeatures;
+import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformProvider.ERROR_SCHEMA;
+import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformProvider.ERROR_TAG;
+import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformProvider.RESULT_TAG;
 import static org.apache.beam.sdk.values.TypeDescriptors.strings;
 
 import com.google.auto.service.AutoService;
 import java.nio.charset.StandardCharsets;
 import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.ErrorCounterFn;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.io.payloads.JsonPayloadSerializerProvider;
 import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializer;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /** A {@link FileWriteSchemaTransformFormatProvider} for JSON format. */
@@ -41,6 +48,7 @@ public class JsonWriteSchemaTransformFormatProvider
     implements FileWriteSchemaTransformFormatProvider {
 
   final String suffix = String.format(".%s", FileWriteSchemaTransformFormatProviders.JSON);
+  private static final TupleTag<String> ERROR_FN_OUPUT_TAG = new TupleTag<String>() {};
 
   @Override
   public String identifier() {
@@ -58,7 +66,15 @@ public class JsonWriteSchemaTransformFormatProvider
       @Override
       public PCollectionTuple expand(PCollection<Row> input) {
 
-        PCollection<String> json = input.apply("Row To Json", mapRowsToJsonStrings(schema));
+        // PCollection<String> json = input.apply("Row To Json", mapRowsToJsonStrings(schema));
+        PCollectionTuple json =
+            input.apply(
+                ParDo.of(
+                        new ErrorCounterFn<String>(
+                            "Json-write-error-counter",
+                            new RowToJsonFn(schema),
+                            ERROR_FN_OUPUT_TAG))
+                    .withOutputTags(ERROR_FN_OUPUT_TAG, TupleTagList.of(ERROR_TAG)));
 
         TextIO.Write write =
             TextIO.write().to(configuration.getFilenamePrefix()).withSuffix(suffix);
@@ -66,10 +82,12 @@ public class JsonWriteSchemaTransformFormatProvider
         write = applyCommonTextIOWriteFeatures(write, configuration);
 
         PCollection<String> output =
-            json.apply("Write Json", write.withOutputFilenames())
+            json.get(ERROR_FN_OUPUT_TAG)
+                .apply("Write Json", write.withOutputFilenames())
                 .getPerDestinationOutputFilenames()
                 .apply("perDestinationOutputFilenames", Values.create());
-        return PCollectionTuple.of("output", output);
+        return PCollectionTuple.of(RESULT_TAG, output)
+            .and(ERROR_TAG, json.get(ERROR_TAG).setRowSchema(ERROR_SCHEMA));
       }
     };
   }
