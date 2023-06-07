@@ -19,8 +19,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
-      - name: Install missing python versions
-        run: apt install -y python3.11-minimal python3.7-minimal python3.10-minimal python3.9-minimal
       - uses: actions/setup-python@v4
         with:
           python-version: '3.8'
