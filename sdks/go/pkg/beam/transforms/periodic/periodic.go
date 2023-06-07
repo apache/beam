@@ -100,7 +100,7 @@ func (fn *sequenceGenDoFn) ProcessElement(ctx context.Context, we *sdf.ManualWat
 	for currentOutputTimestamp.Before(currentTime) {
 		if rt.TryClaim(currentOutputIndex) {
 			emit(mtime.FromTime(currentOutputTimestamp), currentOutputIndex)
-			currentOutputIndex += 1
+			currentOutputIndex++
 			currentOutputTimestamp = mtime.Time(sd.Start).ToTime().Add(sd.Interval * time.Duration(currentOutputIndex))
 			currentTime = time.Now()
 			we.UpdateWatermark(currentOutputTimestamp)
