@@ -1178,6 +1178,13 @@ Create and push a new signed tag for the released version by copying the tag for
 gpg --output ~/doc.sig --sign ~/.bashrc
 
 VERSION_TAG="v${RELEASE_VERSION}"
+RC_TAG="${VERSION_TAG}-RC${RC_NUM}"
+
+# Ensure local tags are in sync. If there's a mismatch, it will tell you.
+git fetch --all --tags
+
+# If the tag exists, a commit number is produced, otherwise there's an error.
+git rev-list $RC_TAG -n 1
 
 # Tag for Go SDK
 git tag -s "sdks/$VERSION_TAG" "$RC_TAG"
