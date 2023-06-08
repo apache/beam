@@ -25,6 +25,7 @@ import 'package:integration_test/integration_test.dart';
 import 'package:playground_components/playground_components.dart';
 import 'package:playground_components_dev/playground_components_dev.dart';
 import 'package:tour_of_beam/cache/content_tree.dart';
+import 'package:tour_of_beam/cache/sdk.dart';
 import 'package:tour_of_beam/components/builders/content_tree.dart';
 import 'package:tour_of_beam/models/module.dart';
 import 'package:tour_of_beam/models/parent_node.dart';
@@ -44,7 +45,10 @@ void main() {
     'ToB miscellaneous ui',
     (wt) async {
       await init(wt);
-      await wt.tapAndSettle(find.text(Sdk.java.title));
+
+      final sdkCache = GetIt.instance.get<SdkCache>();
+      final sdks = sdkCache.getSdks();
+      await wt.tapAndSettle(find.text(sdks.first.title));
       await wt.tapAndSettle(find.startTourButton());
 
       await _checkContentTreeBuildsProperly(wt);
