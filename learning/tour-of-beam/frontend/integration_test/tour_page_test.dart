@@ -48,20 +48,12 @@ void main() {
 
       final sdkCache = GetIt.instance.get<SdkCache>();
       final sdks = sdkCache.getSdks();
-      print('### Sdks: $sdks');
       await wt.tapAndSettle(find.text(sdks.first.title));
       await wt.tapAndSettle(find.startTourButton());
 
-      print('### _checkContentTreeBuildsProperly');
       await _checkContentTreeBuildsProperly(wt);
-
-      print('### _checkHighlightsSelectedUnit');
       await _checkHighlightsSelectedUnit(wt);
-
-      print('### _checkRunCodeWorks');
       await _checkRunCodeWorks(wt);
-
-      print('### _checkResizeUnitContent');
       await _checkResizeUnitContent(wt);
 
       expect(
