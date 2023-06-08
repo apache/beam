@@ -41,7 +41,7 @@ We use `Combine.Globally()` to get the minimum element from the *entire* `PColle
 We use `Combine.PerKey()` to get the minimum element for each unique key in a `PCollection` of key-values.
 
 {{< playground height="700px" >}}
-{{< playground_snippet language="py" path="SDK_PYTHON_MaxPerKey" show="min_per_key" >}}
+{{< playground_snippet language="py" path="SDK_PYTHON_MinPerKey" show="min_per_key" >}}
 {{< /playground >}}
 
 ## Related transforms
