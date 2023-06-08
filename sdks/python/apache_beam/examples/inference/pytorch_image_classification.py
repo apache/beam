@@ -16,15 +16,14 @@
 #
 
 """A pipeline that uses RunInference API to perform image classification."""
-
 import argparse
 import io
 import logging
 import os
+from typing import Iterable
 from typing import Iterator
 from typing import Optional
 from typing import Tuple
-
 import apache_beam as beam
 import torch
 from apache_beam.io.filesystems import FileSystems
@@ -66,6 +65,13 @@ def preprocess_image(data: Image.Image) -> torch.Tensor:
 def filter_empty_lines(text: str) -> Iterator[str]:
   if len(text.strip()) > 0:
     yield text
+
+
+class PostProcessor(beam.DoFn):
+  def process(self, element: Tuple[str, PredictionResult]) -> Iterable[str]:
+    filename, prediction_result = element
+    prediction = torch.argmax(prediction_result.inference, dim=0)
+    yield filename + ',' + str(prediction.item())
 
 
 def parse_known_args(argv):
@@ -116,22 +122,10 @@ def run(
   known_args, pipeline_args = parse_known_args(argv)
   pipeline_options = PipelineOptions(pipeline_args)
   pipeline_options.view_as(SetupOptions).save_main_session = save_main_session
-
   if not model_class:
     # default model class will be mobilenet with pretrained weights.
     model_class = models.mobilenet_v2
     model_params = {'num_classes': 1000}
-
-  def preprocess(image_name: str) -> Tuple[str, torch.Tensor]:
-    image_name, image = read_image(
-      image_file_name=image_name,
-      path_to_dir=known_args.images_dir)
-    return (image_name, preprocess_image(image))
-
-  def postprocess(element: Tuple[str, PredictionResult]) -> str:
-    filename, prediction_result = element
-    prediction = torch.argmax(prediction_result.inference, dim=0)
-    return filename + ',' + str(prediction.item())
 
   # In this example we pass keyed inputs to RunInference transform.
   # Therefore, we use KeyedModelHandler wrapper over PytorchModelHandler.
@@ -142,26 +136,29 @@ def run(
           model_params=model_params,
           device=device,
           min_batch_size=10,
-          max_batch_size=100)).with_preprocess_fn(
-              preprocess).with_postprocess_fn(postprocess)
+          max_batch_size=100))
 
   pipeline = test_pipeline
   if not test_pipeline:
     pipeline = beam.Pipeline(options=pipeline_options)
-
   filename_value_pair = (
       pipeline
       | 'ReadImageNames' >> beam.io.ReadFromText(known_args.input)
-      | 'FilterEmptyLines' >> beam.ParDo(filter_empty_lines))
+      | 'FilterEmptyLines' >> beam.ParDo(filter_empty_lines)
+      | 'ReadImageData' >> beam.Map(
+          lambda image_name: read_image(
+              image_file_name=image_name, path_to_dir=known_args.images_dir))
+      | 'PreprocessImages' >> beam.MapTuple(
+          lambda file_name, data: (file_name, preprocess_image(data))))
   predictions = (
       filename_value_pair
-      | 'PyTorchRunInference' >> RunInference(model_handler))
+      | 'PyTorchRunInference' >> RunInference(model_handler)
+      | 'ProcessOutput' >> beam.ParDo(PostProcessor()))
 
   predictions | "WriteOutputToGCS" >> beam.io.WriteToText( # pylint: disable=expression-not-assigned
     known_args.output,
     shard_name_template='',
     append_trailing_newlines=True)
-
   result = pipeline.run()
   result.wait_until_finish()
   return result
