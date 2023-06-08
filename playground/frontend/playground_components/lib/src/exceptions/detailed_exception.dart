@@ -16,33 +16,7 @@
  * limitations under the License.
  */
 
-import 'detailed_exception.dart';
-
-class MultipleExceptions implements DetailedException {
-  final String message;
-  final List<Exception> exceptions;
-  final List<StackTrace> stackTraces;
-
-  MultipleExceptions(this.message, {
-    required this.exceptions,
-    required this.stackTraces,
-  });
-
-  @override
-  String toString() => message;
-
-  @override
-  String get details {
-    final buffer = StringBuffer('Exceptions (${exceptions.length}): ');
-    for (var i = 0; i < exceptions.length; i++) {
-      buffer
-        ..write('Exception #')
-        ..write(i + 1)
-        ..writeln(':')
-        ..writeln(exceptions[i])
-        ..writeln('StackTrace:')
-        ..writeln(stackTraces[i]);
-    }
-    return buffer.toString();
-  }
+/// An [Exception] with more [details] than should be shown in an error popup.
+abstract class DetailedException implements Exception {
+  String get details;
 }
