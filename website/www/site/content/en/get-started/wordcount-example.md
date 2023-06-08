@@ -320,9 +320,7 @@ Note that the `run` method is asynchronous. For a blocking execution, call the
 returned by the call to `run`.
 {{< /paragraph >}}
 
-{{< paragraph class="language-java language-py" >}}
 ### Try the full example in Playground
-{{< /paragraph >}}
 
 {{< playground height="700px" >}}
 {{< playground_snippet language="java" path="SDK_JAVA_MinimalWordCount" >}}
@@ -672,9 +670,7 @@ func main() {
     ...
 {{< /highlight >}}
 
-{{< paragraph class="language-java language-py" >}}
 ### Try the full example in Playground
-{{< /paragraph >}}
 
 {{< playground height="700px" >}}
 {{< playground_snippet language="java" path="SDK_JAVA_WordCount" >}}
@@ -996,9 +992,7 @@ See [DebuggingWordCountTest](https://github.com/apache/beam/blob/master/examples
 for an example unit test.
 {{< /paragraph >}}
 
-{{< paragraph class="language-java language-py" >}}
 ### Try the full example in Playground
-{{< /paragraph >}}
 
 {{< playground height="700px" >}}
 {{< playground_snippet language="java" path="SDK_JAVA_DebuggingWordCount" >}}
@@ -1355,7 +1349,7 @@ word_counts = windowed_words | CountWords()
 counted := wordcount.CountWords(s, windowedLines)
 {{< /highlight >}}
 
-{{< paragraph class="language-java language-py" >}}
+{{< paragraph class="language-java language-go" >}}
 ### Try the full example in Playground
 {{< /paragraph >}}
 
