@@ -25,82 +25,90 @@ $defs:
     properties:
       type: { type: string }
       name: { type: string }
+      windowing:
+        $ref: '#/$defs/windowing'
       input:
         oneOf:
           - type: string
+          - type: array
+            items: { type: string }
           - type: object
+            properties: { __line__: {}}
             additionalProperties:
               type: string
       output:
         oneOf:
           - type: string
           - type: object
+            properties: { __line__: {}}
             additionalProperties:
               type: string
     additionalProperties: true
     required:
       - type
 
-  leafTransform:
+  nestedTransform:
     allOf:
-      - $ref: '#/$defs/transformBase'
       - type: object
         properties:
-          type:
-            not:
-              anyOf:
-                - const: chain
-                - const: composite
-          args:
-            type: object
-
-  chainTransform:
-    allOf:
-      - $ref: '#/$defs/transformBase'
-      - type: object
-        properties:
-          type:
-            const: chain
+          type: {}
           name: {}
           input: {}
           output: {}
-          transforms:
-            type: array
-            items:
-              allOf:
-                - $ref: '#/$defs/transform'
-                - type: object
-                  properties:
-                    # Must be implicit.
-                    input: { not: {} }
-                    output: { not: {} }
-        additionalProperties: false
-        required:
-          - transforms
-
-  compositeTransform:
-    allOf:
-      - $ref: '#/$defs/transformBase'
-      - type: object
-        properties:
-          type:
-            const: composite
-          name: {}
-          input: {}
-          output: {}
+          windowing: {}
           transforms:
             type: array
             items:
               $ref: '#/$defs/transform'
+          source:
+            $ref: '#/$defs/transform'
+          sink:
+            $ref: '#/$defs/transform'
+          __line__: {}
+          __uuid__: {}
         additionalProperties: false
-        required:
+      - anyOf:
+        - required:
           - transforms
+        - required:
+          - source
+          - sink
+
+  implicitInputOutputs:
+    properties:
+      transforms:
+        type: array
+        items:
+          properties:
+            # Must be implicit.
+            input: { not: {} }
+            output: { not: {} }
+      source:
+        properties:
+          # Must be implicit.
+          input: { not: {} }
+          output: { not: {} }
+      sink:
+        properties:
+          # Must be implicit.
+          input: { not: {} }
+          output: { not: {} }
 
   transform:
-    oneOf:
-      - $ref: '#/$defs/leafTransform'
-      - $ref: '#/$defs/chainTransform'
-      - $ref: '#/$defs/compositeTransform'
+    allOf:
+      - $ref: '#/$defs/transformBase'
+      - if:
+          properties: { type: { const: composite }}
+        then:
+          $ref: '#/$defs/nestedTransform'
+      - if:
+          properties: { type: { const: chain }}
+        then:
+          allOf:
+            - $ref: '#/$defs/nestedTransform'
+            - $ref: '#/$defs/implicitInputOutputs'
+
+  windowing: {}  # TODO
 
   provider:
     # TODO(robertwb): Consider enumerating the provider types along with
@@ -119,12 +127,25 @@ $defs:
 type: object
 properties:
   pipeline:
-    type: array
-    items:
-      $ref: '#/$defs/transform'
+    anyOf:
+      - type: array
+        items:
+          $ref: '#/$defs/transform'
+      - $ref: '#/$defs/transform'
+      - type: object
+        properties:
+          transforms:
+            type: array
+            items:
+              $ref: '#/$defs/transform'
+          __line__: {}
+          __uuid__: {}
+        additionalProperties: false
   providers:
     type: array
     items:
       $ref: '#/$defs/provider'
+  options:
+    type: object
 required:
   - pipeline

@@ -20,7 +20,7 @@ import 'example_base.dart';
 
 const _pinnedTitle = 'quick start';
 
-class CategoryWithExamples with Comparable<CategoryWithExamples> {
+class CategoryWithExamples implements Comparable<CategoryWithExamples> {
   // TODO(alexeyinkin): Sort on the backend instead, then make const constructor, https://github.com/apache/beam/issues/23083
   final bool isPinned;
   final String title;

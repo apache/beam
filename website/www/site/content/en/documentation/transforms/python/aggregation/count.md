@@ -32,8 +32,8 @@ Then, we apply `Count` to get the total number of elements in different ways.
 
 We use `Count.Globally()` to count *all* elements in a `PCollection`, even if there are duplicate elements.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/count.py" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/count.py" count_globally >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/count_globally.py" >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/count_globally.py" count_globally >}}
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
@@ -48,8 +48,8 @@ Output:
 
 We use `Count.PerKey()` to count the elements for each unique key in a `PCollection` of key-values.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/count.py" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/count.py" count_per_key >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/count_per_key.py" >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/count_per_key.py" count_per_key >}}
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
@@ -64,8 +64,8 @@ Output:
 
 We use `Count.PerElement()` to count the only the unique elements in a `PCollection`.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/count.py" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/count.py" count_per_element >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/count_per_element.py" >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/count_per_element.py" count_per_element >}}
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}

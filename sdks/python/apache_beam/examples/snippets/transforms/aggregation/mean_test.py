@@ -25,7 +25,8 @@ import mock
 from apache_beam.examples.snippets.util import assert_matches_stdout
 from apache_beam.testing.test_pipeline import TestPipeline
 
-from . import mean
+from . import mean_globally
+from . import mean_per_key
 
 
 def check_mean_element(actual):
@@ -46,13 +47,17 @@ def check_elements_with_mean_value_per_key(actual):
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)
 @mock.patch(
-    'apache_beam.examples.snippets.transforms.aggregation.mean.print', str)
+    'apache_beam.examples.snippets.transforms.aggregation.mean_globally.print',
+    str)
+@mock.patch(
+    'apache_beam.examples.snippets.transforms.aggregation.mean_per_key.print',
+    str)
 class MeanTest(unittest.TestCase):
   def test_mean_globally(self):
-    mean.mean_globally(check_mean_element)
+    mean_globally.mean_globally(check_mean_element)
 
   def test_mean_per_key(self):
-    mean.mean_per_key(check_elements_with_mean_value_per_key)
+    mean_per_key.mean_per_key(check_elements_with_mean_value_per_key)
 
 
 if __name__ == '__main__':

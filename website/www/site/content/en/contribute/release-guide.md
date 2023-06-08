@@ -1263,6 +1263,10 @@ Also, update [the Wikipedia article on Apache Beam](https://en.wikipedia.org/wik
 
 **********
 
+## 13. Update Beam Playground
+
+After new Beam Release is published Beam Playgorund can be updated according to [Playground Readme](https://github.com/apache/beam/blob/master/playground/TASKS.md#referenced-beam-sdk-update) and [Playground deployment guide](https://github.com/apache/beam/blob/master/playground/terraform/README.md).
+
 ## Improve the process
 
 It is important that we improve the release processes over time.

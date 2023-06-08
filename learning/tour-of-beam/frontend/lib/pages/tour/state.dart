@@ -142,7 +142,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     notifyListeners();
   }
 
-  Future<void> _loadUnit(NodeModel node) async {    
+  Future<void> _loadUnit(NodeModel node) async {
     _setUnitContent(null);
     notifyListeners();
 
@@ -150,9 +150,14 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
       currentSdk.id,
       node.id,
     );
-    _setUnitContent(content);
 
+    _setUnitContent(content);
     await _unitProgressCache.loadUnitProgress(currentSdk);
+
+    if (content != _currentUnitContent) {
+      return; // Changed while waiting.
+    }
+
     _trySetSnippetType(SnippetType.saved);
     await _loadSnippetByType();
   }
