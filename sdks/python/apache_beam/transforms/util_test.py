@@ -19,12 +19,10 @@
 
 # pytype: skip-file
 
-import json
 import logging
 import math
 import random
 import re
-import tempfile
 import time
 import unittest
 import warnings
