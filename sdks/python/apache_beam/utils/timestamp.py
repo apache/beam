@@ -162,9 +162,9 @@ class Timestamp(object):
     """Returns a ``datetime.datetime`` object of UTC for this Timestamp.
 
     Note that this method returns a ``datetime.datetime`` object without a
-    timezone info by default, as builtin :func:`~datetime.datetime.utcnow`
-    method. If this is used as part of the processed data, one should set
-    has_tz=True to avoid offset due to default timezone mismatch.
+    timezone info by default, as builtin `datetime.datetime.utcnow` method. If
+    this is used as part of the processed data, one should set has_tz=True to
+    avoid offset due to default timezone mismatch.
 
     Args:
       has_tz: whether the timezone info is attached, default to False.
