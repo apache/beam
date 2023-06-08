@@ -1184,7 +1184,7 @@ RC_TAG="${VERSION_TAG}-RC${RC_NUM}"
 git fetch --all --tags
 
 # If the tag exists, a commit number is produced, otherwise there's an error.
-git rev-list $RC_TAG -n 1 
+git rev-list $RC_TAG -n 1
 
 # Tag for Go SDK
 git tag -s "sdks/$VERSION_TAG" "$RC_TAG"
