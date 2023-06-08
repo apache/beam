@@ -43,7 +43,7 @@ class MessagesParser {
         if (map is Map) {
           return _tryParseMap(map);
         }
-      } on FormatException catch (_) {
+      } on FormatException catch (ex) {
         // TODO: Log
       }
     }
