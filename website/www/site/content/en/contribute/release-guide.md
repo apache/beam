@@ -1178,6 +1178,10 @@ Create and push a new signed tag for the released version by copying the tag for
 gpg --output ~/doc.sig --sign ~/.bashrc
 
 VERSION_TAG="v${RELEASE_VERSION}"
+RC_TAG="${VERSION_TAG}-RC${RC_NUM}"
+
+# Validate that the variables are non empty. If they're empty.
+echo "version ${VERSION_TAG} rctag ${RC_TAG}"
 
 # Tag for Go SDK
 git tag -s "sdks/$VERSION_TAG" "$RC_TAG"
