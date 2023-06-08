@@ -103,6 +103,7 @@ public class WordCount {
    * statically out-of-line. This DoFn tokenizes lines of text into individual words; we pass it to
    * a ParDo in the pipeline.
    */
+  // [START extract_words_fn]
   static class ExtractWordsFn extends DoFn<String, String> {
     private final Counter emptyLines = Metrics.counter(ExtractWordsFn.class, "emptyLines");
     private final Distribution lineLenDist =
@@ -126,6 +127,7 @@ public class WordCount {
       }
     }
   }
+  // [END extract_words_fn]
 
   /** A SimpleFunction that converts a Word and Count into a printable string. */
   public static class FormatAsTextFn extends SimpleFunction<KV<String, Long>, String> {
@@ -143,6 +145,7 @@ public class WordCount {
    * Count) as a reusable PTransform subclass. Using composite transforms allows for easy reuse,
    * modular testing, and an improved monitoring experience.
    */
+  // [START count_words]
   public static class CountWords
       extends PTransform<PCollection<String>, PCollection<KV<String, Long>>> {
     @Override
@@ -157,6 +160,7 @@ public class WordCount {
       return wordCounts;
     }
   }
+  // [END count_words]
 
   /**
    * Options supported by {@link WordCount}.
@@ -167,6 +171,7 @@ public class WordCount {
    *
    * <p>Inherits standard configuration options.
    */
+  // [START wordcount_options]
   public interface WordCountOptions extends PipelineOptions {
 
     /**
@@ -186,6 +191,7 @@ public class WordCount {
 
     void setOutput(String value);
   }
+  // [END wordcount_options]
 
   static void runWordCount(WordCountOptions options) {
     Pipeline p = Pipeline.create(options);

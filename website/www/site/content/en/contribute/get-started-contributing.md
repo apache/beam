@@ -157,7 +157,7 @@ To install these in a Debian-based distribution:
 4. Once Go is installed, install goavro:
     ```
     $ export GOPATH=`pwd`/sdks/go/examples/.gogradle/project_gopath
-    $ go get github.com/linkedin/goavro
+    $ go get github.com/linkedin/goavro/v2
     ```
 **Important**: gLinux users should configure their machines for sudoless Docker.
 

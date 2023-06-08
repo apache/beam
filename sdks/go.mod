@@ -44,7 +44,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/johannesboyne/gofakes3 v0.0.0-20221110173912-32fb85c5aed6
 	github.com/lib/pq v1.10.9
-	github.com/linkedin/goavro v2.1.0+incompatible
+	github.com/linkedin/goavro/v2 v2.12.0
 	github.com/proullon/ramsql v0.0.0-20211120092837-c8d0a408b939
 	github.com/spf13/cobra v1.7.0
 	github.com/testcontainers/testcontainers-go v0.20.1
@@ -160,5 +160,4 @@ require (
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20230530153820-e85fd2cbaebc // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20230530153820-e85fd2cbaebc // indirect
-	gopkg.in/linkedin/goavro.v1 v1.0.5 // indirect
 )

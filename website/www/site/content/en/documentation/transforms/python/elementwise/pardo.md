@@ -41,9 +41,9 @@ which stores the `delimiter` as an object field.
 The `process` method is called once per element,
 and it can yield zero or more output elements.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py"
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo_dofn.py"
   notebook="examples/notebooks/documentation/transforms/python/elementwise/pardo" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py" pardo_dofn >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo_dofn.py" pardo_dofn >}}
 {{</ highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
@@ -67,9 +67,9 @@ In this example, we add new parameters to the `process` method to bind parameter
   [`apache_beam.transforms.window.*Window`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.window.html)
   object.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py"
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo_dofn_params.py"
   notebook="examples/notebooks/documentation/transforms/python/elementwise/pardo" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py" pardo_dofn_params >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo_dofn_params.py" pardo_dofn_params >}}
 {{</ highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
@@ -126,9 +126,9 @@ starts and finishes with `start_bundle` and `finish_bundle`.
   Note that `teardown` is called as a *best effort* and is *not guaranteed*.
   For example, if the worker crashes, `teardown` might not be called.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py"
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo_dofn_methods.py"
   notebook="examples/notebooks/documentation/transforms/python/elementwise/pardo" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py" pardo_dofn_methods >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo_dofn_methods.py" pardo_dofn_methods >}}
 {{</ highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
