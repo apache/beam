@@ -116,7 +116,10 @@ class ElementAndRestriction(object):
 class PairWithRestrictionFn(beam.DoFn):
   """A transform that pairs each element with a restriction."""
   def __init__(self, do_fn):
+    print("in PairWithRestrictionFn init", do_fn)
     self._signature = DoFnSignature(do_fn)
+    print("after PairWithRestrictionFn init", self._signature, self._signature.process_method)
+    print(self._signature.process_method.watermark_estimator_provider)
 
   def start_bundle(self):
     self._invoker = DoFnInvoker.create_invoker(
@@ -125,6 +128,7 @@ class PairWithRestrictionFn(beam.DoFn):
         process_invocation=False)
 
   def process(self, element, window=beam.DoFn.WindowParam, *args, **kwargs):
+    print("in process", self._signature, self._signature.process_method)
     initial_restriction = self._invoker.invoke_initial_restriction(element)
     watermark_estimator_state = (
         self._signature.process_method.watermark_estimator_provider.
@@ -289,6 +293,7 @@ class ProcessFn(beam.DoFn):
     self._step_context = step_context
 
   def set_process_element_invoker(self, process_element_invoker):
+    print('set_process_element_invoker', process_element_invoker)
     assert isinstance(process_element_invoker, SDFProcessElementInvoker)
     self._process_element_invoker = process_element_invoker
 
@@ -540,7 +545,7 @@ class _OutputHandler(OutputHandler):
   def __init__(self):
     self.output_iter = None
 
-  def process_outputs(
+  def handle_process_outputs(
       self, windowed_input_element, output_iter, watermark_estimator=None):
     # type: (WindowedValue, Iterable[Any], Optional[WatermarkEstimator]) -> None
     self.output_iter = output_iter
@@ -550,7 +555,7 @@ class _OutputHandler(OutputHandler):
 
 
 class _NoneShallPassOutputHandler(OutputHandler):
-  def process_outputs(
+  def handle_process_outputs(
       self, windowed_input_element, output_iter, watermark_estimator=None):
     # type: (WindowedValue, Iterable[Any], Optional[WatermarkEstimator]) -> None
     raise RuntimeError()
