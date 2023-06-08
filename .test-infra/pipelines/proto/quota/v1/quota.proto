@@ -1,0 +1,88 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+ * Protocol buffers describing a quota management service.
+ */
+
+syntax = "proto3";
+
+package proto.quota.v1;
+option go_package = "proto/quota/v1";
+
+import "google/api/annotations.proto";
+
+service QuotaService {
+  rpc Create(CreateQuotaRequest) returns (CreateQuotaResponse) {
+    option (google.api.http) = {
+      post: "/v1/quotas"
+      body: "quota"
+    };
+  }
+  rpc List(ListQuotasRequest) returns (ListQuotasResponse) {
+    option (google.api.http) = {
+      get: "/v1/quotas"
+    };
+  }
+  rpc Delete(DeleteQuotaRequest) returns (DeleteQuotaResponse) {
+    option (google.api.http) = {
+      delete: "/v1/quotas/*"
+    };
+  }
+  rpc Describe(DescribeQuotaRequest) returns (DescribeQuotaResponse) {
+    option (google.api.http) = {
+      get: "/v1/quotas/*"
+    };
+  }
+}
+
+message CreateQuotaRequest {
+  Quota quota = 1;
+}
+
+message CreateQuotaResponse {
+  Quota quota = 1;
+}
+
+message ListQuotasRequest {}
+
+message ListQuotasResponse {
+  repeated Quota list = 1;
+}
+
+message DeleteQuotaRequest {
+  string id = 1;
+}
+
+message DeleteQuotaResponse {
+  Quota quota = 1;
+}
+
+message DescribeQuotaRequest {
+  string id = 1;
+}
+
+message DescribeQuotaResponse {
+  Quota quota = 1;
+}
+
+message Quota {
+  string id = 1;
+  int64 size = 2;
+  int64 refreshMillisecondsInterval = 3;
+}
