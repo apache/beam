@@ -50,9 +50,13 @@ into a single value, represented in your pipeline as a new `PCollection` contain
 one element. The following example code shows how to apply the Beam-provided
 sum combine function to produce a single sum value for a `PCollection` of integers.
 
-{{< playground height="700px" >}}
-{{< playground_snippet language="java" path="SDK_JAVA_Combine" show="main_section" >}}
-{{< /playground >}}
+{{< highlight java >}}
+// Sum.SumIntegerFn() combines the elements in the input PCollection. The resulting PCollection, called sum,
+// contains one value: the sum of all the elements in the input PCollection.
+PCollection<Integer> pc = ...;
+PCollection<Integer> sum = pc.apply(
+   Combine.globally(new Sum.SumIntegerFn()));
+{{< /highlight >}}
 
 **Example 2**: Keyed combine
 
@@ -73,6 +77,12 @@ PCollection<KV<String, Double>> avgAccuracyPerPlayer =
   playerAccuracy.apply(Combine.<String, Integer, Double>perKey(
     new MeanInts())));
 {{< /highlight >}}
+
+**Example 3**:
+
+{{< playground height="700px" >}}
+{{< playground_snippet language="java" path="SDK_JAVA_Combine" show="main_section" >}}
+{{< /playground >}}
 
 ## Related transforms
 * [CombineWithContext](/documentation/transforms/java/aggregation/combinewithcontext)

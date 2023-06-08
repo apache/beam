@@ -40,13 +40,13 @@ transform has three varieties:
 
 ## Examples
 
-**Example 1**:
+**Example 1**: Count.globally
 
 {{< playground height="700px" >}}
 {{< playground_snippet language="java" path="SDK_JAVA_Count" show="main_section" >}}
 {{< /playground >}}
 
-**Example 2**:
+**Example 2**: Count.perKey
 
 {{< playground height="700px" >}}
 {{< playground_snippet language="java" path="SDK_JAVA_CountPerKey" show="main_section" >}}
