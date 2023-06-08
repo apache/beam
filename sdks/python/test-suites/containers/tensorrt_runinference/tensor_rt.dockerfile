@@ -33,3 +33,4 @@ RUN pip install --upgrade pip \
     && pip install cuda-python
 
 ENTRYPOINT [ "/opt/apache/beam/boot" ]
+RUN apt-get update && apt-get install -y python3.8-venv 
