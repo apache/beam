@@ -32,8 +32,7 @@ class MessagesParser {
   }
 
   AbstractMessage? _tryParseMap(Map map) {
-    return SetContentMessage.tryParse(map) ??
-        SetSdkMessage.tryParse(map);
+    return SetContentMessage.tryParse(map) ?? SetSdkMessage.tryParse(map);
   }
 
   AbstractMessage? _tryParseIfJson(Object? json) {
@@ -44,7 +43,7 @@ class MessagesParser {
         if (map is Map) {
           return _tryParseMap(map);
         }
-      } on FormatException catch (ex) {
+      } on FormatException catch (_) {
         // TODO: Log
       }
     }

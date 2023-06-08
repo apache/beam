@@ -21,7 +21,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:playground/modules/output/models/output_placement.dart';
 import 'package:playground_components_dev/playground_components_dev.dart';
 
-import '../common/common.dart';
 import '../common/common_finders.dart';
 
 Future<void> checkOutputPlacement(WidgetTester wt) async {
