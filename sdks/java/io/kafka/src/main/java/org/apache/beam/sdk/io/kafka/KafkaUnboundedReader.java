@@ -580,8 +580,8 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
           successfulOffers != 0 ? successfulOfferDuration.dividedBy(successfulOffers)
               : Duration.ZERO;
       LOG.debug(
-          "consumerPollLoop stats: polls -- {} total, {}ms total, {} ok, {}ms avg ok; " +
-              "offers -- {} total, {}ms total, {} ok, {}ms avg ok.",
+          "beam-io-unbounded-reader consumerPollLoop stats: polls -- {} total, {}ms total, " +
+              "{} ok, {}ms avg ok; offers -- {} total, {}ms total, {} ok, {}ms avg ok.",
           polls, pollDuration.getMillis(), successfulPolls, avgSuccessfulPollDuration.getMillis(),
           offers, offerDuration.getMillis(), successfulOffers,
           avgSuccessfulOfferDuration.getMillis());
@@ -603,8 +603,10 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
             records = consumer.poll(KAFKA_POLL_TIMEOUT.getMillis());
             stats.pollComplete(new Duration(pollStart, Instant.now()), !records.isEmpty());
           } else {
-            bool offerOk = availableRecordsQueue.offer(
-                records, RECORDS_ENQUEUE_POLL_TIMEOUT.getMillis(), TimeUnit.MILLISECONDS);
+            Instant offerStart = Instant.now();
+            boolean offerOk =
+                availableRecordsQueue.offer(
+                    records, RECORDS_ENQUEUE_POLL_TIMEOUT.getMillis(), TimeUnit.MILLISECONDS);
             stats.offerComplete(new Duration(offerStart, Instant.now()), offerOk);
             if (offerOk) {
               records = ConsumerRecords.empty();
@@ -635,7 +637,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     }
   }
 
-  private bool commitCheckpointMark() {
+  private boolean commitCheckpointMark() {
     KafkaCheckpointMark checkpointMark = finalizedCheckpointMark.getAndSet(null);
     if (checkpointMark == null) {
       return false;
