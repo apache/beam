@@ -54,3 +54,7 @@ def distinct(test=None):
     # [END distinct]
     if test:
       test(unique_elements)
+
+
+if __name__ == '__main__':
+  distinct()

@@ -59,3 +59,7 @@ def map_side_inputs_iter(test=None):
     # [END map_side_inputs_iter]
     if test:
       test(plants)
+
+
+if __name__ == '__main__':
+  map_side_inputs_iter()

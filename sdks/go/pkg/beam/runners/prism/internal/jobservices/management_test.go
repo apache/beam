@@ -114,7 +114,7 @@ func TestServer(t *testing.T) {
 				if err != nil {
 					t.Errorf("GetPipeline(\"job-001\") = %v, want nil", err)
 				}
-				if diff := cmp.Diff(jobpb.GetJobMetricsResponse{
+				if diff := cmp.Diff(&jobpb.GetJobMetricsResponse{
 					Metrics: &jobpb.MetricResults{
 						Committed: []*pipepb.MonitoringInfo{
 							{
