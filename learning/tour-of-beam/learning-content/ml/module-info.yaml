@@ -18,15 +18,10 @@
 #
 
 sdk:
-  - Java
   - Python
-  - Go
+id: ml
+name: Ml Connectors
+complexity: ADVANCED
 content:
-  - introduction
-  - common-transforms
-  - core-transforms
-  - schema-based-transforms
-  - windowing
-  - triggers
-  - io
-  - ml
+- create-model
+- used-model

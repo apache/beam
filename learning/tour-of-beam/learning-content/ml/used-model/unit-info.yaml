@@ -18,15 +18,8 @@
 #
 
 sdk:
-  - Java
   - Python
-  - Go
-content:
-  - introduction
-  - common-transforms
-  - core-transforms
-  - schema-based-transforms
-  - windowing
-  - triggers
-  - io
-  - ml
+complexity: ADVANCED
+id: used-model
+name: Used model
+taskName: used-model
