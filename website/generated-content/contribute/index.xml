@@ -1828,6 +1828,11 @@ you will need help with this step. Please email dev@ and ask a member of the bea
 &lt;pre>&lt;code># Optional: unlock the signing key by signing an arbitrary file.
 gpg --output ~/doc.sig --sign ~/.bashrc
 VERSION_TAG=&amp;quot;v${RELEASE_VERSION}&amp;quot;
+RC_TAG=&amp;quot;${VERSION_TAG}-RC${RC_NUM}&amp;quot;
+# Ensure local tags are in sync. If there's a mismatch, it will tell you.
+git fetch --all --tags
+# If the tag exists, a commit number is produced, otherwise there's an error.
+git rev-list $RC_TAG -n 1
 # Tag for Go SDK
 git tag -s &amp;quot;sdks/$VERSION_TAG&amp;quot; &amp;quot;$RC_TAG&amp;quot;
 git push https://github.com/apache/beam &amp;quot;sdks/$VERSION_TAG&amp;quot;

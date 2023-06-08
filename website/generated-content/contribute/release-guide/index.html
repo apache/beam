@@ -426,6 +426,13 @@ you will need help with this step. Please email dev@ and ask a member of the bea
 gpg --output ~/doc.sig --sign ~/.bashrc
 
 VERSION_TAG=&quot;v${RELEASE_VERSION}&quot;
+RC_TAG=&quot;${VERSION_TAG}-RC${RC_NUM}&quot;
+
+# Ensure local tags are in sync. If there's a mismatch, it will tell you.
+git fetch --all --tags
+
+# If the tag exists, a commit number is produced, otherwise there's an error.
+git rev-list $RC_TAG -n 1
 
 # Tag for Go SDK
 git tag -s &quot;sdks/$VERSION_TAG&quot; &quot;$RC_TAG&quot;
