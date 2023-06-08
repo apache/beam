@@ -905,24 +905,6 @@ class GroupIntoBatchesTest(unittest.TestCase):
                       GroupIntoBatchesTest.BATCH_SIZE))
           ]))
 
-  # The test fails on certain Windows system with Permission Error read file
-  # Even succeeded, it fails with
-  # TypeError: list indices must be integers or slices, not str [while running
-  # 'Map(<lambda at util_test.py:916>)']
-  @unittest.skip("TypeError")
-  def test_in_global_window_with_text_file(self):
-    with tempfile.NamedTemporaryFile(suffix=".json", mode="w+t") as f:
-      f.write(json.dumps(GroupIntoBatchesTest._create_test_data()))
-      f.flush()
-      with self.assertRaises((RuntimeError, AttributeError)):
-        with TestPipeline() as pipeline:
-          collection = pipeline \
-                      | beam.io.ReadFromText(file_pattern=f.name) \
-                      | beam.Map(lambda e: json.loads(e)) \
-                      | beam.Map(lambda e: (e["key"], e)) \
-                      | util.GroupIntoBatches(GroupIntoBatchesTest.BATCH_SIZE)
-          assert collection
-
   def test_in_global_window_with_synthetic_source(self):
     with beam.Pipeline() as pipeline:
       collection = (
