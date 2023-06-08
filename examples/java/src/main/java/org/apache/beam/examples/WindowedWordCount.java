@@ -22,7 +22,7 @@ package org.apache.beam.examples;
 //   description: An example that counts words in text, and can run over either
 //     unbounded or bounded input collections.
 //   pipeline_options: --output output.txt
-//   context_line: 103
+//   context_line: 245
 //   categories:
 //     - Combiners
 //     - Options

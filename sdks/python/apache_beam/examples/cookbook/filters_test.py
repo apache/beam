@@ -19,18 +19,6 @@
 
 # pytype: skip-file
 
-# beam-playground:
-#   name: FiltersTest
-#   description: Unit-test for the Filters example.
-#   multifile: false
-#   context_line: 42
-#   categories:
-#     - Filtering
-#   complexity: MEDIUM
-#   tags:
-#     - filter
-#     - test
-
 import logging
 import time
 import unittest
