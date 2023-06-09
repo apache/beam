@@ -32,7 +32,6 @@ import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -50,7 +49,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Functions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Bytes;
 import org.joda.time.ReadableInstant;
 
@@ -59,12 +57,6 @@ import org.joda.time.ReadableInstant;
  * the Storage write API.
  */
 public class BeamRowToStorageApiProto {
-  private static final String CDC_CHANGE_SQN_COLUMN = "_CHANGE_SEQUENCE_NUMBER";
-  private static final String CDC_CHANGE_TYPE_COLUMN = "_CHANGE_TYPE";
-
-  private static final Set<String> CDC_COLUMNS =
-      ImmutableSet.of(CDC_CHANGE_TYPE_COLUMN, CDC_CHANGE_SQN_COLUMN);
-
   // Number of digits after the decimal point supported by the NUMERIC data type.
   private static final int NUMERIC_SCALE = 9;
   // Maximum and minimum allowed values for the NUMERIC data type.
@@ -173,11 +165,11 @@ public class BeamRowToStorageApiProto {
     if (changeType != null) {
       builder.setField(
           org.apache.beam.sdk.util.Preconditions.checkStateNotNull(
-              descriptor.findFieldByName(CDC_CHANGE_TYPE_COLUMN)),
+              descriptor.findFieldByName(StorageApiCDC.CHANGE_TYPE_COLUMN)),
           changeType);
       builder.setField(
           org.apache.beam.sdk.util.Preconditions.checkStateNotNull(
-              descriptor.findFieldByName(CDC_CHANGE_SQN_COLUMN)),
+              descriptor.findFieldByName(StorageApiCDC.CHANGE_SQN_COLUMN)),
           csn);
     }
     return builder.build();
@@ -196,7 +188,7 @@ public class BeamRowToStorageApiProto {
 
   private static TableFieldSchema fieldDescriptorFromBeamField(Field field) {
     TableFieldSchema.Builder builder = TableFieldSchema.newBuilder();
-    if (CDC_COLUMNS.contains(field.getName())) {
+    if (StorageApiCDC.COLUMNS.contains(field.getName())) {
       throw new RuntimeException("Reserved field name " + field.getName() + " in user schema.");
     }
     builder = builder.setName(field.getName().toLowerCase());

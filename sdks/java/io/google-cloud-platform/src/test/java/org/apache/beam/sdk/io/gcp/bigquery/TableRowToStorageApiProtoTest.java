@@ -1201,8 +1201,8 @@ public class TableRowToStorageApiProtoTest {
 
     Descriptor descriptor =
         TableRowToStorageApiProto.getDescriptorFromTableSchema(NESTED_TABLE_SCHEMA, true, true);
-    assertNotNull(descriptor.findFieldByName("_CHANGE_TYPE"));
-    assertNotNull(descriptor.findFieldByName("_CHANGE_SEQUENCE_NUMBER"));
+    assertNotNull(descriptor.findFieldByName(StorageApiCDC.CHANGE_TYPE_COLUMN));
+    assertNotNull(descriptor.findFieldByName(StorageApiCDC.CHANGE_SQN_COLUMN));
 
     TableRowToStorageApiProto.SchemaInformation schemaInformation =
         TableRowToStorageApiProto.SchemaInformation.fromTableSchema(NESTED_TABLE_SCHEMA);
@@ -1219,7 +1219,7 @@ public class TableRowToStorageApiProtoTest {
     assertBaseRecord((DynamicMessage) msg.getField(fieldDescriptors.get("nestedvalue2")), true);
     assertBaseRecord((DynamicMessage) msg.getField(fieldDescriptors.get("nestedvaluenof1")), false);
     assertBaseRecord((DynamicMessage) msg.getField(fieldDescriptors.get("nestedvaluenof2")), false);
-    assertEquals("UPDATE", msg.getField(fieldDescriptors.get("_CHANGE_TYPE")));
-    assertEquals(42L, msg.getField(fieldDescriptors.get("_CHANGE_SEQUENCE_NUMBER")));
+    assertEquals("UPDATE", msg.getField(fieldDescriptors.get(StorageApiCDC.CHANGE_TYPE_COLUMN)));
+    assertEquals(42L, msg.getField(fieldDescriptors.get(StorageApiCDC.CHANGE_SQN_COLUMN)));
   }
 }

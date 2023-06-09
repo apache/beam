@@ -3250,7 +3250,7 @@ public class BigQueryIOWriteTest implements Serializable {
             .withCreateDisposition(CreateDisposition.CREATE_NEVER)
             .withSchema(tableSchema)
             .withMethod(Method.STORAGE_API_AT_LEAST_ONCE)
-            .withRowMutationFn(
+            .withRowMutationInformationFn(
                 r ->
                     RowMutationInformation.of(
                         RowMutationInformation.MutationType.valueOf(r.get("updateType").toString()),
@@ -3388,7 +3388,7 @@ public class BigQueryIOWriteTest implements Serializable {
             .withSchema(tableSchema)
             .withMethod(Method.STORAGE_API_AT_LEAST_ONCE)
             .useBeamSchema()
-            .withRowMutationFn(
+            .withRowMutationInformationFn(
                 r ->
                     RowMutationInformation.of(
                         RowMutationInformation.MutationType.valueOf(r.getString("updateType")),

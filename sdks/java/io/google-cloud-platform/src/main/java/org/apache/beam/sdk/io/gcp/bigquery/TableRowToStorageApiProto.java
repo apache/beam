@@ -54,7 +54,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -64,7 +63,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
@@ -77,10 +75,6 @@ import org.joda.time.Days;
  * with the Storage write API.
  */
 public class TableRowToStorageApiProto {
-  private static final String CDC_CHANGE_SQN_COLUMN = "_CHANGE_SEQUENCE_NUMBER";
-  private static final String CDC_CHANGE_TYPE_COLUMN = "_CHANGE_TYPE";
-  private static final Set<String> CDC_COLUMNS =
-      ImmutableSet.of(CDC_CHANGE_TYPE_COLUMN, CDC_CHANGE_SQN_COLUMN);
 
   // Custom formatter that accepts "2022-05-09 18:04:59.123456"
   // The old dremel parser accepts this format, and so does insertall. We need to accept it
@@ -509,10 +503,13 @@ public class TableRowToStorageApiProto {
 
     if (changeType != null) {
       builder.setField(
-          Preconditions.checkStateNotNull(descriptor.findFieldByName(CDC_CHANGE_TYPE_COLUMN)),
+          Preconditions.checkStateNotNull(
+              descriptor.findFieldByName(StorageApiCDC.CHANGE_TYPE_COLUMN)),
           changeType);
       builder.setField(
-          Preconditions.checkStateNotNull(descriptor.findFieldByName(CDC_CHANGE_SQN_COLUMN)), csn);
+          Preconditions.checkStateNotNull(
+              descriptor.findFieldByName(StorageApiCDC.CHANGE_SQN_COLUMN)),
+          csn);
     }
 
     try {
@@ -602,10 +599,12 @@ public class TableRowToStorageApiProto {
       }
       if (changeType != null) {
         builder.setField(
-            Preconditions.checkStateNotNull(descriptor.findFieldByName(CDC_CHANGE_TYPE_COLUMN)),
+            Preconditions.checkStateNotNull(
+                descriptor.findFieldByName(StorageApiCDC.CHANGE_TYPE_COLUMN)),
             changeType);
         builder.setField(
-            Preconditions.checkStateNotNull(descriptor.findFieldByName(CDC_CHANGE_SQN_COLUMN)),
+            Preconditions.checkStateNotNull(
+                descriptor.findFieldByName(StorageApiCDC.CHANGE_SQN_COLUMN)),
             csn);
       }
 
@@ -664,14 +663,14 @@ public class TableRowToStorageApiProto {
     }
     if (includeCdcColumns) {
       FieldDescriptorProto.Builder fieldDescriptorBuilder = FieldDescriptorProto.newBuilder();
-      fieldDescriptorBuilder = fieldDescriptorBuilder.setName(CDC_CHANGE_TYPE_COLUMN);
+      fieldDescriptorBuilder = fieldDescriptorBuilder.setName(StorageApiCDC.CHANGE_TYPE_COLUMN);
       fieldDescriptorBuilder = fieldDescriptorBuilder.setNumber(i++);
       fieldDescriptorBuilder = fieldDescriptorBuilder.setType(Type.TYPE_STRING);
       fieldDescriptorBuilder = fieldDescriptorBuilder.setLabel(Label.LABEL_OPTIONAL);
       descriptorBuilder.addField(fieldDescriptorBuilder.build());
 
       fieldDescriptorBuilder = FieldDescriptorProto.newBuilder();
-      fieldDescriptorBuilder = fieldDescriptorBuilder.setName(CDC_CHANGE_SQN_COLUMN);
+      fieldDescriptorBuilder = fieldDescriptorBuilder.setName(StorageApiCDC.CHANGE_SQN_COLUMN);
       fieldDescriptorBuilder = fieldDescriptorBuilder.setNumber(i++);
       fieldDescriptorBuilder = fieldDescriptorBuilder.setType(Type.TYPE_INT64);
       fieldDescriptorBuilder = fieldDescriptorBuilder.setLabel(Label.LABEL_OPTIONAL);
@@ -685,7 +684,7 @@ public class TableRowToStorageApiProto {
       int fieldNumber,
       DescriptorProto.Builder descriptorBuilder,
       boolean respectRequired) {
-    if (CDC_COLUMNS.contains(fieldSchema.getName())) {
+    if (StorageApiCDC.COLUMNS.contains(fieldSchema.getName())) {
       throw new RuntimeException(
           "Reserved field name " + fieldSchema.getName() + " in user schema.");
     }
@@ -980,7 +979,7 @@ public class TableRowToStorageApiProto {
     for (Map.Entry<FieldDescriptor, Object> field : message.getAllFields().entrySet()) {
       FieldDescriptor fieldDescriptor = field.getKey();
       Object fieldValue = field.getValue();
-      if (includeCdcColumns || !CDC_COLUMNS.contains(fieldDescriptor.getName())) {
+      if (includeCdcColumns || !StorageApiCDC.COLUMNS.contains(fieldDescriptor.getName())) {
         tableRow.putIfAbsent(
             fieldDescriptor.getName(),
             jsonValueFromMessageValue(fieldDescriptor, fieldValue, true));

@@ -398,8 +398,8 @@ public class BeamRowToStorageApiProtoTest {
     Descriptor descriptor =
         TableRowToStorageApiProto.getDescriptorFromTableSchema(
             BeamRowToStorageApiProto.protoTableSchemaFromBeamSchema(NESTED_SCHEMA), true, true);
-    assertNotNull(descriptor.findFieldByName("_CHANGE_TYPE"));
-    assertNotNull(descriptor.findFieldByName("_CHANGE_SEQUENCE_NUMBER"));
+    assertNotNull(descriptor.findFieldByName(StorageApiCDC.CHANGE_TYPE_COLUMN));
+    assertNotNull(descriptor.findFieldByName(StorageApiCDC.CHANGE_SQN_COLUMN));
     DynamicMessage msg =
         BeamRowToStorageApiProto.messageFromBeamRow(descriptor, NESTED_ROW, "UPDATE", 42);
     assertEquals(5, msg.getAllFields().size());
@@ -409,8 +409,9 @@ public class BeamRowToStorageApiProtoTest {
             .collect(Collectors.toMap(FieldDescriptor::getName, Functions.identity()));
     DynamicMessage nestedMsg = (DynamicMessage) msg.getField(fieldDescriptors.get("nested"));
     assertBaseRecord(nestedMsg);
-    assertEquals("UPDATE", msg.getField(descriptor.findFieldByName("_CHANGE_TYPE")));
-    assertEquals(42L, msg.getField(descriptor.findFieldByName("_CHANGE_SEQUENCE_NUMBER")));
+    assertEquals(
+        "UPDATE", msg.getField(descriptor.findFieldByName(StorageApiCDC.CHANGE_TYPE_COLUMN)));
+    assertEquals(42L, msg.getField(descriptor.findFieldByName(StorageApiCDC.CHANGE_SQN_COLUMN)));
   }
 
   @Test

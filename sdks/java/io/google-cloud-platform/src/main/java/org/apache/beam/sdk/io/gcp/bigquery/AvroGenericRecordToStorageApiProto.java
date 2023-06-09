@@ -27,7 +27,6 @@ import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -45,7 +44,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Functions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.joda.time.Days;
 import org.joda.time.Instant;
 import org.joda.time.ReadableInstant;
@@ -55,11 +53,6 @@ import org.joda.time.ReadableInstant;
  * for use with the Storage write API.
  */
 public class AvroGenericRecordToStorageApiProto {
-  private static final String CDC_CHANGE_SQN_COLUMN = "_CHANGE_SEQUENCE_NUMBER";
-  private static final String CDC_CHANGE_TYPE_COLUMN = "_CHANGE_TYPE";
-  private static final Set<String> CDC_COLUMNS =
-      ImmutableSet.of(CDC_CHANGE_TYPE_COLUMN, CDC_CHANGE_SQN_COLUMN);
-
   static final Map<Schema.Type, TableFieldSchema.Type> PRIMITIVE_TYPES =
       ImmutableMap.<Schema.Type, TableFieldSchema.Type>builder()
           .put(Schema.Type.INT, TableFieldSchema.Type.INT64)
@@ -194,11 +187,11 @@ public class AvroGenericRecordToStorageApiProto {
     if (changeType != null) {
       builder.setField(
           org.apache.beam.sdk.util.Preconditions.checkStateNotNull(
-              descriptor.findFieldByName(CDC_CHANGE_TYPE_COLUMN)),
+              descriptor.findFieldByName(StorageApiCDC.CHANGE_TYPE_COLUMN)),
           changeType);
       builder.setField(
           org.apache.beam.sdk.util.Preconditions.checkStateNotNull(
-              descriptor.findFieldByName(CDC_CHANGE_SQN_COLUMN)),
+              descriptor.findFieldByName(StorageApiCDC.CHANGE_SQN_COLUMN)),
           csn);
     }
     return builder.build();
@@ -207,7 +200,7 @@ public class AvroGenericRecordToStorageApiProto {
   private static TableFieldSchema fieldDescriptorFromAvroField(Schema.Field field) {
     @Nullable Schema schema = field.schema();
     Preconditions.checkNotNull(schema, "Unexpected null schema!");
-    if (CDC_COLUMNS.contains(field.name())) {
+    if (StorageApiCDC.COLUMNS.contains(field.name())) {
       throw new RuntimeException("Reserved field name " + field.name() + " in user schema.");
     }
     TableFieldSchema.Builder builder =

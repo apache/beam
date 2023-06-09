@@ -118,7 +118,7 @@ class TableContainer {
     if (primaryKey == null) {
       throw new RuntimeException("Upserts only allowed when using primary keys");
     }
-    long lastSequenceNumberForKey = lastSequenceNumber.getOrDefault(primaryKey, -1L);
+    long lastSequenceNumberForKey = lastSequenceNumber.getOrDefault(primaryKey, Long.MIN_VALUE);
     if (sequenceNumber <= lastSequenceNumberForKey) {
       // Out-of-order upsert - ignore it as we've already seen a more-recent update.
       return;

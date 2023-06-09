@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.DescriptorProtos.DescriptorProto;
@@ -471,18 +472,20 @@ public class AvroGenericRecordToStorageApiProtoTest {
         TableRowToStorageApiProto.getDescriptorFromTableSchema(
             AvroGenericRecordToStorageApiProto.protoTableSchemaFromAvroSchema(NESTED_SCHEMA),
             true,
-            false);
+            true);
+    assertNotNull(descriptor.findFieldByName(StorageApiCDC.CHANGE_TYPE_COLUMN));
+    assertNotNull(descriptor.findFieldByName(StorageApiCDC.CHANGE_SQN_COLUMN));
+
     DynamicMessage msg =
         AvroGenericRecordToStorageApiProto.messageFromGenericRecord(
-            descriptor, nestedRecord, null, -1);
+            descriptor, nestedRecord, "UPDATE", 42);
 
-    assertEquals(2, msg.getAllFields().size());
-
+    assertEquals(4, msg.getAllFields().size());
     Map<String, Descriptors.FieldDescriptor> fieldDescriptors =
         descriptor.getFields().stream()
             .collect(Collectors.toMap(Descriptors.FieldDescriptor::getName, Functions.identity()));
-    DynamicMessage nestedMsg = (DynamicMessage) msg.getField(fieldDescriptors.get("nested"));
-    assertBaseRecord(nestedMsg, baseProtoExpectedFields);
+    assertEquals("UPDATE", msg.getField(fieldDescriptors.get(StorageApiCDC.CHANGE_TYPE_COLUMN)));
+    assertEquals(42L, msg.getField(fieldDescriptors.get(StorageApiCDC.CHANGE_SQN_COLUMN)));
   }
 
   @Test

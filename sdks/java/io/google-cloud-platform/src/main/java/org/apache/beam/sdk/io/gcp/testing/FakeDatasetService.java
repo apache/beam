@@ -66,6 +66,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.StreamAppendClient;
 import org.apache.beam.sdk.io.gcp.bigquery.ErrorContainer;
 import org.apache.beam.sdk.io.gcp.bigquery.InsertRetryPolicy;
 import org.apache.beam.sdk.io.gcp.bigquery.InsertRetryPolicy.Context;
+import org.apache.beam.sdk.io.gcp.bigquery.StorageApiCDC;
 import org.apache.beam.sdk.io.gcp.bigquery.TableRowToStorageApiProto;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -646,11 +647,11 @@ public class FakeDatasetService implements DatasetService, Serializable {
             String insertTypeStr = null;
             long csn = -1;
             Descriptors.FieldDescriptor fieldDescriptor =
-                protoDescriptor.findFieldByName("_CHANGE_TYPE");
+                protoDescriptor.findFieldByName(StorageApiCDC.CHANGE_TYPE_COLUMN);
             if (fieldDescriptor != null) {
               insertTypeStr = (String) msg.getField(fieldDescriptor);
             }
-            fieldDescriptor = protoDescriptor.findFieldByName("_CHANGE_SEQUENCE_NUMBER");
+            fieldDescriptor = protoDescriptor.findFieldByName(StorageApiCDC.CHANGE_SQN_COLUMN);
             if (fieldDescriptor != null) {
               csn = (long) msg.getField(fieldDescriptor);
             }
