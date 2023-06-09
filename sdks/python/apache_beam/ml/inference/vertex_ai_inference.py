@@ -144,6 +144,7 @@ class VertexAIModelHandlerJSON(ModelHandler[any,
     """ Sends a prediction request to a Vertex AI endpoint containing batch of inputs
     and matches that input with the prediction response from the endpoint as an iterable
     of PredictionResults. 
+    
     Args:
       batch: a sequence of any values to be passed to the Vertex AI endpoint. Should be encoded
         as the model expects. 
