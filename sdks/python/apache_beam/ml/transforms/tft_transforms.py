@@ -38,6 +38,7 @@ transformation. The actual computation takes place later in the Apache Beam
 pipeline, after all transformations are set up and the pipeline is run.
 """
 
+import logging
 from typing import Any
 from typing import Dict
 from typing import Iterable
@@ -62,31 +63,17 @@ __all__ = [
 
 
 class TFTOperation(BaseOperation):
-  def __init__(
-      self,
-      columns: List[str],
-      save_result: bool = False,
-      output_name: str = '',
-      **kwargs):
+  def __init__(self, columns: List[str], **kwargs):
     """
     Base Opertation class for all the TFT operations.
     """
     self.columns = columns
     self._kwargs = kwargs
 
-    self._save_result = save_result
-    self._output_name = output_name
     if not columns:
       raise RuntimeError(
           "Columns are not specified. Please specify the column for the "
           " op %s" % self)
-
-    if self._save_result and not self._output_name:
-      raise RuntimeError(
-          "Inplace is set to True. "
-          "but output name in which transformed data is stored"
-          " is not specified. Please specify the output name for "
-          " the op %s" % self)
 
   def validate_args(self):
     raise NotImplementedError
@@ -139,9 +126,13 @@ class ComputeAndApplyVocabulary(TFTOperation):
     self._vocab_filename = vocab_filename
     self._name = name
 
-  def apply(self, data: common_types.TensorType) -> common_types.TensorType:
+  def apply(self, data: common_types.TensorType,
+            output_column_name: str) -> Dict[str, common_types.TensorType]:
     # TODO: Pending outputting artifact.
-    return tft.compute_and_apply_vocabulary(x=data, *self._args, **self._kwargs)
+    return {
+        output_column_name: tft.compute_and_apply_vocabulary(
+            x=data, **self._kwargs)
+    }
 
   def __str__(self):
     return "compute_and_apply_vocabulary"
@@ -178,8 +169,12 @@ class Scale_To_ZScore(TFTOperation):
     self.elementwise = elementwise
     self.name = name
 
-  def apply(self, data: common_types.TensorType) -> common_types.TensorType:
-    return tft.scale_to_z_score(x=data, **self._kwargs)
+  def apply(self, data: common_types.TensorType,
+            output_column_name: str) -> Dict[str, common_types.TensorType]:
+    artifacts = self.get_artifacts(data, output_column_name)
+    output = {output_column_name: tft.scale_to_z_score(x=data, **self._kwargs)}
+    output = {**output, **artifacts} if artifacts else output
+    return output
 
   def get_artifacts(self, data: common_types.TensorType,
                     col_name: str) -> Dict[str, tf.Tensor]:
@@ -232,8 +227,12 @@ class Scale_To_0_1(TFTOperation):
         col_name + '_max': tf.broadcast_to(tft.max(data), shape)
     }
 
-  def apply(self, data: common_types.TensorType) -> common_types.TensorType:
-    return tft.scale_to_0_1(x=data, *self._args, **self._kwargs)
+  def apply(self, data: common_types.TensorType,
+            output_column_name: str) -> Dict[str, common_types.TensorType]:
+    artifacts = self.get_artifacts(data)
+    output = tft.scale_to_0_1(data)
+    output = {**output, **artifacts} if artifacts else output
+    return output
 
   def __str__(self):
     return 'scale_to_0_1'
@@ -264,9 +263,13 @@ class ApplyBuckets(TFTOperation):
     self.bucket_boundaries = [bucket_boundaries]
     self.name = name
 
-  def apply(self, data: common_types.TensorType) -> common_types.TensorType:
-    return tft.apply_buckets(
-        x=data, bucket_boundaries=self.bucket_boundaries, name=self.name)
+  def apply(self, data: common_types.TensorType,
+            output_column_name: str) -> Dict[str, common_types.TensorType]:
+    output = {
+        output_column_name: tft.apply_buckets(
+            x=data, bucket_boundaries=self.bucket_boundaries, **self._kwargs)
+    }
+    return output
 
   def __str__(self):
     return 'apply_buckets'
@@ -310,8 +313,8 @@ class Bucketize(TFTOperation):
   def get_artifacts(self, data: common_types.TensorType,
                     col_name: str) -> Dict[str, tf.Tensor]:
     num_buckets = self.num_buckets
-    epsilon = self._kwargs['epsilon']
-    elementwise = self._kwargs['elementwise']
+    epsilon = self.epsilon
+    elementwise = self.elementwise
 
     if num_buckets < 1:
       raise ValueError('Invalid num_buckets %d' % num_buckets)
@@ -335,5 +338,74 @@ class Bucketize(TFTOperation):
     # Should we change the prefix _quantiles to _bucket_boundaries?
     return {col_name + '_quantiles': tf.broadcast_to(quantiles, shape)}
 
-  def apply(self, data: common_types.TensorType) -> common_types.TensorType:
-    return tft.bucketize(data, self.num_buckets, *self._args, **self._kwargs)
+  def apply(self, data: common_types.TensorType,
+            output_column_name: str) -> Dict[str, common_types.TensorType]:
+    artifacts = self.get_artifacts(data, output_column_name)
+    output = {
+        output_column_name: tft.bucketize(
+            x=data, num_buckets=self.num_buckets, **self._kwargs)
+    }
+    output = {**output, **artifacts} if artifacts else output
+    return output
+
+
+class TFIDF(TFTOperation):
+  def __init__(
+      self,
+      columns: List[str],
+      vocab_size: Optional[int] = None,
+      smooth: bool = True,
+      name: Optional[str] = None,
+      **kwargs):
+    """
+    This function applies a tf-idf transformation on the given columns
+    of incoming data. The transformation computes the tf-idf score for
+    each element in the input data.
+
+    Args:
+      columns: List of column names to apply the transformation.
+      vocab_size: (Optional) An integer that specifies the size of the
+        vocabulary. Defaults to None.
+
+        If vocab_size is None, then the size of the vocabulary is
+        determined by `tft.get_num_buckets_for_transformed_feature`.
+      smooth: (Optional) A boolean that specifies whether to apply
+        smoothing to the tf-idf score. Defaults to True.
+      name: (Optional) A string that specifies the name of the operation.
+    """
+    super().__init__(columns, **kwargs)
+    self.vocab_size = vocab_size
+    self.smooth = smooth
+    self.name = name
+    self.tfidf_weight = None
+
+  def apply(
+      self, data: tf.SparseTensor, output_column_name: str) -> tf.SparseTensor:
+
+    if self.vocab_size is None:
+      try:
+        logging.info(
+            'vocab_size is not specified. Trying to infer vocab_size '
+            'from the input data using '
+            'tft.get_num_buckets_for_transformed_feature.')
+        vocab_size = tft.get_num_buckets_for_transformed_feature(data)
+      except RuntimeError:
+        raise RuntimeError(
+            'vocab_size is not specified. Tried to infer vocab_size from the '
+            'input data using tft.get_num_buckets_for_transformed_feature, but '
+            'failed. Please specify vocab_size explicitly.')
+    else:
+      vocab_size = self.vocab_size
+
+    vocab_index, tfidf_weight = tft.tfidf(
+      data,
+      vocab_size,
+      self.smooth,
+      self.name
+    )
+
+    output = {
+        output_column_name + '_vocab_index': vocab_index,
+        output_column_name + '_tfidf_weight': tfidf_weight
+    }
+    return output

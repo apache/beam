@@ -367,5 +367,9 @@ class ComputeAndApplyVocabTest(unittest.TestCase):
           actual_output, equal_to(excepted_data, equals_fn=np.array_equal))
 
 
+class TFIDIFTest(unittest.TestCase):
+  pass
+
+
 if __name__ == '__main__':
   unittest.main()

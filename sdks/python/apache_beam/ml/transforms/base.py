@@ -40,15 +40,18 @@ ProcessOutputT = TypeVar('ProcessOutputT')
 
 # Input to the apply() method of BaseOperation.
 OperationInputT = TypeVar('OperationInputT')
+# Output of the apply() method of BaseOperation.
+OperationOutputT = TypeVar('OperationOutputT')
 
 
-class BaseOperation():
-  def apply(self, inputs: OperationInputT, *args, **kwargs):
+class BaseOperation(Generic[OperationInputT, OperationOutputT]):
+  def apply(
+      self, inputs: OperationInputT, column_name: str, *args,
+      **kwargs) -> OperationOutputT:
     """
     Define any processing logic in the apply() method.
     processing logics are applied on inputs and returns a transformed
     output.
-
     Args:
       inputs: input data.
     """

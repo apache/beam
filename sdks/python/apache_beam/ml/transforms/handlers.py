@@ -120,7 +120,6 @@ class TFTProcessHandler(ProcessHandler[ProcessInputT, ProcessOutputT]):
         DataflowRunner.
     """
     self.transforms = transforms if transforms else []
-    self._artifact_location = None
     self.transformed_schema = None
     self.artifact_location = artifact_location
     self.preprocessing_fn = preprocessing_fn
@@ -331,14 +330,10 @@ class TFTProcessHandlerSchema(
     for transform in self.transforms:
       columns = transform.columns
       for col in columns:
-        artifacts = transform.get_artifacts(inputs[col], col_name=col)
-        if artifacts:
-          for key, value in artifacts.items():
-            outputs[key] = value
-        intermediate_result = transform.apply(outputs[col])
-        if transform._save_result:
-          outputs[transform._output_name] = intermediate_result
-        outputs[col] = intermediate_result
+        intermediate_result = transform.apply(
+            outputs[col], output_column_name=col)
+        for key, value in intermediate_result.items():
+          outputs[key] = value
     return outputs
 
   def _get_transformed_data_schema(
@@ -388,12 +383,12 @@ class TFTProcessHandlerSchema(
     raw_data_metadata = self.get_raw_data_metadata(
         input_types=column_type_mapping)
 
-    if not self._artifact_location:
-      self._artifact_location = self._get_artifact_location(raw_data.pipeline)
+    if not self.artifact_location:
+      self.artifact_location = self._get_artifact_location(raw_data.pipeline)
 
     preprocessing_fn = self.preprocessing_fn if self.preprocessing_fn else (
         self.get_preprocessing_fn)
-    with tft_beam.Context(temp_dir=self._artifact_location):
+    with tft_beam.Context(temp_dir=self.artifact_location):
       data = (raw_data, raw_data_metadata)
       transformed_metadata: beam_metadata_io.BeamDatasetMetadata
       (transformed_dataset, transformed_metadata), transform_fn = (
@@ -402,7 +397,7 @@ class TFTProcessHandlerSchema(
       preprocessing_fn,
         )
       )
-      self.write_transform_artifacts(transform_fn, self._artifact_location)
+      self.write_transform_artifacts(transform_fn, self.artifact_location)
       self.transformed_schema = self._get_transformed_data_schema(
           metadata=transformed_metadata.dataset_metadata)
 
