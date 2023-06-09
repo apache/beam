@@ -83,11 +83,11 @@ class StorageApiDynamicDestinationsGenericRecord<T, DestinationT extends @NonNul
         T element, @javax.annotation.Nullable RowMutationInformation rowMutationInformation)
         throws Exception {
       String changeType = null;
-      long csn = -1;
+      long changeSequenceNum = -1;
       Descriptor descriptorToUse = descriptor;
       if (rowMutationInformation != null) {
         changeType = rowMutationInformation.getMutationType().toString();
-        csn = rowMutationInformation.getSequenceNumber();
+        changeSequenceNum = rowMutationInformation.getSequenceNumber();
         descriptorToUse = cdcDescriptor;
       }
       Message msg =
@@ -95,7 +95,7 @@ class StorageApiDynamicDestinationsGenericRecord<T, DestinationT extends @NonNul
               descriptorToUse,
               toGenericRecord.apply(new AvroWriteRequest<>(element, avroSchema)),
               changeType,
-              csn);
+              changeSequenceNum);
       return StorageApiWritePayload.of(msg.toByteArray(), null);
     }
 

@@ -154,11 +154,11 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
       TableRow tableRow = formatFunction.apply(element);
 
       String changeType = null;
-      long csn = -1;
+      long changeSequenceNum = -1;
       Descriptor descriptorToUse = descriptor;
       if (rowMutationInformation != null) {
         changeType = rowMutationInformation.getMutationType().toString();
-        csn = rowMutationInformation.getSequenceNumber();
+        changeSequenceNum = rowMutationInformation.getSequenceNumber();
         descriptorToUse = Preconditions.checkStateNotNull(cdcDescriptor);
       }
       // If autoSchemaUpdates==true, then we allow unknown values at this step and insert them into
@@ -175,7 +175,7 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
               allowMissingFields,
               unknownFields,
               changeType,
-              csn);
+              changeSequenceNum);
       return StorageApiWritePayload.of(msg.toByteArray(), unknownFields);
     }
   };

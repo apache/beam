@@ -80,16 +80,16 @@ class StorageApiDynamicDestinationsBeamRow<T, DestinationT extends @NonNull Obje
     public StorageApiWritePayload toMessage(
         T element, @Nullable RowMutationInformation rowMutationInformation) throws Exception {
       String changeType = null;
-      long csn = -1;
+      long changeSequenceNum = -1;
       Descriptor descriptorToUse = descriptor;
       if (rowMutationInformation != null) {
         changeType = rowMutationInformation.getMutationType().toString();
-        csn = rowMutationInformation.getSequenceNumber();
+        changeSequenceNum = rowMutationInformation.getSequenceNumber();
         descriptorToUse = Preconditions.checkStateNotNull(cdcDescriptor);
       }
       Message msg =
           BeamRowToStorageApiProto.messageFromBeamRow(
-              descriptorToUse, toRow.apply(element), changeType, csn);
+              descriptorToUse, toRow.apply(element), changeType, changeSequenceNum);
       return StorageApiWritePayload.of(msg.toByteArray(), null);
     }
 

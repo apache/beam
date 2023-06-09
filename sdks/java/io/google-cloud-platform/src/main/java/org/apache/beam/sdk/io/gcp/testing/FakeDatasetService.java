@@ -645,7 +645,7 @@ public class FakeDatasetService implements DatasetService, Serializable {
               rowIndexToErrorMessage.put(i, "Failing row " + tableRow.toPrettyString());
             }
             String insertTypeStr = null;
-            long csn = -1;
+            long changeSequenceNum = -1;
             Descriptors.FieldDescriptor fieldDescriptor =
                 protoDescriptor.findFieldByName(StorageApiCDC.CHANGE_TYPE_COLUMN);
             if (fieldDescriptor != null) {
@@ -653,7 +653,7 @@ public class FakeDatasetService implements DatasetService, Serializable {
             }
             fieldDescriptor = protoDescriptor.findFieldByName(StorageApiCDC.CHANGE_SQN_COLUMN);
             if (fieldDescriptor != null) {
-              csn = (long) msg.getField(fieldDescriptor);
+              changeSequenceNum = (long) msg.getField(fieldDescriptor);
             }
             Stream.Entry.UpdateType insertType = Stream.Entry.UpdateType.INSERT;
             if (insertTypeStr != null) {
@@ -668,7 +668,7 @@ public class FakeDatasetService implements DatasetService, Serializable {
                   !usedForInsert, "Stream can't be used for update and insert.");
               usedForUpdate = true;
             }
-            streamEntries.add(new Stream.Entry(tableRow, insertType, csn));
+            streamEntries.add(new Stream.Entry(tableRow, insertType, changeSequenceNum));
           }
           if (!rowIndexToErrorMessage.isEmpty()) {
             return ApiFutures.immediateFailedFuture(

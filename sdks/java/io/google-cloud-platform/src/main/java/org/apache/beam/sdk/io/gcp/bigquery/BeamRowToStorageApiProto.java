@@ -148,7 +148,7 @@ public class BeamRowToStorageApiProto {
    * data using the BigQuery Storage streaming API.
    */
   public static DynamicMessage messageFromBeamRow(
-      Descriptor descriptor, Row row, @Nullable String changeType, long csn) {
+      Descriptor descriptor, Row row, @Nullable String changeType, long changeSequenceNum) {
     Schema beamSchema = row.getSchema();
     DynamicMessage.Builder builder = DynamicMessage.newBuilder(descriptor);
     for (int i = 0; i < row.getFieldCount(); ++i) {
@@ -170,7 +170,7 @@ public class BeamRowToStorageApiProto {
       builder.setField(
           org.apache.beam.sdk.util.Preconditions.checkStateNotNull(
               descriptor.findFieldByName(StorageApiCDC.CHANGE_SQN_COLUMN)),
-          csn);
+          changeSequenceNum);
     }
     return builder.build();
   }

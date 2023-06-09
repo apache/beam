@@ -447,7 +447,7 @@ public class TableRowToStorageApiProto {
       boolean allowMissingRequiredFields,
       @Nullable TableRow unknownFields,
       @Nullable String changeType,
-      long csn)
+      long changeSequenceNum)
       throws SchemaConversionException {
     DynamicMessage.Builder builder = DynamicMessage.newBuilder(descriptor);
     for (final Map.Entry<String, Object> entry : map.entrySet()) {
@@ -509,7 +509,7 @@ public class TableRowToStorageApiProto {
       builder.setField(
           Preconditions.checkStateNotNull(
               descriptor.findFieldByName(StorageApiCDC.CHANGE_SQN_COLUMN)),
-          csn);
+          changeSequenceNum);
     }
 
     try {
@@ -533,7 +533,7 @@ public class TableRowToStorageApiProto {
       boolean allowMissingRequiredFields,
       final @Nullable TableRow unknownFields,
       @Nullable String changeType,
-      long csn)
+      long changeSequenceNum)
       throws SchemaConversionException {
     @Nullable Object fValue = tableRow.get("f");
     if (fValue instanceof List) {
@@ -605,7 +605,7 @@ public class TableRowToStorageApiProto {
         builder.setField(
             Preconditions.checkStateNotNull(
                 descriptor.findFieldByName(StorageApiCDC.CHANGE_SQN_COLUMN)),
-            csn);
+            changeSequenceNum);
       }
 
       // If there are unknown fields, copy them into the output.
@@ -630,7 +630,7 @@ public class TableRowToStorageApiProto {
           allowMissingRequiredFields,
           unknownFields,
           changeType,
-          csn);
+          changeSequenceNum);
     }
   }
 

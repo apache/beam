@@ -171,7 +171,10 @@ public class AvroGenericRecordToStorageApiProto {
    * @return A dynamic message representation of a Proto payload to be used for StorageWrite API
    */
   public static DynamicMessage messageFromGenericRecord(
-      Descriptor descriptor, GenericRecord record, @Nullable String changeType, long csn) {
+      Descriptor descriptor,
+      GenericRecord record,
+      @Nullable String changeType,
+      long changeSequenceNum) {
     Schema schema = record.getSchema();
     DynamicMessage.Builder builder = DynamicMessage.newBuilder(descriptor);
     for (Schema.Field field : schema.getFields()) {
@@ -192,7 +195,7 @@ public class AvroGenericRecordToStorageApiProto {
       builder.setField(
           org.apache.beam.sdk.util.Preconditions.checkStateNotNull(
               descriptor.findFieldByName(StorageApiCDC.CHANGE_SQN_COLUMN)),
-          csn);
+          changeSequenceNum);
     }
     return builder.build();
   }
