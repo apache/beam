@@ -23,7 +23,7 @@ This directory sets up the Kubernetes environment for subsequent modules.
 
 # Usage
 
-Follow terraform workflow convention to apply this module. 
+Follow terraform workflow convention to apply this module.
 The following assumes the working directory is at
 [.test-infra/pipelines/infrastructure/03.io/api-overuse-study](..).
 
