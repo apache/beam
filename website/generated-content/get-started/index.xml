@@ -2209,6 +2209,7 @@ limitations under the License.
 &lt;li>&lt;a href="#creating-the-pipeline">Creating the pipeline&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#applying-pipeline-transforms">Applying pipeline transforms&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#running-the-pipeline">Running the pipeline&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#try-the-full-example-in-playground">Try the full example in Playground&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;/li>
 &lt;li>&lt;a href="#wordcount-example">WordCount example&lt;/a>
@@ -2216,6 +2217,7 @@ limitations under the License.
 &lt;li>&lt;a href="#specifying-explicit-dofns">Specifying explicit DoFns&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#creating-composite-transforms">Creating composite transforms&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#using-parameterizable-pipelineoptions">Using parameterizable PipelineOptions&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#try-the-full-example-in-playground-1">Try the full example in Playground&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;/li>
 &lt;li>&lt;a href="#debuggingwordcount-example">DebuggingWordCount example&lt;/a>
@@ -2230,6 +2232,7 @@ limitations under the License.
 &lt;/ul>
 &lt;/li>
 &lt;li>&lt;a href="#testing-your-pipeline-with-asserts">Testing your pipeline with asserts&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#try-the-full-example-in-playground-2">Try the full example in Playground&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;/li>
 &lt;li>&lt;a href="#windowedwordcount-example">WindowedWordCount example&lt;/a>
@@ -2624,6 +2627,32 @@ executed by the pipeline runner that you specified in your &lt;code>PipelineOpti
 &lt;span class="language-java">&lt;code>waitUntilFinish&lt;/code>&lt;/span>
 &lt;span class="language-py">&lt;code>wait_until_finish&lt;/code>&lt;/span> method on the result object
 returned by the call to &lt;code>run&lt;/code>.&lt;/p>
+&lt;h3 id="try-the-full-example-in-playground">Try the full example in Playground&lt;/h3>
+&lt;div class="playground-wrapper">
+&lt;div class="playground-snippets">
+&lt;div
+class="language-java playground-snippet"
+data-sdk="java"
+data-path="SDK_JAVA_MinimalWordCount"
+>&lt;/div>
+&lt;div
+class="language-py playground-snippet"
+data-sdk="python"
+data-path="SDK_PYTHON_WordCountMinimal"
+>&lt;/div>
+&lt;div
+class="language-go playground-snippet"
+data-sdk="go"
+data-path="SDK_GO_MinimalWordCount"
+>&lt;/div>
+&lt;/div>
+&lt;div
+class="code-snippet code-snippet-playground"
+data-src="https://play.beam.apache.org/embedded?editable=1&amp;examples=%5b%7b%22path%22%3a%22SDK_JAVA_MinimalWordCount%22%2c%22sdk%22%3a%22java%22%7d%2c%7b%22path%22%3a%22SDK_PYTHON_WordCountMinimal%22%2c%22sdk%22%3a%22python%22%7d%2c%7b%22path%22%3a%22SDK_GO_MinimalWordCount%22%2c%22sdk%22%3a%22go%22%7d%5d"
+data-width="100%"
+data-height="700px"
+>&lt;/div>
+&lt;/div>
 &lt;h2 id="wordcount-example">WordCount example&lt;/h2>
 &lt;p>This WordCount example introduces a few recommended programming practices that
 can make your pipeline easier to read, write, and maintain. While not explicitly
@@ -3069,6 +3098,32 @@ values for them. You can then access the options values in your pipeline code.&l
 &lt;span class="o">...&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;h3 id="try-the-full-example-in-playground-1">Try the full example in Playground&lt;/h3>
+&lt;div class="playground-wrapper">
+&lt;div class="playground-snippets">
+&lt;div
+class="language-java playground-snippet"
+data-sdk="java"
+data-path="SDK_JAVA_WordCount"
+>&lt;/div>
+&lt;div
+class="language-py playground-snippet"
+data-sdk="python"
+data-path="SDK_PYTHON_WordCount"
+>&lt;/div>
+&lt;div
+class="language-go playground-snippet"
+data-sdk="go"
+data-path="SDK_GO_WordCount"
+>&lt;/div>
+&lt;/div>
+&lt;div
+class="code-snippet code-snippet-playground"
+data-src="https://play.beam.apache.org/embedded?editable=1&amp;examples=%5b%7b%22path%22%3a%22SDK_JAVA_WordCount%22%2c%22sdk%22%3a%22java%22%7d%2c%7b%22path%22%3a%22SDK_PYTHON_WordCount%22%2c%22sdk%22%3a%22python%22%7d%2c%7b%22path%22%3a%22SDK_GO_WordCount%22%2c%22sdk%22%3a%22go%22%7d%5d"
+data-width="100%"
+data-height="700px"
+>&lt;/div>
+&lt;/div>
 &lt;h2 id="debuggingwordcount-example">DebuggingWordCount example&lt;/h2>
 &lt;p>The DebuggingWordCount example demonstrates some best practices for
 instrumenting your pipeline code.&lt;/p>
@@ -3487,6 +3542,32 @@ expectations are met.&lt;/p>
 &lt;/div>
 &lt;p class="language-java">See &lt;a href="https://github.com/apache/beam/blob/master/examples/java/src/test/java/org/apache/beam/examples/DebuggingWordCountTest.java">DebuggingWordCountTest&lt;/a>
 for an example unit test.&lt;/p>
+&lt;h3 id="try-the-full-example-in-playground-2">Try the full example in Playground&lt;/h3>
+&lt;div class="playground-wrapper">
+&lt;div class="playground-snippets">
+&lt;div
+class="language-java playground-snippet"
+data-sdk="java"
+data-path="SDK_JAVA_DebuggingWordCount"
+>&lt;/div>
+&lt;div
+class="language-py playground-snippet"
+data-sdk="python"
+data-path="SDK_PYTHON_WordCountDebugging"
+>&lt;/div>
+&lt;div
+class="language-go playground-snippet"
+data-sdk="go"
+data-path="SDK_GO_DebuggingWordCount"
+>&lt;/div>
+&lt;/div>
+&lt;div
+class="code-snippet code-snippet-playground"
+data-src="https://play.beam.apache.org/embedded?editable=1&amp;examples=%5b%7b%22path%22%3a%22SDK_JAVA_DebuggingWordCount%22%2c%22sdk%22%3a%22java%22%7d%2c%7b%22path%22%3a%22SDK_PYTHON_WordCountDebugging%22%2c%22sdk%22%3a%22python%22%7d%2c%7b%22path%22%3a%22SDK_GO_DebuggingWordCount%22%2c%22sdk%22%3a%22go%22%7d%5d"
+data-width="100%"
+data-height="700px"
+>&lt;/div>
+&lt;/div>
 &lt;h2 id="windowedwordcount-example">WindowedWordCount example&lt;/h2>
 &lt;p>The WindowedWordCount example counts words in text just as the previous
 examples did, but introduces several advanced concepts.&lt;/p>
@@ -3953,6 +4034,27 @@ PCollections over windowed PCollections as well.&lt;/p>
 &lt;/a>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">counted&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">wordcount&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">CountWords&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">s&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">windowedLines&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
+&lt;/div>
+&lt;p class="language-java language-go">&lt;h3 id="try-the-full-example-in-playground">Try the full example in Playground&lt;/h3>&lt;/p>
+&lt;div class="playground-wrapper">
+&lt;div class="playground-snippets">
+&lt;div
+class="language-java playground-snippet"
+data-sdk="java"
+data-path="SDK_JAVA_WindowedWordCount"
+>&lt;/div>
+&lt;div
+class="language-go playground-snippet"
+data-sdk="go"
+data-path="SDK_GO_WindowedWordCount"
+>&lt;/div>
+&lt;/div>
+&lt;div
+class="code-snippet code-snippet-playground"
+data-src="https://play.beam.apache.org/embedded?editable=1&amp;examples=%5b%7b%22path%22%3a%22SDK_JAVA_WindowedWordCount%22%2c%22sdk%22%3a%22java%22%7d%2c%7b%22path%22%3a%22SDK_GO_WindowedWordCount%22%2c%22sdk%22%3a%22go%22%7d%5d"
+data-width="100%"
+data-height="700px"
+>&lt;/div>
 &lt;/div>
 &lt;h2 id="streamingwordcount-example">StreamingWordCount example&lt;/h2>
 &lt;p>The StreamingWordCount example is a streaming pipeline that reads Pub/Sub
@@ -4484,6 +4586,8 @@ limitations under the License.
 &lt;li>&lt;a href="#advanced-concepts">Advanced Concepts&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;/li>
+&lt;li>&lt;a href="#videos">Videos&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#courses">Courses&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#books">Books&lt;/a>
 &lt;ul>
 &lt;li>&lt;a href="#building-big-data-pipelines-with-apache-beam">Building Big Data Pipelines with Apache Beam&lt;/a>&lt;/li>
@@ -4570,6 +4674,16 @@ limitations under the License.
 &lt;li>&lt;strong>&lt;a href="/blog/2017/02/13/stateful-processing.html">Stateful Processing&lt;/a>&lt;/strong> - Learn how to access a persistent mutable state while processing input elements, this allows for &lt;em>side effects&lt;/em> in a &lt;code>DoFn&lt;/code>. This can be used for arbitrary-but-consistent index assignment, if you want to assign a unique incrementing index to each incoming element where order doesn&amp;rsquo;t matter.&lt;/li>
 &lt;li>&lt;strong>&lt;a href="/blog/2017/08/28/timely-processing.html">Timely and Stateful Processing&lt;/a>&lt;/strong> - An example on how to do batched RPC calls. The call requests are stored in a mutable state as they are received. Once there are either enough requests or a certain time has passed, the batch of requests is triggered to be sent.&lt;/li>
 &lt;li>&lt;strong>&lt;a href="https://cloud.google.com/blog/products/gcp/running-external-libraries-with-cloud-dataflow-for-grid-computing-workloads">Running External Libraries&lt;/a>&lt;/strong> - Call an external library written in a language that does not have a native SDK in Apache Beam such as C++.&lt;/li>
+&lt;/ul>
+&lt;h2 id="videos">Videos&lt;/h2>
+&lt;ul>
+&lt;li>&lt;strong>&lt;a href="https://www.youtube.com/playlist?list=PLIivdWyY5sqIEiHGunZXg_yoS7unlHNJt">Getting Started with Apache Beam&lt;/a>&lt;/strong> - Five part video series for understanding basic to advanced concepts.&lt;/li>
+&lt;li>See more &lt;a href="/get-started/resources/videos-and-podcasts/">Videos and Podcasts&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;h2 id="courses">Courses&lt;/h2>
+&lt;ul>
+&lt;li>&lt;strong>&lt;a href="https://beamcollege.dev/">Beam College&lt;/a>&lt;/strong> &amp;ndash; Free live and recorded lessons for learning Beam and data processing.&lt;/li>
+&lt;li>&lt;strong>&lt;a href="https://www.coursera.org/specializations/serverless-data-processing-with-dataflow">Serverless Data Processing&lt;/a>&lt;/strong> - Course specialized for Dataflow runner.&lt;/li>
 &lt;/ul>
 &lt;h2 id="books">Books&lt;/h2>
 &lt;h3 id="building-big-data-pipelines-with-apache-beam">Building Big Data Pipelines with Apache Beam&lt;/h3>

@@ -792,6 +792,7 @@ please follow &lt;a href="https://help.github.com/articles/creating-a-personal-a
 &lt;li>Apache ID and Password;&lt;/li>
 &lt;li>GitHub ID and Password.&lt;/li>
 &lt;li>DockerHub ID and Password. (You should be a member of maintainer team; email at dev@ if you are not.)&lt;/li>
+&lt;li>Account to access to apache-beam-testing Google Cloud Platform project. The account must have permissions to start Cloud Build triggers. Required for Playground environment update. (E-mail to &lt;a href="mailto:pabloem@google.com">pabloem@google.com&lt;/a> to request access)&lt;/li>
 &lt;/ul>
 &lt;h3 id="one-time-setup-instructions">One-time setup instructions&lt;/h3>
 &lt;h4 id="gpg-key">GPG Key&lt;/h4>
@@ -1890,7 +1891,61 @@ Ask other contributors to do the same.&lt;/p>
 &lt;/ol>
 &lt;hr>
 &lt;h2 id="13-update-beam-playground">13. Update Beam Playground&lt;/h2>
-&lt;p>After new Beam Release is published Beam Playgorund can be updated according to &lt;a href="https://github.com/apache/beam/blob/master/playground/TASKS.md#referenced-beam-sdk-update">Playground Readme&lt;/a> and &lt;a href="https://github.com/apache/beam/blob/master/playground/terraform/README.md">Playground deployment guide&lt;/a>.&lt;/p>
+&lt;p>After new Beam Release is published, Beam Playgorund can be updated following the steps below:&lt;/p>
+&lt;ol>
+&lt;li>Open the &lt;a href="https://console.cloud.google.com/cloud-build/triggers?project=apache-beam-testing">Cloud Build triggers in apache-beam-testing&lt;/a> GCP project.&lt;/li>
+&lt;li>Find the trigger &amp;ldquo;Deploy-Update-Playground-environment-stg&amp;rdquo;:
+&lt;ol>
+&lt;li>Click on the trigger name to open its settings&lt;/li>
+&lt;li>Change the value for _SDK_TAG variable (Advanced -&amp;gt; Substitution Variables) to the actual version of Beam SDK (e.g. 2.47.0)&lt;/li>
+&lt;li>Click the Save button. The settings window should close without any errors&lt;/li>
+&lt;li>Click the RUN button next to the trigger name&lt;/li>
+&lt;li>Set the value for the _CONTAINER_TAG variable in format DD-MM-vXX (DD - day, MM - month, XX - version, e.g., 20-12-v01)&lt;/li>
+&lt;li>Click the Run Trigger button&lt;/li>
+&lt;li>Open the &lt;a href="https://console.cloud.google.com/cloud-build/builds?project=apache-beam-testing">Trigger History&lt;/a> and wait for the job completion. Ensure that the job completed successfully (Status field shows a green tick)&lt;/li>
+&lt;/ol>
+&lt;/li>
+&lt;li>Find the trigger &amp;ldquo;Playground-CD-stable-manual-stg&amp;rdquo;:
+&lt;ol>
+&lt;li>Click the RUN button next to the trigger name&lt;/li>
+&lt;li>Click the Run Trigger button (with default varaible vaues)&lt;/li>
+&lt;li>Open the &lt;a href="https://console.cloud.google.com/cloud-build/builds?project=apache-beam-testing">Trigger History&lt;/a> and wait for the job completion. Ensure that the job completed successfully (Status field shows a green tick)&lt;/li>
+&lt;li>Click the RUN button next to the trigger name&lt;/li>
+&lt;li>Change values for the variables:
+&lt;ul>
+&lt;li>_ORIGIN = PG_BEAMDOC&lt;/li>
+&lt;li>_SUBDIRS = ./learning/beamdoc&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>Click the Run Trigger button&lt;/li>
+&lt;li>Open the &lt;a href="https://console.cloud.google.com/cloud-build/builds?project=apache-beam-testing">Trigger History&lt;/a> and wait for the job completion. Ensure that the job completed successfully (Status field shows a green tick)&lt;/li>
+&lt;/ol>
+&lt;/li>
+&lt;li>Test updated &lt;a href="https://play-dev.beam.apache.org/">staging Playground&lt;/a> in a browser
+&lt;ol>
+&lt;li>Open the menu (represented by &amp;lsquo;&amp;hellip;&amp;rsquo; in the right top corner) and click on Versions. Validate that commit is the same for all listed containers, and the hash belongs to a &lt;a href="https://github.com/apache/beam/commits/master">recent master branch commit&lt;/a>&lt;/li>
+&lt;li>For each of the supported SDKs (Java, Python, Go, SCIO):
+&lt;ul>
+&lt;li>Switch to the SDK&lt;/li>
+&lt;li>Make any changes to the loaded default example&lt;/li>
+&lt;li>Click the Run button&lt;/li>
+&lt;li>Wait for successful completion&lt;/li>
+&lt;li>Click &amp;ldquo;Share My Code&amp;rdquo; to ensure that the link is generated&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ol>
+&lt;/li>
+&lt;li>Repeat the same steps for &amp;ldquo;Deploy-Update-Playground-environment-prod&amp;rdquo; trigger as for &amp;ldquo;Deploy-Update-Playground-environment-stg&amp;rdquo; trigger&lt;/li>
+&lt;li>Repeat the same steps for &amp;ldquo;Playground-CD-stable-manual-prod&amp;rdquo; trigger as for &amp;ldquo;Playground-CD-stable-manual-stg&amp;rdquo; trigger&lt;/li>
+&lt;li>Test updated &lt;a href="https://play.beam.apache.org/">prod Playground&lt;/a> in a browser. The process is similar to the staging environment.&lt;/li>
+&lt;li>Find the trigger &amp;ldquo;Playground-CI-stable&amp;rdquo;
+&lt;ol>
+&lt;li>Click on the trigger name to open its settings&lt;/li>
+&lt;li>Set the value for the _BEAM_VERSION variable (Advanced -&amp;gt; Substitution Variables) to the actual version of Beam SDK (e.g., 2.47.0)&lt;/li>
+&lt;li>Click the Save button. Click the Save button. The settings window should close without any errors&lt;/li>
+&lt;/ol>
+&lt;/li>
+&lt;/ol>
 &lt;h2 id="improve-the-process">Improve the process&lt;/h2>
 &lt;p>It is important that we improve the release processes over time.
 Once you’ve finished the release, please take a step back and look what areas of this process and be improved. Perhaps some part of the process can be simplified.
