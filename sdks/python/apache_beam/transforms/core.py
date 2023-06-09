@@ -2600,13 +2600,7 @@ class CombineGlobally(PTransform):
         if combined:
           if len(combined) > 1:
             _LOGGER.warning('Apply Combined Fn with this list: %s', combined)
-            try:
-              combine_fn.setup(*args, **kwargs)
-              return combine_fn.apply(combined, *args, **kwargs)
-            finally:
-              combine_fn.teardown(*args, **kwargs)
-          else:
-            return combined[0]
+            return combined[-1]
         else:
           try:
             combine_fn.setup(*args, **kwargs)
