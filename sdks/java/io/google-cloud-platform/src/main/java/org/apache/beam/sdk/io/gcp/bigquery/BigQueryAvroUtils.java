@@ -430,7 +430,7 @@ class BigQueryAvroUtils {
   // To maintain backwards compatibility we only disambiguate collisions in the field namespaces as
   // these never worked with this piece of code.
   private static boolean hasNamespaceCollision(List<TableFieldSchema> fieldSchemas) {
-    HashSet<String> recordTypeFieldNames = new HashSet<String>();
+    Set<String> recordTypeFieldNames = new HashSet<>();
 
     List<TableFieldSchema> fieldsToCheck = new ArrayList<>();
     for (fieldsToCheck.addAll(fieldSchemas); !fieldsToCheck.isEmpty(); ) {
