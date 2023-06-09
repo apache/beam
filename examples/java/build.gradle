@@ -93,6 +93,8 @@ dependencies {
   implementation "org.apache.commons:commons-lang3:3.9"
   implementation "org.apache.httpcomponents:httpclient:4.5.13"
   implementation "org.apache.httpcomponents:httpcore:4.4.13"
+  implementation "com.fasterxml.jackson.core:jackson-annotations:2.14.1"
+  implementation "com.fasterxml.jackson.core:jackson-core:2.14.1"
   testImplementation project(path: ":runners:direct-java", configuration: "shadow")
   testImplementation project(":sdks:java:io:google-cloud-platform")
   testImplementation project(":sdks:java:extensions:ml")

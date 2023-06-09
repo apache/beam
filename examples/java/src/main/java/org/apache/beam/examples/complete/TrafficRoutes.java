@@ -24,7 +24,7 @@ package org.apache.beam.examples.complete;
 //     of predefined 'routes', and looks for 'slowdowns' in those routes. It writes its
 //     results to a BigQuery table.
 //   multifile: true
-//   context_line: 97
+//   context_line: 399
 //   categories:
 //     - Combiners
 //     - Streaming
