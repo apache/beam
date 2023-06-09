@@ -19,12 +19,12 @@
 
 # Overview
 
-This directory sets up the Kubernetes environment for subsequent modules.
+This directory exposes the application via a Kubernetes Ingress.
 
 # Usage
 
-Follow terraform workflow convention to apply this module. 
-The following assumes the working directory is at
+Follow terraform workflow convention to apply this module. It assumes the
+working directory is at
 [.test-infra/pipelines/infrastructure/03.io/api-overuse-study](..).
 
 ## Terraform Init
@@ -32,7 +32,7 @@ The following assumes the working directory is at
 Initialize the terraform workspace.
 
 ```
-DIR=01.setup
+DIR=04.ingress
 terraform -chdir=$DIR init
 ```
 
@@ -41,6 +41,6 @@ terraform -chdir=$DIR init
 Apply the terraform module.
 
 ```
-DIR=01.setup
+DIR=04.ingress
 terraform -chdir=$DIR apply -var-file=common.tfvars
 ```

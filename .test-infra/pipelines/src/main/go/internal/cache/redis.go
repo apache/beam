@@ -27,7 +27,10 @@ import (
 const maxRetries = 3
 
 var (
-	logger = logging.MustLogger(context.Background(), "github.com/apache/beam/.test-infra/pipelines/src/main/go/internal/cache/redis")
+	logger = logging.NewFromEnvironment(
+		context.Background(),
+		"github.com/apache/beam/.test-infra/pipelines/src/main/go/internal/cache/redis",
+		logging.LevelVariable)
 )
 
 // RedisCache implements a Decrementer, Publisher, Subscriber, and Refresher

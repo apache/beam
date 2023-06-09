@@ -13,6 +13,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Echo executes the service to fulfill requests that mock a quota-aware API
+// endpoint.
+// To execute, simply run as a normal go executable. The application relies on
+// environment variables for ease and compatibility with conventional cloud
+// deployments such as a Kubernetes deployment specification.
+// The executable reports missing required environment variables and serves
+// as its own self-documenting usage.
+//
+// See logging.LevelVariable for details on how to change the log level.
 package main
 
 import (
@@ -32,8 +41,11 @@ import (
 var (
 	port environment.Variable = "PORT"
 
-	address    = fmt.Sprintf(":%s", port.Value())
-	logger     = logging.MustLogger(context.Background(), "echo")
+	address = fmt.Sprintf(":%s", port.Value())
+	logger  = logging.NewFromEnvironment(
+		context.Background(),
+		"github.com/apache/beam/.test-infra/pipelines/src/main/go/cmd/api_overuse_study/echo",
+		logging.LevelVariable)
 	cacheQuota cache.Decrementer
 
 	required = []environment.Variable{

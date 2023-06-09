@@ -33,11 +33,15 @@ func RegisterService(ctx context.Context, server *grpc.Server, quotaCache cache.
 	}
 
 	svc := &echoService{
-		logger:     logging.MustLogger(ctx, "github.com/apache/beam/.test-infra/pipelines/src/main/go/internal/echo/service"),
+		logger: logging.NewFromEnvironment(
+			ctx,
+			"github.com/apache/beam/.test-infra/pipelines/src/main/go/internal/echo",
+			logging.LevelVariable),
 		quotaCache: quotaCache,
 	}
 
 	echov1.RegisterEchoServiceServer(server, svc)
+	svc.logger.Debug(ctx, "registered server")
 	return nil
 }
 
@@ -51,6 +55,7 @@ type echoService struct {
 // Decrements quota identified by the request's id and responds with an error
 // if quota exceeded.
 func (e *echoService) Echo(ctx context.Context, request *echov1.EchoRequest) (*echov1.EchoResponse, error) {
+	e.logger.Debug(ctx, "received request", logging.Any("request", request))
 	if err := e.quotaCache.Decrement(ctx, request.Id); err != nil {
 		return nil, err
 	}

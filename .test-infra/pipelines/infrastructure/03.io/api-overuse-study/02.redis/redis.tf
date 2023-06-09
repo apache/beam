@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+// Spin up a Redis cluster within the Kubernetes cluster using the bitami
+// helm chart.
 resource "helm_release" "redis" {
   wait       = false
   repository = "https://charts.bitnami.com/bitnami"

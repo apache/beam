@@ -19,7 +19,8 @@
 
 # Overview
 
-This directory deploys the mock API endpoint needed for the Beam pipelines to call as part of the overuse study.
+This directory deploys the mock API endpoint needed for the Beam pipelines to
+call as part of the overuse study.
 
 # Usage
 
@@ -46,3 +47,5 @@ image, making sure to use the `-B` and `-P` flags.
     ```
 
 ## Remote Deployment
+
+To be written in a future PR.

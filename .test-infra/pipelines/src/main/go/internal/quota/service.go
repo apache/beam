@@ -73,8 +73,11 @@ func RegisterService(ctx context.Context, server *grpc.Server, spec *ServiceSpec
 		return err
 	}
 	svc := &quotaService{
-		logger: logging.MustLogger(ctx, "quota-service"),
-		spec:   spec,
+		logger: logging.NewFromEnvironment(
+			context.Background(),
+			"github.com/apache/beam/.test-infra/pipelines/src/main/go/internal/quota",
+			logging.LevelVariable),
+		spec: spec,
 	}
 
 	quotav1.RegisterQuotaServiceServer(server, svc)

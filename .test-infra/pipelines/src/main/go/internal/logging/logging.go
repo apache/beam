@@ -18,25 +18,86 @@ package logging
 
 import (
 	"context"
+	"fmt"
+	"os"
 
+	"github.com/apache/beam/test-infra/pipelines/src/main/go/internal/environment"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
+const (
+	DebugLevel Level = iota - 1
+
+	// InfoLevel is the default logging level.
+	InfoLevel
+	WarnLevel
+	ErrorLevel
+	FatalLevel
+)
+
+var (
+	LevelVariable              environment.Variable = "LOG_LEVEL"
+	AllowedLevelVariableValues                      = map[string]Level{
+		"debug": DebugLevel,
+		"info":  InfoLevel,
+		"warn":  WarnLevel,
+		"error": ErrorLevel,
+		"fatal": FatalLevel,
+	}
+)
+
+func init() {
+	_ = LevelVariable.Default("info")
+}
+
+type Level int8
+
 // Logger outputs structured logs.
-type Logger zap.Logger
+type Logger struct {
+	inner *zap.Logger
+	atom  zap.AtomicLevel
+}
 
 // Field represents a structured log entry field.
 type Field zap.Field
 
-// MustLogger instantiates a Logger, assigning the name; panics on error.
-func MustLogger(_ context.Context, name string) *Logger {
-	logger, err := zap.NewProduction(zap.WithCaller(false), zap.AddStacktrace(zapcore.ErrorLevel))
-	if err != nil {
-		panic(err)
+// New instantiates a Logger with a default InfoLevel severity,
+// assigning the name; context is currently a placeholder and not used.
+func New(ctx context.Context, name string) *Logger {
+	return newWithLevel(ctx, name, InfoLevel)
+}
+
+// NewFromEnvironment instantiates a Logger, assigning the name where its
+// Level is derived from the LevelVariable; context is currently a placeholder
+// and not used. Panics if the level is missing or is not one of
+// AllowedLevelVariableValues.
+func NewFromEnvironment(ctx context.Context, name string, level environment.Variable) *Logger {
+	if level.Missing() {
+		panic(fmt.Errorf("environment variable: %s is empty but required", level.Key()))
 	}
+	v, ok := AllowedLevelVariableValues[level.Value()]
+	if !ok {
+		panic(fmt.Errorf("environment variable: %s with value %s is not allowed", level.Key(), level.Value()))
+	}
+	return newWithLevel(ctx, name, v)
+}
+
+func newWithLevel(_ context.Context, name string, level Level) *Logger {
+	atom := zap.NewAtomicLevel()
+	encoderCfg := zap.NewProductionEncoderConfig()
+	logger := zap.New(zapcore.NewCore(
+		zapcore.NewJSONEncoder(encoderCfg),
+		zapcore.AddSync(os.Stdout),
+		atom,
+	))
 	logger = logger.Named(name)
-	return (*Logger)(logger)
+	zl := (zapcore.Level)(level)
+	atom.SetLevel(zl)
+	return &Logger{
+		atom:  atom,
+		inner: logger,
+	}
 }
 
 // Any returns a key=value Field choosing the best way to represent the value.
@@ -74,24 +135,26 @@ func zapFields(field []Field) []zap.Field {
 
 // Debug emits entries with a debug severity log level.
 func (logger *Logger) Debug(_ context.Context, message string, fields ...Field) {
-	zl := (*zap.Logger)(logger)
-	zl.Debug(message, zapFields(fields)...)
+	logger.inner.Debug(message, zapFields(fields)...)
 }
 
 // Error emits entries with a error severity log level.
 func (logger *Logger) Error(_ context.Context, message string, fields ...Field) {
-	zl := (*zap.Logger)(logger)
-	zl.Error(message, zapFields(fields)...)
+	logger.inner.Error(message, zapFields(fields)...)
 }
 
 // Info emits entries with a info severity log level.
 func (logger *Logger) Info(_ context.Context, message string, fields ...Field) {
-	zl := (*zap.Logger)(logger)
-	zl.Info(message, zapFields(fields)...)
+	logger.inner.Info(message, zapFields(fields)...)
 }
 
 // Fatal emits entries with a fatal severity log level.
 func (logger *Logger) Fatal(_ context.Context, message string, fields ...Field) {
-	zl := (*zap.Logger)(logger)
-	zl.Fatal(message, zapFields(fields)...)
+	logger.inner.Fatal(message, zapFields(fields)...)
+}
+
+func (logger *Logger) WithLevel(level Level) *Logger {
+	zl := (zapcore.Level)(level)
+	logger.atom.SetLevel(zl)
+	return logger
 }

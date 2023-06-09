@@ -23,8 +23,11 @@ import (
 	"strings"
 )
 
+// Variable defines an environment variable via a string type alias.
+// Variable's string value assigns the system environment variable key.
 type Variable string
 
+// Default a value to the system environment.
 func (v Variable) Default(value string) error {
 	if v.Missing() {
 		return os.Setenv((string)(v), value)
@@ -32,22 +35,29 @@ func (v Variable) Default(value string) error {
 	return nil
 }
 
+// Missing reports whether the system environment variable is an empty string.
 func (v Variable) Missing() bool {
 	return v.Value() == ""
 }
 
+// Key returns the system environment variable key.
 func (v Variable) Key() string {
 	return (string)(v)
 }
 
+// Value returns the system environment variable value.
 func (v Variable) Value() string {
 	return os.Getenv((string)(v))
 }
 
+// KeyValue returns a concatenated string of the system environment variable's
+// <key>=<value>.
 func (v Variable) KeyValue() string {
 	return fmt.Sprintf("%s=%s", (string)(v), v.Value())
 }
 
+// Missing reports as an error listing all Variable among vars that are
+// not assigned in the system environment.
 func Missing(vars ...Variable) error {
 	var missing []string
 	for _, v := range vars {
@@ -61,6 +71,8 @@ func Missing(vars ...Variable) error {
 	return nil
 }
 
+// Map converts a slice of Variable into a map.
+// Its usage is for logging purposes.
 func Map(vars ...Variable) map[string]interface{} {
 	result := map[string]interface{}{}
 	for _, v := range vars {

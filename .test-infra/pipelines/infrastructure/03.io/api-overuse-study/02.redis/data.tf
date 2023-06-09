@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+// Query the Kubernetes namespace to verify existence.
 data "kubernetes_namespace" "default" {
   metadata {
     name = var.namespace

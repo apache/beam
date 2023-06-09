@@ -19,25 +19,30 @@
 
 # Overview
 
-This directory holds terraform code to provision resources needed to support the
+This directory holds terraform code and Kubernetes manifests to provision
+resources needed to support the
 [API Overuse Study](https://docs.google.com/document/d/1VZ9YphDO7kewBSz5oMXVPHWaib3S03Z6aZ66BhciB3E/edit?usp=sharing&resourcekey=0-ItxMSG72EzfSwVedSz-Zeg)
 
 # Usage and Requirements
 
-See [.test-infra/pipelines/infrastructure](../..) for general usage and requirements of terraform modules.
+See [.test-infra/pipelines/infrastructure](../..) for general usage and
+requirements of terraform modules.
 
 # Specific Requirements
 
 ## Ko
 
-These modules depend on [ko.build](https://ko.build/) to build Go container images quickly.
+These modules depend on [ko.build](https://ko.build/) to build Go container
+images quickly.
 
 ## Kubernetes
 
-Modules in this directory assume you are connected to a running Kubernetes cluster, either
-[minikube](https://minikube.sigs.k8s.io/) for local development or Google Kubernetes Engine (GKE) for certain ingress
+Modules in this directory assume you are connected to a running Kubernetes
+cluster, either
+[minikube](https://minikube.sigs.k8s.io/) for local development or
+Google Kubernetes Engine (GKE) for certain ingress
 configurations (See [04.ingress](04.ingress)).
 
-This repository contains terraform to provision a GKE cluster.
+If you need a GKE cluster, this repository contains terraform to provision one.
 See [.test-infra/terraform/google-cloud-platform/google-kubernetes-engine](../../../../terraform/google-cloud-platform/google-kubernetes-engine)
 for details.

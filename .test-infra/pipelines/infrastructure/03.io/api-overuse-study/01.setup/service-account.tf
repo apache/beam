@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+// Provision Kubernetes service account to elevate the Pod application's role
 resource "kubernetes_service_account" "default" {
   metadata {
     name      = "api-overuse-study"
@@ -23,6 +24,7 @@ resource "kubernetes_service_account" "default" {
   }
 }
 
+// Create a role that enables the application to create Kubernetes Jobs
 resource "kubernetes_role" "can_create_job" {
   metadata {
     name      = "jobs-creator"
@@ -35,6 +37,7 @@ resource "kubernetes_role" "can_create_job" {
   }
 }
 
+// Bind the Create Jobs role to the Kubernetes service account
 resource "kubernetes_role_binding" "default" {
   metadata {
     name      = "api-overuse-study"

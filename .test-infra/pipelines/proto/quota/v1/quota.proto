@@ -27,23 +27,32 @@ option go_package = "proto/quota/v1";
 
 import "google/api/annotations.proto";
 
+// A QuotaService manages the internal cached quota state of the application.
 service QuotaService {
+
+  // Create a new quota entry.
   rpc Create(CreateQuotaRequest) returns (CreateQuotaResponse) {
     option (google.api.http) = {
       post: "/v1/quotas"
       body: "quota"
     };
   }
+
+  // List available quota entries.
   rpc List(ListQuotasRequest) returns (ListQuotasResponse) {
     option (google.api.http) = {
       get: "/v1/quotas"
     };
   }
+
+  // Delete a quota entry.
   rpc Delete(DeleteQuotaRequest) returns (DeleteQuotaResponse) {
     option (google.api.http) = {
       delete: "/v1/quotas/*"
     };
   }
+
+  // Describe a quota entry.
   rpc Describe(DescribeQuotaRequest) returns (DescribeQuotaResponse) {
     option (google.api.http) = {
       get: "/v1/quotas/*"
@@ -51,38 +60,54 @@ service QuotaService {
   }
 }
 
+// CreateQuotaRequest defines a request for a new quota entry.
 message CreateQuotaRequest {
   Quota quota = 1;
 }
 
+// CreateQuotaResponse defines the response to a CreateQuota fulfillment.
 message CreateQuotaResponse {
   Quota quota = 1;
 }
 
+// ListQuotasRequest defines a request to list existing quota entries.
 message ListQuotasRequest {}
 
+// ListQuotaResponse defines the response to a ListQuota fulfillment.
 message ListQuotasResponse {
   repeated Quota list = 1;
 }
 
+// DeleteQuotasRequest defines a request to delete a quota entry.
 message DeleteQuotaRequest {
   string id = 1;
 }
 
+// DeleteQuotaResponse defines the response to a DeleteQuota fulfillment.
 message DeleteQuotaResponse {
   Quota quota = 1;
 }
 
+// DescribeQuotaResponse defines the request to describe a quota entry.
 message DescribeQuotaRequest {
   string id = 1;
 }
 
+// DescribeQuotaResponse defines the response to a DescribeQuota fulfillment.
 message DescribeQuotaResponse {
   Quota quota = 1;
 }
 
+// Quota defines details of a quota.
 message Quota {
+
+  // id assigns a unique identifier to the quota entry.
   string id = 1;
+
+  // size assigns the value of the quota entry.
   int64 size = 2;
+
+  // refreshMillisecondsInterval configures how often the quota service
+  // should refresh the quota's value back to the assigned size.
   int64 refreshMillisecondsInterval = 3;
 }

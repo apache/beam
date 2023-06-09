@@ -16,6 +16,9 @@
  * limitations under the License.
  */
 
+// Expose the quota service using a Kubernetes service.
+// metadata.annotations and spec.type determine its exposure and vary
+// between local i.e. minikube deployment and remote GKE deployment.
 resource "kubernetes_service" "quota" {
   wait_for_load_balancer = false
   metadata {

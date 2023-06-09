@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+// Provisions the namespace shared by all resources.
 resource "kubernetes_namespace" "default" {
   metadata {
     name = var.namespace
