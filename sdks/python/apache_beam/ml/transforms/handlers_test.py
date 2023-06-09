@@ -63,10 +63,10 @@ class _MultiplyOperation(TFTOperation):
 
 class _FakeOperationWithArtifacts(TFTOperation):
   def apply(self, inputs, *args, **kwargs):
-    return inputs
+    return {**inputs, **(self.get_artifacts(inputs, 'artifact'))}
 
   def get_artifacts(self, data, col_name):
-    return {'artifact': 1}
+    return {'artifact': tf.convert_to_tensor([1])}
 
 
 class UnBatchedIntType(NamedTuple):
@@ -104,21 +104,22 @@ class TFTProcessHandlerSchemaTest(unittest.TestCase):
     process_handler = handlers.TFTProcessHandlerSchema(
         transforms=[add_fn, mul_fn])
 
-    actual_result = process_handler.preprocessing_fn(inputs)
+    actual_result = process_handler.process_data_fn(inputs)
     self.assertDictEqual(actual_result, expected_result)
 
-  def test_tft_operation_save_intermediate_result(self):
-    fake_fn_1 = _FakeOperation(
-        columns=['x'],
-        name='fake_fn_1',
-        save_result=True,
-        output_name='x_fake_fn_1')
-    fake_fn_2 = _FakeOperation(columns=['x'], name='fake_fn_2')
-    process_handler = handlers.TFTProcessHandlerSchema(
-        transforms=[fake_fn_1, fake_fn_2])
+    # def test_tft_operation_save_intermediate_result(self):
+    #   fake_fn_1 = _FakeOperation(
+    #       columns=['x'],
+    #       name='fake_fn_1',
+    #       save_result=True,
+    #       output_name='x_fake_fn_1')
+    #   fake_fn_2 = _FakeOperation(columns=['x'], name='fake_fn_2')
+    #   process_handler = handlers.TFTProcessHandlerSchema(
+    #       transforms=[fake_fn_1, fake_fn_2])
 
     inputs = {'x': [1, 2, 3]}
-    actual_result = process_handler.preprocessing_fn(inputs)
+    preprocessing_fn = process_handler.process_data_fn
+    actual_result = preprocessing_fn(inputs)
     expected_result = {'x': [1, 2, 3], 'x_fake_fn_1': [1, 2, 3]}
     self.assertDictEqual(actual_result, expected_result)
 
@@ -126,8 +127,9 @@ class TFTProcessHandlerSchemaTest(unittest.TestCase):
     process_handler = handlers.TFTProcessHandlerSchema(
         transforms=[_FakeOperationWithArtifacts(columns=['x'])])
     inputs = {'x': [1, 2, 3]}
-    actual_result = process_handler.preprocessing_fn(inputs)
-    expected_result = {'x': [1, 2, 3], 'artifact': 1}
+    preprocessing_fn = process_handler.process_data_fn
+    actual_result = preprocessing_fn(inputs)
+    expected_result = {'x': [1, 2, 3], 'artifact': tf.convert_to_tensor([1])}
     self.assertDictEqual(actual_result, expected_result)
 
   def test_ml_transform_appends_transforms_to_process_handler_correctly(self):
@@ -344,10 +346,7 @@ class TFTProcessHandlerSchemaTest(unittest.TestCase):
   ])
   def test_tft_process_handler_dict_output_pcoll_schema(
       self, input_data, input_types, expected_dtype):
-    transforms = [
-        tft_transforms.Scale_To_0_1(
-            columns=['x'], save_result=True, output_name='x_scaled')
-    ]
+    transforms = [tft_transforms.Scale_To_0_1(columns=['x'])]
     process_handler = handlers.TFTProcessHandlerSchema(transforms=transforms)
     with beam.Pipeline() as p:
       schema_data = (

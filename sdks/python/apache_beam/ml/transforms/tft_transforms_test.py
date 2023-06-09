@@ -367,8 +367,26 @@ class ComputeAndApplyVocabTest(unittest.TestCase):
           actual_output, equal_to(excepted_data, equals_fn=np.array_equal))
 
 
+class TFIDFSchema(NamedTuple):
+  x: List[str]
+
+
+# WIP
 class TFIDIFTest(unittest.TestCase):
-  pass
+  def test_tfidf_batched(self):
+    raw_data = [
+        dict(x=["I", "like", "pie", "pie", "pie"]),
+        dict(x=["yum", "yum", "pie"])
+    ]
+
+    with beam.Pipeline() as p:
+      transforms = [tft_transforms.TFIDF(columns=['x'])]
+      process_handler = handlers.TFTProcessHandlerSchema(transforms=transforms)
+      _ = (
+          p
+          | "Create" >> beam.Create(raw_data)
+          | beam.Map(lambda x: TFIDFSchema(**x)).with_output_types(TFIDFSchema)
+          | "MLTransform" >> base.MLTransform(process_handler=process_handler))
 
 
 if __name__ == '__main__':

@@ -222,7 +222,7 @@ class TFTProcessHandler(ProcessHandler[ProcessInputT, ProcessOutputT]):
     else:
       return staging_location
 
-  def get_preprocessing_fn(
+  def process_data_fn(
       self, inputs: Dict[str, common_types.ConsistentTensorType]
   ) -> Dict[str, common_types.ConsistentTensorType]:
     """
@@ -314,7 +314,7 @@ class TFTProcessHandlerSchema(
 
     return inferred_types
 
-  def get_preprocessing_fn(
+  def process_data_fn(
       self, inputs: Dict[str, common_types.ConsistentTensorType]
   ) -> Dict[str, common_types.ConsistentTensorType]:
     """
@@ -387,7 +387,7 @@ class TFTProcessHandlerSchema(
       self.artifact_location = self._get_artifact_location(raw_data.pipeline)
 
     preprocessing_fn = self.preprocessing_fn if self.preprocessing_fn else (
-        self.get_preprocessing_fn)
+        self.process_data_fn)
     with tft_beam.Context(temp_dir=self.artifact_location):
       data = (raw_data, raw_data_metadata)
       transformed_metadata: beam_metadata_io.BeamDatasetMetadata
