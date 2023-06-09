@@ -102,7 +102,7 @@ dependencies {
   testImplementation library.java.mockito_core
   testImplementation library.java.testcontainers_kafka
   testImplementation library.java.testcontainers_gcloud
-  testImplementation library.java.hadoop_client
+  implementation library.java.hadoop_client
 
   // Add dependencies for the PreCommit configurations
   // For each runner a project level dependency on the examples project.
