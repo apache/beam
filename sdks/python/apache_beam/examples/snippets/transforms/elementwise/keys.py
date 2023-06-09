@@ -17,6 +17,20 @@
 #
 
 # pytype: skip-file
+# pylint:disable=line-too-long
+
+# beam-playground:
+#   name: Keys
+#   description: Demonstration of Keys transform usage.
+#   multifile: false
+#   default_example: false
+#   context_line: 40
+#   categories:
+#     - Core Transforms
+#   complexity: BASIC
+#   tags:
+#     - transforms
+#     - pairs
 
 
 def keys(test=None):
@@ -38,3 +52,7 @@ def keys(test=None):
     # [END keys]
     if test:
       test(icons)
+
+
+if __name__ == '__main__':
+  keys()

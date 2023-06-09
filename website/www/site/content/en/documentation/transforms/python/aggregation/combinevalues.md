@@ -39,8 +39,8 @@ We use the function
 [`sum`](https://docs.python.org/3/library/functions.html#sum)
 which takes an `iterable` of numbers and adds them together.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues.py" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues.py" combinevalues_simple >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues_simple.py" >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues_simple.py" combinevalues_simple >}}
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
@@ -58,8 +58,8 @@ We want the sum to be bounded up to a maximum value, so we use
 
 We define a function `saturated_sum` which takes an `iterable` of numbers and adds them together, up to a predefined maximum number.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues.py" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues.py" combinevalues_function >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues_function.py" >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues_function.py" combinevalues_function >}}
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
@@ -74,8 +74,8 @@ Output:
 
 We can also use lambda functions to simplify **Example 2**.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues.py" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues.py" combinevalues_lambda >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues_lambda.py" >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues_lambda.py" combinevalues_lambda >}}
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
@@ -93,8 +93,8 @@ They are passed as additional positional arguments or keyword arguments to the f
 
 In this example, the lambda function takes `values` and `max_value` as arguments.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues.py" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues.py" combinevalues_multiple_arguments >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues_multiple_arguments.py" >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues_multiple_arguments.py" combinevalues_multiple_arguments >}}
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
@@ -123,8 +123,8 @@ The more general way to combine elements, and the most flexible, is with a class
 * [`CombineFn.extract_output()`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.CombineFn.extract_output):
   It allows to do additional calculations before extracting a result.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues.py" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues.py" combinevalues_combinefn >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues_combinefn.py" >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues_combinefn.py" combinevalues_combinefn >}}
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}

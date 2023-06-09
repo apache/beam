@@ -373,7 +373,6 @@ class DockerEnvironment(Environment):
         APACHE_BEAM_DOCKER_IMAGE_PREFIX +
         '_python{version_suffix}_sdk:{tag}'.format(
             version_suffix=version_suffix, tag=sdk_version))
-    logging.info('Default Python SDK image for environment is %s' % (image))
     return image
 
 

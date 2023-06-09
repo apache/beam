@@ -28,3 +28,5 @@ content:
   - schema-based-transforms
   - windowing
   - triggers
+  - io
+  - splittable-dofn

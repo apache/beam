@@ -42,6 +42,8 @@ const (
 )
 
 // TimerMap holds timer information obtained from the pipeline.
+//
+// For SDK internal use, and subject to change.
 type TimerMap struct {
 	Family                       string
 	Tag                          string
@@ -70,7 +72,15 @@ func WithOutputTimestamp(outputTimestamp time.Time) timerOptions {
 	}
 }
 
+// Context is a parameter for OnTimer methods to receive the fired Timer.
+type Context struct {
+	Family string
+	Tag    string
+}
+
 // Provider represents a timer provider interface.
+//
+// The methods are not intended for end user use, and is subject to change.
 type Provider interface {
 	Set(t TimerMap)
 }
@@ -92,7 +102,7 @@ func (et EventTime) Timers() map[string]TimeDomain {
 
 // Set sets the timer for a event-time timestamp. Calling this method repeatedly for the same key
 // will cause it overwrite previously set timer.
-func (et *EventTime) Set(p Provider, FiringTimestamp time.Time, opts ...timerOptions) {
+func (et EventTime) Set(p Provider, FiringTimestamp time.Time, opts ...timerOptions) {
 	tc := timerConfig{}
 	for _, opt := range opts {
 		opt(&tc)
@@ -105,8 +115,13 @@ func (et *EventTime) Set(p Provider, FiringTimestamp time.Time, opts ...timerOpt
 }
 
 // Clear clears this timer.
-func (et *EventTime) Clear(p Provider) {
+func (et EventTime) Clear(p Provider) {
 	p.Set(TimerMap{Family: et.Family, Clear: true})
+}
+
+// ClearTag clears this timer for the given tag.
+func (et EventTime) ClearTag(p Provider, tag string) {
+	p.Set(TimerMap{Family: et.Family, Clear: true, Tag: tag})
 }
 
 // ProcessingTime represents the processing time timer.
@@ -121,7 +136,7 @@ func (pt ProcessingTime) Timers() map[string]TimeDomain {
 
 // Set sets the timer for processing time domain. Calling this method repeatedly for the same key
 // will cause it overwrite previously set timer.
-func (pt *ProcessingTime) Set(p Provider, FiringTimestamp time.Time, opts ...timerOptions) {
+func (pt ProcessingTime) Set(p Provider, FiringTimestamp time.Time, opts ...timerOptions) {
 	tc := timerConfig{}
 	for _, opt := range opts {
 		opt(&tc)
@@ -139,12 +154,17 @@ func (pt ProcessingTime) Clear(p Provider) {
 	p.Set(TimerMap{Family: pt.Family, Clear: true})
 }
 
+// ClearTag clears this timer for the given tag.
+func (pt ProcessingTime) ClearTag(p Provider, tag string) {
+	p.Set(TimerMap{Family: pt.Family, Clear: true, Tag: tag})
+}
+
 // InEventTime creates and returns a new EventTime timer object.
-func InEventTime(Key string) EventTime {
-	return EventTime{Family: Key}
+func InEventTime(family string) EventTime {
+	return EventTime{Family: family}
 }
 
 // InProcessingTime creates and returns a new ProcessingTime timer object.
-func InProcessingTime(Key string) ProcessingTime {
-	return ProcessingTime{Family: Key}
+func InProcessingTime(family string) ProcessingTime {
+	return ProcessingTime{Family: family}
 }

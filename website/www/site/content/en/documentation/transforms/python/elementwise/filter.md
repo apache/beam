@@ -36,8 +36,8 @@ Then, we apply `Filter` in multiple ways to filter out produce by their duration
 
 We define a function `is_perennial` which returns `True` if the element's duration equals `'perennial'`, and `False` otherwise.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter.py" notebook="examples/notebooks/documentation/transforms/python/elementwise/filter" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter.py" filter_function >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter_function.py" notebook="examples/notebooks/documentation/transforms/python/elementwise/filter" >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter_function.py" filter_function >}}
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
@@ -52,9 +52,9 @@ Output:
 
 We can also use lambda functions to simplify **Example 1**.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter.py"
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter_lambda.py"
   notebook="examples/notebooks/documentation/transforms/python/elementwise/filter" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter.py" filter_lambda >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter_lambda.py" filter_lambda >}}
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
@@ -72,9 +72,9 @@ They are passed as additional positional arguments or keyword arguments to the f
 
 In this example, `has_duration` takes `plant` and `duration` as arguments.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter.py"
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter_multiple_arguments.py"
   notebook="examples/notebooks/documentation/transforms/python/elementwise/filter" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter.py" filter_multiple_arguments >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter_multiple_arguments.py" filter_multiple_arguments >}}
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
@@ -93,9 +93,9 @@ passing the `PCollection` as a *singleton* accesses that value.
 In this example, we pass a `PCollection` the value `'perennial'` as a singleton.
 We then use that value to filter out perennials.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter.py"
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter_side_inputs_singleton.py"
   notebook="examples/notebooks/documentation/transforms/python/elementwise/filter" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter.py" filter_side_inputs_singleton >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter_side_inputs_singleton.py" filter_side_inputs_singleton >}}
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
@@ -112,9 +112,9 @@ If the `PCollection` has multiple values, pass the `PCollection` as an *iterator
 This accesses elements lazily as they are needed,
 so it is possible to iterate over large `PCollection`s that won't fit into memory.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter.py"
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter_side_inputs_iter.py"
   notebook="examples/notebooks/documentation/transforms/python/elementwise/filter" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter.py" filter_side_inputs_iter >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter_side_inputs_iter.py" filter_side_inputs_iter >}}
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
@@ -135,9 +135,9 @@ Each element must be a `(key, value)` pair.
 Note that all the elements of the `PCollection` must fit into memory for this.
 If the `PCollection` won't fit into memory, use `beam.pvalue.AsIter(pcollection)` instead.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter.py"
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter_side_inputs_dict.py"
   notebook="examples/notebooks/documentation/transforms/python/elementwise/filter" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter.py" filter_side_inputs_dict >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter_side_inputs_dict.py" filter_side_inputs_dict >}}
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}

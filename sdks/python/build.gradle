@@ -134,11 +134,6 @@ def depSnapshot = tasks.register("depSnapshot") {
   }
 }
 
-tasks.register("dependencyUpdates") {
-  dependsOn ':dependencyUpdates'
-  dependsOn ':sdks:python:test-suites:tox:pycommon:dependency-check'
-}
-
 tasks.register("buildSnapshot") {
   dependsOn sdist
   dependsOn depSnapshot

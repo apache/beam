@@ -63,7 +63,7 @@ python user_score.py \
 #     standalone DoFns; use of the CombinePerKey transform.
 #   multifile: false
 #   pipeline_options: --output output.txt
-#   context_line: 81
+#   context_line: 174
 #   categories:
 #     - Batch
 #     - Combiners

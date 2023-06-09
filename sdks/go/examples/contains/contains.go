@@ -20,7 +20,7 @@ package main
 //   description: An example counts received substring in Shakespeare's works.
 //   multifile: false
 //   pipeline_options: --search king
-//   context_line: 51
+//   context_line: 95
 //   categories:
 //     - Filtering
 //     - Options
