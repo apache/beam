@@ -97,7 +97,7 @@ public class QuotaEvent {
   }
 
   /** Set whether this feature is enabled. Affects Builder.create(). */
-  public static void SetEnabled(boolean enabled) {
+  public static void setEnabled(boolean enabled) {
     QuotaEvent.enabled = enabled;
   }
 
