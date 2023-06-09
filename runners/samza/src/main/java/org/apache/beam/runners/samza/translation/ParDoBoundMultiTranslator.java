@@ -314,12 +314,8 @@ class ParDoBoundMultiTranslator<InT, OutT>
 
     final RunnerApi.PCollection input = pipeline.getComponents().getPcollectionsOrThrow(inputId);
     final PCollection.IsBounded isBounded = SamzaPipelineTranslatorUtils.isBounded(input);
-
-    // No key coder required if it is a stateless ParDo or a stateful ParDo without user timers, see
-    // SamzaStateRequestHandlers. The key coder is required for instantiating
-    // SamzaTimerInternalsFactory, see DoFnOp
     final Coder<?> keyCoder =
-        stagePayload.getTimersCount() > 0
+        StateUtils.isStateful(stagePayload)
             ? ((KvCoder)
                     ((WindowedValue.FullWindowedValueCoder) windowedInputCoder).getValueCoder())
                 .getKeyCoder()
