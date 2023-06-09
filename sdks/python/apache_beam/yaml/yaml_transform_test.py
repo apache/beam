@@ -24,10 +24,66 @@ import unittest
 import apache_beam as beam
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-from apache_beam.yaml.yaml_transform import YamlTransform
+from apache_beam.yaml.yaml_transform import YamlTransform, SafeLineLoader
+from apache_beam.yaml import yaml_transform
+import yaml
 
 
 class YamlTransformTest(unittest.TestCase):
+  def test_only_element(self):
+    self.assertEqual(yaml_transform.only_element((1, )), 1)
+
+
+class SafeLineLoaderTest(unittest.TestCase):
+  def test_get_line(self):
+    pipeline_yaml = '''
+          type: composite
+          input:
+              elements: input
+          transforms:
+            - type: PyMap
+              name: Square
+              input: elements
+              fn: "lambda x: x * x"
+            - type: PyMap
+              name: Cube
+              input: elements
+              fn: "lambda x: x * x * x"
+          output:
+              Flatten
+          '''
+    spec = yaml.load(pipeline_yaml, Loader=SafeLineLoader)
+    self.assertEqual(SafeLineLoader.get_line(spec['type']), 2)
+    self.assertEqual(SafeLineLoader.get_line(spec['input']), 4)
+    self.assertEqual(SafeLineLoader.get_line(spec['transforms'][0]), 6)
+    self.assertEqual(SafeLineLoader.get_line(spec['transforms'][0]['type']), 6)
+    self.assertEqual(SafeLineLoader.get_line(spec['transforms'][0]['name']), 7)
+    self.assertEqual(SafeLineLoader.get_line(spec['transforms'][1]), 10)
+    self.assertEqual(SafeLineLoader.get_line(spec['output']), 15)
+    self.assertEqual(SafeLineLoader.get_line(spec['transforms']), "unknown")
+
+  def test_strip_metadata(self):
+    spec_yaml = '''
+    transforms:
+      - type: PyMap
+        name: Square
+    '''
+    spec = yaml.load(spec_yaml, Loader=SafeLineLoader)
+    stripped = SafeLineLoader.strip_metadata(spec['transforms'])
+
+    self.assertFalse(hasattr(stripped[0], '__line__'))
+    self.assertFalse(hasattr(stripped[0], '__uuid__'))
+
+  def test_strip_metadata_nothing_to_strip(self):
+    spec_yaml = 'prop: 123'
+    spec = yaml.load(spec_yaml, Loader=SafeLineLoader)
+    stripped = SafeLineLoader.strip_metadata(spec['prop'])
+
+    self.assertFalse(hasattr(stripped, '__line__'))
+    self.assertFalse(hasattr(stripped, '__uuid__'))
+
+
+class YamlTransformE2ETest(unittest.TestCase):
   def test_composite(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:
