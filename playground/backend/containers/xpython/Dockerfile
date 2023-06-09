@@ -16,9 +16,12 @@
 # limitations under the License.
 ###############################################################################
 ARG GO_BASE_IMAGE=golang:1.18-bullseye
+###############################################################################
 ARG SDK_TAG
 ARG BASE_IMAGE=apache/beam_python3.10_sdk:$SDK_TAG
+###############################################################################
 FROM $GO_BASE_IMAGE AS build
+ARG SDK_TAG
 ARG GIT_COMMIT="<unknown>"
 ARG GIT_TIMESTAMP="0"
 
@@ -40,7 +43,75 @@ RUN go mod download &&\
     cd cmd/server &&\
     go build -ldflags="-X main.BuildCommitHash=$GIT_COMMIT -X main.BuildCommitTimestamp=$GIT_TIMESTAMP" -o /go/bin/server_python_backend
 
-FROM $BASE_IMAGE
+
+FROM apache/beam_python3.10_sdk:$SDK_TAG
+#FROM python:3.10-slim-buster
+
+###############################################################################
+ARG SDK_TAG
+ARG DOCKER_CHANNEL=stable
+ARG DOCKER_VERSION=20.10.8
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+  apt-transport-https \
+  ca-certificates \
+  curl \
+  gnupg2 \
+  software-properties-common
+
+RUN curl -fsSL https://download.docker.com/linux/debian/gpg | apt-key add -
+
+RUN add-apt-repository \
+   "deb [arch=amd64] https://download.docker.com/linux/debian \
+   $(lsb_release -cs) \
+   ${DOCKER_CHANNEL}"
+
+RUN apt-get update && apt-get install -y --no-install-recommends docker-ce=5:20.10.10~3-0~debian-buster && \
+  docker -v && \
+  dockerd -v
+
+ARG DIND_COMMIT=deda3d4933d3c0bd57f2cef672da5d28fc653706
+ENV DOCKER_EXTRA_OPTS '--storage-driver=overlay'
+RUN curl -fL -o /usr/local/bin/dind "https://raw.githubusercontent.com/moby/moby/${DIND_COMMIT}/hack/dind" && \
+	chmod +x /usr/local/bin/dind
+
+ENV VIRTUAL_ENV=/opt/playground/venv
+RUN mkdir -p $VIRTUAL_ENV
+RUN python3 -m venv $VIRTUAL_ENV
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+
+ARG BEAM_VERSION
+RUN pip install --upgrade pip
+RUN pip install apache-beam==2.47.0
+#RUN pip install apache-beam==${BEAM_VERSION}   old
+RUN pip install --default-timeout=100 torch
+RUN pip install torchvision
+RUN pip install pandas
+RUN pip install scikit-learn
+
+RUN apt-get update
+RUN apt-get install -y wget
+
+RUN wget -qO - https://adoptopenjdk.jfrog.io/adoptopenjdk/api/gpg/key/public | apt-key add -
+RUN add-apt-repository --yes https://adoptopenjdk.jfrog.io/adoptopenjdk/deb/
+RUN apt-get update
+#RUN apt-get install -y adoptopenjdk-11-hotspot -------- from xtransform
+RUN apt-get update && apt-get install -y openjdk-11-jre-headless
+
+
+ARG BEAM_VERSION
+ARG REPO_URL=https://repo1.maven.org/maven2
+ARG SQL_EXPANSION_SERVICE_JAR=${REPO_URL}/org/apache/beam/beam-sdks-java-extensions-sql-expansion-service/2.47.0/beam-sdks-java-extensions-sql-expansion-service-2.47.0.jar
+#ARG SQL_EXPANSION_SERVICE_JAR=${REPO_URL}/org/apache/beam/beam-sdks-java-extensions-sql-expansion-service/${BEAM_VERSION}/beam-sdks-java-extensions-sql-expansion-service-${BEAM_VERSION}.jar
+RUN curl -O -L $SQL_EXPANSION_SERVICE_JAR
+
+################
+## Pre-pulled images ##
+################
+COPY ./images/* /images/
+
+###############################################################################
+
 ARG SDK_TAG
 ENV BEAM_VERSION=$SDK_TAG
 ENV SERVER_IP=0.0.0.0
@@ -64,6 +135,8 @@ COPY kafka-emulator/kafka-emulator.tar /opt/playground/backend/kafka-emulator/
 RUN cd /opt/playground/backend/kafka-emulator/ && tar -xvf kafka-emulator.tar && rm kafka-emulator.tar &&\
     mv kafka-emulator/*.jar . && rmdir kafka-emulator/ &&\
     mv beam-playground-kafka-emulator-*.jar beam-playground-kafka-emulator.jar
+
+
 RUN apt-get update && apt-get install -y openjdk-11-jre-headless
 
 # Create a user group `appgroup` and a user `appuser`
@@ -73,9 +146,13 @@ RUN groupadd --gid 20000 appgroup \
 RUN mkdir -p /opt/playground/backend/executable_files/
 
 # Chown all required files to the `appuser`.
-RUN chown -R appuser:appgroup /opt/playground/backend/executable_files/ && chmod +x /entrypoint.sh
+# RUN chown -R appuser:appgroup /opt/playground/backend/executable_files/ && 
+RUN chmod +x /entrypoint.sh
+
+VOLUME /var/lib/docker
+EXPOSE 2375
 
 # Switch to appuser
-USER appuser
+#USER appuser
 
 ENTRYPOINT ["/entrypoint.sh"]
