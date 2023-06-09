@@ -17,7 +17,9 @@
 #   beam-playground:
 #     name: FinalChallenge2
 #     description: Final challenge 2.
-#     multifile: false
+#     multifile: true
+#     file:
+#       - name: analysis.csv
 #     context_line: 50
 #     categories:
 #       - Quickstart

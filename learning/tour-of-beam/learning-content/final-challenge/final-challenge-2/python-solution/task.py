@@ -18,6 +18,8 @@
 #     name: FinalSolution2
 #     description: Final challenge solution 2.
 #     multifile: true
+#     file:
+#       - name: analysis.csv
 #     context_line: 57
 #     categories:
 #       - Quickstart

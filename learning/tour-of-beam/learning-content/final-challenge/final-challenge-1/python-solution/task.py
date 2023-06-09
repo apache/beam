@@ -17,7 +17,9 @@
 #   beam-playground:
 #     name: FinalSolution1
 #     description: Final challenge solution 1.
-#     multifile: false
+#     multifile: true
+#     file:
+#       - name: input.csv
 #     context_line: 57
 #     categories:
 #       - Quickstart

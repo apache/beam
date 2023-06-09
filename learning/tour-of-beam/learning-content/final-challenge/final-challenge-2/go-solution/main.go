@@ -19,7 +19,9 @@
 // beam-playground:
 //   name: FinalSolution2
 //   description: Final challenge solution 2.
-//   multifile: false
+//   multifile: true
+//   file:
+//     - name: analysis.csv
 //   context_line: 54
 //   categories:
 //     - Quickstart

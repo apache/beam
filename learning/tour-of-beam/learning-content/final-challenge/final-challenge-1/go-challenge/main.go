@@ -19,7 +19,9 @@
 // beam-playground:
 //   name: FinalChallenge1
 //   description: Final challenge 1.
-//   multifile: false
+//   multifile: true
+//   file:
+//     - name: input.csv
 //   context_line: 54
 //   categories:
 //     - Quickstart
