@@ -315,8 +315,11 @@ class ParDoBoundMultiTranslator<InT, OutT>
 
     final RunnerApi.PCollection input = pipeline.getComponents().getPcollectionsOrThrow(inputId);
     final PCollection.IsBounded isBounded = SamzaPipelineTranslatorUtils.isBounded(input);
-    final Coder<?> keyCoder =
-        StateUtils.isStateful(stagePayload)
+
+    // No key coder information required for handing the stateless stage or stage with user states
+    // The key coder information is required for handing the stage with user timers
+    final Coder<?> timerKeyCoder =
+        stagePayload.getTimersCount() > 0
             ? ((KvCoder)
                     ((WindowedValue.FullWindowedValueCoder) windowedInputCoder).getValueCoder())
                 .getKeyCoder()
@@ -326,7 +329,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
         new PortableDoFnOp<>(
             mainOutputTag,
             new NoOpDoFn<>(),
-            keyCoder,
+            timerKeyCoder,
             windowedInputCoder.getValueCoder(), // input coder not in use
             windowedInputCoder,
             Collections.emptyMap(), // output coders not in use
