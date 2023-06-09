@@ -21,14 +21,10 @@ sdk:
   - Java
   - Python
   - Go
+id: splittable-dofn
+name: Splittable doFn
+complexity: ADVANCED
 content:
-  - introduction
-  - common-transforms
-  - core-transforms
-  - schema-based-transforms
-  - windowing
-  - triggers
-  - io
-  - splittable-dofn
-  - cross-language
-  
+- splittable
+
+
