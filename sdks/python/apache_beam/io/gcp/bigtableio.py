@@ -55,7 +55,6 @@ try:
   FLUSH_COUNT = 1000
   MAX_ROW_BYTES = 5242880  # 5MB
 
-
 except ImportError:
   _LOGGER.warning(
       'ImportError: from google.cloud.bigtable import Client', exc_info=True)
@@ -134,7 +133,7 @@ class _BigTableWriteFn(beam.DoFn):
         self.beam_options['instance_id'],
         self.beam_options['table_id'])
     self.batcher = MutationsBatcher(
-      self.table, batch_completed_callback=self.write_mutate_metrics)
+        self.table, batch_completed_callback=self.write_mutate_metrics)
 
   def process(self, row):
     self.written.inc()
