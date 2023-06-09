@@ -83,6 +83,7 @@ If you have additional material that you would like to see here, please let us k
 ## Videos {#videos}
 
 *  **[Getting Started with Apache Beam](https://www.youtube.com/playlist?list=PLIivdWyY5sqIEiHGunZXg_yoS7unlHNJt)** - Five part video series for understanding basic to advanced concepts.
+*  See more [Videos and Podcasts](/get-started/resources/videos-and-podcasts/)
 
 ## Courses {#courses}
 
