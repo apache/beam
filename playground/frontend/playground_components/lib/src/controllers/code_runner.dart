@@ -60,7 +60,6 @@ class CodeRunner extends ChangeNotifier {
   }) : _snippetEditingControllerGetter = snippetEditingControllerGetter;
 
   RunCodeResult? _result;
-  StreamSubscription<RunCodeResult>? _runSubscription;
   DateTime? _runStartDate;
   DateTime? _runStopDate;
 
