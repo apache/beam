@@ -291,7 +291,13 @@ class SchemaTranslation(object):
       result.nullable = True
       return result
 
-    elif _safe_issubclass(type_, Sequence):
+    elif type_ == range:
+      return schema_pb2.FieldType(
+          array_type=schema_pb2.ArrayType(
+              element_type=schema_pb2.FieldType(
+                  atomic_type=PRIMITIVE_TO_ATOMIC_TYPE[int])))
+
+    elif _safe_issubclass(type_, Sequence) and not _safe_issubclass(type_, str):
       element_type = self.typing_to_runner_api(_get_args(type_)[0])
       return schema_pb2.FieldType(
           array_type=schema_pb2.ArrayType(element_type=element_type))

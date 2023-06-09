@@ -235,7 +235,8 @@ class Scope(LightweightScope):
     real_args = SafeLineLoader.strip_metadata(args)
     try:
       # pylint: disable=undefined-loop-variable
-      ptransform = provider.create_transform(spec['type'], real_args)
+      ptransform = provider.create_transform(
+          spec['type'], real_args, self.create_ptransform)
       # TODO(robertwb): Should we have a better API for adding annotations
       # than this?
       annotations = dict(
