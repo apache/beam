@@ -29,7 +29,10 @@ Applies a simple 1-to-many mapping function over each element in the
 collection. The many elements are flattened into the resulting collection.
 
 ## Examples
-See [BEAM-7702](https://issues.apache.org/jira/browse/BEAM-7702) for updates.
+
+{{< playground height="700px" >}}
+{{< playground_snippet language="java" path="SDK_JAVA_FlatMapElements" show="main_section" >}}
+{{< /playground >}}
 
 ## Related transforms
 * [Filter](/documentation/transforms/java/elementwise/filter) is useful if the function is just
