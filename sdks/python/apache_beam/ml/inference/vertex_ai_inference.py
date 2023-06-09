@@ -43,8 +43,8 @@ class VertexAIModelHandlerJSON(ModelHandler[any,
   def __init__(
       self,
       endpoint_id: str,
-      project: str = None,
-      location: str = None,
+      project: str,
+      location: str,
       experiment: Optional[str] = None):
     """Implementation of the ModelHandler interface for Vertex AI.
     **NOTE:** This API and its implementation are under development and
@@ -111,10 +111,10 @@ class VertexAIModelHandlerJSON(ModelHandler[any,
   @retry.with_exponential_backoff(num_retries=5)
   def get_request(
       self, 
-      batch: Sequence[any], 
+      batch: Sequence[Any], 
       model: aiplatform.Endpoint, 
       throttle_delay_secs: int, 
-      inference_args: Optional[Dict[str, any]]):
+      inference_args: Optional[Dict[str, Any]]):
     while self.throttler.throttle_request(time.time() * MSEC_TO_SEC):
       LOGGER.info("Delaying request for %d seconds due to previous failures", throttle_delay_secs)
       time.sleep(throttle_delay_secs)
@@ -129,14 +129,14 @@ class VertexAIModelHandlerJSON(ModelHandler[any,
       LOGGER.warning("request was limited by the service with HTTP code 429")
       raise
     except ClientError as e:
-      LOGGER.warning("request failed with error code %d", e.code.value)
+      LOGGER.warning("request failed with error code %i", e.code.value)
       raise
 
   def run_inference(
       self,
-      batch: Sequence[any],
+      batch: Sequence[Any],
       model: aiplatform.Endpoint,
-      inference_args: Optional[Dict[str, any]]) -> Iterable[PredictionResult]:
+      inference_args: Optional[Dict[str, Any]]) -> Iterable[PredictionResult]:
     """ Sends a prediction request to a Vertex AI endpoint containing batch of inputs
     and matches that input with the prediction response from the endpoint as an iterable
     of PredictionResults. 
