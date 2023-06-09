@@ -62,7 +62,6 @@ void _initializeRouter() {
   GetIt.instance.registerSingleton<PageStackRouteInformationParser>(
     PlaygroundRouteInformationParser(),
   );
-  print('Initialized PageStackRouteInformationParser');
 }
 
 void _initializeServices() {

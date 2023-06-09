@@ -27,7 +27,7 @@ environment:
 dependencies:
   akvelon_flutter_issue_106664_workaround: ^0.1.2
   aligned_dialog: ^0.0.6
-  app_state: ^0.9.3
+  app_state: ^0.9.4
   collection: ^1.15.0
   easy_localization: ^3.0.1
   easy_localization_ext: ^0.1.1
