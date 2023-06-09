@@ -71,7 +71,7 @@ class TabbedSnippetEditor extends StatelessWidget {
               children: {
                 for (final key in keys)
                   key: SnippetFileEditor(
-                    controller: controller.getFileControllerByName(key)!,
+                    controller: controller.requireFileControllerByName(key),
                     eventSnippetContext: eventSnippetContext,
                     isEditable: isEditable,
                   ),
