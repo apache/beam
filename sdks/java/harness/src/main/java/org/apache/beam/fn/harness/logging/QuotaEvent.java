@@ -74,7 +74,7 @@ public class QuotaEvent {
 
     /** @param operation Name of the operation that generated this quota event, in snake-case. */
     public Builder withOperation(String operation) {
-      data.put("quota_event.rpc_method", operation);
+      data.put("quota_event.operation", operation);
       return this;
     }
 
