@@ -23,7 +23,7 @@
 
 import random
 
-from apache_beam.io.gcp.datastore.v1new import util
+from apache_beam.io.components import util
 
 
 class AdaptiveThrottler(object):

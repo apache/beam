@@ -150,7 +150,6 @@ python -m apache_beam.examples.wordcount --input gs://dataflow-samples/shakespea
 ```
 {{end}}
 
-{{if (eq .Sdk "java" "python")}}
 ### Apache Flink runner
 
 The Apache Flink Runner can be used to execute Beam pipelines using Apache Flink. For execution, you can choose between a cluster execution mode (e.g. Yarn/Kubernetes/Mesos) or a local embedded execution mode which is useful for testing pipelines. The Flink Runner and Flink are suitable for large scale, continuous jobs, and provide:
@@ -164,6 +163,29 @@ The Apache Flink Runner can be used to execute Beam pipelines using Apache Flink
 Additionally, you can read more about the Apache Flink Runner [here](https://beam.apache.org/documentation/runners/flink/)
 
 #### Run example
+
+{{if (eq .Sdk "go")}}
+
+Need import:
+```
+"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/flink"
+```
+
+It is necessary to give an endpoint where the runner is raised with `--endpoint`:
+```
+$ go install github.com/apache/beam/sdks/v2/go/examples/wordcount
+# As part of the initial setup, for non linux users - install package unix before run
+$ go get -u golang.org/x/sys/unix
+$ wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
+--output gs://<your-gcs-bucket>/counts \
+--runner flink \
+--project your-gcp-project \
+--region your-gcp-region \
+--temp_location gs://<your-gcs-bucket>/tmp/ \
+--staging_location gs://<your-gcs-bucket>/binaries/ \
+--worker_harness_container_image=apache/beam_go_sdk:latest \
+--endpoint=localhost:8081
+```
 {{end}}
 
 {{if (eq .Sdk "java")}}
@@ -229,7 +251,6 @@ with beam.Pipeline(options) as p:
 ```
 {{end}}
 
-{{if (eq .Sdk "java" "python")}}
 ### Apache Spark runner
 
 The Apache Spark Runner can be used to execute Beam pipelines using Apache Spark. The Spark Runner can execute Spark pipelines just like a native Spark application; deploying a self-contained application for local mode, running on Spark’s Standalone RM, or using YARN or Mesos.
@@ -246,6 +267,28 @@ Additionally, you can read more about the Apache Spark Runner [here](https://bea
 
 #### Run example
 
+{{if (eq .Sdk "go")}}
+
+Need import:
+```
+"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/spark"
+```
+
+It is necessary to give an endpoint where the runner is raised with `--endpoint`:
+```
+$ go install github.com/apache/beam/sdks/v2/go/examples/wordcount
+# As part of the initial setup, for non linux users - install package unix before run
+$ go get -u golang.org/x/sys/unix
+$ wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
+--output gs://<your-gcs-bucket>/counts \
+--runner spark \
+--project your-gcp-project \
+--region your-gcp-region \
+--temp_location gs://<your-gcs-bucket>/tmp/ \
+--staging_location gs://<your-gcs-bucket>/binaries/ \
+--worker_harness_container_image=apache/beam_go_sdk:latest \
+--endpoint=localhost:8081
+```
 {{end}}
 
 {{if (eq .Sdk "java")}}
@@ -347,7 +390,7 @@ python -m apache_beam.examples.wordcount --input /path/to/inputfile \
 ```
 {{end}}
 
-{{if (eq .Sdk "java")}}
+{{if (eq .Sdk "java" "go")}}
 ### Samza runner
 
 The Apache Samza Runner can be used to execute Beam pipelines using Apache Samza. The Samza Runner executes Beam pipeline in a Samza application and can run locally. The application can further be built into a .tgz file, and deployed to a YARN cluster or Samza standalone cluster with Zookeeper.
@@ -363,7 +406,33 @@ The Samza Runner and Samza are suitable for large scale, stateful streaming jobs
 Additionally, you can read more about the Samza Runner [here](https://beam.apache.org/documentation/runners/samza/)
 
 #### Run example
+{{end}}
 
+{{if (eq .Sdk "go")}}
+
+Need import:
+```
+"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/samza"
+```
+
+It is necessary to give an endpoint where the runner is raised with `--endpoint`:
+```
+$ go install github.com/apache/beam/sdks/v2/go/examples/wordcount
+# As part of the initial setup, for non linux users - install package unix before run
+$ go get -u golang.org/x/sys/unix
+$ wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
+--output gs://<your-gcs-bucket>/counts \
+--runner samza \
+--project your-gcp-project \
+--region your-gcp-region \
+--temp_location gs://<your-gcs-bucket>/tmp/ \
+--staging_location gs://<your-gcs-bucket>/binaries/ \
+--worker_harness_container_image=apache/beam_go_sdk:latest \
+--endpoint=localhost:8081
+```
+{{end}}
+
+{{if (eq .Sdk "java")}}
 You can specify your dependency on the Samza Runner by adding the following to your `pom.xml`:
 
 ```

@@ -19,12 +19,10 @@
 
 # pytype: skip-file
 
-import json
 import logging
 import math
 import random
 import re
-import tempfile
 import time
 import unittest
 import warnings
@@ -905,36 +903,18 @@ class GroupIntoBatchesTest(unittest.TestCase):
                       GroupIntoBatchesTest.BATCH_SIZE))
           ]))
 
-  def test_in_global_window_with_text_file(self):
-    # this test will raise asserts since DirectRunner misses this feature:
-    # sdf_direct_runner currently does not support GroupIntoBatches
-    # from bundles of SDF source and will throw this AttributeError
-    with tempfile.NamedTemporaryFile(suffix=".json", mode="w+t") as f:
-      f.write(json.dumps(GroupIntoBatchesTest._create_test_data()))
-      f.flush()
-      with self.assertRaises((RuntimeError, AttributeError)):
-        with TestPipeline() as pipeline:
-          collection = pipeline \
-                      | beam.io.ReadFromText(file_pattern=f.name) \
-                      | beam.Map(lambda e: json.loads(e)) \
-                      | beam.Map(lambda e: (e["key"], e)) \
-                      | util.GroupIntoBatches(GroupIntoBatchesTest.BATCH_SIZE)
-          assert collection
-
   def test_in_global_window_with_synthetic_source(self):
-    # this test will raise asserts since DirectRunner misses this feature:
-    # sdf_direct_runner currently does not support GroupIntoBatches
-    # from bundles of SDF source and will throw this AttributeError
-    with self.assertRaises((RuntimeError, AttributeError)):
-      with beam.Pipeline() as pipeline:
-        _ = (
-            pipeline
-            | beam.io.Read(
-                SyntheticSource({
-                    "numRecords": 10, "keySizeBytes": 1, "valueSizeBytes": 1
-                }))
-            | "Group key" >> beam.GroupIntoBatches(2, 1)
-            | beam.Map(print))
+    with beam.Pipeline() as pipeline:
+      collection = (
+          pipeline
+          | beam.io.Read(
+              SyntheticSource({
+                  "numRecords": 10, "keySizeBytes": 1, "valueSizeBytes": 1
+              }))
+          | "identical keys" >> beam.Map(lambda x: (None, x[1]))
+          | "Group key" >> beam.GroupIntoBatches(2)
+          | "count size" >> beam.Map(lambda x: len(x[1])))
+      assert_that(collection, equal_to([2, 2, 2, 2, 2]))
 
   def test_with_sharded_key_in_global_window(self):
     with TestPipeline() as pipeline:

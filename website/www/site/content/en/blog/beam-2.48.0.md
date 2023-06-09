@@ -27,6 +27,8 @@ See the [download page](/get-started/downloads/#2480-2023-05-31) for this releas
 
 For more information on changes in 2.48.0, check out the [detailed release notes](https://github.com/apache/beam/milestone/12).
 
+**Note: The release tag for Go SDK for this release is sdks/v2.48.2 instead of sdks/v2.48.0 because of incorrect commit attached to the release tag sdks/v2.48.0.**
+
 ## Highlights
 
 * "Experimental" annotation cleanup: the annotation and concept have been removed from Beam to avoid

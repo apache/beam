@@ -19,19 +19,6 @@
 
 # pytype: skip-file
 
-# beam-playground:
-#   name: DataflowExerciseStreamingMetricsTest
-#   description: Unit-test for the word-counting workflow.
-#   multifile: false
-#   context_line: 48
-#   categories:
-#     - Streaming
-#     - Metrics
-#   complexity: ADVANCED
-#   tags:
-#     - metrics
-#     - test
-
 import logging
 import unittest
 import uuid

@@ -19,7 +19,7 @@
 #   description: Task from katas to implement a CoGroupByKey transform that join words by its first
 #     alphabetical letter, and then produces the string representation of the WordsAlphabet model.
 #   multifile: false
-#   context_line: 31
+#   context_line: 62
 #   categories:
 #     - Combiners
 #   complexity: MEDIUM
