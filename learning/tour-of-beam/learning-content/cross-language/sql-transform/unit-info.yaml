@@ -20,14 +20,7 @@
 sdk:
   - Java
   - Python
-  - Go
-content:
-  - introduction
-  - common-transforms
-  - core-transforms
-  - schema-based-transforms
-  - windowing
-  - triggers
-  - io
-  - cross-language
-  
+id: sql-transform
+name: Sql transform
+complexity: ADVANCED
+taskName: sql-transform

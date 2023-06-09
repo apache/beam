@@ -20,14 +20,9 @@
 sdk:
   - Java
   - Python
-  - Go
-content:
-  - introduction
-  - common-transforms
-  - core-transforms
-  - schema-based-transforms
-  - windowing
-  - triggers
-  - io
-  - cross-language
-  
+id: multi-pipeline
+name: Multi pipeline
+complexity: ADVANCED
+taskName: multi-pipeline
+
+

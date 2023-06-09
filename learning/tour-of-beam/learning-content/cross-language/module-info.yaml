@@ -20,14 +20,9 @@
 sdk:
   - Java
   - Python
-  - Go
+id: cross-language
+name: Cross-Language Transforms
+complexity: ADVANCED
 content:
-  - introduction
-  - common-transforms
-  - core-transforms
-  - schema-based-transforms
-  - windowing
-  - triggers
-  - io
-  - cross-language
-  
+- sql-transform
+- multi-pipeline
