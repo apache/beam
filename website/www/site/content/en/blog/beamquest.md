@@ -21,7 +21,7 @@ limitations under the License.
 -->
 
 <img class="center-block"
-     src="/images/blog/apch-beam-w_bdg_c_en.png"
+     src="/images/blog/beam-badge-image-scaled.png"
      alt="Quest image">
 
 
@@ -32,3 +32,5 @@ Beam is one of the largest big data open source projects actively in development
 Individuals aren’t the only ones who can benefit from completing this quest -  organizations can too! Because earning this badge represents deep knowledge of an industry leading big data library, having the badge validates your organization’s understanding of Beam. In addition, you can run the Beam library on a wide variety of runners, including Google Cloud Dataflow, Flink, Spark, and more, making knowledge about this library highly transferable. Finally, your organization can use this quest as onboarding material for new hires on big data teams, allowing teams and organizations to get their newest employees up-to-date on the latest and greatest that Apache Beam has to offer.
 
 Data Processing is a key part of AI/ML workflows. Given the recent advancements in artificial intelligence, now’s the time to jump into the world of data processing! Get started on your journey [here](https://www.cloudskillsboost.google/quests/310).
+
+We are currently offering this quest **FREE OF CHARGE** until **July 8, 2023** for the **first 2,000** people. To obtain your badge for **FREE**, use the [Access Code](https://www.cloudskillsboost.google/catalog?qlcampaign=1h-swiss-19), create an account, and search ["Getting Started with Apache Beam"](https://www.cloudskillsboost.google/quests/310).

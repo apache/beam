@@ -1916,14 +1916,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
               ((NestedValueProvider) overriddenTransform.getTopicProvider()).propertyName());
         }
       } else {
-        DataflowPipelineOptions options =
-            input.getPipeline().getOptions().as(DataflowPipelineOptions.class);
-        if (options.getEnableDynamicPubsubDestinations()) {
-          stepContext.addInput(PropertyNames.PUBSUB_DYNAMIC_DESTINATIONS, true);
-        } else {
-          throw new RuntimeException(
-              "Dynamic Pubsub destinations not yet supported. Topic must be set.");
-        }
+        stepContext.addInput(PropertyNames.PUBSUB_DYNAMIC_DESTINATIONS, true);
       }
       if (overriddenTransform.getTimestampAttribute() != null) {
         stepContext.addInput(

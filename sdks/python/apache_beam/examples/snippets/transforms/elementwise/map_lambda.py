@@ -53,3 +53,7 @@ def map_lambda(test=None):
     # [END map_lambda]
     if test:
       test(plants)
+
+
+if __name__ == '__main__':
+  map_lambda()
