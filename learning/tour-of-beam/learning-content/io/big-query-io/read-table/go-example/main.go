@@ -63,7 +63,6 @@ func main() {
 	// Build a PCollection<CommentRow> by querying BigQuery.
 	rows := bigqueryio.Read(s, project, "bigquery-public-data:baseball.schedules", reflect.TypeOf(Game{}))
 
-	_ = rows
 	fixedSizeLines := top.Largest(s, rows, 5, less)
 
 	debug.Print(s, fixedSizeLines)

@@ -20,8 +20,7 @@ limitations under the License.
 {{if (eq .Sdk "go")}}
 
 ```
-rows := bigqueryio.Read(s, bigquery.TableReference{ProjectID: projectID, DatasetID: datasetID, TableID: tableID})
-beam.ParDo0(s, &logOutput{}, rows)
+rows := bigqueryio.Read(s, project, "bigquery-public-data:baseball.schedules", reflect.TypeOf(Game{}))
 ```
 
 The `bigqueryio.Read()` method is called with a `bigquery.TableReference` object that specifies the project, dataset, and table IDs for the `BigQuery` table to read from.
@@ -35,11 +34,8 @@ The `logOutput` struct is defined as a custom `DoFn` that implements the Process
 {{end}}
 {{if (eq .Sdk "java")}}
 ```
-PCollection<MyData> rows =
-        pipeline
-            .apply(
-                "Read from BigQuery query",
-                BigQueryIO.readTableRows().from("tess-372508.fir.xasw")
+ PCollection<TableRow> pCollection = pipeline
+                .apply("ReadFromBigQuery", BigQueryIO.readTableRows().from("clouddataflow-readonly:samples.weather_stations").withMethod(TypedRead.Method.DIRECT_READ))
 ```
 
 The `BigQueryIO.readTableRows()` method is called to create a `BigQueryIO.Read` transform that will read data from a `BigQuery` table.
@@ -50,10 +46,11 @@ The `Read` transform returns a `PCollection` of `TableRow` objects, which repres
 {{end}}
 {{if (eq .Sdk "python")}}
 ```
-p | 'ReadTable' >> beam.io.ReadFromBigQuery(table=table_spec) | beam.Map(lambda elem: elem['max_temperature'])
+p | 'ReadFromBigQuery' >> beam.io.ReadFromBigQuery(table='apache-beam-testing:clouddataflow_samples.weather_stations',
+                                                            method=beam.io.ReadFromBigQuery.Method.DIRECT_READ)
 ```
 
-The `beam.io.ReadFromBigQuery()` method is called to create a `Read` transform that will read data from a `BigQuery` table. The `table_spec` parameter specifies the name of the `BigQuery` table to read from, along with any other configuration options such as **project ID**, **dataset ID**, or **query**.
+The `beam.io.ReadFromBigQuery()` method is called to create a `Read` transform that will read data from a `BigQuery` table. The `table` parameter specifies the name of the `BigQuery` table to read from, along with any other configuration options such as **project ID**, **dataset ID**, or **query**.
 
 The Read transform returns a `PCollection` of dict objects, where each dictionary represents a single row of data in the `BigQuery` table.
 {{end}}
