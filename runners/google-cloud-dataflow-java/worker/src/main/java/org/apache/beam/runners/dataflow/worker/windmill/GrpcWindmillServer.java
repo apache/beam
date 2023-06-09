@@ -877,11 +877,13 @@ public class GrpcWindmillServer extends WindmillServerStub {
 
     private LatencyAttribution workItemCreationLatency = null;
     private final Map<State, Duration> aggregatedGetWorkStreamLatencies;
+    private final Map<State, Duration> maxGetWorkStreamLatency;
 
     private final MillisProvider clock;
 
     public GetWorkTimingInfosTracker(MillisProvider clock) {
       this.aggregatedGetWorkStreamLatencies = new EnumMap<>(State.class);
+      this.maxGetWorkStreamLatency = new EnumMap<>(State.class);
       this.clock = clock;
     }
 
@@ -899,9 +901,11 @@ public class GrpcWindmillServer extends WindmillServerStub {
         getWorkStreamTimings.putIfAbsent(
             info.getEvent(), Instant.ofEpochMilli(info.getTimestampUsec() / 1000));
       }
+
+      // Record the difference between starting to get work and the first chunk being sent as the
+      // work creation time.
       Instant workItemCreationStart = getWorkStreamTimings.get(Event.GET_WORK_CREATION_START);
       Instant workItemCreationEnd = getWorkStreamTimings.get(Event.GET_WORK_CREATION_END);
-      // Record the work item creation end time.
       if (workItemCreationStart != null
           && workItemCreationEnd != null
           && workItemCreationLatency == null) {
@@ -912,42 +916,62 @@ public class GrpcWindmillServer extends WindmillServerStub {
                     new Duration(workItemCreationStart, workItemCreationEnd).getMillis())
                 .build();
       }
+      // Record the work item creation end time as the start of transmission stages.
       if (workItemCreationEnd != null && workItemCreationEnd.isAfter(workItemCreationEndTime)) {
         workItemCreationEndTime = workItemCreationEnd;
       }
 
+      // Record the latency of each chunk between send on worker and arrival on dispatcher.
       Instant receivedByDispatcherTiming =
           getWorkStreamTimings.get(Event.GET_WORK_RECEIVED_BY_DISPATCHER);
       if (workItemCreationEnd != null && receivedByDispatcherTiming != null) {
+        Duration newDuration = new Duration(workItemCreationEnd, receivedByDispatcherTiming);
         aggregatedGetWorkStreamLatencies.compute(
             State.GET_WORK_IN_TRANSIT_TO_DISPATCHER,
-            (state_key, duration) -> {
-              Duration newDuration = new Duration(workItemCreationEnd, receivedByDispatcherTiming);
+            (stateKey, duration) -> {
               if (duration == null) {
                 return newDuration;
               }
               return duration.plus(newDuration);
             });
+        maxGetWorkStreamLatency.compute(
+            State.GET_WORK_IN_TRANSIT_TO_DISPATCHER,
+            (stateKey, duration) -> {
+              if (duration == null) {
+                return newDuration;
+              }
+              return newDuration.isLongerThan(duration) ? newDuration : duration;
+            });
       }
+
+      // Record the latency of each chunk between send on dispatcher and arrival on worker.
       Instant forwardedByDispatcherTiming =
           getWorkStreamTimings.get(Event.GET_WORK_FORWARDED_BY_DISPATCHER);
       Instant now = Instant.ofEpochMilli(clock.getMillis());
       if (forwardedByDispatcherTiming != null) {
+        Duration newDuration = new Duration(forwardedByDispatcherTiming, now);
         aggregatedGetWorkStreamLatencies.compute(
             State.GET_WORK_IN_TRANSIT_TO_USER_WORKER,
-            (state_key, duration) -> {
-              Duration newDuration = new Duration(forwardedByDispatcherTiming, now);
+            (stateKey, duration) -> {
               if (duration == null) {
                 return newDuration;
               }
               return duration.plus(newDuration);
+            });
+        maxGetWorkStreamLatency.compute(
+            State.GET_WORK_IN_TRANSIT_TO_USER_WORKER,
+            (stateKey, duration) -> {
+              if (duration == null) {
+                return newDuration;
+              }
+              return newDuration.isLongerThan(duration) ? newDuration : duration;
             });
       }
       workItemLastChunkReceivedByWorkerTime = now;
     }
 
     List<LatencyAttribution> getLatencyAttributions() {
-      if (workItemCreationLatency == null && aggregatedGetWorkStreamLatencies.size() == 0) {
+      if (workItemCreationLatency == null && aggregatedGetWorkStreamLatencies.isEmpty()) {
         return Collections.emptyList();
       }
       List<LatencyAttribution> latencyAttributions =
@@ -969,18 +993,25 @@ public class GrpcWindmillServer extends WindmillServerStub {
       for (Duration duration : aggregatedGetWorkStreamLatencies.values()) {
         totalSumDurationTimeMills += duration.getMillis();
       }
+      final long finalTotalSumDurationTimeMills = totalSumDurationTimeMills;
 
-      for (Map.Entry<State, Duration> duration : aggregatedGetWorkStreamLatencies.entrySet()) {
-        latencyAttributions.add(
-            LatencyAttribution.newBuilder()
-                .setState(duration.getKey())
-                .setTotalDurationMillis(
-                    (long)
-                        (((double) duration.getValue().getMillis()
-                                / (double) totalSumDurationTimeMills)
-                            * totalTransmissionDurationElapsedTime))
-                .build());
-      }
+      aggregatedGetWorkStreamLatencies.forEach(
+          (state, duration) -> {
+            long scaledDuration =
+                (long)
+                    (((double) duration.getMillis() / finalTotalSumDurationTimeMills)
+                        * totalTransmissionDurationElapsedTime);
+            // Cap final duration by the max state duration across different chunks. This ensures
+            // the sum of final durations does not exceed the total elapsed time and the duration
+            // for each stage does not exceed the stage maximum.
+            long durationMills =
+                Math.min(maxGetWorkStreamLatency.get(state).getMillis(), scaledDuration);
+            latencyAttributions.add(
+                LatencyAttribution.newBuilder()
+                    .setState(state)
+                    .setTotalDurationMillis(durationMills)
+                    .build());
+          });
       return latencyAttributions;
     }
 

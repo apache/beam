@@ -1012,10 +1012,10 @@ public class GrpcWindmillServerTest {
     // sumDurations: 1 + 2 + 3 + 4 + 34 + 33 + 32 + 31;
     long sumDurations = 140;
     assertEquals(
-        (long) (elapsedTime * ((double) 10 / (double) sumDurations)),
+        Math.min(4, (long) (elapsedTime * (10.0 / sumDurations))),
         latencies.get(State.GET_WORK_IN_TRANSIT_TO_DISPATCHER).getTotalDurationMillis());
     assertEquals(
-        (long) (elapsedTime * ((double) 130 / (double) sumDurations)),
+        Math.min(34, (long) (elapsedTime * (130.0 / sumDurations))),
         latencies.get(State.GET_WORK_IN_TRANSIT_TO_USER_WORKER).getTotalDurationMillis());
   }
 }
