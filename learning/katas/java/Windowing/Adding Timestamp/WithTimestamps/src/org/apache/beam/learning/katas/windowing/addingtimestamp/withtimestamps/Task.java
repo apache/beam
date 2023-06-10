@@ -22,13 +22,13 @@ package org.apache.beam.learning.katas.windowing.addingtimestamp.withtimestamps;
 //   name: WithTimestamps
 //   description: Task from katas to assign each element a timestamp using `WithTimestamps`.
 //   multifile: true
-//   context_line: 38
+//   context_line: 45
 //   categories:
 //     - Streaming
 //   complexity: MEDIUM
 //   tags:
 //     - timestamp
-//     - transform
+//     - transforms
 //     - event
 
 import org.apache.beam.learning.katas.util.Log;

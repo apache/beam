@@ -18,7 +18,7 @@
 #   name: WordCountKata
 #   description: Task from katas to create a pipeline that counts the number of words.
 #   multifile: false
-#   context_line: 32
+#   context_line: 39
 #   categories:
 #     - Combiners
 #   complexity: BASIC
@@ -26,8 +26,8 @@
 #     - count
 #     - map
 #     - combine
-#     - string
-#     - number
+#     - strings
+#     - numbers
 
 import apache_beam as beam
 

@@ -17,7 +17,6 @@
  */
 
 import 'package:flutter/services.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:playground/pages/standalone_playground/widgets/more_actions.dart';
 import 'package:playground/services/analytics/events/shortcuts_clicked.dart';
