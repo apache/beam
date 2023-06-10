@@ -57,7 +57,7 @@ def assert_z_score_artifacts(element):
   assert element['x_var'] == z_score_expected['x_var']
 
 
-def assert_scale_to_0_1_artifacts(element):
+def assert_ScaleTo01_artifacts(element):
   element = element.as_dict()
   assert 'x_min' in element
   assert 'x_max' in element
@@ -98,7 +98,7 @@ class ScaleZScoreTest(unittest.TestCase):
               MyTypesUnbatched)
           | "unbatchedMLTransform" >>
           base.MLTransform(process_handler=process_handler).with_transform(
-              tft_transforms.Scale_To_ZScore(columns=['x'])))
+              tft_transforms.ScaleToZScore(columns=['x'])))
       _ = (unbatched_result | beam.Map(assert_z_score_artifacts))
 
   def test_z_score_batched(self):
@@ -112,13 +112,13 @@ class ScaleZScoreTest(unittest.TestCase):
               MyTypesBatched)
           | "batchedMLTransform" >>
           base.MLTransform(process_handler=process_handler).with_transform(
-              tft_transforms.Scale_To_ZScore(columns=['x'])))
+              tft_transforms.ScaleToZScore(columns=['x'])))
       _ = (batched_result | beam.Map(assert_z_score_artifacts))
 
 
 @skip_if_tft_not_available
 class ScaleTo01Test(unittest.TestCase):
-  def test_scale_to_0_1_batched(self):
+  def test_ScaleTo01_batched(self):
     batched_data = [{'x': [1, 2, 3]}, {'x': [4, 5, 6]}]
     with beam.Pipeline() as p:
       process_handler = handlers.TFTProcessHandlerSchema()
@@ -129,8 +129,8 @@ class ScaleTo01Test(unittest.TestCase):
               MyTypesBatched)
           | "batchedMLTransform" >>
           base.MLTransform(process_handler=process_handler).with_transform(
-              tft_transforms.Scale_To_0_1(columns=['x'])))
-      _ = (batched_result | beam.Map(assert_scale_to_0_1_artifacts))
+              tft_transforms.ScaleTo01(columns=['x'])))
+      _ = (batched_result | beam.Map(assert_ScaleTo01_artifacts))
 
       expected_output = [
           np.array([0, 0.2, 0.4], dtype=np.float32),
@@ -140,7 +140,7 @@ class ScaleTo01Test(unittest.TestCase):
       assert_that(
           actual_output, equal_to(expected_output, equals_fn=np.array_equal))
 
-  def test_scale_to_0_1_unbatched(self):
+  def test_ScaleTo01_unbatched(self):
     unbatched_data = [{
         'x': 1
     }, {
@@ -163,9 +163,9 @@ class ScaleTo01Test(unittest.TestCase):
               MyTypesUnbatched)
           | "unbatchedMLTransform" >>
           base.MLTransform(process_handler=process_handler).with_transform(
-              tft_transforms.Scale_To_0_1(columns=['x'])))
+              tft_transforms.ScaleTo01(columns=['x'])))
 
-      _ = (unbatched_result | beam.Map(assert_scale_to_0_1_artifacts))
+      _ = (unbatched_result | beam.Map(assert_ScaleTo01_artifacts))
       expected_output = (
           np.array([0], dtype=np.float32),
           np.array([0.2], dtype=np.float32),

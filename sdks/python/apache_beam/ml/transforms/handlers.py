@@ -113,7 +113,7 @@ class TFTProcessHandler(ProcessHandler[ProcessInputT, ProcessOutputT]):
         i-th transform is the output of the (i-1)-th transform. Multi-input
         transforms are not supported yet.
       artifact_location: A location to store the artifacts, which includes
-        the tensorflow graph produced by analyzers such as scale_to_0_1,
+        the tensorflow graph produced by analyzers such as ScaleTo01,
         sclaed_to_z_score, etc.
         Note: If not specified, the artifacts will be stored
         in a temporary directory for DirectRunner and staging location for

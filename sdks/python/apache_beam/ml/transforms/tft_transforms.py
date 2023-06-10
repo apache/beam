@@ -55,8 +55,8 @@ from tensorflow_transform import tf_utils
 
 __all__ = [
     'ComputeAndApplyVocabulary',
-    'Scale_To_ZScore',
-    'Scale_To_0_1',
+    'ScaleToZScore',
+    'ScaleTo01',
     'ApplyBuckets',
     'Bucketize'
 ]
@@ -93,8 +93,7 @@ class ComputeAndApplyVocabulary(TFTOperation):
       frequency_threshold: Optional[int] = None,
       num_oov_buckets: int = 0,
       vocab_filename: Optional[str] = None,
-      name: Optional[str] = None,
-      **kwargs):
+      name: Optional[str] = None):
     """
     This function computes the vocabulary for the given columns of incoming
     data. The transformation converts the input values to indices of the
@@ -118,7 +117,7 @@ class ComputeAndApplyVocabulary(TFTOperation):
         details please set `vocab_filename` when you are using
         the vocab_filename on a downstream component.
     """
-    super().__init__(columns, **kwargs)
+    super().__init__(columns)
     self._default_value = default_value
     self._top_k = top_k
     self._frequency_threshold = frequency_threshold
@@ -131,21 +130,26 @@ class ComputeAndApplyVocabulary(TFTOperation):
     # TODO: Pending outputting artifact.
     return {
         output_column_name: tft.compute_and_apply_vocabulary(
-            x=data, **self._kwargs)
+            x=data,
+            default_value=self._default_value,
+            top_k=self._top_k,
+            frequency_threshold=self._frequency_threshold,
+            num_oov_buckets=self._num_oov_buckets,
+            vocab_filename=self._vocab_filename,
+            name=self._name)
     }
 
   def __str__(self):
     return "compute_and_apply_vocabulary"
 
 
-class Scale_To_ZScore(TFTOperation):
+class ScaleToZScore(TFTOperation):
   def __init__(
       self,
       columns: List[str],
       *,
       elementwise: bool = False,
-      name: Optional[str] = None,
-      **kwargs):
+      name: Optional[str] = None):
     """
     This function performs a scaling transformation on the specified columns of
     the incoming data. It processes the input data such that it's normalized
@@ -165,14 +169,17 @@ class Scale_To_ZScore(TFTOperation):
     named with the suffix <original_col_name>_mean and <original_col_name>_var
     respectively.
     """
-    super().__init__(columns, **kwargs)
+    super().__init__(columns)
     self.elementwise = elementwise
     self.name = name
 
   def apply(self, data: common_types.TensorType,
             output_column_name: str) -> Dict[str, common_types.TensorType]:
     artifacts = self.get_artifacts(data, output_column_name)
-    output = {output_column_name: tft.scale_to_z_score(x=data, **self._kwargs)}
+    output = {
+        output_column_name: tft.scale_to_z_score(
+            x=data, elementwise=self.elementwise, name=self.name)
+    }
     output_dict = {output_column_name: output}
     if artifacts is not None:
       output_dict.update(artifacts)
@@ -191,13 +198,12 @@ class Scale_To_ZScore(TFTOperation):
     return "scale_to_z_score"
 
 
-class Scale_To_0_1(TFTOperation):
+class ScaleTo01(TFTOperation):
   def __init__(
       self,
       columns: List[str],
       elementwise: bool = False,
-      name: Optional[str] = None,
-      **kwargs):
+      name: Optional[str] = None):
     """
     This function applies a scaling transformation on the given columns
     of incoming data. The transformation scales the input values to the
@@ -210,14 +216,14 @@ class Scale_To_0_1(TFTOperation):
         Otherwise, the transformation is applied on the entire column.
       name: A name for the operation (optional).
 
-    scale_to_0_1 also outputs additional artifacts. The artifacts are
+    ScaleTo01 also outputs additional artifacts. The artifacts are
     max, which is the maximum value in the column, and min, which is the
     minimum value in the column. The artifacts are stored in the column
     named with the suffix <original_col_name>_min and <original_col_name>_max
     respectively.
 
     """
-    super().__init__(columns, **kwargs)
+    super().__init__(columns)
     self.elementwise = elementwise
     self.name = name
 
@@ -232,7 +238,7 @@ class Scale_To_0_1(TFTOperation):
   def apply(self, data: common_types.TensorType,
             output_column_name: str) -> Dict[str, common_types.TensorType]:
     artifacts = self.get_artifacts(data, output_column_name)
-    output = tft.scale_to_0_1(x=data, **self._kwargs)
+    output = tft.ScaleTo01(x=data, elementwise=self.elementwise, name=self.name)
 
     output_dict = {output_column_name: output}
     if artifacts is not None:
@@ -240,7 +246,7 @@ class Scale_To_0_1(TFTOperation):
     return output_dict
 
   def __str__(self):
-    return 'scale_to_0_1'
+    return 'ScaleTo01'
 
 
 class ApplyBuckets(TFTOperation):
@@ -248,8 +254,7 @@ class ApplyBuckets(TFTOperation):
       self,
       columns: List[str],
       bucket_boundaries: Iterable[Union[int, float]],
-      name: Optional[str] = None,
-      **kwargs):
+      name: Optional[str] = None):
     """
     This functions is used to map the element to a positive index i for
     which bucket_boundaries[i-1] <= element < bucket_boundaries[i],
@@ -264,7 +269,7 @@ class ApplyBuckets(TFTOperation):
         boundaries sorted in ascending order.
       name: (Optional) A string that specifies the name of the operation.
     """
-    super().__init__(columns, **kwargs)
+    super().__init__(columns)
     self.bucket_boundaries = [bucket_boundaries]
     self.name = name
 
@@ -272,7 +277,7 @@ class ApplyBuckets(TFTOperation):
             output_column_name: str) -> Dict[str, common_types.TensorType]:
     output = {
         output_column_name: tft.apply_buckets(
-            x=data, bucket_boundaries=self.bucket_boundaries, **self._kwargs)
+            x=data, bucket_boundaries=self.bucket_boundaries, name=self.name)
     }
     return output
 
@@ -288,8 +293,7 @@ class Bucketize(TFTOperation):
       *,
       epsilon: Optional[float] = None,
       elementwise: bool = False,
-      name: Optional[str] = None,
-      **kwargs):
+      name: Optional[str] = None):
     """
     This function applies a bucketizing transformation on the given columns
     of incoming data. The transformation splits the input data range into
@@ -309,7 +313,7 @@ class Bucketize(TFTOperation):
         are computed globally.
       name: (Optional) A string that specifies the name of the operation.
     """
-    super().__init__(columns, **kwargs)
+    super().__init__(columns)
     self.num_buckets = num_buckets
     self.epsilon = epsilon
     self.elementwise = elementwise
@@ -348,9 +352,14 @@ class Bucketize(TFTOperation):
     artifacts = self.get_artifacts(data, output_column_name)
     output = {
         output_column_name: tft.bucketize(
-            x=data, num_buckets=self.num_buckets, **self._kwargs)
+            x=data,
+            num_buckets=self.num_buckets,
+            epsilon=self.epsilon,
+            elementwise=self.elementwise,
+            name=self.name)
     }
-    output.update(artifacts)
+    if artifacts is not None:
+      output.update(artifacts)
     return output
 
 
@@ -361,7 +370,7 @@ class TFIDF(TFTOperation):
       vocab_size: Optional[int] = None,
       smooth: bool = True,
       name: Optional[str] = None,
-      **kwargs):
+  ):
     """
     This function applies a tf-idf transformation on the given columns
     of incoming data. The transformation computes the tf-idf score for
@@ -378,7 +387,7 @@ class TFIDF(TFTOperation):
         smoothing to the tf-idf score. Defaults to True.
       name: (Optional) A string that specifies the name of the operation.
     """
-    super().__init__(columns, **kwargs)
+    super().__init__(columns)
     self.vocab_size = vocab_size
     self.smooth = smooth
     self.name = name
