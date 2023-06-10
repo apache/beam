@@ -22,7 +22,7 @@ version: 1.0.0+1
 
 environment:
   sdk: '>=3.0.2 <4.0.0'
-  flutter: '>=3.10.2'
+  flutter: '>=3.10.4'
 
 dependencies:
   akvelon_flutter_issue_106664_workaround: ^0.1.2
