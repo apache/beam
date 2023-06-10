@@ -30,6 +30,7 @@ from apache_beam.transforms.periodicsequence import PeriodicImpulse
 
 class CombineGloballyTest(unittest.TestCase):
   def test_with_periodic_impulse(self):
+    # this error is expected since the below combination is ill-defined.
     with self.assertRaises(ValueError):
       with TestPipeline() as p:
         _ = (
