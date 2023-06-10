@@ -170,10 +170,10 @@ public class CreateTableHelpers {
         TimePartitioning timePartitioning = tableDestination.getTimePartitioning();
         if (timePartitioning != null) {
           table.setTimePartitioning(timePartitioning);
-          Clustering clustering = tableDestination.getClustering();
-          if (clustering != null) {
-            table.setClustering(clustering);
-          }
+        }
+        Clustering clustering = tableDestination.getClustering();
+        if (clustering != null) {
+          table.setClustering(clustering);
         }
         if (kmsKey != null) {
           table.setEncryptionConfiguration(new EncryptionConfiguration().setKmsKeyName(kmsKey));
