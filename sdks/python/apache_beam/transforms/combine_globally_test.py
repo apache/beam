@@ -30,23 +30,24 @@ from apache_beam.transforms.periodicsequence import PeriodicImpulse
 
 class CombineGloballyTest(unittest.TestCase):
   def test_with_periodic_impulse(self):
-    with TestPipeline() as p:
-      _ = (
-          p
-          | PeriodicImpulse(
-              start_timestamp=time.time(),
-              stop_timestamp=time.time() + 4,
-              fire_interval=1,
-              apply_windowing=False,
-          )
-          | beam.Map(lambda x: ('c', 1))
-          | beam.WindowInto(
-              window.GlobalWindows(),
-              trigger=trigger.Repeatedly(trigger.AfterCount(2)),
-              accumulation_mode=trigger.AccumulationMode.DISCARDING,
-          )
-          | beam.combiners.Count.Globally()
-          | "Print Windows" >> beam.Map(print))
+    with self.assertRaises(ValueError):
+      with TestPipeline() as p:
+        _ = (
+            p
+            | PeriodicImpulse(
+                start_timestamp=time.time(),
+                stop_timestamp=time.time() + 4,
+                fire_interval=1,
+                apply_windowing=False,
+            )
+            | beam.Map(lambda x: ('c', 1))
+            | beam.WindowInto(
+                window.GlobalWindows(),
+                trigger=trigger.Repeatedly(trigger.AfterCount(2)),
+                accumulation_mode=trigger.AccumulationMode.DISCARDING,
+            )
+            | beam.combiners.Count.Globally()
+            | "Print Windows" >> beam.Map(print))
 
 
 if __name__ == '__main__':
