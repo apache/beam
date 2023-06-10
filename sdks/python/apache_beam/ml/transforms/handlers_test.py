@@ -47,23 +47,28 @@ class _FakeOperation(TFTOperation):
     super().__init__(*args, **kwargs)
     self.name = name
 
-  def apply(self, inputs, *args, **kwargs):
-    return inputs
+  def apply(self, inputs, output_column_name, **kwargs):
+    return {output_column_name: inputs}
 
 
 class _AddOperation(TFTOperation):
-  def apply(self, inputs, *args, **kwargs):
-    return inputs + 1
+  def apply(self, inputs, output_column_name, **kwargs):
+    return {output_column_name: inputs + 1}
 
 
 class _MultiplyOperation(TFTOperation):
-  def apply(self, inputs, *args, **kwargs):
-    return inputs * 10
+  def apply(self, inputs, output_column_name, **kwargs):
+    return {output_column_name: inputs * 10}
 
 
 class _FakeOperationWithArtifacts(TFTOperation):
-  def apply(self, inputs, *args, **kwargs):
-    return {**inputs, **(self.get_artifacts(inputs, 'artifact'))}
+  def apply(self, inputs, output_column_name, **kwargs):
+    return {
+        **{
+            output_column_name: inputs
+        },
+        **(self.get_artifacts(inputs, 'artifact'))
+    }
 
   def get_artifacts(self, data, col_name):
     return {'artifact': tf.convert_to_tensor([1])}
@@ -105,22 +110,6 @@ class TFTProcessHandlerSchemaTest(unittest.TestCase):
         transforms=[add_fn, mul_fn])
 
     actual_result = process_handler.process_data_fn(inputs)
-    self.assertDictEqual(actual_result, expected_result)
-
-    # def test_tft_operation_save_intermediate_result(self):
-    #   fake_fn_1 = _FakeOperation(
-    #       columns=['x'],
-    #       name='fake_fn_1',
-    #       save_result=True,
-    #       output_name='x_fake_fn_1')
-    #   fake_fn_2 = _FakeOperation(columns=['x'], name='fake_fn_2')
-    #   process_handler = handlers.TFTProcessHandlerSchema(
-    #       transforms=[fake_fn_1, fake_fn_2])
-
-    inputs = {'x': [1, 2, 3]}
-    preprocessing_fn = process_handler.process_data_fn
-    actual_result = preprocessing_fn(inputs)
-    expected_result = {'x': [1, 2, 3], 'x_fake_fn_1': [1, 2, 3]}
     self.assertDictEqual(actual_result, expected_result)
 
   def test_preprocessing_fn_with_artifacts(self):
