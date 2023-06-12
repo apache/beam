@@ -80,6 +80,16 @@ If you have additional material that you would like to see here, please let us k
 *   **[Timely and Stateful Processing](/blog/2017/08/28/timely-processing.html)** - An example on how to do batched RPC calls. The call requests are stored in a mutable state as they are received. Once there are either enough requests or a certain time has passed, the batch of requests is triggered to be sent.
 *   **[Running External Libraries](https://cloud.google.com/blog/products/gcp/running-external-libraries-with-cloud-dataflow-for-grid-computing-workloads)** - Call an external library written in a language that does not have a native SDK in Apache Beam such as C++.
 
+## Videos {#videos}
+
+*  **[Getting Started with Apache Beam](https://www.youtube.com/playlist?list=PLIivdWyY5sqIEiHGunZXg_yoS7unlHNJt)** - Five part video series for understanding basic to advanced concepts.
+*  See more [Videos and Podcasts](/get-started/resources/videos-and-podcasts/)
+
+## Courses {#courses}
+
+*  **[Beam College](https://beamcollege.dev/)** -- Free live and recorded lessons for learning Beam and data processing.
+*  **[Serverless Data Processing](https://www.coursera.org/specializations/serverless-data-processing-with-dataflow)** - Course specialized for Dataflow runner.
+
 ## Books {#books}
 
 ### Building Big Data Pipelines with Apache Beam

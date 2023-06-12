@@ -35,17 +35,10 @@ There are two versions of `WithKeys`, depending on how the key should be determi
 * `WithKeys.of(K key)` associates each value with the specified key.
 
 ## Examples
-**Example**
-{{< highlight java >}}
-PCollection<String> words = Create.of("Hello", "World", "Beam", "is", "fun");
-PCollection<KV<Integer, String>> lengthAndWord =
-  words.apply(WithKeys.of(new SerializableFunction<String, Integer>() {
-    @Override
-    public Integer apply(String s) {
-      return s.length();
-    }
-  });
-{{< /highlight >}}
+
+{{< playground height="700px" >}}
+{{< playground_snippet language="java" path="PG_BEAMDOC_SDK_JAVA_WithKeys" show="main_section" >}}
+{{< /playground >}}
 
 ## Related transforms
 * [Keys](/documentation/transforms/java/elementwise/keys) for extracting the key of each component.
