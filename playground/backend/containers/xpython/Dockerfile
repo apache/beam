@@ -44,13 +44,13 @@ RUN go mod download &&\
     go build -ldflags="-X main.BuildCommitHash=$GIT_COMMIT -X main.BuildCommitTimestamp=$GIT_TIMESTAMP" -o /go/bin/server_python_backend
 
 
-FROM apache/beam_python3.10_sdk:$SDK_TAG
-#FROM python:3.10-slim-buster
+#FROM apache/beam_python3.10_sdk:$SDK_TAG
+FROM python:3.10-slim-bullseye
 
 ###############################################################################
 ARG SDK_TAG
 ARG DOCKER_CHANNEL=stable
-ARG DOCKER_VERSION=20.10.8
+# ARG DOCKER_VERSION=20.10.8
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
   apt-transport-https \
@@ -66,7 +66,7 @@ RUN add-apt-repository \
    $(lsb_release -cs) \
    ${DOCKER_CHANNEL}"
 
-RUN apt-get update && apt-get install -y --no-install-recommends docker-ce=5:20.10.10~3-0~debian-buster && \
+RUN apt-get update && apt-get install -y --no-install-recommends docker-ce=5:20.10.24~3-0~debian-bullseye && \
   docker -v && \
   dockerd -v
 
@@ -146,13 +146,9 @@ RUN groupadd --gid 20000 appgroup \
 RUN mkdir -p /opt/playground/backend/executable_files/
 
 # Chown all required files to the `appuser`.
-# RUN chown -R appuser:appgroup /opt/playground/backend/executable_files/ && 
-RUN chmod +x /entrypoint.sh
+RUN chown -R appuser:appgroup /opt/playground/backend/executable_files/ && chmod +x /entrypoint.sh
 
 VOLUME /var/lib/docker
 EXPOSE 2375
-
-# Switch to appuser
-#USER appuser
 
 ENTRYPOINT ["/entrypoint.sh"]
