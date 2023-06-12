@@ -236,7 +236,7 @@ class CodeRunner extends ChangeNotifier {
   Future<RunCodeResponse?> _startExecution(RunCodeRequest request) async {
     Exception? lastException;
 
-    // Attempts to place the job for execution.
+    // Attempts to place the job for execution..
     // This fails if the backend is overloaded and has not yet scaled up.
     for (int attemptsLeft = _attempts; --attemptsLeft >= 0;) {
       if (_result!.isFinished) {
