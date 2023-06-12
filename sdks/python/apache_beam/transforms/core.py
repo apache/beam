@@ -2578,9 +2578,20 @@ class CombineGlobally(PTransform):
       return pvalue.AsSingleton(combined, default_value=default_value)
 
     else:
-      if not pcoll.windowing.is_default():
+      if pcoll.windowing.windowfn != GlobalWindows():
         raise ValueError(
             "Default values are not yet supported in CombineGlobally() if the "
+            "output  PCollection is not windowed by GlobalWindows. "
+            "Instead, use CombineGlobally().without_defaults() to output "
+            "an empty PCollection if the input PCollection is empty, "
+            "or CombineGlobally().as_singleton_view() to get the default "
+            "output of the CombineFn if the input PCollection is empty.")
+
+      # return the error for this ill-defined streaming case
+      if not pcoll.is_bounded and not pcoll.windowing.is_default():
+        raise ValueError(
+            "For unbounded data sources, "
+            "default values are not yet supported in CombineGlobally() if the "
             "output PCollection is not windowed by GlobalWindows"
             " with DefaultTrigger. "
             "Instead, use CombineGlobally().without_defaults() to output "
