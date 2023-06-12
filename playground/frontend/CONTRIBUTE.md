@@ -66,7 +66,7 @@ To add a new source for examples:
 ## Theming
 
 Playground app supports light and dark themes. Component themes are declared
-in [theme.dart](./playground_components/lib/src/theme/theme.dart) file.
+in [theme.dart](playground_components/lib/src/theme/theme.dart) file.
 
 To use specific color inside component you can use helper `ThemeColors` utility:
 
