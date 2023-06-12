@@ -43,9 +43,9 @@ The standalone playground and the embedded playground are two screens within the
 chosen by the URL at runtime.
 
 The main state object is `PlaygroundController`, created in both of those screens.
-It is hung in the widget tree with the [provider](https://pub.dev/packages/app_state) package
+It is hung in the widget tree with the [provider](https://pub.dev/packages/provider) package
 for historical reasons, and we aim to remove that if we do further refactoring.
-The new code should pass it directly from widget to widget for compile-time safety.
+New code should pass it directly from widget to widget for compile-time safety.
 
 ## Example Loading
 
@@ -58,7 +58,7 @@ for each example's descriptor, and that loader performs the actual loading.
 
 To add a new source for examples:
 
-1. Subclass `ExampleLoadingDescriptor` with state and methods to parse it from a map of query string parameters.
+1. Subclass `ExampleLoadingDescriptor` with state and a method to parse it from a map of query string parameters.
 2. Add it to `ExamplesLoadingDescriptorFactory`.
 3. Subclass `ExampleLoader` and load an example there.
 4. Add it to the `ExampleLoaderFactory` in `ExamplesLoader`.
@@ -79,12 +79,12 @@ To use specific color inside component you can use helper `ThemeColors` utility:
 To add a new page, do the following steps:
 
 1. Read [the overview](https://pub.dev/packages/app_state) of the `app_state` package.
-2. Create a new `PagePath` subclass that will parse the new URL.
-3. Create a new `ChangeNotifier with PageStateMixin` that will hold the state of the page.
+2. Create a new `PagePath` subclass that parses the new URL.
+3. Create a new `ChangeNotifier with PageStateMixin` that holds the state of the page.
 4. Create a new `StatelessWidget` as the main one for the page.
-5. Create a new `StatefulMaterialPage` subclass that will bind the three together.
+5. Create a new `StatefulMaterialPage` subclass that binds the three together.
 
-See the examples in `lib/pages/standalone_playground`.
+See the example in [lib/pages/standalone_playground](lib/pages/standalone_playground).
 
 ## Accessibility
 
