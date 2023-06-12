@@ -3067,6 +3067,9 @@ public class BigQueryIO {
       if (getMethod() != Write.Method.DEFAULT) {
         return getMethod();
       }
+      if (getRowMutationInformationFn() != null) {
+        return Method.STORAGE_API_AT_LEAST_ONCE;
+      }
       BigQueryOptions bqOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
       if (bqOptions.getUseStorageWriteApi()) {
         return bqOptions.getUseStorageWriteApiAtLeastOnce()
