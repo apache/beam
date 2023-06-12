@@ -15,6 +15,7 @@
 package main
 
 import (
+	"beam.apache.org/playground/backend/internal/db/schema"
 	"context"
 	"fmt"
 	"io/fs"
@@ -39,12 +40,9 @@ import (
 	"beam.apache.org/playground/backend/internal/cache/local"
 	"beam.apache.org/playground/backend/internal/components"
 	"beam.apache.org/playground/backend/internal/constants"
-	"beam.apache.org/playground/backend/internal/db"
 	datastoreDb "beam.apache.org/playground/backend/internal/db/datastore"
 	"beam.apache.org/playground/backend/internal/db/entity"
 	"beam.apache.org/playground/backend/internal/db/mapper"
-	"beam.apache.org/playground/backend/internal/db/schema"
-	"beam.apache.org/playground/backend/internal/db/schema/migration"
 	"beam.apache.org/playground/backend/internal/environment"
 	"beam.apache.org/playground/backend/internal/logger"
 	"beam.apache.org/playground/backend/internal/tests/test_cleaner"
@@ -63,7 +61,7 @@ const (
 
 var lis *bufconn.Listener
 var cacheService cache.Cache
-var dbClient db.Database
+var dbEmulator *datastoreDb.EmulatedDatastore
 
 // var opt goleak.Option
 var ctx context.Context
@@ -101,13 +99,7 @@ func setupServer(sdk pb.Sdk) *grpc.Server {
 	cacheService = local.New(ctx)
 
 	// setup database
-	datastoreEmulatorHost := os.Getenv(constants.EmulatorHostKey)
-	if datastoreEmulatorHost == "" {
-		if err = os.Setenv(constants.EmulatorHostKey, constants.EmulatorHostValue); err != nil {
-			panic(err)
-		}
-	}
-	dbClient, err = datastoreDb.New(ctx, mapper.NewPrecompiledObjectMapper(), constants.EmulatorProjectId)
+	dbEmulator, err = datastoreDb.NewEmulated(ctx)
 	if err != nil {
 		panic(err)
 	}
@@ -123,13 +115,18 @@ func setupServer(sdk pb.Sdk) *grpc.Server {
 	if err = os.Setenv("APP_WORK_DIR", path); err != nil {
 		panic(err)
 	}
-	if err = os.Setenv("SDK_CONFIG", "../../../sdks-emulator.yaml"); err != nil {
+
+	sdkConfigPath := "../../../sdks-emulator.yaml"
+	if err = os.Setenv("SDK_CONFIG", sdkConfigPath); err != nil {
 		panic(err)
 	}
 	if err = os.Setenv("PROPERTY_PATH", "../../."); err != nil {
 		panic(err)
 	}
 	if err = os.Setenv(constants.DatastoreNamespaceKey, "main"); err != nil {
+		panic(err)
+	}
+	if err = os.Setenv("KAFKA_EMULATOR_EXECUTABLE_PATH", ""); err != nil {
 		panic(err)
 	}
 
@@ -152,28 +149,28 @@ func setupServer(sdk pb.Sdk) *grpc.Server {
 		panic(err)
 	}
 
-	// setup initial data
-	versions := []schema.Version{
-		new(migration.InitialStructure),
-		new(migration.AddingComplexityProperty),
-	}
-	dbSchema := schema.New(ctx, dbClient, appEnv, props, versions)
-	actualSchemaVersion, err := dbSchema.InitiateData()
+	err = dbEmulator.ApplyMigrations(ctx, schema.Migrations, sdkConfigPath)
 	if err != nil {
 		panic(err)
 	}
-	appEnv.SetSchemaVersion(actualSchemaVersion)
+
+	migrationVersion, err := dbEmulator.GetCurrentDbMigrationVersion(ctx)
+	if err != nil {
+		panic(err)
+	}
+
+	appEnv.SetSchemaVersion(migrationVersion)
 
 	// download test data to the Datastore Emulator
 	test_data.DownloadCatalogsWithMockData(ctx)
 
-	cacheComponent := components.NewService(cacheService, dbClient)
+	cacheComponent := components.NewService(cacheService, dbEmulator)
 	entityMapper := mapper.NewDatastoreMapper(ctx, appEnv, props)
 
 	pb.RegisterPlaygroundServiceServer(s, &playgroundController{
 		env:            environment.NewEnvironment(*networkEnv, *sdkEnv, *appEnv),
 		cacheService:   cacheService,
-		db:             dbClient,
+		db:             dbEmulator,
 		props:          props,
 		entityMapper:   entityMapper,
 		cacheComponent: cacheComponent,
@@ -194,6 +191,11 @@ func teardown(server *grpc.Server) {
 	removeDir(baseFileFolder)
 
 	test_data.RemoveCatalogsWithMockData(ctx)
+
+	emulatorStopErr := dbEmulator.Close()
+	if emulatorStopErr != nil {
+		panic(emulatorStopErr)
+	}
 }
 
 func removeDir(dir string) {
@@ -977,7 +979,7 @@ func TestPlaygroundController_GetSnippet(t *testing.T) {
 				info: &pb.GetSnippetRequest{Id: "MOCK_ID"},
 			},
 			prepare: func() {
-				_ = dbClient.PutSnippet(ctx, "MOCK_ID",
+				_ = dbEmulator.PutSnippet(ctx, "MOCK_ID",
 					&entity.Snippet{
 						Snippet: &entity.SnippetEntity{
 							Sdk:           utils.GetSdkKey(ctx, pb.Sdk_SDK_JAVA.String()),

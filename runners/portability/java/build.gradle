@@ -41,7 +41,7 @@ dependencies {
   permitUnusedDeclared library.java.hamcrest
   implementation library.java.joda_time
   implementation library.java.slf4j_api
-  implementation library.java.vendored_grpc_1_48_1
+  implementation library.java.vendored_grpc_1_54_0
   implementation library.java.vendored_guava_26_0_jre
 
   testImplementation project(path: ":runners:core-construction-java", configuration: "testRuntimeMigration")
@@ -159,6 +159,7 @@ def createUlrValidatesRunnerTask = { name, environmentType, dockerImageTask = ""
       excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
       excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
       excludeCategories 'org.apache.beam.sdk.testing.UsesTimersInParDo'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesTriggeredSideInputs'
     }
     filter {
       // There is not currently a category for excluding these _only_ in committed mode

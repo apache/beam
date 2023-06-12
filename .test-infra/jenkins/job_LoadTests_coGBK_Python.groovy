@@ -45,13 +45,15 @@ def loadTestConfigurations = { mode, datasetName ->
         '"key_size": 10,' +
         '"value_size": 90,' +
         '"num_hot_keys": 1,' +
-        '"hot_key_fraction": 1}\'',
+        '"hot_key_fraction": 1,' +
+        '"algorithm": "lcg"}\'',
         co_input_options      : '\'{' +
         '"num_records": 2000000,' +
         '"key_size": 10,' +
         '"value_size": 90,' +
         '"num_hot_keys": 1000,' +
-        '"hot_key_fraction": 1}\'',
+        '"hot_key_fraction": 1,' +
+        '"algorithm": "lcg"}\'',
         iterations           : 1,
         num_workers          : 5,
         autoscaling_algorithm: 'NONE'
@@ -75,13 +77,15 @@ def loadTestConfigurations = { mode, datasetName ->
         '"key_size": 10,' +
         '"value_size": 90,' +
         '"num_hot_keys": 5,' +
-        '"hot_key_fraction": 1}\'',
+        '"hot_key_fraction": 1,' +
+        '"algorithm": "lcg"}\'',
         co_input_options      : '\'{' +
         '"num_records": 2000000,' +
         '"key_size": 10,' +
         '"value_size": 90,' +
         '"num_hot_keys": 1000,' +
-        '"hot_key_fraction": 1}\'',
+        '"hot_key_fraction": 1,' +
+        '"algorithm": "lcg"}\'',
         iterations           : 1,
         num_workers          : 5,
         autoscaling_algorithm: 'NONE'
@@ -105,13 +109,15 @@ def loadTestConfigurations = { mode, datasetName ->
         '"key_size": 10,' +
         '"value_size": 90,' +
         '"num_hot_keys": 200000,' +
-        '"hot_key_fraction": 1}\'',
+        '"hot_key_fraction": 1,' +
+        '"algorithm": "lcg"}\'',
         co_input_options      : '\'{' +
         '"num_records": 2000000,' +
         '"key_size": 10,' +
         '"value_size": 90,' +
         '"num_hot_keys": 1000,' +
-        '"hot_key_fraction": 1}\'',
+        '"hot_key_fraction": 1,' +
+        '"algorithm": "lcg"}\'',
         iterations           : 4,
         num_workers          : 5,
         autoscaling_algorithm: 'NONE'
@@ -135,13 +141,15 @@ def loadTestConfigurations = { mode, datasetName ->
         '"key_size": 10,' +
         '"value_size": 90,' +
         '"num_hot_keys": 1000,' +
-        '"hot_key_fraction": 1}\'',
+        '"hot_key_fraction": 1,' +
+        '"algorithm": "lcg"}\'',
         co_input_options      : '\'{' +
         '"num_records": 2000000,' +
         '"key_size": 10,' +
         '"value_size": 90,' +
         '"num_hot_keys": 1000,' +
-        '"hot_key_fraction": 1}\'',
+        '"hot_key_fraction": 1,' +
+        '"algorithm": "lcg"}\'',
         iterations           : 4,
         num_workers          : 5,
         autoscaling_algorithm: 'NONE'
@@ -165,7 +173,7 @@ def loadTestJob = { scope, triggeringContext, mode ->
       loadTestConfigurations(mode, datasetName), 'CoGBK', mode)
 }
 
-CronJobBuilder.cronJob('beam_LoadTests_Python_CoGBK_Dataflow_Batch', 'H 16 * * *', this) {
+CronJobBuilder.cronJob('beam_LoadTests_Python_CoGBK_Dataflow_Batch', 'H H * * *', this) {
   additionalPipelineArgs = [
     influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
     influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,
@@ -183,7 +191,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
       loadTestJob(delegate, CommonTestProperties.TriggeringContext.PR, 'batch')
     }
 
-CronJobBuilder.cronJob('beam_LoadTests_Python_CoGBK_Dataflow_Streaming', 'H 16 * * *', this) {
+CronJobBuilder.cronJob('beam_LoadTests_Python_CoGBK_Dataflow_Streaming', 'H H * * *', this) {
   additionalPipelineArgs = [
     influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
     influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,

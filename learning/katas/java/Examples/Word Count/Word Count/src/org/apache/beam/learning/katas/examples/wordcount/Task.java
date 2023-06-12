@@ -22,13 +22,13 @@ package org.apache.beam.learning.katas.examples.wordcount;
 //   name: WordCountKata
 //   description: Task from katas to create a pipeline that counts the number of words.
 //   multifile: false
-//   context_line: 43
+//   context_line: 50
 //   categories:
 //     - Combiners
 //   complexity: BASIC
 //   tags:
 //     - count
-//     - transform
+//     - transforms
 //     - numbers
 
 import java.util.Arrays;

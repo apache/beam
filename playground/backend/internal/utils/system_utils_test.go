@@ -58,7 +58,7 @@ func Test_checkNumOfTheParallelJobs(t *testing.T) {
 		want        bool
 	}{
 		{
-			// Test case with calling checkNumOfTheParallelJobs when there is no code processing folders.
+			// Test case with calling CheckNumOfTheParallelJobs when there is no code processing folders.
 			// As a result, want to receive true
 			name: "There is no code processing folder",
 			args: args{
@@ -69,7 +69,7 @@ func Test_checkNumOfTheParallelJobs(t *testing.T) {
 			want:        true,
 		},
 		{
-			// Test case with calling checkNumOfTheParallelJobs when there is one code processing folder.
+			// Test case with calling CheckNumOfTheParallelJobs when there is one code processing folder.
 			// As a result, want to receive true
 			name: "Less than needed",
 			args: args{
@@ -85,7 +85,7 @@ func Test_checkNumOfTheParallelJobs(t *testing.T) {
 			want: true,
 		},
 		{
-			// Test case with calling checkNumOfTheParallelJobs when the number of the code processing folders is equals numOfParallelJobs.
+			// Test case with calling CheckNumOfTheParallelJobs when the number of the code processing folders is equals numOfParallelJobs.
 			// As a result, want to receive false
 			name: "There are enough code processing folders",
 			args: args{
@@ -101,7 +101,7 @@ func Test_checkNumOfTheParallelJobs(t *testing.T) {
 			want: false,
 		},
 		{
-			// Test case with calling checkNumOfTheParallelJobs when the number of the code processing folders is more than numOfParallelJobs.
+			// Test case with calling CheckNumOfTheParallelJobs when the number of the code processing folders is more than numOfParallelJobs.
 			// As a result, want to receive false
 			name: "More than needed",
 			args: args{
@@ -120,8 +120,8 @@ func Test_checkNumOfTheParallelJobs(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.prepareFunc()
-			if got := checkNumOfTheParallelJobs(tt.args.workingDir, tt.args.numOfParallelJobs); got != tt.want {
-				t.Errorf("checkNumOfTheParallelJobs() = %v, want %v", got, tt.want)
+			if got := CheckNumOfTheParallelJobs(tt.args.workingDir, tt.args.numOfParallelJobs); got != tt.want {
+				t.Errorf("CheckNumOfTheParallelJobs() = %v, want %v", got, tt.want)
 			}
 			os.RemoveAll(executableFiles)
 		})

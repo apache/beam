@@ -23,3 +23,9 @@ class RunCodeError implements Exception {
     this.message,
   });
 }
+
+class RunCodeResourceExhaustedError extends RunCodeError {
+  const RunCodeResourceExhaustedError({
+    required super.message,
+  });
+}

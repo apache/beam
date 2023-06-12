@@ -26,6 +26,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem"
 )
@@ -34,11 +35,26 @@ func init() {
 	filesystem.Register("memfs", New)
 }
 
-var instance = &fs{m: make(map[string][]byte)}
+var instance = &fs{m: make(map[string]file)}
 
 type fs struct {
-	m  map[string][]byte
+	m  map[string]file
 	mu sync.Mutex
+}
+
+type file struct {
+	Data         []byte
+	LastModified time.Time
+}
+
+func newFile(data []byte) file {
+	cp := make([]byte, len(data))
+	copy(cp, data)
+
+	return file{
+		Data:         data,
+		LastModified: time.Now(),
+	}
 }
 
 // New returns the global memory filesystem.
@@ -76,7 +92,7 @@ func (f *fs) OpenRead(_ context.Context, filename string) (io.ReadCloser, error)
 	defer f.mu.Unlock()
 
 	if v, ok := f.m[normalize(filename)]; ok {
-		return io.NopCloser(bytes.NewReader(v)), nil
+		return io.NopCloser(bytes.NewReader(v.Data)), nil
 	}
 	return nil, os.ErrNotExist
 }
@@ -90,9 +106,22 @@ func (f *fs) Size(_ context.Context, filename string) (int64, error) {
 	defer f.mu.Unlock()
 
 	if v, ok := f.m[normalize(filename)]; ok {
-		return int64(len(v)), nil
+		return int64(len(v.Data)), nil
 	}
 	return -1, os.ErrNotExist
+}
+
+// LastModified returns the time at which the file was last modified.
+func (f *fs) LastModified(_ context.Context, filename string) (time.Time, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	v, ok := f.m[normalize(filename)]
+	if !ok {
+		return time.Time{}, os.ErrNotExist
+	}
+
+	return v.LastModified, nil
 }
 
 // Remove the named file from the filesystem.
@@ -112,30 +141,34 @@ func (f *fs) Rename(_ context.Context, oldpath, newpath string) error {
 	return nil
 }
 
-// Copier copies the old path to the new path.
+// Copy copies the old path to the new path.
 func (f *fs) Copy(_ context.Context, oldpath, newpath string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.m[newpath] = f.m[oldpath]
+
+	oldFile, ok := f.m[normalize(oldpath)]
+	if !ok {
+		return os.ErrNotExist
+	}
+
+	f.m[normalize(newpath)] = newFile(oldFile.Data)
 	return nil
 }
 
 // Compile time check for interface implementations.
 var (
-	_ filesystem.Remover = ((*fs)(nil))
-	_ filesystem.Renamer = ((*fs)(nil))
-	_ filesystem.Copier  = ((*fs)(nil))
+	_ filesystem.LastModifiedGetter = ((*fs)(nil))
+	_ filesystem.Remover            = ((*fs)(nil))
+	_ filesystem.Renamer            = ((*fs)(nil))
+	_ filesystem.Copier             = ((*fs)(nil))
 )
 
-// Copier copies the old path to the new path.
+// write is a helper function for writing to the global store.
 func (f *fs) write(key string, value []byte) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	cp := make([]byte, len(value))
-	copy(cp, value)
-
-	f.m[normalize(key)] = cp
+	f.m[normalize(key)] = newFile(value)
 	return nil
 }
 

@@ -24,7 +24,6 @@ import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.util.UUID;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.state.BagState;
@@ -270,7 +269,6 @@ public class GroupIntoBatches<K, InputT>
    * the transform. Runners may override the default sharding to do a better load balancing during
    * the execution time.
    */
-  @Experimental
   public WithShardedKey withShardedKey() {
     return new WithShardedKey();
   }
@@ -580,6 +578,7 @@ public class GroupIntoBatches<K, InputT>
             timerTs,
             minBufferedTs);
         bufferingTimer.clear();
+        holdTimer.clear();
       }
     }
 
@@ -593,13 +592,18 @@ public class GroupIntoBatches<K, InputT>
         @StateId(NUM_BYTES_IN_BATCH_ID) CombiningState<Long, long[], Long> storedBatchSizeBytes,
         @StateId(TIMER_TIMESTAMP) ValueState<Long> timerTs,
         @StateId(MIN_BUFFERED_TS) CombiningState<Long, long[], Long> minBufferedTs,
-        @TimerId(END_OF_BUFFERING_ID) Timer bufferingTimer) {
+        @TimerId(END_OF_BUFFERING_ID) Timer bufferingTimer,
+        @TimerId(TIMER_HOLD_ID) Timer holdTimer) {
       LOG.debug(
           "*** END OF BUFFERING *** for timer timestamp {} with buffering duration {}",
           timestamp,
           maxBufferingDuration);
       flushBatch(
           receiver, key, batch, storedBatchSize, storedBatchSizeBytes, timerTs, minBufferedTs);
+      // Generally this is a noop, since holdTimer is not set if bufferingTimer is set. However we
+      // delete the holdTimer
+      // here in order to allow users to modify this policy on pipeline update.
+      holdTimer.clear();
     }
 
     @OnWindowExpiration

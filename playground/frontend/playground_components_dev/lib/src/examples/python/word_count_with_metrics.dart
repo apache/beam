@@ -23,7 +23,7 @@ import '../example_descriptor.dart';
 const pythonWordCountWithMetrics = ExampleDescriptor(
   //
   'WordCountWithMetrics',
-  contextLine1Based: 48,
+  contextLine1Based: 23,
   dbPath: 'SDK_PYTHON_WordCountWithMetrics',
   path: '/sdks/python/apache_beam/examples/wordcount_with_metrics.py',
   sdk: Sdk.python,

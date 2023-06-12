@@ -34,8 +34,6 @@ import java.nio.channels.WritableByteChannel;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.DefaultFilenamePolicy.Params;
 import org.apache.beam.sdk.io.FileBasedSink.DynamicDestinations;
@@ -750,7 +748,6 @@ public class TextIO {
     }
 
     /** Like {@link #to(String)}. */
-    @Experimental(Kind.FILESYSTEM)
     public TypedWrite<UserT, DestinationT> to(ResourceId filenamePrefix) {
       return toResource(StaticValueProvider.of(filenamePrefix));
     }
@@ -805,7 +802,6 @@ public class TextIO {
     }
 
     /** Like {@link #to(ResourceId)}. */
-    @Experimental(Kind.FILESYSTEM)
     public TypedWrite<UserT, DestinationT> toResource(ValueProvider<ResourceId> filenamePrefix) {
       return toBuilder().setFilenamePrefix(filenamePrefix).build();
     }
@@ -825,14 +821,12 @@ public class TextIO {
     }
 
     /** Set the base directory used to generate temporary files. */
-    @Experimental(Kind.FILESYSTEM)
     public TypedWrite<UserT, DestinationT> withTempDirectory(
         ValueProvider<ResourceId> tempDirectory) {
       return toBuilder().setTempDirectory(tempDirectory).build();
     }
 
     /** Set the base directory used to generate temporary files. */
-    @Experimental(Kind.FILESYSTEM)
     public TypedWrite<UserT, DestinationT> withTempDirectory(ResourceId tempDirectory) {
       return withTempDirectory(StaticValueProvider.of(tempDirectory));
     }
@@ -1108,7 +1102,6 @@ public class TextIO {
     }
 
     /** See {@link TypedWrite#to(ResourceId)}. */
-    @Experimental(Kind.FILESYSTEM)
     public Write to(ResourceId filenamePrefix) {
       return new Write(
           inner.to(filenamePrefix).withFormatFunction(SerializableFunctions.identity()));
@@ -1120,14 +1113,12 @@ public class TextIO {
     }
 
     /** See {@link TypedWrite#toResource(ValueProvider)}. */
-    @Experimental(Kind.FILESYSTEM)
     public Write toResource(ValueProvider<ResourceId> filenamePrefix) {
       return new Write(
           inner.toResource(filenamePrefix).withFormatFunction(SerializableFunctions.identity()));
     }
 
     /** See {@link TypedWrite#to(FilenamePolicy)}. */
-    @Experimental(Kind.FILESYSTEM)
     public Write to(FilenamePolicy filenamePolicy) {
       return new Write(
           inner.to(filenamePolicy).withFormatFunction(SerializableFunctions.identity()));
@@ -1139,7 +1130,6 @@ public class TextIO {
      * @deprecated Use {@link FileIO#write()} or {@link FileIO#writeDynamic()} ()} with {@link
      *     #sink()} instead.
      */
-    @Experimental(Kind.FILESYSTEM)
     @Deprecated
     public Write to(DynamicDestinations<String, ?, String> dynamicDestinations) {
       return new Write(
@@ -1152,7 +1142,6 @@ public class TextIO {
      * @deprecated Use {@link FileIO#write()} or {@link FileIO#writeDynamic()} ()} with {@link
      *     #sink()} instead.
      */
-    @Experimental(Kind.FILESYSTEM)
     @Deprecated
     public Write to(
         SerializableFunction<String, Params> destinationFunction, Params emptyDestination) {
@@ -1163,13 +1152,11 @@ public class TextIO {
     }
 
     /** See {@link TypedWrite#withTempDirectory(ValueProvider)}. */
-    @Experimental(Kind.FILESYSTEM)
     public Write withTempDirectory(ValueProvider<ResourceId> tempDirectory) {
       return new Write(inner.withTempDirectory(tempDirectory));
     }
 
     /** See {@link TypedWrite#withTempDirectory(ResourceId)}. */
-    @Experimental(Kind.FILESYSTEM)
     public Write withTempDirectory(ResourceId tempDirectory) {
       return new Write(inner.withTempDirectory(tempDirectory));
     }

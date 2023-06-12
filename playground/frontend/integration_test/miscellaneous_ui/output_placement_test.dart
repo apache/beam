@@ -21,25 +21,21 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:playground/modules/output/models/output_placement.dart';
 import 'package:playground_components_dev/playground_components_dev.dart';
 
-import '../common/common.dart';
 import '../common/common_finders.dart';
 
 Future<void> checkOutputPlacement(WidgetTester wt) async {
   Offset getCodeAreaCenter() => wt.getCenter(find.codeTextAreaWrapper());
   Offset getOutputCenter() => wt.getCenter(find.outputWidget());
 
-  await wt.tap(find.byKey(const ValueKey(OutputPlacement.left)));
-  await wt.pumpAndSettle();
+  await wt.tapAndSettle(find.byKey(const ValueKey(OutputPlacement.left)));
   expect(getCodeAreaCenter().dx > getOutputCenter().dx, true);
   expectSimilar(getCodeAreaCenter().dy, getOutputCenter().dy);
 
-  await wt.tap(find.byKey(const ValueKey(OutputPlacement.right)));
-  await wt.pumpAndSettle();
+  await wt.tapAndSettle(find.byKey(const ValueKey(OutputPlacement.right)));
   expect(getCodeAreaCenter().dx < getOutputCenter().dx, true);
   expectSimilar(getCodeAreaCenter().dy, getOutputCenter().dy);
 
-  await wt.tap(find.byKey(const ValueKey(OutputPlacement.bottom)));
-  await wt.pumpAndSettle();
+  await wt.tapAndSettle(find.byKey(const ValueKey(OutputPlacement.bottom)));
   expect(getCodeAreaCenter().dy < getOutputCenter().dy, true);
   expectSimilar(getCodeAreaCenter().dx, getOutputCenter().dx);
 }

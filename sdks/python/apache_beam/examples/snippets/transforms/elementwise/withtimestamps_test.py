@@ -17,6 +17,7 @@
 #
 
 # pytype: skip-file
+# pylint:disable=line-too-long
 
 import unittest
 
@@ -27,6 +28,9 @@ from apache_beam.examples.snippets.util import assert_matches_stdout
 from apache_beam.testing.test_pipeline import TestPipeline
 
 from . import withtimestamps
+from . import withtimestamps_event_time
+from . import withtimestamps_logical_clock
+from . import withtimestamps_processing_time
 
 
 def check_plant_timestamps(actual):
@@ -69,17 +73,25 @@ def check_plant_processing_times(actual):
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)
 @mock.patch(
-    'apache_beam.examples.snippets.transforms.elementwise.withtimestamps.print',
+    'apache_beam.examples.snippets.transforms.elementwise.withtimestamps_event_time.print',
+    str)
+@mock.patch(
+    'apache_beam.examples.snippets.transforms.elementwise.withtimestamps_logical_clock.print',
+    str)
+@mock.patch(
+    'apache_beam.examples.snippets.transforms.elementwise.withtimestamps_processing_time.print',
     str)
 class WithTimestampsTest(unittest.TestCase):
   def test_event_time(self):
-    withtimestamps.withtimestamps_event_time(check_plant_timestamps)
+    withtimestamps_event_time.withtimestamps_event_time(check_plant_timestamps)
 
   def test_logical_clock(self):
-    withtimestamps.withtimestamps_logical_clock(check_plant_events)
+    withtimestamps_logical_clock.withtimestamps_logical_clock(
+        check_plant_events)
 
   def test_processing_time(self):
-    withtimestamps.withtimestamps_processing_time(check_plant_processing_times)
+    withtimestamps_processing_time.withtimestamps_processing_time(
+        check_plant_processing_times)
 
   def test_time_tuple2unix_time(self):
     unix_time = withtimestamps.time_tuple2unix_time()

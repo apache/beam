@@ -59,7 +59,7 @@ def main(argv):
         artifact_service.ArtifactRetrievalService(
             artifact_service.BeamFilesystemHandler(None).file_reader),
         server)
-    server.add_insecure_port('localhost:{}'.format(known_args.port))
+    server.add_insecure_port('[::]:{}'.format(known_args.port))
     server.start()
     _LOGGER.info('Listening for expansion requests at %d', known_args.port)
 

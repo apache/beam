@@ -53,8 +53,6 @@ from apache_beam.transforms.ptransform import PTransform
 from apache_beam.transforms.timeutil import TimeDomain
 from apache_beam.typehints import trivial_inference
 
-# Note that the BundleBasedDirectRunner and SwitchingDirectRunner names are
-# experimental and have no backwards compatibility guarantees.
 __all__ = ['BundleBasedDirectRunner', 'DirectRunner', 'SwitchingDirectRunner']
 
 _LOGGER = logging.getLogger(__name__)

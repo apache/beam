@@ -21,8 +21,4 @@
  *
  * @see org.apache.beam.sdk.io.hbase.HBaseIO
  */
-@Experimental(Kind.SOURCE_SINK)
 package org.apache.beam.sdk.io.hbase;
-
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;

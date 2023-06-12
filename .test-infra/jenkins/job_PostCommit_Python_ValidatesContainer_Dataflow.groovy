@@ -43,3 +43,25 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Py_ValCont',
         }
       }
     }
+
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_Py_ValCont_with_RC',
+    'Run Python RC Dataflow ValidatesContainer', 'Google Cloud Dataflow Runner Python ValidatesContainer Tests with RC Dependencies', this) {
+      description('Runs Python ValidatesContainer suite on the Dataflow runner by installing Release Candidates.')
+
+      // Set common parameters.
+      commonJobProperties.setTopLevelMainJobProperties(delegate)
+
+      publishers {
+        archiveJunit('**/pytest*.xml')
+      }
+
+      // Execute shell command to test Python SDK.
+      steps {
+        gradle {
+          rootBuildScriptDir(commonJobProperties.checkoutDir)
+          tasks(':sdks:python:test-suites:dataflow:validatesContainerTests')
+          switches('-PtestRCDependencies=true')
+          commonJobProperties.setGradleSwitches(delegate)
+        }
+      }
+    }

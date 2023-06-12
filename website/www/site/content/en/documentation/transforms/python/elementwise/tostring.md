@@ -35,36 +35,18 @@ expect their input elements to be strings.
 The following example converts a `(key, value)` pair into a string delimited by `','`.
 You can specify a different delimiter using the `delimiter` argument.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/tostring" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring.py" tostring_kvs >}}
-{{< /highlight >}}
-
-{{< paragraph class="notebook-skip" >}}
-Output:
-{{< /paragraph >}}
-
-{{< highlight class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring_test.py" plants >}}
-{{< /highlight >}}
+{{< playground height="700px" >}}
+{{< playground_snippet language="py" path="SDK_PYTHON_ToStringKvs" show="tostring_kvs" >}}
+{{< /playground >}}
 
 ### Example 2: Elements to string
 
 The following example converts a dictionary into a string.
 The string output will be equivalent to `str(element)`.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/tostring" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring.py" tostring_element >}}
-{{< /highlight >}}
-
-{{< paragraph class="notebook-skip" >}}
-Output:
-{{< /paragraph >}}
-
-{{< highlight class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring_test.py" plant_lists >}}
-{{< /highlight >}}
+{{< playground height="700px" >}}
+{{< playground_snippet language="py" path="SDK_PYTHON_ToStringElement" show="tostring_element" >}}
+{{< /playground >}}
 
 ### Example 3: Iterables to string
 
@@ -73,18 +55,9 @@ into a string delimited by `','`.
 You can specify a different delimiter using the `delimiter` argument.
 The string output will be equivalent to `iterable.join(delimiter)`.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/tostring" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring.py" tostring_iterables >}}
-{{< /highlight >}}
-
-{{< paragraph class="notebook-skip" >}}
-Output:
-{{< /paragraph >}}
-
-{{< highlight class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring_test.py" plants_csv >}}
-{{< /highlight >}}
+{{< playground height="700px" >}}
+{{< playground_snippet language="py" path="SDK_PYTHON_ToStringIterables" show="tostring_iterables" >}}
+{{< /playground >}}
 
 ## Related transforms
 

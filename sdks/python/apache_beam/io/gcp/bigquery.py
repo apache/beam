@@ -418,7 +418,6 @@ from apache_beam.transforms.window import GlobalWindows
 from apache_beam.typehints.row_type import RowTypeConstraint
 from apache_beam.utils import retry
 from apache_beam.utils.annotations import deprecated
-from apache_beam.utils.annotations import experimental
 
 try:
   from apache_beam.io.gcp.internal.clients.bigquery import DatasetReference
@@ -447,7 +446,6 @@ __all__ = [
     'BigQueryQueryPriority',
     'WriteToBigQuery',
     'WriteResult',
-    'StorageWriteToBigQuery',
     'ReadFromBigQuery',
     'ReadFromBigQueryRequest',
     'ReadAllFromBigQuery',
@@ -711,7 +709,7 @@ class _CustomBigQuerySource(BoundedSource):
     }
 
   def estimate_size(self):
-    bq = bigquery_tools.BigQueryWrapper()
+    bq = bigquery_tools.BigQueryWrapper.from_pipeline_options(self.options)
     if self.table_reference is not None:
       table_ref = self.table_reference
       if (isinstance(self.table_reference, vp.ValueProvider) and
@@ -2467,6 +2465,7 @@ class StorageWriteToBigQuery(PTransform):
     external_storage_write = SchemaAwareExternalTransform(
         identifier=self.schematransform_config.identifier,
         expansion_service=self._expansion_service,
+        rearrange_based_on_discovery=True,
         autoSharding=self._with_auto_sharding,
         createDisposition=self._create_disposition,
         table=self._table,
@@ -2787,7 +2786,6 @@ class ReadFromBigQueryRequest:
             % self.table)
 
 
-@experimental()
 class ReadAllFromBigQuery(PTransform):
   """Read data from BigQuery.
 

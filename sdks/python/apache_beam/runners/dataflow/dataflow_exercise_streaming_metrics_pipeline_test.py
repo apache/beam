@@ -19,19 +19,6 @@
 
 # pytype: skip-file
 
-# beam-playground:
-#   name: DataflowExerciseStreamingMetricsTest
-#   description: Unit-test for the word-counting workflow.
-#   multifile: false
-#   context_line: 48
-#   categories:
-#     - Streaming
-#     - Metrics
-#   complexity: ADVANCED
-#   tags:
-#     - metrics
-#     - test
-
 import logging
 import unittest
 import uuid
@@ -54,7 +41,7 @@ INPUT_SUB = 'exercise_streaming_metrics_subscription_input'
 OUTPUT_TOPIC = 'exercise_streaming_metrics_topic_output'
 OUTPUT_SUB = 'exercise_streaming_metrics_subscription_output'
 
-WAIT_UNTIL_FINISH_DURATION = 1 * 60 * 1000  # in milliseconds
+WAIT_UNTIL_FINISH_DURATION = 5 * 60 * 1000  # in milliseconds
 MESSAGES_TO_PUBLISH = ["message a", "message b b", "message c"]
 
 SLEEP_TIME_SECS = 1

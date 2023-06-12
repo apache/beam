@@ -25,7 +25,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
-	"github.com/linkedin/goavro"
+	"github.com/linkedin/goavro/v2"
 )
 
 func init() {
@@ -101,8 +101,8 @@ func (f *avroReadFn) ProcessElement(ctx context.Context, filename string, emit f
 		return
 	}
 
-	val := reflect.New(f.Type.T).Interface()
 	for ar.Scan() {
+		val := reflect.New(f.Type.T).Interface()
 		var i any
 		i, err = ar.Read()
 		if err != nil {

@@ -31,6 +31,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.estimator.ThroughputEstimator;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.model.PartitionRecord;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.restriction.StreamProgress;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -42,20 +43,23 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** This class is responsible for processing individual ChangeStreamRecord. */
-@SuppressWarnings({"UnusedVariable", "UnusedMethod"})
 @Internal
 public class ChangeStreamAction {
   private static final Logger LOG = LoggerFactory.getLogger(ChangeStreamAction.class);
 
   private final ChangeStreamMetrics metrics;
+  private final ThroughputEstimator<KV<ByteString, ChangeStreamMutation>> throughputEstimator;
 
   /**
    * Constructs ChangeStreamAction to process individual ChangeStreamRecord.
    *
    * @param metrics record beam metrics.
    */
-  public ChangeStreamAction(ChangeStreamMetrics metrics) {
+  public ChangeStreamAction(
+      ChangeStreamMetrics metrics,
+      ThroughputEstimator<KV<ByteString, ChangeStreamMutation>> throughputEstimator) {
     this.metrics = metrics;
+    this.throughputEstimator = throughputEstimator;
   }
 
   /**
@@ -86,9 +90,9 @@ public class ChangeStreamAction {
    * <p>There are 2 cases that cause this function to return a non-empty ProcessContinuation.
    *
    * <ol>
-   *   <li>We fail to claim a RestrictionTracker. This can happen for a runner-initiated checkpoint.
+   *   <li>We fail to claim a StreamProgress. This can happen for a runner-initiated checkpoint.
    *       When the runner initiates a checkpoint, we will stop and checkpoint pending
-   *       ChangeStreamMutations and resume from the previous RestrictionTracker.
+   *       ChangeStreamMutations and resume from the previous StreamProgress.
    *   <li>The response is a CloseStream. RestrictionTracker claims the CloseStream. We don't do any
    *       additional processing of the response. We return resume to signal to the caller that to
    *       checkpoint all pending ChangeStreamMutations. We expect the caller to check the
@@ -132,7 +136,7 @@ public class ChangeStreamAction {
       if (!tracker.tryClaim(streamProgress)) {
         if (shouldDebug) {
           LOG.info(
-              "RCSP {}: Failed to claim heart beat tracker",
+              "RCSP {}: Checkpoint heart beat tracker",
               formatByteStringRange(partitionRecord.getPartition()));
         }
         return Optional.of(DoFn.ProcessContinuation.stop());
@@ -163,7 +167,7 @@ public class ChangeStreamAction {
       if (!tracker.tryClaim(streamProgress)) {
         if (shouldDebug) {
           LOG.info(
-              "RCSP {}: Failed to claim close stream tracker",
+              "RCSP {}: Checkpoint close stream tracker",
               formatByteStringRange(partitionRecord.getPartition()));
         }
         return Optional.of(DoFn.ProcessContinuation.stop());
@@ -188,7 +192,7 @@ public class ChangeStreamAction {
       if (!tracker.tryClaim(streamProgress)) {
         if (shouldDebug) {
           LOG.info(
-              "RCSP {}: Failed to claim data change tracker",
+              "RCSP {}: Checkpoint data change tracker",
               formatByteStringRange(partitionRecord.getPartition()));
         }
         return Optional.of(DoFn.ProcessContinuation.stop());
@@ -204,6 +208,7 @@ public class ChangeStreamAction {
 
       KV<ByteString, ChangeStreamMutation> outputRecord =
           KV.of(changeStreamMutation.getRowKey(), changeStreamMutation);
+      throughputEstimator.update(Instant.now(), outputRecord);
       // We are outputting elements with timestamp of 0 to prevent reliance on event time. This
       // limits the ability to window on commit time of any data changes. It is still possible to
       // window on processing time.

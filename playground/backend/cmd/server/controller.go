@@ -69,11 +69,17 @@ type playgroundController struct {
 
 // RunCode is running code from requests using a particular SDK
 //   - In case of incorrect sdk returns codes.InvalidArgument
+//   - In case of exceeded number of parallel jobs returns codes.ResourceExhausted
 //   - In case of error during preparing files/folders returns codes.Internal
 //   - In case of no errors saves playground.Status_STATUS_EXECUTING as cache.Status into cache and sets expiration time
 //     for all cache values which will be saved into cache during processing received code.
 //     Returns id of code processing (pipelineId)
 func (controller *playgroundController) RunCode(ctx context.Context, info *pb.RunCodeRequest) (*pb.RunCodeResponse, error) {
+	// check if we can take a new RunCode request
+	if !utils.CheckNumOfTheParallelJobs(controller.env.ApplicationEnvs.WorkingDir(), controller.env.BeamSdkEnvs.NumOfParallelJobs()) {
+		logger.Warnf("RunCode(): number of parallel jobs is exceeded\n")
+		return nil, cerrors.ResourceExhaustedError("Error during preparing", "Number of parallel jobs is exceeded")
+	}
 	// check for correct sdk
 	if info.Sdk != controller.env.BeamSdkEnvs.ApacheBeamSdk {
 		logger.Errorf("RunCode(): request contains incorrect sdk: %s\n", info.Sdk)
@@ -123,19 +129,19 @@ func (controller *playgroundController) RunCode(ctx context.Context, info *pb.Ru
 		return nil, cerrors.InternalError("Error during preparing", "Error during setup file system for the code processing: %s", err.Error())
 	}
 
-	if err = utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.Status, pb.Status_STATUS_VALIDATING); err != nil {
+	if err = utils.SetToCache(controller.cacheService, pipelineId, cache.Status, pb.Status_STATUS_VALIDATING); err != nil {
 		code_processing.DeleteResources(pipelineId, lc)
 		return nil, cerrors.InternalError("Error during preparing", "Error during saving status of the code processing")
 	}
-	if err = utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.RunOutputIndex, 0); err != nil {
+	if err = utils.SetToCache(controller.cacheService, pipelineId, cache.RunOutputIndex, 0); err != nil {
 		code_processing.DeleteResources(pipelineId, lc)
 		return nil, cerrors.InternalError("Error during preparing", "Error during saving initial run output")
 	}
-	if err = utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.LogsIndex, 0); err != nil {
+	if err = utils.SetToCache(controller.cacheService, pipelineId, cache.LogsIndex, 0); err != nil {
 		code_processing.DeleteResources(pipelineId, lc)
 		return nil, cerrors.InternalError("Error during preparing", "Error during saving value for the logs output")
 	}
-	if err = utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.Canceled, false); err != nil {
+	if err = utils.SetToCache(controller.cacheService, pipelineId, cache.Canceled, false); err != nil {
 		code_processing.DeleteResources(pipelineId, lc)
 		return nil, cerrors.InternalError("Error during preparing", "Error during saving initial cancel flag")
 	}
@@ -185,7 +191,7 @@ func (controller *playgroundController) GetRunOutput(ctx context.Context, info *
 	newRunOutput := ""
 	if len(runOutput) > lastIndex {
 		newRunOutput = runOutput[lastIndex:]
-		if err := utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.RunOutputIndex, lastIndex+len(newRunOutput)); err != nil {
+		if err := utils.SetToCache(controller.cacheService, pipelineId, cache.RunOutputIndex, lastIndex+len(newRunOutput)); err != nil {
 			return nil, cerrors.InternalError(errorMessage, "Error during saving pagination value")
 		}
 	}
@@ -215,7 +221,7 @@ func (controller *playgroundController) GetLogs(ctx context.Context, info *pb.Ge
 	newLogs := ""
 	if len(logs) > lastIndex {
 		newLogs = logs[lastIndex:]
-		if err := utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.LogsIndex, lastIndex+len(newLogs)); err != nil {
+		if err := utils.SetToCache(controller.cacheService, pipelineId, cache.LogsIndex, lastIndex+len(newLogs)); err != nil {
 			return nil, cerrors.InternalError(errorMessage, "Error during saving pagination value")
 		}
 	}
@@ -308,7 +314,7 @@ func (controller *playgroundController) Cancel(ctx context.Context, info *pb.Can
 		logger.Errorf("%s: Cancel(): pipelineId has incorrect value and couldn't be parsed as uuid value: %s", info.PipelineUuid, err.Error())
 		return nil, cerrors.InvalidArgumentError(errorMessage, "pipelineId has incorrect value and couldn't be parsed as uuid value: %s", info.PipelineUuid)
 	}
-	if err := utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.Canceled, true); err != nil {
+	if err := utils.SetToCache(controller.cacheService, pipelineId, cache.Canceled, true); err != nil {
 		return nil, cerrors.InternalError(errorMessage, "Error during saving cancel flag value")
 	}
 	return &pb.CancelResponse{}, nil
@@ -570,7 +576,7 @@ func (controller *playgroundController) GetSnippet(ctx context.Context, info *pb
 func (controller *playgroundController) GetMetadata(_ context.Context, _ *pb.GetMetadataRequest) (*pb.GetMetadataResponse, error) {
 	commitTimestampInteger, err := strconv.ParseInt(BuildCommitTimestamp, 10, 64)
 	if err != nil {
-		logger.Errorf("GetMetadata(): failed to parse BuildCommitTimestamp (\"%s\"): %s", BuildCommitTimestamp, err.Error())
+		logger.Warnf("GetMetadata(): failed to parse BuildCommitTimestamp (\"%s\"): %s", BuildCommitTimestamp, err.Error())
 		commitTimestampInteger = 0
 	}
 
@@ -587,7 +593,7 @@ func (controller *playgroundController) GetMetadata(_ context.Context, _ *pb.Get
 // verifyRouter verifies that controller is configured to work in router mode
 func (controller *playgroundController) verifyRouter() error {
 	if controller.env.BeamSdkEnvs.ApacheBeamSdk != pb.Sdk_SDK_UNSPECIFIED {
-		return errors.New("runner mode")
+		return errors.New("server is in runner mode")
 	}
 	if controller.db == nil {
 		return errors.New("no database service")

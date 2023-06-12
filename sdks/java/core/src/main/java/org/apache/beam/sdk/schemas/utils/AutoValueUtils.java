@@ -53,8 +53,6 @@ import net.bytebuddy.implementation.bytecode.member.MethodReturn;
 import net.bytebuddy.implementation.bytecode.member.MethodVariableAccess;
 import net.bytebuddy.jar.asm.ClassWriter;
 import net.bytebuddy.matcher.ElementMatchers;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaUserTypeCreator;
@@ -68,7 +66,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Utilities for managing AutoValue schemas. */
-@Experimental(Kind.SCHEMAS)
 @SuppressWarnings({
   "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes"

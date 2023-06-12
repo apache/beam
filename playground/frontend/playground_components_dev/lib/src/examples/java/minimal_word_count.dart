@@ -23,7 +23,7 @@ import '../example_descriptor.dart';
 const javaMinimalWordCount = ExampleDescriptor(
   //
   'MinimalWordCount',
-  contextLine1Based: 71,
+  contextLine1Based: 54,
   dbPath: 'SDK_JAVA_MinimalWordCount',
   path:
       '/examples/java/src/main/java/org/apache/beam/examples/MinimalWordCount.java',

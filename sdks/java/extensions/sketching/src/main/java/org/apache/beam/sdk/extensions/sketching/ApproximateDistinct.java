@@ -25,7 +25,6 @@ import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -204,12 +203,7 @@ import org.apache.beam.sdk.values.PCollection;
  * you need to create sketches compatible with Google Cloud BigQuery. For more details about using
  * {@code HllCount} and the {@code zetasketch} extension module, see
  * https://s.apache.org/hll-in-beam#bookmark=id.v6chsij1ixo7
- *
- * <p><b>Warning: this class is experimental.</b> Its API is subject to change in future versions of
- * Beam. For example, it may be merged with the {@link
- * org.apache.beam.sdk.transforms.ApproximateUnique} transform.
  */
-@Experimental
 public final class ApproximateDistinct {
 
   /**

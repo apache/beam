@@ -17,12 +17,18 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams.action;
 
+import com.google.cloud.bigtable.data.v2.models.ChangeStreamMutation;
+import com.google.protobuf.ByteString;
 import java.io.Serializable;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.ChangeStreamDao;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTableDao;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.estimator.ThroughputEstimator;
+import org.apache.beam.sdk.values.KV;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
 
 /**
  * Factory class for creating instances that will handle different functions of DoFns. The instances
@@ -36,7 +42,9 @@ public class ActionFactory implements Serializable {
 
   private transient ChangeStreamAction changeStreamAction;
   private transient DetectNewPartitionsAction detectNewPartitionsAction;
+  private transient ProcessNewPartitionsAction processNewPartitionsAction;
   private transient GenerateInitialPartitionsAction generateInitialPartitionsAction;
+  private transient ResumeFromPreviousPipelineAction resumeFromPreviousPipelineAction;
   private transient ReadChangeStreamPartitionAction readChangeStreamPartitionAction;
 
   /**
@@ -48,9 +56,11 @@ public class ActionFactory implements Serializable {
    *
    * @return singleton instance of the {@link ChangeStreamAction}
    */
-  public synchronized ChangeStreamAction changeStreamAction(ChangeStreamMetrics metrics) {
+  public synchronized ChangeStreamAction changeStreamAction(
+      ChangeStreamMetrics metrics,
+      ThroughputEstimator<KV<ByteString, ChangeStreamMutation>> throughputEstimator) {
     if (changeStreamAction == null) {
-      changeStreamAction = new ChangeStreamAction(metrics);
+      changeStreamAction = new ChangeStreamAction(metrics, throughputEstimator);
     }
     return changeStreamAction;
   }
@@ -66,12 +76,30 @@ public class ActionFactory implements Serializable {
   public synchronized DetectNewPartitionsAction detectNewPartitionsAction(
       ChangeStreamMetrics metrics,
       MetadataTableDao metadataTableDao,
-      GenerateInitialPartitionsAction generateInitialPartitionsAction) {
+      @Nullable Instant endTime,
+      GenerateInitialPartitionsAction generateInitialPartitionsAction,
+      ResumeFromPreviousPipelineAction resumeFromPreviousPipelineAction,
+      ProcessNewPartitionsAction processNewPartitionsAction) {
     if (detectNewPartitionsAction == null) {
       detectNewPartitionsAction =
-          new DetectNewPartitionsAction(metrics, metadataTableDao, generateInitialPartitionsAction);
+          new DetectNewPartitionsAction(
+              metrics,
+              metadataTableDao,
+              endTime,
+              generateInitialPartitionsAction,
+              resumeFromPreviousPipelineAction,
+              processNewPartitionsAction);
     }
     return detectNewPartitionsAction;
+  }
+
+  public synchronized ProcessNewPartitionsAction processNewPartitionsAction(
+      ChangeStreamMetrics metrics, MetadataTableDao metadataTableDao, @Nullable Instant endTime) {
+    if (processNewPartitionsAction == null) {
+      processNewPartitionsAction =
+          new ProcessNewPartitionsAction(metrics, metadataTableDao, endTime);
+    }
+    return processNewPartitionsAction;
   }
 
   /**
@@ -83,12 +111,25 @@ public class ActionFactory implements Serializable {
    * @return singleton instance of the {@link GenerateInitialPartitionsAction}
    */
   public synchronized GenerateInitialPartitionsAction generateInitialPartitionsAction(
-      ChangeStreamMetrics metrics, ChangeStreamDao changeStreamDao) {
+      ChangeStreamMetrics metrics, ChangeStreamDao changeStreamDao, @Nullable Instant endTime) {
     if (generateInitialPartitionsAction == null) {
       generateInitialPartitionsAction =
-          new GenerateInitialPartitionsAction(metrics, changeStreamDao);
+          new GenerateInitialPartitionsAction(metrics, changeStreamDao, endTime);
     }
     return generateInitialPartitionsAction;
+  }
+
+  public synchronized ResumeFromPreviousPipelineAction resumeFromPreviousPipelineAction(
+      ChangeStreamMetrics metrics,
+      MetadataTableDao metadataTableDao,
+      @Nullable Instant endTime,
+      ProcessNewPartitionsAction processNewPartitionsAction) {
+    if (resumeFromPreviousPipelineAction == null) {
+      resumeFromPreviousPipelineAction =
+          new ResumeFromPreviousPipelineAction(
+              metrics, metadataTableDao, endTime, processNewPartitionsAction);
+    }
+    return resumeFromPreviousPipelineAction;
   }
 
   /**
