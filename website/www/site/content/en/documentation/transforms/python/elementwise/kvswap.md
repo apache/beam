@@ -29,18 +29,9 @@ which has each key and value swapped.
 In the following example, we create a pipeline with a `PCollection` of key-value pairs.
 Then, we apply `KvSwap` to swap the keys and values.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/kvswap.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/kvswap" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/kvswap.py" kvswap >}}
-{{< /highlight >}}
-
-{{< paragraph class="notebook-skip" >}}
-Output:
-{{< /paragraph >}}
-
-{{< highlight class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/kvswap_test.py" plants >}}
-{{< /highlight >}}
+{{< playground height="700px" >}}
+{{< playground_snippet language="py" path="SDK_PYTHON_KvSwap" show="kvswap" >}}
+{{< /playground >}}
 
 ## Related transforms
 

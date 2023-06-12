@@ -24,9 +24,9 @@ import '../pages/embedded_playground/page.dart';
 /// Creates pages from their normalized state.
 class PageFactory {
   static AbstractPage? createPage(
-      String factoryKey,
-      Map<String, dynamic> state,
-      ) {
+    String factoryKey,
+    Map<String, dynamic> state,
+  ) {
     switch (factoryKey) {
       case EmbeddedPlaygroundPage.classFactoryKey:
         return EmbeddedPlaygroundPage.fromStateMap(state);

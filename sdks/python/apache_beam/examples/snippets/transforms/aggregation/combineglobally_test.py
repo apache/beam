@@ -25,7 +25,13 @@ import mock
 from apache_beam.examples.snippets.util import assert_matches_stdout
 from apache_beam.testing.test_pipeline import TestPipeline
 
-from . import combineglobally
+# from . import combineglobally_side_inputs_dict
+# from . import combineglobally_side_inputs_iter
+from . import combineglobally_combinefn
+from . import combineglobally_function
+from . import combineglobally_lambda
+from . import combineglobally_multiple_arguments
+from . import combineglobally_side_inputs_singleton
 
 
 def check_common_items(actual):
@@ -59,22 +65,34 @@ def check_percentages(actual):
 @mock.patch('apache_beam.Pipeline', TestPipeline)
 # pylint: disable=line-too-long
 @mock.patch(
-    'apache_beam.examples.snippets.transforms.aggregation.combineglobally.print',
+    'apache_beam.examples.snippets.transforms.aggregation.combineglobally_function.print',
+    str)
+@mock.patch(
+    'apache_beam.examples.snippets.transforms.aggregation.combineglobally_lambda.print',
+    str)
+@mock.patch(
+    'apache_beam.examples.snippets.transforms.aggregation.combineglobally_multiple_arguments.print',
+    str)
+@mock.patch(
+    'apache_beam.examples.snippets.transforms.aggregation.combineglobally_side_inputs_singleton.print',
+    str)
+@mock.patch(
+    'apache_beam.examples.snippets.transforms.aggregation.combineglobally_combinefn.print',
     str)
 # pylint: enable=line-too-long
 class CombineGloballyTest(unittest.TestCase):
   def test_combineglobally_function(self):
-    combineglobally.combineglobally_function(check_common_items)
+    combineglobally_function.combineglobally_function(check_common_items)
 
   def test_combineglobally_lambda(self):
-    combineglobally.combineglobally_lambda(check_common_items)
+    combineglobally_lambda.combineglobally_lambda(check_common_items)
 
   def test_combineglobally_multiple_arguments(self):
-    combineglobally.combineglobally_multiple_arguments(
+    combineglobally_multiple_arguments.combineglobally_multiple_arguments(
         check_common_items_with_exceptions)
 
   def test_combineglobally_side_inputs_singleton(self):
-    combineglobally.combineglobally_side_inputs_singleton(
+    combineglobally_side_inputs_singleton.combineglobally_side_inputs_singleton(
         check_common_items_with_exceptions)
 
   # TODO: enable side inputs tests after
@@ -88,7 +106,7 @@ class CombineGloballyTest(unittest.TestCase):
   #       check_custom_common_items)
 
   def test_combineglobally_combinefn(self):
-    combineglobally.combineglobally_combinefn(check_percentages)
+    combineglobally_combinefn.combineglobally_combinefn(check_percentages)
 
 
 if __name__ == '__main__':

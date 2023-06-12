@@ -32,70 +32,31 @@ In the following example, we create a pipeline with a `PCollection` of fruits.
 
 We use `GroupBy` to group all fruits by the first letter of their name.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupby_test.py" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupby_test.py" groupby_expr >}}
-{{< /highlight >}}
-
-{{< paragraph class="notebook-skip" >}}
-Output:
-{{< /paragraph >}}
-
-{{< highlight class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupby_test.py" groupby_expr_result >}}
-{{< /highlight >}}
+{{< playground height="700px" >}}
+{{< playground_snippet language="py" path="SDK_PYTHON_GroupByExpr" show="groupby_expr" >}}
+{{< /playground >}}
 
 We can group by a composite key consisting of multiple properties if desired.
-
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupby_test.py" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupby_test.py" groupby_two_exprs >}}
-{{< /highlight >}}
 
 The resulting key is a named tuple with the two requested attributes, and the
 values are grouped accordingly.
 
-{{< paragraph class="notebook-skip" >}}
-Output:
-{{< /paragraph >}}
-
-{{< highlight class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupby_test.py" groupby_two_exprs_result >}}
-{{< /highlight >}}
+{{< playground height="700px" >}}
+{{< playground_snippet language="py" path="SDK_PYTHON_GroupByTwoExprs" show="groupby_two_exprs" >}}
+{{< /playground >}}
 
 In the case that the property one wishes to group by is an attribute, a string
-may be passed to `GroupBy` in the place of a callable expression. For example,
-suppose I have the following data
+may be passed to `GroupBy` in the place of a callable expression.
 
-{{< highlight py >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupby_test.py" groupby_table >}}
-{{< /highlight >}}
-
-We can then do
-
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupby_test.py" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupby_test.py" groupby_attr >}}
-{{< /highlight >}}
-
-{{< paragraph class="notebook-skip" >}}
-Output:
-{{< /paragraph >}}
-
-{{< highlight class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupby_test.py" groupby_attr_result >}}
-{{< /highlight >}}
+{{< playground height="700px" >}}
+{{< playground_snippet language="py" path="SDK_PYTHON_GroupByAttr" show="groupby_attr" >}}
+{{< /playground >}}
 
 It is possible to mix and match attributes and expressions, for example
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupby_test.py" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupby_test.py" groupby_attr_expr >}}
-{{< /highlight >}}
-
-{{< paragraph class="notebook-skip" >}}
-Output:
-{{< /paragraph >}}
-
-{{< highlight class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupby_test.py" groupby_attr_expr_result >}}
-{{< /highlight >}}
+{{< playground height="700px" >}}
+{{< playground_snippet language="py" path="SDK_PYTHON_GroupByAttrExpr" show="groupby_attr_expr" >}}
+{{< /playground >}}
 
 ## Aggregation
 
@@ -108,47 +69,23 @@ by, and finally a field name in which to store the result.
 For example, suppose one wanted to compute the amount of each fruit to buy.
 One could write
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupby_test.py" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupby_test.py" simple_aggregate >}}
-{{< /highlight >}}
-
-{{< paragraph class="notebook-skip" >}}
-Output:
-{{< /paragraph >}}
-
-{{< highlight class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupby_test.py" simple_aggregate_result >}}
-{{< /highlight >}}
+{{< playground height="700px" >}}
+{{< playground_snippet language="py" path="SDK_PYTHON_GroupBySimpleAggregate" show="simple_aggregate" >}}
+{{< /playground >}}
 
 Similar to the parameters in `GroupBy`, one can also aggregate multiple fields
 and by expressions.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupby_test.py" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupby_test.py" expr_aggregate >}}
-{{< /highlight >}}
-
-{{< paragraph class="notebook-skip" >}}
-Output:
-{{< /paragraph >}}
-
-{{< highlight class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupby_test.py" expr_aggregate_result >}}
-{{< /highlight >}}
+{{< playground height="700px" >}}
+{{< playground_snippet language="py" path="SDK_PYTHON_GroupByExprAggregate" show="expr_aggregate" >}}
+{{< /playground >}}
 
 One can, of course, aggregate the same field multiple times as well.
 This example also illustrates a global grouping, as the grouping key is empty.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupby_test.py" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupby_test.py" global_aggregate >}}
-{{< /highlight >}}
-
-{{< paragraph class="notebook-skip" >}}
-Output:
-{{< /paragraph >}}
-
-{{< highlight class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupby_test.py" global_aggregate_result >}}
-{{< /highlight >}}
+{{< playground height="700px" >}}
+{{< playground_snippet language="py" path="SDK_PYTHON_GroupByGlobalAggregate" show="global_aggregate" >}}
+{{< /playground >}}
 
 ## Related transforms
 
