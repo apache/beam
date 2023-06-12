@@ -117,11 +117,14 @@ def _PythonProjectionTransform(
   else:
     filtered = pcoll
 
-  projected = filtered | beam.Select(
-      **{
-          name: _as_callable(original_fields, expr)
-          for (name, expr) in fields.items()
-      })
+  if list(fields.items()) == [(name, name) for name in original_fields]:
+    projected = filtered
+  else:
+    projected = filtered | beam.Select(
+        **{
+            name: _as_callable(original_fields, expr)
+            for (name, expr) in fields.items()
+        })
 
   if explode:
     result = projected | _Explode(explode, cross_product=cross_product)
@@ -221,11 +224,14 @@ def MapToFields(
     # TODO(yaml): Support java by fully qualified name.
     # TODO(yaml): Maybe support java lambdas?
     raise ValueError(
-          f'Unknown language: {language}.'
+          f'Unknown language: {language}. '
           'Supported languages are "sql" (alias calcite) and "python."')
 
 
 def create_mapping_provider():
+  # These are MetaInlineProviders because their expansion is in terms of other
+  # YamlTransforms, but in a way that needs to be deferred until the input
+  # schema is known.
   return yaml_provider.MetaInlineProvider({
       'MapToFields': MapToFields,
       'Filter': (
