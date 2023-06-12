@@ -43,10 +43,10 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-class GreedyPCollectionFusers {
+public class GreedyPCollectionFusers {
   private static final Logger LOG = LoggerFactory.getLogger(GreedyPCollectionFusers.class);
 
-  private static final Map<String, FusibilityChecker> URN_FUSIBILITY_CHECKERS =
+  private static Map<String, FusibilityChecker> URN_FUSIBILITY_CHECKERS =
       ImmutableMap.<String, FusibilityChecker>builder()
           .put(PTransformTranslation.PAR_DO_TRANSFORM_URN, GreedyPCollectionFusers::canFuseParDo)
           .put(
@@ -87,7 +87,7 @@ class GreedyPCollectionFusers {
       GreedyPCollectionFusers::unknownTransformFusion;
 
   // TODO: Migrate
-  private static final Map<String, CompatibilityChecker> URN_COMPATIBILITY_CHECKERS =
+  private static Map<String, CompatibilityChecker> URN_COMPATIBILITY_CHECKERS =
       ImmutableMap.<String, CompatibilityChecker>builder()
           .put(
               PTransformTranslation.PAR_DO_TRANSFORM_URN,
@@ -158,7 +158,7 @@ class GreedyPCollectionFusers {
   // PCollection output by the ExecutableStage, to determine if it can be fused into that
   // Subgraph
 
-  private interface FusibilityChecker {
+  public interface FusibilityChecker {
     /**
      * Determine if a {@link PTransformNode} can be fused into an existing {@link ExecutableStage}.
      */
@@ -170,7 +170,7 @@ class GreedyPCollectionFusers {
         QueryablePipeline pipeline);
   }
 
-  private interface CompatibilityChecker {
+  public interface CompatibilityChecker {
     /**
      * Determine if two {@link PTransformNode PTransforms} can be fused into a new stage. This
      * determines sibling fusion for new {@link ExecutableStage stages}.
@@ -272,7 +272,7 @@ class GreedyPCollectionFusers {
     return environment.equals(operationEnvironment.orElse(null));
   }
 
-  private static boolean compatibleEnvironments(
+  public static boolean compatibleEnvironments(
       PTransformNode left, PTransformNode right, QueryablePipeline pipeline) {
     return pipeline.getEnvironment(left).equals(pipeline.getEnvironment(right));
   }
@@ -382,5 +382,23 @@ class GreedyPCollectionFusers {
         ExecutableStage.class.getSimpleName(),
         PTransform.class.getSimpleName());
     return false;
+  }
+
+  // Linkedin specific methods to allow the customization of FusibilityChecker or
+  // CompatibilityChecker. E.g. enable
+  // fusion on stateful ParDos.
+
+  public static void overrideFusibilityChecker(String urn, FusibilityChecker checker) {
+    Map<String, FusibilityChecker> defaultCheckers = Maps.newHashMap(URN_FUSIBILITY_CHECKERS);
+    defaultCheckers.put(urn, checker);
+    URN_FUSIBILITY_CHECKERS =
+        ImmutableMap.<String, FusibilityChecker>builder().putAll(defaultCheckers).build();
+  }
+
+  public static void overrideCompatibilityChecker(String urn, CompatibilityChecker checker) {
+    Map<String, CompatibilityChecker> defaultCheckers = Maps.newHashMap(URN_COMPATIBILITY_CHECKERS);
+    defaultCheckers.put(urn, checker);
+    URN_COMPATIBILITY_CHECKERS =
+        ImmutableMap.<String, CompatibilityChecker>builder().putAll(defaultCheckers).build();
   }
 }
