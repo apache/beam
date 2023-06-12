@@ -89,6 +89,7 @@ include(":playground:backend:containers:router")
 include(":playground:backend:containers:scio")
 include(":playground:backend:containers:xtransform")
 include(":playground:backend:containers:xpython")
+include(":playground:backend:containers:xjava")
 include(":playground:terraform")
 include(":playground:kafka-emulator")
 
