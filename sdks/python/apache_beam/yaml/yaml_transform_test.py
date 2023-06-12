@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+import collections
 import glob
 import logging
 import os
@@ -24,6 +25,7 @@ import unittest
 import apache_beam as beam
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.yaml import yaml_provider
 from apache_beam.yaml.yaml_transform import YamlTransform
 
 
@@ -321,6 +323,107 @@ class YamlWindowingTest(unittest.TestCase):
           ''',
           providers=TEST_PROVIDERS)
       assert_that(result, equal_to([6, 9]))
+
+
+class AnnotatingProvider(yaml_provider.InlineProvider):
+  def __init__(self, name, transform_names):
+    super().__init__({
+        transform_name: lambda: beam.Map(lambda x: (x or ()) + (name, ))
+        for transform_name in transform_names.strip().split()
+    })
+    self._name = name
+
+  def __repr__(self):
+    return 'AnnotatingProvider(%r)' % self._name
+
+
+class AnotherAnnProvider(AnnotatingProvider):
+  # A distinct class.
+  pass
+
+
+class ProviderAffinityTest(unittest.TestCase):
+  provider1 = AnnotatingProvider("provider1", "P1 A B C  ")
+  provider2 = AnnotatingProvider("provider2", "P2 A   C D")
+  provider3 = AnotherAnnProvider("provider3", "P3 A B    ")
+  provider4 = AnotherAnnProvider("provider4", "P4 A B   D")
+
+  providers_dict = collections.defaultdict(list)
+  for provider in [provider1, provider2, provider3, provider4]:
+    for transform_type in provider.provided_transforms():
+      providers_dict[transform_type].append(provider)
+
+  def test_prefers_same_provider(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      result1 = p | 'Yaml1' >> YamlTransform(
+          '''
+          type: chain
+          transforms:
+            - type: Create
+              elements: [0]
+            - type: P1
+            - type: A
+            - type: C
+          ''',
+          providers=self.providers_dict)
+      assert_that(
+          result1,
+          equal_to([('provider1', 'provider1', 'provider1')]),
+          label='StartWith1')
+
+      result2 = p | 'Yaml2' >> YamlTransform(
+          '''
+          type: chain
+          transforms:
+            - type: Create
+              elements: [0]
+            - type: P2
+            - type: A
+            - type: C
+          ''',
+          providers=self.providers_dict)
+      assert_that(
+          result2,
+          equal_to([('provider2', 'provider2', 'provider2')]),
+          label='StartWith2')
+
+  def test_prefers_same_provider_class(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      result1 = p | 'Yaml1' >> YamlTransform(
+          '''
+          type: chain
+          transforms:
+            - type: Create
+              elements: [0]
+            - type: P1
+            - type: A
+            - type: D
+            - type: A
+          ''',
+          providers=self.providers_dict)
+      assert_that(
+          result1,
+          equal_to([('provider1', 'provider1', 'provider2', 'provider2')]),
+          label='StartWith1')
+
+      result3 = p | 'Yaml2' >> YamlTransform(
+          '''
+          type: chain
+          transforms:
+            - type: Create
+              elements: [0]
+            - type: P3
+            - type: A
+            - type: D
+            - type: A
+          ''',
+          providers=self.providers_dict)
+      assert_that(
+          result3,
+          equal_to([('provider3', 'provider3', 'provider4', 'provider4')]),
+          label='StartWith3')
 
 
 if __name__ == '__main__':
