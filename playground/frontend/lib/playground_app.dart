@@ -29,8 +29,8 @@ import 'l10n/l10n.dart';
 
 class PlaygroundApp extends StatelessWidget {
   final BackButtonDispatcher backButtonDispatcher;
-  final PageStackRouteInformationParser routeInformationParser;
-  final PageStackRouterDelegate routerDelegate;
+  final RouteInformationParser<Object> routeInformationParser;
+  final RouterDelegate<Object> routerDelegate;
 
   const PlaygroundApp({
     required this.backButtonDispatcher,

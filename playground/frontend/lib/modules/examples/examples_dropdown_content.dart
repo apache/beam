@@ -21,7 +21,6 @@ import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:playground_components/playground_components.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../constants/links.dart';
 import '../../constants/sizes.dart';
 import 'components/example_list/example_list.dart';
 import 'components/filter/filter.dart';
@@ -88,7 +87,7 @@ class _ExamplesDropdownContentState extends State<ExamplesDropdownContent> {
                 ),
               ),
             ),
-            onPressed: () => launchUrl(Uri.parse(kAddExampleLink)),
+            onPressed: () => launchUrl(Uri.parse(BeamLinks.newExample)),
           ),
         ),
       ],

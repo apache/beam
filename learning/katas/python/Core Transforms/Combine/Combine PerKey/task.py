@@ -18,7 +18,7 @@
 #   name: CombinePerKey
 #   description: Task from katas to implement the summation of scores per player.
 #   multifile: false
-#   context_line: 30
+#   context_line: 37
 #   categories:
 #     - Combiners
 #   complexity: BASIC
