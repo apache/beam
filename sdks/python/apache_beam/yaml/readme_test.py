@@ -206,6 +206,7 @@ def create_test_method(test_type, test_name, test_yaml):
 
 
 def parse_test_methods(markdown_lines):
+  # pylint: disable=too-many-nested-blocks
   code_lines = None
   for ix, line in enumerate(markdown_lines):
     line = line.rstrip()
@@ -224,7 +225,7 @@ def parse_test_methods(markdown_lines):
                 '  transforms:',
                 '    - type: ReadFromCsv',
                 '      path: whatever',
-            ] + ['    ' + line for line in code_lines]
+            ] + ['    ' + line for line in code_lines]  # pylint: disable=not-an-iterable
           if code_lines[0] == 'pipeline:':
             yaml_pipeline = '\n'.join(code_lines)
             if 'providers:' in yaml_pipeline:
@@ -247,7 +248,6 @@ ReadMeTest = createTestSuite(
     'ReadMeTest', os.path.join(os.path.dirname(__file__), 'README.md'))
 
 if __name__ == '__main__':
-
   parser = argparse.ArgumentParser()
   parser.add_argument('--render_dir', default=None)
   known_args, unknown_args = parser.parse_known_args(sys.argv)

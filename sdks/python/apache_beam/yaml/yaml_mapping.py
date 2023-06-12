@@ -193,15 +193,13 @@ def MapToFields(
     query = "SELECT " + ", ".join(selects) + " FROM PCOLLECTION"
     if keep:
       query += " WHERE " + keep
-    print("QUERY", query)
 
     result = pcoll | yaml_create_transform({
         'type': 'Sql', 'query': query, **language_keywords
     })
     if explode:
       # TODO(yaml): Implement via unnest.
-      result = result | _PythonProjectionTransform(
-          {}, append=True, explode=explode, cross_product=cross_product)
+      result = result | _Explode(explode, cross_product)
 
     return result
 
@@ -222,7 +220,9 @@ def MapToFields(
     # TODO(yaml): Support javascript expressions and UDFs.
     # TODO(yaml): Support java by fully qualified name.
     # TODO(yaml): Maybe support java lambdas?
-    raise ValueError(f'Unknown language: {language}')
+    raise ValueError(
+          f'Unknown language: {language}.'
+          'Supported languages are "sql" (alias calcite) and "python."')
 
 
 def create_mapping_provider():
