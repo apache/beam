@@ -506,7 +506,6 @@ import org.slf4j.LoggerFactory;
  *    .apply(BigQueryIO.applyRowMutations()
  *           .to(my_project:my_dataset.my_table)
  *           .withSchema(schema)
- *           .withMethod(Write.Method.STORAGE_API_AT_LEAST_ONCE)
  *           .withCreateDisposition(Write.CreateDisposition.CREATE_NEVER));
  * }</pre>
  *
