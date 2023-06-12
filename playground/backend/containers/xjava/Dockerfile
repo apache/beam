@@ -1,0 +1,210 @@
+###############################################################################
+#  Licensed to the Apache Software Foundation (ASF) under one
+#  or more contributor license agreements.  See the NOTICE file
+#  distributed with this work for additional information
+#  regarding copyright ownership.  The ASF licenses this file
+#  to you under the Apache License, Version 2.0 (the
+#  "License"); you may not use this file except in compliance
+#  with the License.  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+# limitations under the License.
+###############################################################################
+ARG BEAM_VERSION=2.44.0
+FROM golang:1.18-bullseye AS build
+ARG BEAM_VERSION
+ARG GIT_COMMIT="<unknown>"
+ARG GIT_TIMESTAMP="0"
+# Setup Go Environment
+ENV GOPATH /go
+ENV PATH $GOPATH/bin:$PATH
+RUN mkdir -p "$GOPATH/src" "$GOPATH/bin" && chmod -R 777 "$GOPATH"
+RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28.1 &&\
+    go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2.0
+
+# Prepare Application
+COPY src /go/src/playground/backend
+WORKDIR /go/src/playground/backend
+
+# Build Application
+RUN go mod download &&\
+    go mod tidy &&\
+    cd cmd/server &&\
+    go build -ldflags="-X main.BuildCommitHash=$GIT_COMMIT -X main.BuildCommitTimestamp=$GIT_TIMESTAMP" -o /go/bin/server_java_backend
+
+FROM maven:3.8.6-openjdk-11 as dep
+ARG BEAM_VERSION
+RUN mvn archetype:generate \
+    -DinteractiveMode=false \
+    -DarchetypeGroupId=org.apache.beam \
+    -DarchetypeArtifactId=beam-sdks-java-maven-archetypes-gcp-bom-examples \
+    -DarchetypeVersion=$BEAM_VERSION \
+    -DtargetPlatform=11 \
+    -DartifactId=pipeline-dependencies \
+    -DgroupId=org.apache.beam.samples
+WORKDIR /pipeline-dependencies/
+RUN mvn dependency:resolve && mvn -o dependency:list
+RUN mvn dependency:copy-dependencies
+
+###############################################################################
+
+FROM apache/beam_java11_sdk:$BEAM_VERSION
+#FROM debian:bullseye
+
+ARG BEAM_VERSION
+ARG SPRING_VERSION=5.3.27
+ARG KAFKA_CLIENTS_VERSION=2.3.1
+ENV BEAM_VERSION=$BEAM_VERSION
+ENV SERVER_IP=0.0.0.0
+ENV SERVER_PORT=8080
+ENV APP_WORK_DIR=/opt/playground/backend/
+ENV BEAM_SDK="SDK_JAVA"
+ENV PROPERTY_PATH=/opt/playground/backend/properties.yaml
+
+ARG DOCKER_CHANNEL=stable
+ARG DOCKER_VERSION=20.10.24
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+  apt-transport-https \
+  ca-certificates \
+  curl \
+  gnupg2 \
+  software-properties-common
+
+RUN install -m 0755 -d /etc/apt/keyrings
+RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+# RUN curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+RUN chmod a+r /etc/apt/keyrings/docker.gpg
+
+RUN echo \
+  "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+  "$(. /etc/os-release && echo "$VERSION_CODENAME")" ${DOCKER_CHANNEL}" | \
+  tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+# RUN echo \
+#   "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \
+#   "$(. /etc/os-release && echo "$VERSION_CODENAME")" ${DOCKER_CHANNEL}" | \
+#   tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+RUN apt-get update && apt-get install -y --no-install-recommends docker-ce=5:${DOCKER_VERSION}~3-0~ubuntu-jammy && \
+  docker -v && \
+  dockerd -v
+
+ARG DIND_COMMIT=deda3d4933d3c0bd57f2cef672da5d28fc653706
+ENV DOCKER_EXTRA_OPTS '--storage-driver=overlay'
+RUN curl -fL -o /usr/local/bin/dind "https://raw.githubusercontent.com/moby/moby/${DIND_COMMIT}/hack/dind" && \
+	chmod +x /usr/local/bin/dind
+
+# ENV VIRTUAL_ENV=/opt/playground/venv
+# RUN mkdir -p $VIRTUAL_ENV
+# RUN python3 -m venv $VIRTUAL_ENV
+# ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+
+# ARG BEAM_VERSION
+# RUN pip install --upgrade pip
+# RUN pip install apache-beam==2.47.0
+# #RUN pip install apache-beam==${BEAM_VERSION}   old
+# RUN pip install --default-timeout=100 torch
+# RUN pip install torchvision
+# RUN pip install pandas
+# RUN pip install scikit-learn
+
+RUN apt-get update
+RUN apt-get install -y wget
+
+# RUN wget -qO - https://adoptopenjdk.jfrog.io/adoptopenjdk/api/gpg/key/public | apt-key add -
+# RUN add-apt-repository --yes https://adoptopenjdk.jfrog.io/adoptopenjdk/deb/
+# RUN apt-get update
+# RUN apt-get update && apt-get install -y openjdk-11-jre-headless
+RUN apt-get install -y openjdk-11-jre-headless
+
+
+# ARG BEAM_VERSION
+ARG REPO_URL=https://repo1.maven.org/maven2
+ARG SQL_EXPANSION_SERVICE_JAR=${REPO_URL}/org/apache/beam/beam-sdks-java-extensions-sql-expansion-service/2.47.0/beam-sdks-java-extensions-sql-expansion-service-2.47.0.jar
+RUN curl -O -L $SQL_EXPANSION_SERVICE_JAR
+
+################
+## Pre-pulled images ##
+################
+COPY ./images/* /images/
+
+###############################################################################
+
+# Copy build result
+COPY --from=build /go/bin/server_java_backend /opt/playground/backend/
+COPY --from=build /go/src/playground/backend/configs /opt/playground/backend/configs/
+COPY --from=build /go/src/playground/backend/logging.properties /opt/playground/backend/
+COPY --from=build /go/src/playground/backend/datasets /opt/playground/backend/datasets/
+COPY --from=dep /pipeline-dependencies/target/dependency/ /opt/apache/beam/jars/
+
+# Install Beam Examples
+RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-examples-multi-language/$BEAM_VERSION/beam-examples-multi-language-$BEAM_VERSION.jar &&\
+    mv beam-examples-multi-language-$BEAM_VERSION.jar /opt/apache/beam/jars/beam-examples-multi-language.jar
+# Install Xlang Beam Examples
+RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-examples-java/$BEAM_VERSION/beam-examples-java-$BEAM_VERSION.jar &&\
+    mv beam-examples-java-$BEAM_VERSION.jar /opt/apache/beam/jars/beam-examples-java.jar
+# Install jars for Playground graphs
+RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-runners-core-construction-java/$BEAM_VERSION/beam-runners-core-construction-java-$BEAM_VERSION.jar &&\
+    mv beam-runners-core-construction-java-$BEAM_VERSION.jar /opt/apache/beam/jars/beam-runners-core-construction-java-$BEAM_VERSION.jar
+RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-sdks-java-core/$BEAM_VERSION/beam-sdks-java-core-$BEAM_VERSION-tests.jar &&\
+    mv beam-sdks-java-core-$BEAM_VERSION-tests.jar /opt/apache/beam/jars/beam-sdks-java-core-tests.jar
+# Install Spring Expression
+RUN wget https://repo1.maven.org/maven2/org/springframework/spring-expression/$SPRING_VERSION/spring-expression-$SPRING_VERSION.jar &&\
+    mv spring-expression-$SPRING_VERSION.jar /opt/apache/beam/jars/spring-expression.jar
+# Install Spring Core
+RUN wget https://repo1.maven.org/maven2/org/springframework/spring-core/$SPRING_VERSION/spring-core-$SPRING_VERSION.jar &&\
+    mv spring-core-$SPRING_VERSION.jar /opt/apache/beam/jars/spring-core.jar
+# Install Spring JCL
+RUN wget https://repo1.maven.org/maven2/org/springframework/spring-jcl/$SPRING_VERSION/spring-jcl-$SPRING_VERSION.jar &&\
+    mv spring-jcl-$SPRING_VERSION.jar /opt/apache/beam/jars/spring-jcl.jar
+
+# Install sql extensions service and dependencies for Beam
+RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-sdks-java-extensions-sql/$BEAM_VERSION/beam-sdks-java-extensions-sql-$BEAM_VERSION.jar &&\
+    mv beam-sdks-java-extensions-sql-$BEAM_VERSION.jar /opt/apache/beam/jars/beam-sdks-java-extensions-sql.jar
+
+RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-vendor-calcite-1_28_0/0.2/beam-vendor-calcite-1_28_0-0.2.jar &&\
+    mv beam-vendor-calcite-1_28_0-0.2.jar /opt/apache/beam/jars/beam-vendor-calcite-1_28_0.jar
+
+RUN wget  https://repo1.maven.org/maven2/net/bytebuddy/byte-buddy/1.12.14/byte-buddy-1.12.14.jar &&\
+    mv byte-buddy-1.12.14.jar /opt/apache/beam/jars/byte-buddy-1.12.14.jar
+
+RUN wget  https://repo1.maven.org/maven2/com/alibaba/fastjson/1.2.69/fastjson-1.2.69.jar &&\
+    mv fastjson-1.2.69.jar /opt/apache/beam/jars/fastjson-1.2.69.jar
+
+RUN wget  https://repo1.maven.org/maven2/org/codehaus/janino/janino/3.0.11/janino-3.0.11.jar &&\
+    mv janino-3.0.11.jar /opt/apache/beam/jars/janino-3.0.11.jar
+
+RUN wget  https://repo1.maven.org/maven2/org/codehaus/janino/commons-compiler/3.0.11/commons-compiler-3.0.11.jar &&\
+    mv commons-compiler-3.0.11.jar /opt/apache/beam/jars/commons-compiler-3.0.11.jar
+
+# Install Java Katas Utils
+COPY katas /go/src/katas
+RUN cd /go/src/katas &&\
+    ./gradlew jar &&\
+    mv util/build/libs/util.jar /opt/apache/beam/jars/util.jar
+
+COPY src/properties.yaml /opt/playground/backend/properties.yaml
+COPY entrypoint.sh /
+COPY kafka-emulator/kafka-emulator.tar /opt/playground/backend/kafka-emulator/
+RUN cd /opt/playground/backend/kafka-emulator/ && tar -xvf kafka-emulator.tar && rm kafka-emulator.tar &&\
+    mv kafka-emulator/*.jar . && rmdir kafka-emulator/ &&\
+    mv beam-playground-kafka-emulator-*.jar beam-playground-kafka-emulator.jar
+
+# Create a user group `appgroup` and a user `appuser`
+RUN groupadd --gid 20000 appgroup \
+  && useradd --uid 20000 --gid appgroup --shell /bin/bash --create-home appuser
+
+RUN mkdir -p /opt/playground/backend/executable_files/
+
+# Chown all required files to the `appuser`.
+
+RUN chown -R appuser:appgroup /opt/playground/backend/executable_files/ && chmod o+r /opt/apache/beam/jars/* \
+  && chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
