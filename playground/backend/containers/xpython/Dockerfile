@@ -44,13 +44,13 @@ RUN go mod download &&\
     go build -ldflags="-X main.BuildCommitHash=$GIT_COMMIT -X main.BuildCommitTimestamp=$GIT_TIMESTAMP" -o /go/bin/server_python_backend
 
 
+###############################################################################
 #FROM apache/beam_python3.10_sdk:$SDK_TAG
 FROM python:3.10-slim-bullseye
 
-###############################################################################
 ARG SDK_TAG
 ARG DOCKER_CHANNEL=stable
-# ARG DOCKER_VERSION=20.10.8
+ARG DOCKER_VERSION=20.10.24
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
   apt-transport-https \
@@ -59,14 +59,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   gnupg2 \
   software-properties-common
 
-RUN curl -fsSL https://download.docker.com/linux/debian/gpg | apt-key add -
+RUN install -m 0755 -d /etc/apt/keyrings
+RUN curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+RUN chmod a+r /etc/apt/keyrings/docker.gpg
 
-RUN add-apt-repository \
-   "deb [arch=amd64] https://download.docker.com/linux/debian \
-   $(lsb_release -cs) \
-   ${DOCKER_CHANNEL}"
+RUN echo \
+  "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \
+  "$(. /etc/os-release && echo "$VERSION_CODENAME")" ${DOCKER_CHANNEL}" | \
+  tee /etc/apt/sources.list.d/docker.list > /dev/null
 
-RUN apt-get update && apt-get install -y --no-install-recommends docker-ce=5:20.10.24~3-0~debian-bullseye && \
+RUN apt-get update && apt-get install -y --no-install-recommends docker-ce=5:${DOCKER_VERSION}~3-0~debian-bullseye && \
   docker -v && \
   dockerd -v
 
@@ -82,8 +84,7 @@ ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
 ARG BEAM_VERSION
 RUN pip install --upgrade pip
-RUN pip install apache-beam==2.47.0
-#RUN pip install apache-beam==${BEAM_VERSION}   old
+RUN pip install apache-beam==${SDK_TAG}
 RUN pip install --default-timeout=100 torch
 RUN pip install torchvision
 RUN pip install pandas
@@ -95,7 +96,6 @@ RUN apt-get install -y wget
 RUN wget -qO - https://adoptopenjdk.jfrog.io/adoptopenjdk/api/gpg/key/public | apt-key add -
 RUN add-apt-repository --yes https://adoptopenjdk.jfrog.io/adoptopenjdk/deb/
 RUN apt-get update
-#RUN apt-get install -y adoptopenjdk-11-hotspot -------- from xtransform
 RUN apt-get update && apt-get install -y openjdk-11-jre-headless
 
 
