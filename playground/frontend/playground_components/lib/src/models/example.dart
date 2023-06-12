@@ -106,6 +106,7 @@ class Example extends ExampleBase {
       datasets: datasets,
       description: description,
       files: files,
+      graph: graph,
       isMultiFile: isMultiFile,
       logs: logs,
       name: name,
