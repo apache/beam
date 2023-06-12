@@ -14,7 +14,7 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-# beam-playground-broken:
+# beam-playground:
 #   name: read-table
 #   description: TextIO read table example.
 #   multifile: false
