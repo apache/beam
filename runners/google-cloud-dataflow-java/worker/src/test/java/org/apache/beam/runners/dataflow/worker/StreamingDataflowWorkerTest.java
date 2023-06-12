@@ -3328,7 +3328,7 @@ public class StreamingDataflowWorkerTest {
   public void testLatencyAttributionProtobufsPopulated() throws Exception {
     FakeClock clock = new FakeClock();
     StreamingDataflowWorker.Work work =
-        new StreamingDataflowWorker.Work(null, clock) {
+        new StreamingDataflowWorker.Work(null, clock, Collections.emptyList()) {
           @Override
           public void run() {}
         };

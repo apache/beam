@@ -1046,7 +1046,7 @@ public class StreamingDataflowWorker {
     Preconditions.checkState(
         outputDataWatermark == null || !outputDataWatermark.isAfter(inputDataWatermark));
     Work work =
-        new Work(workItem, clock) {
+        new Work(workItem, clock, getWorkStreamLatencies) {
           @Override
           public void run() {
             process(
@@ -1057,7 +1057,6 @@ public class StreamingDataflowWorker {
                 this);
           }
         };
-    work.recordGetWorkStreamLatencies(getWorkStreamLatencies);
     computationState.activateWork(
         ShardedKey.create(workItem.getKey(), workItem.getShardingKey()), work);
   }
@@ -1115,12 +1114,16 @@ public class StreamingDataflowWorker {
     private State state;
     private Map<Windmill.LatencyAttribution.State, Duration> totalDurationPerState;
 
-    public Work(Windmill.WorkItem workItem, Supplier<Instant> clock) {
+    public Work(
+        Windmill.WorkItem workItem,
+        Supplier<Instant> clock,
+        Collection<LatencyAttribution> getWorkStreamLatencies) {
       this.workItem = workItem;
       this.clock = clock;
       this.startTime = this.stateStartTime = clock.get();
       this.state = State.QUEUED;
       this.totalDurationPerState = new EnumMap<>(Windmill.LatencyAttribution.State.class);
+      recordGetWorkStreamLatencies(getWorkStreamLatencies);
     }
 
     public Windmill.WorkItem getWorkItem() {
@@ -1148,7 +1151,7 @@ public class StreamingDataflowWorker {
       return stateStartTime;
     }
 
-    public void recordGetWorkStreamLatencies(
+    private void recordGetWorkStreamLatencies(
         Collection<LatencyAttribution> getWorkStreamLatencies) {
       for (LatencyAttribution latency : getWorkStreamLatencies) {
         totalDurationPerState.put(

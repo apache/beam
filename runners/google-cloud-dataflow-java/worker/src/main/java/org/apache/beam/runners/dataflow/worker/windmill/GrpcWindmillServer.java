@@ -894,8 +894,10 @@ public class GrpcWindmillServer extends WindmillServerStub {
       // sum duration in each transmission stage across different chunks, then divide the total
       // duration (start from the chunk creation end in the windmill worker to the end of last chunk
       // reception by the user worker) proportionally according the sum duration values across the
-      // many stages. This should allow us to identify the slow stage meanwhile avoid confusions for
-      // comparing the stage duration to the total processing elapsed wall time.
+      // many stages, the final latency is also capped by the corresponding stage maximum latency
+      // seen across multiple chunks. This should allow us to identify the slow stage meanwhile
+      // avoid confusions for comparing the stage duration to the total processing elapsed wall
+      // time.
       Map<Event, Instant> getWorkStreamTimings = new HashMap<>();
       for (GetWorkStreamTimingInfo info : infos) {
         getWorkStreamTimings.putIfAbsent(
