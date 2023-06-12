@@ -47,7 +47,31 @@ class TabbedSnippetEditor extends StatelessWidget {
     final keys = files.map((f) => f.name).toList(growable: false);
     final initialKey = files.firstWhereOrNull((f) => f.isMain)?.name;
 
-    return DefaultKeyedTabController<String>.fromKeys(
+    print('files: $files');
+    print('keys: $keys');
+    print('initialKey: $initialKey');
+
+    final headersChildren = <Widget>[
+      Expanded(
+        child:
+        BeamTabBar(tabs: {for (final key in keys) key: Text(key)}),
+      ),
+      if (trailing != null) trailing!,
+    ];
+    print('headersChildren: $headersChildren');
+
+    final bodyChildren = {
+      for (final key in keys)
+        key: SnippetFileEditor(
+          autofocus: autofocus,
+          controller: controller.requireFileControllerByName(key),
+          eventSnippetContext: eventSnippetContext,
+          isEditable: isEditable,
+        ),
+    };
+    print('bodyChildren: $bodyChildren');
+
+    final result = DefaultKeyedTabController<String>.fromKeys(
       animationDuration: Duration.zero,
       initialKey: initialKey,
       keys: keys,
@@ -60,29 +84,18 @@ class TabbedSnippetEditor extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            children: [
-              Expanded(
-                child:
-                    BeamTabBar(tabs: {for (final key in keys) key: Text(key)}),
-              ),
-              if (trailing != null) trailing!,
-            ],
+            children: headersChildren,
           ),
           Expanded(
             child: KeyedTabBarView.withDefaultController(
-              children: {
-                for (final key in keys)
-                  key: SnippetFileEditor(
-                    autofocus: autofocus,
-                    controller: controller.requireFileControllerByName(key),
-                    eventSnippetContext: eventSnippetContext,
-                    isEditable: isEditable,
-                  ),
-              },
+              children: bodyChildren,
             ),
           ),
         ],
       ),
     );
+
+    print('result: $result');
+    return result;
   }
 }
