@@ -54,7 +54,6 @@ RUN mvn dependency:copy-dependencies
 ###############################################################################
 
 FROM apache/beam_java11_sdk:$BEAM_VERSION
-#FROM debian:bullseye
 
 ARG BEAM_VERSION
 ARG SPRING_VERSION=5.3.27
@@ -78,18 +77,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 RUN install -m 0755 -d /etc/apt/keyrings
 RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-# RUN curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
 RUN chmod a+r /etc/apt/keyrings/docker.gpg
 
 RUN echo \
   "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
   "$(. /etc/os-release && echo "$VERSION_CODENAME")" ${DOCKER_CHANNEL}" | \
   tee /etc/apt/sources.list.d/docker.list > /dev/null
-
-# RUN echo \
-#   "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \
-#   "$(. /etc/os-release && echo "$VERSION_CODENAME")" ${DOCKER_CHANNEL}" | \
-#   tee /etc/apt/sources.list.d/docker.list > /dev/null
 
 RUN apt-get update && apt-get install -y --no-install-recommends docker-ce=5:${DOCKER_VERSION}~3-0~ubuntu-jammy && \
   docker -v && \
@@ -100,27 +93,9 @@ ENV DOCKER_EXTRA_OPTS '--storage-driver=overlay'
 RUN curl -fL -o /usr/local/bin/dind "https://raw.githubusercontent.com/moby/moby/${DIND_COMMIT}/hack/dind" && \
 	chmod +x /usr/local/bin/dind
 
-# ENV VIRTUAL_ENV=/opt/playground/venv
-# RUN mkdir -p $VIRTUAL_ENV
-# RUN python3 -m venv $VIRTUAL_ENV
-# ENV PATH="$VIRTUAL_ENV/bin:$PATH"
-
-# ARG BEAM_VERSION
-# RUN pip install --upgrade pip
-# RUN pip install apache-beam==2.47.0
-# #RUN pip install apache-beam==${BEAM_VERSION}   old
-# RUN pip install --default-timeout=100 torch
-# RUN pip install torchvision
-# RUN pip install pandas
-# RUN pip install scikit-learn
-
 RUN apt-get update
 RUN apt-get install -y wget
 
-# RUN wget -qO - https://adoptopenjdk.jfrog.io/adoptopenjdk/api/gpg/key/public | apt-key add -
-# RUN add-apt-repository --yes https://adoptopenjdk.jfrog.io/adoptopenjdk/deb/
-# RUN apt-get update
-# RUN apt-get update && apt-get install -y openjdk-11-jre-headless
 RUN apt-get install -y openjdk-11-jre-headless
 
 
