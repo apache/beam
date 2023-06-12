@@ -151,6 +151,9 @@ class TypeCheckWrapperDoFn(AbstractDoFnWrapper):
       if isinstance(o, TimestampedValue) and hasattr(o, "__orig_class__"):
         # when a typed TimestampedValue is set, check the value type
         x = o.value
+        # per https://stackoverflow.com/questions/57706180/,
+        # __orig_class__ is te safe way to obtain the actual type
+        # from from Generic[T], supported since Python 3.5.3
         beam_type = normalize(o.__orig_class__.__args__[0])
         self.type_check(beam_type, x, is_input=False)
       else:

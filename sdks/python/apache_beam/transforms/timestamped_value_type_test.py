@@ -63,13 +63,18 @@ class TypeCheckTimestampedValueTestCase(unittest.TestCase):
         },  # April, 2020
     ]
 
-  def test_pcoll_hints(self):
+  def test_pcoll_default_hints(self):
     for fn in (ConvertToTimestampedValue, ConvertToTimestampedValue_1):
       pc = beam.Map(fn)
       ht = pc.default_type_hints()
       assert len(ht) == 3
-      # assert ht.output_types[0][0] == TimestampedValue[str]
       assert ht.output_types[0][0]
+
+  def test_pcoll_with_output_hints(self):
+    pc = beam.Map(ConvertToTimestampedValue).with_output_types(str)
+    ht = pc.get_type_hints()
+    assert len(ht) == 3
+    assert ht.output_types[0][0] == str
 
   def test_opts_with_check(self):
     with beam.Pipeline(options=self.opts) as p:
