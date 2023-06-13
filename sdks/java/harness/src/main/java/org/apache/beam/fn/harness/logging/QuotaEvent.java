@@ -27,6 +27,9 @@ import org.slf4j.MDC;
  *
  * <p>Suggested usage: try (QuotaEventCloseable qec = new
  * QuotaEvent.Builder().withOperation(op).withFullResourceName(name).create()) { LOG.info(...); }
+ *
+ * <p>MDC data is thread-local. After calling QuotaEventClosable.close, any overwritten
+ * quota_event.* keys will not be restored.
  */
 public class QuotaEvent {
   public static class QuotaEventCloseable implements AutoCloseable {
