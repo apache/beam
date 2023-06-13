@@ -22,6 +22,7 @@ import 'package:flutter_markdown_selectionarea/flutter_markdown.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../playground_components.dart';
+import 'transitions.dart';
 
 const codeFontSize = 14.0;
 
@@ -171,6 +172,7 @@ final kLightTheme = ThemeData(
     BeamLightThemeColors.text,
     BeamLightThemeColors.primary,
   ),
+  pageTransitionsTheme: NoTransitionsTheme(),
   primaryColor: BeamLightThemeColors.primary,
   scaffoldBackgroundColor: BeamLightThemeColors.secondaryBackground,
   selectedRowColor: BeamLightThemeColors.selectedUnitColor,
@@ -248,6 +250,7 @@ final kDarkTheme = ThemeData(
     BeamDarkThemeColors.text,
     BeamDarkThemeColors.primary,
   ),
+  pageTransitionsTheme: NoTransitionsTheme(),
   primaryColor: BeamDarkThemeColors.primary,
   scaffoldBackgroundColor: BeamDarkThemeColors.secondaryBackground,
   selectedRowColor: BeamDarkThemeColors.selectedUnitColor,
