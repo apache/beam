@@ -75,7 +75,7 @@ func CheckNumOfTheParallelJobs(workingDir string, numOfParallelJobs int) bool {
 	}
 
 	if len(dirEntries) >= numOfParallelJobs {
-		logger.Errorf("Readiness: Count of code processing is equal or more than possible: %d / %d", len(dirEntries), numOfParallelJobs)
+		logger.Warnf("Readiness: Count of running jobs is equal or more than allowed: %d / %d", len(dirEntries), numOfParallelJobs)
 		return false
 	}
 	return true
