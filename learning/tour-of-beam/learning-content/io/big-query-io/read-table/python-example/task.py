@@ -18,6 +18,8 @@
 #   name: read-table
 #   description: TextIO read table example.
 #   multifile: false
+#   never_run: true
+#   always_run: true
 #   context_line: 34
 #   categories:
 #     - Quickstart

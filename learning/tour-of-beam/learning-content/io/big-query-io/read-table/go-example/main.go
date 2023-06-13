@@ -21,6 +21,8 @@
 //   description: BigQueryIO read table example.
 //   multifile: false
 //   context_line: 42
+//   never_run: true
+//   always_run: true
 //   categories:
 //     - Quickstart
 //   complexity: ADVANCED

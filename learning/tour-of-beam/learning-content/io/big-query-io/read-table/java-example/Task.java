@@ -20,6 +20,8 @@
 //   name: read-table
 //   description: BigQueryIO read table example.
 //   multifile: false
+//   never_run: true
+//   always_run: true
 //   context_line: 56
 //   categories:
 //     - Quickstart
