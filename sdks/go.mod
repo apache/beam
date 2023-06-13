@@ -23,7 +23,7 @@ module github.com/apache/beam/sdks/v2
 go 1.19
 
 require (
-	cloud.google.com/go/bigquery v1.51.1
+	cloud.google.com/go/bigquery v1.51.2
 	cloud.google.com/go/bigtable v1.18.1
 	cloud.google.com/go/datastore v1.11.0
 	cloud.google.com/go/profiler v0.3.1
@@ -48,10 +48,10 @@ require (
 	github.com/proullon/ramsql v0.0.0-20211120092837-c8d0a408b939
 	github.com/spf13/cobra v1.7.0
 	github.com/testcontainers/testcontainers-go v0.20.1
-	github.com/tetratelabs/wazero v1.1.0
+	github.com/tetratelabs/wazero v1.2.0
 	github.com/xitongsys/parquet-go v1.6.2
 	github.com/xitongsys/parquet-go-source v0.0.0-20220315005136-aec0fe3e777c
-	go.mongodb.org/mongo-driver v1.11.6
+	go.mongodb.org/mongo-driver v1.11.7
 	golang.org/x/net v0.10.0
 	golang.org/x/oauth2 v0.8.0
 	golang.org/x/sync v0.2.0

@@ -94,7 +94,7 @@ Please have these credentials ready at hand, you will likely need to enter them 
 * Apache ID and Password;
 * GitHub ID and Password.
 * DockerHub ID and Password. (You should be a member of maintainer team; email at dev@ if you are not.)
-
+* Account to access to apache-beam-testing Google Cloud Platform project. The account must have permissions to start Cloud Build triggers. Required for Playground environment update. (E-mail to pabloem@google.com to request access)
 
 ### One-time setup instructions
 
@@ -1272,7 +1272,42 @@ Also, update [the Wikipedia article on Apache Beam](https://en.wikipedia.org/wik
 
 ## 13. Update Beam Playground
 
-After new Beam Release is published Beam Playgorund can be updated according to [Playground Readme](https://github.com/apache/beam/blob/master/playground/TASKS.md#referenced-beam-sdk-update) and [Playground deployment guide](https://github.com/apache/beam/blob/master/playground/terraform/README.md).
+After new Beam Release is published, Beam Playgorund can be updated following the steps below:
+
+1. Open the [Cloud Build triggers in apache-beam-testing](https://console.cloud.google.com/cloud-build/triggers?project=apache-beam-testing) GCP project.
+1. Find the trigger "Deploy-Update-Playground-environment-stg":
+    1. Click on the trigger name to open its settings
+    1. Change the value for _SDK_TAG variable (Advanced -> Substitution Variables) to the actual version of Beam SDK (e.g. 2.47.0)
+    1. Click the Save button. The settings window should close without any errors
+    1. Click the RUN button next to the trigger name
+    1. Set the value for the _CONTAINER_TAG variable in format DD-MM-vXX (DD - day, MM - month, XX - version, e.g., 20-12-v01)
+    1. Click the Run Trigger button
+    1. Open the [Trigger History](https://console.cloud.google.com/cloud-build/builds?project=apache-beam-testing) and wait for the job completion. Ensure  that the job completed successfully (Status field shows a green tick)
+1. Find the trigger "Playground-CD-stable-manual-stg":
+    1. Click the RUN button next to the trigger name
+    1. Click the Run Trigger button (with default varaible vaues)
+    1. Open the [Trigger History](https://console.cloud.google.com/cloud-build/builds?project=apache-beam-testing) and wait for the job completion. Ensure  that the job completed successfully (Status field shows a green tick)
+    1. Click the RUN button next to the trigger name
+    1. Change values for the variables:
+        * _ORIGIN = PG_BEAMDOC
+        * _SUBDIRS = ./learning/beamdoc
+    1. Click the Run Trigger button
+    1. Open the [Trigger History](https://console.cloud.google.com/cloud-build/builds?project=apache-beam-testing) and wait for the job completion. Ensure  that the job completed successfully (Status field shows a green tick)
+1. Test updated [staging Playground](https://play-dev.beam.apache.org/) in a browser
+    1. Open the menu (represented by '...' in the right top corner) and click on Versions. Validate that commit is the same for all listed containers, and the hash belongs to a [recent master branch commit](https://github.com/apache/beam/commits/master)
+    1. For each of the supported SDKs (Java, Python, Go, SCIO):
+        * Switch to the SDK
+        * Make any changes to the loaded default example
+        * Click the Run button
+        * Wait for successful completion
+        * Click "Share My Code" to ensure that the link is generated
+1. Repeat the same steps for "Deploy-Update-Playground-environment-prod" trigger as for "Deploy-Update-Playground-environment-stg" trigger
+1. Repeat the same steps for "Playground-CD-stable-manual-prod" trigger as for "Playground-CD-stable-manual-stg" trigger
+1. Test updated [prod Playground](https://play.beam.apache.org/) in a browser. The process is similar to the staging environment.
+1. Find the trigger "Playground-CI-stable"
+    1. Click on the trigger name to open its settings
+    1. Set the value for the _BEAM_VERSION variable (Advanced -> Substitution Variables) to the actual version of Beam SDK (e.g., 2.47.0)
+    1. Click the Save button. Click the Save button. The settings window should close without any errors
 
 ## Improve the process
 
