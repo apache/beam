@@ -1205,7 +1205,7 @@ public class PubsubIO {
     }
 
     static Builder<PubsubMessage> newBuilder() {
-      return newBuilder(x -> x);
+      return newBuilder(x -> x.getValue());
     }
 
     @AutoValue.Builder

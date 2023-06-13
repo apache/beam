@@ -126,7 +126,8 @@ public class PreparePubsubWriteDoFn<InputT> extends DoFn<InputT, PubsubMessage> 
       BoundedWindow window,
       PaneInfo paneInfo,
       OutputReceiver<PubsubMessage> o) {
-    ValueInSingleWindow valueInSingleWindow = ValueInSingleWindow.of(element, ts, window, paneInfo);
+    ValueInSingleWindow<InputT> valueInSingleWindow =
+        ValueInSingleWindow.of(element, ts, window, paneInfo);
     PubsubMessage message = formatFunction.apply(valueInSingleWindow);
     if (topicFunction != null) {
       message = message.withTopic(topicFunction.apply(valueInSingleWindow).asPath());
