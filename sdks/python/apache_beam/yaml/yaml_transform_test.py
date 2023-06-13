@@ -21,12 +21,15 @@ import os
 import tempfile
 import unittest
 
+import yaml
+
 import apache_beam as beam
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-from apache_beam.yaml.yaml_transform import YamlTransform, SafeLineLoader, LightweightScope
 from apache_beam.yaml import yaml_transform
-import yaml
+from apache_beam.yaml.yaml_transform import LightweightScope
+from apache_beam.yaml.yaml_transform import SafeLineLoader
+from apache_beam.yaml.yaml_transform import YamlTransform
 
 
 class YamlTransformTest(unittest.TestCase):
