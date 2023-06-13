@@ -84,14 +84,14 @@ def run():
         smallerThan10 = partition[1]
 
         (biggerThan10
-         | 'Map id and price for bigger' >> beam.Map(lambda transaction: (transaction.transaction_no, float(transaction.price)))
-         | 'Calculate sum for biggerThan10' >> beam.CombinePerKey(sum)
-         | 'Write biggerThan10 results to text file' >> beam.io.WriteToText('biggerThan10', '.txt', shard_name_template=''))
+         | 'Map product_no and price for bigger' >> beam.Map(lambda transaction: (transaction.product_no, float(transaction.price)))
+         | 'Calculate sum for price more than 10' >> beam.CombinePerKey(sum)
+         | 'Write price more than 10 results to text file' >> beam.io.WriteToText('price_more_than_10', '.txt', shard_name_template=''))
 
         (smallerThan10
-         | 'Map id and price for smaller' >> beam.Map(lambda transaction: (transaction.transaction_no, float(transaction.price)))
-         | 'Calculate sum for smallerThan10' >> beam.CombinePerKey(sum)
-         | 'Write smallerThan10 results to text file' >> beam.io.WriteToText('smallerThan10', '.txt', shard_name_template=''))
+         | 'Map product_no and price for smaller' >> beam.Map(lambda transaction: (transaction.product_no, float(transaction.price)))
+         | 'Calculate sum for price less than 10' >> beam.CombinePerKey(sum)
+         | 'Write price less than 10 results to text file' >> beam.io.WriteToText('price_less_than_10', '.txt', shard_name_template=''))
 
 if __name__ == '__main__':
     logging.getLogger().setLevel(logging.INFO)

@@ -85,10 +85,10 @@ func main() {
 	result := getPartition(s, filtered)
 
 	biggerThan10 := sumCombine(s, mapIdWithPrice(s, result[0]))
-	textio.Write(s, "biggerThan10.txt", convertToString(s, biggerThan10))
+	textio.Write(s, "price_more_than_10.txt", convertToString(s, biggerThan10))
 
 	smallerThan10 := sumCombine(s, mapIdWithPrice(s, result[1]))
-	textio.Write(s, "smallerThan10.txt", convertToString(s, smallerThan10))
+	textio.Write(s, "price_less_than_10.txt", convertToString(s, smallerThan10))
 
 	if err := beamx.Run(ctx, p); err != nil {
 		log.Fatalf("Failed to execute job: %v", err)
@@ -128,8 +128,8 @@ func getPartition(s beam.Scope, input beam.PCollection) []beam.PCollection {
 }
 
 func convertToString(s beam.Scope, input beam.PCollection) beam.PCollection {
-	return beam.ParDo(s, func(id int64, sum float64, emit func(string)) {
-		emit(fmt.Sprint("id: ", id, " , sum: ", sum))
+	return beam.ParDo(s, func(product string, sum float64, emit func(string)) {
+		emit(fmt.Sprint("product: ", product, " , sum: ", sum))
 	}, input)
 }
 
@@ -140,8 +140,8 @@ func filtering(s beam.Scope, input beam.PCollection) beam.PCollection {
 }
 
 func mapIdWithPrice(s beam.Scope, input beam.PCollection) beam.PCollection {
-	return beam.ParDo(s, func(element Transaction, emit func(int64, float64)) {
-		emit(element.ID, element.Price)
+	return beam.ParDo(s, func(element Transaction, emit func(string, float64)) {
+		emit(element.ProductID, element.Price)
 	}, input)
 }
 

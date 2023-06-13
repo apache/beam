@@ -77,16 +77,16 @@ public class Task {
                 .apply(new TransactionPartitionFn());
 
         parts.get(0)
-                .apply(MapElements.into(TypeDescriptors.kvs(TypeDescriptors.longs(), TypeDescriptors.doubles())).via(it -> KV.of(it.id, it.price)))
+                .apply(MapElements.into(TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.doubles())).via(it -> KV.of(it.productId, it.price)))
                 .apply(Combine.perKey(new SumDoubleBinaryCombineFn()))
                 .apply(MapElements.into(TypeDescriptor.of(String.class)).via(it -> it.toString()))
-                .apply("WriteToFile", TextIO.write().to("biggerThan10").withSuffix(".txt"));
+                .apply("WriteToFile", TextIO.write().withoutSharding().to("price_more_than_10").withSuffix(".txt"));
 
         parts.get(1)
-                .apply(MapElements.into(TypeDescriptors.kvs(TypeDescriptors.longs(), TypeDescriptors.doubles())).via(it -> KV.of(it.id, it.price)))
+                .apply(MapElements.into(TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.doubles())).via(it -> KV.of(it.productId, it.price)))
                 .apply(Combine.perKey(new SumDoubleBinaryCombineFn()))
                 .apply(MapElements.into(TypeDescriptor.of(String.class)).via(it -> it.toString()))
-                .apply("WriteToFile", TextIO.write().to("smallerThan10").withSuffix(".txt"));
+                .apply("WriteToFile", TextIO.write().withoutSharding().to("price_less_than_10").withSuffix(".txt"));
 
         pipeline.run().waitUntilFinish();
     }

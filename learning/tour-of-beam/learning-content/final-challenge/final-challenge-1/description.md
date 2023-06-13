@@ -11,7 +11,12 @@ limitations under the License.
 -->
 ### Final challenge 1
 
-You have a transaction file with data. You need to parse the csv file. And write a **Pojo class** for it so that Pipeline understands which object it is working with. Make a report that is sent every 30 seconds. Filter so that the **quantity** of the product is more than 20. And divide into 2 parts. In the first part, the transaction **price** should be more than 10, the second less. Combine so that for each transaction id there is a summed price. And write in two files for **"price more than 10"** and **"price less than 10"**.
+You’re given a csv file with purchase transactions. Write a Beam pipeline to prepare a send report every 30 seconds. The report needs to be created only for transactions where quantity is more than 20.
+
+Report should consist of two files named "**price more than 10**" and "**price less than 10**":
+
+* Total transactions amount grouped by **ProductNo** for products with **price** greater than 10
+* Total transactions amount grouped by **ProductNo** for products with **price** less than 10
 
 | TransactionNo | Date      | ProductNo | ProductName                         | Price | Quantity | CustomerNo | Country        |
 |---------------|-----------|-----------|-------------------------------------|-------|----------|------------|----------------|
