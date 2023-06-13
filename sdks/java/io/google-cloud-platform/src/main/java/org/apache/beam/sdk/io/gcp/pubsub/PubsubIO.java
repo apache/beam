@@ -731,9 +731,9 @@ public class PubsubIO {
    */
   public static Write<String> writeStrings() {
     return Write.newBuilder(
-            (ValueInSingleWindow<String> string) ->
+            (ValueInSingleWindow<String> stringAndWindow) ->
                 new PubsubMessage(
-                    string.getValue().getBytes(StandardCharsets.UTF_8), ImmutableMap.of()))
+                    stringAndWindow.getValue().getBytes(StandardCharsets.UTF_8), ImmutableMap.of()))
         .setDynamicDestinations(false)
         .build();
   }
