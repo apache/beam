@@ -144,11 +144,6 @@ deps:
     artifact: jackson-module-scala_2.11
     owners:
 
-  com.github.ben-manes:gradle-versions-plugin:
-    group: com.github.ben-manes
-    artifact: gradle-versions-plugin
-    owners:
-
   com.github.jengelman.gradle.plugins:shadow:
     group: com.github.jengelman.gradle.plugins
     artifact: shadow

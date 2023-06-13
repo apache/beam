@@ -62,7 +62,8 @@
 
 ## New Features / Improvements
 
-* X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Allow prebuilding large images when using `--prebuild_sdk_container_engine=cloud_build`, like images depending on `tensorflow` or `torch` ([#27023](https://github.com/apache/beam/pull/27023)).
+* Disabled `pip` cache when installing packages on the workers. This reduces the size of prebuilt Python container images ([#27035](https://github.com/apache/beam/pull/27035)).
 
 ## Breaking Changes
 
@@ -75,13 +76,14 @@
 ## Bugfixes
 
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Fixed KinesisIO `NullPointerException` when a progress check is made before the reader is started (IO) ([#23868](https://github.com/apache/beam/issues/23868))
 
 ## Known Issues
 
 * ([#X](https://github.com/apache/beam/issues/X)).
 
 
-# [2.48.0] - Unreleased
+# [2.48.0] - 2023-05-31
 
 ## Highlights
 

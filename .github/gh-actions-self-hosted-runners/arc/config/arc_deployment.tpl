@@ -24,7 +24,7 @@ spec:
   template:
     spec:
       image: summerwind/actions-runner:v2.304.0-ubuntu-20.04-30355f7
-      repository: ${repository}
+      organization: ${organization}
       group: "${group}"
       labels:
         - "ubuntu-20.04"

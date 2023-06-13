@@ -22,16 +22,18 @@
 Check out the docs at https://github.com/actions/actions-runner-controller/blob/master/docs/about-arc.md
 
 # Installing
-1. Create a Github App in your account and install it in the repo you want to provide runners for.
+1. Create a bucket for terraform state, making sure you disable public access and allow your account to access it. (or reuse existing that is noted in the environment file)
+
+2. Create a Github App in your account and install it in the repo you want to provide runners for.
 All is explained in : https://github.com/actions/actions-runner-controller/blob/master/docs/authenticating-to-the-github-api.md
 
-2. In your Google Cloud Project create the secrets for
+3. In your Google Cloud Project create the secrets for
 - Github App ID
 - Github App Installation ID
 - Github App PEM key
 All are created in the step before
 
-3. Create a file called `overrides.tfvars` with the following contents:
+4. Create a file called `environment_name.env` in the folder `environments` with the following contents:
 ```
 project_id = "PROJECT_ID"                                     # google PROJECT_ID that you want to deploy in
 region = "gcp_region"                                         # GCP region for the network
@@ -49,15 +51,20 @@ deploy_webhook = "false"                                      # Terraform to dep
 max_main_replicas = "2"                                       # Max number of runner PODs . Do not confuse with Nodes
 min_main_replicas = "1"                                       # Min number of runner PODs . Do not confuse with Nodes
 webhook_scaling = "false"                                     # Enable webhook scaling. When disabled runner busy percentage is used
+#state_bucket_name = "state_bucket_name"                      # Not used by terraform. This is just to reference what bucket is used for others
 ```
+5. Make sure you set the bucket name in the comment in the environment file for documentation purposes
 
-4. Create a google bucket for storing the terraform state. Make sure you disable public access and allow your account to access it.
-
-5.  From this directory, init terraform with:
+6.  From this directory, init terraform with:
 ```
 terraform init -backend-config="bucket=bucket_name"
 ```
-6. Terraform apply
+7. Terraform apply
 ```
-terraform apply -var-file=overrides.tfvar
+terraform apply -var-file=environments/environment_name.env
 ```
+
+# Maintanance
+
+- To access the ARC k8s cluster call the `get_kubeconfig_command` terraform output and run the command
+

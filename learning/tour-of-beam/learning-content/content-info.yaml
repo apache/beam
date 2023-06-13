@@ -28,3 +28,6 @@ content:
   - schema-based-transforms
   - windowing
   - triggers
+  - io
+  - cross-language
+  

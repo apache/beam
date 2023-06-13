@@ -322,20 +322,22 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       }
 
       String getOrCreateStreamName() throws Exception {
-        CreateTableHelpers.createTableWrapper(
-            () -> {
-              if (!useDefaultStream) {
-                this.streamName =
-                    Preconditions.checkStateNotNull(maybeDatasetService)
-                        .createWriteStream(tableUrn, Type.PENDING)
-                        .getName();
-                this.currentOffset = 0;
-              } else {
-                this.streamName = getDefaultStreamName();
-              }
-              return null;
-            },
-            tryCreateTable);
+        if (Strings.isNullOrEmpty(this.streamName)) {
+          CreateTableHelpers.createTableWrapper(
+              () -> {
+                if (!useDefaultStream) {
+                  this.streamName =
+                      Preconditions.checkStateNotNull(maybeDatasetService)
+                          .createWriteStream(tableUrn, Type.PENDING)
+                          .getName();
+                  this.currentOffset = 0;
+                } else {
+                  this.streamName = getDefaultStreamName();
+                }
+                return null;
+              },
+              tryCreateTable);
+        }
         return this.streamName;
       }
 

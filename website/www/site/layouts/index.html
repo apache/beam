@@ -124,7 +124,7 @@ limitations under the License. See accompanying LICENSE file.
       </div>
     </div>
     <div class="calendar-card-box post">
-      {{ range first 2 (after 1 (where .Site.Pages.ByPublishDate.Reverse "Section" "blog")) }}
+      {{ range first 2 (where .Site.Pages.ByPublishDate.Reverse "Section" "blog") }}
       <a class="post-card" href="{{ .RelPermalink }}" data-categories="{{ with .Params.categories }}{{ if eq ( printf "%T" . ) "string" }}{{ . | replaceRE "[.]" "_" | urlize }}{{ else if eq ( printf "%T" . ) "[]string" }}{{ range . }}{{ . | replaceRE "[.]" "_" | urlize }} {{end}}{{end}}{{else}}no-author{{end}}"
       >
       <div class="post-info post-category">

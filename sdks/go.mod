@@ -23,7 +23,7 @@ module github.com/apache/beam/sdks/v2
 go 1.19
 
 require (
-	cloud.google.com/go/bigquery v1.51.1
+	cloud.google.com/go/bigquery v1.51.2
 	cloud.google.com/go/bigtable v1.18.1
 	cloud.google.com/go/datastore v1.11.0
 	cloud.google.com/go/profiler v0.3.1
@@ -44,21 +44,21 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/johannesboyne/gofakes3 v0.0.0-20221110173912-32fb85c5aed6
 	github.com/lib/pq v1.10.9
-	github.com/linkedin/goavro v2.1.0+incompatible
+	github.com/linkedin/goavro/v2 v2.12.0
 	github.com/proullon/ramsql v0.0.0-20211120092837-c8d0a408b939
 	github.com/spf13/cobra v1.7.0
 	github.com/testcontainers/testcontainers-go v0.20.1
-	github.com/tetratelabs/wazero v1.1.0
+	github.com/tetratelabs/wazero v1.2.0
 	github.com/xitongsys/parquet-go v1.6.2
 	github.com/xitongsys/parquet-go-source v0.0.0-20220315005136-aec0fe3e777c
-	go.mongodb.org/mongo-driver v1.11.6
+	go.mongodb.org/mongo-driver v1.11.7
 	golang.org/x/net v0.10.0
 	golang.org/x/oauth2 v0.8.0
 	golang.org/x/sync v0.2.0
 	golang.org/x/sys v0.8.0
 	golang.org/x/text v0.9.0
-	google.golang.org/api v0.124.0
-	google.golang.org/genproto v0.0.0-20230410155749-daa745c078e1
+	google.golang.org/api v0.126.0
+	google.golang.org/genproto v0.0.0-20230530153820-e85fd2cbaebc
 	google.golang.org/grpc v1.55.0
 	google.golang.org/protobuf v1.30.0
 	gopkg.in/retry.v1 v1.0.3
@@ -67,13 +67,13 @@ require (
 )
 
 require (
-	github.com/fsouza/fake-gcs-server v1.45.1
+	github.com/fsouza/fake-gcs-server v1.45.2
 	golang.org/x/exp v0.0.0-20230321023759-10a507213a29
 )
 
 require (
 	cloud.google.com/go v0.110.2 // indirect
-	cloud.google.com/go/compute v1.19.0 // indirect
+	cloud.google.com/go/compute v1.19.3 // indirect
 	cloud.google.com/go/compute/metadata v0.2.3 // indirect
 	cloud.google.com/go/iam v1.0.1 // indirect
 	cloud.google.com/go/longrunning v0.4.1 // indirect
@@ -119,14 +119,14 @@ require (
 	github.com/google/renameio/v2 v2.0.0 // indirect
 	github.com/google/s2a-go v0.1.4 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.2.3 // indirect
-	github.com/googleapis/gax-go/v2 v2.9.1 // indirect
+	github.com/googleapis/gax-go/v2 v2.10.0 // indirect
 	github.com/gorilla/handlers v1.5.1 // indirect
 	github.com/gorilla/mux v1.8.0 // indirect
 	github.com/imdario/mergo v0.3.12 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/klauspost/asmfmt v1.3.2 // indirect
-	github.com/klauspost/compress v1.16.0 // indirect
+	github.com/klauspost/compress v1.16.5 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.4 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
@@ -145,7 +145,7 @@ require (
 	github.com/pkg/xattr v0.4.9 // indirect
 	github.com/ryszard/goskiplist v0.0.0-20150312221310-2dfbae5fcf46 // indirect
 	github.com/shabbyrobe/gocovmerge v0.0.0-20180507124511-f6ea450bfb63 // indirect
-	github.com/sirupsen/logrus v1.9.0 // indirect
+	github.com/sirupsen/logrus v1.9.2 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect
 	github.com/xdg-go/scram v1.1.1 // indirect
@@ -153,10 +153,11 @@ require (
 	github.com/youmark/pkcs8 v0.0.0-20181117223130-1be2e3e5546d // indirect
 	github.com/zeebo/xxh3 v1.0.2 // indirect
 	go.opencensus.io v0.24.0 // indirect
-	golang.org/x/crypto v0.7.0 // indirect
+	golang.org/x/crypto v0.9.0 // indirect
 	golang.org/x/mod v0.9.0 // indirect
 	golang.org/x/tools v0.7.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
-	gopkg.in/linkedin/goavro.v1 v1.0.5 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20230530153820-e85fd2cbaebc // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20230530153820-e85fd2cbaebc // indirect
 )

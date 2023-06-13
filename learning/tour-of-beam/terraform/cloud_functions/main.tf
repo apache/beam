@@ -22,7 +22,7 @@ resource "google_cloudfunctions_function" "cloud_function" {
   runtime               = "go116"
   available_memory_mb   = 128
   project               = var.project_id
-  service_account_email = var.service_account_id
+  service_account_email = var.cf-service-account-id
   source_archive_bucket = var.source_archive_bucket
   source_archive_object = var.source_archive_object
   region                = var.region

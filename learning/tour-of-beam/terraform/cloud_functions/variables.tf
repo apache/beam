@@ -16,7 +16,7 @@
 # under the License.
 
 # Taken from output of SETUP module
-variable "service_account_id" {
+variable "cf-service-account-id" {
   description = "The name of Service Account to run Cloud Function"
 }
 

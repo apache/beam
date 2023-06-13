@@ -209,6 +209,7 @@ if __name__ == '__main__':
               '*/*.h',
               '*/*/*.h',
               'testing/data/*.yaml',
+              'yaml/*.yaml',
               *get_portability_package_data()
           ]
       },
