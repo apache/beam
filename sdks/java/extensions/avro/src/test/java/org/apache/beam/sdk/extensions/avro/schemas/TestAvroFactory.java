@@ -48,25 +48,43 @@ public class TestAvroFactory {
       List<TestAvroNested> array,
       Map<String, TestAvroNested> map) {
 
-    if (VERSION_AVRO.equals("1.8.2")) {
-      return new TestAvro(
-          boolNonNullable,
-          integer,
-          aLong,
-          aFloat,
-          aDouble,
-          string,
-          bytes,
-          fixed,
-          date,
-          timestampMillis,
-          testEnum,
-          row,
-          array,
-          map);
-    } else {
-      try {
-        Constructor<?> constructor;
+    try {
+      Constructor<?> constructor;
+      if (VERSION_AVRO.equals("1.8.2")) {
+        constructor =
+            TestAvro.class.getDeclaredConstructor(
+                Boolean.class,
+                Integer.class,
+                Long.class,
+                Float.class,
+                Double.class,
+                CharSequence.class,
+                ByteBuffer.class,
+                fixed4.class,
+                org.joda.time.LocalDate.class,
+                org.joda.time.DateTime.class,
+                TestEnum.class,
+                TestAvroNested.class,
+                java.util.List.class,
+                java.util.Map.class);
+
+        return (TestAvro)
+            constructor.newInstance(
+                boolNonNullable,
+                integer,
+                aLong,
+                aFloat,
+                aDouble,
+                string,
+                bytes,
+                fixed,
+                date,
+                timestampMillis,
+                testEnum,
+                row,
+                array,
+                map);
+      } else {
         constructor =
             TestAvro.class.getDeclaredConstructor(
                 Boolean.class,
@@ -94,16 +112,18 @@ public class TestAvroFactory {
                 string,
                 bytes,
                 fixed,
-                java.time.LocalDate.of(date.getYear(), date.getMonthOfYear(), date.getDayOfMonth()),
+                java.time.LocalDate.of(date.getYear(), date.getMonthOfYear(),
+                    date.getDayOfMonth()),
                 java.time.Instant.ofEpochMilli(timestampMillis.getMillis()),
                 testEnum,
                 row,
                 array,
                 map);
-      } catch (ReflectiveOperationException e) {
-        LOG.error(String.format("Fail to create a TestAvro instance: %s", e.getMessage()));
-        return new TestAvro(); // return an empty instance to fail the tests
       }
+    } catch (ReflectiveOperationException e) {
+      LOG.error(String.format("Fail to create a TestAvro instance: %s", e.getMessage()));
+      return new TestAvro(); // return an empty instance to fail the tests
     }
   }
 }
+
