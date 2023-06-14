@@ -40,4 +40,9 @@ abstract class ExampleLoadingDescriptor with EquatableMixin {
   ExampleLoadingDescriptor copyWithoutViewOptions();
 
   Map<String, dynamic> toJson();
+
+  /// Whether this descriptor can be serialized to a URL.
+  ///
+  /// If false, the code must be saved at the backend before sharing.
+  bool get isSerializableToUrl;
 }
