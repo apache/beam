@@ -126,7 +126,9 @@ public class BeamFnLoggingClient implements AutoCloseable {
     logRecordHandler.setLevel(Level.ALL);
     logRecordHandler.setFormatter(DEFAULT_FORMATTER);
     logRecordHandler.executeOn(options.as(ExecutorOptions.class).getScheduledExecutorService());
-    logRecordHandler.setLogMdc(options.as(SdkHarnessOptions.class).getLogMdc());
+    boolean logMdc = options.as(SdkHarnessOptions.class).getLogMdc();
+    logRecordHandler.setLogMdc(logMdc);
+    QuotaEvent.setEnabled(logMdc);
     outboundObserver = (CallStreamObserver<BeamFnApi.LogEntry.List>) stub.logging(inboundObserver);
     rootLogger.addHandler(logRecordHandler);
   }
