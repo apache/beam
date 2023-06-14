@@ -13,33 +13,39 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 -->
-name: Precommit Python Auto Formatter
-run-name: Python Auto Formatter
+name: Precommit Community Metrics
+run-name: Community Metrics Precommit
 on:
   pull_request:
     branches: [ "master", "release-*" ]
-    paths: [ "sdks/python/apache_beam/.*"]
+    paths: [ ".test-infra/metrics/.*$"]
   issue_comment:
     types: [created, edited]
-  push:
-    tags: ['v*']
-    branches: ['master', 'release-*']
 
 
 jobs:
-  PythonAutoFormatter:
-    if: ${{github.event.push}} || ${{github.event.issue.pull_request}} || ${{github.event.comment.body == 'Run PythonFormatter PreCommit'}} || ${{github.event.schedule == '* */6 * * *'}}
-    runs-on: [self-hosted, ubuntu-20.04]
-
+  PortablePythonPrecommit:
+    strategy:
+      matrix:
+        python_version: ['3.7','311']
+    if: ${{github.event.issue.pull_request}} || ${{github.event.comment.body == 'Run Portable_Python PreCommit'}} || ${{github.event.schedule == '* */6 * * *'}}
+    runs-on: ubuntu-20.04
 
     steps:
       - uses: actions/checkout@v3
+      - name: Install Java
+        uses: actions/setup-java@v3.8.0
+        with:
+          distribution: 'zulu'
+          java-version: '8'
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.8'
-      - name: Install Dependencies
-        run:  pip install --retries 10 --upgrade pip && ls && pwd && pip install --retries 10 --upgrade tox==3.20.1 -r ./build-requirements.txt
-        working-directory: sdks/python
-      - name: Run python Lint 
-        run: tox -e py3-yapf-check
-        working-directory: sdks/python
+          python-version: "${matrix.python_version}"
+      - name: Setup Gradle
+        uses: gradle/gradle-build-action@v2
+        with:
+          cache-read-only: false
+      - name: Setup python env variable
+        run: export PY_VER=${{ matrix.python_version }}
+      - name: run Portable Python script
+        run: ./gradlew :sdks:python:test-suites:portable:py${PY_VER/./}:preCommitPy${PY_VER/./}
