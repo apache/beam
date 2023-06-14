@@ -71,6 +71,7 @@ from apache_beam.utils.sentinel import Sentinel
 
 if TYPE_CHECKING:
   from apache_beam.portability.api import endpoints_pb2
+  from apache_beam.runners.worker.data_sampler import DataSampler
   from apache_beam.utils.profiler import Profile
 
 T = TypeVar('T')
@@ -396,9 +397,7 @@ class SdkHarness(object):
   def create_worker(self):
     # type: () -> SdkWorker
     return SdkWorker(
-        self._bundle_processor_cache,
-        profiler_factory=self._profiler_factory,
-        data_sampler=self.data_sampler)
+        self._bundle_processor_cache, profiler_factory=self._profiler_factory)
 
 
 class BundleProcessorCache(object):
@@ -618,12 +617,10 @@ class SdkWorker(object):
       self,
       bundle_processor_cache,  # type: BundleProcessorCache
       profiler_factory=None,  # type: Optional[Callable[..., Profile]]
-      data_sampler=None,  # type: Optional[data_sampler.DataSampler]
   ):
     # type: (...) -> None
     self.bundle_processor_cache = bundle_processor_cache
     self.profiler_factory = profiler_factory
-    self.data_sampler = data_sampler
 
   def do_instruction(self, request):
     # type: (beam_fn_api_pb2.InstructionRequest) -> beam_fn_api_pb2.InstructionResponse

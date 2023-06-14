@@ -201,11 +201,9 @@ class TestOperation(operations.Operation):
       state_sampler,
       consumers,
       payload,
-      data_sampler,
   ):
-    super().__init__(name_context, self.Spec(transform_proto), counter_factory, state_sampler, data_sampler)
+    super().__init__(name_context, self.Spec(transform_proto), counter_factory, state_sampler)
     self.payload = payload
-    print(transform_proto.unique_name, transform_proto.outputs, self.Spec(transform_proto).output_coders)
 
     for _, consumer_ops in consumers.items():
       for consumer in consumer_ops:
@@ -231,8 +229,7 @@ def create_test_op(factory, transform_id, transform_proto, payload, consumers):
       factory.counter_factory,
       factory.state_sampler,
       consumers,
-      payload,
-      factory.data_sampler)
+      payload)
 
 
 class DataSamplingTest(unittest.TestCase):
@@ -246,38 +243,6 @@ class DataSamplingTest(unittest.TestCase):
     descriptor.pcollections['a'].unique_name = 'a'
     _ = BundleProcessor(descriptor, None, None)
     self.assertEqual(len(descriptor.transforms), 0)
-
-  def test_adds_data_sampling_operations(self):
-    """Test that providing the sampler creates sampling PTransforms.
-
-    Data sampling is implemented by modifying the ProcessBundleDescriptor with
-    additional sampling PTransforms reading from each PCllection.
-    """
-    data_sampler = DataSampler()
-
-    # Data sampling samples the PCollections, which adds a PTransform to read
-    # from each PCollection. So add a simple PCollection here to create the
-    # DataSamplingOperation.
-    PCOLLECTION_ID = 'pc'
-    CODER_ID = 'c'
-    descriptor = beam_fn_api_pb2.ProcessBundleDescriptor()
-    descriptor.pcollections[PCOLLECTION_ID].unique_name = PCOLLECTION_ID
-    descriptor.pcollections[PCOLLECTION_ID].coder_id = CODER_ID
-    descriptor.coders[
-        CODER_ID].spec.urn = common_urns.StandardCoders.Enum.BYTES.urn
-
-    _ = BundleProcessor(descriptor, None, None, data_sampler=data_sampler)
-
-    # Assert that the data sampling transform was created.
-    self.assertEqual(len(descriptor.transforms), 1)
-    sampling_transform = list(descriptor.transforms.values())[0]
-
-    # Ensure that the data sampling transform has the correct spec and that it's
-    # sampling the correct PCollection.
-    self.assertEqual(
-        sampling_transform.unique_name, 'synthetic-data-sampling-transform-pc')
-    self.assertEqual(sampling_transform.spec.urn, SYNTHETIC_DATA_SAMPLING_URN)
-    self.assertEqual(sampling_transform.inputs, {'None': PCOLLECTION_ID})
 
   def test_can_sample(self):
     """Test that elements are sampled.

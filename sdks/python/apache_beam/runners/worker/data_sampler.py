@@ -62,6 +62,7 @@ class SampleTimer:
 
 
 class ElementSampler:
+  has_element: bool
   el: Any
 
 class OutputSampler:
@@ -75,7 +76,7 @@ class OutputSampler:
       self,
       coder: Coder,
       max_samples: int = 10,
-      sample_every_sec: float = 30,
+      sample_every_sec: float = 5,
       clock=None) -> None:
     self._samples: Deque[Any] = collections.deque(maxlen=max_samples)
     self._coder_impl: CoderImpl = coder.get_impl()
@@ -84,7 +85,7 @@ class OutputSampler:
     self._clock = clock
     self._last_sample_sec: float = self.time()
     self._element_sampler = ElementSampler()
-    self._sample_timer = SampleTimer(sample_every_sec, self)
+    self._sample_timer = SampleTimer(5, self)
 
   def stop(self):
     self._sample_timer.stop()
@@ -129,11 +130,13 @@ class OutputSampler:
     # sample_diff = now - self._last_sample_sec
 
     # if self._sample_count <= 10 or self._sample_count % 1000 == 0:#sample_diff >= self._sample_every_sec:
-    try:
+    if self._element_sampler.has_element:
       self._samples.append(self._element_sampler.el)
-    except AttributeError:
-      pass
-      # self._last_sample_sec = now
+      self._element_sampler.has_element = False
+    # try:
+    #   self._samples.append(self._element_sampler.el)
+    # except AttributeError:
+    #   pass
 
 
 class DataSampler:
@@ -168,7 +171,6 @@ class DataSampler:
 
   def sampler_for_output(self, transform_id, output_index):
     try:
-      print(transform_id, output_index)
       return self._element_samplers[transform_id][output_index]
     except:
       _LOGGER.warn('Out-of-bounds access for transform "%s" and output "%s" ' +
@@ -177,8 +179,8 @@ class DataSampler:
                    (transform_id, output_index))
       return ElementSampler()
 
-  def initialize_transform(self, transform_id, descriptor, transform_proto, transform_factory):
-    print('trying to initialize', transform_id)
+  def initialize_transform(self, transform_id, descriptor, transform_factory):
+    transform_proto = descriptor.transforms[transform_id]
     with self._samplers_lock:
       for pcoll_id in transform_proto.outputs.values():
         if pcoll_id in self._samplers:
@@ -207,7 +209,6 @@ class DataSampler:
       outputs = transform_proto.outputs
       indexed_samplers = [tagged_samplers[tag] for tag in outputs]
       self._element_samplers[transform_id] = indexed_samplers
-      print('created element samplers:', self._element_samplers[transform_id])
 
   def sample_output(self, pcoll_id: str, coder: Coder) -> OutputSampler:
     """Create or get an OutputSampler for a pcoll_id."""

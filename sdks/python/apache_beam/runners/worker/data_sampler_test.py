@@ -32,8 +32,22 @@ from apache_beam.transforms.window import GlobalWindow
 from apache_beam.utils import thread_pool_executor
 from apache_beam.utils.windowed_value import WindowedValue
 
+import apache_beam as beam
+class SlowGenerator(beam.DoFn):
+  def process(self, e):
+    import time
+    for i in range(100):
+      yield i
+      time.sleep(1)
 
 class DataSamplerTest(unittest.TestCase):
+  # def test_pipeline(self):
+  #   from apache_beam.options.pipeline_options import PipelineOptions
+  #   options = PipelineOptions(experiments=['enable_data_sampling'])
+  #   p = beam.Pipeline(options=options)
+  #   p | beam.Impulse() | beam.ParDo(SlowGenerator()) | beam.Map(print)
+  #   p.run()
+
   def test_single_output(self):
     """Simple test for a single sample."""
     data_sampler = DataSampler()

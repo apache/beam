@@ -53,6 +53,7 @@ from apache_beam.runners.common import Receiver
 from apache_beam.runners.worker import opcounters
 from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import sideinputs
+from apache_beam.runners.worker.data_sampler import ElementSampler
 from apache_beam.transforms import sideinputs as apache_sideinputs
 from apache_beam.transforms import combiners
 from apache_beam.transforms import core
@@ -71,7 +72,6 @@ if TYPE_CHECKING:
   from apache_beam.runners.worker.bundle_processor import ExecutionContext
   from apache_beam.runners.worker.data_sampler import DataSampler
   from apache_beam.runners.worker.data_sampler import OutputSampler
-  from apache_beam.runners.worker.data_sampler import ElementSampler
   from apache_beam.runners.worker.statesampler import StateSampler
   from apache_beam.transforms.userstate import TimerSpec
 
@@ -126,7 +126,6 @@ class ConsumerSet(Receiver):
              coder,
              producer_type_hints,
              producer_batch_converter, # type: Optional[BatchConverter]
-             exception_sampler,  # type: ElementSampler
              element_sampler=None,  # type: ElementSampler
              ):
     # type: (...) -> ConsumerSet
@@ -146,7 +145,6 @@ class ConsumerSet(Receiver):
             consumer,
             coder,
             producer_type_hints,
-            exception_sampler,
             element_sampler)
 
     return GeneralPurposeConsumerSet(
@@ -157,7 +155,6 @@ class ConsumerSet(Receiver):
         producer_type_hints,
         consumers,
         producer_batch_converter,
-        exception_sampler,
         element_sampler)
 
   def __init__(self,
@@ -168,7 +165,6 @@ class ConsumerSet(Receiver):
                coder,
                producer_type_hints,
                producer_batch_converter,
-               exception_sampler,
                element_sampler
                ):
     self.opcounter = opcounters.OperationCounters(
@@ -183,7 +179,6 @@ class ConsumerSet(Receiver):
     self.output_index = output_index
     self.coder = coder
     self.consumers = consumers
-    self.exception_sampler = exception_sampler
     self.element_sampler = element_sampler
 
   def try_split(self, fraction_of_remainder):
@@ -210,6 +205,8 @@ class ConsumerSet(Receiver):
   def update_counters_start(self, windowed_value):
     # type: (WindowedValue) -> None
     self.opcounter.update_from(windowed_value)
+    self.element_sampler.has_element = True
+    self.element_sampler.el = windowed_value
 
   def update_counters_finish(self):
     # type: () -> None
@@ -238,7 +235,6 @@ class SingletonElementConsumerSet(ConsumerSet):
                consumer,  # type: Operation
                coder,
                producer_type_hints,
-               exception_sampler,
                element_sampler
                ):
     super().__init__(
@@ -248,16 +244,12 @@ class SingletonElementConsumerSet(ConsumerSet):
         coder,
         producer_type_hints,
         None,
-        exception_sampler,
         element_sampler)
     self.consumer = consumer
 
   def receive(self, windowed_value):
     # type: (WindowedValue) -> None
-    print('AAAAAAAAAAAAAAAAHHHHHHH')
     self.update_counters_start(windowed_value)
-    # self.exception_sampler.el = windowed_value
-    self.element_sampler.el = windowed_value
     self.consumer.process(windowed_value)
     self.update_counters_finish()
 
@@ -290,7 +282,6 @@ class GeneralPurposeConsumerSet(ConsumerSet):
                producer_type_hints,
                consumers,  # type: List[Operation]
                producer_batch_converter,
-               exception_sampler,
                element_sampler):
     super().__init__(
         counter_factory,
@@ -300,7 +291,6 @@ class GeneralPurposeConsumerSet(ConsumerSet):
         coder,
         producer_type_hints,
         producer_batch_converter,
-        exception_sampler,
         element_sampler)
 
     self.producer_batch_converter = producer_batch_converter
@@ -344,8 +334,6 @@ class GeneralPurposeConsumerSet(ConsumerSet):
     # type: (WindowedValue) -> None
 
     self.update_counters_start(windowed_value)
-    # self.exception_sampler.el = windowed_value
-    self.element_sampler.el = windowed_value
 
     for consumer in self.element_consumers:
       _cast_to_operation(consumer).process(windowed_value)
@@ -361,12 +349,6 @@ class GeneralPurposeConsumerSet(ConsumerSet):
     self.update_counters_finish()
 
   def receive_batch(self, windowed_batch):
-    for wv in windowed_batch.as_windowed_values(
-        self.producer_batch_converter.explode_batch):
-      # self.exception_sampler.el = wv
-      self.element_sampler.el = wv
-      break
-
     if self.element_consumers:
       for wv in windowed_batch.as_windowed_values(
           self.producer_batch_converter.explode_batch):
@@ -427,8 +409,7 @@ class Operation(object):
                name_context,  # type: common.NameContext
                spec,
                counter_factory,
-               state_sampler,  # type: StateSampler
-               data_sampler=None  # type: DataSampler
+               state_sampler  # type: StateSampler
               ):
     """Initializes a worker operation instance.
 
@@ -460,32 +441,32 @@ class Operation(object):
         self.name_context, 'finish', metrics_container=self.metrics_container)
     # TODO(ccy): the '-abort' state can be added when the abort is supported in
     # Operations.
-    self.data_sampler = data_sampler
     self.receivers = []  # type: List[ConsumerSet]
     # Legacy workers cannot call setup() until after setting additional state
     # on the operation.
     self.setup_done = False
     self.step_name = None  # type: Optional[str]
 
-  def setup(self, exception_sampler=None, data_sampler=None):
+  def setup(self, data_sampler=None):
     # type: () -> None
 
     """Set up operation.
 
     This must be called before any other methods of the operation."""
-    exception_sampler = exception_sampler or ElementSampler()
-
     with self.scoped_start_state:
       self.debug_logging_enabled = logging.getLogger().isEnabledFor(
           logging.DEBUG)
       transform_id = self.name_context.transform_id
-      print('AAAAAAAAAA')
 
       # Everything except WorkerSideInputSource, which is not a
       # top-level operation, should have output_coders
       #TODO(pabloem): Define better what step name is used here.
       if getattr(self.spec, 'output_coders', None):
-        print(self.spec.output_coders)
+        def get_element_sampler(output_num):
+          if data_sampler is None:
+            return None
+          return data_sampler.sampler_for_output(transform_id, output_num)
+
         self.receivers = [
             ConsumerSet.create(
                 self.counter_factory,
@@ -495,9 +476,7 @@ class Operation(object):
                 coder,
                 self._get_runtime_performance_hints(),
                 self.get_output_batch_converter(),
-                exception_sampler,
-                data_sampler.sampler_for_output(transform_id, i) #if data_sampler else ElementSampler()
-            ) for i,
+                get_element_sampler(i)) for i,
             coder in enumerate(self.spec.output_coders)
         ]
     self.setup_done = True
@@ -723,9 +702,7 @@ class ImpulseReadOperation(Operation):
       state_sampler,  # type: StateSampler
       consumers,  # type: Mapping[Any, List[Operation]]
       source,  # type: iobase.BoundedSource
-      output_coder,
-      data_sampler=None  # type: DataSampler
-  ):
+      output_coder):
     super(ImpulseReadOperation,
           self).__init__(name_context, None, counter_factory, state_sampler)
     self.source = source
@@ -805,7 +782,6 @@ class DoOperation(Operation):
                sampler,
                side_input_maps=None,
                user_state_context=None,
-               data_sampler=None  # type: DataSampler
               ):
     super(DoOperation, self).__init__(name, spec, counter_factory, sampler)
     self.side_input_maps = side_input_maps
@@ -1143,9 +1119,7 @@ class SdfProcessSizedElements(DoOperation):
 
 class CombineOperation(Operation):
   """A Combine operation executing a CombineFn for each input element."""
-  def __init__(self, name_context, spec, counter_factory, state_sampler,
-               data_sampler=None  # type: DataSampler
-               ):
+  def __init__(self, name_context, spec, counter_factory, state_sampler):
     super(CombineOperation,
           self).__init__(name_context, spec, counter_factory, state_sampler)
     # Combiners do not accept deferred side-inputs (the ignored fourth argument)
@@ -1183,11 +1157,11 @@ class CombineOperation(Operation):
       self.phased_combine_fn.combine_fn.teardown()
 
 
-def create_pgbk_op(step_name, spec, counter_factory, state_sampler, data_sampler):
+def create_pgbk_op(step_name, spec, counter_factory, state_sampler):
   if spec.combine_fn:
-    return PGBKCVOperation(step_name, spec, counter_factory, state_sampler, data_sampler)
+    return PGBKCVOperation(step_name, spec, counter_factory, state_sampler)
   else:
-    return PGBKOperation(step_name, spec, counter_factory, state_sampler, data_sampler)
+    return PGBKOperation(step_name, spec, counter_factory, state_sampler)
 
 
 class PGBKOperation(Operation):
@@ -1197,9 +1171,7 @@ class PGBKOperation(Operation):
   (key, [value]) tuples, performing a best effort group-by-key for
   values in this bundle, memory permitting.
   """
-  def __init__(self, name_context, spec, counter_factory, state_sampler,
-               data_sampler=None  # type: DataSampler
-               ):
+  def __init__(self, name_context, spec, counter_factory, state_sampler):
     super(PGBKOperation,
           self).__init__(name_context, spec, counter_factory, state_sampler)
     assert not self.spec.combine_fn
@@ -1240,9 +1212,7 @@ class PGBKOperation(Operation):
 
 class PGBKCVOperation(Operation):
   def __init__(
-      self, name_context, spec, counter_factory, state_sampler, windowing=None,
-               data_sampler=None  # type: DataSampler
-  ):
+      self, name_context, spec, counter_factory, state_sampler, windowing=None):
     super(PGBKCVOperation,
           self).__init__(name_context, spec, counter_factory, state_sampler)
     # Combiners do not accept deferred side-inputs (the ignored fourth
@@ -1371,8 +1341,7 @@ def create_operation(
     state_sampler=None,
     test_shuffle_source=None,
     test_shuffle_sink=None,
-    is_streaming=False,
-    data_sampler=None):
+    is_streaming=False):
   # type: (...) -> Operation
 
   """Create Operation object for given operation specification."""
@@ -1384,7 +1353,7 @@ def create_operation(
   if isinstance(spec, operation_specs.WorkerRead):
     if isinstance(spec.source, iobase.SourceBundle):
       op = ReadOperation(
-          name_context, spec, counter_factory, state_sampler, data_sampler)  # type: Operation
+          name_context, spec, counter_factory, state_sampler)  # type: Operation
     else:
       from dataflow_worker.native_operations import NativeReadOperation
       op = NativeReadOperation(
@@ -1394,11 +1363,11 @@ def create_operation(
     op = NativeWriteOperation(
         name_context, spec, counter_factory, state_sampler)
   elif isinstance(spec, operation_specs.WorkerCombineFn):
-    op = CombineOperation(name_context, spec, counter_factory, state_sampler, data_sampler)
+    op = CombineOperation(name_context, spec, counter_factory, state_sampler)
   elif isinstance(spec, operation_specs.WorkerPartialGroupByKey):
-    op = create_pgbk_op(name_context, spec, counter_factory, state_sampler, data_sampler)
+    op = create_pgbk_op(name_context, spec, counter_factory, state_sampler)
   elif isinstance(spec, operation_specs.WorkerDoFn):
-    op = DoOperation(name_context, spec, counter_factory, state_sampler, data_sampler)
+    op = DoOperation(name_context, spec, counter_factory, state_sampler)
   elif isinstance(spec, operation_specs.WorkerGroupingShuffleRead):
     from dataflow_worker.shuffle_operations import GroupedShuffleReadOperation
     op = GroupedShuffleReadOperation(
@@ -1427,7 +1396,7 @@ def create_operation(
         state_sampler,
         shuffle_sink=test_shuffle_sink)
   elif isinstance(spec, operation_specs.WorkerFlatten):
-    op = FlattenOperation(name_context, spec, counter_factory, state_sampler, data_sampler)
+    op = FlattenOperation(name_context, spec, counter_factory, state_sampler)
   elif isinstance(spec, operation_specs.WorkerMergeWindows):
     from dataflow_worker.shuffle_operations import BatchGroupAlsoByWindowsOperation
     from dataflow_worker.shuffle_operations import StreamingGroupAlsoByWindowsOperation
