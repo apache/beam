@@ -1,19 +1,19 @@
-name: beam_PreCommit_Go
+# name: beam_PreCommit_Go
 
-on:
-  # push:
-  #   tags: ['v*']
-  #   branches: ['master', 'release-*']
-  # pull_request:   
-  #   branches: ['**']
-  #   paths: ['model/**', 'sdks/go.**', 'release/**']
-  issue_comment:
-    types: [created]
-  # schedule:
-  #   - cron: '0 */6 * * *'
+# on:
+#   push:
+#     tags: ['v*']
+#     branches: ['master', 'release-*']
+#   pull_request:   
+#     branches: ['**']
+#     paths: ['model/**', 'sdks/go.**', 'release/**']
+#   issue_comment:
+#     types: [created]
+#   schedule:
+#     - cron: '0 */6 * * *'
 
 
-jobs:
+# jobs:
 #   beam_PreCommit_Go:
 #         runs-on: [self-hosted, ubuntu-20.04]
 #         name: beam_PreCommit_Go
@@ -36,26 +36,26 @@ jobs:
 #           - name: run goPreCommit script
 #             run: ./gradlew :goPreCommit
 
-  beam_PreCommit_Go_Phrase:
-    if: contains(github.event.comment.html_url, '/pull/')
-    runs-on: [self-hosted, ubuntu-20.04]
-    name: beam_PreCommit_Go
-    steps:  
-      - name: Git checkout
-        uses: actions/checkout@v3
-      - name: Install Java
-        uses: actions/setup-java@v3.8.0
-        with:
-          distribution: 'zulu'
-          java-version: '8'
-      - name: Install Go
-        uses: actions/setup-go@v3
-        with:
-          go-version: '1.20'
-      - name: Setup Gradle
-        uses: gradle/gradle-build-action@v2
-        with:
-          cache-read-only: false
-        if: contains(github.event.comment.body, 'Run Go PreCommit')    
-      - name: run goPreCommit script
-        run: ./gradlew :goPreCommit
+#   beam_PreCommit_Go_Phrase:
+#     if: contains(github.event.comment.html_url, '/pull/')
+#     runs-on: [self-hosted, ubuntu-20.04]
+#     name: beam_PreCommit_Go
+#     steps:  
+#       - name: Git checkout
+#         uses: actions/checkout@v3
+#       - name: Install Java
+#         uses: actions/setup-java@v3.8.0
+#         with:
+#           distribution: 'zulu'
+#           java-version: '8'
+#       - name: Install Go
+#         uses: actions/setup-go@v3
+#         with:
+#           go-version: '1.20'
+#       - name: Setup Gradle
+#         uses: gradle/gradle-build-action@v2
+#         with:
+#           cache-read-only: false
+#         if: contains(github.event.comment.body, 'Run Go PreCommit')    
+#       - name: run goPreCommit script
+#         run: ./gradlew :goPreCommit
