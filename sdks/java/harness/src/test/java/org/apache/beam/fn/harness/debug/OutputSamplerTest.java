@@ -140,8 +140,8 @@ public class OutputSamplerTest {
   }
 
   /**
-   * Test that elements with exceptions can be sampled.
-   * TODO: test that the exception metadata is set.
+   * Test that elements with exceptions can be sampled. TODO: test that the exception metadata is
+   * set.
    *
    * @throws Exception when encoding fails (shouldn't happen).
    */
@@ -167,8 +167,8 @@ public class OutputSamplerTest {
   }
 
   /**
-   * Tests that multiple samples don't push out exception samples.
-   * TODO: test that the exception metadata is set.
+   * Tests that multiple samples don't push out exception samples. TODO: test that the exception
+   * metadata is set.
    *
    * @throws Exception when encoding fails (shouldn't happen).
    */
