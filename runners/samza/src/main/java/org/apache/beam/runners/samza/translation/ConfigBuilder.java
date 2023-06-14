@@ -40,6 +40,7 @@ import org.apache.beam.runners.samza.container.BeamContainerRunner;
 import org.apache.beam.runners.samza.container.BeamJobCoordinatorRunner;
 import org.apache.beam.runners.samza.runtime.SamzaStoreStateInternals;
 import org.apache.beam.runners.samza.util.ConfigUtils;
+import org.apache.beam.runners.samza.util.PortableUtils;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.samza.config.ApplicationConfig;
@@ -101,7 +102,7 @@ public class ConfigBuilder {
       config.put(JOB_ID, options.getJobInstance());
 
       // bundle-related configs
-      if (!testIsPortable(options)) {
+      if (!PortableUtils.isPortable(options)) {
         config.putAll(createBundleConfig(options, config));
         LOG.info("Set bundle-related configs for classic mode");
       } else {
@@ -120,15 +121,6 @@ public class ConfigBuilder {
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
-  }
-
-  static boolean testIsPortable(SamzaPipelineOptions options) {
-    Map<String, String> override = options.getConfigOverride();
-    if (override == null) {
-      return false;
-    }
-
-    return Boolean.parseBoolean(override.getOrDefault("beam.portable.mode", "false"));
   }
 
   @VisibleForTesting

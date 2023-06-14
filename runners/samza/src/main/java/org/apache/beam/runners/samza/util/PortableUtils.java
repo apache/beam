@@ -20,6 +20,7 @@ package org.apache.beam.runners.samza.util;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
@@ -39,8 +40,12 @@ public class PortableUtils {
    * @return true if the pipeline is run in portable mode
    */
   public static boolean isPortable(SamzaPipelineOptions options) {
-    return Boolean.parseBoolean(
-        options.getConfigOverride().getOrDefault(BEAM_PORTABLE_MODE, "false"));
+    Map<String, String> override = options.getConfigOverride();
+    if (override == null) {
+      return false;
+    }
+
+    return Boolean.parseBoolean(override.getOrDefault("beam.portable.mode", "false"));
   }
 
   public static List<String> getServerDriverArgs() {
