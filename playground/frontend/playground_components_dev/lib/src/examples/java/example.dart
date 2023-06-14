@@ -21,13 +21,13 @@ import 'package:playground_components/playground_components.dart';
 import '../example_descriptor.dart';
 
 /// To test code folding, read-only, and visible sections. Not runnable.
-const goExample = ExampleDescriptor(
+const javaExample = ExampleDescriptor(
   //
   '',
   dbPath: '',
   path:
-      '/playground/frontend/playground_components_dev/lib/src/examples/go/content/example.go',
-  sdk: Sdk.go,
+      '/playground/frontend/playground_components_dev/lib/src/examples/java/content/example.java',
+  sdk: Sdk.java,
 
   fullText: '''
 /*
@@ -48,65 +48,63 @@ const goExample = ExampleDescriptor(
  * limitations under the License.
  */
 
-package main
+package main;
 
-import (
-	"fmt"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam"
-)
+import a;
+import b;
 
-func OutsideOfSections() {
+void OutsideOfSections() {
 }
 
 // [START show]
-func Folded() {
+void Folded() {
 }
 
-func Unfolded1() {
-	fmt.Print("editable")// [START unfold1]
-	fmt.Print("readonly")// [START readonly1] [END unfold1] [END readonly1]
+void Unfolded1() {
+	System.out.println("editable")// [START unfold1]
+  System.out.println("readonly")// [START readonly1] [END unfold1] [END readonly1]
 }
 
-func Unfolded2() {
-	fmt.Print("editable")// [START unfold2]
-	fmt.Print("readonly")// [START readonly2] [END unfold2] [END readonly2]
+void Unfolded2() {
+  System.out.println("editable")// [START unfold2]
+  System.out.println("readonly")// [START readonly2] [END unfold2] [END readonly2]
 }
 // [END show]
 ''',
 
   croppedFoldedVisibleText: '''
 
-func Folded() {
+void Folded() {
 
-func Unfolded1() {
-  fmt.Print("editable")
-  fmt.Print("readonly")
+void Unfolded1() {
+  System.out.println("editable")
+  System.out.println("readonly")
 }
 
-func Unfolded2() {
-  fmt.Print("editable")
-  fmt.Print("readonly")
+void Unfolded2() {
+  System.out.println("editable")
+  System.out.println("readonly")
 }
 
 ''',
   foldedVisibleText: '''
 /*
 
-package main
+package main;
 
-func OutsideOfSections() {
+void OutsideOfSections() {
 
 
-func Folded() {
+void Folded() {
 
-func Unfolded1() {
-  fmt.Print("editable")
-  fmt.Print("readonly")
+void Unfolded1() {
+  System.out.println("editable")
+  System.out.println("readonly")
 }
 
-func Unfolded2() {
-  fmt.Print("editable")
-  fmt.Print("readonly")
+void Unfolded2() {
+  System.out.println("editable")
+  System.out.println("readonly")
 }
 
 ''',

@@ -107,9 +107,13 @@ void expectVisibleTextIfDeployed(String? visibleText, WidgetTester wt) {
     return;
   }
 
+  expectVisibleText(visibleText, wt);
+}
+
+void expectVisibleText(String? visibleText, WidgetTester wt, {String? reason}) {
   final controller = wt.findOneCodeController();
   expect(visibleText, isNotNull);
-  expect(controller.text, visibleText);
+  expect(controller.text, visibleText, reason: reason);
 }
 
 void expectLastAnalyticsEvent(

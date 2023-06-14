@@ -16,26 +16,25 @@
  * limitations under the License.
  */
 
-export 'src/common_finders.dart';
+package main;
 
-export 'src/common_tests/toggle_brightness_mode_test.dart';
+import a;
+import b;
 
-export 'src/examples/example_descriptor.dart';
+void OutsideOfSections() {
+}
 
-export 'src/examples/go/example.dart';
-export 'src/examples/go/minimal_word_count.dart';
-export 'src/examples/go/word_count.dart';
+// [START show]
+void Folded() {
+}
 
-export 'src/examples/java/aggregation_max.dart';
-export 'src/examples/java/example.dart';
-export 'src/examples/java/minimal_word_count.dart';
+void Unfolded1() {
+  System.out.println("editable")// [START unfold1]
+  System.out.println("readonly")// [START readonly1] [END unfold1] [END readonly1]
+}
 
-export 'src/examples/python/aggregation_mean.dart';
-export 'src/examples/python/word_count_with_metrics.dart';
-
-export 'src/examples/scio/minimal_word_count.dart';
-
-export 'src/expect.dart';
-export 'src/finder.dart';
-export 'src/string.dart';
-export 'src/widget_tester.dart';
+void Unfolded2() {
+  System.out.println("editable")// [START unfold2]
+  System.out.println("readonly")// [START readonly2] [END unfold2] [END readonly2]
+}
+// [END show]

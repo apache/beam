@@ -44,6 +44,7 @@ class ExampleDescriptor {
     this.contextLine1Based,
     this.croppedFoldedVisibleText,
     this.foldedVisibleText,
+    this.fullText,
     this.outputContains,
     this.outputTail,
     this.repository = _repository,
@@ -72,6 +73,9 @@ class ExampleDescriptor {
 
   /// The SDK of this example.
   final Sdk sdk;
+
+  /// Full text to override the one we would get from HTTPS.
+  final String? fullText;
 
   /// Visible text when using `visibleSectionNames` and `foldOutsideSections()`.
   final String? croppedFoldedVisibleText;
@@ -112,8 +116,8 @@ class ExampleDescriptor {
 
   /// The full code of the example.
   Future<String> getFullText() async {
-    final response = await http.get(Uri.parse(rawUrl));
-    return cutTagComments(response.body);
+    final text = fullText ?? (await http.get(Uri.parse(rawUrl))).body;
+    return cutTagComments(text);
   }
 
   /// Cuts the comments containing meta tags from the file in the repository
