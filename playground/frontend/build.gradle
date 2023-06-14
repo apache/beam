@@ -269,15 +269,17 @@ void runIntegrationTest(String path, String url) {
   String examplesRef = project.hasProperty("examplesRef") ? project.examplesRef : null
 
   List<String> flutterArgs = [
-      "drive",
-      "--driver=test_driver/integration_test.dart",
-      "--target=integration_test/${path}_test.dart",
-      "--web-launch-url='$url'",
-      "--device-id=$deviceId"
+    "drive",
+    "--driver=test_driver/integration_test.dart",
+    "--target=integration_test/${path}_test.dart",
+    "--web-launch-url='$url'",
+    "--device-id=$deviceId",
   ]
 
-  if (examplesBranch != null) {
+  if (examplesRepository != null) {
     flutterArgs.add("--dart-define=examples-repository=$examplesRepository")
+  }
+  if (examplesRef != null) {
     flutterArgs.add("--dart-define=examples-ref=$examplesRef")
   }
 
