@@ -264,18 +264,26 @@ tasks.register("integrationTest_standalone_share_code") {
 void runIntegrationTest(String path, String url) {
   // Run with -PdeviceId=web-server for headless tests.
   String deviceId = project.hasProperty("deviceId") ? project.deviceId : "chrome"
+  String examplesBranch = project.hasProperty("examplesBranch") ? project.examplesBranch : null
 
-  exec {
-    executable("flutter")
-    args(
+  List<String> flutterArgs = [
       "drive",
       "--driver=test_driver/integration_test.dart",
       "--target=integration_test/${path}_test.dart",
       "--web-launch-url='$url'",
-      "--device-id=$deviceId",
-    )
+      "--device-id=$deviceId"
+  ]
+
+  if (examplesBranch != null) {
+    flutterArgs.add("--dart-define=examples-branch=$examplesBranch")
+  }
+
+  exec {
+    executable("flutter")
+    args(flutterArgs)
   }
 }
+
 
 task copyDockerfileDependencies(type: Copy) {
    group = "build"

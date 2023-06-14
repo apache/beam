@@ -16,26 +16,13 @@
  * limitations under the License.
  */
 
-export 'src/common_finders.dart';
+import 'package:flutter/foundation.dart';
 
-export 'src/common_tests/toggle_brightness_mode_test.dart';
+const examplesBranchEnv = 'examples-branch';
 
-export 'src/examples/example_descriptor.dart';
-
-export 'src/examples/go/example.dart';
-export 'src/examples/go/minimal_word_count.dart';
-export 'src/examples/go/word_count.dart';
-
-export 'src/examples/java/aggregation_max.dart';
-export 'src/examples/java/minimal_word_count.dart';
-
-export 'src/examples/python/aggregation_mean.dart';
-export 'src/examples/python/word_count_with_metrics.dart';
-
-export 'src/examples/scio/minimal_word_count.dart';
-
-export 'src/expect.dart';
-export 'src/finder.dart';
-export 'src/run_if_examples_consistent.dart';
-export 'src/string.dart';
-export 'src/widget_tester.dart';
+void runIfExamplesConsistent(VoidCallback fn) {
+  // ignore: do_not_use_environment
+  if (const String.fromEnvironment(examplesBranchEnv) != '') {
+    fn();
+  }
+}

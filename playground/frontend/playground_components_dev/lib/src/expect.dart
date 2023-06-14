@@ -21,8 +21,7 @@ import 'dart:ui';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:playground_components/playground_components.dart';
 
-import 'examples/example_descriptor.dart';
-import 'widget_tester.dart';
+import '../playground_components_dev.dart';
 
 void expectContextLine(
   int contextLine1Based,
@@ -92,9 +91,11 @@ void expectSimilar(double a, double b) {
 }
 
 void expectVisibleText(String? visibleText, WidgetTester wt) {
-  final controller = wt.findOneCodeController();
-  expect(visibleText, isNotNull);
-  expect(controller.text, visibleText);
+  runIfExamplesConsistent(() {
+    final controller = wt.findOneCodeController();
+    expect(visibleText, isNotNull);
+    expect(controller.text, visibleText);
+  });
 }
 
 void expectLastAnalyticsEvent(
