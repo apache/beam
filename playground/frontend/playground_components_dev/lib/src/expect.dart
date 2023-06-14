@@ -21,7 +21,8 @@ import 'dart:ui';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:playground_components/playground_components.dart';
 
-import '../playground_components_dev.dart';
+import 'examples/example_descriptor.dart';
+import 'widget_tester.dart';
 
 void expectContextLine(
   int contextLine1Based,
