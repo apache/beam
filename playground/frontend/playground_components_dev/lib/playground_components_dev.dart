@@ -36,6 +36,5 @@ export 'src/examples/scio/minimal_word_count.dart';
 
 export 'src/expect.dart';
 export 'src/finder.dart';
-export 'src/run_if_examples_consistent.dart';
 export 'src/string.dart';
 export 'src/widget_tester.dart';

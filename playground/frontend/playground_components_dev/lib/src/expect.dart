@@ -43,30 +43,42 @@ void expectContextLine(
   );
 }
 
-void expectOutput(ExampleDescriptor example, WidgetTester wt) {
+void expectOutputIfDeployed(ExampleDescriptor example, WidgetTester wt) {
   if (example.outputTail != null) {
-    expectOutputEndsWith(example.outputTail, wt);
+    expectOutputEndsWithIfDeployed(example.outputTail, wt);
   } else if (example.outputContains != null) {
     for (final str in example.outputContains!) {
-      expectOutputContains(str, wt);
+      expectOutputContainsIfDeployed(str, wt);
     }
   } else {
     throw AssertionError('No pattern to check example output: ${example.path}');
   }
 }
 
-void expectOutputEquals(String text, WidgetTester wt) {
+void expectOutputEqualsIfDeployed(String text, WidgetTester wt) {
+  if (!areExamplesDeployed) {
+    return;
+  }
+
   final actualText = wt.findOutputText();
   expect(actualText, text);
 }
 
-void expectOutputContains(String? text, WidgetTester wt) {
+void expectOutputContainsIfDeployed(String? text, WidgetTester wt) {
+  if (!areExamplesDeployed) {
+    return;
+  }
+
   final actualText = wt.findOutputText();
   expect(text, isNotNull);
   expect(actualText, contains(text));
 }
 
-void expectOutputEndsWith(String? text, WidgetTester wt) {
+void expectOutputEndsWithIfDeployed(String? text, WidgetTester wt) {
+  if (!areExamplesDeployed) {
+    return;
+  }
+
   final actualText = wt.findOutputText();
   expect(text, isNotNull);
   expect(actualText, endsWith(text!));
@@ -90,12 +102,14 @@ void expectSimilar(double a, double b) {
   expect(a, onePerCentTolerance(b));
 }
 
-void expectVisibleText(String? visibleText, WidgetTester wt) {
-  runIfExamplesConsistent(() {
-    final controller = wt.findOneCodeController();
-    expect(visibleText, isNotNull);
-    expect(controller.text, visibleText);
-  });
+void expectVisibleTextIfDeployed(String? visibleText, WidgetTester wt) {
+  if (!areExamplesDeployed) {
+    return;
+  }
+
+  final controller = wt.findOneCodeController();
+  expect(visibleText, isNotNull);
+  expect(controller.text, visibleText);
 }
 
 void expectLastAnalyticsEvent(

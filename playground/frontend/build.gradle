@@ -263,8 +263,10 @@ tasks.register("integrationTest_standalone_share_code") {
 
 void runIntegrationTest(String path, String url) {
   // Run with -PdeviceId=web-server for headless tests.
+  // Run with -PexamplesRepository=apache/beam -PexamplesRef=master to verify that deployed examples match the given branch or commit.
   String deviceId = project.hasProperty("deviceId") ? project.deviceId : "chrome"
-  String examplesBranch = project.hasProperty("examplesBranch") ? project.examplesBranch : null
+  String examplesRepository = project.hasProperty("examplesRepository") ? project.examplesRepository : null
+  String examplesRef = project.hasProperty("examplesRef") ? project.examplesRef : null
 
   List<String> flutterArgs = [
       "drive",
@@ -275,7 +277,8 @@ void runIntegrationTest(String path, String url) {
   ]
 
   if (examplesBranch != null) {
-    flutterArgs.add("--dart-define=examples-branch=$examplesBranch")
+    flutterArgs.add("--dart-define=examples-repository=$examplesRepository")
+    flutterArgs.add("--dart-define=examples-ref=$examplesRef")
   }
 
   exec {

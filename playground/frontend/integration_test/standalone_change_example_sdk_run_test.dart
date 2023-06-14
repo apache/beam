@@ -65,7 +65,7 @@ public class MyClass {
 
     await wt.tapAndSettle(find.runOrCancelButton());
 
-    expectOutputEquals('$_outputPrefix$text', wt);
+    expectOutputEqualsIfDeployed('$_outputPrefix$text', wt);
   }
 
   Future<void> switchToPython(WidgetTester wt) async {
@@ -108,7 +108,7 @@ public class MyClass {
 
     await wt.tapAndSettle(find.runOrCancelButton());
 
-    expectOutputEquals('$_outputPrefix$text', wt);
+    expectOutputEqualsIfDeployed('$_outputPrefix$text', wt);
   }
 
   testWidgets('Change example, change SDK, run', (WidgetTester wt) async {
