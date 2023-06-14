@@ -22,7 +22,6 @@
 #   categories:
 #     - Quickstart
 #   complexity: BASIC
-#   never_run: true
 #   tags:
 #     - hellobeam
 

@@ -32,8 +32,8 @@ const (
 	indentationReplacement = "$0"
 	EmptyLine              = ""
 	GraphFileName          = "graph.dot"
-	pythonGraphCodePattern = ""
-	//pythonGraphCodePattern = "$0# Write graph to file\n$0from apache_beam.runners.interactive.display import pipeline_graph\n$0dot = pipeline_graph.PipelineGraph(%s).get_dot()\n$0with open('%s', 'w') as file:\n$0  file.write(dot)\n"
+	// pythonGraphCodePattern = ""
+	pythonGraphCodePattern = "$0# Write graph to file\n$0from apache_beam.runners.interactive.display import pipeline_graph\n$0dot = pipeline_graph.PipelineGraph(%s).get_dot()\n$0with open('%s', 'w') as file:\n$0  file.write(dot)\n"
 	newLinePattern         = "\n"
 	tmpFileSuffix          = "tmp"
 )
@@ -99,16 +99,16 @@ func getVarName(line, spaces, pipelineName *string, regs *[]*regexp.Regexp) Pipe
 
 // addGraphCode adds line for the graph saving to specific place in the code
 func addGraphCode(line, spaces, pipelineName *string, regs *[]*regexp.Regexp) PipelineDefinitionType {
-	// for i, reg := range *regs {
-	// 	found := (*reg).FindAllStringSubmatch(*line, -1)
-	// 	if found != nil {
-	// 		graphCode := fmt.Sprintf(pythonGraphCodePattern, *pipelineName, GraphFileName)
-	// 		graphCodeWithIndentation := strings.ReplaceAll(graphCode, indentationReplacement, *spaces)
-	// 		*line = graphCodeWithIndentation + *line
-	// 		*regs = nil
-	// 		return PipelineDefinitionType(i)
-	// 	}
-	// }
+	for i, reg := range *regs {
+		found := (*reg).FindAllStringSubmatch(*line, -1)
+		if found != nil {
+			graphCode := fmt.Sprintf(pythonGraphCodePattern, *pipelineName, GraphFileName)
+			graphCodeWithIndentation := strings.ReplaceAll(graphCode, indentationReplacement, *spaces)
+			*line = graphCodeWithIndentation + *line
+			*regs = nil
+			return PipelineDefinitionType(i)
+		}
+	}
 	return 0
 }
 

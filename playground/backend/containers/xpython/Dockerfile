@@ -84,7 +84,8 @@ ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
 ARG BEAM_VERSION
 RUN pip install --upgrade pip
-RUN pip install apache-beam==${SDK_TAG}
+RUN pip install apache-beam[gcp,interactive,dataframe]==${SDK_TAG}
+#RUN pip install apache-beam==${BEAM_VERSION}   old
 RUN pip install --default-timeout=100 torch
 RUN pip install torchvision
 RUN pip install pandas

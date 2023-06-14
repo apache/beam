@@ -93,6 +93,22 @@ ENV DOCKER_EXTRA_OPTS '--storage-driver=overlay'
 RUN curl -fL -o /usr/local/bin/dind "https://raw.githubusercontent.com/moby/moby/${DIND_COMMIT}/hack/dind" && \
 	chmod +x /usr/local/bin/dind
 
+RUN apt-get update && apt-get install -y python3.10-venv
+
+ENV VIRTUAL_ENV=/opt/playground/venv
+RUN mkdir -p $VIRTUAL_ENV
+RUN python3 -m venv $VIRTUAL_ENV
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+
+ARG BEAM_VERSION
+RUN pip install --upgrade pip
+RUN pip install apache-beam[gcp,interactive,dataframe]==2.47.0
+#RUN pip install apache-beam==${BEAM_VERSION}   old
+RUN pip install --default-timeout=100 torch
+RUN pip install torchvision
+RUN pip install pandas
+RUN pip install scikit-learn
+
 RUN apt-get update
 RUN apt-get install -y wget
 

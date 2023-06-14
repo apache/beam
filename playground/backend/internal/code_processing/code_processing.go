@@ -61,7 +61,7 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 	pipelineLifeCycleCtx, finishCtxFunc := context.WithTimeout(ctx, appEnv.PipelineExecuteTimeout())
 	defer func(lc *fs_tool.LifeCycle) {
 		finishCtxFunc()
-		//DeleteResources(pipelineId, lc)
+		DeleteResources(pipelineId, lc)
 	}(lc)
 
 	var validationResults sync.Map
@@ -221,7 +221,7 @@ func compileStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.L
 		var compileOutput bytes.Buffer
 		runCmdWithOutput(compileCmd, &compileOutput, &compileError, successChannel, errorChannel)
 
-		// Start of the monitoring of background tasks (compile step/cancellation/timeout)
+		// Start of theplayground/backend/containers/xpython/Dockerfile monitoring of background tasks (compile step/cancellation/timeout)
 		ok, err := reconcileBackgroundTask(ctx, pipelineId, cacheService, successChannel)
 		if err != nil {
 			return err
@@ -570,9 +570,9 @@ func writeLogsToCache(cacheService cache.Cache, logFilePath string, pipelineId u
 // DeleteResources removes all prepared resources for received LifeCycle
 func DeleteResources(pipelineId uuid.UUID, lc *fs_tool.LifeCycle) {
 	logger.Infof("%s: DeleteResources() ...\n", pipelineId)
-	// if err := lc.DeleteFolders(); err != nil {
-	// 	logger.Error("%s: DeleteResources(): %s\n", pipelineId, err.Error())
-	// }
+	if err := lc.DeleteFolders(); err != nil {
+		logger.Error("%s: DeleteResources(): %s\n", pipelineId, err.Error())
+	}
 	lc.StopEmulators()
 	logger.Infof("%s: DeleteResources() complete\n", pipelineId)
 	logger.Infof("%s: complete\n", pipelineId)

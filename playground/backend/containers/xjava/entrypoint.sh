@@ -43,8 +43,12 @@ rm -f -r images
 
 docker images
 
-python -m apache_beam.runners.portability.local_job_service_main -p 9091 &> jjs.log  & \
-java -jar beam-sdks-java-extensions-sql-expansion-service-2.45.0.jar 9092 &> jes.log  & \
-python -m apache_beam.runners.portability.local_job_service_main -p 9093 &> pjs.log  & \
-python -m apache_beam.runners.portability.expansion_service_main -p 9094 --fully_qualified_name_glob "*" &> pes.log &
-su appuser -c /opt/playground/backend/server_java_backend
+# python3 -m apache_beam.runners.portability.local_job_service_main -p 9091 &> jjs.log  & \
+# java -jar beam-sdks-java-extensions-sql-expansion-service-2.45.0.jar 9092 &> jes.log  & \
+python3 -m apache_beam.runners.portability.local_job_service_main -p 9093 &> pjs.log  &
+# python3 -m apache_beam.runners.portability.expansion_service_main -p 9094 --fully_qualified_name_glob "*" &> pes.log &
+# su appuser -c /opt/playground/backend/server_java_backend
+
+# export PATH=$PATH:/opt/java/openjdk/bin/
+# su -m appuser -c "/opt/playground/backend/server_java_backend"
+/opt/playground/backend/server_java_backend
