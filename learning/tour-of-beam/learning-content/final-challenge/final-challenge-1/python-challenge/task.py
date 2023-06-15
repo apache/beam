@@ -18,7 +18,7 @@
 #     name: FinalChallenge1
 #     description: Final challenge 1.
 #     multifile: true
-#     file:
+#     files:
 #       - name: input.csv
 #     context_line: 50
 #     categories:

@@ -18,7 +18,7 @@
 #     name: FinalSolution1
 #     description: Final challenge solution 1.
 #     multifile: true
-#     file:
+#     files:
 #       - name: input.csv
 #     context_line: 57
 #     categories:

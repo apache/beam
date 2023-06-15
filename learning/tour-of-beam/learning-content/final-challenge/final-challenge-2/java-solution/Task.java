@@ -17,10 +17,10 @@
  */
 
 // beam-playground:
-//   name: FinalSolutuion1
-//   description: Final challenge solution 1.
+//   name: FinalSolution2
+//   description: Final challenge solution 2.
 //   multifile: true
-//   file:
+//   files:
 //     - name: analysis.csv
 //   context_line: 98
 //   categories:

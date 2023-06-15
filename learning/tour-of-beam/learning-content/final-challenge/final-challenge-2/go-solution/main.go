@@ -20,7 +20,7 @@
 //   name: FinalSolution2
 //   description: Final challenge solution 2.
 //   multifile: true
-//   file:
+//   files:
 //     - name: analysis.csv
 //   context_line: 54
 //   categories:
