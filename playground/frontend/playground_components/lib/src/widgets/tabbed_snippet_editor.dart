@@ -95,7 +95,7 @@ class TabbedSnippetEditor extends StatelessWidget {
       ),
     );
 
-    print('result: $result');
+    print('result:  $result');
     return result;
   }
 }
