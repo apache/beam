@@ -102,8 +102,7 @@ ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
 ARG BEAM_VERSION
 RUN pip install --upgrade pip
-RUN pip install apache-beam[gcp,interactive,dataframe]==2.47.0
-#RUN pip install apache-beam==${BEAM_VERSION}   old
+RUN pip install apache-beam[gcp,interactive,dataframe]==${BEAM_VERSION}
 RUN pip install --default-timeout=100 torch
 RUN pip install torchvision
 RUN pip install pandas
@@ -117,7 +116,7 @@ RUN apt-get install -y openjdk-11-jre-headless
 
 # ARG BEAM_VERSION
 ARG REPO_URL=https://repo1.maven.org/maven2
-ARG SQL_EXPANSION_SERVICE_JAR=${REPO_URL}/org/apache/beam/beam-sdks-java-extensions-sql-expansion-service/2.47.0/beam-sdks-java-extensions-sql-expansion-service-2.47.0.jar
+ARG SQL_EXPANSION_SERVICE_JAR=${REPO_URL}/org/apache/beam/beam-sdks-java-extensions-sql-expansion-service/${BEAM_VERSION}/beam-sdks-java-extensions-sql-expansion-service-${BEAM_VERSION}.jar
 RUN curl -O -L $SQL_EXPANSION_SERVICE_JAR
 
 ################

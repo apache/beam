@@ -34,9 +34,9 @@ RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28.1 &&\
 
 # Prepare Application
 COPY src /go/src/playground/backend
-#COPY playground /go/src/playground/playground
 WORKDIR /go/src/playground/backend
 RUN ls
+
 # Build Application
 RUN go mod download &&\
     go mod tidy &&\
@@ -45,7 +45,6 @@ RUN go mod download &&\
 
 
 ###############################################################################
-#FROM apache/beam_python3.10_sdk:$SDK_TAG
 FROM python:3.10-slim-bullseye
 
 ARG SDK_TAG
@@ -85,7 +84,6 @@ ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 ARG BEAM_VERSION
 RUN pip install --upgrade pip
 RUN pip install apache-beam[gcp,interactive,dataframe]==${SDK_TAG}
-#RUN pip install apache-beam==${BEAM_VERSION}   old
 RUN pip install --default-timeout=100 torch
 RUN pip install torchvision
 RUN pip install pandas
@@ -102,7 +100,7 @@ RUN apt-get update && apt-get install -y openjdk-11-jre-headless
 
 ARG BEAM_VERSION
 ARG REPO_URL=https://repo1.maven.org/maven2
-ARG SQL_EXPANSION_SERVICE_JAR=${REPO_URL}/org/apache/beam/beam-sdks-java-extensions-sql-expansion-service/2.47.0/beam-sdks-java-extensions-sql-expansion-service-2.47.0.jar
+ARG SQL_EXPANSION_SERVICE_JAR=${REPO_URL}/org/apache/beam/beam-sdks-java-extensions-sql-expansion-service/${SDK_TAG}/beam-sdks-java-extensions-sql-expansion-service-${SDK_TAG}.jar
 #ARG SQL_EXPANSION_SERVICE_JAR=${REPO_URL}/org/apache/beam/beam-sdks-java-extensions-sql-expansion-service/${BEAM_VERSION}/beam-sdks-java-extensions-sql-expansion-service-${BEAM_VERSION}.jar
 RUN curl -O -L $SQL_EXPANSION_SERVICE_JAR
 
