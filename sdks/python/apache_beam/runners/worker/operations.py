@@ -209,7 +209,7 @@ class ConsumerSet(Receiver):
     # The following code is optimized by inlining a function call. Because this
     # is called for every element, a function call is too expensive (order of
     # 100s of nanoseconds). Furthermore, a lock was purposefully not used
-    # between here and the DataSampler as an addiitonal operation. The tradeoff
+    # between here and the DataSampler as an additional operation. The tradeoff
     # is that some samples might be dropped, but it is better than the
     # alternative which is double sampling the same element.
     self.element_sampler.el = windowed_value
@@ -755,7 +755,7 @@ class _TaggedReceivers(dict):
 
   def __missing__(self, tag):
     self[tag] = receiver = ConsumerSet.create(
-        self._counter_factory, self._step_name, tag, [], None, None, None, ElementSampler())
+        self._counter_factory, self._step_name, tag, [], None, None, None, None)
     return receiver
 
   def total_output_bytes(self):
@@ -1436,8 +1436,7 @@ class SimpleMapTaskExecutor(object):
       counter_factory,
       state_sampler,
       test_shuffle_source=None,
-      test_shuffle_sink=None,
-      data_sampler=None):
+      test_shuffle_sink=None):
     """Initializes SimpleMapTaskExecutor.
 
     Args:
@@ -1458,7 +1457,6 @@ class SimpleMapTaskExecutor(object):
     self._state_sampler = state_sampler
     self._test_shuffle_source = test_shuffle_source
     self._test_shuffle_sink = test_shuffle_sink
-    self._data_sampler = data_sampler
 
   def operations(self):
     # type: () -> List[Operation]
@@ -1490,8 +1488,7 @@ class SimpleMapTaskExecutor(object):
           None,
           self._state_sampler,
           test_shuffle_source=self._test_shuffle_source,
-          test_shuffle_sink=self._test_shuffle_sink,
-          data_sampler=self._data_sampler)
+          test_shuffle_sink=self._test_shuffle_sink)
       self._ops.append(op)
 
       # Add receiver operations to the appropriate producers.
