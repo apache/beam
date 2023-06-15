@@ -62,10 +62,10 @@ public class OutputSamplerTest {
   /**
    * Test that the first N are always sampled.
    *
-   * @throws Exception when encoding fails (shouldn't happen).
+   * @throws IOException when encoding fails (shouldn't happen).
    */
   @Test
-  public void testSamplesFirstN() throws Exception {
+  public void testSamplesFirstN() throws IOException {
     VarIntCoder coder = VarIntCoder.of();
     OutputSampler<Integer> outputSampler = new OutputSampler<>(coder, 10, 10);
 
@@ -85,7 +85,7 @@ public class OutputSamplerTest {
   }
 
   @Test
-  public void testWindowedValueSample() throws Exception {
+  public void testWindowedValueSample() throws IOException {
     WindowedValue.WindowedValueCoder<Integer> coder =
         WindowedValue.FullWindowedValueCoder.of(VarIntCoder.of(), GlobalWindow.Coder.INSTANCE);
 
@@ -99,7 +99,7 @@ public class OutputSamplerTest {
   }
 
   @Test
-  public void testNonWindowedValueSample() throws Exception {
+  public void testNonWindowedValueSample() throws IOException {
     VarIntCoder coder = VarIntCoder.of();
 
     OutputSampler<Integer> outputSampler = new OutputSampler<>(coder, 10, 10);
@@ -114,10 +114,10 @@ public class OutputSamplerTest {
   /**
    * Test that the previous values are overwritten and only the most recent `maxSamples` are kept.
    *
-   * @throws Exception when encoding fails (shouldn't happen).
+   * @throws IOException when encoding fails (shouldn't happen).
    */
   @Test
-  public void testActsLikeCircularBuffer() throws Exception {
+  public void testActsLikeCircularBuffer() throws IOException {
     VarIntCoder coder = VarIntCoder.of();
     OutputSampler<Integer> outputSampler = new OutputSampler<>(coder, 5, 20);
 
@@ -143,10 +143,10 @@ public class OutputSamplerTest {
    * Test that elements with exceptions can be sampled. TODO: test that the exception metadata is
    * set.
    *
-   * @throws Exception when encoding fails (shouldn't happen).
+   * @throws IOException when encoding fails (shouldn't happen).
    */
   @Test
-  public void testCanSampleExceptions() throws Exception {
+  public void testCanSampleExceptions() throws IOException {
     VarIntCoder coder = VarIntCoder.of();
     OutputSampler<Integer> outputSampler = new OutputSampler<>(coder, 5, 20);
 
@@ -170,10 +170,10 @@ public class OutputSamplerTest {
    * Tests that multiple samples don't push out exception samples. TODO: test that the exception
    * metadata is set.
    *
-   * @throws Exception when encoding fails (shouldn't happen).
+   * @throws IOException when encoding fails (shouldn't happen).
    */
   @Test
-  public void testExceptionSamplesAreNotRemoved() throws Exception {
+  public void testExceptionSamplesAreNotRemoved() throws IOException {
     VarIntCoder coder = VarIntCoder.of();
     OutputSampler<Integer> outputSampler = new OutputSampler<>(coder, 5, 20);
 
@@ -205,10 +205,10 @@ public class OutputSamplerTest {
   /**
    * Test that sampling a PCollection while retrieving samples from multiple threads is ok.
    *
-   * @throws Exception
+   * @throws IOException, InterruptedException
    */
   @Test
-  public void testConcurrentSamples() throws Exception {
+  public void testConcurrentSamples() throws IOException, InterruptedException {
     VarIntCoder coder = VarIntCoder.of();
     OutputSampler<Integer> outputSampler = new OutputSampler<>(coder, 10, 2);
 
