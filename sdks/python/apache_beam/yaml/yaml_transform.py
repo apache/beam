@@ -204,7 +204,7 @@ class Scope(LightweightScope):
     return expand_transform(self._transforms_by_uuid[transform_id], self)
 
   # A method on scope as providers may be scoped...
-  def create_ptransform(self, spec, input_providers):
+  def create_ptransform(self, spec, input_pcolls):
     if 'type' not in spec:
       raise ValueError(f'Missing transform type: {identify_object(spec)}')
 
@@ -214,6 +214,13 @@ class Scope(LightweightScope):
           (spec['type'], identify_object(spec)))
 
     # TODO(yaml): Perhaps we can do better than a greedy choice here.
+    # TODO(yaml): Figure out why this is needed.
+    providers_by_input = {k: v for k, v in self.input_providers.items()}
+    input_providers = [
+        providers_by_input[pcoll] for pcoll in input_pcolls
+        if pcoll in providers_by_input
+    ]
+
     def provider_score(p):
       return sum(p.affinity(o) for o in input_providers)
 
@@ -330,14 +337,7 @@ def expand_leaf_transform(spec, scope):
     else:
       inputs = inputs_dict
   _LOGGER.info("Expanding %s ", identify_object(spec))
-  # TODO: Figure out why this is needed.
-  scope.input_providers = {k: v for k, v in scope.input_providers.items()}
-  ptransform = scope.create_ptransform(
-      spec,
-      [
-          scope.input_providers[pcoll]
-          for pcoll in inputs_dict.values() if pcoll in scope.input_providers
-      ])
+  ptransform = scope.create_ptransform(spec, inputs_dict.values())
   try:
     # TODO: Move validation to construction?
     with FullyQualifiedNamedTransform.with_filter('*'):

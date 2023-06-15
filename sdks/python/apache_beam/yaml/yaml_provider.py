@@ -63,7 +63,8 @@ class Provider:
       self,
       typ: str,
       args: Mapping[str, Any],
-      yaml_create_transform: Callable[[Mapping[str, Any]], beam.PTransform]
+      yaml_create_transform: Callable[
+          [Mapping[str, Any], Iterable[beam.PCollection]], beam.PTransform]
   ) -> beam.PTransform:
     """Creates a PTransform instance for the given transform type and arguments.
     """
