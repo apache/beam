@@ -27,6 +27,7 @@ import subprocess
 import sys
 import uuid
 from typing import Any
+from typing import Callable
 from typing import Iterable
 from typing import Mapping
 
@@ -59,7 +60,11 @@ class Provider:
     raise NotImplementedError(type(self))
 
   def create_transform(
-      self, typ: str, args: Mapping[str, Any]) -> beam.PTransform:
+      self,
+      typ: str,
+      args: Mapping[str, Any],
+      yaml_create_transform: Callable[[Mapping[str, Any]], beam.PTransform]
+  ) -> beam.PTransform:
     """Creates a PTransform instance for the given transform type and arguments.
     """
     raise NotImplementedError(type(self))
@@ -88,7 +93,7 @@ class ExternalProvider(Provider):
   def provided_transforms(self):
     return self._urns.keys()
 
-  def create_transform(self, type, args):
+  def create_transform(self, type, args, yaml_create_transform):
     if callable(self._service):
       self._service = self._service()
     if self._schema_transforms is None:
@@ -245,11 +250,16 @@ class InlineProvider(Provider):
   def provided_transforms(self):
     return self._transform_factories.keys()
 
-  def create_transform(self, type, args):
+  def create_transform(self, type, args, yaml_create_transform):
     return self._transform_factories[type](**args)
 
   def to_json(self):
     return {'type': "InlineProvider"}
+
+
+class MetaInlineProvider(InlineProvider):
+  def create_transform(self, type, args, yaml_create_transform):
+    return self._transform_factories[type](yaml_create_transform, **args)
 
 
 PRIMITIVE_NAMES_TO_ATOMIC_TYPE = {
@@ -446,17 +456,23 @@ def parse_providers(provider_specs):
 def merge_providers(*provider_sets):
   result = collections.defaultdict(list)
   for provider_set in provider_sets:
+    if isinstance(provider_set, Provider):
+      provider = provider_set
+      provider_set = {
+          transform_type: [provider]
+          for transform_type in provider.provided_transforms()
+      }
     for transform_type, providers in provider_set.items():
       result[transform_type].extend(providers)
   return result
 
 
 def standard_providers():
-  builtin_providers = collections.defaultdict(list)
-  builtin_provider = create_builtin_provider()
-  for transform_type in builtin_provider.provided_transforms():
-    builtin_providers[transform_type].append(builtin_provider)
+  from apache_beam.yaml.yaml_mapping import create_mapping_provider
   with open(os.path.join(os.path.dirname(__file__),
                          'standard_providers.yaml')) as fin:
     standard_providers = yaml.load(fin, Loader=SafeLoader)
-  return merge_providers(builtin_providers, parse_providers(standard_providers))
+  return merge_providers(
+      create_builtin_provider(),
+      create_mapping_provider(),
+      parse_providers(standard_providers))
