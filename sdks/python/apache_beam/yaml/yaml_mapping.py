@@ -224,8 +224,8 @@ def MapToFields(
     # TODO(yaml): Support java by fully qualified name.
     # TODO(yaml): Maybe support java lambdas?
     raise ValueError(
-          f'Unknown language: {language}. '
-          'Supported languages are "sql" (alias calcite) and "python."')
+        f'Unknown language: {language}. '
+        'Supported languages are "sql" (alias calcite) and "python."')
 
 
 def create_mapping_provider():

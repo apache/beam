@@ -22,8 +22,8 @@ import unittest
 import apache_beam as beam
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-from apache_beam.yaml.yaml_transform import YamlTransform
 from apache_beam.yaml.readme_test import createTestSuite
+from apache_beam.yaml.yaml_transform import YamlTransform
 
 DATA = [
     beam.Row(label='11a', conductor=11, rank=0),

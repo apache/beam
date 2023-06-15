@@ -225,7 +225,9 @@ def parse_test_methods(markdown_lines):
                 '  transforms:',
                 '    - type: ReadFromCsv',
                 '      path: whatever',
-            ] + ['    ' + line for line in code_lines]  # pylint: disable=not-an-iterable
+            ] + [
+                '    ' + line for line in code_lines
+            ]  # pylint: disable=not-an-iterable
           if code_lines[0] == 'pipeline:':
             yaml_pipeline = '\n'.join(code_lines)
             if 'providers:' in yaml_pipeline:
