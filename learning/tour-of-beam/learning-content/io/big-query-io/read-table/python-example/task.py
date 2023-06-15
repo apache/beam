@@ -16,7 +16,7 @@
 
 # beam-playground-broken:
 #   name: read-table
-#   description: TextIO read table example.
+#   description: BigQueryIO read table example.
 #   multifile: false
 #   never_run: true
 #   always_run: true
@@ -57,7 +57,7 @@ def run(argv=None):
 
 
     with beam.Pipeline(options=pipeline_options, argv=argv) as p:
-        (p | 'ReadFromBigQuery' >> beam.io.ReadFromBigQuery(table='apache-beam-testing:clouddataflow_samples.weather_stations',
+        (p | 'ReadFromBigQuery' >> beam.io.ReadFromBigQuery(query='select * from `apache-beam-testing.clouddataflow_samples.weather_stations`',
                                                             method=beam.io.ReadFromBigQuery.Method.DIRECT_READ)
          | beam.combiners.Sample.FixedSizeGlobally(5)
          | beam.FlatMap(lambda line: line)
