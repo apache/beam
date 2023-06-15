@@ -942,8 +942,8 @@ class BundleProcessor(object):
       # Initialize transform-specific state in the Data Sampler.
       if self.data_sampler:
         transform_proto = descriptor.transforms[transform_id]
-        self.data_sampler.initialize_transform(transform_id, descriptor,
-                                               transform_factory)
+        self.data_sampler.initialize_samplers(transform_id, descriptor,
+                                              transform_factory.get_coder)
 
       return transform_factory.create_operation(
           transform_id, transform_consumers)

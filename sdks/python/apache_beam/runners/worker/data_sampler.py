@@ -44,19 +44,19 @@ _LOGGER = logging.getLogger(__name__)
 class SampleTimer:
   def __init__(self, timeout, sampler):  # timeout in seconds
     self._timeout = timeout
-    self._timer = Timer(self._timeout, self.default_handler)
+    self._timer = Timer(self._timeout, self.sample)
     self._timer.start()
     self._sampler = sampler
 
   def reset(self):
     self._timer.cancel()
-    self._timer = Timer(self._timeout, self.default_handler)
+    self._timer = Timer(self._timeout, self.sample)
     self._timer.start()
 
   def stop(self):
     self._timer.cancel()
 
-  def default_handler(self):
+  def sample(self):
     self._sampler.sample()
     self.reset()
 
@@ -64,6 +64,7 @@ class SampleTimer:
 class ElementSampler:
   has_element: bool
   el: Any
+
 
 class OutputSampler:
   """Represents a way to sample an output of a PTransform.
@@ -77,21 +78,18 @@ class OutputSampler:
       coder: Coder,
       max_samples: int = 10,
       sample_every_sec: float = 5,
-      clock=None) -> None:
+      sample_timer_factory=None) -> None:
     self._samples: Deque[Any] = collections.deque(maxlen=max_samples)
     self._coder_impl: CoderImpl = coder.get_impl()
     self._sample_count: int = 0
     self._sample_every_sec: float = sample_every_sec
-    self._clock = clock
-    self._last_sample_sec: float = self.time()
-    self._element_sampler = ElementSampler()
-    self._sample_timer = SampleTimer(5, self)
+
+    sample_timer_factory = sample_timer_factory or SampleTimer
+    self._sample_timer = sample_timer_factory(sample_every_sec, self)
+    self.element_sampler = ElementSampler()
 
   def stop(self):
     self._sample_timer.stop()
-
-  def element_sampler(self) -> ElementSampler:
-    return self._element_sampler
 
   def remove_windowed_value(self, el: Union[WindowedValue, Any]) -> Any:
     """Retrieves the value from the WindowedValue.
@@ -102,10 +100,6 @@ class OutputSampler:
     if isinstance(el, WindowedValue):
       return self.remove_windowed_value(el.value)
     return el
-
-  def time(self) -> float:
-    """Returns the current time. Used for mocking out the clock for testing."""
-    return self._clock.time() if self._clock else time.time()
 
   def flush(self) -> List[bytes]:
     """Returns all samples and clears buffer."""
@@ -125,18 +119,9 @@ class OutputSampler:
     Samples are only taken for the first 10 elements then every
     `self._sample_every_sec` second after.
     """
-    # self._sample_count += 1
-    # now = self.time()
-    # sample_diff = now - self._last_sample_sec
-
-    # if self._sample_count <= 10 or self._sample_count % 1000 == 0:#sample_diff >= self._sample_every_sec:
-    if self._element_sampler.has_element:
-      self._samples.append(self._element_sampler.el)
-      self._element_sampler.has_element = False
-    # try:
-    #   self._samples.append(self._element_sampler.el)
-    # except AttributeError:
-    #   pass
+    if self.element_sampler.has_element:
+      self.element_sampler.has_element = False
+      self._samples.append(self.element_sampler.el)
 
 
 class DataSampler:
@@ -151,7 +136,7 @@ class DataSampler:
   method. This filters samples from the given pcollection ids.
   """
   def __init__(
-      self, max_samples: int = 10, sample_every_sec: float = 30) -> None:
+      self, max_samples: int = 10, sample_every_sec: float = 30, clock=None) -> None:
     # Key is PCollection id. Is guarded by the _samplers_lock.
     self._samplers: Dict[str, OutputSampler] = {}
     # Bundles are processed in parallel, so new samplers may be added when the
@@ -160,6 +145,7 @@ class DataSampler:
     self._max_samples = max_samples
     self._sample_every_sec = sample_every_sec
     self._element_samplers: Dict[str, List[ElementSampler]] = {}
+    self._clock = clock
 
   def sample_exception(self,
       sample: ElementSampler,
@@ -168,6 +154,11 @@ class DataSampler:
     _LOGGER.error('Sampled exception element "%s" from ' +
                   'instruction %s and transform %s' % (
         str(sample.el), instruction_id, transform_id))
+
+  def stop(self):
+    with self._samplers_lock:
+      for sampler in self._samplers.values():
+        sampler.stop()
 
   def sampler_for_output(self, transform_id, output_index):
     try:
@@ -179,7 +170,8 @@ class DataSampler:
                    (transform_id, output_index))
       return ElementSampler()
 
-  def initialize_transform(self, transform_id, descriptor, transform_factory):
+  def initialize_samplers(self, transform_id, descriptor,
+                           coder_factory, sample_timer_factory):
     transform_proto = descriptor.transforms[transform_id]
     with self._samplers_lock:
       for pcoll_id in transform_proto.outputs.values():
@@ -187,17 +179,18 @@ class DataSampler:
           continue
 
         coder_id = descriptor.pcollections[pcoll_id].coder_id
-        coder = transform_factory.get_coder(coder_id)
+        coder = coder_factory(coder_id)
 
         sampler = OutputSampler(
-            coder, self._max_samples, self._sample_every_sec)
+            coder, self._max_samples, self._sample_every_sec,
+            sample_timer_factory=sample_timer_factory)
         self._samplers[pcoll_id] = sampler
 
       if transform_id in self._element_samplers:
         return
 
       samplers = {
-          pcoll_id: self._samplers[pcoll_id].element_sampler()
+          pcoll_id: self._samplers[pcoll_id].element_sampler
           for pcoll_id in transform_proto.outputs.values()
       }
 
@@ -209,17 +202,6 @@ class DataSampler:
       outputs = transform_proto.outputs
       indexed_samplers = [tagged_samplers[tag] for tag in outputs]
       self._element_samplers[transform_id] = indexed_samplers
-
-  def sample_output(self, pcoll_id: str, coder: Coder) -> OutputSampler:
-    """Create or get an OutputSampler for a pcoll_id."""
-    with self._samplers_lock:
-      if pcoll_id in self._samplers:
-        sampler = self._samplers[pcoll_id]
-      else:
-        sampler = OutputSampler(
-            coder, self._max_samples, self._sample_every_sec)
-        self._samplers[pcoll_id] = sampler
-      return sampler
 
   def samples(
       self,

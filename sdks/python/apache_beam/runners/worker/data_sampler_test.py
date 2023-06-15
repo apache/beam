@@ -25,6 +25,7 @@ import unittest
 from apache_beam.coders import FastPrimitivesCoder
 from apache_beam.coders import WindowedValueCoder
 from apache_beam.coders.coders import Coder
+from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.runners.worker.data_sampler import DataSampler
 from apache_beam.runners.worker.data_sampler import ElementSampler
 from apache_beam.runners.worker.data_sampler import OutputSampler
@@ -40,6 +41,27 @@ class SlowGenerator(beam.DoFn):
       yield i
       time.sleep(1)
 
+TRANSFORM_ID = 'transform'
+MAIN_PCOLLECTION_ID = 'pcoll'
+MAIN_CODER_ID = 'coder'
+
+
+class FakeClock:
+  def __init__(self):
+    self.clock = 0
+
+  def time(self):
+    return self.clock
+
+
+class FakeSampleTimer:
+  def __init__(self, unused_timeout, sampler: OutputSampler):
+    self.sampler : OutputSampler = sampler
+
+  def sample(self):
+    self.sampler.sample()
+
+
 class DataSamplerTest(unittest.TestCase):
   # def test_pipeline(self):
   #   from apache_beam.options.pipeline_options import PipelineOptions
@@ -48,15 +70,37 @@ class DataSamplerTest(unittest.TestCase):
   #   p | beam.Impulse() | beam.ParDo(SlowGenerator()) | beam.Map(print)
   #   p.run()
 
+  def make_test_descriptor(self):
+    descriptor = beam_fn_api_pb2.ProcessBundleDescriptor()
+    transform = descriptor.transforms[TRANSFORM_ID]
+    transform.outputs[''] = MAIN_PCOLLECTION_ID
+    return descriptor
+
+  def setUp(self):
+    self.descriptor = self.make_test_descriptor()
+    self.data_sampler = DataSampler()
+
+  def tearDown(self):
+    self.data_sampler.stop()
+
   def test_single_output(self):
     """Simple test for a single sample."""
     data_sampler = DataSampler()
     coder = FastPrimitivesCoder()
+    # sample_timer = FakeSampleTimer()
 
-    output_sampler = data_sampler.sample_output('1', coder)
-    output_sampler.sample('a')
+    data_sampler.initialize_samplers(
+        TRANSFORM_ID, self.descriptor,
+        lambda _: coder,
+        FakeSampleTimer)
 
-    self.assertEqual(data_sampler.samples(), {'1': [coder.encode_nested('a')]})
+    element_sampler = data_sampler.sampler_for_output(TRANSFORM_ID, 0)
+    element_sampler.el = 'a'
+    element_sampler.has_element = True
+
+
+    expected_sample = {MAIN_PCOLLECTION_ID: [coder.encode_nested('a')]}
+    self.assertEqual(data_sampler.samples(), expected_sample)
 
   def test_multiple_outputs(self):
     """Tests that multiple PCollections have their own sampler."""
@@ -105,14 +149,6 @@ class DataSamplerTest(unittest.TestCase):
             'a': [coder.encode_nested('1'), coder.encode_nested('2')],
             'c': [coder.encode_nested('5'), coder.encode_nested('6')]
         })
-
-
-class FakeClock:
-  def __init__(self):
-    self.clock = 0
-
-  def time(self):
-    return self.clock
 
 
 class OutputSamplerTest(unittest.TestCase):

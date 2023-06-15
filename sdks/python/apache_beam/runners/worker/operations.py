@@ -205,8 +205,15 @@ class ConsumerSet(Receiver):
   def update_counters_start(self, windowed_value):
     # type: (WindowedValue) -> None
     self.opcounter.update_from(windowed_value)
-    self.element_sampler.has_element = True
+
+    # The following code is optimized by inlining a function call. Because this
+    # is called for every element, a function call is too expensive (order of
+    # 100s of nanoseconds). Furthermore, a lock was purposefully not used
+    # between here and the DataSampler as an addiitonal operation. The tradeoff
+    # is that some samples might be dropped, but it is better than the
+    # alternative which is double sampling the same element.
     self.element_sampler.el = windowed_value
+    self.element_sampler.has_element = True
 
   def update_counters_finish(self):
     # type: () -> None
