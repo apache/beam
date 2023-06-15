@@ -27,25 +27,23 @@ jobs:
   PythonCoverage:
     if: ${{github.event.issue.pull_request}} || ${{github.event.comment.body == 'Run Python_Coverage PreCommit'}} || ${{github.event.schedule == '* */6 * * *'}}
     runs-on: [self-hosted, ubuntu-20.04]
-    defaults:
-      run:
-        working-directory: sdks/python
-
 
     steps:
       - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v2
         with:
           python-version: '3.8'
-      - name: Install Dependencies
-        run:  pip install --retries 10 --upgrade pip && ls && pwd && pip install --retries 10 --upgrade tox==3.20.1 -r ./build-requirements.txt
-        working-directory: sdks/python
-      - name: Run python cloud coverage
-        run: tox -e py38-cloudcoverage
-        working-directory: sdks/python
-      - name: Run python pyarrow
-        run: tox -e py38-pyarrow-5
-        working-directory: sdks/python
+      - name: Install Java
+        uses: actions/setup-java@v3.8.0
+        with:
+          distribution: 'zulu'
+          java-version: '8'
+      - name: Setup Gradle
+        uses: gradle/gradle-build-action@v2
+        with:
+          cache-read-only: false
+      - name: Run preCommitPyCoverage
+        run: ./gradlew :sdks:python:test-suites:tox:py38:preCommitPyCoverage 
       - name: Archive code coverage results
         uses: actions/upload-artifact@v3
         with:

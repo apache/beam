@@ -1,45 +1,31 @@
-<!--
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-      http://www.apache.org/licenses/LICENSE-2.0
-    Unless required by applicable law or agreed to in writing, software
-    distributed under the License is distributed on an "AS IS" BASIS,
-    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-    See the License for the specific language governing permissions and
-    limitations under the License.
--->
-name: Precommit Python Auto Formatter
-run-name: Python Auto Formatter
+name: Precommit Python AutoFormatter
+run-name: Python Precommit AutoFormatter
 on:
   pull_request:
     branches: [ "master", "release-*" ]
-    paths: [ "sdks/python/apache_beam/.*"]
+    paths: [ "model/.*","sdks/python/.*","release/.*"]
   issue_comment:
     types: [created, edited]
-  push:
-    tags: ['v*']
-    branches: ['master', 'release-*']
 
 
 jobs:
-  PythonAutoFormatter:
-    if: ${{github.event.push}} || ${{github.event.issue.pull_request}} || ${{github.event.comment.body == 'Run PythonFormatter PreCommit'}} || ${{github.event.schedule == '* */6 * * *'}}
+  PythonDocker:
+    if: ${{github.event.issue.pull_request}} || ${{github.event.comment.body == 'Run PythonFormatter PreCommit'}} || ${{github.event.schedule == '* */6 * * *'}}
     runs-on: [self-hosted, ubuntu-20.04]
-
 
     steps:
       - uses: actions/checkout@v3
+      - name: Install Java
+        uses: actions/setup-java@v3.8.0
+        with:
+          distribution: 'zulu'
+          java-version: '8'
       - uses: actions/setup-python@v4
         with:
           python-version: '3.8'
-      - name: Install Dependencies
-        run:  pip install --retries 10 --upgrade pip && ls && pwd && pip install --retries 10 --upgrade tox==3.20.1 -r ./build-requirements.txt
-        working-directory: sdks/python
-      - name: Run python Lint 
-        run: tox -e py3-yapf-check
-        working-directory: sdks/python
+      - name: Setup Gradle
+        uses: gradle/gradle-build-action@v2
+        with:
+          cache-read-only: false
+      - name: run PythonDockerPrecommit script
+        run: ./gradlew :pythonFormatterPreCommit

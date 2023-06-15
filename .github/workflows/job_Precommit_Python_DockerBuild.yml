@@ -25,12 +25,8 @@ on:
 
 jobs:
   PythonDocker:
-    if: ${{github.event.issue.pull_request}} || ${{github.event.comment.body == 'Run PythonDocker PreCommit'}} || ${{github.event.schedule == '* */6 * * *'}}
+    if: ${{github.event.issue.pull_request}} || ${{github.event.comment.body == 'Run Python_Docker PreCommit'}} || ${{github.event.schedule == '* */6 * * *'}}
     runs-on: [self-hosted, ubuntu-20.04]
-    defaults:
-      run:
-        working-directory: sdks/python
-
 
     steps:
       - uses: actions/checkout@v3
@@ -39,9 +35,12 @@ jobs:
         with:
           distribution: 'zulu'
           java-version: '8'
+      - uses: actions/setup-go@v4
+        with:
+          go-version: '1.16'
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.7 - 3.11'
+          python-version: '3.8'
       - name: Setup Gradle
         uses: gradle/gradle-build-action@v2
         with:
