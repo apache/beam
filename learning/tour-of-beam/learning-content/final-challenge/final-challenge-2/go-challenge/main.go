@@ -33,19 +33,18 @@ package main
 
 import (
 	"context"
+	"log"
+	"strings"
+
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
-	"log"
-	"os"
-	"strings"
 )
 
 func main() {
-	os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", "")
 
 	beam.Init()
-	ctx := context.Background()
 
 	p := beam.NewPipeline()
 	s := p.Root()
@@ -54,9 +53,9 @@ func main() {
 
 	debug.Print(s, getWords(s, shakespeare))
 
-	err := beam.Run(context.Background(), "direct", p)
+	err := beamx.Run(context.Background(), p)
 	if err != nil {
-		log.Fatalf(ctx, "Failed to execute job: %v", err)
+		log.Fatalf("Failed to execute job: %v", err)
 	}
 }
 

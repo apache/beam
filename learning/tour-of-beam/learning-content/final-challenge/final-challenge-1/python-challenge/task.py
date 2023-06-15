@@ -54,5 +54,6 @@ def run():
         transactions = (pipeline
                         | 'Read from text file' >> beam.io.ReadFromText('input.csv'))
 
+
 if __name__ == '__main__':
     run()

@@ -34,6 +34,11 @@ package main
 import (
 	"context"
 	"fmt"
+	"strings"
+	"time"
+
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window/trigger"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
@@ -41,9 +46,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
-	"os"
-	"strings"
-	"time"
 )
 
 type Analysis struct {
@@ -63,7 +65,6 @@ func (a Analysis) toString() string {
 }
 
 func main() {
-	os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", "")
 
 	ctx := context.Background()
 

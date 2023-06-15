@@ -14,18 +14,18 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-#   beam-playground:
-#     name: FinalSolution2
-#     description: Final challenge solution 2.
-#     multifile: true
-#     files:
-#       - name: analysis.csv
-#     context_line: 57
-#     categories:
-#       - Quickstart
-#     complexity: ADVANCED
-#     tags:
-#       - hellobeam
+# beam-playground:
+#   name: FinalSolution2
+#   description: Final challenge solution 2.
+#   multifile: true
+#   files:
+#     - name: analysis.csv
+#   context_line: 57
+#   categories:
+#     - Quickstart
+#   complexity: ADVANCED
+#   tags:
+#     - hellobeam
 
 import re
 import apache_beam as beam
