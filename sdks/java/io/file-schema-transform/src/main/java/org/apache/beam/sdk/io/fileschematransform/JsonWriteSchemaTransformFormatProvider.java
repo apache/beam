@@ -57,7 +57,7 @@ public class JsonWriteSchemaTransformFormatProvider
 
   /**
    * Builds a {@link PTransform} that transforms a {@link Row} {@link PCollection} into result
-   * {@link PCollection} file names written using {@link TextIO.Write}.
+   * {@link PCollectionTuple} with two tags, one for file names written using {@link TextIO.Write}, another for errored-out rows.
    */
   @Override
   public PTransform<PCollection<Row>, PCollectionTuple> buildTransform(

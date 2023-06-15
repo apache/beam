@@ -60,6 +60,7 @@ public class FileWriteSchemaTransformProvider
   private static final String IDENTIFIER = "beam:schematransform:org.apache.beam:file_write:v1";
   static final String INPUT_TAG = "input";
   static final String OUTPUT_TAG = "output";
+  static final String ERROR_STRING = "error";
   static final TupleTag<Row> ERROR_TAG = new TupleTag<Row>() {};
   static final TupleTag<String> RESULT_TAG = new TupleTag<String>() {};
 
@@ -137,7 +138,7 @@ public class FileWriteSchemaTransformProvider
               .setRowSchema(OUTPUT_SCHEMA);
 
       if (files.has(ERROR_TAG)) {
-        return PCollectionRowTuple.of(OUTPUT_TAG, output).and("error", files.get(ERROR_TAG));
+        return PCollectionRowTuple.of(OUTPUT_TAG, output).and(ERROR_STRING, files.get(ERROR_TAG));
       } else {
         return PCollectionRowTuple.of(OUTPUT_TAG, output);
       }
