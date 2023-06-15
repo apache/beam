@@ -19,6 +19,7 @@ on:
   push:
     tags: ['v*']
     branches: ['master', 'release-*']
+    paths: ['*.md', '*.build.gradle']
   pull_request:
     branches: ['master', 'release-*']
     paths: ['*.md', '*.build.gradle']
