@@ -31,7 +31,7 @@ class FeedbackWidget extends StatelessWidget {
   final FeedbackController controller;
   final String title;
 
-  FeedbackWidget({
+  const FeedbackWidget({
     required this.controller,
     required this.title,
   });
@@ -53,7 +53,7 @@ class FeedbackWidget extends StatelessWidget {
       closeNotifier: closeNotifier,
       positioned: Positioned(
         bottom: 50,
-        left: 30,
+        left: 20,
         child: OverlayBody(
           child: FeedbackDropdown(
             close: closeNotifier.notifyPublic,
