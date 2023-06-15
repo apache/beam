@@ -18,6 +18,7 @@
 """Unit tests for bundle processing."""
 # pytype: skip-file
 
+import time
 import unittest
 
 from apache_beam.coders.coders import FastPrimitivesCoder
@@ -244,6 +245,21 @@ class DataSamplingTest(unittest.TestCase):
     _ = BundleProcessor(descriptor, None, None)
     self.assertEqual(len(descriptor.transforms), 0)
 
+  def wait_for_samples(self, data_sampler: DataSampler, pcollection_id: str):
+    now = time.time()
+    end = now + 30
+
+    samples = {}
+    while now < end:
+      time.sleep(0.1)
+      now = time.time()
+      samples.update(data_sampler.samples([pcollection_id]))
+
+      if samples:
+        return samples
+
+    self.assertLess(now, end, 'Timed out waiting for samples for {}'.format(pcollection_id))
+
   def test_can_sample(self):
     """Test that elements are sampled.
 
@@ -252,7 +268,7 @@ class DataSamplingTest(unittest.TestCase):
     DataSamplingOperations and samples are taken from in-flight elements. These
     elements are then finally queried.
     """
-    data_sampler = DataSampler()
+    data_sampler = DataSampler(sample_every_sec=0.1)
     descriptor = beam_fn_api_pb2.ProcessBundleDescriptor()
 
     # Create the PCollection to sample from.
@@ -272,21 +288,17 @@ class DataSamplingTest(unittest.TestCase):
     test_transform.spec.urn = 'beam:internal:testop:v1'
     test_transform.spec.payload = b'hello, world!'
 
-    TRANSFORM_FINAL_ID = 'test_transform_final'
-    test_transform = descriptor.transforms[TRANSFORM_FINAL_ID]
-    test_transform.inputs['None'] = PCOLLECTION_ID
-    test_transform.spec.urn = 'beam:internal:testop:v1'
-    test_transform.spec.payload = b''
+    try:
+      # Create and process a fake bundle. The instruction id doesn't matter
+      # here.
+      processor = BundleProcessor(
+          descriptor, None, None, data_sampler=data_sampler)
+      processor.process_bundle('instruction_id')
 
-    # Create and process a fake bundle. The instruction id doesn't matter here.
-    processor = BundleProcessor(
-        descriptor, None, None, data_sampler=data_sampler)
-    processor.process_bundle('instruction_id')
-
-    import time
-    time.sleep(1)
-    self.assertEqual(
-        data_sampler.samples(), {PCOLLECTION_ID: [b'\rhello, world!']})
+      samples = self.wait_for_samples(data_sampler, PCOLLECTION_ID)
+      self.assertEqual(samples, {PCOLLECTION_ID: [b'\rhello, world!']})
+    finally:
+      data_sampler.stop()
 
 
 if __name__ == '__main__':

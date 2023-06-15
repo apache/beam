@@ -21,6 +21,7 @@
 
 import contextlib
 import logging
+from typing import Any
 import unittest
 from collections import namedtuple
 
@@ -279,18 +280,17 @@ class SdkWorkerTest(unittest.TestCase):
   def test_data_sampling_response(self):
     # Create a data sampler with some fake sampled data. This data will be seen
     # in the sample response.
-    data_sampler = DataSampler()
     coder = FastPrimitivesCoder()
+    class FakeDataSampler:
+      def samples(self, pcollection_ids):
+        return {
+            'pcoll_id_1': [coder.encode_nested('a')],
+            'pcoll_id_2': [coder.encode_nested('b')],
+        }
 
-    # Sample from two fake PCollections to test that all sampled PCollections
-    # are present in the response. Also adds an extra sample to test that
-    # filtering is forwarded to the DataSampler.
-    data_sampler.sample_output('pcoll_id_1',
-                               coder).sample('hello, world from pcoll_id_1!')
-    data_sampler.sample_output('pcoll_id_2',
-                               coder).sample('hello, world from pcoll_id_2!')
-    data_sampler.sample_output('bad_pcoll_id',
-                               coder).sample('if present bug in filter')
+      def stop(self):
+        pass
+    data_sampler = FakeDataSampler()
 
     # Create and send the fake reponse. The SdkHarness should query the
     # DataSampler and fill out the sample response.
@@ -310,14 +310,12 @@ class SdkWorkerTest(unittest.TestCase):
                 'pcoll_id_1': beam_fn_api_pb2.SampleDataResponse.ElementList(
                     elements=[
                         beam_fn_api_pb2.SampledElement(
-                            element=coder.encode_nested(
-                                'hello, world from pcoll_id_1!'))
+                            element=coder.encode_nested('a'))
                     ]),
                 'pcoll_id_2': beam_fn_api_pb2.SampleDataResponse.ElementList(
                     elements=[
                         beam_fn_api_pb2.SampledElement(
-                            element=coder.encode_nested(
-                                'hello, world from pcoll_id_2!'))
+                            element=coder.encode_nested('b'))
                     ])
             }))
 

@@ -45,7 +45,6 @@ class SampleTimer:
   def __init__(self, timeout, sampler):  # timeout in seconds
     self._timeout = timeout
     self._timer = Timer(self._timeout, self.sample)
-    self._timer.start()
     self._sampler = sampler
 
   def reset(self):
@@ -77,16 +76,17 @@ class OutputSampler:
       self,
       coder: Coder,
       max_samples: int = 10,
-      sample_every_sec: float = 5,
-      sample_timer_factory=None) -> None:
+      sample_every_sec: float = 5) -> None:
     self._samples: Deque[Any] = collections.deque(maxlen=max_samples)
+    self._samples_lock: threading.Lock = threading.Lock()
     self._coder_impl: CoderImpl = coder.get_impl()
-    self._sample_count: int = 0
-    self._sample_every_sec: float = sample_every_sec
-
-    sample_timer_factory = sample_timer_factory or SampleTimer
-    self._sample_timer = sample_timer_factory(sample_every_sec, self)
+    self._sample_timer = SampleTimer(sample_every_sec, self)
     self.element_sampler = ElementSampler()
+    self.element_sampler.has_element = False
+
+    # For testing, it's easier to disable the Timer and manually sample.
+    if sample_every_sec > 0:
+      self._sample_timer.reset()
 
   def stop(self):
     self._sample_timer.stop()
@@ -101,27 +101,35 @@ class OutputSampler:
       return self.remove_windowed_value(el.value)
     return el
 
+  def peek(self) -> List[bytes]:
+    with self._samples_lock:
+      if isinstance(self._coder_impl, WindowedValueCoderImpl):
+        samples = [s for s in self._samples]
+      else:
+        samples = [self.remove_windowed_value(s) for s in self._samples]
+      # Encode in the nested context b/c this ensures that the SDK can decode the
+      # bytes with the ToStringFn.
+      return [self._coder_impl.encode_nested(s) for s in samples]
+
   def flush(self) -> List[bytes]:
     """Returns all samples and clears buffer."""
-    if isinstance(self._coder_impl, WindowedValueCoderImpl):
-      samples = [s for s in self._samples]
-    else:
-      samples = [self.remove_windowed_value(s) for s in self._samples]
+    with self._samples_lock:
+      if isinstance(self._coder_impl, WindowedValueCoderImpl):
+        samples = [s for s in self._samples]
+      else:
+        samples = [self.remove_windowed_value(s) for s in self._samples]
 
-    # Encode in the nested context b/c this ensures that the SDK can decode the
-    # bytes with the ToStringFn.
-    self._samples.clear()
-    return [self._coder_impl.encode_nested(s) for s in samples]
+      # Encode in the nested context b/c this ensures that the SDK can decode the
+      # bytes with the ToStringFn.
+      self._samples.clear()
+      return [self._coder_impl.encode_nested(s) for s in samples]
 
   def sample(self) -> None:
-    """Samples the given element to an internal buffer.
-
-    Samples are only taken for the first 10 elements then every
-    `self._sample_every_sec` second after.
-    """
-    if self.element_sampler.has_element:
-      self.element_sampler.has_element = False
-      self._samples.append(self.element_sampler.el)
+    """Samples the given element to an internal buffer."""
+    with self._samples_lock:
+      if self.element_sampler.has_element:
+        self.element_sampler.has_element = False
+        self._samples.append(self.element_sampler.el)
 
 
 class DataSampler:
@@ -163,15 +171,14 @@ class DataSampler:
   def sampler_for_output(self, transform_id, output_index):
     try:
       return self._element_samplers[transform_id][output_index]
-    except:
-      _LOGGER.warn('Out-of-bounds access for transform "%s" and output "%s" ' +
-                   'ElementSampler. This may indicate that the transform was ' +
-                   'improperly initialized with the DataSampler.' %
-                   (transform_id, output_index))
+    except KeyError:
+      _LOGGER.warning(f'Out-of-bounds access for transform "{transform_id}" ' +
+                      'and output "{output_index}" ElementSampler. This may ' +
+                      'indicate that the transform was improperly ' +
+                      'initialized with the DataSampler.')
       return ElementSampler()
 
-  def initialize_samplers(self, transform_id, descriptor,
-                           coder_factory, sample_timer_factory):
+  def initialize_samplers(self, transform_id, descriptor, coder_factory) -> Dict[str, ElementSampler]:
     transform_proto = descriptor.transforms[transform_id]
     with self._samplers_lock:
       for pcoll_id in transform_proto.outputs.values():
@@ -182,8 +189,7 @@ class DataSampler:
         coder = coder_factory(coder_id)
 
         sampler = OutputSampler(
-            coder, self._max_samples, self._sample_every_sec,
-            sample_timer_factory=sample_timer_factory)
+            coder, self._max_samples, self._sample_every_sec)
         self._samplers[pcoll_id] = sampler
 
       if transform_id in self._element_samplers:
@@ -202,6 +208,8 @@ class DataSampler:
       outputs = transform_proto.outputs
       indexed_samplers = [tagged_samplers[tag] for tag in outputs]
       self._element_samplers[transform_id] = indexed_samplers
+
+      return samplers
 
   def samples(
       self,
