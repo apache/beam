@@ -47,6 +47,7 @@ class TabbedSnippetEditor extends StatelessWidget {
     final keys = files.map((f) => f.name).toList(growable: false);
     final initialKey = files.firstWhereOrNull((f) => f.isMain)?.name;
 
+    print();
     print('files: $files');
     print('keys: $keys');
     print('initialKey: $initialKey');
