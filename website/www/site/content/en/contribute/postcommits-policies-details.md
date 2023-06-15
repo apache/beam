@@ -50,7 +50,7 @@ situation, fixing failing tests is our highest priority.
 
 ## A flaky test is a critical/P1 issue {#flake_is_failing}
 
-Flaky tests are considered failing tests, and fixing a flaky test is a
+Flaky tests are considered as failing tests, and fixing a flaky test is a
 critical/P1 issue.
 
 Flaky tests are tests that randomly succeed or fail while using the same code
