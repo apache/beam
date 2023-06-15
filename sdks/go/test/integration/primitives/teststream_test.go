@@ -24,40 +24,40 @@ import (
 
 func TestTestStreamStrings(t *testing.T) {
 	integration.CheckFilters(t)
-	ptest.RunAndValidate(t, TestStreamStrings())
+	ptest.BuildAndRun(t, TestStreamStrings)
 }
 
 func TestTestStreamByteSliceSequence(t *testing.T) {
 	integration.CheckFilters(t)
-	ptest.RunAndValidate(t, TestStreamByteSliceSequence())
+	ptest.BuildAndRun(t, TestStreamByteSliceSequence)
 }
 
 func TestTestStreamInt64Sequence(t *testing.T) {
 	integration.CheckFilters(t)
-	ptest.RunAndValidate(t, TestStreamInt64Sequence())
+	ptest.BuildAndRun(t, TestStreamInt64Sequence)
 }
 
 func TestTestStreamTwoInt64Sequences(t *testing.T) {
 	integration.CheckFilters(t)
-	ptest.RunAndValidate(t, TestStreamTwoInt64Sequences())
+	ptest.BuildAndRun(t, TestStreamTwoInt64Sequences)
 }
 
 func TestTestStreamFloat64Sequence(t *testing.T) {
 	integration.CheckFilters(t)
-	ptest.RunAndValidate(t, TestStreamFloat64Sequence())
+	ptest.BuildAndRun(t, TestStreamFloat64Sequence)
 }
 
 func TestTestStreamTwoFloat64Sequences(t *testing.T) {
 	integration.CheckFilters(t)
-	ptest.RunAndValidate(t, TestStreamTwoFloat64Sequences())
+	ptest.BuildAndRun(t, TestStreamTwoFloat64Sequences)
 }
 
 func TestTestStreamBoolSequence(t *testing.T) {
 	integration.CheckFilters(t)
-	ptest.RunAndValidate(t, TestStreamBoolSequence())
+	ptest.BuildAndRun(t, TestStreamBoolSequence)
 }
 
 func TestTestStreamTwoBoolSequences(t *testing.T) {
 	integration.CheckFilters(t)
-	ptest.RunAndValidate(t, TestStreamTwoBoolSequences())
+	ptest.BuildAndRun(t, TestStreamTwoBoolSequences)
 }

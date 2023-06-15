@@ -138,7 +138,7 @@ extension WidgetTesterExtension on WidgetTester {
     expect(codeRunner.isCodeRunning, false);
     expect(
       PlaygroundComponents.analyticsService.lastEvent,
-      isA<RunStartedAnalyticsEvent>(), // Cached finish does not fire events.
+      isA<RunFinishedAnalyticsEvent>(),
     );
 
     await pumpAndSettle(); // Let the UI catch up.
@@ -147,7 +147,6 @@ extension WidgetTesterExtension on WidgetTester {
     expectOutput(example, this);
   }
 
-  /// Runs and expects that the execution is as fast as it should be for cache.
   Future<void> modifyRunExpectReal(ExampleDescriptor example) async {
     modifyCodeController();
 
@@ -161,6 +160,9 @@ extension WidgetTesterExtension on WidgetTester {
     final actualText = findOutputText();
     expect(actualText, isNot(startsWith(kCachedResultsLog)));
     expectOutput(example, this);
+
+    // Animation stops just before the analytics event is fired, wait a bit.
+    await Future.delayed(const Duration(seconds: 1));
 
     final event = PlaygroundComponents.analyticsService.lastEvent;
     expect(event, isA<RunFinishedAnalyticsEvent>());

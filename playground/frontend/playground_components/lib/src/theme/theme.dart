@@ -460,6 +460,10 @@ MarkdownStyleSheet _getMarkdownStyle(Brightness brightness) {
     h1: textTheme.headlineMedium,
     h3: textTheme.headlineSmall,
     h3Padding: EdgeInsets.only(top: BeamSizes.size4),
+    blockquoteDecoration: BoxDecoration(
+      color: codeblockBackgroundColor,
+      borderRadius: BorderRadius.circular(BeamSizes.size6),
+    ),
     code: GoogleFonts.sourceCodePro(
       color: textColor,
       backgroundColor: BeamColors.transparent,

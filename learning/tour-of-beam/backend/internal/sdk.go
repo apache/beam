@@ -79,8 +79,8 @@ func ParseSdk(s string) Sdk {
 }
 
 func MakeSdkList() SdkList {
-	sdks := make([]SdkItem, 0, 4)
-	for _, sdk := range []Sdk{SDK_JAVA, SDK_PYTHON, SDK_GO, SDK_SCIO} {
+	sdks := make([]SdkItem, 0, 3)
+	for _, sdk := range []Sdk{SDK_JAVA, SDK_PYTHON, SDK_GO} {
 		sdks = append(sdks, SdkItem{Id: sdk.String(), Title: sdk.Title()})
 	}
 	return SdkList{Sdks: sdks}

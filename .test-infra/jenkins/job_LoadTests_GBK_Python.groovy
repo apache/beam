@@ -47,7 +47,8 @@ def loadTestConfigurations = { mode, datasetName ->
         influx_measurement   : "python_${mode}_gbk_1",
         input_options        : '\'{"num_records": 200000000,' +
         '"key_size": 1,' +
-        '"value_size": 9}\'',
+        '"value_size": 9,' +
+        '"algorithm": "lcg"}\'',
         iterations           : 1,
         fanout               : 1,
         num_workers          : 5,
@@ -69,7 +70,8 @@ def loadTestConfigurations = { mode, datasetName ->
         influx_measurement   : "python_${mode}_gbk_2",
         input_options        : '\'{"num_records": 20000000,' +
         '"key_size": 10,' +
-        '"value_size": 90}\'',
+        '"value_size": 90,' +
+        '"algorithm": "lcg"}\'',
         iterations           : 1,
         fanout               : 1,
         num_workers          : 5,
@@ -91,7 +93,8 @@ def loadTestConfigurations = { mode, datasetName ->
         influx_measurement   : "python_${mode}_gbk_3",
         input_options        : '\'{"num_records": 20000,' +
         '"key_size": 10000,' +
-        '"value_size": 90000}\'',
+        '"value_size": 90000,' +
+        '"algorithm": "lcg"}\'',
         iterations           : 1,
         fanout               : 1,
         num_workers          : 5,
@@ -113,7 +116,8 @@ def loadTestConfigurations = { mode, datasetName ->
         influx_measurement   : "python_${mode}_gbk_4",
         input_options        : '\'{"num_records": 5000000,' +
         '"key_size": 10,' +
-        '"value_size": 90}\'',
+        '"value_size": 90,' +
+        '"algorithm": "lcg"}\'',
         iterations           : 1,
         fanout               : 4,
         num_workers          : 16,
@@ -135,7 +139,8 @@ def loadTestConfigurations = { mode, datasetName ->
         influx_measurement   : "python_${mode}_gbk_5",
         input_options        : '\'{"num_records": 2500000,' +
         '"key_size": 10,' +
-        '"value_size": 90}\'',
+        '"value_size": 90,' +
+        '"algorithm": "lcg"}\'',
         iterations           : 1,
         fanout               : 8,
         num_workers          : 16,

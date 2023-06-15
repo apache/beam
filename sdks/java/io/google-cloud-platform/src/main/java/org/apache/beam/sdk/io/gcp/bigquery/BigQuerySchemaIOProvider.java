@@ -197,12 +197,15 @@ public class BigQuerySchemaIOProvider implements SchemaIOProvider {
               BigQueryIO.<Row>write()
                   .useBeamSchema()
                   .withMethod(BigQueryIO.Write.Method.STORAGE_WRITE_API)
-                  .withTriggeringFrequency(Duration.standardSeconds(5))
                   .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND);
 
           final Boolean autoSharding = config.getBoolean("autoSharding");
-          if (autoSharding != null && autoSharding) {
-            write = write.withAutoSharding();
+          // use default value true for autoSharding if not configured for STORAGE_WRITE_API
+          if (input.isBounded() == PCollection.IsBounded.UNBOUNDED) {
+            write = write.withTriggeringFrequency(Duration.standardSeconds(5));
+            if (autoSharding == null || autoSharding) {
+              write = write.withAutoSharding();
+            }
           }
 
           final Boolean useTestingBigQueryServices =

@@ -55,8 +55,8 @@ jobs:
            <servers>
              <server>
                <id>apache.releases.https</id>
-               <username>${{ secrets.NEXUS_USER }}</username>
-               <password>${{ secrets.NEXUS_PW }}</password>
+               <username>${{ secrets.NEXUS_STAGE_DEPLOYER_USER }}</username>
+               <password>${{ secrets.NEXUS_STAGE_DEPLOYER_PW }}</password>
              </server>
              <server>
                <id>apache.snapshots.https</id>

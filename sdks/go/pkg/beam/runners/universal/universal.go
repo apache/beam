@@ -102,6 +102,5 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 		RetainDocker: *jobopts.RetainDockerContainers,
 		Parallelism:  *jobopts.Parallelism,
 	}
-	presult, err := runnerlib.Execute(ctx, pipeline, endpoint, opt, *jobopts.Async)
-	return presult, err
+	return runnerlib.Execute(ctx, pipeline, endpoint, opt, *jobopts.Async)
 }

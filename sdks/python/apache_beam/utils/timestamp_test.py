@@ -92,6 +92,11 @@ class TimestampTest(unittest.TestCase):
     with self.assertRaisesRegex(ValueError, r'dt has no timezone info'):
       Timestamp.from_utc_datetime(datetime.datetime(1970, 1, 1, tzinfo=None))
 
+  def test_from_to_utc_datetime(self):
+    timestamp = Timestamp(seconds=1458343379.123456)
+    dt = timestamp.to_utc_datetime(has_tz=True)
+    self.assertEqual(timestamp, Timestamp.from_utc_datetime(dt))
+
   def test_arithmetic(self):
     # Supported operations.
     self.assertEqual(Timestamp(123) + 456, 579)

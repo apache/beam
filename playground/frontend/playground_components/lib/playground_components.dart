@@ -64,7 +64,6 @@ export 'src/playground_components.dart';
 export 'src/repositories/backend_urls.dart';
 export 'src/repositories/code_client/code_client.dart';
 export 'src/repositories/code_client/grpc_code_client.dart';
-export 'src/repositories/code_repository.dart';
 export 'src/repositories/example_client/example_client.dart';
 export 'src/repositories/example_client/grpc_example_client.dart';
 export 'src/repositories/example_repository.dart';

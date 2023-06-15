@@ -17,7 +17,7 @@
 ###############################################################################
 
 FROM debian:11 as build
-ARG FLUTTER_VERSION=3.7.3
+ARG FLUTTER_VERSION=3.10.2
 ARG BUILD_COMMIT_HASH
 ARG BUILD_COMMIT_SECONDS_SINCE_EPOCH
 
@@ -50,7 +50,7 @@ RUN cd /app/playground_components &&\
 
 RUN cd /app &&\
     flutter pub get -v &&\
-    flutter build web -v
+    flutter build web -v --release
 
 # ------------------------------------------------
 # Getting the result into NGINX.

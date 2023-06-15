@@ -349,13 +349,7 @@ class BigQueryWrapper(object):
   HISTOGRAM_METRIC_LOGGER = MetricLogger()
 
   def __init__(self, client=None, temp_dataset_id=None, temp_table_ref=None):
-    self.client = client or bigquery.BigqueryV2(
-        http=get_new_http(),
-        credentials=auth.get_service_credentials(PipelineOptions()),
-        response_encoding='utf8',
-        additional_http_headers={
-            "user-agent": "apache-beam-%s" % apache_beam.__version__
-        })
+    self.client = client or BigQueryWrapper._bigquery_client(PipelineOptions())
     self.gcp_bq_client = client or gcp_bigquery.Client(
         client_info=ClientInfo(
             user_agent="apache-beam-%s" % apache_beam.__version__))
@@ -1349,6 +1343,21 @@ class BigQueryWrapper(object):
       else:
         result[field.name] = self._convert_cell_value_to_dict(value, field)
     return result
+
+  @staticmethod
+  def from_pipeline_options(pipeline_options: PipelineOptions):
+    return BigQueryWrapper(
+        client=BigQueryWrapper._bigquery_client(pipeline_options))
+
+  @staticmethod
+  def _bigquery_client(pipeline_options: PipelineOptions):
+    return bigquery.BigqueryV2(
+        http=get_new_http(),
+        credentials=auth.get_service_credentials(pipeline_options),
+        response_encoding='utf8',
+        additional_http_headers={
+            "user-agent": "apache-beam-%s" % apache_beam.__version__
+        })
 
 
 class RowAsDictJsonCoder(coders.Coder):

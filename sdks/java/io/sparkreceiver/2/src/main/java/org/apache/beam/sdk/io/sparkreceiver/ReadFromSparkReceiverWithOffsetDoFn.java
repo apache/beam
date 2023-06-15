@@ -62,8 +62,8 @@ class ReadFromSparkReceiverWithOffsetDoFn<V> extends DoFn<byte[], V> {
   private static final Logger LOG =
       LoggerFactory.getLogger(ReadFromSparkReceiverWithOffsetDoFn.class);
 
-  /** Constant waiting time after the {@link Receiver} starts. Required to prepare for polling */
-  private static final long START_POLL_TIMEOUT_MS = 2000;
+  /** Waiting time after the {@link Receiver} starts. Required to prepare for polling */
+  private static final long DEFAULT_START_POLL_TIMEOUT_SEC = 2;
 
   /** Delay between polling for new records updates. */
   private static final long DEFAULT_PULL_FREQUENCY_SEC = 0;
@@ -77,6 +77,7 @@ class ReadFromSparkReceiverWithOffsetDoFn<V> extends DoFn<byte[], V> {
   private final SerializableFunction<V, Instant> getTimestampFn;
   private final ReceiverBuilder<V, ? extends Receiver<V>> sparkReceiverBuilder;
   private final Long pullFrequencySec;
+  private final Long startPollTimeoutSec;
   private final Long startOffset;
 
   ReadFromSparkReceiverWithOffsetDoFn(SparkReceiverIO.Read<V> transform) {
@@ -102,6 +103,12 @@ class ReadFromSparkReceiverWithOffsetDoFn<V> extends DoFn<byte[], V> {
       pullFrequencySec = DEFAULT_PULL_FREQUENCY_SEC;
     }
     this.pullFrequencySec = pullFrequencySec;
+
+    Long startPollTimeoutSec = transform.getStartPollTimeoutSec();
+    if (startPollTimeoutSec == null) {
+      startPollTimeoutSec = DEFAULT_START_POLL_TIMEOUT_SEC;
+    }
+    this.startPollTimeoutSec = startPollTimeoutSec;
 
     Long startOffset = transform.getStartOffset();
     if (startOffset == null) {
@@ -147,7 +154,7 @@ class ReadFromSparkReceiverWithOffsetDoFn<V> extends DoFn<byte[], V> {
 
         if (split != null) {
           OffsetRange primary = split.getPrimary();
-          if (primary != null && primary.getFrom() == primary.getTo() && !isCheckDoneCalled.get()) {
+          if (primary != null && !isCheckDoneCalled.get()) {
             // If there was no check done called, then the split is not needed
             LOG.debug("Split is not needed");
             isCheckDoneCalled.set(false);
@@ -283,7 +290,7 @@ class ReadFromSparkReceiverWithOffsetDoFn<V> extends DoFn<byte[], V> {
     while (true) {
       LOG.debug("Start polling records");
       try {
-        TimeUnit.MILLISECONDS.sleep(START_POLL_TIMEOUT_MS);
+        TimeUnit.SECONDS.sleep(startPollTimeoutSec);
       } catch (InterruptedException e) {
         LOG.error("SparkReceiver was interrupted before polling started", e);
         throw new IllegalStateException("Spark Receiver was interrupted before polling started");

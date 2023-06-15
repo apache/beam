@@ -118,7 +118,9 @@ def getRemainingComments(accessToken, pr, initialComments):
   check_urls = str(list(map(lambda c : c["targetUrl"], commit["status"]["contexts"])))
   remainingComments = []
   for comment in initialComments:
-    if f'/{comment[1]}_Phrase/' not in check_urls and f'/{comment[1]}_PR/' not in check_urls and f'/{comment[1]}_Commit/' not in check_urls and f'/{comment[1]}/' not in check_urls:
+    if f'/{comment[1]}_Phrase/' not in check_urls and f'/{comment[1]}_PR/' not in check_urls \
+        and f'/{comment[1]}_Commit/' not in check_urls and f'/{comment[1]}/' not in check_urls \
+        and 'Sickbay' not in check_urls:
       print(comment)
       remainingComments.append(comment)
   return remainingComments

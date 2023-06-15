@@ -15,18 +15,6 @@
 
 package filter_test
 
-// beam-playground:
-//   name: FilterTest
-//   description: Unit-test for the Filter example.
-//   multifile: false
-//   context_line: 34
-//   categories:
-//     - Filtering
-//   complexity: BASIC
-//   tags:
-//     - filter
-//     - test
-
 import (
 	"testing"
 

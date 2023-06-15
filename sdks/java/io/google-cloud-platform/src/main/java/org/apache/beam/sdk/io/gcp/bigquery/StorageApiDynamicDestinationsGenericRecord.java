@@ -35,14 +35,17 @@ class StorageApiDynamicDestinationsGenericRecord<T, DestinationT extends @NonNul
 
   private final SerializableFunction<AvroWriteRequest<T>, GenericRecord> toGenericRecord;
   private final SerializableFunction<@Nullable TableSchema, Schema> schemaFactory;
+  private boolean usesCdc;
 
   StorageApiDynamicDestinationsGenericRecord(
       DynamicDestinations<T, DestinationT> inner,
       SerializableFunction<@Nullable TableSchema, Schema> schemaFactory,
-      SerializableFunction<AvroWriteRequest<T>, GenericRecord> toGenericRecord) {
+      SerializableFunction<AvroWriteRequest<T>, GenericRecord> toGenericRecord,
+      boolean usesCdc) {
     super(inner);
     this.toGenericRecord = toGenericRecord;
     this.schemaFactory = schemaFactory;
+    this.usesCdc = usesCdc;
   }
 
   @Override
@@ -57,21 +60,42 @@ class StorageApiDynamicDestinationsGenericRecord<T, DestinationT extends @NonNul
     final Schema avroSchema;
     final TableSchema bqTableSchema;
     final Descriptor descriptor;
+    final @javax.annotation.Nullable Descriptor cdcDescriptor;
 
     GenericRecordConverter(DestinationT destination) throws Exception {
       avroSchema = schemaFactory.apply(getSchema(destination));
       bqTableSchema = BigQueryUtils.toTableSchema(AvroUtils.toBeamSchema(avroSchema));
       protoTableSchema =
           AvroGenericRecordToStorageApiProto.protoTableSchemaFromAvroSchema(avroSchema);
-      descriptor = TableRowToStorageApiProto.getDescriptorFromTableSchema(protoTableSchema, true);
+      descriptor =
+          TableRowToStorageApiProto.getDescriptorFromTableSchema(protoTableSchema, true, false);
+      if (usesCdc) {
+        cdcDescriptor =
+            TableRowToStorageApiProto.getDescriptorFromTableSchema(protoTableSchema, true, true);
+      } else {
+        cdcDescriptor = null;
+      }
     }
 
     @Override
     @SuppressWarnings("nullness")
-    public StorageApiWritePayload toMessage(T element) throws Exception {
+    public StorageApiWritePayload toMessage(
+        T element, @javax.annotation.Nullable RowMutationInformation rowMutationInformation)
+        throws Exception {
+      String changeType = null;
+      long changeSequenceNum = -1;
+      Descriptor descriptorToUse = descriptor;
+      if (rowMutationInformation != null) {
+        changeType = rowMutationInformation.getMutationType().toString();
+        changeSequenceNum = rowMutationInformation.getSequenceNumber();
+        descriptorToUse = cdcDescriptor;
+      }
       Message msg =
           AvroGenericRecordToStorageApiProto.messageFromGenericRecord(
-              descriptor, toGenericRecord.apply(new AvroWriteRequest<>(element, avroSchema)));
+              descriptorToUse,
+              toGenericRecord.apply(new AvroWriteRequest<>(element, avroSchema)),
+              changeType,
+              changeSequenceNum);
       return StorageApiWritePayload.of(msg.toByteArray(), null);
     }
 
@@ -84,12 +108,6 @@ class StorageApiDynamicDestinationsGenericRecord<T, DestinationT extends @NonNul
     @Override
     public com.google.cloud.bigquery.storage.v1.TableSchema getTableSchema() {
       return protoTableSchema;
-    }
-
-    @Override
-    public StorageApiWritePayload toMessage(TableRow tableRow, boolean respectRequired)
-        throws Exception {
-      throw new RuntimeException("Not supported");
     }
   }
 }

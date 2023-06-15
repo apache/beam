@@ -60,4 +60,15 @@ labels:
       - damccorm
       - Abacn
     exclusionList: []
-fallbackReviewers: []
+fallbackReviewers:
+  - Abacn
+  - AnandInguva
+  - chamikaramj
+  - damccorm
+  - johnjcasey
+  - jrmccluskey
+  - kennknowles
+  - lostluck
+  - riteshghorse
+  - robertwb
+  - tvalentyn

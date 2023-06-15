@@ -709,7 +709,7 @@ class _CustomBigQuerySource(BoundedSource):
     }
 
   def estimate_size(self):
-    bq = bigquery_tools.BigQueryWrapper()
+    bq = bigquery_tools.BigQueryWrapper.from_pipeline_options(self.options)
     if self.table_reference is not None:
       table_ref = self.table_reference
       if (isinstance(self.table_reference, vp.ValueProvider) and
