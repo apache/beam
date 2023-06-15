@@ -483,7 +483,8 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                                   // Remove the pin that is "owned" by the cache.
                                   client.unpin();
                                   client.close();
-                                }))
+                                }),
+                        false)
                     .withAppendClient(datasetService, getOrCreateStream, false);
             // This pin is "owned" by the cache.
             Preconditions.checkStateNotNull(info.getStreamAppendClient()).pin();
@@ -506,7 +507,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
         if (appendClientInfo.get().hasSchemaChanged(updatedSchemaValue)) {
           appendClientInfo.set(
               AppendClientInfo.of(
-                  updatedSchemaValue, appendClientInfo.get().getCloseAppendClient()));
+                  updatedSchemaValue, appendClientInfo.get().getCloseAppendClient(), false));
           APPEND_CLIENTS.invalidate(element.getKey());
           APPEND_CLIENTS.put(element.getKey(), appendClientInfo.get());
         }
@@ -800,7 +801,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
             if (newSchema.isPresent()) {
               appendClientInfo.set(
                   AppendClientInfo.of(
-                      newSchema.get(), appendClientInfo.get().getCloseAppendClient()));
+                      newSchema.get(), appendClientInfo.get().getCloseAppendClient(), false));
               APPEND_CLIENTS.invalidate(element.getKey());
               APPEND_CLIENTS.put(element.getKey(), appendClientInfo.get());
               updatedSchema.write(newSchema.get());

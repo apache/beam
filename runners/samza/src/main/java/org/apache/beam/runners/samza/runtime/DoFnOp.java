@@ -197,13 +197,20 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
     final FutureCollector<OutT> outputFutureCollector = createFutureCollector();
 
     this.bundleManager =
-        new ClassicBundleManager<>(
-            createBundleProgressListener(),
-            outputFutureCollector,
-            samzaPipelineOptions.getMaxBundleSize(),
-            samzaPipelineOptions.getMaxBundleTimeMs(),
-            timerRegistry,
-            bundleCheckTimerId);
+        isPortable
+            ? new PortableBundleManager<>(
+                createBundleProgressListener(),
+                samzaPipelineOptions.getMaxBundleSize(),
+                samzaPipelineOptions.getMaxBundleTimeMs(),
+                timerRegistry,
+                bundleCheckTimerId)
+            : new ClassicBundleManager<>(
+                createBundleProgressListener(),
+                outputFutureCollector,
+                samzaPipelineOptions.getMaxBundleSize(),
+                samzaPipelineOptions.getMaxBundleTimeMs(),
+                timerRegistry,
+                bundleCheckTimerId);
 
     this.timerInternalsFactory =
         SamzaTimerInternalsFactory.createTimerInternalFactory(
