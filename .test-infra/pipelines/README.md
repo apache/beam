@@ -62,7 +62,7 @@ The following is a diagram that summarizes the pipeline and related infrastructu
 flowchart LR
 
   pubsub["Pub/Sub Dataflow Status Change"]
-  
+
   subgraph google-cloud["Google Cloud"]
     direction TB
     dataflow-job-status["Dataflow Jobs Status"]
@@ -78,7 +78,7 @@ flowchart LR
     jobs["PCollection&lt;Job&gt;"]
     metrics["PCollection&lt;JobMetrics&gt;"]
     summary["PCollection&lt;StageSummary&gt;"]
-    
+
     pubsub -->|PubsubIO.Read|json
     json --> job-requests
     job-requests -->|JobsV1Beta3|jobs
