@@ -371,22 +371,45 @@ class TFIDFSchema(NamedTuple):
   x: List[str]
 
 
-# WIP
 class TFIDIFTest(unittest.TestCase):
-  def test_tfidf_batched(self):
+  def test_tfidf_batched_compute_vocab_size_during_runtime(self):
     raw_data = [
         dict(x=["I", "like", "pie", "pie", "pie"]),
         dict(x=["yum", "yum", "pie"])
     ]
-
     with beam.Pipeline() as p:
-      transforms = [tft_transforms.TFIDF(columns=['x'])]
+      transforms = [
+          tft_transforms.ComputeAndApplyVocabulary(columns=['x']),
+          tft_transforms.TFIDF(columns=['x'])
+      ]
       process_handler = handlers.TFTProcessHandlerSchema(transforms=transforms)
-      _ = (
+      actual_output = (
           p
           | "Create" >> beam.Create(raw_data)
           | beam.Map(lambda x: TFIDFSchema(**x)).with_output_types(TFIDFSchema)
           | "MLTransform" >> base.MLTransform(process_handler=process_handler))
+      actual_output |= beam.Map(lambda x: x.as_dict())
+
+      def equals_fn(a, b):
+        is_equal = True
+        for key, value in a.items():
+          value_b = a[key]
+          is_equal = is_equal and np.array_equal(value, value_b)
+        return is_equal
+
+      expected_output = ([{
+          'x': np.array([3, 2, 0, 0, 0]),
+          'x_tfidf_weight': np.array([0.6, 0.28109303, 0.28109303],
+                                     dtype=np.float32),
+          'x_vocab_index': np.array([0, 2, 3], dtype=np.int64)
+      },
+                          {
+                              'x': np.array([1, 1, 0]),
+                              'x_tfidf_weight': np.array(
+                                  [0.33333334, 0.9369768], dtype=np.float32),
+                              'x_vocab_index': np.array([0, 1], dtype=np.int32)
+                          }])
+      assert_that(actual_output, equal_to(expected_output, equals_fn=equals_fn))
 
 
 if __name__ == '__main__':

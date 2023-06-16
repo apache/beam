@@ -176,11 +176,10 @@ class ScaleToZScore(TFTOperation):
   def apply(self, data: common_types.TensorType,
             output_column_name: str) -> Dict[str, common_types.TensorType]:
     artifacts = self.get_artifacts(data, output_column_name)
-    output = {
+    output_dict = {
         output_column_name: tft.scale_to_z_score(
             x=data, elementwise=self.elementwise, name=self.name)
     }
-    output_dict = {output_column_name: output}
     if artifacts is not None:
       output_dict.update(artifacts)
     return output_dict
@@ -238,7 +237,8 @@ class ScaleTo01(TFTOperation):
   def apply(self, data: common_types.TensorType,
             output_column_name: str) -> Dict[str, common_types.TensorType]:
     artifacts = self.get_artifacts(data, output_column_name)
-    output = tft.ScaleTo01(x=data, elementwise=self.elementwise, name=self.name)
+    output = tft.scale_to_0_1(
+        x=data, elementwise=self.elementwise, name=self.name)
 
     output_dict = {output_column_name: output}
     if artifacts is not None:
@@ -373,8 +373,15 @@ class TFIDF(TFTOperation):
   ):
     """
     This function applies a tf-idf transformation on the given columns
-    of incoming data. The transformation computes the tf-idf score for
-    each element in the input data.
+    of incoming data.
+
+    TFIDF outputs two artifacts for each column: the vocabu index and
+    the tfidf weight. The vocabu index is a mapping from the original
+    vocabulary to the new vocabulary. The tfidf weight is a mapping
+    from the original vocabulary to the tfidf score.
+
+    Input passed to the TFIDF is not modified and used to calculate the
+    required artifacts.
 
     Args:
       columns: List of column names to apply the transformation.
