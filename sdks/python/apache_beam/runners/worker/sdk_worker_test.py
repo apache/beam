@@ -281,6 +281,7 @@ class SdkWorkerTest(unittest.TestCase):
     # Create a data sampler with some fake sampled data. This data will be seen
     # in the sample response.
     coder = FastPrimitivesCoder()
+
     class FakeDataSampler:
       def samples(self, pcollection_ids):
         return {
@@ -290,6 +291,7 @@ class SdkWorkerTest(unittest.TestCase):
 
       def stop(self):
         pass
+
     data_sampler = FakeDataSampler()
 
     # Create and send the fake reponse. The SdkHarness should query the

@@ -37,6 +37,8 @@ from apache_beam.runners.worker.data_sampler import DataSampler
 from apache_beam.transforms import userstate
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.utils.windowed_value import WindowedValue
+from typing import Dict
+from typing import List
 
 
 class FnApiUserStateContextTest(unittest.TestCase):
@@ -192,7 +194,9 @@ class TestOperation(operations.Operation):
   """Test operation that forwards its payload to consumers."""
   class Spec:
     def __init__(self, transform_proto):
-      self.output_coders = [FastPrimitivesCoder() for _ in transform_proto.outputs]
+      self.output_coders = [
+          FastPrimitivesCoder() for _ in transform_proto.outputs
+      ]
 
   def __init__(
       self,
@@ -203,7 +207,11 @@ class TestOperation(operations.Operation):
       consumers,
       payload,
   ):
-    super().__init__(name_context, self.Spec(transform_proto), counter_factory, state_sampler)
+    super().__init__(
+        name_context,
+        self.Spec(transform_proto),
+        counter_factory,
+        state_sampler)
     self.payload = payload
 
     for _, consumer_ops in consumers.items():
@@ -245,7 +253,9 @@ class DataSamplingTest(unittest.TestCase):
     _ = BundleProcessor(descriptor, None, None)
     self.assertEqual(len(descriptor.transforms), 0)
 
-  def wait_for_samples(self, data_sampler: DataSampler, pcollection_id: str):
+  def wait_for_samples(self, data_sampler: DataSampler,
+                       pcollection_id: str) -> Dict[str, List[bytes]]:
+    """Waits for samples from the given PCollection to exist."""
     now = time.time()
     end = now + 30
 
@@ -258,7 +268,8 @@ class DataSamplingTest(unittest.TestCase):
       if samples:
         return samples
 
-    self.assertLess(now, end, 'Timed out waiting for samples for {}'.format(pcollection_id))
+    self.assertLess(
+        now, end, 'Timed out waiting for samples for {}'.format(pcollection_id))
 
   def test_can_sample(self):
     """Test that elements are sampled.

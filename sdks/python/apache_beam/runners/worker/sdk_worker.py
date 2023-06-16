@@ -71,7 +71,6 @@ from apache_beam.utils.sentinel import Sentinel
 
 if TYPE_CHECKING:
   from apache_beam.portability.api import endpoints_pb2
-  from apache_beam.runners.worker.data_sampler import DataSampler
   from apache_beam.utils.profiler import Profile
 
 T = TypeVar('T')

@@ -469,6 +469,7 @@ class Operation(object):
       # top-level operation, should have output_coders
       #TODO(pabloem): Define better what step name is used here.
       if getattr(self.spec, 'output_coders', None):
+
         def get_element_sampler(output_num):
           if data_sampler is None:
             return None
@@ -755,7 +756,7 @@ class _TaggedReceivers(dict):
 
   def __missing__(self, tag):
     self[tag] = receiver = ConsumerSet.create(
-        self._counter_factory, self._step_name, tag, [], None, None, None, None)
+        self._counter_factory, self._step_name, tag, [], None, None, None)
     return receiver
 
   def total_output_bytes(self):
