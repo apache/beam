@@ -73,7 +73,7 @@ class TFTOperation(BaseOperation):
     if not columns:
       raise RuntimeError(
           "Columns are not specified. Please specify the column for the "
-          " op %s" % self)
+          " op %s" % self.__class__.__name__)
 
   def validate_args(self):
     raise NotImplementedError
@@ -139,9 +139,6 @@ class ComputeAndApplyVocabulary(TFTOperation):
             name=self._name)
     }
 
-  def __str__(self):
-    return "compute_and_apply_vocabulary"
-
 
 class ScaleToZScore(TFTOperation):
   def __init__(
@@ -193,9 +190,6 @@ class ScaleToZScore(TFTOperation):
         col_name + '_var': tf.broadcast_to(mean_var[1], shape),
     }
 
-  def __str__(self):
-    return "scale_to_z_score"
-
 
 class ScaleTo01(TFTOperation):
   def __init__(
@@ -245,9 +239,6 @@ class ScaleTo01(TFTOperation):
       output_dict.update(artifacts)
     return output_dict
 
-  def __str__(self):
-    return 'ScaleTo01'
-
 
 class ApplyBuckets(TFTOperation):
   def __init__(
@@ -280,9 +271,6 @@ class ApplyBuckets(TFTOperation):
             x=data, bucket_boundaries=self.bucket_boundaries, name=self.name)
     }
     return output
-
-  def __str__(self):
-    return 'apply_buckets'
 
 
 class Bucketize(TFTOperation):
