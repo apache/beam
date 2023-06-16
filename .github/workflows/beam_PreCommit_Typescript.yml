@@ -28,8 +28,8 @@ on:
     paths: ['sdks/python/apache_beam/runners/interactive/extensions/**']
   issue_comment:
     types: [created]
-  schedule:
-    - cron: '* */6 * * *'
+  # schedule:
+  #   - cron: '* */6 * * *'
 
 jobs:
     beam_PreCommit_Typescript:

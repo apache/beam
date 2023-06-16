@@ -9,8 +9,8 @@ on:
     paths: ['model/**', 'sdks/go.**', 'release/**']
   issue_comment:
     types: [created]
-  schedule:
-    - cron: '* */6 * * *'
+  # schedule:
+  #   - cron: '* */6 * * *'
 
 jobs:
   beam_PreCommit_Go:
