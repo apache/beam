@@ -61,7 +61,7 @@ class ExamplesLoadingDescriptorFactory {
       return null;
     }
 
-    // The order does not matter.
+    // The order does not matter because parsing must not be ambiguous.
     return CatalogDefaultExampleLoadingDescriptor.tryParse(map) ??
         ContentExampleLoadingDescriptor.tryParse(map) ??
         EmptyExampleLoadingDescriptor.tryParse(map) ??

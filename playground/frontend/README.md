@@ -135,7 +135,7 @@ This includes:
 - Tests.
 - Linter.
 
-### Code style
+### Code Style
 
 Code can be automatically reformatted using:
 

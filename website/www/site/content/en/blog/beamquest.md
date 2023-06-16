@@ -24,8 +24,9 @@ limitations under the License.
      src="/images/blog/beam-badge-image-scaled.png"
      alt="Quest image">
 
-
 We’re excited to announce the release of the [“Getting Started with Apache Beam” quest](https://www.cloudskillsboost.google/quests/310), a series of four online labs that venture into different Apache Beam concepts. When you complete all four labs, you’ll earn a Google Cloud badge that you can share on platforms like LinkedIn. Earning this badge should take less than seven hours total, and signing up for the quest costs $20 (there are often free specials for people who attend Beam events, such as [Meetups](https://www.meetup.com/topics/apache-beam/), [Beam Summit](https://beamsummit.org/), and [Beam College](https://beamcollege.dev/)).
+
+> *"I really like the workshop to be honest. I learnt a lot from doing those labs. I would suggest we offer that for any new members to Beam"* -- Shunping Huang, Software Engineer
 
 Beam is one of the largest big data open source projects actively in development. Over the past six years, the Apache Beam community has seen tremendous growth in the number  of contributors, committers, and users. If you’re a long time Beam user, you can now earn a badge to show your skills to potential employers. If you’re new to Beam, you can begin your learning journey with this quest. To attempt this quest, you don’t need any prior knowledge of data processing or distributed systems. All you need is elementary knowledge about programming.
 
@@ -34,3 +35,5 @@ Individuals aren’t the only ones who can benefit from completing this quest - 
 Data Processing is a key part of AI/ML workflows. Given the recent advancements in artificial intelligence, now’s the time to jump into the world of data processing! Get started on your journey [here](https://www.cloudskillsboost.google/quests/310).
 
 We are currently offering this quest **FREE OF CHARGE** until **July 8, 2023** for the **first 2,000** people. To obtain your badge for **FREE**, use the [Access Code](https://www.cloudskillsboost.google/catalog?qlcampaign=1h-swiss-19), create an account, and search ["Getting Started with Apache Beam"](https://www.cloudskillsboost.google/quests/310).
+
+PS: Once you earn your badge, please [share it on social media](https://support.google.com/qwiklabs/answer/9222527?hl=en&sjid=14905615709060962899-NA)!
