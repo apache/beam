@@ -419,23 +419,26 @@ public class BeamFnLoggingClientTest {
       rootLogger = LogManager.getLogManager().getLogger("");
       configuredLogger = LogManager.getLogManager().getLogger("ConfiguredLogger");
 
-      for (int i = 0; i < 200; ++i) {
+      long numEntries = 2000;
+      for (int i = 0; i < numEntries; ++i) {
         configuredLogger.log(TEST_RECORD);
       }
+      // Measure how long it takes all the logs to appear.
       int sleepTime = 0;
-      while (values.size() < 200) {
+      while (values.size() < numEntries) {
         ++sleepTime;
         Thread.sleep(1);
       }
       // Attempt to enter the blocking state by pushing back on the stream, publishing records and
-      // then giving some time for it to block.
+      // then giving them time for it to block.
       elementsAllowed.set(false);
-      for (int i = 0; i < 200; ++i) {
+      for (int i = 0; i < numEntries; ++i) {
         configuredLogger.log(TEST_RECORD);
       }
-      Thread.sleep(sleepTime * 2);
-      // Verify that we're either blocking (or we haven't yet observed everything).
-      assertTrue(values.size() < 400);
+      Thread.sleep(sleepTime * 3);
+      // At this point, the background thread is either blocking as intended or the background
+      // thread hasn't yet observed all the input. In either case the test should pass.
+      assertTrue(values.size() < numEntries * 2);
 
       client.close();
 
