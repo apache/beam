@@ -211,7 +211,7 @@ tag: <docker-tag>
 datastore_name: <datastore-namespace>
 dns_name: <dns-name>
 func_clean: playground-function-cleanup-<env>
-func_put: playground-function-delete-<env>
+func_put: playground-function-put-<env>
 func_view: playground-function-view-<env>
 ```
 6. Execute following command to update HELM:
