@@ -17,45 +17,32 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable;
 
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.*;
 
 import com.google.api.gax.rpc.NotFoundException;
-import com.google.api.gax.rpc.ServerStream;
-import com.google.bigtable.v2.Mutation;
 import com.google.cloud.bigtable.admin.v2.BigtableTableAdminClient;
 import com.google.cloud.bigtable.admin.v2.BigtableTableAdminSettings;
 import com.google.cloud.bigtable.admin.v2.models.CreateTableRequest;
-import com.google.cloud.bigtable.admin.v2.models.Table;
 import com.google.cloud.bigtable.data.v2.BigtableDataClient;
 import com.google.cloud.bigtable.data.v2.BigtableDataSettings;
 import com.google.cloud.bigtable.data.v2.models.Query;
 import com.google.cloud.bigtable.data.v2.models.RowCell;
 import com.google.cloud.bigtable.data.v2.models.RowMutation;
-
+import com.google.common.primitives.Longs;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-
-import com.google.common.primitives.Longs;
-import com.google.protobuf.ByteString;
-import jdk.internal.joptsimple.internal.Strings;
-import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteSchemaTransformProvider.BigtableWriteSchemaTransformConfiguration;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
-import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
-import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -64,262 +51,360 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.testcontainers.shaded.com.google.common.collect.ImmutableMap;
 
-import javax.annotation.Nullable;
-
 @RunWith(JUnit4.class)
 public class BigtableWriteSchemaTransformProviderIT {
-    @Rule public final transient TestPipeline p = TestPipeline.create();
+  @Rule public final transient TestPipeline p = TestPipeline.create();
 
-    private static final String COLUMN_FAMILY_NAME_1 = "test_cf_1";
-    private static final String COLUMN_FAMILY_NAME_2 = "test_cf_2";
-    private BigtableTableAdminClient tableAdminClient;
-    private BigtableDataClient dataClient;
-    private String tableId;
-    private String projectId;
-    private String instanceId;
+  private static final String COLUMN_FAMILY_NAME_1 = "test_cf_1";
+  private static final String COLUMN_FAMILY_NAME_2 = "test_cf_2";
+  private BigtableTableAdminClient tableAdminClient;
+  private BigtableDataClient dataClient;
+  private String tableId = String.format("BigtableWriteIT-%tF-%<tH-%<tM-%<tS-%<tL", new Date());
+  private String projectId;
+  private String instanceId;
+  private PTransform<PCollectionRowTuple, PCollectionRowTuple> writeTransform;
+  Schema SCHEMA =
+      Schema.builder()
+          .addByteArrayField("key")
+          .addArrayField(
+              "mutations", Schema.FieldType.map(Schema.FieldType.STRING, Schema.FieldType.BYTES))
+          .build();
 
-    @Test
-    public void testInvalidConfigs() {
-        // Properties cannot be empty (project, instance, and table)
-        List<BigtableWriteSchemaTransformConfiguration.Builder> invalidConfigs =
-                Arrays.asList(
-                        BigtableWriteSchemaTransformConfiguration.builder()
-                                .setProject("project")
-                                .setInstance("instance")
-                                .setTable(""),
-                        BigtableWriteSchemaTransformConfiguration.builder()
-                                .setProject("")
-                                .setInstance("instance")
-                                .setTable("table"),
-                        BigtableWriteSchemaTransformConfiguration.builder()
-                                .setProject("project")
-                                .setInstance("")
-                                .setTable("table"));
+  @Test
+  public void testInvalidConfigs() {
+    // Properties cannot be empty (project, instance, and table)
+    List<BigtableWriteSchemaTransformConfiguration.Builder> invalidConfigs =
+        Arrays.asList(
+            BigtableWriteSchemaTransformConfiguration.builder()
+                .setProject("project")
+                .setInstance("instance")
+                .setTable(""),
+            BigtableWriteSchemaTransformConfiguration.builder()
+                .setProject("")
+                .setInstance("instance")
+                .setTable("table"),
+            BigtableWriteSchemaTransformConfiguration.builder()
+                .setProject("project")
+                .setInstance("")
+                .setTable("table"));
 
-        for (BigtableWriteSchemaTransformConfiguration.Builder config : invalidConfigs) {
-            assertThrows(
-                    IllegalArgumentException.class,
-                    () -> {
-                        config.build();
-                    });
-        }
+    for (BigtableWriteSchemaTransformConfiguration.Builder config : invalidConfigs) {
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> {
+            config.build();
+          });
+    }
+  }
+
+  @Before
+  public void setup() throws Exception {
+    BigtableTestOptions options =
+        TestPipeline.testingPipelineOptions().as(BigtableTestOptions.class);
+    projectId = "google.com:clouddfe"; // options.as(GcpOptions.class).getProject();
+    instanceId = options.getInstanceId();
+
+    BigtableDataSettings settings =
+        BigtableDataSettings.newBuilder().setProjectId(projectId).setInstanceId(instanceId).build();
+    // Creates a bigtable data client.
+    dataClient = BigtableDataClient.create(settings);
+
+    BigtableTableAdminSettings adminSettings =
+        BigtableTableAdminSettings.newBuilder()
+            .setProjectId(projectId)
+            .setInstanceId(instanceId)
+            .build();
+    tableAdminClient = BigtableTableAdminClient.create(adminSettings);
+
+    // set up the table with some pre-written rows to test our mutations on.
+    // each test is independent of the others
+    if (!tableAdminClient.exists(tableId)) {
+      CreateTableRequest createTableRequest =
+          CreateTableRequest.of(tableId)
+              .addFamily(COLUMN_FAMILY_NAME_1)
+              .addFamily(COLUMN_FAMILY_NAME_2);
+      tableAdminClient.createTable(createTableRequest);
     }
 
-    @Before
-    public void setup() throws Exception {
-        BigtableTestOptions options =
-                TestPipeline.testingPipelineOptions().as(BigtableTestOptions.class);
-        projectId = options.as(GcpOptions.class).getProject();
-        instanceId = options.getInstanceId();
+    BigtableWriteSchemaTransformConfiguration config =
+        BigtableWriteSchemaTransformConfiguration.builder()
+            .setProject(projectId)
+            .setInstance(instanceId)
+            .setTable(tableId)
+            .build();
+    writeTransform = new BigtableWriteSchemaTransformProvider().from(config).buildTransform();
+  }
 
-        BigtableDataSettings settings =
-                BigtableDataSettings.newBuilder().setProjectId(projectId).setInstanceId(instanceId).build();
-        // Creates a bigtable data client.
-        dataClient = BigtableDataClient.create(settings);
-
-        BigtableTableAdminSettings adminSettings =
-                BigtableTableAdminSettings.newBuilder()
-                        .setProjectId(projectId)
-                        .setInstanceId(instanceId)
-                        .build();
-        tableAdminClient = BigtableTableAdminClient.create(adminSettings);
+  @After
+  public void tearDown() {
+    try {
+      tableAdminClient.deleteTable(tableId);
+      System.out.printf("Table %s deleted successfully%n", tableId);
+    } catch (NotFoundException e) {
+      System.err.println("Failed to delete a non-existent table: " + e.getMessage());
     }
+    dataClient.close();
+    tableAdminClient.close();
+  }
 
-    @After
-    public void tearDown() {
-        try {
-            tableAdminClient.deleteTable(tableId);
-            System.out.printf("Table %s deleted successfully%n", tableId);
-        } catch (NotFoundException e) {
-            System.err.println("Failed to delete a non-existent table: " + e.getMessage());
-        }
-        dataClient.close();
-        tableAdminClient.close();
-    }
+  @Test
+  public void testSetMutationsExistingColumn() {
+    RowMutation rowMutation =
+        RowMutation.create(tableId, "key-1")
+            .setCell(COLUMN_FAMILY_NAME_1, "col_a", "val-1-a")
+            .setCell(COLUMN_FAMILY_NAME_2, "col_c", "val-1-c");
+    dataClient.mutateRow(rowMutation);
 
-    public List<Row> writeToTable(int numRows) throws Exception {
-        // Checks if table exists, creates table if does not exist.
-        if (!tableAdminClient.exists(tableId)) {
-            CreateTableRequest createTableRequest =
-                    CreateTableRequest.of(tableId)
-                            .addFamily(COLUMN_FAMILY_NAME_1)
-                            .addFamily(COLUMN_FAMILY_NAME_2);
-            tableAdminClient.createTable(createTableRequest);
-        }
+    List<Map<String, byte[]>> mutations = new ArrayList<>();
+    // mutation to set cell in an existing column
+    mutations.add(
+        ImmutableMap.of(
+            "type", "SetCell".getBytes(StandardCharsets.UTF_8),
+            "value", "new-val-1-a".getBytes(StandardCharsets.UTF_8),
+            "column_qualifier", "col_a".getBytes(StandardCharsets.UTF_8),
+            "family_name", COLUMN_FAMILY_NAME_1.getBytes(StandardCharsets.UTF_8)));
+    mutations.add(
+        ImmutableMap.of(
+            "type", "SetCell".getBytes(StandardCharsets.UTF_8),
+            "value", "new-val-1-c".getBytes(StandardCharsets.UTF_8),
+            "column_qualifier", "col_c".getBytes(StandardCharsets.UTF_8),
+            "family_name", COLUMN_FAMILY_NAME_2.getBytes(StandardCharsets.UTF_8)));
+    Row mutationRow =
+        Row.withSchema(SCHEMA)
+            .withFieldValue("key", "key-1".getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("mutations", mutations)
+            .build();
 
-        List<Row> expectedRows = new ArrayList<>();
+    PCollectionRowTuple.of("input", p.apply(Create.of(Arrays.asList(mutationRow))))
+        .apply(writeTransform);
+    p.run().waitUntilFinish();
 
-        try {
-            for (int i = 1; i <= numRows; i++) {
-                String key = "key" + i;
-                String valueA = "value a" + i;
-                String valueB = "value b" + i;
-                String valueC = "value c" + i;
-                String valueD = "value d" + i;
-                long timestamp = 1000L * i;
+    // get rows from table
+    List<com.google.cloud.bigtable.data.v2.models.Row> rows =
+        dataClient.readRows(Query.create(tableId)).stream().collect(Collectors.toList());
+    // we should still have only one row with the same key
+    assertEquals(1, rows.size());
+    assertEquals("key-1", rows.get(0).getKey().toStringUtf8());
 
-                RowMutation rowMutation =
-                        RowMutation.create(tableId, key)
-                                .setCell(COLUMN_FAMILY_NAME_1, "a", timestamp, valueA)
-                                .setCell(COLUMN_FAMILY_NAME_1, "b", timestamp, valueB)
-                                .setCell(COLUMN_FAMILY_NAME_2, "c", timestamp, valueC)
-                                .setCell(COLUMN_FAMILY_NAME_2, "d", timestamp, valueD);
-                dataClient.mutateRow(rowMutation);
+    // check that we now have two cells in each column we added to and that
+    // the last cell in each column has the updated value
+    com.google.cloud.bigtable.data.v2.models.Row row = rows.get(0);
+    List<RowCell> cellsColA =
+        row.getCells(COLUMN_FAMILY_NAME_1, "col_a").stream()
+            .sorted(RowCell.compareByNative())
+            .collect(Collectors.toList());
+    List<RowCell> cellsColC =
+        row.getCells(COLUMN_FAMILY_NAME_2, "col_c").stream()
+            .sorted(RowCell.compareByNative())
+            .collect(Collectors.toList());
+    assertEquals(2, cellsColA.size());
+    assertEquals(2, cellsColC.size());
+    System.out.println(cellsColA);
+    System.out.println(cellsColC);
+    assertEquals("new-val-1-a", cellsColA.get(1).getValue().toStringUtf8());
+    assertEquals("new-val-1-c", cellsColC.get(1).getValue().toStringUtf8());
+  }
 
-                // Set up expected Beam Row
-                Map<String, List<Row>> columns1 = new HashMap<>();
-                columns1.put(
-                        "a",
-                        Arrays.asList(
-                                Row.withSchema(CELL_SCHEMA)
-                                        .withFieldValue("value", valueA)
-                                        .withFieldValue("timestamp", timestamp)
-                                        .withFieldValue("labels", Collections.emptyList())
-                                        .build()));
-                columns1.put(
-                        "b",
-                        Arrays.asList(
-                                Row.withSchema(CELL_SCHEMA)
-                                        .withFieldValue("value", valueB)
-                                        .withFieldValue("timestamp", timestamp)
-                                        .withFieldValue("labels", Collections.emptyList())
-                                        .build()));
+  @Test
+  public void testSetMutationNewColumn() {
+    RowMutation rowMutation =
+        RowMutation.create(tableId, "key-1").setCell(COLUMN_FAMILY_NAME_1, "col_a", "val-1-a");
+    dataClient.mutateRow(rowMutation);
 
-                Map<String, List<Row>> columns2 = new HashMap<>();
-                columns2.put(
-                        "c",
-                        Arrays.asList(
-                                Row.withSchema(CELL_SCHEMA)
-                                        .withFieldValue("value", valueC)
-                                        .withFieldValue("timestamp", timestamp)
-                                        .withFieldValue("labels", Collections.emptyList())
-                                        .build()));
-                columns2.put(
-                        "d",
-                        Arrays.asList(
-                                Row.withSchema(CELL_SCHEMA)
-                                        .withFieldValue("value", valueD)
-                                        .withFieldValue("timestamp", timestamp)
-                                        .withFieldValue("labels", Collections.emptyList())
-                                        .build()));
+    List<Map<String, byte[]>> mutations = new ArrayList<>();
+    // mutation to set cell in a new column
+    mutations.add(
+        ImmutableMap.of(
+            "type", "SetCell".getBytes(StandardCharsets.UTF_8),
+            "value", "new-val-1".getBytes(StandardCharsets.UTF_8),
+            "column_qualifier", "new_col".getBytes(StandardCharsets.UTF_8),
+            "family_name", COLUMN_FAMILY_NAME_1.getBytes(StandardCharsets.UTF_8)));
+    Row mutationRow =
+        Row.withSchema(SCHEMA)
+            .withFieldValue("key", "key-1".getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("mutations", mutations)
+            .build();
 
-                Map<String, Map<String, List<Row>>> families = new HashMap<>();
-                families.put(COLUMN_FAMILY_NAME_1, columns1);
-                families.put(COLUMN_FAMILY_NAME_2, columns2);
+    PCollectionRowTuple.of("input", p.apply(Create.of(Arrays.asList(mutationRow))))
+        .apply(writeTransform);
+    p.run().waitUntilFinish();
 
-                Row expectedRow =
-                        Row.withSchema(ROW_SCHEMA)
-                                .withFieldValue("key", key)
-                                .withFieldValue("families", families)
-                                .build();
+    // get rows from table
+    List<com.google.cloud.bigtable.data.v2.models.Row> rows =
+        dataClient.readRows(Query.create(tableId)).stream().collect(Collectors.toList());
 
-                expectedRows.add(expectedRow);
-            }
-        } catch (NotFoundException e) {
-            throw new RuntimeException("Failed to write to table", e);
-        }
-        return expectedRows;
-    }
+    // we should still have only one row with the same key
+    assertEquals(1, rows.size());
+    assertEquals("key-1", rows.get(0).getKey().toStringUtf8());
+    // check the new column exists with only one cell.
+    // also check cell value is correct
+    com.google.cloud.bigtable.data.v2.models.Row row = rows.get(0);
+    List<RowCell> cellsNewCol = row.getCells(COLUMN_FAMILY_NAME_1, "new_col");
+    assertEquals(1, cellsNewCol.size());
+    assertEquals("new-val-1", cellsNewCol.get(0).getValue().toStringUtf8());
+  }
 
-    @Test
-    public void testRead() throws Exception {
-        tableId = "BigtableWriteSchemaTransformIT";
-        List<Row> expectedRows = writeToTable(10);
+  @Test
+  public void testDeleteCellsFromColumn() {
+    RowMutation rowMutation =
+        RowMutation.create(tableId, "key-1")
+            .setCell(COLUMN_FAMILY_NAME_1, "col_a", "val-1-a")
+            .setCell(COLUMN_FAMILY_NAME_1, "col_b", "val-1-b");
+    dataClient.mutateRow(rowMutation);
+    // write two cells in col_a. both should get deleted
+    rowMutation =
+        RowMutation.create(tableId, "key-1").setCell(COLUMN_FAMILY_NAME_1, "col_a", "new-val-1-a");
+    dataClient.mutateRow(rowMutation);
 
-        BigtableWriteSchemaTransformConfiguration config =
-                BigtableWriteSchemaTransformConfiguration.builder()
-                        .setTable(tableId)
-                        .setInstance(instanceId)
-                        .setProject(projectId)
-                        .build();
-        SchemaTransform transform = new BigtableWriteSchemaTransformProvider().from(config);
+    List<Map<String, byte[]>> mutations = new ArrayList<>();
+    // mutation to delete cells from a column
+    mutations.add(
+        ImmutableMap.of(
+            "type", "DeleteFromColumn".getBytes(StandardCharsets.UTF_8),
+            "column_qualifier", "col_a".getBytes(StandardCharsets.UTF_8),
+            "family_name", COLUMN_FAMILY_NAME_1.getBytes(StandardCharsets.UTF_8)));
+    Row mutationRow =
+        Row.withSchema(SCHEMA)
+            .withFieldValue("key", "key-1".getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("mutations", mutations)
+            .build();
 
-        PCollection<Row> rows =
-                PCollectionRowTuple.empty(p).apply(transform.buildTransform()).get("output");
-        PAssert.that(rows).containsInAnyOrder(expectedRows);
-        p.run().waitUntilFinish();
-    }
+    PCollectionRowTuple.of("input", p.apply(Create.of(Arrays.asList(mutationRow))))
+        .apply(writeTransform);
+    p.run().waitUntilFinish();
 
-    public Row generateBeamRowMutations(byte[] key,
-                                        byte[] value,
-                                        @Nullable Map<String, List<String>> columnFamiliesAndColumnsToSet,
-                                        @Nullable String columnToDelete,
-                                        @Nullable String columnFamilyToDelete,
-                                        boolean deleteRow) {
-        Schema schema = Schema.builder()
-                .addByteArrayField("key")
-                .addArrayField("mutations", Schema.FieldType.map(Schema.FieldType.STRING, Schema.FieldType.BYTES))
-                .build();
+    // get rows from table
+    List<com.google.cloud.bigtable.data.v2.models.Row> rows =
+        dataClient.readRows(Query.create(tableId)).stream().collect(Collectors.toList());
 
-        List<Map<String, byte[]>> mutations = new ArrayList<>();
-        // populate columns in column families
-        if (columnFamiliesAndColumnsToSet != null) {
-            for (Map.Entry<String, List<String>> entry : columnFamiliesAndColumnsToSet.entrySet()) {
-                String columnFamily = entry.getKey();
-                for (String column : entry.getValue()) {
-                    mutations.add(ImmutableMap.of(
-                        "type", "SetCell".getBytes(StandardCharsets.UTF_8),
-                        "value", value,
-                        "column_qualifier", column.getBytes(StandardCharsets.UTF_8),
-                        "family_name", columnFamily.getBytes(StandardCharsets.UTF_8),
-                        "timestamp_micros", Longs.toByteArray(10_000L)));
-                }
-            }
-        }
-        if(columnToDelete != null) {
-            assert columnFamilyToDelete != null;
-            mutations.add(ImmutableMap.of(
-                    "type", "DeleteFromColumn".getBytes(StandardCharsets.UTF_8),
-                    "column_qualifier", columnToDelete.getBytes(StandardCharsets.UTF_8),
-                    "family_name", columnFamilyToDelete.getBytes(StandardCharsets.UTF_8)));
-        }
-        if(columnToDelete == null && columnFamilyToDelete != null) {
-            mutations.add(ImmutableMap.of(
-                    "type", "DeleteFromFamily".getBytes(StandardCharsets.UTF_8),
-                    "family_name", columnFamilyToDelete.getBytes(StandardCharsets.UTF_8)));
-        }
-        if (deleteRow) {
-            mutations.add(ImmutableMap.of(
-                    "type", "DeleteFromRow".getBytes(StandardCharsets.UTF_8)));
-        }
+    // we should still have one row with the same key
+    assertEquals(1, rows.size());
+    assertEquals("key-1", rows.get(0).getKey().toStringUtf8());
+    // get cells from this column family. we started with three cells and deleted two from one
+    // column.
+    // we should end up with one cell in the column we didn't touch.
+    // check that the remaining cell is indeed from col_b
+    com.google.cloud.bigtable.data.v2.models.Row row = rows.get(0);
+    List<RowCell> cells = row.getCells(COLUMN_FAMILY_NAME_1);
+    assertEquals(1, cells.size());
+    assertEquals("col_b", cells.get(0).getQualifier().toStringUtf8());
+  }
 
-        return Row.withSchema(schema)
-                .withFieldValue("key", key)
-                .withFieldValue("mutations", mutations)
-                .build();
+  @Test
+  public void testDeleteCellsFromColumnWithTimestampRange() {
+    // write two cells in one column with different timestamps.
+    RowMutation rowMutation =
+        RowMutation.create(tableId, "key-1")
+            .setCell(COLUMN_FAMILY_NAME_1, "col", 100_000_000, "val");
+    dataClient.mutateRow(rowMutation);
+    rowMutation =
+        RowMutation.create(tableId, "key-1")
+            .setCell(COLUMN_FAMILY_NAME_1, "col", 200_000_000, "new-val");
+    dataClient.mutateRow(rowMutation);
 
-    }
+    List<Map<String, byte[]>> mutations = new ArrayList<>();
+    // mutation to delete cells from a column within a timestamp range
+    mutations.add(
+        ImmutableMap.of(
+            "type", "DeleteFromColumn".getBytes(StandardCharsets.UTF_8),
+            "column_qualifier", "col".getBytes(StandardCharsets.UTF_8),
+            "family_name", COLUMN_FAMILY_NAME_1.getBytes(StandardCharsets.UTF_8),
+            "start_timestamp_micros", Longs.toByteArray(99_999_999),
+            "end_timestamp_micros", Longs.toByteArray(100_000_001)));
+    Row mutationRow =
+        Row.withSchema(SCHEMA)
+            .withFieldValue("key", "key-1".getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("mutations", mutations)
+            .build();
 
-    public List<Row> generateRows(int numRows) {
-        List<Row> rows = new ArrayList<>(numRows);
+    PCollectionRowTuple.of("input", p.apply(Create.of(Arrays.asList(mutationRow))))
+        .apply(writeTransform);
+    p.run().waitUntilFinish();
 
-        for (int i = 0; i < numRows; i++) {
-            byte[] key = String.format("key-%s", i).getBytes(StandardCharsets.UTF_8);
-            byte[] value = String.format("value-%s", i).getBytes(StandardCharsets.UTF_8);
-            Map<String, List<String>> columnsToPopulate = ImmutableMap.of(
-                    COLUMN_FAMILY_NAME_1, Arrays.asList("col_a", "col_b"),
-                    COLUMN_FAMILY_NAME_2, Arrays.asList("col_c", "col_d"));
-            String deleteRowsInThisColumn = "col_a";
-            String deleteColumnInThisFamily = COLUMN_FAMILY_NAME_1;
-                    // time range?
-        }
-    }
+    // get rows from table
+    List<com.google.cloud.bigtable.data.v2.models.Row> rows =
+        dataClient.readRows(Query.create(tableId)).stream().collect(Collectors.toList());
 
-    @Test
-    public void testWrite() throws Exception {
-        // generate data
+    // we should still have one row with the same key
+    assertEquals(1, rows.size());
+    assertEquals("key-1", rows.get(0).getKey().toStringUtf8());
+    // we had two cells in col_a and deleted the older one. we should be left with the newer cell.
+    // check cell has correct value and timestamp
+    com.google.cloud.bigtable.data.v2.models.Row row = rows.get(0);
+    List<RowCell> cells = row.getCells(COLUMN_FAMILY_NAME_1, "col");
+    assertEquals(1, cells.size());
+    assertEquals("new-val", cells.get(0).getValue().toStringUtf8());
+    assertEquals(200_000_000, cells.get(0).getTimestamp());
+  }
 
-        //write
+  @Test
+  public void testDeleteColumnFamily() {
+    RowMutation rowMutation =
+        RowMutation.create(tableId, "key-1")
+            .setCell(COLUMN_FAMILY_NAME_1, "col_a", "val")
+            .setCell(COLUMN_FAMILY_NAME_2, "col_b", "val");
+    dataClient.mutateRow(rowMutation);
 
-        //then
-        Table table = tableAdminClient.getTable(tableId);
-        assertThat(table.getColumnFamilies(), Matchers.hasSize(2));
-        assertThat(table.getColumnFamilies().stream().map(colFam -> colFam.getId()).collect(Collectors.toList()),
-                Matchers.containsInAnyOrder(COLUMN_FAMILY_NAME_1, COLUMN_FAMILY_NAME_2));
+    List<Map<String, byte[]>> mutations = new ArrayList<>();
+    // mutation to delete a whole column family
+    mutations.add(
+        ImmutableMap.of(
+            "type", "DeleteFromFamily".getBytes(StandardCharsets.UTF_8),
+            "family_name", COLUMN_FAMILY_NAME_1.getBytes(StandardCharsets.UTF_8)));
+    Row mutationRow =
+        Row.withSchema(SCHEMA)
+            .withFieldValue("key", "key-1".getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("mutations", mutations)
+            .build();
 
+    PCollectionRowTuple.of("input", p.apply(Create.of(Arrays.asList(mutationRow))))
+        .apply(writeTransform);
+    p.run().waitUntilFinish();
 
-        ServerStream<com.google.cloud.bigtable.data.v2.models.Row> bigtableRows = dataClient.readRows(Query.create(tableId));
+    // get rows from table
+    List<com.google.cloud.bigtable.data.v2.models.Row> rows =
+        dataClient.readRows(Query.create(tableId)).stream().collect(Collectors.toList());
 
-        List<KV<ByteString, List<RowCell>>> data = bigtableRows.stream().map(row -> KV.of(row.getKey(), row.getCells(COLUMN_FAMILY_NAME_1))).collect(Collectors.toList());
-    }
+    // we should still have one row with the same key
+    assertEquals(1, rows.size());
+    assertEquals("key-1", rows.get(0).getKey().toStringUtf8());
+    // we had one cell in each of two column families. we deleted a column family, so should end up
+    // with
+    // one cell in the column family we didn't touch.
+    com.google.cloud.bigtable.data.v2.models.Row row = rows.get(0);
+    List<RowCell> cells = row.getCells();
+    assertEquals(1, cells.size());
+    assertEquals(COLUMN_FAMILY_NAME_2, cells.get(0).getFamily());
+  }
+
+  @Test
+  public void testDeleteRow() {
+    RowMutation rowMutation =
+        RowMutation.create(tableId, "key-1").setCell(COLUMN_FAMILY_NAME_1, "col", "val-1");
+    dataClient.mutateRow(rowMutation);
+    rowMutation =
+        RowMutation.create(tableId, "key-2").setCell(COLUMN_FAMILY_NAME_1, "col", "val-2");
+    dataClient.mutateRow(rowMutation);
+
+    List<Map<String, byte[]>> mutations = new ArrayList<>();
+    // mutation to delete a whole row
+    mutations.add(ImmutableMap.of("type", "DeleteFromRow".getBytes(StandardCharsets.UTF_8)));
+    Row mutationRow =
+        Row.withSchema(SCHEMA)
+            .withFieldValue("key", "key-1".getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("mutations", mutations)
+            .build();
+
+    PCollectionRowTuple.of("input", p.apply(Create.of(Arrays.asList(mutationRow))))
+        .apply(writeTransform);
+    p.run().waitUntilFinish();
+
+    // get rows from table
+    List<com.google.cloud.bigtable.data.v2.models.Row> rows =
+        dataClient.readRows(Query.create(tableId)).stream().collect(Collectors.toList());
+
+    // we created two rows then deleted one, so should end up with the row we didn't touch
+    assertEquals(1, rows.size());
+    assertEquals("key-2", rows.get(0).getKey().toStringUtf8());
+  }
 }

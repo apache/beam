@@ -17,22 +17,23 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable;
 
+import static java.util.Optional.ofNullable;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
-import com.google.bigtable.v2.Cell;
-import com.google.bigtable.v2.Column;
-import com.google.bigtable.v2.Family;
-
-import java.util.*;
-
-import com.google.bigtable.v2.Mutation;
+import com.google.bigtable.v2.*;
 import com.google.common.primitives.Longs;
 import com.google.protobuf.ByteString;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteSchemaTransformProvider.BigtableWriteSchemaTransformConfiguration;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
-import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
@@ -44,7 +45,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 
 /**
  * An implementation of {@link TypedSchemaTransformProvider} for Bigtable Write jobs configured via
@@ -56,166 +56,200 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
  */
 @AutoService(SchemaTransformProvider.class)
 public class BigtableWriteSchemaTransformProvider
-        extends TypedSchemaTransformProvider<BigtableWriteSchemaTransformConfiguration> {
+    extends TypedSchemaTransformProvider<BigtableWriteSchemaTransformConfiguration> {
 
-    private static final String INPUT_TAG = "input";
+  private static final String INPUT_TAG = "input";
 
-    @Override
-    protected Class<BigtableWriteSchemaTransformConfiguration> configurationClass() {
-        return BigtableWriteSchemaTransformConfiguration.class;
+  @Override
+  protected Class<BigtableWriteSchemaTransformConfiguration> configurationClass() {
+    return BigtableWriteSchemaTransformConfiguration.class;
+  }
+
+  @Override
+  protected SchemaTransform from(BigtableWriteSchemaTransformConfiguration configuration) {
+    return new BigtableWriteSchemaTransform(configuration);
+  }
+
+  @Override
+  public String identifier() {
+    return "beam:schematransform:org.apache.beam:bigtable_write:v1";
+  }
+
+  @Override
+  public List<String> inputCollectionNames() {
+    return Collections.singletonList(INPUT_TAG);
+  }
+
+  @Override
+  public List<String> outputCollectionNames() {
+    return Collections.emptyList();
+  }
+
+  /** Configuration for writing to Bigtable. */
+  @DefaultSchema(AutoValueSchema.class)
+  @AutoValue
+  public abstract static class BigtableWriteSchemaTransformConfiguration {
+    /** Instantiates a {@link BigtableWriteSchemaTransformConfiguration.Builder} instance. */
+    public static Builder builder() {
+      return new AutoValue_BigtableWriteSchemaTransformProvider_BigtableWriteSchemaTransformConfiguration
+          .Builder();
+    }
+
+    public abstract String getTable();
+
+    public abstract String getInstance();
+
+    public abstract String getProject();
+
+    /** Builder for the {@link BigtableWriteSchemaTransformConfiguration}. */
+    @AutoValue.Builder
+    public abstract static class Builder {
+      public abstract Builder setTable(String table);
+
+      public abstract Builder setInstance(String instance);
+
+      public abstract Builder setProject(String project);
+
+      abstract BigtableWriteSchemaTransformConfiguration autoBuild();
+
+      /** Builds a {@link BigtableWriteSchemaTransformConfiguration} instance. */
+      public BigtableWriteSchemaTransformConfiguration build() {
+        BigtableWriteSchemaTransformConfiguration config = autoBuild();
+
+        String invalidConfigMessage =
+            "Invalid Bigtable Write configuration: %s should be a non-empty String";
+        checkArgument(!config.getTable().isEmpty(), String.format(invalidConfigMessage, "table"));
+        checkArgument(
+            !config.getInstance().isEmpty(), String.format(invalidConfigMessage, "instance"));
+        checkArgument(
+            !config.getProject().isEmpty(), String.format(invalidConfigMessage, "project"));
+
+        return config;
+      };
+    }
+  }
+
+  /**
+   * A {@link SchemaTransform} for Bigtable writes, configured with {@link
+   * BigtableWriteSchemaTransformConfiguration} and instantiated by {@link
+   * BigtableWriteSchemaTransformProvider}.
+   */
+  private static class BigtableWriteSchemaTransform
+      extends PTransform<PCollectionRowTuple, PCollectionRowTuple> implements SchemaTransform {
+    private final BigtableWriteSchemaTransformConfiguration configuration;
+
+    BigtableWriteSchemaTransform(BigtableWriteSchemaTransformConfiguration configuration) {
+      this.configuration = configuration;
     }
 
     @Override
-    protected SchemaTransform from(BigtableWriteSchemaTransformConfiguration configuration) {
-        return new BigtableWriteSchemaTransform(configuration);
+    public PCollectionRowTuple expand(PCollectionRowTuple input) {
+      checkArgument(
+          input.has(INPUT_TAG),
+          String.format(
+              "Could not find expected input [%s] to %s.", INPUT_TAG, getClass().getSimpleName()));
+
+      PCollection<Row> beamRowMutations = input.get(INPUT_TAG);
+      PCollection<KV<ByteString, Iterable<Mutation>>> bigtableMutations =
+          beamRowMutations.apply(MapElements.via(new GetMutationsFromBeamRow()));
+
+      bigtableMutations.apply(
+          BigtableIO.write()
+              .withTableId(configuration.getTable())
+              .withInstanceId(configuration.getInstance())
+              .withProjectId(configuration.getProject()));
+
+      return PCollectionRowTuple.empty(input.getPipeline());
     }
 
     @Override
-    public String identifier() {
-        return "beam:schematransform:org.apache.beam:bigtable_write:v1";
+    public PTransform<PCollectionRowTuple, PCollectionRowTuple> buildTransform() {
+      return this;
     }
+  }
 
+  public static class GetMutationsFromBeamRow
+      extends SimpleFunction<Row, KV<ByteString, Iterable<Mutation>>> {
     @Override
-    public List<String> inputCollectionNames() {
-        return Collections.singletonList(INPUT_TAG);
-    }
+    public KV<ByteString, Iterable<Mutation>> apply(Row row) {
+      ByteString key = ByteString.copyFrom(ofNullable(row.getBytes("key")).get());
+      List<Map<String, byte[]>> beamRowMutations =
+          (List) ofNullable(row.getArray("mutations")).get();
 
-    @Override
-    public List<String> outputCollectionNames() {
-        return Collections.emptyList();
-    }
+      List<Mutation> mutations = new ArrayList<>(beamRowMutations.size());
 
-    /** Configuration for writing to Bigtable. */
-    @DefaultSchema(AutoValueSchema.class)
-    @AutoValue
-    public abstract static class BigtableWriteSchemaTransformConfiguration {
-        /** Instantiates a {@link BigtableWriteSchemaTransformConfiguration.Builder} instance. */
-        public static Builder builder() {
-            return new AutoValue_BigtableWriteSchemaTransformProvider_BigtableWriteSchemaTransformConfiguration
-                    .Builder();
-        }
-
-        public abstract String getTable();
-
-        public abstract String getInstance();
-
-        public abstract String getProject();
-
-        /** Builder for the {@link BigtableWriteSchemaTransformConfiguration}. */
-        @AutoValue.Builder
-        public abstract static class Builder {
-            public abstract Builder setTable(String table);
-
-            public abstract Builder setInstance(String instance);
-
-            public abstract Builder setProject(String project);
-
-            abstract BigtableWriteSchemaTransformConfiguration autoBuild();
-
-            /** Builds a {@link BigtableWriteSchemaTransformConfiguration} instance. */
-            public BigtableWriteSchemaTransformConfiguration build() {
-                BigtableWriteSchemaTransformConfiguration config = autoBuild();
-
-                String invalidConfigMessage =
-                        "Invalid Bigtable Write configuration: %s should be a non-empty String";
-                checkArgument(!config.getTable().isEmpty(), String.format(invalidConfigMessage, "table"));
-                checkArgument(
-                        !config.getInstance().isEmpty(), String.format(invalidConfigMessage, "instance"));
-                checkArgument(
-                        !config.getProject().isEmpty(), String.format(invalidConfigMessage, "project"));
-
-                return config;
-            };
-        }
-    }
-
-    /**
-     * A {@link SchemaTransform} for Bigtable writes, configured with {@link
-     * BigtableWriteSchemaTransformConfiguration} and instantiated by {@link
-     * BigtableWriteSchemaTransformProvider}.
-     */
-    private static class BigtableWriteSchemaTransform
-            extends PTransform<PCollectionRowTuple, PCollectionRowTuple> implements SchemaTransform {
-        private final BigtableWriteSchemaTransformConfiguration configuration;
-
-        BigtableWriteSchemaTransform(BigtableWriteSchemaTransformConfiguration configuration) {
-            this.configuration = configuration;
-        }
-
-        @Override
-        public PCollectionRowTuple expand(PCollectionRowTuple input) {
-            checkArgument(
-                    input.has(INPUT_TAG),
-                    String.format(
-                            "Could not find expected input [%s] to %s.", INPUT_TAG, getClass().getSimpleName()));
-
-            PCollection<Row> beamRowMutations = input.get(INPUT_TAG);
-            PCollection<KV<ByteString, Iterable<Mutation>>> bigtableMutations = beamRowMutations
-                    .apply(MapElements.via(new GetMutationsFromBeamRow()));
-
-            bigtableMutations.apply(BigtableIO.write()
-                    .withTableId(configuration.getTable())
-                    .withInstanceId(configuration.getInstance())
-                    .withProjectId(configuration.getProject()));
-
-            return PCollectionRowTuple.empty(input.getPipeline());
-        }
-
-        @Override
-        public PTransform<PCollectionRowTuple, PCollectionRowTuple> buildTransform() {
-            return this;
-        }
-    }
-
-    public static class GetMutationsFromBeamRow extends SimpleFunction<Row, KV<ByteString, Iterable<Mutation>>> {
-        @Override
-        public KV<ByteString, Iterable<Mutation>> apply(Row row) {
-            ByteString key = ByteString.copyFrom(row.getBytes("key"));
-            List<Map<String, byte[]>> beamRowMutations = (List) row.getArray("mutations");
-
-            List<Mutation> mutations = new ArrayList<>(beamRowMutations.size());
-
-            for (Map<String, byte[]> mutation: beamRowMutations) {
-                Mutation bigtableMutation;
-                switch (Arrays.toString(mutation.get("type"))){
-                    case "SetCell":
-                        bigtableMutation = Mutation.newBuilder()
-                            .setSetCell(
-                                Mutation.SetCell.newBuilder()
-                                    .setValue(ByteString.copyFrom(mutation.get("value")))
-                                    .setColumnQualifier(ByteString.copyFrom(mutation.get("column_qualifier")))
-                                    .setFamilyNameBytes(ByteString.copyFrom(mutation.get("family_name")))
-                                    .setTimestampMicros(Longs.fromByteArray(mutation.get("timestamp_micros")))
-                                    .build()
-                            ).build();
-                        break;
-                    case "DeleteFromColumn":
-                        bigtableMutation = Mutation.newBuilder()
-                            .setDeleteFromColumn(
-                                Mutation.DeleteFromColumn.newBuilder()
-                                    .setColumnQualifier(ByteString.copyFrom(mutation.get("column_qualifier")))
-                                    .setFamilyNameBytes(ByteString.copyFrom(mutation.get("family_name")))
-                                    .build()
-                            ).build();
-                        break;
-                    case "DeleteFromFamily":
-                        bigtableMutation = Mutation.newBuilder()
-                            .setDeleteFromFamily(
-                                Mutation.DeleteFromFamily.newBuilder()
-                                    .setFamilyNameBytes(ByteString.copyFrom(mutation.get("family_name")))
-                                    .build()
-                            ).build();
-                        break;
-                    case "DeleteFromRow":
-                        bigtableMutation = Mutation.newBuilder()
-                            .setDeleteFromRow(Mutation.DeleteFromRow.newBuilder().build()).build();
-                        break;
-                    default:
-                        throw new RuntimeException(String.format("Unexpected mutation type [%s]: %s", Arrays.toString(mutation.get("type")), mutation));
-                }
-                mutations.add(bigtableMutation);
+      for (Map<String, byte[]> mutation : beamRowMutations) {
+        Mutation bigtableMutation;
+        switch (new String(ofNullable(mutation.get("type")).get(), StandardCharsets.UTF_8)) {
+          case "SetCell":
+            Mutation.SetCell.Builder setMutation =
+                Mutation.SetCell.newBuilder()
+                    .setValue(ByteString.copyFrom(ofNullable(mutation.get("value")).get()))
+                    .setColumnQualifier(
+                        ByteString.copyFrom(ofNullable(mutation.get("column_qualifier")).get()))
+                    .setFamilyNameBytes(
+                        ByteString.copyFrom(ofNullable(mutation.get("family_name")).get()));
+            if (mutation.containsKey("timestamp_micros")) {
+              setMutation =
+                  setMutation.setTimestampMicros(
+                      Longs.fromByteArray(ofNullable(mutation.get("timestamp_micros")).get()));
             }
-            return KV.of(key, mutations);
+            bigtableMutation = Mutation.newBuilder().setSetCell(setMutation.build()).build();
+            break;
+          case "DeleteFromColumn":
+            Mutation.DeleteFromColumn.Builder deleteMutation =
+                Mutation.DeleteFromColumn.newBuilder()
+                    .setColumnQualifier(
+                        ByteString.copyFrom(ofNullable(mutation.get("column_qualifier")).get()))
+                    .setFamilyNameBytes(
+                        ByteString.copyFrom(ofNullable(mutation.get("family_name")).get()));
+
+            // set timestamp range if applicable
+            if (mutation.containsKey("start_timestamp_micros")
+                || mutation.containsKey("end_timestamp_micros")) {
+              TimestampRange.Builder timeRange = TimestampRange.newBuilder();
+              if (mutation.containsKey("start_timestamp_micros")) {
+                Long startMicros =
+                    ByteBuffer.wrap(ofNullable(mutation.get("start_timestamp_micros")).get())
+                        .getLong();
+                timeRange.setStartTimestampMicros(startMicros);
+              }
+              if (mutation.containsKey("end_timestamp_micros")) {
+                Long endMicros =
+                    ByteBuffer.wrap(ofNullable(mutation.get("end_timestamp_micros")).get())
+                        .getLong();
+                timeRange.setEndTimestampMicros(endMicros);
+              }
+              deleteMutation.setTimeRange(timeRange.build());
+            }
+            bigtableMutation =
+                Mutation.newBuilder().setDeleteFromColumn(deleteMutation.build()).build();
+            break;
+          case "DeleteFromFamily":
+            bigtableMutation =
+                Mutation.newBuilder()
+                    .setDeleteFromFamily(
+                        Mutation.DeleteFromFamily.newBuilder()
+                            .setFamilyNameBytes(
+                                ByteString.copyFrom(ofNullable(mutation.get("family_name")).get()))
+                            .build())
+                    .build();
+            break;
+          case "DeleteFromRow":
+            bigtableMutation =
+                Mutation.newBuilder()
+                    .setDeleteFromRow(Mutation.DeleteFromRow.newBuilder().build())
+                    .build();
+            break;
+          default:
+            throw new RuntimeException(
+                String.format(
+                    "Unexpected mutation type [%s]: %s",
+                    Arrays.toString(ofNullable(mutation.get("type")).get()), mutation));
         }
+        mutations.add(bigtableMutation);
+      }
+      return KV.of(key, mutations);
     }
+  }
 }
