@@ -326,6 +326,10 @@ class YamlWindowingTest(unittest.TestCase):
 
 
 class AnnotatingProvider(yaml_provider.InlineProvider):
+  """A provider that vends transforms that do nothing but record that this
+  provider (as identified by name) was used, along with any prior history
+  of the given element.
+  """
   def __init__(self, name, transform_names):
     super().__init__({
         transform_name: lambda: beam.Map(lambda x: (x or ()) + (name, ))
@@ -338,11 +342,16 @@ class AnnotatingProvider(yaml_provider.InlineProvider):
 
 
 class AnotherAnnProvider(AnnotatingProvider):
-  # A distinct class.
+  """A Provider that behaves exactly as AnnotatingProvider, but is not
+  of the same type and so is considered "more distant" for matching purposes.
+  """
   pass
 
 
 class ProviderAffinityTest(unittest.TestCase):
+  """These tests check that for a sequence of transforms, the "closest"
+  proveders are chosen among multiple possible implementations.
+  """
   provider1 = AnnotatingProvider("provider1", "P1 A B C  ")
   provider2 = AnnotatingProvider("provider2", "P2 A   C D")
   provider3 = AnotherAnnProvider("provider3", "P3 A B    ")
@@ -369,7 +378,14 @@ class ProviderAffinityTest(unittest.TestCase):
           providers=self.providers_dict)
       assert_that(
           result1,
-          equal_to([('provider1', 'provider1', 'provider1')]),
+          equal_to([(
+              # provider1 was chosen, as it is the only one vending P1
+              'provider1',
+              # All of the providers vend A, but since the input was produced
+              # by provider1, we prefer to use that again.
+              'provider1',
+              # Similarly for C.
+              'provider1')]),
           label='StartWith1')
 
       result2 = p | 'Yaml2' >> YamlTransform(
@@ -385,10 +401,19 @@ class ProviderAffinityTest(unittest.TestCase):
           providers=self.providers_dict)
       assert_that(
           result2,
-          equal_to([('provider2', 'provider2', 'provider2')]),
+          equal_to([(
+              # provider2 was necessarily chosen for P2
+              'provider2',
+              # Unlike above, we choose provider2 to implement A.
+              'provider2',
+              # Likewise for C.
+              'provider2')]),
           label='StartWith2')
 
   def test_prefers_same_provider_class(self):
+    # Like test_prefers_same_provider, but as we cannot choose the same
+    # exact provider, we go with the next closest (which is of the same type)
+    # over an implementation from a Provider of a different type.
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:
       result1 = p | 'Yaml1' >> YamlTransform(
