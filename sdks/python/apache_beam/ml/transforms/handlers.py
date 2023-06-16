@@ -30,7 +30,6 @@ from apache_beam.ml.transforms.base import ProcessHandler
 from apache_beam.ml.transforms.base import ProcessInputT
 from apache_beam.ml.transforms.base import ProcessOutputT
 from apache_beam.ml.transforms.tft_transforms import TFTOperation
-from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.typehints import native_type_compatibility
 from apache_beam.typehints.row_type import RowTypeConstraint
 import tensorflow as tf
@@ -113,15 +112,15 @@ class TFTProcessHandler(ProcessHandler[ProcessInputT, ProcessOutputT]):
         transforms are not supported yet.
       artifact_location: A location to store the artifacts, which includes
         the tensorflow graph produced by analyzers such as ScaleTo01,
-        sclaed_to_z_score, etc.
-        Note: If not specified, the artifacts will be stored
-        in a temporary directory for DirectRunner and staging location for
-        DataflowRunner.
+        ScaleToZScore, etc.
     """
     self.transforms = transforms if transforms else []
     self.transformed_schema = None
     self.artifact_location = artifact_location
     self.preprocessing_fn = preprocessing_fn
+
+    if not self.artifact_location:
+      self.artifact_location = tempfile.mkdtemp()
 
   def append_transform(self, transform):
     self.transforms.append(transform)
@@ -201,25 +200,6 @@ class TFTProcessHandler(ProcessHandler[ProcessInputT, ProcessOutputT]):
         transform_fn
         | 'Write Transform Artifacts' >>
         transform_fn_io.WriteTransformFn(location))
-
-  def _get_artifact_location(self, pipeline: beam.Pipeline):
-    """
-    Return the artifact location. If the pipeline options has staging location
-    set, then we will use that as the artifact location. Otherwise, we will
-    create a temporary directory and use that as the artifact location.
-    Args:
-      pipeline: A beam pipeline object.
-    Returns:
-      A location to write the artifacts.
-    """
-    # let us get the staging location from the pipeline options
-    # and initialize it as the artifact location.
-    staging_location = pipeline.options.view_as(
-        GoogleCloudOptions).staging_location
-    if not staging_location:
-      return tempfile.mkdtemp()
-    else:
-      return staging_location
 
   def process_data_fn(
       self, inputs: Dict[str, common_types.ConsistentTensorType]
@@ -380,9 +360,6 @@ class TFTProcessHandlerSchema(
 
     raw_data_metadata = self.get_raw_data_metadata(
         input_types=column_type_mapping)
-
-    if not self.artifact_location:
-      self.artifact_location = self._get_artifact_location(raw_data.pipeline)
 
     preprocessing_fn = self.preprocessing_fn if self.preprocessing_fn else (
         self.process_data_fn)
