@@ -47,32 +47,8 @@ class TabbedSnippetEditor extends StatelessWidget {
     final keys = files.map((f) => f.name).toList(growable: false);
     final initialKey = files.firstWhereOrNull((f) => f.isMain)?.name;
 
-    // TODO(nausharipov): revert to the commented build function at the end of the
-    // file after this error is resolved: https://stackoverflow.com/questions/76455093/why-do-dart-and-dart-js-files-appear-on-the-same-call-stack
-    print('files: $files');
-    print('keys: $keys');
-    print('initialKey: $initialKey');
-
-    final headersChildren = <Widget>[
-      Expanded(
-        child: BeamTabBar(tabs: {for (final key in keys) key: Text(key)}),
-      ),
-      if (trailing != null) trailing!,
-    ];
-    print('headersChildren: $headersChildren');
-
-    final bodyChildren = {
-      for (final key in keys)
-        key: SnippetFileEditor(
-          autofocus: autofocus,
-          controller: controller.requireFileControllerByName(key),
-          eventSnippetContext: eventSnippetContext,
-          isEditable: isEditable,
-        ),
-    };
-    print('bodyChildren: $bodyChildren');
-
-    final result = DefaultKeyedTabController<String>.fromKeys(
+    // TODO(nausharipov): fork keyed_collection_widgets and put prints.
+    return DefaultKeyedTabController<String>.fromKeys(
       animationDuration: Duration.zero,
       initialKey: initialKey,
       keys: keys,
@@ -85,63 +61,29 @@ class TabbedSnippetEditor extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            children: headersChildren,
+            children: [
+              Expanded(
+                child:
+                    BeamTabBar(tabs: {for (final key in keys) key: Text(key)}),
+              ),
+              if (trailing != null) trailing!,
+            ],
           ),
           Expanded(
             child: KeyedTabBarView.withDefaultController(
-              children: bodyChildren,
+              children: {
+                for (final key in keys)
+                  key: SnippetFileEditor(
+                    autofocus: autofocus,
+                    controller: controller.requireFileControllerByName(key),
+                    eventSnippetContext: eventSnippetContext,
+                    isEditable: isEditable,
+                  ),
+              },
             ),
           ),
         ],
       ),
     );
-
-    print('result:  $result');
-    return result;
   }
 }
-
-  // @override
-  // Widget build(BuildContext context) {
-  //   final files = controller.fileControllers.map((c) => c.getFile());
-  //   final keys = files.map((f) => f.name).toList(growable: false);
-  //   final initialKey = files.firstWhereOrNull((f) => f.isMain)?.name;
-
-  //   return DefaultKeyedTabController<String>.fromKeys(
-  //     animationDuration: Duration.zero,
-  //     initialKey: initialKey,
-  //     keys: keys,
-  //     onChanged: (key) {
-  //       if (key != null) {
-  //         controller.activateFileControllerByName(key);
-  //       }
-  //     },
-  //     child: Column(
-  //       crossAxisAlignment: CrossAxisAlignment.start,
-  //       children: [
-  //         Row(
-  //           children: [
-  //             Expanded(
-  //               child:
-  //                   BeamTabBar(tabs: {for (final key in keys) key: Text(key)}),
-  //             ),
-  //             if (trailing != null) trailing!,
-  //           ],
-  //         ),
-  //         Expanded(
-  //           child: KeyedTabBarView.withDefaultController(
-  //             children: {
-  //               for (final key in keys)
-  //                 key: SnippetFileEditor(
-  //                   autofocus: autofocus,
-  //                   controller: controller.requireFileControllerByName(key),
-  //                   eventSnippetContext: eventSnippetContext,
-  //                   isEditable: isEditable,
-  //                 ),
-  //             },
-  //           ),
-  //         ),
-  //       ],
-  //     ),
-  //   );
-  // }
