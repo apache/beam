@@ -113,7 +113,6 @@ public class PortableBundleManager<OutT> implements BundleManager<OutT> {
   public void tryStartBundle() {
     inconsistentStateCheck();
 
-    currentBundleElementCount.incrementAndGet();
     LOG.debug(
         "tryStartBundle: elementCount={}, Bundle={}", currentBundleElementCount, this.toString());
 
@@ -123,6 +122,8 @@ public class PortableBundleManager<OutT> implements BundleManager<OutT> {
       pendingBundleCount.getAndIncrement();
       bundleProgressListener.onBundleStarted();
     }
+
+    currentBundleElementCount.incrementAndGet();
   }
 
   @Override
