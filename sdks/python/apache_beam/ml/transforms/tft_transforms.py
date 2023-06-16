@@ -109,10 +109,8 @@ class ComputeAndApplyVocabulary(TFTOperation):
       num_oov_buckets:  Any lookup of an out-of-vocabulary token will return a
         bucket ID based on its hash if `num_oov_buckets` is greater than zero.
         Otherwise it is assigned the `default_value`.
-      vocab_filename: The file name for the vocabulary file. If None,
-        a name based on the scope name in the context of this graph will
-        be used as the file name. If not None, should be unique within
-        a given preprocessing function.
+      vocab_filename: The file name for the vocabulary file. If not provided,
+        the default name would be `compute_and_apply_vocab'
         NOTE in order to make your pipelines resilient to implementation
         details please set `vocab_filename` when you are using
         the vocab_filename on a downstream component.
@@ -122,12 +120,12 @@ class ComputeAndApplyVocabulary(TFTOperation):
     self._top_k = top_k
     self._frequency_threshold = frequency_threshold
     self._num_oov_buckets = num_oov_buckets
-    self._vocab_filename = vocab_filename
+    self._vocab_filename = vocab_filename if vocab_filename else (
+        'compute_and_apply_vocab')
     self._name = name
 
   def apply(self, data: common_types.TensorType,
             output_column_name: str) -> Dict[str, common_types.TensorType]:
-    # TODO: Pending outputting artifact.
     return {
         output_column_name: tft.compute_and_apply_vocabulary(
             x=data,
