@@ -34,8 +34,8 @@ try:
 except ImportError:
   tft_transforms = None
 
-skip_if_tft_not_available = unittest.skipIf(
-    tft_transforms is None, 'tensorflow_transform is not installed.')
+if not tft_transforms:
+  raise unittest.SkipTest('tensorflow_transform is not installed.')
 
 
 class MyTypesUnbatched(NamedTuple):
@@ -72,7 +72,6 @@ def assert_bucketize_artifacts(element):
       element['x_quantiles'], np.array([3, 5], dtype=np.float32))
 
 
-@skip_if_tft_not_available
 class ScaleZScoreTest(unittest.TestCase):
   def test_z_score_unbatched(self):
     unbatched_data = [{
@@ -116,7 +115,6 @@ class ScaleZScoreTest(unittest.TestCase):
       _ = (batched_result | beam.Map(assert_z_score_artifacts))
 
 
-@skip_if_tft_not_available
 class ScaleTo01Test(unittest.TestCase):
   def test_ScaleTo01_batched(self):
     batched_data = [{'x': [1, 2, 3]}, {'x': [4, 5, 6]}]
@@ -178,7 +176,6 @@ class ScaleTo01Test(unittest.TestCase):
           actual_output, equal_to(expected_output, equals_fn=np.array_equal))
 
 
-@skip_if_tft_not_available
 class BucketizeTest(unittest.TestCase):
   def test_bucketize_unbatched(self):
     unbatched = [{'x': 1}, {'x': 2}, {'x': 3}, {'x': 4}, {'x': 5}, {'x': 6}]
@@ -264,7 +261,6 @@ class BucketizeTest(unittest.TestCase):
       _ = (actual_boundaries | beam.Map(assert_boundaries))
 
 
-@skip_if_tft_not_available
 class ApplyBucketsTest(unittest.TestCase):
   @parameterized.expand([
       (range(1, 100), [25, 50, 75]),
@@ -304,7 +300,6 @@ class ComputeAndVocabBatchedInputType(NamedTuple):
   x: List[str]
 
 
-@skip_if_tft_not_available
 class ComputeAndApplyVocabTest(unittest.TestCase):
   def test_compute_and_apply_vocabulary_unbatched_inputs(self):
     batch_size = 100
