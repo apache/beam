@@ -38,6 +38,7 @@ those generated rows in the table.
 # pytype: skip-file
 
 import logging
+import struct
 
 import apache_beam as beam
 from apache_beam.internal.metrics.metric import ServiceCallMetric
@@ -45,6 +46,9 @@ from apache_beam.io.gcp import resource_identifiers
 from apache_beam.metrics import Metrics
 from apache_beam.metrics import monitoring_infos
 from apache_beam.transforms.display import DisplayDataItem
+from apache_beam.transforms.external import BeamJarExpansionService
+from apache_beam.transforms.external import SchemaAwareExternalTransform
+from apache_beam.typehints.row_type import RowTypeConstraint
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -95,7 +99,7 @@ except ImportError:
   _LOGGER.warning(
       'ImportError: from google.cloud.bigtable import Client', exc_info=True)
 
-__all__ = ['WriteToBigTable']
+__all__ = ['WriteToBigTable', 'WriteToBigtableXlang']
 
 
 class _BigTableWriteFn(beam.DoFn):
@@ -229,7 +233,7 @@ class WriteToBigTable(beam.PTransform):
                 beam_options['table_id'])))
 
 
-class ExternalWriteToBigtable(beam.PTransform):
+class WriteToBigtableXlang(beam.PTransform):
 
   URN = "beam:schematransform:org.apache.beam:bigtable_write:v1"
 
@@ -251,55 +255,67 @@ class ExternalWriteToBigtable(beam.PTransform):
     self._project_id = project_id
     self._expansion_service = (
         expansion_service or BeamJarExpansionService(
-      'sdks:java:io:google-cloud-platform:expansion-service:build'))
+            'sdks:java:io:google-cloud-platform:expansion-service:build'))
     self.schematransform_config = SchemaAwareExternalTransform.discover_config(
-      self._expansion_service, self.URN)
+        self._expansion_service, self.URN)
 
   def expand(self, input):
     external_write = SchemaAwareExternalTransform(
-      identifier=self.schematransform_config.identifier,
-      expansion_service=self._expansion_service,
-      rearrange_based_on_discovery=True,
-      tableId=self._table_id,
-      instanceId=self._instance_id,
-      projectId=self._project_id)
+        identifier=self.schematransform_config.identifier,
+        expansion_service=self._expansion_service,
+        rearrange_based_on_discovery=True,
+        tableId=self._table_id,
+        instanceId=self._instance_id,
+        projectId=self._project_id)
 
     return (
         input
-        | beam.Map(self.store_mutations_in_beam_rows)
+        | beam.ParDo(
+            self.Direct_row_mutations_to_beam_rows()).with_output_types(
+                RowTypeConstraint.from_fields(
+                    [("key", bytes), ("mutations", list[dict[str, bytes]])]))
         | external_write)
 
-  def store_mutations_in_beam_rows(self, direct_row):
-    args = {"key": direct_row.row_key,
-            "mutations": []}
-    for mutation in direct_row._get_mutations():
-      if mutation.__contains__("set_cell"):
-        mutation_dict = {
-          "mutation": "SetCell",
-          "family_name": mutation.set_cell.family_name,
-          "column_qualifier": mutation.set_cell.column_qualifier,
-          "timestamp_micros": mutation.set_cell.timestamp_micros,
-          "value": mutation.set_cell.value}
-        print(mutation.set_cell)
-      elif mutation.__contains__("delete_from_column"):
-        mutation_dict = {
-          "mutation": "DeleteFromColumn",
-          "family_name": mutation.set_cell.family_name,
-          "column_qualifier": mutation.set_cell.column_qualifier}
-        print(mutation.delete_from_column)
-      elif mutation.__contains__("delete_from_family"):
-        mutation_dict = {
-          "mutation": "DeleteFromFamily",
-          "family_name": mutation.set_cell.family_name}
-        print(mutation.delete_from_family)
-      elif mutation.__contains__("delete_from_row"):
-        mutation_dict = {
-          "mutation": "DeleteFromRow"
-        }
-        print(mutation.delete_from_row)
-      else:
-        raise ValueError("Unexpected mutation: %s", mutation)
+  class Direct_row_mutations_to_beam_rows(beam.DoFn):
+    def process(self, direct_row):
+      args = {"key": direct_row.row_key, "mutations": []}
+      for mutation in direct_row._get_mutations():
+        _LOGGER.warning(mutation)
+        if mutation.__contains__("set_cell"):
+          mutation_dict = {
+              "type": b'SetCell',
+              "family_name": mutation.set_cell.family_name.encode('utf-8'),
+              "column_qualifier": mutation.set_cell.column_qualifier,
+              "value": mutation.set_cell.value
+          }
+          micros = mutation.set_cell.timestamp_micros
+          if micros > -1:
+            mutation_dict['timestamp_micros'] = struct.pack('>q', micros)
+        elif mutation.__contains__("delete_from_column"):
+          mutation_dict = {
+              "type": b'DeleteFromColumn',
+              "family_name": mutation.delete_from_column.family_name.encode(
+                  'utf-8'),
+              "column_qualifier": mutation.delete_from_column.column_qualifier
+          }
+          time_range = mutation.delete_from_column.time_range
+          if time_range.start_timestamp_micros:
+            mutation_dict['start_timestamp_micros'] = struct.pack(
+                '>q', time_range.start_timestamp_micros)
+          if time_range.end_timestamp_micros:
+            mutation_dict['end_timestamp_micros'] = struct.pack(
+                '>q', time_range.end_timestamp_micros)
+        elif mutation.__contains__("delete_from_family"):
+          mutation_dict = {
+              "type": b'DeleteFromFamily',
+              "family_name": mutation.delete_from_family.family_name.encode(
+                  'utf-8')
+          }
+        elif mutation.__contains__("delete_from_row"):
+          mutation_dict = {"type": b'DeleteFromRow'}
+        else:
+          raise ValueError("Unexpected mutation")
 
-      args["mutations"].append(mutation_dict)
+        args["mutations"].append(mutation_dict)
 
-    return beam.Row(**args)
+      yield beam.Row(**args)

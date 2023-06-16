@@ -76,17 +76,17 @@ public class BigtableWriteSchemaTransformProviderIT {
     List<BigtableWriteSchemaTransformConfiguration.Builder> invalidConfigs =
         Arrays.asList(
             BigtableWriteSchemaTransformConfiguration.builder()
-                .setProject("project")
-                .setInstance("instance")
-                .setTable(""),
+                .setProjectId("project")
+                .setInstanceId("instance")
+                .setTableId(""),
             BigtableWriteSchemaTransformConfiguration.builder()
-                .setProject("")
-                .setInstance("instance")
-                .setTable("table"),
+                .setProjectId("")
+                .setInstanceId("instance")
+                .setTableId("table"),
             BigtableWriteSchemaTransformConfiguration.builder()
-                .setProject("project")
-                .setInstance("")
-                .setTable("table"));
+                .setProjectId("project")
+                .setInstanceId("")
+                .setTableId("table"));
 
     for (BigtableWriteSchemaTransformConfiguration.Builder config : invalidConfigs) {
       assertThrows(
@@ -128,9 +128,9 @@ public class BigtableWriteSchemaTransformProviderIT {
 
     BigtableWriteSchemaTransformConfiguration config =
         BigtableWriteSchemaTransformConfiguration.builder()
-            .setProject(projectId)
-            .setInstance(instanceId)
-            .setTable(tableId)
+            .setProjectId(projectId)
+            .setInstanceId(instanceId)
+            .setTableId(tableId)
             .build();
     writeTransform = new BigtableWriteSchemaTransformProvider().from(config).buildTransform();
   }

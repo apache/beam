@@ -95,37 +95,33 @@ public class BigtableWriteSchemaTransformProvider
           .Builder();
     }
 
-    public abstract String getTable();
+    /** Validates the configuration object. */
+    public void validate() {
+      String invalidConfigMessage =
+          "Invalid Bigtable Write configuration: %s should be a non-empty String";
+      checkArgument(!this.getTableId().isEmpty(), String.format(invalidConfigMessage, "table"));
+      checkArgument(
+          !this.getInstanceId().isEmpty(), String.format(invalidConfigMessage, "instance"));
+      checkArgument(!this.getProjectId().isEmpty(), String.format(invalidConfigMessage, "project"));
+    }
 
-    public abstract String getInstance();
+    public abstract String getTableId();
 
-    public abstract String getProject();
+    public abstract String getInstanceId();
+
+    public abstract String getProjectId();
 
     /** Builder for the {@link BigtableWriteSchemaTransformConfiguration}. */
     @AutoValue.Builder
     public abstract static class Builder {
-      public abstract Builder setTable(String table);
+      public abstract Builder setTableId(String table);
 
-      public abstract Builder setInstance(String instance);
+      public abstract Builder setInstanceId(String instance);
 
-      public abstract Builder setProject(String project);
-
-      abstract BigtableWriteSchemaTransformConfiguration autoBuild();
+      public abstract Builder setProjectId(String project);
 
       /** Builds a {@link BigtableWriteSchemaTransformConfiguration} instance. */
-      public BigtableWriteSchemaTransformConfiguration build() {
-        BigtableWriteSchemaTransformConfiguration config = autoBuild();
-
-        String invalidConfigMessage =
-            "Invalid Bigtable Write configuration: %s should be a non-empty String";
-        checkArgument(!config.getTable().isEmpty(), String.format(invalidConfigMessage, "table"));
-        checkArgument(
-            !config.getInstance().isEmpty(), String.format(invalidConfigMessage, "instance"));
-        checkArgument(
-            !config.getProject().isEmpty(), String.format(invalidConfigMessage, "project"));
-
-        return config;
-      };
+      public abstract BigtableWriteSchemaTransformConfiguration build();
     }
   }
 
@@ -139,6 +135,7 @@ public class BigtableWriteSchemaTransformProvider
     private final BigtableWriteSchemaTransformConfiguration configuration;
 
     BigtableWriteSchemaTransform(BigtableWriteSchemaTransformConfiguration configuration) {
+      configuration.validate();
       this.configuration = configuration;
     }
 
@@ -155,9 +152,9 @@ public class BigtableWriteSchemaTransformProvider
 
       bigtableMutations.apply(
           BigtableIO.write()
-              .withTableId(configuration.getTable())
-              .withInstanceId(configuration.getInstance())
-              .withProjectId(configuration.getProject()));
+              .withTableId(configuration.getTableId())
+              .withInstanceId(configuration.getInstanceId())
+              .withProjectId(configuration.getProjectId()));
 
       return PCollectionRowTuple.empty(input.getPipeline());
     }
