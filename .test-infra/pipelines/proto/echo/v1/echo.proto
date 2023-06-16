@@ -16,17 +16,31 @@
  * limitations under the License.
  */
 
-resource "google_artifact_registry_repository" "default" {
-  depends_on    = [google_project_service.required_services]
-  description   = "Stores artifacts related to github.com/apache/beam/.test-infra/pipelines"
-  format        = "DOCKER"
-  repository_id = var.artifact_registry_id
-  location      = var.region
+/*
+ * Protocol buffers describing a simple mock API that echos a request.
+ */
+
+syntax = "proto3";
+
+package proto.echo.v1;
+option go_package = "proto/echo/v1";
+option java_package = "org.apache.beam.testinfra.pipelines.proto.echo.v1";
+
+// EchoService simulates a mock API that echos a request.
+service EchoService {
+
+  // Echo an EchoRequest payload in an EchoResponse.
+  rpc Echo(EchoRequest) returns (EchoResponse) {}
 }
 
-resource "google_artifact_registry_repository_iam_member" "dataflow_worker" {
-  depends_on = [google_project_service.required_services]
-  member     = "serviceAccount:${google_service_account.dataflow_worker.email}"
-  repository = google_artifact_registry_repository.default.id
-  role       = "roles/artifactregistry.reader"
+// The request to echo a payload.
+message EchoRequest {
+  string id = 1;
+  bytes payload = 2;
+}
+
+// The response echo of a request payload.
+message EchoResponse {
+  string id = 1;
+  bytes payload = 2;
 }

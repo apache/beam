@@ -16,17 +16,26 @@
  * limitations under the License.
  */
 
-resource "google_artifact_registry_repository" "default" {
-  depends_on    = [google_project_service.required_services]
-  description   = "Stores artifacts related to github.com/apache/beam/.test-infra/pipelines"
-  format        = "DOCKER"
-  repository_id = var.artifact_registry_id
-  location      = var.region
-}
-
-resource "google_artifact_registry_repository_iam_member" "dataflow_worker" {
-  depends_on = [google_project_service.required_services]
-  member     = "serviceAccount:${google_service_account.dataflow_worker.email}"
-  repository = google_artifact_registry_repository.default.id
-  role       = "roles/artifactregistry.reader"
+// Expose the quota service using a Kubernetes service.
+// metadata.annotations and spec.type determine its exposure and vary
+// between local i.e. minikube deployment and remote GKE deployment.
+resource "kubernetes_service" "quota" {
+  wait_for_load_balancer = false
+  metadata {
+    name        = var.quota_service.name
+    namespace   = data.kubernetes_namespace.default.metadata[0].name
+    annotations = var.annotations
+  }
+  spec {
+    type     = var.service_type
+    selector = {
+      app = var.quota_service.name
+    }
+    port {
+      name        = "tcp-port"
+      port        = var.quota_service.port
+      target_port = var.quota_service.target_port
+      protocol    = "TCP"
+    }
+  }
 }

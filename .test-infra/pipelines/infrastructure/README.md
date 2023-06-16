@@ -62,4 +62,5 @@ READMEs for more details.
 1. [01.setup](01.setup)
 2. [02.network](02.network)
 3. [03.io/dataflow-to-bigquery](03.io/dataflow-to-bigquery)
-4. [04.template/dataflow-to-bigquery](04.template/dataflow-to-bigquery) (_if you want to use Dataflow Flex Templates_)
+4. [04.template/dataflow-to-bigquery](04.template/dataflow-to-bigquery) (_if you
+   want to use Dataflow Flex Templates_)

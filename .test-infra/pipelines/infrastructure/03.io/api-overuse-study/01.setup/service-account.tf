@@ -1,0 +1,56 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+// Provision Kubernetes service account to elevate the Pod application's role
+resource "kubernetes_service_account" "default" {
+  metadata {
+    name      = "api-overuse-study"
+    namespace = kubernetes_namespace.default.metadata[0].name
+  }
+}
+
+// Create a role that enables the application to create Kubernetes Jobs
+resource "kubernetes_role" "can_create_job" {
+  metadata {
+    name      = "jobs-creator"
+    namespace = kubernetes_namespace.default.metadata[0].name
+  }
+  rule {
+    api_groups = ["batch"]
+    resources  = ["jobs", "namespaces"]
+    verbs      = ["get", "list", "watch", "create", "update", "patch", "delete"]
+  }
+}
+
+// Bind the Create Jobs role to the Kubernetes service account
+resource "kubernetes_role_binding" "default" {
+  metadata {
+    name      = "api-overuse-study"
+    namespace = kubernetes_namespace.default.metadata[0].name
+  }
+  subject {
+    kind      = "ServiceAccount"
+    name      = kubernetes_service_account.default.metadata[0].name
+    namespace = kubernetes_namespace.default.metadata[0].name
+  }
+  role_ref {
+    api_group = "rbac.authorization.k8s.io"
+    kind      = "Role"
+    name      = kubernetes_role.can_create_job.metadata[0].name
+  }
+}

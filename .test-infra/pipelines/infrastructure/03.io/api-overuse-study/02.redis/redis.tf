@@ -16,17 +16,20 @@
  * limitations under the License.
  */
 
-resource "google_artifact_registry_repository" "default" {
-  depends_on    = [google_project_service.required_services]
-  description   = "Stores artifacts related to github.com/apache/beam/.test-infra/pipelines"
-  format        = "DOCKER"
-  repository_id = var.artifact_registry_id
-  location      = var.region
-}
-
-resource "google_artifact_registry_repository_iam_member" "dataflow_worker" {
-  depends_on = [google_project_service.required_services]
-  member     = "serviceAccount:${google_service_account.dataflow_worker.email}"
-  repository = google_artifact_registry_repository.default.id
-  role       = "roles/artifactregistry.reader"
+// Spin up a Redis cluster within the Kubernetes cluster using the bitami
+// helm chart.
+resource "helm_release" "redis" {
+  wait       = false
+  repository = "https://charts.bitnami.com/bitnami"
+  chart      = "redis"
+  name       = "redis"
+  namespace  = data.kubernetes_namespace.default.metadata[0].name
+  set {
+    name  = "auth.enabled"
+    value = false
+  }
+  set {
+    name  = "auth.sentinel"
+    value = false
+  }
 }

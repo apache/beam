@@ -16,17 +16,37 @@
  * limitations under the License.
  */
 
-resource "google_artifact_registry_repository" "default" {
-  depends_on    = [google_project_service.required_services]
-  description   = "Stores artifacts related to github.com/apache/beam/.test-infra/pipelines"
-  format        = "DOCKER"
-  repository_id = var.artifact_registry_id
-  location      = var.region
+variable "namespace" {
+  type        = string
+  description = "The Kubernetes namespace"
 }
 
-resource "google_artifact_registry_repository_iam_member" "dataflow_worker" {
-  depends_on = [google_project_service.required_services]
-  member     = "serviceAccount:${google_service_account.dataflow_worker.email}"
-  repository = google_artifact_registry_repository.default.id
-  role       = "roles/artifactregistry.reader"
+variable "echo_service" {
+  type = object({
+    name        = string
+    port        = number
+    target_port = number
+  })
+
+  description = "Echo service configuration"
+}
+
+variable "quota_service" {
+  type = object({
+    name        = string
+    port        = number
+    target_port = number
+  })
+
+  description = "Quota service configuration"
+}
+
+variable "annotations" {
+  type        = map(string)
+  description = "Annotations to apply to the services"
+}
+
+variable "service_type" {
+  type        = string
+  description = "The type of service i.e. LoadBalancer, etc"
 }

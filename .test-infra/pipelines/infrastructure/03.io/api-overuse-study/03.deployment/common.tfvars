@@ -16,17 +16,24 @@
  * limitations under the License.
  */
 
-resource "google_artifact_registry_repository" "default" {
-  depends_on    = [google_project_service.required_services]
-  description   = "Stores artifacts related to github.com/apache/beam/.test-infra/pipelines"
-  format        = "DOCKER"
-  repository_id = var.artifact_registry_id
-  location      = var.region
+namespace = "api-overuse-study"
+
+log_level = "debug"
+
+cache_host = "redis-master:6379"
+
+service_account_name = "api-overuse-study"
+
+echo_service = {
+  name  = "echo"
+  port  = 8080
+  image = "github.com/apache/beam/test-infra/pipelines/src/main/go/cmd/api_overuse_study/echo"
 }
 
-resource "google_artifact_registry_repository_iam_member" "dataflow_worker" {
-  depends_on = [google_project_service.required_services]
-  member     = "serviceAccount:${google_service_account.dataflow_worker.email}"
-  repository = google_artifact_registry_repository.default.id
-  role       = "roles/artifactregistry.reader"
+quota_service = {
+  name  = "quota"
+  port  = 8080
+  image = "github.com/apache/beam/test-infra/pipelines/src/main/go/cmd/api_overuse_study/quota"
 }
+
+refresher_service_image = "github.com/apache/beam/test-infra/pipelines/src/main/go/cmd/api_overuse_study/refresher"

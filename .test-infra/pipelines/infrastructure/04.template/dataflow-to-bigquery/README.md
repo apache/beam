@@ -21,7 +21,8 @@
 
 This directory holds terraform code to build the
 [org.apache.beam.testinfra.pipelines.ReadDataflowApiWriteBigQuery](../../../src/main/java/org/apache/beam/testinfra/pipelines/ReadDataflowApiWriteBigQuery.java)
-pipeline for use as a [Dataflow Flex Template](https://cloud.google.com/dataflow/docs/guides/templates/using-flex-templates).
+pipeline for use as
+a [Dataflow Flex Template](https://cloud.google.com/dataflow/docs/guides/templates/using-flex-templates).
 
 # Why terraform?
 

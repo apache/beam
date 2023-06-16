@@ -1,0 +1,95 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+ * Protocol buffers describing a quota management service.
+ */
+
+syntax = "proto3";
+
+package proto.quota.v1;
+option go_package = "proto/quota/v1";
+option java_package = "org.apache.beam.testinfra.pipelines.proto.quota.v1";
+
+// A QuotaService manages the internal cached quota state of the application.
+service QuotaService {
+
+  // Create a new quota entry.
+  rpc Create(CreateRequest) returns (CreateResponse) {}
+
+  // List available quota entries.
+  rpc List(ListRequest) returns (ListResponse) {}
+
+  // Delete a quota entry.
+  rpc Delete(DeleteRequest) returns (DeleteResponse) {}
+
+  // Describe a quota entry.
+  rpc Describe(DescribeRequest) returns (DescribeResponse) {}
+}
+
+// CreateRequest defines a request for a new quota entry.
+message CreateRequest {
+  Quota quota = 1;
+}
+
+// CreateResponse defines the response to a CreateQuota fulfillment.
+message CreateResponse {
+  Quota quota = 1;
+}
+
+// ListRequest defines a request to list existing quota entries.
+message ListRequest {}
+
+// ListQuotaResponse defines the response to a ListQuota fulfillment.
+message ListResponse {
+  repeated Quota list = 1;
+}
+
+// DeleteQuotasRequest defines a request to delete a quota entry.
+message DeleteRequest {
+  string id = 1;
+}
+
+// DeleteResponse defines the response to a DeleteQuota fulfillment.
+message DeleteResponse {
+  Quota quota = 1;
+}
+
+// DescribeResponse defines the request to describe a quota entry.
+message DescribeRequest {
+  string id = 1;
+}
+
+// DescribeResponse defines the response to a DescribeQuota fulfillment.
+message DescribeResponse {
+  Quota quota = 1;
+}
+
+// Quota defines details of a quota.
+message Quota {
+
+  // id assigns a unique identifier to the quota entry.
+  string id = 1;
+
+  // size assigns the value of the quota entry.
+  int64 size = 2;
+
+  // refresh_milliseconds_interval configures how often the quota service
+  // should refresh the quota's value back to the assigned size.
+  int64 refresh_milliseconds_interval = 3;
+}
