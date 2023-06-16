@@ -111,6 +111,7 @@ public class PortableBundleManager<OutT> implements BundleManager<OutT> {
 
   @Override
   public void tryStartBundle() {
+    inconsistentStateCheck();
 
     currentBundleElementCount.incrementAndGet();
     LOG.debug(
@@ -121,12 +122,6 @@ public class PortableBundleManager<OutT> implements BundleManager<OutT> {
       bundleStartTime.set(System.currentTimeMillis());
       pendingBundleCount.getAndIncrement();
       bundleProgressListener.onBundleStarted();
-    }
-
-    if (!isBundleStarted.get() && currentBundleElementCount.get() != 0) {
-      LOG.warn(
-          "tryStartBundle: isBundleStarted = false, but currentBundleElementCount = {}",
-          currentBundleElementCount);
     }
   }
 
@@ -147,15 +142,11 @@ public class PortableBundleManager<OutT> implements BundleManager<OutT> {
 
   @Override
   public void processTimer(KeyedTimerData<Void> keyedTimerData, OpEmitter<OutT> emitter) {
+    inconsistentStateCheck();
     // this is internal timer in processing time to check whether a bundle should be closed
     if (bundleCheckTimerId.equals(keyedTimerData.getTimerData().getTimerId())) {
       tryFinishBundle(emitter);
       scheduleNextBundleCheck();
-    }
-    if (!isBundleStarted.get() && currentBundleElementCount.get() != 0) {
-      LOG.warn(
-          "processTimer: isBundleStarted = false, but currentBundleElementCount = {}",
-          currentBundleElementCount);
     }
   }
 
@@ -167,23 +158,19 @@ public class PortableBundleManager<OutT> implements BundleManager<OutT> {
    */
   @Override
   public void signalFailure(Throwable t) {
+    inconsistentStateCheck();
     LOG.error("Encountered error during processing the message. Discarding the output due to: ", t);
 
     isBundleStarted.set(false);
     currentBundleElementCount.set(0);
     bundleStartTime.set(Long.MAX_VALUE);
     pendingBundleCount.decrementAndGet();
-
-    if (!isBundleStarted.get() && currentBundleElementCount.get() != 0) {
-      LOG.warn(
-          "signalFailure: isBundleStarted = false, but currentBundleElementCount = {}",
-          currentBundleElementCount);
-    }
   }
 
   @Override
   public void tryFinishBundle(OpEmitter<OutT> emitter) {
     LOG.debug("tryFinishBundle: elementCount={}", currentBundleElementCount);
+    inconsistentStateCheck();
     if (shouldFinishBundle() && isBundleStarted.compareAndSet(true, false)) {
       LOG.debug("Finishing the current bundle. Bundle={}", this);
       currentBundleElementCount.set(0);
@@ -194,22 +181,18 @@ public class PortableBundleManager<OutT> implements BundleManager<OutT> {
 
       pendingBundleCount.decrementAndGet();
 
-      if (currentBundleElementCount.get() != 0) {
-        LOG.warn("elementCount increased while tryFinishBundle!");
-      }
-      if (!isBundleStarted.get()) {
-        LOG.warn("isBundleStarted changed while tryFinishBundle!");
-      }
-
       bundleProgressListener.onBundleFinished(emitter);
       if (watermarkHold != null) {
         bundleProgressListener.onWatermark(watermarkHold, emitter);
       }
-      if (!isBundleStarted.get() && currentBundleElementCount.get() != 0) {
-        LOG.warn(
-            "tryFinishBundle: isBundleStarted = false, but currentBundleElementCount = {}",
-            currentBundleElementCount);
-      }
+    }
+  }
+
+  public void inconsistentStateCheck() {
+    if (!isBundleStarted.get() && currentBundleElementCount.get() != 0) {
+      LOG.warn(
+          "Bundle is in a inconsistent state. isBundleStarted = false, but currentBundleElementCount = {}",
+          currentBundleElementCount);
     }
   }
 

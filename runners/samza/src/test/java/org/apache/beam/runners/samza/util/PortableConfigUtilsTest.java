@@ -26,29 +26,33 @@ import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.junit.Assert;
 import org.junit.Test;
 
-public class PortableUtilsTest {
+public class PortableConfigUtilsTest {
 
   @Test
   public void testNonPortableMode() {
     SamzaPipelineOptions mockOptions = mock(SamzaPipelineOptions.class);
     Map<String, String> config = new HashMap<>();
-    config.put(PortableUtils.BEAM_PORTABLE_MODE, "false");
+    config.put(PortableConfigUtils.BEAM_PORTABLE_MODE, "false");
     doReturn(config).when(mockOptions).getConfigOverride();
-    Assert.assertFalse("Expected false for portable mode ", PortableUtils.isPortable(mockOptions));
+    Assert.assertFalse(
+        "Expected false for portable mode ", PortableConfigUtils.isPortable(mockOptions));
+  }
+
+  @Test
+  public void testNonPortableModeNullConfig() {
+    SamzaPipelineOptions mockOptions = mock(SamzaPipelineOptions.class);
+    doReturn(null).when(mockOptions).getConfigOverride();
+    Assert.assertFalse(
+        "Expected false for portable mode ", PortableConfigUtils.isPortable(mockOptions));
   }
 
   @Test
   public void testPortableMode() {
     SamzaPipelineOptions mockOptions = mock(SamzaPipelineOptions.class);
     Map<String, String> config = new HashMap<>();
-    config.put(PortableUtils.BEAM_PORTABLE_MODE, "true");
+    config.put(PortableConfigUtils.BEAM_PORTABLE_MODE, "true");
     doReturn(config).when(mockOptions).getConfigOverride();
-    Assert.assertTrue("Expected true for portable runner", PortableUtils.isPortable(mockOptions));
-  }
-
-  @Test
-  public void testGetServerDriverArgs() {
     Assert.assertTrue(
-        "Expected size 3 of serverDriverArgs", PortableUtils.getServerDriverArgs().size() == 3);
+        "Expected true for portable runner", PortableConfigUtils.isPortable(mockOptions));
   }
 }
