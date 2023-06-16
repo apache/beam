@@ -31,7 +31,6 @@ from apache_beam.ml.transforms.base import ProcessInputT
 from apache_beam.ml.transforms.base import ProcessOutputT
 from apache_beam.ml.transforms.tft_transforms import TFTOperation
 from apache_beam.options.pipeline_options import GoogleCloudOptions
-from apache_beam.transforms.window import GlobalWindows
 from apache_beam.typehints import native_type_compatibility
 from apache_beam.typehints.row_type import RowTypeConstraint
 import tensorflow as tf
@@ -234,9 +233,8 @@ class TFTProcessHandler(ProcessHandler[ProcessInputT, ProcessOutputT]):
     """
     raise NotImplementedError
 
-  def _fail_on_non_gloabl_window(self, pcoll):
-    window_fn = pcoll.windowing.windowfn
-    if not isinstance(window_fn, GlobalWindows):
+  def _fail_on_non_default_windowing(self, pcoll: beam.PCollection):
+    if not pcoll.windowing.is_default():
       raise RuntimeError(
           "TFTProcessHandler only supports GlobalWindows. "
           "Please use beam.WindowInto(beam.transforms.window.GlobalWindows()) "
@@ -364,7 +362,7 @@ class TFTProcessHandlerSchema(
       self, pcoll: beam.PCollection[tft_process_handler_schema_input_type]
   ) -> beam.PCollection[beam.Row]:
 
-    self._fail_on_non_gloabl_window(pcoll)
+    self._fail_on_non_default_windowing(pcoll)
 
     element_type = pcoll.element_type
     column_type_mapping = self._map_column_names_to_types(
