@@ -66,7 +66,6 @@ from apache_beam.runners.worker import data_sampler
 from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import operations
 from apache_beam.runners.worker import statesampler
-from apache_beam.runners.worker.data_sampler import OutputSampler
 from apache_beam.transforms import TimeDomain
 from apache_beam.transforms import core
 from apache_beam.transforms import environments
@@ -941,7 +940,6 @@ class BundleProcessor(object):
 
       # Initialize transform-specific state in the Data Sampler.
       if self.data_sampler:
-        transform_proto = descriptor.transforms[transform_id]
         self.data_sampler.initialize_samplers(
             transform_id, descriptor, transform_factory.get_coder)
 

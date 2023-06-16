@@ -25,7 +25,6 @@ import collections
 import logging
 import threading
 from threading import Timer
-import time
 from typing import Any
 from typing import DefaultDict
 from typing import Deque
@@ -123,8 +122,8 @@ class OutputSampler:
         samples = [s for s in self._samples]
       else:
         samples = [self.remove_windowed_value(s) for s in self._samples]
-      # Encode in the nested context b/c this ensures that the SDK can decode the
-      # bytes with the ToStringFn.
+      # Encode in the nested context b/c this ensures that the SDK can decode
+      # the bytes with the ToStringFn.
       return [self._coder_impl.encode_nested(s) for s in samples]
 
   def flush(self) -> List[bytes]:
@@ -135,8 +134,8 @@ class OutputSampler:
       else:
         samples = [self.remove_windowed_value(s) for s in self._samples]
 
-      # Encode in the nested context b/c this ensures that the SDK can decode the
-      # bytes with the ToStringFn.
+      # Encode in the nested context b/c this ensures that the SDK can decode
+      # the bytes with the ToStringFn.
       self._samples.clear()
       return [self._coder_impl.encode_nested(s) for s in samples]
 

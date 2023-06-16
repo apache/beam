@@ -25,16 +25,11 @@ import unittest
 
 from apache_beam.coders import FastPrimitivesCoder
 from apache_beam.coders import WindowedValueCoder
-from apache_beam.coders.coders import Coder
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.runners.worker.data_sampler import DataSampler
-from apache_beam.runners.worker.data_sampler import ElementSampler
 from apache_beam.runners.worker.data_sampler import OutputSampler
 from apache_beam.transforms.window import GlobalWindow
-from apache_beam.utils import thread_pool_executor
 from apache_beam.utils.windowed_value import WindowedValue
-
-import apache_beam as beam
 
 MAIN_TRANSFORM_ID = 'transform'
 MAIN_PCOLLECTION_ID = 'pcoll'
@@ -381,7 +376,6 @@ class OutputSamplerTest(unittest.TestCase):
     """Tests that the buffer overwrites old samples."""
     self.sampler = OutputSampler(
         PRIMITIVES_CODER, max_samples=10, sample_every_sec=0.05)
-    element_sampler = self.sampler.element_sampler
 
     # Always samples the first ten.
     for i in range(10):
@@ -392,7 +386,6 @@ class OutputSamplerTest(unittest.TestCase):
 
   def test_can_sample_windowed_value(self):
     """Tests that values with WindowedValueCoders are sampled wholesale."""
-    data_sampler = DataSampler()
     coder = WindowedValueCoder(FastPrimitivesCoder())
     value = WindowedValue('Hello, World!', 0, [GlobalWindow()])
 
@@ -412,7 +405,6 @@ class OutputSamplerTest(unittest.TestCase):
     even if the coder is not a WindowedValueCoder. In this case, the value must
     be retrieved from the WindowedValue to match the correct coder.
     """
-    data_sampler = DataSampler()
     value = WindowedValue('Hello, World!', 0, [GlobalWindow()])
 
     self.sampler = OutputSampler(PRIMITIVES_CODER, sample_every_sec=0)
