@@ -179,8 +179,13 @@ func (wk *W) Logging(stream fnpb.BeamFnLogging_LoggingServer) error {
 			return nil
 		}
 		if err != nil {
-			slog.Error("logging.Recv", err, "worker", wk)
-			return err
+			switch status.Code(err) {
+			case codes.Canceled:
+				return nil
+			default:
+				slog.Error("logging.Recv", err, "worker", wk)
+				return err
+			}
 		}
 		for _, l := range in.GetLogEntries() {
 			if l.Severity >= minsev {
@@ -239,8 +244,7 @@ func (wk *W) Control(ctrl fnpb.BeamFnControl_ControlServer) error {
 			}
 			if err != nil {
 				switch status.Code(err) {
-				case codes.Canceled: // Might ignore this all the time instead.
-					slog.Error("ctrl.Recv Canceled", err, "worker", wk)
+				case codes.Canceled:
 					done <- true // means stream is finished
 					return
 				default:
@@ -289,7 +293,6 @@ func (wk *W) Data(data fnpb.BeamFnData_DataServer) error {
 			if err != nil {
 				switch status.Code(err) {
 				case codes.Canceled:
-					slog.Error("data.Recv Canceled", err, "worker", wk)
 					return
 				default:
 					slog.Error("data.Recv failed", err, "worker", wk)
@@ -346,7 +349,6 @@ func (wk *W) State(state fnpb.BeamFnState_StateServer) error {
 			if err != nil {
 				switch status.Code(err) {
 				case codes.Canceled:
-					slog.Error("state.Recv Canceled", err, "worker", wk)
 					return
 				default:
 					slog.Error("state.Recv failed", err, "worker", wk)

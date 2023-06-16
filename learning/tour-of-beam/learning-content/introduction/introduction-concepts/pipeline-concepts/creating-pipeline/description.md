@@ -32,7 +32,7 @@ pipeline, scope := beam.NewPipelineWithRoot()
 PipelineOptions options = PipelineOptionsFactory.create();
 
 // Then create the pipeline.
-Pipeline p = Pipeline.create(options);
+Pipeline pipeline = Pipeline.create(options);
 ```
 {{end}}
 {{if (eq .Sdk "python")}}

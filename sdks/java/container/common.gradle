@@ -62,6 +62,8 @@ task copyDockerfileDependencies(type: Copy) {
 }
 
 task copySdkHarnessLauncher(type: Copy) {
+    dependsOn ":sdks:java:container:downloadCloudProfilerAgent"
+
     from configurations.sdkHarnessLauncher
     into "build/target"
 }
@@ -134,6 +136,5 @@ if (project.rootProject.hasProperty(["docker-pull-licenses"]) ||
 }
 dockerPrepare.dependsOn copySdkHarnessLauncher
 dockerPrepare.dependsOn copyDockerfileDependencies
-dockerPrepare.dependsOn ":sdks:java:container:downloadCloudProfilerAgent"
 dockerPrepare.dependsOn copyJdkOptions
 dockerPrepare.dependsOn validateJavaHome

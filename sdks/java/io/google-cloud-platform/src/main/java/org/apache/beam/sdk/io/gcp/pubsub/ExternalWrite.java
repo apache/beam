@@ -26,8 +26,10 @@ import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -72,7 +74,7 @@ public final class ExternalWrite implements ExternalTransformRegistrar {
     @Override
     public PTransform<PCollection<byte[]>, PDone> buildExternal(Configuration config) {
       PubsubIO.Write.Builder<byte[]> writeBuilder =
-          PubsubIO.Write.newBuilder(new ParsePubsubMessageProtoAsPayload());
+          PubsubIO.Write.newBuilder(new ParsePubsubMessageProtoAsPayloadFromWindowedValue());
       if (config.topic != null) {
         StaticValueProvider<String> topic = StaticValueProvider.of(config.topic);
         writeBuilder.setTopicProvider(NestedValueProvider.of(topic, PubsubTopic::fromPath));
@@ -85,6 +87,16 @@ public final class ExternalWrite implements ExternalTransformRegistrar {
       }
       writeBuilder.setDynamicDestinations(false);
       return writeBuilder.build();
+    }
+  }
+
+  public static class ParsePubsubMessageProtoAsPayloadFromWindowedValue
+      implements SerializableFunction<ValueInSingleWindow<byte[]>, PubsubMessage> {
+    static final ParsePubsubMessageProtoAsPayload INNER = new ParsePubsubMessageProtoAsPayload();
+
+    @Override
+    public PubsubMessage apply(ValueInSingleWindow<byte[]> input) {
+      return INNER.apply(input.getValue());
     }
   }
 }

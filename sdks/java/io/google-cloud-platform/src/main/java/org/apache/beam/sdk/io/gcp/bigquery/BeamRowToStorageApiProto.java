@@ -147,7 +147,8 @@ public class BeamRowToStorageApiProto {
    * Given a Beam {@link Row} object, returns a protocol-buffer message that can be used to write
    * data using the BigQuery Storage streaming API.
    */
-  public static DynamicMessage messageFromBeamRow(Descriptor descriptor, Row row) {
+  public static DynamicMessage messageFromBeamRow(
+      Descriptor descriptor, Row row, @Nullable String changeType, long changeSequenceNum) {
     Schema beamSchema = row.getSchema();
     DynamicMessage.Builder builder = DynamicMessage.newBuilder(descriptor);
     for (int i = 0; i < row.getFieldCount(); ++i) {
@@ -160,6 +161,16 @@ public class BeamRowToStorageApiProto {
       if (value != null) {
         builder.setField(fieldDescriptor, value);
       }
+    }
+    if (changeType != null) {
+      builder.setField(
+          org.apache.beam.sdk.util.Preconditions.checkStateNotNull(
+              descriptor.findFieldByName(StorageApiCDC.CHANGE_TYPE_COLUMN)),
+          changeType);
+      builder.setField(
+          org.apache.beam.sdk.util.Preconditions.checkStateNotNull(
+              descriptor.findFieldByName(StorageApiCDC.CHANGE_SQN_COLUMN)),
+          changeSequenceNum);
     }
     return builder.build();
   }
@@ -177,6 +188,9 @@ public class BeamRowToStorageApiProto {
 
   private static TableFieldSchema fieldDescriptorFromBeamField(Field field) {
     TableFieldSchema.Builder builder = TableFieldSchema.newBuilder();
+    if (StorageApiCDC.COLUMNS.contains(field.getName())) {
+      throw new RuntimeException("Reserved field name " + field.getName() + " in user schema.");
+    }
     builder = builder.setName(field.getName().toLowerCase());
 
     switch (field.getType().getTypeName()) {
@@ -258,7 +272,7 @@ public class BeamRowToStorageApiProto {
       FieldDescriptor fieldDescriptor, FieldType beamFieldType, Object value) {
     switch (beamFieldType.getTypeName()) {
       case ROW:
-        return messageFromBeamRow(fieldDescriptor.getMessageType(), (Row) value);
+        return messageFromBeamRow(fieldDescriptor.getMessageType(), (Row) value, null, -1);
       case ARRAY:
         List<Object> list = (List<Object>) value;
         @Nullable FieldType arrayElementType = beamFieldType.getCollectionElementType();

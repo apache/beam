@@ -526,15 +526,15 @@ class BeamModulePlugin implements Plugin<Project> {
     def dbcp2_version = "2.9.0"
     def errorprone_version = "2.10.0"
     // Try to keep gax_version consistent with gax-grpc version in google_cloud_platform_libraries_bom
-    def gax_version = "2.26.0"
+    def gax_version = "2.28.1"
     def google_clients_version = "2.0.0"
     def google_cloud_bigdataoss_version = "2.2.6"
     // Try to keep google_cloud_spanner_version consistent with google_cloud_spanner_bom in google_cloud_platform_libraries_bom
-    def google_cloud_spanner_version = "6.41.0"
+    def google_cloud_spanner_version = "6.42.3"
     def google_code_gson_version = "2.9.1"
     def google_oauth_clients_version = "1.34.1"
     // Try to keep grpc_version consistent with gRPC version in google_cloud_platform_libraries_bom
-    def grpc_version = "1.54.0"
+    def grpc_version = "1.55.1"
     def guava_version = "31.1-jre"
     def hadoop_version = "2.10.2"
     def hamcrest_version = "2.1"
@@ -546,7 +546,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def jsr305_version = "3.0.2"
     def everit_json_version = "1.14.1"
     def kafka_version = "2.4.1"
-    def log4j2_version = "2.17.2"
+    def log4j2_version = "2.20.0"
     def nemo_version = "0.1"
     def netty_version = "4.1.77.Final"
     def postgres_version = "42.2.16"
@@ -653,7 +653,7 @@ class BeamModulePlugin implements Plugin<Project> {
         google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20220920-$google_clients_version",
         google_api_services_healthcare              : "com.google.apis:google-api-services-healthcare:v1-rev20220818-$google_clients_version",
         google_api_services_pubsub                  : "com.google.apis:google-api-services-pubsub:v1-rev20220904-$google_clients_version",
-        google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev20220705-$google_clients_version",
+        google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev20230301-$google_clients_version",
         google_auth_library_credentials             : "com.google.auth:google-auth-library-credentials", // google_cloud_platform_libraries_bom sets version
         google_auth_library_oauth2_http             : "com.google.auth:google-auth-library-oauth2-http", // google_cloud_platform_libraries_bom sets version
         google_cloud_bigquery                       : "com.google.cloud:google-cloud-bigquery", // google_cloud_platform_libraries_bom sets version
@@ -670,9 +670,9 @@ class BeamModulePlugin implements Plugin<Project> {
         google_cloud_pubsub                         : "com.google.cloud:google-cloud-pubsub", // google_cloud_platform_libraries_bom sets version
         google_cloud_pubsublite                     : "com.google.cloud:google-cloud-pubsublite",  // google_cloud_platform_libraries_bom sets version
         // The release notes shows the versions set by the BOM:
-        // https://github.com/googleapis/java-cloud-bom/releases/tag/v26.14.0
+        // https://github.com/googleapis/java-cloud-bom/releases/tag/v26.16.0
         // Update libraries-bom version on sdks/java/container/license_scripts/dep_urls_java.yaml
-        google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:26.14.0",
+        google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:26.16.0",
         google_cloud_spanner                        : "com.google.cloud:google-cloud-spanner", // google_cloud_platform_libraries_bom sets version
         google_cloud_spanner_test                   : "com.google.cloud:google-cloud-spanner:$google_cloud_spanner_version:tests",
         google_code_gson                            : "com.google.code.gson:gson:$google_code_gson_version",
@@ -2439,7 +2439,6 @@ class BeamModulePlugin implements Plugin<Project> {
       project.evaluationDependsOn(":sdks:java:extensions:python")
 
       // Setting up args to launch the expansion service
-      def envDir = project.project(":sdks:python").envdir
       def pythonDir = project.project(":sdks:python").projectDir
       def javaExpansionPort = -1 // will be populated in setupTask
       def expansionJar = project.project(config.expansionProjectPath).shadowJar.archivePath
@@ -2466,9 +2465,9 @@ class BeamModulePlugin implements Plugin<Project> {
       def setupTask = project.tasks.register(config.name+"Setup") {
         dependsOn ':sdks:java:container:' + javaContainerSuffix + ':docker'
         dependsOn project.project(config.expansionProjectPath).shadowJar.getPath()
-        dependsOn ":sdks:python:installGcpTest"
+        dependsOn 'installGcpTest'
         if (usesDataflowRunner) {
-          dependsOn ":sdks:python:test-suites:dataflow:py" + project.ext.pythonVersion.replace('.', '') + ":initializeForDataflowJob"
+          dependsOn ":sdks:python:test-suites:dataflow:py${project.ext.pythonVersion.replace('.', '')}:initializeForDataflowJob"
         }
         doLast {
           project.exec {
@@ -2478,7 +2477,7 @@ class BeamModulePlugin implements Plugin<Project> {
             // setup test env
             def serviceArgs = project.project(':sdks:python').mapToArgString(expansionServiceOpts)
             executable 'sh'
-            args '-c', "$pythonDir/scripts/run_expansion_services.sh stop --group_id ${project.name} && $pythonDir/scripts/run_expansion_services.sh start $serviceArgs"
+            args '-c', ". ${project.ext.envdir}/bin/activate && $pythonDir/scripts/run_expansion_services.sh stop --group_id ${project.name} && $pythonDir/scripts/run_expansion_services.sh start $serviceArgs"
           }
         }
       }
@@ -2504,7 +2503,7 @@ class BeamModulePlugin implements Plugin<Project> {
             environment "EXPANSION_JAR", expansionJar
             environment "EXPANSION_PORT", javaExpansionPort
             executable 'sh'
-            args '-c', ". $envDir/bin/activate && cd $pythonDir && ./scripts/run_integration_test.sh $cmdArgs"
+            args '-c', ". ${project.ext.envdir}/bin/activate && cd $pythonDir && ./scripts/run_integration_test.sh $cmdArgs"
           }
         }
       }
@@ -2513,7 +2512,7 @@ class BeamModulePlugin implements Plugin<Project> {
       def cleanupTask = project.tasks.register(config.name+'Cleanup', Exec) {
         // teardown test env
         executable 'sh'
-        args '-c', "$pythonDir/scripts/run_expansion_services.sh stop --group_id ${project.name}"
+        args '-c', ". ${project.ext.envdir}/bin/activate && $pythonDir/scripts/run_expansion_services.sh stop --group_id ${project.name}"
       }
 
       setupTask.configure {finalizedBy cleanupTask}
@@ -2755,7 +2754,7 @@ class BeamModulePlugin implements Plugin<Project> {
             executable 'sh'
             args '-c', ". ${project.ext.envdir}/bin/activate && " +
                 "pip install --retries 10 --upgrade pip && " +
-                "pip install --retries 10 --upgrade tox==3.20.1 -r ${project.rootDir}/sdks/python/build-requirements.txt"
+                "pip install --retries 10 --upgrade tox -r ${project.rootDir}/sdks/python/build-requirements.txt"
           }
         }
         // Gradle will delete outputs whenever it thinks they are stale. Putting a

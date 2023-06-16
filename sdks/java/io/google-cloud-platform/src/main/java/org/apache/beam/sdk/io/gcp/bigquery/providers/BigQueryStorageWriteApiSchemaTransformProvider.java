@@ -114,7 +114,7 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
 
   @Override
   public List<String> outputCollectionNames() {
-    return Arrays.asList(FAILED_ROWS_TAG, FAILED_ROWS_WITH_ERRORS_TAG);
+    return Arrays.asList(FAILED_ROWS_TAG, FAILED_ROWS_WITH_ERRORS_TAG, "errors");
   }
 
   /** Configuration for writing to BigQuery with Storage Write API. */
@@ -309,8 +309,8 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
                 (triggeringFrequency == null || triggeringFrequency <= 0)
                     ? DEFAULT_TRIGGERING_FREQUENCY
                     : Duration.standardSeconds(triggeringFrequency));
-
-        if (autoSharding != null && autoSharding) {
+        // use default value true for autoSharding if not configured for STORAGE_WRITE_API
+        if (autoSharding == null || autoSharding) {
           write = write.withAutoSharding();
         }
       }
@@ -371,7 +371,8 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
               .setRowSchema(rowSchema);
 
       return PCollectionRowTuple.of(FAILED_ROWS_TAG, failedRowsOutput)
-          .and(FAILED_ROWS_WITH_ERRORS_TAG, failedRowsWithErrors);
+          .and(FAILED_ROWS_WITH_ERRORS_TAG, failedRowsWithErrors)
+          .and("errors", failedRowsWithErrors);
     }
 
     BigQueryIO.Write<Row> createStorageWriteApiTransform() {

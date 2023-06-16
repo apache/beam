@@ -55,10 +55,6 @@ Future<void> _expectExample(ExampleDescriptor example, WidgetTester wt) async {
   expectSdk(example.sdk, wt);
   expectVisibleText(visibleText, wt);
 
-  if (example.contextLine1Based != null) {
-    expectContextLine(example.contextLine1Based!, wt, reason: example.path);
-  }
-
   if (example.hasGraphTab) {
     expect(find.graphTab(), findsOneWidget);
   }

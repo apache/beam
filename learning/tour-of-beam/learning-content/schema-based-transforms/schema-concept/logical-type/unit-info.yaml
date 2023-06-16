@@ -21,5 +21,4 @@ sdk:
   - Java
 id: logical-type
 name: Logical type
-taskName: logical-type
 complexity: ADVANCED

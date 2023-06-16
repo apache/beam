@@ -281,7 +281,6 @@ Future<void> _testMultipleExamples(WidgetTester wt) async {
     {
       'sdk': Sdk.java.id,
       'path': javaAggregationMax.dbPath,
-      ..._fullViewOptionsMap,
     },
     {
       'sdk': Sdk.go.id,

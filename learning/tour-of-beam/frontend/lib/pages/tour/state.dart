@@ -147,6 +147,11 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
 
       _setUnitContent(content);
       await _unitProgressCache.loadUnitProgress(currentSdk);
+
+      if (content != _currentUnitContent) {
+        return; // Changed while waiting.
+      }
+
       _trySetSnippetType(SnippetType.saved);
       await _loadSnippetByType();
     }
@@ -351,7 +356,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
 
   static PlaygroundController _createPlaygroundController(String initialSdkId) {
     final playgroundController = PlaygroundController(
-      codeRepository: GetIt.instance.get<CodeRepository>(),
+      codeClient: GetIt.instance.get<CodeClient>(),
       exampleCache: ExampleCache(
         exampleRepository: GetIt.instance.get<ExampleRepository>(),
       ),

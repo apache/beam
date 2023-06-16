@@ -16,19 +16,24 @@
 package exec
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/timers"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/rtrackers/offsetrange"
+	"github.com/google/go-cmp/cmp"
 )
 
 func sumFn(n int, a int, b []int, c func(*int) bool, d func() func(*int) bool, e func(int)) int {
@@ -453,6 +458,127 @@ func TestProcessSingleWindow_dataLossCase(t *testing.T) {
 
 			if !strings.Contains(err.Error(), "DoFn terminated without fully processing restriction") {
 				t.Errorf("got unexpected error %v", err)
+			}
+		})
+	}
+}
+
+// hasTimers is to do unit testing for ProcessTimers, and does not represent
+// a canonical use of timers in a DoFn. Do not use as a starting point.
+type hasTimers struct {
+	Timer timers.EventTime
+
+	emitOnlyOnTag bool
+}
+
+func (fn *hasTimers) ProcessElement(tp timers.Provider, k, v string, emit func(string)) {
+}
+
+func (fn *hasTimers) OnTimer(ts typex.EventTime, tp timers.Provider, k string, timer timers.Context, emit func(string)) {
+	if timer.Tag == "" {
+		// Sets another timer, but should be sent to the runner.
+		fn.Timer.Set(tp, ts.ToTime().Add(-10*time.Millisecond), timers.WithTag("tag"))
+	}
+
+	if (timer.Tag != "" && fn.emitOnlyOnTag) || !fn.emitOnlyOnTag {
+		emit(k)
+	}
+}
+
+func TestProcessTimers(t *testing.T) {
+	tests := []struct {
+		name                 string
+		inputFn              any
+		timerKeys            []any
+		wantEmitted, wantSet []any
+		Coder                *coder.Coder
+	}{
+		{
+			name:        "onTimer- different keys",
+			Coder:       coder.NewT(coder.NewString(), coder.NewGlobalWindow()),
+			inputFn:     &hasTimers{Timer: timers.InEventTime("testTimer"), emitOnlyOnTag: false},
+			timerKeys:   []any{"1", "2", "3", "4", "5"},
+			wantEmitted: []any{"1", "2", "3", "4", "5"},
+		}, {
+			name:        "onTimer- same keys",
+			Coder:       coder.NewT(coder.NewString(), coder.NewGlobalWindow()),
+			inputFn:     &hasTimers{Timer: timers.InEventTime("testTimer"), emitOnlyOnTag: true},
+			timerKeys:   []any{"1", "2", "1", "3", "1", "2", "1", "1"},
+			wantEmitted: []any{"1", "1", "2", "1", "1"}, // We only emit on inline firings,
+			wantSet:     []any{"1", "2", "3"},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			fn, err := graph.NewDoFn(test.inputFn)
+			if err != nil {
+				t.Fatalf("invalid function %v", err)
+			}
+			g := graph.New()
+			nN := g.NewNode(typex.NewKV(typex.New(reflectx.String), typex.New(reflectx.String)), window.DefaultWindowingStrategy(), true)
+
+			edge, err := graph.NewParDo(g, g.Root(), fn, []*graph.Node{nN}, nil, nil)
+			if err != nil {
+				t.Fatalf("invalid pardo: %v", err)
+			}
+
+			out := &CaptureNode{UID: 1}
+
+			ta := newUserTimerAdapter(StreamID{}, map[string]timerFamilySpec{
+				"testTimer": {
+					Domain:     timers.EventTimeDomain,
+					KeyEncoder: MakeElementEncoder(test.Coder.Components[0]),
+					KeyDecoder: MakeElementDecoder(test.Coder.Components[0]),
+					WinEncoder: MakeWindowEncoder(test.Coder.Window),
+					WinDecoder: MakeWindowDecoder(test.Coder.Window),
+				},
+			})
+			pardo := &ParDo{UID: 2, Fn: edge.DoFn, Inbound: edge.Input, Out: []Node{out}, TimerTracker: ta}
+
+			now := mtime.Now()
+			tc := MakeElementEncoder(test.Coder)
+			var buf bytes.Buffer
+			for _, v := range test.timerKeys {
+				timer := TimerRecv{Key: &FullValue{Elm: v}, Windows: window.SingleGlobalWindow, Pane: typex.NoFiringPane(),
+					TimerMap: timers.TimerMap{
+						Family:        "testTimer",
+						Clear:         false,
+						FireTimestamp: now,
+						HoldTimestamp: now,
+					}}
+				if err := tc.Encode(&FullValue{Elm: timer}, &buf); err != nil {
+					t.Fatalf("failed to encode timer for key %v", v)
+				}
+			}
+
+			if err := pardo.Up(context.Background()); err != nil {
+				t.Fatalf("pardo.Up failed: %v", err)
+			}
+			if err := out.Up(context.Background()); err != nil {
+				t.Fatalf("capture.Up failed: %v", err)
+			}
+			if err := pardo.StartBundle(context.Background(), "testID", DataContext{}); err != nil {
+				t.Fatalf("pardo.StartBundle failed: %v", err)
+			}
+			if err := pardo.ProcessTimers("testTimer", &buf); err != nil {
+				t.Errorf("ProcessTimers failed when it should have succeeded: %v", err)
+			}
+			if diff := cmp.Diff(test.wantEmitted, extractValues(out.Elements...)); diff != "" {
+				t.Errorf("ParDo.ProcessTimers diff: \n%v", diff)
+			}
+
+			// Hard check modifications for expected writes.
+			for _, key := range test.wantSet {
+				ks := key.(string)
+				pair := windowKeyPair{key: string(append([]byte{byte(len(ks))}, []byte(ks)...)), window: window.GlobalWindow{}}
+				mods, ok := pardo.TimerTracker.modifications[pair]
+				if !ok {
+					t.Errorf("can't find modified timer for pair %v for lenMods: %v", pair, pardo.TimerTracker.modifications)
+				}
+				_, ok = mods.modified[timerKey{family: "testTimer", tag: "tag"}]
+				if !ok {
+					t.Errorf("can't find modified timer for pair %v for testTimer+tag", pair)
+				}
 			}
 		})
 	}

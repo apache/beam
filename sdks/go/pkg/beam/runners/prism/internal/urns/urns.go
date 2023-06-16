@@ -70,6 +70,12 @@ var (
 	TransformMapWindows    = ptUrn(pipepb.StandardPTransforms_MAP_WINDOWS)
 	TransformMergeWindows  = ptUrn(pipepb.StandardPTransforms_MERGE_WINDOWS)
 
+	// Testing
+	TransformTestStream = ptUrn(pipepb.StandardPTransforms_TEST_STREAM)
+
+	// Debugging
+	TransformToString = ptUrn(pipepb.StandardPTransforms_TO_STRING)
+
 	// Undocumented Urns
 	GoDoFn          = "beam:go:transform:dofn:v1" // Only used for Go DoFn.
 	TransformSource = "beam:runner:source:v1"     // The data source reading transform.

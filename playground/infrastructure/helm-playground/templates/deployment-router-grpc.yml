@@ -44,6 +44,12 @@ spec:
            value: TCP
          - name: DATASTORE_NAMESPACE
            value: {{ .Values.datastore_name }}
+         - name: CLEANUP_SNIPPETS_FUNCTIONS_URL
+           value: {{ .Values.func_clean }}
+         - name: PUT_SNIPPET_FUNCTIONS_URL
+           value: {{ .Values.func_put }}
+         - name: INCREMENT_SNIPPET_VIEWS_FUNCTIONS_URL
+           value: {{ .Values.func_view }}
   replicas: {{ .Values.replicaCount  }}
   selector:
     matchLabels:
