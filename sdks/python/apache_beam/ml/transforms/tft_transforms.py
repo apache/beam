@@ -21,13 +21,13 @@ implemented using the TensorFlow Transform (TFT) library. The transforms
 in this module are intended to be used in conjunction with the
 beam.ml.MLTransform class, which provides a convenient interface for
 applying a sequence of data processing transforms to a dataset with the
-help of the ProcessHandler class.
+help of the TFTProcessHandler class.
 
 See the documentation for beam.ml.MLTransform for more details.
 
 Since the transforms in this module are implemented using TFT, they
 should be wrapped inside a TFTProcessHandler object before being passed
-to the beam.ml.MLTransform class. The ProcessHandler will let MLTransform
+to the beam.ml.MLTransform class. The TFTProcessHandler will let MLTransform
 know which type of input is expected and infers the relevant schema required
 for the TFT library.
 

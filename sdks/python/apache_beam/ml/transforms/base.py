@@ -23,7 +23,7 @@ import apache_beam as beam
 # https://github.com/uqfoundation/dill/issues/332
 # import abc
 
-__all__ = ['MLTransform', 'ProcessHandler']
+__all__ = ['MLTransform']
 
 TransformedDatasetT = TypeVar('TransformedDatasetT')
 TransformedMetadataT = TypeVar('TransformedMetadataT')
@@ -58,7 +58,10 @@ class BaseOperation(Generic[OperationInputT, OperationOutputT]):
     raise NotImplementedError
 
 
-class ProcessHandler(Generic[ProcessInputT, ProcessOutputT]):
+class _ProcessHandler(Generic[ProcessInputT, ProcessOutputT]):
+  """
+  Only for internal use. No backwards compatibility guarantees.
+  """
   def process_data(
       self, pcoll: beam.PCollection[ProcessInputT]
   ) -> beam.PCollection[ProcessOutputT]:
@@ -77,11 +80,11 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
                   Generic[ExampleT, MLTransformOutputT, ]):
   def __init__(
       self,
-      process_handler: ProcessHandler[ExampleT, MLTransformOutputT],
+      process_handler: _ProcessHandler[ExampleT, MLTransformOutputT],
   ):
     """
     Args:
-      process_handler: A ProcessHandler instance that defines the logic to
+      process_handler: A _ProcessHandler instance that defines the logic to
         process the data.
     """
     self._process_handler = process_handler
@@ -91,7 +94,7 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
   ) -> beam.PCollection[MLTransformOutputT]:
     """
     This is the entrypoint for the MLTransform. This method will
-    invoke the process_data() method of the ProcessHandler instance
+    invoke the process_data() method of the _ProcessHandler instance
     to process the incoming data.
 
     process_data takes in a PCollection and applies the PTransforms
