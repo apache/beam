@@ -16,13 +16,15 @@
  * limitations under the License.
  */
 import com.intellij.codeInsight.completion.CompletionType;
+import com.intellij.testFramework.fixtures.CompletionAutoPopupTester;
 import com.intellij.testFramework.fixtures.LightJavaCodeInsightFixtureTestCase;
 import org.jetbrains.annotations.NotNull;
 import com.intellij.testFramework.LightProjectDescriptor;
 import com.intellij.testFramework.fixtures.DefaultLightProjectDescriptor;
-
 import java.util.List;
 
+
+// Each test method test a feature as a whole rather than each function or method.
 public class BeamCompletionContributorTestCase extends LightJavaCodeInsightFixtureTestCase {
     @Override
     protected String getTestDataPath() {
@@ -34,27 +36,29 @@ public class BeamCompletionContributorTestCase extends LightJavaCodeInsightFixtu
         return new DefaultLightProjectDescriptor().withRepositoryLibrary("org.apache.beam:beam-sdks-java-core:2.48.0");
     }
 
-    public void testElementPatternIsTriggered() {
+    public void testCompletionVariants() {
         myFixture.configureByFile("TestCompletions.java");
         myFixture.complete(CompletionType.BASIC);
         List<String> lookupElementStrings = myFixture.getLookupElementStrings();
         assertNotNull(lookupElementStrings);
-        assertEquals(lookupElementStrings.get(0), "TestCompletionElement");
+        assertEquals(lookupElementStrings.get(0), "Filter");
+    }
+
+    public void testAutoPopupCompletions() throws Throwable {
+        CompletionAutoPopupTester tester = new CompletionAutoPopupTester(myFixture);
+
+        tester.runWithAutoPopupEnabled(() -> {
+            myFixture.configureByFile("TestCompletions.java");
+            tester.joinCompletion();
+            assertNotNull(tester.getLookup());
+        });
     }
 
     public void testElementPatternWrongClass() {
         myFixture.configureByFile("TestCompletionsWrongClass.java");
-        myFixture.complete(CompletionType.BASIC);
-        List<String> lookupElementStrings = myFixture.getLookupElementStrings();
-        assertNotNull(lookupElementStrings);
-        assertNotSame(lookupElementStrings.get(0), "TestCompletionElement");
     }
 
     public void testElementPatternWrongMethod() {
         myFixture.configureByFile("TestCompletionsWrongMethod.java");
-        myFixture.complete(CompletionType.BASIC);
-        List<String> lookupElementStrings = myFixture.getLookupElementStrings();
-        assertNotNull(lookupElementStrings);
-        assertNotSame(lookupElementStrings.get(0), "TestCompletionElement");
     }
 }

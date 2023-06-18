@@ -31,6 +31,6 @@ import org.apache.beam.sdk.values.TypeDescriptors;
 public class TestCompletionsWrongClass {
     public static void main(String[] args) {
         String test = "Test";
-        test.apply(T<caret>);
+        test.apply(Fi<caret>);
     }
 }
