@@ -28,7 +28,6 @@ import com.intellij.codeInsight.lookup.LookupElementBuilder;
 import com.intellij.util.ProcessingContext;
 import org.jetbrains.annotations.NotNull;
 
-
 /**
  * The `BeamCompletionContributor` class is a subclass of `CompletionContributor` that provides code completion
  * suggestions specifically for Apache Beam pipelines.
