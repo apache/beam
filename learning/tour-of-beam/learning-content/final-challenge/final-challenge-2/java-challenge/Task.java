@@ -29,8 +29,6 @@
 //   tags:
 //     - hellobeam
 
-package com.example.demo;
-
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -41,9 +39,11 @@ import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 import org.apache.beam.sdk.transforms.*;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TypeDescriptors;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -56,11 +56,11 @@ public class Task {
     }
 
     static void runChallenge(PipelineOptions options) {
-        Pipeline p = Pipeline.create(options);
+        Pipeline pipeline = Pipeline.create(options);
 
         PCollection<String> shakespeare = getPCollection(pipeline);
 
-        p.run();
+        pipeline.run();
     }
 
     public static PCollection<String> getPCollection(Pipeline pipeline) {
@@ -71,7 +71,7 @@ public class Task {
 
     public static PCollection<?> getAnalysisPCollection(Pipeline pipeline) {
         PCollection<String> words = pipeline.apply(TextIO.read().from("analysis.csv"));
-        return analysisPCollection;
+        return words;
     }
 
     @DefaultSchema(JavaFieldSchema.class)

@@ -68,7 +68,7 @@ public class Task {
         PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
         Pipeline pipeline = Pipeline.create(options);
 
-        PCollection<Transaction> input = pipeline.apply(TextIO.read().from("input.csv"));
+        PCollection<String> input = pipeline.apply(TextIO.read().from("input.csv"));
 
         pipeline.run().waitUntilFinish();
     }

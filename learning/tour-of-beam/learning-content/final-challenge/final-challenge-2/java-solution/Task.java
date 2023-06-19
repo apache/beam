@@ -181,7 +181,7 @@ public class Task {
     static class SentimentAnalysisExtractFn extends DoFn<String, Analysis> {
         @ProcessElement
         public void processElement(ProcessContext c) {
-            String[] items = c.element().split(REGEX_FOR_CSV);
+            String[] items = c.element().split(",");
             if(!items[1].equals("Negative"))
                 c.output(new Analysis(items[0].toLowerCase(), items[1], items[2], items[3], items[4], items[5], items[6], items[7]));
         }
@@ -203,7 +203,7 @@ public class Task {
         @Override
         public Analysis decode(InputStream inStream) throws IOException {
             final String serializedDTOs = new String(StreamUtils.getBytesWithoutClosing(inStream));
-            String[] items = serializedDTOs.split(";");
+            String[] items = serializedDTOs.split(",");
             return new Analysis(items[0].toLowerCase(), items[1], items[2], items[3], items[4], items[5], items[6], items[7]);
         }
 
