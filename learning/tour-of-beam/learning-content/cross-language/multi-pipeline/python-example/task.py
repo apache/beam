@@ -24,7 +24,7 @@
 #   categories:
 #     - Quickstart
 #   complexity: ADVANCED
-#   pipeline_options: --runner=PortableRunner --job_endpoint=localhost:9093
+#   pipeline_options: --runner=PortableRunner --job_endpoint=localhost:9091
 #   never_run: false
 #   tags:
 #     - hellobeam
@@ -64,7 +64,7 @@ def run(input_path, output_path, pipeline_args):
                 | 'JavaCount' >> beam.ExternalTransform(
             'beam:transform:org.apache.beam:javacount:v1',
             None,
-            "localhost:9055"))
+            "localhost:9092"))
 
       def format(kv):
             key, value = kv
