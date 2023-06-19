@@ -32,7 +32,6 @@ import java.util.Map;
 import org.apache.avro.Conversions;
 import org.apache.avro.LogicalType;
 import org.apache.avro.LogicalTypes;
-import org.apache.avro.RandomData;
 import org.apache.avro.Schema.Type;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
@@ -78,13 +77,37 @@ public class AvroUtilsTest {
   private static final org.apache.avro.Schema NULL_SCHEMA =
       org.apache.avro.Schema.create(Type.NULL);
 
+  private static final String VERSION_AVRO =
+      org.apache.avro.Schema.class.getPackage().getImplementationVersion();
+
+  private Iterable<?> randomData(org.apache.avro.Schema schema, int maxLength) throws Exception {
+    Iterable<?> data;
+    if (VERSION_AVRO.equals("1.8.2")) {
+      data =
+          (Iterable<?>)
+              Class.forName("org.apache.avro.RandomData")
+                  .getDeclaredConstructor(org.apache.avro.Schema.class, Integer.TYPE)
+                  .newInstance(schema, maxLength);
+    } else {
+      data =
+          (Iterable<?>)
+              Class.forName("org.apache.avro.util.RandomData")
+                  .getDeclaredConstructor(org.apache.avro.Schema.class, Integer.TYPE, Boolean.TYPE)
+                  // force Utf8 in random data to match with String type used in AvroUtils
+                  .newInstance(schema, maxLength, true);
+    }
+    return data;
+  }
+
   @Property(trials = 1000)
   @SuppressWarnings("unchecked")
   public void supportsAnyAvroSchema(
-      @From(AvroGenerators.RecordSchemaGenerator.class) org.apache.avro.Schema avroSchema) {
+      @From(AvroGenerators.RecordSchemaGenerator.class) org.apache.avro.Schema avroSchema)
+      throws Exception {
 
     Schema schema = AvroUtils.toBeamSchema(avroSchema);
-    Iterable iterable = new RandomData(avroSchema, 10);
+    Iterable<?> iterable = randomData(avroSchema, 10);
+
     List<GenericRecord> records = Lists.newArrayList((Iterable<GenericRecord>) iterable);
 
     for (GenericRecord record : records) {
@@ -95,10 +118,11 @@ public class AvroUtilsTest {
   @Property(trials = 1000)
   @SuppressWarnings("unchecked")
   public void avroToBeamRoundTrip(
-      @From(AvroGenerators.RecordSchemaGenerator.class) org.apache.avro.Schema avroSchema) {
+      @From(AvroGenerators.RecordSchemaGenerator.class) org.apache.avro.Schema avroSchema)
+      throws Exception {
 
     Schema schema = AvroUtils.toBeamSchema(avroSchema);
-    Iterable iterable = new RandomData(avroSchema, 10);
+    Iterable iterable = randomData(avroSchema, 10);
     List<GenericRecord> records = Lists.newArrayList((Iterable<GenericRecord>) iterable);
 
     for (GenericRecord record : records) {
