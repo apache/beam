@@ -33,7 +33,6 @@ import warnings
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions, GoogleCloudOptions, SetupOptions
-#from google.cloud import bigquery
 from apache_beam.io.gcp.bigquery import ReadFromBigQueryRequest, ReadAllFromBigQuery
 
 class WeatherData:
