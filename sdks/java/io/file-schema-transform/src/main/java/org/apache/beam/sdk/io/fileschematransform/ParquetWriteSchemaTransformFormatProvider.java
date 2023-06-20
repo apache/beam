@@ -61,7 +61,8 @@ public class ParquetWriteSchemaTransformFormatProvider
 
   /**
    * Builds a {@link PTransform} that transforms a {@link Row} {@link PCollection} into result
-   * {@link PCollectionTuple} with two tags, one for file names written using {@link ParquetIO.Sink} and {@link FileIO.Write}, another for errored-out rows.
+   * {@link PCollectionTuple} with two tags, one for file names written using {@link ParquetIO.Sink}
+   * and {@link FileIO.Write}, another for errored-out rows.
    */
   @Override
   public PTransform<PCollection<Row>, PCollectionTuple> buildTransform(
@@ -91,7 +92,8 @@ public class ParquetWriteSchemaTransformFormatProvider
                     .withOutputTags(ERROR_FN_OUPUT_TAG, TupleTagList.of(ERROR_TAG)));
 
         PCollection<String> output =
-            parquet.get(ERROR_FN_OUPUT_TAG)
+            parquet
+                .get(ERROR_FN_OUPUT_TAG)
                 .setCoder(coder)
                 .apply("Write Parquet", write)
                 .getPerDestinationOutputFilenames()

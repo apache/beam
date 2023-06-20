@@ -37,7 +37,8 @@ public interface FileWriteSchemaTransformFormatProvider extends Providers.Identi
 
   /**
    * Builds a {@link PTransform} that writes a {@link Row} {@link PCollection} and outputs the
-   * resulting {@link PCollectionTuple} with two tags, one for the file names, and another errored-out rows.
+   * resulting {@link PCollectionTuple} with two tags, one for the file names, and another
+   * errored-out rows.
    */
   PTransform<PCollection<Row>, PCollectionTuple> buildTransform(
       FileWriteSchemaTransformConfiguration configuration, Schema schema);
