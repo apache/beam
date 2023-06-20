@@ -154,3 +154,10 @@ task copyTsSource(type: Copy) {
 jest.dependsOn copyTsSource
 eslint.dependsOn copyTsSource
 copyTsSource.dependsOn cleanPython
+
+
+toxTask "lintPy38", "py38-lint", "${posargs}"
+lint.dependsOn lintPy38
+
+toxTask "mypyPy38", "py38-mypy", "${posargs}"
+lint.dependsOn mypyPy38
