@@ -153,7 +153,8 @@ public class AvroUtils {
   private static final ForLoadedType JODA_INSTANT = new ForLoadedType(Instant.class);
 
   public static void addLogicalTypeConversions(final GenericData data) {
-    data.addLogicalTypeConversion(new Conversions.DecimalConversion());
+    // do not add DecimalConversion by default as schema must have extra 'scale' and 'precision'
+    // properties. avro reflect already handles BigDecimal as string with the 'java-class' property
     data.addLogicalTypeConversion(new Conversions.UUIDConversion());
     // joda-time
     data.addLogicalTypeConversion(new AvroJodaTimeConversions.DateConversion());
