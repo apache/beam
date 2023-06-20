@@ -251,7 +251,7 @@ class TestWriteToBigtableXlang(unittest.TestCase):
     # after transform executes, get actual row from table
     actual_row: PartialRowData = self.table.read_row('key-1')
 
-    # we deleted the column family 'col_fam-1', so this check should throw an error
+    # we deleted column family 'col_fam-1', so this check should throw an error
     with self.assertRaises(KeyError):
       actual_row.find_cells('col_fam-1', b'col')
 
