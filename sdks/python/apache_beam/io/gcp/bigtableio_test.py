@@ -146,7 +146,7 @@ class TestReadFromBigTable(unittest.TestCase):
 
       assert_that(cells, equal_to(expected_cells))
 
-
+@unittest.skipIf(client is None, 'Bigtable dependencies are not installed')
 class TestBeamRowToPartialRowData(unittest.TestCase):
   # Beam Row schema:
   # - key: bytes
