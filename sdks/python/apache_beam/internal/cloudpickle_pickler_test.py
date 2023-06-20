@@ -19,7 +19,6 @@
 
 # pytype: skip-file
 
-import sys
 import threading
 import types
 import unittest
@@ -106,7 +105,6 @@ class PicklerTest(unittest.TestCase):
         types.MappingProxyType, type(loads(dumps(types.MappingProxyType({})))))
 
   # pylint: disable=exec-used
-  @unittest.skipIf(sys.version_info < (3, 7), 'Python 3.7 or above only')
   def test_dataclass(self):
     exec(
         '''

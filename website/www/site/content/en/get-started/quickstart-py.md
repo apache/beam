@@ -23,7 +23,7 @@ If you're interested in contributing to the Apache Beam Python codebase, see the
 
 {{< toc >}}
 
-The Python SDK supports Python 3.7, 3.8, 3.9 and 3.10. Beam 2.38.0 was the last release with support for Python 3.6.
+The Python SDK supports Python 3.8, 3.9, 3.10 and 3.11. Beam 2.48.0 was the last release with support for Python 3.7.
 
 ## Set up your environment
 
