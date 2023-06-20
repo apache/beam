@@ -30,6 +30,7 @@ import '../../cache/unit_progress.dart';
 import '../../enums/save_code_status.dart';
 import '../../enums/snippet_type.dart';
 import '../../models/event_context.dart';
+import '../../models/node.dart';
 import '../../models/unit.dart';
 import '../../models/unit_content.dart';
 import '../../services/analytics/events/unit_closed.dart';
@@ -64,7 +65,6 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
         playgroundController = _createPlaygroundController(initialSdk.id) {
     _appNotifier.sdk ??= initialSdk;
     contentTreeController.addListener(_onUnitChanged);
-    _unitContentCache.addListener(_onUnitChanged);
     _appNotifier.addListener(_onAppNotifierChanged);
     _authNotifier.addListener(_onAuthChanged);
     _saveCodeDebounced = _saveCode.debounced(
@@ -125,10 +125,10 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   Future<void> _onAppNotifierChanged() async {
     playgroundController.setSdk(currentSdk);
     _listenToCurrentSnippetEditingController();
-
-    await _unitProgressCache.loadUnitProgress(currentSdk);
-    _trySetSnippetType(SnippetType.saved);
-    await _loadSnippetByType();
+    final currentNode = contentTreeController.currentNode;
+    if (currentNode != null) {
+      await _loadUnit(currentNode);
+    }
   }
 
   Future<void> _onUnitChanged() async {
@@ -137,25 +137,29 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     if (currentNode is! UnitModel) {
       await _emptyPlayground();
     } else {
-      _setUnitContent(null);
-      notifyListeners();
-
-      final content = await _unitContentCache.getUnitContent(
-        currentSdk.id,
-        currentNode.id,
-      );
-
-      _setUnitContent(content);
-      await _unitProgressCache.loadUnitProgress(currentSdk);
-
-      if (content != _currentUnitContent) {
-        return; // Changed while waiting.
-      }
-
-      _trySetSnippetType(SnippetType.saved);
-      await _loadSnippetByType();
+      await _loadUnit(currentNode);
     }
     notifyListeners();
+  }
+
+  Future<void> _loadUnit(NodeModel node) async {
+    _setUnitContent(null);
+    notifyListeners();
+
+    final content = await _unitContentCache.getUnitContent(
+      currentSdk.id,
+      node.id,
+    );
+
+    _setUnitContent(content);
+    await _unitProgressCache.loadUnitProgress(currentSdk);
+
+    if (content != _currentUnitContent) {
+      return; // Changed while waiting.
+    }
+
+    _trySetSnippetType(SnippetType.saved);
+    await _loadSnippetByType();
   }
 
   void _setUnitContent(UnitContentModel? unitContent) {
@@ -378,7 +382,6 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
 
   @override
   Future<void> dispose() async {
-    _unitContentCache.removeListener(_onUnitChanged);
     contentTreeController.removeListener(_onUnitChanged);
     _appNotifier.removeListener(_onAppNotifierChanged);
     _authNotifier.removeListener(_onAuthChanged);

@@ -18,6 +18,7 @@
 
 // ignore_for_file: avoid_print
 
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
@@ -26,7 +27,9 @@ import 'package:playground_components/playground_components.dart';
 import 'package:playground_components_dev/playground_components_dev.dart';
 import 'package:tour_of_beam/cache/content_tree.dart';
 import 'package:tour_of_beam/cache/sdk.dart';
+import 'package:tour_of_beam/cache/unit_content.dart';
 import 'package:tour_of_beam/components/builders/content_tree.dart';
+import 'package:tour_of_beam/models/content_tree.dart';
 import 'package:tour_of_beam/models/module.dart';
 import 'package:tour_of_beam/models/parent_node.dart';
 import 'package:tour_of_beam/models/unit.dart';
@@ -35,6 +38,7 @@ import 'package:tour_of_beam/pages/tour/state.dart';
 import 'package:tour_of_beam/pages/tour/widgets/playground.dart';
 import 'package:tour_of_beam/pages/tour/widgets/unit.dart';
 import 'package:tour_of_beam/pages/tour/widgets/unit_content.dart';
+import 'package:tour_of_beam/state.dart';
 
 import 'common/common.dart';
 import 'common/common_finders.dart';
@@ -55,6 +59,7 @@ void main() {
       await _checkHighlightsSelectedUnit(wt);
       await _checkRunCodeWorks(wt);
       await _checkResizeUnitContent(wt);
+      await _checkSdkChanges(wt);
 
       expect(
         ExamplesLoader.failedToLoadExamples,
@@ -245,4 +250,100 @@ PlaygroundController _getPlaygroundController(WidgetTester wt) {
 Set<String> _getExpandedIds(WidgetTester wt) {
   final controller = getContentTreeController(wt);
   return controller.expandedIds;
+}
+
+Future<void> _checkSdkChanges(WidgetTester wt) async {
+  await _selectUnitWithSnippetsInAllSdks(wt);
+  await _checkSnippetChangesOnSdkChanging(wt);
+}
+
+Future<void> _selectUnitWithSnippetsInAllSdks(WidgetTester wt) async {
+  final unitWithSnippets = await _findUnitWithSnippetsInAllSdks(wt);
+
+  if (unitWithSnippets == null) {
+    fail('No unit with snippets in all sdks');
+  }
+
+  final controller = getContentTreeController(wt);
+  controller.onNodePressed(unitWithSnippets);
+  await wt.pumpAndSettle();
+}
+
+Future<UnitModel?> _findUnitWithSnippetsInAllSdks(WidgetTester wt) async {
+  final commonUnits = await _getCommonUnitsInAllSdks(wt);
+  for (final unit in commonUnits) {
+    if (await _hasSnippetsInAllSdks(unit)) {
+      return unit;
+    }
+  }
+  return null;
+}
+
+Future<bool> _hasSnippetsInAllSdks(UnitModel unit) async {
+  final unitContentCache = GetIt.instance.get<UnitContentCache>();
+  final sdks = GetIt.instance.get<SdkCache>().getSdks();
+  for (final sdk in sdks) {
+    final unitContent = await unitContentCache.getUnitContent(sdk.id, unit.id);
+    if (unitContent.taskSnippetId == null) {
+      return false;
+    }
+  }
+  return true;
+}
+
+Future<Set<UnitModel>> _getCommonUnitsInAllSdks(WidgetTester wt) async {
+  final contentTrees = await _loadAllContentTrees(wt);
+  final sdkUnits = List<Set<UnitModel>>.empty(growable: true);
+  for (final tree in contentTrees) {
+    sdkUnits.add(tree.getUnits().toSet());
+  }
+
+  // Identifies and stores the common units across all lists within
+  // the 'sdkUnits' list by iteratively removing elements from the first list
+  // that don't exist in the subsequent lists.
+  final commonUnitTitles = sdkUnits.first;
+  for (final units in sdkUnits.skip(1)) {
+    commonUnitTitles.removeWhere((u) => !units.contains(u));
+  }
+
+  return commonUnitTitles;
+}
+
+Future<List<ContentTreeModel>> _loadAllContentTrees(WidgetTester wt) async {
+  final sdkCache = GetIt.instance.get<SdkCache>();
+  final contentTreeCache = GetIt.instance.get<ContentTreeCache>();
+  final sdks = sdkCache.getSdks();
+  final nullableTrees = await Future.wait(
+    sdks.map((sdk) async => contentTreeCache.getContentTree(sdk)),
+  );
+
+  return nullableTrees.whereNotNull().toList(growable: false);
+}
+
+Future<void> _checkSnippetChangesOnSdkChanging(WidgetTester wt) async {
+  final defaultSdk = _getTourNotifier(wt).playgroundController.sdk;
+  final sdkCache = GetIt.instance.get<SdkCache>();
+
+  for (final sdk in sdkCache.getSdks()) {
+    if (sdk == defaultSdk) {
+      continue;
+    }
+
+    await _setSdk(sdk.title, wt);
+
+    final selectedExample =
+        _getTourNotifier(wt).playgroundController.selectedExample;
+    final appNotifier = GetIt.instance.get<AppNotifier>();
+    final actualSdk = selectedExample?.sdk;
+    expect(actualSdk, appNotifier.sdk);
+  }
+
+  await _setSdk(defaultSdk!.title, wt);
+}
+
+Future<void> _setSdk(String title, WidgetTester wt) async {
+  await wt.tapAndSettle(find.sdkDropdown());
+  await wt.tapAndSettle(
+    find.dropdownMenuItemWithText(title).first,
+  );
 }

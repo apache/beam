@@ -17,7 +17,7 @@
 ###############################################################################
 
 FROM debian:11 as build
-ARG FLUTTER_VERSION=3.10.2
+ARG FLUTTER_VERSION=3.10.4
 ARG BUILD_COMMIT_HASH
 ARG BUILD_COMMIT_SECONDS_SINCE_EPOCH
 
