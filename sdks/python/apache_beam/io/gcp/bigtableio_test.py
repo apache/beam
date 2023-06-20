@@ -60,9 +60,9 @@ except ImportError as e:
 
 
 @pytest.mark.uses_gcp_java_expansion_service
-# @unittest.skipUnless(
-#   os.environ.get('EXPANSION_PORT'),
-#   "EXPANSION_PORT environment var is not provided.")
+@unittest.skipUnless(
+    os.environ.get('EXPANSION_PORT'),
+    "EXPANSION_PORT environment var is not provided.")
 @unittest.skipIf(client is None, 'Bigtable dependencies are not installed')
 class TestWriteToBigtableXlang(unittest.TestCase):
   INSTANCE = "bt-write-xlang-tests"
@@ -73,6 +73,7 @@ class TestWriteToBigtableXlang(unittest.TestCase):
     cls.test_pipeline = TestPipeline(is_integration_test=True)
     cls.project = cls.test_pipeline.get_option('project')
     cls.args = cls.test_pipeline.get_full_options_as_args()
+    cls.expansion_service = ('localhost:%s' % os.environ.get('EXPANSION_PORT'))
 
     instance_id = '%s-%s' % (cls.INSTANCE, str(int(time.time())))
 
@@ -113,6 +114,17 @@ class TestWriteToBigtableXlang(unittest.TestCase):
     except HttpError:
       _LOGGER.debug(
           "Failed to clean up instance [%s]", cls.instance.instance_id)
+
+  def run_pipeline(self, rows):
+    with beam.Pipeline(argv=self.args) as p:
+      _ = (
+          p
+          | beam.Create(rows)
+          | bigtableio.WriteToBigtableXlang(
+              table_id=self.table.table_id,
+              instance_id=self.instance.instance_id,
+              project_id=self.project,
+              expansion_service=self.expansion_service))
 
   def test_set_mutation(self):
     row1: DirectRow = DirectRow('key-1')
@@ -273,16 +285,6 @@ class TestWriteToBigtableXlang(unittest.TestCase):
     self.assertEqual(None, actual_row1)
     # check row 2 exists with the correct cell value in col
     self.assertEqual(b'val-2', actual_row2.cell_value('col_fam', b'col'))
-
-  def run_pipeline(self, rows):
-    with beam.Pipeline(argv=self.args) as p:
-      _ = (
-          p
-          | beam.Create(rows)
-          | bigtableio.WriteToBigtableXlang(
-              table_id=self.table.table_id,
-              instance_id=self.instance.instance_id,
-              project_id=self.project))
 
 
 @unittest.skipIf(client is None, 'Bigtable dependencies are not installed')
