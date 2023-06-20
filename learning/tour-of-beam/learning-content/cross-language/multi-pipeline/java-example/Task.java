@@ -47,7 +47,7 @@ import org.apache.beam.sdk.values.Row;
 //     - Quickstart
 //   complexity: ADVANCED
 //   never_run: false
-//   pipeline_options: --output=output.txt --runner=PortableRunner --jobEndpoint=localhost:9093
+//   pipeline_options: --output=output.txt --runner=PortableRunner --jobEndpoint=localhost:9091
 //   tags:
 //     - hellobeam
 
