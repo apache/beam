@@ -31,16 +31,79 @@ RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28.1 &&\
 
 # Prepare Application
 COPY src /go/src/playground/backend
-#COPY playground /go/src/playground/playground
 WORKDIR /go/src/playground/backend
 RUN ls
+
 # Build Application
 RUN go mod download &&\
     go mod tidy &&\
     cd cmd/server &&\
     go build -ldflags="-X main.BuildCommitHash=$GIT_COMMIT -X main.BuildCommitTimestamp=$GIT_TIMESTAMP" -o /go/bin/server_python_backend
 
-FROM $BASE_IMAGE
+FROM python:3.10-slim-bullseye
+
+ARG SDK_TAG
+ARG DOCKER_CHANNEL=stable
+ARG DOCKER_VERSION=20.10.24
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+  apt-transport-https \
+  ca-certificates \
+  curl \
+  gnupg2 \
+  software-properties-common
+
+RUN install -m 0755 -d /etc/apt/keyrings
+RUN curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+RUN chmod a+r /etc/apt/keyrings/docker.gpg
+
+RUN echo \
+  "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \
+  "$(. /etc/os-release && echo "$VERSION_CODENAME")" ${DOCKER_CHANNEL}" | \
+  tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+RUN apt-get update && apt-get install -y --no-install-recommends docker-ce=5:${DOCKER_VERSION}~3-0~debian-bullseye && \
+  docker -v && \
+  dockerd -v
+
+ARG DIND_COMMIT=deda3d4933d3c0bd57f2cef672da5d28fc653706
+ENV DOCKER_EXTRA_OPTS '--storage-driver=overlay'
+RUN curl -fL -o /usr/local/bin/dind "https://raw.githubusercontent.com/moby/moby/${DIND_COMMIT}/hack/dind" && \
+	chmod +x /usr/local/bin/dind
+
+ENV VIRTUAL_ENV=/opt/playground/venv
+RUN mkdir -p $VIRTUAL_ENV
+RUN python3 -m venv $VIRTUAL_ENV
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+
+ARG BEAM_VERSION
+RUN pip install --upgrade pip
+RUN pip install apache-beam[gcp,interactive,dataframe]==${SDK_TAG}
+RUN pip install --default-timeout=100 torch
+RUN pip install torchvision
+RUN pip install pandas
+RUN pip install scikit-learn
+
+RUN apt-get update
+RUN apt-get install -y wget
+
+RUN wget -qO - https://adoptopenjdk.jfrog.io/adoptopenjdk/api/gpg/key/public | apt-key add -
+RUN add-apt-repository --yes https://adoptopenjdk.jfrog.io/adoptopenjdk/deb/
+RUN apt-get update
+RUN apt-get update && apt-get install -y openjdk-11-jre-headless
+
+ARG BEAM_VERSION
+ARG REPO_URL=https://repo1.maven.org/maven2
+
+ARG MULTILANGUAGE_PIPELINE_EXAMPLES=${REPO_URL}/org/apache/beam/beam-examples-multi-language/${SDK_TAG}/beam-examples-multi-language-${SDK_TAG}.jar
+RUN wget  $MULTILANGUAGE_PIPELINE_EXAMPLES &&\
+mv beam-examples-multi-language-${SDK_TAG}.jar beam-examples-multi-language.jar
+
+################
+## Pre-pulled images ##
+################
+COPY ./images/* /images/
+
 ARG SDK_TAG
 ENV BEAM_VERSION=$SDK_TAG
 ENV SERVER_IP=0.0.0.0
@@ -48,6 +111,8 @@ ENV SERVER_PORT=8080
 ENV APP_WORK_DIR=/opt/playground/backend/
 ENV BEAM_SDK="SDK_PYTHON"
 ENV PROPERTY_PATH=/opt/playground/backend/properties.yaml
+ENV JOB_SERVICE_PORT=9091
+ENV EXT_SERVICE_PORT=9092 
 
 # Copy build result
 COPY --from=build /go/bin/server_python_backend /opt/playground/backend/
@@ -75,7 +140,6 @@ RUN mkdir -p /opt/playground/backend/executable_files/
 # Chown all required files to the `appuser`.
 RUN chown -R appuser:appgroup /opt/playground/backend/executable_files/ && chmod +x /entrypoint.sh
 
-# Switch to appuser
-USER appuser
+VOLUME /var/lib/docker
 
 ENTRYPOINT ["/entrypoint.sh"]

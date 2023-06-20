@@ -19,10 +19,10 @@
 #   description: Sql transform
 #   multifile: false
 #   context_line: 35
+#   pipeline_options: --runner=PortableRunner --job_endpoint=localhost:9091
 #   categories:
 #     - Quickstart
 #   complexity: BASIC
-#   never_run: true
 #   tags:
 #     - hellobeam
 

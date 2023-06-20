@@ -29,7 +29,6 @@ RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28.1 &&\
 
 # Prepare Application
 COPY src /go/src/playground/backend
-#COPY playground /go/src/playground/playground
 WORKDIR /go/src/playground/backend
 
 # Build Application
@@ -67,6 +66,64 @@ ARG CALCITE_VERSION=1_28_0
 ARG BYTEBUDDY_VERSION=1.12.14
 ARG FASTJSON_VERSION=1.2.69
 ARG JANINO_VERSION=3.0.11
+ENV JOB_SERVICE_PORT=9091
+
+ARG DOCKER_CHANNEL=stable
+ARG DOCKER_VERSION=20.10.24
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+  apt-transport-https \
+  ca-certificates \
+  curl \
+  gnupg2 \
+  software-properties-common
+
+RUN install -m 0755 -d /etc/apt/keyrings
+RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+RUN chmod a+r /etc/apt/keyrings/docker.gpg
+
+RUN echo \
+  "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+  "$(. /etc/os-release && echo "$VERSION_CODENAME")" ${DOCKER_CHANNEL}" | \
+  tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+RUN apt-get update && apt-get install -y --no-install-recommends docker-ce=5:${DOCKER_VERSION}~3-0~ubuntu-jammy && \
+  docker -v && \
+  dockerd -v
+
+ARG DIND_COMMIT=deda3d4933d3c0bd57f2cef672da5d28fc653706
+ENV DOCKER_EXTRA_OPTS '--storage-driver=overlay'
+RUN curl -fL -o /usr/local/bin/dind "https://raw.githubusercontent.com/moby/moby/${DIND_COMMIT}/hack/dind" && \
+	chmod +x /usr/local/bin/dind
+
+RUN apt-get update && apt-get install -y python3.10-venv
+
+ENV VIRTUAL_ENV=/opt/playground/venv
+RUN mkdir -p $VIRTUAL_ENV
+RUN python3 -m venv $VIRTUAL_ENV
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+
+ARG BEAM_VERSION
+RUN pip install --upgrade pip
+RUN pip install apache-beam[gcp,interactive,dataframe]==${BEAM_VERSION}
+RUN pip install --default-timeout=100 torch
+RUN pip install torchvision
+RUN pip install pandas
+RUN pip install scikit-learn
+
+RUN apt-get update
+RUN apt-get install -y wget
+
+RUN apt-get install -y openjdk-11-jre-headless
+
+ARG REPO_URL=https://repo1.maven.org/maven2
+ARG SQL_EXPANSION_SERVICE_JAR=${REPO_URL}/org/apache/beam/beam-sdks-java-extensions-sql-expansion-service/${BEAM_VERSION}/beam-sdks-java-extensions-sql-expansion-service-${BEAM_VERSION}.jar
+RUN curl -O -L $SQL_EXPANSION_SERVICE_JAR
+
+################
+## Pre-pulled images ##
+################
+COPY ./images/* /images/
 
 # Copy build result
 COPY --from=build /go/bin/server_java_backend /opt/playground/backend/
@@ -76,6 +133,9 @@ COPY --from=build /go/src/playground/backend/datasets /opt/playground/backend/da
 COPY --from=dep /pipeline-dependencies/target/dependency/ /opt/apache/beam/jars/
 
 # Install Beam Examples
+RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-examples-multi-language/$BEAM_VERSION/beam-examples-multi-language-$BEAM_VERSION.jar &&\
+    mv beam-examples-multi-language-$BEAM_VERSION.jar /opt/apache/beam/jars/beam-examples-multi-language.jar
+# Install Xlang Beam Examples
 RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-examples-java/$BEAM_VERSION/beam-examples-java-$BEAM_VERSION.jar &&\
     mv beam-examples-java-$BEAM_VERSION.jar /opt/apache/beam/jars/beam-examples-java.jar
 # Install jars for Playground graphs
@@ -111,7 +171,7 @@ RUN wget  https://repo1.maven.org/maven2/org/codehaus/janino/janino/$JANINO_VERS
 
 RUN wget  https://repo1.maven.org/maven2/org/codehaus/janino/commons-compiler/$JANINO_VERSION/commons-compiler-$JANINO_VERSION.jar &&\
     mv commons-compiler-$JANINO_VERSION.jar /opt/apache/beam/jars/commons-compiler-$JANINO_VERSION.jar
-    
+
 # Install Java Katas Utils
 COPY katas /go/src/katas
 RUN cd /go/src/katas &&\
@@ -129,14 +189,13 @@ RUN cd /opt/playground/backend/kafka-emulator/ && tar -xvf kafka-emulator.tar &&
 RUN groupadd --gid 20000 appgroup \
   && useradd --uid 20000 --gid appgroup --shell /bin/bash --create-home appuser
 
+RUN echo 'export PATH="/opt/java/openjdk/bin:$PATH"' >> /home/appuser/.bashrc
+
 RUN mkdir -p /opt/playground/backend/executable_files/
 
 # Chown all required files to the `appuser`.
 
 RUN chown -R appuser:appgroup /opt/playground/backend/executable_files/ && chmod o+r /opt/apache/beam/jars/* \
   && chmod +x /entrypoint.sh
-
-# Switch to appuser
-USER appuser
 
 ENTRYPOINT ["/entrypoint.sh"]

@@ -110,6 +110,7 @@ services:
       - "8086:8086"
     depends_on:
       - redis
+    privileged: true
 
   python_runner:
     image: apache/beam_playground-backend-python
@@ -122,6 +123,7 @@ services:
       - "8088:8088"
     depends_on:
       - redis
+    privileged: true
 
   scio_runner:
     image: apache/beam_playground-backend-scio

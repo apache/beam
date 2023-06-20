@@ -32,7 +32,7 @@ const (
 	indentationReplacement = "$0"
 	EmptyLine              = ""
 	GraphFileName          = "graph.dot"
-	pythonGraphCodePattern = "$0# Write graph to file\n$0from apache_beam.runners.interactive.display import pipeline_graph\n$0dot = pipeline_graph.PipelineGraph(%s).get_dot()\n$0with open('%s', 'w') as file:\n$0  file.write(dot)\n"
+	pythonGraphCodePattern = "$0# Write graph to file\n$0from apache_beam.runners.interactive.display import pipeline_graph\n$0try:\n$0  dot = pipeline_graph.PipelineGraph(%s).get_dot()\n$0  with open('%s', 'w') as file:\n$0    file.write(dot)\n$0except:\n$0  pass\n"
 	newLinePattern         = "\n"
 	tmpFileSuffix          = "tmp"
 )

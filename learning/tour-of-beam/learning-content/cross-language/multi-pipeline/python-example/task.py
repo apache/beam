@@ -17,12 +17,15 @@
 # beam-playground:
 #   name: multi-pipeline
 #   description: Multi pipeline example.
-#   multifile: false
+#   multifile: true
+#   files:
+#    - name: input.txt
 #   context_line: 35
 #   categories:
 #     - Quickstart
 #   complexity: ADVANCED
-#   never_run: true
+#   pipeline_options: --runner=PortableRunner --job_endpoint=localhost:9091
+#   never_run: false
 #   tags:
 #     - hellobeam
 
@@ -59,9 +62,9 @@ def run(input_path, output_path, pipeline_args):
 
       java_output = (words
                 | 'JavaCount' >> beam.ExternalTransform(
-            'my.beam.transform.javacount',
+            'beam:transform:org.apache.beam:javacount:v1',
             None,
-            "localhost:12345"))
+            "localhost:9092"))
 
       def format(kv):
             key, value = kv
@@ -80,13 +83,11 @@ if __name__ == '__main__':
         '--input',
         dest='input',
         default='input.txt',
-        required=True,
         help='Input file')
     parser.add_argument(
         '--output',
         dest='output',
         default='output.txt',
-        required=True,
         help='Output file')
     known_args, pipeline_args = parser.parse_known_args()
 

@@ -211,7 +211,7 @@ do
         continue
     fi
     LogOutput "Starting container for $sdk runner"
-    docker run -d -p 8080:8080 --network=cloudbuild -e PROTOCOL_TYPE=TCP --name container-${sdk} apache/beam_playground-backend-${sdk}:$DOCKERTAG
+    docker run -d -p 8080:8080 --network=cloudbuild  --privileged=true -e PROTOCOL_TYPE=TCP --name container-${sdk} apache/beam_playground-backend-${sdk}:$DOCKERTAG
     sleep 10
     export SERVER_ADDRESS=container-${sdk}:8080
 

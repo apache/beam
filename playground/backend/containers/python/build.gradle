@@ -24,6 +24,15 @@ applyDockerNature()
 
 def playgroundJobServerProject = "${project.path.replace('-container', '')}"
 def default_beam_version = "2.44.0"
+
+def beam_version = project.rootProject.hasProperty(["sdk-tag"]) ?
+project.rootProject["sdk-tag"] : default_beam_version
+
+def sdks = [
+   'beam_python3.10_sdk',
+   'beam_java11_sdk'
+   ]
+
 description = project(playgroundJobServerProject).description + " :: Container"
 
 configurations {
@@ -40,7 +49,33 @@ task copyKafkaEmulator(type: Copy) {
    into 'build/kafka-emulator/'
 }
 
+tasks.register("prePullSdkImages") {
+ doFirst {
+            exec {
+            executable 'sh'
+            args "-c", "mkdir -p build/images/"
+         }
+
+      for (String sdk: sdks) {
+         exec {
+            executable 'sh'
+            //args '-c', "docker pull $sdk "
+            args '-c', "docker pull apache/$sdk:${beam_version}"
+         }
+      }
+   }
+   doLast {
+      for (String sdk: sdks) {
+            exec {
+               executable 'sh'
+               args '-c', "docker save apache/${sdk} >build//images//${sdk}.tar"
+            }
+      }
+   }
+  }
+
 task copyDockerfileDependencies {
+   dependsOn("prePullSdkImages")
    dependsOn("copyKafkaEmulator")
 
    doLast {

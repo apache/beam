@@ -61,6 +61,8 @@ spec:
          limits:
            cpu: "4000m"
            memory: "16000Mi"
+       securityContext:
+         privileged: true
   replicas: {{ .Values.replicaCount  }}
   selector:
     matchLabels:

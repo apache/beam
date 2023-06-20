@@ -16,6 +16,28 @@
  * limitations under the License.
  */
 
+package org.apache.beam.examples.multilanguage;
+
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.extensions.python.PythonExternalTransform;
+import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Distribution;
+import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.options.Default;
+import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.Validation.Required;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.util.PythonCallableSource;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.Row;
+
 // beam-playground:
 //   name: multi-pipeline
 //   description: Multi pipeline example.
@@ -24,112 +46,104 @@
 //   categories:
 //     - Quickstart
 //   complexity: ADVANCED
-//   never_run: true
+//   never_run: false
+//   pipeline_options: --output=output.txt --runner=PortableRunner --jobEndpoint=localhost:9091
 //   tags:
 //     - hellobeam
 
-public class Task {
-    public static final String TOKENIZER_PATTERN = "[^\\p{L}]+";
+public class PythonDataframeWordCount {
+  public static final String TOKENIZER_PATTERN = "[^\\p{L}]+";
 
-    // Extract the words and create the rows for counting.
-    static class ExtractWordsFn extends DoFn<String, Row> {
-        public static final Schema SCHEMA =
-                Schema.of(
-                        Schema.Field.of("word", Schema.FieldType.STRING),
-                        Schema.Field.of("count", Schema.FieldType.INT32));
-        private final Counter emptyLines = Metrics.counter(ExtractWordsFn.class, "emptyLines");
-        private final Distribution lineLenDist =
-                Metrics.distribution(ExtractWordsFn.class, "lineLenDistro");
+  // Extract the words and create the rows for counting.
+  static class ExtractWordsFn extends DoFn<String, Row> {
+    public static final Schema SCHEMA =
+        Schema.of(
+            Schema.Field.of("word", Schema.FieldType.STRING),
+            Schema.Field.of("count", Schema.FieldType.INT32));
+    private final Counter emptyLines = Metrics.counter(ExtractWordsFn.class, "emptyLines");
+    private final Distribution lineLenDist =
+        Metrics.distribution(ExtractWordsFn.class, "lineLenDistro");
 
-        @ProcessElement
-        public void processElement(@Element String element, OutputReceiver<Row> receiver) {
-            lineLenDist.update(element.length());
-            if (element.trim().isEmpty()) {
-                emptyLines.inc();
-            }
+    @ProcessElement
+    public void processElement(@Element String element, OutputReceiver<Row> receiver) {
+      lineLenDist.update(element.length());
+      if (element.trim().isEmpty()) {
+        emptyLines.inc();
+      }
 
-            // Split the line into words.
-            String[] words = element.split(TOKENIZER_PATTERN, -1);
+      // Split the line into words.
+      String[] words = element.split(TOKENIZER_PATTERN, -1);
 
-            // Output each word encountered into the output PCollection.
-            for (String word : words) {
-                if (!word.isEmpty()) {
-                    receiver.output(
-                            Row.withSchema(SCHEMA)
-                                    .withFieldValue("word", word)
-                                    .withFieldValue("count", 1)
-                                    .build());
-                }
-            }
+      // Output each word encountered into the output PCollection.
+      for (String word : words) {
+        if (!word.isEmpty()) {
+          receiver.output(
+              Row.withSchema(SCHEMA)
+                  .withFieldValue("word", word)
+                  .withFieldValue("count", 1)
+                  .build());
         }
+      }
     }
+  }
+
+  /** A SimpleFunction that converts a counted row into a printable string. */
+  public static class FormatAsTextFn extends SimpleFunction<Row, String> {
+    @Override
+    public String apply(Row input) {
+      return input.getString("word") + ": " + input.getInt32("count");
+    }
+  }
+
+  /** Options supported by {@link PythonDataframeWordCount}. */
+  public interface WordCountOptions extends PipelineOptions {
 
     /**
-     * A SimpleFunction that converts a counted row into a printable string.
+     * By default, this example reads from a public dataset containing the text of King Lear. Set
+     * this option to choose a different input file or glob.
      */
-    public static class FormatAsTextFn extends SimpleFunction<Row, String> {
-        @Override
-        public String apply(Row input) {
-            return input.getString("word") + ": " + input.getInt32("count");
-        }
-    }
+    @Description("Path of the file to read from")
+    @Default.String("gs://apache-beam-samples/shakespeare/kinglear.txt")
+    String getInputFile();
 
-    /**
-     * Options supported by {@link PythonDataframeWordCount}.
-     */
-    public interface WordCountOptions extends PipelineOptions {
+    void setInputFile(String value);
 
-        /**
-         * By default, this example reads from a public dataset containing the text of King Lear. Set
-         * this option to choose a different input file or glob.
-         */
-        @Description("Path of the file to read from")
-        @Default.String("gs://apache-beam-samples/shakespeare/kinglear.txt")
-        String getInputFile();
+    /** Set this required option to specify where to write the output. */
+    @Description("Path of the file to write to")
+    @Required
+    String getOutput();
 
-        void setInputFile(String value);
+    void setOutput(String value);
 
-        /**
-         * Set this required option to specify where to write the output.
-         */
-        @Description("Path of the file to write to")
-        @Required
-        String getOutput();
+    /** Set this option to specify Python expansion service URL. */
+    @Description("URL of Python expansion service")
+    String getExpansionService();
 
-        void setOutput(String value);
+    void setExpansionService(String value);
+  }
 
-        /**
-         * Set this option to specify Python expansion service URL.
-         */
-        @Description("URL of Python expansion service")
-        String getExpansionService();
+  static void runWordCount(WordCountOptions options) {
+    Pipeline p = Pipeline.create(options);
 
-        void setExpansionService(String value);
-    }
+    p.apply("ReadLines", TextIO.read().from(options.getInputFile()))
+        .apply(ParDo.of(new ExtractWordsFn()))
+        .setRowSchema(ExtractWordsFn.SCHEMA)
+        .apply(
+            PythonExternalTransform.<PCollection<Row>, PCollection<Row>>from(
+                    "apache_beam.dataframe.transforms.DataframeTransform",
+                    options.getExpansionService())
+                .withKwarg("func", PythonCallableSource.of("lambda df: df.groupby('word').sum()"))
+                .withKwarg("include_indexes", true))
+        .apply(MapElements.via(new FormatAsTextFn()))
+        .apply("WriteCounts", TextIO.write().to(options.getOutput()));
 
-    static void runWordCount(WordCountOptions options) {
-        options.setOutput("input.txt");
-        Pipeline p = Pipeline.create(options);
+    p.run().waitUntilFinish();
+  }
 
-        p.apply("ReadLines", TextIO.read().from(options.getInputFile()))
-                .apply(ParDo.of(new ExtractWordsFn()))
-                .setRowSchema(ExtractWordsFn.SCHEMA)
-                .apply(
-                        PythonExternalTransform.<PCollection<Row>, PCollection<Row>>from(
-                                        "apache_beam.dataframe.transforms.DataframeTransform",
-                                        options.getExpansionService())
-                                .withKwarg("func", PythonCallableSource.of("lambda df: df.groupby('word').sum()"))
-                                .withKwarg("include_indexes", true))
-                .apply(MapElements.via(new FormatAsTextFn()))
-                .apply("WriteCounts", TextIO.write().to(options.getOutput()));
+  public static void main(String[] args) {
+    WordCountOptions options =
+        PipelineOptionsFactory.fromArgs(args).withValidation().as(WordCountOptions.class);
 
-        p.run().waitUntilFinish();
-    }
-
-    public static void main(String[] args) {
-        WordCountOptions options =
-                PipelineOptionsFactory.fromArgs(args).withValidation().as(WordCountOptions.class);
-
-        runWordCount(options);
-    }
+    runWordCount(options);
+  }
 }

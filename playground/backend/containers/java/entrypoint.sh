@@ -14,4 +14,31 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+set -e
+
+job_service_port="$JOB_SERVICE_PORT"
+
+echo "==> Launching the Docker daemon..."
+
+dind dockerd --iptables=false &
+while(! docker info > /dev/null 2>&1); do
+    echo "==> Waiting for the Docker daemon to come online...???"
+    sleep 1
+done
+
+echo "==> Docker Daemon is up and running!"
+
+# Import pre-installed images
+echo "==> Loading pre-pulled docker images!"
+for file in /images/*.tar; do
+echo "Loading $file"
+    docker load <$file
+done
+rm -f -r images
+
+docker images
+
+python3 -m apache_beam.runners.portability.local_job_service_main -p "$job_service_port" &> js.log  &
+
+su appuser
 /opt/playground/backend/server_java_backend
