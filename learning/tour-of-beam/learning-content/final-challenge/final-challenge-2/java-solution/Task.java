@@ -30,79 +30,44 @@
 //     - hellobeam
 
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.schemas.JavaFieldSchema;
-import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
-import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.*;
 import org.apache.beam.sdk.transforms.windowing.*;
-import org.apache.beam.sdk.util.StreamUtils;
 import org.apache.beam.sdk.values.*;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 
 public class Task {
     private static final Logger LOG = LoggerFactory.getLogger(Task.class);
-    private static final String REGEX_FOR_CSV = ",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)";
     private static final Integer WINDOW_TIME = 30;
     private static final Integer TIME_OUTPUT_AFTER_FIRST_ELEMENT = 5;
     private static final Integer ALLOWED_LATENESS_TIME = 1;
 
-    @DefaultSchema(JavaFieldSchema.class)
-    public static class Analysis {
-        public String word;
-        public String negative;
-        public String positive;
-        public String uncertainty;
-        public String litigious;
-        public String strong;
-        public String weak;
-        public String constraining;
-
-        @SchemaCreate
-        public Analysis(String word, String negative, String positive, String uncertainty, String litigious, String strong, String weak, String constraining) {
-            this.word = word;
-            this.negative = negative;
-            this.positive = positive;
-            this.uncertainty = uncertainty;
-            this.litigious = litigious;
-            this.strong = strong;
-            this.weak = weak;
-            this.constraining = constraining;
-        }
-
-        @Override
-        public String toString() {
-            return "Analysis{" +
-                    "word='" + word + '\'' +
-                    ", negative='" + negative + '\'' +
-                    ", positive='" + positive + '\'' +
-                    ", uncertainty='" + uncertainty + '\'' +
-                    ", litigious='" + litigious + '\'' +
-                    ", strong='" + strong + '\'' +
-                    ", weak='" + weak + '\'' +
-                    ", constraining='" + constraining + '\'' +
-                    '}';
-        }
-    }
+    private static final Schema schema = Schema.builder()
+            .addField("word", Schema.FieldType.STRING)
+            .addField("negative", Schema.FieldType.STRING)
+            .addField("positive", Schema.FieldType.STRING)
+            .addField("uncertainty", Schema.FieldType.STRING)
+            .addField("litigious", Schema.FieldType.STRING)
+            .addField("strong", Schema.FieldType.STRING)
+            .addField("weak", Schema.FieldType.STRING)
+            .addField("constraining", Schema.FieldType.STRING)
+            .build();
 
     public static void main(String[] args) {
         PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
         Pipeline pipeline = Pipeline.create(options);
 
         PCollection<String> shakespeare = getPCollection(pipeline);
-        PCollectionView<List<Analysis>> viewAnalysisPCollection = getAnalysisPCollection(pipeline).apply(View.asList());
+        PCollection<Row> analysisPCollection = getAnalysisPCollection(pipeline);
 
         Window<String> window = Window.into(FixedWindows.of(Duration.standardSeconds(WINDOW_TIME)));
         Trigger trigger = AfterProcessingTime.pastFirstElementInPane().plusDelayOf(Duration.standardSeconds(TIME_OUTPUT_AFTER_FIRST_ELEMENT));
@@ -110,60 +75,64 @@ public class Task {
         PCollection<String> pCollection = shakespeare.
                 apply(window.triggering(Repeatedly.forever(trigger)).withAllowedLateness(Duration.standardMinutes(ALLOWED_LATENESS_TIME)).discardingFiredPanes());
 
-        PCollection<Analysis> result = getAnalysis(pCollection, viewAnalysisPCollection);
+        PCollectionView<List<Row>> viewAnalysisPCollection = analysisPCollection
+                .setCoder(RowCoder.of(schema))
+                .apply(View.asList());
 
-        PCollectionList<Analysis> pCollectionList = getPartitions(result);
+        PCollection<Row> result = getAnalysis(pCollection, viewAnalysisPCollection);
 
-        PCollection<Analysis> positivePCollection = pCollectionList.get(0);
-        PCollection<Analysis> negativePCollection = pCollectionList.get(1);
+        PCollectionList<Row> pCollectionList = getPartitions(result);
+
+        PCollection<Row> positivePCollection = pCollectionList.get(0).setCoder(RowCoder.of(schema));
+        PCollection<Row> negativePCollection = pCollectionList.get(1).setCoder(RowCoder.of(schema));
 
         positivePCollection
-                .apply(Combine.globally(Count.<Analysis>combineFn()).withoutDefaults())
+                .apply(Combine.globally(Count.<Row>combineFn()).withoutDefaults())
                 .apply(ParDo.of(new LogOutput<>("Positive word count")));
 
         positivePCollection
-                .apply(Filter.by(it -> !it.strong.equals("0") || !it.weak.equals("0")))
-                .apply(Combine.globally(Count.<Analysis>combineFn()).withoutDefaults())
+                .apply(Filter.by(it -> !it.getString("strong").equals("0") || !it.getString("weak").equals("0")))
+                .apply(Combine.globally(Count.<Row>combineFn()).withoutDefaults())
                 .apply(ParDo.of(new LogOutput<>("Positive words with enhanced effect count")));
 
         negativePCollection
-                .apply(Combine.globally(Count.<Analysis>combineFn()).withoutDefaults())
+                .apply(Combine.globally(Count.<Row>combineFn()).withoutDefaults())
                 .apply(ParDo.of(new LogOutput<>("Negative word count")));
 
         negativePCollection
-                .apply(Filter.by(it -> !it.strong.equals("0") || !it.weak.equals("0")))
-                .apply(Combine.globally(Count.<Analysis>combineFn()).withoutDefaults())
+                .apply(Filter.by(it -> !it.getString("strong").equals("0") || !it.getString("weak").equals("0")))
+                .apply(Combine.globally(Count.<Row>combineFn()).withoutDefaults())
                 .apply(ParDo.of(new LogOutput<>("Negative words with enhanced effect count")));
 
-        pipeline.run();
+        pipeline.run().waitUntilFinish();
     }
 
-    static PCollectionList<Analysis> getPartitions(PCollection<Analysis> input) {
+    static PCollectionList<Row> getPartitions(PCollection<Row> input) {
         return input
                 .apply(Partition.of(3,
-                        (Partition.PartitionFn<Analysis>) (analysis, numPartitions) -> {
-                            if (!analysis.positive.equals("0")) {
+                        (Partition.PartitionFn<Row>) (analysis, numPartitions) -> {
+                            if (!analysis.getString("positive").equals("0")) {
                                 return 0;
                             }
-                            if (!analysis.negative.equals("0")) {
+                            if (!analysis.getString("negative").equals("0")) {
                                 return 1;
                             }
                             return 2;
                         }));
     }
 
-    static PCollection<Analysis> getAnalysis(PCollection<String> pCollection, PCollectionView<List<Analysis>> viewAnalysisPCollection) {
-        return pCollection.apply(ParDo.of(new DoFn<String, Analysis>() {
+    static PCollection<Row> getAnalysis(PCollection<String> pCollection, PCollectionView<List<Row>> viewAnalysisPCollection) {
+        return pCollection.apply(ParDo.of(new DoFn<String, Row>() {
             @ProcessElement
-            public void processElement(@Element String word, OutputReceiver<Analysis> out, ProcessContext context) {
-                List<Analysis> analysisPCollection = context.sideInput(viewAnalysisPCollection);
+            public void processElement(@Element String word, OutputReceiver<Row> out, ProcessContext context) {
+                List<Row> analysisPCollection = context.sideInput(viewAnalysisPCollection);
                 analysisPCollection.forEach(it -> {
-                    if (it.word.equals(word)) {
+                    if (it.getString("word").equals(word)) {
                         out.output(it);
                     }
                 });
             }
-        }).withSideInputs(viewAnalysisPCollection));
+        }).withSideInputs(viewAnalysisPCollection)).setCoder(RowCoder.of(schema));
     }
 
     public static PCollection<String> getPCollection(Pipeline pipeline) {
@@ -172,48 +141,20 @@ public class Task {
                 .apply(Filter.by((String word) -> !word.isEmpty()));
     }
 
-    public static PCollection<Analysis> getAnalysisPCollection(Pipeline pipeline) {
+    public static PCollection<Row> getAnalysisPCollection(Pipeline pipeline) {
         PCollection<String> words = pipeline.apply(TextIO.read().from("analysis.csv"));
-        PCollection<Analysis> analysisPCollection = words.apply(ParDo.of(new SentimentAnalysisExtractFn())).setCoder(AnalysisCoder.of());
-        return analysisPCollection;
+        return words.apply(ParDo.of(new SentimentAnalysisExtractFn()));
     }
 
-    static class SentimentAnalysisExtractFn extends DoFn<String, Analysis> {
+    static class SentimentAnalysisExtractFn extends DoFn<String, Row> {
         @ProcessElement
         public void processElement(ProcessContext c) {
             String[] items = c.element().split(",");
-            if(!items[1].equals("Negative"))
-                c.output(new Analysis(items[0].toLowerCase(), items[1], items[2], items[3], items[4], items[5], items[6], items[7]));
-        }
-    }
-
-    static class AnalysisCoder extends Coder<Analysis> {
-        private static final AnalysisCoder INSTANCE = new AnalysisCoder();
-
-        public static AnalysisCoder of() {
-            return INSTANCE;
-        }
-
-        @Override
-        public void encode(Analysis analysis, OutputStream outStream) throws IOException {
-            String line = analysis.word+","+analysis.negative+","+analysis.positive+","+analysis.uncertainty+","+analysis.litigious+","+analysis.strong+","+analysis.weak+","+analysis.constraining;
-            outStream.write(line.getBytes());
-        }
-
-        @Override
-        public Analysis decode(InputStream inStream) throws IOException {
-            final String serializedDTOs = new String(StreamUtils.getBytesWithoutClosing(inStream));
-            String[] items = serializedDTOs.split(",");
-            return new Analysis(items[0].toLowerCase(), items[1], items[2], items[3], items[4], items[5], items[6], items[7]);
-        }
-
-        @Override
-        public List<? extends Coder<?>> getCoderArguments() {
-            return Collections.emptyList();
-        }
-
-        @Override
-        public void verifyDeterministic() {
+            if (!items[1].equals("Negative")) {
+                c.output(Row.withSchema(schema)
+                        .addValues(items[0].toLowerCase(), items[1], items[2], items[3], items[4], items[5], items[6], items[7])
+                        .build());
+            }
         }
     }
 
@@ -230,8 +171,9 @@ public class Task {
         }
 
         @ProcessElement
-        public void processElement(ProcessContext c) throws Exception {
-            LOG.info(prefix + ": {}", c.element());
+        public void processElement(ProcessContext c) {
+            LOG.info(prefix + ": " + c.element());
+            c.output(c.element());
         }
     }
 }

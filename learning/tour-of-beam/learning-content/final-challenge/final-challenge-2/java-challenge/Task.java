@@ -33,23 +33,35 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.schemas.JavaFieldSchema;
-import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
-import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
-import org.apache.beam.sdk.transforms.*;
-import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Filter;
+import org.apache.beam.sdk.transforms.FlatMapElements;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
-import java.util.stream.Collectors;
-
-import static org.apache.beam.sdk.values.TypeDescriptors.*;
 
 public class Task {
+    private static final Logger LOG = LoggerFactory.getLogger(Task.class);
+    private static final Integer WINDOW_TIME = 30;
+    private static final Integer TIME_OUTPUT_AFTER_FIRST_ELEMENT = 5;
+    private static final Integer ALLOWED_LATENESS_TIME = 1;
+
+    private static final Schema schema = Schema.builder()
+            .addField("word", Schema.FieldType.STRING)
+            .addField("negative", Schema.FieldType.STRING)
+            .addField("positive", Schema.FieldType.STRING)
+            .addField("uncertainty", Schema.FieldType.STRING)
+            .addField("litigious", Schema.FieldType.STRING)
+            .addField("strong", Schema.FieldType.STRING)
+            .addField("weak", Schema.FieldType.STRING)
+            .addField("constraining", Schema.FieldType.STRING)
+            .build();
+
+
     public static void main(String[] args) {
         PipelineOptions options = PipelineOptionsFactory.fromArgs(args).withValidation().create();
         runChallenge(options);
@@ -74,42 +86,22 @@ public class Task {
         return words;
     }
 
-    @DefaultSchema(JavaFieldSchema.class)
-    public static class Analysis {
-        public String word;
-        public String negative;
-        public String positive;
-        public String uncertainty;
-        public String litigious;
-        public String strong;
-        public String weak;
-        public String constraining;
+    static class LogOutput<T> extends DoFn<T, T> {
 
-        @SchemaCreate
-        public Analysis(String word, String negative, String positive, String uncertainty, String litigious, String strong, String weak, String constraining) {
-            this.word = word;
-            this.negative = negative;
-            this.positive = positive;
-            this.uncertainty = uncertainty;
-            this.litigious = litigious;
-            this.strong = strong;
-            this.weak = weak;
-            this.constraining = constraining;
+        private final String prefix;
+
+        LogOutput() {
+            this.prefix = "Processing element";
         }
 
-        @Override
-        public String toString() {
-            return "Analysis{" +
-                    "word='" + word + '\'' +
-                    ", negative='" + negative + '\'' +
-                    ", positive='" + positive + '\'' +
-                    ", uncertainty='" + uncertainty + '\'' +
-                    ", litigious='" + litigious + '\'' +
-                    ", strong='" + strong + '\'' +
-                    ", weak='" + weak + '\'' +
-                    ", constraining='" + constraining + '\'' +
-                    '}';
+        LogOutput(String prefix) {
+            this.prefix = prefix;
+        }
+
+        @ProcessElement
+        public void processElement(ProcessContext c) {
+            LOG.info(prefix + ": " + c.element());
+            c.output(c.element());
         }
     }
-
 }

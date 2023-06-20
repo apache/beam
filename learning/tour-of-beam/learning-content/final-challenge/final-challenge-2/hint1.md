@@ -94,51 +94,54 @@ limitations under the License.
 {{end}}
 
 {{if (eq .Sdk "java")}}
-1. Change `getAnalysisPCollection` so that it returns a `PCollection` with `Analysis` objects.
+1. Change `getAnalysisPCollection` so that it returns a `PCollection` with `Row` objects.
 
-   Write own DoFn `static class SentimentAnalysisExtractFn extends DoFn<String, Analysis> {
+   Write own DoFn `static class SentimentAnalysisExtractFn extends DoFn<String, Row> {
    @ProcessElement
    public void processElement(ProcessContext c) {
-   String[] items = c.element().split(REGEX_FOR_CSV);
-   if(!items[1].equals("Negative"))
-   c.output(new Analysis(items[0].toLowerCase(), items[1], items[2], items[3], items[4], items[5], items[6], items[7]));
+   String[] items = c.element().split(",");
+   if (!items[1].equals("Negative")) {
+   c.output(Row.withSchema(schema)
+   .addValues(items[0].toLowerCase(), items[1], items[2], items[3], items[4], items[5], items[6], items[7])
+   .build());
+   }
    }
    }`
 2. To use the analyzed words in the `side-input`, turn to `.apply(View.asList())`
 3. Add a fixed-window that runs for 30 seconds `Window.into(Fixed Windows.of(Duration.standard Seconds(30)))`. And add a trigger that works after the first element with a delay of 5 seconds `AfterProcessingTime.pastFirstElementInPane().plusDelayOf(Duration.standardSeconds(5))`
 4. Write your own function that works with `side-input`. Its logic should check whether the words from shakespeare are contained in the list of analyzed words
 
-   Function: `static PCollection<Analysis> getAnalysis(PCollection<String> pCollection, PCollectionView<List<Analysis>> viewAnalysisPCollection) {
-   return pCollection.apply(ParDo.of(new DoFn<String, Analysis>() {
+   Function: `static PCollection<Row> getAnalysis(PCollection<String> pCollection, PCollectionView<List<Row>> viewAnalysisPCollection) {
+   return pCollection.apply(ParDo.of(new DoFn<String, Row>() {
    @ProcessElement
-   public void processElement(@Element String word, OutputReceiver<Analysis> out, ProcessContext context) {
-   List<Analysis> analysisPCollection = context.sideInput(viewAnalysisPCollection);
+   public void processElement(@Element String word, OutputReceiver<Row> out, ProcessContext context) {
+   List<Row> analysisPCollection = context.sideInput(viewAnalysisPCollection);
    analysisPCollection.forEach(it -> {
-   if (it.word.equals(word)) {
+   if (it.getString("word").equals(word)) {
    out.output(it);
    }
    });
    }
-   }).withSideInputs(viewAnalysisPCollection));
+   }).withSideInputs(viewAnalysisPCollection)).setCoder(RowCoder.of(schema));
    }`
 5. Divide the words into portions in the first **positive** words. In the **second** negative. And all the others in the third.
 
-   Partition:`static PCollectionList<Analysis> applyTransform(PCollection<Analysis> input) {
+   Partition:`static PCollectionList<Row> getPartitions(PCollection<Row> input) {
    return input
    .apply(Partition.of(3,
-   (Partition.PartitionFn<Analysis>) (analysis, numPartitions) -> {
-   if (!analysis.positive.equals("0")) {
+   (Partition.PartitionFn<Row>) (analysis, numPartitions) -> {
+   if (!analysis.getString("positive").equals("0")) {
    return 0;
    }
-   if (!analysis.negative.equals("0")) {
+   if (!analysis.getString("negative").equals("0")) {
    return 1;
    }
    return 2;
    }));
    }`
-6. To calculate the count with windows, use `Combine.globally` with `withoutDefaults()`. Apply the transformation `.apply(Combine.globally(Count.<Analysis>combineFn()).withoutDefaults())`
+6. To calculate the count with windows, use `Combine.globally` with `withoutDefaults()`. Apply the transformation `.apply(Combine.globally(Count.<Row>combineFn()).withoutDefaults())`
 
-7. To identify words with amplifying effects, you need to add a filter `.apply(Filter.by(it -> !it.strong.equals("0") || !it.weak.equals("0")))`
+7. To identify words with amplifying effects, you need to add a filter `.apply(Filter.by(it -> !it.getString("strong").equals("0") || !it.getString("weak").equals("0")))`
 
 {{if (eq .Sdk "python")}}
 1. Process the file with the analyzed words to return a `PCollection` with `Analysis` objects.
