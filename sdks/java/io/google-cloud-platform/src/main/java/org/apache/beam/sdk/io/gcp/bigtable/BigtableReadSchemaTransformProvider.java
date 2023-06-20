@@ -61,7 +61,6 @@ public class BigtableReadSchemaTransformProvider
       Schema.builder()
           .addByteArrayField("value")
           .addInt64Field("timestamp_micros")
-          .addArrayField("labels", Schema.FieldType.array(Schema.FieldType.STRING))
           .build();
 
   public static final Schema ROW_SCHEMA =
@@ -127,11 +126,11 @@ public class BigtableReadSchemaTransformProvider
     /** Builder for the {@link BigtableReadSchemaTransformConfiguration}. */
     @AutoValue.Builder
     public abstract static class Builder {
-      public abstract Builder setTableId(String table);
+      public abstract Builder setTableId(String tableId);
 
-      public abstract Builder setInstanceId(String instance);
+      public abstract Builder setInstanceId(String instanceId);
 
-      public abstract Builder setProjectId(String project);
+      public abstract Builder setProjectId(String projectId);
 
       /** Builds a {@link BigtableReadSchemaTransformConfiguration} instance. */
       public abstract BigtableReadSchemaTransformConfiguration build();
@@ -186,7 +185,7 @@ public class BigtableReadSchemaTransformProvider
       // The collection of families is represented as a Map of column families.
       // Each column family is represented as a Map of columns.
       // Each column is represented as a List of cells
-      // Each cell is represented as a Beam Row consisting of value, timestamp_micros, and labels
+      // Each cell is represented as a Beam Row consisting of value and timestamp_micros
       Map<String, Map<String, List<Row>>> families = new HashMap<>();
 
       for (Family fam : bigtableRow.getFamiliesList()) {
@@ -199,7 +198,6 @@ public class BigtableReadSchemaTransformProvider
                 Row.withSchema(CELL_SCHEMA)
                     .withFieldValue("value", ByteBuffer.wrap(cell.getValue().toByteArray()))
                     .withFieldValue("timestamp_micros", cell.getTimestampMicros())
-                    .withFieldValue("labels", cell.getLabelsList())
                     .build();
             cells.add(cellRow);
           }
