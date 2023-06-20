@@ -49,7 +49,7 @@ try:
   from apitools.base.py.exceptions import HttpError
   from google.cloud.bigtable import client
   from google.cloud.bigtable.instance import Instance
-  from google.cloud.bigtable.row import DirectRow, PartialRowData
+  from google.cloud.bigtable.row import DirectRow, PartialRowData, Cell
   from google.cloud.bigtable.table import Table
   from google.cloud.bigtable_admin_v2.types import instance
   from google.rpc.code_pb2 import OK, ALREADY_EXISTS
@@ -145,6 +145,62 @@ class TestReadFromBigTable(unittest.TestCase):
           | "Extract cells" >> beam.Map(lambda row: row._cells))
 
       assert_that(cells, equal_to(expected_cells))
+
+
+class TestBeamRowToPartialRowData(unittest.TestCase):
+  # Beam Row schema:
+  # - key: bytes
+  # - column_families: dict[str, dict[str, list[beam.Row(cell_schema)]]]
+  # cell_schema:
+  # - value: bytes
+  # - timestamp_micros: int
+
+  def test_beam_row_to_bigtable_row(self):
+    # create test beam row
+    families = {
+        'family_1': {
+            'col_1': [
+                beam.Row(value=b'a-1', timestamp_micros=100_000_000),
+                beam.Row(value=b'b-1', timestamp_micros=200_000_000),
+                beam.Row(value=b'c-1', timestamp_micros=300_000_000)
+            ],
+            'col_2': [
+                beam.Row(value=b'a-2', timestamp_micros=400_000_000),
+                beam.Row(value=b'b-2', timestamp_micros=500_000_000),
+                beam.Row(value=b'c-2', timestamp_micros=600_000_000)
+            ],
+        },
+        'family_2': {
+            'column_qualifier': [
+                beam.Row(value=b'val-1', timestamp_micros=700_000_000),
+                beam.Row(value=b'val-2', timestamp_micros=800_000_000),
+                beam.Row(value=b'val-3', timestamp_micros=900_000_000)
+            ]
+        }
+    }
+    beam_row = beam.Row(key=b'key', column_families=families)
+
+    # get equivalent bigtable row
+    doFn = bigtableio.ReadFromBigtable._BeamRowToPartialRowData()
+    bigtable_row: PartialRowData = next(doFn.process(beam_row))
+
+    # using bigtable utils (PartialRowData methods), check that beam row data
+    # landed in the right cells
+    self.assertEqual([
+        Cell(c.value, c.timestamp_micros)
+        for c in beam_row.column_families['family_1']['col_1']
+    ],
+                     bigtable_row.find_cells('family_1', b'col_1'))
+    self.assertEqual([
+        Cell(c.value, c.timestamp_micros)
+        for c in beam_row.column_families['family_1']['col_2']
+    ],
+                     bigtable_row.find_cells('family_1', b'col_2'))
+    self.assertEqual([
+        Cell(c.value, c.timestamp_micros)
+        for c in beam_row.column_families['family_2']['column_qualifier']
+    ],
+                     bigtable_row.find_cells('family_2', b'column_qualifier'))
 
 
 @unittest.skipIf(client is None, 'Bigtable dependencies are not installed')

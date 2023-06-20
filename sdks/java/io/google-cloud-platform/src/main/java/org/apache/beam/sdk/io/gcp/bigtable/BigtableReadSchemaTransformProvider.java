@@ -58,10 +58,7 @@ public class BigtableReadSchemaTransformProvider
   private static final String OUTPUT_TAG = "output";
 
   public static final Schema CELL_SCHEMA =
-      Schema.builder()
-          .addByteArrayField("value")
-          .addInt64Field("timestamp_micros")
-          .build();
+      Schema.builder().addByteArrayField("value").addInt64Field("timestamp_micros").build();
 
   public static final Schema ROW_SCHEMA =
       Schema.builder()
