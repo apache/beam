@@ -286,6 +286,151 @@ class TestWriteToBigtableXlang(unittest.TestCase):
 
 
 @unittest.skipIf(client is None, 'Bigtable dependencies are not installed')
+class TestBigtableDirectRowToBeamRow(unittest.TestCase):
+  doFn = bigtableio.WriteToBigtableXlang._DirectRowMutationsToBeamRow()
+
+  def test_set_cell(self):
+    # create some set cell mutations
+    direct_row: DirectRow = DirectRow('key-1')
+    direct_row.set_cell(
+        'col_fam',
+        b'col',
+        b'a',
+        datetime.fromtimestamp(100_000).replace(tzinfo=timezone.utc))
+    direct_row.set_cell(
+        'col_fam',
+        b'other-col',
+        b'b',
+        datetime.fromtimestamp(200_000).replace(tzinfo=timezone.utc))
+    direct_row.set_cell(
+        'other_col_fam',
+        b'col',
+        b'c',
+        datetime.fromtimestamp(300_000).replace(tzinfo=timezone.utc))
+
+    # get equivalent beam row
+    beam_row = next(self.doFn.process(direct_row))
+
+    # sort both lists of mutations for convenience
+    beam_row_mutations = sorted(beam_row.mutations, key=lambda m: m['value'])
+    bt_row_mutations = sorted(
+        direct_row._get_mutations(), key=lambda m: m.set_cell.value)
+    self.assertEqual(beam_row.key, direct_row.row_key)
+    self.assertEqual(len(beam_row_mutations), len(bt_row_mutations))
+
+    # check that the values in each beam mutation is equal to the original
+    # Bigtable direct row mutations
+    for i in range(len(beam_row_mutations)):
+      beam_mutation = beam_row_mutations[i]
+      bt_mutation = bt_row_mutations[i].set_cell
+
+      self.assertEqual(beam_mutation['type'], b'SetCell')
+      self.assertEqual(
+          beam_mutation['family_name'].decode(), bt_mutation.family_name)
+      self.assertEqual(
+          beam_mutation['column_qualifier'], bt_mutation.column_qualifier)
+      self.assertEqual(beam_mutation['value'], bt_mutation.value)
+      self.assertEqual(
+          int.from_bytes(beam_mutation['timestamp_micros'], 'big'),
+          bt_mutation.timestamp_micros)
+
+  def test_delete_cells(self):
+    # create some delete cell mutations. one with a timestamp range
+    direct_row: DirectRow = DirectRow('key-1')
+    direct_row.delete_cell('col_fam', b'col-1')
+    direct_row.delete_cell(
+        'other_col_fam',
+        b'col-2',
+        time_range=TimestampRange(
+            start=datetime.fromtimestamp(10_000_000, tz=timezone.utc)))
+    direct_row.delete_cells(
+        'another_col_fam', [b'col-3', b'col-4', b'col-5'],
+        time_range=TimestampRange(
+            start=datetime.fromtimestamp(50_000_000, tz=timezone.utc),
+            end=datetime.fromtimestamp(100_000_000, tz=timezone.utc)))
+
+    # get equivalent beam row
+    beam_row = next(self.doFn.process(direct_row))
+
+    # sort both lists of mutations for convenience
+    beam_row_mutations = sorted(
+        beam_row.mutations, key=lambda m: m['column_qualifier'])
+    bt_row_mutations = sorted(
+        direct_row._get_mutations(),
+        key=lambda m: m.delete_from_column.column_qualifier)
+    self.assertEqual(beam_row.key, direct_row.row_key)
+    self.assertEqual(len(beam_row_mutations), len(bt_row_mutations))
+
+    # check that the values in each beam mutation is equal to the original
+    # Bigtable direct row mutations
+    for i in range(len(beam_row_mutations)):
+      beam_mutation = beam_row_mutations[i]
+      bt_mutation = bt_row_mutations[i].delete_from_column
+      print(bt_mutation)
+
+      self.assertEqual(beam_mutation['type'], b'DeleteFromColumn')
+      self.assertEqual(
+          beam_mutation['family_name'].decode(), bt_mutation.family_name)
+      self.assertEqual(
+          beam_mutation['column_qualifier'], bt_mutation.column_qualifier)
+
+      # check we set a timestamp range only when appropriate
+      if bt_mutation.time_range.start_timestamp_micros:
+        self.assertEqual(
+            int.from_bytes(beam_mutation['start_timestamp_micros'], 'big'),
+            bt_mutation.time_range.start_timestamp_micros)
+      else:
+        self.assertTrue('start_timestamp_micros' not in beam_mutation)
+
+      if bt_mutation.time_range.end_timestamp_micros:
+        self.assertEqual(
+            int.from_bytes(beam_mutation['end_timestamp_micros'], 'big'),
+            bt_mutation.time_range.end_timestamp_micros)
+      else:
+        self.assertTrue('end_timestamp_micros' not in beam_mutation)
+
+  def test_delete_column_family(self):
+    # create mutation to delete column family
+    direct_row: DirectRow = DirectRow('key-1')
+    direct_row.delete_cells('col_fam-1', direct_row.ALL_COLUMNS)
+    direct_row.delete_cells('col_fam-2', direct_row.ALL_COLUMNS)
+
+    # get equivalent beam row
+    beam_row = next(self.doFn.process(direct_row))
+
+    # sort both lists of mutations for convenience
+    beam_row_mutations = sorted(
+        beam_row.mutations, key=lambda m: m['family_name'])
+    bt_row_mutations = sorted(
+        direct_row._get_mutations(),
+        key=lambda m: m.delete_from_column.family_name)
+    self.assertEqual(beam_row.key, direct_row.row_key)
+    self.assertEqual(len(beam_row_mutations), len(bt_row_mutations))
+
+    # check that the values in each beam mutation is equal to the original
+    # Bigtable direct row mutations
+    for i in range(len(beam_row_mutations)):
+      beam_mutation = beam_row_mutations[i]
+      bt_mutation = bt_row_mutations[i].delete_from_family
+
+      self.assertEqual(beam_mutation['type'], b'DeleteFromFamily')
+      self.assertEqual(
+          beam_mutation['family_name'].decode(), bt_mutation.family_name)
+
+  def test_delete_row(self):
+    # create mutation to delete the Bigtable row
+    direct_row: DirectRow = DirectRow('key-1')
+    direct_row.delete()
+
+    # get equivalent beam row
+    beam_row = next(self.doFn.process(direct_row))
+    self.assertEqual(beam_row.key, direct_row.row_key)
+
+    beam_mutation = beam_row.mutations[0]
+    self.assertEqual(beam_mutation['type'], b'DeleteFromRow')
+
+
+@unittest.skipIf(client is None, 'Bigtable dependencies are not installed')
 class TestWriteBigTable(unittest.TestCase):
   TABLE_PREFIX = "python-test"
   _PROJECT_ID = TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]

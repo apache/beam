@@ -270,17 +270,15 @@ class WriteToBigtableXlang(beam.PTransform):
 
     return (
         input
-        | beam.ParDo(
-            self.Direct_row_mutations_to_beam_rows()).with_output_types(
-                RowTypeConstraint.from_fields(
-                    [("key", bytes), ("mutations", list[dict[str, bytes]])]))
+        | beam.ParDo(self._DirectRowMutationsToBeamRow()).with_output_types(
+            RowTypeConstraint.from_fields(
+                [("key", bytes), ("mutations", list[dict[str, bytes]])]))
         | external_write)
 
-  class Direct_row_mutations_to_beam_rows(beam.DoFn):
+  class _DirectRowMutationsToBeamRow(beam.DoFn):
     def process(self, direct_row):
       args = {"key": direct_row.row_key, "mutations": []}
       for mutation in direct_row._get_mutations():
-        _LOGGER.warning(mutation)
         if mutation.__contains__("set_cell"):
           mutation_dict = {
               "type": b'SetCell',
