@@ -146,6 +146,7 @@ class TestReadFromBigTable(unittest.TestCase):
 
       assert_that(cells, equal_to(expected_cells))
 
+
 @unittest.skipIf(client is None, 'Bigtable dependencies are not installed')
 class TestBeamRowToPartialRowData(unittest.TestCase):
   # Beam Row schema:
@@ -186,6 +187,7 @@ class TestBeamRowToPartialRowData(unittest.TestCase):
 
     # using bigtable utils (PartialRowData methods), check that beam row data
     # landed in the right cells
+    self.assertEqual(beam_row.key, bigtable_row.row_key)
     self.assertEqual([
         Cell(c.value, c.timestamp_micros)
         for c in beam_row.column_families['family_1']['col_1']
