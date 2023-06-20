@@ -32,7 +32,6 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -160,7 +159,6 @@ public class BigtableReadSchemaTransformProviderIT {
                     .withFieldValue(
                         "value", ByteBuffer.wrap(valueA.getBytes(StandardCharsets.UTF_8)))
                     .withFieldValue("timestamp_micros", timestamp)
-                    .withFieldValue("labels", Collections.emptyList())
                     .build()));
         columns1.put(
             "b",
@@ -169,7 +167,6 @@ public class BigtableReadSchemaTransformProviderIT {
                     .withFieldValue(
                         "value", ByteBuffer.wrap(valueB.getBytes(StandardCharsets.UTF_8)))
                     .withFieldValue("timestamp_micros", timestamp)
-                    .withFieldValue("labels", Collections.emptyList())
                     .build()));
 
         Map<String, List<Row>> columns2 = new HashMap<>();
@@ -180,7 +177,6 @@ public class BigtableReadSchemaTransformProviderIT {
                     .withFieldValue(
                         "value", ByteBuffer.wrap(valueC.getBytes(StandardCharsets.UTF_8)))
                     .withFieldValue("timestamp_micros", timestamp)
-                    .withFieldValue("labels", Collections.emptyList())
                     .build()));
         columns2.put(
             "d",
@@ -189,7 +185,6 @@ public class BigtableReadSchemaTransformProviderIT {
                     .withFieldValue(
                         "value", ByteBuffer.wrap(valueD.getBytes(StandardCharsets.UTF_8)))
                     .withFieldValue("timestamp_micros", timestamp)
-                    .withFieldValue("labels", Collections.emptyList())
                     .build()));
 
         Map<String, Map<String, List<Row>>> families = new HashMap<>();
