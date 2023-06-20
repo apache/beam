@@ -31,6 +31,9 @@ import org.apache.beam.sdk.util.StringUtils;
 class AvroCoderCloudObjectTranslator implements CloudObjectTranslator<AvroCoder> {
   private static final String DATUM_FACTORY_FIELD = "datum_factory";
   private static final String SCHEMA_FIELD = "schema";
+  // deprecated fields
+  private static final String TYPE_FIELD = "type";
+  private static final String REFLECT_API_FIELD = "reflect_api";
 
   @Override
   public CloudObject toCloudObject(AvroCoder target, SdkComponents sdkComponents) {
@@ -45,15 +48,28 @@ class AvroCoderCloudObjectTranslator implements CloudObjectTranslator<AvroCoder>
 
   @Override
   public AvroCoder<?> fromCloudObject(CloudObject cloudObject) {
-    Schema.Parser parser = new Schema.Parser();
-    byte[] deserializedDatumFactory =
-        StringUtils.jsonStringToByteArray(Structs.getString(cloudObject, DATUM_FACTORY_FIELD));
     String schemaString = Structs.getString(cloudObject, SCHEMA_FIELD);
+    Schema.Parser parser = new Schema.Parser();
     Schema schema = parser.parse(schemaString);
-    AvroDatumFactory<?> datumFactory =
-        (AvroDatumFactory)
-            SerializableUtils.deserializeFromByteArray(
-                deserializedDatumFactory, DATUM_FACTORY_FIELD);
+    AvroDatumFactory<?> datumFactory;
+    if (cloudObject.containsKey(TYPE_FIELD)) {
+      // coder was created with an older beam version. use default datum factory
+      try {
+        String className = Structs.getString(cloudObject, TYPE_FIELD);
+        Class<?> type = Class.forName(className);
+        boolean useReflectApi = Structs.getBoolean(cloudObject, REFLECT_API_FIELD);
+        datumFactory = AvroDatumFactory.of(type, useReflectApi);
+      } catch (ClassNotFoundException e) {
+        throw new IllegalArgumentException(e);
+      }
+    } else {
+      byte[] deserializedDatumFactory =
+          StringUtils.jsonStringToByteArray(Structs.getString(cloudObject, DATUM_FACTORY_FIELD));
+      datumFactory =
+          (AvroDatumFactory)
+              SerializableUtils.deserializeFromByteArray(
+                  deserializedDatumFactory, DATUM_FACTORY_FIELD);
+    }
     return AvroCoder.of(datumFactory, schema);
   }
 
