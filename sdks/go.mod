@@ -30,11 +30,11 @@ require (
 	cloud.google.com/go/pubsub v1.31.0
 	cloud.google.com/go/spanner v1.46.0
 	cloud.google.com/go/storage v1.30.1
-	github.com/aws/aws-sdk-go-v2 v1.18.0
+	github.com/aws/aws-sdk-go-v2 v1.18.1
 	github.com/aws/aws-sdk-go-v2/config v1.18.25
 	github.com/aws/aws-sdk-go-v2/credentials v1.13.24
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.11.67
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.33.1
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.34.1
 	github.com/aws/smithy-go v1.13.5
 	github.com/docker/go-connections v0.4.0
 	github.com/dustin/go-humanize v1.0.1
@@ -48,16 +48,16 @@ require (
 	github.com/proullon/ramsql v0.0.0-20211120092837-c8d0a408b939
 	github.com/spf13/cobra v1.7.0
 	github.com/testcontainers/testcontainers-go v0.20.1
-	github.com/tetratelabs/wazero v1.2.0
+	github.com/tetratelabs/wazero v1.2.1
 	github.com/xitongsys/parquet-go v1.6.2
 	github.com/xitongsys/parquet-go-source v0.0.0-20220315005136-aec0fe3e777c
 	go.mongodb.org/mongo-driver v1.11.7
 	golang.org/x/net v0.11.0
 	golang.org/x/oauth2 v0.9.0
-	golang.org/x/sync v0.2.0
+	golang.org/x/sync v0.3.0
 	golang.org/x/sys v0.9.0
 	golang.org/x/text v0.10.0
-	google.golang.org/api v0.127.0
+	google.golang.org/api v0.128.0
 	google.golang.org/genproto v0.0.0-20230530153820-e85fd2cbaebc
 	google.golang.org/grpc v1.55.0
 	google.golang.org/protobuf v1.30.0
@@ -86,14 +86,14 @@ require (
 	github.com/aws/aws-sdk-go v1.34.0 // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.4.10 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.13.3 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/configsources v1.1.33 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.4.27 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.1.34 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.4.28 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/ini v1.3.34 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/v4a v1.0.25 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/v4a v1.0.26 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.9.11 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.1.28 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.9.27 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.14.2 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.1.29 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.9.28 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.14.3 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sso v1.12.10 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.14.10 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.19.0 // indirect
