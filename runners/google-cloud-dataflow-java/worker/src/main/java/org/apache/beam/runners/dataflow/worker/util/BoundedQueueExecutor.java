@@ -21,6 +21,8 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Monitor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Monitor.Guard;
 
@@ -36,8 +38,9 @@ public class BoundedQueueExecutor {
   private final Monitor monitor = new Monitor();
   private int elementsOutstanding = 0;
   private long bytesOutstanding = 0;
-  private long startTimeMaxActiveThreadsUsed = 0;
-  private long totalTimeMaxActiveThreadsUsed = 0;
+  private final AtomicInteger activeCount = new AtomicInteger();
+  private long startTimeMaxActiveThreadsUsed;
+  private long totalTimeMaxActiveThreadsUsed;
 
   public BoundedQueueExecutor(
       int maximumPoolSize,
@@ -58,24 +61,23 @@ public class BoundedQueueExecutor {
               protected void beforeExecute(Thread t, Runnable r) {
                 super.beforeExecute(t, r);
                 synchronized(this) {
-                  if (getActiveCount() == maximumPoolSize - 1) {
-                    startTimeMaxActiveThreadsUsed = System.currentTimeMillis;
+                  if (activeCount.get() == maximumPoolSize - 1) {
+                    startTimeMaxActiveThreadsUsed = System.currentTimeMillis();
                   }
+                  activeCount.incrementAndGet();
                 }
               }
 
               @Override
-              protected void afterExecute(Runnable r, Throawable t) {
+              protected void afterExecute(Runnable r, Throwable t) {
                 super.afterExecute(r, t);
                 synchronized(this) {
-                  if (getActiveCount() == maxThreads) {
-                    totalTimeMaxActiveThreadsUsed += System.currentTimeMillis - start;
+                  if (activeCount.get() == maximumPoolSize) {
+                    totalTimeMaxActiveThreadsUsed += (System.currentTimeMillis() - startTimeMaxActiveThreadsUsed);
                     startTimeMaxActiveThreadsUsed = 0;
                   }
+                  activeCount.decrementAndGet();
                 }
-              }
-              public long getTotalTime() {
-                return totalTimeMaxActiveThreadsUsed;
               }
             };
     executor.allowCoreThreadTimeOut(true);
@@ -115,8 +117,8 @@ public class BoundedQueueExecutor {
     return executor.getQueue().isEmpty();
   }
 
-  public boolean allThreadsActiveTime() {
-    return totalTime;
+  public long allThreadsActiveTime() {
+    return totalTimeMaxActiveThreadsUsed;
   }
 
   public String summaryHtml() {

@@ -745,11 +745,6 @@ public class StreamingDataflowWorker {
     return workUnitExecutor.executorQueueIsEmpty();
   }
 
-  @VisibleForTesting
-  public boolean workExecutorIsFull() {
-    return workUnitExecutor.executorQueueIsFull();
-  }
-
   @SuppressWarnings("FutureReturnValueIgnored")
   public void start() {
     running.set(true);
@@ -2000,7 +1995,7 @@ public class StreamingDataflowWorker {
   
   private void updateThreadMetrics() {
     timeAtMaxActiveThreads.getAndReset();
-    timeAtMaxActiveThreads.addValue(workUnitExecutor.totalTimeMaxActiveThreadsUsed);)
+    timeAtMaxActiveThreads.addValue(workUnitExecutor.allThreadsActiveTime());
   }
 
   @VisibleForTesting
