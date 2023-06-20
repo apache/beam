@@ -64,6 +64,7 @@ ENV SERVER_PORT=8080
 ENV APP_WORK_DIR=/opt/playground/backend/
 ENV BEAM_SDK="SDK_JAVA"
 ENV PROPERTY_PATH=/opt/playground/backend/properties.yaml
+ENV JOB_SERVICE_PORT=9091
 
 ARG DOCKER_CHANNEL=stable
 ARG DOCKER_VERSION=20.10.24
@@ -189,6 +190,8 @@ RUN cd /opt/playground/backend/kafka-emulator/ && tar -xvf kafka-emulator.tar &&
 # Create a user group `appgroup` and a user `appuser`
 RUN groupadd --gid 20000 appgroup \
   && useradd --uid 20000 --gid appgroup --shell /bin/bash --create-home appuser
+
+RUN echo 'export PATH="/opt/java/openjdk/bin:$PATH"' >> /home/appuser/.bashrc
 
 RUN mkdir -p /opt/playground/backend/executable_files/
 

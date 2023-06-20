@@ -100,9 +100,13 @@ RUN apt-get update && apt-get install -y openjdk-11-jre-headless
 
 ARG BEAM_VERSION
 ARG REPO_URL=https://repo1.maven.org/maven2
-ARG SQL_EXPANSION_SERVICE_JAR=${REPO_URL}/org/apache/beam/beam-sdks-java-extensions-sql-expansion-service/${SDK_TAG}/beam-sdks-java-extensions-sql-expansion-service-${SDK_TAG}.jar
-#ARG SQL_EXPANSION_SERVICE_JAR=${REPO_URL}/org/apache/beam/beam-sdks-java-extensions-sql-expansion-service/${BEAM_VERSION}/beam-sdks-java-extensions-sql-expansion-service-${BEAM_VERSION}.jar
-RUN curl -O -L $SQL_EXPANSION_SERVICE_JAR
+# ARG SQL_EXPANSION_SERVICE_JAR=${REPO_URL}/org/apache/beam/beam-sdks-java-extensions-sql-expansion-service/${SDK_TAG}/beam-sdks-java-extensions-sql-expansion-service-${SDK_TAG}.jar
+# #ARG SQL_EXPANSION_SERVICE_JAR=${REPO_URL}/org/apache/beam/beam-sdks-java-extensions-sql-expansion-service/${BEAM_VERSION}/beam-sdks-java-extensions-sql-expansion-service-${BEAM_VERSION}.jar
+# RUN curl -O -L $SQL_EXPANSION_SERVICE_JAR
+
+ARG MULTILANGUAGE_PIPELINE_EXAMPLES=${REPO_URL}/org/apache/beam/beam-examples-multi-language/${SDK_TAG}/beam-examples-multi-language-${SDK_TAG}.jar
+RUN wget  $MULTILANGUAGE_PIPELINE_EXAMPLES &&\
+mv beam-examples-multi-language-${SDK_TAG}.jar beam-examples-multi-language.jar
 
 ################
 ## Pre-pulled images ##
@@ -118,6 +122,8 @@ ENV SERVER_PORT=8080
 ENV APP_WORK_DIR=/opt/playground/backend/
 ENV BEAM_SDK="SDK_PYTHON"
 ENV PROPERTY_PATH=/opt/playground/backend/properties.yaml
+ENV JOB_SERVICE_PORT=9091
+ENV EXT_SERVICE_PORT=9092 
 
 # Copy build result
 COPY --from=build /go/bin/server_python_backend /opt/playground/backend/
@@ -148,6 +154,5 @@ RUN mkdir -p /opt/playground/backend/executable_files/
 RUN chown -R appuser:appgroup /opt/playground/backend/executable_files/ && chmod +x /entrypoint.sh
 
 VOLUME /var/lib/docker
-EXPOSE 2375
 
 ENTRYPOINT ["/entrypoint.sh"]

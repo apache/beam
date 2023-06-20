@@ -16,6 +16,8 @@
 
 set -e
 
+job_service_port="$JOB_SERVICE_PORT"
+
 echo "==> Launching the Docker daemon..."
 
 dind dockerd --iptables=false &
@@ -25,22 +27,18 @@ while(! docker info > /dev/null 2>&1); do
 done
 
 echo "==> Docker Daemon is up and running!"
-echo "==> Loading pre-pulled docker images!"
+
 # Import pre-installed images
+echo "==> Loading pre-pulled docker images!"
 for file in /images/*.tar; do
 echo "Loading $file"
-  docker load <$file
+    docker load <$file
 done
 rm -f -r images
 
 docker images
 
-# python3 -m apache_beam.runners.portability.local_job_service_main -p 9091 &> jjs.log  & \
-# java -jar beam-sdks-java-extensions-sql-expansion-service-2.45.0.jar 9092 &> jes.log  & \
-python3 -m apache_beam.runners.portability.local_job_service_main -p 9093 &> pjs.log  &
-# python3 -m apache_beam.runners.portability.expansion_service_main -p 9094 --fully_qualified_name_glob "*" &> pes.log &
-# su appuser -c /opt/playground/backend/server_java_backend
+python3 -m apache_beam.runners.portability.local_job_service_main -p "$job_service_port" &> js.log  &
 
-# export PATH=$PATH:/opt/java/openjdk/bin/
-# su -m appuser -c "/opt/playground/backend/server_java_backend"
+su appuser
 /opt/playground/backend/server_java_backend
