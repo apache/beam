@@ -55,42 +55,6 @@ try:
   FLUSH_COUNT = 1000
   MAX_ROW_BYTES = 5242880  # 5MB
 
-  class _MutationsBatcher(MutationsBatcher):
-    def __init__(
-        self, table, flush_count=FLUSH_COUNT, max_row_bytes=MAX_ROW_BYTES):
-      super().__init__(table, flush_count, max_row_bytes)
-      self.rows = []
-
-    def set_flush_callback(self, callback_fn):
-      self.callback_fn = callback_fn
-
-    def flush(self):
-      if len(self.rows) != 0:
-        status_list = self.table.mutate_rows(self.rows)
-        self.callback_fn(status_list)
-
-        # If even one request fails we retry everything. BigTable mutations are
-        # idempotent so this should be correct.
-        # TODO(https://github.com/apache/beam/issues/21396): make this more
-        # efficient by retrying only re-triable failed requests.
-        for status in status_list:
-          if not status:
-            # BigTable client may return 'None' instead of a valid status in
-            # some cases due to
-            # https://github.com/googleapis/python-bigtable/issues/485
-            raise Exception(
-                'Failed to write a batch of %r records' % len(self.rows))
-          elif status.code != 0:
-            raise Exception(
-                'Failed to write a batch of %r records due to %r' % (
-                    len(self.rows),
-                    ServiceCallMetric.bigtable_error_code_to_grpc_status_string(
-                        status.code)))
-
-        self.total_mutation_count = 0
-        self.total_size = 0
-        self.rows = []
-
 except ImportError:
   _LOGGER.warning(
       'ImportError: from google.cloud.bigtable import Client', exc_info=True)
@@ -168,8 +132,8 @@ class _BigTableWriteFn(beam.DoFn):
         self.beam_options['project_id'],
         self.beam_options['instance_id'],
         self.beam_options['table_id'])
-    self.batcher = _MutationsBatcher(self.table)
-    self.batcher.set_flush_callback(self.write_mutate_metrics)
+    self.batcher = MutationsBatcher(
+        self.table, batch_completed_callback=self.write_mutate_metrics)
 
   def process(self, row):
     self.written.inc()
@@ -184,8 +148,9 @@ class _BigTableWriteFn(beam.DoFn):
     self.batcher.mutate(row)
 
   def finish_bundle(self):
-    self.batcher.flush()
-    self.batcher = None
+    if self.batcher:
+      self.batcher.close()
+      self.batcher = None
 
   def display_data(self):
     return {

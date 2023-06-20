@@ -50,19 +50,24 @@ import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.io.DatumReader;
 import org.apache.avro.reflect.AvroName;
 import org.apache.avro.reflect.AvroSchema;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.Stringable;
 import org.apache.avro.reflect.Union;
 import org.apache.avro.specific.SpecificData;
+import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.avro.specific.SpecificRecord;
 import org.apache.avro.util.Utf8;
 import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.extensions.avro.io.AvroDatumFactory;
 import org.apache.beam.sdk.extensions.avro.schemas.TestAvro;
+import org.apache.beam.sdk.extensions.avro.schemas.TestAvroConversion;
+import org.apache.beam.sdk.extensions.avro.schemas.TestAvroConversionFactory;
 import org.apache.beam.sdk.extensions.avro.schemas.TestAvroFactory;
 import org.apache.beam.sdk.extensions.avro.schemas.TestAvroNested;
 import org.apache.beam.sdk.extensions.avro.schemas.TestEnum;
@@ -122,6 +127,7 @@ public class AvroCoderTest {
           AVRO_NESTED_SPECIFIC_RECORD,
           ImmutableList.of(AVRO_NESTED_SPECIFIC_RECORD, AVRO_NESTED_SPECIFIC_RECORD),
           ImmutableMap.of("k1", AVRO_NESTED_SPECIFIC_RECORD, "k2", AVRO_NESTED_SPECIFIC_RECORD));
+
   private static final String VERSION_AVRO = Schema.class.getPackage().getImplementationVersion();
 
   @DefaultCoder(AvroCoder.class)
@@ -142,34 +148,23 @@ public class AvroCoderTest {
       this.timestamp = timestamp;
     }
 
-    // auto-generated
     @Override
-    public boolean equals(@Nullable Object o) {
-      if (this == o) {
+    public boolean equals(@Nullable Object other) {
+      if (this == other) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (other == null || getClass() != other.getClass()) {
         return false;
       }
-
-      Pojo pojo = (Pojo) o;
-
-      if (count != pojo.count) {
-        return false;
-      }
-      if (text != null ? !text.equals(pojo.text) : pojo.text != null) {
-        return false;
-      }
-      if (timestamp != null ? !timestamp.equals(pojo.timestamp) : pojo.timestamp != null) {
-        return false;
-      }
-
-      return true;
+      Pojo that = (Pojo) other;
+      return this.count == that.count
+          && Objects.equals(this.text, that.text)
+          && Objects.equals(this.timestamp, that.timestamp);
     }
 
     @Override
     public int hashCode() {
-      return 0;
+      return Objects.hash(text, count, timestamp);
     }
 
     @Override
@@ -294,7 +289,7 @@ public class AvroCoderTest {
     // Serialization of object without any memoization
     ByteArrayOutputStream coderWithoutMemoizationBos = new ByteArrayOutputStream();
     try (Output output = new Output(coderWithoutMemoizationBos)) {
-      kryo.writeObject(output, coder);
+      kryo.writeClassAndObject(output, coder);
     }
 
     // Force thread local memoization to store values.
@@ -303,18 +298,18 @@ public class AvroCoderTest {
     // Serialization of object with memoized fields
     ByteArrayOutputStream coderWithMemoizationBos = new ByteArrayOutputStream();
     try (Output output = new Output(coderWithMemoizationBos)) {
-      kryo.writeObject(output, coder);
+      kryo.writeClassAndObject(output, coder);
     }
 
     // Copy empty and memoized variants of the Coder
     ByteArrayInputStream bisWithoutMemoization =
         new ByteArrayInputStream(coderWithoutMemoizationBos.toByteArray());
     AvroCoder<Pojo> copiedWithoutMemoization =
-        (AvroCoder<Pojo>) kryo.readObject(new Input(bisWithoutMemoization), AvroCoder.class);
+        (AvroCoder<Pojo>) kryo.readClassAndObject(new Input(bisWithoutMemoization));
     ByteArrayInputStream bisWithMemoization =
         new ByteArrayInputStream(coderWithMemoizationBos.toByteArray());
     AvroCoder<Pojo> copiedWithMemoization =
-        (AvroCoder<Pojo>) kryo.readObject(new Input(bisWithMemoization), AvroCoder.class);
+        (AvroCoder<Pojo>) kryo.readClassAndObject(new Input(bisWithMemoization));
 
     CoderProperties.coderDecodeEncodeEqual(copiedWithoutMemoization, value);
     CoderProperties.coderDecodeEncodeEqual(copiedWithMemoization, value);
@@ -323,35 +318,19 @@ public class AvroCoderTest {
   @Test
   public void testPojoEncoding() throws Exception {
     Pojo value = new Pojo("Hello", 42, DATETIME_A);
-    AvroCoder<Pojo> coder = AvroCoder.of(Pojo.class);
+    AvroCoder<Pojo> coder = AvroCoder.reflect(Pojo.class);
 
     CoderProperties.coderDecodeEncodeEqual(coder, value);
   }
 
   @Test
   public void testSpecificRecordEncoding() throws Exception {
-    if (isBrokenMapComparison()) {
-      // Don't compare the map values because of AVRO-2943
-      AVRO_SPECIFIC_RECORD.setMap(ImmutableMap.of());
-    }
-    AvroCoder<TestAvro> coder =
-        AvroCoder.of(TestAvro.class, AVRO_SPECIFIC_RECORD.getSchema(), false);
+    // Don't compare the map values because of AVRO-2943
+    AVRO_SPECIFIC_RECORD.setMap(ImmutableMap.of());
 
-    assertTrue(SpecificRecord.class.isAssignableFrom(coder.getType()));
-    CoderProperties.coderDecodeEncodeEqual(coder, AVRO_SPECIFIC_RECORD);
-  }
-
-  private boolean isBrokenMapComparison() {
-    return VERSION_AVRO.equals("1.9.2")
-        || VERSION_AVRO.equals("1.10.2")
-        || VERSION_AVRO.equals("1.11.1");
-  }
-
-  @Test
-  public void testReflectRecordEncoding() throws Exception {
-    AvroCoder<TestAvro> coder = AvroCoder.of(TestAvro.class, true);
+    AvroCoder<TestAvro> coder = AvroCoder.specific(TestAvro.class);
     AvroCoder<TestAvro> coderWithSchema =
-        AvroCoder.of(TestAvro.class, AVRO_SPECIFIC_RECORD.getSchema(), true);
+        AvroCoder.specific(TestAvro.class, AVRO_SPECIFIC_RECORD.getSchema());
 
     assertTrue(SpecificRecord.class.isAssignableFrom(coder.getType()));
     assertTrue(SpecificRecord.class.isAssignableFrom(coderWithSchema.getType()));
@@ -360,16 +339,81 @@ public class AvroCoderTest {
     CoderProperties.coderDecodeEncodeEqual(coderWithSchema, AVRO_SPECIFIC_RECORD);
   }
 
-  @Test
-  public void testDisableReflectionEncoding() {
-    try {
-      AvroCoder.of(Pojo.class, false);
-      fail("When userReclectApi is disable, schema should not be generated through reflection");
-    } catch (AvroRuntimeException e) {
-      String message =
-          "Not a Specific class: class org.apache.beam.sdk.extensions.avro.coders.AvroCoderTest$Pojo";
-      assertTrue(e.getMessage().contains(message));
+  // example to overcome AVRO-2943 limitation with custom datum factory
+  // force usage of String instead of Utf8 when avro type is set to CharSequence
+  static class CustomSpecificDatumFactory<T> extends AvroDatumFactory.SpecificDatumFactory<T> {
+
+    private static class CustomSpecificDatumReader<T> extends SpecificDatumReader<T> {
+      CustomSpecificDatumReader(Class<T> c) {
+        super(c);
+      }
+
+      // always use String instead of CharSequence
+      @Override
+      protected Class<?> findStringClass(Schema schema) {
+        final Class<?> stringClass = super.findStringClass(schema);
+        return stringClass == CharSequence.class ? String.class : stringClass;
+      }
     }
+
+    CustomSpecificDatumFactory(Class<T> type) {
+      super(type);
+    }
+
+    @Override
+    public DatumReader<T> apply(Schema writer, Schema reader) {
+      CustomSpecificDatumReader<T> datumReader = new CustomSpecificDatumReader<>(this.type);
+      datumReader.setExpected(reader);
+      datumReader.setSchema(writer);
+      return datumReader;
+    }
+  }
+
+  @Test
+  public void testCustomRecordEncoding() throws Exception {
+    AvroCoder<TestAvro> coder =
+        AvroCoder.of(
+            new CustomSpecificDatumFactory<>(TestAvro.class), AVRO_SPECIFIC_RECORD.getSchema());
+    assertTrue(SpecificRecord.class.isAssignableFrom(coder.getType()));
+    CoderProperties.coderDecodeEncodeEqual(coder, AVRO_SPECIFIC_RECORD);
+  }
+
+  @Test
+  public void testSpecificRecordConversionEncoding() throws Exception {
+    TestAvroConversion record =
+        TestAvroConversionFactory.newInstance(new org.joda.time.LocalDate(1979, 3, 14));
+    AvroCoder<TestAvroConversion> coder = AvroCoder.specific(TestAvroConversion.class);
+    AvroCoder<TestAvroConversion> coderWithSchema =
+        AvroCoder.specific(TestAvroConversion.class, record.getSchema());
+
+    assertTrue(SpecificRecord.class.isAssignableFrom(coder.getType()));
+    assertTrue(SpecificRecord.class.isAssignableFrom(coderWithSchema.getType()));
+
+    try {
+      CoderProperties.coderDecodeEncodeEqual(coder, record);
+      CoderProperties.coderDecodeEncodeEqual(coderWithSchema, record);
+    } catch (org.apache.avro.AvroRuntimeException e) {
+      if (VERSION_AVRO.equals("1.8.2")) {
+        // it is expected to fail in avro 1.8.2 but pass for other versions
+        // https://issues.apache.org/jira/browse/AVRO-1891
+        assertEquals("Unknown datum type org.joda.time.LocalDate: 1979-03-14", e.getMessage());
+      } else {
+        throw e;
+      }
+    }
+  }
+
+  @Test
+  public void testReflectRecordEncoding() throws Exception {
+    AvroCoder<TestAvro> coder = AvroCoder.reflect(TestAvro.class);
+    AvroCoder<TestAvro> coderWithSchema =
+        AvroCoder.reflect(TestAvro.class, AVRO_SPECIFIC_RECORD.getSchema());
+
+    assertTrue(SpecificRecord.class.isAssignableFrom(coder.getType()));
+    assertTrue(SpecificRecord.class.isAssignableFrom(coderWithSchema.getType()));
+
+    CoderProperties.coderDecodeEncodeEqual(coder, AVRO_SPECIFIC_RECORD);
+    CoderProperties.coderDecodeEncodeEqual(coderWithSchema, AVRO_SPECIFIC_RECORD);
   }
 
   @Test
@@ -391,7 +435,7 @@ public class AvroCoderTest {
     before.put("favorite_number", 256);
     // Leave favorite_color null
 
-    AvroCoder<GenericRecord> coder = AvroCoder.of(GenericRecord.class, schema);
+    AvroCoder<GenericRecord> coder = AvroCoder.generic(schema);
 
     CoderProperties.coderDecodeEncodeEqual(coder, before);
     assertEquals(schema, coder.getSchema());
@@ -437,16 +481,16 @@ public class AvroCoderTest {
   }
 
   @Test
-  public void testAvroCoderIsSerializable() throws Exception {
-    AvroCoder<Pojo> coder = AvroCoder.of(Pojo.class);
+  public void testAvroSpecificCoderIsSerializable() throws Exception {
+    AvroCoder<TestAvro> coder = AvroCoder.specific(TestAvro.class);
 
     // Check that the coder is serializable using the regular JSON approach.
     SerializableUtils.ensureSerializable(coder);
   }
 
   @Test
-  public void testAvroSpecificCoderIsSerializable() throws Exception {
-    AvroCoder<TestAvro> coder = AvroCoder.of(TestAvro.class, false);
+  public void testAvroReflectCoderIsSerializable() throws Exception {
+    AvroCoder<Pojo> coder = AvroCoder.reflect(Pojo.class);
 
     // Check that the coder is serializable using the regular JSON approach.
     SerializableUtils.ensureSerializable(coder);
