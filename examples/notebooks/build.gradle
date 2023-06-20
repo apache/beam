@@ -163,7 +163,7 @@ tasks.register("wordCount") {
   doLast {
     exec {
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && python -m apache_beam.examples.wordcount --runner DirectRunner --output /tmp/output.txt"
+      args '-c', ". ${envdir}/bin/activate && notebooks -m apache_beam.examples.wordcount --runner DirectRunner --output /tmp/output.txt"
     }
   }
 }

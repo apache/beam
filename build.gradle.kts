@@ -470,13 +470,12 @@ tasks.register("pythonPreCommit") {
 }
 
 tasks.register("pythonNotebooksPreCommit") {
-   /* doLast {
+    /* doLast {
       exec {
         executable("sh")
         args ("-c", ". ${envdir}/bin/activate && python -m apache_beam.examples.wordcount --runner DirectRunner --output /tmp/output.txt")
       }
-     } */
-  dependsOn(":sdks:python:container:py38:docker")
+     }*/
   dependsOn(":sdks:python:wordCount")
 }
 
