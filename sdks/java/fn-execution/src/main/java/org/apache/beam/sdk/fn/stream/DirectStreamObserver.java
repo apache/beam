@@ -71,8 +71,8 @@ public final class DirectStreamObserver<T> implements StreamObserver<T> {
     synchronized (lock) {
       if (++numMessages >= maxMessagesBeforeCheck) {
         numMessages = 0;
-        int waitTime = 1;
-        int totalTimeWaited = 0;
+        int waitSeconds = 1;
+        int totalSecondsWaited = 0;
         int phase = phaser.getPhase();
         // Record the initial phase in case we are in the inbound gRPC thread where the phase won't
         // advance.
@@ -80,16 +80,18 @@ public final class DirectStreamObserver<T> implements StreamObserver<T> {
         // A negative phase indicates that the phaser is terminated.
         while (phase >= 0 && !outboundObserver.isReady()) {
           try {
-            phase = phaser.awaitAdvanceInterruptibly(phase, waitTime, TimeUnit.SECONDS);
+            phase = phaser.awaitAdvanceInterruptibly(phase, waitSeconds, TimeUnit.SECONDS);
           } catch (TimeoutException e) {
-            totalTimeWaited += waitTime;
-            waitTime = Math.min(waitTime * 2, 60);
+            totalSecondsWaited += waitSeconds;
+            // Double the backoff for re-evaluating the isReady bit up to a maximum of once per
+            // minute. This bounds the waiting if the onReady callback is not called as expected.
+            waitSeconds = Math.min(waitSeconds * 2, 60);
           } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new RuntimeException(e);
           }
         }
-        if (totalTimeWaited > 0) {
+        if (totalSecondsWaited > 0) {
           // If the phase didn't change, this means that the installed onReady callback had not
           // been invoked.
           if (initialPhase == phase) {
@@ -97,12 +99,12 @@ public final class DirectStreamObserver<T> implements StreamObserver<T> {
                 "Output channel stalled for {}s, outbound thread {}. See: "
                     + "https://issues.apache.org/jira/browse/BEAM-4280 for the history for "
                     + "this issue.",
-                totalTimeWaited,
+                totalSecondsWaited,
                 Thread.currentThread().getName());
           } else {
             LOG.debug(
                 "Output channel stalled for {}s, outbound thread {}.",
-                totalTimeWaited,
+                totalSecondsWaited,
                 Thread.currentThread().getName());
           }
         }

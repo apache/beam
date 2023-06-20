@@ -18,9 +18,9 @@
 package org.apache.beam.fn.harness.logging;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables.getStackTraceAsString;
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -60,9 +60,10 @@ import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.ClientCallStreamObserver
 import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.ClientResponseObserver;
 import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.nullness.qual.RequiresNonNull;
 import org.slf4j.MDC;
 
 /**
@@ -109,8 +110,11 @@ public class BeamFnLoggingClient implements AutoCloseable {
   private final BlockingQueue<LogEntry> bufferedLogEntries =
       new ArrayBlockingQueue<>(MAX_BUFFERED_LOG_ENTRY_COUNT);
 
-  //
-  private @Nullable CompletableFuture<?> bufferedLogConsumer = null;
+  /**
+   * Future that completes with the background thread consuming logs from bufferedLogEntries.
+   * Completes with COMPLETED or with exception.
+   */
+  private final CompletableFuture<?> bufferedLogConsumer;
 
   /**
    * Safe object publishing is not required since we only care if the thread that set this field is
@@ -126,26 +130,24 @@ public class BeamFnLoggingClient implements AutoCloseable {
         new BeamFnLoggingClient(
             apiServiceDescriptor,
             new StreamWriter(channelFactory.apply(apiServiceDescriptor)),
-            options.as(SdkHarnessOptions.class).getLogMdc());
-    client.startThreadAndInstallLogging(
-        options.as(ExecutorOptions.class).getScheduledExecutorService(),
-        options.as(SdkHarnessOptions.class));
+            options.as(SdkHarnessOptions.class).getLogMdc(),
+            options.as(ExecutorOptions.class).getScheduledExecutorService(),
+            options.as(SdkHarnessOptions.class));
     return client;
   }
 
   private BeamFnLoggingClient(
       Endpoints.ApiServiceDescriptor apiServiceDescriptor,
       StreamWriter streamWriter,
-      boolean logMdc) {
+      boolean logMdc,
+      ScheduledExecutorService executorService,
+      SdkHarnessOptions options) {
     this.apiServiceDescriptor = apiServiceDescriptor;
     this.streamWriter = streamWriter;
     this.logRecordHandler = new LogRecordHandler(logMdc);
     logRecordHandler.setLevel(Level.ALL);
     logRecordHandler.setFormatter(DEFAULT_FORMATTER);
-  }
 
-  private void startThreadAndInstallLogging(
-      ScheduledExecutorService executorService, SdkHarnessOptions options) {
     CompletableFuture<Object> started = new CompletableFuture<>();
     this.bufferedLogConsumer =
         CompletableFuture.supplyAsync(
@@ -169,7 +171,8 @@ public class BeamFnLoggingClient implements AutoCloseable {
             },
             executorService);
     try {
-      // Wait for the thread to be running and log handlers installed.
+      // Wait for the thread to be running and log handlers installed or an error with the thread
+      // that is supposed to be consuming logs.
       CompletableFuture.anyOf(this.bufferedLogConsumer, started).get();
     } catch (ExecutionException e) {
       throw new RuntimeException("Error starting background log thread " + e.getCause());
@@ -179,7 +182,10 @@ public class BeamFnLoggingClient implements AutoCloseable {
     }
   }
 
-  private void installLogging(SdkHarnessOptions options) {
+  @RequiresNonNull("logRecordHandler")
+  @RequiresNonNull("configuredLoggers")
+  private void installLogging(
+      @UnderInitialization BeamFnLoggingClient this, SdkHarnessOptions options) {
     // Reset the global log manager, get the root logger and remove the default log handlers.
     LogManager logManager = LogManager.getLogManager();
     logManager.reset();
@@ -319,9 +325,8 @@ public class BeamFnLoggingClient implements AutoCloseable {
   }
 
   @Override
-  @SuppressWarnings("nullness")
   public void close() throws Exception {
-    Preconditions.checkNotNull(bufferedLogConsumer);
+    checkNotNull(bufferedLogConsumer, "BeamFnLoggingClient not fully started");
     try {
       try {
         // Wait for buffered log messages to drain for a short period.
@@ -347,7 +352,9 @@ public class BeamFnLoggingClient implements AutoCloseable {
   }
 
   // Reset the logging configuration to what it is at startup.
-  private void restoreLoggers() {
+  @RequiresNonNull("configuredLoggers")
+  @RequiresNonNull("logRecordHandler")
+  private void restoreLoggers(@UnderInitialization BeamFnLoggingClient this) {
     for (Logger logger : configuredLoggers) {
       logger.setLevel(null);
       // Explicitly remove the installed handler in case reading the configuration fails.
@@ -362,7 +369,8 @@ public class BeamFnLoggingClient implements AutoCloseable {
     }
   }
 
-  void flushFinalLogs() {
+  @RequiresNonNull("bufferedLogEntries")
+  void flushFinalLogs(@UnderInitialization BeamFnLoggingClient this) {
     List<BeamFnApi.LogEntry> finalLogEntries = new ArrayList<>(MAX_BUFFERED_LOG_ENTRY_COUNT);
     bufferedLogEntries.drainTo(finalLogEntries);
     for (BeamFnApi.LogEntry logEntry : finalLogEntries) {
@@ -380,9 +388,8 @@ public class BeamFnLoggingClient implements AutoCloseable {
     }
   }
 
-  @SuppressWarnings("nullness")
   public CompletableFuture<?> terminationFuture() {
-    Preconditions.checkNotNull(bufferedLogConsumer);
+    checkNotNull(bufferedLogConsumer, "BeamFnLoggingClient not fully started");
     return bufferedLogConsumer;
   }
 
@@ -454,7 +461,6 @@ public class BeamFnLoggingClient implements AutoCloseable {
       }
 
       // The thread that sends log records should never perform a blocking publish and
-      // only insert log records best effort.
       if (Thread.currentThread() != logEntryHandlerThread) {
         // Blocks caller till enough space exists to publish this log entry.
         try {
@@ -469,9 +475,8 @@ public class BeamFnLoggingClient implements AutoCloseable {
       }
     }
 
-    @SuppressFBWarnings("RV_RETURN_VALUE_IGNORED_BAD_PRACTICE")
-    private void dropIfBufferFull(BeamFnApi.LogEntry logEntry) {
-      bufferedLogEntries.offer(logEntry);
+    private boolean dropIfBufferFull(BeamFnApi.LogEntry logEntry) {
+      return bufferedLogEntries.offer(logEntry);
     }
 
     @Override
