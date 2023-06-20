@@ -66,30 +66,30 @@ def partitionTransactions(element, num_partitions):
 
 def run():
     with beam.Pipeline() as pipeline:
-        transactions = (pipeline
+      transactions = (pipeline
                         | 'Read from text file' >> beam.io.ReadFromText('input.csv')
                         | 'Extract Data' >> beam.ParDo(ExtractDataFn())
                         )
 
-        windowed_transactions = (transactions
+      windowed_transactions = (transactions
                                  | 'Window' >> beam.WindowInto(window.FixedWindows(30), trigger=trigger.AfterWatermark(
                     early=trigger.AfterProcessingTime(5).has_ontime_pane(), late=trigger.AfterAll()),
                                                                allowed_lateness=30,
                                                                accumulation_mode=trigger.AccumulationMode.DISCARDING))
 
-        partition = (windowed_transactions
+      partition = (windowed_transactions
                      | 'Filtering' >> beam.Filter(lambda t: int(t.quantity) >= 20)
                      | 'Partition transactions' >> beam.Partition(partitionTransactions, 2))
 
-        biggerThan10 = partition[0]
-        smallerThan10 = partition[1]
+      biggerThan10 = partition[0]
+      smallerThan10 = partition[1]
 
-        (biggerThan10
+      (biggerThan10
          | 'Map product_no and price for bigger' >> beam.Map(lambda transaction: (transaction.product_no, float(transaction.price)))
          | 'Calculate sum for price more than 10' >> beam.CombinePerKey(sum)
          | 'Write price more than 10 results to text file' >> beam.io.WriteToText('price_more_than_10', '.txt', shard_name_template=''))
 
-        (smallerThan10
+      (smallerThan10
          | 'Map product_no and price for smaller' >> beam.Map(lambda transaction: (transaction.product_no, float(transaction.price)))
          | 'Calculate sum for price less than 10' >> beam.CombinePerKey(sum)
          | 'Write price less than 10 results to text file' >> beam.io.WriteToText('price_less_than_10', '.txt', shard_name_template=''))

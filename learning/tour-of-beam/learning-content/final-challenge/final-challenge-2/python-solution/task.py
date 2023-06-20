@@ -96,42 +96,42 @@ class MatchWordDoFn(beam.DoFn):
 def run():
     pipeline_options = PipelineOptions()
     with beam.Pipeline(options=pipeline_options) as p:
-        shakespeare = (p
+      shakespeare = (p
                        | 'Read from text file' >> ReadFromText('gs://apache-beam-samples/shakespeare/kinglear.txt')
                        | 'Split into words' >> beam.ParDo(SplitWords())
                        | 'Filter empty words' >> beam.Filter(bool))
 
-        analysis = (p
+      analysis = (p
                     | 'Read from csv file' >> ReadFromText('analysis.csv')
                     | 'Extract Analysis' >> beam.ParDo(ExtractAnalysis()))
 
-        windowed_words = (shakespeare
+      windowed_words = (shakespeare
                           | 'Window' >> beam.WindowInto(window.FixedWindows(30), trigger=trigger.AfterWatermark(
                     early=trigger.AfterProcessingTime(5).has_ontime_pane(), late=trigger.AfterAll()), allowed_lateness=30,
                                                         accumulation_mode=trigger.AccumulationMode.DISCARDING))
 
-        matches = windowed_words | beam.ParDo(MatchWordDoFn(), beam.pvalue.AsList(analysis))
+      matches = windowed_words | beam.ParDo(MatchWordDoFn(), beam.pvalue.AsList(analysis))
 
-        result = matches | Partition()
+      result = matches | Partition()
 
-        positive_words = result[0]
-        negative_words = result[1]
+      positive_words = result[0]
+      negative_words = result[1]
 
-        (positive_words
+      (positive_words
          | 'Count Positive Words' >> beam.CombineGlobally(CountCombineFn()).without_defaults()
          | 'Log Positive Words' >> beam.ParDo(LogOutput('Positive word count')))
 
-        (positive_words
+      (positive_words
          | 'Filter Strong or Weak Positive Words' >> beam.Filter(
                     lambda analysis: analysis.strong != '0' or analysis.weak != '0')
          | 'Count Strong or Weak Positive Words' >> beam.CombineGlobally(CountCombineFn()).without_defaults()
          | 'Log Strong or Weak Positive Words' >> beam.ParDo(LogOutput('Positive words with enhanced effect count')))
 
-        (negative_words
+      (negative_words
          | 'Count Negative Words' >> beam.CombineGlobally(CountCombineFn()).without_defaults()
          | 'Log Negative Words' >> beam.ParDo(LogOutput('Negative word count')))
 
-        (negative_words
+      (negative_words
          | 'Filter Strong or Weak Negative Words' >> beam.Filter(
                     lambda analysis: analysis.strong != '0' or analysis.weak != '0')
          | 'Count Strong or Weak Negative Words' >> beam.CombineGlobally(CountCombineFn()).without_defaults()

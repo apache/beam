@@ -51,7 +51,7 @@ class Transaction:
 
 def run():
     with beam.Pipeline() as pipeline:
-        transactions = (pipeline
+      transactions = (pipeline
                         | 'Read from text file' >> beam.io.ReadFromText('input.csv'))
 
 

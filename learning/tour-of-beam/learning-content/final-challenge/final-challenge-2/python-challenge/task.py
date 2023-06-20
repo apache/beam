@@ -59,7 +59,7 @@ class Analysis:
 def run():
     pipeline_options = PipelineOptions()
     with beam.Pipeline(options=pipeline_options) as p:
-        shakespeare = (p
+      shakespeare = (p
                        | 'Read from text file' >> ReadFromText('gs://apache-beam-samples/shakespeare/kinglear.txt')
                        | 'Split into words' >> beam.ParDo(SplitWords())
                        | 'Filter empty words' >> beam.Filter(bool))
