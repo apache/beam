@@ -136,7 +136,7 @@ cd $BEAM_ROOT_DIR
 LogOutput "git fetch --all"
 git fetch --all
 # Docker containers will build from the current PR commit
-LogOutput "git checkout $COMMIT"
+LogOutput "git checkout $COMMIT with changes"
 git checkout $COMMIT
 if [ $? -ne 0 ]; then
    LogOutput "Can't checkout to $COMMIT. Exiting script"
