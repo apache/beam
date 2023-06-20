@@ -106,8 +106,8 @@ public interface DoFnInvoker<InputT, OutputT> {
    *   <li>get the work remaining from the {@link RestrictionTracker} if it supports {@link
    *       HasProgress}.
    *   <li>returning the constant {@link 0.0}. This is to enable downscaling, as if this default
-   *   were positive, the runner would assume work remaining. A default of 0 instead of 1 doesn't
-   *   substantially impact upscaling.
+   *       were positive, the runner would assume work remaining. A default of 0 instead of 1
+   *       doesn't substantially impact upscaling.
    * </ol>
    */
   double invokeGetSize(ArgumentProvider<InputT, OutputT> arguments);
