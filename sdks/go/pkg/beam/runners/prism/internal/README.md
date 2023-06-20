@@ -54,7 +54,7 @@ Most configurable behavior is determined here.
 `web` contains a web server to visualize aspects of the runner, and should never be
 depended on by the other packages for the runner.
 It will primarily abstract access to pipeline data through a JobManagement API client.
-If no other option exists, it may use direct access to exported data from the other packages. 
+If no other option exists, it may use direct access to exported data from the other packages.
 
 # Testing
 
