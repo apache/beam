@@ -31,7 +31,7 @@ Until Beam v2.49.0 is released:
 
 `go install "github.com/apache/beam/sdks/v2/go/cmd/prism@master"`
 
-After that release 
+After that release
 
 `go install "github.com/apache/beam/sdks/v2/go/cmd/prism@latest"`
 
