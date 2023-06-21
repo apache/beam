@@ -1,0 +1,118 @@
+name: "Rerun Job Action"
+description: Re-runs a job that is attached to the PR as Check Run
+inputs:
+  pull_request_url:
+    description: "The URL of the PR"
+    required: true
+  github_repository:
+    description: "The GitHub repository"
+    required: true
+  github_token:
+    description: "The GitHub token"
+    required: true
+  github_job:
+    description: "The GitHub job"
+    required: true
+  github_current_run_id:
+    description: "The GitHub current run id. Not the same that is fetched in this action"
+    required: true
+
+
+runs:
+  using: composite
+  steps:
+  - name: Get Last Commit SHA
+    shell: bash
+    run: | 
+      URL=${{inputs.pull_request_url}}/commits
+      PRSHA=$(curl  \
+      -H 'Authorization: Bearer ${{inputs.github_token}}' \
+      -H "Accept: application/vnd.github+json" \
+      -H "X-GitHub-Api-Version: 2022-11-28" \
+      -s $URL  | jq -r '.[-1].sha' ) 
+      echo prsha=$PRSHA >> $GITHUB_ENV
+
+  - name: Get Status for PR Job
+    id: get_status
+    shell: bash
+    run: | 
+      URL="${{github.api_url}}/repos/${{inputs.github_repository}}/commits/${{env.prsha}}/check-runs"
+      STATUS=$(curl  \
+      -H 'Authorization: Bearer ${{inputs.github_token}}' \
+      -H "Accept: application/vnd.github+json" \
+      -H "X-GitHub-Api-Version: 2022-11-28" \
+      -s $URL | jq -r '.check_runs | .[] | select(.name=="${{inputs.github_job}}") | .status')
+      echo status=$STATUS >> $GITHUB_ENV    
+
+  - name: Get Conclusion for PR Job
+    id: get_conclusion
+    shell: bash
+    run: | 
+      URL="${{github.api_url}}/repos/${{inputs.github_repository}}/commits/${{env.prsha}}/check-runs"
+      CONCLUSION=$(curl  \
+      -H 'Authorization: Bearer ${{inputs.github_token}}' \
+      -H "Accept: application/vnd.github+json" \
+      -H "X-GitHub-Api-Version: 2022-11-28" \
+      -s $URL | jq -r '.check_runs | .[] | select(.name=="${{inputs.github_job}}") | .conclusion')
+      echo conclusion=$CONCLUSION >> $GITHUB_ENV
+  
+  - name: Enable Rerun
+    if: ${{env.status == 'completed' && (env.conclusion == 'success' || env.conclusion == 'skipped')}}
+    shell: bash
+    run: echo rerun=false >> $GITHUB_ENV
+
+  - name: Get Check Suide ID
+    if: ${{env.rerun != 'false' }}
+    shell: bash
+    run: | 
+      URL="${{github.api_url}}/repos/${{inputs.github_repository}}/commits/${{env.prsha}}/check-runs"
+      CHECK_SUITE_ID=$(curl  \
+      -H 'Authorization: Bearer ${{inputs.github_token}}' \
+      -H "Accept: application/vnd.github+json" \
+      -H "X-GitHub-Api-Version: 2022-11-28" \
+      -s $URL | jq -r '.check_runs | .[] | select(.name=="${{inputs.github_job}}") | .check_suite.id')
+      echo check_suite_id=$CHECK_SUITE_ID >> $GITHUB_ENV
+
+  - name: Get Run ID
+    if: ${{env.rerun != 'false' }}
+    shell: bash
+    run: | 
+      URL="${{github.api_url}}/repos/${{inputs.github_repository}}/actions/runs?check_suite_id=${{env.check_suite_id}}"
+      RUN_ID=$(curl  \
+      -H 'Authorization: Bearer ${{inputs.github_token}}' \
+      -H "Accept: application/vnd.github+json" \
+      -H "X-GitHub-Api-Version: 2022-11-28" \
+      -s $URL | jq -r '.workflow_runs | .[0] | .id')
+      echo run_id=$RUN_ID >> $GITHUB_ENV
+
+  - name: Get Job ID
+    if: ${{env.rerun != 'false' }}
+    shell: bash
+    run: | 
+      URL="${{github.api_url}}/repos/${{inputs.github_repository}}/actions/runs/${{env.run_id}}/jobs"
+      JOB_ID=$(curl  \
+      -H 'Authorization: Bearer ${{inputs.github_token}}' \
+      -H "Accept: application/vnd.github+json" \
+      -H "X-GitHub-Api-Version: 2022-11-28" \
+      -s $URL | jq -r '.jobs | .[] | select(.name=="${{inputs.github_job}}") | .id ')
+      echo job_id=$JOB_ID >> $GITHUB_ENV
+
+  - name: Trigger Re-run
+    if: ${{env.rerun != 'false' }}
+    shell: bash
+    run: | 
+      URL="${{github.api_url}}/repos/${{inputs.github_repository}}/actions/jobs/${{env.job_id}}/rerun"
+      curl -X POST \
+      -H 'Authorization: Bearer ${{inputs.github_token}}' \
+      -H "Accept: application/vnd.github+json" \
+      -H "X-GitHub-Api-Version: 2022-11-28" \
+      -s $URL 
+      
+  - name: Exit rest of the run
+    if: ${{env.rerun != 'false' }}
+    shell: bash
+    run: |
+      gh run cancel ${{ inputs.github_current_run_id }}
+      gh run watch ${{ inputs.github_current_run_i }}
+    env:
+      GITHUB_TOKEN: ${{ inputs.github_token }}
