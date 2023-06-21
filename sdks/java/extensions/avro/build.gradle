@@ -25,7 +25,13 @@ applyJavaNature(
     publish: true,
     exportJavadoc: true,
 )
+
+// generates avro 1.8.2 sources
 applyAvroNature()
+avro {
+  // keep consistency with avro-tools for other avro versions
+  stringType = "CharSequence"
+}
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: Avro"
 
@@ -35,7 +41,12 @@ def avroVersions = [
     '1111': "1.11.1",
 ]
 
-avroVersions.each { k, v -> configurations.create("avroVersion$k") }
+avroVersions.each { k, v ->
+  configurations {
+    create("avroVersion$k").extendsFrom(implementation)
+    create("avroVersion${k}Generate")
+  }
+}
 
 // Exclude tests that need a runner
 test {
@@ -63,67 +74,75 @@ dependencies {
   testImplementation library.java.junit
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
   testRuntimeOnly library.java.slf4j_jdk14
-  avroVersions.each {
-    "avroVersion$it.key" "org.apache.avro:avro:$it.value"
-    "avroVersion$it.key" "org.apache.avro:avro-tools:$it.value"
+  avroVersions.each { k,v ->
+    "avroVersion$k"(project(path: ":sdks:java:core", configuration: "shadowTest")) {
+      // Exclude Avro dependencies from "core" since Avro support moved to this extension
+      exclude group: "org.apache.avro", module: "avro"
+    }
+    "avroVersion$k" library.java.junit
+    "avroVersion$k" project(path: ":runners:direct-java", configuration: "shadow")
+    "avroVersion$k" library.java.slf4j_jdk14
+    "avroVersion$k" "org.tukaani:xz:1.9" // marked as optional in avro
+    "avroVersion$k" library.java.zstd_jni // marked as optional in avro
+    "avroVersion${k}Generate" "org.apache.avro:avro-tools:$v"
   }
 }
 
-avroVersions.each { kv ->
-  configurations."avroVersion$kv.key" {
-    resolutionStrategy {
-      force "org.apache.avro:avro:$kv.value"
-    }
+avroVersions.each { k, v ->
+  configurations."avroVersion$k" {
+    resolutionStrategy.force "org.apache.avro:avro:$v", "org.apache.avro:avro:$v:tests"
   }
 
   sourceSets {
-    "avro${kv.key}" {
+    "avro$k" {
       java {
-        srcDirs "build/generated/sources/avro${kv.key}/test/java"
+        srcDirs "src/test/java", "build/generated/sources/avro$k/test/java"
       }
 
-      compileClasspath = configurations."avroVersion$kv.key" + sourceSets.test.output + sourceSets.test.compileClasspath
-      runtimeClasspath += compileClasspath + sourceSets.test.runtimeClasspath
+      // only use compileClasspath on purpose to not include generated test files
+      // will recompile with the propper generated sources
+      compileClasspath += configurations."avroVersion$k"
+      runtimeClasspath += configurations."avroVersion$k"
     }
   }
 
-  "compileAvro${kv.key}Java" {
+  "compileAvro${k}Java" {
     checkerFramework {
       skipCheckerFramework = true
     }
   }
 
-  "spotbugsAvro${kv.key}" {
+  "spotbugsAvro$k" {
     ignoreFailures = true
   }
 
-  "generateAvro${kv.key}AvroJava" {
-    dependsOn "generateAvroClasses${kv.key}"
+  "generateAvro${k}AvroJava" {
+    dependsOn "generateAvroClasses$k"
   }
 
-  task "avroVersion${kv.key}Test"(type: Test) {
+  task "avroVersion${k}Test"(type: Test) {
     group = "Verification"
-    description = "Runs Avro extension tests with Avro version $kv.value"
+    description = "Runs Avro extension tests with Avro version $v"
     outputs.upToDateWhen { false }
-    classpath = sourceSets."avro${kv.key}".runtimeClasspath
+    classpath = sourceSets."avro$k".runtimeClasspath
 
     include '**/*.class'
     exclude '**/AvroIOTest$NeedsRunnerTests$*.class'
 
-    dependsOn "generateAvroClasses${kv.key}"
+    dependsOn "compileAvro${k}Java"
   }
 
-  task "generateAvroClasses${kv.key}"(type: JavaExec) {
+  task "generateAvroClasses$k"(type: JavaExec) {
     group = "build"
-    description = "Generate Avro classes for Avro version $kv.value"
-    classpath = configurations."avroVersion$kv.key"
+    description = "Generate Avro classes for Avro version $v"
+    classpath = configurations."avroVersion${k}Generate"
     main = "org.apache.avro.tool.Main"
     args = [
         "compile",
         "schema",
         "src/test/avro/org/apache/beam/sdk/extensions/avro/io/user.avsc",
         "src/test/avro/org/apache/beam/sdk/extensions/avro/schemas/test.avsc",
-        "build/generated/sources/avro${kv.key}/test/java"
+        "build/generated/sources/avro$k/test/java"
     ]
   }
 }

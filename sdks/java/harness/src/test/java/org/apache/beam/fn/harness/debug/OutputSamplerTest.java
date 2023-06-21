@@ -62,10 +62,10 @@ public class OutputSamplerTest {
   /**
    * Test that the first N are always sampled.
    *
-   * @throws Exception when encoding fails (shouldn't happen).
+   * @throws IOException when encoding fails (shouldn't happen).
    */
   @Test
-  public void testSamplesFirstN() throws Exception {
+  public void testSamplesFirstN() throws IOException {
     VarIntCoder coder = VarIntCoder.of();
     OutputSampler<Integer> outputSampler = new OutputSampler<>(coder, 10, 10);
 
@@ -85,7 +85,7 @@ public class OutputSamplerTest {
   }
 
   @Test
-  public void testWindowedValueSample() throws Exception {
+  public void testWindowedValueSample() throws IOException {
     WindowedValue.WindowedValueCoder<Integer> coder =
         WindowedValue.FullWindowedValueCoder.of(VarIntCoder.of(), GlobalWindow.Coder.INSTANCE);
 
@@ -99,7 +99,7 @@ public class OutputSamplerTest {
   }
 
   @Test
-  public void testNonWindowedValueSample() throws Exception {
+  public void testNonWindowedValueSample() throws IOException {
     VarIntCoder coder = VarIntCoder.of();
 
     OutputSampler<Integer> outputSampler = new OutputSampler<>(coder, 10, 10);
@@ -114,10 +114,10 @@ public class OutputSamplerTest {
   /**
    * Test that the previous values are overwritten and only the most recent `maxSamples` are kept.
    *
-   * @throws Exception when encoding fails (shouldn't happen).
+   * @throws IOException when encoding fails (shouldn't happen).
    */
   @Test
-  public void testActsLikeCircularBuffer() throws Exception {
+  public void testActsLikeCircularBuffer() throws IOException {
     VarIntCoder coder = VarIntCoder.of();
     OutputSampler<Integer> outputSampler = new OutputSampler<>(coder, 5, 20);
 
@@ -140,12 +140,75 @@ public class OutputSamplerTest {
   }
 
   /**
-   * Test that sampling a PCollection while retrieving samples from multiple threads is ok.
+   * Test that elements with exceptions can be sampled. TODO: test that the exception metadata is
+   * set.
    *
-   * @throws Exception
+   * @throws IOException when encoding fails (shouldn't happen).
    */
   @Test
-  public void testConcurrentSamples() throws Exception {
+  public void testCanSampleExceptions() throws IOException {
+    VarIntCoder coder = VarIntCoder.of();
+    OutputSampler<Integer> outputSampler = new OutputSampler<>(coder, 5, 20);
+
+    WindowedValue<Integer> windowedValue = WindowedValue.valueInGlobalWindow(1);
+    ElementSample<Integer> elementSample = outputSampler.sample(windowedValue);
+
+    Exception exception = new RuntimeException("Test exception");
+    outputSampler.exception(elementSample, exception);
+
+    // The first 10 are always sampled, but with maxSamples = 5, the first ten are downsampled to
+    // 4..9 inclusive. Then,
+    // the 20th element is sampled (19) and every 20 after.
+    List<BeamFnApi.SampledElement> expected = new ArrayList<>();
+    expected.add(encodeInt(1));
+
+    List<BeamFnApi.SampledElement> samples = outputSampler.samples();
+    assertThat(samples, containsInAnyOrder(expected.toArray()));
+  }
+
+  /**
+   * Tests that multiple samples don't push out exception samples. TODO: test that the exception
+   * metadata is set.
+   *
+   * @throws IOException when encoding fails (shouldn't happen).
+   */
+  @Test
+  public void testExceptionSamplesAreNotRemoved() throws IOException {
+    VarIntCoder coder = VarIntCoder.of();
+    OutputSampler<Integer> outputSampler = new OutputSampler<>(coder, 5, 20);
+
+    WindowedValue<Integer> windowedValue = WindowedValue.valueInGlobalWindow(0);
+    ElementSample<Integer> elementSample = outputSampler.sample(windowedValue);
+
+    for (int i = 1; i < 100; ++i) {
+      outputSampler.sample(WindowedValue.valueInGlobalWindow(i));
+    }
+
+    Exception exception = new RuntimeException("Test exception");
+    outputSampler.exception(elementSample, exception);
+
+    // The first 10 are always sampled, but with maxSamples = 5, the first ten are downsampled to
+    // 4..9 inclusive. Then, the 20th element is sampled (19) and every 20 after. Finally,
+    // exceptions are added to the list.
+    List<BeamFnApi.SampledElement> expected = new ArrayList<>();
+    expected.add(encodeInt(19));
+    expected.add(encodeInt(39));
+    expected.add(encodeInt(59));
+    expected.add(encodeInt(79));
+    expected.add(encodeInt(99));
+    expected.add(encodeInt(0));
+
+    List<BeamFnApi.SampledElement> samples = outputSampler.samples();
+    assertThat(samples, containsInAnyOrder(expected.toArray()));
+  }
+
+  /**
+   * Test that sampling a PCollection while retrieving samples from multiple threads is ok.
+   *
+   * @throws IOException, InterruptedException
+   */
+  @Test
+  public void testConcurrentSamples() throws IOException, InterruptedException {
     VarIntCoder coder = VarIntCoder.of();
     OutputSampler<Integer> outputSampler = new OutputSampler<>(coder, 10, 2);
 

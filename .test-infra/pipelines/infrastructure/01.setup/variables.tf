@@ -16,12 +16,22 @@
  * limitations under the License.
  */
 
+variable "project" {
+  type        = string
+  description = "The Google Cloud Platform (GCP) project within which resources are provisioned"
+}
 
-import com.intellij.testFramework.fixtures.BasePlatformTestCase;
-import org.junit.Assert;
+variable "region" {
+  type        = string
+  description = "The Google Cloud Platform (GCP) region in which to provision resources"
+}
 
-public class BeamCompletionContributorTestcase extends BasePlatformTestCase {
-    public void testAutoPopupCompletions() {
-        Assert.assertEquals(2,2);
-    }
+variable "dataflow_worker_service_account_id" {
+  type        = string
+  description = "The Dataflow Worker Service Account ID"
+}
+
+variable "artifact_registry_id" {
+  type        = string
+  description = "The ID of the artifact registry repository"
 }
