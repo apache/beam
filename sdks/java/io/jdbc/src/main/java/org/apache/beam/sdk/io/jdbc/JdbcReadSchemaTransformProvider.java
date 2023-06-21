@@ -56,7 +56,7 @@ public class JdbcReadSchemaTransformProvider
     return new JdbcReadSchemaTransform(configuration);
   }
 
-  static class JdbcReadSchemaTransform implements SchemaTransform, Serializable {
+  static class JdbcReadSchemaTransform extends SchemaTransform implements Serializable {
 
     JdbcReadSchemaTransformConfiguration config;
 

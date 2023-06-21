@@ -58,7 +58,7 @@ public class JdbcWriteSchemaTransformProvider
     return new JdbcWriteSchemaTransform(configuration);
   }
 
-  static class JdbcWriteSchemaTransform implements SchemaTransform, Serializable {
+  static class JdbcWriteSchemaTransform extends SchemaTransform implements Serializable {
 
     JdbcWriteSchemaTransformConfiguration config;
 

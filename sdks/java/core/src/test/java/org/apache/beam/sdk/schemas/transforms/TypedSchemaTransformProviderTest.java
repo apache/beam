@@ -89,7 +89,7 @@ public class TypedSchemaTransformProviderTest {
     }
   }
 
-  public static class FakeSchemaTransform implements SchemaTransform {
+  public static class FakeSchemaTransform extends SchemaTransform {
 
     public Configuration config;
 
