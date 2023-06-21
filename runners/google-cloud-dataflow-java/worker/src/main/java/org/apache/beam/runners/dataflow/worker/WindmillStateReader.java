@@ -66,6 +66,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Futures;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.SettableFuture;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Reads persistent state from {@link Windmill}. Returns {@code Future}s containing the data that
@@ -107,6 +109,8 @@ class WindmillStateReader {
   public static final long MAX_KEY_BYTES = 16L << 20; // 16MB
 
   public static final long MAX_CONTINUATION_KEY_BYTES = 72L << 20; // 72MB
+
+  private static final Logger LOG = LoggerFactory.getLogger(WindmillStateReader.class);
 
   /**
    * When combined with a key and computationId, represents the unique address for state managed by
@@ -330,6 +334,13 @@ class WindmillStateReader {
             .toBuilder()
             .setSortedListRange(Preconditions.checkNotNull(range))
             .build();
+    LOG.error(
+        "GETTING FUTURE FOR "
+            + stateTag
+            + " FOR KEY "
+            + this.key
+            + " WORK TOKEN "
+            + this.workToken);
     return Preconditions.checkNotNull(
         valuesToPagingIterableFuture(stateTag, elemCoder, this.stateFuture(stateTag, elemCoder)));
   }
@@ -513,6 +524,9 @@ class WindmillStateReader {
   }
 
   private Windmill.KeyedGetDataRequest createRequest(Iterable<StateTag<?>> toFetch) {
+    LOG.error(
+        "CREATEREQUEST( " + toFetch + ") FOR KEY " + this.key + " WORK TOKEN " + this.workToken);
+
     Windmill.KeyedGetDataRequest.Builder keyedDataBuilder =
         Windmill.KeyedGetDataRequest.newBuilder()
             .setKey(key)
@@ -573,9 +587,18 @@ class WindmillStateReader {
           throw new RuntimeException("Unknown kind of tag requested: " + stateTag.getKind());
       }
     }
+
     orderedListsToFetch.sort(
         Comparator.<StateTag<?>>comparingLong(s -> s.getSortedListRange().lowerEndpoint())
             .thenComparingLong(s -> s.getSortedListRange().upperEndpoint()));
+    LOG.error(
+        "FETCHING ORDERED LISTS "
+            + orderedListsToFetch
+            + " FOR KEY "
+            + this.key
+            + " WORK TOKEN "
+            + this.workToken);
+
     for (StateTag<?> stateTag : orderedListsToFetch) {
       Range<Long> range = Preconditions.checkNotNull(stateTag.getSortedListRange());
       TagSortedListFetchRequest.Builder sorted_list =
@@ -882,6 +905,15 @@ class WindmillStateReader {
 
   private <T> void consumeSortedList(
       Windmill.TagSortedListFetchResponse sortedListFetchResponse, StateTag<ByteString> stateTag) {
+    LOG.error(
+        "CONSUMING SORTED LIST "
+            + sortedListFetchResponse
+            + " STATE TAG "
+            + stateTag
+            + " KEY "
+            + this.key
+            + " WORK TOKEN"
+            + this.workToken);
     boolean shouldRemove;
     if (stateTag.getRequestPosition() == null) {
       // This is the response for the first page.// Leave the future in the cache so subsequent
