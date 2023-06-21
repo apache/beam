@@ -1,4 +1,191 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Case Studies</title><link>/case-studies/</link><description>Recent content in Case Studies on Apache Beam</description><generator>Hugo -- gohugo.io</generator><atom:link href="/case-studies/index.xml" rel="self" type="application/rss+xml"/><item><title>Case-Studies: Mass Ad Bidding With Beam at Booking.com</title><link>/case-studies/booking/</link><pubDate>Sun, 16 Apr 2023 00:12:00 +0000</pubDate><guid>/case-studies/booking/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Case Studies</title><link>/case-studies/</link><description>Recent content in Case Studies on Apache Beam</description><generator>Hugo -- gohugo.io</generator><atom:link href="/case-studies/index.xml" rel="self" type="application/rss+xml"/><item><title>Case-Studies: Efficient Streaming Analytics: Making the Web a Safer Place with Project Shield</title><link>/case-studies/projectshield/</link><pubDate>Thu, 08 Jun 2023 00:12:00 +0000</pubDate><guid>/case-studies/projectshield/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;div class="case-study-opinion">
+&lt;div class="case-study-opinion-img">
+&lt;img src="/images/logos/powered-by/project_shield.png"/>
+&lt;/div>
+&lt;blockquote class="case-study-quote-block">
+&lt;p class="case-study-quote-text">
+“Apache Beam supports our mission to make the web a safer and better place by providing near-real-time visibility into traffic data for our customers, providing ongoing analysis and adjustments to our defenses, and neutralizing the impact of traffic spikes during DDoS attacks on the performance and efficiency of our platform.”
+&lt;/p>
+&lt;div class="case-study-quote-author">
+&lt;div class="case-study-quote-author-img">
+&lt;img src="/images/case-study/projectShield/marc_howard.jpg">
+&lt;/div>
+&lt;div class="case-study-quote-author-info">
+&lt;div class="case-study-quote-author-name">
+Marc Howard
+&lt;/div>
+&lt;div class="case-study-quote-author-position">
+Founding Engineer @ Project Shield
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/blockquote>
+&lt;/div>
+&lt;div class="case-study-post">
+&lt;h1 id="efficient-streaming-analytics-making-the-web-a-safer-place-with-project-shield">Efficient Streaming Analytics: Making the Web a Safer Place with Project Shield&lt;/h1>
+&lt;h2 id="background">Background&lt;/h2>
+&lt;p>&lt;a href="https://projectshield.withgoogle.com/landing">Project Shield&lt;/a>, offered by &lt;a href="https://cloud.google.com/">Google Cloud&lt;/a> and &lt;a href="https://jigsaw.google.com/">Jigsaw&lt;/a> (a subsidiary of Google), is a service that counters &lt;a href="https://en.wikipedia.org/wiki/Distributed-denial-of-service">distributed-denial-of-service&lt;/a> (DDoS) attacks. Project Shield is available free of charge to eligible websites that have media, elections, and human rights related content. &lt;a href="https://www.forbes.com/sites/andygreenberg/2013/10/21/googles-project-shield-will-offer-free-cyberattack-protection-to-hundreds-of-at-risk-sites/">Founded in 2013&lt;/a>, Project Shield’s mission is to protect freedom of speech and to make sure that, when people have access to democracy-related information, the information isn’t compromised, censored, or silenced in a politically-motivated way.&lt;/p>
+&lt;p>In the first half of 2022, Project Shield defended websites of vulnerable users - such as human rights, news, and civil society organizations or governments under exigent circumstances - &lt;a href="https://cloud.google.com/blog/products/identity-security/ddos-attack-trends-during-us-midterm-elections">against more than 25,000 attacks&lt;/a>. Notably, Project Shield helped ensure &lt;a href="https://cloud.google.com/blog/products/identity-security/ddos-attack-trends-during-us-midterm-elections">unhindered access to election-related information during the U.S. 2022 midterm election season&lt;/a>. It also &lt;a href="https://cio.economictimes.indiatimes.com/news/internet/google-expands-project-shield-to-protect-govts-from-hacking/90072091">enables Ukrainian critical infrastructure and media websites to defend against non-stop attacks&lt;/a> and to continue providing crucial services and information during the invasion of Ukraine.&lt;/p>
+&lt;p>Marc Howard and Chad Hansen, the co-founding engineers, explain how Project Shield uses Apache Beam to deliver some of their core value. The streaming Apache Beam pipelines process about 3 TB of log data daily at significantly over 10,000 queries per second. These pipelines enable multiple product needs. For example, Apache Beam produces real-time analytics and critical metrics for &lt;a href="https://www.washingtonpost.com/opinions/2022/06/21/russia-ukraine-cyberwar-intelligence-agencies-tech-companies/">over 3000 customer websites in 150 countries&lt;/a>. These metrics power long-term attack analytics at scale, fine-tuning Project Shield’s defenses and supporting them in the effort of making the web a safe and free space.&lt;/p>
+&lt;h2 id="journey-to-beam">Journey To Beam&lt;/h2>
+&lt;p>The Project Shield platform is built using Google Cloud technologies and provides multi-layered defenses. To absorb part of the traffic and keep websites online even if their servers are down, it uses &lt;a href="https://cloud.google.com/cdn">Cloud CDN&lt;/a> for &lt;a href="https://en.wikipedia.org/wiki/Cache_(computing)">caching&lt;/a>. To protect websites from DDoS and other malicious attacks, it leverages &lt;a href="https://cloud.google.com/armor">Cloud Armor&lt;/a> features, such as adaptive protection, rate limiting, and bot management.&lt;/p>
+&lt;p>Project Shield acts as a &lt;a href="https://en.wikipedia.org/wiki/Reverse_proxy">reverse proxy&lt;/a>: it receives traffic requests on a website’s behalf, absorbs traffic through caching, filters harmful traffic, bans attackers, and then sends safe traffic to a website’s origin server. This configuration allows websites to stay up and running when someone tries to take them down with a DDoS attack. The challenge is that, with a large portion of traffic blocked, the logs on customers’ origin servers no longer have accurate analytics about website traffic. Instead, customers rely on Project Shield to provide all of the traffic analytics.&lt;/p>
+&lt;div class="post-scheme">
+&lt;a href="/images/case-study/projectShield/project_shield_mechanism.png" target="_blank" title="Click to enlarge">
+&lt;img src="/images/case-study/projectShield/project_shield_mechanism.png" alt="Project Shield Mechanism">
+&lt;/a>
+&lt;span>Project Shield Mechanism&lt;/span>
+&lt;/div>
+&lt;p>Originally, Project Shield stored traffic logs in &lt;a href="https://cloud.google.com/bigquery">BigQuery&lt;/a>. It used one large query to produce analytics and charts with different traffic metrics, such as the amount of traffic, QPS, the share of cached traffic, and the attack data. However, querying all of the logs, especially with dramatic spikes in traffic, was slow and expensive.&lt;/p>
+&lt;blockquote class="case-study-quote-block case-study-quote-wrapped">
+&lt;p class="case-study-quote-text">
+Often people want to know traffic metrics during critical times: if their website is under attack: they want to see what's happening right now. We need the data points to appear on the UI fast.
+&lt;/p>
+&lt;div class="case-study-quote-author">
+&lt;div class="case-study-quote-author-img">
+&lt;img src="/images/case-study/projectShield/marc_howard.jpg">
+&lt;/div>
+&lt;div class="case-study-quote-author-info">
+&lt;div class="case-study-quote-author-name">
+Marc Howard
+&lt;/div>
+&lt;div class="case-study-quote-author-position">
+Founding Engineer @ Project Shield
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/blockquote>
+&lt;p>Project Shield’s team then added &lt;a href="https://firebase.google.com/docs/firestore">Firestore&lt;/a> as an intermediate step, running a &lt;a href="https://en.wikipedia.org/wiki/Cron">cron&lt;/a> every minute to query logs from BigQuery and write the interim reports to Firestore, then using these reports to build charts. This step improved performance slightly, but the gain was not sufficient to meet critical business timelines, and it didn’t provide adequate visibility into historical traffic for customers.&lt;/p>
+&lt;p>Unlike BigQuery, Firestore was designed for medium-sized workloads. Therefore, it wasn’t possible to fetch many models at the same time to provide customers with cumulative statistics for extended time frames. Querying the logs every minute was inefficient from a cost perspective. In addition, some of the logs were coming to BigQuery with a delay, and it was necessary to run the cron again in 24 hours to double-check for the late-coming logs.&lt;/p>
+&lt;blockquote class="case-study-quote-block case-study-quote-wrapped">
+&lt;p class="case-study-quote-text">
+Querying over all of our traffic logs every minute is very expensive, especially when you consider that we are a DDoS defense service - the number of logs that we see can often spike dramatically.
+&lt;/p>
+&lt;div class="case-study-quote-author">
+&lt;div class="case-study-quote-author-img">
+&lt;img src="/images/case-study/projectShield/marc_howard.jpg">
+&lt;/div>
+&lt;div class="case-study-quote-author-info">
+&lt;div class="case-study-quote-author-name">
+Marc Howard
+&lt;/div>
+&lt;div class="case-study-quote-author-position">
+Founding Engineer @ Project Shield
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/blockquote>
+&lt;p>Project Shield’s team looked for a data processing framework that would minimize end-to-end latency, meet their scaling needs for better customer visibility, and ensure cost efficiency.&lt;/p>
+&lt;p>They selected Apache Beam for its &lt;a href="/documentation/runtime/model/">strong processing guarantees&lt;/a>, streaming capabilities, and out-of-the-box &lt;a href="/documentation/io/connectors/">I/Os&lt;/a> for BigQuery and Pub/Sub. By pairing Apache Beam with the &lt;a href="/documentation/runners/dataflow/">Dataflow runner&lt;/a>, they also benefited from built-in autoscaling. In addition, the &lt;a href="/documentation/sdks/python/">Apache Beam Python SDK&lt;/a> lets you use Python across the board and simplifies reading data model types that have to be the same on the backend that consumes them and on the pipeline that writes them.&lt;/p>
+&lt;h2 id="use-cases">Use Cases&lt;/h2>
+&lt;p>Project Shield became one of the early adopters of Apache Beam and migrated their workflows to streaming Apache Beam pipelines in 2020. Currently, Apache Beam powers multiple product needs with multiple streaming pipelines.&lt;/p>
+&lt;p>The unified streaming pipeline that produces user-facing analytics reads the logs from Pub/Sub while they arrive from Cloud Logging, windows logs per minute every minute, splits by the hostname of the request, generates reports, and writes the reports to BigQuery. The pipeline aggregates log data, removes &lt;a href="https://en.wikipedia.org/wiki/Personal_data">Personally Identifiable Information&lt;/a> (PII) without using a &lt;a href="https://en.wikipedia.org/wiki/Data_loss_prevention_software">DLP&lt;/a>, and allows for storing the data in BigQuery for a longer period while meeting the regulatory requirements. &lt;a href="/documentation/transforms/python/aggregation/combineperkey/#example-5-combining-with-a-combinefn">CombineFn&lt;/a> allows Project Shield’s team to create a custom accumulator that takes the key into account when keying log data off the hostname and minute, &lt;a href="/documentation/programming-guide/#combine">combining the log data per key&lt;/a>. If logs come in late, Apache Beam creates a new report and aggregates several reports per hostname per minute.&lt;/p>
+&lt;blockquote class="case-study-quote-block case-study-quote-wrapped">
+&lt;p class="case-study-quote-text">
+The fact that we can just key data, use CombinePerKey, and the accumulator works like magic was a big win for us
+&lt;/p>
+&lt;div class="case-study-quote-author">
+&lt;div class="case-study-quote-author-img">
+&lt;img src="/images/case-study/projectShield/marc_howard.jpg">
+&lt;/div>
+&lt;div class="case-study-quote-author-info">
+&lt;div class="case-study-quote-author-name">
+Marc Howard
+&lt;/div>
+&lt;div class="case-study-quote-author-position">
+Founding Engineer @ Project Shield
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/blockquote>
+&lt;p>The Apache Beam log processing pipeline provides Project Shield with the ability to query only the relevant reports, thus enabling Project Shield to load the data to the customer dashboard within just 2 minutes. The pipeline also provides enhanced visibility for Project Shield’s customers, because the queried reports are much smaller in size and easier to store than the traffic logs.&lt;/p>
+&lt;blockquote class="case-study-quote-block case-study-quote-wrapped">
+&lt;p class="case-study-quote-text">
+The end-to-end pipeline latency was very meaningful to us, and the Apache Beam streaming allowed for displaying all the traffic metrics on charts within 2 minutes, but also to look back on days, weeks, or months of data and show graphs on a scalable timeframe to customers.
+&lt;/p>
+&lt;div class="case-study-quote-author">
+&lt;div class="case-study-quote-author-img">
+&lt;img src="/images/case-study/projectShield/chad_hansen.png">
+&lt;/div>
+&lt;div class="case-study-quote-author-info">
+&lt;div class="case-study-quote-author-name">
+Chad Hansen
+&lt;/div>
+&lt;div class="case-study-quote-author-position">
+Founding Engineer @ Project Shield
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/blockquote>
+&lt;p>Project Shield extended the streaming Apache Beam log processing pipeline to generate a different type of report based on the logs and requests during attacks. The Apache Beam pipeline analyzes attacks and generates critical defense recommendations. These recommendations are then used by the internal long-term attack analysis system to fine-tune Project Shield’s defenses.&lt;/p>
+&lt;p>Apache Beam also powers Project Shield’s traffic rate-limiting decisions by analyzing patterns in the traffic logs. The streaming Apache Beam pipeline gathers information about the legitimate usage of a website, excludes abusive traffic from that analysis, and crafts traffic rate limits that divide the two groups safely. Those limits are then enforced in the form of Cloud Armor rules and policies and used to restrict abusive traffic or to ban it entirely.&lt;/p>
+&lt;div class="post-scheme">
+&lt;a href="/images/case-study/projectShield/apache_beam_streaming_log_analytics.png" target="_blank" title="Click to enlarge">
+&lt;img src="/images/case-study/projectShield/apache_beam_streaming_log_analytics.png" alt="Apache Beam Streaming Log Analytics">
+&lt;/a>
+&lt;span>Apache Beam Streaming Log Analytics&lt;/span>
+&lt;/div>
+&lt;p>The combination of Apache Beam and Cloud Dataflow greatly simplifies Project Shield’s operational management of streaming pipelines. Apache Beam provides easy-to-use streaming primitives, while Dataflow enables &lt;a href="https://cloud.google.com/dataflow/docs/pipeline-lifecycle">out-of-the-box pipeline lifecycle management&lt;/a> and compliments Pub/Sub’s delivery model with &lt;a href="https://www.cloudskillsboost.google/focuses/18457?parent=catalog">message deduplication and exactly-once, in-order processing&lt;/a>. The Apache Beam &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.pubsub.html">Pub/Sub I/O&lt;/a> provides the ability to key log data off Pub/Sub event timestamps. This feature enables Project Shield to improve the overall data accuracy by windowing log data after all the relevant logs come in. &lt;a href="https://cloud.google.com/dataflow/docs/guides/pipeline-workflows#update-streaming-pipelines-prod">Various options for managing the pipeline lifecycle&lt;/a> allow Project Shield to employ simple and reliable deployment processes. The Apache Beam Dataflow runner’s &lt;a href="https://cloud.google.com/dataflow/docs/horizontal-autoscaling">autoscaling and managed service capabilities&lt;/a> help handle dramatic spikes in resource consumption during DDoS attacks and provide instant visibility for customers.&lt;/p>
+&lt;blockquote class="case-study-quote-block case-study-quote-wrapped">
+&lt;p class="case-study-quote-text">
+When attacks come in, we are ready to handle high volumes of traffic and deliver on-time metrics during critical windows with Apache Beam.
+&lt;/p>
+&lt;div class="case-study-quote-author">
+&lt;div class="case-study-quote-author-img">
+&lt;img src="/images/case-study/projectShield/chad_hansen.png">
+&lt;/div>
+&lt;div class="case-study-quote-author-info">
+&lt;div class="case-study-quote-author-name">
+Chad Hansen
+&lt;/div>
+&lt;div class="case-study-quote-author-position">
+Founding Engineer @ Project Shield
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/blockquote>
+&lt;h2 id="results">Results&lt;/h2>
+&lt;p>The adoption of Apache Beam enabled Project Shield to embrace streaming, scale its pipelines, maximize efficiency, and minimize latency. The streaming Apache Beam pipelines process about 3 TB of log data daily at significantly over 10,000 queries per second to produce user-facing analytics, tailored traffic rate limits, and defense recommendations for over 3K customers all over the world. The streaming processing and powerful transforms of Apache Beam ensure delivery of critical metrics within just 2 minutes, enabling customer visibility into historical traffic, and resulting in a 91% compute efficiency gain, compared to the original solution.&lt;/p>
+&lt;blockquote class="case-study-quote-block case-study-quote-wrapped">
+&lt;p class="case-study-quote-text">
+The Apache Beam model and the autoscaling capabilities of its Dataflow runner help prevent the spikes in traffic during DDoS attacks from having a meaningful impact on our platform from an efficiency and financial perspective.
+&lt;/p>
+&lt;div class="case-study-quote-author">
+&lt;div class="case-study-quote-author-img">
+&lt;img src="/images/case-study/projectShield/marc_howard.jpg">
+&lt;/div>
+&lt;div class="case-study-quote-author-info">
+&lt;div class="case-study-quote-author-name">
+Marc Howard
+&lt;/div>
+&lt;div class="case-study-quote-author-position">
+Founding Engineer @ Project Shield
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/blockquote>
+&lt;p>The Apache Beam data processing framework supports Project Shield’s goal to eliminate the DDoS attack as a weapon for silencing the voices of journalists and others who speak the truth, making the web a safer place.&lt;/p>
+&lt;div class="case-study-feedback" id="case-study-feedback">
+&lt;p class="case-study-feedback-title">Was this information useful?&lt;/p>
+&lt;div>
+&lt;button class="btn case-study-feedback-btn" onclick="sendCaseStudyFeedback(true, 'Project Shield')">Yes&lt;/button>
+&lt;button class="btn case-study-feedback-btn" onclick="sendCaseStudyFeedback(false, 'Project Shield')">No&lt;/button>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="clear-nav">&lt;/div></description></item><item><title>Case-Studies: Mass Ad Bidding With Beam at Booking.com</title><link>/case-studies/booking/</link><pubDate>Sun, 16 Apr 2023 00:12:00 +0000</pubDate><guid>/case-studies/booking/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -1983,17 +2170,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 &lt;p>Developed at Spotify and built on top of Apache Beam for Python, Klio is an open source framework that lets researchers and engineers build smarter data pipelines for processing audio and other media files, easily and at scale.&lt;/p></description></item><item><title>Case-Studies: Linkedin</title><link>/case-studies/linkedin/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/case-studies/linkedin/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
---></description></item><item><title>Case-Studies: LiveRamp</title><link>/case-studies/liveramp/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/case-studies/liveramp/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
