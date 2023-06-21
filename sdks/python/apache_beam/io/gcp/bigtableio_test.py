@@ -62,9 +62,9 @@ except ImportError as e:
 
 
 @pytest.mark.uses_gcp_java_expansion_service
-# @unittest.skipUnless(
-#   os.environ.get('EXPANSION_PORT'),
-#   "EXPANSION_PORT environment var is not provided.")
+@unittest.skipUnless(
+    os.environ.get('EXPANSION_PORT'),
+    "EXPANSION_PORT environment var is not provided.")
 @unittest.skipIf(client is None, 'Bigtable dependencies are not installed')
 class TestReadFromBigTable(unittest.TestCase):
   INSTANCE = "bt-read-tests"
@@ -74,24 +74,24 @@ class TestReadFromBigTable(unittest.TestCase):
     self.test_pipeline = TestPipeline(is_integration_test=True)
     self.args = self.test_pipeline.get_full_options_as_args()
     self.project = self.test_pipeline.get_option('project')
-    self.expansion_service = None#('localhost:%s' % os.environ.get('EXPANSION_PORT'))
+    self.expansion_service = ('localhost:%s' % os.environ.get('EXPANSION_PORT'))
 
     instance_id = '%s-%s-%s' % (
-      self.INSTANCE, str(int(time.time())), secrets.token_hex(3))
+        self.INSTANCE, str(int(time.time())), secrets.token_hex(3))
 
     self.client = client.Client(admin=True, project=self.project)
     # create cluster and instance
     self.instance = self.client.instance(
-      instance_id,
-      display_name=self.INSTANCE,
-      instance_type=instance.Instance.Type.DEVELOPMENT)
+        instance_id,
+        display_name=self.INSTANCE,
+        instance_type=instance.Instance.Type.DEVELOPMENT)
     cluster = self.instance.cluster("test-cluster", "us-central1-a")
     operation = self.instance.create(clusters=[cluster])
     operation.result(timeout=500)
     _LOGGER.info(
-      "Created instance [%s] in project [%s]",
-      self.instance.instance_id,
-      self.project)
+        "Created instance [%s] in project [%s]",
+        self.instance.instance_id,
+        self.project)
 
     # create table inside instance
     self.table = self.instance.table(self.TABLE_ID)
@@ -101,16 +101,16 @@ class TestReadFromBigTable(unittest.TestCase):
   def tearDown(self):
     try:
       _LOGGER.info(
-        "Deleting table [%s] and instance [%s]",
-        self.table.table_id,
-        self.instance.instance_id)
+          "Deleting table [%s] and instance [%s]",
+          self.table.table_id,
+          self.instance.instance_id)
       self.table.delete()
       self.instance.delete()
     except HttpError:
       _LOGGER.debug(
-        "Failed to clean up table [%s] and instance [%s]",
-        self.table.table_id,
-        self.instance.instance_id)
+          "Failed to clean up table [%s] and instance [%s]",
+          self.table.table_id,
+          self.instance.instance_id)
 
   def add_rows(self, num_rows, num_families, num_columns_per_family):
     cells = []
@@ -138,13 +138,16 @@ class TestReadFromBigTable(unittest.TestCase):
   def test_read_xlang(self):
     # create rows and retrieve expected cells
     expected_cells = self.add_rows(
-      num_rows=5, num_families=3, num_columns_per_family=4)
+        num_rows=5, num_families=3, num_columns_per_family=4)
 
     with beam.Pipeline(argv=self.args) as p:
       cells = (
           p
           | bigtableio.ReadFromBigtable(
-        self.table.table_id, self.instance.instance_id, self.project, self.expansion_service)
+              self.table.table_id,
+              self.instance.instance_id,
+              self.project,
+              self.expansion_service)
           | "Extract cells" >> beam.Map(lambda row: row._cells))
 
       assert_that(cells, equal_to(expected_cells))
@@ -162,25 +165,25 @@ class TestBeamRowToPartialRowData(unittest.TestCase):
   def test_beam_row_to_bigtable_row(self):
     # create test beam row
     families = {
-      'family_1': {
-        'col_1': [
-          beam.Row(value=b'a-1', timestamp_micros=100_000_000),
-          beam.Row(value=b'b-1', timestamp_micros=200_000_000),
-          beam.Row(value=b'c-1', timestamp_micros=300_000_000)
-        ],
-        'col_2': [
-          beam.Row(value=b'a-2', timestamp_micros=400_000_000),
-          beam.Row(value=b'b-2', timestamp_micros=500_000_000),
-          beam.Row(value=b'c-2', timestamp_micros=600_000_000)
-        ],
-      },
-      'family_2': {
-        'column_qualifier': [
-          beam.Row(value=b'val-1', timestamp_micros=700_000_000),
-          beam.Row(value=b'val-2', timestamp_micros=800_000_000),
-          beam.Row(value=b'val-3', timestamp_micros=900_000_000)
-        ]
-      }
+        'family_1': {
+            'col_1': [
+                beam.Row(value=b'a-1', timestamp_micros=100_000_000),
+                beam.Row(value=b'b-1', timestamp_micros=200_000_000),
+                beam.Row(value=b'c-1', timestamp_micros=300_000_000)
+            ],
+            'col_2': [
+                beam.Row(value=b'a-2', timestamp_micros=400_000_000),
+                beam.Row(value=b'b-2', timestamp_micros=500_000_000),
+                beam.Row(value=b'c-2', timestamp_micros=600_000_000)
+            ],
+        },
+        'family_2': {
+            'column_qualifier': [
+                beam.Row(value=b'val-1', timestamp_micros=700_000_000),
+                beam.Row(value=b'val-2', timestamp_micros=800_000_000),
+                beam.Row(value=b'val-3', timestamp_micros=900_000_000)
+            ]
+        }
     }
     beam_row = beam.Row(key=b'key', column_families=families)
 
@@ -192,25 +195,26 @@ class TestBeamRowToPartialRowData(unittest.TestCase):
     # landed in the right cells
     self.assertEqual(beam_row.key, bigtable_row.row_key)
     self.assertEqual([
-      Cell(c.value, c.timestamp_micros)
-      for c in beam_row.column_families['family_1']['col_1']
+        Cell(c.value, c.timestamp_micros)
+        for c in beam_row.column_families['family_1']['col_1']
     ],
-      bigtable_row.find_cells('family_1', b'col_1'))
+                     bigtable_row.find_cells('family_1', b'col_1'))
     self.assertEqual([
-      Cell(c.value, c.timestamp_micros)
-      for c in beam_row.column_families['family_1']['col_2']
+        Cell(c.value, c.timestamp_micros)
+        for c in beam_row.column_families['family_1']['col_2']
     ],
-      bigtable_row.find_cells('family_1', b'col_2'))
+                     bigtable_row.find_cells('family_1', b'col_2'))
     self.assertEqual([
-      Cell(c.value, c.timestamp_micros)
-      for c in beam_row.column_families['family_2']['column_qualifier']
+        Cell(c.value, c.timestamp_micros)
+        for c in beam_row.column_families['family_2']['column_qualifier']
     ],
-      bigtable_row.find_cells('family_2', b'column_qualifier'))
+                     bigtable_row.find_cells('family_2', b'column_qualifier'))
+
 
 @pytest.mark.uses_gcp_java_expansion_service
 @unittest.skipUnless(
-  os.environ.get('EXPANSION_PORT'),
-  "EXPANSION_PORT environment var is not provided.")
+    os.environ.get('EXPANSION_PORT'),
+    "EXPANSION_PORT environment var is not provided.")
 @unittest.skipIf(client is None, 'Bigtable dependencies are not installed')
 class TestWriteToBigtableXlang(unittest.TestCase):
   INSTANCE = "bt-write-xlang"
@@ -221,30 +225,30 @@ class TestWriteToBigtableXlang(unittest.TestCase):
     cls.test_pipeline = TestPipeline(is_integration_test=True)
     cls.project = cls.test_pipeline.get_option('project')
     cls.args = cls.test_pipeline.get_full_options_as_args()
-    cls.expansion_service = None#('localhost:%s' % os.environ.get('EXPANSION_PORT'))
+    cls.expansion_service = ('localhost:%s' % os.environ.get('EXPANSION_PORT'))
 
     instance_id = '%s-%s-%s' % (
-      cls.INSTANCE, str(int(time.time())), secrets.token_hex(3))
+        cls.INSTANCE, str(int(time.time())), secrets.token_hex(3))
 
     cls.client = client.Client(admin=True, project=cls.project)
     # create cluster and instance
     cls.instance = cls.client.instance(
-      instance_id,
-      display_name=cls.INSTANCE,
-      instance_type=instance.Instance.Type.DEVELOPMENT)
+        instance_id,
+        display_name=cls.INSTANCE,
+        instance_type=instance.Instance.Type.DEVELOPMENT)
     cluster = cls.instance.cluster("test-cluster", "us-central1-a")
     operation = cls.instance.create(clusters=[cluster])
     operation.result(timeout=500)
     _LOGGER.warning(
-      "Created instance [%s] in project [%s]",
-      cls.instance.instance_id,
-      cls.project)
+        "Created instance [%s] in project [%s]",
+        cls.instance.instance_id,
+        cls.project)
 
   def setUp(self):
     # create table inside instance
     self.table: Table = self.instance.table(
-      '%s-%s-%s' %
-      (self.TABLE_ID, str(int(time.time())), secrets.token_hex(3)))
+        '%s-%s-%s' %
+        (self.TABLE_ID, str(int(time.time())), secrets.token_hex(3)))
     self.table.create()
     _LOGGER.info("Created table [%s]", self.table.table_id)
 
@@ -262,7 +266,7 @@ class TestWriteToBigtableXlang(unittest.TestCase):
       cls.instance.delete()
     except HttpError:
       _LOGGER.debug(
-        "Failed to clean up instance [%s]", cls.instance.instance_id)
+          "Failed to clean up instance [%s]", cls.instance.instance_id)
 
   def run_pipeline(self, rows):
     with beam.Pipeline(argv=self.args) as p:
@@ -270,10 +274,10 @@ class TestWriteToBigtableXlang(unittest.TestCase):
           p
           | beam.Create(rows)
           | bigtableio.WriteToBigtableXlang(
-        table_id=self.table.table_id,
-        instance_id=self.instance.instance_id,
-        project_id=self.project,
-        expansion_service=self.expansion_service))
+              table_id=self.table.table_id,
+              instance_id=self.instance.instance_id,
+              project_id=self.project,
+              expansion_service=self.expansion_service))
 
   def test_set_mutation(self):
     row1: DirectRow = DirectRow('key-1')
@@ -287,13 +291,13 @@ class TestWriteToBigtableXlang(unittest.TestCase):
     row2_col2_cell = Cell(b'val2-2', 200_000_000)
     # rows sent to write transform
     row1.set_cell(
-      'col_fam', b'col-1', row1_col1_cell.value, row1_col1_cell.timestamp)
+        'col_fam', b'col-1', row1_col1_cell.value, row1_col1_cell.timestamp)
     row1.set_cell(
-      'col_fam', b'col-2', row1_col2_cell.value, row1_col2_cell.timestamp)
+        'col_fam', b'col-2', row1_col2_cell.value, row1_col2_cell.timestamp)
     row2.set_cell(
-      'col_fam', b'col-1', row2_col1_cell.value, row2_col1_cell.timestamp)
+        'col_fam', b'col-1', row2_col1_cell.value, row2_col1_cell.timestamp)
     row2.set_cell(
-      'col_fam', b'col-2', row2_col2_cell.value, row2_col2_cell.timestamp)
+        'col_fam', b'col-2', row2_col2_cell.value, row2_col2_cell.timestamp)
 
     self.run_pipeline([row1, row2])
 
@@ -303,13 +307,13 @@ class TestWriteToBigtableXlang(unittest.TestCase):
 
     # check actual rows match with expected rows (value and timestamp)
     self.assertEqual(
-      row1_col1_cell, actual_row1.find_cells('col_fam', b'col-1')[0])
+        row1_col1_cell, actual_row1.find_cells('col_fam', b'col-1')[0])
     self.assertEqual(
-      row1_col2_cell, actual_row1.find_cells('col_fam', b'col-2')[0])
+        row1_col2_cell, actual_row1.find_cells('col_fam', b'col-2')[0])
     self.assertEqual(
-      row2_col1_cell, actual_row2.find_cells('col_fam', b'col-1')[0])
+        row2_col1_cell, actual_row2.find_cells('col_fam', b'col-1')[0])
     self.assertEqual(
-      row2_col2_cell, actual_row2.find_cells('col_fam', b'col-2')[0])
+        row2_col2_cell, actual_row2.find_cells('col_fam', b'col-2')[0])
 
   def test_delete_cells_mutation(self):
     col_fam = self.table.column_family('col_fam')
@@ -344,26 +348,26 @@ class TestWriteToBigtableXlang(unittest.TestCase):
     # write two cells in a column to the table beforehand.
     write_row: DirectRow = DirectRow('key-1', self.table)
     write_row.set_cell(
-      'col_fam',
-      b'col',
-      b'val',
-      datetime.fromtimestamp(100_000_000, tz=timezone.utc))
+        'col_fam',
+        b'col',
+        b'val',
+        datetime.fromtimestamp(100_000_000, tz=timezone.utc))
     write_row.commit()
     write_row.set_cell(
-      'col_fam',
-      b'col',
-      b'new-val',
-      datetime.fromtimestamp(200_000_000, tz=timezone.utc))
+        'col_fam',
+        b'col',
+        b'new-val',
+        datetime.fromtimestamp(200_000_000, tz=timezone.utc))
     write_row.commit()
 
     # prepare a row that will delete cells within a timestamp range.
     delete_row: DirectRow = DirectRow('key-1')
     delete_row.delete_cell(
-      'col_fam',
-      b'col',
-      time_range=TimestampRange(
-        start=datetime.fromtimestamp(99_999_999, tz=timezone.utc),
-        end=datetime.fromtimestamp(100_000_001, tz=timezone.utc)))
+        'col_fam',
+        b'col',
+        time_range=TimestampRange(
+            start=datetime.fromtimestamp(99_999_999, tz=timezone.utc),
+            end=datetime.fromtimestamp(100_000_001, tz=timezone.utc)))
 
     self.run_pipeline([delete_row])
 
@@ -376,8 +380,8 @@ class TestWriteToBigtableXlang(unittest.TestCase):
     self.assertEqual(1, len(cells))
     self.assertEqual(b'new-val', cells[0].value)
     self.assertEqual(
-      datetime.fromtimestamp(200_000_000, tz=timezone.utc),
-      cells[0].timestamp)
+        datetime.fromtimestamp(200_000_000, tz=timezone.utc),
+        cells[0].timestamp)
 
   def test_delete_column_family_mutation(self):
     # create two column families
@@ -444,20 +448,20 @@ class TestBigtableDirectRowToBeamRow(unittest.TestCase):
     # create some set cell mutations
     direct_row: DirectRow = DirectRow('key-1')
     direct_row.set_cell(
-      'col_fam',
-      b'col',
-      b'a',
-      datetime.fromtimestamp(100_000).replace(tzinfo=timezone.utc))
+        'col_fam',
+        b'col',
+        b'a',
+        datetime.fromtimestamp(100_000).replace(tzinfo=timezone.utc))
     direct_row.set_cell(
-      'col_fam',
-      b'other-col',
-      b'b',
-      datetime.fromtimestamp(200_000).replace(tzinfo=timezone.utc))
+        'col_fam',
+        b'other-col',
+        b'b',
+        datetime.fromtimestamp(200_000).replace(tzinfo=timezone.utc))
     direct_row.set_cell(
-      'other_col_fam',
-      b'col',
-      b'c',
-      datetime.fromtimestamp(300_000).replace(tzinfo=timezone.utc))
+        'other_col_fam',
+        b'col',
+        b'c',
+        datetime.fromtimestamp(300_000).replace(tzinfo=timezone.utc))
 
     # get equivalent beam row
     beam_row = next(self.doFn.process(direct_row))
@@ -465,7 +469,7 @@ class TestBigtableDirectRowToBeamRow(unittest.TestCase):
     # sort both lists of mutations for convenience
     beam_row_mutations = sorted(beam_row.mutations, key=lambda m: m['value'])
     bt_row_mutations = sorted(
-      direct_row._get_mutations(), key=lambda m: m.set_cell.value)
+        direct_row._get_mutations(), key=lambda m: m.set_cell.value)
     self.assertEqual(beam_row.key, direct_row.row_key)
     self.assertEqual(len(beam_row_mutations), len(bt_row_mutations))
 
@@ -477,38 +481,38 @@ class TestBigtableDirectRowToBeamRow(unittest.TestCase):
 
       self.assertEqual(beam_mutation['type'], b'SetCell')
       self.assertEqual(
-        beam_mutation['family_name'].decode(), bt_mutation.family_name)
+          beam_mutation['family_name'].decode(), bt_mutation.family_name)
       self.assertEqual(
-        beam_mutation['column_qualifier'], bt_mutation.column_qualifier)
+          beam_mutation['column_qualifier'], bt_mutation.column_qualifier)
       self.assertEqual(beam_mutation['value'], bt_mutation.value)
       self.assertEqual(
-        int.from_bytes(beam_mutation['timestamp_micros'], 'big'),
-        bt_mutation.timestamp_micros)
+          int.from_bytes(beam_mutation['timestamp_micros'], 'big'),
+          bt_mutation.timestamp_micros)
 
   def test_delete_cells(self):
     # create some delete cell mutations. one with a timestamp range
     direct_row: DirectRow = DirectRow('key-1')
     direct_row.delete_cell('col_fam', b'col-1')
     direct_row.delete_cell(
-      'other_col_fam',
-      b'col-2',
-      time_range=TimestampRange(
-        start=datetime.fromtimestamp(10_000_000, tz=timezone.utc)))
+        'other_col_fam',
+        b'col-2',
+        time_range=TimestampRange(
+            start=datetime.fromtimestamp(10_000_000, tz=timezone.utc)))
     direct_row.delete_cells(
-      'another_col_fam', [b'col-3', b'col-4', b'col-5'],
-      time_range=TimestampRange(
-        start=datetime.fromtimestamp(50_000_000, tz=timezone.utc),
-        end=datetime.fromtimestamp(100_000_000, tz=timezone.utc)))
+        'another_col_fam', [b'col-3', b'col-4', b'col-5'],
+        time_range=TimestampRange(
+            start=datetime.fromtimestamp(50_000_000, tz=timezone.utc),
+            end=datetime.fromtimestamp(100_000_000, tz=timezone.utc)))
 
     # get equivalent beam row
     beam_row = next(self.doFn.process(direct_row))
 
     # sort both lists of mutations for convenience
     beam_row_mutations = sorted(
-      beam_row.mutations, key=lambda m: m['column_qualifier'])
+        beam_row.mutations, key=lambda m: m['column_qualifier'])
     bt_row_mutations = sorted(
-      direct_row._get_mutations(),
-      key=lambda m: m.delete_from_column.column_qualifier)
+        direct_row._get_mutations(),
+        key=lambda m: m.delete_from_column.column_qualifier)
     self.assertEqual(beam_row.key, direct_row.row_key)
     self.assertEqual(len(beam_row_mutations), len(bt_row_mutations))
 
@@ -521,22 +525,22 @@ class TestBigtableDirectRowToBeamRow(unittest.TestCase):
 
       self.assertEqual(beam_mutation['type'], b'DeleteFromColumn')
       self.assertEqual(
-        beam_mutation['family_name'].decode(), bt_mutation.family_name)
+          beam_mutation['family_name'].decode(), bt_mutation.family_name)
       self.assertEqual(
-        beam_mutation['column_qualifier'], bt_mutation.column_qualifier)
+          beam_mutation['column_qualifier'], bt_mutation.column_qualifier)
 
       # check we set a timestamp range only when appropriate
       if bt_mutation.time_range.start_timestamp_micros:
         self.assertEqual(
-          int.from_bytes(beam_mutation['start_timestamp_micros'], 'big'),
-          bt_mutation.time_range.start_timestamp_micros)
+            int.from_bytes(beam_mutation['start_timestamp_micros'], 'big'),
+            bt_mutation.time_range.start_timestamp_micros)
       else:
         self.assertTrue('start_timestamp_micros' not in beam_mutation)
 
       if bt_mutation.time_range.end_timestamp_micros:
         self.assertEqual(
-          int.from_bytes(beam_mutation['end_timestamp_micros'], 'big'),
-          bt_mutation.time_range.end_timestamp_micros)
+            int.from_bytes(beam_mutation['end_timestamp_micros'], 'big'),
+            bt_mutation.time_range.end_timestamp_micros)
       else:
         self.assertTrue('end_timestamp_micros' not in beam_mutation)
 
@@ -551,10 +555,10 @@ class TestBigtableDirectRowToBeamRow(unittest.TestCase):
 
     # sort both lists of mutations for convenience
     beam_row_mutations = sorted(
-      beam_row.mutations, key=lambda m: m['family_name'])
+        beam_row.mutations, key=lambda m: m['family_name'])
     bt_row_mutations = sorted(
-      direct_row._get_mutations(),
-      key=lambda m: m.delete_from_column.family_name)
+        direct_row._get_mutations(),
+        key=lambda m: m.delete_from_column.family_name)
     self.assertEqual(beam_row.key, direct_row.row_key)
     self.assertEqual(len(beam_row_mutations), len(bt_row_mutations))
 
@@ -566,7 +570,7 @@ class TestBigtableDirectRowToBeamRow(unittest.TestCase):
 
       self.assertEqual(beam_mutation['type'], b'DeleteFromFamily')
       self.assertEqual(
-        beam_mutation['family_name'].decode(), bt_mutation.family_name)
+          beam_mutation['family_name'].decode(), bt_mutation.family_name)
 
   def test_delete_row(self):
     # create mutation to delete the Bigtable row
