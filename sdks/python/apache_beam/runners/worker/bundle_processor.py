@@ -193,8 +193,8 @@ class DataInputOperation(RunnerIOOperation):
     self.stop = float('inf')
     self.started = False
 
-  def setup(self, *args, **kwargs):
-    super().setup(*args, **kwargs)
+  def setup(self, data_sampler=None):
+    super().setup(data_sampler)
     # We must do this manually as we don't have a spec or spec.output_coders.
     self.receivers = [
         operations.ConsumerSet.create(

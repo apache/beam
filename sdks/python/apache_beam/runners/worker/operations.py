@@ -126,7 +126,7 @@ class ConsumerSet(Receiver):
              coder,
              producer_type_hints,
              producer_batch_converter, # type: Optional[BatchConverter]
-             element_sampler=None,  # type: ElementSampler
+             element_sampler=None,  # type: Optional[ElementSampler]
              ):
     # type: (...) -> ConsumerSet
     element_sampler = element_sampler or ElementSampler()
@@ -455,7 +455,7 @@ class Operation(object):
     self.step_name = None  # type: Optional[str]
 
   def setup(self, data_sampler=None):
-    # type: () -> None
+    # type: (Optional[DataSampler]) -> None
 
     """Set up operation.
 
@@ -858,10 +858,10 @@ class DoOperation(Operation):
       yield apache_sideinputs.SideInputMap(
           view_class, view_options, sideinputs.EmulatedIterable(iterator_fn))
 
-  def setup(self, *args, **kwargs):
-    # type: () -> None
+  def setup(self, data_sampler=None):
+    # type: (Optional[DataSampler]) -> None
     with self.scoped_start_state:
-      super(DoOperation, self).setup(*args, **kwargs)
+      super(DoOperation, self).setup(data_sampler)
 
       # See fn_data in dataflow_runner.py
       fn, args, kwargs, tags_and_types, window_fn = (
@@ -1137,11 +1137,11 @@ class CombineOperation(Operation):
     self.phased_combine_fn = (
         PhasedCombineFnExecutor(self.spec.phase, fn, args, kwargs))
 
-  def setup(self, *args, **kwargs):
-    # type: () -> None
+  def setup(self, data_sampler=None):
+    # type: (Optional[DataSampler]) -> None
     with self.scoped_start_state:
       _LOGGER.debug('Setup called for %s', self)
-      super(CombineOperation, self).setup(*args, **kwargs)
+      super(CombineOperation, self).setup(data_sampler)
       self.phased_combine_fn.combine_fn.setup()
 
   def process(self, o):
@@ -1256,11 +1256,11 @@ class PGBKCVOperation(Operation):
     self.key_count = 0
     self.table = {}
 
-  def setup(self, *args, **kwargs):
-    # type: () -> None
+  def setup(self, data_sampler=None):
+    # type: (Optional[DataSampler]) -> None
     with self.scoped_start_state:
       _LOGGER.debug('Setup called for %s', self)
-      super(PGBKCVOperation, self).setup(*args, **kwargs)
+      super(PGBKCVOperation, self).setup(data_sampler)
       self.combine_fn.setup()
 
   def process(self, wkv):

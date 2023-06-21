@@ -226,7 +226,7 @@ class DataSampler:
       # of the tag in the PTransform's outputs. The following code intializes
       # the array with ElementSamplers in the correct indices.
       if transform_id in self._element_samplers:
-        return
+        return self._element_samplers[transform_id]
 
       outputs = transform_proto.outputs
       samplers = [

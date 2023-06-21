@@ -21,6 +21,7 @@ import time
 from typing import Any
 from typing import Dict
 from typing import List
+from typing import Optional
 import unittest
 
 from apache_beam.coders import FastPrimitivesCoder
@@ -46,7 +47,10 @@ class FakeClock:
 
 class DataSamplerTest(unittest.TestCase):
   def make_test_descriptor(
-      self, outputs: List[str] = None, transforms: List[str] = None):
+      self,
+      outputs: Optional[List[str]] = None,
+      transforms: Optional[List[str]] = None
+  ) -> beam_fn_api_pb2.ProcessBundleDescriptor:
     outputs = outputs or [MAIN_PCOLLECTION_ID]
     transforms = transforms or [MAIN_TRANSFORM_ID]
 
@@ -88,6 +92,7 @@ class DataSamplerTest(unittest.TestCase):
         now,
         end,
         'Timed out waiting for samples for {}'.format(pcollection_ids))
+    return {}
 
   def primitives_coder_factory(self, _):
     return PRIMITIVES_CODER
@@ -315,10 +320,7 @@ class OutputSamplerTest(unittest.TestCase):
       if len(samples) == expected_num:
         return samples
 
-    self.assertLess(
-        now,
-        end,
-        'Timed out waiting for samples for {}'.format(pcollection_ids))
+    self.assertLess(now, end, 'Timed out waiting for samples')
 
   def ensure_sample(
       self, output_sampler: OutputSampler, sample: Any, expected_num: int):
@@ -343,9 +345,7 @@ class OutputSamplerTest(unittest.TestCase):
         return samples
 
     self.assertLess(
-        now,
-        end,
-        'Timed out waiting for samples for {}'.format(pcollection_ids))
+        now, end, 'Timed out waiting for sample "{sample}" to be generated.')
 
   def test_can_sample(self):
     """Tests that the underlying timer can sample."""

@@ -269,6 +269,7 @@ class DataSamplingTest(unittest.TestCase):
 
     self.assertLess(
         now, end, 'Timed out waiting for samples for {}'.format(pcollection_id))
+    return {}
 
   def test_can_sample(self):
     """Test that elements are sampled.
