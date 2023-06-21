@@ -570,4 +570,16 @@ public class BigqueryClient {
             MAX_QUERY_RETRIES, tableId),
         lastException);
   }
+
+  public void updateTableSchema(String projectId, String datasetId, String tableId,
+      TableSchema newSchema) {
+    try {
+      this.bqClient.tables()
+          .patch(projectId, datasetId, tableId,
+              new Table().setSchema(newSchema)).execute();
+      LOG.info("Successfully updated the schema of table: " + tableId);
+    } catch (Exception e) {
+      LOG.debug("Exceptions caught when updating table schema: " + e.getMessage());
+    }
+  }
 }
