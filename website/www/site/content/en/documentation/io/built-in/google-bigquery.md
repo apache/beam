@@ -807,7 +807,7 @@ BigQueryIO.writeTableRows()
 );
 {{< /highlight >}}
 {{< highlight py >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py.txt" model_bigqueryio_write_with_storage_write_api >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_write_with_storage_write_api >}}
 {{< /highlight >}}
 
 If you want to change the behavior of BigQueryIO so that all the BigQuery sinks
@@ -846,7 +846,7 @@ BigQueryIO.writeTableRows()
 );
 {{< /highlight >}}
 {{< highlight py >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py.txt" model_bigqueryio_storage_write_api_with_frequency >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_storage_write_api_with_frequency >}}
 {{< /highlight >}}
 
 The number of streams defines the parallelism of the BigQueryIO Write transform

@@ -1189,6 +1189,13 @@ def model_bigqueryio(
       create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED)
   # [END model_bigqueryio_write]
 
+  # [START model_bigqueryio_write_with_storage_write_api]
+  quotes | "WriteTableWithStorageAPI" >> beam.io.WriteToBigQuery(
+      table_spec,
+      schema=table_schema,
+      method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API)
+  # [END model_bigqueryio_write_with_storage_write_api]
+
   # [START model_bigqueryio_write_schema]
   table_schema = {
       'fields': [{
@@ -1198,6 +1205,15 @@ def model_bigqueryio(
       }]
   }
   # [END model_bigqueryio_write_schema]
+
+  # [START model_bigqueryio_storage_write_api_with_frequency]
+  # The SDK for Python does not support `withNumStorageWriteApiStreams`
+  quotes | "StorageWriteAPIWithFrequency" >> beam.io.WriteToBigQuery(
+      table_spec,
+      schema=table_schema,
+      method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API,
+      triggering_frequency=5)
+  # [END model_bigqueryio_storage_write_api_with_frequency]
 
   # [START model_bigqueryio_write_dynamic_destinations]
   fictional_characters_view = beam.pvalue.AsDict(
