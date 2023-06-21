@@ -18,4 +18,4 @@ limitations under the License.
 
 # The Tour of Beam
 
-Please [click here](https://tour.beam.apache.org/) to access the "Tour of Beam".
+The "Tour of Beam" is an interactive way of learning to write Beam code with a sandbox, where you can write and run pipelines while walking through various concepts. Please [click here](https://tour.beam.apache.org/) to try it out.
