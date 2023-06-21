@@ -50,7 +50,7 @@ public class XmlWriteSchemaTransformFormatProvider
     implements FileWriteSchemaTransformFormatProvider {
 
   private static final String SUFFIX = String.format(".%s", XML);
-  private static final TupleTag<XmlRowAdapter> ERROR_FN_OUPUT_TAG =
+  static final TupleTag<XmlRowAdapter> ERROR_FN_OUPUT_TAG =
       new TupleTag<XmlRowAdapter>() {};
 
   @Override

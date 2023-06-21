@@ -44,8 +44,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 @AutoService(FileWriteSchemaTransformFormatProvider.class)
 public class AvroWriteSchemaTransformFormatProvider
     implements FileWriteSchemaTransformFormatProvider {
-  private static final TupleTag<GenericRecord> ERROR_FN_OUPUT_TAG =
-      new TupleTag<GenericRecord>() {};
+  static final TupleTag<GenericRecord> ERROR_FN_OUPUT_TAG = new TupleTag<GenericRecord>() {};
 
   @Override
   public String identifier() {

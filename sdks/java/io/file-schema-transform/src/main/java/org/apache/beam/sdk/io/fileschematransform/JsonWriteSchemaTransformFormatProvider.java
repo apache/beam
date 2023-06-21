@@ -24,6 +24,8 @@ import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransfor
 import static org.apache.beam.sdk.values.TypeDescriptors.strings;
 
 import com.google.auto.service.AutoService;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+
 import java.nio.charset.StandardCharsets;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.ErrorCounterFn;
@@ -48,7 +50,7 @@ public class JsonWriteSchemaTransformFormatProvider
     implements FileWriteSchemaTransformFormatProvider {
 
   final String suffix = String.format(".%s", FileWriteSchemaTransformFormatProviders.JSON);
-  private static final TupleTag<String> ERROR_FN_OUPUT_TAG = new TupleTag<String>() {};
+  static final TupleTag<String> ERROR_FN_OUPUT_TAG = new TupleTag<String>() {};
 
   @Override
   public String identifier() {
@@ -97,7 +99,8 @@ public class JsonWriteSchemaTransformFormatProvider
     return MapElements.into(strings()).via(new RowToJsonFn(schema));
   }
 
-  private static class RowToJsonFn implements SerializableFunction<Row, String> {
+  @VisibleForTesting
+  static class RowToJsonFn implements SerializableFunction<Row, String> {
 
     private final PayloadSerializer payloadSerializer;
 
