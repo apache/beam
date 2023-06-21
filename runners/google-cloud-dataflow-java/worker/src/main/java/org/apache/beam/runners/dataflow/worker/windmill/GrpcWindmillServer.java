@@ -942,7 +942,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
                 return new SumAndMaxDurations(newDuration, newDuration);
               }
               duration.max = newDuration.isLongerThan(duration.max) ? newDuration : duration.max;
-              duration.sum.plus(newDuration);
+              duration.sum = duration.sum.plus(newDuration);
               return duration;
             });
       }
@@ -960,7 +960,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
                 return new SumAndMaxDurations(newDuration, newDuration);
               }
               duration.max = newDuration.isLongerThan(duration.max) ? newDuration : duration.max;
-              duration.sum.plus(newDuration);
+              duration.sum = duration.sum.plus(newDuration);
               return duration;
             });
       }

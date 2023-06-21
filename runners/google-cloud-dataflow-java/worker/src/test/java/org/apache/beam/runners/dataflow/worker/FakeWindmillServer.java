@@ -29,6 +29,7 @@ import static org.junit.Assert.assertFalse;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
@@ -211,11 +212,7 @@ class FakeWindmillServer extends WindmillServerStub {
     validateCommitWorkRequest(request);
     for (ComputationCommitWorkRequest computationRequest : request.getRequestsList()) {
       for (WorkItemCommitRequest commit : computationRequest.getRequestsList()) {
-        // Throw away per work item latency attributions because they are not deterministic in tests
-        // for valid comparison.
-        commitsReceived.put(
-            commit.getWorkToken(),
-            commit.toBuilder().clearPerWorkItemLatencyAttributions().build());
+        commitsReceived.put(commit.getWorkToken(), commit);
       }
     }
     CommitWorkResponse response = commitsToOffer.getOrDefault(request);
@@ -281,7 +278,7 @@ class FakeWindmillServer extends WindmillServerStub {
                   inputDataWatermark,
                   Instant.now(),
                   workItem,
-                  new ArrayList<>());
+                  Collections.emptyList());
             }
           }
         }
@@ -375,9 +372,6 @@ class FakeWindmillServer extends WindmillServerStub {
         errorCollector.checkThat(
             request.getShardingKey(), allOf(greaterThan(0L), lessThan(Long.MAX_VALUE)));
         errorCollector.checkThat(request.getCacheToken(), not(equalTo(0L)));
-        // Throw away per work item latency attributions because they are not deterministic in tests
-        // for valid comparison.
-        request = request.toBuilder().clearPerWorkItemLatencyAttributions().build();
         // Throws away the result, but allows to inject latency.
         Windmill.CommitWorkRequest.Builder builder = Windmill.CommitWorkRequest.newBuilder();
         builder.addRequestsBuilder().setComputationId(computation).addRequests(request);
