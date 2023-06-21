@@ -18,4 +18,4 @@ limitations under the License.
 
 # The Tour of Beam
 
-Please [click here](https://tour.beam.apache.org/) to access "the Tour of Beam".
+Please [click here](https://tour.beam.apache.org/) to access the "Tour of Beam".
