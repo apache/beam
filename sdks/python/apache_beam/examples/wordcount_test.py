@@ -38,7 +38,7 @@ from apache_beam.testing.test_utils import read_files_from_pattern
 class WordCountTest(unittest.TestCase):
 
   SAMPLE_TEXT = (
-      u'a b c a b a\nacento gráfico\nJuly 30, 2018\n\n aa bb cc aa bb aa')
+      'a b c a b a\nacento gráfico\nJuly 30, 2018\n\n aa bb cc aa bb aa')
 
   def test_basics(self):
     test_pipeline = TestPipeline(is_integration_test=True)
