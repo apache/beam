@@ -20,6 +20,8 @@
 plugins {
   id("java")
   id("org.jetbrains.intellij") version "1.13.3"
+  alias(libs.plugins.gradleIntelliJPlugin) // Gradle IntelliJ Plugin
+  alias(libs.plugins.changelog) // Gradle Changelog Plugin
 }
 
 group = "com.example"
