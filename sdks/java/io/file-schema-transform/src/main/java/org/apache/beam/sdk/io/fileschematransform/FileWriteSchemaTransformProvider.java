@@ -92,8 +92,7 @@ public class FileWriteSchemaTransformProvider
    * #inputCollectionNames()} tagged {@link Row}s into a {@link PCollectionRowTuple} of {@link
    * #outputCollectionNames()} tagged {@link Row}s.
    */
-  static class FileWriteSchemaTransform extends PTransform<PCollectionRowTuple, PCollectionRowTuple>
-      implements SchemaTransform {
+  static class FileWriteSchemaTransform extends SchemaTransform {
 
     final FileWriteSchemaTransformConfiguration configuration;
 
@@ -130,11 +129,6 @@ public class FileWriteSchemaTransformProvider
               .setRowSchema(OUTPUT_SCHEMA);
 
       return PCollectionRowTuple.of(OUTPUT_TAG, output);
-    }
-
-    @Override
-    public PTransform<PCollectionRowTuple, PCollectionRowTuple> buildTransform() {
-      return this;
     }
 
     /**

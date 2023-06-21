@@ -217,8 +217,7 @@ public class BigTableReadSchemaTransformProviderIT {
             .build();
     SchemaTransform transform = new BigTableReadSchemaTransformProvider().from(config);
 
-    PCollection<Row> rows =
-        PCollectionRowTuple.empty(p).apply(transform.buildTransform()).get("output");
+    PCollection<Row> rows = PCollectionRowTuple.empty(p).apply(transform).get("output");
     PAssert.that(rows).containsInAnyOrder(expectedRows);
     p.run().waitUntilFinish();
   }
