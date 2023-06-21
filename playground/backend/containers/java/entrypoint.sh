@@ -30,11 +30,11 @@ echo "==> Docker Daemon is up and running!"
 
 # Import pre-installed images
 echo "==> Loading pre-pulled docker images!"
-# for file in /images/*.tar; do
-# echo "Loading $file"
-#     docker load <$file
-# done
-# rm -f -r images
+for file in /images/*.tar; do
+echo "Loading $file"
+    docker load <$file
+done
+rm -f -r images
 
 docker images
 

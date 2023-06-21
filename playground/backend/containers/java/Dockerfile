@@ -189,9 +189,7 @@ RUN cd /opt/playground/backend/kafka-emulator/ && tar -xvf kafka-emulator.tar &&
 RUN groupadd --gid 20000 appgroup \
   && useradd --uid 20000 --gid appgroup --shell /bin/bash --create-home appuser
 
-RUN echo 'export PATH="/opt/java/openjdk/bin:$PATH"' >> /home/appuser/.bashrc
-RUN echo 'export PATH="/opt/playground/venv/bin:$PATH"' >> /home/appuser/.bashrc
-
+RUN echo 'export PATH="/opt/playground/venv/bin:/opt/java/openjdk/bin:$PATH"' >> /home/appuser/.bashrc
 
 RUN mkdir -p /opt/playground/backend/executable_files/
 
@@ -199,9 +197,5 @@ RUN mkdir -p /opt/playground/backend/executable_files/
 
 RUN chown -R appuser:appgroup /opt/playground/backend/executable_files/ && chmod o+r /opt/apache/beam/jars/* \
   && chmod +x /entrypoint.sh
-
-RUN su - appuser -c "python3 --version"
-
-RUN su - appuser -c "python --version"
 
 ENTRYPOINT ["/entrypoint.sh"]

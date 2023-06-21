@@ -143,7 +143,6 @@ RUN wget -O /home/appuser/.apache_beam/cache/jars/beam-sdks-java-extensions-sql-
 
 # Chown all required files to the `appuser`.
 RUN chown -R appuser:appgroup /opt/playground/backend/executable_files/ && chmod +x /entrypoint.sh
-RUN chown -R appuser:appgroup /home/appuser/.apache_beam/cache/jars/
 
 VOLUME /var/lib/docker
 
