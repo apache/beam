@@ -94,7 +94,7 @@ public class BigQueryExportReadSchemaTransformProvider
    * An implementation of {@link SchemaTransform} for BigQuery read jobs configured using {@link
    * BigQueryExportReadSchemaTransformConfiguration}.
    */
-  private static class BigQueryExportSchemaTransform extends SchemaTransform {
+  protected static class BigQueryExportSchemaTransform extends SchemaTransform {
     /** An instance of {@link BigQueryServices} used for testing. */
     private BigQueryServices testBigQueryServices = null;
 
