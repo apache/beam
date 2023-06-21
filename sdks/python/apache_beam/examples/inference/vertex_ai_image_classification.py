@@ -63,7 +63,7 @@ def parse_known_args(argv):
   parser.add_argument(
       '--endpoint_project', dest='project', required=True, help='GCP Project')
   parser.add_argument(
-      '--endpoint_location',
+      '--endpoint_region',
       dest='location',
       type=str,
       required=True,
