@@ -61,7 +61,6 @@ spec:
          limits:
            cpu: "4000m"
            memory: "16000Mi"
-           storage: "20Gi"
        securityContext:
          privileged: true
   replicas: {{ .Values.replicaCount  }}
