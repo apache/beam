@@ -43,16 +43,15 @@ import 'package:tour_of_beam/state.dart';
 import 'common/common.dart';
 import 'common/common_finders.dart';
 
+const _sdk = Sdk.java;
+
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   testWidgets(
     'ToB miscellaneous ui',
     (wt) async {
       await init(wt);
-
-      final sdkCache = GetIt.instance.get<SdkCache>();
-      final sdks = sdkCache.getSdks();
-      await wt.tapAndSettle(find.text(sdks.first.title));
+      await wt.tapAndSettle(find.outlinedButtonWithText(_sdk.title));
       await wt.tapAndSettle(find.startTourButton());
 
       await _checkContentTreeBuildsProperly(wt);
@@ -80,8 +79,7 @@ Future<void> _checkContentTreeBuildsProperly(WidgetTester wt) async {
 
 List<ModuleModel> _getModules(WidgetTester wt) {
   final contentTreeCache = GetIt.instance.get<ContentTreeCache>();
-  final controller = getContentTreeController(wt);
-  final contentTree = contentTreeCache.getContentTree(controller.sdk);
+  final contentTree = contentTreeCache.getContentTree(_sdk);
   return contentTree?.nodes ?? (throw Exception('Cannot load modules'));
 }
 
@@ -123,7 +121,7 @@ Future<void> _checkUnitContentLoadsProperly(
 ) async {
   await wt.tapAndSettle(find.byKey(Key(unit.id)));
 
-  final hasSnippet = _getTourNotifier(wt).isUnitContainsSnippet;
+  final hasSnippet = _getTourNotifier(wt).isPlaygroundShown;
 
   expect(
     find.byType(PlaygroundWidget),
@@ -177,7 +175,7 @@ public class MyClass {
 }
 ''';
 
-  await _selectExampleWithSnippet(wt);
+  await _selectUnitWithSnippet(wt);
   await wt.pumpAndSettle();
 
   await wt.enterText(find.snippetCodeField(), code);
@@ -222,7 +220,7 @@ Future<void> _checkResizeUnitContent(WidgetTester wt) async {
   expectSimilar(startHandlePosition.dx, movedHandlePosition.dx - 100);
 }
 
-Future<void> _selectExampleWithSnippet(WidgetTester wt) async {
+Future<void> _selectUnitWithSnippet(WidgetTester wt) async {
   final tourNotifier = _getTourNotifier(wt);
   final modules = _getModules(wt);
 
@@ -230,7 +228,7 @@ Future<void> _selectExampleWithSnippet(WidgetTester wt) async {
     for (final node in module.nodes) {
       if (node is UnitModel) {
         await _checkNode(node, wt);
-        if (tourNotifier.isUnitContainsSnippet) {
+        if (tourNotifier.isPlaygroundShown) {
           return;
         }
       }

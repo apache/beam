@@ -24,12 +24,13 @@ import com.google.auto.value.AutoValue;
 import com.google.bigtable.v2.Cell;
 import com.google.bigtable.v2.Column;
 import com.google.bigtable.v2.Family;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.sdk.io.gcp.bigtable.BigTableReadSchemaTransformProvider.BigTableReadSchemaTransformConfiguration;
+import org.apache.beam.sdk.io.gcp.bigtable.BigtableReadSchemaTransformProvider.BigtableReadSchemaTransformConfiguration;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
@@ -44,31 +45,26 @@ import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 
 /**
- * An implementation of {@link TypedSchemaTransformProvider} for BigTable Read jobs configured via
- * {@link BigTableReadSchemaTransformConfiguration}.
+ * An implementation of {@link TypedSchemaTransformProvider} for Bigtable Read jobs configured via
+ * {@link BigtableReadSchemaTransformConfiguration}.
  *
  * <p><b>Internal only:</b> This class is actively being worked on, and it will likely change. We
  * provide no backwards compatibility guarantees, and it should not be implemented outside the Beam
  * repository.
  */
 @AutoService(SchemaTransformProvider.class)
-public class BigTableReadSchemaTransformProvider
-    extends TypedSchemaTransformProvider<BigTableReadSchemaTransformConfiguration> {
-
+public class BigtableReadSchemaTransformProvider
+    extends TypedSchemaTransformProvider<BigtableReadSchemaTransformConfiguration> {
   private static final String OUTPUT_TAG = "output";
 
   public static final Schema CELL_SCHEMA =
-      Schema.builder()
-          .addStringField("value")
-          .addInt64Field("timestamp")
-          .addArrayField("labels", Schema.FieldType.array(Schema.FieldType.STRING))
-          .build();
+      Schema.builder().addByteArrayField("value").addInt64Field("timestamp_micros").build();
 
   public static final Schema ROW_SCHEMA =
       Schema.builder()
-          .addStringField("key")
+          .addByteArrayField("key")
           .addMapField(
-              "families",
+              "column_families",
               Schema.FieldType.STRING,
               Schema.FieldType.map(
                   Schema.FieldType.STRING,
@@ -76,13 +72,13 @@ public class BigTableReadSchemaTransformProvider
           .build();
 
   @Override
-  protected Class<BigTableReadSchemaTransformConfiguration> configurationClass() {
-    return BigTableReadSchemaTransformConfiguration.class;
+  protected Class<BigtableReadSchemaTransformConfiguration> configurationClass() {
+    return BigtableReadSchemaTransformConfiguration.class;
   }
 
   @Override
-  protected SchemaTransform from(BigTableReadSchemaTransformConfiguration configuration) {
-    return new BigTableReadSchemaTransform(configuration);
+  protected SchemaTransform from(BigtableReadSchemaTransformConfiguration configuration) {
+    return new BigtableReadSchemaTransform(configuration);
   }
 
   @Override
@@ -100,60 +96,55 @@ public class BigTableReadSchemaTransformProvider
     return Collections.singletonList(OUTPUT_TAG);
   }
 
-  /** Configuration for reading from BigTable. */
+  /** Configuration for reading from Bigtable. */
   @DefaultSchema(AutoValueSchema.class)
   @AutoValue
-  public abstract static class BigTableReadSchemaTransformConfiguration {
-    /** Instantiates a {@link BigTableReadSchemaTransformConfiguration.Builder} instance. */
+  public abstract static class BigtableReadSchemaTransformConfiguration {
+    /** Instantiates a {@link BigtableReadSchemaTransformConfiguration.Builder} instance. */
+    public void validate() {
+      String emptyStringMessage =
+          "Invalid Bigtable Read configuration: %s should not be a non-empty String";
+      checkArgument(!this.getTableId().isEmpty(), String.format(emptyStringMessage, "table"));
+      checkArgument(!this.getInstanceId().isEmpty(), String.format(emptyStringMessage, "instance"));
+      checkArgument(!this.getProjectId().isEmpty(), String.format(emptyStringMessage, "project"));
+    }
+
     public static Builder builder() {
-      return new AutoValue_BigTableReadSchemaTransformProvider_BigTableReadSchemaTransformConfiguration
+      return new AutoValue_BigtableReadSchemaTransformProvider_BigtableReadSchemaTransformConfiguration
           .Builder();
     }
 
-    public abstract String getTable();
+    public abstract String getTableId();
 
-    public abstract String getInstance();
+    public abstract String getInstanceId();
 
-    public abstract String getProject();
+    public abstract String getProjectId();
 
-    /** Builder for the {@link BigTableReadSchemaTransformConfiguration}. */
+    /** Builder for the {@link BigtableReadSchemaTransformConfiguration}. */
     @AutoValue.Builder
     public abstract static class Builder {
-      public abstract Builder setTable(String table);
+      public abstract Builder setTableId(String tableId);
 
-      public abstract Builder setInstance(String instance);
+      public abstract Builder setInstanceId(String instanceId);
 
-      public abstract Builder setProject(String project);
+      public abstract Builder setProjectId(String projectId);
 
-      abstract BigTableReadSchemaTransformConfiguration autoBuild();
-
-      /** Builds a {@link BigTableReadSchemaTransformConfiguration} instance. */
-      public BigTableReadSchemaTransformConfiguration build() {
-        BigTableReadSchemaTransformConfiguration config = autoBuild();
-
-        String invalidConfigMessage =
-            "Invalid BigTable Read configuration: %s should not be a non-empty String";
-        checkArgument(!config.getTable().isEmpty(), String.format(invalidConfigMessage, "table"));
-        checkArgument(
-            !config.getInstance().isEmpty(), String.format(invalidConfigMessage, "instance"));
-        checkArgument(
-            !config.getProject().isEmpty(), String.format(invalidConfigMessage, "project"));
-
-        return config;
-      };
+      /** Builds a {@link BigtableReadSchemaTransformConfiguration} instance. */
+      public abstract BigtableReadSchemaTransformConfiguration build();
     }
   }
 
   /**
    * A {@link SchemaTransform} for Bigtable reads, configured with {@link
-   * BigTableReadSchemaTransformConfiguration} and instantiated by {@link
-   * BigTableReadSchemaTransformProvider}.
+   * BigtableReadSchemaTransformConfiguration} and instantiated by {@link
+   * BigtableReadSchemaTransformProvider}.
    */
-  private static class BigTableReadSchemaTransform
+  private static class BigtableReadSchemaTransform
       extends PTransform<PCollectionRowTuple, PCollectionRowTuple> implements SchemaTransform {
-    private final BigTableReadSchemaTransformConfiguration configuration;
+    private final BigtableReadSchemaTransformConfiguration configuration;
 
-    BigTableReadSchemaTransform(BigTableReadSchemaTransformConfiguration configuration) {
+    BigtableReadSchemaTransform(BigtableReadSchemaTransformConfiguration configuration) {
+      configuration.validate();
       this.configuration = configuration;
     }
 
@@ -169,12 +160,12 @@ public class BigTableReadSchemaTransformProvider
               .getPipeline()
               .apply(
                   BigtableIO.read()
-                      .withTableId(configuration.getTable())
-                      .withInstanceId(configuration.getInstance())
-                      .withProjectId(configuration.getProject()));
+                      .withTableId(configuration.getTableId())
+                      .withInstanceId(configuration.getInstanceId())
+                      .withProjectId(configuration.getProjectId()));
 
       PCollection<Row> beamRows =
-          bigtableRows.apply(MapElements.via(new BigTableRowToBeamRow())).setRowSchema(ROW_SCHEMA);
+          bigtableRows.apply(MapElements.via(new BigtableRowToBeamRow())).setRowSchema(ROW_SCHEMA);
 
       return PCollectionRowTuple.of(OUTPUT_TAG, beamRows);
     }
@@ -185,13 +176,13 @@ public class BigTableReadSchemaTransformProvider
     }
   }
 
-  public static class BigTableRowToBeamRow extends SimpleFunction<com.google.bigtable.v2.Row, Row> {
+  public static class BigtableRowToBeamRow extends SimpleFunction<com.google.bigtable.v2.Row, Row> {
     @Override
     public Row apply(com.google.bigtable.v2.Row bigtableRow) {
       // The collection of families is represented as a Map of column families.
       // Each column family is represented as a Map of columns.
       // Each column is represented as a List of cells
-      // Each cell is represented as a Beam Row consisting of value, timestamp, and labels
+      // Each cell is represented as a Beam Row consisting of value and timestamp_micros
       Map<String, Map<String, List<Row>>> families = new HashMap<>();
 
       for (Family fam : bigtableRow.getFamiliesList()) {
@@ -202,9 +193,8 @@ public class BigTableReadSchemaTransformProvider
           for (Cell cell : col.getCellsList()) {
             Row cellRow =
                 Row.withSchema(CELL_SCHEMA)
-                    .withFieldValue("value", cell.getValue().toStringUtf8())
-                    .withFieldValue("timestamp", cell.getTimestampMicros())
-                    .withFieldValue("labels", cell.getLabelsList())
+                    .withFieldValue("value", ByteBuffer.wrap(cell.getValue().toByteArray()))
+                    .withFieldValue("timestamp_micros", cell.getTimestampMicros())
                     .build();
             cells.add(cellRow);
           }
@@ -214,8 +204,8 @@ public class BigTableReadSchemaTransformProvider
       }
       Row beamRow =
           Row.withSchema(ROW_SCHEMA)
-              .withFieldValue("key", bigtableRow.getKey().toStringUtf8())
-              .withFieldValue("families", families)
+              .withFieldValue("key", ByteBuffer.wrap(bigtableRow.getKey().toByteArray()))
+              .withFieldValue("column_families", families)
               .build();
       return beamRow;
     }

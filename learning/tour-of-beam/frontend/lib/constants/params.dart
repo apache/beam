@@ -16,26 +16,6 @@
  * limitations under the License.
  */
 
-import 'package:easy_localization/easy_localization.dart';
-import 'package:flutter/material.dart';
 import 'package:playground_components/playground_components.dart';
 
-class ContentTreeTitleWidget extends StatelessWidget {
-  const ContentTreeTitleWidget();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: BeamSizes.size12),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            'pages.tour.summaryTitle',
-            style: Theme.of(context).textTheme.headlineLarge,
-          ).tr(),
-        ],
-      ),
-    );
-  }
-}
+const defaultSdk = Sdk.java;

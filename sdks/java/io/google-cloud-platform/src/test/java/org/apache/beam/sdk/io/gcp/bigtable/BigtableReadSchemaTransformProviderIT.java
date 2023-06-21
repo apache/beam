@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable;
 
-import static org.apache.beam.sdk.io.gcp.bigtable.BigTableReadSchemaTransformProvider.CELL_SCHEMA;
-import static org.apache.beam.sdk.io.gcp.bigtable.BigTableReadSchemaTransformProvider.ROW_SCHEMA;
+import static org.apache.beam.sdk.io.gcp.bigtable.BigtableReadSchemaTransformProvider.CELL_SCHEMA;
+import static org.apache.beam.sdk.io.gcp.bigtable.BigtableReadSchemaTransformProvider.ROW_SCHEMA;
 import static org.junit.Assert.assertThrows;
 
 import com.google.api.gax.rpc.NotFoundException;
@@ -28,14 +28,15 @@ import com.google.cloud.bigtable.admin.v2.models.CreateTableRequest;
 import com.google.cloud.bigtable.data.v2.BigtableDataClient;
 import com.google.cloud.bigtable.data.v2.BigtableDataSettings;
 import com.google.cloud.bigtable.data.v2.models.RowMutation;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
-import org.apache.beam.sdk.io.gcp.bigtable.BigTableReadSchemaTransformProvider.BigTableReadSchemaTransformConfiguration;
+import org.apache.beam.sdk.io.gcp.bigtable.BigtableReadSchemaTransformProvider.BigtableReadSchemaTransformConfiguration;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -50,7 +51,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
-public class BigTableReadSchemaTransformProviderIT {
+public class BigtableReadSchemaTransformProviderIT {
   @Rule public final transient TestPipeline p = TestPipeline.create();
 
   private static final String COLUMN_FAMILY_NAME_1 = "test_cf_1";
@@ -64,26 +65,26 @@ public class BigTableReadSchemaTransformProviderIT {
   @Test
   public void testInvalidConfigs() {
     // Properties cannot be empty (project, instance, and table)
-    List<BigTableReadSchemaTransformConfiguration.Builder> invalidConfigs =
+    List<BigtableReadSchemaTransformConfiguration.Builder> invalidConfigs =
         Arrays.asList(
-            BigTableReadSchemaTransformConfiguration.builder()
-                .setProject("project")
-                .setInstance("instance")
-                .setTable(""),
-            BigTableReadSchemaTransformConfiguration.builder()
-                .setProject("")
-                .setInstance("instance")
-                .setTable("table"),
-            BigTableReadSchemaTransformConfiguration.builder()
-                .setProject("project")
-                .setInstance("")
-                .setTable("table"));
+            BigtableReadSchemaTransformConfiguration.builder()
+                .setProjectId("project")
+                .setInstanceId("instance")
+                .setTableId(""),
+            BigtableReadSchemaTransformConfiguration.builder()
+                .setProjectId("")
+                .setInstanceId("instance")
+                .setTableId("table"),
+            BigtableReadSchemaTransformConfiguration.builder()
+                .setProjectId("project")
+                .setInstanceId("")
+                .setTableId("table"));
 
-    for (BigTableReadSchemaTransformConfiguration.Builder config : invalidConfigs) {
+    for (BigtableReadSchemaTransformConfiguration.Builder config : invalidConfigs) {
       assertThrows(
           IllegalArgumentException.class,
           () -> {
-            config.build();
+            config.build().validate();
           });
     }
   }
@@ -155,17 +156,17 @@ public class BigTableReadSchemaTransformProviderIT {
             "a",
             Arrays.asList(
                 Row.withSchema(CELL_SCHEMA)
-                    .withFieldValue("value", valueA)
-                    .withFieldValue("timestamp", timestamp)
-                    .withFieldValue("labels", Collections.emptyList())
+                    .withFieldValue(
+                        "value", ByteBuffer.wrap(valueA.getBytes(StandardCharsets.UTF_8)))
+                    .withFieldValue("timestamp_micros", timestamp)
                     .build()));
         columns1.put(
             "b",
             Arrays.asList(
                 Row.withSchema(CELL_SCHEMA)
-                    .withFieldValue("value", valueB)
-                    .withFieldValue("timestamp", timestamp)
-                    .withFieldValue("labels", Collections.emptyList())
+                    .withFieldValue(
+                        "value", ByteBuffer.wrap(valueB.getBytes(StandardCharsets.UTF_8)))
+                    .withFieldValue("timestamp_micros", timestamp)
                     .build()));
 
         Map<String, List<Row>> columns2 = new HashMap<>();
@@ -173,17 +174,17 @@ public class BigTableReadSchemaTransformProviderIT {
             "c",
             Arrays.asList(
                 Row.withSchema(CELL_SCHEMA)
-                    .withFieldValue("value", valueC)
-                    .withFieldValue("timestamp", timestamp)
-                    .withFieldValue("labels", Collections.emptyList())
+                    .withFieldValue(
+                        "value", ByteBuffer.wrap(valueC.getBytes(StandardCharsets.UTF_8)))
+                    .withFieldValue("timestamp_micros", timestamp)
                     .build()));
         columns2.put(
             "d",
             Arrays.asList(
                 Row.withSchema(CELL_SCHEMA)
-                    .withFieldValue("value", valueD)
-                    .withFieldValue("timestamp", timestamp)
-                    .withFieldValue("labels", Collections.emptyList())
+                    .withFieldValue(
+                        "value", ByteBuffer.wrap(valueD.getBytes(StandardCharsets.UTF_8)))
+                    .withFieldValue("timestamp_micros", timestamp)
                     .build()));
 
         Map<String, Map<String, List<Row>>> families = new HashMap<>();
@@ -192,8 +193,8 @@ public class BigTableReadSchemaTransformProviderIT {
 
         Row expectedRow =
             Row.withSchema(ROW_SCHEMA)
-                .withFieldValue("key", key)
-                .withFieldValue("families", families)
+                .withFieldValue("key", ByteBuffer.wrap(key.getBytes(StandardCharsets.UTF_8)))
+                .withFieldValue("column_families", families)
                 .build();
 
         expectedRows.add(expectedRow);
@@ -207,18 +208,19 @@ public class BigTableReadSchemaTransformProviderIT {
   @Test
   public void testRead() throws Exception {
     tableId = "BigtableReadSchemaTransformIT";
-    List<Row> expectedRows = writeToTable(10);
+    List<Row> expectedRows = writeToTable(20);
 
-    BigTableReadSchemaTransformConfiguration config =
-        BigTableReadSchemaTransformConfiguration.builder()
-            .setTable(tableId)
-            .setInstance(instanceId)
-            .setProject(projectId)
+    BigtableReadSchemaTransformConfiguration config =
+        BigtableReadSchemaTransformConfiguration.builder()
+            .setTableId(tableId)
+            .setInstanceId(instanceId)
+            .setProjectId(projectId)
             .build();
-    SchemaTransform transform = new BigTableReadSchemaTransformProvider().from(config);
+    SchemaTransform transform = new BigtableReadSchemaTransformProvider().from(config);
 
     PCollection<Row> rows =
         PCollectionRowTuple.empty(p).apply(transform.buildTransform()).get("output");
+
     PAssert.that(rows).containsInAnyOrder(expectedRows);
     p.run().waitUntilFinish();
   }
