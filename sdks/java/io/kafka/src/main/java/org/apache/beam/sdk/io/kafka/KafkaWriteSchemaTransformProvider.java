@@ -39,7 +39,6 @@ import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.schemas.utils.JsonUtils;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.KV;
@@ -92,7 +91,7 @@ public class KafkaWriteSchemaTransformProvider
     return new KafkaWriteSchemaTransform(configuration);
   }
 
-  static final class KafkaWriteSchemaTransform implements SchemaTransform, Serializable {
+  static final class KafkaWriteSchemaTransform extends SchemaTransform implements Serializable {
     final KafkaWriteSchemaTransformConfiguration configuration;
 
     KafkaWriteSchemaTransform(KafkaWriteSchemaTransformConfiguration configuration) {
@@ -130,45 +129,37 @@ public class KafkaWriteSchemaTransformProvider
     }
 
     @Override
-    public @UnknownKeyFor @NonNull @Initialized PTransform<
-            @UnknownKeyFor @NonNull @Initialized PCollectionRowTuple,
-            @UnknownKeyFor @NonNull @Initialized PCollectionRowTuple>
-        buildTransform() {
-      return new PTransform<PCollectionRowTuple, PCollectionRowTuple>() {
-        @Override
-        public PCollectionRowTuple expand(PCollectionRowTuple input) {
-          Schema inputSchema = input.get("input").getSchema();
-          final SerializableFunction<Row, byte[]> toBytesFn =
-              configuration.getFormat().equals("JSON")
-                  ? JsonUtils.getRowToJsonBytesFunction(inputSchema)
-                  : AvroUtils.getRowToAvroBytesFunction(inputSchema);
+    public PCollectionRowTuple expand(PCollectionRowTuple input) {
+      Schema inputSchema = input.get("input").getSchema();
+      final SerializableFunction<Row, byte[]> toBytesFn =
+          configuration.getFormat().equals("JSON")
+              ? JsonUtils.getRowToJsonBytesFunction(inputSchema)
+              : AvroUtils.getRowToAvroBytesFunction(inputSchema);
 
-          final Map<String, String> configOverrides = configuration.getProducerConfigUpdates();
-          PCollectionTuple outputTuple =
-              input
-                  .get("input")
-                  .apply(
-                      "Map rows to Kafka messages",
-                      ParDo.of(new ErrorCounterFn("Kafka-write-error-counter", toBytesFn))
-                          .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
-
-          outputTuple
-              .get(OUTPUT_TAG)
+      final Map<String, String> configOverrides = configuration.getProducerConfigUpdates();
+      PCollectionTuple outputTuple =
+          input
+              .get("input")
               .apply(
-                  KafkaIO.<byte[], byte[]>write()
-                      .withTopic(configuration.getTopic())
-                      .withBootstrapServers(configuration.getBootstrapServers())
-                      .withProducerConfigUpdates(
-                          configOverrides == null
-                              ? new HashMap<>()
-                              : new HashMap<String, Object>(configOverrides))
-                      .withKeySerializer(ByteArraySerializer.class)
-                      .withValueSerializer(ByteArraySerializer.class));
+                  "Map rows to Kafka messages",
+                  ParDo.of(new ErrorCounterFn("Kafka-write-error-counter", toBytesFn))
+                      .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
 
-          return PCollectionRowTuple.of(
-              "errors", outputTuple.get(ERROR_TAG).setRowSchema(ERROR_SCHEMA));
-        }
-      };
+      outputTuple
+          .get(OUTPUT_TAG)
+          .apply(
+              KafkaIO.<byte[], byte[]>write()
+                  .withTopic(configuration.getTopic())
+                  .withBootstrapServers(configuration.getBootstrapServers())
+                  .withProducerConfigUpdates(
+                      configOverrides == null
+                          ? new HashMap<>()
+                          : new HashMap<String, Object>(configOverrides))
+                  .withKeySerializer(ByteArraySerializer.class)
+                  .withValueSerializer(ByteArraySerializer.class));
+
+      return PCollectionRowTuple.of(
+          "errors", outputTuple.get(ERROR_TAG).setRowSchema(ERROR_SCHEMA));
     }
   }
 
