@@ -33,7 +33,7 @@ This pipeline reads an already-processes representation of an image of
 sunflowers and sends it to a deployed Vertex AI model endpoint, then 
 returns the predictions from the classifier model. The model and image
 are from the Hello Image Data Vertex AI tutorial (see
-ttps://cloud.google.com/vertex-ai/docs/tutorials/image-recognition-automl 
+https://cloud.google.com/vertex-ai/docs/tutorials/image-recognition-custom
 for more information.)
 """
 
