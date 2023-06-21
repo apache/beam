@@ -46,4 +46,4 @@ jobs:
             with:
               cache-read-only: false
           - name: run websitePreCommit script
-            run: ./gradlew :websitePreCommit
+            run: ./gradlew :websitePreCommit --debug
