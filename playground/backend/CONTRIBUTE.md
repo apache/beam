@@ -26,36 +26,47 @@ This guide consists of:
 - [Code processing pipeline](#code-processing-pipeline)
 - [How to add a new supported language](#how-to-add-a-new-supported-language)
 
+See also:
+- [Database schema](SCHEMA.md)
+
 ## Project structure
 
 ```
 backend/
-├── cmd                   # set up and start backend application
-├── configs               # config files for each SDK
-├── containers            # set up and build backend images
-├── internal              # backend business logic
-│   ├── api                   # generated grpc API files
-│   ├── cache                 # logic of work with cache
-│   ├── code_processing       # logic of processing the received code
-│   ├── components            # logic of work for more difficult processes using several packages
-│   ├── constants             # application constants to use them anywhere in the application
-│   ├── db                    # logic of work with database, e.g. the Cloud Datastore
-│   ├── environment           # backend environments e.g. SDK of the instance
-│   ├── errors                # custom errors to send them to the client
-│   ├── executors             # logic of work with code executors
-│   ├── fs_tool               # logic of work with a file system of code processing to prepare required files/folders
-│   ├── logger                # custom logger
-│   ├── preparers             # logic of preparing code before execution
-│   ├── setup_tools           # logic of set up of executors and file systems by SDK requirements
-│   ├── streaming             # logic of saving execution output as a stream
-│   ├── tests                 # logic of work with unit/integration tests in the application, e.g. testing scripts to download mock data to database
-│   ├── utils                 # different useful tools
-│   └── validators            # logic of validation code before execution
-├── go.mod                        # define backend go module and contain all project's dependencies
-├── logging.properties            # config file to set up log for Java code
-├── properties.yaml               # property file consists of application properties required for the operation logic
-├── start_datastore_emulator.sh   # shell script to run the datastore emulator for local deployment or testing
-├── stop_datastore_emulator.sh    # shell script to stop the datastore emulator
+├── cmd
+│   ├── migration_tool           # tool to apply database migrations
+│   ├── remove_unused_snippets   # tool to remove old snippets manually
+│   └── server                   # entry point to the backend application
+├── configs                      # config files for each SDK
+├── containers                   # set up and build backend docker images
+├── datasets                     # datasets for examples using Kafka emulator
+├── internal                     # backend logic
+│   ├── api                      # generated grpc API files
+│   ├── cache                    # logic for working with cache
+│   ├── code_processing          # logic for processing the received code
+│   ├── components               # backend components
+│   ├── constants                # code constants used in the application
+│   ├── db                       # logic for working with database, e.g. the Cloud Datastore
+│   ├── emulators                # logic for starting various emulators, e.g. Kafka
+│   ├── environment              # tools for working with application environment settings
+│   ├── errors                   # custom errors
+│   ├── executors                # logic used to run the user submitted code
+│   ├── external_functions       # logic for calling Google Cloud Functions
+│   ├── fs_tool                  # logic for woking with filesystem operations during run preparation
+│   ├── logger                   # cusotm logger
+│   ├── preparers                # logic for preparing the user submitted code before execution
+│   ├── setup_tools              # logic for setting up executors
+│   ├── streaming                # implementation of run output streamer
+│   ├── tasks                    # periodic tasks scheduler
+│   ├── tests                    # common testing logic
+│   ├── utils                    # miscellaneous tools
+│   └── validators               # logic for pre-execution code validation
+├── playground_functions         # Google Cloud Functions for write access to the database
+├── functions.go                 # entry point for Cloud Functions
+├── go.mod                       # Go project build configuration
+├── logging.properties           # configuration for Java runner logger
+├── new_scio_project.sh          # script for creating new SCIO project, used by SCIO runner
+└── properties.yaml              # application properties
 ...
 ```
 
@@ -148,7 +159,7 @@ enum Sdk {
           dataset: { dataset_1 }
    datasets:
      { dataset_1 }:
-          location: { local | GCS }
+          location: local
           format: { json | avro }
 ```
 5. Create a PR to the [Apache Beam Repository](https://github.com/apache/beam)

@@ -63,6 +63,10 @@ ENV SERVER_PORT=8080
 ENV APP_WORK_DIR=/opt/playground/backend/
 ENV BEAM_SDK="SDK_JAVA"
 ENV PROPERTY_PATH=/opt/playground/backend/properties.yaml
+ARG CALCITE_VERSION=1_28_0
+ARG BYTEBUDDY_VERSION=1.12.14
+ARG FASTJSON_VERSION=1.2.69
+ARG JANINO_VERSION=3.0.11
 
 # Copy build result
 COPY --from=build /go/bin/server_java_backend /opt/playground/backend/
@@ -88,6 +92,26 @@ RUN wget https://repo1.maven.org/maven2/org/springframework/spring-core/$SPRING_
 # Install Spring JCL
 RUN wget https://repo1.maven.org/maven2/org/springframework/spring-jcl/$SPRING_VERSION/spring-jcl-$SPRING_VERSION.jar &&\
     mv spring-jcl-$SPRING_VERSION.jar /opt/apache/beam/jars/spring-jcl.jar
+
+# Install sql extensions service and dependencies for Beam
+RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-sdks-java-extensions-sql/$BEAM_VERSION/beam-sdks-java-extensions-sql-$BEAM_VERSION.jar &&\
+    mv beam-sdks-java-extensions-sql-$BEAM_VERSION.jar /opt/apache/beam/jars/beam-sdks-java-extensions-sql.jar
+
+RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-vendor-calcite-$CALCITE_VERSION/0.2/beam-vendor-calcite-$CALCITE_VERSION-0.2.jar &&\
+    mv beam-vendor-calcite-$CALCITE_VERSION-0.2.jar /opt/apache/beam/jars/beam-vendor-calcite-$CALCITE_VERSION.jar
+
+RUN wget  https://repo1.maven.org/maven2/net/bytebuddy/byte-buddy/$BYTEBUDDY_VERSION/byte-buddy-$BYTEBUDDY_VERSION.jar &&\
+    mv byte-buddy-$BYTEBUDDY_VERSION.jar /opt/apache/beam/jars/byte-buddy-$BYTEBUDDY_VERSION.jar
+
+RUN wget  https://repo1.maven.org/maven2/com/alibaba/fastjson/$FASTJSON_VERSION/fastjson-$FASTJSON_VERSION.jar &&\
+    mv fastjson-$FASTJSON_VERSION.jar /opt/apache/beam/jars/fastjson-$FASTJSON_VERSION.jar
+
+RUN wget  https://repo1.maven.org/maven2/org/codehaus/janino/janino/$JANINO_VERSION/janino-$JANINO_VERSION.jar &&\
+    mv janino-$JANINO_VERSION.jar /opt/apache/beam/jars/janino-$JANINO_VERSION.jar
+
+RUN wget  https://repo1.maven.org/maven2/org/codehaus/janino/commons-compiler/$JANINO_VERSION/commons-compiler-$JANINO_VERSION.jar &&\
+    mv commons-compiler-$JANINO_VERSION.jar /opt/apache/beam/jars/commons-compiler-$JANINO_VERSION.jar
+    
 # Install Java Katas Utils
 COPY katas /go/src/katas
 RUN cd /go/src/katas &&\

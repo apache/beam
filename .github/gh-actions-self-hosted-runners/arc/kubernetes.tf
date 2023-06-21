@@ -17,7 +17,7 @@
 # under the License.
 #
 resource "kubectl_manifest" "arc_deployment" {
-  yaml_body = templatefile("config/arc_deployment.tpl", { repository = "${var.organization}/${var.repository}" , group = var.runner_group})
+  yaml_body = templatefile("config/arc_deployment.tpl", { organization = var.organization , group = var.runner_group})
   override_namespace = "arc"
   depends_on = [ helm_release.arc ]
 }

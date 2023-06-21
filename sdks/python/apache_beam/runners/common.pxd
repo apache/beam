@@ -46,7 +46,7 @@ cdef class MethodWrapper(object):
   cdef object key_arg_name
   cdef object restriction_provider
   cdef object restriction_provider_arg_name
-  cdef object watermark_estimator_provider
+  cdef public object watermark_estimator_provider
   cdef object watermark_estimator_provider_arg_name
   cdef object dynamic_timer_tag_arg_name
   cdef bint unbounded_per_element

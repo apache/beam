@@ -1202,12 +1202,12 @@ def get_container_image_from_options(pipeline_options):
     Returns:
       str: Container image for remote execution.
   """
-  from apache_beam.runners.dataflow.dataflow_runner import _is_runner_v2
+  from apache_beam.runners.dataflow.dataflow_runner import _is_runner_v2_disabled
   worker_options = pipeline_options.view_as(WorkerOptions)
   if worker_options.sdk_container_image:
     return worker_options.sdk_container_image
 
-  is_runner_v2 = _is_runner_v2(pipeline_options)
+  is_runner_v2 = not _is_runner_v2_disabled(pipeline_options)
 
   # Legacy and runner v2 exist in different repositories.
   # Set to legacy format, override if runner v2

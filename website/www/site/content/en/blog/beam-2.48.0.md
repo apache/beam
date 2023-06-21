@@ -21,11 +21,13 @@ limitations under the License.
 
 We are happy to present the new 2.48.0 release of Beam.
 This release includes both improvements and new functionality.
-See the [download page](/get-started/downloads/{$DOWNLOAD_ANCHOR}) for this release.
+See the [download page](/get-started/downloads/#2480-2023-05-31) for this release.
 
-<{!--more-->
+<!--more-->
 
 For more information on changes in 2.48.0, check out the [detailed release notes](https://github.com/apache/beam/milestone/12).
+
+**Note: The release tag for Go SDK for this release is sdks/v2.48.2 instead of sdks/v2.48.0 because of incorrect commit attached to the release tag sdks/v2.48.0.**
 
 ## Highlights
 

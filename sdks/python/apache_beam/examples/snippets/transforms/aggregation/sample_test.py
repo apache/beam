@@ -17,6 +17,7 @@
 #
 
 # pytype: skip-file
+# pylint:disable=line-too-long
 
 import unittest
 
@@ -25,7 +26,8 @@ import mock
 from apache_beam.examples.snippets.util import assert_matches_stdout
 from apache_beam.testing.test_pipeline import TestPipeline
 
-from . import sample
+from . import sample_fixed_size_globally
+from . import sample_fixed_size_per_key
 
 
 def check_sample(actual):
@@ -49,13 +51,17 @@ def check_samples_per_key(actual):
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)
 @mock.patch(
-    'apache_beam.examples.snippets.transforms.aggregation.sample.print', str)
+    'apache_beam.examples.snippets.transforms.aggregation.sample_fixed_size_globally.print',
+    str)
+@mock.patch(
+    'apache_beam.examples.snippets.transforms.aggregation.sample_fixed_size_per_key.print',
+    str)
 class SampleTest(unittest.TestCase):
   def test_sample_fixed_size_globally(self):
-    sample.sample_fixed_size_globally(check_sample)
+    sample_fixed_size_globally.sample_fixed_size_globally(check_sample)
 
   def test_sample_fixed_size_per_key(self):
-    sample.sample_fixed_size_per_key(check_samples_per_key)
+    sample_fixed_size_per_key.sample_fixed_size_per_key(check_samples_per_key)
 
 
 if __name__ == '__main__':
