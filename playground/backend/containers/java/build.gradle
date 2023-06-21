@@ -29,8 +29,8 @@ def beam_version = project.rootProject.hasProperty(["sdk-tag"]) ?
 project.rootProject["sdk-tag"] : default_beam_version
 
 def sdks = [
-   'beam_python3.10_sdk',
-   'beam_java11_sdk'
+   // 'beam_python3.10_sdk',
+   // 'beam_java11_sdk'
    ]
 
 description = project(playgroundJobServerProject).description + " :: Container"
