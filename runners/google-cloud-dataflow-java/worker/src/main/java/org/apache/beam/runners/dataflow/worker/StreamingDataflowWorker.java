@@ -1456,6 +1456,7 @@ public class StreamingDataflowWorker {
 
       // Add the output to the commit queue.
       work.setState(State.COMMIT_QUEUED);
+      outputBuilder.addAllPerWorkItemLatencyAttributions(work.getLatencyAttributions());
 
       WorkItemCommitRequest commitRequest = outputBuilder.build();
       int byteLimit = maxWorkItemCommitBytes;
@@ -1479,7 +1480,12 @@ public class StreamingDataflowWorker {
       commitQueue.put(new Commit(commitRequest, computationState, work));
 
       // Compute shuffle and state byte statistics these will be flushed asynchronously.
-      long stateBytesWritten = outputBuilder.clearOutputMessages().build().getSerializedSize();
+      long stateBytesWritten =
+          outputBuilder
+              .clearOutputMessages()
+              .clearPerWorkItemLatencyAttributions()
+              .build()
+              .getSerializedSize();
       long shuffleBytesRead = 0;
       for (Windmill.InputMessageBundle bundle : workItem.getMessageBundlesList()) {
         for (Windmill.Message message : bundle.getMessagesList()) {
@@ -1656,7 +1662,6 @@ public class StreamingDataflowWorker {
     if (commitStream.commitWorkItem(
         state.computationId,
         request,
-        commit.getWork().getLatencyAttributions(),
         (Windmill.CommitStatus status) -> {
           if (status != Windmill.CommitStatus.OK) {
             readerCache.invalidateReader(

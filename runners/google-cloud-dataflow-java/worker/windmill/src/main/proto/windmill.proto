@@ -410,7 +410,7 @@ message GlobalDataRequest {
   optional string state_family = 3;
 }
 
-// next id: 24
+// next id: 27
 message WorkItemCommitRequest {
   required bytes key = 1;
   required fixed64 work_token = 2;
@@ -436,6 +436,9 @@ message WorkItemCommitRequest {
   optional int64 source_bytes_processed = 22;
 
   repeated WatermarkHold watermark_holds = 14;
+
+  // Collected work item processing state durations.
+  repeated LatencyAttribution per_work_item_latency_attributions = 26;
 
   // DEPRECATED
   repeated GlobalDataId global_data_id_requests = 9;
@@ -650,9 +653,6 @@ message StreamingCommitRequestChunk {
   // before handing off to the WindmillHost for processing.
   optional int64 remaining_bytes_for_work_item = 4;
   optional bytes serialized_work_item_commit = 5;
-
-  // Collected work item processing state durations.
-  repeated LatencyAttribution per_work_item_latency_attributions = 7;
 }
 
 message StreamingCommitResponse {

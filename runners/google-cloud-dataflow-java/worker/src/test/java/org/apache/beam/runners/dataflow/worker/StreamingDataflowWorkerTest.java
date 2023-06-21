@@ -1654,6 +1654,7 @@ public class StreamingDataflowWorkerTest {
         Windmill.WorkItemCommitRequest.newBuilder(actualOutput)
             .clearCounterUpdates()
             .clearOutputMessages()
+            .clearPerWorkItemLatencyAttributions()
             .build()
             .getSerializedSize(),
         splitIntToLong(getCounter(counters, "WindmillStateBytesWritten").getInteger()));
@@ -2742,7 +2743,8 @@ public class StreamingDataflowWorkerTest {
     public MockWork(long workToken) {
       super(
           Windmill.WorkItem.newBuilder().setKey(ByteString.EMPTY).setWorkToken(workToken).build(),
-          Instant::now);
+          Instant::now,
+          Collections.emptyList());
     }
 
     @Override
@@ -3067,8 +3069,14 @@ public class StreamingDataflowWorkerTest {
 
       assertThat(
           // The commit will include a timer to clean up state - this timer is irrelevant
-          // for the current test. Also remove source_bytes_processed because it's dynamic.
-          setValuesTimestamps(commit.toBuilder().clearOutputTimers().clearSourceBytesProcessed())
+          // for the current test. Also remove source_bytes_processed and
+          // per_work_item_latecy_attributions because they're dynamic.
+          setValuesTimestamps(
+                  commit
+                      .toBuilder()
+                      .clearOutputTimers()
+                      .clearSourceBytesProcessed()
+                      .clearPerWorkItemLatencyAttributions())
               .build(),
           equalTo(
               setMessagesMetadata(

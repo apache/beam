@@ -146,10 +146,7 @@ public abstract class WindmillServerStub implements StatusDataProvider {
      * <p>onDone will be called with the status of the commit.
      */
     boolean commitWorkItem(
-        String computation,
-        Windmill.WorkItemCommitRequest request,
-        Collection<LatencyAttribution> latencyAttributions,
-        Consumer<CommitStatus> onDone);
+        String computation, Windmill.WorkItemCommitRequest request, Consumer<CommitStatus> onDone);
 
     /** Flushes any pending work items to the wire. */
     void flush();

@@ -871,19 +871,26 @@ public class GrpcWindmillServer extends WindmillServerStub {
   }
 
   static class GetWorkTimingInfosTracker {
+    private static class SumAndMaxDurations {
+      private Duration sum;
+      private Duration max;
+
+      public SumAndMaxDurations(Duration sum, Duration max) {
+        this.sum = sum;
+        this.max = max;
+      }
+    }
 
     private Instant workItemCreationEndTime = Instant.EPOCH;
     private Instant workItemLastChunkReceivedByWorkerTime = Instant.EPOCH;
 
     private LatencyAttribution workItemCreationLatency = null;
-    private final Map<State, Duration> aggregatedGetWorkStreamLatencies;
-    private final Map<State, Duration> maxGetWorkStreamLatency;
+    private final Map<State, SumAndMaxDurations> aggregatedGetWorkStreamLatencies;
 
     private final MillisProvider clock;
 
     public GetWorkTimingInfosTracker(MillisProvider clock) {
       this.aggregatedGetWorkStreamLatencies = new EnumMap<>(State.class);
-      this.maxGetWorkStreamLatency = new EnumMap<>(State.class);
       this.clock = clock;
     }
 
@@ -932,17 +939,11 @@ public class GrpcWindmillServer extends WindmillServerStub {
             State.GET_WORK_IN_TRANSIT_TO_DISPATCHER,
             (stateKey, duration) -> {
               if (duration == null) {
-                return newDuration;
+                return new SumAndMaxDurations(newDuration, newDuration);
               }
-              return duration.plus(newDuration);
-            });
-        maxGetWorkStreamLatency.compute(
-            State.GET_WORK_IN_TRANSIT_TO_DISPATCHER,
-            (stateKey, duration) -> {
-              if (duration == null) {
-                return newDuration;
-              }
-              return newDuration.isLongerThan(duration) ? newDuration : duration;
+              duration.max = newDuration.isLongerThan(duration.max) ? newDuration : duration.max;
+              duration.sum.plus(newDuration);
+              return duration;
             });
       }
 
@@ -956,17 +957,11 @@ public class GrpcWindmillServer extends WindmillServerStub {
             State.GET_WORK_IN_TRANSIT_TO_USER_WORKER,
             (stateKey, duration) -> {
               if (duration == null) {
-                return newDuration;
+                return new SumAndMaxDurations(newDuration, newDuration);
               }
-              return duration.plus(newDuration);
-            });
-        maxGetWorkStreamLatency.compute(
-            State.GET_WORK_IN_TRANSIT_TO_USER_WORKER,
-            (stateKey, duration) -> {
-              if (duration == null) {
-                return newDuration;
-              }
-              return newDuration.isLongerThan(duration) ? newDuration : duration;
+              duration.max = newDuration.isLongerThan(duration.max) ? newDuration : duration.max;
+              duration.sum.plus(newDuration);
+              return duration;
             });
       }
       workItemLastChunkReceivedByWorkerTime = now;
@@ -992,8 +987,8 @@ public class GrpcWindmillServer extends WindmillServerStub {
       long totalTransmissionDurationElapsedTime =
           new Duration(workItemCreationEndTime, workItemLastChunkReceivedByWorkerTime).getMillis();
       long totalSumDurationTimeMills = 0;
-      for (Duration duration : aggregatedGetWorkStreamLatencies.values()) {
-        totalSumDurationTimeMills += duration.getMillis();
+      for (SumAndMaxDurations duration : aggregatedGetWorkStreamLatencies.values()) {
+        totalSumDurationTimeMills += duration.sum.getMillis();
       }
       final long finalTotalSumDurationTimeMills = totalSumDurationTimeMills;
 
@@ -1001,13 +996,12 @@ public class GrpcWindmillServer extends WindmillServerStub {
           (state, duration) -> {
             long scaledDuration =
                 (long)
-                    (((double) duration.getMillis() / finalTotalSumDurationTimeMills)
+                    (((double) duration.sum.getMillis() / finalTotalSumDurationTimeMills)
                         * totalTransmissionDurationElapsedTime);
             // Cap final duration by the max state duration across different chunks. This ensures
             // the sum of final durations does not exceed the total elapsed time and the duration
             // for each stage does not exceed the stage maximum.
-            long durationMills =
-                Math.min(maxGetWorkStreamLatency.get(state).getMillis(), scaledDuration);
+            long durationMills = Math.min(duration.max.getMillis(), scaledDuration);
             latencyAttributions.add(
                 LatencyAttribution.newBuilder()
                     .setState(state)
@@ -1457,17 +1451,12 @@ public class GrpcWindmillServer extends WindmillServerStub {
     private class PendingRequest {
       private final String computation;
       private final WorkItemCommitRequest request;
-      private final Collection<LatencyAttribution> latencyAttributions;
       private final Consumer<CommitStatus> onDone;
 
       PendingRequest(
-          String computation,
-          WorkItemCommitRequest request,
-          Collection<LatencyAttribution> latencyAttributions,
-          Consumer<CommitStatus> onDone) {
+          String computation, WorkItemCommitRequest request, Consumer<CommitStatus> onDone) {
         this.computation = computation;
         this.request = request;
-        this.latencyAttributions = latencyAttributions;
         this.onDone = onDone;
       }
 
@@ -1581,12 +1570,8 @@ public class GrpcWindmillServer extends WindmillServerStub {
 
     @Override
     public boolean commitWorkItem(
-        String computation,
-        WorkItemCommitRequest commitRequest,
-        Collection<LatencyAttribution> latencyAttributions,
-        Consumer<CommitStatus> onDone) {
-      PendingRequest request =
-          new PendingRequest(computation, commitRequest, latencyAttributions, onDone);
+        String computation, WorkItemCommitRequest commitRequest, Consumer<CommitStatus> onDone) {
+      PendingRequest request = new PendingRequest(computation, commitRequest, onDone);
       if (!batcher.canAccept(request)) {
         return false;
       }
@@ -1623,11 +1608,6 @@ public class GrpcWindmillServer extends WindmillServerStub {
           .setRequestId(id)
           .setShardingKey(pendingRequest.request.getShardingKey())
           .setSerializedWorkItemCommit(pendingRequest.request.toByteString());
-      if (!pendingRequest.latencyAttributions.isEmpty()) {
-        requestBuilder
-            .getCommitChunkBuilder(0)
-            .addAllPerWorkItemLatencyAttributions(pendingRequest.latencyAttributions);
-      }
       StreamingCommitWorkRequest chunk = requestBuilder.build();
       synchronized (this) {
         pending.put(id, pendingRequest);
@@ -1652,9 +1632,6 @@ public class GrpcWindmillServer extends WindmillServerStub {
         chunkBuilder.setRequestId(entry.getKey());
         chunkBuilder.setShardingKey(request.request.getShardingKey());
         chunkBuilder.setSerializedWorkItemCommit(request.request.toByteString());
-        if (!request.latencyAttributions.isEmpty()) {
-          chunkBuilder.addAllPerWorkItemLatencyAttributions(request.latencyAttributions).build();
-        }
       }
       StreamingCommitWorkRequest request = requestBuilder.build();
       synchronized (this) {

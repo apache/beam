@@ -617,7 +617,6 @@ public class GrpcWindmillServerTest {
       if (stream.commitWorkItem(
           "computation",
           commitRequestList.get(i),
-          Collections.emptyList(),
           (CommitStatus status) -> {
             assertEquals(status, CommitStatus.OK);
             latch.countDown();
@@ -702,7 +701,6 @@ public class GrpcWindmillServerTest {
       if (stream.commitWorkItem(
           "computation",
           commitRequestList.get(i),
-          Collections.emptyList(),
           (CommitStatus status) -> {
             assertEquals(status, CommitStatus.OK);
             latch.countDown();

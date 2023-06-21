@@ -29,7 +29,6 @@ import static org.junit.Assert.assertFalse;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
@@ -49,7 +48,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationGetD
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetDataResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.net.HostAndPort;
@@ -213,7 +211,11 @@ class FakeWindmillServer extends WindmillServerStub {
     validateCommitWorkRequest(request);
     for (ComputationCommitWorkRequest computationRequest : request.getRequestsList()) {
       for (WorkItemCommitRequest commit : computationRequest.getRequestsList()) {
-        commitsReceived.put(commit.getWorkToken(), commit);
+        // Throw away per work item latency attributions because they are not deterministic in tests
+        // for valid comparison.
+        commitsReceived.put(
+            commit.getWorkToken(),
+            commit.toBuilder().clearPerWorkItemLatencyAttributions().build());
       }
     }
     CommitWorkResponse response = commitsToOffer.getOrDefault(request);
@@ -367,13 +369,15 @@ class FakeWindmillServer extends WindmillServerStub {
       public boolean commitWorkItem(
           String computation,
           WorkItemCommitRequest request,
-          Collection<LatencyAttribution> latencyAttributions,
           Consumer<Windmill.CommitStatus> onDone) {
         LOG.debug("commitWorkStream::commitWorkItem: {}", request);
         errorCollector.checkThat(request.hasWorkToken(), equalTo(true));
         errorCollector.checkThat(
             request.getShardingKey(), allOf(greaterThan(0L), lessThan(Long.MAX_VALUE)));
         errorCollector.checkThat(request.getCacheToken(), not(equalTo(0L)));
+        // Throw away per work item latency attributions because they are not deterministic in tests
+        // for valid comparison.
+        request = request.toBuilder().clearPerWorkItemLatencyAttributions().build();
         // Throws away the result, but allows to inject latency.
         Windmill.CommitWorkRequest.Builder builder = Windmill.CommitWorkRequest.newBuilder();
         builder.addRequestsBuilder().setComputationId(computation).addRequests(request);
