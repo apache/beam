@@ -24,10 +24,10 @@ import string
 import time
 import unittest
 import uuid
-from random import choice
 # pytype: skip-file
 from datetime import datetime
 from datetime import timezone
+from random import choice
 
 import pytest
 from mock import MagicMock

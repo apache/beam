@@ -236,11 +236,11 @@ class WriteToBigTable(beam.PTransform):
 
 
 class WriteToBigtableXlang(beam.PTransform):
-
   URN = "beam:schematransform:org.apache.beam:bigtable_write:v1"
 
   def __init__(self, table_id, instance_id, project_id, expansion_service=None):
     """Initialize an ExternalWriteToBigtable transform.
+
     :param table_id:
       The ID of the table to write to.
     :param instance_id:
