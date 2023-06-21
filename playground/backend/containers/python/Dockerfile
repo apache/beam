@@ -139,7 +139,7 @@ RUN mkdir -p /opt/playground/backend/executable_files/
 RUN mkdir -p /home/appuser/.apache_beam/cache/jars/
 
 ARG SQL_EXPANSION_SERVICE_JAR=${REPO_URL}/org/apache/beam/beam-sdks-java-extensions-sql-expansion-service/${SDK_TAG}/beam-sdks-java-extensions-sql-expansion-service-${SDK_TAG}.jar
-RUN wget -O /home/appuser/.apache_beam/cache/jars/beam-sdks-java-extensions-sql-expansion-service.jar $SQL_EXPANSION_SERVICE_JAR
+RUN wget -O /home/appuser/.apache_beam/cache/jars/beam-sdks-java-extensions-sql-expansion-service-${SDK_TAG}.jar $SQL_EXPANSION_SERVICE_JAR
 
 # Chown all required files to the `appuser`.
 RUN chown -R appuser:appgroup /opt/playground/backend/executable_files/ && chmod +x /entrypoint.sh
