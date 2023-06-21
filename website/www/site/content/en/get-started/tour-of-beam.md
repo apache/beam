@@ -1,5 +1,5 @@
 ---
-title: "Tour of Beam"
+title: "An Intro to Beam (Python)"
 ---
 
 <!--
@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Tour of Beam
+# An Intro to Beam (Python)
 
 Here you can find a collection of the interactive notebooks available for Apache Beam, which are hosted in
 [Colab](https://colab.research.google.com).
