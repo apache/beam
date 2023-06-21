@@ -476,7 +476,7 @@ tasks.register("pythonNotebooksPreCommit") {
         args ("-c", ". ${envdir}/bin/activate && python -m apache_beam.examples.wordcount --runner DirectRunner --output /tmp/output.txt")
       }
      }*/
-  dependsOn(":sdks:python:wordCount")
+  dependsOn(":examples:notebooks:wordCount")
 }
 
 tasks.register("pythonPreCommitIT") {
