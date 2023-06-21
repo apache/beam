@@ -25,9 +25,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
-
 import org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.ErrorCounterFn;
-import org.apache.beam.sdk.io.fileschematransform.JsonWriteSchemaTransformFormatProvider.RowToJsonFn;
 import org.apache.beam.sdk.io.fileschematransform.XmlWriteSchemaTransformFormatProvider.RowToXmlFn;
 import org.apache.beam.sdk.io.xml.XmlIO;
 import org.apache.beam.sdk.schemas.Schema;
@@ -134,15 +132,13 @@ public class XmlWriteSchemaTransformFormatProviderTest
 
   @Test
   public void testXmlErrorCounterFnSuccess() {
-    SerializableFunction<Row, XmlRowAdapter> mapFn =
-        new RowToXmlFn();
+    SerializableFunction<Row, XmlRowAdapter> mapFn = new RowToXmlFn();
 
     PCollection<Row> input = writePipeline.apply(Create.of(ROWS));
     PCollectionTuple output =
         input.apply(
             ParDo.of(
-                    new ErrorCounterFn<XmlRowAdapter>(
-                        "Xml-write-error-counter", mapFn, OUTPUT_TAG))
+                    new ErrorCounterFn<XmlRowAdapter>("Xml-write-error-counter", mapFn, OUTPUT_TAG))
                 .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
     output.get(ERROR_TAG).setRowSchema(ERROR_SCHEMA);
     PCollection<Long> count = output.get(OUTPUT_TAG).apply(Count.globally());

@@ -25,8 +25,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
-
 import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.ErrorCounterFn;
+import org.apache.beam.sdk.io.fileschematransform.JsonWriteSchemaTransformFormatProvider.RowToJsonFn;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.io.payloads.JsonPayloadSerializerProvider;
 import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializer;
@@ -44,8 +45,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.ErrorCounterFn;
-import org.apache.beam.sdk.io.fileschematransform.JsonWriteSchemaTransformFormatProvider.RowToJsonFn;
 
 /** Tests for {@link JsonWriteSchemaTransformFormatProvider}. */
 @RunWith(JUnit4.class)
@@ -117,15 +116,12 @@ public class JsonWriteSchemaTransformFormatProviderTest
 
   @Test
   public void testJsonErrorCounterFnSuccess() {
-    SerializableFunction<Row, String> mapFn =
-        new RowToJsonFn(BEAM_SCHEMA);
+    SerializableFunction<Row, String> mapFn = new RowToJsonFn(BEAM_SCHEMA);
 
     PCollection<Row> input = writePipeline.apply(Create.of(ROWS));
     PCollectionTuple output =
         input.apply(
-            ParDo.of(
-                    new ErrorCounterFn<String>(
-                        "Json-write-error-counter", mapFn, OUTPUT_TAG))
+            ParDo.of(new ErrorCounterFn<String>("Json-write-error-counter", mapFn, OUTPUT_TAG))
                 .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
     output.get(ERROR_TAG).setRowSchema(ERROR_SCHEMA);
     PCollection<Long> count = output.get(OUTPUT_TAG).apply(Count.globally());
@@ -135,15 +131,12 @@ public class JsonWriteSchemaTransformFormatProviderTest
 
   @Test
   public void testJsonErrorCounterFnFailure() {
-    SerializableFunction<Row, String> mapFn =
-        new RowToJsonFn(BEAM_SCHEMA_DLQ);
+    SerializableFunction<Row, String> mapFn = new RowToJsonFn(BEAM_SCHEMA_DLQ);
 
     PCollection<Row> input = writePipeline.apply(Create.of(ROWS));
     PCollectionTuple output =
         input.apply(
-            ParDo.of(
-                    new ErrorCounterFn<String>(
-                        "Json-write-error-counter", mapFn, OUTPUT_TAG))
+            ParDo.of(new ErrorCounterFn<String>("Json-write-error-counter", mapFn, OUTPUT_TAG))
                 .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
     output.get(ERROR_TAG).setRowSchema(ERROR_SCHEMA);
     PCollection<Long> count = output.get(ERROR_TAG).apply(Count.globally());

@@ -51,8 +51,7 @@ public class ParquetWriteSchemaTransformFormatProvider
   private static final String SUFFIX =
       String.format(".%s", FileWriteSchemaTransformFormatProviders.PARQUET);
 
-  static final TupleTag<GenericRecord> ERROR_FN_OUPUT_TAG =
-      new TupleTag<GenericRecord>() {};
+  static final TupleTag<GenericRecord> ERROR_FN_OUPUT_TAG = new TupleTag<GenericRecord>() {};
 
   @Override
   public String identifier() {
