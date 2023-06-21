@@ -98,7 +98,7 @@ public class BeamFnLoggingClientBenchmark {
                 .build();
         server.start();
         loggingClient =
-            new BeamFnLoggingClient(
+            BeamFnLoggingClient.createAndStart(
                 PipelineOptionsFactory.create(),
                 apiServiceDescriptor,
                 managedChannelFactory::forDescriptor);
