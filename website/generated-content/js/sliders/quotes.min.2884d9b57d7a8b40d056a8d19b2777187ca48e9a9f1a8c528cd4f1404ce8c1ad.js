@@ -1,0 +1,1 @@
+new Swiper('.quotes .swiper',{breakpoints:{1025:{slidesPerView:3,slidesPerGroup:3,},},loop:false,navigation:{nextEl:".swiper-button-next-custom",prevEl:".swiper-button-prev-custom",},pagination:{el:".quotes .swiper-pagination",clickable:true,bulletClass:"bullet-class-custom",bulletActiveClass:"bullet-active-class-custom",},slidesPerGroup:1,slidesPerView:1,});

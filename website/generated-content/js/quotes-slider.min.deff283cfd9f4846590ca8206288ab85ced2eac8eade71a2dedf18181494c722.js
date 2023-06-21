@@ -1,1 +1,0 @@
-new Swiper('.swiper',{loop:false,slidesPerView:1,slidesPerGroup:1,pagination:{el:".swiper-pagination",clickable:true,bulletClass:"bullet-class-custom",bulletActiveClass:"bullet-active-class-custom",},navigation:{nextEl:".swiper-button-next-custom",prevEl:".swiper-button-prev-custom",},breakpoints:{1025:{slidesPerView:3,slidesPerGroup:3,},}});

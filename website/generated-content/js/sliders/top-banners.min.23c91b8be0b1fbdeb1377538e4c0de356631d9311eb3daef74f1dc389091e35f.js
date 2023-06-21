@@ -1,0 +1,1 @@
+new Swiper('.top-banners',{autoplay:{delay:5000,},loop:false,pagination:{el:".top-banners .swiper-pagination",clickable:true,bulletClass:"bullet-class-custom",bulletActiveClass:"bullet-active-class-custom",},slidesPerGroup:1,slidesPerView:1,});
