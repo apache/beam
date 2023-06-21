@@ -44,9 +44,8 @@ rm -f -r images
 docker images
 
 usermod -aG docker appuser
-
+su appuser 
 java -jar beam-examples-multi-language.jar "$ext_service_port" --javaClassLookupAllowlistFile='*' &> es.log & \
 python -m apache_beam.runners.portability.local_job_service_main -p "$job_service_port" &> js.log  &
 
-su appuser 
 /opt/playground/backend/server_python_backend
