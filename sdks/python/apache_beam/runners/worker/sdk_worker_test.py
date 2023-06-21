@@ -21,9 +21,9 @@
 
 import contextlib
 import logging
-from typing import Any
 import unittest
 from collections import namedtuple
+from typing import Any
 
 import grpc
 import hamcrest as hc

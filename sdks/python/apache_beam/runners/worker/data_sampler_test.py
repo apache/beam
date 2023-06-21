@@ -18,11 +18,11 @@
 # pytype: skip-file
 
 import time
+import unittest
 from typing import Any
 from typing import Dict
 from typing import List
 from typing import Optional
-import unittest
 
 from apache_beam.coders import FastPrimitivesCoder
 from apache_beam.coders import WindowedValueCoder

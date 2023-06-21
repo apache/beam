@@ -20,6 +20,8 @@
 
 import time
 import unittest
+from typing import Dict
+from typing import List
 
 from apache_beam.coders.coders import FastPrimitivesCoder
 from apache_beam.portability import common_urns
@@ -36,8 +38,6 @@ from apache_beam.runners.worker.data_sampler import DataSampler
 from apache_beam.transforms import userstate
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.utils.windowed_value import WindowedValue
-from typing import Dict
-from typing import List
 
 
 class FnApiUserStateContextTest(unittest.TestCase):
