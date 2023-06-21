@@ -99,10 +99,6 @@ ARG MULTILANGUAGE_PIPELINE_EXAMPLES=${REPO_URL}/org/apache/beam/beam-examples-mu
 RUN wget  $MULTILANGUAGE_PIPELINE_EXAMPLES &&\
 mv beam-examples-multi-language-${SDK_TAG}.jar beam-examples-multi-language.jar
 
-ARG SQL_EXPANSION_SERVICE_JAR=${REPO_URL}/org/apache/beam/beam-sdks-java-extensions-sql-expansion-service/${SDK_TAG}/beam-sdks-java-extensions-sql-expansion-service-${SDK_TAG}.jar
-RUN wget  $SQL_EXPANSION_SERVICE_JAR &&\
-mv beam-sdks-java-extensions-sql-expansion-service-${SDK_TAG}.jar /home/appuser/.apache_beam/cache/jars/beam-sdks-java-extensions-sql-expansion-service.jar
-
 ################
 ## Pre-pulled images ##
 ################
@@ -140,6 +136,10 @@ RUN groupadd --gid 20000 appgroup \
   && useradd --uid 20000 --gid appgroup --shell /bin/bash --create-home appuser
 
 RUN mkdir -p /opt/playground/backend/executable_files/
+RUN mkdir -p /home/appuser/.apache_beam/cache/jars/
+
+ARG SQL_EXPANSION_SERVICE_JAR=${REPO_URL}/org/apache/beam/beam-sdks-java-extensions-sql-expansion-service/${SDK_TAG}/beam-sdks-java-extensions-sql-expansion-service-${SDK_TAG}.jar
+RUN wget -O /home/appuser/.apache_beam/cache/jars/beam-sdks-java-extensions-sql-expansion-service.jar $SQL_EXPANSION_SERVICE_JAR
 
 # Chown all required files to the `appuser`.
 RUN chown -R appuser:appgroup /opt/playground/backend/executable_files/ && chmod +x /entrypoint.sh
