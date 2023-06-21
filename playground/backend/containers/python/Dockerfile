@@ -99,6 +99,10 @@ ARG MULTILANGUAGE_PIPELINE_EXAMPLES=${REPO_URL}/org/apache/beam/beam-examples-mu
 RUN wget  $MULTILANGUAGE_PIPELINE_EXAMPLES &&\
 mv beam-examples-multi-language-${SDK_TAG}.jar beam-examples-multi-language.jar
 
+ARG SQL_EXPANSION_SERVICE_JAR=${REPO_URL}/org/apache/beam/beam-sdks-java-extensions-sql-expansion-service/${SDK_TAG}/beam-sdks-java-extensions-sql-expansion-service-${SDK_TAG}.jar
+RUN wget  $SQL_EXPANSION_SERVICE_JAR &&\
+mv beam-sdks-java-extensions-sql-expansion-service-${SDK_TAG}.jar /home/appuser/.apache_beam/cache/jars/beam-sdks-java-extensions-sql-expansion-service.jar
+
 ################
 ## Pre-pulled images ##
 ################

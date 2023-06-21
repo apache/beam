@@ -58,6 +58,7 @@ spec:
          requests:
            memory: "6000Mi"
            cpu: "1000m"
+           storage: "20Gi"
          limits:
            cpu: "8000m"
            memory: "16000Mi"
