@@ -786,8 +786,7 @@ BigQuery Storage Write API for Python SDK currently has some limitations on supp
 {{< /paragraph >}}
 
 {{< paragraph class="language-py" >}}
-**Note:** If you want to run WriteToBigQuery with Storage Write API from the source code, you need to run `./gradlew :sdks:java:io:google-cloud-platform:expansion-service:build` to build the expansion-service jar. If you 
-are running from a released Beam SDK, the jar will already be included.
+**Note:** If you want to run WriteToBigQuery with Storage Write API from the source code, you need to run `./gradlew :sdks:java:io:google-cloud-platform:expansion-service:build` to build the expansion-service jar. If you are running from a released Beam SDK, the jar will already be included.
 
 {{< /paragraph >}}
 
