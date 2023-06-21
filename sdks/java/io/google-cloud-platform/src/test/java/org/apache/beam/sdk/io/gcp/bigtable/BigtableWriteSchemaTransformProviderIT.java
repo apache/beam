@@ -74,6 +74,7 @@ public class BigtableWriteSchemaTransformProviderIT {
 
   @Test
   public void testInvalidConfigs() {
+    System.out.println(writeTransform.getName());
     // Properties cannot be empty (project, instance, and table)
     List<BigtableWriteSchemaTransformConfiguration.Builder> invalidConfigs =
         Arrays.asList(
@@ -94,7 +95,7 @@ public class BigtableWriteSchemaTransformProviderIT {
       assertThrows(
           IllegalArgumentException.class,
           () -> {
-            config.build();
+            config.build().validate();
           });
     }
   }
