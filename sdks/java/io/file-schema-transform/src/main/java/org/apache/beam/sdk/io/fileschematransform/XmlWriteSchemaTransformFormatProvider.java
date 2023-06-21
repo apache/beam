@@ -30,7 +30,7 @@ import java.nio.charset.Charset;
 import java.util.Optional;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformConfiguration.XmlConfiguration;
-import org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.ErrorCounterFn;
+import org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.BeamRowMapperWithDlq;
 import org.apache.beam.sdk.io.xml.XmlIO;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -73,7 +73,7 @@ public class XmlWriteSchemaTransformFormatProvider
             input.apply(
                 "Row to XML",
                 ParDo.of(
-                        new ErrorCounterFn<XmlRowAdapter>(
+                        new BeamRowMapperWithDlq<XmlRowAdapter>(
                             "Xml-write-error-counter", new RowToXmlFn(), ERROR_FN_OUPUT_TAG))
                     .withOutputTags(ERROR_FN_OUPUT_TAG, TupleTagList.of(ERROR_TAG)));
 

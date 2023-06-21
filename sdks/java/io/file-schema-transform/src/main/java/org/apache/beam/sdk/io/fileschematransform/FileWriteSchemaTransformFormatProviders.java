@@ -80,13 +80,13 @@ public final class FileWriteSchemaTransformFormatProviders {
   //    mapFn: the mapping function for mapping from Beam row to other data types.
   //    outputTag: TupleTag for output. Used to direct output to correct output source, or in the
   //        case of error, a DLQ.
-  static class ErrorCounterFn<OutputT extends Object> extends DoFn<Row, OutputT> {
+  static class BeamRowMapperWithDlq<OutputT extends Object> extends DoFn<Row, OutputT> {
     private SerializableFunction<Row, OutputT> mapFn;
     private Counter errorCounter;
     private TupleTag<OutputT> outputTag;
     private long errorsInBundle = 0L;
 
-    public ErrorCounterFn(
+    public BeamRowMapperWithDlq(
         String name, SerializableFunction<Row, OutputT> mapFn, TupleTag<OutputT> outputTag) {
       errorCounter = Metrics.counter(FileWriteSchemaTransformFormatProvider.class, name);
       this.mapFn = mapFn;

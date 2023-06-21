@@ -26,7 +26,7 @@ import static org.apache.beam.sdk.values.TypeDescriptors.strings;
 import com.google.auto.service.AutoService;
 import java.nio.charset.StandardCharsets;
 import org.apache.beam.sdk.io.TextIO;
-import org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.ErrorCounterFn;
+import org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.BeamRowMapperWithDlq;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.io.payloads.JsonPayloadSerializerProvider;
 import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializer;
@@ -71,7 +71,7 @@ public class JsonWriteSchemaTransformFormatProvider
         PCollectionTuple json =
             input.apply(
                 ParDo.of(
-                        new ErrorCounterFn<String>(
+                        new BeamRowMapperWithDlq<String>(
                             "Json-write-error-counter",
                             new RowToJsonFn(schema),
                             ERROR_FN_OUPUT_TAG))

@@ -30,7 +30,7 @@ import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformConfiguration.ParquetConfiguration;
-import org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.ErrorCounterFn;
+import org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.BeamRowMapperWithDlq;
 import org.apache.beam.sdk.io.parquet.ParquetIO;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -84,7 +84,7 @@ public class ParquetWriteSchemaTransformFormatProvider
             input.apply(
                 "Row To GenericRecord",
                 ParDo.of(
-                        new ErrorCounterFn<GenericRecord>(
+                        new BeamRowMapperWithDlq<GenericRecord>(
                             "Parquet-write-error-counter",
                             AvroUtils.getRowToGenericRecordFunction(AvroUtils.toAvroSchema(schema)),
                             ERROR_FN_OUPUT_TAG))

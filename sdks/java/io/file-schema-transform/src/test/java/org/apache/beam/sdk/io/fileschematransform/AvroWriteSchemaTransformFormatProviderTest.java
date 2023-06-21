@@ -29,7 +29,7 @@ import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.extensions.avro.io.AvroIO;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
-import org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.ErrorCounterFn;
+import org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.BeamRowMapperWithDlq;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Count;
@@ -118,7 +118,7 @@ public class AvroWriteSchemaTransformFormatProviderTest
   }
 
   @Test
-  public void testAvroErrorCounterFnSuccess() {
+  public void testAvroErrorCounterSuccess() {
     SerializableFunction<Row, GenericRecord> mapFn =
         AvroUtils.getRowToGenericRecordFunction(AvroUtils.toAvroSchema(BEAM_SCHEMA));
 
@@ -132,7 +132,7 @@ public class AvroWriteSchemaTransformFormatProviderTest
     PCollectionTuple output =
         input.apply(
             ParDo.of(
-                    new ErrorCounterFn<GenericRecord>(
+                    new BeamRowMapperWithDlq<GenericRecord>(
                         "Avro-write-error-counter", mapFn, OUTPUT_TAG))
                 .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
     output.get(OUTPUT_TAG).setCoder(CODER);
@@ -142,7 +142,7 @@ public class AvroWriteSchemaTransformFormatProviderTest
   }
 
   @Test
-  public void testAvroErrorCounterFnFailure() {
+  public void testAvroErrorCounterFailure() {
     SerializableFunction<Row, GenericRecord> mapFn =
         AvroUtils.getRowToGenericRecordFunction(AvroUtils.toAvroSchema(BEAM_SCHEMA_DLQ));
 
@@ -150,7 +150,7 @@ public class AvroWriteSchemaTransformFormatProviderTest
     PCollectionTuple output =
         input.apply(
             ParDo.of(
-                    new ErrorCounterFn<GenericRecord>(
+                    new BeamRowMapperWithDlq<GenericRecord>(
                         "Avro-write-error-counter", mapFn, OUTPUT_TAG))
                 .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
     output.get(OUTPUT_TAG).setCoder(CODER);

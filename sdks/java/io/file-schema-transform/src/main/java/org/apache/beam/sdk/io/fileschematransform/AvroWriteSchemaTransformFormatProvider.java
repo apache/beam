@@ -28,7 +28,7 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.extensions.avro.io.AvroIO;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
-import org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.ErrorCounterFn;
+import org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.BeamRowMapperWithDlq;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -71,7 +71,7 @@ public class AvroWriteSchemaTransformFormatProvider
             input.apply(
                 "Row To Avro Generic Record",
                 ParDo.of(
-                        new ErrorCounterFn<GenericRecord>(
+                        new BeamRowMapperWithDlq<GenericRecord>(
                             "Avro-write-error-counter",
                             AvroUtils.getRowToGenericRecordFunction(AvroUtils.toAvroSchema(schema)),
                             ERROR_FN_OUPUT_TAG))

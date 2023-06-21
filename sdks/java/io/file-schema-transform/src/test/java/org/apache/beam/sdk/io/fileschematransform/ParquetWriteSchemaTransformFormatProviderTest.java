@@ -29,7 +29,7 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
-import org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.ErrorCounterFn;
+import org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.BeamRowMapperWithDlq;
 import org.apache.beam.sdk.io.parquet.ParquetIO;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
@@ -124,7 +124,7 @@ public class ParquetWriteSchemaTransformFormatProviderTest
   }
 
   @Test
-  public void testParquetErrorCounterFnSuccess() {
+  public void testParquetErrorCounterSuccess() {
     SerializableFunction<Row, GenericRecord> mapFn =
         AvroUtils.getRowToGenericRecordFunction(AvroUtils.toAvroSchema(BEAM_SCHEMA));
 
@@ -138,7 +138,7 @@ public class ParquetWriteSchemaTransformFormatProviderTest
     PCollectionTuple output =
         input.apply(
             ParDo.of(
-                    new ErrorCounterFn<GenericRecord>(
+                    new BeamRowMapperWithDlq<GenericRecord>(
                         "Avro-write-error-counter", mapFn, OUTPUT_TAG))
                 .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
     output.get(OUTPUT_TAG).setCoder(CODER);
@@ -148,7 +148,7 @@ public class ParquetWriteSchemaTransformFormatProviderTest
   }
 
   @Test
-  public void testParquetErrorCounterFnFailure() {
+  public void testParquetErrorCounterFailure() {
     SerializableFunction<Row, GenericRecord> mapFn =
         AvroUtils.getRowToGenericRecordFunction(AvroUtils.toAvroSchema(BEAM_SCHEMA_DLQ));
 
@@ -156,7 +156,7 @@ public class ParquetWriteSchemaTransformFormatProviderTest
     PCollectionTuple output =
         input.apply(
             ParDo.of(
-                    new ErrorCounterFn<GenericRecord>(
+                    new BeamRowMapperWithDlq<GenericRecord>(
                         "Avro-write-error-counter", mapFn, OUTPUT_TAG))
                 .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
     output.get(OUTPUT_TAG).setCoder(CODER);
