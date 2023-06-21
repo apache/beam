@@ -17,8 +17,7 @@
 
 """Unit tests for BigTable service."""
 
-# pytype: skip-file
-from datetime import datetime, timezone
+import logging
 import os
 import secrets
 import string
@@ -26,7 +25,9 @@ import time
 import unittest
 import uuid
 from random import choice
-import logging
+# pytype: skip-file
+from datetime import datetime
+from datetime import timezone
 
 import pytest
 from mock import MagicMock
@@ -38,7 +39,6 @@ from apache_beam.io.gcp import bigtableio
 from apache_beam.io.gcp import resource_identifiers
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricsEnvironment
-
 from apache_beam.testing.test_pipeline import TestPipeline
 
 _LOGGER = logging.getLogger(__name__)
@@ -60,9 +60,9 @@ except ImportError as e:
 
 
 @pytest.mark.uses_gcp_java_expansion_service
-@unittest.skipUnless(
-    os.environ.get('EXPANSION_PORT'),
-    "EXPANSION_PORT environment var is not provided.")
+# @unittest.skipUnless(
+#     os.environ.get('EXPANSION_PORT'),
+#     "EXPANSION_PORT environment var is not provided.")
 @unittest.skipIf(client is None, 'Bigtable dependencies are not installed')
 class TestWriteToBigtableXlang(unittest.TestCase):
   INSTANCE = "bt-write-xlang-tests"
@@ -86,7 +86,7 @@ class TestWriteToBigtableXlang(unittest.TestCase):
     cluster = cls.instance.cluster("test-cluster", "us-central1-a")
     operation = cls.instance.create(clusters=[cluster])
     operation.result(timeout=500)
-    _LOGGER.info(
+    _LOGGER.warning(
         "Created instance [%s] in project [%s]",
         cls.instance.instance_id,
         cls.project)
@@ -124,7 +124,7 @@ class TestWriteToBigtableXlang(unittest.TestCase):
               table_id=self.table.table_id,
               instance_id=self.instance.instance_id,
               project_id=self.project,
-              expansion_service=self.expansion_service))
+              expansion_service=None))  #self.expansion_service))
 
   def test_set_mutation(self):
     row1: DirectRow = DirectRow('key-1')
