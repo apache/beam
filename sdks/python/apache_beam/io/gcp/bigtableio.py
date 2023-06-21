@@ -44,12 +44,16 @@ from apache_beam.internal.metrics.metric import ServiceCallMetric
 from apache_beam.io.gcp import resource_identifiers
 from apache_beam.metrics import Metrics
 from apache_beam.metrics import monitoring_infos
+from apache_beam.transforms import PTransform
 from apache_beam.transforms.display import DisplayDataItem
+from apache_beam.transforms.external import BeamJarExpansionService
+from apache_beam.transforms.external import SchemaAwareExternalTransform
 
 _LOGGER = logging.getLogger(__name__)
 
 try:
   from google.cloud.bigtable import Client
+  from google.cloud.bigtable.row import Cell, PartialRowData
   from google.cloud.bigtable.batcher import MutationsBatcher
 
   FLUSH_COUNT = 1000
@@ -59,7 +63,7 @@ except ImportError:
   _LOGGER.warning(
       'ImportError: from google.cloud.bigtable import Client', exc_info=True)
 
-__all__ = ['WriteToBigTable']
+__all__ = ['WriteToBigTable', 'ReadFromBigtable']
 
 
 class _BigTableWriteFn(beam.DoFn):
@@ -144,7 +148,7 @@ class _BigTableWriteFn(beam.DoFn):
     # direct_row.set_cell('cf1',
     #                     'field1',
     #                     'value1',
-    #                     timestamp=datetime.datetime.now())
+    #                     timestamp=datetime.now())
     self.batcher.mutate(row)
 
   def finish_bundle(self):
@@ -192,3 +196,75 @@ class WriteToBigTable(beam.PTransform):
                 beam_options['project_id'],
                 beam_options['instance_id'],
                 beam_options['table_id'])))
+
+
+class ReadFromBigtable(PTransform):
+  """Reads rows from Bigtable.
+
+  Returns a PCollection of PartialRowData objects, each representing a
+  Bigtable row. For more information about this row object, visit
+  https://cloud.google.com/python/docs/reference/bigtable/latest/row#class-googlecloudbigtablerowpartialrowdatarowkey
+  """
+  URN = "beam:schematransform:org.apache.beam:bigtable_read:v1"
+
+  def __init__(self, table_id, instance_id, project_id, expansion_service=None):
+    """Initialize a ReadFromBigtable transform.
+
+    :param table_id:
+      The ID of the table to read from.
+    :param instance_id:
+      The ID of the instance where the table resides.
+    :param project_id:
+      The GCP project ID.
+    :param expansion_service:
+      The address of the expansion service. If no expansion service is
+      provided, will attempt to run the default GCP expansion service.
+    """
+    super().__init__()
+    self._table_id = table_id
+    self._instance_id = instance_id
+    self._project_id = project_id
+    self._expansion_service = (
+        expansion_service or BeamJarExpansionService(
+            'sdks:java:io:google-cloud-platform:expansion-service:build'))
+    self.schematransform_config = SchemaAwareExternalTransform.discover_config(
+        self._expansion_service, self.URN)
+
+  def expand(self, input):
+    external_read = SchemaAwareExternalTransform(
+        identifier=self.schematransform_config.identifier,
+        expansion_service=self._expansion_service,
+        rearrange_based_on_discovery=True,
+        tableId=self._table_id,
+        instanceId=self._instance_id,
+        projectId=self._project_id)
+
+    return (
+        input.pipeline
+        | external_read
+        | beam.ParDo(self._BeamRowToPartialRowData()))
+
+  # PartialRowData has some useful methods for querying data within a row.
+  # To make use of those methods and to give Python users a more familiar
+  # object, we process each Beam Row and return a PartialRowData equivalent.
+  class _BeamRowToPartialRowData(beam.DoFn):
+    def process(self, row):
+      key = row.key
+      families = row.column_families
+
+      # initialize PartialRowData object
+      partial_row: PartialRowData = PartialRowData(key)
+      for fam_name, col_fam in families.items():
+        if fam_name not in partial_row.cells:
+          partial_row.cells[fam_name] = {}
+        for col_qualifier, cells in col_fam.items():
+          # store column qualifier as bytes to follow PartialRowData behavior
+          col_qualifier_bytes = col_qualifier.encode()
+          if col_qualifier not in partial_row.cells[fam_name]:
+            partial_row.cells[fam_name][col_qualifier_bytes] = []
+          for cell in cells:
+            value = cell.value
+            timestamp_micros = cell.timestamp_micros
+            partial_row.cells[fam_name][col_qualifier_bytes].append(
+                Cell(value, timestamp_micros))
+      yield partial_row
