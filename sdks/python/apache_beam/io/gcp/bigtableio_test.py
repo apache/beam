@@ -60,12 +60,12 @@ except ImportError as e:
 
 
 @pytest.mark.uses_gcp_java_expansion_service
-# @unittest.skipUnless(
-#     os.environ.get('EXPANSION_PORT'),
-#     "EXPANSION_PORT environment var is not provided.")
+@unittest.skipUnless(
+    os.environ.get('EXPANSION_PORT'),
+    "EXPANSION_PORT environment var is not provided.")
 @unittest.skipIf(client is None, 'Bigtable dependencies are not installed')
 class TestWriteToBigtableXlang(unittest.TestCase):
-  INSTANCE = "bt-write-xlang-tests"
+  INSTANCE = "bt-write-xlang"
   TABLE_ID = "test-table"
 
   @classmethod
@@ -75,7 +75,8 @@ class TestWriteToBigtableXlang(unittest.TestCase):
     cls.args = cls.test_pipeline.get_full_options_as_args()
     cls.expansion_service = ('localhost:%s' % os.environ.get('EXPANSION_PORT'))
 
-    instance_id = '%s-%s' % (cls.INSTANCE, str(int(time.time())))
+    instance_id = '%s-%s-%s' % (
+        cls.INSTANCE, str(int(time.time())), secrets.token_hex(3))
 
     cls.client = client.Client(admin=True, project=cls.project)
     # create cluster and instance
@@ -124,7 +125,7 @@ class TestWriteToBigtableXlang(unittest.TestCase):
               table_id=self.table.table_id,
               instance_id=self.instance.instance_id,
               project_id=self.project,
-              expansion_service=None))  #self.expansion_service))
+              expansion_service=self.expansion_service))
 
   def test_set_mutation(self):
     row1: DirectRow = DirectRow('key-1')
