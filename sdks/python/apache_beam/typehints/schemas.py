@@ -510,21 +510,29 @@ class SchemaTranslation(object):
     else:
       raise ValueError(f"Unrecognized type_info: {type_info!r}")
 
-  def named_tuple_from_schema(self, schema: schema_pb2.Schema) -> type:
+  def named_tuple_from_schema(self, schema: schema_pb2.Schema,
+                              overwrite_positions: Sequence[NamedTuple] = None) -> type:
     from apache_beam import coders
 
     type_name = 'BeamSchema_{}'.format(schema.id.replace('-', '_'))
 
     subfields = []
-    for field in schema.fields:
-      try:
-        field_py_type = self.typing_from_runner_api(field.type)
-        if isinstance(field_py_type, row_type.RowTypeConstraint):
-          field_py_type = field_py_type.user_type
-      except ValueError as e:
-        raise ValueError(
-            "Failed to decode schema due to an issue with Field proto:\n\n"
-            f"{text_format.MessageToString(field)}") from e
+    if overwrite_positions is None:
+      field_iterator = [(field, None) for field in schema.fields]
+    else:
+      field_iterator = zip(schema.fields, overwrite_positions)
+    for field, overwrite in field_iterator:
+      if overwrite is None:
+        try:
+          field_py_type = self.typing_from_runner_api(field.type)
+          if isinstance(field_py_type, row_type.RowTypeConstraint):
+            field_py_type = field_py_type.user_type
+        except ValueError as e:
+          raise ValueError(
+              "Failed to decode schema due to an issue with Field proto:\n\n"
+              f"{text_format.MessageToString(field)}") from e
+      else:
+        field_py_type = overwrite
 
       subfields.append((field.name, field_py_type))
 
@@ -557,9 +565,10 @@ def _hydrate_namedtuple_instance(encoded_schema, values):
 
 
 def named_tuple_from_schema(
-    schema, schema_registry: SchemaTypeRegistry = SCHEMA_REGISTRY) -> type:
+    schema, schema_registry: SchemaTypeRegistry = SCHEMA_REGISTRY,
+    overwrite_positions: Sequence[NamedTuple] = None) -> type:
   return SchemaTranslation(
-      schema_registry=schema_registry).named_tuple_from_schema(schema)
+      schema_registry=schema_registry).named_tuple_from_schema(schema, overwrite_positions)
 
 
 def named_tuple_to_schema(

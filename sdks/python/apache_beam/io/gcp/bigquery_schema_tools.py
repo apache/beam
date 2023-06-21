@@ -67,19 +67,35 @@ def generate_user_type_from_bq_schema(the_table_schema):
       the_table_schema)
   if the_schema == {}:
     raise ValueError("Encountered an empty schema")
-  dict_of_tuples = []
+  
+  field_names_and_types = []
+  field_is_nested = []
   for i in range(len(the_schema['fields'])):
     if the_schema['fields'][i]['type'] in BIG_QUERY_TO_PYTHON_TYPES:
       typ = bq_field_to_type(
           the_schema['fields'][i]['type'], the_schema['fields'][i]['mode'])
+      is_nested = False
+    elif the_schema['fields'][i]['type'] == "RECORD":
+      typ = generate_user_type_from_bq_schema(the_schema['fields'][i])
+      is_nested = True
     else:
       raise ValueError(
           f"Encountered "
           f"an unsupported type: {the_schema['fields'][i]['type']!r}")
-    # TODO svetaksundhar@: Map remaining BQ types
-    dict_of_tuples.append((the_schema['fields'][i]['name'], typ))
-  sample_schema = beam.typehints.schemas.named_fields_to_schema(dict_of_tuples)
-  usertype = beam.typehints.schemas.named_tuple_from_schema(sample_schema)
+    # TODO @svetaksundhar: Map remaining BQ types
+    field_names_and_types.append((the_schema['fields'][i]['name'], typ))
+    field_is_nested.append(is_nested)
+
+  # pass all primitive fields to named_fields_to_schema, but replace nested fields with type 'bytes'
+  sample_schema = beam.typehints.schemas.named_fields_to_schema(
+    [(name, bytes) if is_nested else (name, type)
+     for ((name, type), is_nested) in zip(field_names_and_types, field_is_nested)])
+  # for nested fields overwrite named tuple position with already processed named tuple
+  usertype = beam.typehints.schemas.named_tuple_from_schema(
+    sample_schema,
+    overwrite_positions=[
+      type if is_nested else None
+      for ((_, type), is_nested) in zip(field_names_and_types, field_is_nested)])
   return usertype
 
 
