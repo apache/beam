@@ -61,7 +61,7 @@ runs:
     shell: bash
     run: echo rerun=false >> $GITHUB_ENV
 
-  - name: Get Check Suide ID
+  - name: Get Check Suite ID
     if: ${{env.rerun != 'false' }}
     shell: bash
     run: | 
