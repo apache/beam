@@ -37,8 +37,10 @@ MSEC_TO_SEC = 1000
 
 LOGGER = logging.getLogger("VertexAIModelHandlerJSON")
 
+# pylint: disable=line-too-long
 
-class VertexAIModelHandlerJSON(ModelHandler[any,
+
+class VertexAIModelHandlerJSON(ModelHandler[Any,
                                             PredictionResult,
                                             aiplatform.Endpoint]):
   def __init__(
@@ -69,12 +71,14 @@ class VertexAIModelHandlerJSON(ModelHandler[any,
     # See https://cloud.google.com/python/docs/reference/aiplatform/latest/google.cloud.aiplatform#google_cloud_aiplatform_init
     aiplatform.init(project=project, location=location, experiment=experiment)
 
-    # Check for liveness here but don't try to actually store the endpoint in the class yet
+    # Check for liveness here but don't try to actually store the endpoint
+    # in the class yet
     self.endpoint_name = endpoint_id
     _ = self._retrieve_endpoint(self.endpoint_name)
 
-    # Configure AdaptiveThrottler and throttling metrics for client-side throttling
-    # behavior.  See https://docs.google.com/document/d/1ePorJGZnLbNCmLD9mR7iFYOdPsyDA1rDnTpYnbdrzSU/edit?usp=sharing
+    # Configure AdaptiveThrottler and throttling metrics for client-side
+    # throttling behavior.
+    # See https://docs.google.com/document/d/1ePorJGZnLbNCmLD9mR7iFYOdPsyDA1rDnTpYnbdrzSU/edit?usp=sharing
     # for more details.
     self.throttled_secs = Metrics.counter(
         VertexAIModelHandlerJSON, "cumulativeThrottlingSeconds")
@@ -82,7 +86,8 @@ class VertexAIModelHandlerJSON(ModelHandler[any,
         window_ms=1, bucket_ms=1, overload_ratio=2)
 
   def _retrieve_endpoint(self, endpoint_id: str) -> aiplatform.Endpoint:
-    """Retrieves an AI Platform endpoint and queries it for liveness/deployed models
+    """Retrieves an AI Platform endpoint and queries it for liveness/deployed
+    models.
     
     Args:
       endpoint_id: the numerical ID of the Vertex AI endpoint to retrieve.
@@ -105,8 +110,11 @@ class VertexAIModelHandlerJSON(ModelHandler[any,
     return endpoint
 
   def load_model(self) -> aiplatform.Endpoint:
-    """Loads the Endpoint object used to build and send prediction request to Vertex AI"""
-    # Check to make sure the endpoint is still active since pipeline construction time
+    """Loads the Endpoint object used to build and send prediction request to
+    Vertex AI.
+    """
+    # Check to make sure the endpoint is still active since pipeline
+    # construction time
     ep = self._retrieve_endpoint(self.endpoint_name)
     return ep
 
@@ -130,7 +138,8 @@ class VertexAIModelHandlerJSON(ModelHandler[any,
       self.throttler.successful_request(req_time * MSEC_TO_SEC)
       return prediction
     except TooManyRequests as e:
-      LOGGER.warning("request was limited by the service with HTTP code 429")
+      LOGGER.warning(
+          "request was limited by the service with code %i", e.code.value)
       raise
     except ClientError as e:
       LOGGER.warning("request failed with error code %i", e.code.value)
@@ -140,21 +149,26 @@ class VertexAIModelHandlerJSON(ModelHandler[any,
       self,
       batch: Sequence[Any],
       model: aiplatform.Endpoint,
-      inference_args: Optional[Dict[str, Any]]) -> Iterable[PredictionResult]:
-    """ Sends a prediction request to a Vertex AI endpoint containing batch of inputs
-    and matches that input with the prediction response from the endpoint as an iterable
-    of PredictionResults. 
+      inference_args: Optional[Dict[str, Any]] = None
+  ) -> Iterable[PredictionResult]:
+    """ Sends a prediction request to a Vertex AI endpoint containing batch
+    of inputs and matches that input with the prediction response from 
+    the endpoint as an iterable of PredictionResults. 
     
     Args:
-      batch: a sequence of any values to be passed to the Vertex AI endpoint. Should be encoded
-        as the model expects. 
-      model: an aiplatform.Endpoint object configured to access the desired model
-      inference_args: any additional arguments to send as part of the prediction request
-    
+      batch: a sequence of any values to be passed to the Vertex AI endpoint.
+        Should be encoded as the model expects.
+      model: an aiplatform.Endpoint object configured to access the desired
+        model.
+      inference_args: any additional arguments to send as part of the
+        prediction request.
+
+    Returns:
+      An iterable of Predictions.
     """
 
-    # Endpoint.predict returns a Prediction type with the prediction values along
-    # with model metadata
+    # Endpoint.predict returns a Prediction type with the prediction values
+    # along with model metadata
     prediction = self.get_request(
         batch, model, throttle_delay_secs=5, inference_args=inference_args)
 
