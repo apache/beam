@@ -25,8 +25,8 @@ import time
 import unittest
 import uuid
 # pytype: skip-file
-from datetime import timezone
 from datetime import datetime
+from datetime import timezone
 from random import choice
 
 import pytest
