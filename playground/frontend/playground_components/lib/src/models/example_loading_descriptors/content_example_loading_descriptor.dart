@@ -116,4 +116,7 @@ class ContentExampleLoadingDescriptor extends ExampleLoadingDescriptor {
         'sdk': sdk.id,
         ...viewOptions.toShortMap(),
       };
+
+  @override
+  bool get isSerializableToUrl => false;
 }
