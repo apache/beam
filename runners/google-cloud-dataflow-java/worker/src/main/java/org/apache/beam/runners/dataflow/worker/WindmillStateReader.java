@@ -334,13 +334,6 @@ class WindmillStateReader {
             .toBuilder()
             .setSortedListRange(Preconditions.checkNotNull(range))
             .build();
-    LOG.error(
-        "GETTING FUTURE FOR "
-            + stateTag
-            + " FOR KEY "
-            + this.key
-            + " WORK TOKEN "
-            + this.workToken);
     return Preconditions.checkNotNull(
         valuesToPagingIterableFuture(stateTag, elemCoder, this.stateFuture(stateTag, elemCoder)));
   }
@@ -442,6 +435,7 @@ class WindmillStateReader {
     @Override
     public Iterable<ResultT> apply(
         @Nonnull ValuesAndContPosition<ResultT, ContinuationT> valuesAndContPosition) {
+      // For isEmpty requests, there is no need to page through the entire iterable!
       if (valuesAndContPosition.continuationPosition == null) {
         // Number of values is small enough Windmill sent us the entire bag in one response.
         reader = null;
@@ -469,6 +463,15 @@ class WindmillStateReader {
    * Iterable<T> result expected from the external caller.
    */
   private <ResultT, ContinuationT> Future<Iterable<ResultT>> valuesToPagingIterableFuture(
+      final StateTag<ContinuationT> stateTag,
+      final Coder<?> coder,
+      final Future<ValuesAndContPosition<ResultT, ContinuationT>> future) {
+    Function<ValuesAndContPosition<ResultT, ContinuationT>, Iterable<ResultT>> toIterable =
+        new ToIterableFunction<>(this, stateTag, coder);
+    return Futures.lazyTransform(future, toIterable);
+  }
+
+  private <ResultT, ContinuationT> Future<Iterable<ResultT>> valuesToFirstPageOnlyIterableFuture(
       final StateTag<ContinuationT> stateTag,
       final Coder<?> coder,
       final Future<ValuesAndContPosition<ResultT, ContinuationT>> future) {
@@ -992,10 +995,8 @@ class WindmillStateReader {
     public Iterator<ResultT> iterator() {
       return new AbstractIterator<ResultT>() {
         private Iterator<ResultT> currentPage = firstPage.iterator();
+        // NOTE: The results of continuation page reads are never cached.
         private StateTag<ContinuationT> nextPagePos = secondPagePos;
-        private Future<ValuesAndContPosition<ResultT, ContinuationT>> pendingNextPage =
-            // NOTE: The results of continuation page reads are never cached.
-            reader.continuationFuture(nextPagePos, coder);
 
         @Override
         protected ResultT computeNext() {
@@ -1003,13 +1004,16 @@ class WindmillStateReader {
             if (currentPage.hasNext()) {
               return currentPage.next();
             }
-            if (pendingNextPage == null) {
+            if (nextPagePos.getRequestPosition() == null) {
               return endOfData();
             }
+            Future<ValuesAndContPosition<ResultT, ContinuationT>> nextPageFuture =
+                org.apache.beam.sdk.util.Preconditions.checkStateNotNull(
+                    reader.continuationFuture(nextPagePos, coder));
 
             ValuesAndContPosition<ResultT, ContinuationT> valuesAndContPosition;
             try {
-              valuesAndContPosition = pendingNextPage.get();
+              valuesAndContPosition = nextPageFuture.get();
             } catch (InterruptedException | ExecutionException e) {
               if (e instanceof InterruptedException) {
                 Thread.currentThread().interrupt();
@@ -1028,9 +1032,6 @@ class WindmillStateReader {
               nextPageBuilder.setSortedListRange(secondPagePos.getSortedListRange());
             }
             nextPagePos = nextPageBuilder.build();
-            pendingNextPage =
-                // NOTE: The results of continuation page reads are never cached.
-                reader.continuationFuture(nextPagePos, coder);
           }
         }
       };

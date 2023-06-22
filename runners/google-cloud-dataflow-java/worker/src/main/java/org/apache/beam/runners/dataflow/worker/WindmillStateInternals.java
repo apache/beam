@@ -1016,6 +1016,9 @@ class WindmillStateInternals<K> implements StateInternals {
 
         @Override
         public Boolean read() {
+          if (!pendingAdds.isEmpty()) {
+            return false;
+          }
           return Iterables.isEmpty(WindmillOrderedList.this.read());
         }
       };
