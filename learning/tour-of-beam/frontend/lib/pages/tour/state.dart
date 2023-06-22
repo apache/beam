@@ -50,20 +50,18 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   final _unitContentCache = GetIt.instance.get<UnitContentCache>();
   final _unitProgressCache = GetIt.instance.get<UnitProgressCache>();
   UnitContentModel? _currentUnitContent;
+  bool _isPlaygroundShown = false;
   DateTime? _currentUnitOpenedAt;
 
   TobEventContext _tobEventContext = TobEventContext.empty;
   TobEventContext get tobEventContext => _tobEventContext;
 
   TourNotifier({
-    required Sdk initialSdk,
     List<String> initialBreadcrumbIds = const [],
   })  : contentTreeController = ContentTreeController(
-          initialSdk: initialSdk,
           initialBreadcrumbIds: initialBreadcrumbIds,
         ),
-        playgroundController = _createPlaygroundController(initialSdk.id) {
-    _appNotifier.sdk ??= initialSdk;
+        playgroundController = _createPlaygroundController() {
     contentTreeController.addListener(_onUnitChanged);
     _appNotifier.addListener(_onAppNotifierChanged);
     _authNotifier.addListener(_onAuthChanged);
@@ -84,17 +82,17 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
 
   @override
   PagePath get path => TourPath(
-        sdkId: contentTreeController.sdk.id,
+        sdkId: GetIt.instance.get<AppNotifier>().sdk.id,
         breadcrumbIds: contentTreeController.breadcrumbIds,
       );
 
   bool get isAuthenticated => _authNotifier.isAuthenticated;
 
-  Sdk get currentSdk => _appNotifier.sdk!;
+  Sdk get currentSdk => _appNotifier.sdk;
   String? get currentUnitId => _currentUnitContent?.id;
   UnitContentModel? get currentUnitContent => _currentUnitContent;
 
-  bool get hasSolution => currentUnitContent?.solutionSnippetId != null;
+  bool get hasSolution => _currentUnitContent?.solutionSnippetId != null;
   bool get isCodeSaved => _unitProgressCache.hasSavedSnippet(currentUnitId);
 
   SnippetType _snippetType = SnippetType.original;
@@ -109,7 +107,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     notifyListeners();
   }
 
-  bool get isUnitContainsSnippet => currentUnitContent?.taskSnippetId != null;
+  bool get isPlaygroundShown => _isPlaygroundShown;
   bool get isSnippetLoading => _isLoadingSnippet;
 
   Future<void> _onAuthChanged() async {
@@ -171,6 +169,9 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
       _trackUnitClosed();
     }
 
+    if (_currentUnitContent != null) {
+      _isPlaygroundShown = _currentUnitContent!.taskSnippetId != null;
+    }
     _currentUnitContent = unitContent;
 
     if (_currentUnitContent != null) {
@@ -358,7 +359,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
 
   // Playground controller.
 
-  static PlaygroundController _createPlaygroundController(String initialSdkId) {
+  static PlaygroundController _createPlaygroundController() {
     final playgroundController = PlaygroundController(
       codeClient: GetIt.instance.get<CodeClient>(),
       exampleCache: ExampleCache(
@@ -371,7 +372,9 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
       playgroundController.examplesLoader.loadIfNew(
         ExamplesLoadingDescriptor(
           descriptors: [
-            EmptyExampleLoadingDescriptor(sdk: Sdk.parseOrCreate(initialSdkId)),
+            EmptyExampleLoadingDescriptor(
+              sdk: GetIt.instance.get<AppNotifier>().sdk,
+            ),
           ],
         ),
       ),

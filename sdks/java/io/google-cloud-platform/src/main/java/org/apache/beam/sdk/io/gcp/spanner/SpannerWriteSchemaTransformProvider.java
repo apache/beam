@@ -98,7 +98,6 @@ public class SpannerWriteSchemaTransformProvider
       }
     }
 
-    @Override
     public PCollectionRowTuple expand(@NonNull PCollectionRowTuple input) {
       SpannerWriteResult result =
           input
@@ -146,9 +145,9 @@ public class SpannerWriteSchemaTransformProvider
                                                       mutation.getValues().iterator()))
                                               .build())
                                   .collect(Collectors.toList())))
+              .setRowSchema(failureSchema)
               .apply("error-count", ParDo.of(new ElementCounterFn("Spanner-write-error-counter")))
               .setRowSchema(failureSchema);
-
       return PCollectionRowTuple.of("failures", failures).and("errors", failures);
     }
   }

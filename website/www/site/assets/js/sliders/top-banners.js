@@ -10,25 +10,17 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 
-new Swiper('.swiper', {
+new Swiper('.top-banners', {
+  autoplay: {
+    delay: 5000,
+  },
   loop: false,
-  slidesPerView: 1,
-  slidesPerGroup: 1,
   pagination: {
-    el: ".swiper-pagination",
+    el: ".top-banners .swiper-pagination",
     clickable: true,
     bulletClass: "bullet-class-custom",
     bulletActiveClass: "bullet-active-class-custom",
   },
-  navigation: {
-    nextEl: ".swiper-button-next-custom",
-    prevEl: ".swiper-button-prev-custom",
-  },
-  breakpoints: {
-    // switches from mobile to desktop when window width is > 1024px
-    1025: {
-      slidesPerView: 3,
-      slidesPerGroup: 3,
-    },
-  }
+  slidesPerGroup: 1,
+  slidesPerView: 1,
 });
