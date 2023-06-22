@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.toJsonString;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects.firstNonNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
@@ -47,6 +48,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -63,6 +65,7 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -84,6 +87,9 @@ public class StorageApiSinkSchemaChangeIT {
   private static final int MAX_N = 50;
 
   private static final long RANDOM_SEED = 1;
+
+  @Rule
+  public transient ExpectedLogs loggedBigQueryIO = ExpectedLogs.none(BigQueryIO.class);
 
   @BeforeClass
   public static void setUpTestEnvironment() throws IOException, InterruptedException {
@@ -407,9 +413,9 @@ public class StorageApiSinkSchemaChangeIT {
   @Test
   public void testExceptionOnWriteExactlyOnceWithBothNumShardsAndAutoSharding()
       throws IOException, InterruptedException {
-    assertThrows(IllegalArgumentException.class,
-        () -> runStreamingPipelineWithSchemaChange(Write.Method.STORAGE_WRITE_API, false, 1, true,
-            1, false));
+    runStreamingPipelineWithSchemaChange(Write.Method.STORAGE_WRITE_API, false, 1, true,
+            1, false);
+    loggedBigQueryIO.verifyWarn("The setting of auto-sharding is ignored.");
   }
 
   @Test
@@ -433,18 +439,16 @@ public class StorageApiSinkSchemaChangeIT {
   @Test
   public void testExceptionOnWriteAtLeastOnceWithAutoSharding()
       throws IOException, InterruptedException {
-    assertThrows(IllegalArgumentException.class,
-        () -> runStreamingPipelineWithSchemaChange(Write.Method.STORAGE_API_AT_LEAST_ONCE, false, 0,
-            true, 0,
-            false));
+    runStreamingPipelineWithSchemaChange(Write.Method.STORAGE_API_AT_LEAST_ONCE, false, 0, true, 0,
+        false);
+    loggedBigQueryIO.verifyWarn("The setting of auto-sharding is ignored.");
   }
 
   @Test
   public void testExceptionOnWriteAtLeastOnceWithNumShards()
       throws IOException, InterruptedException {
-    assertThrows(IllegalArgumentException.class,
-        () -> runStreamingPipelineWithSchemaChange(Write.Method.STORAGE_API_AT_LEAST_ONCE, false, 0,
-            false, 1,
-            false));
+    runStreamingPipelineWithSchemaChange(Write.Method.STORAGE_API_AT_LEAST_ONCE, false, 0, false, 1,
+        false);
+    loggedBigQueryIO.verifyWarn("The setting of numStorageWriteApiStreams is ignored.");
   }
 }
