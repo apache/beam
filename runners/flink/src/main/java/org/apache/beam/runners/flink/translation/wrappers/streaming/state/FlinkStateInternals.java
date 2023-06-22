@@ -76,7 +76,6 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.BooleanSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
-import org.apache.flink.api.common.typeutils.base.VoidSerializer;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
@@ -1409,7 +1408,9 @@ public class FlinkStateInternals<K> implements StateInternals {
       this.flinkStateBackend = flinkStateBackend;
       this.flinkStateDescriptor =
           new MapStateDescriptor<>(
-              stateId, new CoderTypeSerializer<>(coder, pipelineOptions), new BooleanSerializer());
+              stateId,
+              new CoderTypeSerializer<>(coder, pipelineOptions),
+              BooleanSerializer.INSTANCE);
     }
 
     @Override
@@ -1612,7 +1613,7 @@ public class FlinkStateInternals<K> implements StateInternals {
             new MapStateDescriptor<>(
                 id,
                 new CoderTypeSerializer<>(elemCoder, pipelineOptions),
-                VoidSerializer.INSTANCE));
+                BooleanSerializer.INSTANCE));
       } catch (Exception e) {
         throw new RuntimeException(e);
       }

@@ -207,7 +207,6 @@ def create_test_method(test_type, test_name, test_yaml):
 
 def parse_test_methods(markdown_lines):
   # pylint: disable=too-many-nested-blocks
-  # pylint: disable=not-an-iterable
   code_lines = None
   for ix, line in enumerate(markdown_lines):
     line = line.rstrip()
@@ -220,6 +219,7 @@ def parse_test_methods(markdown_lines):
         if code_lines:
           if code_lines[0].startswith('- type:'):
             # Treat this as a fragment of a larger pipeline.
+            # pylint: disable=not-an-iterable
             code_lines = [
                 'pipeline:',
                 '  type: chain',

@@ -23,6 +23,7 @@ import 'package:playground_components/playground_components.dart';
 import 'package:provider/provider.dart';
 
 import '../../../constants/sizes.dart';
+import '../../../constants/links.dart';
 
 class PlaygroundPageFooter extends StatelessWidget {
   const PlaygroundPageFooter({Key? key}) : super(key: key);
@@ -46,6 +47,7 @@ class PlaygroundPageFooter extends StatelessWidget {
             children: [
               FeedbackWidget(
                 controller: GetIt.instance.get<FeedbackController>(),
+                feedbackFormUrl: playgroundFeedbackGoogleFormsUrl,
                 title: 'ui.feedbackTitle'.tr(),
               ),
               ReportIssueButton(playgroundController: playgroundController),
