@@ -79,4 +79,7 @@ class HttpExampleLoadingDescriptor extends ExampleLoadingDescriptor {
       viewOptions: ExampleViewOptions.fromShortMap(map),
     );
   }
+
+  @override
+  bool get isSerializableToUrl => true;
 }

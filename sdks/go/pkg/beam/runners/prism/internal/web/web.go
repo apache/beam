@@ -31,8 +31,10 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/metricsx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/pipelinex"
 	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
+	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slog"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/proto"
@@ -82,6 +84,7 @@ func renderPage(page *template.Template, data errorSetter, w http.ResponseWriter
 
 type jobDetailsData struct {
 	JobID, JobName string
+	State          jobpb.JobState_Enum
 	Transforms     []pTransform
 	PCols          map[metrics.StepKey]metrics.PColResult
 	DisplayData    []*pipepb.LabelledPayload
@@ -130,6 +133,7 @@ func (h *jobDetailsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	var pipeResp *jobpb.GetJobPipelineResponse
 	var metsResp *jobpb.GetJobMetricsResponse
+	var stateResp *jobpb.JobStateEvent
 	errg.Go(func() error {
 		resp, err := h.Jobcli.GetPipeline(ctx, &jobpb.GetJobPipelineRequest{JobId: jobID})
 		pipeResp = resp
@@ -140,6 +144,11 @@ func (h *jobDetailsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		metsResp = resp
 		return err
 	})
+	errg.Go(func() error {
+		resp, err := h.Jobcli.GetState(ctx, &jobpb.GetJobStateRequest{JobId: jobID})
+		stateResp = resp
+		return err
+	})
 
 	if err := errg.Wait(); err != nil {
 		data.Error = err.Error()
@@ -147,9 +156,10 @@ func (h *jobDetailsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	data.State = stateResp.GetState()
 	for i, dd := range pipeResp.GetPipeline().GetDisplayData() {
 		if dd.GetUrn() != "beam:display_data:labelled:v1" {
-			// There's only one type of display data, but lets take care.
+			// There's only one type of display data, but let's take care.
 			continue
 		}
 
@@ -165,23 +175,49 @@ func (h *jobDetailsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	results := metricsx.FromMonitoringInfos(pipeResp.GetPipeline(), mets.GetAttempted(), mets.GetCommitted())
 
 	pcols := map[metrics.StepKey]metrics.PColResult{}
-	for _, res := range results.AllMetrics().PCols() {
+	allMetsPCol := results.AllMetrics().PCols()
+	for _, res := range allMetsPCol {
 		pcols[res.Key] = res
 	}
+
 	data.PCols = pcols
 	trs := pipeResp.GetPipeline().GetComponents().GetTransforms()
+	col2T, topo := preprocessTransforms(trs)
+
 	data.Transforms = make([]pTransform, 0, len(trs))
-	for id, pt := range pipeResp.GetPipeline().GetComponents().GetTransforms() {
-		if len(pt.GetSubtransforms()) > 0 {
-			continue
+	for _, id := range topo {
+		pt := trs[id]
+		var inMets []string
+		locals := maps.Keys(pt.GetInputs())
+		sort.Strings(locals)
+		for _, local := range locals {
+			global := pt.GetInputs()[local]
+			inP := col2T[global]
+			name := inP.T.GetUniqueName() + "." + local
+			r, ok := pcols[metrics.StepKey{Step: name}]
+			if ok {
+				inMets = append(inMets, fmt.Sprintf("\n- %v: %v", name, r.Committed.ElementCount))
+			}
 		}
+
 		var strMets []string
-		for local := range pt.GetInputs() {
+		if len(inMets) > 0 {
+			strMets = append(strMets, "Inputs read")
+			strMets = append(strMets, inMets...)
+		}
+		var outMets []string
+		locals = maps.Keys(pt.GetOutputs())
+		sort.Strings(locals)
+		for _, local := range locals {
 			name := pt.GetUniqueName() + "." + local
 			r, ok := pcols[metrics.StepKey{Step: name}]
 			if ok {
-				strMets = append(strMets, fmt.Sprintf("Input %v ElementCount: %v", name, r.Committed.ElementCount))
+				outMets = append(outMets, fmt.Sprintf("\n- %v: %v", name, r.Committed.ElementCount))
 			}
+		}
+		if len(outMets) > 0 {
+			strMets = append(strMets, "Outputs written")
+			strMets = append(strMets, outMets...)
 		}
 
 		data.Transforms = append(data.Transforms, pTransform{
@@ -190,12 +226,34 @@ func (h *jobDetailsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			Metrics:   strMets,
 		})
 	}
-	sort.Slice(data.Transforms, func(i, j int) bool {
-		a, b := data.Transforms[i], data.Transforms[j]
-		return a.Transform.GetUniqueName() < b.Transform.GetUniqueName()
-	})
 
 	renderPage(jobPage, &data, w)
+}
+
+type pcolParent struct {
+	L string
+	T *pipepb.PTransform
+}
+
+// preprocessTransforms returns the leaf transform parents of pcollections
+// and the topological ordering of leaf transforms.
+func preprocessTransforms(trs map[string]*pipepb.PTransform) (map[string]pcolParent, []string) {
+	ret := map[string]pcolParent{}
+	var leaves []string
+	for id, t := range trs {
+		// Skip composites at this time.
+		if len(t.GetSubtransforms()) > 0 {
+			continue
+		}
+		leaves = append(leaves, id)
+		for local, global := range t.GetOutputs() {
+			ret[global] = pcolParent{
+				L: local,
+				T: t,
+			}
+		}
+	}
+	return ret, pipelinex.TopologicalSort(trs, leaves)
 }
 
 type jobsConsoleHandler struct {

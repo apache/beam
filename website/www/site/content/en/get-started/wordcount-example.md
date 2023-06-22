@@ -320,6 +320,14 @@ Note that the `run` method is asynchronous. For a blocking execution, call the
 returned by the call to `run`.
 {{< /paragraph >}}
 
+### Try the full example in Playground
+
+{{< playground height="700px" >}}
+{{< playground_snippet language="java" path="SDK_JAVA_MinimalWordCount" >}}
+{{< playground_snippet language="py" path="SDK_PYTHON_WordCountMinimal" >}}
+{{< playground_snippet language="go" path="SDK_GO_MinimalWordCount" >}}
+{{< /playground >}}
+
 ## WordCount example
 
 This WordCount example introduces a few recommended programming practices that
@@ -662,6 +670,14 @@ func main() {
     ...
 {{< /highlight >}}
 
+### Try the full example in Playground
+
+{{< playground height="700px" >}}
+{{< playground_snippet language="java" path="SDK_JAVA_WordCount" >}}
+{{< playground_snippet language="py" path="SDK_PYTHON_WordCount" >}}
+{{< playground_snippet language="go" path="SDK_GO_WordCount" >}}
+{{< /playground >}}
+
 ## DebuggingWordCount example
 
 The DebuggingWordCount example demonstrates some best practices for
@@ -975,6 +991,14 @@ passert.Equals(s, formatted, "Flourish: 3", "stomach: 1")
 See [DebuggingWordCountTest](https://github.com/apache/beam/blob/master/examples/java/src/test/java/org/apache/beam/examples/DebuggingWordCountTest.java)
 for an example unit test.
 {{< /paragraph >}}
+
+### Try the full example in Playground
+
+{{< playground height="700px" >}}
+{{< playground_snippet language="java" path="SDK_JAVA_DebuggingWordCount" >}}
+{{< playground_snippet language="py" path="SDK_PYTHON_WordCountDebugging" >}}
+{{< playground_snippet language="go" path="SDK_GO_DebuggingWordCount" >}}
+{{< /playground >}}
 
 ## WindowedWordCount example
 
@@ -1324,6 +1348,15 @@ word_counts = windowed_words | CountWords()
 {{< highlight go >}}
 counted := wordcount.CountWords(s, windowedLines)
 {{< /highlight >}}
+
+{{< paragraph class="language-java language-go" >}}
+### Try the full example in Playground
+{{< /paragraph >}}
+
+{{< playground height="700px" >}}
+{{< playground_snippet language="java" path="SDK_JAVA_WindowedWordCount" >}}
+{{< playground_snippet language="go" path="SDK_GO_WindowedWordCount" >}}
+{{< /playground >}}
 
 ## StreamingWordCount example
 

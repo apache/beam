@@ -23,18 +23,24 @@ limitations under the License.
 
 Learn to use Beam to create data processing pipelines that run on supported processing back-ends:
 
+## [Tour of Beam](https://tour.beam.apache.org)
+
+Learn Beam with an interactive tour with learning topics covering core Beam concepts
+from simple ones to more advanced ones.
+You can try examples, do exercises, and solve challenges along the learning journey.
+
 ## [Beam Overview](/get-started/beam-overview)
 
 Learn about the Beam model, the currently available Beam SDKs and Runners, and Beam's native I/O connectors.
 
-## Quickstarts for Java, Python, Go, and Typescript
+## Quickstarts for Java, Python, Go, and TypeScript
 
 Learn how to set up a Beam project and run a simple example Beam pipeline on your local machine.
 
 * [Java quickstart](/get-started/quickstart-java)
 * [Python quickstart](/get-started/quickstart-py)
 * [Go quickstart](/get-started/quickstart-go)
-* [Typescript quickstart](/get-started/quickstart/typescript)
+* [TypeScript quickstart](/get-started/quickstart/typescript)
 
 ## Example Walkthroughs
 

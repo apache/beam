@@ -35,11 +35,11 @@ concurrency:
 
 jobs:
   tour_of_beam_test:
-    name: Tour of Beam Test
+    name: Tour of Beam Frontend Test
     runs-on: ubuntu-latest
 
     env:
-      FLUTTER_VERSION: '3.10.2'
+      FLUTTER_VERSION: '3.10.4'
 
     steps:
       - uses: actions/checkout@v3

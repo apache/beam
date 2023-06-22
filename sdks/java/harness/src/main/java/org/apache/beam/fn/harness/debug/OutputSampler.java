@@ -19,7 +19,9 @@ package org.apache.beam.fn.harness.debug;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
@@ -37,7 +39,12 @@ import org.apache.beam.sdk.util.WindowedValue;
 public class OutputSampler<T> {
 
   // Temporarily holds elements until the SDK receives a sample data request.
-  private List<WindowedValue<T>> buffer;
+  private List<ElementSample<T>> buffer;
+
+  // Temporarily holds exceptional elements. These elements can also be duplicated in the main
+  // buffer. This is in order to always track exceptional elements even if the number of samples in
+  // the main buffer drops it.
+  private final List<ElementSample<T>> exceptions = new ArrayList<>();
 
   // Maximum number of elements in buffer.
   private final int maxElements;
@@ -83,7 +90,7 @@ public class OutputSampler<T> {
    *
    * @param element the element to sample.
    */
-  public void sample(WindowedValue<T> element) {
+  public ElementSample<T> sample(WindowedValue<T> element) {
     // Only sample the first 10 elements then after every `sampleEveryN`th element.
     long samples = numSamples.get() + 1;
 
@@ -91,19 +98,41 @@ public class OutputSampler<T> {
     // the slowest thread accessing the atomic. But over time, it will still increase. This is ok
     // because this is a debugging feature and doesn't need strict atomics.
     numSamples.lazySet(samples);
+
+    ElementSample<T> elementSample =
+        new ElementSample<>(ThreadLocalRandom.current().nextInt(), element);
     if (samples > 10 && samples % sampleEveryN != 0) {
-      return;
+      return elementSample;
     }
 
     synchronized (this) {
       // Fill buffer until maxElements.
       if (buffer.size() < maxElements) {
-        buffer.add(element);
+        buffer.add(elementSample);
       } else {
         // Then rewrite sampled elements as a circular buffer.
-        buffer.set(resampleIndex, element);
+        buffer.set(resampleIndex, elementSample);
         resampleIndex = (resampleIndex + 1) % maxElements;
       }
+    }
+
+    return elementSample;
+  }
+
+  /**
+   * Samples an exceptional element to be later queried.
+   *
+   * @param elementSample the sampled element to add an exception to.
+   * @param e the exception.
+   */
+  public void exception(ElementSample<T> elementSample, Exception e) {
+    if (elementSample == null) {
+      return;
+    }
+
+    synchronized (this) {
+      elementSample.exception = e;
+      exceptions.add(elementSample);
     }
   }
 
@@ -120,7 +149,7 @@ public class OutputSampler<T> {
 
     // Serializing can take a lot of CPU time for larger or complex elements. Copy the array here
     // so as to not slow down the main processing hot path.
-    List<WindowedValue<T>> bufferToSend;
+    List<ElementSample<T>> bufferToSend;
     int sampleIndex = 0;
     synchronized (this) {
       bufferToSend = buffer;
@@ -129,19 +158,42 @@ public class OutputSampler<T> {
       resampleIndex = 0;
     }
 
+    // An element can live in both the main samples and exception buffer. Use a small look up table
+    // to deduplicate samples.
+    HashSet<Long> seen = new HashSet<>();
     ByteStringOutputStream stream = new ByteStringOutputStream();
     for (int i = 0; i < bufferToSend.size(); i++) {
       int index = (sampleIndex + i) % bufferToSend.size();
+      ElementSample<T> sample = bufferToSend.get(index);
+      seen.add(sample.id);
 
       if (valueCoder != null) {
-        this.valueCoder.encode(bufferToSend.get(index).getValue(), stream, Coder.Context.NESTED);
+        this.valueCoder.encode(sample.sample.getValue(), stream, Coder.Context.NESTED);
       } else if (windowedValueCoder != null) {
-        this.windowedValueCoder.encode(bufferToSend.get(index), stream, Coder.Context.NESTED);
+        this.windowedValueCoder.encode(sample.sample, stream, Coder.Context.NESTED);
       }
 
       ret.add(
           BeamFnApi.SampledElement.newBuilder().setElement(stream.toByteStringAndReset()).build());
     }
+
+    // TODO: set the exception metadata on the proto once that PR is merged.
+    for (ElementSample<T> sample : exceptions) {
+      if (seen.contains(sample.id)) {
+        continue;
+      }
+
+      if (valueCoder != null) {
+        this.valueCoder.encode(sample.sample.getValue(), stream, Coder.Context.NESTED);
+      } else if (windowedValueCoder != null) {
+        this.windowedValueCoder.encode(sample.sample, stream, Coder.Context.NESTED);
+      }
+
+      ret.add(
+          BeamFnApi.SampledElement.newBuilder().setElement(stream.toByteStringAndReset()).build());
+    }
+
+    exceptions.clear();
 
     return ret;
   }

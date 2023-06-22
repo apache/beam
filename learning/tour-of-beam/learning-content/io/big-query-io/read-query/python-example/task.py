@@ -14,9 +14,9 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-# beam-playground-broken:
-#   name: read-table
-#   description: BigQueryIO read table example.
+# beam-playground:
+#   name: read-query
+#   description: BigQueryIO read query example.
 #   multifile: false
 #   never_run: true
 #   always_run: true
