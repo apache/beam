@@ -438,7 +438,7 @@ class DatastoreioTest(unittest.TestCase):
       datastore_write_fn = WriteToDatastore._DatastoreWriteFn(self._PROJECT)
       datastore_write_fn.start_bundle()
       for entity in entities:
-        entity.set_properties({'large': u'A' * 100000})
+        entity.set_properties({'large': 'A' * 100000})
         datastore_write_fn.process(entity)
       datastore_write_fn.finish_bundle()
 
