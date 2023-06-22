@@ -14232,7 +14232,7 @@ You can use one of the available &lt;a href="https://beam.apache.org/releases/py
 &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">([&lt;/span>&lt;span class="s1">&amp;#39;a&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;b&amp;#39;&lt;/span>&lt;span class="p">])&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">with_output_types&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nb">unicode&lt;/span>&lt;span class="p">)&lt;/span>
 &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ExternalTransform&lt;/span>&lt;span class="p">(&lt;/span>
 &lt;span class="n">TEST_PREFIX_URN&lt;/span>&lt;span class="p">,&lt;/span>
-&lt;span class="n">ImplicitSchemaPayloadBuilder&lt;/span>&lt;span class="p">({&lt;/span>&lt;span class="s1">&amp;#39;data&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="sa">u&lt;/span>&lt;span class="s1">&amp;#39;0&amp;#39;&lt;/span>&lt;span class="p">}),&lt;/span>
+&lt;span class="n">ImplicitSchemaPayloadBuilder&lt;/span>&lt;span class="p">({&lt;/span>&lt;span class="s1">&amp;#39;data&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s1">&amp;#39;0&amp;#39;&lt;/span>&lt;span class="p">}),&lt;/span>
 &lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">expansion&lt;/span> &lt;span class="n">service&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="p">))&lt;/span>
 &lt;span class="n">assert_that&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">res&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">equal_to&lt;/span>&lt;span class="p">([&lt;/span>&lt;span class="s1">&amp;#39;0a&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;0b&amp;#39;&lt;/span>&lt;span class="p">]))&lt;/span>
 &lt;/code>&lt;/pre>&lt;/div>&lt;p>For additional examples, see &lt;a href="https://github.com/apache/beam/blob/master/examples/multi-language/python/addprefix.py">addprefix.py&lt;/a> and &lt;a href="https://github.com/apache/beam/blob/master/examples/multi-language/python/javacount.py">javacount.py&lt;/a>.&lt;/p>
@@ -16200,10 +16200,10 @@ git checkout origin/release-$BEAM_SDK_VERSION
 ./gradlew :sdks:java:container:java17:docker
 ./gradlew :sdks:go:container:docker
 ./gradlew :sdks:python:container:py36:docker
-./gradlew :sdks:python:container:py37:docker
 ./gradlew :sdks:python:container:py38:docker
 ./gradlew :sdks:python:container:py39:docker
 ./gradlew :sdks:python:container:py310:docker
+./gradlew :sdks:python:container:py311:docker
 # Shortcut for building all Python SDKs
 ./gradlew :sdks:python:container buildAll
 &lt;/code>&lt;/pre>&lt;ol start="4">
