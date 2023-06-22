@@ -15,14 +15,23 @@
 # limitations under the License.
 #
 
+""" A sample pipeline using the RunInference API to classify images of flowers.
+This pipeline reads an already-processes representation of an image of
+sunflowers and sends it to a deployed Vertex AI model endpoint, then 
+returns the predictions from the classifier model. The model and image
+are from the Hello Image Data Vertex AI tutorial (see
+https://cloud.google.com/vertex-ai/docs/tutorials/image-recognition-custom
+for more information.)
+"""
+
 import argparse
 import apache_beam as beam
 import io
-import json
 import logging
-import numpy as np
 import os
+
 import tensorflow as tf
+
 from typing import Tuple
 from typing import Iterable
 from apache_beam.io.filesystems import FileSystems
@@ -33,15 +42,6 @@ from apache_beam.ml.inference.vertex_ai_inference import VertexAIModelHandlerJSO
 from apache_beam.runners.runner import PipelineResult
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
-""" A sample pipeline uses the RunInference API to classify images of flowers.
-    
-This pipeline reads an already-processes representation of an image of
-sunflowers and sends it to a deployed Vertex AI model endpoint, then 
-returns the predictions from the classifier model. The model and image
-are from the Hello Image Data Vertex AI tutorial (see
-https://cloud.google.com/vertex-ai/docs/tutorials/image-recognition-custom
-for more information.)
-"""
 
 
 def parse_known_args(argv):
