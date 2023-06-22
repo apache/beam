@@ -45,8 +45,8 @@ public class PubsubMessageWithTopicCoder extends CustomCoder<PubsubMessage> {
     return of();
   }
 
-  public static PubsubMessageWithAttributesAndMessageIdCoder of() {
-    return new PubsubMessageWithAttributesAndMessageIdCoder();
+  public static PubsubMessageWithTopicCoder of() {
+    return new PubsubMessageWithTopicCoder();
   }
 
   @Override

@@ -720,6 +720,7 @@ public class PubsubIO {
     return Write.newBuilder()
         .setTopicProvider(null)
         .setTopicFunction(null)
+        .setElementCoder(PubsubMessageWithTopicCoder.of())
         .setDynamicDestinations(true)
         .build();
   }
@@ -1174,6 +1175,8 @@ public class PubsubIO {
 
     abstract boolean getDynamicDestinations();
 
+    abstract @Nullable Coder<T> getElementCoder();
+
     abstract PubsubClient.PubsubClientFactory getPubsubClientFactory();
 
     /** the batch size for bulk submissions to pubsub. */
@@ -1215,6 +1218,8 @@ public class PubsubIO {
           SerializableFunction<ValueInSingleWindow<T>, PubsubTopic> topicFunction);
 
       abstract Builder<T> setDynamicDestinations(boolean dynamicDestinations);
+
+      abstract Builder<T> setElementCoder(@Nullable Coder<T> coder);
 
       abstract Builder<T> setPubsubClientFactory(PubsubClient.PubsubClientFactory factory);
 
@@ -1349,6 +1354,9 @@ public class PubsubIO {
                 maxMessageSize,
                 MoreObjects.firstNonNull(
                     getMaxBatchBytesSize(), MAX_PUBLISH_BATCH_BYTE_SIZE_DEFAULT));
+      }
+      if (getElementCoder() != null) {
+        input.setCoder(getElementCoder());
       }
       PCollection<PubsubMessage> pubsubMessages =
           input
