@@ -98,6 +98,7 @@ public class SpannerWriteSchemaTransformProvider
       }
     }
 
+    @Override
     public PCollectionRowTuple expand(@NonNull PCollectionRowTuple input) {
       SpannerWriteResult result =
           input
