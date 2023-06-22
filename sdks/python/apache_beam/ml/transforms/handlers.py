@@ -34,6 +34,7 @@ from apache_beam.typehints import native_type_compatibility
 from apache_beam.typehints.row_type import RowTypeConstraint
 import tensorflow as tf
 from tensorflow_metadata.proto.v0 import schema_pb2
+import tensorflow_transform as tft
 import tensorflow_transform.beam as tft_beam
 from tensorflow_transform import common_types
 from tensorflow_transform.beam.tft_beam_io import beam_metadata_io
@@ -112,7 +113,9 @@ class TFTProcessHandler(_ProcessHandler[ProcessInputT, ProcessOutputT]):
         transforms are not supported yet.
       artifact_location: A location to store the artifacts, which includes
         the tensorflow graph produced by analyzers such as ScaleTo01,
-        ScaleToZScore, etc.
+        ScaleToZScore, etc. If the directory is not empty,
+        this will assume that the artifacts are already computed and will
+        skip computing the artifacts again from the data.
     """
     self.transforms = transforms if transforms else []
     self.transformed_schema = None
@@ -124,6 +127,15 @@ class TFTProcessHandler(_ProcessHandler[ProcessInputT, ProcessOutputT]):
 
   def append_transform(self, transform):
     self.transforms.append(transform)
+
+  def validate_transform_fn(self):
+    transform_output = tft.TFTransformOutput(self.artifact_location)
+    try:
+      # verify if we could load the transform graph.
+      _ = transform_output.transformed_metadata
+      return True
+    except OSError:
+      return False
 
   def get_raw_data_feature_spec(
       self, input_types: Dict[str, type]) -> dataset_metadata.DatasetMetadata:
@@ -363,19 +375,35 @@ class TFTProcessHandlerSchema(
 
     preprocessing_fn = self.preprocessing_fn if self.preprocessing_fn else (
         self.process_data_fn)
+
+    compute_artifacts = True
+    if self.validate_transform_fn():
+      compute_artifacts = False
+      logging.info(
+          "Transform artifacts already exist at %s. Skipping "
+          "computation of transform artifacts.",
+          self.artifact_location)
     with tft_beam.Context(temp_dir=self.artifact_location):
       data = (raw_data, raw_data_metadata)
-      transformed_metadata: beam_metadata_io.BeamDatasetMetadata
-      (transformed_dataset, transformed_metadata), transform_fn = (
-      data
-      | "AnalyzeAndTransformDataset" >> tft_beam.AnalyzeAndTransformDataset(
-      preprocessing_fn,
-        )
-      )
-      self.write_transform_artifacts(transform_fn, self.artifact_location)
-      self.transformed_schema = self._get_transformed_data_schema(
-          metadata=transformed_metadata.dataset_metadata)
-
+      if compute_artifacts:
+        transform_fn = (
+            data
+            | "AnalyzeDataset" >> tft_beam.AnalyzeDataset(preprocessing_fn))
+        self.write_transform_artifacts(transform_fn, self.artifact_location)
+      else:
+        transform_fn = (
+            pcoll.pipeline
+            | "ReadTransformFn" >> tft_beam.ReadTransformFn(
+                self.artifact_location))
+      (transformed_dataset, transformed_metadata) = (
+          (data, transform_fn)
+          | "TransformDataset" >> tft_beam.TransformDataset())
+      if isinstance(transformed_metadata, beam_metadata_io.BeamDatasetMetadata):
+        self.transformed_schema = self._get_transformed_data_schema(
+            metadata=transformed_metadata.dataset_metadata)
+      else:
+        self.transformed_schema = self._get_transformed_data_schema(
+            transformed_metadata)
       # We need to pass a schema'd PCollection to the next step.
       # So we will use a RowTypeConstraint to create a schema'd PCollection.
       # this is needed since new columns are included in the
