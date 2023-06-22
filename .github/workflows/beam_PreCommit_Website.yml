@@ -45,5 +45,6 @@ jobs:
             uses: gradle/gradle-build-action@v2
             with:
               cache-read-only: false
+              version: 8.1.1
           - name: run websitePreCommit script
             run: ./gradlew :websitePreCommit --debug
