@@ -33,6 +33,7 @@ jobs:
         if: ${{github.event.issue.pull_request}} || ${{github.event.comment.body == 'Run Website PreCommit'}} || ${{github.event.schedule}}
         runs-on: [self-hosted, ubuntu-20.04]
         name: beam_PreCommit_Website
+        timeout-minutes: 120
         steps:       
           - name: Git checkout
             uses: actions/checkout@v3
@@ -40,11 +41,13 @@ jobs:
             uses: actions/setup-java@v3.8.0
             with:
               distribution: 'zulu'
-              java-version: '11'
+              java-version: '8'
           - name: Setup Gradle
             uses: gradle/gradle-build-action@v2
             with:
               cache-read-only: false
               # version: 8.1.1
+          - name: clean build
+            run: ./gradlew clean build
           - name: run websitePreCommit script
             run: ./gradlew :websitePreCommit --debug
