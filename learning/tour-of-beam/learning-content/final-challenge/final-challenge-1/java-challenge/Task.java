@@ -31,29 +31,16 @@
 
 
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
-import org.apache.beam.sdk.transforms.*;
-import org.apache.beam.sdk.transforms.windowing.*;
-import org.apache.beam.sdk.values.*;
-import org.joda.time.Duration;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.values.PCollection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.*;
-import java.util.Arrays;
-import java.util.List;
-import java.util.stream.Collectors;
-
-import static org.apache.beam.sdk.testing.SerializableMatchers.kv;
-import static org.apache.beam.sdk.values.TypeDescriptors.*;
 
 public class Task {
     private static final Logger LOG = LoggerFactory.getLogger(Task.class);
@@ -84,7 +71,7 @@ public class Task {
             this.prefix = prefix;
         }
 
-        @ProcessElement
+        @DoFn.ProcessElement
         public void processElement(ProcessContext c) throws Exception {
             LOG.info(prefix + ": {}", c.element());
         }
