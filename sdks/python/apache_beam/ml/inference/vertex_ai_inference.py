@@ -48,7 +48,8 @@ class VertexAIModelHandlerJSON(ModelHandler[Any,
       endpoint_id: str,
       project: str,
       location: str,
-      experiment: Optional[str] = None):
+      experiment: Optional[str] = None,
+      **kwargs):
     """Implementation of the ModelHandler interface for Vertex AI.
     **NOTE:** This API and its implementation are under development and
     do not provide backward compatibility guarantees. 
@@ -66,7 +67,8 @@ class VertexAIModelHandlerJSON(ModelHandler[Any,
       experiment (Optional): experiment label to apply to the queries
     
     """
-
+    
+    self._env_vars = kwargs.get('env_vars', {})
     # TODO: support the full list of options for aiplatform.init()
     # See https://cloud.google.com/python/docs/reference/aiplatform/latest/google.cloud.aiplatform#google_cloud_aiplatform_init
     aiplatform.init(project=project, location=location, experiment=experiment)

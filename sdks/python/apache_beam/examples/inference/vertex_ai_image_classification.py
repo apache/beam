@@ -89,11 +89,11 @@ IMG_WIDTH = 128
 COLUMNS = ['dandelion', 'daisy', 'tulips', 'sunflowers', 'roses']
 
 
-def read_image(image_file_name: str) -> bytes:
+def read_image(image_file_name: str) -> Tuple[str, bytes]:
   assert os.path.exists(str(image_file_name))
   with FileSystems().open(image_file_name, 'r') as file:
     data = io.BytesIO(file.read()).getvalue()
-    return data
+    return image_file_name, data
 
 
 def preprocess_image(data: bytes) -> list[float]:
@@ -107,11 +107,11 @@ def preprocess_image(data: bytes) -> list[float]:
 
 
 class PostProcessor(beam.DoFn):
-  def process(self, element: PredictionResult) -> Iterable[str]:
-    prediction_result = element
+  def process(self, element: Tuple[str, PredictionResult]) -> Iterable[str]:
+    img_name, prediction_result = element
     prediction_vals = prediction_result.inference
     index = prediction_vals.index(max(prediction_vals))
-    yield str(COLUMNS[index]) + " (" + str(max(prediction_vals)) + ")"
+    yield img_name + ": " + str(COLUMNS[index]) + " (" + str(max(prediction_vals)) + ")"
 
 
 def run(
@@ -140,9 +140,9 @@ def run(
       [known_args.input])
   load_image = read_image_name | "Read Image" >> beam.Map(
       lambda image_name: read_image(image_name))
-  preprocess = load_image | "Preprocess Image" >> beam.Map(
-      lambda img: preprocess_image(img))
-  predictions = preprocess | "RunInference" >> RunInference(model_handler)
+  preprocess = load_image | "Preprocess Image" >> beam.MapTuple(
+      lambda img_name, img: (img_name, preprocess_image(img)))
+  predictions = preprocess | "RunInference" >> RunInference(KeyedModelHandler(model_handler))
   process_output = predictions | "Process Predictions" >> beam.ParDo(
       PostProcessor())
   _ = process_output | "WriteOutput" >> beam.io.WriteToText(
