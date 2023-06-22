@@ -85,7 +85,6 @@ def parse_known_args(argv):
 IMG_WIDTH = 128
 
 # Column labels for the output probabilities.
-# TODO: map output probability to these labels as post-processing step
 COLUMNS = ['dandelion', 'daisy', 'tulips', 'sunflowers', 'roses']
 
 
