@@ -471,15 +471,6 @@ class WindmillStateReader {
     return Futures.lazyTransform(future, toIterable);
   }
 
-  private <ResultT, ContinuationT> Future<Iterable<ResultT>> valuesToFirstPageOnlyIterableFuture(
-      final StateTag<ContinuationT> stateTag,
-      final Coder<?> coder,
-      final Future<ValuesAndContPosition<ResultT, ContinuationT>> future) {
-    Function<ValuesAndContPosition<ResultT, ContinuationT>, Iterable<ResultT>> toIterable =
-        new ToIterableFunction<>(this, stateTag, coder);
-    return Futures.lazyTransform(future, toIterable);
-  }
-
   public void startBatchAndBlock() {
     // First, drain work out of the pending lookups into a set. These will be the items we fetch.
     HashSet<StateTag<?>> toFetch = Sets.newHashSet();
