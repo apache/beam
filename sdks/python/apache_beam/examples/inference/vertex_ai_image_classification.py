@@ -17,7 +17,7 @@
 
 """ A sample pipeline using the RunInference API to classify images of flowers.
 This pipeline reads an already-processes representation of an image of
-sunflowers and sends it to a deployed Vertex AI model endpoint, then 
+sunflowers and sends it to a deployed Vertex AI model endpoint, then
 returns the predictions from the classifier model. The model and image
 are from the Hello Image Data Vertex AI tutorial (see
 https://cloud.google.com/vertex-ai/docs/tutorials/image-recognition-custom

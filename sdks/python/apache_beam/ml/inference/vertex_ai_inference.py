@@ -52,20 +52,19 @@ class VertexAIModelHandlerJSON(ModelHandler[Any,
       **kwargs):
     """Implementation of the ModelHandler interface for Vertex AI.
     **NOTE:** This API and its implementation are under development and
-    do not provide backward compatibility guarantees. 
+    do not provide backward compatibility guarantees.
     Unlike other ModelHandler implementations, this does not load the model
     being used onto the worker and instead makes remote queries to a
     Vertex AI endpoint. In that way it functions more like a mid-pipeline
     IO. At present this implementation only supports public endpoints with
     a maximum request size of 1.5 MB and is lacking error handling related
     to potentially overwhelming the Vertex AI service and should be used
-    with this in mind. 
+    with this in mind.
     Args:
       endpoint_id: the numerical ID of the Vertex AI endpoint to query
       project: the GCP project name where the endpoint is deployed
-      location: the GCP location where the endpoint is deployed 
+      location: the GCP location where the endpoint is deployed
       experiment (Optional): experiment label to apply to the queries
-    
     """
 
     self._env_vars = kwargs.get('env_vars', {})
@@ -154,8 +153,8 @@ class VertexAIModelHandlerJSON(ModelHandler[Any,
       inference_args: Optional[Dict[str, Any]] = None
   ) -> Iterable[PredictionResult]:
     """ Sends a prediction request to a Vertex AI endpoint containing batch
-    of inputs and matches that input with the prediction response from 
-    the endpoint as an iterable of PredictionResults. 
+    of inputs and matches that input with the prediction response from
+    the endpoint as an iterable of PredictionResults.
     
     Args:
       batch: a sequence of any values to be passed to the Vertex AI endpoint.
