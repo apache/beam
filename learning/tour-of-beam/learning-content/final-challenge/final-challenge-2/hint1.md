@@ -142,7 +142,7 @@ limitations under the License.
 6. To calculate the count with windows, use `Combine.globally` with `withoutDefaults()`. Apply the transformation `.apply(Combine.globally(Count.<Row>combineFn()).withoutDefaults())`
 
 7. To identify words with amplifying effects, you need to add a filter `.apply(Filter.by(it -> !it.getString("strong").equals("0") || !it.getString("weak").equals("0")))`
-
+{{end}}
 {{if (eq .Sdk "python")}}
 1. Process the file with the analyzed words to return a `PCollection` with `Analysis` objects.
 
