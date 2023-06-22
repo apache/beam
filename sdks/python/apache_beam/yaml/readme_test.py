@@ -207,6 +207,7 @@ def create_test_method(test_type, test_name, test_yaml):
 
 def parse_test_methods(markdown_lines):
   # pylint: disable=too-many-nested-blocks
+  # pylint: disable=not-an-iterable
   code_lines = None
   for ix, line in enumerate(markdown_lines):
     line = line.rstrip()
@@ -227,7 +228,7 @@ def parse_test_methods(markdown_lines):
                 '      path: whatever',
             ] + [
                 '    ' + line for line in code_lines
-            ]  # pylint: disable=not-an-iterable
+            ]
           if code_lines[0] == 'pipeline:':
             yaml_pipeline = '\n'.join(code_lines)
             if 'providers:' in yaml_pipeline:
