@@ -61,9 +61,8 @@ jobs:
       - name: Setup Java
         uses: actions/setup-java@v3
         with:
-          distribution: zulu
-          java-version: 11
-          cache: gradle
+          distribution: 'temurin'
+          java-version: '11'
 
       # Set environment variables
       - name: Export Properties
