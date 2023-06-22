@@ -1413,6 +1413,7 @@ def _is_runner_v2_disabled(options):
   return (
       debug_options.lookup_experiment('disable_runner_v2') or
       debug_options.lookup_experiment('disable_runner_v2_until_2023') or
+      debug_options.lookup_experiment('disable_runner_v2_until_v2.50') or
       debug_options.lookup_experiment('disable_prime_runner_v2'))
 
 

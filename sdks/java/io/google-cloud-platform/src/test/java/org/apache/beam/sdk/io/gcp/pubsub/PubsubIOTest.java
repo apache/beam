@@ -574,7 +574,7 @@ public class PubsubIOTest {
 
   @Test
   public void testAvroGenericRecords() {
-    AvroCoder<GenericRecord> coder = AvroCoder.of(GenericRecord.class, SCHEMA);
+    AvroCoder<GenericRecord> coder = AvroCoder.of(SCHEMA);
     List<GenericRecord> inputs =
         ImmutableList.of(
             new AvroGeneratedUser("Bob", 256, null),
@@ -613,7 +613,7 @@ public class PubsubIOTest {
 
   @Test
   public void testAvroSpecificRecord() {
-    AvroCoder<AvroGeneratedUser> coder = AvroCoder.of(AvroGeneratedUser.class);
+    AvroCoder<AvroGeneratedUser> coder = AvroCoder.specific(AvroGeneratedUser.class);
     List<AvroGeneratedUser> inputs =
         ImmutableList.of(
             new AvroGeneratedUser("Bob", 256, null),

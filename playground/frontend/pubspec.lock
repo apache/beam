@@ -37,10 +37,10 @@ packages:
     dependency: "direct main"
     description:
       name: app_state
-      sha256: "8f363b17492dccf720cc70e896a367726171bee8dad047acd8f69f2cc2cf7e9c"
+      sha256: a0db005a03cb28bfc00e788b9389d22540ac259a860675f02fe9c43ab7c76553
       url: "https://pub.dev"
     source: hosted
-    version: "0.9.3"
+    version: "0.9.4"
   archive:
     dependency: transitive
     description:
@@ -394,10 +394,10 @@ packages:
     dependency: "direct dev"
     description:
       name: flutter_code_editor
-      sha256: "5cd0337a24155dcac85d4f5b0cc8fa022ab19785a968a86726cdc62e363ee428"
+      sha256: d4f94719d3f4dc3f40b0b80c980e3b550069c413542b6c0521bff8267f57eefb
       url: "https://pub.dev"
     source: hosted
-    version: "0.2.23"
+    version: "0.3.0"
   flutter_driver:
     dependency: transitive
     description: flutter
@@ -415,10 +415,10 @@ packages:
     dependency: transitive
     description:
       name: flutter_issue_108697_workaround
-      sha256: "71401a9196e1e8ed7a6463b8ab8ea6bf8d8cc719783c4be309553d64d8c353ec"
+      sha256: "4f0ec26fd21b15954fda4acc94922abd2b2c067b5af4629438e270f8b2a2da08"
       url: "https://pub.dev"
     source: hosted
-    version: "0.1.2"
+    version: "0.1.3"
   flutter_lints:
     dependency: "direct dev"
     description:
@@ -1377,4 +1377,4 @@ packages:
     version: "3.1.2"
 sdks:
   dart: ">=3.0.2 <4.0.0"
-  flutter: ">=3.10.2"
+  flutter: ">=3.10.4"

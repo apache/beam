@@ -52,3 +52,7 @@ def values(test=None):
     # [END values]
     if test:
       test(plants)
+
+
+if __name__ == '__main__':
+  values()

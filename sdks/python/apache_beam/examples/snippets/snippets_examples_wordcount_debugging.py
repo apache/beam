@@ -47,6 +47,7 @@
 #     - debug
 #     - string
 
+import apache_beam as beam
 from apache_beam.examples.snippets.snippets import SnippetUtils
 from apache_beam.metrics import Metrics
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -55,8 +56,6 @@ from apache_beam.testing.test_pipeline import TestPipeline
 def examples_wordcount_debugging(renames):
   """DebuggingWordCount example snippets."""
   import re
-
-  import apache_beam as beam
 
   # [START example_wordcount_debugging_logging]
   # [START example_wordcount_debugging_aggregators]
@@ -97,6 +96,7 @@ def examples_wordcount_debugging(renames):
   # [END example_wordcount_debugging_aggregators]
 
   with TestPipeline() as pipeline:  # Use TestPipeline for testing.
+    # assert False
     filtered_words = (
         pipeline
         |
@@ -120,6 +120,14 @@ def examples_wordcount_debugging(renames):
     output = (
         filtered_words
         | 'format' >> beam.Map(format_result)
-        | 'Write' >> beam.io.WriteToText('gs://my-bucket/counts.txt'))
+        | 'Write' >> beam.io.WriteToText('output.txt'))
 
     pipeline.visit(SnippetUtils.RenameFiles(renames))
+
+
+if __name__ == '__main__':
+  import glob
+  examples_wordcount_debugging(None)
+  for file_name in glob.glob('output.txt*'):
+    with open(file_name) as f:
+      print(f.read())

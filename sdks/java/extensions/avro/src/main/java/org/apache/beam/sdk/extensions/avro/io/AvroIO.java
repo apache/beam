@@ -28,6 +28,7 @@ import java.io.Serializable;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.util.Map;
+import java.util.Optional;
 import org.apache.avro.Schema;
 import org.apache.avro.file.CodecFactory;
 import org.apache.avro.file.DataFileConstants;
@@ -35,6 +36,8 @@ import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.IndexedRecord;
+import org.apache.avro.io.DatumWriter;
+import org.apache.avro.io.Encoder;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.ReflectDatumWriter;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
@@ -72,7 +75,6 @@ import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Function;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Suppliers;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -358,9 +360,6 @@ public class AvroIO {
   /**
    * Like {@link #read}, but reads each file in a {@link PCollection} of {@link ReadableFile},
    * returned by {@link FileIO#readMatches}.
-   *
-   * <p>You can read {@link GenericRecord} by using {@code #readFiles(GenericRecord.class)} or
-   * {@code #readFiles(new Schema.Parser().parse(schema))} if the schema is a String.
    */
   public static <T> ReadFiles<T> readFiles(Class<T> recordClass) {
     return new AutoValue_AvroIO_ReadFiles.Builder<T>()
@@ -549,9 +548,37 @@ public class AvroIO {
    *
    * <p>If the output type is {@link GenericRecord} use {@link #writeCustomTypeToGenericRecords()}
    * instead.
+   *
+   * @deprecated Use {@link AvroIO#writeCustomType(Class)} instead and provide the custom record
+   *     class
    */
-  public static <UserT, OutputT> TypedWrite<UserT, Void, OutputT> writeCustomType() {
-    return AvroIO.<UserT, OutputT>defaultWriteBuilder().setGenericRecords(false).build();
+  @Deprecated
+  public static <UserT> TypedWrite<UserT, Void, Object> writeCustomType() {
+    return AvroIO.<UserT, Object>defaultWriteBuilder().setRecordClass(Object.class).build();
+  }
+
+  /**
+   * A {@link PTransform} that writes a {@link PCollection} to an avro file (or multiple avro files
+   * matching a sharding pattern), with each element of the input collection encoded into its own
+   * record of type OutputT.
+   *
+   * <p>This version allows you to apply {@link AvroIO} writes to a PCollection of a custom type
+   * {@link UserT}. A format mechanism that converts the input type {@link UserT} to the output type
+   * that will be written to the file must be specified. If using a custom {@link
+   * DynamicAvroDestinations} object this is done using {@link
+   * DynamicAvroDestinations#formatRecord}, otherwise the {@link TypedWrite#withFormatFunction} can
+   * be used to specify a format function.
+   *
+   * <p>The advantage of using a custom type is that is it allows a user-provided {@link
+   * DynamicAvroDestinations} object, set via {@link Write#to(DynamicAvroDestinations)} to examine
+   * the custom type when choosing a destination.
+   *
+   * <p>If the output type is {@link GenericRecord} use {@link #writeCustomTypeToGenericRecords()}
+   * instead.
+   */
+  public static <UserT, OutputT> TypedWrite<UserT, Void, OutputT> writeCustomType(
+      Class<OutputT> recordClass) {
+    return AvroIO.<UserT, OutputT>defaultWriteBuilder().setRecordClass(recordClass).build();
   }
 
   /**
@@ -561,7 +588,9 @@ public class AvroIO {
    * TypedWrite#withSchema(Schema)}.
    */
   public static <UserT> TypedWrite<UserT, Void, GenericRecord> writeCustomTypeToGenericRecords() {
-    return AvroIO.<UserT, GenericRecord>defaultWriteBuilder().setGenericRecords(true).build();
+    return AvroIO.<UserT, GenericRecord>defaultWriteBuilder()
+        .setRecordClass(GenericRecord.class)
+        .build();
   }
 
   /**
@@ -610,6 +639,10 @@ public class AvroIO {
 
     abstract boolean getHintMatchesManyFiles();
 
+    abstract @Nullable Coder<T> getCoder();
+
+    abstract AvroSource.@Nullable DatumReaderFactory<T> getDatumReaderFactory();
+
     abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
@@ -625,6 +658,10 @@ public class AvroIO {
       abstract Builder<T> setInferBeamSchema(boolean infer);
 
       abstract Builder<T> setHintMatchesManyFiles(boolean hintManyFiles);
+
+      abstract Builder<T> setCoder(Coder<T> coder);
+
+      abstract Builder<T> setDatumReaderFactory(AvroSource.DatumReaderFactory<T> readerFactory);
 
       abstract Read<T> build();
     }
@@ -702,6 +739,19 @@ public class AvroIO {
       return toBuilder().setInferBeamSchema(withBeamSchemas).build();
     }
 
+    /** Sets a coder for the result of the read function. */
+    public Read<T> withCoder(Coder<T> coder) {
+      return toBuilder().setCoder(coder).build();
+    }
+
+    /**
+     * Sets a custom {@link AvroSource.DatumReaderFactory} for reading. Pass a {@link
+     * AvroDatumFactory} to also use the factory for the default output {@link AvroCoder}
+     */
+    public Read<T> withDatumReaderFactory(AvroSource.DatumReaderFactory<T> readerFactory) {
+      return toBuilder().setDatumReaderFactory(readerFactory).build();
+    }
+
     @Override
     @SuppressWarnings("unchecked")
     public PCollection<T> expand(PBegin input) {
@@ -718,7 +768,8 @@ public class AvroIO {
                         getMatchConfiguration().getEmptyMatchTreatment(),
                         getRecordClass(),
                         getSchema(),
-                        null)));
+                        getCoder(),
+                        getDatumReaderFactory())));
         return getInferBeamSchema() ? setBeamSchema(read, getRecordClass(), getSchema()) : read;
       }
 
@@ -733,7 +784,9 @@ public class AvroIO {
           .apply(
               "Read Matches",
               FileIO.readMatches().withDirectoryTreatment(DirectoryTreatment.PROHIBIT))
-          .apply("Via ReadFiles", readFiles);
+          .apply(
+              "Via ReadFiles",
+              readFiles.withDatumReaderFactory(getDatumReaderFactory()).withCoder(getCoder()));
     }
 
     @Override
@@ -756,16 +809,23 @@ public class AvroIO {
         EmptyMatchTreatment emptyMatchTreatment,
         Class<T> recordClass,
         Schema schema,
+        @Nullable Coder<T> coder,
         AvroSource.@Nullable DatumReaderFactory<T> readerFactory) {
-      AvroSource<?> source =
+      AvroSource<?> base =
           AvroSource.from(filepattern).withEmptyMatchTreatment(emptyMatchTreatment);
+
+      AvroSource<T> source =
+          recordClass == GenericRecord.class
+              ? (AvroSource<T>) base.withSchema(schema)
+              : base.withSchema(recordClass);
 
       if (readerFactory != null) {
         source = source.withDatumReaderFactory(readerFactory);
       }
-      return recordClass == GenericRecord.class
-          ? (AvroSource<T>) source.withSchema(schema)
-          : source.withSchema(recordClass);
+      if (coder != null) {
+        source = source.withCoder(coder);
+      }
+      return source;
     }
   }
 
@@ -788,6 +848,8 @@ public class AvroIO {
 
     abstract boolean getInferBeamSchema();
 
+    abstract @Nullable Coder<T> getCoder();
+
     abstract AvroSource.@Nullable DatumReaderFactory<T> getDatumReaderFactory();
 
     abstract Builder<T> toBuilder();
@@ -806,6 +868,8 @@ public class AvroIO {
       abstract Builder<T> setDesiredBundleSizeBytes(long desiredBundleSizeBytes);
 
       abstract Builder<T> setInferBeamSchema(boolean infer);
+
+      abstract Builder<T> setCoder(Coder<T> coder);
 
       abstract Builder<T> setDatumReaderFactory(AvroSource.DatumReaderFactory<T> factory);
 
@@ -839,6 +903,15 @@ public class AvroIO {
       return toBuilder().setInferBeamSchema(withBeamSchemas).build();
     }
 
+    /** Sets a coder for the result of the read function. */
+    public ReadFiles<T> withCoder(Coder<T> coder) {
+      return toBuilder().setCoder(coder).build();
+    }
+
+    /**
+     * Sets a custom {@link AvroSource.DatumReaderFactory} for reading. Pass a {@link
+     * AvroDatumFactory} to also use the factory for the default output {@link AvroCoder}
+     */
     public ReadFiles<T> withDatumReaderFactory(AvroSource.DatumReaderFactory<T> factory) {
       return toBuilder().setDatumReaderFactory(factory).build();
     }
@@ -846,14 +919,16 @@ public class AvroIO {
     @Override
     public PCollection<T> expand(PCollection<ReadableFile> input) {
       checkNotNull(getSchema(), "schema");
+      Coder<T> coder =
+          Optional.ofNullable(getCoder()).orElse(AvroCoder.of(getRecordClass(), getSchema()));
       PCollection<T> read =
           input.apply(
               "Read all via FileBasedSource",
               new ReadAllViaFileBasedSource<>(
                   getDesiredBundleSizeBytes(),
                   new CreateSourceFn<>(
-                      getRecordClass(), getSchema().toString(), getDatumReaderFactory()),
-                  AvroCoder.of(getRecordClass(), getSchema()),
+                      getRecordClass(), getSchema().toString(), coder, getDatumReaderFactory()),
+                  coder,
                   getUsesReshuffle(),
                   getFileExceptionHandler()));
       return getInferBeamSchema() ? setBeamSchema(read, getRecordClass(), getSchema()) : read;
@@ -970,14 +1045,19 @@ public class AvroIO {
       implements SerializableFunction<String, FileBasedSource<T>> {
     private final Class<T> recordClass;
     private final Supplier<Schema> schemaSupplier;
+    private final Coder<T> coder;
     private final AvroSource.DatumReaderFactory<T> readerFactory;
 
     CreateSourceFn(
-        Class<T> recordClass, String jsonSchema, AvroSource.DatumReaderFactory<T> readerFactory) {
+        Class<T> recordClass,
+        String jsonSchema,
+        Coder<T> coder,
+        AvroSource.DatumReaderFactory<T> readerFactory) {
       this.recordClass = recordClass;
       this.schemaSupplier =
           Suppliers.memoize(
               Suppliers.compose(new JsonToSchema(), Suppliers.ofInstance(jsonSchema)));
+      this.coder = coder;
       this.readerFactory = readerFactory;
     }
 
@@ -988,6 +1068,7 @@ public class AvroIO {
           EmptyMatchTreatment.DISALLOW,
           recordClass,
           schemaSupplier.get(),
+          coder,
           readerFactory);
     }
 
@@ -1329,7 +1410,7 @@ public class AvroIO {
 
     abstract int getNumShards();
 
-    abstract boolean getGenericRecords();
+    abstract Class<OutputT> getRecordClass();
 
     abstract int getSyncInterval();
 
@@ -1375,7 +1456,16 @@ public class AvroIO {
       abstract Builder<UserT, DestinationT, OutputT> setShardTemplate(
           @Nullable String shardTemplate);
 
-      abstract Builder<UserT, DestinationT, OutputT> setGenericRecords(boolean genericRecords);
+      /** @deprecated Use {@link AvroIO.TypedWrite.Builder#setRecordClass(Class)} instead */
+      @Deprecated
+      @SuppressWarnings("unchecked")
+      public Builder<UserT, DestinationT, OutputT> setGenericRecords(boolean genericRecords) {
+        // setting Object as record class will default to AvroReflectCoder when writing
+        final Class<?> recordClass = genericRecords ? GenericRecord.class : Object.class;
+        return setRecordClass((Class<OutputT>) recordClass);
+      }
+
+      abstract Builder<UserT, DestinationT, OutputT> setRecordClass(Class<OutputT> recordClass);
 
       abstract Builder<UserT, DestinationT, OutputT> setSyncInterval(int syncInterval);
 
@@ -1679,9 +1769,9 @@ public class AvroIO {
       WriteFiles<UserT, DestinationT, OutputT> write =
           WriteFiles.to(
               new AvroSink<>(
+                  getRecordClass(),
                   tempDirectory,
                   resolveDynamicDestinations(),
-                  getGenericRecords(),
                   getSyncInterval()));
       if (getNumShards() > 0) {
         write = write.withNumShards(getNumShards());
@@ -1890,6 +1980,28 @@ public class AvroIO {
     GenericRecord formatRecord(ElementT element, Schema schema);
   }
 
+  private static class FormattedDatumWriter<ElementT> implements DatumWriter<ElementT> {
+    private Schema root;
+    private RecordFormatter<ElementT> formatter;
+    private GenericDatumWriter<GenericRecord> writer;
+
+    public FormattedDatumWriter(Schema schema, RecordFormatter<ElementT> formatter) {
+      this.formatter = formatter;
+      this.writer = new GenericDatumWriter<>(schema);
+      setSchema(schema);
+    }
+
+    @Override
+    public void setSchema(Schema schema) {
+      this.root = schema;
+    }
+
+    @Override
+    public void write(ElementT datum, Encoder out) throws IOException {
+      writer.write(formatter.formatRecord(datum, root), out);
+    }
+  }
+
   /**
    * A {@link Sink} for use with {@link FileIO#write} and {@link FileIO#writeDynamic}, writing
    * elements of the given generated class, like {@link #write(Class)}.
@@ -1899,6 +2011,7 @@ public class AvroIO {
         .setJsonSchema(ReflectData.get().getSchema(clazz).toString())
         .setMetadata(ImmutableMap.of())
         .setCodec(TypedWrite.DEFAULT_SERIALIZABLE_CODEC)
+        .setDatumWriterFactory(AvroDatumFactory.of(clazz))
         .build();
   }
 
@@ -1943,7 +2056,10 @@ public class AvroIO {
   /** Implementation of {@link #sink} and {@link #sinkViaGenericRecords}. */
   @AutoValue
   public abstract static class Sink<ElementT> implements FileIO.Sink<ElementT> {
-    /** @deprecated RecordFormatter will be removed in future versions. */
+    /**
+     * @deprecated RecordFormatter will be removed in future versions. Set a custom {@link
+     *     AvroSink.DatumWriterFactory} instead
+     */
     @Deprecated
     abstract @Nullable RecordFormatter<ElementT> getRecordFormatter();
 
@@ -1953,11 +2069,16 @@ public class AvroIO {
 
     abstract SerializableAvroCodecFactory getCodec();
 
+    abstract AvroSink.@Nullable DatumWriterFactory<ElementT> getDatumWriterFactory();
+
     abstract Builder<ElementT> toBuilder();
 
     @AutoValue.Builder
     abstract static class Builder<ElementT> {
-      /** @deprecated RecordFormatter will be removed in future versions. */
+      /**
+       * @deprecated RecordFormatter will be removed in future versions. Set a custom {@link
+       *     AvroSink.DatumWriterFactory} instead
+       */
       @Deprecated
       abstract Builder<ElementT> setRecordFormatter(RecordFormatter<ElementT> formatter);
 
@@ -1966,6 +2087,9 @@ public class AvroIO {
       abstract Builder<ElementT> setMetadata(Map<String, Object> metadata);
 
       abstract Builder<ElementT> setCodec(SerializableAvroCodecFactory codec);
+
+      abstract Builder<ElementT> setDatumWriterFactory(
+          AvroSink.DatumWriterFactory<ElementT> datumWriterFactory);
 
       abstract Sink<ElementT> build();
     }
@@ -1983,19 +2107,27 @@ public class AvroIO {
       return toBuilder().setCodec(new SerializableAvroCodecFactory(codec)).build();
     }
 
+    /** Sets a custom {@link AvroSource.DatumReaderFactory} for writing. */
+    public Sink<ElementT> withDatumWriterFactory(
+        AvroSink.DatumWriterFactory<ElementT> datumWriterFactory) {
+      return toBuilder().setDatumWriterFactory(datumWriterFactory).build();
+    }
+
     private transient @Nullable Schema schema;
-    private transient @Nullable DataFileWriter<ElementT> reflectWriter;
-    private transient @Nullable DataFileWriter<GenericRecord> genericWriter;
+    private transient @Nullable DataFileWriter<ElementT> writer;
 
     @Override
     public void open(WritableByteChannel channel) throws IOException {
       this.schema = new Schema.Parser().parse(getJsonSchema());
-      DataFileWriter<?> writer;
-      if (getRecordFormatter() == null) {
-        writer = reflectWriter = new DataFileWriter<>(new ReflectDatumWriter<>(schema));
+      DatumWriter<ElementT> datumWriter;
+      if (getRecordFormatter() != null) {
+        datumWriter = new FormattedDatumWriter<>(schema, getRecordFormatter());
+      } else if (getDatumWriterFactory() != null) {
+        datumWriter = getDatumWriterFactory().apply(schema);
       } else {
-        writer = genericWriter = new DataFileWriter<>(new GenericDatumWriter<>(schema));
+        datumWriter = new ReflectDatumWriter<>(schema);
       }
+      writer = new DataFileWriter<>(datumWriter);
       writer.setCodec(getCodec().getCodec());
       for (Map.Entry<String, Object> entry : getMetadata().entrySet()) {
         Object v = entry.getValue();
@@ -2016,16 +2148,12 @@ public class AvroIO {
 
     @Override
     public void write(ElementT element) throws IOException {
-      if (getRecordFormatter() == null) {
-        reflectWriter.append(element);
-      } else {
-        genericWriter.append(getRecordFormatter().formatRecord(element, schema));
-      }
+      writer.append(element);
     }
 
     @Override
     public void flush() throws IOException {
-      MoreObjects.firstNonNull(reflectWriter, genericWriter).flush();
+      writer.flush();
     }
   }
 

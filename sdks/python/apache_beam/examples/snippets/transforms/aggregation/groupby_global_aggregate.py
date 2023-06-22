@@ -57,7 +57,8 @@ def global_aggregate(test=None):
         | beam.GroupBy().aggregate_field(
             'unit_price', min, 'min_price').aggregate_field(
                 'unit_price', MeanCombineFn(), 'mean_price').aggregate_field(
-                    'unit_price', max, 'max_price'))
+                    'unit_price', max, 'max_price')
+        | beam.Map(print))
     # [END global_aggregate]
 
   if test:
