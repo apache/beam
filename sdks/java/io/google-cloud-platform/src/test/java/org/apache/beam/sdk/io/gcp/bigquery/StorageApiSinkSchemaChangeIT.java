@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.toJsonString;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects.firstNonNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
@@ -74,22 +73,32 @@ public class StorageApiSinkSchemaChangeIT {
 
   private static final Logger LOG = LoggerFactory.getLogger(StorageApiSinkSchemaChangeIT.class);
 
-  private static final BigqueryClient BQ_CLIENT = new BigqueryClient(
-      "StorageApiSinkSchemaChangeIT");
-  private static final String PROJECT = TestPipeline.testingPipelineOptions().as(GcpOptions.class)
-      .getProject();
+  private static final BigqueryClient BQ_CLIENT =
+      new BigqueryClient("StorageApiSinkSchemaChangeIT");
+  private static final String PROJECT =
+      TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
   private static final String BIG_QUERY_DATASET_ID =
       "storage_api_sink_schema_change" + System.nanoTime();
 
-  private static final String[] FIELDS = {"BOOL", "BOOLEAN", "BYTES", "INT64", "INTEGER", "FLOAT",
-      "FLOAT64", "NUMERIC", "STRING", "DATE", "TIMESTAMP"};
+  private static final String[] FIELDS = {
+    "BOOL",
+    "BOOLEAN",
+    "BYTES",
+    "INT64",
+    "INTEGER",
+    "FLOAT",
+    "FLOAT64",
+    "NUMERIC",
+    "STRING",
+    "DATE",
+    "TIMESTAMP"
+  };
 
   private static final int MAX_N = 50;
 
   private static final long RANDOM_SEED = 1;
 
-  @Rule
-  public transient ExpectedLogs loggedBigQueryIO = ExpectedLogs.none(BigQueryIO.class);
+  @Rule public transient ExpectedLogs loggedBigQueryIO = ExpectedLogs.none(BigQueryIO.class);
 
   @BeforeClass
   public static void setUpTestEnvironment() throws IOException, InterruptedException {
@@ -107,18 +116,28 @@ public class StorageApiSinkSchemaChangeIT {
       throws IOException, InterruptedException {
     String tableId = "table" + System.nanoTime();
     BQ_CLIENT.deleteTable(PROJECT, BIG_QUERY_DATASET_ID, tableId);
-    BQ_CLIENT.createNewTable(PROJECT, BIG_QUERY_DATASET_ID, new Table().setSchema(tableSchema)
-        .setTableReference(
-            new TableReference().setTableId(tableId).setDatasetId(BIG_QUERY_DATASET_ID)
-                .setProjectId(PROJECT)));
+    BQ_CLIENT.createNewTable(
+        PROJECT,
+        BIG_QUERY_DATASET_ID,
+        new Table()
+            .setSchema(tableSchema)
+            .setTableReference(
+                new TableReference()
+                    .setTableId(tableId)
+                    .setDatasetId(BIG_QUERY_DATASET_ID)
+                    .setProjectId(PROJECT)));
     return tableId;
   }
 
   private static boolean checkRowCompleteness(String tableSpec)
       throws IOException, InterruptedException {
-    TableRow queryResponse = Iterables.getOnlyElement(BQ_CLIENT.queryUnflattened(
-        String.format("SELECT COUNT(DISTINCT(id)), MIN(id), MAX(id) FROM %s", tableSpec), PROJECT,
-        true, true));
+    TableRow queryResponse =
+        Iterables.getOnlyElement(
+            BQ_CLIENT.queryUnflattened(
+                String.format("SELECT COUNT(DISTINCT(id)), MIN(id), MAX(id) FROM %s", tableSpec),
+                PROJECT,
+                true,
+                true));
 
     int distinctCount = Integer.parseInt((String) queryResponse.get("f0_"));
     int rangeMin = Integer.parseInt((String) queryResponse.get("f1_"));
@@ -131,9 +150,13 @@ public class StorageApiSinkSchemaChangeIT {
 
   private static boolean checkRowDuplication(String tableSpec)
       throws IOException, InterruptedException {
-    TableRow queryResponse = Iterables.getOnlyElement(BQ_CLIENT.queryUnflattened(
-        String.format("SELECT COUNT(DISTINCT(id)), COUNT(id) FROM %s", tableSpec), PROJECT, true,
-        true));
+    TableRow queryResponse =
+        Iterables.getOnlyElement(
+            BQ_CLIENT.queryUnflattened(
+                String.format("SELECT COUNT(DISTINCT(id)), COUNT(id) FROM %s", tableSpec),
+                PROJECT,
+                true,
+                true));
 
     int distinctCount = Integer.parseInt((String) queryResponse.get("f0_"));
     int totalCount = Integer.parseInt((String) queryResponse.get("f1_"));
@@ -151,7 +174,7 @@ public class StorageApiSinkSchemaChangeIT {
 
     private final String schemaString;
 
-    private transient BigqueryClient BQ_CLIENT;
+    private transient BigqueryClient bqClient;
 
     private static final String MY_COUNTER = "myCounter";
 
@@ -159,26 +182,27 @@ public class StorageApiSinkSchemaChangeIT {
     @SuppressWarnings("unused")
     private final StateSpec<@org.jetbrains.annotations.NotNull ValueState<Integer>> counter;
 
-    public UpdateSchemaDoFn(String projectId, String datasetId, String tableId,
-        TableSchema schema) {
+    public UpdateSchemaDoFn(
+        String projectId, String datasetId, String tableId, TableSchema schema) {
       this.projectId = projectId;
       this.datasetId = datasetId;
       this.tableId = tableId;
       this.schemaString = BigQueryHelpers.toJsonString(schema);
-      this.BQ_CLIENT = null;
+      this.bqClient = null;
       this.counter = StateSpecs.value();
     }
 
     private int getRowCount(String tableSpec) throws IOException, InterruptedException {
-      TableRow queryResponse = Iterables.getOnlyElement(
-          BQ_CLIENT.queryUnflattened(String.format("SELECT COUNT(*) FROM %s", tableSpec), PROJECT,
-              true, true));
+      TableRow queryResponse =
+          Iterables.getOnlyElement(
+              bqClient.queryUnflattened(
+                  String.format("SELECT COUNT(*) FROM %s", tableSpec), PROJECT, true, true));
       return Integer.parseInt((String) queryResponse.get("f0_"));
     }
 
     @Setup
     public void setup() {
-      BQ_CLIENT = new BigqueryClient("StorageApiSinkSchemaChangeIT_UpdateSchema");
+      bqClient = new BigqueryClient("StorageApiSinkSchemaChangeIT_UpdateSchema");
     }
 
     @Teardown
@@ -199,7 +223,10 @@ public class StorageApiSinkSchemaChangeIT {
         }
         LOG.info("checking # of rows in BQ: {}", rowCount);
         if (rowCount > 0) {
-          BQ_CLIENT.updateTableSchema(this.projectId, this.datasetId, this.tableId,
+          bqClient.updateTableSchema(
+              this.projectId,
+              this.datasetId,
+              this.tableId,
               BigQueryHelpers.fromJsonString(this.schemaString, TableSchema.class));
 
           Thread.sleep(5000);
@@ -268,8 +295,8 @@ public class StorageApiSinkSchemaChangeIT {
     }
   }
 
-  private static TableSchema makeTableSchemaFromTypes(List<String> fieldNames,
-      Set<String> nullableFieldNames) {
+  private static TableSchema makeTableSchemaFromTypes(
+      List<String> fieldNames, Set<String> nullableFieldNames) {
     ImmutableList.Builder<TableFieldSchema> builder = ImmutableList.<TableFieldSchema>builder();
 
     // Add an id field for verification of correctness
@@ -288,9 +315,14 @@ public class StorageApiSinkSchemaChangeIT {
     return new TableSchema().setFields(builder.build());
   }
 
-  private static void runStreamingPipelineWithSchemaChange(Write.Method method,
-      boolean useAutoSchemaUpdate, int triggeringFreq, boolean useAutoSharding, int numShards,
-      boolean useIgnoreUnknownValues) throws IOException, InterruptedException {
+  private static void runStreamingPipelineWithSchemaChange(
+      Write.Method method,
+      boolean useAutoSchemaUpdate,
+      int triggeringFreq,
+      boolean useAutoSharding,
+      int numShards,
+      boolean useIgnoreUnknownValues)
+      throws IOException, InterruptedException {
     PipelineOptions pipelineOptions = PipelineOptionsFactory.create();
     BigQueryOptions bqOptions = pipelineOptions.as(BigQueryOptions.class);
     bqOptions.setStorageApiAppendThresholdRecordCount(1);
@@ -315,16 +347,16 @@ public class StorageApiSinkSchemaChangeIT {
     TableSchema bqWriteSchema = makeTableSchemaFromTypes(fieldNamesShuffled, null);
     LOG.info("write schema: {}", BigQueryHelpers.toJsonString(bqWriteSchema));
 
-    TableSchema bqTableSchemaUpdated = makeTableSchemaFromTypes(fieldNamesWithExtra,
-        ImmutableSet.of(extraField));
+    TableSchema bqTableSchemaUpdated =
+        makeTableSchemaFromTypes(fieldNamesWithExtra, ImmutableSet.of(extraField));
     LOG.info("updated table schema: {}", BigQueryHelpers.toJsonString(bqTableSchemaUpdated));
 
     String tableId = createTable(bqTableSchema);
 
     String tableSpec = PROJECT + "." + BIG_QUERY_DATASET_ID + "." + tableId;
 
-    TestStream.Builder<Long> testStream = TestStream.create(VarLongCoder.of())
-        .advanceWatermarkTo(new Instant(0));
+    TestStream.Builder<Long> testStream =
+        TestStream.create(VarLongCoder.of()).advanceWatermarkTo(new Instant(0));
     // These rows contain unknown fields, which should be dropped.
     for (long i = 0; i < 5; i++) {
       testStream = testStream.addElements(i);
@@ -339,15 +371,24 @@ public class StorageApiSinkSchemaChangeIT {
 
     PCollection<Long> source = p.apply("Generate numbers", testStream.advanceWatermarkToInfinity());
 
-    PCollection<Long> input = source.apply("Add a dummy key", WithKeys.of(1)).apply("Update Schema",
-        ParDo.of(
-            new UpdateSchemaDoFn(PROJECT, BIG_QUERY_DATASET_ID, tableId, bqTableSchemaUpdated)));
+    PCollection<Long> input =
+        source
+            .apply("Add a dummy key", WithKeys.of(1))
+            .apply(
+                "Update Schema",
+                ParDo.of(
+                    new UpdateSchemaDoFn(
+                        PROJECT, BIG_QUERY_DATASET_ID, tableId, bqTableSchemaUpdated)));
 
-    Write<Long> write = BigQueryIO.<Long>write().to(tableSpec)
-        .withAutoSchemaUpdate(useAutoSchemaUpdate).withSchema(bqWriteSchema)
-        .withFormatFunction(new GenerateRowFunc(fieldNamesOrigin)).withMethod(method)
-        .withCreateDisposition(CreateDisposition.CREATE_NEVER)
-        .withWriteDisposition(WriteDisposition.WRITE_APPEND);
+    Write<Long> write =
+        BigQueryIO.<Long>write()
+            .to(tableSpec)
+            .withAutoSchemaUpdate(useAutoSchemaUpdate)
+            .withSchema(bqWriteSchema)
+            .withFormatFunction(new GenerateRowFunc(fieldNamesOrigin))
+            .withMethod(method)
+            .withCreateDisposition(CreateDisposition.CREATE_NEVER)
+            .withWriteDisposition(WriteDisposition.WRITE_APPEND);
 
     if (useAutoSharding) {
       write = write.withAutoSharding();
@@ -378,8 +419,7 @@ public class StorageApiSinkSchemaChangeIT {
   }
 
   @Test
-  public void testWriteExactlyOnceOnSchemaChange()
-      throws IOException, InterruptedException {
+  public void testWriteExactlyOnceOnSchemaChange() throws IOException, InterruptedException {
     runStreamingPipelineWithSchemaChange(Write.Method.STORAGE_WRITE_API, false, 1, true, 0, false);
   }
 
@@ -391,64 +431,67 @@ public class StorageApiSinkSchemaChangeIT {
 
   @Test
   public void testWriteAtLeastOnceOnSchemaChange() throws IOException, InterruptedException {
-    runStreamingPipelineWithSchemaChange(Write.Method.STORAGE_API_AT_LEAST_ONCE, false, 0, false, 0,
-        false);
+    runStreamingPipelineWithSchemaChange(
+        Write.Method.STORAGE_API_AT_LEAST_ONCE, false, 0, false, 0, false);
   }
 
   @Test
   public void testWriteAtLeastOnceOnSchemaChangeWithAutoSchemaUpdate()
       throws IOException, InterruptedException {
-    runStreamingPipelineWithSchemaChange(Write.Method.STORAGE_API_AT_LEAST_ONCE, true, 0, false, 0,
-        true);
+    runStreamingPipelineWithSchemaChange(
+        Write.Method.STORAGE_API_AT_LEAST_ONCE, true, 0, false, 0, true);
   }
 
   @Test
   public void testExceptionOnWriteExactlyOnceWithZeroTriggeringFreq()
       throws IOException, InterruptedException {
-    assertThrows(IllegalArgumentException.class,
-        () -> runStreamingPipelineWithSchemaChange(Write.Method.STORAGE_WRITE_API, false, 0, true,
-            0, false));
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            runStreamingPipelineWithSchemaChange(
+                Write.Method.STORAGE_WRITE_API, false, 0, true, 0, false));
   }
 
   @Test
   public void testExceptionOnWriteExactlyOnceWithBothNumShardsAndAutoSharding()
       throws IOException, InterruptedException {
-    runStreamingPipelineWithSchemaChange(Write.Method.STORAGE_WRITE_API, false, 1, true,
-            1, false);
+    runStreamingPipelineWithSchemaChange(Write.Method.STORAGE_WRITE_API, false, 1, true, 1, false);
     loggedBigQueryIO.verifyWarn("The setting of auto-sharding is ignored.");
   }
 
   @Test
   public void testExceptionOnAutoSchemaUpdateWithoutIgnoreUnknownValues()
       throws IOException, InterruptedException {
-    assertThrows(IllegalArgumentException.class,
-        () -> runStreamingPipelineWithSchemaChange(Write.Method.STORAGE_WRITE_API, true, 1,
-            true, 0,
-            false));
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            runStreamingPipelineWithSchemaChange(
+                Write.Method.STORAGE_WRITE_API, true, 1, true, 0, false));
   }
 
   @Test
   public void testExceptionOnWriteAtLeastOnceWithTriggeringFreq()
       throws IOException, InterruptedException {
-    assertThrows(IllegalArgumentException.class,
-        () -> runStreamingPipelineWithSchemaChange(Write.Method.STORAGE_API_AT_LEAST_ONCE, false, 1,
-            true, 0,
-            false));
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            runStreamingPipelineWithSchemaChange(
+                Write.Method.STORAGE_API_AT_LEAST_ONCE, false, 1, true, 0, false));
   }
 
   @Test
   public void testExceptionOnWriteAtLeastOnceWithAutoSharding()
       throws IOException, InterruptedException {
-    runStreamingPipelineWithSchemaChange(Write.Method.STORAGE_API_AT_LEAST_ONCE, false, 0, true, 0,
-        false);
+    runStreamingPipelineWithSchemaChange(
+        Write.Method.STORAGE_API_AT_LEAST_ONCE, false, 0, true, 0, false);
     loggedBigQueryIO.verifyWarn("The setting of auto-sharding is ignored.");
   }
 
   @Test
   public void testExceptionOnWriteAtLeastOnceWithNumShards()
       throws IOException, InterruptedException {
-    runStreamingPipelineWithSchemaChange(Write.Method.STORAGE_API_AT_LEAST_ONCE, false, 0, false, 1,
-        false);
+    runStreamingPipelineWithSchemaChange(
+        Write.Method.STORAGE_API_AT_LEAST_ONCE, false, 0, false, 1, false);
     loggedBigQueryIO.verifyWarn("The setting of numStorageWriteApiStreams is ignored.");
   }
 }
