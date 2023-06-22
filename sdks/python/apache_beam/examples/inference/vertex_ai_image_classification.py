@@ -47,12 +47,13 @@ from apache_beam.options.pipeline_options import SetupOptions
 def parse_known_args(argv):
   """Parses args for the workflow."""
   parser = argparse.ArgumentParser()
+  # TODO: Update this to accept a glob of files.
   parser.add_argument(
       '--input',
       dest='input',
       type=str,
       required=True,
-      help='File path to read images from.')
+      help='File path to read an image from.')
   parser.add_argument(
       '--output',
       dest='output',
@@ -136,6 +137,7 @@ def run(
   if not test_pipeline:
     pipeline = beam.Pipeline(options=pipeline_options)
 
+  # TODO: Process a glob of files instead of a single file name.
   read_image_name = pipeline | "Get file name" >> beam.Create(
       [known_args.input])
   load_image = read_image_name | "Read Image" >> beam.Map(
