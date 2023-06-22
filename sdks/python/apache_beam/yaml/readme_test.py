@@ -226,9 +226,7 @@ def parse_test_methods(markdown_lines):
                 '  transforms:',
                 '    - type: ReadFromCsv',
                 '      path: whatever',
-            ] + [
-                '    ' + line for line in code_lines
-            ]
+            ] + ['    ' + line for line in code_lines]
           if code_lines[0] == 'pipeline:':
             yaml_pipeline = '\n'.join(code_lines)
             if 'providers:' in yaml_pipeline:
