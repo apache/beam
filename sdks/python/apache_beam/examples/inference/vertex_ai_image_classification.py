@@ -17,16 +17,22 @@
 
 import argparse
 import apache_beam as beam
+import io
 import json
 import logging
+import numpy as np
+import os
 import tensorflow as tf
+from typing import Tuple
+from typing import Iterable
+from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.base import RunInference
+from apache_beam.ml.inference.base import KeyedModelHandler
+from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.ml.inference.vertex_ai_inference import VertexAIModelHandlerJSON
 from apache_beam.runners.runner import PipelineResult
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
-
-from apache_beam.examples.inference.testdata.constants import PROCESSED_JSON
 """ A sample pipeline uses the RunInference API to classify images of flowers.
     
 This pipeline reads an already-processes representation of an image of
@@ -41,13 +47,12 @@ for more information.)
 def parse_known_args(argv):
   """Parses args for the workflow."""
   parser = argparse.ArgumentParser()
-  # parser.add_argument(
-  #     '--input',
-  #     dest='input',
-  #     type=str,
-  #     required=True,
-  #     help='File path to read images from.'
-  # )
+  parser.add_argument(
+      '--input',
+      dest='input',
+      type=str,
+      required=True,
+      help='File path to read images from.')
   parser.add_argument(
       '--output',
       dest='output',
@@ -84,10 +89,16 @@ IMG_WIDTH = 128
 COLUMNS = ['dandelion', 'daisy', 'tulips', 'sunflowers', 'roses']
 
 
-def preprocess_image(data) -> list[float]:
+def read_image(image_file_name: str) -> bytes:
+  assert os.path.exists(str(image_file_name))
+  with FileSystems().open(image_file_name, 'r') as file:
+    data = io.BytesIO(file.read()).getvalue()
+    return data
+
+
+def preprocess_image(data: bytes) -> list[float]:
   """Preprocess the image, resizing it and normalizing it before
-  converting to a list. Currently unusued, will be incorporated
-  once loading images from storage is supported.
+  converting to a list.
   """
   image = tf.io.decode_jpeg(data, channels=3)
   image = tf.image.resize_with_pad(image, IMG_WIDTH, IMG_WIDTH)
@@ -95,12 +106,12 @@ def preprocess_image(data) -> list[float]:
   return image.numpy().tolist()
 
 
-def convert_to_json(data: list[float]) -> str:
-  """ Serializes the list of scalars to JSON for the 
-  request. Currently unused, will be incorporated once
-  loading images from storage is supported.
-  """
-  return json.dumps(data)
+class PostProcessor(beam.DoFn):
+  def process(self, element: PredictionResult) -> Iterable[str]:
+    prediction_result = element
+    prediction_vals = prediction_result.inference
+    index = prediction_vals.index(max(prediction_vals))
+    yield str(COLUMNS[index]) + " (" + str(max(prediction_vals)) + ")"
 
 
 def run(
@@ -125,10 +136,16 @@ def run(
   if not test_pipeline:
     pipeline = beam.Pipeline(options=pipeline_options)
 
-  read_text_json = pipeline | "ReadExample" >> beam.Create([PROCESSED_JSON])
-  predictions = read_text_json | "RunInference" >> RunInference(
-      model_handler=model_handler)
-  write_output = predictions | "WriteOutput" >> beam.io.WriteToText(
+  read_image_name = pipeline | "Get file name" >> beam.Create(
+      [known_args.input])
+  load_image = read_image_name | "Read Image" >> beam.Map(
+      lambda image_name: read_image(image_name))
+  preprocess = load_image | "Preprocess Image" >> beam.Map(
+      lambda img: preprocess_image(img))
+  predictions = preprocess | "RunInference" >> RunInference(model_handler)
+  process_output = predictions | "Process Predictions" >> beam.ParDo(
+      PostProcessor())
+  _ = process_output | "WriteOutput" >> beam.io.WriteToText(
       known_args.output, shard_name_template='', append_trailing_newlines=True)
 
   result = pipeline.run()
