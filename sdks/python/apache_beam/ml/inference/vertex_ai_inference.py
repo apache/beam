@@ -89,7 +89,7 @@ class VertexAIModelHandlerJSON(ModelHandler[Any,
   def _retrieve_endpoint(self, endpoint_id: str) -> aiplatform.Endpoint:
     """Retrieves an AI Platform endpoint and queries it for liveness/deployed
     models.
-    
+
     Args:
       endpoint_id: the numerical ID of the Vertex AI endpoint to retrieve.
     Returns:
@@ -155,7 +155,7 @@ class VertexAIModelHandlerJSON(ModelHandler[Any,
     """ Sends a prediction request to a Vertex AI endpoint containing batch
     of inputs and matches that input with the prediction response from
     the endpoint as an iterable of PredictionResults.
-    
+
     Args:
       batch: a sequence of any values to be passed to the Vertex AI endpoint.
         Should be encoded as the model expects.
