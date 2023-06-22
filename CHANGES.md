@@ -72,7 +72,7 @@
 
 ## Deprecations
 
-* X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
+* Remove Python 3.7 support. ([#26447](https://github.com/apache/beam/issues/26447))
 
 ## Bugfixes
 

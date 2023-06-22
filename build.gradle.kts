@@ -463,7 +463,6 @@ tasks.register("playgroundPreCommit") {
 
 tasks.register("pythonPreCommit") {
   dependsOn(":sdks:python:test-suites:tox:pycommon:preCommitPyCommon")
-  dependsOn(":sdks:python:test-suites:tox:py37:preCommitPy37")
   dependsOn(":sdks:python:test-suites:tox:py38:preCommitPy38")
   dependsOn(":sdks:python:test-suites:tox:py39:preCommitPy39")
   dependsOn(":sdks:python:test-suites:tox:py310:preCommitPy310")
@@ -481,7 +480,6 @@ tasks.register("pythonDocsPreCommit") {
 }
 
 tasks.register("pythonDockerBuildPreCommit") {
-  dependsOn(":sdks:python:container:py37:docker")
   dependsOn(":sdks:python:container:py38:docker")
   dependsOn(":sdks:python:container:py39:docker")
   dependsOn(":sdks:python:container:py310:docker")
@@ -490,23 +488,11 @@ tasks.register("pythonDockerBuildPreCommit") {
 
 tasks.register("pythonLintPreCommit") {
   // TODO(https://github.com/apache/beam/issues/20209): Find a better way to specify lint and formatter tasks without hardcoding py version.
-  dependsOn(":sdks:python:test-suites:tox:py37:lint")
+  dependsOn(":sdks:python:test-suites:tox:py38:lint")
 }
 
 tasks.register("pythonFormatterPreCommit") {
   dependsOn("sdks:python:test-suites:tox:py38:formatter")
-}
-
-tasks.register("python37PostCommit") {
-  dependsOn(":sdks:python:test-suites:dataflow:py37:postCommitIT")
-  dependsOn(":sdks:python:test-suites:direct:py37:postCommitIT")
-  dependsOn(":sdks:python:test-suites:direct:py37:directRunnerIT")
-  dependsOn(":sdks:python:test-suites:direct:py37:hdfsIntegrationTest")
-  dependsOn(":sdks:python:test-suites:direct:py37:azureIntegrationTest")
-  dependsOn(":sdks:python:test-suites:portable:py37:postCommitPy37")
-  dependsOn(":sdks:python:test-suites:dataflow:py37:spannerioIT")
-  dependsOn(":sdks:python:test-suites:direct:py37:spannerioIT")
-  dependsOn(":sdks:python:test-suites:portable:py37:xlangSpannerIOIT")
 }
 
 tasks.register("python38PostCommit") {
@@ -547,12 +533,11 @@ tasks.register("python311PostCommit") {
 }
 
 tasks.register("portablePythonPreCommit") {
-  dependsOn(":sdks:python:test-suites:portable:py37:preCommitPy37")
+  dependsOn(":sdks:python:test-suites:portable:py38:preCommitPy38")
   dependsOn(":sdks:python:test-suites:portable:py311:preCommitPy311")
 }
 
 tasks.register("pythonSparkPostCommit") {
-  dependsOn(":sdks:python:test-suites:portable:py37:sparkValidatesRunner")
   dependsOn(":sdks:python:test-suites:portable:py38:sparkValidatesRunner")
   dependsOn(":sdks:python:test-suites:portable:py39:sparkValidatesRunner")
   dependsOn(":sdks:python:test-suites:portable:py311:sparkValidatesRunner")
