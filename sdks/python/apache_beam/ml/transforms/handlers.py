@@ -228,7 +228,8 @@ class TFTProcessHandler(_ProcessHandler[ProcessInputT, ProcessOutputT]):
   def _fail_on_non_default_windowing(self, pcoll: beam.PCollection):
     if not pcoll.windowing.is_default():
       raise RuntimeError(
-          "TFTProcessHandler only supports GlobalWindows. "
+          "TFTProcessHandler only supports GlobalWindows when producing "
+          "artifacts such as min, max, variance etc over the dataset."
           "Please use beam.WindowInto(beam.transforms.window.GlobalWindows()) "
           "to convert your PCollection to GlobalWindow.")
 
@@ -354,7 +355,20 @@ class TFTProcessHandlerSchema(
       self, pcoll: beam.PCollection[tft_process_handler_schema_input_type]
   ) -> beam.PCollection[beam.Row]:
 
-    self._fail_on_non_default_windowing(pcoll)
+    compute_artifacts = True
+    if self.validate_transform_fn():
+      compute_artifacts = False
+      logging.info(
+          "Transform artifacts already exist at %s. Skipping "
+          "computation of transform artifacts.",
+          self.artifact_location)
+
+    # If we are computing artifacts, we should fail for windows other than
+    # default windowing since for example, for a fixed window, each window can
+    # be treated as a separate dataset and we might need to compute artifacts
+    # for each window. This is not supported yet.
+    if compute_artifacts:
+      self._fail_on_non_default_windowing(pcoll)
 
     element_type = pcoll.element_type
     column_type_mapping = self._map_column_names_to_types(
@@ -376,13 +390,6 @@ class TFTProcessHandlerSchema(
     preprocessing_fn = self.preprocessing_fn if self.preprocessing_fn else (
         self.process_data_fn)
 
-    compute_artifacts = True
-    if self.validate_transform_fn():
-      compute_artifacts = False
-      logging.info(
-          "Transform artifacts already exist at %s. Skipping "
-          "computation of transform artifacts.",
-          self.artifact_location)
     with tft_beam.Context(temp_dir=self.artifact_location):
       data = (raw_data, raw_data_metadata)
       if compute_artifacts:
