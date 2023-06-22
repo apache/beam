@@ -25,5 +25,5 @@ id: final-challenge
 name: Final challenge
 complexity: ADVANCED
 content:
-  - final-challenge-1
-  - final-challenge-2
+- final-challenge-1
+- final-challenge-2
