@@ -3138,13 +3138,13 @@ public class BigQueryIO {
                 : getTriggeringFrequency();
         checkArgument(
             triggeringFrequency != null,
-            "When writing an unbounded PCollection via FILE_LOADS or STORAGE_API_WRITES, "
+            "When writing an unbounded PCollection via FILE_LOADS or STORAGE_WRITE_API, "
                 + "triggering frequency must be specified");
       } else {
         checkArgument(
             getTriggeringFrequency() == null,
             "Triggering frequency can be specified only when writing an unbounded PCollection via"
-                + " FILE_LOADS or STORAGE_API_WRITES, but the collection was %s and the method was"
+                + " FILE_LOADS or STORAGE_WRITE_API, but the collection was %s and the method was"
                 + " %s.",
             input.isBounded(),
             method);
@@ -3155,7 +3155,7 @@ public class BigQueryIO {
             LOG.warn(
                 "The setting of storageApiTriggeringFrequency in BigQueryOptions is ignored."
                     + " It is only supported when writing an unbounded PCollection via"
-                    + " STORAGE_API_WRITES, but the collection was {} and the method was {}.",
+                    + " STORAGE_WRITE_API, but the collection was {} and the method was {}.",
                 input.isBounded(),
                 method);
           }
@@ -3171,7 +3171,7 @@ public class BigQueryIO {
         if (getNumStorageWriteApiStreams() != 0) {
           LOG.warn(
               "The setting of numStorageWriteApiStreams is ignored. It can be specified only"
-                  + " when writing an unbounded PCollection via STORAGE_API_WRITES, but the collection"
+                  + " when writing an unbounded PCollection via STORAGE_WRITE_API, but the collection"
                   + " was {} and the method was {}.",
               input.isBounded(),
               method);
@@ -3206,15 +3206,20 @@ public class BigQueryIO {
         if (method == Method.STORAGE_WRITE_API) {
           if (getNumStorageWriteApiStreams() > 0 && getAutoSharding()) {
             LOG.warn(
-                "The setting of auto-sharding is ignored. It is only supported when"
-                    + " numStorageWriteApiStream is zero or not set, but it was set to {}.",
-                getNumStorageWriteApiStreams());
+                "The setting of numStorageWriteApiStreams is ignored. It is only supported when"
+                    + " autoSharding is not enabled.");
+          }
+        } else if (method == Method.FILE_LOADS) {
+          if (getNumFileShards() > 0 && getAutoSharding()) {
+            LOG.warn(
+                "The setting of numFileShards is ignored. It is only supported when autoSharding is"
+                    + " not enabled.");
           }
         } else if (method != Method.STREAMING_INSERTS) {
           LOG.warn(
               "The setting of auto-sharding is ignored. It is only supported when writing an"
-                  + " unbounded PCollection via STREAMING_INSERTS or STORAGE_API_WRITES, but the"
-                  + " collection was {} and the method was {}.",
+                  + " unbounded PCollection via FILE_LOADS, STREAMING_INSERTS or"
+                  + " STORAGE_WRITE_API, but the collection was {} and the method was {}.",
               input.isBounded(),
               method);
         }

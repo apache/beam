@@ -474,7 +474,7 @@ public class StorageApiSinkSchemaChangeIT {
       throws IOException, InterruptedException {
     runStreamingPipelineWithSchemaChange(
         Write.Method.STORAGE_WRITE_API, useWriteSchema, false, 1, true, 1, false);
-    loggedBigQueryIO.verifyWarn("The setting of auto-sharding is ignored.");
+    loggedBigQueryIO.verifyWarn("The setting of numStorageWriteApiStreams is ignored.");
   }
 
   @Test
