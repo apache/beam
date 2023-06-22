@@ -111,7 +111,8 @@ class PostProcessor(beam.DoFn):
     img_name, prediction_result = element
     prediction_vals = prediction_result.inference
     index = prediction_vals.index(max(prediction_vals))
-    yield img_name + ": " + str(COLUMNS[index]) + " (" + str(max(prediction_vals)) + ")"
+    yield img_name + ": " + str(COLUMNS[index]) + " (" + str(
+        max(prediction_vals)) + ")"
 
 
 def run(
@@ -142,7 +143,8 @@ def run(
       lambda image_name: read_image(image_name))
   preprocess = load_image | "Preprocess Image" >> beam.MapTuple(
       lambda img_name, img: (img_name, preprocess_image(img)))
-  predictions = preprocess | "RunInference" >> RunInference(KeyedModelHandler(model_handler))
+  predictions = preprocess | "RunInference" >> RunInference(
+      KeyedModelHandler(model_handler))
   process_output = predictions | "Process Predictions" >> beam.ParDo(
       PostProcessor())
   _ = process_output | "WriteOutput" >> beam.io.WriteToText(

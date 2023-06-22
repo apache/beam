@@ -67,7 +67,7 @@ class VertexAIModelHandlerJSON(ModelHandler[Any,
       experiment (Optional): experiment label to apply to the queries
     
     """
-    
+
     self._env_vars = kwargs.get('env_vars', {})
     # TODO: support the full list of options for aiplatform.init()
     # See https://cloud.google.com/python/docs/reference/aiplatform/latest/google.cloud.aiplatform#google_cloud_aiplatform_init
