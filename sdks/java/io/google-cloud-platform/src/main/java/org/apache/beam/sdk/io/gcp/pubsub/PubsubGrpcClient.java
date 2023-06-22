@@ -385,6 +385,19 @@ public class PubsubGrpcClient extends PubsubClient {
   }
 
   @Override
+  public void createOrderedSubscription(
+      TopicPath topic, SubscriptionPath subscription, int ackDeadlineSeconds) throws IOException {
+    Subscription request =
+        Subscription.newBuilder()
+            .setTopic(topic.getPath())
+            .setName(subscription.getPath())
+            .setAckDeadlineSeconds(ackDeadlineSeconds)
+            .setEnableMessageOrdering(true)
+            .build();
+    subscriberStub().createSubscription(request); // ignore Subscription result.
+  }
+
+  @Override
   public void deleteSubscription(SubscriptionPath subscription) throws IOException {
     DeleteSubscriptionRequest request =
         DeleteSubscriptionRequest.newBuilder().setSubscription(subscription.getPath()).build();

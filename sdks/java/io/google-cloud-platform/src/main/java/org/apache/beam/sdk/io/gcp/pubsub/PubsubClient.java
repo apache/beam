@@ -482,6 +482,10 @@ public abstract class PubsubClient implements Closeable {
   public abstract void createSubscription(
       TopicPath topic, SubscriptionPath subscription, int ackDeadlineSeconds) throws IOException;
 
+  /** Create a {@code subscription} with ordered delivery guarantees for {@code topic}. */
+  public abstract void createOrderedSubscription(
+      TopicPath topic, SubscriptionPath subscription, int ackDeadlineSeconds) throws IOException;
+
   /**
    * Create a random subscription for {@code topic}. Return the {@link SubscriptionPath}. It is the
    * responsibility of the caller to later delete the subscription.

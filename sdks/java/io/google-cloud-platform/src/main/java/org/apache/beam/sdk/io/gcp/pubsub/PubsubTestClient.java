@@ -612,6 +612,12 @@ public class PubsubTestClient extends PubsubClient implements Serializable {
   }
 
   @Override
+  public void createOrderedSubscription(
+      TopicPath topic, SubscriptionPath subscription, int ackDeadlineSeconds) throws IOException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
   public void deleteSubscription(SubscriptionPath subscription) throws IOException {
     throw new UnsupportedOperationException();
   }

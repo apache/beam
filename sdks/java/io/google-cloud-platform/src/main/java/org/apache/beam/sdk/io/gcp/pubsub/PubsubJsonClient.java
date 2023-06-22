@@ -323,6 +323,21 @@ public class PubsubJsonClient extends PubsubClient {
   }
 
   @Override
+  public void createOrderedSubscription(
+      TopicPath topic, SubscriptionPath subscription, int ackDeadlineSeconds) throws IOException {
+    Subscription request =
+        new Subscription()
+            .setTopic(topic.getPath())
+            .setAckDeadlineSeconds(ackDeadlineSeconds)
+            .setEnableMessageOrdering(true);
+    pubsub
+        .projects()
+        .subscriptions()
+        .create(subscription.getPath(), request)
+        .execute(); // ignore Subscription result.
+  }
+
+  @Override
   public void deleteSubscription(SubscriptionPath subscription) throws IOException {
     pubsub
         .projects()
