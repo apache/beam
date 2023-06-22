@@ -28,7 +28,6 @@ import argparse
 import apache_beam as beam
 import io
 import logging
-import os
 
 import tensorflow as tf
 
@@ -90,7 +89,6 @@ COLUMNS = ['dandelion', 'daisy', 'tulips', 'sunflowers', 'roses']
 
 
 def read_image(image_file_name: str) -> Tuple[str, bytes]:
-  assert os.path.exists(str(image_file_name))
   with FileSystems().open(image_file_name, 'r') as file:
     data = io.BytesIO(file.read()).getvalue()
     return image_file_name, data

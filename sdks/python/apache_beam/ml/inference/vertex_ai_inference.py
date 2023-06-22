@@ -136,15 +136,15 @@ class VertexAIModelHandlerJSON(ModelHandler[Any,
 
     try:
       req_time = time.time()
-      prediction = model.predict(instances=batch, parameters=inference_args)
+      prediction = model.predict(
+          instances=list(batch), parameters=inference_args)
       self.throttler.successful_request(req_time * MSEC_TO_SEC)
       return prediction
     except TooManyRequests as e:
-      LOGGER.warning(
-          "request was limited by the service with code %i", e.code.value)
+      LOGGER.warning("request was limited by the service with code %i", e.code)
       raise
     except ClientError as e:
-      LOGGER.warning("request failed with error code %i", e.code.value)
+      LOGGER.warning("request failed with error code %i", e.code)
       raise
 
   def run_inference(
