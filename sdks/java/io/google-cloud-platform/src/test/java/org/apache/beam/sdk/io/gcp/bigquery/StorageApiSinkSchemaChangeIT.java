@@ -66,10 +66,20 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@RunWith(Parameterized.class)
 public class StorageApiSinkSchemaChangeIT {
+  @Parameterized.Parameters
+  public static Iterable<Object[]> data() {
+    return ImmutableList.of(new Object[] {true}, new Object[] {false});
+  }
+
+  @Parameterized.Parameter(0)
+  public boolean useWriteSchema;
 
   private static final Logger LOG = LoggerFactory.getLogger(StorageApiSinkSchemaChangeIT.class);
 
@@ -317,6 +327,7 @@ public class StorageApiSinkSchemaChangeIT {
 
   private static void runStreamingPipelineWithSchemaChange(
       Write.Method method,
+      boolean useWriteSchema,
       boolean useAutoSchemaUpdate,
       int triggeringFreq,
       boolean useAutoSharding,
@@ -390,6 +401,10 @@ public class StorageApiSinkSchemaChangeIT {
             .withCreateDisposition(CreateDisposition.CREATE_NEVER)
             .withWriteDisposition(WriteDisposition.WRITE_APPEND);
 
+    if (useWriteSchema) {
+      write = write.withSchema(bqWriteSchema);
+    }
+
     if (useAutoSharding) {
       write = write.withAutoSharding();
     }
@@ -420,26 +435,28 @@ public class StorageApiSinkSchemaChangeIT {
 
   @Test
   public void testWriteExactlyOnceOnSchemaChange() throws IOException, InterruptedException {
-    runStreamingPipelineWithSchemaChange(Write.Method.STORAGE_WRITE_API, false, 1, true, 0, false);
+    runStreamingPipelineWithSchemaChange(
+        Write.Method.STORAGE_WRITE_API, useWriteSchema, false, 1, true, 0, false);
   }
 
   @Test
   public void testWriteExactlyOnceOnSchemaChangeWithAutoSchemaUpdate()
       throws IOException, InterruptedException {
-    runStreamingPipelineWithSchemaChange(Write.Method.STORAGE_WRITE_API, true, 1, true, 0, true);
+    runStreamingPipelineWithSchemaChange(
+        Write.Method.STORAGE_WRITE_API, useWriteSchema, true, 1, true, 0, true);
   }
 
   @Test
   public void testWriteAtLeastOnceOnSchemaChange() throws IOException, InterruptedException {
     runStreamingPipelineWithSchemaChange(
-        Write.Method.STORAGE_API_AT_LEAST_ONCE, false, 0, false, 0, false);
+        Write.Method.STORAGE_API_AT_LEAST_ONCE, useWriteSchema, false, 0, false, 0, false);
   }
 
   @Test
   public void testWriteAtLeastOnceOnSchemaChangeWithAutoSchemaUpdate()
       throws IOException, InterruptedException {
     runStreamingPipelineWithSchemaChange(
-        Write.Method.STORAGE_API_AT_LEAST_ONCE, true, 0, false, 0, true);
+        Write.Method.STORAGE_API_AT_LEAST_ONCE, useWriteSchema, true, 0, false, 0, true);
   }
 
   @Test
@@ -449,13 +466,14 @@ public class StorageApiSinkSchemaChangeIT {
         IllegalArgumentException.class,
         () ->
             runStreamingPipelineWithSchemaChange(
-                Write.Method.STORAGE_WRITE_API, false, 0, true, 0, false));
+                Write.Method.STORAGE_WRITE_API, useWriteSchema, false, 0, true, 0, false));
   }
 
   @Test
   public void testExceptionOnWriteExactlyOnceWithBothNumShardsAndAutoSharding()
       throws IOException, InterruptedException {
-    runStreamingPipelineWithSchemaChange(Write.Method.STORAGE_WRITE_API, false, 1, true, 1, false);
+    runStreamingPipelineWithSchemaChange(
+        Write.Method.STORAGE_WRITE_API, useWriteSchema, false, 1, true, 1, false);
     loggedBigQueryIO.verifyWarn("The setting of auto-sharding is ignored.");
   }
 
@@ -466,7 +484,7 @@ public class StorageApiSinkSchemaChangeIT {
         IllegalArgumentException.class,
         () ->
             runStreamingPipelineWithSchemaChange(
-                Write.Method.STORAGE_WRITE_API, true, 1, true, 0, false));
+                Write.Method.STORAGE_WRITE_API, useWriteSchema, true, 1, true, 0, false));
   }
 
   @Test
@@ -476,14 +494,14 @@ public class StorageApiSinkSchemaChangeIT {
         IllegalArgumentException.class,
         () ->
             runStreamingPipelineWithSchemaChange(
-                Write.Method.STORAGE_API_AT_LEAST_ONCE, false, 1, true, 0, false));
+                Write.Method.STORAGE_API_AT_LEAST_ONCE, useWriteSchema, false, 1, true, 0, false));
   }
 
   @Test
   public void testExceptionOnWriteAtLeastOnceWithAutoSharding()
       throws IOException, InterruptedException {
     runStreamingPipelineWithSchemaChange(
-        Write.Method.STORAGE_API_AT_LEAST_ONCE, false, 0, true, 0, false);
+        Write.Method.STORAGE_API_AT_LEAST_ONCE, useWriteSchema, false, 0, true, 0, false);
     loggedBigQueryIO.verifyWarn("The setting of auto-sharding is ignored.");
   }
 
@@ -491,7 +509,7 @@ public class StorageApiSinkSchemaChangeIT {
   public void testExceptionOnWriteAtLeastOnceWithNumShards()
       throws IOException, InterruptedException {
     runStreamingPipelineWithSchemaChange(
-        Write.Method.STORAGE_API_AT_LEAST_ONCE, false, 0, false, 1, false);
+        Write.Method.STORAGE_API_AT_LEAST_ONCE, useWriteSchema, false, 0, false, 1, false);
     loggedBigQueryIO.verifyWarn("The setting of numStorageWriteApiStreams is ignored.");
   }
 }
