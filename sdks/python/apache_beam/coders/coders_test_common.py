@@ -121,7 +121,7 @@ class CodersTest(unittest.TestCase):
       -1,
       1.5,
       b'str\0str',
-      u'unicode\0\u0101',
+      'unicode\0\u0101',
       (),
       (1, 2, 3),
       [],
@@ -407,7 +407,7 @@ class CodersTest(unittest.TestCase):
             coders.TupleCoder((coders.PickleCoder(), coders.VarIntCoder())),
             coders.StrUtf8Coder(),
             coders.BooleanCoder())), ((1, 2), 'a', True),
-        ((-2, 5), u'a\u0101' * 100, False), ((300, 1), 'abc\0' * 5, True))
+        ((-2, 5), 'a\u0101' * 100, False), ((300, 1), 'abc\0' * 5, True))
 
   def test_tuple_sequence_coder(self):
     int_tuple_coder = coders.TupleSequenceCoder(coders.VarIntCoder())
@@ -420,7 +420,7 @@ class CodersTest(unittest.TestCase):
     self.check_coder(coders.Base64PickleCoder(), 'a', 1, 1.5, (1, 2, 3))
 
   def test_utf8_coder(self):
-    self.check_coder(coders.StrUtf8Coder(), 'a', u'ab\u00FF', u'\u0101\0')
+    self.check_coder(coders.StrUtf8Coder(), 'a', 'ab\u00FF', '\u0101\0')
 
   def test_iterable_coder(self):
     iterable_coder = coders.IterableCoder(coders.VarIntCoder())
@@ -604,10 +604,10 @@ class CodersTest(unittest.TestCase):
     ma = test_message.MessageA()
     mab = ma.field2.add()
     mab.field1 = True
-    ma.field1 = u'hello world'
+    ma.field1 = 'hello world'
 
     mb = test_message.MessageA()
-    mb.field1 = u'beam'
+    mb.field1 = 'beam'
 
     proto_coder = coders.ProtoCoder(ma.__class__)
     self.check_coder(proto_coder, ma)
@@ -666,7 +666,7 @@ class CodersTest(unittest.TestCase):
 
     # Test nested tuple observable.
     coder = coders.TupleCoder((coders.StrUtf8Coder(), iter_coder))
-    value = (u'123', observ)
+    value = ('123', observ)
     self.assertEqual(
         coder.get_impl().get_estimated_size_and_observables(value)[1],
         [(observ, elem_coder.get_impl())])

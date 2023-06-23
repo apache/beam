@@ -124,14 +124,14 @@ func getExtBasedOnContent(content string) string {
 // getCorrectNameOrDefault returns the correct file name or default name.
 func getCorrectNameOrDefault(actualExt, correctExt, defaultFileName, name string) string {
 	if actualExt == "" {
-		logger.Error("The name of the file does not have extension. Will be used default value")
+		logger.Infof("The name of the file does not have extension. Default value (%s) will be used", correctExt)
 		if name == "" {
 			return defaultFileName
 		}
 		return name + correctExt
 	}
 	if actualExt != correctExt {
-		logger.Error("The name of the file has wrong extension. Will be used correct extension according to sdk")
+		logger.Infof("The name of the file has wrong extension. Correct extension (%s) will be used according to sdk", correctExt)
 		return name[0:len(name)-len(actualExt)] + correctExt
 	}
 	if filepath.Ext(name) == "" {

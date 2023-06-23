@@ -583,7 +583,7 @@ func (d *Datastore) DeleteUnusedSnippets(ctx context.Context, retentionPeriod ti
 func rollback(tx *datastore.Transaction) {
 	err := tx.Rollback()
 	if err != nil {
-		logger.Errorf(errorMsgTemplateTxRollback, err.Error())
+		logger.Warnf(errorMsgTemplateTxRollback, err.Error())
 	}
 }
 
