@@ -26,6 +26,7 @@ from typing import Union
 import numpy as np
 
 import apache_beam as beam
+from apache_beam.ml.transforms.base import ArtifactMode
 from apache_beam.ml.transforms.base import _ProcessHandler
 from apache_beam.ml.transforms.base import ProcessInputT
 from apache_beam.ml.transforms.base import ProcessOutputT
@@ -47,12 +48,6 @@ from tfx_bsl.tfxio import tf_example_record
 __all__ = [
     'TFTProcessHandler',
 ]
-
-
-class ArtifactMode(object):
-  PRODUCE = 'produce'
-  CONSUME = 'consume'
-
 
 # tensorflow transform doesn't support the types other than tf.int64,
 # tf.float32 and tf.string.
@@ -125,44 +120,22 @@ class TFTProcessHandler(_ProcessHandler[ProcessInputT, ProcessOutputT]):
   def __init__(
       self,
       *,
+      artifact_location: str = None,
       transforms: Optional[List[TFTOperation]] = None,
-      artifact_location: typing.Optional[str] = None,
       preprocessing_fn: typing.Optional[typing.Callable] = None,
-      is_input_record_batch: bool = False,
+      is_input_record_batches: bool = False,
       output_record_batches: bool = False,
       artifact_mode: str = ArtifactMode.PRODUCE):
     """
     A handler class for processing data with TensorFlow Transform (TFT)
     operations. This class is intended to be subclassed, with subclasses
     implementing the `preprocessing_fn` method.
-
-    Args:
-      transforms: A list of transforms to apply to the data. All the transforms
-        are applied in the order they are specified. The input of the
-        i-th transform is the output of the (i-1)-th transform. Multi-input
-        transforms are not supported yet.
-      artifact_location: A location to store the artifacts, which includes
-        the tensorflow graph produced by analyzers such as ScaleTo01,
-        ScaleToZScore, etc. If the directory is not empty,
-        this will assume that the artifacts are already computed and will
-        skip computing the artifacts again from the data.
-      is_input_record_batch: Whether the input is a RecordBatch.
-      output_record_batches: Output RecordBatches instead of beam.Row().
-      artifact_mode: Whether to produce or consume artifacts. If set to
-        'consume', the handler will assume that the artifacts are already
-        computed and stored in the artifact_location. Pass the same artifact
-        location that was passed during produce phase to ensure that the
-        right artifacts are read. If set to 'produce', the handler
-        will compute the artifacts and store them in the artifact_location.
-        The artifacts will be read from this location during the consume phase.
-        There is no need to pass the transforms in this case since they are
-        already embedded in the stored artifacts.
     """
     self.transforms = transforms if transforms else []
     self.transformed_schema = None
     self.artifact_location = artifact_location
     self.preprocessing_fn = preprocessing_fn
-    self.is_input_record_batch = is_input_record_batch
+    self.is_input_record_batches = is_input_record_batches
     self.output_record_batches = output_record_batches
     self.artifact_mode = artifact_mode
     if artifact_mode not in ['produce', 'consume']:
@@ -395,12 +368,13 @@ class TFTProcessHandler(_ProcessHandler[ProcessInputT, ProcessOutputT]):
     # whether a scalar value or list or np array is passed as input,
     #  we will convert scalar values to list values and TFT will ouput
     # numpy array all the time.
-    raw_data |= beam.ParDo(ConvertScalarValuesToListValues())
+    if not self.is_input_record_batches:
+      raw_data |= beam.ParDo(ConvertScalarValuesToListValues())
 
     raw_data_metadata = self.get_raw_data_metadata(
         input_types=column_type_mapping)
 
-    if self.is_input_record_batch:
+    if self.is_input_record_batches:
       # record batches need TensorAdapter. Convert the raw_data_metadata to
       # TensorAdapterConfig.
       schema = raw_data_metadata.schema
@@ -410,15 +384,12 @@ class TFTProcessHandler(_ProcessHandler[ProcessInputT, ProcessOutputT]):
           schema=schema)
       raw_data_metadata = _tfxio.TensorAdapterConfig()
 
-    preprocessing_fn = self.preprocessing_fn if self.preprocessing_fn else (
-        self.process_data_fn)
-
     with tft_beam.Context(temp_dir=self.artifact_location):
       data = (raw_data, raw_data_metadata)
       if self.artifact_mode == ArtifactMode.PRODUCE:
         transform_fn = (
             data
-            | "AnalyzeDataset" >> tft_beam.AnalyzeDataset(preprocessing_fn))
+            | "AnalyzeDataset" >> tft_beam.AnalyzeDataset(self.process_data_fn))
         self.write_transform_artifacts(transform_fn, self.artifact_location)
       else:
         transform_fn = (

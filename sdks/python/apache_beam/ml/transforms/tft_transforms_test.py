@@ -15,6 +15,8 @@
 # limitations under the License.
 #
 
+import shutil
+import tempfile
 import unittest
 import numpy as np
 from parameterized import parameterized
@@ -27,7 +29,6 @@ from apache_beam.testing.util import equal_to
 try:
   from apache_beam.ml.transforms import base
   from apache_beam.ml.transforms import tft_transforms
-  from apache_beam.ml.transforms import handlers
 except ImportError:
   tft_transforms = None
 
@@ -61,6 +62,12 @@ def assert_bucketize_artifacts(element):
 
 
 class ScaleZScoreTest(unittest.TestCase):
+  def setUp(self) -> None:
+    self.artifact_location = tempfile.mkdtemp()
+
+  def tearDown(self):
+    shutil.rmtree(self.artifact_location)
+
   def test_z_score_unbatched(self):
     unbatched_data = [{
         'x': 1
@@ -77,39 +84,42 @@ class ScaleZScoreTest(unittest.TestCase):
     }]
 
     with beam.Pipeline() as p:
-      process_handler = handlers.TFTProcessHandler()
       unbatched_result = (
           p
           | "unbatchedCreate" >> beam.Create(unbatched_data)
-          | "unbatchedMLTransform" >>
-          base.MLTransform(process_handler=process_handler).with_transform(
-              tft_transforms.ScaleToZScore(columns=['x'])))
+          | "unbatchedMLTransform" >> base.MLTransform(
+              artifact_location=self.artifact_location).with_transform(
+                  tft_transforms.ScaleToZScore(columns=['x'])))
       _ = (unbatched_result | beam.Map(assert_z_score_artifacts))
 
   def test_z_score_batched(self):
     batched_data = [{'x': [1, 2, 3]}, {'x': [4, 5, 6]}]
     with beam.Pipeline() as p:
-      process_handler = handlers.TFTProcessHandler()
       batched_result = (
           p
           | "batchedCreate" >> beam.Create(batched_data)
-          | "batchedMLTransform" >>
-          base.MLTransform(process_handler=process_handler).with_transform(
-              tft_transforms.ScaleToZScore(columns=['x'])))
+          | "batchedMLTransform" >> base.MLTransform(
+              artifact_location=self.artifact_location).with_transform(
+                  tft_transforms.ScaleToZScore(columns=['x'])))
       _ = (batched_result | beam.Map(assert_z_score_artifacts))
 
 
 class ScaleTo01Test(unittest.TestCase):
+  def setUp(self) -> None:
+    self.artifact_location = tempfile.mkdtemp()
+
+  def tearDown(self):
+    shutil.rmtree(self.artifact_location)
+
   def test_ScaleTo01_batched(self):
     batched_data = [{'x': [1, 2, 3]}, {'x': [4, 5, 6]}]
     with beam.Pipeline() as p:
-      process_handler = handlers.TFTProcessHandler()
       batched_result = (
           p
           | "batchedCreate" >> beam.Create(batched_data)
-          | "batchedMLTransform" >>
-          base.MLTransform(process_handler=process_handler).with_transform(
-              tft_transforms.ScaleTo01(columns=['x'])))
+          | "batchedMLTransform" >> base.MLTransform(
+              artifact_location=self.artifact_location).with_transform(
+                  tft_transforms.ScaleTo01(columns=['x'])))
       _ = (batched_result | beam.Map(assert_ScaleTo01_artifacts))
 
       expected_output = [
@@ -135,13 +145,12 @@ class ScaleTo01Test(unittest.TestCase):
         'x': 6
     }]
     with beam.Pipeline() as p:
-      process_handler = handlers.TFTProcessHandler()
       unbatched_result = (
           p
           | "unbatchedCreate" >> beam.Create(unbatched_data)
-          | "unbatchedMLTransform" >>
-          base.MLTransform(process_handler=process_handler).with_transform(
-              tft_transforms.ScaleTo01(columns=['x'])))
+          | "unbatchedMLTransform" >> base.MLTransform(
+              artifact_location=self.artifact_location).with_transform(
+                  tft_transforms.ScaleTo01(columns=['x'])))
 
       _ = (unbatched_result | beam.Map(assert_ScaleTo01_artifacts))
       expected_output = (
@@ -157,16 +166,21 @@ class ScaleTo01Test(unittest.TestCase):
 
 
 class BucketizeTest(unittest.TestCase):
+  def setUp(self) -> None:
+    self.artifact_location = tempfile.mkdtemp()
+
+  def tearDown(self):
+    shutil.rmtree(self.artifact_location)
+
   def test_bucketize_unbatched(self):
     unbatched = [{'x': 1}, {'x': 2}, {'x': 3}, {'x': 4}, {'x': 5}, {'x': 6}]
     with beam.Pipeline() as p:
-      process_handler = handlers.TFTProcessHandler()
       unbatched_result = (
           p
           | "unbatchedCreate" >> beam.Create(unbatched)
-          | "unbatchedMLTransform" >>
-          base.MLTransform(process_handler=process_handler).with_transform(
-              tft_transforms.Bucketize(columns=['x'], num_buckets=3)))
+          | "unbatchedMLTransform" >> base.MLTransform(
+              artifact_location=self.artifact_location).with_transform(
+                  tft_transforms.Bucketize(columns=['x'], num_buckets=3)))
       _ = (unbatched_result | beam.Map(assert_bucketize_artifacts))
 
       transformed_data = (unbatched_result | beam.Map(lambda x: x.x))
@@ -184,13 +198,12 @@ class BucketizeTest(unittest.TestCase):
   def test_bucketize_batched(self):
     batched = [{'x': [1, 2, 3]}, {'x': [4, 5, 6]}]
     with beam.Pipeline() as p:
-      process_handler = handlers.TFTProcessHandler()
       batched_result = (
           p
           | "batchedCreate" >> beam.Create(batched)
-          | "batchedMLTransform" >>
-          base.MLTransform(process_handler=process_handler).with_transform(
-              tft_transforms.Bucketize(columns=['x'], num_buckets=3)))
+          | "batchedMLTransform" >> base.MLTransform(
+              artifact_location=self.artifact_location).with_transform(
+                  tft_transforms.Bucketize(columns=['x'], num_buckets=3)))
       _ = (batched_result | beam.Map(assert_bucketize_artifacts))
 
       transformed_data = (
@@ -217,12 +230,11 @@ class BucketizeTest(unittest.TestCase):
     data = [{'x': [i]} for i in test_input]
     num_buckets = len(expected_boundaries) + 1
     with beam.Pipeline() as p:
-      process_handler = handlers.TFTProcessHandler()
       result = (
           p
           | "Create" >> beam.Create(data)
-          | "MLTransform" >>
-          base.MLTransform(process_handler=process_handler).with_transform(
+          | "MLTransform" >> base.
+          MLTransform(artifact_location=self.artifact_location).with_transform(
               tft_transforms.Bucketize(columns=['x'], num_buckets=num_buckets)))
       actual_boundaries = (
           result
@@ -236,6 +248,12 @@ class BucketizeTest(unittest.TestCase):
 
 
 class ApplyBucketsTest(unittest.TestCase):
+  def setUp(self) -> None:
+    self.artifact_location = tempfile.mkdtemp()
+
+  def tearDown(self):
+    shutil.rmtree(self.artifact_location)
+
   @parameterized.expand([
       (range(1, 100), [25, 50, 75]),
       (range(1, 100, 2), [25, 51, 75]),
@@ -243,14 +261,13 @@ class ApplyBucketsTest(unittest.TestCase):
   def test_apply_buckets(self, test_inputs, bucket_boundaries):
     with beam.Pipeline() as p:
       data = [{'x': [i]} for i in test_inputs]
-      process_handler = handlers.TFTProcessHandler()
       result = (
           p
           | "Create" >> beam.Create(data)
-          | "MLTransform" >>
-          base.MLTransform(process_handler=process_handler).with_transform(
-              tft_transforms.ApplyBuckets(
-                  columns=['x'], bucket_boundaries=bucket_boundaries)))
+          | "MLTransform" >> base.MLTransform(
+              artifact_location=self.artifact_location).with_transform(
+                  tft_transforms.ApplyBuckets(
+                      columns=['x'], bucket_boundaries=bucket_boundaries)))
       expected_output = []
       bucket = 0
       for x in sorted(test_inputs):
@@ -265,6 +282,12 @@ class ApplyBucketsTest(unittest.TestCase):
 
 
 class ComputeAndApplyVocabTest(unittest.TestCase):
+  def setUp(self) -> None:
+    self.artifact_location = tempfile.mkdtemp()
+
+  def tearDown(self):
+    shutil.rmtree(self.artifact_location)
+
   def test_compute_and_apply_vocabulary_unbatched_inputs(self):
     batch_size = 100
     num_instances = batch_size + 1
@@ -277,13 +300,12 @@ class ComputeAndApplyVocabTest(unittest.TestCase):
     } for i in range(len(input_data))]
 
     with beam.Pipeline() as p:
-      process_handler = handlers.TFTProcessHandler()
       actual_data = (
           p
           | "Create" >> beam.Create(input_data)
-          | "MLTransform" >>
-          base.MLTransform(process_handler=process_handler).with_transform(
-              tft_transforms.ComputeAndApplyVocabulary(columns=['x'])))
+          | "MLTransform" >> base.MLTransform(
+              artifact_location=self.artifact_location).with_transform(
+                  tft_transforms.ComputeAndApplyVocabulary(columns=['x'])))
       actual_data |= beam.Map(lambda x: x.as_dict())
 
       assert_that(actual_data, equal_to(expected_data))
@@ -310,19 +332,24 @@ class ComputeAndApplyVocabTest(unittest.TestCase):
     ]
 
     with beam.Pipeline() as p:
-      process_handler = handlers.TFTProcessHandler()
       result = (
           p
           | "Create" >> beam.Create(input_data)
-          | "MLTransform" >>
-          base.MLTransform(process_handler=process_handler).with_transform(
-              tft_transforms.ComputeAndApplyVocabulary(columns=['x'])))
+          | "MLTransform" >> base.MLTransform(
+              artifact_location=self.artifact_location).with_transform(
+                  tft_transforms.ComputeAndApplyVocabulary(columns=['x'])))
       actual_output = (result | beam.Map(lambda x: x.x))
       assert_that(
           actual_output, equal_to(excepted_data, equals_fn=np.array_equal))
 
 
 class TFIDIFTest(unittest.TestCase):
+  def setUp(self) -> None:
+    self.artifact_location = tempfile.mkdtemp()
+
+  def tearDown(self):
+    shutil.rmtree(self.artifact_location)
+
   def test_tfidf_batched_compute_vocab_size_during_runtime(self):
     raw_data = [
         dict(x=["I", "like", "pie", "pie", "pie"]),
@@ -333,11 +360,11 @@ class TFIDIFTest(unittest.TestCase):
           tft_transforms.ComputeAndApplyVocabulary(columns=['x']),
           tft_transforms.TFIDF(columns=['x'])
       ]
-      process_handler = handlers.TFTProcessHandler(transforms=transforms)
       actual_output = (
           p
           | "Create" >> beam.Create(raw_data)
-          | "MLTransform" >> base.MLTransform(process_handler=process_handler))
+          | "MLTransform" >> base.MLTransform(
+              artifact_location=self.artifact_location, transforms=transforms))
       actual_output |= beam.Map(lambda x: x.as_dict())
 
       def equals_fn(a, b):

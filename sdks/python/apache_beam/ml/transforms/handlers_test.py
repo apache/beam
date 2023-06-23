@@ -15,6 +15,8 @@
 # limitations under the License.
 #
 
+import shutil
+import tempfile
 import typing
 from typing import NamedTuple
 from typing import List
@@ -26,7 +28,6 @@ from parameterized import param
 from parameterized import parameterized
 
 import apache_beam as beam
-from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
@@ -92,7 +93,10 @@ class BatchedNumpyType(NamedTuple):
 
 class TFTProcessHandlerOnSchemaDataTest(unittest.TestCase):
   def setUp(self) -> None:
-    self.pipeline = TestPipeline()
+    self.artifact_location = tempfile.mkdtemp()
+
+  def tearDown(self):
+    shutil.rmtree(self.artifact_location)
 
   @parameterized.expand([
       ({
@@ -127,8 +131,8 @@ class TFTProcessHandlerOnSchemaDataTest(unittest.TestCase):
   def test_ml_transform_appends_transforms_to_process_handler_correctly(self):
     fake_fn_1 = _FakeOperation(name='fake_fn_1', columns=['x'])
     transforms = [fake_fn_1]
-    process_handler = handlers.TFTProcessHandler(transforms=transforms)
-    ml_transform = base.MLTransform(process_handler=process_handler)
+    ml_transform = base.MLTransform(
+        transforms=transforms, artifact_location=self.artifact_location)
     ml_transform = ml_transform.with_transform(
         transform=_FakeOperation(name='fake_fn_2', columns=['x']))
 
@@ -330,7 +334,6 @@ class TFTProcessHandlerOnSchemaDataTest(unittest.TestCase):
   def test_tft_process_handler_dict_output_pcoll_schema(
       self, input_data, input_types, expected_dtype):
     transforms = [tft_transforms.ScaleTo01(columns=['x'])]
-    process_handler = handlers.TFTProcessHandler(transforms=transforms)
     with beam.Pipeline() as p:
       schema_data = (
           p
@@ -339,7 +342,8 @@ class TFTProcessHandlerOnSchemaDataTest(unittest.TestCase):
               beam.row_type.RowTypeConstraint.from_fields(
                   list(input_types.items()))))
       transformed_data = (
-          schema_data | base.MLTransform(process_handler=process_handler))
+          schema_data | base.MLTransform(
+              artifact_location=self.artifact_location, transforms=transforms))
     for name, typ in transformed_data.element_type._fields:
       if name in expected_dtype:
         self.assertEqual(expected_dtype[name], typ)
@@ -347,8 +351,7 @@ class TFTProcessHandlerOnSchemaDataTest(unittest.TestCase):
   def test_tft_process_handler_fail_for_non_global_windows_in_produce_mode(
       self):
     transforms = [tft_transforms.ScaleTo01(columns=['x'])]
-    process_handler = handlers.TFTProcessHandler(
-        transforms=transforms, artifact_mode=handlers.ArtifactMode.PRODUCE)
+
     with beam.Pipeline() as p:
       with self.assertRaises(RuntimeError):
         _ = (
@@ -357,17 +360,20 @@ class TFTProcessHandlerOnSchemaDataTest(unittest.TestCase):
                 'x': 1, 'y': 2.0
             }])
             | beam.WindowInto(beam.window.FixedWindows(1))
-            | base.MLTransform(process_handler=process_handler))
+            | base.MLTransform(
+                transforms=transforms,
+                artifact_location=self.artifact_location,
+                artifact_mode=base.ArtifactMode.PRODUCE))
 
   def test_tft_process_handler_on_batched_dict(self):
     transforms = [tft_transforms.ScaleTo01(columns=['x'])]
-    process_handler = handlers.TFTProcessHandler(transforms=transforms)
     batched_data = [{'x': [1, 2, 3]}, {'x': [4, 5, 6]}]
     with beam.Pipeline() as p:
       batched_result = (
           p
           | beam.Create(batched_data)
-          | base.MLTransform(process_handler=process_handler))
+          | base.MLTransform(
+              transforms=transforms, artifact_location=self.artifact_location))
       expected_output = [
           np.array([0, 0.2, 0.4], dtype=np.float32),
           np.array([0.6, 0.8, 1], dtype=np.float32)
@@ -378,13 +384,13 @@ class TFTProcessHandlerOnSchemaDataTest(unittest.TestCase):
 
   def test_tft_process_handler_on_unbatched_dict(self):
     transforms = [tft_transforms.ScaleTo01(columns=['x'])]
-    process_handler = handlers.TFTProcessHandler(transforms=transforms)
     unbatched_data = [{'x': 1}, {'x': 2}]
     with beam.Pipeline() as p:
       result = (
           p
           | beam.Create(unbatched_data)
-          | base.MLTransform(process_handler=process_handler))
+          | base.MLTransform(
+              artifact_location=self.artifact_location, transforms=transforms))
       expected_output = [
           np.array([0.], dtype=np.float32), np.array([1.], dtype=np.float32)
       ]

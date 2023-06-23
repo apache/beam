@@ -15,6 +15,8 @@
 # limitations under the License.
 
 from typing import Generic
+from typing import List
+from typing import Optional
 from typing import TypeVar
 
 import apache_beam as beam
@@ -42,6 +44,11 @@ ProcessOutputT = TypeVar('ProcessOutputT')
 OperationInputT = TypeVar('OperationInputT')
 # Output of the apply() method of BaseOperation.
 OperationOutputT = TypeVar('OperationOutputT')
+
+
+class ArtifactMode(object):
+  PRODUCE = 'produce'
+  CONSUME = 'consume'
 
 
 class BaseOperation(Generic[OperationInputT, OperationOutputT]):
@@ -77,16 +84,55 @@ class _ProcessHandler(Generic[ProcessInputT, ProcessOutputT]):
 
 class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
                                   beam.PCollection[MLTransformOutputT]],
-                  Generic[ExampleT, MLTransformOutputT, ]):
+                  Generic[ExampleT, MLTransformOutputT]):
   def __init__(
       self,
-      process_handler: _ProcessHandler[ExampleT, MLTransformOutputT],
+      *,
+      artifact_location: str,
+      artifact_mode: str = ArtifactMode.PRODUCE,
+      transforms: Optional[List[BaseOperation]] = None,
+      is_input_record_batches: bool = False,
+      output_record_batches: bool = False,
   ):
     """
     Args:
-      process_handler: A _ProcessHandler instance that defines the logic to
-        process the data.
+      artifact_location: A storage location for artifacts resulting from
+        MLTransform. These artifacts include transformations applied to
+        the dataset and generated values like min, max from ScaleTo01,
+        and mean, var from ScaleToZScore. Artifacts are produced and stored
+        in this location when the `artifact_mode` is set to 'produce'.
+        Conversely, when `artifact_mode` is set to 'consume', artifacts are
+        retrieved from this location. Note that when consuming artifacts,
+        it is not necessary to pass the transforms since they are inherently
+        stored within the artifacts themselves. The value assigned to
+        `artifact_location` should be a valid storage path where the artifacts
+        can be written to or read from.
+      transforms: A list of transforms to apply to the data. All the transforms
+        are applied in the order they are specified. The input of the
+        i-th transform is the output of the (i-1)-th transform. Multi-input
+        transforms are not supported yet.
+      is_input_record_batches: Whether the input is a RecordBatch.
+      output_record_batches: Output RecordBatches instead of beam.Row().
+      artifact_mode: Whether to produce or consume artifacts. If set to
+        'consume', the handler will assume that the artifacts are already
+        computed and stored in the artifact_location. Pass the same artifact
+        location that was passed during produce phase to ensure that the
+        right artifacts are read. If set to 'produce', the handler
+        will compute the artifacts and store them in the artifact_location.
+        The artifacts will be read from this location during the consume phase.
+        There is no need to pass the transforms in this case since they are
+        already embedded in the stored artifacts.
     """
+    # avoid circular import
+    # pylint: disable=wrong-import-order, wrong-import-position
+    from apache_beam.ml.transforms.handlers import TFTProcessHandler
+    process_handler = TFTProcessHandler(
+        artifact_location=artifact_location,
+        artifact_mode=artifact_mode,
+        transforms=transforms,
+        is_input_record_batches=is_input_record_batches,
+        output_record_batches=output_record_batches)
+
     self._process_handler = process_handler
 
   def expand(
