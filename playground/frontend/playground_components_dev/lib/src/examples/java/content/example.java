@@ -16,26 +16,25 @@
  * limitations under the License.
  */
 
-import 'package:easy_localization/easy_localization.dart';
-import 'package:flutter/material.dart';
-import 'package:playground_components/playground_components.dart';
+package main;
 
-class ContentTreeTitleWidget extends StatelessWidget {
-  const ContentTreeTitleWidget();
+import a;
+import b;
 
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: BeamSizes.size12),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            'pages.tour.summaryTitle',
-            style: Theme.of(context).textTheme.headlineLarge,
-          ).tr(),
-        ],
-      ),
-    );
-  }
+void OutsideOfSections() {
 }
+
+// [START show]
+void Folded() {
+}
+
+void Unfolded1() {
+  System.out.println("editable")// [START unfold1]
+  System.out.println("readonly")// [START readonly1] [END unfold1] [END readonly1]
+}
+
+void Unfolded2() {
+  System.out.println("editable")// [START unfold2]
+  System.out.println("readonly")// [START readonly2] [END unfold2] [END readonly2]
+}
+// [END show]

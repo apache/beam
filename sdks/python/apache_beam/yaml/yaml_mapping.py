@@ -199,7 +199,7 @@ def MapToFields(
 
     result = pcoll | yaml_create_transform({
         'type': 'Sql', 'query': query, **language_keywords
-    })
+    }, [pcoll])
     if explode:
       # TODO(yaml): Implement via unnest.
       result = result | _Explode(explode, cross_product)
@@ -217,7 +217,7 @@ def MapToFields(
             'cross_product': cross_product,
         },
         **language_keywords
-    })
+    }, [pcoll])
 
   else:
     # TODO(yaml): Support javascript expressions and UDFs.

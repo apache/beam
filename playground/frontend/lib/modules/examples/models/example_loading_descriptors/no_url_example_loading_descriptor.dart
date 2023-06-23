@@ -31,4 +31,7 @@ class NoUrlExampleLoadingDescriptor extends ExampleLoadingDescriptor {
 
   @override
   Map<String, dynamic> toJson() => {};
+
+  @override
+  bool get isSerializableToUrl => true;
 }
