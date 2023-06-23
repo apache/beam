@@ -1561,8 +1561,7 @@ class ParDo(PTransformWithSideInputs):
         use_subprocess,
         threshold,
         threshold_windowing,
-        timeout,
-        self.infer_output_type)
+        timeout)
 
   def default_type_hints(self):
     return self.fn.get_type_hints()
@@ -2155,8 +2154,7 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
       use_subprocess,
       threshold,
       threshold_windowing,
-      timeout,
-      original_infer_element_type):
+      timeout):
     if partial and use_subprocess:
       raise ValueError('partial and use_subprocess are mutually incompatible.')
     self._fn = fn
@@ -2170,7 +2168,6 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
     self._threshold = threshold
     self._threshold_windowing = threshold_windowing
     self._timeout = timeout
-    self._original_infer_element_type = original_infer_element_type
 
   def expand(self, pcoll):
     if self._use_subprocess:
@@ -2186,7 +2183,7 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
         **self._kwargs).with_outputs(
             self._dead_letter_tag, main=self._main_tag, allow_unknown_tags=True)
     #TODO(BEAM-18957): Fix when type inference supports tagged outputs.
-    result[self._main_tag].element_type = self._original_infer_element_type(
+    result[self._main_tag].element_type = self._fn.infer_output_type(
         pcoll.element_type)
 
     if self._threshold < 1.0:
@@ -2250,7 +2247,7 @@ class _ExceptionHandlingWrapperDoFn(DoFn):
                   traceback.format_exception(*sys.exc_info()))))
 
 
-# Idea adapted from Asguard.
+# Idea adapted from https://github.com/tosun-si/asgarde.
 # TODO(robertwb): Consider how this could fit into the public API.
 # TODO(robertwb): Generalize to all PValue types.
 class _PValueWithErrors(object):
@@ -2273,7 +2270,6 @@ class _PValueWithErrors(object):
   def apply(self, transform):
     result = self._pcoll | transform.with_exception_handling(
         **self._exception_handling_args)
-    from apache_beam.typehints import typehints
     if result[self.main_output_tag()].element_type == typehints.Any:
       result[self.main_output_tag()].element_type = transform.infer_output_type(
           self._pcoll.element_type)
@@ -3518,6 +3514,9 @@ class WindowInto(ParDo):
           timestamp, element=element, window=window)
       new_windows = self.windowing.windowfn.assign(context)
       yield WindowedValue(element, context.timestamp, new_windows)
+
+    def infer_output_type(self, input_type):
+      return input_type
 
   def __init__(
       self,

@@ -278,7 +278,7 @@ class ErrorHandlingTest(unittest.TestCase):
     with self.assertRaisesRegex(Exception, 'Unconsumed error output .*line 6'):
       with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
           pickle_library='cloudpickle')) as p:
-        result = p | YamlTransform(
+        _ = p | YamlTransform(
             '''
             type: composite
             transforms:

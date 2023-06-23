@@ -634,7 +634,7 @@ def ensure_transforms_have_types(spec):
 def ensure_errors_consumed(spec):
   if spec['type'] == 'composite':
     scope = LightweightScope(spec['transforms'])
-    to_handle = dict()
+    to_handle = {}
     consumed = set(
         scope.get_transform_id_and_output_name(output)
         for output in spec['output'].values())
