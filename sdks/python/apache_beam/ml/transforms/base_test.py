@@ -1,0 +1,195 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+import shutil
+import tempfile
+import typing
+from typing import List
+
+import unittest
+import numpy as np
+
+import apache_beam as beam
+from apache_beam.ml.transforms import base
+from apache_beam.ml.transforms import tft_transforms
+from apache_beam.ml.transforms.tft_transforms import TFTOperation
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
+from parameterized import param
+from parameterized import parameterized
+
+
+class _FakeOperation(TFTOperation):
+  def __init__(self, name, *args, **kwargs):
+    super().__init__(*args, **kwargs)
+    self.name = name
+
+  def apply(self, inputs, output_column_name, **kwargs):
+    return {output_column_name: inputs}
+
+
+class BaseMLTransformTest(unittest.TestCase):
+  def setUp(self) -> None:
+    self.artifact_location = tempfile.mkdtemp()
+
+  def tearDown(self):
+    shutil.rmtree(self.artifact_location)
+
+  def test_ml_transform_appends_transforms_to_process_handler_correctly(self):
+    fake_fn_1 = _FakeOperation(name='fake_fn_1', columns=['x'])
+    transforms = [fake_fn_1]
+    ml_transform = base.MLTransform(
+        transforms=transforms, artifact_location=self.artifact_location)
+    ml_transform = ml_transform.with_transform(
+        transform=_FakeOperation(name='fake_fn_2', columns=['x']))
+
+    self.assertEqual(len(ml_transform._process_handler.transforms), 2)
+    self.assertEqual(
+        ml_transform._process_handler.transforms[0].name, 'fake_fn_1')
+    self.assertEqual(
+        ml_transform._process_handler.transforms[1].name, 'fake_fn_2')
+
+  def test_ml_transform_on_unbatched_dict(self):
+    transforms = [tft_transforms.ScaleTo01(columns=['x'])]
+    unbatched_data = [{'x': 1}, {'x': 2}]
+    with beam.Pipeline() as p:
+      result = (
+          p
+          | beam.Create(unbatched_data)
+          | base.MLTransform(
+              artifact_location=self.artifact_location, transforms=transforms))
+      expected_output = [
+          np.array([0.0], dtype=np.float32),
+          np.array([1.0], dtype=np.float32),
+      ]
+      actual_output = result | beam.Map(lambda x: x.x)
+      assert_that(
+          actual_output, equal_to(expected_output, equals_fn=np.array_equal))
+
+  def test_ml_transform_on_batched_dict(self):
+    transforms = [tft_transforms.ScaleTo01(columns=['x'])]
+    batched_data = [{'x': [1, 2, 3]}, {'x': [4, 5, 6]}]
+    with beam.Pipeline() as p:
+      batched_result = (
+          p
+          | beam.Create(batched_data)
+          | base.MLTransform(
+              transforms=transforms, artifact_location=self.artifact_location))
+      expected_output = [
+          np.array([0, 0.2, 0.4], dtype=np.float32),
+          np.array([0.6, 0.8, 1], dtype=np.float32),
+      ]
+      actual_output = batched_result | beam.Map(lambda x: x.x)
+      assert_that(
+          actual_output, equal_to(expected_output, equals_fn=np.array_equal))
+
+  @parameterized.expand([
+      param(
+          input_data=[{
+              'x': 1,
+              'y': 2.0,
+          }],
+          input_types={
+              'x': int, 'y': float
+          },
+          expected_dtype={
+              'x': typing.Sequence[np.float32],
+              'y': typing.Sequence[np.float32],
+          },
+      ),
+      param(
+          input_data=[{
+              'x': np.array([1], dtype=np.int64),
+              'y': np.array([2.0], dtype=np.float32),
+          }],
+          input_types={
+              'x': np.int32, 'y': np.float32
+          },
+          expected_dtype={
+              'x': typing.Sequence[np.float32],
+              'y': typing.Sequence[np.float32],
+          },
+      ),
+      param(
+          input_data=[{
+              'x': [1, 2, 3], 'y': [2.0, 3.0, 4.0]
+          }],
+          input_types={
+              'x': List[int], 'y': List[float]
+          },
+          expected_dtype={
+              'x': typing.Sequence[np.float32],
+              'y': typing.Sequence[np.float32],
+          },
+      ),
+      param(
+          input_data=[{
+              'x': [1, 2, 3], 'y': [2.0, 3.0, 4.0]
+          }],
+          input_types={
+              'x': typing.Sequence[int],
+              'y': typing.Sequence[float],
+          },
+          expected_dtype={
+              'x': typing.Sequence[np.float32],
+              'y': typing.Sequence[np.float32],
+          },
+      ),
+      # this fails on Python 3.8 since tpye subscripting is not supported
+      # param(
+      #     input_data=[{
+      #         'x': [1, 2, 3], 'y': [2.0, 3.0, 4.0]
+      #     }],
+      #     input_types={
+      #         'x': list[int], 'y': list[float]
+      #     },
+      #     expected_dtype={
+      #         'x': typing.Sequence[np.float32],
+      #         'y': typing.Sequence[np.float32]
+      #     }),
+  ])
+  def test_ml_transform_dict_output_pcoll_schema(
+      self, input_data, input_types, expected_dtype):
+    transforms = [tft_transforms.ScaleTo01(columns=['x'])]
+    with beam.Pipeline() as p:
+      schema_data = (
+          p
+          | beam.Create(input_data)
+          | beam.Map(lambda x: beam.Row(**x)).with_output_types(
+              beam.row_type.RowTypeConstraint.from_fields(
+                  list(input_types.items()))))
+      transformed_data = schema_data | base.MLTransform(
+          artifact_location=self.artifact_location, transforms=transforms)
+    for name, typ in transformed_data.element_type._fields:
+      if name in expected_dtype:
+        self.assertEqual(expected_dtype[name], typ)
+
+  def test_ml_transform_fail_for_non_global_windows_in_produce_mode(self):
+    transforms = [tft_transforms.ScaleTo01(columns=['x'])]
+    with beam.Pipeline() as p:
+      with self.assertRaises(RuntimeError):
+        _ = (
+            p
+            | beam.Create([{
+                'x': 1, 'y': 2.0
+            }])
+            | beam.WindowInto(beam.window.FixedWindows(1))
+            | base.MLTransform(
+                transforms=transforms,
+                artifact_location=self.artifact_location,
+                artifact_mode=base.ArtifactMode.PRODUCE,
+            ))
