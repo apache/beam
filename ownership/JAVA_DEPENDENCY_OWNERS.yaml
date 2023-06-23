@@ -139,8 +139,8 @@ deps:
     artifact: jackson-module-scala_2.11
     owners:
 
-  com.github.davidmc24.gradle.plugin:gradle-avro-plugin:
-    group: com.github.davidmc24.gradle.plugin
+  com.github.davidmc24.gradle-avro-plugin:gradle-avro-plugin:
+    group: com.github.davidmc24.gradle-avro-plugin
     artifact: gradle-avro-plugin
     owners:
 
