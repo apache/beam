@@ -14,6 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import shutil
+import tempfile
+import os
 import sys
 import typing
 from typing import NamedTuple
@@ -31,6 +34,8 @@ try:
   from apache_beam.ml.transforms import handlers
   from apache_beam.ml.transforms import tft_transforms
   from apache_beam.ml.transforms.tft_transforms import TFTOperation
+  from apache_beam.testing.util import assert_that
+  from apache_beam.testing.util import equal_to
   import tensorflow as tf
   from tensorflow_transform.tf_metadata import dataset_metadata
   from tensorflow_transform.tf_metadata import schema_utils
@@ -76,7 +81,13 @@ class BatchedNumpyType(NamedTuple):
   x: np.int64
 
 
-class TFTProcessHandlerOnSchemaDataTest(unittest.TestCase):
+class TFTProcessHandlerTest(unittest.TestCase):
+  def setUp(self) -> None:
+    self.artifact_location = tempfile.mkdtemp()
+
+  def tearDown(self):
+    shutil.rmtree(self.artifact_location)
+
   @parameterized.expand([
       ({
           'x': 1, 'y': 2
@@ -283,6 +294,45 @@ class TFTProcessHandlerOnSchemaDataTest(unittest.TestCase):
         process_handler._get_transformed_data_schema(raw_data_metadata))
     self.assertDictEqual(
         actual_transformed_data_schema, expected_transformed_data_schema)
+
+  def test_tft_process_handler_verify_artifacts(self):
+    with beam.Pipeline() as p:
+      raw_data = (
+          p
+          | beam.Create([{
+              'x': np.array([1, 3])
+          }, {
+              'x': np.array([4, 6])
+          }]))
+      process_handler = handlers.TFTProcessHandler(
+          transforms=[tft_transforms.ScaleTo01(columns=['x'])],
+          artifact_location=self.artifact_location,
+      )
+      _ = process_handler.process_data(raw_data)
+
+      self.assertTrue(
+          os.path.exists(
+              os.path.join(
+                  self.artifact_location, handlers.RAW_DATA_METADATA_DIR)))
+      self.assertTrue(
+          os.path.exists(
+              os.path.join(
+                  self.artifact_location,
+                  handlers.RAW_DATA_METADATA_DIR,
+                  handlers.SCHEMA_FILE)))
+
+    with beam.Pipeline() as p:
+      raw_data = (p | beam.Create([{'x': np.array([2, 5])}]))
+      process_handler = handlers.TFTProcessHandler(
+          artifact_location=self.artifact_location, artifact_mode='consume')
+      transformed_data = process_handler.process_data(raw_data)
+      transformed_data |= beam.Map(lambda x: x.x)
+
+      # the previous min is 1 and max is 6. So this should scale by (1, 6)
+      assert_that(
+          transformed_data,
+          equal_to([np.array([0.2, 0.8], dtype=np.float32)],
+                   equals_fn=np.array_equal))
 
 
 if __name__ == '__main__':
