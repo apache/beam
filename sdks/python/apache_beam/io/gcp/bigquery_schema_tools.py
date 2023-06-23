@@ -77,7 +77,8 @@ def generate_user_type_from_bq_schema(the_table_schema):
           f"Encountered "
           f"an unsupported type: {the_schema['fields'][i]['type']!r}")
     field_names_and_types.append((the_schema['fields'][i]['name'], typ))
-  sample_schema = beam.typehints.schemas.named_fields_to_schema(field_names_and_types)
+  sample_schema = beam.typehints.schemas.named_fields_to_schema(
+      field_names_and_types)
   usertype = beam.typehints.schemas.named_tuple_from_schema(sample_schema)
   return usertype
 
