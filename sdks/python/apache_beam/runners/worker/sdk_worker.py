@@ -293,7 +293,7 @@ class SdkHarness(object):
     with statesampler.instruction_id(request.instruction_id):
       try:
         response = task()
-      except Exception:  # pylint: disable=broad-except
+      except:  # pylint: disable=bare-except
         traceback_string = traceback.format_exc()
         print(traceback_string, file=sys.stderr)
         _LOGGER.error(
@@ -680,7 +680,7 @@ class SdkWorker(object):
       if not requests_finalization:
         self.bundle_processor_cache.release(instruction_id)
       return response
-    except:  # pylint: disable=broad-except
+    except:  # pylint: disable=bare-except
       # Don't re-use bundle processors on failure.
       self.bundle_processor_cache.discard(instruction_id)
       raise

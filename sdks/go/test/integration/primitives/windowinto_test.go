@@ -18,105 +18,76 @@ package primitives
 import (
 	"testing"
 
-	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 	"github.com/apache/beam/sdks/v2/go/test/integration"
 )
 
 func TestWindowSums_Lifted(t *testing.T) {
 	integration.CheckFilters(t)
-	p, s := beam.NewPipelineWithRoot()
-	WindowSums_Lifted(s)
-	ptest.RunAndValidate(t, p)
+	ptest.BuildAndRun(t, WindowSums_Lifted)
 }
 
 func TestWindowSums_GBK(t *testing.T) {
 	integration.CheckFilters(t)
-	p, s := beam.NewPipelineWithRoot()
-	WindowSums_GBK(s)
-	ptest.RunAndValidate(t, p)
+	ptest.BuildAndRun(t, WindowSums_GBK)
 }
 
 func TestValidateWindowedSideInputs(t *testing.T) {
 	integration.CheckFilters(t)
-	p, s := beam.NewPipelineWithRoot()
-	ValidateWindowedSideInputs(s)
-	ptest.RunAndValidate(t, p)
+	ptest.BuildAndRun(t, ValidateWindowedSideInputs)
 }
 
 func TestTriggerDefault(t *testing.T) {
 	integration.CheckFilters(t)
-	p, s := beam.NewPipelineWithRoot()
-	TriggerDefault(s)
-	ptest.RunAndValidate(t, p)
+	ptest.BuildAndRun(t, TriggerDefault)
 }
 
 func TestTriggerAlways(t *testing.T) {
 	integration.CheckFilters(t)
-	p, s := beam.NewPipelineWithRoot()
-	TriggerAlways(s)
-	ptest.RunAndValidate(t, p)
+	ptest.BuildAndRun(t, TriggerAlways)
 }
 
 func TestTriggerElementCount(t *testing.T) {
 	integration.CheckFilters(t)
-	p, s := beam.NewPipelineWithRoot()
-	TriggerElementCount(s)
-	ptest.RunAndValidate(t, p)
+	ptest.BuildAndRun(t, TriggerElementCount)
 }
 
 func TestTriggerRepeat(t *testing.T) {
 	integration.CheckFilters(t)
-	p, s := beam.NewPipelineWithRoot()
-	TriggerRepeat(s)
-	ptest.RunAndValidate(t, p)
+	ptest.BuildAndRun(t, TriggerRepeat)
 }
 
 func TestTriggerAfterEndOfWindow(t *testing.T) {
 	integration.CheckFilters(t)
-	p, s := beam.NewPipelineWithRoot()
-	TriggerAfterEndOfWindow(s)
-	ptest.RunAndValidate(t, p)
+	ptest.BuildAndRun(t, TriggerAfterEndOfWindow)
 }
 
 func TestTriggerAfterAll(t *testing.T) {
 	integration.CheckFilters(t)
-	p, s := beam.NewPipelineWithRoot()
-	TriggerAfterAll(s)
-	ptest.RunAndValidate(t, p)
+	ptest.BuildAndRun(t, TriggerAfterAll)
 }
 
 func TestTriggerAfterEach(t *testing.T) {
 	integration.CheckFilters(t)
-	p, s := beam.NewPipelineWithRoot()
-	TriggerAfterEach(s)
-	ptest.RunAndValidate(t, p)
+	ptest.BuildAndRun(t, TriggerAfterEach)
 }
 
 func TestTriggerAfterAny(t *testing.T) {
 	integration.CheckFilters(t)
-	p, s := beam.NewPipelineWithRoot()
-	TriggerAfterAny(s)
-	ptest.RunAndValidate(t, p)
+	ptest.BuildAndRun(t, TriggerAfterAny)
 }
 
 func TestTriggerAfterSynchronizedProcessingTime(t *testing.T) {
 	integration.CheckFilters(t)
-	p, s := beam.NewPipelineWithRoot()
-	TriggerAfterSynchronizedProcessingTime(s)
-	ptest.RunAndValidate(t, p)
+	ptest.BuildAndRun(t, TriggerAfterSynchronizedProcessingTime)
 }
 
 func TestTriggerNever(t *testing.T) {
 	integration.CheckFilters(t)
-	p, s := beam.NewPipelineWithRoot()
-	TriggerNever(s)
-	ptest.RunAndValidate(t, p)
+	ptest.BuildAndRun(t, TriggerNever)
 }
 
 func TestTriggerOrFinally(t *testing.T) {
 	integration.CheckFilters(t)
-	p, s := beam.NewPipelineWithRoot()
-	TriggerOrFinally(s)
-	ptest.RunAndValidate(t, p)
+	ptest.BuildAndRun(t, TriggerOrFinally)
 }

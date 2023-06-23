@@ -17,8 +17,6 @@
  */
 /** Partition reconciler for Google Cloud Bigtable Change Streams. */
 @Internal
-@Experimental
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams.reconciler;
 
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;

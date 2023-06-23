@@ -19,8 +19,6 @@ package org.apache.beam.sdk.io.hcatalog;
 
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
@@ -39,7 +37,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * <p>One of the use cases is to perform the schema conversion without leaking any HCatalog types.
  */
-@Experimental(Kind.SCHEMAS)
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })

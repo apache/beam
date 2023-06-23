@@ -20,7 +20,6 @@ package org.apache.beam.sdk.extensions.sql.impl;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelCollation;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelDistribution;
@@ -31,7 +30,6 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.ImmutableB
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /** This class stores row count statistics. */
-@Experimental
 @Internal
 public class BeamTableStatistics implements Serializable, Statistic {
   public static final BeamTableStatistics BOUNDED_UNKNOWN = new BeamTableStatistics(100d, 0d, true);

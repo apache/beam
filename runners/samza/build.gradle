@@ -143,6 +143,7 @@ tasks.register("validatesRunner", Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesMultimapState'
     excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
     excludeCategories 'org.apache.beam.sdk.testing.UsesLoopingTimer'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesTriggeredSideInputs'
   }
   filter {
     for (String test : sickbayTests) {

@@ -88,7 +88,7 @@ public class KafkaReadSchemaTransformProviderTest {
             .filter(provider -> provider.getClass() == KafkaReadSchemaTransformProvider.class)
             .collect(Collectors.toList());
     SchemaTransformProvider kafkaProvider = providers.get(0);
-    assertEquals(kafkaProvider.outputCollectionNames(), Lists.newArrayList("output"));
+    assertEquals(kafkaProvider.outputCollectionNames(), Lists.newArrayList("output", "errors"));
     assertEquals(kafkaProvider.inputCollectionNames(), Lists.newArrayList());
 
     assertEquals(

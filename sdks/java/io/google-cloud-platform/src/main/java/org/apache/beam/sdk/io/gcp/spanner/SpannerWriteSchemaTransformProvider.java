@@ -21,10 +21,13 @@ import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.spanner.Mutation;
 import java.io.Serializable;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
@@ -32,9 +35,11 @@ import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.FlatMapElements;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
@@ -67,6 +72,31 @@ public class SpannerWriteSchemaTransformProvider
 
     SpannerSchemaTransformWrite(SpannerWriteSchemaTransformConfiguration configuration) {
       this.configuration = configuration;
+    }
+
+    // A generic counter for PCollection of Row. Will be initialized with the given
+    // name argument. Performs element-wise counter of the input PCollection.
+    private static class ElementCounterFn extends DoFn<Row, Row> {
+
+      private Counter spannerGenericElementCounter;
+      private Long elementsInBundle = 0L;
+
+      ElementCounterFn(String name) {
+        this.spannerGenericElementCounter =
+            Metrics.counter(SpannerSchemaTransformWrite.class, name);
+      }
+
+      @ProcessElement
+      public void process(ProcessContext c) {
+        this.elementsInBundle += 1;
+        c.output(c.element());
+      }
+
+      @FinishBundle
+      public void finish(FinishBundleContext c) {
+        this.spannerGenericElementCounter.inc(this.elementsInBundle);
+        this.elementsInBundle = 0L;
+      }
     }
 
     @Override
@@ -126,8 +156,11 @@ public class SpannerWriteSchemaTransformProvider
                                                           mutation.getValues().iterator()))
                                                   .build())
                                       .collect(Collectors.toList())))
+                  .setRowSchema(failureSchema)
+                  .apply(
+                      "error-count", ParDo.of(new ElementCounterFn("Spanner-write-error-counter")))
                   .setRowSchema(failureSchema);
-          return PCollectionRowTuple.of("failures", failures);
+          return PCollectionRowTuple.of("failures", failures).and("errors", failures);
         }
       };
     }
@@ -147,7 +180,7 @@ public class SpannerWriteSchemaTransformProvider
   @Override
   public @UnknownKeyFor @NonNull @Initialized List<@UnknownKeyFor @NonNull @Initialized String>
       outputCollectionNames() {
-    return Collections.singletonList("failures");
+    return Arrays.asList("failures", "errors");
   }
 
   @AutoValue

@@ -71,6 +71,7 @@ excluded_patterns=(
     'apache_beam/testing/benchmarks/load_tests/'
     'apache_beam/testing/analyzers'
     'apache_beam/testing/.*test.py'
+    'apache_beam/testing/fast_test_utils.*'
     'apache_beam/tools/'
     'apache_beam/tools/map_fn_microbenchmark.*'
     'apache_beam/transforms/cy_combiners.*'

@@ -26,8 +26,6 @@ import com.google.auto.value.AutoValue;
 import java.util.Collections;
 import java.util.List;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead;
@@ -61,7 +59,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-@Experimental(Kind.SCHEMAS)
 @AutoService(SchemaTransformProvider.class)
 public class BigQueryDirectReadSchemaTransformProvider
     extends TypedSchemaTransformProvider<BigQueryDirectReadSchemaTransformConfiguration> {

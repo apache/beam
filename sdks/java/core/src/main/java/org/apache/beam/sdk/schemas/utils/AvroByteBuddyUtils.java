@@ -36,8 +36,6 @@ import net.bytebuddy.implementation.bytecode.member.MethodVariableAccess;
 import net.bytebuddy.jar.asm.ClassWriter;
 import net.bytebuddy.matcher.ElementMatchers;
 import org.apache.avro.specific.SpecificRecord;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaUserTypeCreator;
 import org.apache.beam.sdk.schemas.utils.AvroUtils.AvroTypeConversionFactory;
@@ -56,7 +54,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
  *     org.apache.beam.sdk.extensions.avro.schemas.utils.AvroByteBuddyUtils</code> instead of this
  *     one.
  */
-@Experimental(Kind.SCHEMAS)
 @SuppressWarnings({
   "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes"

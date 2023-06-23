@@ -20,7 +20,10 @@ package org.apache.beam.sdk.io.gcp.bigtable.changestreams.dofn;
 import java.io.IOException;
 import java.io.Serializable;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.io.gcp.bigtable.BigtableIO.ExistingPipelineOptions;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.DaoFactory;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.model.DetectNewPartitionsState;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.model.InitialPipelineState;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -31,23 +34,28 @@ import org.slf4j.LoggerFactory;
  * pipeline.
  */
 @Internal
-public class InitializeDoFn extends DoFn<byte[], Instant> implements Serializable {
+public class InitializeDoFn extends DoFn<byte[], InitialPipelineState> implements Serializable {
   private static final long serialVersionUID = 1868189906451252363L;
 
   private static final Logger LOG = LoggerFactory.getLogger(InitializeDoFn.class);
   private final DaoFactory daoFactory;
   private final String metadataTableAppProfileId;
   private Instant startTime;
+  private final ExistingPipelineOptions existingPipelineOptions;
 
   public InitializeDoFn(
-      DaoFactory daoFactory, String metadataTableAppProfileId, Instant startTime) {
+      DaoFactory daoFactory,
+      String metadataTableAppProfileId,
+      Instant startTime,
+      ExistingPipelineOptions existingPipelineOptions) {
     this.daoFactory = daoFactory;
     this.metadataTableAppProfileId = metadataTableAppProfileId;
     this.startTime = startTime;
+    this.existingPipelineOptions = existingPipelineOptions;
   }
 
   @ProcessElement
-  public void processElement(OutputReceiver<Instant> receiver) throws IOException {
+  public void processElement(OutputReceiver<InitialPipelineState> receiver) throws IOException {
     LOG.info(daoFactory.getStreamTableDebugString());
     LOG.info(daoFactory.getMetadataTableDebugString());
     LOG.info("ChangeStreamName: " + daoFactory.getChangeStreamName());
@@ -69,8 +77,64 @@ public class InitializeDoFn extends DoFn<byte[], Instant> implements Serializabl
           "Reusing existing metadata table: " + daoFactory.getMetadataTableAdminDao().getTableId());
     }
 
-    daoFactory.getMetadataTableDao().writeDetectNewPartitionVersion();
+    boolean resume = false;
+    DetectNewPartitionsState detectNewPartitionsState =
+        daoFactory.getMetadataTableDao().readDetectNewPartitionsState();
 
-    receiver.output(startTime);
+    switch (existingPipelineOptions) {
+      case NEW:
+        // clean up table
+        LOG.info(
+            "Cleaning up an old pipeline with the same change stream name to start a new pipeline with the same name.");
+        daoFactory.getMetadataTableAdminDao().cleanUpPrefix();
+        break;
+      case RESUME_OR_NEW:
+        // perform resumption.
+        if (detectNewPartitionsState != null) {
+          resume = true;
+          startTime = detectNewPartitionsState.getWatermark();
+          LOG.info("Resuming from previous pipeline with low watermark of {}", startTime);
+        } else {
+          LOG.info(
+              "Attempted to resume, but previous watermark does not exist, starting at {}",
+              startTime);
+          daoFactory.getMetadataTableAdminDao().cleanUpPrefix();
+        }
+        break;
+      case RESUME_OR_FAIL:
+        // perform resumption.
+        if (detectNewPartitionsState != null) {
+          resume = true;
+          startTime = detectNewPartitionsState.getWatermark();
+          LOG.info("Resuming from previous pipeline with low watermark of {}", startTime);
+        } else {
+          LOG.error("Previous pipeline with the same change stream name doesn't exist, stopping");
+          return;
+        }
+        break;
+      case FAIL_IF_EXISTS:
+        if (detectNewPartitionsState != null) {
+          LOG.error(
+              "A previous pipeline exists with the same change stream name and existingPipelineOption is set to FAIL_IF_EXISTS.");
+          return;
+        }
+        // We still want to clean up any existing prefixes in case there are lingering metadata that
+        // would interfere with the new run.
+        daoFactory.getMetadataTableAdminDao().cleanUpPrefix();
+        break;
+      case SKIP_CLEANUP:
+        if (detectNewPartitionsState != null) {
+          LOG.error(
+              "A previous pipeline exists with the same change stream name and existingPipelineOption is set to SKIP_CLEANUP. This option should only be used in tests.");
+          return;
+        }
+        break;
+      default:
+        LOG.error("Unexpected existingPipelineOptions option.");
+        // terminate pipeline
+        return;
+    }
+    daoFactory.getMetadataTableDao().writeDetectNewPartitionVersion();
+    receiver.output(new InitialPipelineState(startTime, resume));
   }
 }

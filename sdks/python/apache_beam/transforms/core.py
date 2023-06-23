@@ -125,8 +125,6 @@ class DoFnContext(object):
 class DoFnProcessContext(DoFnContext):
   """A processing context passed to DoFn process() during execution.
 
-  Experimental; no backwards-compatibility guarantees.
-
   Most importantly, a DoFn.process method will access context.element
   to get the element it is supposed to process.
 
@@ -177,8 +175,6 @@ class DoFnProcessContext(DoFnContext):
 class ProcessContinuation(object):
   """An object that may be produced as the last element of a process method
     invocation.
-
-  Experimental; no backwards-compatibility guarantees.
 
   If produced, indicates that there is more work to be done for the current
   input element.

@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.DescriptorProtos.DescriptorProto;
@@ -347,7 +348,8 @@ public class AvroGenericRecordToStorageApiProtoTest {
     DescriptorProto descriptor =
         TableRowToStorageApiProto.descriptorSchemaFromTableSchema(
             AvroGenericRecordToStorageApiProto.protoTableSchemaFromAvroSchema(originalSchema),
-            true);
+            true,
+            false);
     Map<String, Type> types =
         descriptor.getFieldList().stream()
             .collect(
@@ -390,7 +392,9 @@ public class AvroGenericRecordToStorageApiProtoTest {
   public void testNestedFromSchema() {
     DescriptorProto descriptor =
         TableRowToStorageApiProto.descriptorSchemaFromTableSchema(
-            AvroGenericRecordToStorageApiProto.protoTableSchemaFromAvroSchema(NESTED_SCHEMA), true);
+            AvroGenericRecordToStorageApiProto.protoTableSchemaFromAvroSchema(NESTED_SCHEMA),
+            true,
+            false);
     Map<String, Type> expectedBaseTypes =
         BASE_SCHEMA_PROTO.getFieldList().stream()
             .collect(
@@ -446,9 +450,12 @@ public class AvroGenericRecordToStorageApiProtoTest {
   public void testMessageFromGenericRecord() throws Exception {
     Descriptors.Descriptor descriptor =
         TableRowToStorageApiProto.getDescriptorFromTableSchema(
-            AvroGenericRecordToStorageApiProto.protoTableSchemaFromAvroSchema(NESTED_SCHEMA), true);
+            AvroGenericRecordToStorageApiProto.protoTableSchemaFromAvroSchema(NESTED_SCHEMA),
+            true,
+            false);
     DynamicMessage msg =
-        AvroGenericRecordToStorageApiProto.messageFromGenericRecord(descriptor, nestedRecord);
+        AvroGenericRecordToStorageApiProto.messageFromGenericRecord(
+            descriptor, nestedRecord, null, -1);
 
     assertEquals(2, msg.getAllFields().size());
 
@@ -460,13 +467,37 @@ public class AvroGenericRecordToStorageApiProtoTest {
   }
 
   @Test
+  public void testCdcFields() throws Exception {
+    Descriptors.Descriptor descriptor =
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(
+            AvroGenericRecordToStorageApiProto.protoTableSchemaFromAvroSchema(NESTED_SCHEMA),
+            true,
+            true);
+    assertNotNull(descriptor.findFieldByName(StorageApiCDC.CHANGE_TYPE_COLUMN));
+    assertNotNull(descriptor.findFieldByName(StorageApiCDC.CHANGE_SQN_COLUMN));
+
+    DynamicMessage msg =
+        AvroGenericRecordToStorageApiProto.messageFromGenericRecord(
+            descriptor, nestedRecord, "UPDATE", 42);
+
+    assertEquals(4, msg.getAllFields().size());
+    Map<String, Descriptors.FieldDescriptor> fieldDescriptors =
+        descriptor.getFields().stream()
+            .collect(Collectors.toMap(Descriptors.FieldDescriptor::getName, Functions.identity()));
+    assertEquals("UPDATE", msg.getField(fieldDescriptors.get(StorageApiCDC.CHANGE_TYPE_COLUMN)));
+    assertEquals(42L, msg.getField(fieldDescriptors.get(StorageApiCDC.CHANGE_SQN_COLUMN)));
+  }
+
+  @Test
   public void testMessageFromGenericRecordLogicalTypes() throws Exception {
     Descriptors.Descriptor descriptor =
         TableRowToStorageApiProto.getDescriptorFromTableSchema(
             AvroGenericRecordToStorageApiProto.protoTableSchemaFromAvroSchema(LOGICAL_TYPES_SCHEMA),
-            true);
+            true,
+            false);
     DynamicMessage msg =
-        AvroGenericRecordToStorageApiProto.messageFromGenericRecord(descriptor, logicalTypesRecord);
+        AvroGenericRecordToStorageApiProto.messageFromGenericRecord(
+            descriptor, logicalTypesRecord, null, -1);
     assertEquals(7, msg.getAllFields().size());
     assertBaseRecord(msg, logicalTypesProtoExpectedFields);
   }

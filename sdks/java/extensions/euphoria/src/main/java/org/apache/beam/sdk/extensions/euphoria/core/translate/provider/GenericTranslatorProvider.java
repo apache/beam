@@ -23,7 +23,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Predicate;
-import org.apache.beam.sdk.extensions.euphoria.core.annotation.stability.Experimental;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.CompositeOperator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.FlatMap;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join;
@@ -47,7 +46,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditio
  * GenericTranslatorProvider.Builder#register(Class, OperatorTranslator) register} method during
  * build. Order of registration is important. Building is started by {@link #newBuilder()}.
  */
-@Experimental
 @SuppressWarnings({
   "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })

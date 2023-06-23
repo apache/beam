@@ -35,6 +35,7 @@ import com.google.api.services.dataflow.model.Job;
 import com.google.api.services.dataflow.model.ListJobsResponse;
 import com.google.api.services.dataflow.model.SdkHarnessContainerImage;
 import com.google.api.services.dataflow.model.WorkerPool;
+import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -63,12 +64,14 @@ import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.External;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
+import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
 import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.core.construction.SplittableParDoNaiveBounded;
+import org.apache.beam.runners.core.construction.TransformPayloadTranslatorRegistrar;
 import org.apache.beam.runners.core.construction.UnboundedReadFromBoundedSource;
 import org.apache.beam.runners.core.construction.UnconsumedReads;
 import org.apache.beam.runners.core.construction.WriteFilesTranslation;
@@ -87,7 +90,6 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.PipelineRunner;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -103,6 +105,8 @@ import org.apache.beam.sdk.io.WriteFiles;
 import org.apache.beam.sdk.io.WriteFilesResult;
 import org.apache.beam.sdk.io.fs.ResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.io.gcp.bigquery.StorageApiLoads;
+import org.apache.beam.sdk.io.gcp.bigquery.StreamingWriteTables;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageWithAttributesAndMessageIdCoder;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageWithAttributesCoder;
@@ -167,6 +171,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Utf8;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.HashCode;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Files;
@@ -1067,6 +1072,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     logWarningIfPCollectionViewHasNonDeterministicKeyCoder(pipeline);
+    logWarningIfBigqueryDLQUnused(pipeline);
     if (shouldActAsStreaming(pipeline)) {
       options.setStreaming(true);
 
@@ -1561,12 +1567,63 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   }
 
   /** Sets callbacks to invoke during execution see {@code DataflowRunnerHooks}. */
-  @Experimental
   public void setHooks(DataflowRunnerHooks hooks) {
     this.hooks = hooks;
   }
 
   /////////////////////////////////////////////////////////////////////////////
+
+  private void logWarningIfBigqueryDLQUnused(Pipeline pipeline) {
+    Map<PCollection<?>, String> unconsumedDLQ = Maps.newHashMap();
+    pipeline.traverseTopologically(
+        new PipelineVisitor.Defaults() {
+          @Override
+          public CompositeBehavior enterCompositeTransform(Node node) {
+            PTransform<?, ?> transform = node.getTransform();
+            if (transform != null) {
+              TupleTag<?> failedTag = null;
+              String rootBigQueryTransform = "";
+              if (transform.getClass().equals(StorageApiLoads.class)) {
+                StorageApiLoads<?, ?> storageLoads = (StorageApiLoads<?, ?>) transform;
+                failedTag = storageLoads.getFailedRowsTag();
+                // For storage API the transform that outputs failed rows is nested one layer below
+                // BigQueryIO.
+                rootBigQueryTransform = node.getEnclosingNode().getFullName();
+              } else if (transform.getClass().equals(StreamingWriteTables.class)) {
+                StreamingWriteTables<?> streamingInserts = (StreamingWriteTables<?>) transform;
+                failedTag = streamingInserts.getFailedRowsTupleTag();
+                // For streaming inserts the transform that outputs failed rows is nested two layers
+                // below BigQueryIO.
+                rootBigQueryTransform = node.getEnclosingNode().getEnclosingNode().getFullName();
+              }
+              if (failedTag != null) {
+                PCollection<?> dlq = node.getOutputs().get(failedTag);
+                if (dlq != null) {
+                  unconsumedDLQ.put(dlq, rootBigQueryTransform);
+                }
+              }
+            }
+
+            for (PCollection<?> input : node.getInputs().values()) {
+              unconsumedDLQ.remove(input);
+            }
+            return CompositeBehavior.ENTER_TRANSFORM;
+          }
+
+          @Override
+          public void visitPrimitiveTransform(Node node) {
+            for (PCollection<?> input : node.getInputs().values()) {
+              unconsumedDLQ.remove(input);
+            }
+          }
+        });
+    for (String unconsumed : unconsumedDLQ.values()) {
+      LOG.warn(
+          "No transform processes the failed-inserts output from BigQuery sink: "
+              + unconsumed
+              + "! Not processing failed inserts means that those rows will be lost.");
+    }
+  }
 
   /** Outputs a warning about PCollection views without deterministic key coders. */
   private void logWarningIfPCollectionViewHasNonDeterministicKeyCoder(Pipeline pipeline) {
@@ -1859,14 +1916,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
               ((NestedValueProvider) overriddenTransform.getTopicProvider()).propertyName());
         }
       } else {
-        DataflowPipelineOptions options =
-            input.getPipeline().getOptions().as(DataflowPipelineOptions.class);
-        if (options.getEnableDynamicPubsubDestinations()) {
-          stepContext.addInput(PropertyNames.PUBSUB_DYNAMIC_DESTINATIONS, true);
-        } else {
-          throw new RuntimeException(
-              "Dynamic Pubsub destinations not yet supported. Topic must be set.");
-        }
+        stepContext.addInput(PropertyNames.PUBSUB_DYNAMIC_DESTINATIONS, true);
       }
       if (overriddenTransform.getTimestampAttribute() != null) {
         stepContext.addInput(
@@ -2448,6 +2498,44 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           String.format(
               "%s does not currently support state or timers with merging windows",
               DataflowRunner.class.getSimpleName()));
+    }
+  }
+
+  /**
+   * These are for dataflow-specific classes where we put fake stubs in the pipeline proto to pass
+   * validation.
+   */
+  private static class DataflowPayloadTranslator
+      implements TransformPayloadTranslator<PTransform<?, ?>> {
+    @Override
+    public String getUrn(PTransform transform) {
+      return "dataflow_stub:" + transform.getClass().getName();
+    }
+
+    @Override
+    public RunnerApi.FunctionSpec translate(
+        AppliedPTransform<?, ?, PTransform<?, ?>> application, SdkComponents components)
+        throws IOException {
+      return RunnerApi.FunctionSpec.newBuilder().setUrn(getUrn(application.getTransform())).build();
+    }
+  }
+
+  @SuppressWarnings({
+    "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+  })
+  @AutoService(TransformPayloadTranslatorRegistrar.class)
+  public static class DataflowTransformTranslator implements TransformPayloadTranslatorRegistrar {
+    @Override
+    public Map<? extends Class<? extends PTransform>, ? extends TransformPayloadTranslator>
+        getTransformPayloadTranslators() {
+      TransformPayloadTranslator dummyTranslator = new DataflowPayloadTranslator();
+      return ImmutableMap.<Class<? extends PTransform>, TransformPayloadTranslator>builder()
+          .put(CreateDataflowView.class, dummyTranslator)
+          .put(BatchViewOverrides.GroupByKeyAndSortValuesOnly.class, dummyTranslator)
+          .put(StreamingPubsubIORead.class, dummyTranslator)
+          .put(StreamingUnboundedRead.ReadWithIds.class, dummyTranslator)
+          .put(CombineGroupedValues.class, dummyTranslator)
+          .build();
     }
   }
 }

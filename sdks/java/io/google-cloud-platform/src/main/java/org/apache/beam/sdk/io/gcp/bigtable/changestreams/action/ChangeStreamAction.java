@@ -90,9 +90,9 @@ public class ChangeStreamAction {
    * <p>There are 2 cases that cause this function to return a non-empty ProcessContinuation.
    *
    * <ol>
-   *   <li>We fail to claim a RestrictionTracker. This can happen for a runner-initiated checkpoint.
+   *   <li>We fail to claim a StreamProgress. This can happen for a runner-initiated checkpoint.
    *       When the runner initiates a checkpoint, we will stop and checkpoint pending
-   *       ChangeStreamMutations and resume from the previous RestrictionTracker.
+   *       ChangeStreamMutations and resume from the previous StreamProgress.
    *   <li>The response is a CloseStream. RestrictionTracker claims the CloseStream. We don't do any
    *       additional processing of the response. We return resume to signal to the caller that to
    *       checkpoint all pending ChangeStreamMutations. We expect the caller to check the
@@ -136,7 +136,7 @@ public class ChangeStreamAction {
       if (!tracker.tryClaim(streamProgress)) {
         if (shouldDebug) {
           LOG.info(
-              "RCSP {}: Failed to claim heart beat tracker",
+              "RCSP {}: Checkpoint heart beat tracker",
               formatByteStringRange(partitionRecord.getPartition()));
         }
         return Optional.of(DoFn.ProcessContinuation.stop());
@@ -167,7 +167,7 @@ public class ChangeStreamAction {
       if (!tracker.tryClaim(streamProgress)) {
         if (shouldDebug) {
           LOG.info(
-              "RCSP {}: Failed to claim close stream tracker",
+              "RCSP {}: Checkpoint close stream tracker",
               formatByteStringRange(partitionRecord.getPartition()));
         }
         return Optional.of(DoFn.ProcessContinuation.stop());
@@ -192,7 +192,7 @@ public class ChangeStreamAction {
       if (!tracker.tryClaim(streamProgress)) {
         if (shouldDebug) {
           LOG.info(
-              "RCSP {}: Failed to claim data change tracker",
+              "RCSP {}: Checkpoint data change tracker",
               formatByteStringRange(partitionRecord.getPartition()));
         }
         return Optional.of(DoFn.ProcessContinuation.stop());

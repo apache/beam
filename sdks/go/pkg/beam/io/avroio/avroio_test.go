@@ -28,7 +28,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 
-	"github.com/linkedin/goavro"
+	"github.com/linkedin/goavro/v2"
 )
 
 type Tweet struct {
@@ -48,6 +48,60 @@ func TestRead(t *testing.T) {
 		Stamp: int64(20),
 		Tweet: "Hello twitter",
 		User:  "user1",
+	})
+
+	ptest.RunAndValidate(t, p)
+}
+
+// Google Bigquery exports nullable fields from bigquery to Avro
+// (using "use_avro_logical_types=true") in the following way:
+// {"name":"tweet","type":["null","string"],"default":null}
+//
+// The equivalent Go struct for this representation looks like the below:
+//
+//	type GoTypeFromGBQAvro struct {
+//	   Tweet struct {
+//	   	 	Value string `json:"string"`
+//	   } `json:"tweet,omitempty"`
+//	}
+//
+// For readability, using the below nested struct set-up.
+type NullableFloat64 struct {
+	Value float64 `json:"double"`
+}
+
+type NullableString struct {
+	Value string `json:"string"`
+}
+
+type NullableTweet struct {
+	Stamp NullableFloat64 `json:"timestamp,omitempty"`
+	Tweet NullableString  `json:"tweet,omitempty"`
+	User  NullableString  `json:"username,omitempty"`
+}
+
+// tweetwithnulls.avro contains the following values:
+// Row 1: "timestamp": "20", "tweet": "Hello twitter", "username": "user1"
+// Row 2: "timestamp": "21", "tweet": "Hello twitter again",
+// with no / a null "username" field.
+// This is generated via the "EXPORT DATA OPTIONS"
+// command from Google Bigquery (with use_avro_logical_types=true)
+// In Bigquery, "timestamp" is a nullable FLOAT,
+// "tweet" is a nullable STRING, and "username" is a nullable STRING.
+func TestReadWithNullableValues(t *testing.T) {
+	avroFile := "../../../../data/tweetwithnulls.avro"
+
+	p := beam.NewPipeline()
+	s := p.Root()
+	tweets := Read(s, avroFile, reflect.TypeOf(NullableTweet{}))
+	passert.Count(s, tweets, "NumUsers", 2)
+	passert.Equals(s, tweets, NullableTweet{
+		Stamp: NullableFloat64{Value: 20},
+		Tweet: NullableString{Value: "Hello twitter"},
+		User:  NullableString{Value: "user1"},
+	}, NullableTweet{
+		Stamp: NullableFloat64{Value: 21},
+		Tweet: NullableString{Value: "Hello twitter again"},
 	})
 
 	ptest.RunAndValidate(t, p)

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.samza.metrics;
 
+import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.samza.runtime.Op;
 import org.checkerframework.checker.nullness.qual.NonNull;
 
@@ -45,6 +46,7 @@ public class SamzaMetricOpFactory {
   /**
    * Create a {@link Op} for default transform metric computation.
    *
+   * @param urn URN of the PCollection metric Op is processing
    * @param pValue name of the PCollection metric Op is processing
    * @param transformName name of the PTransform for which metric Op is created
    * @param opType type of the metric
@@ -53,17 +55,19 @@ public class SamzaMetricOpFactory {
    * @return a {@link Op} for default transform metric computation
    */
   public static @NonNull <T> Op<T, T, Void> createMetricOp(
+      @NonNull String urn,
       @NonNull String pValue,
       @NonNull String transformName,
       @NonNull OpType opType,
       @NonNull SamzaTransformMetricRegistry samzaTransformMetricRegistry) {
-    switch (opType) {
-      case INPUT:
-        return new SamzaInputMetricOp(pValue, transformName, samzaTransformMetricRegistry);
-      case OUTPUT:
-        return new SamzaOutputMetricOp(pValue, transformName, samzaTransformMetricRegistry);
-      default:
-        throw new IllegalArgumentException("Unknown OpType: " + opType);
+    if (isDataShuffleTransform(urn)) {
+      return new SamzaGBKMetricOp<>(pValue, transformName, opType, samzaTransformMetricRegistry);
     }
+    return new SamzaMetricOp<>(pValue, transformName, opType, samzaTransformMetricRegistry);
+  }
+
+  private static boolean isDataShuffleTransform(String urn) {
+    return urn.equals(PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN)
+        || urn.equals(PTransformTranslation.COMBINE_PER_KEY_TRANSFORM_URN);
   }
 }

@@ -34,10 +34,10 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 /**
  * Data access object for creating and dropping the metadata table.
  *
- * <p>The metadata table will be used to keep the state of the entire Dataflow job as well as
+ * <p>The metadata table will be used to keep the state of the entire Beam pipeline as well as
  * splitting and merging partitions.
  *
- * <p>Each Dataflow job will create its own metadata table.
+ * <p>Each Beam pipeline will create its own metadata table.
  */
 @Internal
 public class MetadataTableAdminDao {
@@ -50,6 +50,7 @@ public class MetadataTableAdminDao {
   public static final String CF_LOCK = "lock";
   public static final String CF_MISSING_PARTITIONS = "missing_partitions";
   public static final String CF_VERSION = "version";
+  public static final String CF_SHOULD_DELETE = "should_delete";
   public static final String QUALIFIER_DEFAULT = "latest";
   public static final ImmutableList<String> COLUMN_FAMILIES =
       ImmutableList.of(
@@ -60,7 +61,8 @@ public class MetadataTableAdminDao {
           CF_CONTINUATION_TOKEN,
           CF_LOCK,
           CF_MISSING_PARTITIONS,
-          CF_VERSION);
+          CF_VERSION,
+          CF_SHOULD_DELETE);
   public static final ByteString NEW_PARTITION_PREFIX = ByteString.copyFromUtf8("NewPartition#");
   public static final ByteString STREAM_PARTITION_PREFIX =
       ByteString.copyFromUtf8("StreamPartition#");
@@ -169,5 +171,33 @@ public class MetadataTableAdminDao {
 
     tableAdminClient.createTable(createTableRequest);
     return true;
+  }
+
+  /**
+   * Delete all the metadata rows starting with the change stream name prefix, except for detect new
+   * partition row because it signals the existence of a pipeline with the change stream name.
+   */
+  public void cleanUpPrefix() {
+    // Clean up all rows except for DNP row.
+    tableAdminClient.dropRowRange(tableId, getFullNewPartitionPrefix());
+    tableAdminClient.dropRowRange(tableId, getFullStreamPartitionPrefix());
+  }
+
+  /**
+   * Return new partition row key prefix concatenated with change stream name.
+   *
+   * @return new partition row key prefix concatenated with change stream name.
+   */
+  private ByteString getFullNewPartitionPrefix() {
+    return changeStreamNamePrefix.concat(NEW_PARTITION_PREFIX);
+  }
+
+  /**
+   * Return stream partition row key prefix concatenated with change stream name.
+   *
+   * @return stream partition row key prefix concatenated with change stream name.
+   */
+  private ByteString getFullStreamPartitionPrefix() {
+    return changeStreamNamePrefix.concat(STREAM_PARTITION_PREFIX);
   }
 }

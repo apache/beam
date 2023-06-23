@@ -90,7 +90,6 @@ if TYPE_CHECKING:
   from apache_beam.transforms.window import BoundedWindow
   from apache_beam.utils import windowed_value
 
-# This module is experimental. No backwards-compatibility guarantees.
 T = TypeVar('T')
 ConstructorFn = Callable[[
     'BeamTransformFactory',

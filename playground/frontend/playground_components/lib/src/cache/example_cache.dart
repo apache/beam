@@ -23,7 +23,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/foundation.dart';
 
 import '../exceptions/catalog_loading_exception.dart';
-import '../exceptions/example_loading_exception.dart';
+import '../exceptions/examples_loading_exception.dart';
 import '../exceptions/snippet_saving_exception.dart';
 import '../models/category_with_examples.dart';
 import '../models/example.dart';
@@ -286,7 +286,7 @@ class ExampleCache extends ChangeNotifier {
       await Future.wait(Sdk.known.map(_loadDefaultPrecompiledObject));
     } on Exception catch (ex) {
       if (defaultExamplesBySdk.isEmpty) {
-        throw ExampleLoadingException(ex);
+        throw ExamplesLoadingException(ex);
       }
       // As long as any of the examples is loaded, continue.
       print(ex);

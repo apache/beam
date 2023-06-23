@@ -118,14 +118,16 @@ public class FileWriteSchemaTransformProvider
 
       PCollection<String> files = rowInput.apply("Write Rows", transform);
       PCollection<Row> output =
-          files.apply(
-              "Filenames to Rows",
-              MapElements.into(rows())
-                  .via(
-                      (String name) ->
-                          Row.withSchema(OUTPUT_SCHEMA)
-                              .withFieldValue(FILE_NAME_FIELD.getName(), name)
-                              .build()));
+          files
+              .apply(
+                  "Filenames to Rows",
+                  MapElements.into(rows())
+                      .via(
+                          (String name) ->
+                              Row.withSchema(OUTPUT_SCHEMA)
+                                  .withFieldValue(FILE_NAME_FIELD.getName(), name)
+                                  .build()))
+              .setRowSchema(OUTPUT_SCHEMA);
 
       return PCollectionRowTuple.of(OUTPUT_TAG, output);
     }

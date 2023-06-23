@@ -23,7 +23,6 @@ import com.google.cloud.language.v1.AnnotateTextResponse;
 import com.google.cloud.language.v1.Document;
 import com.google.cloud.language.v1.LanguageServiceClient;
 import java.io.IOException;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -38,8 +37,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * com.google.cloud.language.v1.AnnotateTextRequest.Features} object is required to configure
  * analysis types to be done on the data.
  */
-@Experimental
 @AutoValue
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public abstract class AnnotateText
     extends PTransform<PCollection<Document>, PCollection<AnnotateTextResponse>> {
 
@@ -49,7 +50,7 @@ public abstract class AnnotateText
 
   @AutoValue.Builder
   public abstract static class Builder {
-    public abstract Builder setLanguageHint(@Nullable String hint);
+    public abstract Builder setLanguageHint(String hint);
 
     public abstract Builder setFeatures(AnnotateTextRequest.Features features);
 
@@ -66,10 +67,10 @@ public abstract class AnnotateText
   }
 
   private static class CallLanguageApi extends DoFn<Document, AnnotateTextResponse> {
-    private final @Nullable String languageHint;
+    private final String languageHint;
     private final AnnotateTextRequest.Features features;
 
-    private CallLanguageApi(@Nullable String languageHint, AnnotateTextRequest.Features features) {
+    private CallLanguageApi(String languageHint, AnnotateTextRequest.Features features) {
       this.languageHint = languageHint;
       this.features = features;
     }

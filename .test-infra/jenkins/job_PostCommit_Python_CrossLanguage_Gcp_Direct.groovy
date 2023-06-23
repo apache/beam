@@ -44,7 +44,6 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_Xlang_Gcp_Direct',
           rootBuildScriptDir(commonJobProperties.checkoutDir)
           tasks(":sdks:python:test-suites:direct:gcpCrossLanguagePostCommit")
           commonJobProperties.setGradleSwitches(delegate)
-          switches("-PuseWheelDistribution")
         }
       }
     }

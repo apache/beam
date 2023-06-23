@@ -24,8 +24,6 @@ import com.amazonaws.services.sqs.AmazonSQSClientBuilder;
 import com.amazonaws.services.sqs.model.Message;
 import com.amazonaws.services.sqs.model.SendMessageRequest;
 import com.google.auto.value.AutoValue;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.aws.options.AwsOptions;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -83,7 +81,6 @@ import org.slf4j.LoggerFactory;
  *     eventually removed. Please migrate to {@link org.apache.beam.sdk.io.aws2.sqs.SqsIO} in module
  *     <code>beam-sdks-java-io-amazon-web-services2</code>.
  */
-@Experimental(Kind.SOURCE_SINK)
 @Deprecated
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)

@@ -18,7 +18,7 @@
 #   name: AggregationSum
 #   description: Task from katas to compute the sum of all elements.
 #   multifile: false
-#   context_line: 29
+#   context_line: 31
 #   categories:
 #     - Combiners
 #   complexity: BASIC

@@ -30,8 +30,6 @@ import java.util.List;
 import java.util.Objects;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.DurationCoder;
@@ -81,12 +79,10 @@ public final class TestStream<T> extends PTransform<PBegin, PCollection<T>> {
     return new Builder<>(coder);
   }
 
-  @Experimental(Kind.SCHEMAS)
   public static Builder<Row> create(Schema schema) {
     return create(SchemaCoder.of(schema));
   }
 
-  @Experimental(Kind.SCHEMAS)
   public static <T> Builder<T> create(
       Schema schema,
       TypeDescriptor<T> typeDescriptor,

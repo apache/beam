@@ -34,8 +34,6 @@ import java.nio.charset.StandardCharsets;
 import java.text.DecimalFormat;
 import java.util.Collection;
 import java.util.List;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -899,7 +897,6 @@ public class FileIO {
 
   /** Implementation of {@link #write} and {@link #writeDynamic}. */
   @AutoValue
-  @Experimental(Kind.SOURCE_SINK)
   public abstract static class Write<DestinationT, UserT>
       extends PTransform<PCollection<UserT>, WriteFilesResult<DestinationT>> {
     /** A policy for generating names for shard files. */

@@ -22,8 +22,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -89,7 +87,6 @@ import org.json.JSONObject;
  *       of other schemas</a>)
  * </ul>
  */
-@Experimental(Kind.SCHEMAS)
 public class JsonUtils {
 
   /** Returns a {@link SimpleFunction} mapping JSON byte[] arrays to Beam {@link Row}s. */

@@ -15,11 +15,10 @@
 # limitations under the License.
 #
 
-# This module is experimental. No backwards-compatibility guarantees.
-
 import collections
 import json
 import logging
+import os
 import pprint
 import re
 import uuid
@@ -37,6 +36,24 @@ __all__ = ["YamlTransform"]
 
 _LOGGER = logging.getLogger(__name__)
 yaml_provider.fix_pycallable()
+
+try:
+  import jsonschema
+except ImportError:
+  jsonschema = None
+
+if jsonschema is not None:
+  with open(os.path.join(os.path.dirname(__file__),
+                         'pipeline.schema.yaml')) as yaml_file:
+    pipeline_schema = yaml.safe_load(yaml_file)
+
+
+def validate_against_schema(pipeline):
+  try:
+    jsonschema.validate(pipeline, pipeline_schema)
+  except jsonschema.ValidationError as exn:
+    exn.message += f" at line {SafeLineLoader.get_line(exn.instance)}"
+    raise exn
 
 
 def memoize_method(func):
@@ -112,12 +129,12 @@ class LightweightScope(object):
   def __init__(self, transforms):
     self._transforms = transforms
     self._transforms_by_uuid = {t['__uuid__']: t for t in self._transforms}
-    self._uuid_by_name = collections.defaultdict(list)
+    self._uuid_by_name = collections.defaultdict(set)
     for spec in self._transforms:
       if 'name' in spec:
-        self._uuid_by_name[spec['name']].append(spec['__uuid__'])
+        self._uuid_by_name[spec['name']].add(spec['__uuid__'])
       if 'type' in spec:
-        self._uuid_by_name[spec['type']].append(spec['__uuid__'])
+        self._uuid_by_name[spec['type']].add(spec['__uuid__'])
 
   def get_transform_id_and_output_name(self, name):
     if '.' in name:
@@ -145,12 +162,13 @@ class LightweightScope(object):
 
 class Scope(LightweightScope):
   """To look up PCollections (typically outputs of prior transforms) by name."""
-  def __init__(self, root, inputs, transforms, providers):
+  def __init__(self, root, inputs, transforms, providers, input_providers):
     super().__init__(transforms)
     self.root = root
     self._inputs = inputs
     self.providers = providers
     self._seen_names = set()
+    self.input_providers = input_providers
 
   def compute_all(self):
     for transform_id in self._transforms_by_uuid.keys():
@@ -186,7 +204,7 @@ class Scope(LightweightScope):
     return expand_transform(self._transforms_by_uuid[transform_id], self)
 
   # A method on scope as providers may be scoped...
-  def create_ptransform(self, spec):
+  def create_ptransform(self, spec, input_pcolls):
     if 'type' not in spec:
       raise ValueError(f'Missing transform type: {identify_object(spec)}')
 
@@ -195,7 +213,20 @@ class Scope(LightweightScope):
           'Unknown transform type %r at %s' %
           (spec['type'], identify_object(spec)))
 
-    for provider in self.providers.get(spec['type']):
+    # TODO(yaml): Perhaps we can do better than a greedy choice here.
+    # TODO(yaml): Figure out why this is needed.
+    providers_by_input = {k: v for k, v in self.input_providers.items()}
+    input_providers = [
+        providers_by_input[pcoll] for pcoll in input_pcolls
+        if pcoll in providers_by_input
+    ]
+
+    def provider_score(p):
+      return sum(p.affinity(o) for o in input_providers)
+
+    for provider in sorted(self.providers.get(spec['type']),
+                           key=provider_score,
+                           reverse=True):
       if provider.available():
         break
     else:
@@ -218,7 +249,8 @@ class Scope(LightweightScope):
     real_args = SafeLineLoader.strip_metadata(args)
     try:
       # pylint: disable=undefined-loop-variable
-      ptransform = provider.create_transform(spec['type'], real_args)
+      ptransform = provider.create_transform(
+          spec['type'], real_args, self.create_ptransform)
       # TODO(robertwb): Should we have a better API for adding annotations
       # than this?
       annotations = dict(
@@ -227,6 +259,26 @@ class Scope(LightweightScope):
           yaml_provider=json.dumps(provider.to_json()),
           **ptransform.annotations())
       ptransform.annotations = lambda: annotations
+      original_expand = ptransform.expand
+
+      def recording_expand(pvalue):
+        result = original_expand(pvalue)
+
+        def record_providers(pvalueish):
+          if isinstance(pvalueish, (tuple, list)):
+            for p in pvalueish:
+              record_providers(p)
+          elif isinstance(pvalueish, dict):
+            for p in pvalueish.values():
+              record_providers(p)
+          elif isinstance(pvalueish, beam.PCollection):
+            if pvalueish not in self.input_providers:
+              self.input_providers[pvalueish] = provider
+
+        record_providers(result)
+        return result
+
+      ptransform.expand = recording_expand
       return ptransform
     except Exception as exn:
       if isinstance(exn, TypeError):
@@ -285,7 +337,7 @@ def expand_leaf_transform(spec, scope):
     else:
       inputs = inputs_dict
   _LOGGER.info("Expanding %s ", identify_object(spec))
-  ptransform = scope.create_ptransform(spec)
+  ptransform = scope.create_ptransform(spec, inputs_dict.values())
   try:
     # TODO: Move validation to construction?
     with FullyQualifiedNamedTransform.with_filter('*'):
@@ -318,7 +370,8 @@ def expand_composite_transform(spec, scope):
       spec['transforms'],
       yaml_provider.merge_providers(
           yaml_provider.parse_providers(spec.get('providers', [])),
-          scope.providers))
+          scope.providers),
+      scope.input_providers)
 
   class CompositePTransform(beam.PTransform):
     @staticmethod
@@ -629,6 +682,7 @@ class YamlTransform(beam.PTransform):
   def __init__(self, spec, providers={}):  # pylint: disable=dangerous-default-value
     if isinstance(spec, str):
       spec = yaml.load(spec, Loader=SafeLineLoader)
+    # TODO(BEAM-26941): Validate as a transform.
     self._spec = preprocess(spec)
     self._providers = yaml_provider.merge_providers(
         {
@@ -648,16 +702,29 @@ class YamlTransform(beam.PTransform):
       root = next(iter(pcolls.values())).pipeline
     result = expand_transform(
         self._spec,
-        Scope(root, pcolls, transforms=[], providers=self._providers))
+        Scope(
+            root,
+            pcolls,
+            transforms=[],
+            providers=self._providers,
+            input_providers={}))
     if len(result) == 1:
       return only_element(result.values())
     else:
       return result
 
 
-def expand_pipeline(pipeline, pipeline_spec, providers=None):
+def expand_pipeline(
+    pipeline,
+    pipeline_spec,
+    providers=None,
+    validate_schema=jsonschema is not None):
   if isinstance(pipeline_spec, str):
     pipeline_spec = yaml.load(pipeline_spec, Loader=SafeLineLoader)
+  # TODO(robertwb): It's unclear whether this gives as good of errors, but
+  # this could certainly be handy as a first pass when Beam is not available.
+  if validate_schema:
+    validate_against_schema(pipeline_spec)
   # Calling expand directly to avoid outer layer of nesting.
   return YamlTransform(
       pipeline_as_composite(pipeline_spec['pipeline']),

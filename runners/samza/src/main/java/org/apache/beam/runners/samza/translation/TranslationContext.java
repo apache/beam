@@ -182,13 +182,10 @@ public class TranslationContext {
       TransformHierarchy.Node node,
       SamzaMetricOpFactory.OpType opType) {
     final Boolean enableTransformMetrics = getPipelineOptions().getEnableTransformMetrics();
-    final String urn = PTransformTranslation.urnForTransformOrNull(transform);
+    final String transformURN = PTransformTranslation.urnForTransformOrNull(transform);
 
-    // skip attach transform if user override is false or transform is GBK
-    if (!enableTransformMetrics
-        || urn == null
-        || urn.equals(PTransformTranslation.COMBINE_PER_KEY_TRANSFORM_URN)
-        || urn.equals(PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN)) {
+    // skip attach transform if user override is false or transform is not registered
+    if (!enableTransformMetrics || transformURN == null) {
       return;
     }
 
@@ -198,11 +195,22 @@ public class TranslationContext {
     }
 
     for (PValue pValue : getPValueForTransform(opType, transform, node)) {
+      // skip attach transform if pValue is not registered i.e. if not translated with a samza
+      // translator
+      if (!messsageStreams.containsKey(pValue)) {
+        LOG.debug(
+            "Skip attach transform metric op for pValue: {} for transform: {}",
+            pValue,
+            getTransformFullName());
+        continue;
+      }
+
       // add another step for default metric computation
       getMessageStream(pValue)
           .flatMapAsync(
               OpAdapter.adapt(
                   SamzaMetricOpFactory.createMetricOp(
+                      transformURN,
                       pValue.getName(),
                       getTransformFullName(),
                       opType,

@@ -35,7 +35,6 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -60,6 +59,7 @@ import org.json.JSONObject;
  * to "default_catalog").
  */
 @AutoValue
+@SuppressWarnings({"nullness"})
 public abstract class RecommendationAIImportCatalogItems
     extends PTransform<PCollection<KV<String, GenericJson>>, PCollectionTuple> {
 
@@ -72,23 +72,14 @@ public abstract class RecommendationAIImportCatalogItems
 
   abstract Builder toBuilder();
 
-  /**
-   * @return ID of Google Cloud project to be used for creating catalog items.
-   *     <p>Must be set to non-null before applying transform
-   */
+  /** @return ID of Google Cloud project to be used for creating catalog items. */
   public abstract @Nullable String projectId();
 
-  /**
-   * @return Name of the catalog where the catalog items will be created.
-   *     <p>Must be set to non-null before applying transform
-   */
+  /** @return Name of the catalog where the catalog items will be created. */
   public abstract @Nullable String catalogName();
 
-  /**
-   * @return Size of input elements batch to be sent in one request.
-   *     <p>Must be set to non-null before applying transform
-   */
-  public abstract @Nullable Integer batchSize();
+  /** @return Size of input elements batch to be sent in one request. */
+  public abstract Integer batchSize();
 
   /**
    * @return Time limit (in processing time) on how long an incomplete batch of elements is allowed
@@ -117,28 +108,25 @@ public abstract class RecommendationAIImportCatalogItems
    */
   @Override
   public PCollectionTuple expand(PCollection<KV<String, GenericJson>> input) {
-    String projectId = Preconditions.checkStateNotNull(projectId());
-    String catalogName = Preconditions.checkStateNotNull(catalogName());
-    int batchSize = Preconditions.checkStateNotNull(batchSize());
     return input
         .apply(
             "Batch Contents",
-            GroupIntoBatches.<String, GenericJson>ofSize(batchSize)
+            GroupIntoBatches.<String, GenericJson>ofSize(batchSize())
                 .withMaxBufferingDuration(maxBufferingDuration())
                 .withShardedKey())
         .apply(
             "Import CatalogItems",
-            ParDo.of(new ImportCatalogItems(projectId, catalogName))
+            ParDo.of(new ImportCatalogItems(projectId(), catalogName()))
                 .withOutputTags(SUCCESS_TAG, TupleTagList.of(FAILURE_TAG)));
   }
 
   @AutoValue.Builder
   abstract static class Builder {
     /** @param projectId ID of Google Cloud project to be used for creating catalog items. */
-    public abstract Builder setProjectId(String projectId);
+    public abstract Builder setProjectId(@Nullable String projectId);
 
     /** @param catalogName Name of the catalog where the catalog items will be created. */
-    public abstract Builder setCatalogName(String catalogName);
+    public abstract Builder setCatalogName(@Nullable String catalogName);
 
     /**
      * @param batchSize Amount of input elements to be sent to Recommendation AI service in one

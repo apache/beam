@@ -21,6 +21,7 @@ import java.io.OutputStream;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.UnsafeByteOperations;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 
 /**
  * An {@link OutputStream} that produces {@link ByteString}s.
@@ -106,13 +107,30 @@ public final class ByteStringOutputStream extends OutputStream {
   /**
    * Creates a byte string with the size and contents of this output stream.
    *
-   * <p>Note that the caller must not invoke {#link {@link #toByteStringAndReset} as the internal
-   * buffer maybe mutated by a future {@link #write} mutating {@link ByteString}s returned in the
-   * past.
+   * <p>Note that the caller must no longer use this object after this method. The internal buffer
+   * is wrapped and thus mutations made by future {@link #write} or other methods may mutate {@link
+   * ByteString}s returned in the past.
    */
   public ByteString toByteString() {
     // We specifically choose to concatenate here since the user won't be re-using the buffer.
     return result.concat(UnsafeByteOperations.unsafeWrap(buffer, 0, bufferPos));
+  }
+
+  private static boolean shouldCopy(int bufferLength, int bytesToCopy) {
+    // These thresholds are from the results of ByteStringOutputStreamBenchmark.CopyVewNew
+    // which show that at these thresholds we should copy the bytes instead to re-use
+    // the existing buffer since creating a new one is more expensive.
+    if (bufferLength <= 128) {
+      // Always copy small byte arrays to prevent large chunks of wasted space
+      // when dealing with very small amounts of data.
+      return true;
+    } else if (bufferLength <= 1024) {
+      return bytesToCopy <= bufferLength * 0.875;
+    } else if (bufferLength <= 8192) {
+      return bytesToCopy <= bufferLength * 0.75;
+    } else {
+      return bytesToCopy <= bufferLength * 0.4375;
+    }
   }
 
   /**
@@ -122,25 +140,9 @@ public final class ByteStringOutputStream extends OutputStream {
   public ByteString toByteStringAndReset() {
     ByteString rval;
     if (bufferPos > 0) {
-      final boolean copy;
-      // These thresholds are from the results of ByteStringOutputStreamBenchmark.CopyVewNew
-      // which show that at these thresholds we should copy the bytes instead to re-use
-      // the existing buffer since creating a new one is more expensive.
-      if (buffer.length <= 128) {
-        // Always copy small byte arrays to prevent large chunks of wasted space
-        // when dealing with very small amounts of data.
-        copy = true;
-      } else if (buffer.length <= 1024) {
-        copy = bufferPos <= buffer.length * 0.875;
-      } else if (buffer.length <= 8192) {
-        copy = bufferPos <= buffer.length * 0.75;
-      } else {
-        copy = bufferPos <= buffer.length * 0.4375;
-      }
+      final boolean copy = shouldCopy(buffer.length, bufferPos);
       if (copy) {
-        byte[] bufferCopy = new byte[bufferPos];
-        System.arraycopy(buffer, 0, bufferCopy, 0, bufferPos);
-        rval = result.concat(UnsafeByteOperations.unsafeWrap(bufferCopy));
+        rval = result.concat(ByteString.copyFrom(buffer, 0, bufferPos));
       } else {
         rval = result.concat(UnsafeByteOperations.unsafeWrap(buffer, 0, bufferPos));
         buffer = new byte[Math.min(rval.size(), MAX_CHUNK_SIZE)];
@@ -150,6 +152,45 @@ public final class ByteStringOutputStream extends OutputStream {
       rval = result;
     }
     result = ByteString.EMPTY;
+    return rval;
+  }
+
+  /**
+   * Creates a byte string with the given size containing the prefix of the contents of this output
+   * stream.
+   */
+  public ByteString consumePrefixToByteString(int prefixSize) {
+    ByteString rval;
+    Preconditions.checkArgument(prefixSize <= size());
+    if (prefixSize == size()) {
+      return toByteStringAndReset();
+    }
+    int bytesFromBuffer = prefixSize - result.size();
+    if (bytesFromBuffer == 0) {
+      rval = result;
+      result = ByteString.EMPTY;
+      return rval;
+    }
+    if (bytesFromBuffer < 0) {
+      rval = result.substring(0, prefixSize);
+      result = result.substring(prefixSize);
+      return rval;
+    }
+    // Copy or reference the kept bytes for the rval.
+    if (shouldCopy(buffer.length, bytesFromBuffer)) {
+      rval = result.concat(ByteString.copyFrom(buffer, 0, bytesFromBuffer));
+    } else {
+      rval = result.concat(UnsafeByteOperations.unsafeWrap(buffer, 0, bytesFromBuffer));
+    }
+    // Copy the remaining bytes to a new buffer.
+    int remainingBytes = bufferPos - bytesFromBuffer;
+    if (shouldCopy(buffer.length, remainingBytes)) {
+      result = ByteString.copyFrom(buffer, bytesFromBuffer, remainingBytes);
+    } else {
+      result = UnsafeByteOperations.unsafeWrap(buffer, bytesFromBuffer, remainingBytes);
+    }
+    buffer = new byte[Math.min(Math.max(1, buffer.length), MAX_CHUNK_SIZE)];
+    bufferPos = 0;
     return rval;
   }
 

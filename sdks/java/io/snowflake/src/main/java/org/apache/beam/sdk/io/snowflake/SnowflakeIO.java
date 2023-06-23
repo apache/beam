@@ -39,7 +39,6 @@ import javax.sql.DataSource;
 import net.snowflake.client.jdbc.SnowflakeBasicDataSource;
 import net.snowflake.ingest.SimpleIngestManager;
 import net.snowflake.ingest.connection.HistoryResponse;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -174,7 +173,6 @@ import org.slf4j.LoggerFactory;
  * <p><b>Important</b> When writing data to Snowflake, firstly data will be saved as CSV files on
  * specified stagingBucketName in directory named 'data' and then into Snowflake.
  */
-@Experimental
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })

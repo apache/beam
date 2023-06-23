@@ -23,14 +23,12 @@ import static org.apache.beam.sdk.values.Row.toRow;
 
 import java.util.List;
 import java.util.stream.Stream;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 
 /** Utility functions for mock classes. */
-@Experimental
 @SuppressWarnings({"keyfor", "nullness"}) // TODO(https://github.com/apache/beam/issues/20497)
 public class TestTableUtils {
 

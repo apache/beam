@@ -29,8 +29,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
@@ -81,7 +79,6 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-@Experimental(Kind.SCHEMAS)
 @AutoService(SchemaTransformProvider.class)
 public class BigQueryStorageWriteApiSchemaTransformProvider
     extends TypedSchemaTransformProvider<BigQueryStorageWriteApiSchemaTransformConfiguration> {
@@ -117,7 +114,7 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
 
   @Override
   public List<String> outputCollectionNames() {
-    return Arrays.asList(FAILED_ROWS_TAG, FAILED_ROWS_WITH_ERRORS_TAG);
+    return Arrays.asList(FAILED_ROWS_TAG, FAILED_ROWS_WITH_ERRORS_TAG, "errors");
   }
 
   /** Configuration for writing to BigQuery with Storage Write API. */
@@ -312,8 +309,8 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
                 (triggeringFrequency == null || triggeringFrequency <= 0)
                     ? DEFAULT_TRIGGERING_FREQUENCY
                     : Duration.standardSeconds(triggeringFrequency));
-
-        if (autoSharding != null && autoSharding) {
+        // use default value true for autoSharding if not configured for STORAGE_WRITE_API
+        if (autoSharding == null || autoSharding) {
           write = write.withAutoSharding();
         }
       }
@@ -374,7 +371,8 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
               .setRowSchema(rowSchema);
 
       return PCollectionRowTuple.of(FAILED_ROWS_TAG, failedRowsOutput)
-          .and(FAILED_ROWS_WITH_ERRORS_TAG, failedRowsWithErrors);
+          .and(FAILED_ROWS_WITH_ERRORS_TAG, failedRowsWithErrors)
+          .and("errors", failedRowsWithErrors);
     }
 
     BigQueryIO.Write<Row> createStorageWriteApiTransform() {

@@ -51,7 +51,7 @@ type Options struct {
 	StatusEndpoint     string   // Endpoint for worker status reporting.
 }
 
-// MainWithOptions is the main entrypoint for the Go harness. It runs at "runtime" -- not
+// Main is the main entrypoint for the Go harness. It runs at "runtime" -- not
 // "pipeline-construction time" -- on each worker. It is a FnAPI client and
 // ultimately responsible for correctly executing user code.
 //

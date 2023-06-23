@@ -36,7 +36,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Wrapper for invoking external Python {@code RunInference}. @Experimental */
+/** Wrapper for invoking external Python {@code RunInference}. */
 public class RunInference<OutputT> extends PTransform<PCollection<?>, PCollection<OutputT>> {
   private static final Logger LOG = LoggerFactory.getLogger(RunInference.class);
 

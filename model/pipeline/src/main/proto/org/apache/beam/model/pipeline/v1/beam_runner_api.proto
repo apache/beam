@@ -981,7 +981,6 @@ message StandardCoders {
     // remainder of the iterable (e.g. over the state API).
     //
     // Components: Coder for a single element.
-    // Experimental.
     STATE_BACKED_ITERABLE = 9 [(beam_urn) = "beam:coder:state_backed_iterable:v1"];
 
 
@@ -1064,7 +1063,6 @@ message StandardCoders {
     //
     // The payload for RowCoder is an instance of Schema.
     // Components: None
-    // Experimental.
     ROW = 13 [(beam_urn) = "beam:coder:row:v1"];
 
     // Encodes a user key and a shard id which is an opaque byte string.
@@ -1086,7 +1084,6 @@ message StandardCoders {
     //     encode(user_key)
     //
     // Components: the user key coder.
-    // Experimental.
     SHARDED_KEY = 15 [(beam_urn) = "beam:coder:sharded_key:v1"];
 
     // Wraps a coder of a potentially null value

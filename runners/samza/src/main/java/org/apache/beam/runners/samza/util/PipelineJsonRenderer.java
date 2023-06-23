@@ -39,7 +39,6 @@ import org.apache.beam.runners.samza.translation.ConfigContext;
 import org.apache.beam.runners.samza.translation.SamzaPipelineTranslator;
 import org.apache.beam.runners.samza.translation.TransformTranslator;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
@@ -58,7 +57,6 @@ import org.slf4j.LoggerFactory;
  * A JSON renderer for BEAM {@link Pipeline} DAG. This can help us with visualization of the Beam
  * DAG.
  */
-@Experimental
 public class PipelineJsonRenderer implements Pipeline.PipelineVisitor {
   private static final Logger LOG = LoggerFactory.getLogger(PipelineJsonRenderer.class);
   private static final String TRANSFORM_IO_MAP_DELIMITER = ",";
@@ -67,7 +65,6 @@ public class PipelineJsonRenderer implements Pipeline.PipelineVisitor {
    * Interface to get I/O information for a Beam job. This will help add I/O information to the Beam
    * DAG.
    */
-  @Experimental
   public interface SamzaIOInfo {
 
     /** Get I/O topic name and cluster. */

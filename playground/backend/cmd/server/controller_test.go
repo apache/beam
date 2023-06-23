@@ -126,6 +126,9 @@ func setupServer(sdk pb.Sdk) *grpc.Server {
 	if err = os.Setenv(constants.DatastoreNamespaceKey, "main"); err != nil {
 		panic(err)
 	}
+	if err = os.Setenv("KAFKA_EMULATOR_EXECUTABLE_PATH", ""); err != nil {
+		panic(err)
+	}
 
 	networkEnv, err := environment.GetNetworkEnvsFromOsEnvs()
 	if err != nil {

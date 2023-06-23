@@ -17,8 +17,8 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
-import '../../constants/colors.dart';
 import '../../constants/sizes.dart';
 import 'pipeline_option_controller.dart';
 import 'pipeline_options_form.dart';
@@ -35,6 +35,9 @@ class PipelineOptionsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final inputFormatters =  [
+            FilteringTextInputFormatter.deny(RegExp(r'\s')),
+          ];
     return Row(
       children: [
         Expanded(
@@ -42,6 +45,7 @@ class PipelineOptionsRow extends StatelessWidget {
             height: BeamSizes.textFieldHeight,
             child: PipelineOptionsTextField(
               controller: controller.nameController,
+              inputFormatters: inputFormatters,
             ),
           ),
         ),
@@ -51,6 +55,7 @@ class PipelineOptionsRow extends StatelessWidget {
             height: BeamSizes.textFieldHeight,
             child: PipelineOptionsTextField(
               controller: controller.valueController,
+              inputFormatters: inputFormatters,
             ),
           ),
         ),

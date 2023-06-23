@@ -28,7 +28,6 @@ import java.util.Map;
 import java.util.ServiceLoader;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.SchemaApi;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
 import org.apache.beam.sdk.schemas.Schema;
@@ -44,7 +43,6 @@ import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.InvalidProtocolBu
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
-@Experimental(Experimental.Kind.PORTABILITY)
 @AutoService(ExternalTransformRegistrar.class)
 @SuppressWarnings({
   "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)

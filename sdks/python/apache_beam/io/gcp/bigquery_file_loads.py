@@ -508,8 +508,10 @@ class TriggerCopyJobs(beam.DoFn):
             True, label="This Dataflow job launches bigquery jobs.")
     }
 
-  def start_bundle(self):
+  def setup(self):
     self._observed_tables = set()
+
+  def start_bundle(self):
     self.bq_wrapper = bigquery_tools.BigQueryWrapper(client=self.test_client)
     if not self.bq_io_metadata:
       self.bq_io_metadata = create_bigquery_io_metadata(self._step_name)
@@ -1093,9 +1095,10 @@ class BigQueryBatchFileLoads(beam.PTransform):
                 load_job_project_id=self.load_job_project_id),
             schema_mod_job_name_pcv))
 
-    if self.write_disposition == 'WRITE_TRUNCATE':
+    if self.write_disposition in ('WRITE_EMPTY', 'WRITE_TRUNCATE'):
       # All loads going to the same table must be processed together so that
-      # the truncation happens only once. See BEAM-24535.
+      # the truncation happens only once. See
+      # https://github.com/apache/beam/issues/24535.
       finished_temp_tables_load_job_ids_list_pc = (
           finished_temp_tables_load_job_ids_pc | beam.MapTuple(
               lambda destination,

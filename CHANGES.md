@@ -49,12 +49,49 @@
 
 * ([#X](https://github.com/apache/beam/issues/X)).
 -->
-# [2.48.0] - Unreleased
+# [2.49.0] - Unreleased
 
 ## Highlights
 
 * New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
 * New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
+
+## I/Os
+
+* Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+
+## New Features / Improvements
+
+* Allow prebuilding large images when using `--prebuild_sdk_container_engine=cloud_build`, like images depending on `tensorflow` or `torch` ([#27023](https://github.com/apache/beam/pull/27023)).
+* Disabled `pip` cache when installing packages on the workers. This reduces the size of prebuilt Python container images ([#27035](https://github.com/apache/beam/pull/27035)).
+* Select dedicated avro datum reader and writer (Java) ([#18874](https://github.com/apache/beam/issues/18874)).
+
+## Breaking Changes
+
+* X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
+
+## Deprecations
+
+* Remove Python 3.7 support. ([#26447](https://github.com/apache/beam/issues/26447))
+
+## Bugfixes
+
+* Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Fixed KinesisIO `NullPointerException` when a progress check is made before the reader is started (IO) ([#23868](https://github.com/apache/beam/issues/23868))
+
+## Known Issues
+
+* ([#X](https://github.com/apache/beam/issues/X)).
+
+
+# [2.48.0] - 2023-05-31
+
+## Highlights
+
+* "Experimental" annotation cleanup: the annotation and concept have been removed from Beam to avoid
+  the misperception of code as "not ready". Any proposed breaking changes will be subject to
+  case-by-case pro/con decision making (and generally avoided) rather than using the "Experimental"
+  to allow them.
 
 ## I/Os
 
@@ -75,6 +112,9 @@
 
 * Passing a tag into MultiProcessShared is now required in the Python SDK ([#26168](https://github.com/apache/beam/issues/26168)).
 * CloudDebuggerOptions is removed (deprecated in Beam v2.47.0) for Dataflow runner as the Google Cloud Debugger service is [shutting down](https://cloud.google.com/debugger/docs/deprecations). (Java) ([#25959](https://github.com/apache/beam/issues/25959)).
+* AWS 2 client providers (deprecated in Beam [v2.38.0](#2380---2022-04-20)) are finally removed ([#26681](https://github.com/apache/beam/issues/26681)).
+* AWS 2 SnsIO.writeAsync (deprecated in Beam v2.37.0 due to risk of data loss) was finally removed ([#26710](https://github.com/apache/beam/issues/26710)).
+* AWS 2 coders (deprecated in Beam v2.43.0 when adding Schema support for AWS Sdk Pojos) are finally removed ([#23315](https://github.com/apache/beam/issues/23315)).
 
 ## Deprecations
 
@@ -89,7 +129,7 @@
 
 * ([#X](https://github.com/apache/beam/issues/X)).
 
-# [2.47.0] - Cut, Unreleased
+# [2.47.0] - 2023-05-10
 
 ## Highlights
 
@@ -97,7 +137,6 @@
 
 ## I/Os
 
-* Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * BigQuery Storage Write API is now available in Python SDK via cross-language ([#21961](https://github.com/apache/beam/issues/21961)).
 * Added HbaseIO support for writing RowMutations (ordered by rowkey) to Hbase (Java) ([#25830](https://github.com/apache/beam/issues/25830)).
 * Added fileio transforms MatchFiles, MatchAll and ReadMatches (Go) ([#25779](https://github.com/apache/beam/issues/25779)).
@@ -111,7 +150,6 @@
   like `df | (Transform1 | Transform2 | ...)` to avoid excessive conversions.)
 * The Go SDK adds new transforms periodic.Impulse and periodic.Sequence that extends support
   for slowly updating side input patterns. ([#23106](https://github.com/apache/beam/issues/23106))
-* Python SDK now requires `protobuf>=4.21.1,<4.23.0` and no longer supports protobuf 3.x. ([#24599](https://github.com/apache/beam/pull/24599))
 * Several Google client libraries in Python SDK dependency chain were updated to latest available major versions. ([#24599](https://github.com/apache/beam/pull/24599))
 
 ## Breaking Changes
@@ -122,18 +160,17 @@
 
 ## Deprecations
 
-* X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
 * Cloud Debugger support and its pipeline options are deprecated and will be removed in the next Beam version,
-  in response to the Google Cloud Debugger service [turning down](https://cloud.google.com/debugger/docs/deprecations).
-  (Java) ([#25959](https://github.com/apache/beam/issues/25959)).
+  in response to the Google Cloud Debugger service [turning down](https://cloud.google.com/debugger/docs/deprecations). (Java) ([#25959](https://github.com/apache/beam/issues/25959)).
 
 ## Bugfixes
 
-* Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* BigQuery sink in STORAGE_WRITE_API mode in batch pipelines could result in data consistency issues during the handling of other unrelated transient errors for Beam SDKs 2.35.0 - 2.46.0 (inclusive). For more details see: https://github.com/apache/beam/issues/26521
 
 ## Known Issues
 
-* ([#X](https://github.com/apache/beam/issues/X)).
+* The google-cloud-profiler dependency was accidentally removed from Beam's Python Docker
+  Image [#26998](https://github.com/apache/beam/issues/26698). [Dataflow Docker images](https://cloud.google.com/dataflow/docs/concepts/sdk-worker-dependencies) still preinstall this dependency.
 
 # [2.46.0] - 2023-03-10
 
@@ -188,10 +225,6 @@
 ## Bugfixes
 
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
-
-## Known Issues
-
-* ([#X](https://github.com/apache/beam/issues/X)).
 
 # [2.45.0] - 2023-02-15
 
@@ -259,6 +292,8 @@
 * If you activated a virtual environment in your custom container image, this environment might no longer be activated, since a new environment will be created (see the note about [BEAM-12792](https://issues.apache.org/jira/browse/BEAM-12792) above).
   To work around, install dependencies into the default (global) python environment. When using poetry you may need to use `poetry config virtualenvs.create false` before installing deps, see an example in: [#25085](https://github.com/apache/beam/issues/25085).
   If you were negatively impacted by this change and cannot find a workaround, feel free to chime in on [#16658](https://github.com/apache/beam/pull/16658).
+  To disable this behavior, you could upgrade to Beam 2.48.0 and set an environment variable
+  `ENV RUN_PYTHON_SDK_IN_DEFAULT_ENVIRONMENT=1` in your Dockerfile.
 
 ## Deprecations
 
@@ -270,6 +305,7 @@
 * Fixed JmsIO acknowledgment issue (Java) ([#20814](https://github.com/apache/beam/issues/20814))
 * Fixed Beam SQL CalciteUtils (Java) and Cross-language JdbcIO (Python) did not support JDBC CHAR/VARCHAR, BINARY/VARBINARY logical types ([#23747](https://github.com/apache/beam/issues/23747), [#23526](https://github.com/apache/beam/issues/23526)).
 * Ensure iterated and emitted types are used with the generic register package are registered with the type and schema registries.(Go) ([#23889](https://github.com/apache/beam/pull/23889))
+
 
 # [2.43.0] - 2022-11-17
 

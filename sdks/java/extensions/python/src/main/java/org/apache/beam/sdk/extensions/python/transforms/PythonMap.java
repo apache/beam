@@ -26,7 +26,7 @@ import org.apache.beam.sdk.util.PythonCallableSource;
 import org.apache.beam.sdk.values.PCollection;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/** Wrapper for invoking external Python {@code Map} transforms.. @Experimental */
+/** Wrapper for invoking external Python {@code Map} transforms.. */
 public class PythonMap<InputT, OutputT>
     extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
 

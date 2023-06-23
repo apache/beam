@@ -17,17 +17,20 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../constants/sizes.dart';
 import '../../theme/theme.dart';
 
 class PipelineOptionsTextField extends StatelessWidget {
   final TextEditingController controller;
+  final List<TextInputFormatter>? inputFormatters;
   final int lines;
 
   const PipelineOptionsTextField({
     super.key,
     required this.controller,
+    this.inputFormatters,
     this.lines = 1,
   });
 
@@ -50,6 +53,7 @@ class PipelineOptionsTextField extends StatelessWidget {
           minLines: lines,
           maxLines: lines,
           controller: controller,
+          inputFormatters: inputFormatters,
           decoration: InputDecoration(
             contentPadding: const EdgeInsets.all(BeamSpacing.medium),
             border: _getInputBorder(ext.borderColor),

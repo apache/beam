@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.harness;
 
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.PipelineOptions;
 
 /**
@@ -32,7 +31,6 @@ import org.apache.beam.sdk.options.PipelineOptions;
  * your code is executed. You can use a tool like {@link com.google.auto.service.AutoService} to
  * automate this.
  */
-@Experimental
 public interface JvmInitializer {
 
   /**

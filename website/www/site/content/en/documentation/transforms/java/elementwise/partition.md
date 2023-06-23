@@ -32,24 +32,12 @@ The number of partitions must be determined at graph construction time. You cann
 See more information in the [Beam Programming Guide](/documentation/programming-guide/#partition).
 
 ## Examples
+
 **Example**: dividing a `PCollection` into percentile groups
 
-{{< highlight java >}}
-// Provide an int value with the desired number of result partitions, and a PartitionFn that represents the
-// partitioning function. In this example, we define the PartitionFn in-line. Returns a PCollectionList
-// containing each of the resulting partitions as individual PCollection objects.
-PCollection<Student> students = ...;
-// Split students up into 10 partitions, by percentile:
-PCollectionList<Student> studentsByPercentile =
-    students.apply(Partition.of(10, new PartitionFn<Student>() {
-        public int partitionFor(Student student, int numPartitions) {
-            return student.getPercentile()  // 0..99
-                 * numPartitions / 100;
-        }}));
-
-// You can extract each partition from the PCollectionList using the get method, as follows:
-PCollection<Student> fortiethPercentile = studentsByPercentile.get(4);
-{{< /highlight >}}
+{{< playground height="700px" >}}
+{{< playground_snippet language="java" path="SDK_JAVA_PartitionPercentile" show="main_section" >}}
+{{< /playground >}}
 
 ## Related transforms
 * [Filter](/documentation/transforms/java/elementwise/filter) is useful if the function is just

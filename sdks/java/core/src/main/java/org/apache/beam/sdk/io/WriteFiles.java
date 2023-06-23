@@ -29,8 +29,6 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ThreadLocalRandom;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
@@ -117,7 +115,6 @@ import org.slf4j.LoggerFactory;
  *
  * <pre>{@code p.apply(WriteFiles.to(new MySink(...)).withNumShards(3));}</pre>
  */
-@Experimental(Kind.SOURCE_SINK)
 @AutoValue
 @SuppressWarnings({
   "nullness", // TODO(https://github.com/apache/beam/issues/20497)

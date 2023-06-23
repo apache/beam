@@ -28,8 +28,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nonnull;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.io.Read;
@@ -338,7 +336,6 @@ public class Pipeline {
     return coderRegistry;
   }
 
-  @Experimental(Kind.SCHEMAS)
   public SchemaRegistry getSchemaRegistry() {
     if (schemaRegistry == null) {
       schemaRegistry = SchemaRegistry.createDefault();

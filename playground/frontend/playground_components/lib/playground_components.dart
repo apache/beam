@@ -32,7 +32,7 @@ export 'src/controllers/window_close_notifier/window_close_notifier.dart';
 export 'src/enums/complexity.dart';
 export 'src/enums/feedback_rating.dart';
 export 'src/enums/output_tab.dart';
-export 'src/exceptions/example_loading_exception.dart';
+export 'src/exceptions/examples_loading_exception.dart';
 
 export 'src/models/category_with_examples.dart';
 export 'src/models/dataset.dart';
@@ -64,7 +64,6 @@ export 'src/playground_components.dart';
 export 'src/repositories/backend_urls.dart';
 export 'src/repositories/code_client/code_client.dart';
 export 'src/repositories/code_client/grpc_code_client.dart';
-export 'src/repositories/code_repository.dart';
 export 'src/repositories/example_client/example_client.dart';
 export 'src/repositories/example_client/grpc_example_client.dart';
 export 'src/repositories/example_repository.dart';

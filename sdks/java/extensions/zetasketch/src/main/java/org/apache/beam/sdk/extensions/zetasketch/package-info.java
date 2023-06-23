@@ -20,7 +20,4 @@
  * {@code PTransform}s to compute statistical sketches on data streams based on the <a
  * href="https://github.com/google/zetasketch">ZetaSketch</a> implementation.
  */
-@Experimental
 package org.apache.beam.sdk.extensions.zetasketch;
-
-import org.apache.beam.sdk.annotations.Experimental;

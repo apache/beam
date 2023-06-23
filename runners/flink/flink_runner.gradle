@@ -279,6 +279,7 @@ def createValidatesRunnerTask(Map m) {
         excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithMultipleStages'  // BEAM-8598
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesTriggeredSideInputs'
       } else {
         excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
         excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'

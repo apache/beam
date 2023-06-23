@@ -418,7 +418,6 @@ from apache_beam.transforms.window import GlobalWindows
 from apache_beam.typehints.row_type import RowTypeConstraint
 from apache_beam.utils import retry
 from apache_beam.utils.annotations import deprecated
-from apache_beam.utils.annotations import experimental
 
 try:
   from apache_beam.io.gcp.internal.clients.bigquery import DatasetReference
@@ -710,7 +709,7 @@ class _CustomBigQuerySource(BoundedSource):
     }
 
   def estimate_size(self):
-    bq = bigquery_tools.BigQueryWrapper()
+    bq = bigquery_tools.BigQueryWrapper.from_pipeline_options(self.options)
     if self.table_reference is not None:
       table_ref = self.table_reference
       if (isinstance(self.table_reference, vp.ValueProvider) and
@@ -2787,7 +2786,6 @@ class ReadFromBigQueryRequest:
             % self.table)
 
 
-@experimental()
 class ReadAllFromBigQuery(PTransform):
   """Read data from BigQuery.
 
