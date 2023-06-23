@@ -58,9 +58,7 @@ class VertexAIModelHandlerJSON(ModelHandler[Any,
     being used onto the worker and instead makes remote queries to a
     Vertex AI endpoint. In that way it functions more like a mid-pipeline
     IO. At present this implementation only supports public endpoints with
-    a maximum request size of 1.5 MB and is lacking error handling related
-    to potentially overwhelming the Vertex AI service and should be used
-    with this in mind.
+    a maximum request size of 1.5 MB.
     Args:
       endpoint_id: the numerical ID of the Vertex AI endpoint to query
       project: the GCP project name where the endpoint is deployed
