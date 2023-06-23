@@ -15,9 +15,6 @@
 # limitations under the License.
 #
 
-from typing import List
-from typing import NamedTuple
-
 import unittest
 import numpy as np
 from parameterized import parameterized
@@ -36,15 +33,6 @@ except ImportError:
 
 if not tft_transforms:
   raise unittest.SkipTest('tensorflow_transform is not installed.')
-
-
-class MyTypesUnbatched(NamedTuple):
-  x: List[int]
-
-
-class MyTypesBatched(NamedTuple):
-  x: List[int]
-
 
 z_score_expected = {'x_mean': 3.5, 'x_var': 2.9166666666666665}
 
@@ -89,12 +77,10 @@ class ScaleZScoreTest(unittest.TestCase):
     }]
 
     with beam.Pipeline() as p:
-      process_handler = handlers.TFTProcessHandlerSchema()
+      process_handler = handlers.TFTProcessHandler()
       unbatched_result = (
           p
           | "unbatchedCreate" >> beam.Create(unbatched_data)
-          | beam.Map(lambda x: MyTypesBatched(**x)).with_output_types(
-              MyTypesUnbatched)
           | "unbatchedMLTransform" >>
           base.MLTransform(process_handler=process_handler).with_transform(
               tft_transforms.ScaleToZScore(columns=['x'])))
@@ -103,12 +89,10 @@ class ScaleZScoreTest(unittest.TestCase):
   def test_z_score_batched(self):
     batched_data = [{'x': [1, 2, 3]}, {'x': [4, 5, 6]}]
     with beam.Pipeline() as p:
-      process_handler = handlers.TFTProcessHandlerSchema()
+      process_handler = handlers.TFTProcessHandler()
       batched_result = (
           p
           | "batchedCreate" >> beam.Create(batched_data)
-          | beam.Map(lambda x: MyTypesBatched(**x)).with_output_types(
-              MyTypesBatched)
           | "batchedMLTransform" >>
           base.MLTransform(process_handler=process_handler).with_transform(
               tft_transforms.ScaleToZScore(columns=['x'])))
@@ -119,12 +103,10 @@ class ScaleTo01Test(unittest.TestCase):
   def test_ScaleTo01_batched(self):
     batched_data = [{'x': [1, 2, 3]}, {'x': [4, 5, 6]}]
     with beam.Pipeline() as p:
-      process_handler = handlers.TFTProcessHandlerSchema()
+      process_handler = handlers.TFTProcessHandler()
       batched_result = (
           p
           | "batchedCreate" >> beam.Create(batched_data)
-          | beam.Map(lambda x: MyTypesBatched(**x)).with_output_types(
-              MyTypesBatched)
           | "batchedMLTransform" >>
           base.MLTransform(process_handler=process_handler).with_transform(
               tft_transforms.ScaleTo01(columns=['x'])))
@@ -153,12 +135,10 @@ class ScaleTo01Test(unittest.TestCase):
         'x': 6
     }]
     with beam.Pipeline() as p:
-      process_handler = handlers.TFTProcessHandlerSchema()
+      process_handler = handlers.TFTProcessHandler()
       unbatched_result = (
           p
           | "unbatchedCreate" >> beam.Create(unbatched_data)
-          | beam.Map(lambda x: MyTypesBatched(**x)).with_output_types(
-              MyTypesUnbatched)
           | "unbatchedMLTransform" >>
           base.MLTransform(process_handler=process_handler).with_transform(
               tft_transforms.ScaleTo01(columns=['x'])))
@@ -180,12 +160,10 @@ class BucketizeTest(unittest.TestCase):
   def test_bucketize_unbatched(self):
     unbatched = [{'x': 1}, {'x': 2}, {'x': 3}, {'x': 4}, {'x': 5}, {'x': 6}]
     with beam.Pipeline() as p:
-      process_handler = handlers.TFTProcessHandlerSchema()
+      process_handler = handlers.TFTProcessHandler()
       unbatched_result = (
           p
           | "unbatchedCreate" >> beam.Create(unbatched)
-          | beam.Map(lambda x: MyTypesBatched(**x)).with_output_types(
-              MyTypesUnbatched)
           | "unbatchedMLTransform" >>
           base.MLTransform(process_handler=process_handler).with_transform(
               tft_transforms.Bucketize(columns=['x'], num_buckets=3)))
@@ -206,12 +184,10 @@ class BucketizeTest(unittest.TestCase):
   def test_bucketize_batched(self):
     batched = [{'x': [1, 2, 3]}, {'x': [4, 5, 6]}]
     with beam.Pipeline() as p:
-      process_handler = handlers.TFTProcessHandlerSchema()
+      process_handler = handlers.TFTProcessHandler()
       batched_result = (
           p
           | "batchedCreate" >> beam.Create(batched)
-          | beam.Map(lambda x: MyTypesBatched(**x)).with_output_types(
-              MyTypesBatched)
           | "batchedMLTransform" >>
           base.MLTransform(process_handler=process_handler).with_transform(
               tft_transforms.Bucketize(columns=['x'], num_buckets=3)))
@@ -241,12 +217,10 @@ class BucketizeTest(unittest.TestCase):
     data = [{'x': [i]} for i in test_input]
     num_buckets = len(expected_boundaries) + 1
     with beam.Pipeline() as p:
-      process_handler = handlers.TFTProcessHandlerSchema()
+      process_handler = handlers.TFTProcessHandler()
       result = (
           p
           | "Create" >> beam.Create(data)
-          | beam.Map(lambda x: MyTypesBatched(**x)).with_output_types(
-              MyTypesUnbatched)
           | "MLTransform" >>
           base.MLTransform(process_handler=process_handler).with_transform(
               tft_transforms.Bucketize(columns=['x'], num_buckets=num_buckets)))
@@ -269,12 +243,10 @@ class ApplyBucketsTest(unittest.TestCase):
   def test_apply_buckets(self, test_inputs, bucket_boundaries):
     with beam.Pipeline() as p:
       data = [{'x': [i]} for i in test_inputs]
-      process_handler = handlers.TFTProcessHandlerSchema()
+      process_handler = handlers.TFTProcessHandler()
       result = (
           p
           | "Create" >> beam.Create(data)
-          | beam.Map(lambda x: MyTypesBatched(**x)).with_output_types(
-              MyTypesUnbatched)
           | "MLTransform" >>
           base.MLTransform(process_handler=process_handler).with_transform(
               tft_transforms.ApplyBuckets(
@@ -292,14 +264,6 @@ class ApplyBucketsTest(unittest.TestCase):
           actual_output, equal_to(expected_output, equals_fn=np.array_equal))
 
 
-class ComputeAndVocabUnbatchedInputType(NamedTuple):
-  x: str
-
-
-class ComputeAndVocabBatchedInputType(NamedTuple):
-  x: List[str]
-
-
 class ComputeAndApplyVocabTest(unittest.TestCase):
   def test_compute_and_apply_vocabulary_unbatched_inputs(self):
     batch_size = 100
@@ -313,12 +277,10 @@ class ComputeAndApplyVocabTest(unittest.TestCase):
     } for i in range(len(input_data))]
 
     with beam.Pipeline() as p:
-      process_handler = handlers.TFTProcessHandlerSchema()
+      process_handler = handlers.TFTProcessHandler()
       actual_data = (
           p
           | "Create" >> beam.Create(input_data)
-          | beam.Map(lambda x: ComputeAndVocabUnbatchedInputType(**x)
-                     ).with_output_types(ComputeAndVocabUnbatchedInputType)
           | "MLTransform" >>
           base.MLTransform(process_handler=process_handler).with_transform(
               tft_transforms.ComputeAndApplyVocabulary(columns=['x'])))
@@ -348,22 +310,16 @@ class ComputeAndApplyVocabTest(unittest.TestCase):
     ]
 
     with beam.Pipeline() as p:
-      process_handler = handlers.TFTProcessHandlerSchema()
+      process_handler = handlers.TFTProcessHandler()
       result = (
           p
           | "Create" >> beam.Create(input_data)
-          | beam.Map(lambda x: ComputeAndVocabBatchedInputType(**x)
-                     ).with_output_types(ComputeAndVocabBatchedInputType)
           | "MLTransform" >>
           base.MLTransform(process_handler=process_handler).with_transform(
               tft_transforms.ComputeAndApplyVocabulary(columns=['x'])))
       actual_output = (result | beam.Map(lambda x: x.x))
       assert_that(
           actual_output, equal_to(excepted_data, equals_fn=np.array_equal))
-
-
-class TFIDFSchema(NamedTuple):
-  x: List[str]
 
 
 class TFIDIFTest(unittest.TestCase):
@@ -377,11 +333,10 @@ class TFIDIFTest(unittest.TestCase):
           tft_transforms.ComputeAndApplyVocabulary(columns=['x']),
           tft_transforms.TFIDF(columns=['x'])
       ]
-      process_handler = handlers.TFTProcessHandlerSchema(transforms=transforms)
+      process_handler = handlers.TFTProcessHandler(transforms=transforms)
       actual_output = (
           p
           | "Create" >> beam.Create(raw_data)
-          | beam.Map(lambda x: TFIDFSchema(**x)).with_output_types(TFIDFSchema)
           | "MLTransform" >> base.MLTransform(process_handler=process_handler))
       actual_output |= beam.Map(lambda x: x.as_dict())
 

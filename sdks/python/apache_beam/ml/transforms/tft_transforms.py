@@ -61,11 +61,28 @@ __all__ = [
     'Bucketize'
 ]
 
+# Register the expected input types for each operation
+# this will be used to determine schema for the tft.AnalyzeDataset
+_EXPECTED_TYPES: Dict[str, Union[int, str, float]] = {}
+
+
+def register_input_dtype(type):
+  def wrapper(fn):
+    _EXPECTED_TYPES[fn.__name__] = type
+    return fn
+
+  return wrapper
+
 
 class TFTOperation(BaseOperation):
   def __init__(self, columns: List[str], **kwargs):
     """
     Base Opertation class for all the TFT operations.
+    Args:
+      columns: List of column names to apply the transformation.
+      produce_artifacts: If True, the transformation will produce artifacts.
+      **kwargs: Additional keyword arguments to be passed to the
+        tensorflow_transform function.
     """
     self.columns = columns
     self._kwargs = kwargs
@@ -83,6 +100,7 @@ class TFTOperation(BaseOperation):
     return None
 
 
+@register_input_dtype(str)
 class ComputeAndApplyVocabulary(TFTOperation):
   def __init__(
       self,
@@ -138,6 +156,7 @@ class ComputeAndApplyVocabulary(TFTOperation):
     }
 
 
+@register_input_dtype(float)
 class ScaleToZScore(TFTOperation):
   def __init__(
       self,
@@ -189,6 +208,7 @@ class ScaleToZScore(TFTOperation):
     }
 
 
+@register_input_dtype(float)
 class ScaleTo01(TFTOperation):
   def __init__(
       self,
@@ -238,6 +258,7 @@ class ScaleTo01(TFTOperation):
     return output_dict
 
 
+@register_input_dtype(float)
 class ApplyBuckets(TFTOperation):
   def __init__(
       self,
@@ -271,6 +292,7 @@ class ApplyBuckets(TFTOperation):
     return output
 
 
+@register_input_dtype(float)
 class Bucketize(TFTOperation):
   def __init__(
       self,
@@ -349,6 +371,7 @@ class Bucketize(TFTOperation):
     return output
 
 
+@register_input_dtype(float)
 class TFIDF(TFTOperation):
   def __init__(
       self,

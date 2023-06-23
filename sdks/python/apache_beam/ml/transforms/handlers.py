@@ -30,21 +30,29 @@ from apache_beam.ml.transforms.base import _ProcessHandler
 from apache_beam.ml.transforms.base import ProcessInputT
 from apache_beam.ml.transforms.base import ProcessOutputT
 from apache_beam.ml.transforms.tft_transforms import TFTOperation
+from apache_beam.ml.transforms.tft_transforms import _EXPECTED_TYPES
 from apache_beam.typehints import native_type_compatibility
 from apache_beam.typehints.row_type import RowTypeConstraint
+import pyarrow as pa
 import tensorflow as tf
 from tensorflow_metadata.proto.v0 import schema_pb2
-import tensorflow_transform as tft
 import tensorflow_transform.beam as tft_beam
 from tensorflow_transform import common_types
 from tensorflow_transform.beam.tft_beam_io import beam_metadata_io
 from tensorflow_transform.beam.tft_beam_io import transform_fn_io
 from tensorflow_transform.tf_metadata import dataset_metadata
 from tensorflow_transform.tf_metadata import schema_utils
+from tfx_bsl.tfxio import tf_example_record
 
 __all__ = [
-    'TFTProcessHandlerSchema',
+    'TFTProcessHandler',
 ]
+
+
+class ArtifactMode(object):
+  PRODUCE = 'produce'
+  CONSUME = 'consume'
+
 
 # tensorflow transform doesn't support the types other than tf.int64,
 # tf.float32 and tf.string.
@@ -64,12 +72,32 @@ _primitive_types_to_typing_container_type = {
     int: List[int], float: List[float], str: List[str], bytes: List[bytes]
 }
 
-tft_process_handler_schema_input_type = typing.Union[typing.NamedTuple,
-                                                     beam.Row]
+tft_process_handler_input_type = typing.Union[typing.NamedTuple,
+                                              beam.Row,
+                                              Dict[str,
+                                                   typing.Union[str,
+                                                                float,
+                                                                int,
+                                                                bytes,
+                                                                np.ndarray]]]
+
+
+class ConvertScalarValuesToListValues(beam.DoFn):
+  def process(
+      self, element: Dict[str, typing.Any]
+  ) -> typing.Iterable[Dict[str, typing.List[typing.Any]]]:
+    new_dict = {}
+    for key, value in element.items():
+      if isinstance(value,
+                    tuple(_primitive_types_to_typing_container_type.keys())):
+        new_dict[key] = [value]
+      else:
+        new_dict[key] = value
+    yield new_dict
 
 
 class ConvertNamedTupleToDict(
-    beam.PTransform[beam.PCollection[tft_process_handler_schema_input_type],
+    beam.PTransform[beam.PCollection[typing.Union[beam.Row, typing.NamedTuple]],
                     beam.PCollection[Dict[str,
                                           common_types.InstanceDictType]]]):
   """
@@ -77,7 +105,7 @@ class ConvertNamedTupleToDict(
     collection of dictionaries.
   """
   def expand(
-      self, pcoll: beam.PCollection[tft_process_handler_schema_input_type]
+      self, pcoll: beam.PCollection[typing.Union[beam.Row, typing.NamedTuple]]
   ) -> beam.PCollection[common_types.InstanceDictType]:
     """
     Args:
@@ -100,7 +128,9 @@ class TFTProcessHandler(_ProcessHandler[ProcessInputT, ProcessOutputT]):
       transforms: Optional[List[TFTOperation]] = None,
       artifact_location: typing.Optional[str] = None,
       preprocessing_fn: typing.Optional[typing.Callable] = None,
-  ):
+      is_input_record_batch: bool = False,
+      output_record_batches: bool = False,
+      artifact_mode: str = ArtifactMode.PRODUCE):
     """
     A handler class for processing data with TensorFlow Transform (TFT)
     operations. This class is intended to be subclassed, with subclasses
@@ -116,11 +146,27 @@ class TFTProcessHandler(_ProcessHandler[ProcessInputT, ProcessOutputT]):
         ScaleToZScore, etc. If the directory is not empty,
         this will assume that the artifacts are already computed and will
         skip computing the artifacts again from the data.
+      is_input_record_batch: Whether the input is a RecordBatch.
+      output_record_batches: Output RecordBatches instead of beam.Row().
+      artifact_mode: Whether to produce or consume artifacts. If set to
+        'consume', the handler will assume that the artifacts are already
+        computed and stored in the artifact_location. Pass the same artifact
+        location that was passed during produce phase to ensure that the
+        right artifacts are read. If set to 'produce', the handler
+        will compute the artifacts and store them in the artifact_location.
+        The artifacts will be read from this location during the consume phase.
+        There is no need to pass the transforms in this case since they are
+        already embedded in the stored artifacts.
     """
     self.transforms = transforms if transforms else []
     self.transformed_schema = None
     self.artifact_location = artifact_location
     self.preprocessing_fn = preprocessing_fn
+    self.is_input_record_batch = is_input_record_batch
+    self.output_record_batches = output_record_batches
+    self.artifact_mode = artifact_mode
+    if artifact_mode not in ['produce', 'consume']:
+      raise ValueError('artifact_mode must be either `produce` or `consume`.')
 
     if not self.artifact_location:
       self.artifact_location = tempfile.mkdtemp()
@@ -128,17 +174,52 @@ class TFTProcessHandler(_ProcessHandler[ProcessInputT, ProcessOutputT]):
   def append_transform(self, transform):
     self.transforms.append(transform)
 
-  def validate_transform_fn(self):
-    transform_output = tft.TFTransformOutput(self.artifact_location)
+  def _map_column_names_to_types(self, row_type):
+    """
+    Return a dictionary of column names and types.
+    Args:
+      element_type: A type of the element. This could be a NamedTuple or a Row.
+    Returns:
+      A dictionary of column names and types.
+    """
     try:
-      # verify if we could load the transform graph.
-      _ = transform_output.transformed_metadata
-      return True
-    except OSError:
-      return False
+      if not isinstance(row_type, RowTypeConstraint):
+        row_type = RowTypeConstraint.from_user_type(row_type)
+
+      inferred_types = {name: typ for name, typ in row_type._fields}
+
+      for k, t in inferred_types.items():
+        if t in _primitive_types_to_typing_container_type:
+          inferred_types[k] = _primitive_types_to_typing_container_type[t]
+
+      # sometimes a numpy type can be provided as np.dtype('int64').
+      # convert numpy.dtype to numpy type since both are same.
+      for name, typ in inferred_types.items():
+        if isinstance(typ, np.dtype):
+          inferred_types[name] = typ.type
+
+      return inferred_types
+    except:  # pylint: disable=bare-except
+      return {}
+
+  def _map_column_names_to_types_from_transforms(self):
+    column_type_mapping = {}
+    for transform in self.transforms:
+      for col in transform.columns:
+        if col not in column_type_mapping:
+          # we just need to dtype of first occurance of column in transforms.
+          class_name = transform.__class__.__name__
+          if class_name not in _EXPECTED_TYPES:
+            raise KeyError(
+                f"Transform {class_name} is not registered with a supported "
+                "type. Please register the transform with a supported type "
+                "using register_input_dtype decorator.")
+          column_type_mapping[col] = _EXPECTED_TYPES[
+              transform.__class__.__name__]
+    return column_type_mapping
 
   def get_raw_data_feature_spec(
-      self, input_types: Dict[str, type]) -> dataset_metadata.DatasetMetadata:
+      self, input_types: Dict[str, type]) -> Dict[str, tf.io.VarLenFeature]:
     """
     Return a DatasetMetadata object to be used with
     tft_beam.AnalyzeAndTransformDataset.
@@ -151,11 +232,16 @@ class TFTProcessHandler(_ProcessHandler[ProcessInputT, ProcessOutputT]):
     for key, value in input_types.items():
       raw_data_feature_spec[key] = self._get_raw_data_feature_spec_per_column(
           typ=value, col_name=key)
+    return raw_data_feature_spec
+
+  def convert_raw_data_feature_spec_to_dataset_metadata(
+      self, raw_data_feature_spec) -> dataset_metadata.DatasetMetadata:
     raw_data_metadata = dataset_metadata.DatasetMetadata(
         schema_utils.schema_from_feature_spec(raw_data_feature_spec))
     return raw_data_metadata
 
-  def _get_raw_data_feature_spec_per_column(self, typ: type, col_name: str):
+  def _get_raw_data_feature_spec_per_column(
+      self, typ: type, col_name: str) -> tf.io.VarLenFeature:
     """
     Return a FeatureSpec object to be used with
     tft_beam.AnalyzeAndTransformDataset
@@ -191,13 +277,11 @@ class TFTProcessHandler(_ProcessHandler[ProcessInputT, ProcessOutputT]):
           f"{_default_type_to_tensor_type_map.keys()}")
     return tf.io.VarLenFeature(_default_type_to_tensor_type_map[dtype])
 
-  def get_raw_data_metadata(self, input_types: Dict[str, type]):
-    """
-    Return metadata to be used with tft_beam.AnalyzeAndTransformDataset
-    Args:
-      input_types: A dictionary of column names and types.
-    """
-    raise NotImplementedError
+  def get_raw_data_metadata(
+      self, input_types: Dict[str, type]) -> dataset_metadata.DatasetMetadata:
+    raw_data_feature_spec = self.get_raw_data_feature_spec(input_types)
+    return self.convert_raw_data_feature_spec_to_dataset_metadata(
+        raw_data_feature_spec)
 
   def write_transform_artifacts(self, transform_fn, location):
     """
@@ -213,18 +297,6 @@ class TFTProcessHandler(_ProcessHandler[ProcessInputT, ProcessOutputT]):
         | 'Write Transform Artifacts' >>
         transform_fn_io.WriteTransformFn(location))
 
-  def process_data_fn(
-      self, inputs: Dict[str, common_types.ConsistentTensorType]
-  ) -> Dict[str, common_types.ConsistentTensorType]:
-    """
-    A preprocessing_fn which should be implemented by subclasses
-    of TFTProcessHandlers. In this method, tft data transforms
-    such as scale_0_to_1 functions are called.
-    Args:
-      inputs: A dictionary of column names and associated data.
-    """
-    raise NotImplementedError
-
   def _fail_on_non_default_windowing(self, pcoll: beam.PCollection):
     if not pcoll.windowing.is_default():
       raise RuntimeError(
@@ -232,78 +304,6 @@ class TFTProcessHandler(_ProcessHandler[ProcessInputT, ProcessOutputT]):
           "artifacts such as min, max, variance etc over the dataset."
           "Please use beam.WindowInto(beam.transforms.window.GlobalWindows()) "
           "to convert your PCollection to GlobalWindow.")
-
-
-class TFTProcessHandlerSchema(
-    TFTProcessHandler[tft_process_handler_schema_input_type, beam.Row]):
-  """
-    A subclass of TFTProcessHandler specifically for handling
-    data in beam.Row or NamedTuple format.
-    TFTProcessHandlerSchema creates a beam graph that applies
-    TensorFlow Transform (TFT) operations to the input data and
-    outputs a beam.Row object containing the transformed data as numpy arrays.
-
-    This only works on the Schema'd PCollection. Please refer to
-    https://beam.apache.org/documentation/programming-guide/#schemas
-    for more information on Schema'd PCollection.
-
-    Currently, there are two ways to define a schema for a PCollection:
-
-    1) Register a `typing.NamedTuple` type to use RowCoder, and specify it as
-      the output type. For example::
-
-        Purchase = typing.NamedTuple('Purchase',
-                                    [('item_name', unicode), ('price', float)])
-        coders.registry.register_coder(Purchase, coders.RowCoder)
-        with Pipeline() as p:
-          purchases = (p | beam.Create(...)
-                        | beam.Map(..).with_output_types(Purchase))
-
-    2) Produce `beam.Row` instances. Note this option will fail if Beam is
-      unable to infer data types for any of the fields. For example::
-
-        with Pipeline() as p:
-          purchases = (p | beam.Create(...)
-                        | beam.Map(lambda x: beam.Row(item_name=unicode(..),
-                                                      price=float(..))))
-    In the schema, TFTProcessHandlerSchema accepts the following types:
-    1. Primitive types: int, float, str, bytes
-    2. List of the primitive types.
-    3. Numpy arrays.
-
-    For any other types, TFTProcessHandler will raise a TypeError.
-  """
-  def _map_column_names_to_types(self, element_type):
-    """
-    Return a dictionary of column names and types.
-    Args:
-      element_type: A type of the element. This could be a NamedTuple or a Row.
-    Returns:
-      A dictionary of column names and types.
-    """
-
-    if not isinstance(element_type, RowTypeConstraint):
-      row_type = RowTypeConstraint.from_user_type(element_type)
-      if not row_type:
-        raise TypeError(
-            "Element type must be compatible with Beam Schemas ("
-            "https://beam.apache.org/documentation/programming-guide/#schemas)"
-            " for to use with MLTransform and TFTProcessHandlerSchema.")
-    else:
-      row_type = element_type
-    inferred_types = {name: typ for name, typ in row_type._fields}
-
-    for k, t in inferred_types.items():
-      if t in _primitive_types_to_typing_container_type:
-        inferred_types[k] = _primitive_types_to_typing_container_type[t]
-
-    # sometimes a numpy type can be provided as np.dtype('int64').
-    # convert numpy.dtype to numpy type since both are same.
-    for name, typ in inferred_types.items():
-      if isinstance(typ, np.dtype):
-        inferred_types[name] = typ.type
-
-    return inferred_types
 
   def process_data_fn(
       self, inputs: Dict[str, common_types.ConsistentTensorType]
@@ -352,90 +352,99 @@ class TFTProcessHandlerSchema(
     return transformed_types
 
   def process_data(
-      self, pcoll: beam.PCollection[tft_process_handler_schema_input_type]
-  ) -> beam.PCollection[beam.Row]:
+      self, raw_data: beam.PCollection[tft_process_handler_input_type]
+  ) -> beam.PCollection[typing.Union[
+      beam.Row, Dict[str, np.ndarray], pa.RecordBatch]]:
+    """
+    This method also computes the required dataset metadata for the tft
+    AnalyzeDataset/TransformDataset step.
 
-    compute_artifacts = True
-    if self.validate_transform_fn():
-      compute_artifacts = False
-      logging.info(
-          "Transform artifacts already exist at %s. Skipping "
-          "computation of transform artifacts.",
-          self.artifact_location)
+    This method uses tensorflow_transform's Analyze step to produce the
+    artifacts and Transform step to apply the transforms on the data.
+    Artifacts are only produced if the artifact_mode is set to `produce`.
+    If artifact_mode is set to `consume`, then the artifacts are read from the
+    artifact_location, which was previously used to store the produced
+    artifacts.
+    """
+    if self.artifact_mode == ArtifactMode.PRODUCE:
+      # If we are computing artifacts, we should fail for windows other than
+      # default windowing since for example, for a fixed window, each window can
+      # be treated as a separate dataset and we might need to compute artifacts
+      # for each window. This is not supported yet.
+      self._fail_on_non_default_windowing(raw_data)
 
-    # If we are computing artifacts, we should fail for windows other than
-    # default windowing since for example, for a fixed window, each window can
-    # be treated as a separate dataset and we might need to compute artifacts
-    # for each window. This is not supported yet.
-    if compute_artifacts:
-      self._fail_on_non_default_windowing(pcoll)
+    element_type = raw_data.element_type
+    column_type_mapping = {}
 
-    element_type = pcoll.element_type
-    column_type_mapping = self._map_column_names_to_types(
-        element_type=element_type)
-    # AnalyzeAndTransformDataset raise type hint since we only accept
-    # schema'd PCollection and the current output type would be a
-    # custom type(NamedTuple) or a beam.Row type.
-    raw_data = (
-        pcoll
-        | ConvertNamedTupleToDict()
-        # Also, to maintain consistency by outputting numpy array all the time,
-        #  we will convert scalar values to list values.
-        | beam.ParDo(_ConvertScalarValuesToListValues()).with_output_types(
-            Dict[str, typing.Union[tuple(column_type_mapping.values())]]))
+    if (isinstance(element_type, RowTypeConstraint) or
+        native_type_compatibility.match_is_named_tuple(element_type)):
+      column_type_mapping = self._map_column_names_to_types(
+          row_type=element_type)
+      # convert Row or NamedTuple to Dict
+      raw_data = (
+          raw_data
+          | ConvertNamedTupleToDict().with_output_types(
+              Dict[str, typing.Union[tuple(column_type_mapping.values())]]))
+      # AnalyzeAndTransformDataset raise type hint since this is
+      # schema'd PCollection and the current output type would be a
+      # custom type(NamedTuple) or a beam.Row type.
+    else:
+      column_type_mapping = self._map_column_names_to_types_from_transforms()
+
+    # To maintain consistency by outputting numpy array all the time,
+    # whether a scalar value or list or np array is passed as input,
+    #  we will convert scalar values to list values and TFT will ouput
+    # numpy array all the time.
+    raw_data |= beam.ParDo(ConvertScalarValuesToListValues())
 
     raw_data_metadata = self.get_raw_data_metadata(
         input_types=column_type_mapping)
+
+    if self.is_input_record_batch:
+      # record batches need TensorAdapter. Convert the raw_data_metadata to
+      # TensorAdapterConfig.
+      schema = raw_data_metadata.schema
+      _tfxio = tf_example_record.TFExampleBeamRecord(
+          physical_format='inmem',
+          telemetry_descriptors=['StandaloneTFTransform'],
+          schema=schema)
+      raw_data_metadata = _tfxio.TensorAdapterConfig()
 
     preprocessing_fn = self.preprocessing_fn if self.preprocessing_fn else (
         self.process_data_fn)
 
     with tft_beam.Context(temp_dir=self.artifact_location):
       data = (raw_data, raw_data_metadata)
-      if compute_artifacts:
+      if self.artifact_mode == ArtifactMode.PRODUCE:
         transform_fn = (
             data
             | "AnalyzeDataset" >> tft_beam.AnalyzeDataset(preprocessing_fn))
         self.write_transform_artifacts(transform_fn, self.artifact_location)
       else:
         transform_fn = (
-            pcoll.pipeline
+            raw_data.pipeline
             | "ReadTransformFn" >> tft_beam.ReadTransformFn(
                 self.artifact_location))
       (transformed_dataset, transformed_metadata) = (
           (data, transform_fn)
-          | "TransformDataset" >> tft_beam.TransformDataset())
+          | "TransformDataset" >> tft_beam.TransformDataset(
+              output_record_batches=self.output_record_batches))
+
       if isinstance(transformed_metadata, beam_metadata_io.BeamDatasetMetadata):
         self.transformed_schema = self._get_transformed_data_schema(
             metadata=transformed_metadata.dataset_metadata)
       else:
         self.transformed_schema = self._get_transformed_data_schema(
             transformed_metadata)
-      # We need to pass a schema'd PCollection to the next step.
-      # So we will use a RowTypeConstraint to create a schema'd PCollection.
-      # this is needed since new columns are included in the
-      # transformed_dataset.
-      row_type = RowTypeConstraint.from_fields(
-          list(self.transformed_schema.items()))
 
-      transformed_dataset |= "ConvertToRowType" >> beam.Map(
-          lambda x: beam.Row(**x)).with_output_types(row_type)
+      if not self.output_record_batches:
+        # We will a pass a schema'd PCollection to the next step.
+        # So we will use a RowTypeConstraint to create a schema'd PCollection.
+        # this is needed since new columns are included in the
+        # transformed_dataset.
+        row_type = RowTypeConstraint.from_fields(
+            list(self.transformed_schema.items()))
+
+        transformed_dataset |= "ConvertToRowType" >> beam.Map(
+            lambda x: beam.Row(**x)).with_output_types(row_type)
       return transformed_dataset
-
-  def get_raw_data_metadata(
-      self, input_types: Dict[str, type]) -> dataset_metadata.DatasetMetadata:
-    return self.get_raw_data_feature_spec(input_types)
-
-
-class _ConvertScalarValuesToListValues(beam.DoFn):
-  def process(
-      self, element: Dict[str, typing.Any]
-  ) -> typing.Iterable[Dict[str, typing.List[typing.Any]]]:
-    new_dict = {}
-    for key, value in element.items():
-      if isinstance(value,
-                    tuple(_primitive_types_to_typing_container_type.keys())):
-        new_dict[key] = [value]
-      else:
-        new_dict[key] = value
-    yield new_dict
