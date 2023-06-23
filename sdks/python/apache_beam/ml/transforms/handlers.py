@@ -349,37 +349,26 @@ class TFTProcessHandler(_ProcessHandler[ProcessInputT, ProcessOutputT]):
       # be treated as a separate dataset and we might need to compute artifacts
       # for each window. This is not supported yet.
       self._fail_on_non_default_windowing(raw_data)
-
-    element_type = raw_data.element_type
-    column_type_mapping = {}
-
-    if (isinstance(element_type, RowTypeConstraint) or
-        native_type_compatibility.match_is_named_tuple(element_type)):
-      column_type_mapping = self._map_column_names_to_types(
-          row_type=element_type)
-      # convert Row or NamedTuple to Dict
-      raw_data = (
-          raw_data
-          | ConvertNamedTupleToDict().with_output_types(
-              Dict[str, typing.Union[tuple(column_type_mapping.values())]]))
-      # AnalyzeAndTransformDataset raise type hint since this is
-      # schema'd PCollection and the current output type would be a
-      # custom type(NamedTuple) or a beam.Row type.
-    else:
-      column_type_mapping = self._map_column_names_to_types_from_transforms()
-
-    # To maintain consistency by outputting numpy array all the time,
-    # whether a scalar value or list or np array is passed as input,
-    #  we will convert scalar values to list values and TFT will ouput
-    # numpy array all the time.
-    if not self.is_input_record_batches:
-      raw_data |= beam.ParDo(ConvertScalarValuesToListValues())
-
-    if self.artifact_mode == ArtifactMode.PRODUCE:
-      # Write untransformed metadata to a file so that it can be re-used
-      # during Transform step.
+      element_type = raw_data.element_type
+      column_type_mapping = {}
+      if (isinstance(element_type, RowTypeConstraint) or
+          native_type_compatibility.match_is_named_tuple(element_type)):
+        column_type_mapping = self._map_column_names_to_types(
+            row_type=element_type)
+        # convert Row or NamedTuple to Dict
+        raw_data = (
+            raw_data
+            | ConvertNamedTupleToDict().with_output_types(
+                Dict[str, typing.Union[tuple(column_type_mapping.values())]]))
+        # AnalyzeAndTransformDataset raise type hint since this is
+        # schema'd PCollection and the current output type would be a
+        # custom type(NamedTuple) or a beam.Row type.
+      else:
+        column_type_mapping = self._map_column_names_to_types_from_transforms()
       raw_data_metadata = self.get_raw_data_metadata(
           input_types=column_type_mapping)
+      # Write untransformed metadata to a file so that it can be re-used
+      # during Transform step.
       metadata_io.write_metadata(
           metadata=raw_data_metadata,
           path=os.path.join(self.artifact_location, RAW_DATA_METADATA_DIR))
@@ -392,6 +381,13 @@ class TFTProcessHandler(_ProcessHandler[ProcessInputT, ProcessOutputT]):
             os.path.join(self.artifact_location, RAW_DATA_METADATA_DIR))
       raw_data_metadata = metadata_io.read_metadata(
           os.path.join(self.artifact_location, RAW_DATA_METADATA_DIR))
+
+    # To maintain consistency by outputting numpy array all the time,
+    # whether a scalar value or list or np array is passed as input,
+    #  we will convert scalar values to list values and TFT will ouput
+    # numpy array all the time.
+    if not self.is_input_record_batches:
+      raw_data |= beam.ParDo(ConvertScalarValuesToListValues())
 
     if self.is_input_record_batches:
       # record batches need TensorAdapter. Convert the raw_data_metadata to
