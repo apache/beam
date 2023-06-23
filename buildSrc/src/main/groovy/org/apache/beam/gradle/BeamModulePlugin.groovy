@@ -2322,12 +2322,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // TODO: Decide whether this should be inlined into the one project that relies on it
     // or be left here.
-    project.ext.applyAvroNature = {
-      project.apply plugin: "com.commercehub.gradle.plugin.avro"
-      project.avro {
-        dateTimeLogicalType = 'JODA'
-      }
-    }
+    project.ext.applyAvroNature = { project.apply plugin: "com.commercehub.gradle.plugin.avro" }
 
     project.ext.applyAntlrNature = {
       project.apply plugin: 'antlr'
