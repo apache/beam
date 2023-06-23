@@ -111,23 +111,12 @@ class OutputSampler:
     The Python SDK passes elements as WindowedValues, which may not match the
     coder for that particular PCollection.
     """
-    if isinstance(el, WindowedValue):
-      return self.remove_windowed_value(el.value)
+    while isinstance(el, WindowedValue):
+      el = el.value
     return el
 
-  def peek(self) -> List[bytes]:
-    """Returns all samples and does not clear the buffer."""
-    with self._samples_lock:
-      if isinstance(self._coder_impl, WindowedValueCoderImpl):
-        samples = [s for s in self._samples]
-      else:
-        samples = [self.remove_windowed_value(s) for s in self._samples]
-      # Encode in the nested context b/c this ensures that the SDK can decode
-      # the bytes with the ToStringFn.
-      return [self._coder_impl.encode_nested(s) for s in samples]
-
-  def flush(self) -> List[bytes]:
-    """Returns all samples and clears buffer."""
+  def flush(self, clear: bool = True) -> List[bytes]:
+    """Returns all samples and optionally clears buffer if clear is True."""
     with self._samples_lock:
       if isinstance(self._coder_impl, WindowedValueCoderImpl):
         samples = [s for s in self._samples]
@@ -136,7 +125,8 @@ class OutputSampler:
 
       # Encode in the nested context b/c this ensures that the SDK can decode
       # the bytes with the ToStringFn.
-      self._samples.clear()
+      if clear:
+        self._samples.clear()
       return [self._coder_impl.encode_nested(s) for s in samples]
 
   def sample(self) -> None:

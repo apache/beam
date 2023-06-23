@@ -312,7 +312,7 @@ class OutputSamplerTest(unittest.TestCase):
     while now < end:
       time.sleep(0.1)
       now = time.time()
-      samples = output_sampler.peek()
+      samples = output_sampler.flush(clear=False)
 
       if not samples:
         continue
@@ -336,7 +336,7 @@ class OutputSamplerTest(unittest.TestCase):
       element_sampler.has_element = True
       time.sleep(0.1)
       now = time.time()
-      samples = output_sampler.peek()
+      samples = output_sampler.flush(clear=False)
 
       if not samples:
         continue

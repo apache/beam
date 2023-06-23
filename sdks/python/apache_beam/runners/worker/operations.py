@@ -129,7 +129,6 @@ class ConsumerSet(Receiver):
              element_sampler=None,  # type: Optional[ElementSampler]
              ):
     # type: (...) -> ConsumerSet
-    element_sampler = element_sampler or ElementSampler()
     if len(consumers) == 1:
       consumer = consumers[0]
 
@@ -212,8 +211,9 @@ class ConsumerSet(Receiver):
     # between here and the DataSampler as an additional operation. The tradeoff
     # is that some samples might be dropped, but it is better than the
     # alternative which is double sampling the same element.
-    self.element_sampler.el = windowed_value
-    self.element_sampler.has_element = True
+    if self.element_sampler is not None:
+      self.element_sampler.el = windowed_value
+      self.element_sampler.has_element = True
 
   def update_counters_finish(self):
     # type: () -> None
