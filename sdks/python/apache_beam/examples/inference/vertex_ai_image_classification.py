@@ -27,12 +27,11 @@ for more information.)
 import argparse
 import io
 import logging
-from typing import Tuple
 from typing import Iterable
+from typing import Tuple
 
 import apache_beam as beam
 import tensorflow as tf
-
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.base import KeyedModelHandler
 from apache_beam.ml.inference.base import PredictionResult
