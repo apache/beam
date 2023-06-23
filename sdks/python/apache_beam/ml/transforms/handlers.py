@@ -16,6 +16,7 @@
 #
 import collections
 import logging
+import os
 import tempfile
 import typing
 from typing import Dict
@@ -42,6 +43,7 @@ from tensorflow_transform import common_types
 from tensorflow_transform.beam.tft_beam_io import beam_metadata_io
 from tensorflow_transform.beam.tft_beam_io import transform_fn_io
 from tensorflow_transform.tf_metadata import dataset_metadata
+from tensorflow_transform.tf_metadata import metadata_io
 from tensorflow_transform.tf_metadata import schema_utils
 from tfx_bsl.tfxio import tf_example_record
 
@@ -49,6 +51,8 @@ __all__ = [
     'TFTProcessHandler',
 ]
 
+RAW_DATA_METADATA_DIR = 'raw_data_metadata'
+SCHEMA_FILE = 'schema.pbtxt'
 # tensorflow transform doesn't support the types other than tf.int64,
 # tf.float32 and tf.string.
 _default_type_to_tensor_type_map = {
@@ -371,8 +375,23 @@ class TFTProcessHandler(_ProcessHandler[ProcessInputT, ProcessOutputT]):
     if not self.is_input_record_batches:
       raw_data |= beam.ParDo(ConvertScalarValuesToListValues())
 
-    raw_data_metadata = self.get_raw_data_metadata(
-        input_types=column_type_mapping)
+    if self.artifact_mode == ArtifactMode.PRODUCE:
+      # Write untransformed metadata to a file so that it can be re-used
+      # during Transform step.
+      raw_data_metadata = self.get_raw_data_metadata(
+          input_types=column_type_mapping)
+      metadata_io.write_metadata(
+          metadata=raw_data_metadata,
+          path=os.path.join(self.artifact_location, RAW_DATA_METADATA_DIR))
+    else:
+      # Read the metadata from the artifact_location.
+      if not os.path.exists(os.path.join(
+          self.artifact_location, RAW_DATA_METADATA_DIR, SCHEMA_FILE)):
+        raise FileNotFoundError(
+            "Raw data metadata not found at %s" %
+            os.path.join(self.artifact_location, RAW_DATA_METADATA_DIR))
+      raw_data_metadata = metadata_io.read_metadata(
+          os.path.join(self.artifact_location, RAW_DATA_METADATA_DIR))
 
     if self.is_input_record_batches:
       # record batches need TensorAdapter. Convert the raw_data_metadata to
@@ -397,7 +416,7 @@ class TFTProcessHandler(_ProcessHandler[ProcessInputT, ProcessOutputT]):
             | "ReadTransformFn" >> tft_beam.ReadTransformFn(
                 self.artifact_location))
       (transformed_dataset, transformed_metadata) = (
-          (data, transform_fn)
+          ((raw_data, raw_data_metadata), transform_fn)
           | "TransformDataset" >> tft_beam.TransformDataset(
               output_record_batches=self.output_record_batches))
 
