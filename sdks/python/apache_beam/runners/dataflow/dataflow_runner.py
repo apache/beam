@@ -22,26 +22,18 @@ to the Dataflow Service for remote execution by a worker.
 """
 # pytype: skip-file
 
-import base64
 import logging
 import os
 import threading
 import time
-import traceback
 import warnings
 from collections import defaultdict
 from subprocess import DEVNULL
 from typing import TYPE_CHECKING
 from typing import List
-from urllib.parse import quote
-from urllib.parse import quote_from_bytes
-from urllib.parse import unquote_to_bytes
 
 import apache_beam as beam
 from apache_beam import coders
-from apache_beam import error
-from apache_beam.internal import pickler
-from apache_beam.internal.gcp import json_value
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import SetupOptions
@@ -51,20 +43,14 @@ from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.options.pipeline_options import WorkerOptions
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
-from apache_beam.pvalue import AsSideInput
 from apache_beam.runners.common import DoFnSignature
 from apache_beam.runners.common import group_by_key_input_visitor
 from apache_beam.runners.dataflow.internal.clients import dataflow as dataflow_api
 from apache_beam.runners.runner import PipelineResult
 from apache_beam.runners.runner import PipelineRunner
 from apache_beam.runners.runner import PipelineState
-from apache_beam.runners.runner import PValueCache
-from apache_beam.transforms import window
-from apache_beam.transforms.display import DisplayData
-from apache_beam.transforms.sideinputs import SIDE_INPUT_PREFIX
 from apache_beam.typehints import typehints
 from apache_beam.utils import processes
-from apache_beam.utils import proto_utils
 from apache_beam.utils.interactive_utils import is_in_notebook
 from apache_beam.utils.plugin import BeamPlugin
 

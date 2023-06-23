@@ -17,8 +17,6 @@
 
 # pytype: skip-file
 
-from google.protobuf import json_format
-
 from apache_beam.coders import typecoders
 from apache_beam.coders.coder_impl import LogicalTypeCoderImpl
 from apache_beam.coders.coder_impl import RowCoderImpl
