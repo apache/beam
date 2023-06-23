@@ -149,18 +149,6 @@ class BaseMLTransformTest(unittest.TestCase):
               'y': typing.Sequence[np.float32],
           },
       ),
-      # this fails on Python 3.8 since tpye subscripting is not supported
-      # param(
-      #     input_data=[{
-      #         'x': [1, 2, 3], 'y': [2.0, 3.0, 4.0]
-      #     }],
-      #     input_types={
-      #         'x': list[int], 'y': list[float]
-      #     },
-      #     expected_dtype={
-      #         'x': typing.Sequence[np.float32],
-      #         'y': typing.Sequence[np.float32]
-      #     }),
   ])
   def test_ml_transform_dict_output_pcoll_schema(
       self, input_data, input_types, expected_dtype):
