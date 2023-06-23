@@ -162,12 +162,13 @@ class LightweightScope(object):
 
 class Scope(LightweightScope):
   """To look up PCollections (typically outputs of prior transforms) by name."""
-  def __init__(self, root, inputs, transforms, providers):
+  def __init__(self, root, inputs, transforms, providers, input_providers):
     super().__init__(transforms)
     self.root = root
     self._inputs = inputs
     self.providers = providers
     self._seen_names = set()
+    self.input_providers = input_providers
 
   def compute_all(self):
     for transform_id in self._transforms_by_uuid.keys():
@@ -203,7 +204,7 @@ class Scope(LightweightScope):
     return expand_transform(self._transforms_by_uuid[transform_id], self)
 
   # A method on scope as providers may be scoped...
-  def create_ptransform(self, spec):
+  def create_ptransform(self, spec, input_pcolls):
     if 'type' not in spec:
       raise ValueError(f'Missing transform type: {identify_object(spec)}')
 
@@ -212,7 +213,20 @@ class Scope(LightweightScope):
           'Unknown transform type %r at %s' %
           (spec['type'], identify_object(spec)))
 
-    for provider in self.providers.get(spec['type']):
+    # TODO(yaml): Perhaps we can do better than a greedy choice here.
+    # TODO(yaml): Figure out why this is needed.
+    providers_by_input = {k: v for k, v in self.input_providers.items()}
+    input_providers = [
+        providers_by_input[pcoll] for pcoll in input_pcolls
+        if pcoll in providers_by_input
+    ]
+
+    def provider_score(p):
+      return sum(p.affinity(o) for o in input_providers)
+
+    for provider in sorted(self.providers.get(spec['type']),
+                           key=provider_score,
+                           reverse=True):
       if provider.available():
         break
     else:
@@ -245,6 +259,26 @@ class Scope(LightweightScope):
           yaml_provider=json.dumps(provider.to_json()),
           **ptransform.annotations())
       ptransform.annotations = lambda: annotations
+      original_expand = ptransform.expand
+
+      def recording_expand(pvalue):
+        result = original_expand(pvalue)
+
+        def record_providers(pvalueish):
+          if isinstance(pvalueish, (tuple, list)):
+            for p in pvalueish:
+              record_providers(p)
+          elif isinstance(pvalueish, dict):
+            for p in pvalueish.values():
+              record_providers(p)
+          elif isinstance(pvalueish, beam.PCollection):
+            if pvalueish not in self.input_providers:
+              self.input_providers[pvalueish] = provider
+
+        record_providers(result)
+        return result
+
+      ptransform.expand = recording_expand
       return ptransform
     except Exception as exn:
       if isinstance(exn, TypeError):
@@ -303,7 +337,7 @@ def expand_leaf_transform(spec, scope):
     else:
       inputs = inputs_dict
   _LOGGER.info("Expanding %s ", identify_object(spec))
-  ptransform = scope.create_ptransform(spec)
+  ptransform = scope.create_ptransform(spec, inputs_dict.values())
   try:
     # TODO: Move validation to construction?
     with FullyQualifiedNamedTransform.with_filter('*'):
@@ -336,7 +370,8 @@ def expand_composite_transform(spec, scope):
       spec['transforms'],
       yaml_provider.merge_providers(
           yaml_provider.parse_providers(spec.get('providers', [])),
-          scope.providers))
+          scope.providers),
+      scope.input_providers)
 
   class CompositePTransform(beam.PTransform):
     @staticmethod
@@ -667,7 +702,12 @@ class YamlTransform(beam.PTransform):
       root = next(iter(pcolls.values())).pipeline
     result = expand_transform(
         self._spec,
-        Scope(root, pcolls, transforms=[], providers=self._providers))
+        Scope(
+            root,
+            pcolls,
+            transforms=[],
+            providers=self._providers,
+            input_providers={}))
     if len(result) == 1:
       return only_element(result.values())
     else:
