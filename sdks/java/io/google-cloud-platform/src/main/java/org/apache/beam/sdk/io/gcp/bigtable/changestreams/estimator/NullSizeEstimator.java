@@ -17,22 +17,25 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams.estimator;
 
-import static org.junit.Assert.assertEquals;
+import org.apache.beam.sdk.annotations.Internal;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import org.joda.time.Instant;
-import org.junit.Test;
+/**
+ * NoOp implementation of a size estimator. This will always return 0 as the size and it will warn
+ * users that this is being used (it should not be used in production).
+ */
+@Internal
+public class NullSizeEstimator<T> implements SizeEstimator<T> {
 
-public class NullThroughputEstimatorTest {
-  private static final double DELTA = 1e-10;
+  private static final long serialVersionUID = 7088120208289907630L;
+  private static final Logger LOG = LoggerFactory.getLogger(NullSizeEstimator.class);
 
-  @Test
-  public void alwaysReturns0AsEstimatedThroughput() {
-    final NullThroughputEstimator<byte[]> estimator = new NullThroughputEstimator<>();
-    assertEquals(estimator.get(), 0D, DELTA);
-
-    estimator.update(Instant.ofEpochSecond(1), new byte[10]);
-    assertEquals(estimator.getFrom(Instant.ofEpochSecond(1)), 0D, DELTA);
-    estimator.update(Instant.ofEpochSecond(2), new byte[20]);
-    assertEquals(estimator.getFrom(Instant.ofEpochSecond(2)), 0D, DELTA);
+  @Override
+  public long sizeOf(T element) {
+    LOG.warn(
+        "Trying to estimate size using {}, this operation will always return 0",
+        this.getClass().getSimpleName());
+    return 0;
   }
 }
