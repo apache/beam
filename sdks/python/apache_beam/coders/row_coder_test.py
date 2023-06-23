@@ -22,7 +22,6 @@ import unittest
 from itertools import chain
 
 import numpy as np
-from google.protobuf import json_format
 from numpy.testing import assert_array_equal
 
 import apache_beam as beam
