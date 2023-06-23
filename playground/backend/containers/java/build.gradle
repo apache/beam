@@ -25,7 +25,7 @@ applyDockerNature()
 
 def playgroundJobServerProject = "${project.path.replace('-container', '')}"
 def default_beam_version = "2.44.0"
-def beam_version = project.rootProject.hasProperty(["sdk-tag"]) ? 
+def beam_version = project.rootProject.hasProperty(["sdk-tag"]) ?
 project.rootProject["sdk-tag"] : default_beam_version
 
 def sdks = [
