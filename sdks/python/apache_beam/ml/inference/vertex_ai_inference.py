@@ -17,12 +17,15 @@
 
 import logging
 import time
-
 from typing import Any
 from typing import Dict
 from typing import Iterable
 from typing import Optional
 from typing import Sequence
+
+from google.api_core.exceptions import ClientError
+from google.api_core.exceptions import TooManyRequests
+from google.cloud import aiplatform
 
 from apache_beam.io.components.adaptive_throttler import AdaptiveThrottler
 from apache_beam.metrics.metric import Metrics
@@ -30,8 +33,6 @@ from apache_beam.ml.inference import utils
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.utils import retry
-from google.api_core.exceptions import ClientError, TooManyRequests
-from google.cloud import aiplatform
 
 MSEC_TO_SEC = 1000
 

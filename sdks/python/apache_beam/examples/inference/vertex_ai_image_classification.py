@@ -25,22 +25,22 @@ for more information.)
 """
 
 import argparse
-import apache_beam as beam
 import io
 import logging
-
-import tensorflow as tf
-
 from typing import Tuple
 from typing import Iterable
+
+import apache_beam as beam
+import tensorflow as tf
+
 from apache_beam.io.filesystems import FileSystems
-from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.inference.base import KeyedModelHandler
 from apache_beam.ml.inference.base import PredictionResult
+from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.inference.vertex_ai_inference import VertexAIModelHandlerJSON
-from apache_beam.runners.runner import PipelineResult
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.runners.runner import PipelineResult
 
 
 def parse_known_args(argv):
