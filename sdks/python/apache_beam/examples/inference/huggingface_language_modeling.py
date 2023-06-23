@@ -34,7 +34,7 @@ from typing import Tuple
 import torch
 
 import apache_beam as beam
-from apache_beam.ml.inference.huggingface_inference import HuggingFaceModelHandler
+from apache_beam.ml.inference.huggingface_inference import HuggingFaceModelHandlerKeyedTensor
 from apache_beam.ml.inference.base import KeyedModelHandler
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.ml.inference.base import RunInference
@@ -42,20 +42,19 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.runners.runner import PipelineResult
 
-from transformers import BertTokenizer
+from transformers import AutoTokenizer
 
 
 def add_mask_to_last_word(text: str) -> Tuple[str, str]:
   text_list = text.split()
-  return text, ' '.join(text_list[:-2] + ['[MASK]', text_list[-1]])
+  return text, ' '.join(text_list[:-2] + ['<mask>', text_list[-1]])
 
 
 def tokenize_sentence(
     text_and_mask: Tuple[str, str],
-    bert_tokenizer: BertTokenizer) -> Tuple[str, Dict[str, torch.Tensor]]:
+    tokenizer: AutoTokenizer) -> Tuple[str, Dict[str, torch.Tensor]]:
   text, masked_text = text_and_mask
-  tokenized_sentence = bert_tokenizer.encode_plus(
-      masked_text, return_tensors="pt")
+  tokenized_sentence = tokenizer.encode_plus(masked_text, return_tensors="pt")
 
   # Workaround to manually remove batch dim until we have the feature to
   # add optional batching flag.
@@ -75,14 +74,14 @@ def filter_empty_lines(text: str) -> Iterator[str]:
 class PostProcessor(beam.DoFn):
   """Processes the PredictionResult to get the predicted word.
 
-  The logits are the output of the BERT Model. After applying a softmax
+  The logits are the output of the Model. After applying a softmax
   activation function to the logits, we get probabilistic distributions for each
-  of the words in BERT’s vocabulary. We can get the word with the highest
+  of the words in the model's vocabulary. We can get the word with the highest
   probability of being a candidate replacement word by taking the argmax.
   """
-  def __init__(self, bert_tokenizer: BertTokenizer):
+  def __init__(self, tokenizer: AutoTokenizer):
     super().__init__()
-    self.bert_tokenizer = bert_tokenizer
+    self.bert_tokenizer = tokenizer
 
   def process(self, element: Tuple[str, PredictionResult]) -> Iterable[str]:
     text, prediction_result = element
@@ -109,13 +108,13 @@ def parse_known_args(argv):
       required=True,
       help='Path of file in which to save the output predictions.')
   parser.add_argument(
-      '--bert_tokenizer',
-      dest='bert_tokenizer',
-      default='bert-base-uncased',
-      help='bert uncased model. This can be base model or large model')
-  parser.add_argument(
       '--model_name',
       dest='model_name',
+      required=True,
+      help='bert uncased model. This can be base model or large model')
+  parser.add_argument(
+      '--model_class',
+      dest='model_class',
       required=True,
       help="Name of the model from Hugging Face")
   return parser.parse_known_args(argv)
@@ -127,10 +126,7 @@ def run(
   Args:
     argv: Command line arguments defined for this example.
     model_class: Reference to the class definition of the model.
-                If None, BertForMaskedLM will be used as default .
-    model_params: Parameters passed to the constructor of the model_class.
-                  These will be used to instantiate the model object in the
-                  RunInference API.
+    model_name: Name of the pretrained model to be loaded.
     save_main_session: Used for internal testing.
     test_pipeline: Used for internal testing.
   """
@@ -142,9 +138,10 @@ def run(
   if not test_pipeline:
     pipeline = beam.Pipeline(options=pipeline_options)
 
-  bert_tokenizer = BertTokenizer.from_pretrained(known_args.bert_tokenizer)
+  tokenizer = AutoTokenizer.from_pretrained(known_args.model_name)
 
-  model_handler = HuggingFaceModelHandler(known_args.model_name)
+  model_handler = HuggingFaceModelHandlerKeyedTensor(
+      model_uri=known_args.model_name, model_class=known_args.model_class)
   if not known_args.input:
     text = (pipeline | 'CreateSentences' >> beam.Create([
       'The capital of France is Paris .',
@@ -165,13 +162,12 @@ def run(
       text
       | 'FilterEmptyLines' >> beam.ParDo(filter_empty_lines)
       | 'AddMask' >> beam.Map(add_mask_to_last_word)
-      | 'TokenizeSentence' >>
-      beam.Map(lambda x: tokenize_sentence(x, bert_tokenizer)))
+      |
+      'TokenizeSentence' >> beam.Map(lambda x: tokenize_sentence(x, tokenizer)))
   output = (
       text_and_tokenized_text_tuple
       | 'PyTorchRunInference' >> RunInference(KeyedModelHandler(model_handler))
-      | 'ProcessOutput' >> beam.ParDo(
-          PostProcessor(bert_tokenizer=bert_tokenizer)))
+      | 'ProcessOutput' >> beam.ParDo(PostProcessor(bert_tokenizer=tokenizer)))
   output | "WriteOutput" >> beam.io.WriteToText( # pylint: disable=expression-not-assigned
     known_args.output,
     shard_name_template='',

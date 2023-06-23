@@ -75,6 +75,7 @@ class HuggingFaceModelHandlerKeyedTensor(ModelHandler[Dict[str,
   def __init__(
       self,
       model_uri: str,
+      model_class: AutoModel,
       model_config_args: Dict[str, Any] = None,
       inference_args: Optional[Dict[str, Any]] = None,
       min_batch_size: Optional[int] = None,
@@ -103,6 +104,8 @@ class HuggingFaceModelHandlerKeyedTensor(ModelHandler[Dict[str,
       max_batch_size: the maximum batch size to use when batching inputs.
     """
     self._model_uri = model_uri
+    self._model_class = model_class
+    self._model_path = model_uri
     self._model_config_args = model_config_args if model_config_args else {}
     self._inference_args = inference_args if inference_args else {}
     self._batching_kwargs = {}
@@ -114,8 +117,8 @@ class HuggingFaceModelHandlerKeyedTensor(ModelHandler[Dict[str,
 
   def load_model(self):
     """Loads and initializes the model for processing."""
-    return AutoModel.from_pretrained(
-        self._model_name, **self._model_config_args)
+    return self._model_class.from_pretrained(
+        self._model_uri, **self._model_config_args)
 
   def update_model_path(self, model_path: Optional[str] = None):
     self._model_path = model_path if model_path else self._model_path
@@ -160,15 +163,18 @@ class HuggingFaceModelHandlerKeyedTensor(ModelHandler[Dict[str,
     Returns:
       The number of bytes of data for the Tensors batch.
     """
-    return sum(
-        (el.element_size() for tensor in batch for el in tensor.values()))
+    if self._framework == "tf":
+      return sum(sys.getsizeof(element) for element in batch)
+    else:
+      return sum(
+          (el.element_size() for tensor in batch for el in tensor.values()))
 
   def get_metrics_namespace(self) -> str:
     """
     Returns:
        A namespace for metrics collected by the RunInference transform.
     """
-    return 'BeamML_HuggingFace_Tensor'
+    return 'BeamML_HuggingFaceModelHandler_KeyedTensor'
 
   def batch_elements_kwargs(self):
     return self._batching_kwargs
@@ -180,6 +186,7 @@ class HuggingFaceModelHandlerTensor(ModelHandler[Union[tf.Tensor, torch.Tensor],
   def __init__(
       self,
       model_uri: str,
+      model_class: AutoModel,
       model_config_args: Dict[str, Any] = None,
       inference_args: Optional[Dict[str, Any]] = None,
       min_batch_size: Optional[int] = None,
@@ -208,6 +215,8 @@ class HuggingFaceModelHandlerTensor(ModelHandler[Union[tf.Tensor, torch.Tensor],
       max_batch_size: the maximum batch size to use when batching inputs.
     """
     self._model_uri = model_uri
+    self._model_class = model_class
+    self._model_path = model_uri
     self._model_config_args = model_config_args if model_config_args else {}
     self._inference_args = inference_args if inference_args else {}
     self._batching_kwargs = {}
@@ -220,8 +229,8 @@ class HuggingFaceModelHandlerTensor(ModelHandler[Union[tf.Tensor, torch.Tensor],
 
   def load_model(self):
     """Loads and initializes the model for processing."""
-    return AutoModel.from_pretrained(
-        self._model_name, **self._model_config_args)
+    return self._model_class.from_pretrained(
+        self._model_uri, **self._model_config_args)
 
   def update_model_path(self, model_path: Optional[str] = None):
     self._model_path = model_path if model_path else self._model_path
@@ -293,6 +302,7 @@ class HuggingFaceModelHandlerNumpy(ModelHandler[numpy.ndarray,
   def __init__(
       self,
       model_uri: str,
+      model_class: AutoModel,
       model_config_args: Dict[str, Any] = None,
       inference_args: Optional[Dict[str, Any]] = None,
       min_batch_size: Optional[int] = None,
@@ -318,6 +328,8 @@ class HuggingFaceModelHandlerNumpy(ModelHandler[numpy.ndarray,
       max_batch_size: the maximum batch size to use when batching inputs.
     """
     self._model_uri = model_uri
+    self._model_class = model_class
+    self._model_path = model_uri
     self._model_config_args = model_config_args if model_config_args else {}
     self._inference_args = inference_args if inference_args else {}
     self._batching_kwargs = {}
@@ -329,8 +341,8 @@ class HuggingFaceModelHandlerNumpy(ModelHandler[numpy.ndarray,
 
   def load_model(self):
     """Loads and initializes the model for processing."""
-    return AutoModel.from_pretrained(
-        self._model_name, **self._model_config_args)
+    return self._model_class.from_pretrained(
+        self._model_uri, **self._model_config_args)
 
   def update_model_path(self, model_path: Optional[str] = None):
     self._model_path = model_path if model_path else self._model_path
@@ -376,7 +388,7 @@ class HuggingFaceModelHandlerNumpy(ModelHandler[numpy.ndarray,
     Returns:
        A namespace for metrics collected by the RunInference transform.
     """
-    return 'BeamML_HuggingFaceModelHandler_Tensor'
+    return 'BeamML_HuggingFaceModelHandler_Numpy'
 
   def batch_elements_kwargs(self):
     return self._batching_kwargs
