@@ -144,7 +144,7 @@ extension WidgetTesterExtension on WidgetTester {
     await pumpAndSettle(); // Let the UI catch up.
 
     expectOutputStartsWith(kCachedResultsLog, this);
-    expectOutput(example, this);
+    expectOutputIfDeployed(example, this);
   }
 
   Future<void> modifyRunExpectReal(ExampleDescriptor example) async {
@@ -159,7 +159,7 @@ extension WidgetTesterExtension on WidgetTester {
 
     final actualText = findOutputText();
     expect(actualText, isNot(startsWith(kCachedResultsLog)));
-    expectOutput(example, this);
+    expectOutputIfDeployed(example, this);
 
     // Animation stops just before the analytics event is fired, wait a bit.
     await Future.delayed(const Duration(seconds: 1));

@@ -34,7 +34,7 @@ class UnitContentCache extends Cache {
     String unitId,
   ) async {
     final future = _futures[sdkId]?[unitId];
-    if (future == null || _unitContents[sdkId]![unitId] == null) {
+    if (future == null || _unitContents[sdkId]?[unitId] == null) {
       await _loadUnitContent(sdkId, unitId);
     }
 

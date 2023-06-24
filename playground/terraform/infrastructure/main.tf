@@ -93,6 +93,7 @@ module "gke" {
   project_id            = var.project_id
   service_account_email = module.setup.service_account_email
   machine_type      = var.gke_machine_type
+  init_min_count    = var.init_min_count
   min_count         = var.min_count
   max_count         = var.max_count
   name              = var.gke_name

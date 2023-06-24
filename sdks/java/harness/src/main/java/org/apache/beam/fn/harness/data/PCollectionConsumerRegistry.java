@@ -33,6 +33,7 @@ import org.apache.beam.fn.harness.control.Metrics;
 import org.apache.beam.fn.harness.control.Metrics.BundleCounter;
 import org.apache.beam.fn.harness.control.Metrics.BundleDistribution;
 import org.apache.beam.fn.harness.debug.DataSampler;
+import org.apache.beam.fn.harness.debug.ElementSample;
 import org.apache.beam.fn.harness.debug.OutputSampler;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
@@ -301,8 +302,9 @@ public class PCollectionConsumerRegistry {
       // we have window optimization.
       this.sampledByteSizeDistribution.tryUpdate(input.getValue(), this.coder);
 
+      ElementSample<T> elementSample = null;
       if (outputSampler != null) {
-        outputSampler.sample(input);
+        elementSample = outputSampler.sample(input);
       }
 
       // Use the ExecutionStateTracker and enter an appropriate state to track the
@@ -311,6 +313,11 @@ public class PCollectionConsumerRegistry {
       executionState.activate();
       try {
         this.delegate.accept(input);
+      } catch (Exception e) {
+        if (outputSampler != null) {
+          outputSampler.exception(elementSample, e);
+        }
+        throw e;
       } finally {
         executionState.deactivate();
       }
@@ -383,8 +390,9 @@ public class PCollectionConsumerRegistry {
       // when we have window optimization.
       this.sampledByteSizeDistribution.tryUpdate(input.getValue(), coder);
 
+      ElementSample<T> elementSample = null;
       if (outputSampler != null) {
-        outputSampler.sample(input);
+        elementSample = outputSampler.sample(input);
       }
 
       // Use the ExecutionStateTracker and enter an appropriate state to track the
@@ -397,6 +405,11 @@ public class PCollectionConsumerRegistry {
         state.activate();
         try {
           consumerAndMetadata.getConsumer().accept(input);
+        } catch (Exception e) {
+          if (outputSampler != null) {
+            outputSampler.exception(elementSample, e);
+          }
+          throw e;
         } finally {
           state.deactivate();
         }
