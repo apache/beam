@@ -91,7 +91,7 @@ func main() {
 			"--container_executable=/opt/apache/beam/boot",
 		}
 		log.Printf("Starting worker pool %v: python %v", workerPoolId, strings.Join(args, " "))
-		if err := execx.Execute("python", args...); err != nil {
+		if err := execx.Execute("python3", args...); err != nil {
 			log.Fatalf("Python SDK worker pool exited with error: %v", err)
 		}
 		log.Print("Python SDK worker pool exited.")
@@ -330,7 +330,7 @@ func setupVenv(ctx context.Context, logger *tools.Logger, baseDir, workerId stri
 	if err := os.MkdirAll(dir, 0750); err != nil {
 		return "", fmt.Errorf("failed to create Python venv directory: %s", err)
 	}
-	if err := execx.Execute("python", "-m", "venv", "--system-site-packages", dir); err != nil {
+	if err := execx.Execute("python3", "-m", "venv", "--system-site-packages", dir); err != nil {
 		return "", fmt.Errorf("python venv initialization failed: %s", err)
 	}
 

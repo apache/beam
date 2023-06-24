@@ -65,7 +65,7 @@ func launchExpansionServiceProcess() error {
 	os.Setenv("PATH", strings.Join([]string{filepath.Join(dir, "bin"), os.Getenv("PATH")}, ":"))
 
 	args := []string{"-m", expansionServiceEntrypoint, "-p", strconv.Itoa(*port), "--fully_qualified_name_glob", "*"}
-	if err := execx.Execute("python", args...); err != nil {
+	if err := execx.Execute("python3", args...); err != nil {
 		return fmt.Errorf("Could not start the expansion service: %s", err)
 	}
 
