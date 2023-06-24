@@ -760,7 +760,9 @@ class SnippetsTest(unittest.TestCase):
       os.environ.get('EXPANSION_PORT'),
       "EXPANSION_PORT environment var is not provided.")
   def test_model_bigqueryio_xlang(self):
-    pass
+    p = TestPipeline()
+    p.options.view_as(GoogleCloudOptions).temp_location = 'gs://mylocation'
+    snippets.model_bigqueryio_xlang(p)
 
   def _run_test_pipeline_for_options(self, fn):
     temp_path = self.create_temp_file('aa\nbb\ncc')
