@@ -1248,7 +1248,7 @@ def model_bigqueryio_xlang(
   ])
 
   # [START model_bigqueryio_storage_write_api_with_frequency]
-  # The Python SDK does not currently support setting the number of write streams
+  # The Python SDK doesn't currently support setting the number of write streams
   quotes | "StorageWriteAPIWithFrequency" >> beam.io.WriteToBigQuery(
       table_spec,
       schema=table_schema,
