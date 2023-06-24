@@ -86,6 +86,13 @@ jobs:
           echo "$CHANGELOG" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
+      - name: List Contents of the Workspace Directory
+        run: |
+          pwd
+          cd plugins/beam-code-completion-plugin/
+          pwd
+          find . -name "*community-resources*"
+
       # Run tests
       - name: Run Tests
         run: |
