@@ -2027,7 +2027,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     # TODO(pabloem): Use a different method to determine if streaming or batch.
     is_streaming_pipeline = p.options.view_as(StandardOptions).streaming
 
-    if not is_streaming_pipeline and self.with_auto_sharding:
+    if not is_streaming_pipeline and not self.with_auto_sharding:
       raise ValueError(
           'with_auto_sharding is not applicable to batch pipelines.')
 
