@@ -34,7 +34,7 @@ from apache_beam.utils import subprocess_server
 
 _LOGGER = logging.getLogger(__name__)
 
-_COMMAND_POSSIBLE_VALUES = '\"up\", \"down\" and \"ps\"'
+_COMMAND_POSSIBLE_VALUES = ['up', 'down', 'ps']
 
 _EXPANSION_SERVICE_LAUNCHER_JAR = ':sdks:java:transform-service:launcher:build'
 
@@ -42,8 +42,6 @@ _EXPANSION_SERVICE_LAUNCHER_JAR = ':sdks:java:transform-service:launcher:build'
 class TransformServiceLauncher(object):
   _DEFAULT_PROJECT_NAME = 'apache.beam.transform.service'
   _DEFAULT_START_WAIT_TIMEOUT = 25000
-  _STATUS_LOGGER_WAIT_TIME = 3000
-  _MIN_EXPANSION_SERVICE_COUNT = 2
 
   _launchers = {}  # type: ignore
 
@@ -145,7 +143,6 @@ class TransformServiceLauncher(object):
     self._channel = self._get_channel()
 
     from apache_beam import external
-    # with channel_factory_fn() as channel:
     return external.ExpansionAndArtifactRetrievalStub(self._channel.__enter__())
 
   def __exit__(self, *args):
@@ -184,6 +181,10 @@ class TransformServiceLauncher(object):
   def wait_till_up(self, timeout_ms):
     channel = self._get_channel()
 
+    timeout_ms = (
+      TransformServiceLauncher._DEFAULT_START_WAIT_TIMEOUT
+      if timeout_ms <= 0 else timeout_ms)
+
     # Waiting till the service is up.
     channel_ready = grpc.channel_ready_future(channel)
     wait_secs = .1
@@ -214,20 +215,20 @@ class TransformServiceLauncher(object):
 
 def main(argv):
   parser = argparse.ArgumentParser()
-  parser.add_argument('--project_name', default=None)
-  parser.add_argument('--command', default=None)
-  parser.add_argument('--port', type=int, default=-1)
-  parser.add_argument('--beam_version', default=None)
+  parser.add_argument(
+      '--project_name', help='Docker Compose project name.')
+  parser.add_argument(
+      '--command', required=True, choices=_COMMAND_POSSIBLE_VALUES,
+      help='Command to run. Possible values are '
+           + ', '.join(_COMMAND_POSSIBLE_VALUES))
+  parser.add_argument(
+      '--port', type=int, default=-1,
+      help='External visible port of the transform service.')
+  parser.add_argument(
+      '--beam_version', required=True,
+      help='Beam version of the expansion service containers to be used.')
 
   known_args, _ = parser.parse_known_args(argv)
-
-  if known_args.command is None:
-    raise ValueError(
-        'command argument must be specified. Valied values are ' +
-        _COMMAND_POSSIBLE_VALUES)
-
-  if known_args.beam_version is None:
-    raise ValueError('beam_version argument must be specified')
 
   project_name = (
       TransformServiceLauncher._DEFAULT_PROJECT_NAME
@@ -249,7 +250,7 @@ def main(argv):
   else:
     raise ValueError(
         'Unknown command %s possible values are %s' %
-        (known_args.command, _COMMAND_POSSIBLE_VALUES))
+        (known_args.command, ', '.join(_COMMAND_POSSIBLE_VALUES)))
 
 
 if __name__ == '__main__':

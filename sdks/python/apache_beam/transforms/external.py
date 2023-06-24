@@ -672,7 +672,7 @@ class ExternalTransform(ptransform.PTransform):
         transform=transform_proto,
         output_coder_requests=output_coders)
 
-    expansion_service = _may_be_use_transform_service(
+    expansion_service = _maybe_use_transform_service(
         self._expansion_service, pipeline.options)
 
     with ExternalTransform.service(expansion_service) as service:
@@ -980,7 +980,7 @@ class BeamJarExpansionService(JavaJarExpansionService):
         path_to_jar, extra_args, classpath=classpath, append_args=append_args)
 
 
-def _may_be_use_transform_service(provided_service=None, options=None):
+def _maybe_use_transform_service(provided_service=None, options=None):
   # For anything other than 'JavaJarExpansionService' we just use the
   # provided service. For example, string address of an already available
   # service.
@@ -988,7 +988,7 @@ def _may_be_use_transform_service(provided_service=None, options=None):
     return provided_service
 
   def is_java_available():
-    cmd = ['javaxx', '--version']
+    cmd = ['java', '--version']
 
     try:
       subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
@@ -1022,15 +1022,19 @@ def _may_be_use_transform_service(provided_service=None, options=None):
     if use_transform_service:
       error_append = 'it was explicitly requested'
     elif not java_available:
-      error_append = 'java is not available in the system'
+      error_append = 'the Java executable is not available in the system'
     else:
       error_append = 'a Java expansion service was not provided.'
 
-    logging.info(
-        'Trying to expand the external transform using the Docker-based '
-        'transform service since %s.' % error_append)
     project_name = str(uuid.uuid4())
     port = subprocess_server.pick_port(None)[0]
+
+    logging.info(
+        'Trying to expand the external transform using the Docker Compose '
+        'based transform service since %s. Transform service will be under '
+        'Docker Compose project name %s and will be made available at port %r.'
+        % (error_append, project_name, str(port)))
+
     from apache_beam import version as beam_version
     beam_version = beam_version.__version__
 
@@ -1038,8 +1042,8 @@ def _may_be_use_transform_service(provided_service=None, options=None):
         project_name, port, beam_version)
   else:
     raise ValueError(
-        'Cannot start an expansion service since neither java nor '
-        'docker executables are available in the system')
+        'Cannot start an expansion service since neither Java nor '
+        'Docker executables are available in the system.')
 
 
 def memoize(func):
