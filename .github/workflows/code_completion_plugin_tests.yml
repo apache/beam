@@ -35,7 +35,7 @@ on:
       - 'plugins/beam-code-completion-plugin/**'
       - '.github/workflows/code_completion_plugin_tests.yml'
 env:
-  INTELLIJ_IDEA_SOURCES: /home/runner/.gradle/.tmp/gradle_download62111135901178129bin
+  INTELLIJ_IDEA_SOURCES: /home/runner/work/beam/beam/intellij
 jobs:
   # Run Gradle Wrapper Validation Action to verify the wrapper's checksum
   # Run verifyPlugin, IntelliJ Plugin Verifier, and test Gradle tasks
@@ -51,9 +51,18 @@ jobs:
           sudo rm -rf /usr/local/lib/android
           sudo rm -rf /opt/ghc
 
-      # Check out current repository
-      - name: Fetch Sources
+      # Check out beam repository
+      - name: Fetch beam Sources
         uses: actions/checkout@v3
+        with:
+          path: main
+
+      # Check out intellij community repository for tests
+      - name: Fetch intellij-community Sources
+        uses: actions/checkout@v3
+        with:
+          repository: JetBrains/intellij-community
+          path: intellij
 
       # Validate wrapper
       - name: Gradle Wrapper Validation
@@ -72,7 +81,7 @@ jobs:
         shell: bash
         run: |
           pwd
-          cd plugins/beam-code-completion-plugin/
+          cd main/plugins/beam-code-completion-plugin/
           pwd
           PROPERTIES="$(./gradlew properties --console=plain -q)"
           VERSION="$(echo "$PROPERTIES" | grep "^version:" | cut -f2- -d ' ')"
@@ -86,18 +95,11 @@ jobs:
           echo "$CHANGELOG" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      - name: List Contents of the Workspace Directory
-        run: |
-          pwd
-          cd plugins/beam-code-completion-plugin/
-          pwd
-          find . -name "*community-resources*"
-
       # Run tests
       - name: Run Tests
         run: |
           pwd
-          cd plugins/beam-code-completion-plugin/
+          cd main/plugins/beam-code-completion-plugin/
           pwd
           ./gradlew test --info
 
