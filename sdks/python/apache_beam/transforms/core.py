@@ -2670,8 +2670,8 @@ class CombineGlobally(PTransform):
         raise ValueError(
             "For unbounded data sources, "
             "default values are not yet supported in CombineGlobally() if the "
-            "output PCollection is not windowed by GlobalWindows"
-            " with DefaultTrigger. "
+            "output PCollection is not windowed by GlobalWindows "
+            "with DefaultTrigger. "
             "Instead, use CombineGlobally().without_defaults() to output "
             "an empty PCollection if the input PCollection is empty, "
             "or CombineGlobally().as_singleton_view() to get the default "
