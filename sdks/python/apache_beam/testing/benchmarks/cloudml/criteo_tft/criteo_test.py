@@ -39,7 +39,7 @@ class FillInMissingTest(unittest.TestCase):
 
     # Fill in missing values with -1
     filled_tensor=[]
-    if fill_in_missing!=None:
+    if fill_in_missingis not None:
       filled_tensor = fill_in_missing(sparse_tensor, -1)
 
     # Convert to a dense tensor and check the values
