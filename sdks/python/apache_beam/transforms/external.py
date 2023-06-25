@@ -1015,8 +1015,7 @@ def _maybe_use_transform_service(provided_service=None, options=None):
   use_transform_service = options.view_as(
       CrossLanguageOptions).use_transform_service
 
-  if (java_available and provided_service
-      and not use_transform_service):
+  if (java_available and provided_service and not use_transform_service):
     return provided_service
   elif docker_available:
     if use_transform_service:

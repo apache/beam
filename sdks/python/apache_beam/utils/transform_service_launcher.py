@@ -182,8 +182,8 @@ class TransformServiceLauncher(object):
     channel = self._get_channel()
 
     timeout_ms = (
-      TransformServiceLauncher._DEFAULT_START_WAIT_TIMEOUT
-      if timeout_ms <= 0 else timeout_ms)
+        TransformServiceLauncher._DEFAULT_START_WAIT_TIMEOUT
+        if timeout_ms <= 0 else timeout_ms)
 
     # Waiting till the service is up.
     channel_ready = grpc.channel_ready_future(channel)
@@ -215,17 +215,21 @@ class TransformServiceLauncher(object):
 
 def main(argv):
   parser = argparse.ArgumentParser()
+  parser.add_argument('--project_name', help='Docker Compose project name.')
   parser.add_argument(
-      '--project_name', help='Docker Compose project name.')
+      '--command',
+      required=True,
+      choices=_COMMAND_POSSIBLE_VALUES,
+      help='Command to run. Possible values are ' +
+      ', '.join(_COMMAND_POSSIBLE_VALUES))
   parser.add_argument(
-      '--command', required=True, choices=_COMMAND_POSSIBLE_VALUES,
-      help='Command to run. Possible values are '
-           + ', '.join(_COMMAND_POSSIBLE_VALUES))
-  parser.add_argument(
-      '--port', type=int, default=-1,
+      '--port',
+      type=int,
+      default=-1,
       help='External visible port of the transform service.')
   parser.add_argument(
-      '--beam_version', required=True,
+      '--beam_version',
+      required=True,
       help='Beam version of the expansion service containers to be used.')
 
   known_args, _ = parser.parse_known_args(argv)
