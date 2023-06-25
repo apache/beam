@@ -39,7 +39,7 @@
     "@grpc/grpc-js": "^1.4.6",
     "@protobuf-ts/grpc-transport": "^2.9.0",
     "@protobuf-ts/plugin": "^2.1.0",
-    "bson": "^4.6.0",
+    "bson": "^4.7.2",
     "capture-console": "^1.0.1",
     "chai": "^4.3.4",
     "date-fns": "^2.30.0",
