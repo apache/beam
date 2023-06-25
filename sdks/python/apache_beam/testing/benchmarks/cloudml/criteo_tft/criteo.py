@@ -136,19 +136,19 @@ def make_preprocessing_fn(frequency_threshold):
     for name in _INTEGER_COLUMN_NAMES:
       feature = inputs[name]
       
-      def fill_in_missing(feature, default_value=-1):
-        if tf!=None:
+			def fill_in_missing(feature, default_value=-1):
+        if tfi not None:
           feature = tf.sparse.SparseTensor(
               indices=feature.indices,
               values=feature.values,
               dense_shape=[feature.dense_shape[0], 1])
           feature = tf.sparse.to_dense(feature, default_value=default_value)
-          # Reshaping from a batch of vectors of size 1 to a batch of scalars and
-          # adding a bucketized version.
+          # Reshaping from a batch of vectors of size 1 to a batch of
+          # scalar and adding a bucketized version.
           feature = tf.squeeze(feature, axis=1)
         return feature
-      
-      feature = fill_in_missing(feature)
+
+			feature = fill_in_missing(feature)
       result[name] = feature
       result[name + '_bucketized'] = tft.bucketize(feature, _NUM_BUCKETS)
     for name in _CATEGORICAL_COLUMN_NAMES:
@@ -164,4 +164,4 @@ def make_preprocessing_fn(frequency_threshold):
     return result
 
   return preprocessing_fn
-          
+
