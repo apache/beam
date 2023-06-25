@@ -148,7 +148,7 @@ def make_preprocessing_fn(frequency_threshold):
           feature = tf.squeeze(feature, axis=1)
         return feature
 
-			feature = fill_in_missing(feature)
+      feature = fill_in_missing(feature)
       result[name] = feature
       result[name + '_bucketized'] = tft.bucketize(feature, _NUM_BUCKETS)
     for name in _CATEGORICAL_COLUMN_NAMES:
