@@ -1224,7 +1224,12 @@ def model_bigqueryio_xlang(
     pipeline, write_project='', write_dataset='', write_table=''):
   """Examples for cross-language BigQuery sources and sinks."""
 
-  table_spec = 'clouddataflow-readonly:samples.weather_stations'
+  # to avoid a validation error(input data schema and the table schema)
+  # use a table that does not exist
+  import uuid
+  never_exists_table = str(uuid.uuid4())
+  table_spec = 'clouddataflow-readonly:samples.{}'.format(never_exists_table)
+
   if write_project and write_dataset and write_table:
     table_spec = '{}:{}.{}'.format(write_project, write_dataset, write_table)
 
