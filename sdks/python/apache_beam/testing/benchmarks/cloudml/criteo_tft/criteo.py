@@ -137,7 +137,7 @@ def make_preprocessing_fn(frequency_threshold):
       feature = inputs[name]
       
       def fill_in_missing(feature, default_value=-1):
-        if tfi not None:
+        if tf is not None:
           feature = tf.sparse.SparseTensor(
               indices=feature.indices,
               values=feature.values,
