@@ -111,7 +111,7 @@ def make_input_feature_spec(include_label=True):
     result[name] = tf.io.VarLenFeature(dtype=tf.string)
 
   return result
-    
+
 
 def make_preprocessing_fn(frequency_threshold):
   """Creates a preprocessing function for criteo.
