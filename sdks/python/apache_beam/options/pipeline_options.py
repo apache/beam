@@ -538,7 +538,7 @@ class CrossLanguageOptions(PipelineOptions):
         default=False,
         action='store_true',
         help='Use the Docker-composed-based transform service when expanding '
-             'cross-language transforms.')
+        'cross-language transforms.')
 
 
 def additional_option_ptransform_fn():
