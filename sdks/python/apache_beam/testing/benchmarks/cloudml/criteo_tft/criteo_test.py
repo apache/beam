@@ -27,6 +27,7 @@ except ImportError:
   tf = None
   fill_in_missing = None
 
+
 @pytest.mark.uses_tft
 @unittest.skipIf(tft is None or tf is None, 'Missing dependencies. ')
 class FillInMissingTest(unittest.TestCase):
