@@ -11,7 +11,9 @@ limitations under the License.
 -->
 ### Final challenge 2
 
-You are given a file analyzed.csv which contain analyzed words. Therefore, you need to analyze the shekspir/kinglear file. How many **negative words** and **positive words** , and negative words, positive words with strong or weak modal?
+You are given a file analyzed.csv which maps words to sentiments. Using this, analyze kinglear.txt. Output PCollections counting the number of **negative words** and **positive words**  as well as PCollections counting the number of **positive words with strong modal** and **positive words with weak modal**.
+
+Example rows from input file:
 
 | Word         | Negative | Positive | Uncertainty | Litigious | Strong_Modal | Weak_Modal | Constraining |
 |--------------|----------|----------|-------------|-----------|--------------|------------|--------------|

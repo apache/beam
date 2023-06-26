@@ -57,7 +57,7 @@ func main() {
 
 	file := textio.Read(s, "input.csv")
 
-	textio.Write(s, "smallerThan10.txt", file)
+	textio.Write(s, "price_less_than_10.txt", file)
 
 	if err := beamx.Run(context.Background(), p); err != nil {
 		log.Fatalf("Failed to execute job: %v", err)

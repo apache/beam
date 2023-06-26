@@ -11,12 +11,14 @@ limitations under the License.
 -->
 ### Final challenge 1
 
-You’re given a csv file with purchase transactions. Write a Beam pipeline to prepare a send report every 30 seconds. The report needs to be created only for transactions where quantity is more than 20.
+You’re given a csv file with purchase transactions. Write a Beam pipeline to prepare a report every 30 seconds. The report needs to be created only for transactions where quantity is more than 20.
 
-Report should consist of two files named "**price more than 10**" and "**price less than 10**":
+Report should consist of two files named "**price_more_than_10.txt**" and "**price_less_than_10.txt**":
 
 * Total transactions amount grouped by **ProductNo** for products with **price** greater than 10
 * Total transactions amount grouped by **ProductNo** for products with **price** less than 10
+
+Example rows from input file:
 
 | TransactionNo | Date      | ProductNo | ProductName                         | Price | Quantity | CustomerNo | Country        |
 |---------------|-----------|-----------|-------------------------------------|-------|----------|------------|----------------|
