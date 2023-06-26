@@ -54,7 +54,7 @@ _ISSUE_DESCRIPTION_TEMPLATE = """
   For more information on how to triage the alerts, please look at
   `Triage performance alert issues` section of the [README](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/testing/analyzers/README.md#triage-performance-alert-issues).
 """
-_METRIC_INFO_TEMPLATE = "timestamp: {}, metric_value: `{}`"
+_METRIC_INFO_TEMPLATE = "timestamp: {}, metric_value: {}"
 _AWAITING_TRIAGE_LABEL = 'awaiting triage'
 _PERF_ALERT_LABEL = 'perf-alert'
 
@@ -123,6 +123,7 @@ def comment_on_issue(issue_number: int,
         'body': comment_description,
         issue_number: issue_number,
     }
+
     response = requests.post(
         open_issue_response['comments_url'], json.dumps(data), headers=_HEADERS)
     return True, response.json()['html_url']
@@ -142,7 +143,9 @@ def get_issue_description(
     timestamps: List[pd.Timestamp],
     metric_values: List,
     change_point_index: int,
-    max_results_to_display: int = 5) -> str:
+    max_results_to_display: int = 5,
+    test_description: Optional[str] = None,
+) -> str:
   """
   Args:
    metric_name: Metric name used for the Change Point Analysis.
@@ -166,13 +169,21 @@ def get_issue_description(
   description = _ISSUE_DESCRIPTION_TEMPLATE.format(
       test_name, metric_name) + 2 * '\n'
 
+  description += (
+      "`Test description:` " + f'{test_description}' +
+      2 * '\n') if test_description else ''
+
+  description += '```' + '\n'
   runs_to_display = [
-      _METRIC_INFO_TEMPLATE.format(timestamps[i].ctime(), metric_values[i])
+      _METRIC_INFO_TEMPLATE.format(
+          timestamps[i].ctime(), format(metric_values[i], '.2f'))
       for i in reversed(range(min_timestamp_index, max_timestamp_index + 1))
   ]
 
   runs_to_display[change_point_index - min_timestamp_index] += " <---- Anomaly"
-  return description + '\n'.join(runs_to_display)
+  description += '\n'.join(runs_to_display) + '\n'
+  description += '```' + '\n'
+  return description
 
 
 def report_change_point_on_issues(

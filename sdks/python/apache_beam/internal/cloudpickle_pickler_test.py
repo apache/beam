@@ -19,7 +19,6 @@
 
 # pytype: skip-file
 
-import sys
 import threading
 import types
 import unittest
@@ -34,7 +33,7 @@ class PicklerTest(unittest.TestCase):
   NO_MAPPINGPROXYTYPE = not hasattr(types, "MappingProxyType")
 
   def test_basics(self):
-    self.assertEqual([1, 'a', (u'z', )], loads(dumps([1, 'a', (u'z', )])))
+    self.assertEqual([1, 'a', ('z', )], loads(dumps([1, 'a', ('z', )])))
     fun = lambda x: 'xyz-%s' % x
     self.assertEqual('xyz-abc', loads(dumps(fun))('abc'))
 
@@ -106,7 +105,6 @@ class PicklerTest(unittest.TestCase):
         types.MappingProxyType, type(loads(dumps(types.MappingProxyType({})))))
 
   # pylint: disable=exec-used
-  @unittest.skipIf(sys.version_info < (3, 7), 'Python 3.7 or above only')
   def test_dataclass(self):
     exec(
         '''

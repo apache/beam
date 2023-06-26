@@ -213,8 +213,8 @@ class TransformTest(unittest.TestCase):
     with beam.Pipeline() as p:
       result = (
           p
-          | beam.Create([(u'Falcon', 380.), (u'Falcon', 370.), (u'Parrot', 24.),
-                         (u'Parrot', 26.)])
+          | beam.Create([('Falcon', 380.), ('Falcon', 370.), ('Parrot', 24.),
+                         ('Parrot', 26.)])
           | beam.Map(lambda tpl: beam.Row(Animal=tpl[0], Speed=tpl[1]))
           | transforms.DataframeTransform(
               lambda df: df.groupby('Animal').mean(), include_indexes=True))
@@ -225,8 +225,8 @@ class TransformTest(unittest.TestCase):
     with beam.Pipeline() as p:
       df = convert.to_dataframe(
           p
-          | beam.Create([(u'Falcon', 380.), (u'Falcon', 370.), (
-              u'Parrot', 24.), (u'Parrot', 26.)])
+          | beam.Create([('Falcon', 380.), ('Falcon', 370.), ('Parrot', 24.), (
+              'Parrot', 26.)])
           | beam.Map(lambda tpl: beam.Row(Animal=tpl[0], Speed=tpl[1])))
 
       result = convert.to_pcollection(
@@ -260,8 +260,8 @@ class TransformTest(unittest.TestCase):
     with beam.Pipeline() as p:
       result = (
           p
-          | beam.Create([(u'Falcon', 380.), (u'Falcon', 370.), (u'Parrot', 24.),
-                         (u'Parrot', 26.)])
+          | beam.Create([('Falcon', 380.), ('Falcon', 370.), ('Parrot', 24.),
+                         ('Parrot', 26.)])
           | beam.Map(lambda tpl: beam.Row(Animal=tpl[0], Speed=tpl[1]))
           | transforms.DataframeTransform(lambda df: df.Animal))
 

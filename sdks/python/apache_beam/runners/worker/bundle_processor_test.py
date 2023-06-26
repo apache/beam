@@ -18,14 +18,16 @@
 """Unit tests for bundle processing."""
 # pytype: skip-file
 
+import time
 import unittest
+from typing import Dict
+from typing import List
 
 from apache_beam.coders.coders import FastPrimitivesCoder
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.runners import common
 from apache_beam.runners.worker import operations
-from apache_beam.runners.worker.bundle_processor import SYNTHETIC_DATA_SAMPLING_URN
 from apache_beam.runners.worker.bundle_processor import BeamTransformFactory
 from apache_beam.runners.worker.bundle_processor import BundleProcessor
 from apache_beam.runners.worker.bundle_processor import DataInputOperation
@@ -190,18 +192,25 @@ def element_split(frac, index):
 class TestOperation(operations.Operation):
   """Test operation that forwards its payload to consumers."""
   class Spec:
-    def __init__(self):
-      self.output_coders = [FastPrimitivesCoder()]
+    def __init__(self, transform_proto):
+      self.output_coders = [
+          FastPrimitivesCoder() for _ in transform_proto.outputs
+      ]
 
   def __init__(
       self,
+      transform_proto,
       name_context,
       counter_factory,
       state_sampler,
       consumers,
       payload,
   ):
-    super().__init__(name_context, self.Spec(), counter_factory, state_sampler)
+    super().__init__(
+        name_context,
+        self.Spec(transform_proto),
+        counter_factory,
+        state_sampler)
     self.payload = payload
 
     for _, consumer_ops in consumers.items():
@@ -212,8 +221,9 @@ class TestOperation(operations.Operation):
     super().start()
 
     # Not using windowing logic, so just using simple defaults here.
-    self.process(
-        WindowedValue(self.payload, timestamp=0, windows=[GlobalWindow()]))
+    if self.payload:
+      self.process(
+          WindowedValue(self.payload, timestamp=0, windows=[GlobalWindow()]))
 
   def process(self, windowed_value):
     self.output(windowed_value)
@@ -222,6 +232,7 @@ class TestOperation(operations.Operation):
 @BeamTransformFactory.register_urn('beam:internal:testop:v1', bytes)
 def create_test_op(factory, transform_id, transform_proto, payload, consumers):
   return TestOperation(
+      transform_proto,
       common.NameContext(transform_proto.unique_name, transform_id),
       factory.counter_factory,
       factory.state_sampler,
@@ -241,37 +252,24 @@ class DataSamplingTest(unittest.TestCase):
     _ = BundleProcessor(descriptor, None, None)
     self.assertEqual(len(descriptor.transforms), 0)
 
-  def test_adds_data_sampling_operations(self):
-    """Test that providing the sampler creates sampling PTransforms.
+  def wait_for_samples(self, data_sampler: DataSampler,
+                       pcollection_id: str) -> Dict[str, List[bytes]]:
+    """Waits for samples from the given PCollection to exist."""
+    now = time.time()
+    end = now + 30
 
-    Data sampling is implemented by modifying the ProcessBundleDescriptor with
-    additional sampling PTransforms reading from each PCllection.
-    """
-    data_sampler = DataSampler()
+    samples = {}
+    while now < end:
+      time.sleep(0.1)
+      now = time.time()
+      samples.update(data_sampler.samples([pcollection_id]))
 
-    # Data sampling samples the PCollections, which adds a PTransform to read
-    # from each PCollection. So add a simple PCollection here to create the
-    # DataSamplingOperation.
-    PCOLLECTION_ID = 'pc'
-    CODER_ID = 'c'
-    descriptor = beam_fn_api_pb2.ProcessBundleDescriptor()
-    descriptor.pcollections[PCOLLECTION_ID].unique_name = PCOLLECTION_ID
-    descriptor.pcollections[PCOLLECTION_ID].coder_id = CODER_ID
-    descriptor.coders[
-        CODER_ID].spec.urn = common_urns.StandardCoders.Enum.BYTES.urn
+      if samples:
+        return samples
 
-    _ = BundleProcessor(descriptor, None, None, data_sampler=data_sampler)
-
-    # Assert that the data sampling transform was created.
-    self.assertEqual(len(descriptor.transforms), 1)
-    sampling_transform = list(descriptor.transforms.values())[0]
-
-    # Ensure that the data sampling transform has the correct spec and that it's
-    # sampling the correct PCollection.
-    self.assertEqual(
-        sampling_transform.unique_name, 'synthetic-data-sampling-transform-pc')
-    self.assertEqual(sampling_transform.spec.urn, SYNTHETIC_DATA_SAMPLING_URN)
-    self.assertEqual(sampling_transform.inputs, {'None': PCOLLECTION_ID})
+    self.assertLess(
+        now, end, 'Timed out waiting for samples for {}'.format(pcollection_id))
+    return {}
 
   def test_can_sample(self):
     """Test that elements are sampled.
@@ -281,7 +279,7 @@ class DataSamplingTest(unittest.TestCase):
     DataSamplingOperations and samples are taken from in-flight elements. These
     elements are then finally queried.
     """
-    data_sampler = DataSampler()
+    data_sampler = DataSampler(sample_every_sec=0.1)
     descriptor = beam_fn_api_pb2.ProcessBundleDescriptor()
 
     # Create the PCollection to sample from.
@@ -295,18 +293,23 @@ class DataSamplingTest(unittest.TestCase):
     # Add a simple transform to inject an element into the data sampler. This
     # doesn't use the FnApi, so this uses a simple operation to forward its
     # payload to consumers.
-    test_transform = descriptor.transforms['test_transform']
+    TRANSFORM_ID = 'test_transform'
+    test_transform = descriptor.transforms[TRANSFORM_ID]
     test_transform.outputs['None'] = PCOLLECTION_ID
     test_transform.spec.urn = 'beam:internal:testop:v1'
     test_transform.spec.payload = b'hello, world!'
 
-    # Create and process a fake bundle. The instruction id doesn't matter here.
-    processor = BundleProcessor(
-        descriptor, None, None, data_sampler=data_sampler)
-    processor.process_bundle('instruction_id')
+    try:
+      # Create and process a fake bundle. The instruction id doesn't matter
+      # here.
+      processor = BundleProcessor(
+          descriptor, None, None, data_sampler=data_sampler)
+      processor.process_bundle('instruction_id')
 
-    self.assertEqual(
-        data_sampler.samples(), {PCOLLECTION_ID: [b'\rhello, world!']})
+      samples = self.wait_for_samples(data_sampler, PCOLLECTION_ID)
+      self.assertEqual(samples, {PCOLLECTION_ID: [b'\rhello, world!']})
+    finally:
+      data_sampler.stop()
 
 
 if __name__ == '__main__':
