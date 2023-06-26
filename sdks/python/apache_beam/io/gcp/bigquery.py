@@ -1385,7 +1385,8 @@ class BigQueryWriteFn(DoFn):
       max_retries: The number of times that we will retry inserting a group of
         rows into BigQuery. By default, we retry 10000 times with exponential
         backoffs (effectively retry forever).
-
+      max_insert_payload_size: The maximum byte size for a BigQuery legacy
+        streaming insert payload.
     """
     self.schema = schema
     self.test_client = test_client
@@ -1843,7 +1844,7 @@ class WriteToBigQuery(PTransform):
       with_auto_sharding=False,
       ignore_unknown_columns=False,
       load_job_project_id=None,
-      max_insert_payload_size=MAX_INSERT_PAYLOAD_SIZE
+      max_insert_payload_size=MAX_INSERT_PAYLOAD_SIZE,
       num_streaming_keys=DEFAULT_SHARDS_PER_DESTINATION,
       expansion_service=None):
     """Initialize a WriteToBigQuery transform.
@@ -2003,6 +2004,8 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
       expansion_service: The address (host:port) of the expansion service.
         If no expansion service is provided, will attempt to run the default
         GCP expansion service. Used for STORAGE_WRITE_API method.
+      max_insert_payload_size: The maximum byte size for a BigQuery legacy
+        streaming insert payload.
     """
     self._table = table
     self._dataset = dataset
