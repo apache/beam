@@ -59,3 +59,7 @@ def map_side_inputs_singleton(test=None):
     # [END map_side_inputs_singleton]
     if test:
       test(plants)
+
+
+if __name__ == '__main__':
+  map_side_inputs_singleton()

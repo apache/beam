@@ -702,7 +702,15 @@ public class MetadataTableDao {
                 tableId, convertPartitionToStreamPartitionRowKey(partitionRecord.getPartition()))
             .condition(matchAnyString)
             .otherwise(mutation);
-    return !dataClient.checkAndMutateRow(rowMutation);
+
+    boolean lockAcquired = !dataClient.checkAndMutateRow(rowMutation);
+    if (lockAcquired) {
+      return true;
+    } else {
+      // If the lock is already held we need to check if it was acquired by a duplicate
+      // work item with the same uuid since we last checked doHoldLock above.
+      return doHoldLock(partitionRecord.getPartition(), partitionRecord.getUuid());
+    }
   }
 
   /**

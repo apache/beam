@@ -32,6 +32,7 @@ services:
       - "/opt/azurite/certs/cert.pem"
       - "--key"
       - "/opt/azurite/certs/key.pem"
+      - "--skipApiVersionCheck"
     hostname: azurite
     networks:
       - azure_test_net

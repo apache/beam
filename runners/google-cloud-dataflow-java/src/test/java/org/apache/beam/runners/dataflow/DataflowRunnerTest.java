@@ -2505,7 +2505,6 @@ public class DataflowRunnerTest implements Serializable {
     PipelineOptions options = buildPipelineOptions();
     DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
     dataflowOptions.setStreaming(true);
-    dataflowOptions.setEnableDynamicPubsubDestinations(true);
     Pipeline p = Pipeline.create(options);
 
     List<PubsubMessage> testValues =

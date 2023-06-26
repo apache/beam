@@ -15,25 +15,34 @@
  *  limitations under the License.
  */
 
-.banner-container
+.top-banners
   margin-top: 0
   display: flex
   justify-content: center
   align-items: center
-  @media (max-width: $ak-breakpoint-lg)
-    margin-top: 64px
-    padding-top: 0
+
+  .swiper-slide
+    display: flex
+    justify-content: center
+
+  a
+    width: 100%
+    height: 100%
 
   .banner-img-desktop
     display: block
+    height: 100%
     width: 100%
     @media (max-width: $ak-breakpoint-lg)
       display: none
 
   .banner-img-mobile
     display: none
+    height: 100%
     width: 100%
     @media (max-width: $ak-breakpoint-lg)
       display: block
-    @media (max-width: $ak-breakpoint-sm)
-      width: 100%
+
+  .swiper-pagination
+    bottom: 0!important /* Swiper forces 10px */
+    opacity: .75

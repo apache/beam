@@ -72,9 +72,11 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 import java.util.stream.StreamSupport;
+import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.io.Encoder;
 import org.apache.beam.runners.direct.DirectOptions;
@@ -85,6 +87,7 @@ import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.ShardedKeyCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.extensions.avro.coders.AvroGenericCoder;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
@@ -3070,5 +3073,355 @@ public class BigQueryIOWriteTest implements Serializable {
     assertThat(
         fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
         containsInAnyOrder(Iterables.toArray(rows, TableRow.class)));
+  }
+
+  @Test
+  public void testUpsertAndDeleteTableRows() throws Exception {
+    assumeTrue(useStorageApi);
+    assumeTrue(useStorageApiApproximate);
+
+    TableSchema tableSchema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("key1").setType("STRING"),
+                    new TableFieldSchema().setName("key2").setType("STRING"),
+                    new TableFieldSchema().setName("value").setType("STRING")));
+
+    Table fakeTable = new Table();
+    TableReference ref =
+        new TableReference()
+            .setProjectId("project-id")
+            .setDatasetId("dataset-id")
+            .setTableId("table-id");
+    fakeTable.setSchema(tableSchema);
+    fakeTable.setTableReference(ref);
+    fakeDatasetService.createTable(fakeTable);
+    fakeDatasetService.setPrimaryKey(ref, Lists.newArrayList("key1", "key2"));
+
+    List<RowMutation> items =
+        Lists.newArrayList(
+            RowMutation.of(
+                new TableRow().set("key1", "foo0").set("key2", "bar0").set("value", "1"),
+                RowMutationInformation.of(RowMutationInformation.MutationType.UPSERT, 0)),
+            RowMutation.of(
+                new TableRow().set("key1", "foo1").set("key2", "bar1").set("value", "1"),
+                RowMutationInformation.of(RowMutationInformation.MutationType.UPSERT, 0)),
+            RowMutation.of(
+                new TableRow().set("key1", "foo0").set("key2", "bar0").set("value", "2"),
+                RowMutationInformation.of(RowMutationInformation.MutationType.UPSERT, 1)),
+            RowMutation.of(
+                new TableRow().set("key1", "foo1").set("key2", "bar1").set("value", "1"),
+                RowMutationInformation.of(RowMutationInformation.MutationType.DELETE, 1)),
+            RowMutation.of(
+                new TableRow().set("key1", "foo3").set("key2", "bar3").set("value", "1"),
+                RowMutationInformation.of(RowMutationInformation.MutationType.UPSERT, 0)),
+            RowMutation.of(
+                new TableRow().set("key1", "foo1").set("key2", "bar1").set("value", "3"),
+                RowMutationInformation.of(RowMutationInformation.MutationType.UPSERT, 2)),
+            RowMutation.of(
+                new TableRow().set("key1", "foo4").set("key2", "bar4").set("value", "1"),
+                RowMutationInformation.of(RowMutationInformation.MutationType.UPSERT, 0)),
+            RowMutation.of(
+                new TableRow().set("key1", "foo4").set("key2", "bar4").set("value", "1"),
+                RowMutationInformation.of(RowMutationInformation.MutationType.DELETE, 1)));
+
+    BigQueryIO.Write<RowMutation> write =
+        BigQueryIO.applyRowMutations()
+            .to("dataset-id.table-id")
+            .withCreateDisposition(CreateDisposition.CREATE_NEVER)
+            .withSchema(tableSchema)
+            .withMethod(Method.STORAGE_API_AT_LEAST_ONCE)
+            .withoutValidation()
+            .withTestServices(fakeBqServices);
+
+    p.apply(Create.of(items)).apply("WriteToBQ", write);
+    p.run();
+
+    List<TableRow> expected =
+        Lists.newArrayList(
+            new TableRow().set("key1", "foo0").set("key2", "bar0").set("value", "2"),
+            new TableRow().set("key1", "foo1").set("key2", "bar1").set("value", "3"),
+            new TableRow().set("key1", "foo3").set("key2", "bar3").set("value", "1"));
+
+    assertThat(
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
+        containsInAnyOrder(Iterables.toArray(expected, TableRow.class)));
+  }
+
+  @Test
+  public void testUpsertAndDeleteGenericRecords() throws Exception {
+    assumeTrue(useStorageApi);
+    assumeTrue(useStorageApiApproximate);
+
+    TableSchema tableSchema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("key1").setType("STRING"),
+                    new TableFieldSchema().setName("key2").setType("STRING"),
+                    new TableFieldSchema().setName("value").setType("STRING"),
+                    new TableFieldSchema().setName("updateType").setType("STRING"),
+                    new TableFieldSchema().setName("sqn").setType("INT64")));
+
+    Table fakeTable = new Table();
+    TableReference ref =
+        new TableReference()
+            .setProjectId("project-id")
+            .setDatasetId("dataset-id")
+            .setTableId("table-id");
+    fakeTable.setSchema(tableSchema);
+    fakeTable.setTableReference(ref);
+    fakeDatasetService.createTable(fakeTable);
+    fakeDatasetService.setPrimaryKey(ref, Lists.newArrayList("key1", "key2"));
+
+    org.apache.avro.Schema avroSchema =
+        SchemaBuilder.record("TestRecord")
+            .fields()
+            .optionalString("key1")
+            .optionalString("key2")
+            .optionalString("value")
+            .optionalString("updateType")
+            .optionalLong("sqn")
+            .endRecord();
+
+    List<GenericRecord> items =
+        Lists.newArrayList(
+            new GenericRecordBuilder(avroSchema)
+                .set("key1", "foo0")
+                .set("key2", "bar0")
+                .set("value", "1")
+                .set("updateType", "UPSERT")
+                .set("sqn", 0L)
+                .build(),
+            new GenericRecordBuilder(avroSchema)
+                .set("key1", "foo1")
+                .set("key2", "bar1")
+                .set("value", "1")
+                .set("updateType", "UPSERT")
+                .set("sqn", 0L)
+                .build(),
+            new GenericRecordBuilder(avroSchema)
+                .set("key1", "foo0")
+                .set("key2", "bar0")
+                .set("value", "2")
+                .set("updateType", "UPSERT")
+                .set("sqn", 1L)
+                .build(),
+            new GenericRecordBuilder(avroSchema)
+                .set("key1", "foo1")
+                .set("key2", "bar1")
+                .set("value", "1")
+                .set("updateType", "DELETE")
+                .set("sqn", 1L)
+                .build(),
+            new GenericRecordBuilder(avroSchema)
+                .set("key1", "foo3")
+                .set("key2", "bar3")
+                .set("value", "1")
+                .set("updateType", "UPSERT")
+                .set("sqn", 0L)
+                .build(),
+            new GenericRecordBuilder(avroSchema)
+                .set("key1", "foo1")
+                .set("key2", "bar1")
+                .set("value", "3")
+                .set("updateType", "UPSERT")
+                .set("sqn", 2L)
+                .build(),
+            new GenericRecordBuilder(avroSchema)
+                .set("key1", "foo4")
+                .set("key2", "bar4")
+                .set("value", "1")
+                .set("updateType", "UPSERT")
+                .set("sqn", 0L)
+                .build(),
+            new GenericRecordBuilder(avroSchema)
+                .set("key1", "foo4")
+                .set("key2", "bar4")
+                .set("value", "1")
+                .set("updateType", "DELETE")
+                .set("sqn", 1L)
+                .build());
+
+    BigQueryIO.Write<GenericRecord> write =
+        BigQueryIO.writeGenericRecords()
+            .to("dataset-id.table-id")
+            .withCreateDisposition(CreateDisposition.CREATE_NEVER)
+            .withSchema(tableSchema)
+            .withMethod(Method.STORAGE_API_AT_LEAST_ONCE)
+            .withRowMutationInformationFn(
+                r ->
+                    RowMutationInformation.of(
+                        RowMutationInformation.MutationType.valueOf(r.get("updateType").toString()),
+                        (long) r.get("sqn")))
+            .withoutValidation()
+            .withTestServices(fakeBqServices);
+
+    p.apply(Create.of(items).withCoder(AvroGenericCoder.of(avroSchema))).apply("WriteToBQ", write);
+    p.run();
+
+    List<TableRow> expected =
+        Lists.newArrayList(
+            new TableRow()
+                .set("key1", "foo0")
+                .set("key2", "bar0")
+                .set("value", "2")
+                .set("updatetype", "UPSERT")
+                .set("sqn", "1"),
+            new TableRow()
+                .set("key1", "foo1")
+                .set("key2", "bar1")
+                .set("value", "3")
+                .set("updatetype", "UPSERT")
+                .set("sqn", "2"),
+            new TableRow()
+                .set("key1", "foo3")
+                .set("key2", "bar3")
+                .set("value", "1")
+                .set("updatetype", "UPSERT")
+                .set("sqn", "0"));
+
+    assertThat(
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
+        containsInAnyOrder(Iterables.toArray(expected, TableRow.class)));
+  }
+
+  @Test
+  public void testUpsertAndDeleteBeamRows() throws Exception {
+    assumeTrue(useStorageApi);
+    assumeTrue(useStorageApiApproximate);
+
+    TableSchema tableSchema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("key1").setType("STRING"),
+                    new TableFieldSchema().setName("key2").setType("STRING"),
+                    new TableFieldSchema().setName("value").setType("STRING"),
+                    new TableFieldSchema().setName("updateType").setType("STRING"),
+                    new TableFieldSchema().setName("sqn").setType("INT64")));
+
+    Table fakeTable = new Table();
+    TableReference ref =
+        new TableReference()
+            .setProjectId("project-id")
+            .setDatasetId("dataset-id")
+            .setTableId("table-id");
+    fakeTable.setSchema(tableSchema);
+    fakeTable.setTableReference(ref);
+    fakeDatasetService.createTable(fakeTable);
+    fakeDatasetService.setPrimaryKey(ref, Lists.newArrayList("key1", "key2"));
+
+    Schema beamSchema =
+        Schema.builder()
+            .addNullableStringField("key1")
+            .addNullableStringField("key2")
+            .addNullableStringField("value")
+            .addNullableStringField("updateType")
+            .addNullableInt64Field("sqn")
+            .build();
+
+    List<Row> items =
+        Lists.newArrayList(
+            Row.withSchema(beamSchema)
+                .withFieldValue("key1", "foo0")
+                .withFieldValue("key2", "bar0")
+                .withFieldValue("value", "1")
+                .withFieldValue("updateType", "UPSERT")
+                .withFieldValue("sqn", 0L)
+                .build(),
+            Row.withSchema(beamSchema)
+                .withFieldValue("key1", "foo1")
+                .withFieldValue("key2", "bar1")
+                .withFieldValue("value", "1")
+                .withFieldValue("updateType", "UPSERT")
+                .withFieldValue("sqn", 0L)
+                .build(),
+            Row.withSchema(beamSchema)
+                .withFieldValue("key1", "foo0")
+                .withFieldValue("key2", "bar0")
+                .withFieldValue("value", "2")
+                .withFieldValue("updateType", "UPSERT")
+                .withFieldValue("sqn", 1L)
+                .build(),
+            Row.withSchema(beamSchema)
+                .withFieldValue("key1", "foo1")
+                .withFieldValue("key2", "bar1")
+                .withFieldValue("value", "1")
+                .withFieldValue("updateType", "DELETE")
+                .withFieldValue("sqn", 1L)
+                .build(),
+            Row.withSchema(beamSchema)
+                .withFieldValue("key1", "foo3")
+                .withFieldValue("key2", "bar3")
+                .withFieldValue("value", "1")
+                .withFieldValue("updateType", "UPSERT")
+                .withFieldValue("sqn", 0L)
+                .build(),
+            Row.withSchema(beamSchema)
+                .withFieldValue("key1", "foo1")
+                .withFieldValue("key2", "bar1")
+                .withFieldValue("value", "3")
+                .withFieldValue("updateType", "UPSERT")
+                .withFieldValue("sqn", 2L)
+                .build(),
+            Row.withSchema(beamSchema)
+                .withFieldValue("key1", "foo4")
+                .withFieldValue("key2", "bar4")
+                .withFieldValue("value", "1")
+                .withFieldValue("updateType", "UPSERT")
+                .withFieldValue("sqn", 0L)
+                .build(),
+            Row.withSchema(beamSchema)
+                .withFieldValue("key1", "foo4")
+                .withFieldValue("key2", "bar4")
+                .withFieldValue("value", "1")
+                .withFieldValue("updateType", "DELETE")
+                .withFieldValue("sqn", 1L)
+                .build());
+
+    BigQueryIO.Write<Row> write =
+        BigQueryIO.<Row>write()
+            .to("dataset-id.table-id")
+            .withCreateDisposition(CreateDisposition.CREATE_NEVER)
+            .withSchema(tableSchema)
+            .withMethod(Method.STORAGE_API_AT_LEAST_ONCE)
+            .useBeamSchema()
+            .withRowMutationInformationFn(
+                r ->
+                    RowMutationInformation.of(
+                        RowMutationInformation.MutationType.valueOf(r.getString("updateType")),
+                        r.getInt64("sqn")))
+            .withoutValidation()
+            .withTestServices(fakeBqServices);
+
+    p.apply(Create.of(items).withRowSchema(beamSchema)).apply("WriteToBQ", write);
+    p.run();
+
+    List<TableRow> expected =
+        Lists.newArrayList(
+            new TableRow()
+                .set("key1", "foo0")
+                .set("key2", "bar0")
+                .set("value", "2")
+                .set("updatetype", "UPSERT")
+                .set("sqn", "1"),
+            new TableRow()
+                .set("key1", "foo1")
+                .set("key2", "bar1")
+                .set("value", "3")
+                .set("updatetype", "UPSERT")
+                .set("sqn", "2"),
+            new TableRow()
+                .set("key1", "foo3")
+                .set("key2", "bar3")
+                .set("value", "1")
+                .set("updatetype", "UPSERT")
+                .set("sqn", "0"));
+
+    assertThat(
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
+        containsInAnyOrder(Iterables.toArray(expected, TableRow.class)));
   }
 }

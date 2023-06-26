@@ -56,3 +56,7 @@ def map_function(test=None):
     # [END map_function]
     if test:
       test(plants)
+
+
+if __name__ == '__main__':
+  map_function()

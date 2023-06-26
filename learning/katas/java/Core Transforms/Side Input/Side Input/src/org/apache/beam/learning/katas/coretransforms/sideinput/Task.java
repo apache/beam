@@ -19,16 +19,16 @@
 package org.apache.beam.learning.katas.coretransforms.sideinput;
 
 // beam-playground:
-//    name: SideInput
-//    description: Task from katas to enrich each Person with the country based on the city he/she lives in.
-//    multifile: true
-//    context_line: 38
-//    categories:
-//      - Side Input
-//    complexity: BASIC
-//    tags:
-//      - transform
-//      - strings
+//   name: SideInput
+//   description: Task from katas to enrich each Person with the country based on the city he/she lives in.
+//   multifile: true
+//   context_line: 48
+//   categories:
+//     - Side Input
+//   complexity: BASIC
+//   tags:
+//     - transforms
+//     - strings
 
 import java.util.Map;
 import org.apache.beam.learning.katas.util.Log;

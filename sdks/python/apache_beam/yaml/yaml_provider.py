@@ -27,6 +27,7 @@ import subprocess
 import sys
 import uuid
 from typing import Any
+from typing import Callable
 from typing import Iterable
 from typing import Mapping
 
@@ -59,10 +60,34 @@ class Provider:
     raise NotImplementedError(type(self))
 
   def create_transform(
-      self, typ: str, args: Mapping[str, Any]) -> beam.PTransform:
+      self,
+      typ: str,
+      args: Mapping[str, Any],
+      yaml_create_transform: Callable[
+          [Mapping[str, Any], Iterable[beam.PCollection]], beam.PTransform]
+  ) -> beam.PTransform:
     """Creates a PTransform instance for the given transform type and arguments.
     """
     raise NotImplementedError(type(self))
+
+  def affinity(self, other: "Provider"):
+    """Returns a value approximating how good it would be for this provider
+    to be used immediately following a transform from the other provider
+    (e.g. to encourage fusion).
+    """
+    # TODO(yaml): This is a very rough heuristic. Consider doing better.
+    # E.g. we could look at the the expected environments themselves.
+    # Possibly, we could provide multiple expansions and have the runner itself
+    # choose the actual implementation based on fusion (and other) criteria.
+    return self._affinity(other) + other._affinity(self)
+
+  def _affinity(self, other: "Provider"):
+    if self is other or self == other:
+      return 100
+    elif type(self) == type(other):
+      return 10
+    else:
+      return 0
 
 
 def as_provider(name, provider_or_constructor):
@@ -88,7 +113,7 @@ class ExternalProvider(Provider):
   def provided_transforms(self):
     return self._urns.keys()
 
-  def create_transform(self, type, args):
+  def create_transform(self, type, args, yaml_create_transform):
     if callable(self._service):
       self._service = self._service()
     if self._schema_transforms is None:
@@ -196,6 +221,12 @@ class ExternalPythonProvider(ExternalProvider):
         }).payload(),
         self._service)
 
+  def _affinity(self, other: "Provider"):
+    if isinstance(other, InlineProvider):
+      return 50
+    else:
+      return super()._affinity(other)
+
 
 # This is needed because type inference can't handle *args, **kwargs forwarding.
 # TODO(BEAM-24755): Add support for type inference of through kwargs calls.
@@ -245,11 +276,16 @@ class InlineProvider(Provider):
   def provided_transforms(self):
     return self._transform_factories.keys()
 
-  def create_transform(self, type, args):
+  def create_transform(self, type, args, yaml_create_transform):
     return self._transform_factories[type](**args)
 
   def to_json(self):
     return {'type': "InlineProvider"}
+
+
+class MetaInlineProvider(InlineProvider):
+  def create_transform(self, type, args, yaml_create_transform):
+    return self._transform_factories[type](yaml_create_transform, **args)
 
 
 PRIMITIVE_NAMES_TO_ATOMIC_TYPE = {
@@ -446,17 +482,23 @@ def parse_providers(provider_specs):
 def merge_providers(*provider_sets):
   result = collections.defaultdict(list)
   for provider_set in provider_sets:
+    if isinstance(provider_set, Provider):
+      provider = provider_set
+      provider_set = {
+          transform_type: [provider]
+          for transform_type in provider.provided_transforms()
+      }
     for transform_type, providers in provider_set.items():
       result[transform_type].extend(providers)
   return result
 
 
 def standard_providers():
-  builtin_providers = collections.defaultdict(list)
-  builtin_provider = create_builtin_provider()
-  for transform_type in builtin_provider.provided_transforms():
-    builtin_providers[transform_type].append(builtin_provider)
+  from apache_beam.yaml.yaml_mapping import create_mapping_provider
   with open(os.path.join(os.path.dirname(__file__),
                          'standard_providers.yaml')) as fin:
     standard_providers = yaml.load(fin, Loader=SafeLoader)
-  return merge_providers(builtin_providers, parse_providers(standard_providers))
+  return merge_providers(
+      create_builtin_provider(),
+      create_mapping_provider(),
+      parse_providers(standard_providers))
