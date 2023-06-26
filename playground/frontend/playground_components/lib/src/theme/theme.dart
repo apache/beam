@@ -22,6 +22,7 @@ import 'package:flutter_markdown_selectionarea/flutter_markdown.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../playground_components.dart';
+import 'transitions.dart';
 
 const codeFontSize = 14.0;
 
@@ -171,6 +172,7 @@ final kLightTheme = ThemeData(
     BeamLightThemeColors.text,
     BeamLightThemeColors.primary,
   ),
+  pageTransitionsTheme: NoTransitionsTheme(),
   primaryColor: BeamLightThemeColors.primary,
   scaffoldBackgroundColor: BeamLightThemeColors.secondaryBackground,
   selectedRowColor: BeamLightThemeColors.selectedUnitColor,
@@ -248,6 +250,7 @@ final kDarkTheme = ThemeData(
     BeamDarkThemeColors.text,
     BeamDarkThemeColors.primary,
   ),
+  pageTransitionsTheme: NoTransitionsTheme(),
   primaryColor: BeamDarkThemeColors.primary,
   scaffoldBackgroundColor: BeamDarkThemeColors.secondaryBackground,
   selectedRowColor: BeamDarkThemeColors.selectedUnitColor,
@@ -442,32 +445,40 @@ RoundedRectangleBorder _getButtonBorder(double radius) {
 MarkdownStyleSheet _getMarkdownStyle(Brightness brightness) {
   final Color primaryColor;
   final Color codeblockBackgroundColor;
-  final Color textColor;
   if (brightness == Brightness.light) {
     primaryColor = BeamLightThemeColors.primary;
     codeblockBackgroundColor = BeamLightThemeColors.codeBackground;
-    textColor = BeamLightThemeColors.text;
   } else {
     primaryColor = BeamDarkThemeColors.primary;
     codeblockBackgroundColor = BeamDarkThemeColors.codeBackground;
-    textColor = BeamDarkThemeColors.text;
   }
-  final textTheme = _getTextTheme(textColor);
 
   return MarkdownStyleSheet(
-    p: textTheme.bodyMedium,
-    pPadding: EdgeInsets.only(top: BeamSizes.size2),
-    h1: textTheme.headlineMedium,
-    h3: textTheme.headlineSmall,
-    h3Padding: EdgeInsets.only(top: BeamSizes.size4),
+    p: const TextStyle(
+      fontSize: 16,
+      fontWeight: FontWeight.w400,
+    ),
+    pPadding: const EdgeInsets.only(top: BeamSizes.size2),
+    h1: const TextStyle(
+      fontSize: 18,
+      fontWeight: FontWeight.w600,
+    ),
+    h2: const TextStyle(
+      fontSize: 17,
+      fontWeight: FontWeight.w600,
+    ),
+    h3: const TextStyle(
+      fontSize: 16,
+      fontWeight: FontWeight.w600,
+    ),
+    h3Padding: const EdgeInsets.only(top: BeamSizes.size4),
     blockquoteDecoration: BoxDecoration(
       color: codeblockBackgroundColor,
       borderRadius: BorderRadius.circular(BeamSizes.size6),
     ),
     code: GoogleFonts.sourceCodePro(
-      color: textColor,
       backgroundColor: BeamColors.transparent,
-      fontSize: BeamSizes.size12,
+      fontSize: 14,
     ),
     codeblockDecoration: BoxDecoration(
       color: codeblockBackgroundColor,

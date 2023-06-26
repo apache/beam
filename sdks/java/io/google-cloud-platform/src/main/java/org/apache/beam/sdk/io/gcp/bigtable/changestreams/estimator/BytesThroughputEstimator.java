@@ -17,15 +17,12 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams.estimator;
 
-import java.io.Serializable;
 import java.math.BigDecimal;
-import java.math.MathContext;
-import java.util.ArrayDeque;
-import java.util.Deque;
-import java.util.Random;
+import java.math.RoundingMode;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.sdk.io.gcp.bigtable.changestreams.TimestampConverter;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /**
@@ -42,64 +39,36 @@ import org.joda.time.Instant;
  * every element
  */
 @Internal
-public class BytesThroughputEstimator<T> implements ThroughputEstimator<T> {
+public class BytesThroughputEstimator<T> {
 
-  private static final long serialVersionUID = -1147130541208370666L;
-  private static final BigDecimal MAX_DOUBLE = BigDecimal.valueOf(Double.MAX_VALUE);
+  private static final long serialVersionUID = 6014227751984587954L;
   private static final int DEFAULT_SAMPLE_RATE = 50;
-
-  /** Keeps track of how many bytes of throughput have been seen in a given timestamp. */
-  private static class ThroughputEntry implements Serializable {
-
-    private static final long serialVersionUID = 3752325891215855332L;
-
-    private final Instant instant;
-    private BigDecimal bytes;
-
-    public ThroughputEntry(Instant instant, long bytes) {
-      this.instant = instant;
-      this.bytes = BigDecimal.valueOf(bytes);
-    }
-
-    public Instant getTimestamp() {
-      return instant;
-    }
-
-    public long getSeconds() {
-      return TimestampConverter.toSeconds(instant);
-    }
-
-    public BigDecimal getBytes() {
-      return bytes;
-    }
-
-    public void addBytes(long bytesToAdd) {
-      bytes = bytes.add(BigDecimal.valueOf(bytesToAdd));
-    }
-  }
-
-  // The deque holds a number of windows in the past in order to calculate
-  // a rolling windowing throughput.
-  private final Deque<ThroughputEntry> deque;
-  // The number of seconds to be accounted for when calculating the throughput
-  private final int windowSizeSeconds;
-  // Estimates the size in bytes of throughput elements
   private final SizeEstimator<T> sizeEstimator;
   private final int sampleRate;
-  private final Random random;
+  private long elementCount;
+  private BigDecimal currentElementSizeEstimate;
+  private final Instant startTimestamp;
+  private Instant lastElementTimestamp;
+  private BigDecimal totalThroughputEstimate;
 
-  public BytesThroughputEstimator(int windowSizeSeconds, SizeEstimator<T> sizeEstimator) {
-    this(windowSizeSeconds, sizeEstimator, DEFAULT_SAMPLE_RATE);
+  public BytesThroughputEstimator(
+      SizeEstimator<T> sizeEstimator, @Nullable Instant lastRunTimestamp) {
+    this(
+        sizeEstimator,
+        DEFAULT_SAMPLE_RATE,
+        lastRunTimestamp != null ? lastRunTimestamp : Instant.now());
   }
 
   @VisibleForTesting
   public BytesThroughputEstimator(
-      int windowSizeSeconds, SizeEstimator<T> sizeEstimator, int sampleRate) {
-    this.deque = new ArrayDeque<>();
-    this.windowSizeSeconds = windowSizeSeconds;
+      SizeEstimator<T> sizeEstimator, int sampleRate, Instant startTimestamp) {
     this.sizeEstimator = sizeEstimator;
     this.sampleRate = sampleRate;
-    this.random = new Random();
+    this.startTimestamp = startTimestamp;
+    this.elementCount = 0;
+    this.currentElementSizeEstimate = BigDecimal.ZERO;
+    lastElementTimestamp = this.startTimestamp;
+    totalThroughputEstimate = BigDecimal.ZERO;
   }
 
   /**
@@ -108,66 +77,31 @@ public class BytesThroughputEstimator<T> implements ThroughputEstimator<T> {
    * @param timeOfRecords the committed timestamp of the records
    * @param element the element to estimate the byte size of
    */
-  @SuppressWarnings("nullness") // queue is never null, nor the peeked element
-  @Override
   public void update(Instant timeOfRecords, T element) {
-    if (random.nextInt(sampleRate) == 0) {
-      long bytes = sizeEstimator.sizeOf(element);
-      synchronized (deque) {
-        if (deque.isEmpty()
-            || TimestampConverter.toSeconds(timeOfRecords) > deque.getLast().getSeconds()) {
-          deque.addLast(new ThroughputEntry(timeOfRecords, bytes));
-        } else {
-          deque.getLast().addBytes(bytes);
-        }
-        cleanQueue(deque.getLast().getTimestamp());
-      }
+    // Always updates on first element re-estimates size based on sample rate.
+    // This is expensive so we avoid doing it too often.
+    if (elementCount % sampleRate == 0) {
+      currentElementSizeEstimate = BigDecimal.valueOf(sizeEstimator.sizeOf(element));
     }
+    lastElementTimestamp = timeOfRecords;
+    elementCount += 1;
+    totalThroughputEstimate = totalThroughputEstimate.add(currentElementSizeEstimate);
   }
 
-  /** Returns the estimated throughput bytes for now. */
-  @Override
-  public double get() {
-    return getFrom(Instant.now());
-  }
+  /** Returns the estimated throughput bytes for this run. */
+  public BigDecimal get() {
+    if (elementCount == 0) {
+      return BigDecimal.ZERO;
+    } else {
+      BigDecimal processingTimeMillis =
+          BigDecimal.valueOf(new Duration(startTimestamp, lastElementTimestamp).getMillis())
+              // Avoid divide by zero by rounding up to 1 ms when the difference is less
+              // than a full millisecond
+              .max(BigDecimal.ONE);
 
-  /**
-   * Returns the estimated throughput bytes for a specified time.
-   *
-   * @param time the specified timestamp to check throughput
-   */
-  @Override
-  public double getFrom(Instant time) {
-    synchronized (deque) {
-      cleanQueue(time);
-      if (deque.size() == 0) {
-        return 0D;
-      }
-      BigDecimal throughput = BigDecimal.ZERO;
-      for (ThroughputEntry entry : deque) {
-        throughput = throughput.add(entry.getBytes());
-      }
-      return throughput
-          // Prevents negative values
-          .max(BigDecimal.ZERO)
-          .divide(BigDecimal.valueOf(windowSizeSeconds), MathContext.DECIMAL128)
-          .multiply(BigDecimal.valueOf(sampleRate))
-          // Cap it to Double.MAX_VALUE
-          .min(MAX_DOUBLE)
-          .doubleValue();
-    }
-  }
-
-  private void cleanQueue(Instant time) {
-    while (deque.size() > 0) {
-      final ThroughputEntry entry = deque.getFirst();
-      if (entry != null
-          && entry.getSeconds() >= TimestampConverter.toSeconds(time) - windowSizeSeconds) {
-        break;
-      }
-      // Remove the element if the timestamp of the first element is beyond
-      // the time range to look backward.
-      deque.removeFirst();
+      return totalThroughputEstimate
+          .divide(processingTimeMillis, 3, RoundingMode.DOWN)
+          .multiply(BigDecimal.valueOf(1000));
     }
   }
 }

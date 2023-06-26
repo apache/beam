@@ -14,7 +14,7 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-# beam-playground-broken:
+# beam-playground:
 #   name: read-query
 #   description: TextIO read query example.
 #   multifile: false

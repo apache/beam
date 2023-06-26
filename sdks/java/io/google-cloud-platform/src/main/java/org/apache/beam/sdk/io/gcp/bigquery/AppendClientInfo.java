@@ -73,7 +73,9 @@ abstract class AppendClientInfo {
   abstract Builder toBuilder();
 
   static AppendClientInfo of(
-      TableSchema tableSchema, Consumer<BigQueryServices.StreamAppendClient> closeAppendClient)
+      TableSchema tableSchema,
+      Consumer<BigQueryServices.StreamAppendClient> closeAppendClient,
+      boolean includeCdcColumns)
       throws Exception {
     return new AutoValue_AppendClientInfo.Builder()
         .setTableSchema(tableSchema)
@@ -81,7 +83,9 @@ abstract class AppendClientInfo {
         .setJsonTableSchema(TableRowToStorageApiProto.protoSchemaToTableSchema(tableSchema))
         .setSchemaInformation(
             TableRowToStorageApiProto.SchemaInformation.fromTableSchema(tableSchema))
-        .setDescriptor(TableRowToStorageApiProto.getDescriptorFromTableSchema(tableSchema, true))
+        .setDescriptor(
+            TableRowToStorageApiProto.getDescriptorFromTableSchema(
+                tableSchema, true, includeCdcColumns))
         .build();
   }
 
@@ -126,14 +130,17 @@ abstract class AppendClientInfo {
             unknown,
             ignoreUnknownValues,
             true,
-            null);
+            null,
+            null,
+            -1);
     return msg.toByteString();
   }
 
   @Memoized
   Descriptors.Descriptor getDescriptorIgnoreRequired() {
     try {
-      return TableRowToStorageApiProto.getDescriptorFromTableSchema(getTableSchema(), false);
+      // Ignore CDC columns since this is just for unknown fields.
+      return TableRowToStorageApiProto.getDescriptorFromTableSchema(getTableSchema(), false, false);
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
@@ -142,7 +149,7 @@ abstract class AppendClientInfo {
   public TableRow toTableRow(ByteString protoBytes) {
     try {
       return TableRowToStorageApiProto.tableRowFromMessage(
-          DynamicMessage.parseFrom(getDescriptor(), protoBytes));
+          DynamicMessage.parseFrom(getDescriptor(), protoBytes), true);
     } catch (InvalidProtocolBufferException e) {
       throw new RuntimeException(e);
     }

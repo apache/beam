@@ -29,13 +29,23 @@ pythonVersion = '3.8'
 toxTask "formatter", "py3-yapf-check"
 check.dependsOn formatter
 
+// TODO(BEAM-12000): Move tasks that aren't specific to 3.8 to Py 3.9.
+def posargs = project.findProperty("posargs") ?: ""
+
+task lint {}
+check.dependsOn lint
+
+toxTask "lintPy38", "py38-lint", "${posargs}"
+lint.dependsOn lintPy38
+
+toxTask "mypyPy38", "py38-mypy", "${posargs}"
+lint.dependsOn mypyPy38
+
 apply from: "../common.gradle"
 
 // TODO(https://github.com/apache/beam/issues/20051): Remove this once tox uses isolated builds.
 testPy38Cython.mustRunAfter testPython38, testPy38CloudCoverage
 
-// TODO(BEAM-12000): Move tasks that aren't specific to 3.8 to Py 3.9.
-def posargs = project.findProperty("posargs") ?: ""
 
 // PyCoverage Precommit runs test suites that evaluate test coverage and compatibility of
 // particular dependencies. It is exercised on a single Python version.

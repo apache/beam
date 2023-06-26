@@ -194,7 +194,7 @@ tasks.register("azureIntegrationTest") {
   doLast {
     exec {
       executable 'sh'
-      args '-c', "${rootDir}/sdks/python/apache_beam/io/azure/integration_test/azure_integration_test.sh python:${pythonContainerVersion}"
+      args '-c', "${rootDir}/sdks/python/apache_beam/io/azure/integration_test/azure_integration_test.sh python:${pythonContainerVersion}-bullseye"
     }
   }
 }

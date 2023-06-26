@@ -36,7 +36,6 @@ goBuild {
 }
 
 tasks.register("buildAll") {
-  dependsOn ':sdks:python:container:py37:docker'
   dependsOn ':sdks:python:container:py38:docker'
   dependsOn ':sdks:python:container:py39:docker'
   dependsOn ':sdks:python:container:py310:docker'
@@ -44,7 +43,6 @@ tasks.register("buildAll") {
 }
 
 tasks.register("pushAll") {
-  dependsOn ':sdks:python:container:py37:dockerPush'
   dependsOn ':sdks:python:container:py38:dockerPush'
   dependsOn ':sdks:python:container:py39:dockerPush'
   dependsOn ':sdks:python:container:py310:dockerPush'
@@ -52,7 +50,6 @@ tasks.register("pushAll") {
 }
 
 tasks.register("generatePythonRequirementsAll") {
-  dependsOn ':sdks:python:container:py37:generatePythonRequirements'
   dependsOn ':sdks:python:container:py38:generatePythonRequirements'
   dependsOn ':sdks:python:container:py39:generatePythonRequirements'
   dependsOn ':sdks:python:container:py310:generatePythonRequirements'

@@ -166,7 +166,7 @@ public class BeamFnControlClientTest {
       // Ensure that the server completing the stream translates to the completable future
       // being completed allowing for a successful shutdown of the client.
       outboundServerObserver.onCompleted();
-      client.waitForTermination();
+      client.terminationFuture().get();
     } finally {
       server.shutdownNow();
     }
@@ -236,7 +236,7 @@ public class BeamFnControlClientTest {
 
       // Ensure that the client shuts down when an Error is thrown from the harness
       try {
-        client.waitForTermination();
+        client.terminationFuture().get();
         throw new IllegalStateException("The future should have terminated with an error");
       } catch (ExecutionException errorWrapper) {
         assertThat(errorWrapper.getCause().getMessage(), containsString("Test Error"));

@@ -36,7 +36,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.naming.SizeLimitExceededException;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.reflect.ReflectData;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -666,8 +665,8 @@ public class PubsubIO {
    * by the schema-transform library.
    */
   public static Read<GenericRecord> readAvroGenericRecords(org.apache.avro.Schema avroSchema) {
+    AvroCoder<GenericRecord> coder = AvroCoder.of(avroSchema);
     Schema schema = AvroUtils.getSchema(GenericRecord.class, avroSchema);
-    AvroCoder<GenericRecord> coder = AvroCoder.of(GenericRecord.class, avroSchema);
     return Read.newBuilder(parsePayloadUsingCoder(coder))
         .setCoder(
             SchemaCoder.of(
@@ -689,9 +688,9 @@ public class PubsubIO {
     if (clazz.equals(GenericRecord.class)) {
       throw new IllegalArgumentException("For GenericRecord, please call readAvroGenericRecords");
     }
-    org.apache.avro.Schema avroSchema = ReflectData.get().getSchema(clazz);
     AvroCoder<T> coder = AvroCoder.of(clazz);
-    Schema schema = AvroUtils.getSchema(clazz, null);
+    org.apache.avro.Schema avroSchema = coder.getSchema();
+    Schema schema = AvroUtils.getSchema(clazz, avroSchema);
     return Read.newBuilder(parsePayloadUsingCoder(coder))
         .setCoder(
             SchemaCoder.of(
@@ -731,8 +730,9 @@ public class PubsubIO {
    */
   public static Write<String> writeStrings() {
     return Write.newBuilder(
-            (String string) ->
-                new PubsubMessage(string.getBytes(StandardCharsets.UTF_8), ImmutableMap.of()))
+            (ValueInSingleWindow<String> stringAndWindow) ->
+                new PubsubMessage(
+                    stringAndWindow.getValue().getBytes(StandardCharsets.UTF_8), ImmutableMap.of()))
         .setDynamicDestinations(false)
         .build();
   }
@@ -749,12 +749,38 @@ public class PubsubIO {
   }
 
   /**
+   * Returns A {@link PTransform} that writes binary encoded protobuf messages of a given type to a
+   * Google Cloud Pub/Sub stream.
+   */
+  public static <T extends Message> Write<T> writeProtos(
+      Class<T> messageClass,
+      SerializableFunction<ValueInSingleWindow<T>, Map<String, String>> attributeFn) {
+    // TODO: Like in readProtos(), stop using ProtoCoder and instead format the payload directly.
+    return Write.newBuilder(formatPayloadUsingCoder(ProtoCoder.of(messageClass), attributeFn))
+        .setDynamicDestinations(false)
+        .build();
+  }
+
+  /**
    * Returns A {@link PTransform} that writes binary encoded Avro messages of a given type to a
    * Google Cloud Pub/Sub stream.
    */
   public static <T> Write<T> writeAvros(Class<T> clazz) {
     // TODO: Like in readAvros(), stop using AvroCoder and instead format the payload directly.
     return Write.newBuilder(formatPayloadUsingCoder(AvroCoder.of(clazz)))
+        .setDynamicDestinations(false)
+        .build();
+  }
+
+  /**
+   * Returns A {@link PTransform} that writes binary encoded Avro messages of a given type to a
+   * Google Cloud Pub/Sub stream.
+   */
+  public static <T> Write<T> writeAvros(
+      Class<T> clazz,
+      SerializableFunction<ValueInSingleWindow<T>, Map<String, String>> attributeFn) {
+    // TODO: Like in readAvros(), stop using AvroCoder and instead format the payload directly.
+    return Write.newBuilder(formatPayloadUsingCoder(AvroCoder.of(clazz), attributeFn))
         .setDynamicDestinations(false)
         .build();
   }
@@ -1163,13 +1189,14 @@ public class PubsubIO {
     abstract @Nullable String getIdAttribute();
 
     /** The format function for input PubsubMessage objects. */
-    abstract SerializableFunction<T, PubsubMessage> getFormatFn();
+    abstract SerializableFunction<ValueInSingleWindow<T>, PubsubMessage> getFormatFn();
 
     abstract @Nullable String getPubsubRootUrl();
 
     abstract Builder<T> toBuilder();
 
-    static <T> Builder<T> newBuilder(SerializableFunction<T, PubsubMessage> formatFn) {
+    static <T> Builder<T> newBuilder(
+        SerializableFunction<ValueInSingleWindow<T>, PubsubMessage> formatFn) {
       Builder<T> builder = new AutoValue_PubsubIO_Write.Builder<T>();
       builder.setPubsubClientFactory(FACTORY);
       builder.setFormatFn(formatFn);
@@ -1177,7 +1204,7 @@ public class PubsubIO {
     }
 
     static Builder<PubsubMessage> newBuilder() {
-      return newBuilder(x -> x);
+      return newBuilder(x -> x.getValue());
     }
 
     @AutoValue.Builder
@@ -1199,7 +1226,8 @@ public class PubsubIO {
 
       abstract Builder<T> setIdAttribute(String idAttribute);
 
-      abstract Builder<T> setFormatFn(SerializableFunction<T, PubsubMessage> formatFn);
+      abstract Builder<T> setFormatFn(
+          SerializableFunction<ValueInSingleWindow<T>, PubsubMessage> formatFn);
 
       abstract Builder<T> setPubsubRootUrl(String pubsubRootUrl);
 
@@ -1410,7 +1438,7 @@ public class PubsubIO {
       public void processElement(@Element PubsubMessage message, @Timestamp Instant timestamp)
           throws IOException, SizeLimitExceededException {
         // Validate again here just as a sanity check.
-        PreparePubsubWriteDoFn.validatePubsubMessageSize(message, maxPublishBatchSize);
+        PreparePubsubWriteDoFn.validatePubsubMessageSize(message, maxPublishBatchByteSize);
         byte[] payload = message.getPayload();
         int messageSize = payload.length;
 
@@ -1486,11 +1514,27 @@ public class PubsubIO {
     };
   }
 
-  private static <T> SerializableFunction<T, PubsubMessage> formatPayloadUsingCoder(
-      Coder<T> coder) {
+  private static <T>
+      SerializableFunction<ValueInSingleWindow<T>, PubsubMessage> formatPayloadUsingCoder(
+          Coder<T> coder) {
     return input -> {
       try {
-        return new PubsubMessage(CoderUtils.encodeToByteArray(coder, input), ImmutableMap.of());
+        return new PubsubMessage(
+            CoderUtils.encodeToByteArray(coder, input.getValue()), ImmutableMap.of());
+      } catch (CoderException e) {
+        throw new RuntimeException("Could not encode Pubsub message", e);
+      }
+    };
+  }
+
+  private static <T>
+      SerializableFunction<ValueInSingleWindow<T>, PubsubMessage> formatPayloadUsingCoder(
+          Coder<T> coder,
+          SerializableFunction<ValueInSingleWindow<T>, Map<String, String>> attributesFn) {
+    return input -> {
+      try {
+        return new PubsubMessage(
+            CoderUtils.encodeToByteArray(coder, input.getValue()), attributesFn.apply(input));
       } catch (CoderException e) {
         throw new RuntimeException("Could not encode Pubsub message", e);
       }

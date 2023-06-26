@@ -540,7 +540,7 @@ class _OutputHandler(OutputHandler):
   def __init__(self):
     self.output_iter = None
 
-  def process_outputs(
+  def handle_process_outputs(
       self, windowed_input_element, output_iter, watermark_estimator=None):
     # type: (WindowedValue, Iterable[Any], Optional[WatermarkEstimator]) -> None
     self.output_iter = output_iter
@@ -550,7 +550,7 @@ class _OutputHandler(OutputHandler):
 
 
 class _NoneShallPassOutputHandler(OutputHandler):
-  def process_outputs(
+  def handle_process_outputs(
       self, windowed_input_element, output_iter, watermark_estimator=None):
     # type: (WindowedValue, Iterable[Any], Optional[WatermarkEstimator]) -> None
     raise RuntimeError()

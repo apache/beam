@@ -608,7 +608,7 @@ func processErrorWithSavingOutput(err error, errorOutput []byte, pipelineId uuid
 //	sets corresponding status to the cache.
 func processRunError(errorChannel chan error, errorOutput []byte, pipelineId uuid.UUID, cacheService cache.Cache, stopReadLogsChannel, finishReadLogsChannel chan bool) error {
 	err := <-errorChannel
-	logger.Errorf("%s: Run(): err: %s, output: %s\n", pipelineId, err.Error(), errorOutput)
+	logger.Warnf("%s: Run(): err: %s, output: %s\n", pipelineId, err.Error(), errorOutput)
 
 	if err := utils.SetToCache(cacheService, pipelineId, cache.RunError, fmt.Sprintf("error: %s\noutput: %s", err.Error(), string(errorOutput))); err != nil {
 		return err
