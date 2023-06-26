@@ -38,7 +38,7 @@ except ImportError:
   tft_transforms = None
 
 if tft_transforms is None:
-  unittest.SkipTest('tensorflow_transform is not installed')
+  raise unittest.SkipTest('tensorflow_transform is not installed')
 
 
 class _FakeOperation(TFTOperation):
