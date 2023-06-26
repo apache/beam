@@ -21,15 +21,7 @@ sdk:
   - Java
   - Python
   - Go
-content:
-  - introduction
-  - common-transforms
-  - core-transforms
-  - schema-based-transforms
-  - windowing
-  - triggers
-  - io
-  - splittable-dofn
-  - cross-language
-  - final-challenge
-  
+id: final-challenge-1
+name: Final Challenge 1
+taskName: FinalChallenge1
+solutionName: FinalSolution1
