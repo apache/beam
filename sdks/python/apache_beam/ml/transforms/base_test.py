@@ -24,13 +24,21 @@ import unittest
 import numpy as np
 
 import apache_beam as beam
-from apache_beam.ml.transforms import base
-from apache_beam.ml.transforms import tft_transforms
-from apache_beam.ml.transforms.tft_transforms import TFTOperation
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from parameterized import param
 from parameterized import parameterized
+
+# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
+try:
+  from apache_beam.ml.transforms import base
+  from apache_beam.ml.transforms import tft_transforms
+  from apache_beam.ml.transforms.tft_transforms import TFTOperation
+except ImportError:
+  tft_transforms = None
+
+if tft_transforms is None:
+  unittest.SkipTest('tensorflow_transform is not installed')
 
 
 class _FakeOperation(TFTOperation):
