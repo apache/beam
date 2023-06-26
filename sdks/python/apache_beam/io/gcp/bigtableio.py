@@ -177,6 +177,10 @@ class WriteToBigTable(beam.PTransform):
   Takes an input PCollection of `DirectRow` objects containing un-committed
   mutations. For more information about this row object, visit
   https://cloud.google.com/python/docs/reference/bigtable/latest/row#class-googlecloudbigtablerowdirectrowrowkey-tablenone
+
+  If flag `use_cross_language` is set to true, this transform will use the
+  multi-language transforms framework to inject the Java native write transform
+  into the pipeline.
   """
   URN = "beam:schematransform:org.apache.beam:bigtable_write:v1"
 
@@ -187,7 +191,7 @@ class WriteToBigTable(beam.PTransform):
       table_id,
       use_cross_language=False,
       expansion_service=None):
-    """Initialize an WriteToBigtableXlang transform.
+    """Initialize an WriteToBigTable transform.
 
     :param table_id:
       The ID of the table to write to.

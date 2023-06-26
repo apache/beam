@@ -115,11 +115,11 @@ public class BigtableWriteSchemaTransformProvider
     /** Builder for the {@link BigtableWriteSchemaTransformConfiguration}. */
     @AutoValue.Builder
     public abstract static class Builder {
-      public abstract Builder setTableId(String table);
+      public abstract Builder setTableId(String tableId);
 
-      public abstract Builder setInstanceId(String instance);
+      public abstract Builder setInstanceId(String instanceId);
 
-      public abstract Builder setProjectId(String project);
+      public abstract Builder setProjectId(String projectId);
 
       /** Builds a {@link BigtableWriteSchemaTransformConfiguration} instance. */
       public abstract BigtableWriteSchemaTransformConfiguration build();
