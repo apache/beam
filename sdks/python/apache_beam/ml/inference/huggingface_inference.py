@@ -28,14 +28,17 @@ import numpy
 import tensorflow as tf
 import torch
 from transformers import AutoModel
+from transformers import TFAutoModel
 
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.ml.inference import utils
+from apache_beam.ml.inference.pytorch_inference import _convert_to_device
 
 
 def _run_inference_torch_keyed_tensor(
-    batch: Sequence[torch.Tensor], model: Any,
+    batch: Sequence[Dict[str, Union[tf.Tensor, torch.Tensor]]],
+    model: Any,
     inference_args: Dict[str, Any]) -> Iterable[PredictionResult]:
   key_to_tensor_list = defaultdict(list)
   with torch.no_grad():
@@ -45,14 +48,15 @@ def _run_inference_torch_keyed_tensor(
     key_to_batched_tensors = {}
     for key in key_to_tensor_list:
       batched_tensors = torch.stack(key_to_tensor_list[key])
-      batched_tensors = key_to_tensor_list[key]
+      batched_tensors = _convert_to_device(batched_tensors, torch.device('cpu'))
       key_to_batched_tensors[key] = batched_tensors
     return utils._convert_to_result(
         batch, model(**key_to_batched_tensors, **inference_args))
 
 
 def _run_inference_tensorflow_keyed_tensor(
-    batch: Sequence[tf.Tensor], model: Any,
+    batch: Sequence[Dict[str, Union[tf.Tensor, torch.Tensor]]],
+    model: Any,
     inference_args: Dict[str, Any]) -> Iterable[PredictionResult]:
   key_to_tensor_list = defaultdict(list)
   for example in batch:
@@ -71,11 +75,12 @@ class HuggingFaceModelHandlerKeyedTensor(ModelHandler[Dict[str,
                                                            Union[tf.Tensor,
                                                                  torch.Tensor]],
                                                       PredictionResult,
-                                                      AutoModel]):
+                                                      Union[AutoModel,
+                                                            TFAutoModel]]):
   def __init__(
       self,
       model_uri: str,
-      model_class: AutoModel,
+      model_class: Union[AutoModel, TFAutoModel],
       model_config_args: Dict[str, Any] = None,
       inference_args: Optional[Dict[str, Any]] = None,
       min_batch_size: Optional[int] = None,
@@ -126,7 +131,7 @@ class HuggingFaceModelHandlerKeyedTensor(ModelHandler[Dict[str,
   def run_inference(
       self,
       batch: Sequence[Dict[str, Union[tf.Tensor, torch.Tensor]]],
-      model: AutoModel,
+      model: Union[AutoModel, TFAutoModel],
       inference_args: Optional[Dict[str, Any]] = None
   ) -> Iterable[PredictionResult]:
     """
@@ -152,9 +157,11 @@ class HuggingFaceModelHandlerKeyedTensor(ModelHandler[Dict[str,
     # torch.no_grad() mitigates GPU memory issues
     # https://github.com/apache/beam/issues/22811
     if isinstance(batch[0], tf.Tensor):
+      self._framework = "tf"
       return _run_inference_tensorflow_keyed_tensor(
           batch, model, inference_args)
     else:
+      self._framework = "torch"
       return _run_inference_torch_keyed_tensor(batch, model, inference_args)
 
   def get_num_bytes(
@@ -182,11 +189,12 @@ class HuggingFaceModelHandlerKeyedTensor(ModelHandler[Dict[str,
 
 class HuggingFaceModelHandlerTensor(ModelHandler[Union[tf.Tensor, torch.Tensor],
                                                  PredictionResult,
-                                                 AutoModel]):
+                                                 Union[AutoModel,
+                                                       TFAutoModel]]):
   def __init__(
       self,
       model_uri: str,
-      model_class: AutoModel,
+      model_class: Union[AutoModel, TFAutoModel],
       model_config_args: Dict[str, Any] = None,
       inference_args: Optional[Dict[str, Any]] = None,
       min_batch_size: Optional[int] = None,
@@ -238,7 +246,7 @@ class HuggingFaceModelHandlerTensor(ModelHandler[Union[tf.Tensor, torch.Tensor],
   def run_inference(
       self,
       batch: Sequence[Union[tf.Tensor, torch.Tensor]],
-      model: AutoModel,
+      model: Union[AutoModel, TFAutoModel],
       inference_args: Optional[Dict[str, Any]] = None
   ) -> Iterable[PredictionResult]:
     """
@@ -298,11 +306,11 @@ class HuggingFaceModelHandlerTensor(ModelHandler[Union[tf.Tensor, torch.Tensor],
 
 class HuggingFaceModelHandlerNumpy(ModelHandler[numpy.ndarray,
                                                 PredictionResult,
-                                                AutoModel]):
+                                                Union[AutoModel, TFAutoModel]]):
   def __init__(
       self,
       model_uri: str,
-      model_class: AutoModel,
+      model_class: Union[AutoModel, TFAutoModel],
       model_config_args: Dict[str, Any] = None,
       inference_args: Optional[Dict[str, Any]] = None,
       min_batch_size: Optional[int] = None,
@@ -350,7 +358,7 @@ class HuggingFaceModelHandlerNumpy(ModelHandler[numpy.ndarray,
   def run_inference(
       self,
       batch: Sequence[numpy.ndarray],
-      model: AutoModel,
+      model: Union[AutoModel, TFAutoModel],
       inference_args: Optional[Dict[str, Any]] = None
   ) -> Iterable[PredictionResult]:
     """

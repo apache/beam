@@ -44,6 +44,7 @@ from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.runners.runner import PipelineResult
 
 from transformers import AutoTokenizer
+from transformers import AutoModelForMaskedLM
 
 
 def add_mask_to_last_word(text: str) -> Tuple[str, str]:
@@ -87,10 +88,9 @@ class PostProcessor(beam.DoFn):
   def process(self, element: Tuple[str, PredictionResult]) -> Iterable[str]:
     text, prediction_result = element
     inputs = prediction_result.example
-    logits = prediction_result.inference.logits
-    mask_token_index = (
-        inputs['input_ids'] == self.tokenizer.mask_token_id).nonzero(
-            as_tuple=True)[0]
+    logits = prediction_result.inference['logits']
+    mask_token_index = torch.where(
+        inputs["input_ids"] == self.tokenizer.mask_token_id)[0]
     predicted_token_id = logits[mask_token_index].argmax(axis=-1)
     decoded_word = self.tokenizer.decode(predicted_token_id)
     yield text + ';' + decoded_word
@@ -116,7 +116,7 @@ def parse_known_args(argv):
   parser.add_argument(
       '--model_class',
       dest='model_class',
-      required=True,
+      default=AutoModelForMaskedLM,
       help="Name of the model from Hugging Face")
   return parser.parse_known_args(argv)
 
@@ -142,20 +142,20 @@ def run(
   tokenizer = AutoTokenizer.from_pretrained(known_args.model_name)
 
   model_handler = HuggingFaceModelHandlerKeyedTensor(
-      model_uri=known_args.model_name, model_class=known_args.model_class)
+      model_uri=known_args.model_name,
+      model_class=known_args.model_class,
+      max_batch_size=1)
   if not known_args.input:
-    text = (pipeline | 'CreateSentences' >> beam.Create([
-      'The capital of France is Paris .',
-      'It is raining cats and dogs .',
-      'He looked up and saw the sun and stars .',
-      'Today is Monday and tomorrow is Tuesday .',
-      'There are 5 coconuts on this palm tree .',
-      'The richest person in the world is not here .',
-      'Malls are amazing places to shop because you can find everything you need under one roof .', # pylint: disable=line-too-long
-      'This audiobook is sure to liquefy your brain .',
-      'The secret ingredient to his wonderful life was gratitude .',
-      'The biggest animal in the world is the whale .',
-    ]))
+    text = (
+        pipeline | 'CreateSentences' >> beam.Create([
+            'The capital of France is Paris .',
+            'It is raining cats and dogs .',
+            'Today is Monday and tomorrow is Tuesday .',
+            'There are 5 coconuts on this palm tree .',
+            'The strongest person in the world is not famous .',
+            'The secret ingredient to his wonderful life was gratitude .',
+            'The biggest animal in the world is the whale .',
+        ]))
   else:
     text = (
         pipeline | 'ReadSentences' >> beam.io.ReadFromText(known_args.input))
