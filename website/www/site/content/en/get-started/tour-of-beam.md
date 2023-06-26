@@ -16,6 +16,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Tour of Beam
+# The Tour of Beam
 
 The "Tour of Beam" is an interactive way of learning to write Beam code with a sandbox, where you can write and run pipelines while walking through various concepts. Please [click here](https://tour.beam.apache.org/) to try it out.
