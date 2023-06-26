@@ -789,7 +789,6 @@ class TestWriteToBigQuery(unittest.TestCase):
 
   @mock.patch('google.cloud.bigquery.Client.insert_rows_json')
   def test_streaming_inserts_flush_on_byte_size_limit(self, mock_insert):
-    beam_bq.MAX_INSERT_PAYLOAD_SIZE = 500
     mock_insert.return_value = []
     table = 'project:dataset.table'
     rows = [
@@ -812,7 +811,8 @@ class TestWriteToBigQuery(unittest.TestCase):
               table=table,
               method='STREAMING_INSERTS',
               create_disposition='CREATE_NEVER',
-              schema='columnA:STRING'))
+              schema='columnA:STRING',
+              max_insert_payload_size=500))
 
       expected_failed_rows = [(table, rows[2])]
       assert_that(failed_rows.failed_rows, equal_to(expected_failed_rows))

@@ -1319,7 +1319,8 @@ class BigQueryWriteFn(DoFn):
       ignore_insert_ids=False,
       with_batched_input=False,
       ignore_unknown_columns=False,
-      max_retries=MAX_INSERT_RETRIES):
+      max_retries=MAX_INSERT_RETRIES,
+      max_insert_payload_size=MAX_INSERT_PAYLOAD_SIZE):
     """Initialize a WriteToBigQuery transform.
 
     Args:
@@ -1408,6 +1409,7 @@ class BigQueryWriteFn(DoFn):
         BigQueryWriteFn.STREAMING_API_LOGGING_FREQUENCY_SEC)
     self.ignore_unknown_columns = ignore_unknown_columns
     self._max_retries = max_retries
+    self.max_insert_payload_size = max_insert_payload_size
 
   def display_data(self):
     return {
@@ -1512,11 +1514,12 @@ class BigQueryWriteFn(DoFn):
       row_byte_size = get_deep_size(row_and_insert_id)
 
       # send large rows that exceed BigQuery insert limits to DLQ
-      if row_byte_size >= MAX_INSERT_PAYLOAD_SIZE:
+      if row_byte_size >= self.max_insert_payload_size:
         row_mb_size = row_byte_size / 1_000_000
+        max_mb_size = self.max_insert_payload_size / 1_000_000
         error = (
-            f"Received very large row ({row_mb_size}MB) that exceeds "
-            "BigQuery inserts quota. Please keep each row under 9MB.")
+            f"Received row with size {row_mb_size}MB that exceeds "
+            f"the maximum insert payload size set ({max_mb_size}MB).")
         _LOGGER.warning(error + " Sending row to dead-letter-queue.")
         return [
             pvalue.TaggedOutput(
@@ -1534,7 +1537,7 @@ class BigQueryWriteFn(DoFn):
           get_deep_size(self._rows_buffer[destination]) + row_byte_size)
 
       # Flush current batch first if adding this row will exceed our limits
-      if ((9 << 20 < buffer_byte_size_with_row) or
+      if ((self.max_insert_payload_size < buffer_byte_size_with_row) or
           len(self._rows_buffer[destination]) >= self._max_batch_size):
         flushed_batch = self._flush_batch(destination)
         self._rows_buffer[destination].append(row_and_insert_id)
@@ -1678,7 +1681,8 @@ class _StreamToBigQuery(PTransform):
       ignore_unknown_columns,
       with_auto_sharding,
       test_client=None,
-      max_retries=None):
+      max_retries=None,
+      max_insert_payload_size=MAX_INSERT_PAYLOAD_SIZE):
     self.table_reference = table_reference
     self.table_side_inputs = table_side_inputs
     self.schema_side_inputs = schema_side_inputs
@@ -1695,6 +1699,7 @@ class _StreamToBigQuery(PTransform):
     self.ignore_unknown_columns = ignore_unknown_columns
     self.with_auto_sharding = with_auto_sharding
     self.max_retries = max_retries or MAX_INSERT_RETRIES
+    self.max_insert_payload_size = max_insert_payload_size
 
   class InsertIdPrefixFn(DoFn):
     def start_bundle(self):
@@ -1721,7 +1726,8 @@ class _StreamToBigQuery(PTransform):
         ignore_insert_ids=self.ignore_insert_ids,
         ignore_unknown_columns=self.ignore_unknown_columns,
         with_batched_input=self.with_auto_sharding,
-        max_retries=self.max_retries)
+        max_retries=self.max_retries,
+        max_insert_payload_size=self.max_insert_payload_size)
 
     def _add_random_shard(element):
       key = element[0]
@@ -1818,7 +1824,8 @@ class WriteToBigQuery(PTransform):
       # when the feature is mature.
       with_auto_sharding=False,
       ignore_unknown_columns=False,
-      load_job_project_id=None):
+      load_job_project_id=None,
+      max_insert_payload_size=MAX_INSERT_PAYLOAD_SIZE):
     """Initialize a WriteToBigQuery transform.
 
     Args:
@@ -1998,6 +2005,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     self._ignore_insert_ids = ignore_insert_ids
     self._ignore_unknown_columns = ignore_unknown_columns
     self.load_job_project_id = load_job_project_id
+    self.max_insert_payload_size = max_insert_payload_size
 
   # Dict/schema methods were moved to bigquery_tools, but keep references
   # here for backward compatibility.
@@ -2060,7 +2068,8 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
           ignore_insert_ids=self._ignore_insert_ids,
           ignore_unknown_columns=self._ignore_unknown_columns,
           with_auto_sharding=self.with_auto_sharding,
-          test_client=self.test_client)
+          test_client=self.test_client,
+          max_insert_payload_size=self.max_insert_payload_size)
 
       return WriteResult(
           method=WriteToBigQuery.Method.STREAMING_INSERTS,
