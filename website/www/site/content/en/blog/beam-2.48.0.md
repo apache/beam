@@ -63,6 +63,9 @@ For more information on changes in 2.48.0, check out the [detailed release notes
 
 * Fixed Java bootloader failing with Too Long Args due to long classpaths, with a pathing jar. (Java) ([#25582](https://github.com/apache/beam/issues/25582)).
 
+## Known Issues
+
+* PubsubIO writes will throw *SizeLimitExceededException* for any message above 100 bytes, when used in batch (bounded) mode. (Java) ([#27000](https://github.com/apache/beam/issues/27000)).
 
 ## List of Contributors
 
