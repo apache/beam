@@ -127,7 +127,7 @@
 
 ## Known Issues
 
-* ([#X](https://github.com/apache/beam/issues/X)).
+* PubsubIO writes will throw *SizeLimitExceededException* for any message above 100 bytes, when used in batch (bounded) mode. (Java) ([#27000](https://github.com/apache/beam/issues/27000)).
 
 # [2.47.0] - 2023-05-10
 

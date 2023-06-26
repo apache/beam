@@ -25,7 +25,6 @@ import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamCont
 import com.google.api.gax.rpc.ServerStream;
 import com.google.cloud.bigtable.common.Status;
 import com.google.cloud.bigtable.data.v2.models.ChangeStreamContinuationToken;
-import com.google.cloud.bigtable.data.v2.models.ChangeStreamMutation;
 import com.google.cloud.bigtable.data.v2.models.ChangeStreamRecord;
 import com.google.cloud.bigtable.data.v2.models.CloseStream;
 import com.google.cloud.bigtable.data.v2.models.Range.ByteStringRange;
@@ -40,6 +39,8 @@ import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.ChangeStreamDao;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTableDao;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dofn.DetectNewPartitionsDoFn;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.estimator.BytesThroughputEstimator;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.estimator.SizeEstimator;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.model.NewPartition;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.model.PartitionRecord;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.restriction.StreamProgress;
@@ -66,18 +67,21 @@ public class ReadChangeStreamPartitionAction {
   private final ChangeStreamMetrics metrics;
   private final ChangeStreamAction changeStreamAction;
   private final Duration heartbeatDuration;
+  private final SizeEstimator<KV<ByteString, ChangeStreamRecord>> sizeEstimator;
 
   public ReadChangeStreamPartitionAction(
       MetadataTableDao metadataTableDao,
       ChangeStreamDao changeStreamDao,
       ChangeStreamMetrics metrics,
       ChangeStreamAction changeStreamAction,
-      Duration heartbeatDuration) {
+      Duration heartbeatDuration,
+      SizeEstimator<KV<ByteString, ChangeStreamRecord>> sizeEstimator) {
     this.metadataTableDao = metadataTableDao;
     this.changeStreamDao = changeStreamDao;
     this.metrics = metrics;
     this.changeStreamAction = changeStreamAction;
     this.heartbeatDuration = heartbeatDuration;
+    this.sizeEstimator = sizeEstimator;
   }
 
   /**
@@ -131,12 +135,14 @@ public class ReadChangeStreamPartitionAction {
   public ProcessContinuation run(
       PartitionRecord partitionRecord,
       RestrictionTracker<StreamProgress, StreamProgress> tracker,
-      OutputReceiver<KV<ByteString, ChangeStreamMutation>> receiver,
+      OutputReceiver<KV<ByteString, ChangeStreamRecord>> receiver,
       ManualWatermarkEstimator<Instant> watermarkEstimator)
       throws IOException {
     // Watermark being delayed beyond 5 minutes signals a possible problem.
     boolean shouldDebug =
         watermarkEstimator.getState().plus(Duration.standardMinutes(5)).isBeforeNow();
+    BytesThroughputEstimator<KV<ByteString, ChangeStreamRecord>> throughputEstimator =
+        new BytesThroughputEstimator<>(sizeEstimator, Instant.now());
 
     if (shouldDebug) {
       LOG.info(
@@ -298,7 +304,13 @@ public class ReadChangeStreamPartitionAction {
       for (ChangeStreamRecord record : stream) {
         Optional<ProcessContinuation> result =
             changeStreamAction.run(
-                partitionRecord, record, tracker, receiver, watermarkEstimator, shouldDebug);
+                partitionRecord,
+                record,
+                tracker,
+                receiver,
+                watermarkEstimator,
+                throughputEstimator,
+                shouldDebug);
         // changeStreamAction will usually return Optional.empty() except for when a checkpoint
         // (either runner or pipeline initiated) is required.
         if (result.isPresent()) {
