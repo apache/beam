@@ -35,25 +35,8 @@ import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.Partition;
-import org.apache.beam.sdk.transforms.View;
-import org.apache.beam.sdk.transforms.Filter;
-import org.apache.beam.sdk.transforms.Combine;
-import org.apache.beam.sdk.transforms.Count;
-import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.FlatMapElements;
-import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
-import org.apache.beam.sdk.transforms.windowing.FixedWindows;
-import org.apache.beam.sdk.transforms.windowing.Trigger;
-import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.transforms.windowing.Repeatedly;
-import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionList;
-import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.Row;
-import org.joda.time.Duration;
+import org.apache.beam.sdk.transforms.*;
+import org.apache.beam.sdk.values.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,10 +45,6 @@ import java.util.List;
 
 public class Task {
     private static final Logger LOG = LoggerFactory.getLogger(Task.class);
-    private static final Integer WINDOW_TIME = 30;
-    private static final Integer TIME_OUTPUT_AFTER_FIRST_ELEMENT = 5;
-    private static final Integer ALLOWED_LATENESS_TIME = 1;
-
     private static final Schema schema = Schema.builder()
             .addField("word", Schema.FieldType.STRING)
             .addField("negative", Schema.FieldType.STRING)
@@ -84,17 +63,11 @@ public class Task {
         PCollection<String> shakespeare = getPCollection(pipeline);
         PCollection<Row> analysisPCollection = getAnalysisPCollection(pipeline);
 
-        Window<String> window = Window.into(FixedWindows.of(Duration.standardSeconds(WINDOW_TIME)));
-        Trigger trigger = AfterProcessingTime.pastFirstElementInPane().plusDelayOf(Duration.standardSeconds(TIME_OUTPUT_AFTER_FIRST_ELEMENT));
-
-        PCollection<String> pCollection = shakespeare.
-                apply(window.triggering(Repeatedly.forever(trigger)).withAllowedLateness(Duration.standardMinutes(ALLOWED_LATENESS_TIME)).discardingFiredPanes());
-
         PCollectionView<List<Row>> viewAnalysisPCollection = analysisPCollection
                 .setCoder(RowCoder.of(schema))
                 .apply(View.asList());
 
-        PCollection<Row> result = getAnalysis(pCollection, viewAnalysisPCollection);
+        PCollection<Row> result = getAnalysis(shakespeare, viewAnalysisPCollection);
 
         PCollectionList<Row> pCollectionList = getPartitions(result);
 

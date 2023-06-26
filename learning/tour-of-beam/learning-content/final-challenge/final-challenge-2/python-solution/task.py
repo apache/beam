@@ -31,7 +31,6 @@ import re
 import apache_beam as beam
 from apache_beam.io import ReadFromText
 from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.transforms import window, trigger
 from apache_beam.transforms.combiners import CountCombineFn
 
 
@@ -105,12 +104,7 @@ def run():
                     | 'Read from csv file' >> ReadFromText('analysis.csv')
                     | 'Extract Analysis' >> beam.ParDo(ExtractAnalysis()))
 
-      windowed_words = (shakespeare
-                          | 'Window' >> beam.WindowInto(window.FixedWindows(30), trigger=trigger.AfterWatermark(
-                    early=trigger.AfterProcessingTime(5).has_ontime_pane(), late=trigger.AfterAll()), allowed_lateness=30,
-                                                        accumulation_mode=trigger.AccumulationMode.DISCARDING))
-
-      matches = windowed_words | beam.ParDo(MatchWordDoFn(), beam.pvalue.AsList(analysis))
+      matches = shakespeare | beam.ParDo(MatchWordDoFn(), beam.pvalue.AsList(analysis))
 
       result = matches | Partition()
 

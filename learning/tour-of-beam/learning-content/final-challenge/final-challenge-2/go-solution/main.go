@@ -34,11 +34,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"strings"
-	"time"
-
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window/trigger"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
@@ -46,6 +41,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
+	"strings"
 )
 
 type Analysis struct {
@@ -78,17 +74,7 @@ func main() {
 	analysis := textio.Read(s, "analysis.csv")
 	analysisRecords := parseAnalysis(s, analysis)
 
-	trigger := trigger.AfterEndOfWindow().
-		EarlyFiring(trigger.AfterProcessingTime().
-			PlusDelay(5 * time.Second))
-
-	fixedWindowedItems := beam.WindowInto(s, window.NewFixedWindows(30*time.Second), shakespeareWords,
-		beam.Trigger(trigger),
-		beam.AllowedLateness(30*time.Second),
-		beam.PanesDiscard(),
-	)
-
-	result := matchWords(s, fixedWindowedItems, analysisRecords)
+	result := matchWords(s, shakespeareWords, analysisRecords)
 
 	parts := partition(s, result)
 
