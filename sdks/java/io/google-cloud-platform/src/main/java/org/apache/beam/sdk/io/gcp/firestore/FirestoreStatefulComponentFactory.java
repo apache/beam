@@ -47,6 +47,9 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 @Immutable
 class FirestoreStatefulComponentFactory implements Serializable {
 
+  private static final String DEFAULT_FIRESTORE_HOST = "batch-firestore.googleapis.com:443";
+  private static final String FIRESTORE_HOST_VARIABLE = "FIRESTORE_HOST";
+
   static final FirestoreStatefulComponentFactory INSTANCE = new FirestoreStatefulComponentFactory();
 
   private FirestoreStatefulComponentFactory() {}
@@ -97,9 +100,11 @@ class FirestoreStatefulComponentFactory implements Serializable {
                     .build());
       } else {
         GcpOptions gcpOptions = options.as(GcpOptions.class);
+        String host = System.getenv().getOrDefault(FIRESTORE_HOST_VARIABLE, DEFAULT_FIRESTORE_HOST);
+        firestoreOptions.setHost(host);
         builder
             .setCredentialsProvider(FixedCredentialsProvider.create(gcpOptions.getGcpCredential()))
-            .setEndpoint("batch-firestore.googleapis.com:443");
+            .setEndpoint(host);
       }
 
       ClientContext clientContext = ClientContext.create(builder.build());

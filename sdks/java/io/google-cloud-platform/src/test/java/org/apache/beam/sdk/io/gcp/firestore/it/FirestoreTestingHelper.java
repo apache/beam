@@ -77,6 +77,9 @@ import org.slf4j.LoggerFactory;
 
 final class FirestoreTestingHelper implements TestRule {
   private static final Logger LOG = LoggerFactory.getLogger(FirestoreTestingHelper.class);
+  private static final String DEFAULT_FIRESTORE_HOST = "batch-firestore.googleapis.com:443";
+  private static final String FIRESTORE_HOST_VARIABLE = "FIRESTORE_HOST";
+
 
   static final String BASE_COLLECTION_ID;
 
@@ -129,11 +132,14 @@ final class FirestoreTestingHelper implements TestRule {
     firestoreBeamOptions =
         TestPipeline.testingPipelineOptions()
             .as(org.apache.beam.sdk.io.gcp.firestore.FirestoreOptions.class);
+    String host = System.getenv().getOrDefault(FIRESTORE_HOST_VARIABLE, DEFAULT_FIRESTORE_HOST);
+    firestoreBeamOptions.setHost(host);
     firestoreOptions =
         FirestoreOptions.newBuilder()
             .setCredentials(options.getGcpCredential())
             .setProjectId(options.getProject())
             .setDatabaseId(firestoreBeamOptions.getFirestoreDb())
+            .setHost(firestoreBeamOptions.getHost())
             .build();
 
     fs = firestoreOptions.getService();

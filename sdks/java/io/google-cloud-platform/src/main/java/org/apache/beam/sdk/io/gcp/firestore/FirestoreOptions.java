@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.firestore;
 
+import javax.annotation.Nonnull;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -57,4 +58,21 @@ public interface FirestoreOptions extends PipelineOptions {
 
   /** Set the Firestore database ID to connect to. */
   void setFirestoreDb(String firestoreDb);
+
+  /**
+   * A host port pair to allow connecting to a Cloud Firestore instead of the default live service.
+   *
+   * @return the string representation of a host and port pair to be used when constructing Cloud
+   *     Firestore clients.
+   */
+  @Nonnull
+  String getHost();
+
+  /**
+   * Define a host port pair to allow connecting to a Cloud Firestore instead of the default live
+   * service.
+   *
+   * @param host the host and port to connect to
+   */
+  void setHost(String host);
 }
