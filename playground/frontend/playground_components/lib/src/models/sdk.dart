@@ -27,7 +27,7 @@ import 'package:json_annotation/json_annotation.dart';
 
 part 'sdk.g.dart';
 
-@JsonSerializable(createToJson: false)
+@JsonSerializable()
 class Sdk with EquatableMixin {
   final String id;
   final String title;
@@ -58,6 +58,21 @@ class Sdk with EquatableMixin {
         id,
         title,
       ];
+
+  /// The default file extension of the programming language.
+  String get fileExtension {
+    switch (id) {
+      case 'go':
+        return '.go';
+      case 'java':
+        return '.java';
+      case 'python':
+        return '.py';
+      case 'scio':
+        return '.scala';
+    }
+    throw Exception('Unknown SDK: $id');
+  }
 
   /// A temporary solution while we wait for the backend to add
   /// sdk in example responses.
@@ -102,6 +117,7 @@ class Sdk with EquatableMixin {
 
   Mode? get highlightMode => _idToHighlightMode[id];
 
-  factory Sdk.fromJson(Map<String, dynamic> json) =>
-      _$SdkFromJson(json);
+  factory Sdk.fromJson(Map<String, dynamic> json) => _$SdkFromJson(json);
+
+  Map<String, dynamic> toJson() => _$SdkToJson(this);
 }

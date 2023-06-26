@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.schemas.io;
 
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.PCollection;
@@ -37,7 +35,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * </a>
  */
 @Internal
-@Experimental(Kind.SCHEMAS)
 public interface SchemaIOProvider {
   /** Returns an id that uniquely represents this IO. */
   String identifier();

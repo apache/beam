@@ -23,14 +23,14 @@ package org.apache.beam.learning.katas.coretransforms.partition;
 //   description: Task from katas that splits a PCollection of numbers into two PCollections. The first PCollection
 //     contains numbers greater than 100, and the second PCollection contains the remaining numbers.
 //   multifile: false
-//   context_line: 41
+//   context_line: 48
 //   categories:
 //     - Core Transforms
 //     - Multiple Outputs
 //   complexity: BASIC
 //   tags:
 //     - split
-//     - transform
+//     - transforms
 //     - numbers
 
 import org.apache.beam.learning.katas.util.Log;

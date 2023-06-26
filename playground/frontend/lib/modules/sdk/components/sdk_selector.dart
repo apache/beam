@@ -21,7 +21,6 @@ import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:playground_components/playground_components.dart';
 import 'package:provider/provider.dart';
 
-import '../../../components/dropdown_button/dropdown_button.dart';
 import '../../../constants/sizes.dart';
 import 'sdk_selector_row.dart';
 

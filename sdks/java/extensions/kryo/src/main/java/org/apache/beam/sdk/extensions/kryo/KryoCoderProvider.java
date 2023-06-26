@@ -24,7 +24,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderProvider;
@@ -37,7 +36,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
  * Implementation of {@link CoderProvider}, which provides {@link KryoCoder} for any type registered
  * to {@link Kryo} by user-provided {@link KryoRegistrar}.
  */
-@Experimental
 public class KryoCoderProvider extends CoderProvider {
 
   private static final TypeDescriptor<Object> OBJECT_TYPE = new TypeDescriptor<Object>() {};

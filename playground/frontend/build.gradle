@@ -19,6 +19,7 @@
 
 apply(plugin: "org.apache.beam.module")
 apply(plugin: "base")
+apply(from: "$project.rootDir/playground/backend/containers/git-functions.gradle")
 applyDockerNature()
 
 def playgroundJobServerProject = "${project.path.replace("-container", "")}"
@@ -181,15 +182,34 @@ ext.deleteFilesByRegExp = { re ->
 }
 
 tasks.register("integrationTest") {
+  dependsOn("integrationTest_embedded_run")
   dependsOn("integrationTest_initial_urls")
+  dependsOn("integrationTest_standalone_cancel_running_example")
   dependsOn("integrationTest_standalone_change_example_sdk_run")
+  dependsOn("integrationTest_standalone_change_pipeline_options_and_run")
   dependsOn("integrationTest_standalone_default_examples")
+  dependsOn("integrationTest_standalone_editing")
+  dependsOn("integrationTest_standalone_example_selector")
   dependsOn("integrationTest_standalone_miscellaneous_ui")
+  dependsOn("integrationTest_standalone_run_shortcuts")
+  dependsOn("integrationTest_standalone_share_code")
+}
+
+tasks.register("integrationTest_embedded_run") {
+  doLast {
+    runIntegrationTest("embedded_run", "/")
+  }
 }
 
 tasks.register("integrationTest_initial_urls") {
   doLast {
     runIntegrationTest("initial_urls", "/")
+  }
+}
+
+tasks.register("integrationTest_standalone_cancel_running_example") {
+  doLast {
+    runIntegrationTest("standalone_cancel_running_example", "/")
   }
 }
 
@@ -199,9 +219,27 @@ tasks.register("integrationTest_standalone_change_example_sdk_run") {
   }
 }
 
+tasks.register("integrationTest_standalone_change_pipeline_options_and_run") {
+  doLast {
+    runIntegrationTest("standalone_change_pipeline_options_and_run", "/")
+  }
+}
+
 tasks.register("integrationTest_standalone_default_examples") {
   doLast {
     runIntegrationTest("standalone_default_examples", "/")
+  }
+}
+
+tasks.register("integrationTest_standalone_editing") {
+  doLast {
+    runIntegrationTest("standalone_editing", "/")
+  }
+}
+
+tasks.register("integrationTest_standalone_example_selector") {
+  doLast {
+    runIntegrationTest("standalone_example_selector", "/")
   }
 }
 
@@ -211,21 +249,46 @@ tasks.register("integrationTest_standalone_miscellaneous_ui") {
   }
 }
 
+tasks.register("integrationTest_standalone_run_shortcuts") {
+  doLast {
+    runIntegrationTest("standalone_run_shortcuts", "/")
+  }
+}
+
+tasks.register("integrationTest_standalone_share_code") {
+  doLast {
+    runIntegrationTest("standalone_share_code", "/")
+  }
+}
+
 void runIntegrationTest(String path, String url) {
   // Run with -PdeviceId=web-server for headless tests.
+  // Run with -PexamplesRepository=apache/beam -PexamplesRef=master to verify that deployed examples match the given branch or commit.
   String deviceId = project.hasProperty("deviceId") ? project.deviceId : "chrome"
+  String examplesRepository = project.hasProperty("examplesRepository") ? project.examplesRepository : null
+  String examplesRef = project.hasProperty("examplesRef") ? project.examplesRef : null
+
+  List<String> flutterArgs = [
+    "drive",
+    "--driver=test_driver/integration_test.dart",
+    "--target=integration_test/${path}_test.dart",
+    "--web-launch-url='$url'",
+    "--device-id=$deviceId",
+  ]
+
+  if (examplesRepository != null) {
+    flutterArgs.add("--dart-define=examples-repository=$examplesRepository")
+  }
+  if (examplesRef != null) {
+    flutterArgs.add("--dart-define=examples-ref=$examplesRef")
+  }
 
   exec {
     executable("flutter")
-    args(
-      "drive",
-      "--driver=test_driver/integration_test.dart",
-      "--target=integration_test/${path}_test.dart",
-      "--web-launch-url='$url'",
-      "--device-id=$deviceId",
-    )
+    args(flutterArgs)
   }
 }
+
 
 task copyDockerfileDependencies(type: Copy) {
    group = "build"
@@ -252,6 +315,10 @@ docker {
             : project.docker_image_default_repo_root
   )
   files("./build/")
+  buildArgs([
+    'BUILD_COMMIT_HASH': getGitCommitHash(),
+    'BUILD_COMMIT_SECONDS_SINCE_EPOCH': getGitCommitTimestamp(),
+  ])
   tags(containerImageTags())
 }
 

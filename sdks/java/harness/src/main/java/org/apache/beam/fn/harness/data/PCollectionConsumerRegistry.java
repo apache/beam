@@ -33,6 +33,7 @@ import org.apache.beam.fn.harness.control.Metrics;
 import org.apache.beam.fn.harness.control.Metrics.BundleCounter;
 import org.apache.beam.fn.harness.control.Metrics.BundleDistribution;
 import org.apache.beam.fn.harness.debug.DataSampler;
+import org.apache.beam.fn.harness.debug.ElementSample;
 import org.apache.beam.fn.harness.debug.OutputSampler;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
@@ -195,8 +196,14 @@ public class PCollectionConsumerRegistry {
           String coderId =
               processBundleDescriptor.getPcollectionsOrThrow(pCollectionId).getCoderId();
           Coder<?> coder;
+          OutputSampler<?> sampler = null;
           try {
             Coder<?> maybeWindowedValueInputCoder = rehydratedComponents.getCoder(coderId);
+
+            if (dataSampler != null) {
+              sampler = dataSampler.sampleOutput(pCollectionId, maybeWindowedValueInputCoder);
+            }
+
             // TODO: Stop passing windowed value coders within PCollections.
             if (maybeWindowedValueInputCoder instanceof WindowedValue.WindowedValueCoder) {
               coder = ((WindowedValueCoder) maybeWindowedValueInputCoder).getValueCoder();
@@ -215,16 +222,16 @@ public class PCollectionConsumerRegistry {
             ConsumerAndMetadata consumerAndMetadata = consumerAndMetadatas.get(0);
             if (consumerAndMetadata.getConsumer() instanceof HandlesSplits) {
               return new SplittingMetricTrackingFnDataReceiver(
-                  pcId, coder, consumerAndMetadata, dataSampler);
+                  pcId, coder, consumerAndMetadata, sampler);
             }
-            return new MetricTrackingFnDataReceiver(pcId, coder, consumerAndMetadata, dataSampler);
+            return new MetricTrackingFnDataReceiver(pcId, coder, consumerAndMetadata, sampler);
           } else {
             /* TODO(SDF), Consider supporting splitting each consumer individually. This would never
             come up in the existing SDF expansion, but might be useful to support fused SDF nodes.
             This would require dedicated delivery of the split results to each of the consumers
             separately. */
             return new MultiplexingMetricTrackingFnDataReceiver(
-                pcId, coder, consumerAndMetadatas, dataSampler);
+                pcId, coder, consumerAndMetadatas, sampler);
           }
         });
   }
@@ -248,7 +255,7 @@ public class PCollectionConsumerRegistry {
         String pCollectionId,
         Coder<T> coder,
         ConsumerAndMetadata consumerAndMetadata,
-        @Nullable DataSampler dataSampler) {
+        @Nullable OutputSampler<T> outputSampler) {
       this.delegate = consumerAndMetadata.getConsumer();
       this.executionState = consumerAndMetadata.getExecutionState();
 
@@ -284,11 +291,7 @@ public class PCollectionConsumerRegistry {
       bundleProgressReporterRegistrar.register(sampledByteSizeUnderlyingDistribution);
 
       this.coder = coder;
-      if (dataSampler == null) {
-        this.outputSampler = null;
-      } else {
-        this.outputSampler = dataSampler.sampleOutput(pCollectionId, coder);
-      }
+      this.outputSampler = outputSampler;
     }
 
     @Override
@@ -299,8 +302,9 @@ public class PCollectionConsumerRegistry {
       // we have window optimization.
       this.sampledByteSizeDistribution.tryUpdate(input.getValue(), this.coder);
 
+      ElementSample<T> elementSample = null;
       if (outputSampler != null) {
-        outputSampler.sample(input.getValue());
+        elementSample = outputSampler.sample(input);
       }
 
       // Use the ExecutionStateTracker and enter an appropriate state to track the
@@ -309,6 +313,11 @@ public class PCollectionConsumerRegistry {
       executionState.activate();
       try {
         this.delegate.accept(input);
+      } catch (Exception e) {
+        if (outputSampler != null) {
+          outputSampler.exception(elementSample, e);
+        }
+        throw e;
       } finally {
         executionState.deactivate();
       }
@@ -329,13 +338,13 @@ public class PCollectionConsumerRegistry {
     private final BundleCounter elementCountCounter;
     private final SampleByteSizeDistribution<T> sampledByteSizeDistribution;
     private final Coder<T> coder;
-    private final @Nullable OutputSampler<T> outputSampler;
+    private @Nullable OutputSampler<T> outputSampler = null;
 
     public MultiplexingMetricTrackingFnDataReceiver(
         String pCollectionId,
         Coder<T> coder,
         List<ConsumerAndMetadata> consumerAndMetadatas,
-        @Nullable DataSampler dataSampler) {
+        @Nullable OutputSampler<T> outputSampler) {
       this.consumerAndMetadatas = consumerAndMetadatas;
 
       HashMap<String, String> labels = new HashMap<>();
@@ -370,11 +379,7 @@ public class PCollectionConsumerRegistry {
       bundleProgressReporterRegistrar.register(sampledByteSizeUnderlyingDistribution);
 
       this.coder = coder;
-      if (dataSampler == null) {
-        this.outputSampler = null;
-      } else {
-        this.outputSampler = dataSampler.sampleOutput(pCollectionId, coder);
-      }
+      this.outputSampler = outputSampler;
     }
 
     @Override
@@ -385,8 +390,9 @@ public class PCollectionConsumerRegistry {
       // when we have window optimization.
       this.sampledByteSizeDistribution.tryUpdate(input.getValue(), coder);
 
+      ElementSample<T> elementSample = null;
       if (outputSampler != null) {
-        outputSampler.sample(input.getValue());
+        elementSample = outputSampler.sample(input);
       }
 
       // Use the ExecutionStateTracker and enter an appropriate state to track the
@@ -399,6 +405,11 @@ public class PCollectionConsumerRegistry {
         state.activate();
         try {
           consumerAndMetadata.getConsumer().accept(input);
+        } catch (Exception e) {
+          if (outputSampler != null) {
+            outputSampler.exception(elementSample, e);
+          }
+          throw e;
         } finally {
           state.deactivate();
         }
@@ -422,8 +433,8 @@ public class PCollectionConsumerRegistry {
         String pCollection,
         Coder<T> coder,
         ConsumerAndMetadata consumerAndMetadata,
-        @Nullable DataSampler dataSampler) {
-      super(pCollection, coder, consumerAndMetadata, dataSampler);
+        @Nullable OutputSampler<T> outputSampler) {
+      super(pCollection, coder, consumerAndMetadata, outputSampler);
       this.delegate = (HandlesSplits) consumerAndMetadata.getConsumer();
     }
 

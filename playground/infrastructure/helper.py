@@ -25,7 +25,6 @@ from typing import List, Optional, Dict
 from api.v1 import api_pb2
 
 import pydantic
-from tqdm.asyncio import tqdm
 import yaml
 
 from api.v1.api_pb2 import (
@@ -44,6 +43,7 @@ from api.v1.api_pb2 import (
 )
 from config import Config, TagFields, PrecompiledExampleType
 from grpc_client import GRPCClient
+from constants import BEAM_ROOT_DIR_ENV_VAR_KEY
 
 from models import Example, Tag, SdkEnum, Dataset
 
@@ -121,38 +121,6 @@ def find_examples(root_dir: str, subdirs: List[str], sdk: SdkEnum) -> List[Examp
             "an incorrect format"
         )
     return examples
-
-
-async def get_statuses(
-    client: GRPCClient, examples: List[Example], concurrency: int = 10
-):
-    """
-    Receive status and update example.status and example.pipeline_id for
-    each example
-
-    Args:
-        examples: beam examples for processing and updating statuses and
-        pipeline_id values.
-    """
-    tasks = []
-    try:
-        concurrency = int(os.environ["BEAM_CONCURRENCY"])
-        logging.info("override default concurrency: %d", concurrency)
-    except (KeyError, ValueError):
-        pass
-
-    semaphore = asyncio.Semaphore(concurrency)
-
-    async def _semaphored_task(example):
-        await semaphore.acquire()
-        try:
-            await _update_example_status(example, client)
-        finally:
-            semaphore.release()
-
-    for example in examples:
-        tasks.append(_semaphored_task(example))
-    await tqdm.gather(*tasks)
 
 
 def get_tag(filepath: PurePath) -> Optional[Tag]:
@@ -261,7 +229,7 @@ def _get_url_vcs(filepath: str) -> str:
     """
     Construct VCS URL from example's filepath
     """
-    root_dir = os.getenv("BEAM_ROOT_DIR", "../..")
+    root_dir = os.getenv(BEAM_ROOT_DIR_ENV_VAR_KEY, "../..")
     rel_path = os.path.relpath(filepath, root_dir)
     url_vcs = "{}/{}".format(Config.URL_VCS_PREFIX, urllib.parse.quote(rel_path))
     return url_vcs
@@ -279,6 +247,10 @@ def _get_example(filepath: str, filename: str, tag: Tag, sdk: int) -> Example:
     Returns:
         Parsed Example object.
     """
+
+    # Calculate context line with tag removed. Note: context_line is 1-based, line_start and line_finish are 0-based.
+    context_line = tag.context_line if tag.context_line <= tag.line_start else tag.context_line - (tag.line_finish - tag.line_start)
+    
     return Example(
         sdk=SdkEnum(sdk),
         tag=tag,
@@ -287,11 +259,11 @@ def _get_example(filepath: str, filename: str, tag: Tag, sdk: int) -> Example:
         type=_get_object_type(filename, filepath),
         code=_get_content(filepath, tag.line_start, tag.line_finish),
         url_vcs=_get_url_vcs(filepath),  # type: ignore
-        context_line=tag.context_line - (tag.line_finish - tag.line_start),
+        context_line=context_line,
     )
 
 
-async def _update_example_status(example: Example, client: GRPCClient):
+async def update_example_status(example: Example, client: GRPCClient):
     """
     Receive status for examples and update example.status and pipeline_id
 
@@ -368,6 +340,10 @@ class DuplicatesError(Exception):
     pass
 
 
+class ConflictingDatasetsError(Exception):
+    pass
+
+
 def validate_examples_for_duplicates_by_name(examples: List[Example]):
     """
     Validate examples for duplicates by example name to avoid duplicates in the Cloud Datastore
@@ -381,3 +357,29 @@ def validate_examples_for_duplicates_by_name(examples: List[Example]):
             err_msg = f"Examples have duplicate names.\nDuplicates: \n - path #1: {duplicates[example.tag.name].filepath} \n - path #2: {example.filepath}"
             logging.error(err_msg)
             raise DuplicatesError(err_msg)
+
+
+def validate_examples_for_conflicting_datasets(examples: List[Example]):
+    """
+    Validate examples for conflicting datasets to avoid conflicts in the Cloud Datastore
+    :param examples: examples from the repository for saving to the Cloud Datastore
+    """
+    datasets: Dict[str, Dataset] = {}
+    for example in examples:
+        for k, v in example.tag.datasets.items():
+            if k not in datasets:
+                datasets[k] = v
+            elif datasets[k].file_name != v.file_name or \
+                    datasets[k].format != v.format or \
+                    datasets[k].location != v.location:
+                err_msg = f"Examples have conflicting datasets.\n" \
+                          f"Conflicts: \n" \
+                          f" - file_name #1: {datasets[k].file_name} \n" \
+                          f" - format #1: {datasets[k].format} \n" \
+                          f"  - location #1: {datasets[k].location} \n" \
+                          f" - file_name #2: {v.file_name}\n" \
+                          f" - format #2: {v.format}\n" \
+                          f" - location #2: {v.location}\n" \
+                          f"Dataset name: {k}"
+                logging.error(err_msg)
+                raise ConflictingDatasetsError(err_msg)

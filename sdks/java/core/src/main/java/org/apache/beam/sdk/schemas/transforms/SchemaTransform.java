@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.schemas.transforms;
 
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
@@ -35,7 +33,6 @@ import org.apache.beam.sdk.values.PCollectionRowTuple;
  * compatibility guarantees and it should not be implemented outside of the Beam repository.
  */
 @Internal
-@Experimental(Kind.SCHEMAS)
 public interface SchemaTransform {
   PTransform<PCollectionRowTuple, PCollectionRowTuple> buildTransform();
 }

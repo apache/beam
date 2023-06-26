@@ -21,7 +21,7 @@ import 'package:playground_components/playground_components.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../constants/sizes.dart';
-import '../../../analytics/analytics_service.dart';
+import '../../../../services/analytics/events/snippet_selected.dart';
 import 'example_item_actions.dart';
 
 /// An [example] in the example dropdown.
@@ -43,10 +43,15 @@ class ExpansionPanelItem extends StatelessWidget {
       builder: (context, controller, child) => MouseRegion(
         cursor: SystemMouseCursors.click,
         child: GestureDetector(
-          onTap: () async {
+          onTap: () {
             if (controller.selectedExample != example) {
               _closeDropdown(controller.exampleCache);
-              AnalyticsService.get(context).trackSelectExample(example);
+              PlaygroundComponents.analyticsService.sendUnawaited(
+                SnippetSelectedAnalyticsEvent(
+                  sdk: example.sdk,
+                  snippet: example.path,
+                ),
+              );
               controller.setExampleBase(example);
             }
           },
@@ -59,7 +64,6 @@ class ExpansionPanelItem extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // Wrapped with Row for better user interaction and positioning
                   Text(
                     example.name,
                     style: example.path == selectedExample?.path

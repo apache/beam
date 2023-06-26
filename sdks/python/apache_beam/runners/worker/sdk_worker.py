@@ -80,7 +80,6 @@ _VT = TypeVar('_VT')
 _LOGGER = logging.getLogger(__name__)
 
 DEFAULT_BUNDLE_PROCESSOR_CACHE_SHUTDOWN_THRESHOLD_S = 60
-
 # The number of ProcessBundleRequest instruction ids the BundleProcessorCache
 # will remember for not running instructions.
 MAX_KNOWN_NOT_RUNNING_INSTRUCTIONS = 1000
@@ -172,12 +171,16 @@ class SdkHarness(object):
       # Heap dump through status api is disabled by default
       enable_heap_dump=False,  # type: bool
       data_sampler=None,  # type: Optional[data_sampler.DataSampler]
+      # Unrecoverable SDK harness initialization error (if any)
+      # that should be reported to the runner when proocessing the first bundle.
+      deferred_exception=None, # type: Optional[Exception]
   ):
     # type: (...) -> None
     self._alive = True
     self._worker_index = 0
     self._worker_id = worker_id
     self._state_cache = StateCache(state_cache_size)
+    self._deferred_exception = deferred_exception
     options = [('grpc.max_receive_message_length', -1),
                ('grpc.max_send_message_length', -1)]
     if credentials is None:
@@ -265,6 +268,8 @@ class SdkHarness(object):
             work_request)
     finally:
       self._alive = False
+      if self.data_sampler:
+        self.data_sampler.stop()
 
     _LOGGER.info('No more requests from control plane')
     _LOGGER.info('SDK Harness waiting for in-flight requests to complete')
@@ -290,7 +295,7 @@ class SdkHarness(object):
     with statesampler.instruction_id(request.instruction_id):
       try:
         response = task()
-      except Exception:  # pylint: disable=broad-except
+      except:  # pylint: disable=bare-except
         traceback_string = traceback.format_exc()
         print(traceback_string, file=sys.stderr)
         _LOGGER.error(
@@ -308,6 +313,8 @@ class SdkHarness(object):
 
   def _request_process_bundle(self, request):
     # type: (beam_fn_api_pb2.InstructionRequest) -> None
+    if self._deferred_exception:
+      raise self._deferred_exception
     self._bundle_processor_cache.activate(request.instruction_id)
     self._request_execute(request)
 
@@ -374,7 +381,7 @@ class SdkHarness(object):
     def get_samples(request):
       # type: (beam_fn_api_pb2.InstructionRequest) -> beam_fn_api_pb2.InstructionResponse
       samples: Dict[str, List[bytes]] = {}
-      if self.data_sampler:
+      if self.data_sampler is not None:
         samples = self.data_sampler.samples(request.sample_data.pcollection_ids)
 
       sample_response = beam_fn_api_pb2.SampleDataResponse()
@@ -675,7 +682,7 @@ class SdkWorker(object):
       if not requests_finalization:
         self.bundle_processor_cache.release(instruction_id)
       return response
-    except:  # pylint: disable=broad-except
+    except:  # pylint: disable=bare-except
       # Don't re-use bundle processors on failure.
       self.bundle_processor_cache.discard(instruction_id)
       raise

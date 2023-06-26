@@ -21,66 +21,173 @@ import 'package:flutter/material.dart';
 import 'package:flutter_code_editor/flutter_code_editor.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
+import 'package:keyed_collection_widgets/keyed_collection_widgets.dart';
 import 'package:playground_components/playground_components.dart';
 import 'package:provider/provider.dart';
 
 import 'common_finders.dart';
+import 'examples/example_descriptor.dart';
 import 'expect.dart';
 
 extension WidgetTesterExtension on WidgetTester {
+  //workaround for https://github.com/flutter/flutter/issues/120060
+  Future<void> enterCodeFieldText(String text) async {
+    final codeField = widget(find.snippetCodeField());
+    (codeField as CodeField).controller.fullText = text;
+    codeField.focusNode?.requestFocus();
+  }
+
+  Brightness getBrightness() {
+    final context = element(find.toggleThemeButton());
+    return Theme.of(context).brightness;
+  }
+
+  Future<void> toggleTheme() async {
+    await tap(find.toggleThemeButton());
+    await pumpAndSettle();
+  }
+
   CodeController findOneCodeController() {
-    final codeField = find.codeField();
+    final codeField = find.snippetCodeField();
     expect(codeField, findsOneWidget);
 
     return widget<CodeField>(codeField).controller;
   }
 
-  TabController findOutputTabController() {
-    final outputTabs = find.byType(OutputTabs);
-    expect(outputTabs, findsOneWidget);
+  KeyedTabController<OutputTabEnum> findOutputTabController() {
+    final beamTabBar = find.descendant(
+      of: find.outputWidget(),
+      matching: find.byType(BeamTabBar<OutputTabEnum>),
+    );
 
-    return widget<OutputTabs>(outputTabs).tabController;
+    expect(beamTabBar, findsOneWidget);
+
+    return beamTabBar.evaluate().first.getKeyedTabController<OutputTabEnum>()!;
   }
 
   String? findOutputText() {
-    final selectableText = find.outputSelectableText();
-    expect(selectableText, findsOneWidget);
-
-    return widget<SelectableText>(selectableText).data;
+    final codeField = widget(find.outputCodeField());
+    return (codeField as CodeField).controller.text;
   }
 
   PlaygroundController findPlaygroundController() {
-    final context = element(find.codeField());
+    final context = element(find.snippetCodeField());
     return context.read<PlaygroundController>();
   }
 
-  /// Runs and expects that the execution is as fast as it should be for cache.
-  Future<void> runExpectCached() async {
-    final dateTimeStart = DateTime.now();
+  Future<void> runShortcut(BeamShortcut shortcut) async {
+    final list = shortcut.keys.toList();
+    for (final key in list) {
+      await sendKeyDownEvent(key);
+    }
+    for (final key in list.reversed) {
+      await sendKeyUpEvent(key);
+    }
+  }
 
-    await tap(find.runOrCancelButton());
-    await pumpAndSettle();
-
-    expectOutputStartsWith(kCachedResultsLog, this);
-    expect(
-      DateTime.now().difference(dateTimeStart),
-      /// This is the safe threshold considering test delays.
-      lessThan(const Duration(milliseconds: 3000)),
+  Future<void> tapAndSettle(
+    Finder finder, {
+    bool warnIfMissed = true,
+  }) async {
+    await tap(
+      finder,
+      warnIfMissed: warnIfMissed,
     );
+    await pumpAndSettle();
+  }
+
+  Future<int> pumpAndSettleNoException({
+    Duration duration = const Duration(milliseconds: 100),
+    EnginePhase phase = EnginePhase.sendSemanticsUpdate,
+    Duration timeout = const Duration(minutes: 10),
+  }) async {
+    return TestAsyncUtils.guard<int>(() async {
+      final DateTime endTime = binding.clock.fromNowBy(timeout);
+      int count = 0;
+      do {
+        if (binding.clock.now().isAfter(endTime)) {
+          return count;
+        }
+        await binding.pump(duration, phase);
+        count += 1;
+      } while (binding.hasScheduledFrame);
+      return count;
+    });
   }
 
   /// Runs and expects that the execution is as fast as it should be for cache.
-  Future<void> runExpectReal() async {
+  Future<void> runExpectCached(ExampleDescriptor example) async {
+    final codeRunner = findPlaygroundController().codeRunner;
+
+    await tap(find.runOrCancelButton());
+    await pump();
+    expect(codeRunner.isCodeRunning, true);
+
+    try {
+      await pumpAndSettle(
+        const Duration(milliseconds: 100),
+        EnginePhase.sendSemanticsUpdate,
+        const Duration(milliseconds: 1000),
+      );
+
+      // ignore: avoid_catching_errors
+    } on FlutterError {
+      // Expected timeout because for some reason UI updates way longer.
+    }
+
+    expect(codeRunner.isCodeRunning, false);
+    expect(
+      PlaygroundComponents.analyticsService.lastEvent,
+      isA<RunFinishedAnalyticsEvent>(),
+    );
+
+    await pumpAndSettle(); // Let the UI catch up.
+
+    expectOutputStartsWith(kCachedResultsLog, this);
+    expectOutputIfDeployed(example, this);
+  }
+
+  Future<void> modifyRunExpectReal(ExampleDescriptor example) async {
+    modifyCodeController();
+
+    final playgroundController = findPlaygroundController();
+    final eventSnippetContext = playgroundController.eventSnippetContext;
+    expect(eventSnippetContext.snippet, null);
+
     await tap(find.runOrCancelButton());
     await pumpAndSettle();
 
     final actualText = findOutputText();
     expect(actualText, isNot(startsWith(kCachedResultsLog)));
+    expectOutputIfDeployed(example, this);
+
+    // Animation stops just before the analytics event is fired, wait a bit.
+    await Future.delayed(const Duration(seconds: 1));
+
+    final event = PlaygroundComponents.analyticsService.lastEvent;
+    expect(event, isA<RunFinishedAnalyticsEvent>());
+
+    final finishedEvent = event! as RunFinishedAnalyticsEvent;
+    expect(finishedEvent.snippetContext, eventSnippetContext);
+  }
+
+  /// Modifies the code controller in a unique way by inserting timestamp
+  /// in the comment.
+  void modifyCodeController() {
+    // Add a character into the first comment.
+    // This relies on that the position 10 is inside a license comment.
+    final controller = findOneCodeController();
+    final text = controller.fullText;
+
+    // ignore: prefer_interpolation_to_compose_strings
+    controller.fullText = text.substring(0, 10) +
+        DateTime.now().millisecondsSinceEpoch.toString() +
+        text.substring(10);
   }
 
   Future<void> navigateAndSettle(String urlString) async {
     final url = Uri.parse(urlString);
-    print('Navigating: $url\n');
+    print('Navigating: $url\n'); // ignore: avoid_print
     await _navigate(url);
 
     // These appears to be the minimal reliable delay.

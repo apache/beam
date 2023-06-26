@@ -50,7 +50,10 @@ class BinaryProgressIndicator extends StatelessWidget {
       ),
       child: SvgPicture.asset(
         isCompleted ? Assets.svg.unitProgress100 : Assets.svg.unitProgress0,
-        color: color,
+        colorFilter: ColorFilter.mode(
+          color,
+          BlendMode.srcIn,
+        ),
       ),
     );
   }

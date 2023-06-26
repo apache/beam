@@ -22,8 +22,6 @@ import com.google.zetasql.resolvedast.ResolvedNodes;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.zetasql.unnest.ZetaSqlUnnest;
-import org.apache.beam.vendor.calcite.v1_28_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.calcite.v1_28_0.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.core.CorrelationId;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.core.JoinRelType;
@@ -33,6 +31,8 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexBuilder;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexInputRef;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.ImmutableBitSet;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /**
  * Converts array scan that represents a reference to an array column, or an (possibly nested) array

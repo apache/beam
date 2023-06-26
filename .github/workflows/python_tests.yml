@@ -77,7 +77,7 @@ jobs:
       - name: Install python
         uses: actions/setup-python@v4
         with:
-          python-version: 3.7
+          python-version: 3.8
       - name: Get build dependencies
         working-directory: ./sdks/python
         run: pip install pip setuptools --upgrade && pip install -r build-requirements.txt
@@ -101,10 +101,10 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         params: [
-          {"py_ver": "3.7", "tox_env": "py37"},
           {"py_ver": "3.8", "tox_env": "py38"},
           {"py_ver": "3.9", "tox_env": "py39"},
           {"py_ver": "3.10", "tox_env": "py310" },
+          { "py_ver": "3.11", "tox_env": "py311" },
         ]
     steps:
       - name: Checkout code
@@ -115,17 +115,17 @@ jobs:
           python-version: ${{ matrix.params.py_ver }}
       - name: Get build dependencies
         working-directory: ./sdks/python
-        run: pip install -r build-requirements.txt
+        run: pip install -r build-requirements.txt --use-pep517
       - name: Install tox
-        run: pip install tox==3.27.1
+        run: pip install tox
       - name: Run tests basic unix
         if: startsWith(matrix.os, 'ubuntu') || startsWith(matrix.os, 'macos')
         working-directory: ./sdks/python
-        run: tox -c tox.ini -e ${{ matrix.params.tox_env }}
+        run: tox -c tox.ini run -e ${{ matrix.params.tox_env }}
       - name: Run tests basic windows
         if: startsWith(matrix.os, 'windows')
         working-directory: ./sdks/python
-        run: tox -c tox.ini -e ${{ matrix.params.tox_env }}-win
+        run: tox -c tox.ini run -e ${{ matrix.params.tox_env }}-win
       - name: Upload test logs
         uses: actions/upload-artifact@v3
         if: always()
@@ -140,7 +140,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        python: ["3.7", "3.8", "3.9", "3.10"]
+        python: ["3.8", "3.9", "3.10", "3.11"]
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -168,7 +168,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        python: ["3.7", "3.8", "3.9", "3.10"]
+        python: ["3.8", "3.9", "3.10", "3.11"]
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -177,9 +177,9 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - name: Install go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v4
         with:
-          go-version: '1.19'
+          go-version: '1.20'
       - name: Download source from artifacts
         uses: actions/download-artifact@v3
         with:

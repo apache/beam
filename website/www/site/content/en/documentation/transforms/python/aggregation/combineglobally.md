@@ -36,33 +36,17 @@ Then, we apply `CombineGlobally` in multiple ways to combine all the elements in
 
 We define a function `get_common_items` which takes an `iterable` of sets as an input, and calculates the intersection (common items) of those sets.
 
-{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineglobally.py" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineglobally.py" combineglobally_function >}}
-{{< /highlight >}}
-
-{{< paragraph class="notebook-skip" >}}
-Output:
-{{< /paragraph >}}
-
-{{< highlight class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineglobally_test.py" common_items >}}
-{{< /highlight >}}
+{{< playground height="700px" >}}
+{{< playground_snippet language="py" path="SDK_PYTHON_CombineGloballyFunction" show="combineglobally_function" >}}
+{{< /playground >}}
 
 ### Example 2: Combining with a lambda function
 
 We can also use lambda functions to simplify **Example 1**.
 
-{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineglobally.py" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineglobally.py" combineglobally_lambda >}}
-{{< /highlight >}}
-
-{{< paragraph class="notebook-skip" >}}
-Output:
-{{< /paragraph >}}
-
-{{< highlight class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineglobally_test.py" common_items >}}
-{{< /highlight >}}
+{{< playground height="700px" >}}
+{{< playground_snippet language="py" path="SDK_PYTHON_CombineGloballyLambda" show="combineglobally_lambda" >}}
+{{< /playground >}}
 
 ### Example 3: Combining with multiple arguments
 
@@ -71,17 +55,9 @@ They are passed as additional positional arguments or keyword arguments to the f
 
 In this example, the lambda function takes `sets` and `exclude` as arguments.
 
-{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineglobally.py" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineglobally.py" combineglobally_multiple_arguments >}}
-{{< /highlight >}}
-
-{{< paragraph class="notebook-skip" >}}
-Output:
-{{< /paragraph >}}
-
-{{< highlight class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineglobally_test.py" common_items_with_exceptions >}}
-{{< /highlight >}}
+{{< playground height="700px" >}}
+{{< playground_snippet language="py" path="SDK_PYTHON_CombineGloballyMultipleArguments" show="combineglobally_multiple_arguments" >}}
+{{< /playground >}}
 
 ### Example 4: Combining with a `CombineFn`
 
@@ -101,17 +77,9 @@ The more general way to combine elements, and the most flexible, is with a class
 * [`CombineFn.extract_output()`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.CombineFn.extract_output):
   It allows to do additional calculations before extracting a result.
 
-{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineglobally.py" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineglobally.py" combineglobally_combinefn >}}
-{{< /highlight >}}
-
-{{< paragraph class="notebook-skip" >}}
-Output:
-{{< /paragraph >}}
-
-{{< highlight class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineglobally_test.py" percentages >}}
-{{< /highlight >}}
+{{< playground height="700px" >}}
+{{< playground_snippet language="py" path="SDK_PYTHON_CombineGloballyCombineFn" show="combineglobally_combinefn" >}}
+{{< /playground >}}
 
 ## Related transforms
 

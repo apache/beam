@@ -115,7 +115,7 @@ func dofn3x1(sum int64, iter1, iter2 func(*int64) bool, emit func(int64)) {
 	emit(sum)
 }
 
-// int64Check validates that within a single bundle,
+// int64Check validates that within a single bundle, for each window,
 // we received the expected int64 values & sends them downstream.
 //
 // Invalid pattern for general testing, as it will fail
@@ -123,20 +123,28 @@ func dofn3x1(sum int64, iter1, iter2 func(*int64) bool, emit func(int64)) {
 type int64Check struct {
 	Name string
 	Want []int
-	got  []int
+	got  map[beam.Window][]int
 }
 
-func (fn *int64Check) ProcessElement(v int64, _ func(int64)) {
-	fn.got = append(fn.got, int(v))
+func (fn *int64Check) StartBundle(_ func(int64)) error {
+	fn.got = map[beam.Window][]int{}
+	return nil
+}
+
+func (fn *int64Check) ProcessElement(w beam.Window, v int64, _ func(int64)) {
+	fn.got[w] = append(fn.got[w], int(v))
 }
 
 func (fn *int64Check) FinishBundle(_ func(int64)) error {
-	sort.Ints(fn.got)
 	sort.Ints(fn.Want)
-	if d := cmp.Diff(fn.Want, fn.got); d != "" {
-		return fmt.Errorf("int64Check[%v] (-want, +got): %v", fn.Name, d)
+	// Check for each window individually.
+	for _, vs := range fn.got {
+		sort.Ints(vs)
+		if d := cmp.Diff(fn.Want, vs); d != "" {
+			return fmt.Errorf("int64Check[%v] (-want, +got): %v", fn.Name, d)
+		}
+		// Clear for subsequent calls.
 	}
-	// Clear for subsequent calls.
 	fn.got = nil
 	return nil
 }

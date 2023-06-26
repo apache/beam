@@ -134,10 +134,29 @@ If your pipeline uses non-Python packages (e.g. packages that require installati
 
 **Note:** Because custom commands execute after the dependencies for your workflow are installed (by `pip`), you should omit the PyPI package dependency from the pipeline's `requirements.txt` file and from the `install_requires` parameter in the `setuptools.setup()` call of your `setup.py` file.
 
-## Pre-building SDK container image
+## Pre-building SDK Container Image
 
 In pipeline execution modes where a Beam runner launches SDK workers in Docker containers, the additional pipeline dependencies (specified via `--requirements_file` and other runtime options) are installed into the containers at runtime. This can increase the worker startup time.
 However, it may be possible to pre-build the SDK containers and perform the dependency installation once before the workers start with `--prebuild_sdk_container_engine`. For instructions of how to use pre-building with Google Cloud
 Dataflow, see [Pre-building the python SDK custom container image with extra dependencies](https://cloud.google.com/dataflow/docs/guides/using-custom-containers#prebuild).
 
 **NOTE**: This feature is available only for the `Dataflow Runner v2`.
+
+## Pickling and Managing the Main Session
+
+When the Python SDK submits the pipeline for execution to a remote runner, the pipeline contents, such as transform user code, is serialized (or pickled) into a bytecode using
+libraries that perform the serialization (also called picklers).  The default pickler library used by Beam is `dill`.
+To use the `cloudpickle` pickler, supply the `--pickle_library=cloudpickle` pipeline option. The `cloudpickle` support is currently [experimental](https://github.com/apache/beam/issues/21298).
+
+By default, global imports, functions, and variables defined in the main pipeline module are not saved during the serialization of a Beam job.
+Thus, one might encounter an unexpected `NameError` when running a `DoFn` on any remote runner. To resolve this, supply the main session content with the pipeline by
+setting the `--save_main_session` pipeline option. This will load the pickled state of the global namespace onto the Dataflow workers (if using `DataflowRunner`).
+For example, see [Handling NameErrors](https://cloud.google.com/dataflow/docs/guides/common-errors#how-do-i-handle-nameerrors) to set the main session on the `DataflowRunner`.
+
+Managing the main session in Python SDK is only necessary when using `dill` pickler on any remote runner. Therefore, this issue will
+not occur in `DirectRunner`.
+
+Since serialization of the pipeline happens on the job submission, and deserialization happens at runtime, it is imperative that the same version of pickling library is used at job submission and at runtime.
+To ensure this, Beam typically sets a very narrow supported version range for pickling libraries. If for whatever reason, users cannot use the version of `dill` or `cloudpickle` required by Beam, and choose to
+install a custom version, they must also ensure that they use the same custom version at runtime (e.g. in their custom container,
+or by specifying a pipeline dependency requirement).

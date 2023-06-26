@@ -401,6 +401,12 @@ public class BigQueryUtilsTest {
               Arrays.asList(
                   Collections.singletonMap("v", "123"), Collections.singletonMap("v", "124")));
 
+  // sometimes, a TableRow array will not be of format [{v: value1}, {v: value2}, ...]
+  // it will instead be of format [value1, value2, ...]
+  // this "inline row" covers the latter case
+  private static final TableRow BQ_INLINE_ARRAY_ROW =
+      new TableRow().set("ids", Arrays.asList("123", "124"));
+
   private static final Row ROW_ROW = Row.withSchema(ROW_TYPE).addValues(FLAT_ROW).build();
 
   private static final TableRow BQ_ROW_ROW = new TableRow().set("row", BQ_FLAT_ROW);
@@ -875,6 +881,12 @@ public class BigQueryUtilsTest {
   @Test
   public void testToBeamRow_array() {
     Row beamRow = BigQueryUtils.toBeamRow(ARRAY_TYPE, BQ_ARRAY_ROW);
+    assertEquals(ARRAY_ROW, beamRow);
+  }
+
+  @Test
+  public void testToBeamRow_inlineArray() {
+    Row beamRow = BigQueryUtils.toBeamRow(ARRAY_TYPE, BQ_INLINE_ARRAY_ROW);
     assertEquals(ARRAY_ROW, beamRow);
   }
 

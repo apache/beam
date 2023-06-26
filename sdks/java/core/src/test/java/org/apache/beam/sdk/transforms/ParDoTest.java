@@ -122,6 +122,7 @@ import org.apache.beam.sdk.testing.UsesTestStreamWithOutputTimestamp;
 import org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime;
 import org.apache.beam.sdk.testing.UsesTimerMap;
 import org.apache.beam.sdk.testing.UsesTimersInParDo;
+import org.apache.beam.sdk.testing.UsesTriggeredSideInputs;
 import org.apache.beam.sdk.testing.UsesUnboundedPCollections;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create.TimestampedValues;
@@ -172,6 +173,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -191,6 +193,8 @@ public class ParDoTest implements Serializable {
     @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
     @Rule public transient ExpectedException thrown = ExpectedException.none();
+
+    @Rule public transient Timeout globalTimeout = Timeout.seconds(1200);
   }
 
   private static class PrintingDoFn extends DoFn<String, String> {
@@ -3580,7 +3584,12 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesSideInputs.class})
+    @Category({
+      ValidatesRunner.class,
+      UsesStatefulParDo.class,
+      UsesSideInputs.class,
+      UsesTriggeredSideInputs.class
+    })
     public void testStateSideInput() {
 
       // SideInput tag id

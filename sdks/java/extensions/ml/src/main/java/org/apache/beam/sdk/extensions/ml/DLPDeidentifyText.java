@@ -31,7 +31,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -58,7 +57,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * contents as value) and outputs {@link KV} of {@link String} (eg. filename) and {@link
  * DeidentifyContentResponse}, which will contain {@link Table} of results for the user to consume.
  */
-@Experimental
 @AutoValue
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)

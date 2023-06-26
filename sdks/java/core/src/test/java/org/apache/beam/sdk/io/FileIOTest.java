@@ -76,6 +76,7 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -87,6 +88,8 @@ public class FileIOTest implements Serializable {
   @Rule public transient TemporaryFolder tmpFolder = new TemporaryFolder();
 
   @Rule public transient ExpectedException thrown = ExpectedException.none();
+
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(1200);
 
   @Test
   @Category(NeedsRunner.class)

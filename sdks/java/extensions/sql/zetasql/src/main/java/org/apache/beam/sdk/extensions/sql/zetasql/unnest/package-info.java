@@ -17,7 +17,4 @@
  */
 
 /** Temporary solution to support ZetaSQL UNNEST. To be removed after Calcite upgrade. */
-@Experimental
 package org.apache.beam.sdk.extensions.sql.zetasql.unnest;
-
-import org.apache.beam.sdk.annotations.Experimental;

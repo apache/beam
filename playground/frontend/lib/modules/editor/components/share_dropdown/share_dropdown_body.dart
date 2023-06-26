@@ -40,7 +40,15 @@ class ShareDropdownBody extends StatefulWidget {
 
 class _ShareDropdownBodyState extends State<ShareDropdownBody>
     with SingleTickerProviderStateMixin {
+  late final EventSnippetContext _eventContext;
   late final tabController = TabController(vsync: this, length: _kTabsCount);
+
+  @override
+  void initState() {
+    super.initState();
+    // Saving the context before sharing to refer to the original snippet.
+    _eventContext = widget.playgroundController.eventSnippetContext;
+  }
 
   @override
   void dispose() {
@@ -61,6 +69,7 @@ class _ShareDropdownBodyState extends State<ShareDropdownBody>
           ),
           Expanded(
             child: ShareTabs(
+              eventSnippetContext: _eventContext,
               tabController: tabController,
               onError: widget.onError,
             ),

@@ -1105,7 +1105,7 @@ class ExtendedProvisionInfo(object):
   def __init__(self,
                provision_info=None,  # type: Optional[beam_provision_api_pb2.ProvisionInfo]
                artifact_staging_dir=None,  # type: Optional[str]
-               job_name=None,  # type: Optional[str]
+               job_name='',  # type: str
               ):
     # type: (...) -> None
     self.provision_info = (

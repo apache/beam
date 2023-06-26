@@ -19,11 +19,15 @@ package org.apache.beam.fn.harness.debug;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
+import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
+import org.apache.beam.sdk.util.WindowedValue;
 
 /**
  * This class holds samples for a single PCollection until queried by the parent DataSampler. This
@@ -35,7 +39,12 @@ import org.apache.beam.sdk.util.ByteStringOutputStream;
 public class OutputSampler<T> {
 
   // Temporarily holds elements until the SDK receives a sample data request.
-  private List<T> buffer;
+  private List<ElementSample<T>> buffer;
+
+  // Temporarily holds exceptional elements. These elements can also be duplicated in the main
+  // buffer. This is in order to always track exceptional elements even if the number of samples in
+  // the main buffer drops it.
+  private final List<ElementSample<T>> exceptions = new ArrayList<>();
 
   // Maximum number of elements in buffer.
   private final int maxElements;
@@ -49,13 +58,27 @@ public class OutputSampler<T> {
   // Index into the buffer of where to overwrite samples.
   private int resampleIndex = 0;
 
-  private final Coder<T> coder;
+  @Nullable private final Coder<T> valueCoder;
 
-  public OutputSampler(Coder<T> coder, int maxElements, int sampleEveryN) {
-    this.coder = coder;
+  @Nullable private final Coder<WindowedValue<T>> windowedValueCoder;
+
+  public OutputSampler(Coder<?> coder, int maxElements, int sampleEveryN) {
     this.maxElements = maxElements;
     this.sampleEveryN = sampleEveryN;
     this.buffer = new ArrayList<>(this.maxElements);
+
+    // The samples taken and encoded should match exactly to the specification from the
+    // ProcessBundleDescriptor. The coder given can either be a WindowedValueCoder, in which the
+    // element itself is sampled. Or, it's non a WindowedValueCoder and the value inside the
+    // windowed value must be sampled. This is because WindowedValue is the element type used in
+    // all receivers, which doesn't necessarily match the PBD encoding.
+    if (coder instanceof WindowedValue.WindowedValueCoder) {
+      this.valueCoder = null;
+      this.windowedValueCoder = (Coder<WindowedValue<T>>) coder;
+    } else {
+      this.valueCoder = (Coder<T>) coder;
+      this.windowedValueCoder = null;
+    }
   }
 
   /**
@@ -67,7 +90,7 @@ public class OutputSampler<T> {
    *
    * @param element the element to sample.
    */
-  public void sample(T element) {
+  public ElementSample<T> sample(WindowedValue<T> element) {
     // Only sample the first 10 elements then after every `sampleEveryN`th element.
     long samples = numSamples.get() + 1;
 
@@ -75,19 +98,41 @@ public class OutputSampler<T> {
     // the slowest thread accessing the atomic. But over time, it will still increase. This is ok
     // because this is a debugging feature and doesn't need strict atomics.
     numSamples.lazySet(samples);
+
+    ElementSample<T> elementSample =
+        new ElementSample<>(ThreadLocalRandom.current().nextInt(), element);
     if (samples > 10 && samples % sampleEveryN != 0) {
-      return;
+      return elementSample;
     }
 
     synchronized (this) {
       // Fill buffer until maxElements.
       if (buffer.size() < maxElements) {
-        buffer.add(element);
+        buffer.add(elementSample);
       } else {
         // Then rewrite sampled elements as a circular buffer.
-        buffer.set(resampleIndex, element);
+        buffer.set(resampleIndex, elementSample);
         resampleIndex = (resampleIndex + 1) % maxElements;
       }
+    }
+
+    return elementSample;
+  }
+
+  /**
+   * Samples an exceptional element to be later queried.
+   *
+   * @param elementSample the sampled element to add an exception to.
+   * @param e the exception.
+   */
+  public void exception(ElementSample<T> elementSample, Exception e) {
+    if (elementSample == null) {
+      return;
+    }
+
+    synchronized (this) {
+      elementSample.exception = e;
+      exceptions.add(elementSample);
     }
   }
 
@@ -104,7 +149,7 @@ public class OutputSampler<T> {
 
     // Serializing can take a lot of CPU time for larger or complex elements. Copy the array here
     // so as to not slow down the main processing hot path.
-    List<T> bufferToSend;
+    List<ElementSample<T>> bufferToSend;
     int sampleIndex = 0;
     synchronized (this) {
       bufferToSend = buffer;
@@ -113,16 +158,42 @@ public class OutputSampler<T> {
       resampleIndex = 0;
     }
 
+    // An element can live in both the main samples and exception buffer. Use a small look up table
+    // to deduplicate samples.
+    HashSet<Long> seen = new HashSet<>();
     ByteStringOutputStream stream = new ByteStringOutputStream();
     for (int i = 0; i < bufferToSend.size(); i++) {
       int index = (sampleIndex + i) % bufferToSend.size();
-      // This is deprecated, but until this is fully removed, this specifically needs the nested
-      // context. This is because the SDK will need to decode the sampled elements with the
-      // ToStringFn.
-      coder.encode(bufferToSend.get(index), stream, Coder.Context.NESTED);
+      ElementSample<T> sample = bufferToSend.get(index);
+      seen.add(sample.id);
+
+      if (valueCoder != null) {
+        this.valueCoder.encode(sample.sample.getValue(), stream, Coder.Context.NESTED);
+      } else if (windowedValueCoder != null) {
+        this.windowedValueCoder.encode(sample.sample, stream, Coder.Context.NESTED);
+      }
+
       ret.add(
           BeamFnApi.SampledElement.newBuilder().setElement(stream.toByteStringAndReset()).build());
     }
+
+    // TODO: set the exception metadata on the proto once that PR is merged.
+    for (ElementSample<T> sample : exceptions) {
+      if (seen.contains(sample.id)) {
+        continue;
+      }
+
+      if (valueCoder != null) {
+        this.valueCoder.encode(sample.sample.getValue(), stream, Coder.Context.NESTED);
+      } else if (windowedValueCoder != null) {
+        this.windowedValueCoder.encode(sample.sample, stream, Coder.Context.NESTED);
+      }
+
+      ret.add(
+          BeamFnApi.SampledElement.newBuilder().setElement(stream.toByteStringAndReset()).build());
+    }
+
+    exceptions.clear();
 
     return ret;
   }

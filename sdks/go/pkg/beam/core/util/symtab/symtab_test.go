@@ -85,6 +85,9 @@ func TestSym2Addr(t *testing.T) {
 	}
 
 	bin := strings.TrimSuffix(fname, ".go")
+	if runtime.GOOS == "windows" {
+		bin += ".exe"
+	}
 	defer os.Remove(bin)
 
 	gotool := filepath.Join(runtime.GOROOT(), "bin", "go")

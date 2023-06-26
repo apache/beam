@@ -52,8 +52,18 @@ dependencies {
   implementation library.java.aws_java_sdk2_http_client_spi, excludeNetty
   implementation library.java.aws_java_sdk2_apache_client, excludeNetty
   implementation library.java.aws_java_sdk2_netty_client, excludeNetty
-  implementation "software.amazon.kinesis:amazon-kinesis-client:2.3.4", excludeNetty
+  implementation("software.amazon.kinesis:amazon-kinesis-client:2.4.8") {
+    // Note: The KCL client isn't used. However, unfortunately, some model classes of KCL leak into the
+    // KinesisIO API (KinesisClientRecord, InitialPositionInStream). Additionally, KinesisIO
+    // internally uses KCL utils to generate aggregated messages and de-aggregate them.
+
+    // Exclude unnecessary runtime dependencies of the client as these cause conflicts.
+    exclude group: "software.amazon.glue", module: "*"
+    exclude group: "software.amazon.awssdk", module: "*"
+    exclude group: "io.reactivex.rxjava3", module: "rxjava"
+  }
   implementation library.java.netty_all // force version of netty used by Beam
+  implementation library.java.netty_transport
   permitUnusedDeclared library.java.netty_all
   implementation library.java.byte_buddy
   implementation library.java.jackson_core
@@ -63,6 +73,7 @@ dependencies {
   implementation library.java.slf4j_api
   implementation library.java.protobuf_java
   implementation "commons-lang:commons-lang:2.6"
+  implementation "org.reactivestreams:reactive-streams:1.0.3"
   implementation library.java.commons_lang3
   implementation library.java.commons_codec
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")

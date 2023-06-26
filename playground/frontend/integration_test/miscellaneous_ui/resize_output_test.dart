@@ -22,7 +22,6 @@ import 'package:playground/modules/output/models/output_placement.dart';
 import 'package:playground_components/playground_components.dart';
 import 'package:playground_components_dev/playground_components_dev.dart';
 
-import '../common/common.dart';
 import '../common/common_finders.dart';
 
 Future<void> checkResizeOutput(WidgetTester wt) async {
@@ -40,8 +39,7 @@ Future<void> checkResizeOutput(WidgetTester wt) async {
   await _checkExcessivelyDragVertically(wt);
   await resetSplitViewRatio();
 
-  await wt.tap(find.byKey(const ValueKey(OutputPlacement.left)));
-  await wt.pumpAndSettle();
+  await wt.tapAndSettle(find.byKey(const ValueKey(OutputPlacement.left)));
 
   await _checkDragHorizontally(wt);
   await resetSplitViewRatio();

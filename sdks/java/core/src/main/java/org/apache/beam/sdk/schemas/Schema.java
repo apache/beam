@@ -36,8 +36,6 @@ import java.util.UUID;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
 import javax.annotation.concurrent.Immutable;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.BiMap;
@@ -51,7 +49,6 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** {@link Schema} describes the fields in {@link Row}. */
-@Experimental(Kind.SCHEMAS)
 @SuppressWarnings({
   "keyfor",
   "nullness", // TODO(https://github.com/apache/beam/issues/20497)
@@ -332,14 +329,16 @@ public class Schema implements Serializable {
   /** Returns an identical Schema with sorted fields. */
   public Schema sorted() {
     // Create a new schema and copy over the appropriate Schema object attributes:
-    // {fields, uuid, encodingPositions, options}
+    // {fields, uuid, options}
+    // Note: encoding positions are not copied over because generally they should align with the
+    // ordering of field indices. Otherwise, problems may occur when encoding/decoding Rows of
+    // this schema.
     Schema sortedSchema =
         this.fields.stream()
             .sorted(Comparator.comparing(Field::getName))
             .collect(Schema.toSchema())
             .withOptions(getOptions());
     sortedSchema.setUUID(getUUID());
-    sortedSchema.setEncodingPositions(getEncodingPositions());
 
     return sortedSchema;
   }

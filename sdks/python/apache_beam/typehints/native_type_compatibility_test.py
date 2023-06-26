@@ -19,6 +19,7 @@
 
 # pytype: skip-file
 
+import collections.abc
 import sys
 import typing
 import unittest
@@ -128,6 +129,42 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
                         tuple[str, list],
                         typehints.Tuple[str, typehints.List[typehints.Any]],
                     )]
+
+      for test_case in test_cases:
+        description = test_case[0]
+        builtins_type = test_case[1]
+        expected_beam_type = test_case[2]
+        converted_beam_type = convert_to_beam_type(builtins_type)
+        self.assertEqual(converted_beam_type, expected_beam_type, description)
+
+  def test_convert_to_beam_type_with_collections_types(self):
+    if sys.version_info >= (3, 9):
+      test_cases = [
+          (
+              'collection iterable',
+              collections.abc.Iterable[int],
+              typehints.Iterable[int]),
+          (
+              'collection generator',
+              collections.abc.Generator[int],
+              typehints.Generator[int]),
+          (
+              'collection iterator',
+              collections.abc.Iterator[int],
+              typehints.Iterator[int]),
+          (
+              'nested iterable',
+              tuple[bytes, collections.abc.Iterable[int]],
+              typehints.Tuple[bytes, typehints.Iterable[int]]),
+          (
+              'iterable over tuple',
+              collections.abc.Iterable[tuple[str, int]],
+              typehints.Iterable[typehints.Tuple[str, int]]),
+          (
+              'mapping not caught',
+              collections.abc.Mapping[str, int],
+              collections.abc.Mapping[str, int]),
+      ]
 
       for test_case in test_cases:
         description = test_case[0]

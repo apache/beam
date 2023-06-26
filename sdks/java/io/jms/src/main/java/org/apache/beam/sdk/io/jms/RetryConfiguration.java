@@ -26,6 +26,7 @@ import org.joda.time.Duration;
 
 @AutoValue
 public abstract class RetryConfiguration implements Serializable {
+  private static final Integer DEFAULT_MAX_ATTEMPTS = 5;
   private static final Duration DEFAULT_INITIAL_BACKOFF = Duration.standardSeconds(15);
   private static final Duration DEFAULT_MAX_CUMULATIVE_BACKOFF = Duration.standardDays(1000);
 
@@ -34,6 +35,10 @@ public abstract class RetryConfiguration implements Serializable {
   abstract @Nullable Duration getMaxDuration();
 
   abstract @Nullable Duration getInitialDuration();
+
+  public static RetryConfiguration create() {
+    return create(DEFAULT_MAX_ATTEMPTS, null, null);
+  }
 
   public static RetryConfiguration create(int maxAttempts) {
     return create(maxAttempts, null, null);

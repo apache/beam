@@ -53,9 +53,7 @@ const TERMINAL_STATES = [
   JobState_Enum.DRAINED,
 ];
 
-// TODO(robertwb): Change this to docker.io/apache/beam_typescript_sdk
-// once we push images there.
-const DOCKER_BASE = "gcr.io/apache-beam-testing/beam_typescript_sdk";
+const DOCKER_BASE = "docker.io/apache/beam_typescript_sdk";
 
 type completionCallback = (terminalState: JobStateEvent) => Promise<unknown>;
 

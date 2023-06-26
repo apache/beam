@@ -36,6 +36,7 @@ dependencies {
   implementation project(path: ":model:pipeline", configuration: "shadow")
   implementation project(":runners:core-java")
   implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(":sdks:java:harness")
   implementation project(":sdks:java:expansion-service")
   implementation project(":sdks:java:extensions:avro")
   permitUnusedDeclared project(":sdks:java:expansion-service") // BEAM-11761
@@ -65,10 +66,7 @@ dependencies {
   implementation library.java.google_auth_library_credentials
   implementation library.java.google_auth_library_oauth2_http
   implementation library.java.google_cloud_bigquery_storage
-  implementation(library.java.google_cloud_bigtable_client_core) {
-    exclude group: 'io.grpc', module: 'grpc-core' // Use Beam's version
-    exclude group: 'io.grpc', module: 'grpc-grpclb'
-  }
+  implementation(library.java.google_cloud_bigtable_client_core_config)
   // google_cloud_bigtable_client_core declares old google-cloud-bigtable for
   // Java7 compatibility. The old google-cloud-bigtable is not compatible with
   // newer version of GAX. Declaring newer google-cloud-bigtable so that Beam
@@ -118,9 +116,8 @@ dependencies {
   implementation library.java.grpc_google_cloud_pubsublite_v1
   permitUnusedDeclared library.java.grpc_google_cloud_pubsublite_v1 // BEAM-11761
   implementation library.java.guava
-  implementation library.java.hamcrest
   implementation library.java.http_client
-  implementation library.java.hamcrest
+  provided library.java.hamcrest
   permitUnusedDeclared library.java.hamcrest // BEAM-11761
   implementation library.java.http_core
   implementation library.java.jackson_core
@@ -128,12 +125,11 @@ dependencies {
   implementation library.java.jackson_datatype_joda
   implementation library.java.jackson_datatype_jsr310
   implementation library.java.joda_time
-  implementation library.java.junit
+  provided library.java.junit
   implementation library.java.netty_handler
   implementation library.java.netty_tcnative_boringssl_static
   permitUnusedDeclared library.java.netty_tcnative_boringssl_static // BEAM-11761
   implementation library.java.proto_google_cloud_bigquery_storage_v1
-  implementation library.java.proto_google_cloud_bigtable_admin_v2
   implementation library.java.proto_google_cloud_bigtable_v2
   implementation library.java.proto_google_cloud_datastore_v1
   implementation library.java.proto_google_cloud_firestore_v1
@@ -146,7 +142,7 @@ dependencies {
   implementation library.java.protobuf_java
   implementation library.java.protobuf_java_util
   implementation library.java.slf4j_api
-  implementation library.java.vendored_grpc_1_48_1
+  implementation library.java.vendored_grpc_1_54_0
   implementation library.java.vendored_guava_26_0_jre
   implementation library.java.arrow_memory_core
   implementation library.java.arrow_vector
@@ -167,6 +163,7 @@ dependencies {
   testImplementation library.java.powermock_mockito
   testImplementation library.java.joda_time
   testImplementation library.java.google_cloud_spanner_test
+  testImplementation library.java.google_cloud_bigtable_emulator
   testRuntimeOnly library.java.slf4j_jdk14
   // everit_json is needed for PubsubLite SchemaTransform tests that rely on JSON-schema translation.
   permitUnusedDeclared library.java.everit_json_schema
@@ -207,6 +204,11 @@ task integrationTest(type: Test, dependsOn: processTestResources) {
   exclude '**/BigQueryIOStorageWriteIT.class'
   exclude '**/BigQueryToTableIT.class'
   exclude '**/BigQueryIOJsonTest.class'
+
+  // Failing due to Firestore service-side changes
+  // https://github.com/apache/beam/issues/25851
+  exclude '**/firestore/it/**/*.class'
+
   maxParallelForks 4
   classpath = sourceSets.test.runtimeClasspath
   testClassesDirs = sourceSets.test.output.classesDirs

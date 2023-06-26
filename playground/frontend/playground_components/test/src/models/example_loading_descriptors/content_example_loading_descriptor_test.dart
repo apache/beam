@@ -39,6 +39,7 @@ void main() {
       complexity: Complexity.advanced,
       files: [SnippetFile(content: 'abc', isMain: true)],
       name: 'name',
+      pipelineOptions: '--name=value',
       sdk: Sdk.go,
       viewOptions: viewOptions,
     );
@@ -57,9 +58,14 @@ void main() {
           complexity: descriptor.complexity,
           files: descriptor.files,
           name: descriptor.name,
+          pipelineOptions: '--name=value',
           sdk: descriptor.sdk,
         ),
       );
+    });
+
+    test('token == null', () {
+      expect(descriptor.token, null);
     });
   });
 }

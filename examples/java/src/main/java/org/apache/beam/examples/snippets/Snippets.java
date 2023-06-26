@@ -76,6 +76,7 @@ import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.BoundedPerElement;
+import org.apache.beam.sdk.transforms.Latest;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.PeriodicImpulse;
@@ -608,8 +609,6 @@ public class Snippets {
     // Create a side input that updates each second.
     PCollectionView<Map<String, String>> map =
         p.apply(GenerateSequence.from(0).withRate(1, Duration.standardSeconds(5L)))
-            .apply(Window.into(FixedWindows.of(Duration.standardSeconds(5))))
-            .apply(Sum.longsGlobally().withoutDefaults())
             .apply(
                 ParDo.of(
                     new DoFn<Long, Map<String, String>>() {
@@ -628,6 +627,7 @@ public class Snippets {
                 Window.<Map<String, String>>into(new GlobalWindows())
                     .triggering(Repeatedly.forever(AfterProcessingTime.pastFirstElementInPane()))
                     .discardingFiredPanes())
+            .apply(Latest.globally())
             .apply(View.asSingleton());
 
     // Consume side input. GenerateSequence generates test data.

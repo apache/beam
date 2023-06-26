@@ -43,7 +43,7 @@ func GetScioValidators(filePath string) *[]Validator {
 	return &validators
 }
 
-//checkIsUnitTestScio checks if the pipeline is a UnitTest
+// checkIsUnitTestScio checks if the pipeline is a UnitTest
 func checkIsUnitTestScio(args ...interface{}) (bool, error) {
 	return false, nil
 	//TODO BEAM-13702

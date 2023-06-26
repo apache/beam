@@ -17,9 +17,5 @@
  */
 package org.apache.beam.sdk.schemas;
 
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
-
 /** Indicates that we are missing a schema for a type. */
-@Experimental(Kind.SCHEMAS)
 public class NoSuchSchemaException extends Exception {}

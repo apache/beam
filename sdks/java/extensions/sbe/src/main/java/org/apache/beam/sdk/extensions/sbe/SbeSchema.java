@@ -21,8 +21,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import uk.co.real_logic.sbe.ir.Ir;
@@ -46,7 +44,6 @@ import uk.co.real_logic.sbe.ir.Ir;
  * ambiguities, such as which message to base the schema around, passing {@link IrOptions} is
  * required.
  */
-@Experimental(Kind.SCHEMAS)
 public final class SbeSchema implements Serializable {
   private static final long serialVersionUID = 1L;
 

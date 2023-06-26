@@ -133,6 +133,34 @@ class ExamplesLoadingDescriptor with EquatableMixin {
     );
   }
 
+  Sdk? get initialSnippetSdk {
+    if (descriptors.length == 1) {
+      return descriptors.first.sdk;
+    }
+
+    for (final descriptor in descriptors) {
+      if (descriptor.sdk == initialSdk) {
+        return descriptor.sdk;
+      }
+    }
+
+    return null;
+  }
+
+  String? get initialSnippetToken {
+    if (descriptors.length == 1) {
+      return descriptors.first.token;
+    }
+
+    for (final descriptor in descriptors) {
+      if (descriptor.sdk == initialSdk) {
+        return descriptor.token;
+      }
+    }
+
+    return null;
+  }
+
   /// Tries to parse a [map] into an [ExamplesLoadingDescriptor].
   ///
   /// [singleDescriptorFactory] is tried on nested collections of the [map].

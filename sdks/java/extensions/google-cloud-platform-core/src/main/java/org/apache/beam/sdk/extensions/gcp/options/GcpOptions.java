@@ -43,7 +43,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.gcp.auth.CredentialFactory;
 import org.apache.beam.sdk.extensions.gcp.auth.GcpCredentialFactory;
 import org.apache.beam.sdk.extensions.gcp.auth.NullCredentialInitializer;
@@ -525,7 +524,6 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
       "GCP Cloud KMS key for Dataflow pipelines. Also used by gcpTempLocation as the default key "
           + "for new buckets. Key format is: "
           + "projects/<project>/locations/<location>/keyRings/<keyring>/cryptoKeys/<key>")
-  @Experimental
   @Nullable
   String getDataflowKmsKey();
 

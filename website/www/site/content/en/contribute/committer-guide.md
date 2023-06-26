@@ -134,3 +134,11 @@ Instead, pull it all into the subject line:
     Merge pull request #1234: [BEAM-7873] Fix the foo bizzle bazzle
 
 If you have comments to add, put them in the body of the commit message.
+
+## Seed jobs
+
+As a committer, you can now run seed jobs! These are used to update our Jenkins configuration
+and can be run to test PRs modifying Groovy files before they are merged.
+
+To make sure you have these permissions, put up a PR adding yourself to
+https://github.com/apache/beam/blob/master/.test-infra/jenkins/Committers.groovy

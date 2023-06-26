@@ -83,6 +83,7 @@ import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -94,6 +95,8 @@ import org.junit.runners.JUnit4;
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class SplittableDoFnTest implements Serializable {
+
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(1200);
 
   static class PairStringWithIndexToLengthBase extends DoFn<String, KV<String, Integer>> {
     @ProcessElement

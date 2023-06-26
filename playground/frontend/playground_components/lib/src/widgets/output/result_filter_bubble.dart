@@ -18,35 +18,35 @@
 
 import 'package:flutter/material.dart';
 
-import '../../controllers/playground_controller.dart';
-import '../../models/outputs.dart';
+import '../../enums/result_filter.dart';
 import '../bubble.dart';
 
 class ResultFilterBubble extends StatelessWidget {
-  final PlaygroundController playgroundController;
-  final OutputType type;
-  final String name;
+  final ResultFilterEnum groupValue;
+  final ValueChanged<ResultFilterEnum> onChanged;
+  final String title;
+  final ResultFilterEnum value;
 
   const ResultFilterBubble({
     super.key,
-    required this.playgroundController,
-    required this.type,
-    required this.name,
+    required this.groupValue,
+    required this.onChanged,
+    required this.title,
+    required this.value,
   });
 
   @override
   Widget build(BuildContext context) {
-    final isSelected =
-        type == playgroundController.outputTypeController.outputFilterType;
+    final isSelected = value == groupValue;
 
     return BubbleWidget(
       isSelected: isSelected,
       onTap: () {
         if (!isSelected) {
-          playgroundController.outputTypeController.setOutputFilterType(type);
+          onChanged(value);
         }
       },
-      title: name,
+      title: title,
     );
   }
 }

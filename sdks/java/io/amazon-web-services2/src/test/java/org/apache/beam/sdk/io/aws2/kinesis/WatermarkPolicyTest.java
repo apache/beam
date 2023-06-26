@@ -23,6 +23,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.joda.time.DateTimeUtils;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -52,6 +53,7 @@ public class WatermarkPolicyTest {
     when(a.getApproximateArrivalTimestamp()).thenReturn(time1);
     when(b.getApproximateArrivalTimestamp()).thenReturn(time2);
 
+    assertThat(policy.getWatermark()).isEqualTo(BoundedWindow.TIMESTAMP_MIN_VALUE);
     policy.update(a);
     assertThat(policy.getWatermark()).isEqualTo(time1);
     policy.update(b);

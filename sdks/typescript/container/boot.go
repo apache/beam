@@ -25,8 +25,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/apache/beam/sdks/v2/go/container/tools"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/artifact"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/provision"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/execx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/grpcx"
 )
@@ -55,7 +55,7 @@ func main() {
 
 	ctx := grpcx.WriteWorkerID(context.Background(), *id)
 
-	info, err := provision.Info(ctx, *provisionEndpoint)
+	info, err := tools.ProvisionInfo(ctx, *provisionEndpoint)
 	if err != nil {
 		log.Fatalf("Failed to obtain provisioning information: %v", err)
 	}
@@ -81,14 +81,14 @@ func main() {
 	if *controlEndpoint == "" {
 		log.Fatal("No control endpoint provided.")
 	}
-
-	log.Printf("Initializing typescript harness: %v", strings.Join(os.Args, " "))
+	logger := &tools.Logger{Endpoint: *loggingEndpoint}
+	logger.Printf(ctx, "Initializing typescript harness: %v", strings.Join(os.Args, " "))
 
 	// (1) Obtain the pipeline options
 
-	options, err := provision.ProtoToJSON(info.GetPipelineOptions())
+	options, err := tools.ProtoToJSON(info.GetPipelineOptions())
 	if err != nil {
-		log.Fatalf("Failed to convert pipeline options: %v", err)
+		logger.Fatalf(ctx, "Failed to convert pipeline options: %v", err)
 	}
 
 	// (2) Retrieve and install the staged packages.
@@ -96,7 +96,7 @@ func main() {
 	dir := filepath.Join(*semiPersistDir, *id, "staged")
 	artifacts, err := artifact.Materialize(ctx, *artifactEndpoint, info.GetDependencies(), info.GetRetrievalToken(), dir)
 	if err != nil {
-		log.Fatalf("Failed to retrieve staged files: %v", err)
+		logger.Fatalf(ctx, "Failed to retrieve staged files: %v", err)
 	}
 
 	// Create a package.json that names given dependencies as overrides.
@@ -107,17 +107,16 @@ func main() {
 		if v.RoleUrn == "beam:artifact:type:npm_dep:v1" {
 			// Npm cannot handle arbitrary suffixes.
 			suffixedPath := path + ".tar"
-			e := os.Rename(path, suffixedPath)
-			if e != nil {
-				log.Fatal(e)
+			if err := os.Rename(path, suffixedPath); err != nil {
+				logger.Fatalf(ctx, "unable to rename %v to %v: %v", path, suffixedPath, err)
 			}
 			npmOverrides[string(v.RolePayload)] = suffixedPath
 		}
 	}
 	if len(npmOverrides) > 0 {
-		f, e := os.Create("package.json")
-		if e != nil {
-			log.Fatal(e)
+		f, err := os.Create("package.json")
+		if err != nil {
+			logger.Fatalf(ctx, "unable to os.Create(%q): %v", "package.json", err)
 		}
 		defer f.Close()
 		f.WriteString("{\n")
@@ -144,13 +143,11 @@ func main() {
 		if v.RoleUrn == "beam:artifact:type:npm:v1" {
 			// Npm cannot handle arbitrary suffixes.
 			suffixedPath := path + ".tar"
-			e := os.Rename(path, suffixedPath)
-			if e != nil {
-				log.Fatal(e)
+			if err := os.Rename(path, suffixedPath); err != nil {
+				logger.Fatalf(ctx, "unable to rename %v to %v: %v", path, suffixedPath, err)
 			}
-			e = execx.Execute("npm", "install", suffixedPath)
-			if e != nil {
-				log.Fatalf("Error installing package %q: %v", suffixedPath, e)
+			if err := execx.Execute("npm", "install", suffixedPath); err != nil {
+				logger.Fatalf(ctx, "Error installing package %q: %v", suffixedPath, err)
 			}
 		}
 	}
@@ -175,8 +172,8 @@ func main() {
 	for _, workerId := range workerIds {
 		go func(workerId string) {
 			workerArgs := append(append([]string{}, args...), "--id="+workerId)
-			log.Printf("Executing: npx %v", strings.Join(workerArgs, " "))
-			log.Fatalf("User program exited: %v", execx.Execute("npx", workerArgs...))
+			logger.Printf(ctx, "Executing: npx %v", strings.Join(workerArgs, " "))
+			logger.Fatalf(ctx, "User program exited: %v", execx.Execute("npx", workerArgs...))
 		}(workerId)
 	}
 	wg.Wait()

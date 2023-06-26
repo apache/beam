@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import com.google.api.services.bigquery.model.TableRow;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -38,24 +40,39 @@ public class StorageApiWriteRecordsInconsistent<DestinationT, ElementT>
   private final StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations;
   private final BigQueryServices bqServices;
   private final TupleTag<BigQueryStorageApiInsertError> failedRowsTag;
+  private final @Nullable TupleTag<TableRow> successfulRowsTag;
   private final TupleTag<KV<String, String>> finalizeTag = new TupleTag<>("finalizeTag");
   private final Coder<BigQueryStorageApiInsertError> failedRowsCoder;
+  private final Coder<TableRow> successfulRowsCoder;
   private final boolean autoUpdateSchema;
   private final boolean ignoreUnknownValues;
+  private final BigQueryIO.Write.CreateDisposition createDisposition;
+  private final @Nullable String kmsKey;
+  private final boolean usesCdc;
 
   public StorageApiWriteRecordsInconsistent(
       StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations,
       BigQueryServices bqServices,
       TupleTag<BigQueryStorageApiInsertError> failedRowsTag,
+      @Nullable TupleTag<TableRow> successfulRowsTag,
       Coder<BigQueryStorageApiInsertError> failedRowsCoder,
+      Coder<TableRow> successfulRowsCoder,
       boolean autoUpdateSchema,
-      boolean ignoreUnknownValues) {
+      boolean ignoreUnknownValues,
+      BigQueryIO.Write.CreateDisposition createDisposition,
+      @Nullable String kmsKey,
+      boolean usesCdc) {
     this.dynamicDestinations = dynamicDestinations;
     this.bqServices = bqServices;
     this.failedRowsTag = failedRowsTag;
     this.failedRowsCoder = failedRowsCoder;
+    this.successfulRowsCoder = successfulRowsCoder;
+    this.successfulRowsTag = successfulRowsTag;
     this.autoUpdateSchema = autoUpdateSchema;
     this.ignoreUnknownValues = ignoreUnknownValues;
+    this.createDisposition = createDisposition;
+    this.kmsKey = kmsKey;
+    this.usesCdc = usesCdc;
   }
 
   @Override
@@ -63,6 +80,10 @@ public class StorageApiWriteRecordsInconsistent<DestinationT, ElementT>
     String operationName = input.getName() + "/" + getName();
     BigQueryOptions bigQueryOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
     // Append records to the Storage API streams.
+    TupleTagList tupleTagList = TupleTagList.of(failedRowsTag);
+    if (successfulRowsTag != null) {
+      tupleTagList = tupleTagList.and(successfulRowsTag);
+    }
     PCollectionTuple result =
         input.apply(
             "Write Records",
@@ -77,11 +98,18 @@ public class StorageApiWriteRecordsInconsistent<DestinationT, ElementT>
                         bigQueryOptions.getNumStorageWriteApiStreamAppendClients(),
                         finalizeTag,
                         failedRowsTag,
+                        successfulRowsTag,
                         autoUpdateSchema,
-                        ignoreUnknownValues))
-                .withOutputTags(finalizeTag, TupleTagList.of(failedRowsTag))
+                        ignoreUnknownValues,
+                        createDisposition,
+                        kmsKey,
+                        usesCdc))
+                .withOutputTags(finalizeTag, tupleTagList)
                 .withSideInputs(dynamicDestinations.getSideInputs()));
     result.get(failedRowsTag).setCoder(failedRowsCoder);
+    if (successfulRowsTag != null) {
+      result.get(successfulRowsTag).setCoder(successfulRowsCoder);
+    }
     return result;
   }
 }

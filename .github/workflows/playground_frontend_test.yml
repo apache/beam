@@ -17,10 +17,12 @@ name: Playground Frontend Test
 
 on:
   push:
-    paths: ['playground/frontend/**']
+    paths:
+      - 'playground/frontend/**'
     branches: ['**']
   pull_request:
-    paths: ['playground/frontend/**']
+    paths:
+      - 'playground/frontend/**'
     branches: ['**']
   workflow_dispatch:
 
@@ -35,7 +37,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      FLUTTER_VERSION: '3.7.3'
+      FLUTTER_VERSION: '3.10.4'
 
     steps:
       - uses: actions/checkout@v3
@@ -86,6 +88,5 @@ jobs:
 
       - name: 'Integration tests'
         run: |
-          cp playground/frontend/lib/config.example.dart playground/frontend/lib/config.g.dart
           chromedriver --port=4444 &
           ./gradlew :playground:frontend:integrationTest -PdeviceId=web-server

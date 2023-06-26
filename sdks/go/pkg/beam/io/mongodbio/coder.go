@@ -27,19 +27,36 @@ import (
 func init() {
 	beam.RegisterCoder(
 		reflect.TypeOf((*idRangeRestriction)(nil)).Elem(),
-		encodeBSON[idRangeRestriction],
-		decodeBSON[idRangeRestriction],
+		encodeRestriction,
+		decodeRestriction,
 	)
 	beam.RegisterCoder(
 		reflect.TypeOf((*idRange)(nil)).Elem(),
-		encodeBSON[idRange],
-		decodeBSON[idRange],
+		encodeRange,
+		decodeRange,
 	)
 	beam.RegisterCoder(
 		reflect.TypeOf((*primitive.ObjectID)(nil)).Elem(),
 		encodeObjectID,
 		decodeObjectID,
 	)
+}
+
+// Working around https://github.com/apache/beam/issues/26066
+// with explicit wrappers for the generic functions.
+
+func encodeRestriction(in idRangeRestriction) ([]byte, error) {
+	return encodeBSON(in)
+}
+func decodeRestriction(in []byte) (idRangeRestriction, error) {
+	return decodeBSON[idRangeRestriction](in)
+}
+
+func encodeRange(in idRange) ([]byte, error) {
+	return encodeBSON(in)
+}
+func decodeRange(in []byte) (idRange, error) {
+	return decodeBSON[idRange](in)
 }
 
 func encodeBSON[T any](in T) ([]byte, error) {

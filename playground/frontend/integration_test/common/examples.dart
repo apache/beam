@@ -25,3 +25,18 @@ final defaultExamples = {
   Sdk.python: pythonWordCountWithMetrics,
   // Sdk.scio: scioMinimalWordCount,
 };
+
+/// The [EventSnippetContext] of the default example of the default SDK.
+final defaultEventSnippetContext = EventSnippetContext(
+  originalSnippet: javaMinimalWordCount.dbPath,
+  sdk: Sdk.java,
+  snippet: javaMinimalWordCount.dbPath,
+);
+
+/// The [EventSnippetContext] of the default example of the default SDK
+/// when it is modified.
+final modifiedDefaultEventSnippetContext = EventSnippetContext(
+  originalSnippet: javaMinimalWordCount.dbPath,
+  sdk: Sdk.java,
+  snippet: null,
+);

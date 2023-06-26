@@ -436,7 +436,7 @@ func TestCache_SetCatalog(t *testing.T) {
 		{
 			name: "Set catalog",
 			mocks: func() {
-				mock.ExpectSet(cache.ExamplesCatalog, catalogMarsh, 0).SetVal("")
+				mock.ExpectSet(cache.ExamplesCatalog, catalogMarsh, catalogExpire).SetVal("")
 			},
 			fields: fields{client},
 			args: args{
@@ -448,7 +448,7 @@ func TestCache_SetCatalog(t *testing.T) {
 		{
 			name: "Error during Set operation",
 			mocks: func() {
-				mock.ExpectSet(cache.ExamplesCatalog, catalogMarsh, 0).SetErr(fmt.Errorf("MOCK_ERROR"))
+				mock.ExpectSet(cache.ExamplesCatalog, catalogMarsh, catalogExpire).SetErr(fmt.Errorf("MOCK_ERROR"))
 			},
 			fields: fields{client},
 			args: args{

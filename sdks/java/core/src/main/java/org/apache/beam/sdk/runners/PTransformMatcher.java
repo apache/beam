@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.runners;
 
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.PTransform;
 
@@ -28,7 +26,6 @@ import org.apache.beam.sdk.transforms.PTransform;
  * <p>Matches applications of {@link PTransform PTransforms}.
  */
 @Internal
-@Experimental(Kind.CORE_RUNNERS_ONLY)
 public interface PTransformMatcher {
   boolean matches(AppliedPTransform<?, ?, ?> application);
 

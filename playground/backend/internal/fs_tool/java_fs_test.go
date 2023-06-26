@@ -16,14 +16,15 @@
 package fs_tool
 
 import (
+	"beam.apache.org/playground/backend/internal/utils"
+	"context"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"testing"
 
 	"github.com/google/uuid"
-
-	"beam.apache.org/playground/backend/internal/utils"
 )
 
 func Test_newJavaLifeCycle(t *testing.T) {
@@ -62,7 +63,7 @@ func Test_newJavaLifeCycle(t *testing.T) {
 					AbsoluteBaseFolderPath:           baseFileFolder,
 					AbsoluteLogFilePath:              filepath.Join(baseFileFolder, logFileName),
 					AbsoluteGraphFilePath:            filepath.Join(baseFileFolder, utils.GraphFileName),
-					ExecutableName:                   executableName,
+					FindExecutableName:               findExecutableName,
 				},
 			},
 		},
@@ -85,24 +86,62 @@ func Test_executableName(t *testing.T) {
 	workDir := "workingDir"
 	preparedPipelinesFolder := filepath.Join(workDir, pipelinesFolder)
 	lc := newJavaLifeCycle(pipelineId, preparedPipelinesFolder)
-	lc.CreateFolders()
-	defer os.RemoveAll(workDir)
+	err := lc.CreateFolders()
+	if err != nil {
+		t.Errorf("Failed to create folders %s, error = %v", workDir, err)
+	}
+	defer func() {
+		err := os.RemoveAll(workDir)
+		if err != nil {
+			t.Errorf("Failed to cleanup %s, error = %v", workDir, err)
+		}
+	}()
+
+	compileJavaFiles := func(sourceFiles ...string) error {
+		compiledDir := filepath.Join(workDir, pipelinesFolder, pipelineId.String(), compiledFolderName)
+
+		args := append([]string{"-d", compiledDir}, sourceFiles...)
+		err := exec.Command("javac", args...).Run()
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+
+	cleanupFunc := func() error {
+		compiled := filepath.Join(workDir, pipelinesFolder, pipelineId.String(), compiledFolderName)
+		dirEntries, err := os.ReadDir(compiled)
+		if err != nil {
+			return err
+		}
+
+		for _, entry := range dirEntries {
+			err := os.Remove(filepath.Join(compiled, entry.Name()))
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}
 
 	type args struct {
 		executableFolder string
 	}
 	tests := []struct {
 		name    string
-		prepare func()
+		prepare func() error
+		cleanup func() error
 		args    args
 		want    string
 		wantErr bool
 	}{
 		{
-			// Test case with calling sourceFileName method with empty directory.
+			// Test case with calling findExecutableName() function with empty directory.
 			// As a result, want to receive an error.
 			name:    "Directory is empty",
-			prepare: func() {},
+			prepare: func() error { return nil },
+			cleanup: func() error { return nil },
 			args: args{
 				executableFolder: filepath.Join(workDir, pipelinesFolder, pipelineId.String(), "bin"),
 			},
@@ -110,17 +149,19 @@ func Test_executableName(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			// Test case with calling sourceFileName method with correct pipelineId and workingDir.
+			// Test case with calling findExecutableName() function with correct pipelineId and workingDir.
 			// As a result, want to receive a name that should be executed
 			name: "Get executable name",
-			prepare: func() {
+			prepare: func() error {
 				compiled := filepath.Join(workDir, pipelinesFolder, pipelineId.String(), compiledFolderName)
 				filePath := filepath.Join(compiled, "temp.class")
 				err := os.WriteFile(filePath, []byte("TEMP_DATA"), 0600)
 				if err != nil {
-					panic(err)
+					return err
 				}
+				return nil
 			},
+			cleanup: cleanupFunc,
 			args: args{
 				executableFolder: filepath.Join(workDir, pipelinesFolder, pipelineId.String(), "bin"),
 			},
@@ -128,10 +169,11 @@ func Test_executableName(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			// Test case with calling sourceFileName method with wrong directory.
+			// Test case with calling findExecutableName() function with wrong directory.
 			// As a result, want to receive an error.
 			name:    "Directory doesn't exist",
-			prepare: func() {},
+			prepare: func() error { return nil },
+			cleanup: func() error { return nil },
 			args: args{
 				executableFolder: filepath.Join(workDir, pipelineId.String()),
 			},
@@ -139,39 +181,162 @@ func Test_executableName(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			// Test case with calling sourceFileName method with multiple files where one of them is main
+			// Test case with calling findExecutableName() function with multiple files where one of them is main
 			// As a result, want to receive a name that should be executed
 			name: "Multiple files where one of them is main",
-			prepare: func() {
+			prepare: func() error {
 				compiled := filepath.Join(workDir, pipelinesFolder, pipelineId.String(), compiledFolderName)
-				secondaryFilePath := filepath.Join(compiled, "temp.scala")
-				err := os.WriteFile(secondaryFilePath, []byte("TEMP_DATA"), 0600)
-				if err != nil {
-					panic(err)
-				}
 				primaryFilePath := filepath.Join(compiled, "main.scala")
-				err = os.WriteFile(primaryFilePath, []byte("object MinimalWordCount {def main(cmdlineArgs: Array[String]): Unit = {}}"), 0600)
+				err := os.WriteFile(primaryFilePath, []byte("object MinimalWordCount {def main(cmdlineArgs: Array[String]): Unit = {}}"), 0600)
 				if err != nil {
-					panic(err)
+					return err
 				}
+				secondaryFilePath := filepath.Join(compiled, "temp.scala")
+				err = os.WriteFile(secondaryFilePath, []byte("TEMP_DATA"), 0600)
+				if err != nil {
+					return err
+				}
+				return nil
 			},
+			cleanup: cleanupFunc,
 			args: args{
 				executableFolder: filepath.Join(workDir, pipelinesFolder, pipelineId.String(), "bin"),
 			},
 			want:    "main",
 			wantErr: false,
 		},
+		{
+			// Test case with calling findExecutableName() function with multiple files where one of them is a .class file
+			// with main() method. The executable class name is the same as the source file name.
+			// As a result, want to receive a name that should be executed
+			name: "Multiple Java class files where one of them contains main",
+			prepare: func() error {
+				testdataPath := "java_testdata"
+				sourceFile := filepath.Join(testdataPath, "HasMainTest1.java")
+
+				err := compileJavaFiles(sourceFile)
+				if err != nil {
+					return err
+				}
+
+				return nil
+			},
+			cleanup: cleanupFunc,
+			args: args{
+				executableFolder: filepath.Join(workDir, pipelinesFolder, pipelineId.String(), "bin"),
+			},
+			want:    "HasMainTest1",
+			wantErr: false,
+		},
+		{
+			// Test case with calling findExecutableName() function with multiple files where one of them is a .class file
+			// with main() method. The executable class name is different from the source file name.
+			// As a result, want to receive a name that should be executed
+			name: "Multiple Java class files where one of them contains main",
+			prepare: func() error {
+				testdataPath := "java_testdata"
+				// The source file contains two classes, one of them has main() method (class name is different from the source file name)
+				sourceFile := filepath.Join(testdataPath, "HasMainTest2.java")
+
+				err := compileJavaFiles(sourceFile)
+				if err != nil {
+					return err
+				}
+
+				return nil
+			},
+			cleanup: cleanupFunc,
+			args: args{
+				executableFolder: filepath.Join(workDir, pipelinesFolder, pipelineId.String(), "bin"),
+			},
+			want:    "Bar",
+			wantErr: false,
+		},
+		{
+			// Test case with calling findExecutableName() function with multiple files where one of them is a .class file
+			// with main() method with incorrect signature.
+			// As a result, want to receive a name that should be executed
+			name: "Multiple Java class files where one of them contains main() with incorrect signature",
+			prepare: func() error {
+				testdataPath := "java_testdata"
+				sourceFile := filepath.Join(testdataPath, "HasIncorrectMain.java")
+
+				err := compileJavaFiles(sourceFile)
+				if err != nil {
+					return err
+				}
+
+				return nil
+			},
+			cleanup: cleanupFunc,
+			args: args{
+				executableFolder: filepath.Join(workDir, pipelinesFolder, pipelineId.String(), "bin"),
+			},
+			want:    "",
+			wantErr: true,
+		},
+		{
+			// Test case with calling findExecutableName() function with multiple files where none of them has main().
+			// As a result, want to receive a name that should be executed
+			name: "Multiple Java class files where none of them contain main()",
+			prepare: func() error {
+				testdataPath := "java_testdata"
+				sourceFile := filepath.Join(testdataPath, "HasNoMain.java")
+
+				err := compileJavaFiles(sourceFile)
+				if err != nil {
+					return err
+				}
+
+				return nil
+			},
+			cleanup: cleanupFunc,
+			args: args{
+				executableFolder: filepath.Join(workDir, pipelinesFolder, pipelineId.String(), "bin"),
+			},
+			want:    "",
+			wantErr: true,
+		},
+		{
+			// Test case with calling findExecutableName() function with file which has multiple dots in its name
+			// As a result, want to receive a name that should be executed
+			name: "File with multiple dots in the name",
+			prepare: func() error {
+				compiled := filepath.Join(workDir, pipelinesFolder, pipelineId.String(), compiledFolderName)
+				primaryFilePath := filepath.Join(compiled, "main.function.scala")
+				err := os.WriteFile(primaryFilePath, []byte("object MinimalWordCount {def main(cmdlineArgs: Array[String]): Unit = {}}"), 0600)
+				if err != nil {
+					return err
+				}
+				return nil
+			},
+			cleanup: cleanupFunc,
+			args: args{
+				executableFolder: filepath.Join(workDir, pipelinesFolder, pipelineId.String(), "bin"),
+			},
+			want:    "main.function",
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.prepare()
-			got, err := executableName(tt.args.executableFolder)
+			err := tt.prepare()
+			if err != nil {
+				t.Errorf("java_fs_test cleanup error = %v", err)
+			}
+			defer func() {
+				err = tt.cleanup()
+				if err != nil {
+					t.Errorf("java_fs_test cleanup error = %v", err)
+				}
+			}()
+			got, err := findExecutableName(context.Background(), tt.args.executableFolder)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("sourceFileName() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("java_fs_test error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got != tt.want {
-				t.Errorf("sourceFileName() got = %v, want %v", got, tt.want)
+				t.Errorf("java_fs_test got = %v, want %v", got, tt.want)
 			}
 		})
 	}

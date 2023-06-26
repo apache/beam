@@ -19,8 +19,6 @@ package org.apache.beam.sdk.schemas.transforms;
 
 import java.util.List;
 import java.util.Optional;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
@@ -34,7 +32,6 @@ import org.apache.beam.sdk.values.Row;
  * compatibility guarantees and it should not be implemented outside of the Beam repository.
  */
 @Internal
-@Experimental(Kind.SCHEMAS)
 public interface SchemaTransformProvider {
   /** Returns an id that uniquely represents this transform. */
   String identifier();

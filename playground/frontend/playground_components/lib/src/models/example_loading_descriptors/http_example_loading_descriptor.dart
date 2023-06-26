@@ -22,8 +22,13 @@ import 'example_loading_descriptor.dart';
 
 /// Describes an example with the code to be fetched from [uri].
 class HttpExampleLoadingDescriptor extends ExampleLoadingDescriptor {
+  @override
   final Sdk sdk;
+
   final Uri uri;
+
+  @override
+  String get token => uri.toString();
 
   const HttpExampleLoadingDescriptor({
     required this.sdk,
@@ -74,4 +79,7 @@ class HttpExampleLoadingDescriptor extends ExampleLoadingDescriptor {
       viewOptions: ExampleViewOptions.fromShortMap(map),
     );
   }
+
+  @override
+  bool get isSerializableToUrl => true;
 }

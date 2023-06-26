@@ -21,8 +21,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.Contextful.Fn;
 import org.apache.beam.sdk.transforms.WithFailures.ExceptionElement;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -120,7 +118,6 @@ public class MapElements<InputT, OutputT>
   }
 
   /** Like {@link #via(ProcessFunction)}, but supports access to context, such as side inputs. */
-  @Experimental(Kind.CONTEXTFUL)
   public <NewInputT> MapElements<NewInputT, OutputT> via(Contextful<Fn<NewInputT, OutputT>> fn) {
     return new MapElements<>(fn, TypeDescriptors.inputOf(fn.getClosure()), outputType);
   }
@@ -208,7 +205,6 @@ public class MapElements<InputT, OutputT>
    * <p>See {@link WithFailures} documentation for usage patterns of the returned {@link
    * WithFailures.Result}.
    */
-  @Experimental(Kind.WITH_EXCEPTIONS)
   public <NewFailureT> MapWithFailures<InputT, OutputT, NewFailureT> exceptionsInto(
       TypeDescriptor<NewFailureT> failureTypeDescriptor) {
     return new MapWithFailures<>(fn, inputType, outputType, null, failureTypeDescriptor);
@@ -237,7 +233,6 @@ public class MapElements<InputT, OutputT>
    * PCollection<String> failures = result.failures();
    * }</pre>
    */
-  @Experimental(Kind.WITH_EXCEPTIONS)
   public <FailureT> MapWithFailures<InputT, OutputT, FailureT> exceptionsVia(
       InferableFunction<ExceptionElement<InputT>, FailureT> exceptionHandler) {
     return new MapWithFailures<>(
@@ -245,7 +240,6 @@ public class MapElements<InputT, OutputT>
   }
 
   /** A {@code PTransform} that adds exception handling to {@link MapElements}. */
-  @Experimental(Kind.WITH_EXCEPTIONS)
   public static class MapWithFailures<InputT, OutputT, FailureT>
       extends PTransform<PCollection<InputT>, WithFailures.Result<PCollection<OutputT>, FailureT>> {
 

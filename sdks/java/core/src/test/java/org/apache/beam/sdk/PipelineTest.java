@@ -75,6 +75,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -88,6 +89,7 @@ public class PipelineTest {
   @Rule public final TestPipeline pipeline = TestPipeline.create();
   @Rule public ExpectedLogs logged = ExpectedLogs.none(Pipeline.class);
   @Rule public ExpectedException thrown = ExpectedException.none();
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(1200);
 
   // Mock class that throws a user code exception during the call to
   // Pipeline.run().

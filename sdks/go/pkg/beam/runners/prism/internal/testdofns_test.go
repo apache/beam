@@ -16,6 +16,7 @@
 package internal
 
 import (
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 )
@@ -40,7 +41,7 @@ func init() {
 	register.Function2x0(dofnKV2)
 	register.Function3x0(dofnGBK)
 	register.Function3x0(dofnGBK2)
-	register.DoFn2x0[int64, func(int64)]((*int64Check)(nil))
+	register.DoFn3x0[beam.Window, int64, func(int64)]((*int64Check)(nil))
 	register.DoFn2x0[string, func(string)]((*stringCheck)(nil))
 	register.Function2x0(dofnKV3)
 	register.Function3x0(dofnGBK3)

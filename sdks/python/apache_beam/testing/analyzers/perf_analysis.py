@@ -46,7 +46,7 @@ from apache_beam.testing.analyzers.perf_analysis_utils import validate_config
 from apache_beam.testing.load_tests.load_test_metrics_utils import BigQueryMetricsFetcher
 
 
-def run_change_point_analysis(params, test_id, big_query_metrics_fetcher):
+def run_change_point_analysis(params, test_name, big_query_metrics_fetcher):
   """
   Args:
    params: Dict containing parameters to run change point analysis.
@@ -56,13 +56,13 @@ def run_change_point_analysis(params, test_id, big_query_metrics_fetcher):
   Returns:
      bool indicating if a change point is observed and alerted on GitHub.
   """
+  logging.info("Running change point analysis for test %s" % test_name)
   if not validate_config(params.keys()):
     raise ValueError(
         f"Please make sure all these keys {constants._PERF_TEST_KEYS} "
-        f"are specified for the {test_id}")
+        f"are specified for the {test_name}")
 
   metric_name = params['metric_name']
-  test_name = params['test_name'].replace('.', '_') + f'_{metric_name}'
 
   min_runs_between_change_points = (
       constants._DEFAULT_MIN_RUNS_BETWEEN_CHANGE_POINTS)
@@ -82,6 +82,7 @@ def run_change_point_analysis(params, test_id, big_query_metrics_fetcher):
   change_point_index = find_latest_change_point_index(
       metric_values=metric_values)
   if not change_point_index:
+    logging.info("Change point is not detected for the test %s" % test_name)
     return False
   # since timestamps are ordered in ascending order and
   # num_runs_in_change_point_window refers to the latest runs,
@@ -92,44 +93,50 @@ def run_change_point_analysis(params, test_id, big_query_metrics_fetcher):
                                          latest_change_point_run):
     logging.info(
         'Performance regression/improvement found for the test: %s. '
-        'Since the change point run %s '
+        'on metric %s. Since the change point run %s '
         'lies outside the num_runs_in_change_point_window distance: %s, '
         'alert is not raised.' % (
-            params['test_name'],
-            latest_change_point_run,
+            test_name,
+            metric_name,
+            latest_change_point_run + 1,
             num_runs_in_change_point_window))
     return False
 
   is_alert = True
   last_reported_issue_number = None
+  issue_metadata_table_name = f'{params.get("metrics_table")}_{metric_name}'
   existing_issue_data = get_existing_issues_data(
-      test_name=test_name, big_query_metrics_fetcher=big_query_metrics_fetcher)
+      table_name=issue_metadata_table_name,
+      big_query_metrics_fetcher=big_query_metrics_fetcher)
 
   if existing_issue_data is not None:
     existing_issue_timestamps = existing_issue_data[
         constants._CHANGE_POINT_TIMESTAMP_LABEL].tolist()
     last_reported_issue_number = existing_issue_data[
         constants._ISSUE_NUMBER].tolist()[0]
+    # convert numpy.int64 to int
+    last_reported_issue_number = last_reported_issue_number.item()
 
     is_alert = is_perf_alert(
         previous_change_point_timestamps=existing_issue_timestamps,
         change_point_index=change_point_index,
         timestamps=timestamps,
         min_runs_between_change_points=min_runs_between_change_points)
-
-  logging.debug(
-      "Performance alert is %s for test %s" % (is_alert, params['test_name']))
+  logging.debug("Performance alert is %s for test %s" % (is_alert, test_name))
   if is_alert:
     issue_number, issue_url = create_performance_alert(
-    metric_name, params['test_name'], timestamps,
+    metric_name, test_name, timestamps,
     metric_values, change_point_index,
     params.get('labels', None),
-    last_reported_issue_number)
+    last_reported_issue_number,
+    test_description = params.get('test_description', None),
+    )
 
     issue_metadata = GitHubIssueMetaData(
         issue_timestamp=pd.Timestamp(
             datetime.now().replace(tzinfo=timezone.utc)),
-        test_name=test_name,
+        # BQ doesn't allow '.' in table name
+        test_name=test_name.replace('.', '_'),
         metric_name=metric_name,
         test_id=uuid.uuid4().hex,
         change_point=metric_values[change_point_index],
@@ -138,7 +145,7 @@ def run_change_point_analysis(params, test_id, big_query_metrics_fetcher):
         change_point_timestamp=timestamps[change_point_index])
 
     publish_issue_metadata_to_big_query(
-        issue_metadata=issue_metadata, test_name=test_name)
+        issue_metadata=issue_metadata, table_name=issue_metadata_table_name)
 
   return is_alert
 
@@ -165,8 +172,8 @@ def run(config_file_path: Optional[str] = None) -> None:
 
   big_query_metrics_fetcher = BigQueryMetricsFetcher()
 
-  for test_id, params in tests_config.items():
-    run_change_point_analysis(params, test_id, big_query_metrics_fetcher)
+  for test_name, params in tests_config.items():
+    run_change_point_analysis(params, test_name, big_query_metrics_fetcher)
 
 
 if __name__ == '__main__':

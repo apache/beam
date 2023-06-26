@@ -15,9 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-//go:generate protoc -I ../../../playground/api/v1 --go_out=playground_api --go_opt=paths=source_relative api.proto
-//go:generate protoc -I ../../../playground/api/v1 --go-grpc_out=playground_api --go-grpc_opt=paths=source_relative api.proto
-//go:generate moq -rm -out playground_api/mock.go playground_api PlaygroundServiceClient
+//go:generate moq -rm -out playground_api/api/v1/mock.go playground_api/api/v1 PlaygroundServiceClient
 
 package tob
 
@@ -33,7 +31,7 @@ import (
 	tob "beam.apache.org/learning/tour-of-beam/backend/internal"
 	"beam.apache.org/learning/tour-of-beam/backend/internal/service"
 	"beam.apache.org/learning/tour-of-beam/backend/internal/storage"
-	pb "beam.apache.org/learning/tour-of-beam/backend/playground_api"
+	pb "beam.apache.org/learning/tour-of-beam/backend/playground_api/api/v1"
 	"cloud.google.com/go/datastore"
 	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
 	"google.golang.org/grpc"

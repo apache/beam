@@ -16,7 +16,7 @@
 package worker
 
 import (
-	"sync"
+	"sync/atomic"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
@@ -40,19 +40,22 @@ type B struct {
 	// MultiMapSideInputData is a map from transformID, to inputID, to window, to data key, to data values.
 	MultiMapSideInputData map[string]map[string]map[typex.Window]map[string][][]byte
 
-	// OutputCount is the number of data outputs this bundle has.
+	// OutputCount is the number of data or timer outputs this bundle has.
 	// We need to see this many closed data channels before the bundle is complete.
 	OutputCount int
-	// dataWait is how we determine if a bundle is finished, by waiting for each of
+	// DataWait is how we determine if a bundle is finished, by waiting for each of
 	// a Bundle's DataSinks to produce their last output.
 	// After this point we can "commit" the bundle's output for downstream use.
-	dataWait   sync.WaitGroup
+	DataWait   chan struct{}
+	dataSema   atomic.Int32
 	OutputData engine.TentativeData
-	Resp       chan *fnpb.ProcessBundleResponse
+
+	// TODO move response channel to an atomic and an additional
+	// block on the DataWait channel, to allow progress & splits for
+	// no output DoFns.
+	Resp chan *fnpb.ProcessBundleResponse
 
 	SinkToPCollection map[string]string
-
-	// TODO: Metrics for this bundle, can be handled after the fact.
 }
 
 // Init initializes the bundle's internal state for waiting on all
@@ -60,8 +63,20 @@ type B struct {
 func (b *B) Init() {
 	// We need to see final data signals that match the number of
 	// outputs the stage this bundle executes posesses
-	b.dataWait.Add(b.OutputCount)
+	b.dataSema.Store(int32(b.OutputCount))
+	b.DataWait = make(chan struct{})
+	if b.OutputCount == 0 {
+		close(b.DataWait) // Can happen if there are no outputs for the bundle.
+	}
 	b.Resp = make(chan *fnpb.ProcessBundleResponse, 1)
+}
+
+// DataDone indicates a final element has been received from a Data or Timer output.
+func (b *B) DataDone() {
+	sema := b.dataSema.Add(-1)
+	if sema == 0 {
+		close(b.DataWait)
+	}
 }
 
 func (b *B) LogValue() slog.Value {
@@ -70,17 +85,21 @@ func (b *B) LogValue() slog.Value {
 		slog.String("stage", b.PBDID))
 }
 
-// ProcessOn executes the given bundle on the given W, blocking
-// until all data is complete.
+func (b *B) Respond(resp *fnpb.InstructionResponse) {
+	b.Resp <- resp.GetProcessBundle()
+}
+
+// ProcessOn executes the given bundle on the given W.
+// The returned channel is closed once all expected data is returned.
 //
 // Assumes the bundle is initialized (all maps are non-nil, and data waitgroup is set, response channel initialized)
 // Assumes the bundle descriptor is already registered with the W.
 //
 // While this method mostly manipulates a W, putting it on a B avoids mixing the workers
 // public GRPC APIs up with local calls.
-func (b *B) ProcessOn(wk *W) {
+func (b *B) ProcessOn(wk *W) <-chan struct{} {
 	wk.mu.Lock()
-	wk.bundles[b.InstID] = b
+	wk.activeInstructions[b.InstID] = b
 	wk.mu.Unlock()
 
 	slog.Debug("processing", "bundle", b, "worker", wk)
@@ -108,7 +127,39 @@ func (b *B) ProcessOn(wk *W) {
 			},
 		}
 	}
+	return b.DataWait
+}
 
-	slog.Debug("waiting on data", "bundle", b)
-	b.dataWait.Wait() // Wait until data is ready.
+// Cleanup unregisters the bundle from the worker.
+func (b *B) Cleanup(wk *W) {
+	wk.mu.Lock()
+	delete(wk.activeInstructions, b.InstID)
+	wk.mu.Unlock()
+}
+
+func (b *B) Progress(wk *W) *fnpb.ProcessBundleProgressResponse {
+	return wk.sendInstruction(&fnpb.InstructionRequest{
+		Request: &fnpb.InstructionRequest_ProcessBundleProgress{
+			ProcessBundleProgress: &fnpb.ProcessBundleProgressRequest{
+				InstructionId: b.InstID,
+			},
+		},
+	}).GetProcessBundleProgress()
+}
+
+func (b *B) Split(wk *W, fraction float64, allowedSplits []int64) *fnpb.ProcessBundleSplitResponse {
+	return wk.sendInstruction(&fnpb.InstructionRequest{
+		Request: &fnpb.InstructionRequest_ProcessBundleSplit{
+			ProcessBundleSplit: &fnpb.ProcessBundleSplitRequest{
+				InstructionId: b.InstID,
+				DesiredSplits: map[string]*fnpb.ProcessBundleSplitRequest_DesiredSplit{
+					b.InputTransformID: {
+						FractionOfRemainder:    fraction,
+						AllowedSplitPoints:     allowedSplits,
+						EstimatedInputElements: int64(len(b.InputData)),
+					},
+				},
+			},
+		},
+	}).GetProcessBundleSplit()
 }

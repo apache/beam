@@ -70,7 +70,6 @@ import org.slf4j.LoggerFactory;
 
 /** ZetaSQLQueryPlanner. */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class ZetaSQLQueryPlanner implements QueryPlanner {
@@ -100,14 +99,7 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
             .getZetaSqlDefaultTimezone());
   }
 
-  public static final Factory FACTORY =
-      new Factory() {
-        @Override
-        public QueryPlanner createPlanner(
-            JdbcConnection jdbcConnection, Collection<RuleSet> ruleSets) {
-          return new ZetaSQLQueryPlanner(jdbcConnection, ruleSets);
-        }
-      };
+  public static final Factory FACTORY = ZetaSQLQueryPlanner::new;
 
   public static Collection<RuleSet> getZetaSqlRuleSets() {
     return modifyRuleSetsForZetaSql(BeamRuleSets.getRuleSets(), DEFAULT_CALC);
@@ -197,7 +189,7 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
         .getCluster()
         .setMetadataProvider(
             ChainedRelMetadataProvider.of(
-                org.apache.beam.vendor.calcite.v1_28_0.com.google.common.collect.ImmutableList.of(
+                ImmutableList.of(
                     NonCumulativeCostImpl.SOURCE,
                     RelMdNodeStats.SOURCE,
                     root.rel.getCluster().getMetadataProvider())));
@@ -216,6 +208,9 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
     }
   }
 
+  @SuppressWarnings({
+    "rawtypes", // Frameworks.ConfigBuilder.traitDefs has method signature of raw type
+  })
   private static FrameworkConfig defaultConfig(
       JdbcConnection connection, Collection<RuleSet> ruleSets) {
     final CalciteConnectionConfig config = connection.config();

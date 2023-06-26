@@ -184,6 +184,26 @@ class ConvertTest(unittest.TestCase):
       gc.enable()
       logging.disable(logging.NOTSET)
 
+  def test_auto_convert(self):
+    class MySchemaTransform(beam.PTransform):
+      def expand(self, pcoll):
+        return pcoll | beam.Map(
+            lambda x: beam.Row(
+                a=x.n**2 - x.m**2, b=2 * x.m * x.n, c=x.n**2 + x.m**2))
+
+    with beam.Pipeline() as p:
+      pc_mn = p | beam.Create([
+          (1, 2), (2, 3), (3, 10)
+      ]) | beam.MapTuple(lambda m, n: beam.Row(m=m, n=n))
+
+      df_mn = convert.to_dataframe(pc_mn)
+
+      # Apply a transform directly to a dataframe to get another dataframe.
+      df_abc = df_mn | MySchemaTransform()
+
+      pc_abc = convert.to_pcollection(df_abc) | beam.Map(tuple)
+      assert_that(pc_abc, equal_to([(3, 4, 5), (5, 12, 13), (91, 60, 109)]))
+
 
 if __name__ == '__main__':
   unittest.main()

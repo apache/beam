@@ -26,6 +26,7 @@ Dataflow client utility functions."""
 #  --outdir=apache_beam/runners/dataflow/internal/clients/cloudbuild \
 #  --root_package=. client
 
+import ast
 import codecs
 from functools import partial
 import getpass
@@ -82,7 +83,7 @@ _FNAPI_ENVIRONMENT_MAJOR_VERSION = '8'
 
 _LOGGER = logging.getLogger(__name__)
 
-_PYTHON_VERSIONS_SUPPORTED_BY_DATAFLOW = ['3.7', '3.8', '3.9', '3.10']
+_PYTHON_VERSIONS_SUPPORTED_BY_DATAFLOW = ['3.7', '3.8', '3.9', '3.10', '3.11']
 
 
 class Step(object):
@@ -506,12 +507,20 @@ class Job(object):
     # Labels.
     if self.google_cloud_options.labels:
       self.proto.labels = dataflow.Job.LabelsValue()
-      for label in self.google_cloud_options.labels:
-        parts = label.split('=', 1)
-        key = parts[0]
-        value = parts[1] if len(parts) > 1 else ''
-        self.proto.labels.additionalProperties.append(
-            dataflow.Job.LabelsValue.AdditionalProperty(key=key, value=value))
+      labels = self.google_cloud_options.labels
+      for label in labels:
+        if '{' in label:
+          label = ast.literal_eval(label)
+          for key, value in label.items():
+            self.proto.labels.additionalProperties.append(
+                dataflow.Job.LabelsValue.AdditionalProperty(
+                    key=key, value=value))
+        else:
+          parts = label.split('=', 1)
+          key = parts[0]
+          value = parts[1] if len(parts) > 1 else ''
+          self.proto.labels.additionalProperties.append(
+              dataflow.Job.LabelsValue.AdditionalProperty(key=key, value=value))
 
     # Client Request ID
     self.proto.clientRequestId = '{}-{}'.format(
@@ -1193,24 +1202,28 @@ def get_container_image_from_options(pipeline_options):
     Returns:
       str: Container image for remote execution.
   """
-  from apache_beam.runners.dataflow.dataflow_runner import _is_runner_v2
+  from apache_beam.runners.dataflow.dataflow_runner import _is_runner_v2_disabled
   worker_options = pipeline_options.view_as(WorkerOptions)
   if worker_options.sdk_container_image:
     return worker_options.sdk_container_image
 
-  # TODO(tvalentyn): Use enumerated type instead of strings for job types.
-  if _is_runner_v2(pipeline_options):
-    fnapi_suffix = '-fnapi'
-  else:
-    fnapi_suffix = ''
+  is_runner_v2 = not _is_runner_v2_disabled(pipeline_options)
 
-  version_suffix = '%s%s' % (sys.version_info[0:2])
-  image_name = '{repository}/python{version_suffix}{fnapi_suffix}'.format(
-      repository=names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY,
-      version_suffix=version_suffix,
-      fnapi_suffix=fnapi_suffix)
+  # Legacy and runner v2 exist in different repositories.
+  # Set to legacy format, override if runner v2
+  container_repo = names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY
+  image_name = '{repository}/python{major}{minor}'.format(
+      repository=container_repo,
+      major=sys.version_info[0],
+      minor=sys.version_info[1])
 
-  image_tag = _get_required_container_version(_is_runner_v2(pipeline_options))
+  if is_runner_v2:
+    image_name = '{repository}/beam_python{major}.{minor}_sdk'.format(
+        repository=container_repo,
+        major=sys.version_info[0],
+        minor=sys.version_info[1])
+
+  image_tag = _get_required_container_version(is_runner_v2)
   return image_name + ':' + image_tag
 
 

@@ -122,30 +122,6 @@ class CloudMLTFTBenchmarkTest(unittest.TestCase):
         metrics_table=metrics_table,
         metric_name='runtime_sec')
 
-  def test_cloud_ml_benchmark_criteo_fixed_workers_10GB(self):
-    test_pipeline = TestPipeline(is_integration_test=True)
-    extra_opts = {}
-    extra_opts['input'] = os.path.join(
-        _INPUT_GCS_BUCKET_ROOT, lib.INPUT_CRITEO_10GB)
-    extra_opts['benchmark_type'] = 'tft'
-    extra_opts['classifier'] = 'criteo'
-    extra_opts['frequency_threshold'] = 0
-    extra_opts['output'] = os.path.join(
-        _OUTPUT_GCS_BUCKET_ROOT, uuid.uuid4().hex)
-    extra_opts['num_workers'] = 50
-    extra_opts['machine_type'] = 'n1-standard-4'
-    start_time = time.time()
-    workflow.run(test_pipeline.get_full_options_as_args(**extra_opts))
-    end_time = time.time()
-
-    metrics_table = 'cloudml_benchmark_criteo_fixed_workers_10GB'
-
-    _publish_metrics(
-        pipeline=test_pipeline,
-        metric_value=end_time - start_time,
-        metrics_table=metrics_table,
-        metric_name='runtime_sec')
-
 
 if __name__ == '__main__':
   unittest.main()

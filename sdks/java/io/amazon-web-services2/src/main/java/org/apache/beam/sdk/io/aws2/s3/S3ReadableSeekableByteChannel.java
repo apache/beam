@@ -43,7 +43,7 @@ import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class S3ReadableSeekableByteChannel implements SeekableByteChannel {
-
+  private static final long ABORT_THRESHOLD = 1024 * 8; // corresponds to default TCP buffer size
   private final S3Client s3Client;
   private final S3ResourceId path;
   private final S3FileSystemConfiguration config;
@@ -144,12 +144,9 @@ class S3ReadableSeekableByteChannel implements SeekableByteChannel {
       return this;
     }
 
-    // The position has changed, so close and destroy the object to induce a re-creation on the next
-    // call to read()
-    if (s3ResponseInputStream != null) {
-      s3ResponseInputStream.close();
-      s3ResponseInputStream = null;
-    }
+    // The position has changed, close stream to force re-creation on the next read()
+    closeStream();
+
     position = newPosition;
     return this;
   }
@@ -162,12 +159,27 @@ class S3ReadableSeekableByteChannel implements SeekableByteChannel {
     return contentLength;
   }
 
+  private void closeStream() throws IOException {
+    if (s3ResponseInputStream == null) {
+      return;
+    }
+    if (contentLength - position > ABORT_THRESHOLD) {
+      // This will close the underlying connection and require establishing an HTTP connection which
+      // may outweigh the cost of reading the additional data.
+      s3ResponseInputStream.abort();
+      s3ResponseInputStream.release();
+    } else {
+      drainInputStream(s3ResponseInputStream);
+    }
+    s3ObjectContentChannel.close(); // will close s3ResponseInputStream
+
+    s3ObjectContentChannel = null;
+    s3ResponseInputStream = null;
+  }
+
   @Override
   public void close() throws IOException {
-    if (s3ResponseInputStream != null) {
-      drainInputStream(s3ResponseInputStream);
-      s3ResponseInputStream.close();
-    }
+    closeStream();
     open = false;
   }
 

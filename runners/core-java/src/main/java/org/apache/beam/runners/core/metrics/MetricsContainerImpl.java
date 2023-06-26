@@ -47,7 +47,7 @@ import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.util.HistogramData;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -112,23 +112,17 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
   @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
       justification = "No bug",
       value = "SE_BAD_FIELD")
-  private Map<MetricKey, Optional<String>> shortIdsByMetricKey = new ConcurrentHashMap<>();
+  private Map<MetricName, Optional<String>> shortIdsByMetricName = new ConcurrentHashMap<>();
 
   /** Reset the metrics. */
   public void reset() {
     if (this.isProcessWide) {
       throw new RuntimeException("Process Wide metric containers must not be reset");
     }
-    reset(counters);
-    reset(distributions);
-    reset(gauges);
-    reset(histograms);
-  }
-
-  private void reset(MetricsMap<?, ? extends MetricCell<?>> cells) {
-    for (MetricCell<?> cell : cells.values()) {
-      cell.reset();
-    }
+    counters.forEachValue(CounterCell::reset);
+    distributions.forEachValue(DistributionCell::reset);
+    gauges.forEachValue(GaugeCell::reset);
+    histograms.forEachValue(HistogramCell::reset);
   }
 
   /**
@@ -202,13 +196,13 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
   private <UpdateT, CellT extends MetricCell<UpdateT>>
       ImmutableList<MetricUpdate<UpdateT>> extractUpdates(MetricsMap<MetricName, CellT> cells) {
     ImmutableList.Builder<MetricUpdate<UpdateT>> updates = ImmutableList.builder();
-    for (Map.Entry<MetricName, CellT> cell : cells.entries()) {
-      if (cell.getValue().getDirty().beforeCommit()) {
-        updates.add(
-            MetricUpdate.create(
-                MetricKey.create(stepName, cell.getKey()), cell.getValue().getCumulative()));
-      }
-    }
+    cells.forEach(
+        (key, value) -> {
+          if (value.getDirty().beforeCommit()) {
+            updates.add(
+                MetricUpdate.create(MetricKey.create(stepName, key), value.getCumulative()));
+          }
+        });
     return updates.build();
   }
 
@@ -346,35 +340,45 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
 
   public Map<String, ByteString> getMonitoringData(ShortIdMap shortIds) {
     ImmutableMap.Builder<String, ByteString> builder = ImmutableMap.builder();
-    MetricUpdates metricUpdates = this.getUpdates();
-    for (MetricUpdate<Long> metricUpdate : metricUpdates.counterUpdates()) {
-      String shortId =
-          getShortId(metricUpdate.getKey(), this::counterToMonitoringMetadata, shortIds);
-      if (shortId != null) {
-        builder.put(shortId, encodeInt64Counter(metricUpdate.getUpdate()));
-      }
-    }
-    for (MetricUpdate<DistributionData> metricUpdate : metricUpdates.distributionUpdates()) {
-      String shortId =
-          getShortId(metricUpdate.getKey(), this::distributionToMonitoringMetadata, shortIds);
-      if (shortId != null) {
-        builder.put(shortId, encodeInt64Distribution(metricUpdate.getUpdate()));
-      }
-    }
-    for (MetricUpdate<GaugeData> metricUpdate : metricUpdates.gaugeUpdates()) {
-      String shortId = getShortId(metricUpdate.getKey(), this::gaugeToMonitoringMetadata, shortIds);
-      if (shortId != null) {
-        builder.put(shortId, encodeInt64Gauge(metricUpdate.getUpdate()));
-      }
-    }
+    counters.forEach(
+        (metricName, counterCell) -> {
+          if (counterCell.getDirty().beforeCommit()) {
+            String shortId = getShortId(metricName, this::counterToMonitoringMetadata, shortIds);
+            if (shortId != null) {
+              builder.put(shortId, encodeInt64Counter(counterCell.getCumulative()));
+            }
+          }
+        });
+    distributions.forEach(
+        (metricName, distributionCell) -> {
+          if (distributionCell.getDirty().beforeCommit()) {
+            String shortId =
+                getShortId(metricName, this::distributionToMonitoringMetadata, shortIds);
+            if (shortId != null) {
+              builder.put(shortId, encodeInt64Distribution(distributionCell.getCumulative()));
+            }
+          }
+        });
+    gauges.forEach(
+        (metricName, gaugeCell) -> {
+          if (gaugeCell.getDirty().beforeCommit()) {
+            String shortId = getShortId(metricName, this::gaugeToMonitoringMetadata, shortIds);
+            if (shortId != null) {
+              builder.put(shortId, encodeInt64Gauge(gaugeCell.getCumulative()));
+            }
+          }
+        });
     return builder.build();
   }
 
   private String getShortId(
-      MetricKey key, Function<MetricKey, SimpleMonitoringInfoBuilder> toInfo, ShortIdMap shortIds) {
-    Optional<String> shortId = shortIdsByMetricKey.get(key);
+      MetricName metricName,
+      Function<MetricKey, SimpleMonitoringInfoBuilder> toInfo,
+      ShortIdMap shortIds) {
+    Optional<String> shortId = shortIdsByMetricName.get(metricName);
     if (shortId == null) {
-      SimpleMonitoringInfoBuilder monitoringInfoBuilder = toInfo.apply(key);
+      SimpleMonitoringInfoBuilder monitoringInfoBuilder =
+          toInfo.apply(MetricKey.create(stepName, metricName));
       if (monitoringInfoBuilder == null) {
         shortId = Optional.empty();
       } else {
@@ -385,15 +389,9 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
           shortId = Optional.of(shortIds.getOrCreateShortId(monitoringInfo));
         }
       }
-      shortIdsByMetricKey.put(key, shortId);
+      shortIdsByMetricName.put(metricName, shortId);
     }
     return shortId.orElse(null);
-  }
-
-  private void commitUpdates(MetricsMap<MetricName, ? extends MetricCell<?>> cells) {
-    for (MetricCell<?> cell : cells.values()) {
-      cell.getDirty().afterCommit();
-    }
   }
 
   /**
@@ -401,18 +399,19 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
    * committed.
    */
   public void commitUpdates() {
-    commitUpdates(counters);
-    commitUpdates(distributions);
-    commitUpdates(gauges);
+    counters.forEachValue(counter -> counter.getDirty().afterCommit());
+    distributions.forEachValue(distribution -> distribution.getDirty().afterCommit());
+    gauges.forEachValue(gauge -> gauge.getDirty().afterCommit());
   }
 
   private <UserT extends Metric, UpdateT, CellT extends MetricCell<UpdateT>>
       ImmutableList<MetricUpdate<UpdateT>> extractCumulatives(MetricsMap<MetricName, CellT> cells) {
     ImmutableList.Builder<MetricUpdate<UpdateT>> updates = ImmutableList.builder();
-    for (Map.Entry<MetricName, CellT> cell : cells.entries()) {
-      UpdateT update = checkNotNull(cell.getValue().getCumulative());
-      updates.add(MetricUpdate.create(MetricKey.create(stepName, cell.getKey()), update));
-    }
+    cells.forEach(
+        (key, value) -> {
+          UpdateT update = checkNotNull(value.getCumulative());
+          updates.add(MetricUpdate.create(MetricKey.create(stepName, key), update));
+        });
     return updates.build();
   }
 
@@ -483,34 +482,24 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
 
   private void updateCounters(
       MetricsMap<MetricName, CounterCell> current, MetricsMap<MetricName, CounterCell> updates) {
-    for (Map.Entry<MetricName, CounterCell> counter : updates.entries()) {
-      current.get(counter.getKey()).inc(counter.getValue().getCumulative());
-    }
+    updates.forEach((key, value) -> current.get(key).inc(value.getCumulative()));
   }
 
   private void updateDistributions(
       MetricsMap<MetricName, DistributionCell> current,
       MetricsMap<MetricName, DistributionCell> updates) {
-    for (Map.Entry<MetricName, DistributionCell> counter : updates.entries()) {
-      current.get(counter.getKey()).update(counter.getValue().getCumulative());
-    }
+    updates.forEach((key, value) -> current.get(key).update(value.getCumulative()));
   }
 
   private void updateGauges(
       MetricsMap<MetricName, GaugeCell> current, MetricsMap<MetricName, GaugeCell> updates) {
-    for (Map.Entry<MetricName, GaugeCell> counter : updates.entries()) {
-      current.get(counter.getKey()).update(counter.getValue().getCumulative());
-    }
+    updates.forEach((key, value) -> current.get(key).update(value.getCumulative()));
   }
 
   private void updateHistograms(
       MetricsMap<KV<MetricName, HistogramData.BucketType>, HistogramCell> current,
       MetricsMap<KV<MetricName, HistogramData.BucketType>, HistogramCell> updates) {
-    for (Map.Entry<KV<MetricName, HistogramData.BucketType>, HistogramCell> histogram :
-        updates.entries()) {
-      HistogramCell h = histogram.getValue();
-      current.get(histogram.getKey()).update(h);
-    }
+    updates.forEach((key, value) -> current.get(key).update(value));
   }
 
   @Override

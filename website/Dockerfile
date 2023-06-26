@@ -18,7 +18,7 @@
 # This image contains Hugo and dependencies required to build and test the Beam
 # website. It is used by tasks in build.gradle.
 
-FROM debian:stretch-slim
+FROM debian:stable-slim
 
 SHELL ["/bin/bash", "-o", "pipefail", "-e", "-u", "-x", "-c"]
 
@@ -43,7 +43,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 # Install node environment
-RUN curl -sL https://deb.nodesource.com/setup_10.x | bash - \
+RUN curl -sL https://deb.nodesource.com/setup_14.x | bash - \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
         nodejs \

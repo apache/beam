@@ -25,8 +25,6 @@ import com.google.auto.service.AutoService;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializers;
@@ -50,7 +48,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 @Internal
-@Experimental(Kind.SCHEMAS)
 @AutoService(SchemaTransformProvider.class)
 public class PubsubReadSchemaTransformProvider
     extends TypedSchemaTransformProvider<PubsubReadSchemaTransformConfiguration> {

@@ -276,6 +276,34 @@ func (em *ElementManager) InputForBundle(rb RunBundle, info PColInfo) [][]byte {
 	return es.ToData(info)
 }
 
+// reElementResiduals extracts the windowed value header from residual bytes, and explodes them
+// back out to their windows.
+func reElementResiduals(residuals [][]byte, inputInfo PColInfo, rb RunBundle) []element {
+	var unprocessedElements []element
+	for _, residual := range residuals {
+		buf := bytes.NewBuffer(residual)
+		ws, et, pn, err := exec.DecodeWindowedValueHeader(inputInfo.WDec, buf)
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			slog.Error("reElementResiduals: error decoding residual header", err, "bundle", rb)
+			panic("error decoding residual header")
+		}
+
+		for _, w := range ws {
+			unprocessedElements = append(unprocessedElements,
+				element{
+					window:    w,
+					timestamp: et,
+					pane:      pn,
+					elmBytes:  buf.Bytes(),
+				})
+		}
+	}
+	return unprocessedElements
+}
+
 // PersistBundle uses the tentative bundle output to update the watermarks for the stage.
 // Each stage has two monotonically increasing watermarks, the input watermark, and the output
 // watermark.
@@ -330,28 +358,7 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 	}
 
 	// Return unprocessed to this stage's pending
-	var unprocessedElements []element
-	for _, residual := range residuals {
-		buf := bytes.NewBuffer(residual)
-		ws, et, pn, err := exec.DecodeWindowedValueHeader(inputInfo.WDec, buf)
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			slog.Error("PersistBundle: error decoding residual header", err, "bundle", rb)
-			panic("error decoding residual header")
-		}
-
-		for _, w := range ws {
-			unprocessedElements = append(unprocessedElements,
-				element{
-					window:    w,
-					timestamp: et,
-					pane:      pn,
-					elmBytes:  buf.Bytes(),
-				})
-		}
-	}
+	unprocessedElements := reElementResiduals(residuals, inputInfo, rb)
 	// Add unprocessed back to the pending stack.
 	if len(unprocessedElements) > 0 {
 		em.pendingElements.Add(len(unprocessedElements))
@@ -377,6 +384,21 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 
 	// TODO support state/timer watermark holds.
 	em.addRefreshAndClearBundle(stage.ID, rb.BundleID)
+}
+
+// ReturnResiduals is called after a successful split, so the remaining work
+// can be re-assigned to a new bundle.
+func (em *ElementManager) ReturnResiduals(rb RunBundle, firstRsIndex int, inputInfo PColInfo, residuals [][]byte) {
+	stage := em.stages[rb.StageID]
+
+	stage.splitBundle(rb, firstRsIndex)
+	unprocessedElements := reElementResiduals(residuals, inputInfo, rb)
+	if len(unprocessedElements) > 0 {
+		slog.Debug("ReturnResiduals: unprocessed elements", "bundle", rb, "count", len(unprocessedElements))
+		em.pendingElements.Add(len(unprocessedElements))
+		stage.AddPending(unprocessedElements)
+	}
+	em.addRefreshes(singleSet(rb.StageID))
 }
 
 func (em *ElementManager) addRefreshes(stages set[string]) {
@@ -437,6 +459,10 @@ func (s set[K]) merge(o set[K]) {
 	for k := range o {
 		s.insert(k)
 	}
+}
+
+func singleSet[T comparable](v T) set[T] {
+	return set[T]{v: struct{}{}}
 }
 
 // stageState is the internal watermark and input tracking for a stage.
@@ -567,6 +593,22 @@ func (ss *stageState) startBundle(watermark mtime.Time, genBundID func() string)
 	bundID := genBundID()
 	ss.inprogress[bundID] = es
 	return bundID, true
+}
+
+func (ss *stageState) splitBundle(rb RunBundle, firstResidual int) {
+	ss.mu.Lock()
+	defer ss.mu.Unlock()
+
+	es := ss.inprogress[rb.BundleID]
+	slog.Debug("split elements", "bundle", rb, "elem count", len(es.es), "res", firstResidual)
+
+	prim := es.es[:firstResidual]
+	res := es.es[firstResidual:]
+
+	es.es = prim
+	ss.pending = append(ss.pending, res...)
+	heap.Init(&ss.pending)
+	ss.inprogress[rb.BundleID] = es
 }
 
 // minimumPendingTimestamp returns the minimum pending timestamp from all pending elements,

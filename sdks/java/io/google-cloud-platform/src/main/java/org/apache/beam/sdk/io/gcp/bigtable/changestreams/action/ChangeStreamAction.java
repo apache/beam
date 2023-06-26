@@ -17,11 +17,21 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams.action;
 
+import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper.formatByteStringRange;
+import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.TimestampConverter.toJodaTime;
+
+import com.google.cloud.bigtable.data.v2.models.ChangeStreamContinuationToken;
+import com.google.cloud.bigtable.data.v2.models.ChangeStreamMutation;
+import com.google.cloud.bigtable.data.v2.models.ChangeStreamRecord;
+import com.google.cloud.bigtable.data.v2.models.CloseStream;
+import com.google.cloud.bigtable.data.v2.models.Heartbeat;
+import com.google.cloud.bigtable.data.v2.models.Range;
 import com.google.protobuf.ByteString;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics;
-import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMutation;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.estimator.BytesThroughputEstimator;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.model.PartitionRecord;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.restriction.StreamProgress;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -33,11 +43,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** This class is responsible for processing individual ChangeStreamRecord. */
-@SuppressWarnings({"UnusedVariable", "UnusedMethod"})
 @Internal
 public class ChangeStreamAction {
   private static final Logger LOG = LoggerFactory.getLogger(ChangeStreamAction.class);
-
   private final ChangeStreamMetrics metrics;
 
   /**
@@ -77,9 +85,9 @@ public class ChangeStreamAction {
    * <p>There are 2 cases that cause this function to return a non-empty ProcessContinuation.
    *
    * <ol>
-   *   <li>We fail to claim a RestrictionTracker. This can happen for a runner-initiated checkpoint.
+   *   <li>We fail to claim a StreamProgress. This can happen for a runner-initiated checkpoint.
    *       When the runner initiates a checkpoint, we will stop and checkpoint pending
-   *       ChangeStreamMutations and resume from the previous RestrictionTracker.
+   *       ChangeStreamMutations and resume from the previous StreamProgress.
    *   <li>The response is a CloseStream. RestrictionTracker claims the CloseStream. We don't do any
    *       additional processing of the response. We return resume to signal to the caller that to
    *       checkpoint all pending ChangeStreamMutations. We expect the caller to check the
@@ -96,12 +104,143 @@ public class ChangeStreamAction {
    */
   public Optional<DoFn.ProcessContinuation> run(
       PartitionRecord partitionRecord,
-      Object record, // TODO: Update once bigtable client includes
-      // https://github.com/googleapis/java-bigtable/pull/1569
+      ChangeStreamRecord record,
       RestrictionTracker<StreamProgress, StreamProgress> tracker,
-      DoFn.OutputReceiver<KV<ByteString, ChangeStreamMutation>> receiver,
+      DoFn.OutputReceiver<KV<ByteString, ChangeStreamRecord>> receiver,
       ManualWatermarkEstimator<Instant> watermarkEstimator,
+      BytesThroughputEstimator<KV<ByteString, ChangeStreamRecord>> throughputEstimator,
       boolean shouldDebug) {
+    if (record instanceof Heartbeat) {
+      Heartbeat heartbeat = (Heartbeat) record;
+      final Instant watermark = toJodaTime(heartbeat.getEstimatedLowWatermark());
+
+      // These will be filtered so the key doesn't really matter but the most logical thing to
+      // key a heartbeat by is the partition it corresponds to.
+      ByteString heartbeatKey =
+          Range.ByteStringRange.serializeToByteString(partitionRecord.getPartition());
+      KV<ByteString, ChangeStreamRecord> outputRecord = KV.of(heartbeatKey, heartbeat);
+      throughputEstimator.update(Instant.now(), outputRecord);
+      StreamProgress streamProgress =
+          new StreamProgress(
+              heartbeat.getChangeStreamContinuationToken(),
+              watermark,
+              throughputEstimator.get(),
+              Instant.now(),
+              true);
+      watermarkEstimator.setWatermark(watermark);
+
+      if (shouldDebug) {
+        LOG.info(
+            "RCSP {}: Heartbeat partition: {} token: {} watermark: {}",
+            formatByteStringRange(partitionRecord.getPartition()),
+            formatByteStringRange(heartbeat.getChangeStreamContinuationToken().getPartition()),
+            heartbeat.getChangeStreamContinuationToken().getToken(),
+            heartbeat.getEstimatedLowWatermark());
+      }
+      // If the tracker fail to claim the streamProgress, it most likely means the runner initiated
+      // a checkpoint. See {@link
+      // org.apache.beam.sdk.io.gcp.bigtable.changestreams.restriction.ReadChangeStreamPartitionProgressTracker}
+      // for more information regarding runner initiated checkpoints.
+      if (!tracker.tryClaim(streamProgress)) {
+        if (shouldDebug) {
+          LOG.info(
+              "RCSP {}: Checkpoint heart beat tracker",
+              formatByteStringRange(partitionRecord.getPartition()));
+        }
+        return Optional.of(DoFn.ProcessContinuation.stop());
+      }
+      metrics.incHeartbeatCount();
+      // We output heartbeats so that they are factored into throughput and can be used to
+      // autoscale. These will be filtered in a downstream step and never returned to users. This is
+      // to prevent autoscaler from scaling down when we have large tables with no throughput but
+      // we need enough workers to keep up with heartbeats.
+
+      // We are outputting elements with timestamp of 0 to prevent reliance on event time. This
+      // limits the ability to window on commit time of any data changes. It is still possible to
+      // window on processing time.
+      receiver.outputWithTimestamp(outputRecord, Instant.EPOCH);
+    } else if (record instanceof CloseStream) {
+      CloseStream closeStream = (CloseStream) record;
+      StreamProgress streamProgress = new StreamProgress(closeStream);
+
+      if (shouldDebug) {
+        LOG.info(
+            "RCSP {}: CloseStream: {}",
+            formatByteStringRange(partitionRecord.getPartition()),
+            closeStream.getChangeStreamContinuationTokens().stream()
+                .map(
+                    c ->
+                        "{partition: "
+                            + formatByteStringRange(c.getPartition())
+                            + " token: "
+                            + c.getToken()
+                            + "}")
+                .collect(Collectors.joining(", ", "[", "]")));
+      }
+      // If the tracker fail to claim the streamProgress, it most likely means the runner initiated
+      // a checkpoint. See {@link
+      // org.apache.beam.sdk.io.gcp.bigtable.changestreams.restriction.ReadChangeStreamPartitionProgressTracker}
+      // for more information regarding runner initiated checkpoints.
+      if (!tracker.tryClaim(streamProgress)) {
+        if (shouldDebug) {
+          LOG.info(
+              "RCSP {}: Checkpoint close stream tracker",
+              formatByteStringRange(partitionRecord.getPartition()));
+        }
+        return Optional.of(DoFn.ProcessContinuation.stop());
+      }
+      metrics.incClosestreamCount();
+      return Optional.of(DoFn.ProcessContinuation.resume());
+    } else if (record instanceof ChangeStreamMutation) {
+      ChangeStreamMutation changeStreamMutation = (ChangeStreamMutation) record;
+      final Instant watermark = toJodaTime(changeStreamMutation.getEstimatedLowWatermark());
+      watermarkEstimator.setWatermark(watermark);
+      // Build a new StreamProgress with the continuation token to be claimed.
+      ChangeStreamContinuationToken changeStreamContinuationToken =
+          ChangeStreamContinuationToken.create(
+              Range.ByteStringRange.create(
+                  partitionRecord.getPartition().getStart(),
+                  partitionRecord.getPartition().getEnd()),
+              changeStreamMutation.getToken());
+
+      KV<ByteString, ChangeStreamRecord> outputRecord =
+          KV.of(changeStreamMutation.getRowKey(), changeStreamMutation);
+      throughputEstimator.update(Instant.now(), outputRecord);
+      StreamProgress streamProgress =
+          new StreamProgress(
+              changeStreamContinuationToken,
+              watermark,
+              throughputEstimator.get(),
+              Instant.now(),
+              false);
+      // If the tracker fail to claim the streamProgress, it most likely means the runner initiated
+      // a checkpoint. See ReadChangeStreamPartitionProgressTracker for more information regarding
+      // runner initiated checkpoints.
+      if (!tracker.tryClaim(streamProgress)) {
+        if (shouldDebug) {
+          LOG.info(
+              "RCSP {}: Checkpoint data change tracker",
+              formatByteStringRange(partitionRecord.getPartition()));
+        }
+        return Optional.of(DoFn.ProcessContinuation.stop());
+      }
+      if (changeStreamMutation.getType() == ChangeStreamMutation.MutationType.GARBAGE_COLLECTION) {
+        metrics.incChangeStreamMutationGcCounter();
+      } else if (changeStreamMutation.getType() == ChangeStreamMutation.MutationType.USER) {
+        metrics.incChangeStreamMutationUserCounter();
+      }
+      Instant delay = toJodaTime(changeStreamMutation.getCommitTimestamp());
+      metrics.updateProcessingDelayFromCommitTimestamp(
+          Instant.now().getMillis() - delay.getMillis());
+
+      // We are outputting elements with timestamp of 0 to prevent reliance on event time. This
+      // limits the ability to window on commit time of any data changes. It is still possible to
+      // window on processing time.
+      receiver.outputWithTimestamp(outputRecord, Instant.EPOCH);
+    } else {
+      LOG.warn(
+          "RCSP {}: Invalid response type", formatByteStringRange(partitionRecord.getPartition()));
+    }
     return Optional.empty();
   }
 }

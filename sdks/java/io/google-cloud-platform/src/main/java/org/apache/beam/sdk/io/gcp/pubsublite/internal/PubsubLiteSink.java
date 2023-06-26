@@ -22,7 +22,6 @@ import static java.util.concurrent.TimeUnit.MINUTES;
 import com.google.api.core.ApiFuture;
 import com.google.api.core.ApiFutures;
 import com.google.api.gax.rpc.ApiException;
-import com.google.cloud.pubsublite.Message;
 import com.google.cloud.pubsublite.MessageMetadata;
 import com.google.cloud.pubsublite.internal.CheckedApiException;
 import com.google.cloud.pubsublite.internal.Publisher;
@@ -59,7 +58,7 @@ public class PubsubLiteSink extends DoFn<PubSubMessage, Void> {
     }
 
     void publish(PubSubMessage message) {
-      futures.add(publisher.publish(Message.fromProto(message)));
+      futures.add(publisher.publish(message));
     }
 
     void waitForDone() throws Exception {

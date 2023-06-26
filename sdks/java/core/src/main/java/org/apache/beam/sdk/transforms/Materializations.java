@@ -21,8 +21,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardSideInputTypes;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -38,7 +36,6 @@ public class Materializations {
    * The URN for a {@link Materialization} where the primitive view type is an iterable of fully
    * specified windowed values.
    */
-  @Experimental(Kind.CORE_RUNNERS_ONLY)
   public static final String ITERABLE_MATERIALIZATION_URN = "beam:side_input:iterable:v1";
 
   static {
@@ -62,7 +59,6 @@ public class Materializations {
    * The URN for a {@link Materialization} where the primitive view type is a multimap of fully
    * specified windowed values.
    */
-  @Experimental(Kind.CORE_RUNNERS_ONLY)
   public static final String MULTIMAP_MATERIALIZATION_URN = "beam:side_input:multimap:v1";
 
   static {

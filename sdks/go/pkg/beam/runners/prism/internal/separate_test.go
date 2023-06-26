@@ -93,7 +93,7 @@ func TestSeparation(t *testing.T) {
 				out := beam.ParDo(s, &sepHarnessSdfStream{
 					Base: sepHarnessBase{
 						WatcherID:         ws.newWatcher(3),
-						Sleep:             time.Second,
+						Sleep:             10 * time.Millisecond,
 						IsSentinelEncoded: beam.EncodedFunc{Fn: reflectx.MakeFunc(allSentinel)},
 						LocalService:      ws.serviceAddress,
 					},
@@ -107,7 +107,7 @@ func TestSeparation(t *testing.T) {
 				count := 10
 				imp := beam.Impulse(s)
 				out := beam.ParDo(s, &singleStepSdfStream{
-					Sleep:    time.Second,
+					Sleep:    10 * time.Millisecond,
 					RestSize: int64(count),
 				}, imp)
 				passert.Count(s, out, "global stepped num ints", count)
@@ -121,7 +121,7 @@ func TestSeparation(t *testing.T) {
 				count := int(elms / mod)
 				imp := beam.Impulse(s)
 				out := beam.ParDo(s, &eventtimeSDFStream{
-					Sleep:    time.Second,
+					Sleep:    10 * time.Millisecond,
 					RestSize: int64(elms),
 					Mod:      int64(mod),
 					Fixed:    1,
@@ -135,11 +135,41 @@ func TestSeparation(t *testing.T) {
 				gsum := beam.WindowInto(s, window.NewGlobalWindows(), sum)
 				passert.Count(s, gsum, "total sums", count)
 			},
+		}, {
+			name: "ChannelSplit",
+			pipeline: func(s beam.Scope) {
+				count := 10
+				imp := beam.Impulse(s)
+				ints := beam.ParDo(s, emitTenFn, imp)
+				out := beam.ParDo(s, &sepHarness{
+					Base: sepHarnessBase{
+						WatcherID:         ws.newWatcher(3),
+						Sleep:             100 * time.Millisecond,
+						IsSentinelEncoded: beam.EncodedFunc{Fn: reflectx.MakeFunc(threeSentinel)},
+						LocalService:      ws.serviceAddress,
+					},
+				}, ints)
+				out = beam.ParDo(s, toInt, out)
+				passert.Sum(s, out, "sum ints", count, 55)
+			},
+		}, {
+			name: "SDFSplit_adjacent_positions",
+			pipeline: func(s beam.Scope) {
+				count := 10
+				imp := beam.Impulse(s)
+				out := beam.ParDo(s, &sepHarnessSdf{
+					Base: sepHarnessBase{
+						WatcherID:         ws.newWatcher(3),
+						Sleep:             100 * time.Millisecond,
+						IsSentinelEncoded: beam.EncodedFunc{Fn: reflectx.MakeFunc(closeSentinel)},
+						LocalService:      ws.serviceAddress,
+					},
+					RestSize: int64(count),
+				}, imp)
+				passert.Count(s, out, "total elements", count)
+			},
 		},
 	}
-
-	// TODO: Channel Splits
-	// TODO: SubElement/dynamic splits.
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -157,12 +187,47 @@ func TestSeparation(t *testing.T) {
 }
 
 func init() {
+	register.Function2x0(emitTenFn)
+	register.Function2x0(toInt)
+	register.Emitter1[int64]()
+	register.Emitter1[int]()
+}
+
+func emitTenFn(_ []byte, emit func(int64)) {
+	for i := int64(1); i <= 10; i++ {
+		emit(i)
+	}
+}
+
+func toInt(v int64, emit func(int)) {
+	emit(int(v))
+}
+
+func init() {
 	register.Function1x1(allSentinel)
+	register.Function1x1(threeSentinel)
+	register.Function2x1(closeSentinel)
 }
 
 // allSentinel indicates that all elements are sentinels.
 func allSentinel(v beam.T) bool {
 	return true
+}
+
+// threeSentinel indicates that every element that's mod 3 == 0 is a sentinel.
+func threeSentinel(v beam.T) bool {
+	i := v.(int64)
+	return i > 0 && i%3 == 0
+}
+
+// closeSentinel indicates adjacent positions 3,4,5 are sentinels.
+func closeSentinel(i int64, _ beam.T) bool {
+	switch i {
+	case 3, 4, 5:
+		return true
+	default:
+		return false
+	}
 }
 
 // Watcher is an instance of the counters.
@@ -304,7 +369,7 @@ func (fn *sepHarnessBase) setup() error {
 	// Check if there's already a local channel for this id, and if not
 	// start a watcher goroutine to poll and unblock the harness when
 	// the expected number of sentinels is reached.
-	if _, ok := sepWaitMap[fn.WatcherID]; !ok {
+	if _, ok := sepWaitMap[fn.WatcherID]; ok {
 		return nil
 	}
 	// We need a channel to block on for this watcherID

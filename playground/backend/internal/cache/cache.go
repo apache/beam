@@ -76,11 +76,15 @@ const (
 // Cache is used to store states and outputs for Apache Beam pipelines that running in Playground
 // Cache allows keep and read any value by pipelineId and subKey:
 // pipelineId_1:
-//				subKey_1: value_1
-//				subKey_2: value_2
+//
+//	subKey_1: value_1
+//	subKey_2: value_2
+//
 // pipelineId_2:
-//				subKey_1: value_3
-//				subKey_3: value_4
+//
+//	subKey_1: value_3
+//	subKey_3: value_4
+//
 // pipelineId is uuid that calculates in the controller when the server takes new request to run code
 type Cache interface {
 	// GetValue returns value from cache by pipelineId and subKey.

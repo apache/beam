@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.coders;
 
+import static org.apache.beam.sdk.util.ByteBuddyUtils.getClassLoadingStrategy;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.IOException;
@@ -36,7 +37,6 @@ import net.bytebuddy.description.modifier.Visibility;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.description.type.TypeDescription.ForLoadedType;
 import net.bytebuddy.dynamic.DynamicType;
-import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
 import net.bytebuddy.dynamic.scaffold.InstrumentedType;
 import net.bytebuddy.implementation.FixedValue;
 import net.bytebuddy.implementation.Implementation;
@@ -49,12 +49,11 @@ import net.bytebuddy.implementation.bytecode.member.MethodInvocation;
 import net.bytebuddy.implementation.bytecode.member.MethodReturn;
 import net.bytebuddy.implementation.bytecode.member.MethodVariableAccess;
 import net.bytebuddy.matcher.ElementMatchers;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.SchemaCoder;
+import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
@@ -95,7 +94,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
  * }
  * </code></pre>
  */
-@Experimental(Kind.SCHEMAS)
 @SuppressWarnings({
   "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes"
@@ -142,10 +140,7 @@ public abstract class RowCoderGenerator {
       }
       // There should never be duplicate encoding positions.
       Preconditions.checkState(
-          schema.getFieldCount() == Arrays.stream(encodingPosToRowIndex).distinct().count(),
-          "The input schema (%s) and map for position encoding (%s) do not match.",
-          schema.getFields(),
-          encodingPosToRowIndex);
+          schema.getFieldCount() == Arrays.stream(encodingPosToRowIndex).distinct().count());
 
       // Component coders are ordered by encoding position, but may encode a field with a different
       // row index.
@@ -172,7 +167,9 @@ public abstract class RowCoderGenerator {
         rowCoder =
             builder
                 .make()
-                .load(Coder.class.getClassLoader(), ClassLoadingStrategy.Default.INJECTION)
+                .load(
+                    ReflectHelpers.findClassLoader(Coder.class.getClassLoader()),
+                    getClassLoadingStrategy(Coder.class))
                 .getLoaded()
                 .getDeclaredConstructor(Coder[].class, int[].class)
                 .newInstance((Object) componentCoders, (Object) encodingPosToRowIndex);
@@ -314,12 +311,7 @@ public abstract class RowCoderGenerator {
         boolean hasNullableFields)
         throws IOException {
       checkState(value.getFieldCount() == value.getSchema().getFieldCount());
-      checkState(
-          encodingPosToIndex.length == value.getFieldCount(),
-          "Unable to encode row. Expected %s values, but row has %s%s",
-          encodingPosToIndex.length,
-          value.getFieldCount(),
-          value.getSchema().getFieldNames());
+      checkState(encodingPosToIndex.length == value.getFieldCount());
 
       // Encode the field count. This allows us to handle compatible schema changes.
       VAR_INT_CODER.encode(value.getFieldCount(), outputStream);

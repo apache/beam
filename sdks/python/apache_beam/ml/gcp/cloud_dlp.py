@@ -29,14 +29,12 @@ from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.transforms import DoFn
 from apache_beam.transforms import ParDo
 from apache_beam.transforms import PTransform
-from apache_beam.utils.annotations import experimental
 
 __all__ = ['MaskDetectedDetails', 'InspectForDetails']
 
 _LOGGER = logging.getLogger(__name__)
 
 
-@experimental()
 @typehints.with_input_types(str)
 @typehints.with_output_types(str)
 class MaskDetectedDetails(PTransform):
@@ -129,7 +127,6 @@ class MaskDetectedDetails(PTransform):
         | ParDo(_DeidentifyFn(self.config, self.timeout, self.project)))
 
 
-@experimental()
 @typehints.with_input_types(str)
 @typehints.with_output_types(List[dlp_v2.types.dlp.Finding])
 class InspectForDetails(PTransform):

@@ -30,6 +30,10 @@ import (
 	"beam.apache.org/playground/backend/internal/logger"
 )
 
+const (
+	catalogExpire = 5 * time.Minute
+)
+
 type Cache struct {
 	*redis.Client
 }
@@ -105,7 +109,7 @@ func (rc *Cache) SetCatalog(ctx context.Context, catalog []*pb.Categories) error
 		logger.Errorf("Redis Cache: set catalog: error during marshal catalog: %s, err: %s\n", catalog, err.Error())
 		return err
 	}
-	err = rc.Set(ctx, cache.ExamplesCatalog, catalogMarsh, 0).Err()
+	err = rc.Set(ctx, cache.ExamplesCatalog, catalogMarsh, catalogExpire).Err()
 	if err != nil {
 		logger.Errorf("Redis Cache: set catalog: error during Set operation, err: %s\n", err.Error())
 		return err
@@ -117,7 +121,7 @@ func (rc *Cache) SetCatalog(ctx context.Context, catalog []*pb.Categories) error
 func (rc *Cache) GetCatalog(ctx context.Context) ([]*pb.Categories, error) {
 	value, err := rc.Get(ctx, cache.ExamplesCatalog).Result()
 	if err != nil {
-		logger.Errorf("Redis Cache: get catalog: error during Get operation for key: %s, err: %s\n", cache.ExamplesCatalog, err.Error())
+		logger.Warnf("Redis Cache: get catalog: error during Get operation for key: %s, err: %s\n", cache.ExamplesCatalog, err.Error())
 		return nil, err
 	}
 	var result []*pb.Categories

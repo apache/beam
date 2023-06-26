@@ -141,10 +141,10 @@ public class PubsubJsonClient extends PubsubClient {
     List<PubsubMessage> pubsubMessages = new ArrayList<>(outgoingMessages.size());
     for (OutgoingMessage outgoingMessage : outgoingMessages) {
       PubsubMessage pubsubMessage =
-          new PubsubMessage().encodeData(outgoingMessage.message().getData().toByteArray());
+          new PubsubMessage().encodeData(outgoingMessage.getMessage().getData().toByteArray());
       pubsubMessage.setAttributes(getMessageAttributes(outgoingMessage));
-      if (!outgoingMessage.message().getOrderingKey().isEmpty()) {
-        pubsubMessage.setOrderingKey(outgoingMessage.message().getOrderingKey());
+      if (!outgoingMessage.getMessage().getOrderingKey().isEmpty()) {
+        pubsubMessage.setOrderingKey(outgoingMessage.getMessage().getOrderingKey());
       }
 
       // N.B. publishTime and messageId are intentionally not set on the message that is published
@@ -158,13 +158,14 @@ public class PubsubJsonClient extends PubsubClient {
 
   private Map<String, String> getMessageAttributes(OutgoingMessage outgoingMessage) {
     Map<String, String> attributes = null;
-    if (outgoingMessage.message().getAttributesMap() == null) {
+    if (outgoingMessage.getMessage().getAttributesMap() == null) {
       attributes = new TreeMap<>();
     } else {
-      attributes = new TreeMap<>(outgoingMessage.message().getAttributesMap());
+      attributes = new TreeMap<>(outgoingMessage.getMessage().getAttributesMap());
     }
     if (timestampAttribute != null) {
-      attributes.put(timestampAttribute, String.valueOf(outgoingMessage.timestampMsSinceEpoch()));
+      attributes.put(
+          timestampAttribute, String.valueOf(outgoingMessage.getTimestampMsSinceEpoch()));
     }
     if (idAttribute != null && !Strings.isNullOrEmpty(outgoingMessage.recordId())) {
       attributes.put(idAttribute, outgoingMessage.recordId());

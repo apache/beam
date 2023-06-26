@@ -13,13 +13,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
 resource "google_app_engine_application" "app_playground" {
+  count         = var.skip_appengine_deploy ? 0 : 1
   project     = var.project_id
-  location_id = var.region == "us-central1" ? var.location_id_us : var.region
+  location_id = var.region == "us-central1" ? var.location_id_us : (var.region == "europe-west1") ? var.location_id_eu : var.region
   database_type = "CLOUD_DATASTORE_COMPATIBILITY"
 }
 
 resource "google_project_service" "firestore" {
+  count      = var.skip_appengine_deploy ? 0 : 1
   project = var.project_id
   service = "firestore.googleapis.com"
   disable_dependent_services = true

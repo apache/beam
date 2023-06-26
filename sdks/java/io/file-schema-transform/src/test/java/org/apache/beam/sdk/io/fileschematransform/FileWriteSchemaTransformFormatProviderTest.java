@@ -19,6 +19,8 @@ package org.apache.beam.sdk.io.fileschematransform;
 
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.ALL_PRIMITIVE_DATA_TYPES_SCHEMA;
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.ARRAY_PRIMITIVE_DATA_TYPES_SCHEMA;
+import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.BYTE_SEQUENCE_TYPE_SCHEMA;
+import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.BYTE_TYPE_SCHEMA;
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.DOUBLY_NESTED_DATA_TYPES_SCHEMA;
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.NULLABLE_ALL_PRIMITIVE_DATA_TYPES_SCHEMA;
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.SINGLY_NESTED_DATA_TYPES_SCHEMA;
@@ -34,10 +36,12 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeTrue;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import org.apache.beam.sdk.io.Compression;
@@ -334,6 +338,34 @@ abstract class FileWriteSchemaTransformFormatProviderTest {
     String to = folder(SchemaAwareJavaBeans.TimeContaining.class);
     Schema schema = TIME_CONTAINING_SCHEMA;
     List<Row> rows = DATA.timeContainingRows;
+    applyProviderAndAssertFilesWritten(to, rows, schema);
+    writePipeline.run().waitUntilFinish();
+    assertFolderContainsInAnyOrder(to, rows, schema);
+    readPipeline.run();
+  }
+
+  @Test
+  public void byteTypes() {
+    List<String> formatsThatSupportSingleByteType = Arrays.asList("json", "xml");
+    assumeTrue(formatsThatSupportSingleByteType.contains(getFormat()));
+
+    String to = folder(SchemaAwareJavaBeans.ByteType.class);
+    Schema schema = BYTE_TYPE_SCHEMA;
+    List<Row> rows = DATA.byteTypeRows;
+    applyProviderAndAssertFilesWritten(to, rows, schema);
+    writePipeline.run().waitUntilFinish();
+    assertFolderContainsInAnyOrder(to, rows, schema);
+    readPipeline.run();
+  }
+
+  @Test
+  public void byteSequenceTypes() {
+    List<String> formatsThatSupportByteSequenceType = Arrays.asList("avro", "parquet");
+    assumeTrue(formatsThatSupportByteSequenceType.contains(getFormat()));
+
+    String to = folder(SchemaAwareJavaBeans.ByteSequenceType.class);
+    Schema schema = BYTE_SEQUENCE_TYPE_SCHEMA;
+    List<Row> rows = DATA.byteSequenceTypeRows;
     applyProviderAndAssertFilesWritten(to, rows, schema);
     writePipeline.run().waitUntilFinish();
     assertFolderContainsInAnyOrder(to, rows, schema);

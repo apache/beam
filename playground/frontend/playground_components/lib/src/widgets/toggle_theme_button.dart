@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+import 'dart:async';
+
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
@@ -23,6 +25,7 @@ import 'package:provider/provider.dart';
 
 import '../assets/assets.gen.dart';
 import '../playground_components.dart';
+import '../services/analytics/events/theme_set.dart';
 import '../theme/switch_notifier.dart';
 
 class ToggleThemeButton extends StatelessWidget {
@@ -42,7 +45,12 @@ class ToggleThemeButton extends StatelessWidget {
           ),
           label: Text(text),
           onPressed: () {
-            notifier.toggleTheme();
+            unawaited(notifier.toggleTheme());
+            PlaygroundComponents.analyticsService.sendUnawaited(
+              ThemeSetAnalyticsEvent(
+                brightness: notifier.brightness,
+              ),
+            );
           },
         );
       },

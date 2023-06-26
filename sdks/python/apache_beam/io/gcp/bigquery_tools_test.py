@@ -25,9 +25,12 @@ import logging
 import math
 import re
 import unittest
+from typing import Optional
+from typing import Sequence
 
 import fastavro
 import mock
+import numpy as np
 import pytz
 from parameterized import parameterized
 
@@ -38,14 +41,18 @@ from apache_beam.io.gcp.bigquery_tools import AvroRowWriter
 from apache_beam.io.gcp.bigquery_tools import BigQueryJobTypes
 from apache_beam.io.gcp.bigquery_tools import JsonRowWriter
 from apache_beam.io.gcp.bigquery_tools import RowAsDictJsonCoder
+from apache_beam.io.gcp.bigquery_tools import beam_row_from_dict
 from apache_beam.io.gcp.bigquery_tools import check_schema_equal
 from apache_beam.io.gcp.bigquery_tools import generate_bq_job_name
+from apache_beam.io.gcp.bigquery_tools import get_beam_typehints_from_tableschema
 from apache_beam.io.gcp.bigquery_tools import parse_table_reference
 from apache_beam.io.gcp.bigquery_tools import parse_table_schema_from_json
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.options.value_provider import StaticValueProvider
+from apache_beam.typehints.row_type import RowTypeConstraint
+from apache_beam.utils.timestamp import Timestamp
 
 # Protect against environments where bigquery library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -782,6 +789,237 @@ class TestCheckSchemaEqual(unittest.TestCase):
     self.assertFalse(check_schema_equal(schema1, schema2))
     self.assertTrue(
         check_schema_equal(schema1, schema2, ignore_descriptions=True))
+
+
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
+class TestBeamRowFromDict(unittest.TestCase):
+  DICT_ROW = {
+      "str": "a",
+      "bool": True,
+      "bytes": b'a',
+      "int": 1,
+      "float": 0.1,
+      "numeric": decimal.Decimal("1.11"),
+      "timestamp": Timestamp(1000, 100)
+  }
+
+  def get_schema_fields_with_mode(self, mode):
+    return [{
+        "name": "str", "type": "STRING", "mode": mode
+    }, {
+        "name": "bool", "type": "boolean", "mode": mode
+    }, {
+        "name": "bytes", "type": "BYTES", "mode": mode
+    }, {
+        "name": "int", "type": "INTEGER", "mode": mode
+    }, {
+        "name": "float", "type": "Float", "mode": mode
+    }, {
+        "name": "numeric", "type": "NUMERIC", "mode": mode
+    }, {
+        "name": "timestamp", "type": "TIMESTAMP", "mode": mode
+    }]
+
+  def test_dict_to_beam_row_all_types_required(self):
+    schema = {"fields": self.get_schema_fields_with_mode("REQUIRED")}
+    expected_beam_row = beam.Row(
+        str="a",
+        bool=True,
+        bytes=b'a',
+        int=1,
+        float=0.1,
+        numeric=decimal.Decimal("1.11"),
+        timestamp=Timestamp(1000, 100))
+
+    self.assertEqual(
+        expected_beam_row, beam_row_from_dict(self.DICT_ROW, schema))
+
+  def test_dict_to_beam_row_all_types_repeated(self):
+    schema = {"fields": self.get_schema_fields_with_mode("REPEATED")}
+    dict_row = {
+        "str": ["a", "b"],
+        "bool": [True, False],
+        "bytes": [b'a', b'b'],
+        "int": [1, 2],
+        "float": [0.1, 0.2],
+        "numeric": [decimal.Decimal("1.11"), decimal.Decimal("2.22")],
+        "timestamp": [Timestamp(1000, 100), Timestamp(2000, 200)]
+    }
+
+    expected_beam_row = beam.Row(
+        str=["a", "b"],
+        bool=[True, False],
+        bytes=[b'a', b'b'],
+        int=[1, 2],
+        float=[0.1, 0.2],
+        numeric=[decimal.Decimal("1.11"), decimal.Decimal("2.22")],
+        timestamp=[Timestamp(1000, 100), Timestamp(2000, 200)])
+
+    self.assertEqual(expected_beam_row, beam_row_from_dict(dict_row, schema))
+
+  def test_dict_to_beam_row_all_types_nullable(self):
+    schema = {"fields": self.get_schema_fields_with_mode("nullable")}
+    dict_row = {k: None for k in self.DICT_ROW}
+
+    expected_beam_row = beam.Row(
+        str=None,
+        bool=None,
+        bytes=None,
+        int=None,
+        float=None,
+        numeric=None,
+        timestamp=None)
+
+    self.assertEqual(expected_beam_row, beam_row_from_dict(dict_row, schema))
+
+  def test_dict_to_beam_row_nested_record(self):
+    schema_fields_with_nested = [{
+        "name": "nested_record",
+        "type": "record",
+        "fields": self.get_schema_fields_with_mode("required")
+    }]
+    schema_fields_with_nested.extend(
+        self.get_schema_fields_with_mode("required"))
+    schema = {"fields": schema_fields_with_nested}
+
+    dict_row = {
+        "nested_record": self.DICT_ROW,
+        "str": "a",
+        "bool": True,
+        "bytes": b'a',
+        "int": 1,
+        "float": 0.1,
+        "numeric": decimal.Decimal("1.11"),
+        "timestamp": Timestamp(1000, 100)
+    }
+    expected_beam_row = beam.Row(
+        nested_record=beam.Row(
+            str="a",
+            bool=True,
+            bytes=b'a',
+            int=1,
+            float=0.1,
+            numeric=decimal.Decimal("1.11"),
+            timestamp=Timestamp(1000, 100)),
+        str="a",
+        bool=True,
+        bytes=b'a',
+        int=1,
+        float=0.1,
+        numeric=decimal.Decimal("1.11"),
+        timestamp=Timestamp(1000, 100))
+
+    self.assertEqual(expected_beam_row, beam_row_from_dict(dict_row, schema))
+
+  def test_dict_to_beam_row_repeated_nested_record(self):
+    schema_fields_with_repeated_nested_record = [{
+        "name": "nested_repeated_record",
+        "type": "record",
+        "mode": "repeated",
+        "fields": self.get_schema_fields_with_mode("required")
+    }]
+    schema = {"fields": schema_fields_with_repeated_nested_record}
+
+    dict_row = {
+        "nested_repeated_record": [self.DICT_ROW, self.DICT_ROW, self.DICT_ROW],
+    }
+
+    beam_row = beam.Row(
+        str="a",
+        bool=True,
+        bytes=b'a',
+        int=1,
+        float=0.1,
+        numeric=decimal.Decimal("1.11"),
+        timestamp=Timestamp(1000, 100))
+    expected_beam_row = beam.Row(
+        nested_repeated_record=[beam_row, beam_row, beam_row])
+
+    self.assertEqual(expected_beam_row, beam_row_from_dict(dict_row, schema))
+
+
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
+class TestBeamTypehintFromSchema(unittest.TestCase):
+  EXPECTED_TYPEHINTS = [("str", str), ("bool", bool), ("bytes", bytes),
+                        ("int", np.int64), ("float", np.float64),
+                        ("numeric", decimal.Decimal), ("timestamp", Timestamp)]
+
+  def get_schema_fields_with_mode(self, mode):
+    return [{
+        "name": "str", "type": "STRING", "mode": mode
+    }, {
+        "name": "bool", "type": "boolean", "mode": mode
+    }, {
+        "name": "bytes", "type": "BYTES", "mode": mode
+    }, {
+        "name": "int", "type": "INTEGER", "mode": mode
+    }, {
+        "name": "float", "type": "Float", "mode": mode
+    }, {
+        "name": "numeric", "type": "NUMERIC", "mode": mode
+    }, {
+        "name": "timestamp", "type": "TIMESTAMP", "mode": mode
+    }]
+
+  def test_typehints_from_required_schema(self):
+    schema = {"fields": self.get_schema_fields_with_mode("required")}
+    typehints = get_beam_typehints_from_tableschema(schema)
+
+    self.assertEqual(typehints, self.EXPECTED_TYPEHINTS)
+
+  def test_typehints_from_repeated_schema(self):
+    schema = {"fields": self.get_schema_fields_with_mode("repeated")}
+    typehints = get_beam_typehints_from_tableschema(schema)
+
+    expected_repeated_typehints = [
+        (name, Sequence[type]) for name, type in self.EXPECTED_TYPEHINTS
+    ]
+
+    self.assertEqual(typehints, expected_repeated_typehints)
+
+  def test_typehints_from_nullable_schema(self):
+    schema = {"fields": self.get_schema_fields_with_mode("nullable")}
+    typehints = get_beam_typehints_from_tableschema(schema)
+
+    expected_nullable_typehints = [
+        (name, Optional[type]) for name, type in self.EXPECTED_TYPEHINTS
+    ]
+
+    self.assertEqual(typehints, expected_nullable_typehints)
+
+  def test_typehints_from_schema_with_struct(self):
+    schema = {
+        "fields": [{
+            "name": "record",
+            "type": "record",
+            "mode": "required",
+            "fields": self.get_schema_fields_with_mode("required")
+        }]
+    }
+    typehints = get_beam_typehints_from_tableschema(schema)
+
+    expected_typehints = [
+        ("record", RowTypeConstraint.from_fields(self.EXPECTED_TYPEHINTS))
+    ]
+
+    self.assertEqual(typehints, expected_typehints)
+
+  def test_typehints_from_schema_with_repeated_struct(self):
+    schema = {
+        "fields": [{
+            "name": "record",
+            "type": "record",
+            "mode": "repeated",
+            "fields": self.get_schema_fields_with_mode("required")
+        }]
+    }
+    typehints = get_beam_typehints_from_tableschema(schema)
+
+    expected_typehints = [(
+        "record",
+        Sequence[RowTypeConstraint.from_fields(self.EXPECTED_TYPEHINTS)])]
+
+    self.assertEqual(typehints, expected_typehints)
 
 
 if __name__ == '__main__':

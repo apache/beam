@@ -32,7 +32,6 @@ import com.google.api.core.SettableApiFuture;
 import com.google.api.gax.rpc.StatusCode.Code;
 import com.google.cloud.pubsublite.CloudRegion;
 import com.google.cloud.pubsublite.CloudZone;
-import com.google.cloud.pubsublite.Message;
 import com.google.cloud.pubsublite.MessageMetadata;
 import com.google.cloud.pubsublite.Offset;
 import com.google.cloud.pubsublite.Partition;
@@ -43,6 +42,7 @@ import com.google.cloud.pubsublite.internal.CheckedApiException;
 import com.google.cloud.pubsublite.internal.ExtractStatus;
 import com.google.cloud.pubsublite.internal.Publisher;
 import com.google.cloud.pubsublite.internal.testing.FakeApiService;
+import com.google.cloud.pubsublite.proto.PubSubMessage;
 import com.google.protobuf.ByteString;
 import java.util.Arrays;
 import java.util.Optional;
@@ -88,12 +88,12 @@ public class PubsubLiteSinkTest {
   private final PubsubLiteSink sink = new PubsubLiteSink(defaultOptions());
 
   @Captor
-  final ArgumentCaptor<Message> publishedMessageCaptor = ArgumentCaptor.forClass(Message.class);
+  final ArgumentCaptor<PubSubMessage> publishedMessageCaptor =
+      ArgumentCaptor.forClass(PubSubMessage.class);
 
-  private void runWith(Message... messages) {
+  private void runWith(PubSubMessage... messages) {
     pipeline
-        .apply(
-            Create.of(Arrays.stream(messages).map(Message::toProto).collect(Collectors.toList())))
+        .apply(Create.of(Arrays.stream(messages).collect(Collectors.toList())))
         .apply(ParDo.of(sink));
     pipeline.run();
   }
@@ -106,16 +106,17 @@ public class PubsubLiteSinkTest {
 
   @Test
   public void singleMessagePublishes() throws Exception {
-    when(publisher.publish(Message.builder().build()))
+    when(publisher.publish(PubSubMessage.newBuilder().build()))
         .thenReturn(ApiFutures.immediateFuture(MessageMetadata.of(Partition.of(1), Offset.of(2))));
-    runWith(Message.builder().build());
-    verify(publisher).publish(Message.builder().build());
+    runWith(PubSubMessage.newBuilder().build());
+    verify(publisher).publish(PubSubMessage.newBuilder().build());
   }
 
   @Test
   public void manyMessagePublishes() throws Exception {
-    Message message1 = Message.builder().build();
-    Message message2 = Message.builder().setKey(ByteString.copyFromUtf8("abc")).build();
+    PubSubMessage message1 = PubSubMessage.newBuilder().build();
+    PubSubMessage message2 =
+        PubSubMessage.newBuilder().setKey(ByteString.copyFromUtf8("abc")).build();
     when(publisher.publish(message1))
         .thenReturn(ApiFutures.immediateFuture(MessageMetadata.of(Partition.of(1), Offset.of(2))));
     when(publisher.publish(message2))
@@ -127,7 +128,7 @@ public class PubsubLiteSinkTest {
 
   @Test
   public void singleExceptionWhenProcessing() {
-    Message message1 = Message.builder().build();
+    PubSubMessage message1 = PubSubMessage.newBuilder().build();
     when(publisher.publish(message1))
         .thenReturn(
             ApiFutures.immediateFailedFuture(new CheckedApiException(Code.INTERNAL).underlying));
@@ -141,9 +142,11 @@ public class PubsubLiteSinkTest {
 
   @Test
   public void exceptionMixedWithOK() throws Exception {
-    Message message1 = Message.builder().build();
-    Message message2 = Message.builder().setKey(ByteString.copyFromUtf8("abc")).build();
-    Message message3 = Message.builder().setKey(ByteString.copyFromUtf8("def")).build();
+    PubSubMessage message1 = PubSubMessage.newBuilder().build();
+    PubSubMessage message2 =
+        PubSubMessage.newBuilder().setKey(ByteString.copyFromUtf8("abc")).build();
+    PubSubMessage message3 =
+        PubSubMessage.newBuilder().setKey(ByteString.copyFromUtf8("def")).build();
     SettableApiFuture<MessageMetadata> future1 = SettableApiFuture.create();
     SettableApiFuture<MessageMetadata> future2 = SettableApiFuture.create();
     SettableApiFuture<MessageMetadata> future3 = SettableApiFuture.create();

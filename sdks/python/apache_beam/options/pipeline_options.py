@@ -22,6 +22,7 @@
 import argparse
 import json
 import logging
+import os
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -347,9 +348,19 @@ class PipelineOptions(HasDisplayData):
           else:
             parser.add_argument(split[0], type=str)
           i += 1
-        else:
+        elif unknown_args[i].startswith('--'):
           parser.add_argument(unknown_args[i], type=str)
           i += 2
+        else:
+          # skip all binary flags used with '-' and not '--'.
+          # ex: using -f instead of --f (or --flexrs_goal) will prevent
+          # argument validation before job submission and can be incorrectly
+          # submitted to job.
+          _LOGGER.warning(
+              "Discarding flag %s, single dash flags are not allowed.",
+              unknown_args[i])
+          i += 2
+          continue
       parsed_args, _ = parser.parse_known_args(self._flags)
     else:
       if unknown_args:
@@ -398,7 +409,7 @@ class PipelineOptions(HasDisplayData):
       cls: PipelineOptions class or any of its subclasses.
 
     Returns:
-      An instance of cls that is intitialized using options contained in current
+      An instance of cls that is initialized using options contained in current
       object.
 
     """
@@ -513,7 +524,7 @@ class CrossLanguageOptions(PipelineOptions):
         type=json.loads,
         default={},
         help=(
-            'For convienience, Beam provides the ability to automatically '
+            'For convenience, Beam provides the ability to automatically '
             'download and start various services (such as expansion services) '
             'used at pipeline construction and execution. These services are '
             'identified by gradle target. This option provides the ability to '
@@ -521,6 +532,13 @@ class CrossLanguageOptions(PipelineOptions):
             'start the given service. '
             'Should be a json mapping of gradle build targets to pre-built '
             'artifacts (e.g. jar files) expansion endpoints (e.g. host:port).'))
+
+    parser.add_argument(
+        '--use_transform_service',
+        default=False,
+        action='store_true',
+        help='Use the Docker-composed-based transform service when expanding '
+        'cross-language transforms.')
 
 
 def additional_option_ptransform_fn():
@@ -580,7 +598,7 @@ class TypeOptions(PipelineOptions):
         default=False,
         action='store_true',
         help='Use non-deterministic coders (such as pickling) for key-grouping '
-        'operations such as GropuByKey.  This is unsafe, as runners may group '
+        'operations such as GroupByKey.  This is unsafe, as runners may group '
         'keys based on their encoded bytes, but is available for backwards '
         'compatibility. See BEAM-11719.')
     parser.add_argument(
@@ -738,13 +756,13 @@ class GoogleCloudOptions(PipelineOptions):
         default=None,
         help='Labels to be applied to this Dataflow job. '
         'Labels are key value pairs separated by = '
-        '(e.g. --label key=value).')
+        '(e.g. --label key=value) or '
+        '(--labels=\'{ "key": "value", "mass": "1_3kg", "count": "3" }\').')
     parser.add_argument(
         '--update',
         default=False,
         action='store_true',
         help='Update an existing streaming Cloud Dataflow job. '
-        'Experimental. '
         'See https://cloud.google.com/dataflow/docs/guides/'
         'updating-a-pipeline')
     parser.add_argument(
@@ -754,7 +772,6 @@ class GoogleCloudOptions(PipelineOptions):
         help='The transform mapping that maps the named '
         'transforms in your prior pipeline code to names '
         'in your replacement pipeline code.'
-        'Experimental. '
         'See https://cloud.google.com/dataflow/docs/guides/'
         'updating-a-pipeline')
     parser.add_argument(
@@ -784,7 +801,7 @@ class GoogleCloudOptions(PipelineOptions):
         default=None,
         help=(
             'Options to configure the Dataflow service. These '
-            'options decouple service side feature availbility '
+            'options decouple service side feature availability '
             'from the Apache Beam release cycle.'
             'Note: If set programmatically, must be set as a '
             'list of strings'))
@@ -864,6 +881,21 @@ class GoogleCloudOptions(PipelineOptions):
               self, 'dataflow_service_options'))
 
     return errors
+
+  def get_cloud_profiler_service_name(self):
+    _ENABLE_GOOGLE_CLOUD_PROFILER = 'enable_google_cloud_profiler'
+    if self.dataflow_service_options:
+      if _ENABLE_GOOGLE_CLOUD_PROFILER in self.dataflow_service_options:
+        return os.environ["JOB_NAME"]
+      for option_name in self.dataflow_service_options:
+        if option_name.startswith(_ENABLE_GOOGLE_CLOUD_PROFILER + '='):
+          return option_name.split('=', 1)[1]
+
+    experiments = self.view_as(DebugOptions).experiments or []
+    if _ENABLE_GOOGLE_CLOUD_PROFILER in experiments:
+      return os.environ["JOB_NAME"]
+
+    return None
 
 
 class AzureOptions(PipelineOptions):
@@ -1228,7 +1260,7 @@ class SetupOptions(PipelineOptions):
         help=(
             'Bootstrap the python process before executing any code by '
             'importing all the plugins used in the pipeline. Please pass a '
-            'comma separatedlist of import paths to be included. This is '
+            'comma separated list of import paths to be included. This is '
             'currently an experimental flag and provides no stability. '
             'Multiple --beam_plugin options can be specified if more than '
             'one plugin is needed.'))

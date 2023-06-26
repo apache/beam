@@ -38,6 +38,7 @@ from apache_beam.io.filebasedsink_test import _TestCaseWithTempDirCleanUp
 from apache_beam.io.gcp import bigquery_file_loads as bqfl
 from apache_beam.io.gcp import bigquery
 from apache_beam.io.gcp import bigquery_tools
+from apache_beam.io.gcp.bigquery import BigQueryDisposition
 from apache_beam.io.gcp.internal.clients import bigquery as bigquery_api
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultStreamingMatcher
@@ -715,10 +716,15 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
           equal_to([6]),
           label='CheckCopyJobCount')
 
+  @parameterized.expand([
+      param(write_disposition=BigQueryDisposition.WRITE_TRUNCATE),
+      param(write_disposition=BigQueryDisposition.WRITE_EMPTY)
+  ])
   @mock.patch(
       'apache_beam.io.gcp.bigquery_file_loads.TriggerCopyJobs.process',
       wraps=lambda *x: None)
-  def test_multiple_partition_files_write_truncate(self, mock_call_process):
+  def test_multiple_partition_files_write_dispositions(
+      self, mock_call_process, write_disposition):
     destination = 'project1:dataset1.table1'
 
     job_reference = bigquery_api.JobReference()
@@ -751,8 +757,7 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
               max_file_size=45,
               max_partition_size=80,
               max_files_per_partition=2,
-              write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE))
-
+              write_disposition=write_disposition))
     # TriggerCopyJob only processes once
     self.assertEqual(mock_call_process.call_count, 1)
 

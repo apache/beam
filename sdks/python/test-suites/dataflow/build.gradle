@@ -74,7 +74,7 @@ task validatesRunnerStreamingTestsV2 {
 }
 
 task validatesContainerTests {
-  getVersionsAsList('dataflow_validates_container_tests').each {
+  getVersionsAsList('python_versions').each {
     dependsOn.add(":sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:validatesContainer")
   }
 }
@@ -82,6 +82,12 @@ task validatesContainerTests {
 task examplesPostCommit {
   getVersionsAsList('dataflow_examples_postcommit_py_versions').each {
     dependsOn.add(":sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:examples")
+  }
+}
+
+task gcpCrossLanguagePostCommit {
+  getVersionsAsList('cross_language_validates_gcp_py_versions').each {
+    dependsOn.add(":sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:gcpCrossLanguagePythonUsingJava")
   }
 }
 

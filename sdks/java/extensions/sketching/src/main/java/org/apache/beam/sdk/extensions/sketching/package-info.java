@@ -17,7 +17,4 @@
  */
 
 /** Utilities for computing statistical indicators using probabilistic sketches. */
-@Experimental
 package org.apache.beam.sdk.extensions.sketching;
-
-import org.apache.beam.sdk.annotations.Experimental;
