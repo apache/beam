@@ -28,6 +28,9 @@ angoenka:
 anton:
   name: Anton Kedin
   email: anton@apache.org
+bvolpato:
+  name: Bruno Volpato
+  email: bvolpato@google.com
 ccy:
   name: Charles Chen
   email: ccy@apache.org
