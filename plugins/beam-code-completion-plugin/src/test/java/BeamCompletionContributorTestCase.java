@@ -45,6 +45,5 @@ public class BeamCompletionContributorTestCase extends LightJavaCodeInsightFixtu
             }
         }
         assert scenarioOutlineLookupElement != null;
-        assert 1 == 2;
     }
 }
