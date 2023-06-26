@@ -29,7 +29,9 @@ class ArtifactsFetcher():
     self.artifact_location = artifact_location
     self.transform_output = tft.TFTransformOutput(self.artifact_location)
 
-  def get_vocab_list(self, vocab_filename: str) -> typing.List[bytes]:
+  def get_vocab_list(
+      self,
+      vocab_filename: str = 'compute_and_apply_vocab') -> typing.List[bytes]:
     """
     Returns list of vocabulary terms created during MLTransform.
     """
@@ -39,9 +41,10 @@ class ArtifactsFetcher():
       raise ValueError(
           'Vocabulary file {} not found in artifact location'.format(
               vocab_filename)) from e
-    return vocab_list
+    return [x.decode('utf-8') for x in vocab_list]
 
-  def get_vocab_filepath(self, vocab_filename: str) -> str:
+  def get_vocab_filepath(
+      self, vocab_filename: str = 'compute_and_apply_vocab') -> str:
     """
     Return the path to the vocabulary file created during MLTransform.
     """
@@ -49,9 +52,3 @@ class ArtifactsFetcher():
 
   def get_vocab_size(self, vocab_filename: str) -> int:
     return self.transform_output.vocabulary_size_by_name(vocab_filename)
-
-
-if __name__ == '__main__':
-  artifacts = ArtifactsFetcher(
-      artifact_location='/Users/anandinguva/tft_artifacts')
-  artifacts.get_vocab_list('my_vocab')
