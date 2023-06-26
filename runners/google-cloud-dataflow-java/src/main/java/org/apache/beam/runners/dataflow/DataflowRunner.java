@@ -1467,7 +1467,11 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                   SdkHarnessContainerImage image = new SdkHarnessContainerImage();
                   image.setEnvironmentId(environmentInfo.environmentId());
                   image.setContainerImage(environmentInfo.containerUrl());
-                  if (environmentInfo.containerUrl().toLowerCase().contains("python")) {
+                  if (!environmentInfo
+                      .capabilities()
+                      .contains(
+                          BeamUrns.getUrn(
+                              RunnerApi.StandardProtocols.Enum.MULTI_CORE_BUNDLE_PROCESSING))) {
                     image.setUseSingleCorePerContainer(true);
                   }
                   image.setCapabilities(environmentInfo.capabilities());
