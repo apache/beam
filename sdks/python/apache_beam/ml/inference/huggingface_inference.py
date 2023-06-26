@@ -71,7 +71,7 @@ class HuggingFaceModelHandlerKeyedTensor(ModelHandler[Dict[str,
                                                            Union[tf.Tensor,
                                                                  torch.Tensor]],
                                                       PredictionResult,
-                                                      Any]):
+                                                      AutoModel]):
   def __init__(
       self,
       model_uri: str,
@@ -126,7 +126,7 @@ class HuggingFaceModelHandlerKeyedTensor(ModelHandler[Dict[str,
   def run_inference(
       self,
       batch: Sequence[Dict[str, Union[tf.Tensor, torch.Tensor]]],
-      model: Any,
+      model: AutoModel,
       inference_args: Optional[Dict[str, Any]] = None
   ) -> Iterable[PredictionResult]:
     """
@@ -182,7 +182,7 @@ class HuggingFaceModelHandlerKeyedTensor(ModelHandler[Dict[str,
 
 class HuggingFaceModelHandlerTensor(ModelHandler[Union[tf.Tensor, torch.Tensor],
                                                  PredictionResult,
-                                                 Any]):
+                                                 AutoModel]):
   def __init__(
       self,
       model_uri: str,
@@ -238,7 +238,7 @@ class HuggingFaceModelHandlerTensor(ModelHandler[Union[tf.Tensor, torch.Tensor],
   def run_inference(
       self,
       batch: Sequence[Union[tf.Tensor, torch.Tensor]],
-      model: Any,
+      model: AutoModel,
       inference_args: Optional[Dict[str, Any]] = None
   ) -> Iterable[PredictionResult]:
     """
@@ -298,7 +298,7 @@ class HuggingFaceModelHandlerTensor(ModelHandler[Union[tf.Tensor, torch.Tensor],
 
 class HuggingFaceModelHandlerNumpy(ModelHandler[numpy.ndarray,
                                                 PredictionResult,
-                                                Any]):
+                                                AutoModel]):
   def __init__(
       self,
       model_uri: str,
@@ -350,7 +350,7 @@ class HuggingFaceModelHandlerNumpy(ModelHandler[numpy.ndarray,
   def run_inference(
       self,
       batch: Sequence[numpy.ndarray],
-      model: Any,
+      model: AutoModel,
       inference_args: Optional[Dict[str, Any]] = None
   ) -> Iterable[PredictionResult]:
     """

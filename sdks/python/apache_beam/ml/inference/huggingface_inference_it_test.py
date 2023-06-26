@@ -15,12 +15,12 @@
 # limitations under the License.
 #
 
-"""End-to-End test for Pytorch Inference"""
+"""End-to-End test for Hugging Face Inference"""
 
 import logging
 import unittest
 import uuid
-
+import pytest
 from transformers import AutoModelForMaskedLM
 
 from apache_beam.examples.inference import huggingface_language_modeling
@@ -29,12 +29,14 @@ from apache_beam.ml.inference import pytorch_inference_it_test
 from apache_beam.testing.test_pipeline import TestPipeline
 
 
+@pytest.mark.it_postcommit
 class HuggingFaceInference(unittest.TestCase):
+  @pytest.mark.timeout(1800)
   def test_hf_language_modeling(self):
     test_pipeline = TestPipeline(is_integration_test=True)
     # Path to text file containing some sentences
-    file_of_sentences = 'gs://apache-beam-ml/datasets/custom/sentences.txt'  # pylint: disable=line-too-long
-    output_file_dir = 'gs://apache-beam-ml/testing/predictions'
+    file_of_sentences = 'gs://clouddfe-riteshghorse/hf/datasets/custom/sentences.txt'  # pylint: disable=line-too-long
+    output_file_dir = 'gs://clouddfe-riteshghorse/hf/testing/predictions'
     output_file = '/'.join([output_file_dir, str(uuid.uuid4()), 'result.txt'])
 
     model_name = 'stevhliu/my_awesome_eli5_mlm_model'
@@ -52,7 +54,7 @@ class HuggingFaceInference(unittest.TestCase):
     self.assertEqual(FileSystems().exists(output_file), True)
     predictions = pytorch_inference_it_test.process_outputs(
         filepath=output_file)
-    actuals_file = 'gs://apache-beam-ml/testing/expected_outputs/test_torch_run_inference_bert_for_masked_lm_actuals.txt'  # pylint: disable=line-too-long
+    actuals_file = 'gs://clouddfe-riteshghorse/hf/testing/expected_outputs/test_torch_run_inference_bert_for_masked_lm_actuals.txt'  # pylint: disable=line-too-long
     actuals = pytorch_inference_it_test.process_outputs(filepath=actuals_file)
 
     predictions_dict = {}

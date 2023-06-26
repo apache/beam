@@ -15,10 +15,11 @@
 # limitations under the License.
 #
 
-""""A pipeline that uses RunInference to perform Language Modeling with Bert.
+""""A pipeline that uses RunInference to perform Language Modeling with
+model from Hugging Face.
 
 This pipeline takes sentences from a custom text file, converts the last word
-of the sentence into a [MASK] token, and then uses the BertForMaskedLM from
+of the sentence into a <mask> token, and then uses the AutoModelForMaskedLM from
 Hugging Face to predict the best word for the masked token given all the words
 already in the sentence. The pipeline then writes the prediction to an output
 file in which users can then compare against the original sentence.
@@ -81,17 +82,17 @@ class PostProcessor(beam.DoFn):
   """
   def __init__(self, tokenizer: AutoTokenizer):
     super().__init__()
-    self.bert_tokenizer = tokenizer
+    self.tokenizer = tokenizer
 
   def process(self, element: Tuple[str, PredictionResult]) -> Iterable[str]:
     text, prediction_result = element
     inputs = prediction_result.example
     logits = prediction_result.inference.logits
     mask_token_index = (
-        inputs['input_ids'] == self.bert_tokenizer.mask_token_id).nonzero(
+        inputs['input_ids'] == self.tokenizer.mask_token_id).nonzero(
             as_tuple=True)[0]
     predicted_token_id = logits[mask_token_index].argmax(axis=-1)
-    decoded_word = self.bert_tokenizer.decode(predicted_token_id)
+    decoded_word = self.tokenizer.decode(predicted_token_id)
     yield text + ';' + decoded_word
 
 
@@ -166,12 +167,10 @@ def run(
       'TokenizeSentence' >> beam.Map(lambda x: tokenize_sentence(x, tokenizer)))
   output = (
       text_and_tokenized_text_tuple
-      | 'PyTorchRunInference' >> RunInference(KeyedModelHandler(model_handler))
-      | 'ProcessOutput' >> beam.ParDo(PostProcessor(bert_tokenizer=tokenizer)))
+      | 'RunInference' >> RunInference(KeyedModelHandler(model_handler))
+      | 'ProcessOutput' >> beam.ParDo(PostProcessor(tokenizer=tokenizer)))
   output | "WriteOutput" >> beam.io.WriteToText( # pylint: disable=expression-not-assigned
-    known_args.output,
-    shard_name_template='',
-    append_trailing_newlines=True)
+      known_args.output, shard_name_template='', append_trailing_newlines=True)
 
   result = pipeline.run()
   result.wait_until_finish()
