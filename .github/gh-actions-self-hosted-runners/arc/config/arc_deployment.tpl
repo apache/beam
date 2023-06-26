@@ -31,9 +31,9 @@ spec:
         - "self-hosted"
       env: []
       resources:
-        limits:
-          cpu: "4.0"
-          memory: "8Gi"
+#        limits:
+#          cpu: "4.0"
+#          memory: "8Gi"
         requests:
           cpu: "500m"
           memory: "500Mi"
