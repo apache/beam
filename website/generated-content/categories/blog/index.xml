@@ -1,4 +1,83 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – blog</title><link>/categories/blog/</link><description>Recent content in blog on Apache Beam</description><generator>Hugo -- gohugo.io</generator><lastBuildDate>Tue, 06 Jun 2023 00:00:01 -0800</lastBuildDate><atom:link href="/categories/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Getting started with Apache Beam: An open source proficiency credential sponsored by Google Cloud</title><link>/blog/beamquest/</link><pubDate>Tue, 06 Jun 2023 00:00:01 -0800</pubDate><guid>/blog/beamquest/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – blog</title><link>/categories/blog/</link><description>Recent content in blog on Apache Beam</description><generator>Hugo -- gohugo.io</generator><lastBuildDate>Fri, 23 Jun 2023 09:00:00 -0700</lastBuildDate><atom:link href="/categories/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Managing Beam dependencies in Java</title><link>/blog/managing-beam-dependencies-in-java/</link><pubDate>Fri, 23 Jun 2023 09:00:00 -0700</pubDate><guid>/blog/managing-beam-dependencies-in-java/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>Managing your Java dependencies can be challenging, and if not done correctly,
+it may cause a variety of problems, as incompatibilities may arise when using
+specific and previously untested combinations.&lt;/p>
+&lt;p>To make that process easier, Beam now
+provides &lt;a href="https://maven.apache.org/guides/introduction/introduction-to-dependency-mechanism.html#bill-of-materials-bom-poms">Bill of Materials (BOM)&lt;/a>
+artifacts that will help dependency management tools to select compatible
+combinations.&lt;/p>
+&lt;p>We hope this will make it easier for you to use Apache Beam, and have a simpler
+transition when upgrading to newer versions.&lt;/p>
+&lt;p>When bringing incompatible classes and libraries, the code is susceptible to
+errors such
+as &lt;code>NoClassDefFoundError&lt;/code>, &lt;code>NoSuchMethodError&lt;/code>, &lt;code>NoSuchFieldError&lt;/code>, &lt;code>FATAL ERROR in native method&lt;/code>.&lt;/p>
+&lt;p>When importing Apache Beam, the recommended way is to use Bill of Materials
+(BOMs). The way BOMs work is by providing hints to the dependency management
+resolution tool, so when a project imports unspecified or ambiguous dependencies,
+it will know what version to use.&lt;/p>
+&lt;p>There are currently two BOMs provided by Beam:&lt;/p>
+&lt;ul>
+&lt;li>&lt;code>beam-sdks-java-bom&lt;/code>, which manages what dependencies of Beam will be used, so
+you can specify the version only once.&lt;/li>
+&lt;li>&lt;code>beam-sdks-java-io-google-cloud-platform-bom&lt;/code>, a more comprehensive list,
+which manages Beam, along with GCP client and third-party dependencies.&lt;/li>
+&lt;/ul>
+&lt;p>Since errors are more likely to arise when using third-party dependencies,
+that&amp;rsquo;s the one that is recommended to use to minimize any conflicts.&lt;/p>
+&lt;p>In order to use BOM, the artifact has to be imported to your Maven or Gradle
+dependency configurations. For example, to
+use &lt;code>beam-sdks-java-io-google-cloud-platform-bom&lt;/code>,
+the following changes have to be done (and make sure that &lt;em>BEAM_VERSION&lt;/em> is
+replaced by a valid version):&lt;/p>
+&lt;p>&lt;strong>Maven&lt;/strong>&lt;/p>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-xml" data-lang="xml">&lt;span class="nt">&amp;lt;dependencyManagement&amp;gt;&lt;/span>
+&lt;span class="nt">&amp;lt;dependencies&amp;gt;&lt;/span>
+&lt;span class="nt">&amp;lt;dependency&amp;gt;&lt;/span>
+&lt;span class="nt">&amp;lt;groupId&amp;gt;&lt;/span>org.apache.beam&lt;span class="nt">&amp;lt;/groupId&amp;gt;&lt;/span>
+&lt;span class="nt">&amp;lt;artifactId&amp;gt;&lt;/span>beam-sdks-java-google-cloud-platform-bom&lt;span class="nt">&amp;lt;/artifactId&amp;gt;&lt;/span>
+&lt;span class="nt">&amp;lt;version&amp;gt;&lt;/span>BEAM_VERSION&lt;span class="nt">&amp;lt;/version&amp;gt;&lt;/span>
+&lt;span class="nt">&amp;lt;type&amp;gt;&lt;/span>pom&lt;span class="nt">&amp;lt;/type&amp;gt;&lt;/span>
+&lt;span class="nt">&amp;lt;scope&amp;gt;&lt;/span>import&lt;span class="nt">&amp;lt;/scope&amp;gt;&lt;/span>
+&lt;span class="nt">&amp;lt;/dependency&amp;gt;&lt;/span>
+&lt;span class="nt">&amp;lt;/dependencies&amp;gt;&lt;/span>
+&lt;span class="nt">&amp;lt;/dependencyManagement&amp;gt;&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>&lt;strong>Gradle&lt;/strong>&lt;/p>
+&lt;pre>&lt;code>dependencies {
+implementation(platform(&amp;quot;org.apache.beam:beam-sdks-java-google-cloud-platform-bom:BEAM_VERSION&amp;quot;))
+}
+&lt;/code>&lt;/pre>&lt;p>After importing the BOM, specific version pinning of dependencies, for example,
+anything for &lt;code>org.apache.beam&lt;/code>, &lt;code>io.grpc&lt;/code>, &lt;code>com.google.cloud&lt;/code> (
+including &lt;code>libraries-bom&lt;/code>) may be removed.&lt;/p>
+&lt;p>Do not entirely remove the dependencies, as they are not automatically imported
+by the BOM. It is important to keep the dependency without specifying a version.
+For example, in Maven:&lt;/p>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-xml" data-lang="xml">&lt;span class="nt">&amp;lt;dependency&amp;gt;&lt;/span>
+&lt;span class="nt">&amp;lt;groupId&amp;gt;&lt;/span>org.apache.beam&lt;span class="nt">&amp;lt;/groupId&amp;gt;&lt;/span>
+&lt;span class="nt">&amp;lt;artifactId&amp;gt;&lt;/span>beam-sdks-java-core&lt;span class="nt">&amp;lt;/artifactId&amp;gt;&lt;/span>
+&lt;span class="nt">&amp;lt;/dependency&amp;gt;&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>Or Gradle:&lt;/p>
+&lt;pre>&lt;code>implementation(&amp;quot;org.apache.beam:beam-sdks-java-core&amp;quot;)
+&lt;/code>&lt;/pre>&lt;p>For a full list of dependency versions that are managed by a specific BOM, the
+Maven tool &lt;code>help:effective-pom&lt;/code> can be used. For example:&lt;/p>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-shell" data-lang="shell">mvn help:effective-pom -f ~/.m2/repository/org/apache/beam/beam-sdks-java-google-cloud-platform-bom/BEAM_VERSION/beam-sdks-java-google-cloud-platform-bom-BEAM_VERSION.pom
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>The third-party
+website &lt;a href="https://mvnrepository.com/artifact/org.apache.beam/beam-sdks-java-google-cloud-platform-bom/">mvnrepository.com&lt;/a>
+can also be used to display such version information.&lt;/p>
+&lt;p>We hope you find this
+useful. &lt;a href="https://beam.apache.org/community/contact-us/">Feedback&lt;/a> and
+contributions are always welcome! So feel free to create a GitHub issue, or open
+a Pull Request if you encounter any problem when using those artifacts.&lt;/p></description></item><item><title>Blog: Getting started with Apache Beam: An open source proficiency credential sponsored by Google Cloud</title><link>/blog/beamquest/</link><pubDate>Tue, 06 Jun 2023 00:00:01 -0800</pubDate><guid>/blog/beamquest/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -5416,90 +5495,4 @@ See the &lt;a href="/get-started/downloads/#2190-2020-02-04">download page&lt;/a
 , Kengo Seki, Kenneth Jung, Kenneth Knowles, Kyle Weaver, Kyle Winkelman, Lukas Drbal, Marek Simunek, Mark Liu, Maximilian Michels, Melissa Pashniak
 , Michael Luckey, Michal Walenia, Mike Pedersen, Mikhail Gryzykhin, Niel Markwick, Pablo Estrada, Pascal Gula, Rehman Murad Ali, Reuven Lax, Rob, Robbe Sneyders
 , Robert Bradshaw, Robert Burke, Rui Wang, Ruoyun Huang, Ryan Williams, Sam Rohde, Sam Whittle, Scott Wegner, Shoaib Zafar, Thomas Weise, Tianyang Hu, Tyler Akidau
-, Udi Meiri, Valentyn Tymofieiev, Xinyu Liu, XuMingmin, ttanay, tvalentyn, Łukasz Gajowy&lt;/p></description></item><item><title>Blog: Apache Beam 2.19.0</title><link>/blog/beam-2.19.0/</link><pubDate>Tue, 04 Feb 2020 00:00:01 -0800</pubDate><guid>/blog/beam-2.19.0/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>We are happy to present the new 2.19.0 release of Beam. This release includes both improvements and new functionality.
-See the &lt;a href="/get-started/downloads/#2190-2020-02-04">download page&lt;/a> for this release.&lt;/p>
-&lt;p>For more information on changes in 2.19.0, check out the
-&lt;a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12346582">detailed release notes&lt;/a>.&lt;/p>
-&lt;h2 id="highlights">Highlights&lt;/h2>
-&lt;ul>
-&lt;li>Multiple improvements made into Python SDK harness:
-&lt;a href="https://issues.apache.org/jira/browse/BEAM-8624">BEAM-8624&lt;/a>,
-&lt;a href="https://issues.apache.org/jira/browse/BEAM-8623">BEAM-8623&lt;/a>,
-&lt;a href="https://issues.apache.org/jira/browse/BEAM-7949">BEAM-7949&lt;/a>,
-&lt;a href="https://issues.apache.org/jira/browse/BEAM-8935">BEAM-8935&lt;/a>,
-&lt;a href="https://issues.apache.org/jira/browse/BEAM-8816">BEAM-8816&lt;/a>&lt;/li>
-&lt;/ul>
-&lt;h3 id="ios">I/Os&lt;/h3>
-&lt;ul>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-1440">BEAM-1440&lt;/a> Create a BigQuery source (that implements iobase.BoundedSource) for Python SDK&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-2572">BEAM-2572&lt;/a> Implement an S3 filesystem for Python SDK&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-5192">BEAM-5192&lt;/a> Support Elasticsearch 7.x&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8745">BEAM-8745&lt;/a> More fine-grained controls for the size of a BigQuery Load job&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8801">BEAM-8801&lt;/a> PubsubMessageToRow should not check useFlatSchema() in processElement&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8953">BEAM-8953&lt;/a> Extend ParquetIO.Read/ReadFiles.Builder to support Avro GenericData model&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8946">BEAM-8946&lt;/a> Report collection size from MongoDBIOIT&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8978">BEAM-8978&lt;/a> Report saved data size from HadoopFormatIOIT&lt;/li>
-&lt;/ul>
-&lt;h3 id="new-features--improvements">New Features / Improvements&lt;/h3>
-&lt;ul>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-6008">BEAM-6008&lt;/a> Improve error reporting in Java/Python PortableRunner&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8296">BEAM-8296&lt;/a> Containerize the Spark job server&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8746">BEAM-8746&lt;/a> Allow the local job service to work from inside docker&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8837">BEAM-8837&lt;/a> PCollectionVisualizationTest: possible bug&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8139">BEAM-8139&lt;/a> Execute portable Spark application jar&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-9019">BEAM-9019&lt;/a> Improve Spark Encoders (wrappers of beam coders)&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-9053">BEAM-9053&lt;/a> Improve error message when unable to get the correct filesystem for specified path in Python SDK) Improve error message when unable to get the correct filesystem for specified path in Python SDK&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-9055">BEAM-9055&lt;/a> Unify the config names of Fn Data API across languages&lt;/li>
-&lt;/ul>
-&lt;h3 id="sql">SQL&lt;/h3>
-&lt;ul>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-5690">BEAM-5690&lt;/a> Issue with GroupByKey in BeamSql using SparkRunner&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8993">BEAM-8993&lt;/a> [SQL] MongoDb should use predicate push-down&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8844">BEAM-8844&lt;/a> [SQL] Create performance tests for BigQueryTable&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-9023">BEAM-9023&lt;/a> Upgrade to ZetaSQL 2019.12.1&lt;/li>
-&lt;/ul>
-&lt;h3 id="breaking-changes">Breaking Changes&lt;/h3>
-&lt;ul>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8989">BEAM-8989&lt;/a> Backwards incompatible change in ParDo.getSideInputs (caught by failure when running Apache Nemo quickstart)&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8402">BEAM-8402&lt;/a> Backwards incompatible change related to how Environments are represented in Python &lt;code>DirectRunner&lt;/code>.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-9218">BEAM-9218&lt;/a> Template staging broken on Beam 2.18.0&lt;/li>
-&lt;/ul>
-&lt;h3 id="dependency-changes">Dependency Changes&lt;/h3>
-&lt;ul>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8696">BEAM-8696&lt;/a> Beam Dependency Update Request: com.google.protobuf:protobuf-java&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8701">BEAM-8701&lt;/a> Beam Dependency Update Request: commons-io:commons-io&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8716">BEAM-8716&lt;/a> Beam Dependency Update Request: org.apache.commons:commons-csv&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8717">BEAM-8717&lt;/a> Beam Dependency Update Request: org.apache.commons:commons-lang3&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8749">BEAM-8749&lt;/a> Beam Dependency Update Request: com.datastax.cassandra:cassandra-driver-mapping&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-5546">BEAM-5546&lt;/a> Beam Dependency Update Request: commons-codec:commons-codec&lt;/li>
-&lt;/ul>
-&lt;h3 id="bugfixes">Bugfixes&lt;/h3>
-&lt;ul>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-9123">BEAM-9123&lt;/a> HadoopResourceId returns wrong directory name&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8962">BEAM-8962&lt;/a> FlinkMetricContainer causes churn in the JobManager and lets the web frontend malfunction&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-5495">BEAM-5495&lt;/a> PipelineResources algorithm is not working in most environments&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8025">BEAM-8025&lt;/a> Cassandra IO classMethod test is flaky&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8577">BEAM-8577&lt;/a> FileSystems may have not be initialized during ResourceId deserialization&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8582">BEAM-8582&lt;/a> Python SDK emits duplicate records for Default and AfterWatermark triggers&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8943">BEAM-8943&lt;/a> SDK harness servers don&amp;rsquo;t shut down properly when SDK harness environment cleanup fails&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8995">BEAM-8995&lt;/a> apache_beam.io.gcp.bigquery_read_it_test failing on Py3.5 PC with: TypeError: the JSON object must be str, not &amp;lsquo;bytes&amp;rsquo;&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8999">BEAM-8999&lt;/a> PGBKCVOperation does not respect timestamp combiners&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-9050">BEAM-9050&lt;/a> Beam pickler doesn&amp;rsquo;t pickle classes that have &lt;strong>module&lt;/strong> set to None.&lt;/li>
-&lt;li>&lt;/li>
-&lt;li>Various bug fixes and performance improvements.&lt;/li>
-&lt;/ul>
-&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
-&lt;p>According to git shortlog, the following people contributed to the 2.19.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>Ahmet Altay, Alex Amato, Alexey Romanenko, Andrew Pilloud, Ankur Goenka, Anton Kedin, Boyuan Zhang, Brian Hulette, Brian Martin, Chamikara Jayalath, Charles Chen, Craig Chambers, Daniel Oliveira, David Moravek, David Rieber, Dustin Rhodes, Etienne Chauchot, Gleb Kanterov, Hai Lu, Heejong Lee, Ismaël Mejía, Jan Lukavský, Jason Kuster, Jean-Baptiste Onofré, Jeff Klukas, João Cabrita, J Ross Thomson, Juan Rael, Juta, Kasia Kucharczyk, Kengo Seki, Kenneth Jung, Kenneth Knowles, Kyle Weaver, Kyle Winkelman, Lukas Drbal, Łukasz Gajowy, Marek Simunek, Mark Liu, Maximilian Michels, Melissa Pashniak, Michael Luckey, Michal Walenia, Mike Pedersen, Mikhail Gryzykhin, Niel Markwick, Pablo Estrada, Pascal Gula, Reuven Lax, Rob, Robbe Sneyders, Robert Bradshaw, Robert Burke, Rui Wang, Ruoyun Huang, Ryan Williams, Sam Rohde, Sam Whittle, Scott Wegner, Thomas Weise, Tianyang Hu, ttanay, tvalentyn, Tyler Akidau, Udi Meiri, Valentyn Tymofieiev, Xinyu Liu, XuMingmin&lt;/p></description></item></channel></rss>
+, Udi Meiri, Valentyn Tymofieiev, Xinyu Liu, XuMingmin, ttanay, tvalentyn, Łukasz Gajowy&lt;/p></description></item></channel></rss>

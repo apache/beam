@@ -1,4 +1,83 @@
-<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Apache Beam</title><description>Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.</description><link>/</link><generator>Hugo -- gohugo.io</generator><item><title>Getting started with Apache Beam: An open source proficiency credential sponsored by Google Cloud</title><description>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Apache Beam</title><description>Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.</description><link>/</link><generator>Hugo -- gohugo.io</generator><item><title>Managing Beam dependencies in Java</title><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>Managing your Java dependencies can be challenging, and if not done correctly,
+it may cause a variety of problems, as incompatibilities may arise when using
+specific and previously untested combinations.&lt;/p>
+&lt;p>To make that process easier, Beam now
+provides &lt;a href="https://maven.apache.org/guides/introduction/introduction-to-dependency-mechanism.html#bill-of-materials-bom-poms">Bill of Materials (BOM)&lt;/a>
+artifacts that will help dependency management tools to select compatible
+combinations.&lt;/p>
+&lt;p>We hope this will make it easier for you to use Apache Beam, and have a simpler
+transition when upgrading to newer versions.&lt;/p>
+&lt;p>When bringing incompatible classes and libraries, the code is susceptible to
+errors such
+as &lt;code>NoClassDefFoundError&lt;/code>, &lt;code>NoSuchMethodError&lt;/code>, &lt;code>NoSuchFieldError&lt;/code>, &lt;code>FATAL ERROR in native method&lt;/code>.&lt;/p>
+&lt;p>When importing Apache Beam, the recommended way is to use Bill of Materials
+(BOMs). The way BOMs work is by providing hints to the dependency management
+resolution tool, so when a project imports unspecified or ambiguous dependencies,
+it will know what version to use.&lt;/p>
+&lt;p>There are currently two BOMs provided by Beam:&lt;/p>
+&lt;ul>
+&lt;li>&lt;code>beam-sdks-java-bom&lt;/code>, which manages what dependencies of Beam will be used, so
+you can specify the version only once.&lt;/li>
+&lt;li>&lt;code>beam-sdks-java-io-google-cloud-platform-bom&lt;/code>, a more comprehensive list,
+which manages Beam, along with GCP client and third-party dependencies.&lt;/li>
+&lt;/ul>
+&lt;p>Since errors are more likely to arise when using third-party dependencies,
+that&amp;rsquo;s the one that is recommended to use to minimize any conflicts.&lt;/p>
+&lt;p>In order to use BOM, the artifact has to be imported to your Maven or Gradle
+dependency configurations. For example, to
+use &lt;code>beam-sdks-java-io-google-cloud-platform-bom&lt;/code>,
+the following changes have to be done (and make sure that &lt;em>BEAM_VERSION&lt;/em> is
+replaced by a valid version):&lt;/p>
+&lt;p>&lt;strong>Maven&lt;/strong>&lt;/p>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-xml" data-lang="xml">&lt;span class="nt">&amp;lt;dependencyManagement&amp;gt;&lt;/span>
+&lt;span class="nt">&amp;lt;dependencies&amp;gt;&lt;/span>
+&lt;span class="nt">&amp;lt;dependency&amp;gt;&lt;/span>
+&lt;span class="nt">&amp;lt;groupId&amp;gt;&lt;/span>org.apache.beam&lt;span class="nt">&amp;lt;/groupId&amp;gt;&lt;/span>
+&lt;span class="nt">&amp;lt;artifactId&amp;gt;&lt;/span>beam-sdks-java-google-cloud-platform-bom&lt;span class="nt">&amp;lt;/artifactId&amp;gt;&lt;/span>
+&lt;span class="nt">&amp;lt;version&amp;gt;&lt;/span>BEAM_VERSION&lt;span class="nt">&amp;lt;/version&amp;gt;&lt;/span>
+&lt;span class="nt">&amp;lt;type&amp;gt;&lt;/span>pom&lt;span class="nt">&amp;lt;/type&amp;gt;&lt;/span>
+&lt;span class="nt">&amp;lt;scope&amp;gt;&lt;/span>import&lt;span class="nt">&amp;lt;/scope&amp;gt;&lt;/span>
+&lt;span class="nt">&amp;lt;/dependency&amp;gt;&lt;/span>
+&lt;span class="nt">&amp;lt;/dependencies&amp;gt;&lt;/span>
+&lt;span class="nt">&amp;lt;/dependencyManagement&amp;gt;&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>&lt;strong>Gradle&lt;/strong>&lt;/p>
+&lt;pre>&lt;code>dependencies {
+implementation(platform(&amp;quot;org.apache.beam:beam-sdks-java-google-cloud-platform-bom:BEAM_VERSION&amp;quot;))
+}
+&lt;/code>&lt;/pre>&lt;p>After importing the BOM, specific version pinning of dependencies, for example,
+anything for &lt;code>org.apache.beam&lt;/code>, &lt;code>io.grpc&lt;/code>, &lt;code>com.google.cloud&lt;/code> (
+including &lt;code>libraries-bom&lt;/code>) may be removed.&lt;/p>
+&lt;p>Do not entirely remove the dependencies, as they are not automatically imported
+by the BOM. It is important to keep the dependency without specifying a version.
+For example, in Maven:&lt;/p>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-xml" data-lang="xml">&lt;span class="nt">&amp;lt;dependency&amp;gt;&lt;/span>
+&lt;span class="nt">&amp;lt;groupId&amp;gt;&lt;/span>org.apache.beam&lt;span class="nt">&amp;lt;/groupId&amp;gt;&lt;/span>
+&lt;span class="nt">&amp;lt;artifactId&amp;gt;&lt;/span>beam-sdks-java-core&lt;span class="nt">&amp;lt;/artifactId&amp;gt;&lt;/span>
+&lt;span class="nt">&amp;lt;/dependency&amp;gt;&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>Or Gradle:&lt;/p>
+&lt;pre>&lt;code>implementation(&amp;quot;org.apache.beam:beam-sdks-java-core&amp;quot;)
+&lt;/code>&lt;/pre>&lt;p>For a full list of dependency versions that are managed by a specific BOM, the
+Maven tool &lt;code>help:effective-pom&lt;/code> can be used. For example:&lt;/p>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-shell" data-lang="shell">mvn help:effective-pom -f ~/.m2/repository/org/apache/beam/beam-sdks-java-google-cloud-platform-bom/BEAM_VERSION/beam-sdks-java-google-cloud-platform-bom-BEAM_VERSION.pom
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>The third-party
+website &lt;a href="https://mvnrepository.com/artifact/org.apache.beam/beam-sdks-java-google-cloud-platform-bom/">mvnrepository.com&lt;/a>
+can also be used to display such version information.&lt;/p>
+&lt;p>We hope you find this
+useful. &lt;a href="https://beam.apache.org/community/contact-us/">Feedback&lt;/a> and
+contributions are always welcome! So feel free to create a GitHub issue, or open
+a Pull Request if you encounter any problem when using those artifacts.&lt;/p></description><link>/blog/managing-beam-dependencies-in-java/</link><pubDate>Fri, 23 Jun 2023 09:00:00 -0700</pubDate><guid>/blog/managing-beam-dependencies-in-java/</guid><category>blog</category></item><item><title>Getting started with Apache Beam: An open source proficiency credential sponsored by Google Cloud</title><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -885,50 +964,4 @@ common Beam concepts, and with TensorRT. We will also add examples showing
 other pieces of the Machine Learning lifecycle like model evaluation with TFMA,
 per-entity training, and more online training.&lt;/p>
 &lt;p>We hope you find this useful! As always, if you see any areas for improvement, please &lt;a href="https://github.com/apache/beam/issues/new/choose">open an issue&lt;/a>
-or a &lt;a href="https://github.com/apache/beam/pulls">pull request&lt;/a>!&lt;/p></description><link>/blog/ml-resources/</link><pubDate>Wed, 09 Nov 2022 00:00:01 -0800</pubDate><guid>/blog/ml-resources/</guid><category>blog</category><category>python</category></item><item><title>Beam starter projects</title><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>We&amp;rsquo;re happy to announce that we&amp;rsquo;re providing new Beam starter projects! 🎉&lt;/p>
-&lt;p>Setting up and configuring a new project can be time consuming, and varies in different languages. We hope this will make it easier for you to get started in creating new Apache Beam projects and pipelines.&lt;/p>
-&lt;p>All the starter projects come in their own GitHub repository, so you can simply clone a repo and you&amp;rsquo;re ready to go. Each project comes with a README with how to use it, a simple &amp;ldquo;Hello World&amp;rdquo; pipeline, and a test for the pipeline. The GitHub repositories come pre-configured with GitHub Actions to automatically run tests when pull requests are opened or modified, and Dependabot is enabled to make sure all the dependencies are up to date. This all comes out of the box, so you can start playing with your Beam pipeline without a hassle.&lt;/p>
-&lt;p>For example, here&amp;rsquo;s how to get started with Java:&lt;/p>
-&lt;pre>&lt;code>git clone https://github.com/apache/beam-starter-java
-cd beam-starter-java
-# Install Java and Gradle with sdkman.
-curl -s &amp;quot;https://get.sdkman.io&amp;quot; | bash
-sdk install java 11.0.12-tem
-sdk install gradle
-# To run the pipeline.
-gradle run
-# To run the tests.
-gradle test
-&lt;/code>&lt;/pre>&lt;p>And here&amp;rsquo;s how to get started with Python:&lt;/p>
-&lt;pre>&lt;code>git clone https://github.com/apache/beam-starter-python
-cd beam-starter-python
-# Set up a virtual environment with the dependencies.
-python -m venv env
-source env/bin/activate
-pip install -r requirements.txt
-# To run the pipeline.
-python main.py
-# To run the tests.
-python -m unittest
-&lt;/code>&lt;/pre>&lt;p>Here are the starter projects; you can choose your favorite language:&lt;/p>
-&lt;ul>
-&lt;li>&lt;strong>[Java]&lt;/strong> &lt;a href="https://github.com/apache/beam-starter-java">github.com/apache/beam-starter-java&lt;/a> – Includes both Gradle and Maven configurations.&lt;/li>
-&lt;li>&lt;strong>[Python]&lt;/strong> &lt;a href="https://github.com/apache/beam-starter-python">github.com/apache/beam-starter-python&lt;/a> – Includes a setup.py file to allow multiple files in your pipeline.&lt;/li>
-&lt;li>&lt;strong>[Go]&lt;/strong> &lt;a href="https://github.com/apache/beam-starter-go">github.com/apache/beam-starter-go&lt;/a> – Includes how to register different types of functions for ParDo.&lt;/li>
-&lt;li>&lt;strong>[Kotlin]&lt;/strong> &lt;a href="https://github.com/apache/beam-starter-kotlin">github.com/apache/beam-starter-kotlin&lt;/a> – Adapted to idiomatic Kotlin&lt;/li>
-&lt;li>&lt;strong>[Scala]&lt;/strong> &lt;a href="https://github.com/apache/beam-starter-scala">github.com/apache/beam-starter-scala&lt;/a> – Coming soon!&lt;/li>
-&lt;/ul>
-&lt;p>We have updated the &lt;a href="/get-started/quickstart/java/">Java quickstart&lt;/a> to use the new starter project, and we&amp;rsquo;re working on updating the Python and Go quickstarts as well.&lt;/p>
-&lt;p>We hope you find this useful. Feedback and contributions are always welcome! So feel free to create a GitHub issue, or open a Pull Request to any of the starter project repositories.&lt;/p></description><link>/blog/beam-starter-projects/</link><pubDate>Thu, 03 Nov 2022 09:00:00 -0700</pubDate><guid>/blog/beam-starter-projects/</guid><category>blog</category></item></channel></rss>
+or a &lt;a href="https://github.com/apache/beam/pulls">pull request&lt;/a>!&lt;/p></description><link>/blog/ml-resources/</link><pubDate>Wed, 09 Nov 2022 00:00:01 -0800</pubDate><guid>/blog/ml-resources/</guid><category>blog</category><category>python</category></item></channel></rss>
