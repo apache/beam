@@ -110,6 +110,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataReq
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedMessageBundle;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution.State;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Timer;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Timer.Type;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WatermarkHold;
@@ -3078,14 +3079,12 @@ public class StreamingDataflowWorkerTest {
 
       assertThat(
           // The commit will include a timer to clean up state - this timer is irrelevant
-          // for the current test. Also remove source_bytes_processed and
-          // per_work_item_latecy_attributions because they're dynamic.
+          // for the current test. Also remove source_bytes_processed because it's dynamic.
           setValuesTimestamps(
-                  commit
+                  removeDynamicFields(commit)
                       .toBuilder()
                       .clearOutputTimers()
-                      .clearSourceBytesProcessed()
-                      .clearPerWorkItemLatencyAttributions())
+                      .clearSourceBytesProcessed())
               .build(),
           equalTo(
               setMessagesMetadata(
@@ -3619,6 +3618,46 @@ public class StreamingDataflowWorkerTest {
         awrSink
             .getLatencyAttributionDuration(workToken, LatencyAttribution.State.COMMITTING)
             .equals(Duration.millis(1000)));
+  }
+
+  @Test
+  public void testLatencyAttributionPopulatedInCommitRequest() throws Exception {
+    final int workToken = 7272; // A unique id makes it easier to search logs.
+
+    FakeClock clock = new FakeClock();
+    List<ParallelInstruction> instructions =
+        Arrays.asList(
+            makeSourceInstruction(StringUtf8Coder.of()),
+            makeDoFnInstruction(
+                new FakeSlowDoFn(clock, Duration.millis(1000)), 0, StringUtf8Coder.of()),
+            makeSinkInstruction(StringUtf8Coder.of(), 0));
+
+    FakeWindmillServer server = new FakeWindmillServer(errorCollector);
+    StreamingDataflowWorkerOptions options = createTestingPipelineOptions(server);
+    options.setActiveWorkRefreshPeriodMillis(100);
+    options.setNumberOfWorkerHarnessThreads(1);
+    StreamingDataflowWorker worker =
+        makeWorker(
+            instructions,
+            options,
+            false /* publishCounters */,
+            clock,
+            clock::newFakeScheduledExecutor);
+    worker.start();
+
+    ActiveWorkRefreshSink awrSink = new ActiveWorkRefreshSink(EMPTY_DATA_RESPONDER);
+    server.whenGetDataCalled().answerByDefault(awrSink::getData).delayEachResponseBy(Duration.ZERO);
+    server.whenGetWorkCalled().thenReturn(makeInput(workToken, 1 /* timestamp */));
+    Map<Long, WorkItemCommitRequest> workItemCommitRequest = server.waitForAndGetCommits(1);
+
+    worker.stop();
+
+    assertEquals(
+        workItemCommitRequest.get((long) workToken).getPerWorkItemLatencyAttributions(0),
+        LatencyAttribution.newBuilder()
+            .setState(State.ACTIVE)
+            .setTotalDurationMillis(1000)
+            .build());
   }
 
   /** For each input element, emits a large string. */

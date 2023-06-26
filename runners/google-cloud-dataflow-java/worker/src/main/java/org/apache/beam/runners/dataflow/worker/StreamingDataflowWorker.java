@@ -1112,7 +1112,8 @@ public class StreamingDataflowWorker {
     private final Instant startTime;
     private Instant stateStartTime;
     private State state;
-    private Map<Windmill.LatencyAttribution.State, Duration> totalDurationPerState;
+    private final Map<Windmill.LatencyAttribution.State, Duration> totalDurationPerState =
+        new EnumMap<>(Windmill.LatencyAttribution.State.class);
 
     public Work(
         Windmill.WorkItem workItem,
@@ -1122,7 +1123,6 @@ public class StreamingDataflowWorker {
       this.clock = clock;
       this.startTime = this.stateStartTime = clock.get();
       this.state = State.QUEUED;
-      this.totalDurationPerState = new EnumMap<>(Windmill.LatencyAttribution.State.class);
       recordGetWorkStreamLatencies(getWorkStreamLatencies);
     }
 
