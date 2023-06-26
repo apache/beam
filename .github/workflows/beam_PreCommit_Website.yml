@@ -16,17 +16,7 @@
 name: beam_PreCommit_Website
 
 on:
-  push:
-    tags: ['v*']
-    branches: ['master', 'release-*']
-    paths: ['website/**']
-  pull_request:
-    branches: ['master', 'release-*']
-    paths: ['website/**']
-  issue_comment:
-    types: [created]
-  schedule:
-    - cron: '* */6 * * *'
+  workflow_dispatch:
 
 jobs:
     beam_PreCommit_Website:

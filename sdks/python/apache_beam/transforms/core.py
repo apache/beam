@@ -2182,6 +2182,9 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
         *self._args,
         **self._kwargs).with_outputs(
             self._dead_letter_tag, main=self._main_tag, allow_unknown_tags=True)
+    #TODO(BEAM-18957): Fix when type inference supports tagged outputs.
+    result[self._main_tag].element_type = self._fn.infer_output_type(
+        pcoll.element_type)
 
     if self._threshold < 1.0:
 
@@ -2242,6 +2245,81 @@ class _ExceptionHandlingWrapperDoFn(DoFn):
                   type(exn),
                   repr(exn),
                   traceback.format_exception(*sys.exc_info()))))
+
+
+# Idea adapted from https://github.com/tosun-si/asgarde.
+# TODO(robertwb): Consider how this could fit into the public API.
+# TODO(robertwb): Generalize to all PValue types.
+class _PValueWithErrors(object):
+  """This wraps a PCollection such that transforms can be chained in a linear
+  manner while still accumulating any errors."""
+  def __init__(self, pcoll, exception_handling_args, upstream_errors=()):
+    self._pcoll = pcoll
+    self._exception_handling_args = exception_handling_args
+    self._upstream_errors = upstream_errors
+
+  def main_output_tag(self):
+    return self._exception_handling_args.get('main_tag', 'good')
+
+  def error_output_tag(self):
+    return self._exception_handling_args.get('dead_letter_tag', 'bad')
+
+  def __or__(self, transform):
+    return self.apply(transform)
+
+  def apply(self, transform):
+    result = self._pcoll | transform.with_exception_handling(
+        **self._exception_handling_args)
+    if result[self.main_output_tag()].element_type == typehints.Any:
+      result[self.main_output_tag()].element_type = transform.infer_output_type(
+          self._pcoll.element_type)
+    # TODO(BEAM-18957): Add support for tagged type hints.
+    result[self.error_output_tag()].element_type = typehints.Any
+    return _PValueWithErrors(
+        result[self.main_output_tag()],
+        self._exception_handling_args,
+        self._upstream_errors + (result[self.error_output_tag()], ))
+
+  def accumulated_errors(self):
+    if len(self._upstream_errors) == 1:
+      return self._upstream_errors[0]
+    else:
+      return self._upstream_errors | Flatten()
+
+  def as_result(self, error_post_processing=None):
+    return {
+        self.main_output_tag(): self._pcoll,
+        self.error_output_tag(): self.accumulated_errors()
+        if error_post_processing is None else self.accumulated_errors()
+        | error_post_processing,
+    }
+
+
+class _MaybePValueWithErrors(object):
+  """This is like _PValueWithErrors, but only wraps values if
+  exception_handling_args is non-trivial.  It is useful for handling
+  error-catching and non-error-catching code in a uniform manner.
+  """
+  def __init__(self, pvalue, exception_handling_args=None):
+    if isinstance(pvalue, _PValueWithErrors):
+      assert exception_handling_args is None
+      self._pvalue = pvalue
+    elif exception_handling_args is None:
+      self._pvalue = pvalue
+    else:
+      self._pvalue = _PValueWithErrors(pvalue, exception_handling_args)
+
+  def __or__(self, transform):
+    return self.apply(transform)
+
+  def apply(self, transform):
+    return _MaybePValueWithErrors(self._pvalue | transform)
+
+  def as_result(self, error_post_processing=None):
+    if isinstance(self._pvalue, _PValueWithErrors):
+      return self._pvalue.as_result(error_post_processing)
+    else:
+      return self._pvalue
 
 
 class _SubprocessDoFn(DoFn):
@@ -3232,14 +3310,21 @@ class Select(PTransform):
         _expr_to_callable(expr, ix)) for (ix, expr) in enumerate(args)
                     ] + [(name, _expr_to_callable(expr, name))
                          for (name, expr) in kwargs.items()]
+    self._exception_handling_args = None
+
+  def with_exception_handling(self, **kwargs):
+    self._exception_handling_args = kwargs
+    return self
 
   def default_label(self):
     return 'ToRows(%s)' % ', '.join(name for name, _ in self._fields)
 
   def expand(self, pcoll):
-    return pcoll | Map(
-        lambda x: pvalue.Row(**{name: expr(x)
-                                for name, expr in self._fields}))
+    return (
+        _MaybePValueWithErrors(pcoll, self._exception_handling_args) | Map(
+            lambda x: pvalue.Row(
+                **{name: expr(x)
+                   for name, expr in self._fields}))).as_result()
 
   def infer_output_type(self, input_type):
     return row_type.RowTypeConstraint.from_fields([
@@ -3429,6 +3514,9 @@ class WindowInto(ParDo):
           timestamp, element=element, window=window)
       new_windows = self.windowing.windowfn.assign(context)
       yield WindowedValue(element, context.timestamp, new_windows)
+
+    def infer_output_type(self, input_type):
+      return input_type
 
   def __init__(
       self,

@@ -4,21 +4,26 @@
  * distributed with this work for additional information
  * regarding copyright ownership.  The ASF licenses this file
  * to you under the Apache License, Version 2.0 (the
- * License); you may not use this file except in compliance
+ * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an AS IS BASIS,
+ * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyPythonNature()
+// A basic subset.
+export * from "./avroio";
+export * from "./bigqueryio";
+export * from "./kafka";
+export * from "./parquetio";
+export * from "./pubsub";
+export * from "./pubsublite";
+export * from "./schemaio";
 
-// Required to setup a Python 3 virtualenv and task names.
-pythonVersion = '3.7'
-apply from: "../common.gradle"
+import { requireForSerialization } from "../serialization";
+requireForSerialization("apache-beam/io", exports);

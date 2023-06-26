@@ -1,5 +1,5 @@
 ---
-title: "Tour of Beam"
+title: "An Interactive Overview of Beam"
 ---
 
 <!--
@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Tour of Beam
+# An Interactive Overview of Beam
 
 Here you can find a collection of the interactive notebooks available for Apache Beam, which are hosted in
 [Colab](https://colab.research.google.com).
@@ -32,7 +32,7 @@ You can also [try an Apache Beam pipeline](/get-started/try-apache-beam) using t
 In this notebook we go through the basics of what is Apache Beam and how to get started.
 We learn what is a data pipeline, a PCollection, a PTransform, as well as some basic transforms like `Map`, `FlatMap`, `Filter`, `Combine`, and `GroupByKey`.
 
-{{< button-colab url="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/tour-of-beam/getting-started.ipynb" >}}
+{{< button-colab url="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/interactive-overview/getting-started.ipynb" >}}
 
 ### Reading and writing data
 
@@ -40,14 +40,14 @@ In this notebook we go through some examples on how to read and write data to an
 We introduce the built-in `ReadFromText` and `WriteToText` transforms.
 We also see how we can read from CSV files, read from a SQLite database, write fixed-sized batches of elements, and write windows of elements.
 
-{{< button-colab url="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/tour-of-beam/reading-and-writing-data.ipynb" >}}
+{{< button-colab url="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/interactive-overview/reading-and-writing-data.ipynb" >}}
 
 ### Windowing
 
 In this notebook we go through how to aggregate data based on time intervals, or in streaming pipelines.
 We introduce the `GlobalWindow`, `FixedWindows`, `SlidingWindows`, and `Sessions`.
 
-{{< button-colab url="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/tour-of-beam/windowing.ipynb" >}}
+{{< button-colab url="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/interactive-overview/windowing.ipynb" >}}
 
 ### DataFrames
 
@@ -56,7 +56,7 @@ API to declare Beam pipelines.
 To learn more about Beam DataFrames, take a look at the
 [Beam DataFrames overview](/documentation/dsls/dataframes/overview) page.
 
-{{< button-colab url="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/tour-of-beam/dataframes.ipynb" >}}
+{{< button-colab url="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/interactive-overview/dataframes.ipynb" >}}
 
 ## Transforms
 
