@@ -84,5 +84,3 @@ class BeamDarkThemeColors {
   static const codeComment = Color(0xff689F38);
   static const codeBackground = Color(0xff231B1B);
 }
-
-// restart
