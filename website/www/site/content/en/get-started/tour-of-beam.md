@@ -1,5 +1,5 @@
 ---
-title: "Tour of Beam"
+title: "The Tour of Beam"
 ---
 
 <!--
