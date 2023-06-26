@@ -58,7 +58,8 @@ __all__ = [
     'ScaleToZScore',
     'ScaleTo01',
     'ApplyBuckets',
-    'Bucketize'
+    'Bucketize',
+    'TFIDF',
 ]
 
 # Register the expected input types for each operation
