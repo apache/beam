@@ -17,8 +17,8 @@
 */
 
 // beam-playground:
-//   name: read-table
-//   description: BigQueryIO read table example.
+//   name: read-query
+//   description: BigQueryIO read query example.
 //   multifile: false
 //   context_line: 42
 //   never_run: true
