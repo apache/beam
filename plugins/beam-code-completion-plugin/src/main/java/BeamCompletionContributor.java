@@ -33,6 +33,15 @@ import org.jetbrains.annotations.NotNull;
  * suggestions specifically for Apache Beam pipelines.
  */
 public class BeamCompletionContributor extends CompletionContributor {
+    public static final String[] beamJavaSDKTransforms = {
+        "Filter", "FlatMapElements", "Keys", "KvSwap", "MapElements", "ParDo",
+                "Partition", "Regex", "Reify", "ToString", "WithKeys", "WithTimestamps",
+                "Values", "ApproximateQuantiles", "ApproximateUnique", "CoGroupByKey", "Combine",
+                "CombineWithContext", "Count", "Distinct", "GroupByKey", "GroupIntoBatches",
+                "HllCount", "Latest", "Max", "Mean", "Min", "Sample", "Sum", "Top",
+                "Create", "Flatten", "PAssert", "View", "Window"
+    };
+
     /**
      * A pattern condition that matches method call expressions with the name "apply" in the context of the
      * Apache Beam `Pipeline` class.
@@ -75,15 +84,14 @@ public class BeamCompletionContributor extends CompletionContributor {
                     );
 
     /**
-     * Fills the completion variants for the given completion parameters and result set.
+     * Fills the completion variants with Transforms from Java SDK.
      */
     @Override
     public void fillCompletionVariants(@NotNull final CompletionParameters parameters, @NotNull CompletionResultSet result) {
-        final PsiElement position = parameters.getPosition();
-        PrefixMatcher matcher = result.getPrefixMatcher();
-        PsiElement parent = position.getParent();
         if (AFTER_METHOD_CALL_PATTERN.accepts(parameters.getPosition())){
-            result.addElement(LookupElementBuilder.create("TestCompletionElement"));
+            for (String transform: beamJavaSDKTransforms) {
+                result.addElement(LookupElementBuilder.create(transform).appendTailText(" org.apache.beam.sdk.transforms", true));
+            }
         }
     }
 }
