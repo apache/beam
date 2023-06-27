@@ -151,7 +151,7 @@ public class OutputSampler<T> {
    * Fills and returns the BeamFnApi proto.
    *
    * @param sample the sampled element.
-   * @param ByteStringOutputStream the stream to use to serialize the element.
+   * @param stream the stream to use to serialize the element.
    * @param processBundleId the bundle the element belongs to. Currently only set when there is an
    *     exception.
    */
