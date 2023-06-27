@@ -59,7 +59,6 @@ jobs:
         run: echo "PERF_TOOL_PUBLISH_DATA=false" >> $GITHUB_ENV
         if: github.event_name == 'pull_request'
       - name: Run Change Point Analysis.
-        if: github.event_name != 'pull_request'
         working-directory: ./sdks/python/apache_beam/testing/analyzers
         shell: bash
         run: python perf_analysis.py
