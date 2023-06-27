@@ -41,6 +41,7 @@ jobs:
         with:
           python-version: 3.8
       - name: Authenticate on GCP
+        if: github.event_name != 'pull_request'
         uses: google-github-actions/setup-gcloud@v0
         with:
           service_account_key: ${{ secrets.GCP_SA_KEY }}
