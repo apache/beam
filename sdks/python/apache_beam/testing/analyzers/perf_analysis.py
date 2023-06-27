@@ -173,7 +173,10 @@ def run(config_file_path: Optional[str] = None) -> None:
   big_query_metrics_fetcher = BigQueryMetricsFetcher()
 
   for test_name, params in tests_config.items():
-    run_change_point_analysis(params, test_name, big_query_metrics_fetcher)
+    run_change_point_analysis(
+        params=params,
+        test_name=test_name,
+        big_query_metrics_fetcher=big_query_metrics_fetcher)
 
 
 if __name__ == '__main__':
