@@ -26,7 +26,7 @@ import (
 const (
 	// TODO(https://github.com/apache/beam/issues/21279): Select the most recent Beam release instead of a hard-coded
 	// string.
-	beamVersion  = "2.34.0"
+	beamVersion  = "2.48.0"
 	gradleTarget = ":sdks:java:io:expansion-service:runExpansionService"
 )
 
