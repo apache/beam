@@ -49,8 +49,15 @@ buildCache {
   local {
     isEnabled = true
   }
-  remote(gradleEnterprise.buildCache) {
-    isEnabled = false
+  remote<HttpBuildCache> {
+    url = uri("https://beam-cache.apache.org/cache/")
+    isAllowUntrustedServer = false
+    credentials {
+      username = System.getenv("GRADLE_ENTERPRISE_CACHE_USERNAME")
+      password = System.getenv("GRADLE_ENTERPRISE_CACHE_PASSWORD")
+    }
+    isEnabled = true
+    isPush = isCi
   }
 }
 
