@@ -186,8 +186,6 @@ abstract class BaseFirestoreIT {
   }
 
   @Test
-  @Ignore(
-      "https://github.com/apache/beam/issues/25851 failing due to internal Firestore breaking change")
   public final void listDocuments() throws Exception {
     DocumentGenerator documentGenerator = helper.documentGenerator(NUM_ITEMS_TO_GENERATE, "a");
     Instant readTime =
