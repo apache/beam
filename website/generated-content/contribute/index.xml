@@ -907,7 +907,7 @@ If you need one, &lt;a href="https://pypi.python.org/account/register/">register
 You also need to be a maintainer (or an owner) of the &lt;a href="https://pypi.python.org/pypi/apache-beam">apache-beam&lt;/a> package in order to push a new release.
 Ask on the mailing list for assistance.&lt;/p>
 &lt;h4 id="login-to-dockerhub">Login to DockerHub&lt;/h4>
-&lt;p>If you are a member of the &lt;a href="https://hub.docker.com/orgs/apache/teams/beammaintainers">&lt;code>beammaintainers&lt;/code> DockerHub team&lt;/a>, run following command manually.
+&lt;p>If you are a member of the &lt;a href="https://hub.docker.com/orgs/apache/teams/beam">&lt;code>beam&lt;/code> DockerHub team&lt;/a>, run following command manually.
 It will ask you to input your DockerHub ID and password if authorization info cannot be found from ~/.docker/config.json file.&lt;/p>
 &lt;pre>&lt;code>docker login docker.io
 &lt;/code>&lt;/pre>&lt;p>After successful login, authorization info will be stored at ~/.docker/config.json file.
@@ -915,7 +915,7 @@ For example,&lt;/p>
 &lt;pre>&lt;code>&amp;quot;https://index.docker.io/v1/&amp;quot;: {
 &amp;quot;auth&amp;quot;: &amp;quot;xxxxxx&amp;quot;
 }
-&lt;/code>&lt;/pre>&lt;p>If you are not already a member of the &lt;code>beammaintainers&lt;/code> team, please email &lt;code>dev@&lt;/code> for help with any DockerHub related tasks. We are not able
+&lt;/code>&lt;/pre>&lt;p>If you are not already a member of the &lt;code>beam&lt;/code> team, please email &lt;code>dev@&lt;/code> for help with any DockerHub related tasks. We are not able
 to add more members to the DockerHub team because &lt;a href="https://infra.apache.org/docker-hub-policy.html">the ASF has a limited number of seats available&lt;/a>.&lt;/p>
 &lt;h3 id="create-a-new-milestone-in-github">Create a new milestone in GitHub&lt;/h3>
 &lt;p>When contributors resolve an issue in GitHub, they are tagging it with a release that will contain their changes.
@@ -1238,8 +1238,8 @@ Some additional validation should be done during the rc validation step.&lt;/li>
 &lt;li>Stage source release into dist.apache.org dev &lt;a href="https://dist.apache.org/repos/dist/dev/beam/">repo&lt;/a>.&lt;/li>
 &lt;li>Stage, sign and hash python source distribution and wheels into dist.apache.org dev repo python dir&lt;/li>
 &lt;li>Stage SDK docker images to &lt;a href="https://hub.docker.com/search?q=apache%2Fbeam&amp;amp;type=image">docker hub Apache organization&lt;/a>.
-Note: if you are not a member of the &lt;a href="https://hub.docker.com/orgs/apache/teams/beammaintainers">&lt;code>beammaintainers&lt;/code> DockerHub team&lt;/a> you will need
-help with this step. Please email &lt;code>dev@&lt;/code> and ask a member of the &lt;code>beammaintainers&lt;/code> DockerHub team for help.&lt;/li>
+Note: if you are not a member of the &lt;a href="https://hub.docker.com/orgs/apache/teams/beam">&lt;code>beam&lt;/code> DockerHub team&lt;/a> you will need
+help with this step. Please email &lt;code>dev@&lt;/code> and ask a member of the &lt;code>beam&lt;/code> DockerHub team for help.&lt;/li>
 &lt;li>Create a PR to update beam-site, changes includes:
 &lt;ul>
 &lt;li>Copy python doc into beam-site&lt;/li>
@@ -1801,8 +1801,8 @@ All wheels should be published, in addition to the zip of the release source.
 (Signatures and hashes do &lt;em>not&lt;/em> need to be uploaded.)&lt;/li>
 &lt;/ul>
 &lt;h3 id="deploy-docker-images-to-dockerhub">Deploy docker images to DockerHub&lt;/h3>
-&lt;p>Note: if you are not a member of the &lt;a href="https://hub.docker.com/orgs/apache/teams/beammaintainers">beammaintainers DockerHub team&lt;/a>,
-you will need help with this step. Please email dev@ and ask a member of the beammaintainers DockerHub team for help.&lt;/p>
+&lt;p>Note: if you are not a member of the &lt;a href="https://hub.docker.com/orgs/apache/teams/beam">beam DockerHub team&lt;/a>,
+you will need help with this step. Please email dev@ and ask a member of the beam DockerHub team for help.&lt;/p>
 &lt;ul>
 &lt;li>&lt;strong>Script:&lt;/strong> &lt;a href="https://github.com/apache/beam/blob/master/release/src/main/scripts/publish_docker_images.sh">publish_docker_images.sh&lt;/a>&lt;/li>
 &lt;li>&lt;strong>Usage&lt;/strong>&lt;/li>
