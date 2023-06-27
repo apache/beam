@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -56,6 +57,28 @@ public class OutputSamplerTest {
     coder.encode(WindowedValue.valueInGlobalWindow(i), stream);
     return BeamFnApi.SampledElement.newBuilder()
         .setElement(ByteString.copyFrom(stream.toByteArray()))
+        .build();
+  }
+
+  public BeamFnApi.SampledElement encodeException(
+      Integer i, String error, String ptransformId, @Nullable String processBundleId)
+      throws IOException {
+    VarIntCoder coder = VarIntCoder.of();
+    ByteArrayOutputStream stream = new ByteArrayOutputStream();
+    coder.encode(i, stream);
+
+    BeamFnApi.SampledElement.Exception.Builder builder =
+        BeamFnApi.SampledElement.Exception.newBuilder()
+            .setTransformId(ptransformId)
+            .setError(error);
+
+    if (processBundleId != null) {
+      builder.setInstructionId(processBundleId);
+    }
+
+    return BeamFnApi.SampledElement.newBuilder()
+        .setElement(ByteString.copyFrom(stream.toByteArray()))
+        .setException(builder)
         .build();
   }
 
@@ -154,11 +177,65 @@ public class OutputSamplerTest {
     ElementSample<Integer> elementSample = outputSampler.sample(windowedValue);
 
     Exception exception = new RuntimeException("Test exception");
-    outputSampler.exception(elementSample, exception);
+    String ptransformId = "ptransform";
+    String processBundleId = "processBundle";
+    outputSampler.exception(elementSample, exception, ptransformId, processBundleId);
 
-    // The first 10 are always sampled, but with maxSamples = 5, the first ten are downsampled to
-    // 4..9 inclusive. Then,
-    // the 20th element is sampled (19) and every 20 after.
+    List<BeamFnApi.SampledElement> expected = new ArrayList<>();
+    expected.add(encodeException(1, exception.toString(), ptransformId, processBundleId));
+
+    List<BeamFnApi.SampledElement> samples = outputSampler.samples();
+    assertThat(samples, containsInAnyOrder(expected.toArray()));
+  }
+
+  /**
+   * Test that in the event that an exception happens multiple times in a bundle, it's only recorded
+   * at the source.
+   *
+   * @throws IOException when encoding fails (shouldn't happen).
+   */
+  @Test
+  public void testNoDuplicateExceptions() throws IOException {
+    VarIntCoder coder = VarIntCoder.of();
+    OutputSampler<Integer> outputSampler = new OutputSampler<>(coder, 5, 20);
+
+    ElementSample<Integer> elementSampleA =
+        outputSampler.sample(WindowedValue.valueInGlobalWindow(1));
+    ElementSample<Integer> elementSampleB =
+        outputSampler.sample(WindowedValue.valueInGlobalWindow(2));
+
+    Exception exception = new RuntimeException("Test exception");
+    String ptransformIdA = "ptransformA";
+    String ptransformIdB = "ptransformB";
+    String processBundleId = "processBundle";
+    outputSampler.exception(elementSampleA, exception, ptransformIdA, processBundleId);
+    outputSampler.exception(elementSampleB, exception, ptransformIdB, processBundleId);
+
+    List<BeamFnApi.SampledElement> expected = new ArrayList<>();
+    expected.add(encodeException(1, exception.toString(), ptransformIdA, processBundleId));
+    expected.add(encodeInt(2));
+
+    List<BeamFnApi.SampledElement> samples = outputSampler.samples();
+    assertThat(samples, containsInAnyOrder(expected.toArray()));
+  }
+
+  /**
+   * Test that exception metadata is only set if there is a process bundle.
+   *
+   * @throws IOException when encoding fails (shouldn't happen).
+   */
+  @Test
+  public void testExceptionOnlySampledIfNonNullProcessBundle() throws IOException {
+    VarIntCoder coder = VarIntCoder.of();
+    OutputSampler<Integer> outputSampler = new OutputSampler<>(coder, 5, 20);
+
+    WindowedValue<Integer> windowedValue = WindowedValue.valueInGlobalWindow(1);
+    ElementSample<Integer> elementSample = outputSampler.sample(windowedValue);
+
+    Exception exception = new RuntimeException("Test exception");
+    String ptransformId = "ptransform";
+    outputSampler.exception(elementSample, exception, ptransformId, null);
+
     List<BeamFnApi.SampledElement> expected = new ArrayList<>();
     expected.add(encodeInt(1));
 
@@ -185,7 +262,9 @@ public class OutputSamplerTest {
     }
 
     Exception exception = new RuntimeException("Test exception");
-    outputSampler.exception(elementSample, exception);
+    String ptransformId = "ptransform";
+    String processBundleId = "processBundle";
+    outputSampler.exception(elementSample, exception, ptransformId, processBundleId);
 
     // The first 10 are always sampled, but with maxSamples = 5, the first ten are downsampled to
     // 4..9 inclusive. Then, the 20th element is sampled (19) and every 20 after. Finally,
@@ -196,7 +275,7 @@ public class OutputSamplerTest {
     expected.add(encodeInt(59));
     expected.add(encodeInt(79));
     expected.add(encodeInt(99));
-    expected.add(encodeInt(0));
+    expected.add(encodeException(0, exception.toString(), ptransformId, processBundleId));
 
     List<BeamFnApi.SampledElement> samples = outputSampler.samples();
     assertThat(samples, containsInAnyOrder(expected.toArray()));
