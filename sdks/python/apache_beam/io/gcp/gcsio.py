@@ -174,7 +174,8 @@ class GcsIO(object):
           http=get_new_http(),
           response_encoding='utf8',
           additional_http_headers={
-              "User-Agent": "apache-beam-%s" % apache_beam.__version__
+              "User-Agent": "apache-beam/%s (GPN:Beam)" %
+              apache_beam.__version__
           })
     self.client = storage_client
     self._rewrite_cb = None

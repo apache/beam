@@ -31,7 +31,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_PortableJar_Flink',
       steps {
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
-          tasks(':sdks:python:test-suites:portable:py37:testPipelineJarFlinkRunner')
+          tasks(':sdks:python:test-suites:portable:py38:testPipelineJarFlinkRunner')
           commonJobProperties.setGradleSwitches(delegate)
         }
       }
