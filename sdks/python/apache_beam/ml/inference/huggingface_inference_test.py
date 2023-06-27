@@ -15,6 +15,8 @@
 # limitations under the License.
 #
 
+# pytype: skip-file
+
 import pytest
 import shutil
 import tempfile
@@ -26,16 +28,20 @@ from typing import Sequence
 from typing import Union
 import unittest
 
-import tensorflow as tf
-import torch
-from transformers import AutoModel
-from transformers import TFAutoModel
-
 from apache_beam.ml.inference import utils
 from apache_beam.ml.inference.base import PredictionResult
-from apache_beam.ml.inference.huggingface_inference import HuggingFaceModelHandlerTensor
 from apache_beam.ml.inference.tensorflow_inference_test import _compare_tensor_prediction_result
 from apache_beam.ml.inference.tensorflow_inference_test import FakeTFTensorModel
+
+# pylint: disable=ungrouped-imports
+try:
+  import tensorflow as tf
+  import torch
+  from transformers import AutoModel
+  from transformers import TFAutoModel
+  from apache_beam.ml.inference.huggingface_inference import HuggingFaceModelHandlerTensor
+except ImportError:
+  raise unittest.SkipTest('Transformers dependencies are not installed.')
 
 
 def fake_inference_fn_tensor(

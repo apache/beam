@@ -15,6 +15,8 @@
 # limitations under the License.
 #
 
+# pytype: skip-file
+
 from collections import defaultdict
 import logging
 import sys
@@ -30,7 +32,6 @@ import tensorflow as tf
 import torch
 from transformers import AutoModel
 from transformers import TFAutoModel
-
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.ml.inference import utils

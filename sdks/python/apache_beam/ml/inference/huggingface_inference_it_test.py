@@ -20,6 +20,7 @@
 import logging
 import unittest
 import uuid
+
 import pytest
 
 from apache_beam.examples.inference import huggingface_language_modeling
@@ -28,6 +29,7 @@ from apache_beam.ml.inference import pytorch_inference_it_test
 from apache_beam.testing.test_pipeline import TestPipeline
 
 
+@pytest.mark.uses_transformers
 @pytest.mark.it_postcommit
 class HuggingFaceInference(unittest.TestCase):
   @pytest.mark.timeout(1800)
