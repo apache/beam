@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 import collections
-import logging
 import os
 import tempfile
 import typing
@@ -310,7 +309,6 @@ class TFTProcessHandler(_ProcessHandler[ProcessInputT, ProcessOutputT]):
   ) -> Dict[str, typing.Sequence[typing.Union[np.float32, np.int64, bytes]]]:
     schema = metadata._schema
     transformed_types = {}
-    logging.info("Schema: %s", schema)
     for feature in schema.feature:
       name = feature.name
       feature_type = feature.type
@@ -325,7 +323,6 @@ class TFTProcessHandler(_ProcessHandler[ProcessInputT, ProcessOutputT]):
         # other than float, int and bytes. Refactor the code here.
         raise RuntimeError(
             'Unsupported feature type: %s encountered' % feature_type)
-    logging.info(transformed_types)
     return transformed_types
 
   def process_data(

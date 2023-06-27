@@ -66,6 +66,8 @@ __all__ = [
 # this will be used to determine schema for the tft.AnalyzeDataset
 _EXPECTED_TYPES: Dict[str, Union[int, str, float]] = {}
 
+_LOGGER = logging.getLogger(__name__)
+
 
 def register_input_dtype(type):
   def wrapper(fn):
@@ -415,7 +417,7 @@ class TFIDF(TFTOperation):
 
     if self.vocab_size is None:
       try:
-        logging.info(
+        _LOGGER.info(
             'vocab_size is not specified. Trying to infer vocab_size '
             'from the input data using '
             'tft.get_num_buckets_for_transformed_feature.')
