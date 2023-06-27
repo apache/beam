@@ -55,13 +55,11 @@ jobs:
         run: pip install signal-processing-algorithms
       - name: Install pandas, yaml, requests
         run: pip install pandas db-dtypes PyYAML requests
-      - name: Set Environment Variable
-        run: echo "PERF_TOOL_PUBLISH_DATA=false" >> $GITHUB_ENV
-        if: github.event_name == 'pull_request'
       - name: Run Change Point Analysis.
         working-directory: ./sdks/python/apache_beam/testing/analyzers
         shell: bash
         run: python perf_analysis.py
+        if: github.event_name != 'pull_request'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Run change point analysis tests.

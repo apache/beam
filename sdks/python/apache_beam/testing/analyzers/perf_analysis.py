@@ -46,10 +46,6 @@ from apache_beam.testing.analyzers.perf_analysis_utils import validate_config
 from apache_beam.testing.load_tests.load_test_metrics_utils import BigQueryMetricsFetcher
 
 
-def string_to_bool(string: str) -> bool:
-  return string.lower() in ['true', 't', '1']
-
-
 def run_change_point_analysis(params, test_name, big_query_metrics_fetcher):
   """
   Args:
@@ -126,10 +122,7 @@ def run_change_point_analysis(params, test_name, big_query_metrics_fetcher):
         change_point_index=change_point_index,
         timestamps=timestamps,
         min_runs_between_change_points=min_runs_between_change_points)
-  logging.debug("Performance alert is %s for test %s" % (is_alert, test_name))
-  publish_perf_tool_alert = string_to_bool(
-      os.environ.get('PERF_TOOL_PUBLISH_DATA', 'true'))
-  if is_alert and publish_perf_tool_alert:
+  if is_alert:
     issue_number, issue_url = create_performance_alert(
     metric_name, test_name, timestamps,
     metric_values, change_point_index,
@@ -152,10 +145,6 @@ def run_change_point_analysis(params, test_name, big_query_metrics_fetcher):
 
     publish_issue_metadata_to_big_query(
         issue_metadata=issue_metadata, table_name=issue_metadata_table_name)
-  elif is_alert and not publish_perf_tool_alert:
-    logging.info(
-        'Not alerting on GitHub since '
-        ' PER_TOOL_PUBLISH_DATA is set to False')
 
   return is_alert
 
