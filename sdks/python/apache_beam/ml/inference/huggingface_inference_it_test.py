@@ -23,10 +23,17 @@ import uuid
 
 import pytest
 
-from apache_beam.examples.inference import huggingface_language_modeling
 from apache_beam.io.filesystems import FileSystems
-from apache_beam.ml.inference import pytorch_inference_it_test
 from apache_beam.testing.test_pipeline import TestPipeline
+
+try:
+  from apache_beam.examples.inference import huggingface_language_modeling
+  from apache_beam.ml.inference import pytorch_inference_it_test
+except ImportError:
+  raise unittest.SkipTest(
+      "transformers dependencies are not installed. "
+      "Check if transformers, torch, and tensorflow "
+      "is installed.")
 
 
 @pytest.mark.uses_transformers

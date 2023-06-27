@@ -32,19 +32,17 @@ from typing import Iterable
 from typing import Iterator
 from typing import Tuple
 
-import torch
-
 import apache_beam as beam
-from apache_beam.ml.inference.huggingface_inference import HuggingFaceModelHandlerKeyedTensor
+import torch
 from apache_beam.ml.inference.base import KeyedModelHandler
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.ml.inference.base import RunInference
+from apache_beam.ml.inference.huggingface_inference import HuggingFaceModelHandlerKeyedTensor
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.runners.runner import PipelineResult
-
-from transformers import AutoTokenizer
 from transformers import AutoModelForMaskedLM
+from transformers import AutoTokenizer
 
 
 def add_mask_to_last_word(text: str) -> Tuple[str, str]:

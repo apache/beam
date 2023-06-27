@@ -17,9 +17,9 @@
 
 # pytype: skip-file
 
-from collections import defaultdict
 import logging
 import sys
+from collections import defaultdict
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -30,12 +30,12 @@ from typing import Union
 
 import tensorflow as tf
 import torch
-from transformers import AutoModel
-from transformers import TFAutoModel
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.ml.inference import utils
 from apache_beam.ml.inference.pytorch_inference import _convert_to_device
+from transformers import AutoModel
+from transformers import TFAutoModel
 
 __all__ = [
     'HuggingFaceModelHandlerTensor',

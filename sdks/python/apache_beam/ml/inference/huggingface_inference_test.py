@@ -17,21 +17,22 @@
 
 # pytype: skip-file
 
-import pytest
 import shutil
 import tempfile
+import unittest
 from typing import Any
 from typing import Dict
 from typing import Iterable
 from typing import Optional
 from typing import Sequence
 from typing import Union
-import unittest
+
+import pytest
 
 from apache_beam.ml.inference import utils
+from apache_beam.ml.inference.tensorflow_inference_test import FakeTFTensorModel
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.ml.inference.tensorflow_inference_test import _compare_tensor_prediction_result
-from apache_beam.ml.inference.tensorflow_inference_test import FakeTFTensorModel
 
 # pylint: disable=ungrouped-imports
 try:
