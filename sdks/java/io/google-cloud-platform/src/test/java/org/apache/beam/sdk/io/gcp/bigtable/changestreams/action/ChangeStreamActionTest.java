@@ -103,8 +103,7 @@ public class ChangeStreamActionTest {
             tracker,
             receiver,
             watermarkEstimator,
-            throughputEstimator,
-            false);
+            throughputEstimator);
 
     assertFalse(result.isPresent());
     verify(metrics).incHeartbeatCount();
@@ -152,8 +151,7 @@ public class ChangeStreamActionTest {
             tracker,
             receiver,
             watermarkEstimator,
-            throughputEstimator,
-            false);
+            throughputEstimator);
 
     assertTrue(result.isPresent());
     assertEquals(DoFn.ProcessContinuation.resume(), result.get());
@@ -187,8 +185,7 @@ public class ChangeStreamActionTest {
             tracker,
             receiver,
             watermarkEstimator,
-            throughputEstimator,
-            false);
+            throughputEstimator);
 
     assertFalse(result.isPresent());
     verify(metrics).incChangeStreamMutationUserCounter();
@@ -243,8 +240,7 @@ public class ChangeStreamActionTest {
             tracker,
             receiver,
             watermarkEstimator,
-            throughputEstimator,
-            false);
+            throughputEstimator);
 
     assertFalse(result.isPresent());
     verify(metrics).incChangeStreamMutationGcCounter();

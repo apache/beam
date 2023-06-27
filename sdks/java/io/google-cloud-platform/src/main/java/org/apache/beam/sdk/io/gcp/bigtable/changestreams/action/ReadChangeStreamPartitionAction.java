@@ -138,23 +138,8 @@ public class ReadChangeStreamPartitionAction {
       OutputReceiver<KV<ByteString, ChangeStreamRecord>> receiver,
       ManualWatermarkEstimator<Instant> watermarkEstimator)
       throws IOException {
-    // Watermark being delayed beyond 5 minutes signals a possible problem.
-    boolean shouldDebug =
-        watermarkEstimator.getState().plus(Duration.standardMinutes(5)).isBeforeNow();
     BytesThroughputEstimator<KV<ByteString, ChangeStreamRecord>> throughputEstimator =
         new BytesThroughputEstimator<>(sizeEstimator, Instant.now());
-
-    if (shouldDebug) {
-      LOG.info(
-          "RCSP {}: Partition: "
-              + partitionRecord
-              + "\n Watermark: "
-              + watermarkEstimator.getState()
-              + "\n RestrictionTracker: "
-              + tracker.currentRestriction(),
-          formatByteStringRange(partitionRecord.getPartition()));
-    }
-
     // Lock the partition
     if (tracker.currentRestriction().isEmpty()) {
       boolean lockedPartition = metadataTableDao.lockAndRecordPartition(partitionRecord);
@@ -266,12 +251,10 @@ public class ReadChangeStreamPartitionAction {
             new NewPartition(
                 childPartition, Collections.singletonList(token), watermarkEstimator.getState()));
       }
-      if (shouldDebug) {
-        LOG.info(
-            "RCSP {}: Split/Merge into {}",
-            formatByteStringRange(partitionRecord.getPartition()),
-            partitionsToString(childPartitions));
-      }
+      LOG.info(
+          "RCSP {}: Split/Merge into {}",
+          formatByteStringRange(partitionRecord.getPartition()),
+          partitionsToString(childPartitions));
       if (!coverSameKeySpace(tokenPartitions, partitionRecord.getPartition())) {
         LOG.warn(
             "RCSP {}: CloseStream has tokens {} that don't cover the entire keyspace",
@@ -299,8 +282,7 @@ public class ReadChangeStreamPartitionAction {
               partitionRecord,
               tracker.currentRestriction(),
               partitionRecord.getEndTime(),
-              heartbeatDuration,
-              shouldDebug);
+              heartbeatDuration);
       for (ChangeStreamRecord record : stream) {
         Optional<ProcessContinuation> result =
             changeStreamAction.run(
@@ -309,8 +291,7 @@ public class ReadChangeStreamPartitionAction {
                 tracker,
                 receiver,
                 watermarkEstimator,
-                throughputEstimator,
-                shouldDebug);
+                throughputEstimator);
         // changeStreamAction will usually return Optional.empty() except for when a checkpoint
         // (either runner or pipeline initiated) is required.
         if (result.isPresent()) {
