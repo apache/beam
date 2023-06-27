@@ -80,7 +80,6 @@ final class FirestoreTestingHelper implements TestRule {
   private static final String DEFAULT_FIRESTORE_HOST = "batch-firestore.googleapis.com:443";
   private static final String FIRESTORE_HOST_VARIABLE = "FIRESTORE_HOST";
 
-
   static final String BASE_COLLECTION_ID;
 
   static {
