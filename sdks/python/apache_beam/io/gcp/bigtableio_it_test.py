@@ -370,3 +370,8 @@ class TestWriteToBigtableXlangIT(unittest.TestCase):
     self.assertEqual(None, actual_row1)
     # check row 2 exists with the correct cell value in col
     self.assertEqual(b'val-2', actual_row2.cell_value('col_fam', b'col'))
+
+
+if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.INFO)
+  unittest.main()
