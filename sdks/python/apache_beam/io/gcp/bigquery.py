@@ -1535,7 +1535,6 @@ class BigQueryWriteFn(DoFn):
         error = (
             f"Received row with size {row_mb_size}MB that exceeds "
             f"the maximum insert payload size set ({max_mb_size}MB).")
-        _LOGGER.warning(error + " Sending row to dead-letter-queue.")
         return [
             pvalue.TaggedOutput(
                 BigQueryWriteFn.FAILED_ROWS_WITH_ERRORS,
@@ -1549,10 +1548,11 @@ class BigQueryWriteFn(DoFn):
 
       buffer_byte_size_with_row = (
           row_byte_size if not self._rows_buffer[destination] else
-          get_deep_size(self._rows_buffer[destination]) + row_byte_size)
+          row_byte_size + get_deep_size(self._rows_buffer[destination]))
 
       # Flush current batch first if adding this row will exceed our limits
-      if ((self.max_insert_payload_size < buffer_byte_size_with_row) or
+      # limits: byte size; number of rows
+      if ((buffer_byte_size_with_row > self.max_insert_payload_size) or
           len(self._rows_buffer[destination]) >= self._max_batch_size):
         flushed_batch = self._flush_batch(destination)
         self._rows_buffer[destination].append(row_and_insert_id)

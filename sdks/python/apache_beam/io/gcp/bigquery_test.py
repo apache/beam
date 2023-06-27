@@ -42,6 +42,7 @@ from parameterized import parameterized
 import apache_beam as beam
 from apache_beam.internal import pickler
 from apache_beam.internal.gcp.json_value import to_json_value
+from apache_beam.io.filebasedsink_test import _TestCaseWithTempDirCleanUp
 from apache_beam.io.gcp import bigquery as beam_bq
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.bigquery import ReadFromBigQuery
@@ -1329,23 +1330,12 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
-class PipelineBasedStreamingInsertTest(unittest.TestCase):
-  def _cleanup_files(self):
-    if os.path.exists('file1'):
-      os.remove('file1')
-    if os.path.exists('file2'):
-      os.remove('file2')
-
-  def setUp(self):
-    self._cleanup_files()
-
-  def tearDown(self):
-    self._cleanup_files()
-
+class PipelineBasedStreamingInsertTest(_TestCaseWithTempDirCleanUp):
   @mock.patch('time.sleep')
   def test_failure_has_same_insert_ids(self, unused_mock_sleep):
-    file_name_1 = 'file1'
-    file_name_2 = 'file2'
+    tempdir = '%s%s' % (self._new_tempdir(), os.sep)
+    file_name_1 = os.path.join(tempdir, 'file1')
+    file_name_2 = os.path.join(tempdir, 'file2')
 
     def store_callback(table, **kwargs):
       insert_ids = [r for r in kwargs['row_ids']]
@@ -1409,8 +1399,9 @@ class PipelineBasedStreamingInsertTest(unittest.TestCase):
       # In this test we simulate a failure to write out two out of three rows.
       # Row 0 and row 2 fail to be written on the first attempt, and then
       # succeed on the next attempt (if there is one).
-      file_name_1 = 'file1'
-      file_name_2 = 'file2'
+      tempdir = '%s%s' % (self._new_tempdir(), os.sep)
+      file_name_1 = os.path.join(tempdir, 'file1_partial')
+      file_name_2 = os.path.join(tempdir, 'file2_partial')
 
       def store_callback(table, **kwargs):
         insert_ids = [r for r in kwargs['row_ids']]
@@ -1583,8 +1574,9 @@ class PipelineBasedStreamingInsertTest(unittest.TestCase):
       param(with_auto_sharding=True),
   ])
   def test_batch_size_with_auto_sharding(self, with_auto_sharding):
-    file_name_1 = 'file1'
-    file_name_2 = 'file2'
+    tempdir = '%s%s' % (self._new_tempdir(), os.sep)
+    file_name_1 = os.path.join(tempdir, 'file1')
+    file_name_2 = os.path.join(tempdir, 'file2')
 
     def store_callback(table, **kwargs):
       insert_ids = [r for r in kwargs['row_ids']]
