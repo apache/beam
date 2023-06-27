@@ -26,13 +26,13 @@ on:
   issue_comment:
     types: [created]
   schedule:
-    - cron: '* */1 * * *'
+    - cron: '* */5 * * *'
 
 jobs:
     beam_PreCommit_Website:
         if: ${{github.event.issue.pull_request}} || ${{github.event.comment.body == 'Run Website PreCommit'}} || ${{github.event.schedule}}
-        runs-on: [ubuntu-local]
-        # runs-on: [self-hosted, ubuntu-20.04]
+        # runs-on: [ubuntu-local]
+        runs-on: [self-hosted, ubuntu-20.04]
         name: beam_PreCommit_Website
         timeout-minutes: 120
         steps:       
