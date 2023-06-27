@@ -23,6 +23,10 @@ on:
   workflow_dispatch:
   schedule:
     - cron: '5 22 * * *'
+  pull_request:
+    branches: ['master']
+    tags: 'v*'
+    paths: ['sdks/python/apache_beam/testing/**']
 jobs:
   python_run_change_point_analysis:
     name: Run Change Point Analysis.
@@ -51,7 +55,11 @@ jobs:
         run: pip install signal-processing-algorithms
       - name: Install pandas, yaml, requests
         run: pip install pandas db-dtypes PyYAML requests
+      - name: Set Environment Variable
+        run: echo "PERF_TOOL_PUBLISH_DATA=false" >> $GITHUB_ENV
+        if: github.event_name == 'pull_request'
       - name: Run Change Point Analysis.
+        if: github.event_name != 'pull_request'
         working-directory: ./sdks/python/apache_beam/testing/analyzers
         shell: bash
         run: python perf_analysis.py
