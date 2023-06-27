@@ -211,13 +211,13 @@ class WriteToBigTable(beam.PTransform):
     self._instance_id = instance_id
     self._project_id = project_id
     self._use_cross_language = use_cross_language
-    
     if use_cross_language:
       self._expansion_service = (
           expansion_service or BeamJarExpansionService(
               'sdks:java:io:google-cloud-platform:expansion-service:build'))
-      self.schematransform_config = SchemaAwareExternalTransform.discover_config(
-          self._expansion_service, self.URN)
+      self.schematransform_config = (
+          SchemaAwareExternalTransform.discover_config(
+              self._expansion_service, self.URN))
 
   def expand(self, input):
     if self._use_cross_language:

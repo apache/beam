@@ -40,18 +40,15 @@ _LOGGER = logging.getLogger(__name__)
 
 # Protect against environments where bigtable library is not available.
 try:
-  from apitools.base.py.exceptions import HttpError
   from google.cloud.bigtable import client
   from google.cloud.bigtable.row_filters import TimestampRange
   from google.cloud.bigtable.instance import Instance
   from google.cloud.bigtable.row import DirectRow, PartialRowData, Cell
   from google.cloud.bigtable.table import Table
-  from google.cloud.bigtable_admin_v2.types import instance
   from google.rpc.code_pb2 import OK, ALREADY_EXISTS
   from google.rpc.status_pb2 import Status
 except ImportError as e:
   client = None
-  HttpError = None
 
 
 @unittest.skipIf(client is None, 'Bigtable dependencies are not installed')

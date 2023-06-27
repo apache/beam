@@ -51,8 +51,8 @@ except ImportError as e:
 
 @pytest.mark.uses_gcp_java_expansion_service
 @unittest.skipUnless(
-  os.environ.get('EXPANSION_PORT'),
-  "EXPANSION_PORT environment var is not provided.")
+    os.environ.get('EXPANSION_PORT'),
+    "EXPANSION_PORT environment var is not provided.")
 @unittest.skipIf(client is None, 'Bigtable dependencies are not installed')
 class TestReadFromBigTableIT(unittest.TestCase):
   INSTANCE = "bt-read-tests"
@@ -143,8 +143,8 @@ class TestReadFromBigTableIT(unittest.TestCase):
 
 @pytest.mark.uses_gcp_java_expansion_service
 @unittest.skipUnless(
-  os.environ.get('EXPANSION_PORT'),
-  "EXPANSION_PORT environment var is not provided.")
+    os.environ.get('EXPANSION_PORT'),
+    "EXPANSION_PORT environment var is not provided.")
 @unittest.skipIf(client is None, 'Bigtable dependencies are not installed')
 class TestWriteToBigtableXlangIT(unittest.TestCase):
   # These are integration tests for the cross-language write transform.
