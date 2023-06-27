@@ -20,7 +20,7 @@ on:
     tags: ['v*']
     branches: ['master', 'release-*']
     paths: ['website/**']
-  pull_request:
+  pull_request_target:
     branches: ['master', 'release-*']
     paths: ['website/**']
   issue_comment:
@@ -33,7 +33,7 @@ jobs:
         if: ${{github.event.issue.pull_request}} || ${{github.event.comment.body == 'Run Website_Stage_GCS PreCommit'}} || ${{github.event.schedule}}
         runs-on: [self-hosted, ubuntu-20.04]
         name: beam_PreCommit_Website_Stage_GCS
-        steps:       
+        steps:
           - name: Git checkout
             uses: actions/checkout@v3
           - name: Install Java
@@ -45,5 +45,11 @@ jobs:
             uses: gradle/gradle-build-action@v2
             with:
               cache-read-only: false
-          - name: run websitePreCommit script
-            run: ./gradlew :websitePreCommit
+          - name: Install Python
+            uses: actions/setup-python@v4
+            with:
+              python-version: '3.8'
+          - name: Set up Cloud SDK
+            uses: google-github-actions/setup-gcloud@v1
+          - name: run website_stageWebsite script
+            run: ./gradlew :website:stageWebsite
