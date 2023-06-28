@@ -2665,17 +2665,14 @@ class CombineGlobally(PTransform):
             "or CombineGlobally().as_singleton_view() to get the default "
             "output of the CombineFn if the input PCollection is empty.")
 
-      # return the error for this ill-defined streaming case
+      # log the error for this ill-defined streaming case now
       if not pcoll.is_bounded and not pcoll.windowing.is_default():
-        raise ValueError(
-            "For unbounded data sources, "
-            "default values are not yet supported in CombineGlobally() if the "
-            "output PCollection is not windowed by GlobalWindows "
-            "with DefaultTrigger. "
-            "Instead, use CombineGlobally().without_defaults() to output "
-            "an empty PCollection if the input PCollection is empty, "
-            "or CombineGlobally().as_singleton_view() to get the default "
-            "output of the CombineFn if the input PCollection is empty.")
+        _LOGGER.error(
+            "When combining elements in unbounded collections with "
+            "the non-default windowing strategy, you must explicitly "
+            "specify how to define the combined result of an empty window. "
+            "Please use CombineGlobally().without_defaults() to output "
+            "an empty PCollection if the input PCollection is empty.")
 
       def typed(transform):
         # TODO(robertwb): We should infer this.

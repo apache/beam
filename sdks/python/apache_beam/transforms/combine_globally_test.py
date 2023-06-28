@@ -30,8 +30,8 @@ from apache_beam.transforms.periodicsequence import PeriodicImpulse
 
 class CombineGloballyTest(unittest.TestCase):
   def test_combine_globally_for_unbounded_source_with_default(self):
-    # this error is expected since the below combination is ill-defined.
-    with self.assertRaises(ValueError):
+    # this error is logged since the below combination is ill-defined.
+    with self.assertLogs() as captured_logs:
       with TestPipeline() as p:
         _ = (
             p
@@ -48,6 +48,7 @@ class CombineGloballyTest(unittest.TestCase):
                 accumulation_mode=trigger.AccumulationMode.DISCARDING,
             )
             | beam.combiners.Count.Globally())
+    self.assertIn('unbounded collections', '\n'.join(captured_logs.output))
 
   def test_combine_globally_for_unbounded_source_without_defaults(self):
     # this is the supported case
