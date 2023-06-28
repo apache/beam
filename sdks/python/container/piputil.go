@@ -28,7 +28,19 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/execx"
 )
-
+// It will return the python interpreter type i.e. python or python3 if available else return empty string.
+func pythonVersion() string {
+	cmd := exec.Command("python", "--version")
+	cmd2 := exec.Command("python3", "--version")
+	err := cmd.Run()
+	err2 := cmd2.Run()
+	if err == nil {
+		return "python"
+	} else if err2 == nil {
+		return "python3"
+	}
+	return ""
+}
 // pipInstallRequirements installs the given requirement, if present.
 func pipInstallRequirements(files []string, dir, name string) error {
 	for _, file := range files {
@@ -38,14 +50,18 @@ func pipInstallRequirements(files []string, dir, name string) error {
 			// option will make sure that only things staged in the worker will be
 			// used without following their dependencies.
 			args := []string{"-m", "pip", "install", "-r", filepath.Join(dir, name), "--no-cache-dir", "--disable-pip-version-check", "--no-index", "--no-deps", "--find-links", dir}
-			if err := execx.Execute("python3", args...); err != nil {
-				fmt.Println("Some packages could not be installed solely from the requirements cache. Installing packages from PyPI.")
+			pythonVersion := pythonVersion()
+			if pythonVersion != "" {
+				if err := execx.Execute(pythonVersion, args...); err != nil {
+					fmt.Println("Some packages could not be installed solely from the requirements cache. Installing packages from PyPI.")
+				}
+				// The second install round opens up the search for packages on PyPI and
+				// also installs dependencies. The key is that if all the packages have
+				// been installed in the first round then this command will be a no-op.
+				args = []string{"-m", "pip", "install", "-r", filepath.Join(dir, name), "--no-cache-dir", "--disable-pip-version-check", "--find-links", dir}
+				return execx.Execute("python", args...)
 			}
-			// The second install round opens up the search for packages on PyPI and
-			// also installs dependencies. The key is that if all the packages have
-			// been installed in the first round then this command will be a no-op.
-			args = []string{"-m", "pip", "install", "-r", filepath.Join(dir, name), "--no-cache-dir", "--disable-pip-version-check", "--find-links", dir}
-			return execx.Execute("python3", args...)
+			return fmt.Errorf("Python interpreter is not available")
 		}
 	}
 	return nil

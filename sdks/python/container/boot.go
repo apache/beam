@@ -72,6 +72,19 @@ const (
 
 	standardArtifactFileTypeUrn = "beam:artifact:type:file:v1"
 )
+// It will return the python interpreter type i.e. python or python3 if available else return empty string.
+func pythonVersion() string {
+	cmd := exec.Command("python", "--version")
+	cmd2 := exec.Command("python3", "--version")
+	err := cmd.Run()
+	err2 := cmd2.Run()
+	if err == nil {
+		return "python"
+	} else if err2 == nil {
+		return "python3"
+	}
+	return ""
+}
 
 func main() {
 	flag.Parse()
@@ -91,11 +104,14 @@ func main() {
 			"--container_executable=/opt/apache/beam/boot",
 		}
 		log.Printf("Starting worker pool %v: python %v", workerPoolId, strings.Join(args, " "))
-		if err := execx.Execute("python3", args...); err != nil {
-			log.Fatalf("Python SDK worker pool exited with error: %v", err)
+		pythonVersion = pythonVersion()
+		if pythonVersion != ""{
+			if err := execx.Execute(pythonVersion, args...); err != nil {
+				log.Fatalf("Python SDK worker pool exited with error: %v", err)
+			}
+			log.Print("Python SDK worker pool exited.")
+			os.Exit(0)
 		}
-		log.Print("Python SDK worker pool exited.")
-		os.Exit(0)
 	}
 
 	if *id == "" {
