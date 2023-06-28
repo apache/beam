@@ -154,6 +154,7 @@ class OutputSampler:
       # the bytes with the ToStringFn.
       if clear:
         self._samples.clear()
+        self._exceptions.clear()
 
       ret = [
           beam_fn_api_pb2.SampledElement(
@@ -176,15 +177,16 @@ class OutputSampler:
     """Samples the given element to an internal buffer."""
     with self._samples_lock:
       if self.element_sampler.has_element:
-        self.element_sampler.has_element = False
         self._samples.append(self.element_sampler.el)
+        self.element_sampler.has_element = False
 
   def sample_exception(
       self, el: Any, exn: BaseException, transform_id: str,
       instruction_id: str) -> None:
     """Adds the given exception to the samples."""
-    self._exceptions.append(
-        (el, ExceptionMetadata(repr(exn), transform_id, instruction_id)))
+    with self._samples_lock:
+      self._exceptions.append(
+          (el, ExceptionMetadata(repr(exn), transform_id, instruction_id)))
 
 
 class DataSampler:

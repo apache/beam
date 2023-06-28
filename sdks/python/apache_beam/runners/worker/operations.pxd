@@ -34,7 +34,7 @@ cdef class ConsumerSet(Receiver):
   cdef public step_name
   cdef public output_index
   cdef public coder
-  cdef public object exception_sampler
+  cdef public object output_sampler
   cdef public object element_sampler
   cdef public object execution_context
 

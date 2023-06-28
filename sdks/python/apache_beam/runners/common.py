@@ -1422,21 +1422,22 @@ class DoFnRunner:
     try:
       return self.do_fn_invoker.invoke_process(windowed_value)
     except BaseException as exn:
-      self._maybe_sample_exception(exn, windowed_value)
-      self._reraise_augmented(exn)
-      return []
+      new_exn = self._augment_exception(exn)
+      self._maybe_sample_exception(new_exn, windowed_value)
+
+      raise new_exn
 
   def _maybe_sample_exception(
-      self, exn: BaseException, windowed_value: Any) -> None:
+      self, exn: BaseException, windowed_value: WindowedValue) -> None:
 
     if self.execution_context is None:
       return
 
-    exception_sampler = self.execution_context.exception_sampler
-    if exception_sampler is None:
+    output_sampler = self.execution_context.output_sampler
+    if output_sampler is None:
       return
 
-    exception_sampler.sample_exception(
+    output_sampler.sample_exception(
         windowed_value,
         exn,
         self.transform_id,
@@ -1509,9 +1510,10 @@ class DoFnRunner:
     # type: () -> None
     self.bundle_finalizer_param.finalize_bundle()
 
-  def _reraise_augmented(self, exn):
+  def _augment_exception(self, exn: BaseException) -> Optional[BaseException]:
     if getattr(exn, '_tagged_with_step', False) or not self.step_name:
-      raise exn
+      return None
+
     step_annotation = " [while running '%s']" % self.step_name
     # To emulate exception chaining (not available in Python 2).
     try:
@@ -1527,7 +1529,12 @@ class DoFnRunner:
           step_annotation)
       new_exn._tagged_with_step = True
     _, _, tb = sys.exc_info()
-    raise new_exn.with_traceback(tb)
+    return new_exn.with_traceback(tb)
+
+  def _reraise_augmented(self, exn):
+    new_exn = self._augment_exception(exn)
+    if new_exn is not None:
+      raise new_exn
 
 
 class OutputHandler(object):

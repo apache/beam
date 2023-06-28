@@ -28,6 +28,7 @@ import logging
 import random
 import threading
 from dataclasses import dataclass
+from dataclasses import field
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
@@ -1185,11 +1186,12 @@ class BundleProcessor(object):
 @dataclass
 class ExecutionContext:
   # Any splits to be processed later.
-  delayed_applications = [
-  ]  # type: List[Tuple[operations.DoOperation, common.SplitResultResidual]]
+  delayed_applications: List[Tuple[operations.DoOperation,
+                                   common.SplitResultResidual]] = field(
+                                       default_factory=list)
 
   # The exception sampler for the currently executing PTransform.
-  exception_sampler: Optional[data_sampler.OutputSampler] = None
+  output_sampler: Optional[data_sampler.OutputSampler] = None
 
   # The current instruction being executed.
   instruction_id: Optional[str] = None

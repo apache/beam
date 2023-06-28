@@ -322,7 +322,7 @@ class DataSamplerTest(unittest.TestCase):
         })
     self.assertEqual(samples, expected_samples)
 
-  def test_exception_sampler_can_sample(self):
+  def test_can_sample_exceptions(self):
     """Tests that exceptions sampled can be queried by the DataSampler."""
     descriptor = self.make_test_descriptor()
     self.data_sampler.initialize_samplers(

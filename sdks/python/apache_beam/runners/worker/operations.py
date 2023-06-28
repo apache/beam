@@ -53,6 +53,8 @@ from apache_beam.runners.common import Receiver
 from apache_beam.runners.worker import opcounters
 from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import sideinputs
+from apache_beam.runners.worker.bundle_processor import ExecutionContext
+from apache_beam.runners.worker.data_sampler import DataSampler
 from apache_beam.transforms import sideinputs as apache_sideinputs
 from apache_beam.transforms import combiners
 from apache_beam.transforms import core
@@ -68,8 +70,6 @@ from apache_beam.utils.windowed_value import WindowedValue
 if TYPE_CHECKING:
   from apache_beam.runners.sdf_utils import SplitResultPrimary
   from apache_beam.runners.sdf_utils import SplitResultResidual
-  from apache_beam.runners.worker.bundle_processor import ExecutionContext
-  from apache_beam.runners.worker.data_sampler import DataSampler
   from apache_beam.runners.worker.data_sampler import OutputSampler
   from apache_beam.runners.worker.statesampler import StateSampler
   from apache_beam.transforms.userstate import TimerSpec
@@ -177,10 +177,10 @@ class ConsumerSet(Receiver):
     self.output_index = output_index
     self.coder = coder
     self.consumers = consumers
-    self.exception_sampler = output_sampler
+    self.output_sampler = output_sampler
     self.element_sampler = (
         output_sampler.element_sampler if output_sampler else None)
-    self.execution_context = None  # type: Optional[ExecutionContext]
+    self.execution_context: Optional[ExecutionContext] = None
 
   def try_split(self, fraction_of_remainder):
     # type: (...) -> Optional[Any]
@@ -214,9 +214,10 @@ class ConsumerSet(Receiver):
     # is that some samples might be dropped, but it is better than the
     # alternative which is double sampling the same element.
     if self.element_sampler is not None and self.execution_context is not None:
-      self.execution_context.exception_sampler = self.exception_sampler
-      self.element_sampler.el = windowed_value
-      self.element_sampler.has_element = True
+      self.execution_context.output_sampler = self.output_sampler
+      if not self.element_sampler.has_element:
+        self.element_sampler.el = windowed_value
+        self.element_sampler.has_element = True
 
   def update_counters_finish(self):
     # type: () -> None
@@ -456,7 +457,7 @@ class Operation(object):
     # on the operation.
     self.setup_done = False
     self.step_name = None  # type: Optional[str]
-    self.data_sampler = None
+    self.data_sampler: Optional[DataSampler] = None
 
   def setup(self, data_sampler=None):
     # type: (Optional[DataSampler]) -> None
