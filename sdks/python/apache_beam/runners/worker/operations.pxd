@@ -84,6 +84,8 @@ cdef class Operation(object):
   cdef readonly object scoped_process_state
   cdef readonly object scoped_finish_state
 
+  cdef readonly object data_sampler
+
   cpdef start(self)
   cpdef process(self, WindowedValue windowed_value)
   cpdef finish(self)

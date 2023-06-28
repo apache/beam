@@ -456,6 +456,7 @@ class Operation(object):
     # on the operation.
     self.setup_done = False
     self.step_name = None  # type: Optional[str]
+    self.data_sampler = None
 
   def setup(self, data_sampler=None):
     # type: (Optional[DataSampler]) -> None
