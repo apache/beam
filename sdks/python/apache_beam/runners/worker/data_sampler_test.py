@@ -17,7 +17,9 @@
 
 # pytype: skip-file
 
+import sys
 import time
+import traceback
 import unittest
 from typing import Any
 from typing import Dict
@@ -328,8 +330,14 @@ class DataSamplerTest(unittest.TestCase):
     self.data_sampler.initialize_samplers(
         MAIN_TRANSFORM_ID, descriptor, self.primitives_coder_factory)
     sampler = self.data_sampler.sampler_for_output(MAIN_TRANSFORM_ID, 0)
-    sampler.sample_exception(
-        'a', Exception('test'), MAIN_TRANSFORM_ID, 'instid')
+
+    exc_info = None
+    try:
+      raise Exception('test')
+    except Exception:
+      exc_info = sys.exc_info()
+
+    sampler.sample_exception('a', exc_info, MAIN_TRANSFORM_ID, 'instid')
 
     samples = self.data_sampler.wait_for_samples([MAIN_PCOLLECTION_ID])
     self.assertGreater(len(samples.element_samples), 0)
@@ -448,12 +456,17 @@ class OutputSamplerTest(unittest.TestCase):
 
   def test_can_sample_exceptions(self):
     """Tests that exceptions are sampled."""
-    value = WindowedValue('Hello, World!', 0, [GlobalWindow()])
-    exception = RuntimeError('expected exception')
+    val = WindowedValue('Hello, World!', 0, [GlobalWindow()])
+    exc_info = None
+    try:
+      raise Exception('test')
+    except Exception:
+      exc_info = sys.exc_info()
+      err_string = ''.join(traceback.format_exception(*exc_info))
 
     self.sampler = OutputSampler(PRIMITIVES_CODER, sample_every_sec=0)
     self.sampler.sample_exception(
-        el=value, exn=exception, transform_id='tid', instruction_id='instid')
+        el=val, exc_info=exc_info, transform_id='tid', instruction_id='instid')
 
     self.assertEqual(
         self.sampler.flush(),
@@ -463,19 +476,24 @@ class OutputSamplerTest(unittest.TestCase):
                 exception=beam_fn_api_pb2.SampledElement.Exception(
                     instruction_id='instid',
                     transform_id='tid',
-                    error=repr(exception)))
+                    error=err_string))
         ])
 
   def test_can_sample_multiple_exceptions(self):
     """Tests that multiple exceptions in the same PCollection are sampled."""
-    exception = RuntimeError('expected exception')
+    exc_info = None
+    try:
+      raise Exception('test')
+    except Exception:
+      exc_info = sys.exc_info()
+      err_string = ''.join(traceback.format_exception(*exc_info))
 
     self.sampler = OutputSampler(PRIMITIVES_CODER, sample_every_sec=0)
     self.sampler.sample_exception(
-        el='a', exn=exception, transform_id='tid', instruction_id='instid')
+        el='a', exc_info=exc_info, transform_id='tid', instruction_id='instid')
 
     self.sampler.sample_exception(
-        el='b', exn=exception, transform_id='tid', instruction_id='instid')
+        el='b', exc_info=exc_info, transform_id='tid', instruction_id='instid')
 
     self.assertEqual(
         self.sampler.flush(),
@@ -485,13 +503,13 @@ class OutputSamplerTest(unittest.TestCase):
                 exception=beam_fn_api_pb2.SampledElement.Exception(
                     instruction_id='instid',
                     transform_id='tid',
-                    error=repr(exception))),
+                    error=err_string)),
             beam_fn_api_pb2.SampledElement(
                 element=PRIMITIVES_CODER.encode_nested('b'),
                 exception=beam_fn_api_pb2.SampledElement.Exception(
                     instruction_id='instid',
                     transform_id='tid',
-                    error=repr(exception))),
+                    error=err_string)),
         ])
 
 
