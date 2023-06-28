@@ -380,18 +380,12 @@ class SdkHarness(object):
 
     def get_samples(request):
       # type: (beam_fn_api_pb2.InstructionRequest) -> beam_fn_api_pb2.InstructionResponse
-      samples: Dict[str, List[bytes]] = {}
+      samples = beam_fn_api_pb2.SampleDataResponse()
       if self.data_sampler is not None:
         samples = self.data_sampler.samples(request.sample_data.pcollection_ids)
 
-      sample_response = beam_fn_api_pb2.SampleDataResponse()
-      for pcoll_id in samples:
-        sample_response.element_samples[pcoll_id].elements.extend(
-            beam_fn_api_pb2.SampledElement(element=s)
-            for s in samples[pcoll_id])
-
       return beam_fn_api_pb2.InstructionResponse(
-          instruction_id=request.instruction_id, sample_data=sample_response)
+          instruction_id=request.instruction_id, sample_data=samples)
 
     self._execute(lambda: get_samples(request), request)
 
