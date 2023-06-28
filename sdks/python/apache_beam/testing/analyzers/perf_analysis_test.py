@@ -16,8 +16,10 @@
 #
 # pytype: skip-file
 
+import datetime
 import logging
 import os
+
 import unittest
 
 import mock
@@ -28,10 +30,13 @@ import pandas as pd
 try:
   import apache_beam.testing.analyzers.perf_analysis as analysis
   from apache_beam.testing.analyzers import constants
+  from apache_beam.testing.analyzers import github_issues_utils
   from apache_beam.testing.analyzers.perf_analysis_utils import is_change_point_in_valid_window
   from apache_beam.testing.analyzers.perf_analysis_utils import is_perf_alert
   from apache_beam.testing.analyzers.perf_analysis_utils import e_divisive
+  from apache_beam.testing.analyzers.perf_analysis_utils import find_latest_change_point_index
   from apache_beam.testing.analyzers.perf_analysis_utils import validate_config
+
 except ImportError as e:
   analysis = None  # type: ignore
 
@@ -192,6 +197,25 @@ class TestChangePointAnalysis(unittest.TestCase):
         test_name=self.test_id,
         big_query_metrics_fetcher=None)
     self.assertFalse(is_alert)
+
+  def test_append_anomaly_marker_to_the_right_change_point_in_gh_description(
+      self):
+    metric_values, timestamps = get_fake_data_with_change_point()
+    timestamps = [datetime.datetime.fromtimestamp(ts) for ts in timestamps]
+    change_point_index = find_latest_change_point_index(metric_values)
+    description = github_issues_utils.get_runs_data(
+        change_point_index=change_point_index,
+        metric_values=metric_values,
+        timestamps=timestamps,
+        num_runs_from_change_point=(
+            constants._NUM_RESULTS_TO_DISPLAY_ON_ISSUE_DESCRIPTION))
+
+    for i in range(len(description)):
+      if i == change_point_index:
+        cond = constants._ANOMALY_MARKER in description[i]
+      else:
+        cond = constants._ANOMALY_MARKER not in description[i]
+      self.assertTrue(cond)
 
 
 if __name__ == '__main__':

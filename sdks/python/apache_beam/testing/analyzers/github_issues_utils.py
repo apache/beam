@@ -21,6 +21,7 @@ from typing import List
 from typing import Optional
 from typing import Tuple
 
+from apache_beam.testing.analyzers import constants
 import pandas as pd
 import requests
 
@@ -137,6 +138,25 @@ def add_awaiting_triage_label(issue_number: int):
       url, json.dumps({'labels': [_AWAITING_TRIAGE_LABEL]}), headers=_HEADERS)
 
 
+def get_runs_data(
+    num_runs_from_change_point: int,
+    metric_values: List,
+    timestamps: List[pd.Timestamp],
+    change_point_index: int) -> List[str]:
+  runs_to_display = []
+  max_timestamp_index = min(
+      change_point_index + num_runs_from_change_point, len(metric_values) - 1)
+  min_timestamp_index = max(0, change_point_index - num_runs_from_change_point)
+
+  for i in range(min_timestamp_index, max_timestamp_index + 1):
+    row_template = _METRIC_INFO_TEMPLATE.format(
+        timestamps[i].ctime(), format(metric_values[i], '.2f'))
+    if i == change_point_index:
+      row_template += constants._ANOMALY_MARKER
+    runs_to_display.append(row_template)
+  return runs_to_display
+
+
 def get_issue_description(
     test_name: str,
     metric_name: str,
@@ -162,9 +182,6 @@ def get_issue_description(
   """
 
   # TODO: Add mean and median before and after the changepoint index.
-  max_timestamp_index = min(
-      change_point_index + max_results_to_display, len(metric_values) - 1)
-  min_timestamp_index = max(0, change_point_index - max_results_to_display)
 
   description = _ISSUE_DESCRIPTION_TEMPLATE.format(
       test_name, metric_name) + 2 * '\n'
@@ -174,14 +191,12 @@ def get_issue_description(
       2 * '\n') if test_description else ''
 
   description += '```' + '\n'
-  runs_to_display = []
 
-  for i in range(min_timestamp_index, max_timestamp_index + 1):
-    template = _METRIC_INFO_TEMPLATE.format(
-        timestamps[i].ctime(), format(metric_values[i], '.2f'))
-    if i == change_point_index:
-      template += ' <---- Anomaly'
-    runs_to_display.append(template)
+  runs_to_display = get_runs_data(
+      num_runs_from_change_point=max_results_to_display,
+      metric_values=metric_values,
+      timestamps=timestamps,
+      change_point_index=change_point_index)
 
   # reverse the list to display the most recent runs first.
   runs_to_display.reverse()
