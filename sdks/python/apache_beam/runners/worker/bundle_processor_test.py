@@ -404,7 +404,6 @@ class DataSamplingTest(unittest.TestCase):
           })
 
       samples = data_sampler.wait_for_samples([INPUT_PCOLLECTION_ID])
-      print(samples)
       self.assertEqual(samples, expected)
     finally:
       data_sampler.stop()
