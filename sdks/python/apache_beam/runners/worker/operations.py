@@ -69,6 +69,7 @@ from apache_beam.utils.windowed_value import WindowedValue
 if TYPE_CHECKING:
   from apache_beam.runners.sdf_utils import SplitResultPrimary
   from apache_beam.runners.sdf_utils import SplitResultResidual
+  from apache_beam.runners.worker.bundle_processor import ExecutionContext
   from apache_beam.runners.worker.data_sampler import OutputSampler
   from apache_beam.runners.worker.statesampler import StateSampler
   from apache_beam.transforms.userstate import TimerSpec
@@ -179,7 +180,7 @@ class ConsumerSet(Receiver):
     self.output_sampler = output_sampler
     self.element_sampler = (
         output_sampler.element_sampler if output_sampler else None)
-    self.execution_context: Optional['ExecutionContext'] = None
+    self.execution_context = None  # type: Optional[ExecutionContext]
 
   def try_split(self, fraction_of_remainder):
     # type: (...) -> Optional[Any]

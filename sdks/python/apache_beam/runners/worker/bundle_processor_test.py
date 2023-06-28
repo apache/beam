@@ -387,6 +387,8 @@ class DataSamplingTest(unittest.TestCase):
       # NOTE: The expected sample comes from the input PCollection. This is very
       # important because there can be coder issues if the sample is put in the
       # wrong PCollection.
+      expected_error = ('RuntimeError("expected exception ' +
+                        '[while running \'test_transform\']")')
       expected = beam_fn_api_pb2.SampleDataResponse(
           element_samples={
               INPUT_PCOLLECTION_ID: beam_fn_api_pb2.SampleDataResponse.
@@ -397,11 +399,12 @@ class DataSamplingTest(unittest.TestCase):
                           exception=beam_fn_api_pb2.SampledElement.Exception(
                               instruction_id='instruction_id',
                               transform_id=TEST_EXCEPTION_TRANSFORM_ID,
-                              error=repr(RuntimeError('expected exception'))))
+                              error=expected_error))
                   ])
           })
 
       samples = data_sampler.wait_for_samples([INPUT_PCOLLECTION_ID])
+      print(samples)
       self.assertEqual(samples, expected)
     finally:
       data_sampler.stop()

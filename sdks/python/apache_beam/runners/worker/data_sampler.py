@@ -111,7 +111,8 @@ class OutputSampler:
     self._sample_timer = SampleTimer(sample_every_sec, self)
     self.element_sampler = ElementSampler()
     self.element_sampler.has_element = False
-    self._exceptions: Deque[Tuple[Any, ExceptionMetadata]] = collections.deque(maxlen=max_samples)
+    self._exceptions: Deque[Tuple[Any, ExceptionMetadata]] = collections.deque(
+        maxlen=max_samples)
 
     # For testing, it's easier to disable the Timer and manually sample.
     if sample_every_sec > 0:
