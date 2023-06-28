@@ -21,9 +21,10 @@ from typing import List
 from typing import Optional
 from typing import Tuple
 
-from apache_beam.testing.analyzers import constants
 import pandas as pd
 import requests
+
+from apache_beam.testing.analyzers import constants
 
 try:
   _GITHUB_TOKEN: Optional[str] = os.environ['GITHUB_TOKEN']

@@ -19,7 +19,6 @@
 import datetime
 import logging
 import os
-
 import unittest
 
 import mock
