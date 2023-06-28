@@ -33,6 +33,7 @@ from typing import Dict
 from typing import Iterable
 from typing import List
 from typing import Optional
+from typing import Tuple
 from typing import Union
 
 from apache_beam.coders.coder_impl import CoderImpl
@@ -110,7 +111,7 @@ class OutputSampler:
     self._sample_timer = SampleTimer(sample_every_sec, self)
     self.element_sampler = ElementSampler()
     self.element_sampler.has_element = False
-    self._exceptions: Deque[Any] = collections.deque(maxlen=max_samples)
+    self._exceptions: Deque[Tuple[Any, ExceptionMetadata]] = collections.deque(maxlen=max_samples)
 
     # For testing, it's easier to disable the Timer and manually sample.
     if sample_every_sec > 0:
@@ -137,17 +138,17 @@ class OutputSampler:
       # samples. This happens when the OutputSampler samples during an
       # exception. The fix is to create a OutputSampler per process bundle.
       # Until then use a set to keep track of the elements.
-      seen = set(el for el, _ in self._exceptions)
+      seen = set(id(el) for el, _ in self._exceptions)
       if isinstance(self._coder_impl, WindowedValueCoderImpl):
         exceptions = [s for s in self._exceptions]
-        samples = [s for s in self._samples if s not in seen]
+        samples = [s for s in self._samples if id(s) not in seen]
       else:
         exceptions = [
             (self.remove_windowed_value(a), b) for a, b in self._exceptions
         ]
         samples = [
             self.remove_windowed_value(s) for s in self._samples
-            if s not in seen
+            if id(s) not in seen
         ]
 
       # Encode in the nested context b/c this ensures that the SDK can decode

@@ -53,7 +53,6 @@ from apache_beam.runners.common import Receiver
 from apache_beam.runners.worker import opcounters
 from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import sideinputs
-from apache_beam.runners.worker.bundle_processor import ExecutionContext
 from apache_beam.runners.worker.data_sampler import DataSampler
 from apache_beam.transforms import sideinputs as apache_sideinputs
 from apache_beam.transforms import combiners
@@ -180,7 +179,7 @@ class ConsumerSet(Receiver):
     self.output_sampler = output_sampler
     self.element_sampler = (
         output_sampler.element_sampler if output_sampler else None)
-    self.execution_context: Optional[ExecutionContext] = None
+    self.execution_context: Optional['ExecutionContext'] = None
 
   def try_split(self, fraction_of_remainder):
     # type: (...) -> Optional[Any]
