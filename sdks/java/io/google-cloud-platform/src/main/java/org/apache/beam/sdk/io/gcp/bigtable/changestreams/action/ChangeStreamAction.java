@@ -28,7 +28,6 @@ import com.google.cloud.bigtable.data.v2.models.Heartbeat;
 import com.google.cloud.bigtable.data.v2.models.Range;
 import com.google.protobuf.ByteString;
 import java.util.Optional;
-import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.estimator.BytesThroughputEstimator;
@@ -108,8 +107,7 @@ public class ChangeStreamAction {
       RestrictionTracker<StreamProgress, StreamProgress> tracker,
       DoFn.OutputReceiver<KV<ByteString, ChangeStreamRecord>> receiver,
       ManualWatermarkEstimator<Instant> watermarkEstimator,
-      BytesThroughputEstimator<KV<ByteString, ChangeStreamRecord>> throughputEstimator,
-      boolean shouldDebug) {
+      BytesThroughputEstimator<KV<ByteString, ChangeStreamRecord>> throughputEstimator) {
     if (record instanceof Heartbeat) {
       Heartbeat heartbeat = (Heartbeat) record;
       final Instant watermark = toJodaTime(heartbeat.getEstimatedLowWatermark());
@@ -129,24 +127,11 @@ public class ChangeStreamAction {
               true);
       watermarkEstimator.setWatermark(watermark);
 
-      if (shouldDebug) {
-        LOG.info(
-            "RCSP {}: Heartbeat partition: {} token: {} watermark: {}",
-            formatByteStringRange(partitionRecord.getPartition()),
-            formatByteStringRange(heartbeat.getChangeStreamContinuationToken().getPartition()),
-            heartbeat.getChangeStreamContinuationToken().getToken(),
-            heartbeat.getEstimatedLowWatermark());
-      }
       // If the tracker fail to claim the streamProgress, it most likely means the runner initiated
       // a checkpoint. See {@link
       // org.apache.beam.sdk.io.gcp.bigtable.changestreams.restriction.ReadChangeStreamPartitionProgressTracker}
       // for more information regarding runner initiated checkpoints.
       if (!tracker.tryClaim(streamProgress)) {
-        if (shouldDebug) {
-          LOG.info(
-              "RCSP {}: Checkpoint heart beat tracker",
-              formatByteStringRange(partitionRecord.getPartition()));
-        }
         return Optional.of(DoFn.ProcessContinuation.stop());
       }
       metrics.incHeartbeatCount();
@@ -163,30 +148,11 @@ public class ChangeStreamAction {
       CloseStream closeStream = (CloseStream) record;
       StreamProgress streamProgress = new StreamProgress(closeStream);
 
-      if (shouldDebug) {
-        LOG.info(
-            "RCSP {}: CloseStream: {}",
-            formatByteStringRange(partitionRecord.getPartition()),
-            closeStream.getChangeStreamContinuationTokens().stream()
-                .map(
-                    c ->
-                        "{partition: "
-                            + formatByteStringRange(c.getPartition())
-                            + " token: "
-                            + c.getToken()
-                            + "}")
-                .collect(Collectors.joining(", ", "[", "]")));
-      }
       // If the tracker fail to claim the streamProgress, it most likely means the runner initiated
       // a checkpoint. See {@link
       // org.apache.beam.sdk.io.gcp.bigtable.changestreams.restriction.ReadChangeStreamPartitionProgressTracker}
       // for more information regarding runner initiated checkpoints.
       if (!tracker.tryClaim(streamProgress)) {
-        if (shouldDebug) {
-          LOG.info(
-              "RCSP {}: Checkpoint close stream tracker",
-              formatByteStringRange(partitionRecord.getPartition()));
-        }
         return Optional.of(DoFn.ProcessContinuation.stop());
       }
       metrics.incClosestreamCount();
@@ -217,11 +183,6 @@ public class ChangeStreamAction {
       // a checkpoint. See ReadChangeStreamPartitionProgressTracker for more information regarding
       // runner initiated checkpoints.
       if (!tracker.tryClaim(streamProgress)) {
-        if (shouldDebug) {
-          LOG.info(
-              "RCSP {}: Checkpoint data change tracker",
-              formatByteStringRange(partitionRecord.getPartition()));
-        }
         return Optional.of(DoFn.ProcessContinuation.stop());
       }
       if (changeStreamMutation.getType() == ChangeStreamMutation.MutationType.GARBAGE_COLLECTION) {

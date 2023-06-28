@@ -26,6 +26,7 @@ import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.TIME_CONTAINING
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformConfiguration.csvConfigurationBuilder;
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviderTestData.DATA;
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.CSV;
+import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformProvider.RESULT_TAG;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 
@@ -231,7 +232,9 @@ public class CsvWriteSchemaTransformFormatProviderTest
     Schema modifiedSchema = modifiedInput.getSchema();
     FileWriteSchemaTransformConfiguration configuration = buildConfiguration(prefix);
     PCollection<String> result =
-        modifiedInput.apply(getProvider().buildTransform(configuration, modifiedSchema));
+        modifiedInput
+            .apply(getProvider().buildTransform(configuration, modifiedSchema))
+            .get(RESULT_TAG);
     PCollection<Long> numFiles = result.apply(Count.globally());
     PAssert.thatSingleton(numFiles).isEqualTo(1L);
     writePipeline.run().waitUntilFinish();
@@ -259,7 +262,9 @@ public class CsvWriteSchemaTransformFormatProviderTest
     Schema modifiedSchema = modifiedInput.getSchema();
     FileWriteSchemaTransformConfiguration configuration = buildConfiguration(prefix);
     PCollection<String> result =
-        modifiedInput.apply(getProvider().buildTransform(configuration, modifiedSchema));
+        modifiedInput
+            .apply(getProvider().buildTransform(configuration, modifiedSchema))
+            .get(RESULT_TAG);
     PCollection<Long> numFiles = result.apply(Count.globally());
     PAssert.thatSingleton(numFiles).isEqualTo(1L);
     writePipeline.run().waitUntilFinish();
