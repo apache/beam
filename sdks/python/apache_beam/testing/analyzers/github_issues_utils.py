@@ -186,7 +186,6 @@ def get_issue_description(
   # reverse the list to display the most recent runs first.
   runs_to_display.reverse()
 
-  # runs_to_display[change_point_index - min_timestamp_index] += " <---- Anomaly"
   description += '\n'.join(runs_to_display) + '\n'
   description += '```' + '\n'
   return description
