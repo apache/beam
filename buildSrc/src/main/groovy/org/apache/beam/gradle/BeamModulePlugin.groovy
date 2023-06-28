@@ -1197,7 +1197,7 @@ class BeamModulePlugin implements Plugin<Project> {
         "com.google.auto.service:auto-service-annotations:$autoservice_version",
         "com.google.auto.value:auto-value-annotations:$autovalue_version",
         "com.google.code.findbugs:jsr305:$jsr305_version",
-        "com.google.j2objc:j2objc-annotations:1.3",
+        "com.google.j2objc:j2objc-annotations:2.8",
         // These dependencies are needed to avoid error-prone warnings on package-info.java files,
         // also to include the annotations to suppress warnings.
         //
