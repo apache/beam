@@ -174,13 +174,19 @@ def get_issue_description(
       2 * '\n') if test_description else ''
 
   description += '```' + '\n'
-  runs_to_display = [
-      _METRIC_INFO_TEMPLATE.format(
-          timestamps[i].ctime(), format(metric_values[i], '.2f'))
-      for i in reversed(range(min_timestamp_index, max_timestamp_index + 1))
-  ]
+  runs_to_display = []
 
-  runs_to_display[change_point_index - min_timestamp_index] += " <---- Anomaly"
+  for i in range(min_timestamp_index, max_timestamp_index + 1):
+    template = _METRIC_INFO_TEMPLATE.format(
+        timestamps[i].ctime(), format(metric_values[i], '.2f'))
+    if i == change_point_index:
+      template += ' <---- Anomaly'
+    runs_to_display.append(template)
+
+  # reverse the list to display the most recent runs first.
+  runs_to_display.reverse()
+
+  # runs_to_display[change_point_index - min_timestamp_index] += " <---- Anomaly"
   description += '\n'.join(runs_to_display) + '\n'
   description += '```' + '\n'
   return description
