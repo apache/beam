@@ -123,4 +123,21 @@ public interface PortablePipelineOptions extends PipelineOptions, FileStagingOpt
 
     return "";
   }
+
+  /**
+   * If {@literal true} and PipelineOption tempLocation is set, save a heap dump before shutting
+   * down the JVM due to GC thrashing or out of memory. The heap will be dumped to local disk and
+   * then uploaded to the tempLocation.
+   *
+   * <p>CAUTION: Heap dumps can take up more disk than the JVM memory. Ensure the local disk is
+   * configured to have sufficient free space before enabling this option.
+   */
+  @Description(
+      "If {@literal true} and PipelineOption tempLocation is set, save a heap dump before shutting"
+          + " down the JVM due to GC thrashing or out of memory. The heap will be dumped to local"
+          + " disk and then uploaded to the tempLocation.")
+  @Default.Boolean(false)
+  boolean getEnableHeapDumps();
+
+  void setEnableHeapDumps(boolean enableHeapDumps);
 }
