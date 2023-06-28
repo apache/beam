@@ -535,7 +535,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def google_oauth_clients_version = "1.34.1"
     // Try to keep grpc_version consistent with gRPC version in google_cloud_platform_libraries_bom
     def grpc_version = "1.55.1"
-    def guava_version = "31.1-jre"
+    def guava_version = "32.0.1-jre"
     def hadoop_version = "2.10.2"
     def hamcrest_version = "2.1"
     def influxdb_version = "2.19"
@@ -1197,7 +1197,7 @@ class BeamModulePlugin implements Plugin<Project> {
         "com.google.auto.service:auto-service-annotations:$autoservice_version",
         "com.google.auto.value:auto-value-annotations:$autovalue_version",
         "com.google.code.findbugs:jsr305:$jsr305_version",
-        "com.google.j2objc:j2objc-annotations:1.3",
+        "com.google.j2objc:j2objc-annotations:2.8",
         // These dependencies are needed to avoid error-prone warnings on package-info.java files,
         // also to include the annotations to suppress warnings.
         //
