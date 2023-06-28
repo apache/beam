@@ -25,6 +25,7 @@ import collections
 import logging
 import threading
 import time
+import traceback
 from dataclasses import dataclass
 from threading import Timer
 from typing import Any
@@ -183,12 +184,13 @@ class OutputSampler:
         self.element_sampler.has_element = False
 
   def sample_exception(
-      self, el: Any, exn: BaseException, transform_id: str,
+      self, el: Any, exc_info: Any, transform_id: str,
       instruction_id: str) -> None:
     """Adds the given exception to the samples."""
     with self._samples_lock:
+      err_string = ''.join(traceback.format_exception(*exc_info))
       self._exceptions.append(
-          (el, ExceptionMetadata(repr(exn), transform_id, instruction_id)))
+          (el, ExceptionMetadata(err_string, transform_id, instruction_id)))
 
 
 class DataSampler:

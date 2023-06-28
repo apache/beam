@@ -1525,10 +1525,11 @@ class DoFnRunner:
           traceback.format_exception_only(type(exn), exn)[-1].strip() +
           step_annotation)
       new_exn._tagged_with_step = True
-    _, _, tb = sys.exc_info()
+    exc_info = sys.exc_info()
+    _, _, tb = exc_info
 
     new_exn = new_exn.with_traceback(tb)
-    self._maybe_sample_exception(new_exn, windowed_value)
+    self._maybe_sample_exception(exc_info, windowed_value)
     raise new_exn
 
 

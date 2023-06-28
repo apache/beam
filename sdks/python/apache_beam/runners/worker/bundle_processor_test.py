@@ -387,8 +387,18 @@ class DataSamplingTest(unittest.TestCase):
       # NOTE: The expected sample comes from the input PCollection. This is very
       # important because there can be coder issues if the sample is put in the
       # wrong PCollection.
-      expected_error = ('RuntimeError("expected exception ' +
-                        '[while running \'test_transform\']")')
+      expected_error = (
+          'Traceback (most recent call last):\n' +
+          '  File \'/usr/local/google/home/srohde/Workdir/beam/sdks/python/' +
+          'apache_beam/runners/common.py\', line 1423, in process\n' +
+          '    return self.do_fn_invoker.invoke_process(windowed_value)' +
+          '  File \'/usr/local/google/home/srohde/Workdir/beam/sdks/python/' +
+          'apache_beam/runners/common.py\', line 626, in invoke_process\n' +
+          '    windowed_value, self.process_method(windowed_value.value))\n' +
+          '  File \'bundle_processor_test.py\', line 253, in process\n' +
+          '    raise RuntimeError(self.msg)\nRuntimeError: expected exception\n'
+      )
+
       expected = beam_fn_api_pb2.SampleDataResponse(
           element_samples={
               INPUT_PCOLLECTION_ID: beam_fn_api_pb2.SampleDataResponse.
