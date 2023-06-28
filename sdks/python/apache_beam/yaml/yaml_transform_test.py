@@ -542,7 +542,7 @@ class YamlWindowingTest(unittest.TestCase):
         pickle_library='cloudpickle')) as p:
       result = p | YamlTransform(
           '''
-          type: chain
+          type: composite
           transforms:
             - type: CreateTimestamped
               elements: [0, 1, 2, 3, 4, 5]
@@ -550,6 +550,7 @@ class YamlWindowingTest(unittest.TestCase):
                 type: fixed
                 size: 4
             - type: SumGlobally
+              input: CreateTimestamped
           ''',
           providers=TEST_PROVIDERS)
       assert_that(result, equal_to([6, 9]))
