@@ -43,8 +43,8 @@ class HuggingFaceInference(unittest.TestCase):
   def test_hf_language_modeling(self):
     test_pipeline = TestPipeline(is_integration_test=True)
     # Path to text file containing some sentences
-    file_of_sentences = 'gs://apache-beam-ml/datasets/custom/hf_sentences.txt'  # pylint: disable=line-too-long
-    output_file_dir = 'gs://apache-beam-ml/testing/predictions'
+    file_of_sentences = 'gs://clouddfe-riteshghorse/hf/datasets/custom/hf_sentences.txt'  # pylint: disable=line-too-long
+    output_file_dir = 'gs://clouddfe-riteshghorse/hf/testing/predictions'
     output_file = '/'.join([output_file_dir, str(uuid.uuid4()), 'result.txt'])
 
     model_name = 'stevhliu/my_awesome_eli5_mlm_model'
@@ -61,7 +61,7 @@ class HuggingFaceInference(unittest.TestCase):
     self.assertEqual(FileSystems().exists(output_file), True)
     predictions = pytorch_inference_it_test.process_outputs(
         filepath=output_file)
-    actuals_file = 'gs://apache-beam-ml/testing/expected_outputs/test_hf_run_inference_for_masked_lm_actuals.txt'  # pylint: disable=line-too-long
+    actuals_file = 'gs://clouddfe-riteshghorse/hf/testing/expected_outputs/test_hf_run_inference_for_masked_lm_actuals.txt'  # pylint: disable=line-too-long
     actuals = pytorch_inference_it_test.process_outputs(filepath=actuals_file)
 
     predictions_dict = {}

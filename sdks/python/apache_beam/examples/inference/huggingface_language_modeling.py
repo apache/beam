@@ -167,7 +167,7 @@ def run(
       text_and_tokenized_text_tuple
       | 'RunInference' >> RunInference(KeyedModelHandler(model_handler))
       | 'ProcessOutput' >> beam.ParDo(PostProcessor(tokenizer=tokenizer)))
-  output | "WriteOutput" >> beam.io.WriteToText( # pylint: disable=expression-not-assigned
+  _ = output | "WriteOutput" >> beam.io.WriteToText(
       known_args.output, shard_name_template='', append_trailing_newlines=True)
 
   result = pipeline.run()
