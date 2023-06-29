@@ -30,25 +30,22 @@ on:
 
 jobs:
     beam_PreCommit_Website_Stage_GCS:
-        if: ${{github.event.issue.pull_request}} || ${{github.event.comment.body == 'Run Website_Stage_GCS PreCommit'}} || ${{github.event.schedule}}
+        if: github.event_name == 'push' || github.event_name == 'pull_request_target' || github.event_name == 'schedule' || github.event.comment.body == 'Run Website_Stage_GCS PreCommit'
         runs-on: [self-hosted, ubuntu-20.04]
-        name: beam_PreCommit_Website_Stage_GCS
+        name: "PreCommit Website Stage GCS"
         steps:
           - name: Git checkout
             uses: actions/checkout@v3
-          - name: Install Java
-            uses: actions/setup-java@v3.8.0
+          - name: Setup self-hosted
+            uses: ./.github/actions/setup-self-hosted-action
             with:
-              distribution: 'zulu'
-              java-version: '8'
+              requires-py-37: false
+              requires-py-39: false
+              requires-go: false
           - name: Setup Gradle
             uses: gradle/gradle-build-action@v2
             with:
               cache-read-only: false
-          - name: Install Python
-            uses: actions/setup-python@v4
-            with:
-              python-version: '3.8'
           - name: Set up Cloud SDK
             uses: google-github-actions/setup-gcloud@v1
           - name: run website_stageWebsite script
