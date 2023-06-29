@@ -82,12 +82,35 @@ def _validate_constructor_args(model_uri, model_class):
         message.format(model_uri=model_uri, model_class=model_class))
 
 
+def no_gpu_available_warning():
+  logging.warning(
+      "Model handler specified a 'GPU' device, but GPUs are not available. "
+      "Switching to CPU.")
+
+
+def is_gpu_available_torch(device):
+  if device == 'GPU' and torch.cuda.is_available():
+    return True
+  no_gpu_available_warning()
+  return False
+
+
+def is_gpu_available_tensorflow(device):
+  gpu_devices = tf.config.list_physical_devices(device)
+  if len(gpu_devices) == 0:
+    no_gpu_available_warning()
+    return False
+  return True
+
+
 def _run_inference_torch_keyed_tensor(
     batch: Sequence[Dict[str, torch.Tensor]],
     model: AutoModel,
     device,
     inference_args: Dict[str, Any],
     model_id: Optional[str] = None) -> Iterable[PredictionResult]:
+  device = torch.device('cuda') if is_gpu_available_torch(
+      device) else torch.device('cpu')
   key_to_tensor_list = defaultdict(list)
   # torch.no_grad() mitigates GPU memory issues
   # https://github.com/apache/beam/issues/22811
@@ -110,6 +133,7 @@ def _run_inference_tensorflow_keyed_tensor(
     device,
     inference_args: Dict[str, Any],
     model_id: Optional[str] = None) -> Iterable[PredictionResult]:
+  is_gpu_available_tensorflow()
   key_to_tensor_list = defaultdict(list)
   for example in batch:
     for key, tensor in example.items():
@@ -129,9 +153,7 @@ class HuggingFaceModelHandler(ModelHandler[ExampleT, PredictionT, ModelT], ABC):
       model_class: Union[AutoModel, TFAutoModel],
       device: str = 'CPU',
       *,
-      inference_fn: Union[
-          KeyedTensorInferenceFn,
-          TensorInferenceFn] = _run_inference_torch_keyed_tensor,
+      inference_fn: Optional[Callable[..., PredictionT]] = None,
       load_model_args: Optional[Dict[str, Any]] = None,
       inference_args: Optional[Dict[str, Any]] = None,
       min_batch_size: Optional[int] = None,
@@ -156,9 +178,9 @@ class HuggingFaceModelHandler(ModelHandler[ExampleT, PredictionT, ModelT], ABC):
         Default is _run_inference_torch_keyed_tensor or
         _run_inference_tensorflow_keyed_tensor depending on the input type.
       load_model_args (Dict[str, Any]): keyword arguments to provide load
-        options while loading from Hugging Face Hub. Defaults to None.
+        options while loading models from Hugging Face Hub. Defaults to None.
       inference_args [Dict[str, Any]]: Non-batchable arguments
-        required as inputs to the model's forward() function. Unlike Tensors in
+        required as inputs to the model's inference function. Unlike Tensors in
         `batch`, these parameters will not be dynamically batched.
         Defaults to None.
       min_batch_size: the minimum batch size to use when batching inputs.
@@ -170,15 +192,12 @@ class HuggingFaceModelHandler(ModelHandler[ExampleT, PredictionT, ModelT], ABC):
       kwargs: 'env_vars' can be used to set environment variables
         before loading the model.
 
-    **Supported Versions:** RunInference APIs in Apache Beam
-    supports transformers>=4.18.0.
+    **Supported Versions:** HuggingFaceModelHandler supports
+    transformers>=4.18.0.
     """
     self._model_uri = model_uri
     self._model_class = model_class
-    if device == 'GPU':
-      self._device = torch.device('cuda')
-    else:
-      self._device = torch.device('cpu')
+    self._device = device
     self._inference_fn = inference_fn
     self._model_config_args = load_model_args if load_model_args else {}
     self._inference_args = inference_args if inference_args else {}
@@ -198,13 +217,8 @@ class HuggingFaceModelHandler(ModelHandler[ExampleT, PredictionT, ModelT], ABC):
     """Loads and initializes the model for processing."""
     model = self._model_class.from_pretrained(
         self._model_uri, **self._model_config_args)
-    if self._device == torch.device('cuda'):
-      if not torch.cuda.is_available():
-        logging.warning(
-            "Model handler specified a 'GPU' device, "
-            "but GPUs are not available. Switching to CPU.")
-        self._device = torch.device('cpu')
-      model.to(self._device)
+    if is_gpu_available_torch(self._device):
+      model.to(torch.device('cuda'))
     return model
 
   def update_model_path(self, model_path: Optional[str] = None):
@@ -253,9 +267,9 @@ class HuggingFaceModelHandlerKeyedTensor(
       Default is _run_inference_torch_keyed_tensor or
       _run_inference_tensorflow_keyed_tensor depending on the input type.
     load_model_args (Dict[str, Any]): keyword arguments to provide load
-      options while loading from Hugging Face Hub. Defaults to None.
+      options while loading models from Hugging Face Hub. Defaults to None.
     inference_args ([Dict[str, Any]]): Non-batchable arguments
-      required as inputs to the model's forward() function. Unlike Tensors in
+      required as inputs to the model's inference function. Unlike Tensors in
       `batch`, these parameters will not be dynamically batched.
       Defaults to None.
     min_batch_size: the minimum batch size to use when batching inputs.
@@ -267,8 +281,7 @@ class HuggingFaceModelHandlerKeyedTensor(
     kwargs: 'env_vars' can be used to set environment variables
       before loading the model.
 
-  **Supported Versions:** RunInference APIs in Apache Beam
-  supports transformers>=4.18.0.
+  **Supported Versions:** HuggingFaceModelHandler supports transformers>=4.18.0.
   """
   def run_inference(
       self,
@@ -290,7 +303,7 @@ class HuggingFaceModelHandlerKeyedTensor(
         model's predict() function.
       model: A Tensorflow/PyTorch model.
       inference_args: Non-batchable arguments required as inputs to the model's
-        forward() function. Unlike Tensors in `batch`, these parameters will
+        inference function. Unlike Tensors in `batch`, these parameters will
         not be dynamically batched
     Returns:
       An Iterable of type PredictionResult.
@@ -299,9 +312,7 @@ class HuggingFaceModelHandlerKeyedTensor(
     if not self._framework:
       self._framework = "tf" if isinstance(batch[0], tf.Tensor) else "torch"
 
-    # default is always torch keyed tensor. We check if user has provided their
-    # own or we move to infer it with input type.
-    if self._inference_fn != _run_inference_torch_keyed_tensor:
+    if self._inference_fn:
       return self._inference_fn(
           batch, model, self._device, inference_args, self._model_uri)
 
@@ -326,13 +337,14 @@ def _default_inference_fn_torch(
     device,
     inference_args: Dict[str, Any] = None,
     model_id: Optional[str] = None) -> Iterable[PredictionResult]:
+  device = torch.device('cuda') if is_gpu_available_torch(
+      device) else torch.device('cpu')
   # torch.no_grad() mitigates GPU memory issues
   # https://github.com/apache/beam/issues/22811
   with torch.no_grad():
     batched_tensors = torch.stack(batch)
     batched_tensors = _convert_to_device(batched_tensors, device)
     predictions = model(batched_tensors, **inference_args)
-
   return utils._convert_to_result(batch, predictions, model_id)
 
 
@@ -342,6 +354,7 @@ def _default_inference_fn_tensorflow(
     device,
     inference_args: Dict[str, Any],
     model_id: Optional[str] = None) -> Iterable[PredictionResult]:
+  is_gpu_available_tensorflow()
   batched_tensors = tf.stack(batch, axis=0)
   predictions = model(batched_tensors, **inference_args)
   return utils._convert_to_result(batch, predictions, model_id)
@@ -372,9 +385,9 @@ class HuggingFaceModelHandlerTensor(HuggingFaceModelHandler[Union[tf.Tensor,
     inference_fn: the inference function to use during RunInference.
       Default is _default_inference_fn_tensor.
     load_model_args (Dict[str, Any]): keyword arguments to provide load
-      options while loading from Hugging Face Hub. Defaults to None.
+      options while loading models from Hugging Face Hub. Defaults to None.
     inference_args ([Dict[str, Any]]): Non-batchable arguments
-      required as inputs to the model's forward() function. Unlike Tensors in
+      required as inputs to the model's inference function. Unlike Tensors in
       `batch`, these parameters will not be dynamically batched.
       Defaults to None.
     min_batch_size: the minimum batch size to use when batching inputs.
@@ -386,8 +399,7 @@ class HuggingFaceModelHandlerTensor(HuggingFaceModelHandler[Union[tf.Tensor,
     kwargs: 'env_vars' can be used to set environment variables
       before loading the model.
 
-  **Supported Versions:** RunInference APIs in Apache Beam
-  supports transformers>=4.18.0.
+  **Supported Versions:** HuggingFaceModelHandler supports transformers>=4.18.0.
   """
   def run_inference(
       self,
@@ -409,7 +421,7 @@ class HuggingFaceModelHandlerTensor(HuggingFaceModelHandler[Union[tf.Tensor,
         predict() function.
       model: A Tensorflow/PyTorch model.
       inference_args: Non-batchable arguments required as inputs to the model's
-        forward() function. Unlike Tensors in `batch`, these parameters will
+        inference function. Unlike Tensors in `batch`, these parameters will
         not be dynamically batched
     Returns:
       An Iterable of type PredictionResult.
@@ -418,9 +430,7 @@ class HuggingFaceModelHandlerTensor(HuggingFaceModelHandler[Union[tf.Tensor,
     if not self._framework:
       self._framework = "tf" if isinstance(batch[0], tf.Tensor) else "torch"
 
-    # default is always torch keyed tensor. We check if user has provided their
-    # own or we move to infer it with input type.
-    if self._inference_fn != _run_inference_torch_keyed_tensor:
+    if self._inference_fn:
       return self._inference_fn(
           batch, model, inference_args, inference_args, self._model_uri)
 
