@@ -97,7 +97,17 @@ fi
 
 echo "====================== 2.2 Checking hub ========================"
 HUB_VERSION=2.12.0
-HUB_ARTIFACTS_NAME=hub-linux-amd64-${HUB_VERSION}
+
+if [[ "$(uname)" ==  "Linux" ]]; then
+  ARCITECTURE=linux-amd64
+elif [[ "$(uname)" ==  "Darwin" ]]; then
+  ARCITECTURE=darwin-amd64
+else
+  echo "Error: unsupported architecture for Hub"
+  exit
+fi
+HUB_ARTIFACTS_NAME=hub-${ARCITECTURE}-${HUB_VERSION}
+
 if [[ -z `which hub` ]]; then
   echo "There is no hub installed on your machine."
   if [[ "${INSTALL_HUB}" = true  ]]; then
