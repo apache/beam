@@ -276,7 +276,7 @@ class TFTProcessHandler(ProcessHandler[ProcessInputT, ProcessOutputT]):
   def _fail_on_non_default_windowing(self, pcoll: beam.PCollection):
     if not pcoll.windowing.is_default():
       raise RuntimeError(
-          "TFTProcessHandler only supports GlobalWindows when producing "
+          "MLTransform only supports GlobalWindows when producing "
           "artifacts such as min, max, variance etc over the dataset."
           "Please use beam.WindowInto(beam.transforms.window.GlobalWindows()) "
           "to convert your PCollection to GlobalWindow.")
