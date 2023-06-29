@@ -135,7 +135,7 @@ public class ExpansionServiceSchemaTransformProvider
       throw new RuntimeException("Error decoding payload", e);
     }
 
-    return provider.from(configRow).buildTransform();
+    return provider.from(configRow);
   }
 
   Iterable<org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider> getAllProviders() {
