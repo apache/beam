@@ -38,6 +38,8 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Py_ValCont',
       steps {
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
+          switches('-Pcontainer-architecture-list=arm64,amd64')
+          switches('-Ppush-multiarch-containers')
           tasks(':sdks:python:test-suites:dataflow:validatesContainerTests')
           commonJobProperties.setGradleSwitches(delegate)
         }

@@ -82,6 +82,8 @@ docker {
                      project.rootProject.hasProperty(["isRelease"])])
   buildx project.containerPlatforms() != [project.nativeArchitecture()]
   platform(*project.containerPlatforms())
+  load project.containerPlatforms() != [project.nativeArchitecture()] && !project.rootProject.hasProperty("push-multiarch-containers")
+  push project.rootProject.hasProperty("push-multiarch-containers")
 }
 
 dockerPrepare.dependsOn copyLauncherDependencies

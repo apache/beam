@@ -492,7 +492,12 @@ class BeamModulePlugin implements Plugin<Project> {
         // Ensure we always publish the expected containers.
         return ["amd64"];
       } else if (project.rootProject.findProperty("container-architecture-list") != null) {
-        return project.rootProject.findProperty("container-architecture-list").split(',')
+        def containerArchitectures = project.rootProject.findProperty("container-architecture-list").split(',')
+        if (containerArchitectures.size() > 1 && !project.rootProject.hasProperty("push-multiarch-containers")) {
+          throw new GradleException("A multi-arch image can't be saved in the local image store, please append the -Ppush-multiarch-containers flag and specify a repository to push in the -Pdocker-repository-root flag.");
+        }
+        return containerArchitectures
+
       } else {
         return [project.nativeArchitecture()]
       }
