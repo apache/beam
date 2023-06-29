@@ -429,11 +429,11 @@ public class BeamFnLoggingClientTest {
         configuredLogger.log(TEST_RECORD);
       }
       // Measure how long it takes all the logs to appear.
-      int sleepTime = 0;
+      long sleepTime = System.currentTimeMillis();
       while (values.size() < numEntries) {
-        ++sleepTime;
         Thread.sleep(1);
       }
+      sleepTime = System.currentTimeMillis() - sleepTime;
       // Attempt to enter the blocking state by pushing back on the stream, publishing records and
       // then giving them time for it to block.
       elementsAllowed.set(false);
@@ -443,6 +443,8 @@ public class BeamFnLoggingClientTest {
       Thread.sleep(sleepTime * 3);
       // At this point, the background thread is either blocking as intended or the background
       // thread hasn't yet observed all the input. In either case the test should pass.
+      long valueSize = values.size();
+      System.out.printf("Value size: %d%n", valueSize);
       assertTrue(values.size() < numEntries * 2);
 
       client.close();
