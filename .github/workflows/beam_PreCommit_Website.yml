@@ -25,8 +25,8 @@ on:
     paths: ['website/**']
   issue_comment:
     types: [created]
-  schedule:
-    - cron: '*/15 * * * *'
+  # schedule:
+  #   - cron: '*/15 * * * *'
 
 jobs:
   beam_PreCommit_Website:
