@@ -27,20 +27,8 @@ import (
 	"strings"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/execx"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/xlangx/expansionx"
 )
-// It will return the python interpreter type i.e. python or python3 if available else return empty string.
-func pythonVersion() string {
-	cmd := exec.Command("python", "--version")
-	cmd2 := exec.Command("python3", "--version")
-	err := cmd.Run()
-	err2 := cmd2.Run()
-	if err == nil {
-		return "python"
-	} else if err2 == nil {
-		return "python3"
-	}
-	return ""
-}
 // pipInstallRequirements installs the given requirement, if present.
 func pipInstallRequirements(files []string, dir, name string) error {
 	for _, file := range files {
@@ -50,8 +38,8 @@ func pipInstallRequirements(files []string, dir, name string) error {
 			// option will make sure that only things staged in the worker will be
 			// used without following their dependencies.
 			args := []string{"-m", "pip", "install", "-r", filepath.Join(dir, name), "--no-cache-dir", "--disable-pip-version-check", "--no-index", "--no-deps", "--find-links", dir}
-			pythonVersion := pythonVersion()
-			if pythonVersion != "" {
+			pythonVersion,err := expansionx.getPythonVersion()
+			if err == nil {
 				if err := execx.Execute(pythonVersion, args...); err != nil {
 					fmt.Println("Some packages could not be installed solely from the requirements cache. Installing packages from PyPI.")
 				}

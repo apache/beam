@@ -27,6 +27,7 @@ import (
 	"strings"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/execx"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/xlangx/expansionx"
 )
 
 var (
@@ -56,19 +57,6 @@ func main() {
 		log.Fatal(err)
 	}
 }
-// It will return the python interpreter type i.e. python or python3 if available else return empty string.
-func pythonVersion() string {
-	cmd := exec.Command("python", "--version")
-	cmd2 := exec.Command("python3", "--version")
-	err := cmd.Run()
-	err2 := cmd2.Run()
-	if err == nil {
-		return "python"
-	} else if err2 == nil {
-		return "python3"
-	}
-	return ""
-}
 func launchExpansionServiceProcess() error {
 	log.Printf("Starting Python expansion service ...")
 
@@ -77,8 +65,8 @@ func launchExpansionServiceProcess() error {
 	os.Setenv("PATH", strings.Join([]string{filepath.Join(dir, "bin"), os.Getenv("PATH")}, ":"))
 
 	args := []string{"-m", expansionServiceEntrypoint, "-p", strconv.Itoa(*port), "--fully_qualified_name_glob", "*"}
-	pythonVersion := pythonVersion()
-	if pythonVersion != ""{
+	pythonVersion,err := expansionx.getPythonVersion()
+	if err == nil{
 		if err := execx.Execute(pythonVersion, args...); err != nil {
 			return fmt.Errorf("Could not start the expansion service: %s", err)
 		}
