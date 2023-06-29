@@ -18,11 +18,6 @@
 
 plugins {
   base
-  // This plugin provides a task to determine which dependencies have updates.
-  // Additionally, the plugin checks for updates to Gradle itself.
-  //
-  // See https://github.com/ben-manes/gradle-versions-plugin for further details.
-  id("com.github.ben-manes.versions") version "0.33.0"
   // Apply one top level rat plugin to perform any required license enforcement analysis
   id("org.nosphere.apache.rat") version "0.8.0"
   // Enable gradle-based release management
@@ -468,7 +463,6 @@ tasks.register("playgroundPreCommit") {
 
 tasks.register("pythonPreCommit") {
   dependsOn(":sdks:python:test-suites:tox:pycommon:preCommitPyCommon")
-  dependsOn(":sdks:python:test-suites:tox:py37:preCommitPy37")
   dependsOn(":sdks:python:test-suites:tox:py38:preCommitPy38")
   dependsOn(":sdks:python:test-suites:tox:py39:preCommitPy39")
   dependsOn(":sdks:python:test-suites:tox:py310:preCommitPy310")
@@ -486,7 +480,6 @@ tasks.register("pythonDocsPreCommit") {
 }
 
 tasks.register("pythonDockerBuildPreCommit") {
-  dependsOn(":sdks:python:container:py37:docker")
   dependsOn(":sdks:python:container:py38:docker")
   dependsOn(":sdks:python:container:py39:docker")
   dependsOn(":sdks:python:container:py310:docker")
@@ -495,23 +488,11 @@ tasks.register("pythonDockerBuildPreCommit") {
 
 tasks.register("pythonLintPreCommit") {
   // TODO(https://github.com/apache/beam/issues/20209): Find a better way to specify lint and formatter tasks without hardcoding py version.
-  dependsOn(":sdks:python:test-suites:tox:py37:lint")
+  dependsOn(":sdks:python:test-suites:tox:py38:lint")
 }
 
 tasks.register("pythonFormatterPreCommit") {
   dependsOn("sdks:python:test-suites:tox:py38:formatter")
-}
-
-tasks.register("python37PostCommit") {
-  dependsOn(":sdks:python:test-suites:dataflow:py37:postCommitIT")
-  dependsOn(":sdks:python:test-suites:direct:py37:postCommitIT")
-  dependsOn(":sdks:python:test-suites:direct:py37:directRunnerIT")
-  dependsOn(":sdks:python:test-suites:direct:py37:hdfsIntegrationTest")
-  dependsOn(":sdks:python:test-suites:direct:py37:azureIntegrationTest")
-  dependsOn(":sdks:python:test-suites:portable:py37:postCommitPy37")
-  dependsOn(":sdks:python:test-suites:dataflow:py37:spannerioIT")
-  dependsOn(":sdks:python:test-suites:direct:py37:spannerioIT")
-  dependsOn(":sdks:python:test-suites:portable:py37:xlangSpannerIOIT")
 }
 
 tasks.register("python38PostCommit") {
@@ -552,12 +533,11 @@ tasks.register("python311PostCommit") {
 }
 
 tasks.register("portablePythonPreCommit") {
-  dependsOn(":sdks:python:test-suites:portable:py37:preCommitPy37")
+  dependsOn(":sdks:python:test-suites:portable:py38:preCommitPy38")
   dependsOn(":sdks:python:test-suites:portable:py311:preCommitPy311")
 }
 
 tasks.register("pythonSparkPostCommit") {
-  dependsOn(":sdks:python:test-suites:portable:py37:sparkValidatesRunner")
   dependsOn(":sdks:python:test-suites:portable:py38:sparkValidatesRunner")
   dependsOn(":sdks:python:test-suites:portable:py39:sparkValidatesRunner")
   dependsOn(":sdks:python:test-suites:portable:py311:sparkValidatesRunner")
@@ -578,11 +558,6 @@ tasks.register("communityMetricsProber") {
 tasks.register("javaExamplesDataflowPrecommit") {
   dependsOn(":runners:google-cloud-dataflow-java:examples:preCommit")
   dependsOn(":runners:google-cloud-dataflow-java:examples-streaming:preCommit")
-}
-
-tasks.register("runBeamDependencyCheck") {
-  dependsOn(":dependencyUpdates")
-  dependsOn(":sdks:python:dependencyUpdates")
 }
 
 tasks.register("whitespacePreCommit") {

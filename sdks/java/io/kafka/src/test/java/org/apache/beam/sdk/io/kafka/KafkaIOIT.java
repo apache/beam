@@ -595,8 +595,7 @@ public class KafkaIOIT {
                         .setTopic(topicName)
                         .setBootstrapServers(options.getKafkaBootstrapServerAddresses())
                         .setFormat(format)
-                        .build())
-                .buildTransform());
+                        .build()));
 
     PAssert.that(
             PCollectionRowTuple.empty(readPipeline)
@@ -613,8 +612,7 @@ public class KafkaIOIT {
                                 .setSchema(schemaDefinition)
                                 .setTopic(topicName)
                                 .setBootstrapServers(options.getKafkaBootstrapServerAddresses())
-                                .build())
-                        .buildTransform())
+                                .build()))
                 .get("output"))
         .containsInAnyOrder(
             LongStream.range(0L, 1000L)

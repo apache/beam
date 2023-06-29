@@ -14,10 +14,12 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-# beam-playground-broken:
+# beam-playground:
 #   name: read-table
-#   description: TextIO read table example.
+#   description: BigQueryIO read table example.
 #   multifile: false
+#   never_run: true
+#   always_run: true
 #   context_line: 34
 #   categories:
 #     - Quickstart
@@ -27,34 +29,36 @@
 
 import argparse
 import apache_beam as beam
-from apache_beam.io import ReadFromText
-from apache_beam.io import WriteToBigQuery
-from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.options.pipeline_options import PipelineOptions, GoogleCloudOptions, SetupOptions
 
+class WeatherData:
+    def __init__(self, station_number, wban_number, year, month, day):
+        self.station_number = station_number
+        self.wban_number = wban_number
+        self.year = year
+        self.month = month
+        self.day = day
+
+    def __str__(self):
+        return f"Weather Data: Station {self.station_number} (WBAN {self.wban_number}), Date: {self.year}-{self.month}-{self.day}"
 
 def run(argv=None):
     parser = argparse.ArgumentParser()
-    parser.add_argument('--input',
-                        dest='input',
-                        default='gs://bucket',
-                        help='Input file to process.')
 
     known_args, pipeline_args = parser.parse_known_args(argv)
 
     pipeline_options = PipelineOptions(pipeline_args)
-    pipeline_options.view_as(SetupOptions).save_main_session = True
+    pipeline_options.view_as(PipelineOptions)
 
-    # ReadFromBigQuery: This operation reads from a BigQuery table and outputs a PCollection of dictionaries. Each
-    # dictionary represents a row in the BigQuery table, where the keys are the BigQuery column names. beam.Map: This
-    # operation applies a function to each element in the PCollection, here, it selects a specific field from each row.
 
-    with beam.Pipeline(options=pipeline_options) as p:
-      (p #| 'ReadTable' >> beam.io.ReadFromBigQuery(table='project-id.dataset.table')
-         # Each row is a dictionary where the keys are the BigQuery columns
-         #| beam.Map(lambda elem: elem['field'])
-       )
+    with beam.Pipeline(options=pipeline_options, argv=argv) as p:
+      (p | 'ReadFromBigQuery' >> beam.io.ReadFromBigQuery(table='apache-beam-testing:clouddataflow_samples.weather_stations',
+                                                            method=beam.io.ReadFromBigQuery.Method.DIRECT_READ)
+         | beam.combiners.Sample.FixedSizeGlobally(5)
+         | beam.FlatMap(lambda line: line)
+         | beam.Map(lambda element: WeatherData(element['station_number'],element['wban_number'],element['year'],element['month'],element['day']))
+         | beam.Map(print))
 
 
 if __name__ == '__main__':
-  run()
+    run()

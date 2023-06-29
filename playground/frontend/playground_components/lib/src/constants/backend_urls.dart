@@ -23,11 +23,19 @@ const defaultBackendUrlTemplate = 'https://{node}.play.beam.apache.org';
 
 /// The URLs for local backend development.
 const backendUrlOverrides = <String, String>{
+  // Uncomment the following lines to use staging backend:
   // 'router': 'https://router.play-dev.beam.apache.org',
   // 'go': 'https://go.play-dev.beam.apache.org',
   // 'java': 'https://java.play-dev.beam.apache.org',
   // 'python': 'https://python.play-dev.beam.apache.org',
   // 'scio': 'https://scio.play-dev.beam.apache.org',
+
+  // Uncomment the following lines to use local backend:
+  // 'router': 'http://localhost:8081',
+  // 'go': 'http://localhost:8084',
+  // 'java': 'http://localhost:8086',
+  // 'python': 'http://localhost:8088',
+  // 'scio': 'http://localhost:8090',
 };
 
 /// The URL templates that will not be probed

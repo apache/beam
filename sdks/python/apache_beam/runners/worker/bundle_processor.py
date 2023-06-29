@@ -27,6 +27,8 @@ import json
 import logging
 import random
 import threading
+from dataclasses import dataclass
+from dataclasses import field
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
@@ -66,7 +68,6 @@ from apache_beam.runners.worker import data_sampler
 from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import operations
 from apache_beam.runners.worker import statesampler
-from apache_beam.runners.worker.data_sampler import OutputSampler
 from apache_beam.transforms import TimeDomain
 from apache_beam.transforms import core
 from apache_beam.transforms import environments
@@ -194,8 +195,8 @@ class DataInputOperation(RunnerIOOperation):
     self.stop = float('inf')
     self.started = False
 
-  def setup(self):
-    super().setup()
+  def setup(self, data_sampler=None):
+    super().setup(data_sampler)
     # We must do this manually as we don't have a spec or spec.output_coders.
     self.receivers = [
         operations.ConsumerSet.create(
@@ -897,38 +898,10 @@ class BundleProcessor(object):
         'fnapi-step-%s' % self.process_bundle_descriptor.id,
         self.counter_factory)
 
-    if self.data_sampler:
-      self.add_data_sampling_operations(process_bundle_descriptor)
-
     self.ops = self.create_execution_tree(self.process_bundle_descriptor)
     for op in reversed(self.ops.values()):
-      op.setup()
+      op.setup(self.data_sampler)
     self.splitting_lock = threading.Lock()
-
-  def add_data_sampling_operations(self, pbd):
-    # type: (beam_fn_api_pb2.ProcessBundleDescriptor) -> None
-
-    """Adds a DataSamplingOperation to every PCollection.
-
-    Implementation note: the alternative to this, is to add modify each
-    Operation and forward a DataSampler to manually sample when an element is
-    processed. This gets messy very quickly and is not future-proof as new
-    operation types will need to be updated. This is the cleanest way of adding
-    new operations to the final execution tree.
-    """
-    coder = coders.FastPrimitivesCoder()
-
-    for pcoll_id in pbd.pcollections:
-      transform_id = 'synthetic-data-sampling-transform-{}'.format(pcoll_id)
-      transform_proto: beam_runner_api_pb2.PTransform = pbd.transforms[
-          transform_id]
-      transform_proto.unique_name = transform_id
-      transform_proto.spec.urn = SYNTHETIC_DATA_SAMPLING_URN
-
-      coder_id = pbd.pcollections[pcoll_id].coder_id
-      transform_proto.spec.payload = coder.encode((pcoll_id, coder_id))
-
-      transform_proto.inputs['None'] = pcoll_id
 
   def create_execution_tree(
       self,
@@ -966,6 +939,12 @@ class BundleProcessor(object):
           for tag,
           pcoll_id in descriptor.transforms[transform_id].outputs.items()
       }
+
+      # Initialize transform-specific state in the Data Sampler.
+      if self.data_sampler:
+        self.data_sampler.initialize_samplers(
+            transform_id, descriptor, transform_factory.get_coder)
+
       return transform_factory.create_operation(
           transform_id, transform_consumers)
 
@@ -1009,7 +988,7 @@ class BundleProcessor(object):
         expected_input_ops.append(op)
 
     try:
-      execution_context = ExecutionContext()
+      execution_context = ExecutionContext(instruction_id=instruction_id)
       self.current_instruction_id = instruction_id
       self.state_sampler.start()
       # Start all operations.
@@ -1204,10 +1183,18 @@ class BundleProcessor(object):
       op.teardown()
 
 
-class ExecutionContext(object):
-  def __init__(self):
-    self.delayed_applications = [
-    ]  # type: List[Tuple[operations.DoOperation, common.SplitResultResidual]]
+@dataclass
+class ExecutionContext:
+  # Any splits to be processed later.
+  delayed_applications: List[Tuple[operations.DoOperation,
+                                   common.SplitResultResidual]] = field(
+                                       default_factory=list)
+
+  # The exception sampler for the currently executing PTransform.
+  output_sampler: Optional[data_sampler.OutputSampler] = None
+
+  # The current instruction being executed.
+  instruction_id: Optional[str] = None
 
 
 class BeamTransformFactory(object):
@@ -1987,52 +1974,3 @@ def create_to_string_fn(
 
   return _create_simple_pardo_operation(
       factory, transform_id, transform_proto, consumers, ToString())
-
-
-class DataSamplingOperation(operations.Operation):
-  """Operation that samples incoming elements."""
-
-  def __init__(
-      self,
-      name_context,  # type: common.NameContext
-      counter_factory,  # type: counters.CounterFactory
-      state_sampler,  # type: statesampler.StateSampler
-      pcoll_id,  # type: str
-      sample_coder,  # type: coders.Coder
-      data_sampler,  # type: data_sampler.DataSampler
-  ):
-    # type: (...) -> None
-    super().__init__(name_context, None, counter_factory, state_sampler)
-    self._coder = sample_coder  # type: coders.Coder
-    self._pcoll_id = pcoll_id  # type: str
-
-    self._sampler: OutputSampler = data_sampler.sample_output(
-        self._pcoll_id, sample_coder)
-
-  def process(self, windowed_value):
-    # type: (windowed_value.WindowedValue) -> None
-    self._sampler.sample(windowed_value)
-
-
-@BeamTransformFactory.register_urn(SYNTHETIC_DATA_SAMPLING_URN, (bytes))
-def create_data_sampling_op(
-    factory,  # type: BeamTransformFactory
-    transform_id,  # type: str
-    transform_proto,  # type: beam_runner_api_pb2.PTransform
-    pcoll_and_coder_id,  # type: bytes
-    consumers,  # type: Dict[str, List[operations.Operation]]
-):
-  # Creating this operation should only occur when data sampling is enabled.
-  data_sampler = factory.data_sampler
-  assert data_sampler is not None
-
-  coder = coders.FastPrimitivesCoder()
-  pcoll_id, coder_id = coder.decode(pcoll_and_coder_id)
-  return DataSamplingOperation(
-      common.NameContext(transform_proto.unique_name, transform_id),
-      factory.counter_factory,
-      factory.state_sampler,
-      pcoll_id,
-      factory.get_coder(coder_id),
-      data_sampler,
-  )

@@ -11,6 +11,16 @@
 # limitations under the License.
 
 #Cards with quotes will be displayed by the order listed, e.g., first card will display the first quote
+- text: HSBC leveraged Apache Beam as a computational platform and a risk engine that enabled 100x scaling, 2x faster performance, and simplified data distribution for assessing and managing XVA and counterparty credit risk at HSBC’s global scale.
+  icon: icons/quote-icon.svg
+  logoUrl: images/logos/powered-by/hsbc.png
+  linkUrl: case-studies/hsbc/index.html
+  linkText: Learn more
+- text: Apache Beam supports Project Shield's mission to protect freedom of speech and make the web a safer space by enabling ~2x streaming efficiency at >10,000 QPS and real-time visibility into attack data for their >3K customers.
+  icon: icons/quote-icon.svg
+  logoUrl: images/logos/powered-by/project_shield.png
+  linkUrl: case-studies/projectshield/index.html
+  linkText: Learn more
 - text: Apache Beam powers the Booking.com global ad bidding for performance marketing and scans 2PB+ of data daily, accelerating processing by an eye-opening 36x and expediting time-to-market by as much as 4x.
   icon: icons/quote-icon.svg
   logoUrl: images/logos/powered-by/booking.png

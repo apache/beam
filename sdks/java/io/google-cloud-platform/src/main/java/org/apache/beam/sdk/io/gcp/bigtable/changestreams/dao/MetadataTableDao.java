@@ -30,6 +30,7 @@ import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.encoder.Metadata
 import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.encoder.MetadataTableEncoder.parseWatermarkFromRow;
 import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.encoder.MetadataTableEncoder.parseWatermarkLastUpdatedFromRow;
 
+import com.google.api.core.ApiFuture;
 import com.google.api.gax.rpc.ServerStream;
 import com.google.cloud.bigtable.data.v2.BigtableDataClient;
 import com.google.cloud.bigtable.data.v2.models.ChangeStreamContinuationToken;
@@ -50,6 +51,9 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.SerializationException;
@@ -60,6 +64,7 @@ import org.apache.beam.sdk.io.gcp.bigtable.changestreams.model.DetectNewPartitio
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.model.NewPartition;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.model.PartitionRecord;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.model.StreamPartitionWithWatermark;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Longs;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -319,7 +324,7 @@ public class MetadataTableDao {
             .deleteCells(
                 MetadataTableAdminDao.CF_SHOULD_DELETE,
                 ByteStringRange.serializeToByteString(parentPartition));
-    dataClient.mutateRow(rowMutation);
+    mutateRowWithHardTimeout(rowMutation);
   }
 
   /**
@@ -352,7 +357,7 @@ public class MetadataTableDao {
           ByteStringRange.serializeToByteString(token.getPartition()),
           1);
     }
-    dataClient.mutateRow(rowMutation);
+    mutateRowWithHardTimeout(rowMutation);
   }
 
   /**
@@ -511,7 +516,7 @@ public class MetadataTableDao {
           MetadataTableAdminDao.QUALIFIER_DEFAULT,
           currentToken.getToken());
     }
-    dataClient.mutateRow(rowMutation);
+    mutateRowWithHardTimeout(rowMutation);
   }
 
   /**
@@ -702,7 +707,19 @@ public class MetadataTableDao {
                 tableId, convertPartitionToStreamPartitionRowKey(partitionRecord.getPartition()))
             .condition(matchAnyString)
             .otherwise(mutation);
-    return !dataClient.checkAndMutateRow(rowMutation);
+
+    boolean lockAcquired = !dataClient.checkAndMutateRow(rowMutation);
+    if (lockAcquired) {
+      LOG.info(
+          "RCSP: {} acquired lock for uid: {}",
+          formatByteStringRange(partitionRecord.getPartition()),
+          partitionRecord.getUuid());
+      return true;
+    } else {
+      // If the lock is already held we need to check if it was acquired by a duplicate
+      // work item with the same uuid since we last checked doHoldLock above.
+      return doHoldLock(partitionRecord.getPartition(), partitionRecord.getUuid());
+    }
   }
 
   /**
@@ -716,7 +733,7 @@ public class MetadataTableDao {
                 MetadataTableAdminDao.CF_VERSION,
                 MetadataTableAdminDao.QUALIFIER_DEFAULT,
                 MetadataTableAdminDao.CURRENT_METADATA_TABLE_VERSION);
-    dataClient.mutateRow(rowMutation);
+    mutateRowWithHardTimeout(rowMutation);
   }
 
   /**
@@ -770,6 +787,34 @@ public class MetadataTableDao {
                 MetadataTableAdminDao.CF_MISSING_PARTITIONS,
                 ByteString.copyFromUtf8(MetadataTableAdminDao.QUALIFIER_DEFAULT),
                 ByteString.copyFrom(serializedMissingPartition));
-    dataClient.mutateRow(rowMutation);
+    mutateRowWithHardTimeout(rowMutation);
+  }
+
+  /**
+   * This adds a hard timeout of 40 seconds to mutate row futures. These requests already have a
+   * 30-second deadline. This is a workaround for an extremely rare issue we see with requests not
+   * respecting their deadlines. This can be removed once we've pinpointed the cause.
+   *
+   * @param rowMutation Bigtable RowMutation to apply
+   */
+  @VisibleForTesting
+  void mutateRowWithHardTimeout(RowMutation rowMutation) {
+    ApiFuture<Void> mutateRowFuture = dataClient.mutateRowAsync(rowMutation);
+    try {
+      mutateRowFuture.get(
+          BigtableChangeStreamAccessor.MUTATE_ROW_DEADLINE.getSeconds() + 10, TimeUnit.SECONDS);
+    } catch (TimeoutException timeoutException) {
+      mutateRowFuture.cancel(true);
+      throw new RuntimeException(
+          "Cancelled mutateRow request after exceeding deadline", timeoutException);
+    } catch (ExecutionException executionException) {
+      if (executionException.getCause() instanceof RuntimeException) {
+        throw (RuntimeException) executionException.getCause();
+      }
+      throw new RuntimeException(executionException);
+    } catch (InterruptedException interruptedException) {
+      Thread.currentThread().interrupt();
+      throw new RuntimeException(interruptedException);
+    }
   }
 }

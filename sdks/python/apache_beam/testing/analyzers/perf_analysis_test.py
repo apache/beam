@@ -21,6 +21,7 @@ import os
 import unittest
 
 import mock
+import numpy as np
 import pandas as pd
 
 # pylint: disable=ungrouped-imports
@@ -54,7 +55,8 @@ def get_existing_issue_data(**kwargs):
   # change point found at index 10. So passing 10 in the
   # existing issue data in mock method.
   return pd.DataFrame([{
-      constants._CHANGE_POINT_TIMESTAMP_LABEL: 10, constants._ISSUE_NUMBER: 0
+      constants._CHANGE_POINT_TIMESTAMP_LABEL: 10,
+      constants._ISSUE_NUMBER: np.array([0])
   }])
 
 
@@ -70,7 +72,7 @@ class TestChangePointAnalysis(unittest.TestCase):
     ] * 20
     self.timestamps = list(range(5))
     self.params = {
-        'test_name': 'fake_test',
+        'test_description': 'fake_description',
         'metrics_dataset': 'fake_dataset',
         'metrics_table': 'fake_table',
         'project': 'fake_project',
@@ -102,7 +104,7 @@ class TestChangePointAnalysis(unittest.TestCase):
 
   def test_validate_config(self):
     test_keys = {
-        'test_name',
+        'test_description',
         'metrics_dataset',
         'metrics_table',
         'project',
@@ -146,7 +148,7 @@ class TestChangePointAnalysis(unittest.TestCase):
   def test_no_alerts_when_no_change_points(self):
     is_alert = analysis.run_change_point_analysis(
         params=self.params,
-        test_id=self.test_id,
+        test_name=self.test_id,
         big_query_metrics_fetcher=None)
     self.assertFalse(is_alert)
 
@@ -167,7 +169,7 @@ class TestChangePointAnalysis(unittest.TestCase):
   def test_alert_on_data_with_change_point(self, *args):
     is_alert = analysis.run_change_point_analysis(
         params=self.params,
-        test_id=self.test_id,
+        test_name=self.test_id,
         big_query_metrics_fetcher=None)
     self.assertTrue(is_alert)
 
@@ -187,7 +189,7 @@ class TestChangePointAnalysis(unittest.TestCase):
   def test_alert_on_data_with_reported_change_point(self, *args):
     is_alert = analysis.run_change_point_analysis(
         params=self.params,
-        test_id=self.test_id,
+        test_name=self.test_id,
         big_query_metrics_fetcher=None)
     self.assertFalse(is_alert)
 

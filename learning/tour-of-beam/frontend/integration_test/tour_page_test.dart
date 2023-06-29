@@ -16,6 +16,9 @@
  * limitations under the License.
  */
 
+// ignore_for_file: avoid_print
+
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
@@ -23,18 +26,24 @@ import 'package:integration_test/integration_test.dart';
 import 'package:playground_components/playground_components.dart';
 import 'package:playground_components_dev/playground_components_dev.dart';
 import 'package:tour_of_beam/cache/content_tree.dart';
+import 'package:tour_of_beam/cache/sdk.dart';
+import 'package:tour_of_beam/cache/unit_content.dart';
 import 'package:tour_of_beam/components/builders/content_tree.dart';
-import 'package:tour_of_beam/models/group.dart';
+import 'package:tour_of_beam/models/content_tree.dart';
 import 'package:tour_of_beam/models/module.dart';
+import 'package:tour_of_beam/models/parent_node.dart';
 import 'package:tour_of_beam/models/unit.dart';
 import 'package:tour_of_beam/pages/tour/screen.dart';
 import 'package:tour_of_beam/pages/tour/state.dart';
 import 'package:tour_of_beam/pages/tour/widgets/playground.dart';
 import 'package:tour_of_beam/pages/tour/widgets/unit.dart';
 import 'package:tour_of_beam/pages/tour/widgets/unit_content.dart';
+import 'package:tour_of_beam/state.dart';
 
 import 'common/common.dart';
 import 'common/common_finders.dart';
+
+const _sdk = Sdk.java;
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -42,15 +51,20 @@ void main() {
     'ToB miscellaneous ui',
     (wt) async {
       await init(wt);
-      await wt.tapAndSettle(find.text(Sdk.java.title));
+      await wt.tapAndSettle(find.outlinedButtonWithText(_sdk.title));
       await wt.tapAndSettle(find.startTourButton());
 
       await _checkContentTreeBuildsProperly(wt);
-      await _checkContentTreeScrollsProperly(wt);
       await _checkHighlightsSelectedUnit(wt);
-      // TODO(nausharipov): fix tests
-      // await _checkRunCodeWorks(wt);
-      // await _checkResizeUnitContent(wt);
+      await _checkRunCodeWorks(wt);
+      await _checkResizeUnitContent(wt);
+      await _checkSdkChanges(wt);
+
+      expect(
+        ExamplesLoader.failedToLoadExamples,
+        isEmpty,
+        reason: 'Failed to load some examples.',
+      );
     },
   );
 }
@@ -59,29 +73,28 @@ Future<void> _checkContentTreeBuildsProperly(WidgetTester wt) async {
   final modules = _getModules(wt);
 
   for (final module in modules) {
-    await _checkModule(module, wt);
+    await _checkParent(module, wt);
   }
 }
 
 List<ModuleModel> _getModules(WidgetTester wt) {
   final contentTreeCache = GetIt.instance.get<ContentTreeCache>();
-  final controller = getContentTreeController(wt);
-  final contentTree = contentTreeCache.getContentTree(controller.sdk);
+  final contentTree = contentTreeCache.getContentTree(_sdk);
   return contentTree?.nodes ?? (throw Exception('Cannot load modules'));
 }
 
-Future<void> _checkModule(ModuleModel module, WidgetTester wt) async {
-  if (!_getExpandedIds(wt).contains(module.id)) {
-    await wt.ensureVisible(find.byKey(Key(module.id)));
-    await wt.tapAndSettle(find.byKey(Key(module.id)));
+Future<void> _checkParent(ParentNodeModel node, WidgetTester wt) async {
+  if (!_getExpandedIds(wt).contains(node.id)) {
+    await wt.ensureVisible(find.byKey(Key(node.id)));
+    await wt.tapAndSettle(find.byKey(Key(node.id)));
   }
 
-  for (final node in module.nodes) {
-    if (node is UnitModel) {
-      await _checkNode(node, wt);
+  for (final child in node.nodes) {
+    if (child is UnitModel) {
+      await _checkNode(child, wt);
     }
-    if (node is GroupModel) {
-      await _checkGroup(node, wt);
+    if (child is ParentNodeModel) {
+      await _checkParent(child, wt);
     }
   }
 }
@@ -108,13 +121,12 @@ Future<void> _checkUnitContentLoadsProperly(
 ) async {
   await wt.tapAndSettle(find.byKey(Key(unit.id)));
 
-  // TODO(nausharipov): fix the test.
-  // final hasSnippet = _getTourNotifier(wt).isUnitContainsSnippet;
+  final hasSnippet = _getTourNotifier(wt).isPlaygroundShown;
 
-  // expect(
-  //   find.byType(PlaygroundWidget),
-  //   hasSnippet ? findsOneWidget : findsNothing,
-  // );
+  expect(
+    find.byType(PlaygroundWidget),
+    hasSnippet ? findsOneWidget : findsNothing,
+  );
 
   expect(
     find.descendant(
@@ -123,28 +135,6 @@ Future<void> _checkUnitContentLoadsProperly(
     ),
     findsAtLeastNWidgets(1),
   );
-}
-
-Future<void> _checkGroup(GroupModel group, WidgetTester wt) async {
-  await wt.ensureVisible(find.byKey(Key(group.id)));
-  await wt.tapAndSettle(find.byKey(Key(group.id)));
-
-  for (final n in group.nodes) {
-    if (n is GroupModel) {
-      await _checkGroup(n, wt);
-    }
-    if (n is UnitModel) {
-      await _checkNode(n, wt);
-    }
-  }
-}
-
-Future<void> _checkContentTreeScrollsProperly(WidgetTester wt) async {
-  final modules = _getModules(wt);
-  final lastNode = modules.expand((m) => m.nodes).whereType<UnitModel>().last;
-
-  await wt.ensureVisible(find.byKey(Key(lastNode.id)));
-  await wt.pumpAndSettle();
 }
 
 Future<void> _checkHighlightsSelectedUnit(WidgetTester wt) async {
@@ -185,7 +175,7 @@ public class MyClass {
 }
 ''';
 
-  await _selectExampleWithSnippet(wt);
+  await _selectUnitWithSnippet(wt);
   await wt.pumpAndSettle();
 
   await wt.enterText(find.snippetCodeField(), code);
@@ -230,7 +220,7 @@ Future<void> _checkResizeUnitContent(WidgetTester wt) async {
   expectSimilar(startHandlePosition.dx, movedHandlePosition.dx - 100);
 }
 
-Future<void> _selectExampleWithSnippet(WidgetTester wt) async {
+Future<void> _selectUnitWithSnippet(WidgetTester wt) async {
   final tourNotifier = _getTourNotifier(wt);
   final modules = _getModules(wt);
 
@@ -238,7 +228,7 @@ Future<void> _selectExampleWithSnippet(WidgetTester wt) async {
     for (final node in module.nodes) {
       if (node is UnitModel) {
         await _checkNode(node, wt);
-        if (tourNotifier.isUnitContainsSnippet) {
+        if (tourNotifier.isPlaygroundShown) {
           return;
         }
       }
@@ -258,4 +248,100 @@ PlaygroundController _getPlaygroundController(WidgetTester wt) {
 Set<String> _getExpandedIds(WidgetTester wt) {
   final controller = getContentTreeController(wt);
   return controller.expandedIds;
+}
+
+Future<void> _checkSdkChanges(WidgetTester wt) async {
+  await _selectUnitWithSnippetsInAllSdks(wt);
+  await _checkSnippetChangesOnSdkChanging(wt);
+}
+
+Future<void> _selectUnitWithSnippetsInAllSdks(WidgetTester wt) async {
+  final unitWithSnippets = await _findUnitWithSnippetsInAllSdks(wt);
+
+  if (unitWithSnippets == null) {
+    fail('No unit with snippets in all sdks');
+  }
+
+  final controller = getContentTreeController(wt);
+  controller.onNodePressed(unitWithSnippets);
+  await wt.pumpAndSettle();
+}
+
+Future<UnitModel?> _findUnitWithSnippetsInAllSdks(WidgetTester wt) async {
+  final commonUnits = await _getCommonUnitsInAllSdks(wt);
+  for (final unit in commonUnits) {
+    if (await _hasSnippetsInAllSdks(unit)) {
+      return unit;
+    }
+  }
+  return null;
+}
+
+Future<bool> _hasSnippetsInAllSdks(UnitModel unit) async {
+  final unitContentCache = GetIt.instance.get<UnitContentCache>();
+  final sdks = GetIt.instance.get<SdkCache>().getSdks();
+  for (final sdk in sdks) {
+    final unitContent = await unitContentCache.getUnitContent(sdk.id, unit.id);
+    if (unitContent.taskSnippetId == null) {
+      return false;
+    }
+  }
+  return true;
+}
+
+Future<Set<UnitModel>> _getCommonUnitsInAllSdks(WidgetTester wt) async {
+  final contentTrees = await _loadAllContentTrees(wt);
+  final sdkUnits = List<Set<UnitModel>>.empty(growable: true);
+  for (final tree in contentTrees) {
+    sdkUnits.add(tree.getUnits().toSet());
+  }
+
+  // Identifies and stores the common units across all lists within
+  // the 'sdkUnits' list by iteratively removing elements from the first list
+  // that don't exist in the subsequent lists.
+  final commonUnitTitles = sdkUnits.first;
+  for (final units in sdkUnits.skip(1)) {
+    commonUnitTitles.removeWhere((u) => !units.contains(u));
+  }
+
+  return commonUnitTitles;
+}
+
+Future<List<ContentTreeModel>> _loadAllContentTrees(WidgetTester wt) async {
+  final sdkCache = GetIt.instance.get<SdkCache>();
+  final contentTreeCache = GetIt.instance.get<ContentTreeCache>();
+  final sdks = sdkCache.getSdks();
+  final nullableTrees = await Future.wait(
+    sdks.map((sdk) async => contentTreeCache.getContentTree(sdk)),
+  );
+
+  return nullableTrees.whereNotNull().toList(growable: false);
+}
+
+Future<void> _checkSnippetChangesOnSdkChanging(WidgetTester wt) async {
+  final defaultSdk = _getTourNotifier(wt).playgroundController.sdk;
+  final sdkCache = GetIt.instance.get<SdkCache>();
+
+  for (final sdk in sdkCache.getSdks()) {
+    if (sdk == defaultSdk) {
+      continue;
+    }
+
+    await _setSdk(sdk.title, wt);
+
+    final selectedExample =
+        _getTourNotifier(wt).playgroundController.selectedExample;
+    final appNotifier = GetIt.instance.get<AppNotifier>();
+    final actualSdk = selectedExample?.sdk;
+    expect(actualSdk, appNotifier.sdk);
+  }
+
+  await _setSdk(defaultSdk!.title, wt);
+}
+
+Future<void> _setSdk(String title, WidgetTester wt) async {
+  await wt.tapAndSettle(find.sdkDropdown());
+  await wt.tapAndSettle(
+    find.dropdownMenuItemWithText(title).first,
+  );
 }

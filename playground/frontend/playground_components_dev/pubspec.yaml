@@ -22,12 +22,12 @@ publish_to: none
 
 environment:
   sdk: '>=3.0.2 <4.0.0'
-  flutter: '>=3.10.2'
+  flutter: '>=3.10.4'
 
 dependencies:
   app_state: ^0.9.3
   flutter: { sdk: flutter }
-  flutter_code_editor: ^0.2.23
+  flutter_code_editor: ^0.3.0
   flutter_test: { sdk: flutter }
   get_it: ^7.2.0
   highlight: ^0.7.0
