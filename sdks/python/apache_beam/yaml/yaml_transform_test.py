@@ -27,11 +27,10 @@ import yaml
 import apache_beam as beam
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.yaml import yaml_provider
 from apache_beam.yaml import yaml_transform
 from apache_beam.yaml.yaml_transform import LightweightScope
 from apache_beam.yaml.yaml_transform import SafeLineLoader
-from apache_beam.yaml import yaml_provider
-from apache_beam.yaml.yaml_transform import Scope
 from apache_beam.yaml.yaml_transform import YamlTransform
 
 
@@ -154,126 +153,6 @@ class LightweightScopeTest(unittest.TestCase):
     scope = LightweightScope(spec)
     with self.assertRaisesRegex(ValueError, r'Unknown.*NotExistingTransform'):
       scope.get_transform_id("NotExistingTransform")
-
-
-class ScopeTest(unittest.TestCase):
-  @staticmethod
-  def get_spec():
-
-    pipeline_yaml = '''
-          type: composite
-          transforms:
-            - type: Create
-              name: elements
-              elements: [1, 2, 3]
-            - type: PyMap
-              name: Square
-              input: elements
-              fn: "lambda x: x * x"
-            - type: PyMap
-              name: Cube
-              input: elements
-              fn: "lambda x: x * x * x"
-            - type: Flatten
-              input: [Square, Cube]
-          output:
-              Flatten
-          '''
-    return yaml.load(pipeline_yaml, Loader=SafeLineLoader)
-
-  def get_scope(self, p, spec) -> Scope:
-    spec = yaml_transform.normalize_inputs_outputs(
-        yaml_transform.normalize_source_sink(spec))
-
-    sc = Scope(
-        p, {},
-        transforms=spec['transforms'],
-        providers=yaml_provider.standard_providers(),
-        input_providers={})
-    return sc
-
-  def test_get_pcollection(self):
-    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
-        pickle_library='cloudpickle')) as p:
-      spec = self.get_spec()
-      input = beam.pvalue.PBegin(p)
-      sc = Scope(
-          p, {'input': input},
-          transforms=spec['transforms'],
-          providers=yaml_provider.standard_providers(),
-          input_providers={})
-
-      result_input = sc.get_pcollection('input')
-      self.assertEqual(result_input, input)
-
-      result_square = sc.get_pcollection('Square')
-      self.assertEqual(
-          result_square.producer.transform.label, 'Map(lambda x: x * x)')
-
-      with self.assertRaisesRegex(ValueError, r'Ambiguous.*PyMap'):
-        sc.get_pcollection('PyMap')
-
-  def test_get_outputs(self):
-    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
-        pickle_library='cloudpickle')) as p:
-      spec = self.get_spec()
-      sc = Scope(
-          p, {'input': beam.pvalue.PBegin(p)},
-          transforms=spec['transforms'],
-          providers=yaml_provider.standard_providers(),
-          input_providers={})
-      result = sc.get_outputs("Square")
-      self.assertIsInstance(result['out'], beam.pvalue.PCollection)
-
-  def test_compute_outputs(self):
-    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
-        pickle_library='cloudpickle')) as p:
-      spec = self.get_spec()
-      sc = Scope(
-          p, {'input': beam.pvalue.PBegin(p)},
-          transforms=spec['transforms'],
-          providers=yaml_provider.standard_providers(),
-          input_providers={})
-      transform_uuid = sc.get_transform_id("Square")
-      result = sc.compute_outputs(transform_uuid)
-      self.assertIsInstance(result['out'], beam.pvalue.PCollection)
-
-  def test_create_ptransform_missing_type(self):
-    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
-        pickle_library='cloudpickle')) as p:
-      pipeline_yaml = '''
-          transforms:
-            - name: Cube
-              input: elements
-              fn: "lambda x: x * x * x"
-          '''
-      spec = yaml.load(pipeline_yaml, Loader=SafeLineLoader)
-      sc = Scope(
-          p, {'input': beam.pvalue.PBegin(p)},
-          transforms=spec['transforms'],
-          providers=yaml_provider.standard_providers(),
-          input_providers={})
-      with self.assertRaisesRegex(ValueError, r'Missing transform type'):
-        sc.create_ptransform(spec['transforms'][0], sc._inputs['input'])
-
-  def test_create_ptransform_unknown_type(self):
-    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
-        pickle_library='cloudpickle')) as p:
-      pipeline_yaml = '''
-          transforms:
-            - type: CustomType
-              name: Cube
-              input: elements
-              fn: "lambda x: x * x * x"
-          '''
-      spec = yaml.load(pipeline_yaml, Loader=SafeLineLoader)
-      sc = Scope(
-          p, {'input': beam.pvalue.PBegin(p)},
-          transforms=spec['transforms'],
-          providers=yaml_provider.standard_providers(),
-          input_providers={})
-      with self.assertRaisesRegex(ValueError, r'Unknown transform type'):
-        sc.create_ptransform(spec['transforms'][0], sc._inputs['input'])
 
 
 class YamlTransformE2ETest(unittest.TestCase):

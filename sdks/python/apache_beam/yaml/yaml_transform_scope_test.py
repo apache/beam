@@ -78,12 +78,12 @@ class ScopeTest(unittest.TestCase):
         pickle_library='cloudpickle')) as p:
       spec = '''
         transforms:
-            - type: Create
-              elements: [0, 1, 3, 4]
-            - type: PyMap
-              fn: "lambda x: x*x"
-            - type: PyMap
-              fn: "lambda x: x*x*x"
+          - type: Create
+            elements: [0, 1, 3, 4]
+          - type: PyMap
+            fn: "lambda x: x*x"
+          - type: PyMap
+            fn: "lambda x: x*x*x"
         '''
 
       scope, spec = self.get_scope_by_spec(p, spec)
@@ -96,9 +96,9 @@ class ScopeTest(unittest.TestCase):
         pickle_library='cloudpickle')) as p:
       spec = '''
         transforms:
-            - type: Create
-              name: MyElements
-              elements: [0, 1, 3, 4]
+          - type: Create
+            name: MyElements
+            elements: [0, 1, 3, 4]
         '''
       scope, spec = self.get_scope_by_spec(p, spec)
 
@@ -118,8 +118,8 @@ class ScopeTest(unittest.TestCase):
         pickle_library='cloudpickle')) as p:
       spec = '''
         transforms:
-            - type: Create
-              elements: [0, 1, 3, 4]
+          - type: Create
+            elements: [0, 1, 3, 4]
         '''
       scope, spec = self.get_scope_by_spec(p, spec)
 
@@ -134,14 +134,16 @@ class ScopeTest(unittest.TestCase):
       self.assertIn("Create@3", scope._seen_names)
       self.assertEqual(result, "Create@3")
 
+      self.assertEqual(len(scope._seen_names), 2)
+
   def test_unique_name_strict(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:
       spec = '''
         transforms:
-            - type: Create
-              name: MyElements
-              elements: [0, 1, 3, 4]
+          - type: Create
+            name: MyElements
+            elements: [0, 1, 3, 4]
         '''
       scope, spec = self.get_scope_by_spec(p, spec)
 
@@ -154,6 +156,56 @@ class ScopeTest(unittest.TestCase):
 
       with self.assertRaisesRegex(ValueError, r"Duplicate name"):
         scope.unique_name(spec_transform, p_transform, strictness=1)
+
+  def test_create_ptransform(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      spec = '''
+        transforms:
+          - type: PyMap
+            fn: "lambda x: x*x"
+        '''
+      scope, spec = self.get_scope_by_spec(p, spec)
+
+      result = scope.create_ptransform(spec['transforms'][0], [])
+      self.assertIsInstance(result, beam.transforms.ParDo)
+      self.assertEqual(result.label, 'Map(lambda x: x*x)')
+
+      result_annotations = {**result.annotations()}
+      target_annotations = {
+          'yaml_type': 'PyMap',
+          'yaml_args': '{"fn": "lambda x: x*x"}',
+          'yaml_provider': '{"type": "InlineProvider"}'
+      }
+
+      # Check if target_annotations is a subset of result_annotations
+      self.assertDictEqual(
+          result_annotations, {
+              **result_annotations, **target_annotations
+          })
+
+  def test_create_ptransform_with_inputs(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      spec = '''
+        transforms:
+          - type: PyMap
+            args:
+              fn: "lambda x: x*x"
+        '''
+      scope, spec = self.get_scope_by_spec(p, spec)
+
+      result = scope.create_ptransform(spec['transforms'][0], [])
+      self.assertIsInstance(result, beam.transforms.ParDo)
+      self.assertEqual(result.label, 'Map(lambda x: x*x)')
+
+      result_annotations = {**result.annotations()}
+      target_annotations = {
+          'yaml_type': 'PyMap',
+          'yaml_args': '{"fn": "lambda x: x*x"}',
+          'yaml_provider': '{"type": "InlineProvider"}'
+      }
+      self.assertDictEqual(result_annotations, target_annotations)
 
 
 if __name__ == '__main__':
