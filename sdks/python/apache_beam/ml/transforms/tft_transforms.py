@@ -95,11 +95,12 @@ class TFTOperation(BaseOperation):
           "Columns are not specified. Please specify the column for the "
           " op %s" % self.__class__.__name__)
 
-  def validate_args(self):
-    raise NotImplementedError
-
   def get_artifacts(self, data: common_types.TensorType,
                     col_name) -> Optional[Dict[str, tf.Tensor]]:
+    """
+    Override this class to pass artifacts if any operation produces
+    artifacts
+    """
     return None
 
 

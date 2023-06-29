@@ -14,16 +14,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import abc
 from typing import Generic
 from typing import List
 from typing import Optional
 from typing import TypeVar
 
 import apache_beam as beam
-
-# TODO: Abstract methods are not getting pickled with dill.
-# https://github.com/uqfoundation/dill/issues/332
-# import abc
 
 __all__ = ['MLTransform']
 
@@ -51,7 +48,8 @@ class ArtifactMode(object):
   CONSUME = 'consume'
 
 
-class BaseOperation(Generic[OperationInputT, OperationOutputT]):
+class BaseOperation(Generic[OperationInputT, OperationOutputT], abc.ABC):
+  @abc.abstractmethod
   def apply(
       self, inputs: OperationInputT, column_name: str, *args,
       **kwargs) -> OperationOutputT:
@@ -62,13 +60,13 @@ class BaseOperation(Generic[OperationInputT, OperationOutputT]):
     Args:
       inputs: input data.
     """
-    raise NotImplementedError
 
 
-class _ProcessHandler(Generic[ProcessInputT, ProcessOutputT]):
+class ProcessHandler(Generic[ProcessInputT, ProcessOutputT], abc.ABC):
   """
   Only for internal use. No backwards compatibility guarantees.
   """
+  @abc.abstractmethod
   def process_data(
       self, pcoll: beam.PCollection[ProcessInputT]
   ) -> beam.PCollection[ProcessOutputT]:
@@ -76,10 +74,12 @@ class _ProcessHandler(Generic[ProcessInputT, ProcessOutputT]):
     Logic to process the data. This will be the entrypoint in
     beam.MLTransform to process incoming data.
     """
-    raise NotImplementedError
 
+  @abc.abstractmethod
   def append_transform(self, transform: BaseOperation):
-    raise NotImplementedError
+    """
+    Append transforms to the ProcessHandler.
+    """
 
 
 class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
@@ -143,7 +143,7 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
   ) -> beam.PCollection[MLTransformOutputT]:
     """
     This is the entrypoint for the MLTransform. This method will
-    invoke the process_data() method of the _ProcessHandler instance
+    invoke the process_data() method of the ProcessHandler instance
     to process the incoming data.
 
     process_data takes in a PCollection and applies the PTransforms
