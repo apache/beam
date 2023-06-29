@@ -131,8 +131,7 @@ public class BigtableWriteSchemaTransformProvider
    * BigtableWriteSchemaTransformConfiguration} and instantiated by {@link
    * BigtableWriteSchemaTransformProvider}.
    */
-  private static class BigtableWriteSchemaTransform
-      extends PTransform<PCollectionRowTuple, PCollectionRowTuple> implements SchemaTransform {
+  private static class BigtableWriteSchemaTransform extends SchemaTransform {
     private final BigtableWriteSchemaTransformConfiguration configuration;
 
     BigtableWriteSchemaTransform(BigtableWriteSchemaTransformConfiguration configuration) {
@@ -158,11 +157,6 @@ public class BigtableWriteSchemaTransformProvider
               .withProjectId(configuration.getProjectId()));
 
       return PCollectionRowTuple.empty(input.getPipeline());
-    }
-
-    @Override
-    public PTransform<PCollectionRowTuple, PCollectionRowTuple> buildTransform() {
-      return this;
     }
   }
 

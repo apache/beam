@@ -135,7 +135,7 @@ public class BigtableWriteSchemaTransformProviderIT {
             .setInstanceId(instanceId)
             .setTableId(tableId)
             .build();
-    writeTransform = new BigtableWriteSchemaTransformProvider().from(config).buildTransform();
+    writeTransform = new BigtableWriteSchemaTransformProvider().from(config);
   }
 
   @After
