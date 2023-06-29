@@ -126,6 +126,9 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
     # avoid circular import
     # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam.ml.transforms.handlers import TFTProcessHandler
+    # TODO: When new ProcessHandlers(eg: JaxProcessHandler) are introduced,
+    # create a mapping between transforms and ProcessHandler since
+    # ProcessHandler is not exposed to the user.
     process_handler = TFTProcessHandler(
         artifact_location=artifact_location,
         artifact_mode=artifact_mode,
