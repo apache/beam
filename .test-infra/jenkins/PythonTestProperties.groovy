@@ -20,7 +20,6 @@ class PythonTestProperties {
   // Indicates all supported Python versions.
   // This must be sorted in ascending order.
   final static List<String> ALL_SUPPORTED_VERSIONS = [
-    '3.7',
     '3.8',
     '3.9',
     '3.10',
@@ -38,9 +37,9 @@ class PythonTestProperties {
   final static List<String> CROSS_LANGUAGE_VALIDATES_RUNNER_PYTHON_VERSIONS = ESSENTIAL_VERSIONS
   final static List<String> CROSS_LANGUAGE_VALIDATES_RUNNER_DATAFLOW_USING_SQL_PYTHON_VERSIONS = [HIGHEST_SUPPORTED]
   final static List<String> VALIDATES_CONTAINER_DATAFLOW_PYTHON_VERSIONS = ALL_SUPPORTED_VERSIONS
-  final static String LOAD_TEST_PYTHON_VERSION = '3.7'
+  final static String LOAD_TEST_PYTHON_VERSION = '3.8'
   final static String RUN_INFERENCE_TEST_PYTHON_VERSION = '3.8'
-  final static String CHICAGO_TAXI_EXAMPLE_FLINK_PYTHON_VERSION = '3.7'
+  final static String CHICAGO_TAXI_EXAMPLE_FLINK_PYTHON_VERSION = '3.8'
   // Use for various shell scripts triggered by Jenkins.
   // Gradle scripts should use project.ext.pythonVersion defined by PythonNature/BeamModulePlugin.
   final static String DEFAULT_INTERPRETER = 'python3.8'

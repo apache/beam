@@ -32,7 +32,7 @@ public class TestCompletions {
     public static void main(String[] args) {
         PipelineOptions options = PipelineOptionsFactory.create();
         Pipeline p = Pipeline.create(options);
-        p.apply(T<caret>);
+        p.apply(Fi<caret>);
     }
 }
 

@@ -614,7 +614,7 @@ class SnippetsTest(unittest.TestCase):
       snippets.model_pipelines()
     self.assertEqual(
         self.get_output(result_path),
-        [str(s) for s in [(u'aa', 1), (u'bb', 2), (u'cc', 3)]])
+        [str(s) for s in [('aa', 1), ('bb', 2), ('cc', 3)]])
 
   def test_model_pcollection(self):
     temp_path = self.create_temp_file()
@@ -863,7 +863,7 @@ class SnippetsTest(unittest.TestCase):
     input_topic = 'projects/fake-beam-test-project/topic/intopic'
     input_values = [
         TimestampedValue(b'a a b', 1),
-        TimestampedValue(u'🤷 ¯\\_(ツ)_/¯ b b '.encode('utf-8'), 12),
+        TimestampedValue('🤷 ¯\\_(ツ)_/¯ b b '.encode('utf-8'), 12),
         TimestampedValue(b'a b c c c', 20)
     ]
     output_topic = 'projects/fake-beam-test-project/topic/outtopic'
