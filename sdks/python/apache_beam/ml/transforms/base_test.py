@@ -170,9 +170,9 @@ class BaseMLTransformTest(unittest.TestCase):
                   list(input_types.items()))))
       transformed_data = schema_data | base.MLTransform(
           artifact_location=self.artifact_location, transforms=transforms)
-    for name, typ in transformed_data.element_type._fields:
-      if name in expected_dtype:
-        self.assertEqual(expected_dtype[name], typ)
+      for name, typ in transformed_data.element_type._fields:
+        if name in expected_dtype:
+          self.assertEqual(expected_dtype[name], typ)
 
   def test_ml_transform_fail_for_non_global_windows_in_produce_mode(self):
     transforms = [tft_transforms.ScaleTo01(columns=['x'])]
@@ -189,3 +189,53 @@ class BaseMLTransformTest(unittest.TestCase):
                 artifact_location=self.artifact_location,
                 artifact_mode=base.ArtifactMode.PRODUCE,
             ))
+
+  def test_ml_transform_on_multiple_columns_single_transform(self):
+    transforms = [tft_transforms.ScaleTo01(columns=['x', 'y'])]
+    batched_data = [{'x': [1, 2, 3], 'y': [1.0, 10.0, 20.0]}]
+    with beam.Pipeline() as p:
+      batched_result = (
+          p
+          | beam.Create(batched_data)
+          | base.MLTransform(
+              transforms=transforms, artifact_location=self.artifact_location))
+      expected_output_x = [
+          np.array([0, 0.5, 1], dtype=np.float32),
+      ]
+      expected_output_y = [np.array([0, 0.47368422, 1], dtype=np.float32)]
+      actual_output_x = batched_result | beam.Map(lambda x: x.x)
+      actual_output_y = batched_result | beam.Map(lambda x: x.y)
+      assert_that(
+          actual_output_x,
+          equal_to(expected_output_x, equals_fn=np.array_equal))
+      assert_that(
+          actual_output_y,
+          equal_to(expected_output_y, equals_fn=np.array_equal),
+          label='y')
+
+  def test_ml_transforms_on_multiple_columns_multiple_transforms(self):
+    transforms = [
+        tft_transforms.ScaleTo01(columns=['x']),
+        tft_transforms.ComputeAndApplyVocabulary(columns=['y'])
+    ]
+    batched_data = [{'x': [1, 2, 3], 'y': ['a', 'b', 'c']}]
+    with beam.Pipeline() as p:
+      batched_result = (
+          p
+          | beam.Create(batched_data)
+          | base.MLTransform(
+              transforms=transforms, artifact_location=self.artifact_location))
+      expected_output_x = [
+          np.array([0, 0.5, 1], dtype=np.float32),
+      ]
+      expected_output_y = [np.array([2, 1, 0])]
+      actual_output_x = batched_result | beam.Map(lambda x: x.x)
+      actual_output_y = batched_result | beam.Map(lambda x: x.y)
+
+      assert_that(
+          actual_output_x,
+          equal_to(expected_output_x, equals_fn=np.array_equal))
+      assert_that(
+          actual_output_y,
+          equal_to(expected_output_y, equals_fn=np.array_equal),
+          label='actual_output_y')
