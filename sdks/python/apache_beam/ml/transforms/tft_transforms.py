@@ -19,17 +19,10 @@ This module defines a set of data processing transforms that can be used
 to perform common data transformations on a dataset. These transforms are
 implemented using the TensorFlow Transform (TFT) library. The transforms
 in this module are intended to be used in conjunction with the
-beam.ml.MLTransform class, which provides a convenient interface for
-applying a sequence of data processing transforms to a dataset with the
-help of the TFTProcessHandler class.
+MLTransform class, which provides a convenient interface for
+applying a sequence of data processing transforms to a dataset.
 
-See the documentation for beam.ml.MLTransform for more details.
-
-Since the transforms in this module are implemented using TFT, they
-should be wrapped inside a TFTProcessHandler object before being passed
-to the beam.ml.MLTransform class. The TFTProcessHandler will let MLTransform
-know which type of input is expected and infers the relevant schema required
-for the TFT library.
+See the documentation for MLTransform for more details.
 
 Note: The data processing transforms defined in this module don't
 perform the transformation immediately. Instead, it returns a
