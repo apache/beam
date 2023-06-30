@@ -65,23 +65,22 @@ command -v gcloud
 docker -v
 gcloud -v
 
-# Verify docker image has been built.
-docker images | grep "apache/$IMAGE_NAME" | grep "$SDK_VERSION"
-
-TAG=$(date +%Y%m%d-%H%M%S%N)
 CONTAINER=us.gcr.io/$PROJECT/$USER/$IMAGE_NAME
 PREBUILD_SDK_CONTAINER_REGISTRY_PATH=us.gcr.io/$PROJECT/$USER/prebuild_python${PY_VERSION//.}_sdk
-echo "Using container $CONTAINER"
+TAG="latest"
 
-# Tag the docker container.
-docker tag "apache/$IMAGE_NAME:$SDK_VERSION" "$CONTAINER:$TAG"
-
-# Push the container.
-gcloud docker -- push $CONTAINER:$TAG
+# Verify docker image has been built and pushed during the build:
+# pull and tag the x86 components;
+docker pull $CONTAINER:$TAG
+docker tag "$CONTAINER:$TAG" "$CONTAINER-x86:$TAG"
+# pull and tag the ARM components;
+docker pull --platform linux/arm64 $CONTAINER:$TAG
+docker tag "$CONTAINER:$TAG" "$CONTAINER-arm:$TAG"
 
 function cleanup_container {
   # Delete the container locally and remotely
-  docker rmi $CONTAINER:$TAG || echo "Failed to remove container image"
+  docker rmi $CONTAINER-x86:$TAG || echo "Failed to remove x86 container image"
+  docker rmi $CONTAINER-arm:$TAG || echo "Failed to remove arm container image"
   for image in $(docker images --format '{{.Repository}}:{{.Tag}}' | grep $PREBUILD_SDK_CONTAINER_REGISTRY_PATH)
     do docker rmi $image || echo "Failed to remove prebuilt sdk container image"
   done

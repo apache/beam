@@ -40,6 +40,8 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Py_ValCont',
           rootBuildScriptDir(commonJobProperties.checkoutDir)
           switches('-Pcontainer-architecture-list=arm64,amd64')
           switches('-Ppush-multiarch-containers')
+          switches('-Pdocker-repository-root="us.gcr.io/apache-beam-testing/jenkins"')
+          switches('-Pdocker-tag="latest"')
           tasks(':sdks:python:test-suites:dataflow:validatesContainerTests')
           commonJobProperties.setGradleSwitches(delegate)
         }
