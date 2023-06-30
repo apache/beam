@@ -31,7 +31,7 @@
 
 ## New Features / Improvements
 
-f* X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Breaking Changes
 
