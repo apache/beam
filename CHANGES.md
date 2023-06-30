@@ -58,6 +58,7 @@
 
 ## I/Os
 
+* Python GCSIO is now implemented with GCP GCS Client instead of apitools ([#25676](https://github.com/apache/beam/issues/25676))
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Support for Bigtable Change Streams added in Java `BigtableIO.ReadChangeStream` ([#27183](https://github.com/apache/beam/issues/27183))
 
