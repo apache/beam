@@ -28,13 +28,10 @@ import numpy as np
 import apache_beam as beam
 from apache_beam.ml.transforms.base import ArtifactMode
 from apache_beam.ml.transforms.base import ProcessHandler
-from apache_beam.ml.transforms.base import ProcessInputT
-from apache_beam.ml.transforms.base import ProcessOutputT
 from apache_beam.ml.transforms.tft_transforms import TFTOperation
 from apache_beam.ml.transforms.tft_transforms import _EXPECTED_TYPES
 from apache_beam.typehints import native_type_compatibility
 from apache_beam.typehints.row_type import RowTypeConstraint
-import pyarrow as pa
 import tensorflow as tf
 from tensorflow_metadata.proto.v0 import schema_pb2
 import tensorflow_transform.beam as tft_beam
@@ -77,6 +74,7 @@ tft_process_handler_input_type = typing.Union[typing.NamedTuple,
                                                                 int,
                                                                 bytes,
                                                                 np.ndarray]]]
+tft_process_handler_output_type = typing.Union[beam.Row, Dict[str, np.ndarray]]
 
 
 class ConvertScalarValuesToListValues(beam.DoFn):
@@ -118,7 +116,8 @@ class ConvertNamedTupleToDict(
       return pcoll | beam.Map(lambda x: x._asdict())
 
 
-class TFTProcessHandler(ProcessHandler[ProcessInputT, ProcessOutputT]):
+class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
+                                       tft_process_handler_output_type]):
   def __init__(
       self,
       *,
@@ -322,8 +321,7 @@ class TFTProcessHandler(ProcessHandler[ProcessInputT, ProcessOutputT]):
 
   def process_data(
       self, raw_data: beam.PCollection[tft_process_handler_input_type]
-  ) -> beam.PCollection[typing.Union[
-      beam.Row, Dict[str, np.ndarray], pa.RecordBatch]]:
+  ) -> beam.PCollection[tft_process_handler_output_type]:
     """
     This method also computes the required dataset metadata for the tft
     AnalyzeDataset/TransformDataset step.

@@ -31,12 +31,6 @@ TransformedMetadataT = TypeVar('TransformedMetadataT')
 ExampleT = TypeVar('ExampleT')
 MLTransformOutputT = TypeVar('MLTransformOutputT')
 
-# Input to the process data. This could be same or different from ExampleT.
-ProcessInputT = TypeVar('ProcessInputT')
-# Output of the process data. This could be same or different
-# from MLTransformOutputT
-ProcessOutputT = TypeVar('ProcessOutputT')
-
 # Input to the apply() method of BaseOperation.
 OperationInputT = TypeVar('OperationInputT')
 # Output of the apply() method of BaseOperation.
@@ -62,14 +56,14 @@ class BaseOperation(Generic[OperationInputT, OperationOutputT], abc.ABC):
     """
 
 
-class ProcessHandler(Generic[ProcessInputT, ProcessOutputT], abc.ABC):
+class ProcessHandler(Generic[ExampleT, MLTransformOutputT], abc.ABC):
   """
   Only for internal use. No backwards compatibility guarantees.
   """
   @abc.abstractmethod
   def process_data(
-      self, pcoll: beam.PCollection[ProcessInputT]
-  ) -> beam.PCollection[ProcessOutputT]:
+      self, pcoll: beam.PCollection[ExampleT]
+  ) -> beam.PCollection[MLTransformOutputT]:
     """
     Logic to process the data. This will be the entrypoint in
     beam.MLTransform to process incoming data.
