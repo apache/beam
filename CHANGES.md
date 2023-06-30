@@ -49,7 +49,8 @@
 
 * ([#X](https://github.com/apache/beam/issues/X)).
 -->
-# [2.49.0] - Unreleased
+
+# [2.50.0] - Unreleased
 
 ## Highlights
 
@@ -58,8 +59,35 @@
 
 ## I/Os
 
-* Python GCSIO is now implemented with GCP GCS Client instead of apitools ([#25676](https://github.com/apache/beam/issues/25676))
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Python GCSIO is now implemented with GCP GCS Client instead of apitools ([#25676](https://github.com/apache/beam/issues/25676))
+
+## New Features / Improvements
+
+* X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+
+## Breaking Changes
+
+* X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
+
+## Deprecations
+
+* X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
+
+## Bugfixes
+
+* Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+
+## Known Issues
+
+* ([#X](https://github.com/apache/beam/issues/X)).
+
+
+# [2.49.0] - Unreleased
+
+
+## I/Os
+
 * Support for Bigtable Change Streams added in Java `BigtableIO.ReadChangeStream` ([#27183](https://github.com/apache/beam/issues/27183))
 
 ## New Features / Improvements
@@ -69,9 +97,6 @@
 * Select dedicated avro datum reader and writer (Java) ([#18874](https://github.com/apache/beam/issues/18874)).
 * Timer API for the Go SDK (Go) ([#22737](https://github.com/apache/beam/issues/22737)).
 
-## Breaking Changes
-
-* X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Deprecations
 
@@ -79,12 +104,9 @@
 
 ## Bugfixes
 
-* Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Fixed KinesisIO `NullPointerException` when a progress check is made before the reader is started (IO) ([#23868](https://github.com/apache/beam/issues/23868))
 
 ## Known Issues
-
-* ([#X](https://github.com/apache/beam/issues/X)).
 
 
 # [2.48.0] - 2023-05-31
