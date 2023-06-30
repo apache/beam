@@ -222,11 +222,15 @@ class GcsIO(object):
           bucket = self.client.get_bucket(bucket_name)
           bucket.delete_blob(blob_name)
 
+      print(len(current_paths), len(current_batch._responses))
       for path, resp in list(zip(current_paths, current_batch._responses)):
         if resp.status_code == 404:
           final_results.append((path, 200))
         else:
           final_results.append((path, resp.status_code))
+      for idx, current_path, in enumerate(current_paths):
+        print((current_path, (current_batch._responses[2*idx], current_batch._responses[2*idx+1])))
+        # final_results.append((current_path, (current_batch._responses[2*idx], current_batch._responses[2*idx+1])))
 
       s += MAX_BATCH_OPERATION_SIZE
 
@@ -285,8 +289,13 @@ class GcsIO(object):
 
           src_bucket.copy_blob(src_blob, dest_bucket, dest_blob_name)
 
+      print(len(current_pairs), len(current_batch._responses))
       for pair, resp in list(zip(current_pairs, current_batch._responses)):
         final_results.append((pair[0], pair[1], resp.status_code))
+      
+      for idx, pair in enumerate(current_pairs):
+        print(current_batch._responses[4*idx].status_code, current_batch._responses[4*idx+1].status_code, current_batch._responses[4*idx+2].status_code, current_batch._responses[4*idx+3].status_code)
+        # final_results.append((pair[0], pair[1], (current_batch._responses[4*idx].status_code, current_batch._responses[4*idx+1].status_code, current_batch._responses[4*idx+2].status_code, current_batch._responses[4*idx+3].status_code)))
 
       s += MAX_BATCH_OPERATION_SIZE
 

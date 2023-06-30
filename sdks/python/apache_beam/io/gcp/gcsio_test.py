@@ -20,6 +20,7 @@
 
 import logging
 import os
+import time
 import unittest
 from datetime import datetime
 
@@ -476,6 +477,46 @@ class TestGCSIO(unittest.TestCase):
     file_name = 'gs://gcsio-metrics-test/dummy_mode_file'
     with self.assertRaises(NotFound):
       self.gcs.open(file_name, 'r')
+
+  def test_copy_batch(self):
+    # pytest -v apache_beam/io/gcp/gcsio_test.py::TestGCSIO::test_delete_batch
+    gcs = gcsio.GcsIO()
+    file_attempt = ["gs://clouddfe-yihu-test/temp1/gcs_0.txt",
+             "gs://clouddfe-yihu-test/temp1/gcs_1.txt",
+             "gs://clouddfe-yihu-test/temp1/gcs_2.txt",
+             "gs://clouddfe-yihu-test/temp1/gcs_3.txt",
+             "gs://clouddfe-yihu-test/temp1/gcs_4.txt"]
+    file_dst = [s.replace("temp1", "temp2") for s in file_attempt]
+    file_create = file_attempt[:3] + file_attempt[-1:]
+
+
+    for fname in file_create:
+      with gcs.open(fname, "w") as f:
+        f.write("abc".encode())
+    time.sleep(1)
+
+    result = gcs.copy_batch(list(zip(file_attempt, file_dst)))
+    for rst in result:
+      print(rst[0], rst[1], rst[2])
+
+  def test_delete_batch(self):
+    # pytest -v apache_beam/io/gcp/gcsio_test.py::TestGCSIO::test_delete_batch
+    gcs = gcsio.GcsIO()
+    file_attempt = ["gs://clouddfe-yihu-test/temp2/gcs_0.txt",
+             "gs://clouddfe-yihu-test/temp2/gcs_1.txt",
+             "gs://clouddfe-yihu-test/temp2/gcs_2.txt",
+             "gs://clouddfe-yihu-test/temp2/gcs_3.txt",
+             "gs://clouddfe-yihu-test/temp2/gcs_4.txt"]
+    file_create = file_attempt[:3] + file_attempt[-1:]
+    
+    for fname in file_create:
+      with gcs.open(fname, "w") as f:
+        f.write("abc".encode())
+    time.sleep(1)
+
+    result = gcs.delete_batch(file_attempt)
+    for rst in result:
+      print(rst[0], rst[1])
 
 
 if __name__ == '__main__':
