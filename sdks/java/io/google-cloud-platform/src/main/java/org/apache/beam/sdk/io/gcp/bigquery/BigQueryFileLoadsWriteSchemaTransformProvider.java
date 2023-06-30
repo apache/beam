@@ -36,7 +36,6 @@ import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
@@ -103,36 +102,13 @@ public class BigQueryFileLoadsWriteSchemaTransformProvider
    * A {@link SchemaTransform} that performs {@link BigQueryIO.Write}s based on a {@link
    * BigQueryFileLoadsWriteSchemaTransformConfiguration}.
    */
-  private static class BigQueryWriteSchemaTransform implements SchemaTransform {
-    private final BigQueryFileLoadsWriteSchemaTransformConfiguration configuration;
-
-    BigQueryWriteSchemaTransform(BigQueryFileLoadsWriteSchemaTransformConfiguration configuration) {
-      this.configuration = configuration;
-    }
-
-    /**
-     * Overrides {@link SchemaTransform#buildTransform()} by returning a {@link
-     * PCollectionRowTupleTransform}.
-     */
-    @Override
-    public PTransform<PCollectionRowTuple, PCollectionRowTuple> buildTransform() {
-      return new PCollectionRowTupleTransform(configuration);
-    }
-  }
-
-  /**
-   * An implementation of {@link PTransform} for BigQuery write jobs configured using {@link
-   * BigQueryFileLoadsWriteSchemaTransformConfiguration}.
-   */
-  static class PCollectionRowTupleTransform
-      extends PTransform<PCollectionRowTuple, PCollectionRowTuple> {
-
-    private final BigQueryFileLoadsWriteSchemaTransformConfiguration configuration;
-
+  protected static class BigQueryWriteSchemaTransform extends SchemaTransform {
     /** An instance of {@link BigQueryServices} used for testing. */
     private BigQueryServices testBigQueryServices = null;
 
-    PCollectionRowTupleTransform(BigQueryFileLoadsWriteSchemaTransformConfiguration configuration) {
+    private final BigQueryFileLoadsWriteSchemaTransformConfiguration configuration;
+
+    BigQueryWriteSchemaTransform(BigQueryFileLoadsWriteSchemaTransformConfiguration configuration) {
       this.configuration = configuration;
     }
 

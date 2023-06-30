@@ -65,9 +65,42 @@ message LatencyAttribution {
     ACTIVE = 2;
     READING = 3;
     COMMITTING = 4;
+    // State which starts with the Windmill Worker receiving the GetWorkRequest
+    // and ends with the Windmill Worker sending the GetWorkResponse to the
+    // Windmill Dispatcher.
+    GET_WORK_IN_WINDMILL_WORKER = 5;
+    // State which starts with the Windmill Worker sending the GetWorkResponse
+    // and ends with the Windmill Dispatcher receiving the GetWorkResponse.
+    GET_WORK_IN_TRANSIT_TO_DISPATCHER = 6;
+    // State which starts with the Windmill Dispatcher sending the
+    // GetWorkResponse and ends with the user worker receiving the
+    // GetWorkResponse.
+    GET_WORK_IN_TRANSIT_TO_USER_WORKER = 7;
   }
   optional State state = 1;
   optional int64 total_duration_millis = 2;
+}
+
+message GetWorkStreamTimingInfo {
+  enum Event {
+    UNKNOWN = 0;
+    // Work item creation started by the Windmill Worker.
+    GET_WORK_CREATION_START = 1;
+    // Work item creation finished by the Windmill Worker.
+    GET_WORK_CREATION_END = 2;
+    // The GetWorkResponse containing this work item is received by the Windmill
+    // Dispatcher.
+    GET_WORK_RECEIVED_BY_DISPATCHER = 3;
+    // The GetWorkResponse containing this work item is forwarded by the
+    // Windmill Dispatcher to the user worker.
+    GET_WORK_FORWARDED_BY_DISPATCHER = 4;
+  }
+
+  // Critical event of the work item processing.
+  optional Event event = 1;
+
+  // Timestamp of the event.
+  optional int64 timestamp_usec = 2;
 }
 
 message OutputMessageBundle {
@@ -377,7 +410,7 @@ message GlobalDataRequest {
   optional string state_family = 3;
 }
 
-// next id: 24
+// next id: 27
 message WorkItemCommitRequest {
   required bytes key = 1;
   required fixed64 work_token = 2;
@@ -403,6 +436,9 @@ message WorkItemCommitRequest {
   optional int64 source_bytes_processed = 22;
 
   repeated WatermarkHold watermark_holds = 14;
+
+  // Collected work item processing state durations.
+  repeated LatencyAttribution per_work_item_latency_attributions = 26;
 
   // DEPRECATED
   repeated GlobalDataId global_data_id_requests = 9;
@@ -537,6 +573,10 @@ message StreamingGetWorkResponseChunk {
   // responses for the same stream_id should be deserialized together. Responses
   // from other stream_ids may be interleaved on the physical stream.
   optional fixed64 stream_id = 4;
+
+  // Timing infos for the work item. Windmill Dispatcher and user worker should
+  // propagate critical event timings if the list is not empty.
+  repeated GetWorkStreamTimingInfo per_work_item_timing_infos = 8;
 
   // reserved field 5
 }

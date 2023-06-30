@@ -37,7 +37,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -87,86 +86,75 @@ public class DebeziumReadSchemaTransformProvider
     // TODO(pabloem): Validate configuration parameters to ensure formatting is correct.
     return new SchemaTransform() {
       @Override
-      public @UnknownKeyFor @NonNull @Initialized PTransform<
-              @UnknownKeyFor @NonNull @Initialized PCollectionRowTuple,
-              @UnknownKeyFor @NonNull @Initialized PCollectionRowTuple>
-          buildTransform() {
-        return new PTransform<PCollectionRowTuple, PCollectionRowTuple>() {
-          @Override
-          public PCollectionRowTuple expand(PCollectionRowTuple input) {
-            // TODO(pabloem): Test this behavior
-            Collection<String> connectors =
-                Arrays.stream(Connectors.values())
-                    .map(Object::toString)
-                    .collect(Collectors.toSet());
-            if (!connectors.contains(configuration.getDatabase())) {
-              throw new IllegalArgumentException(
-                  "Unsupported database "
-                      + configuration.getDatabase()
-                      + ". Unable to select a JDBC driver for it. Supported Databases are: "
-                      + String.join(", ", connectors));
-            }
-            Class<?> connectorClass =
-                Objects.requireNonNull(Connectors.valueOf(configuration.getDatabase()))
-                    .getConnector();
-            DebeziumIO.ConnectorConfiguration connectorConfiguration =
-                DebeziumIO.ConnectorConfiguration.create()
-                    .withUsername(configuration.getUsername())
-                    .withPassword(configuration.getPassword())
-                    .withHostName(configuration.getHost())
-                    .withPort(Integer.toString(configuration.getPort()))
-                    .withConnectorClass(connectorClass);
-            connectorConfiguration =
-                connectorConfiguration
-                    .withConnectionProperty("table.include.list", configuration.getTable())
-                    .withConnectionProperty("include.schema.changes", "false")
-                    .withConnectionProperty("database.server.name", "beam-pipeline-server");
-            if (configuration.getDatabase().equals("POSTGRES")) {
-              LOG.info(
-                  "As Database is POSTGRES, we set the `database.dbname` property to {}.",
+      public PCollectionRowTuple expand(PCollectionRowTuple input) {
+        // TODO(pabloem): Test this behavior
+        Collection<String> connectors =
+            Arrays.stream(Connectors.values()).map(Object::toString).collect(Collectors.toSet());
+        if (!connectors.contains(configuration.getDatabase())) {
+          throw new IllegalArgumentException(
+              "Unsupported database "
+                  + configuration.getDatabase()
+                  + ". Unable to select a JDBC driver for it. Supported Databases are: "
+                  + String.join(", ", connectors));
+        }
+        Class<?> connectorClass =
+            Objects.requireNonNull(Connectors.valueOf(configuration.getDatabase())).getConnector();
+        DebeziumIO.ConnectorConfiguration connectorConfiguration =
+            DebeziumIO.ConnectorConfiguration.create()
+                .withUsername(configuration.getUsername())
+                .withPassword(configuration.getPassword())
+                .withHostName(configuration.getHost())
+                .withPort(Integer.toString(configuration.getPort()))
+                .withConnectorClass(connectorClass);
+        connectorConfiguration =
+            connectorConfiguration
+                .withConnectionProperty("table.include.list", configuration.getTable())
+                .withConnectionProperty("include.schema.changes", "false")
+                .withConnectionProperty("database.server.name", "beam-pipeline-server");
+        if (configuration.getDatabase().equals("POSTGRES")) {
+          LOG.info(
+              "As Database is POSTGRES, we set the `database.dbname` property to {}.",
+              configuration.getTable().substring(0, configuration.getTable().indexOf(".")));
+          connectorConfiguration =
+              connectorConfiguration.withConnectionProperty(
+                  "database.dbname",
                   configuration.getTable().substring(0, configuration.getTable().indexOf(".")));
-              connectorConfiguration =
-                  connectorConfiguration.withConnectionProperty(
-                      "database.dbname",
-                      configuration.getTable().substring(0, configuration.getTable().indexOf(".")));
-            }
+        }
 
-            final List<String> debeziumConnectionProperties =
-                configuration.getDebeziumConnectionProperties();
-            if (debeziumConnectionProperties != null) {
-              for (String connectionProperty : debeziumConnectionProperties) {
-                String[] parts = connectionProperty.split("=", -1);
-                String key = parts[0];
-                String value = parts[1];
-                connectorConfiguration.withConnectionProperty(key, value);
-              }
-            }
-
-            DebeziumIO.Read<Row> readTransform =
-                DebeziumIO.<Row>read().withConnectorConfiguration(connectorConfiguration);
-
-            if (isTest) {
-              readTransform =
-                  readTransform
-                      .withMaxNumberOfRecords(testLimitRecords)
-                      .withMaxTimeToRun(testLimitMilliseconds);
-            }
-
-            // TODO(pabloem): Database connection issues can be debugged here.
-            Schema recordSchema = readTransform.getRecordSchema();
-            LOG.info(
-                "Computed schema for table {} from {}: {}",
-                configuration.getTable(),
-                configuration.getDatabase(),
-                recordSchema);
-            SourceRecordMapper<Row> formatFn =
-                KafkaConnectUtils.beamRowFromSourceRecordFn(recordSchema);
-            readTransform =
-                readTransform.withFormatFunction(formatFn).withCoder(RowCoder.of(recordSchema));
-
-            return PCollectionRowTuple.of("output", input.getPipeline().apply(readTransform));
+        final List<String> debeziumConnectionProperties =
+            configuration.getDebeziumConnectionProperties();
+        if (debeziumConnectionProperties != null) {
+          for (String connectionProperty : debeziumConnectionProperties) {
+            String[] parts = connectionProperty.split("=", -1);
+            String key = parts[0];
+            String value = parts[1];
+            connectorConfiguration.withConnectionProperty(key, value);
           }
-        };
+        }
+
+        DebeziumIO.Read<Row> readTransform =
+            DebeziumIO.<Row>read().withConnectorConfiguration(connectorConfiguration);
+
+        if (isTest) {
+          readTransform =
+              readTransform
+                  .withMaxNumberOfRecords(testLimitRecords)
+                  .withMaxTimeToRun(testLimitMilliseconds);
+        }
+
+        // TODO(pabloem): Database connection issues can be debugged here.
+        Schema recordSchema = readTransform.getRecordSchema();
+        LOG.info(
+            "Computed schema for table {} from {}: {}",
+            configuration.getTable(),
+            configuration.getDatabase(),
+            recordSchema);
+        SourceRecordMapper<Row> formatFn =
+            KafkaConnectUtils.beamRowFromSourceRecordFn(recordSchema);
+        readTransform =
+            readTransform.withFormatFunction(formatFn).withCoder(RowCoder.of(recordSchema));
+
+        return PCollectionRowTuple.of("output", input.getPipeline().apply(readTransform));
       }
     };
   }
