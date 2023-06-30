@@ -94,7 +94,7 @@ public class BigtableReadSchemaTransformProviderIT {
   public void setup() throws Exception {
     BigtableTestOptions options =
         TestPipeline.testingPipelineOptions().as(BigtableTestOptions.class);
-    projectId = "google.com:clouddfe";//options.as(GcpOptions.class).getProject();
+    projectId = options.as(GcpOptions.class).getProject();
     instanceId = options.getInstanceId();
 
     BigtableDataSettings settings =
@@ -112,9 +112,9 @@ public class BigtableReadSchemaTransformProviderIT {
     tableId = String.format("BTReadSchemaTransformIT-%tF-%<tH-%<tM-%<tS-%<tL", new Date());
     if (!tableAdminClient.exists(tableId)) {
       CreateTableRequest createTableRequest =
-              CreateTableRequest.of(tableId)
-                      .addFamily(COLUMN_FAMILY_NAME_1)
-                      .addFamily(COLUMN_FAMILY_NAME_2);
+          CreateTableRequest.of(tableId)
+              .addFamily(COLUMN_FAMILY_NAME_1)
+              .addFamily(COLUMN_FAMILY_NAME_2);
       tableAdminClient.createTable(createTableRequest);
     }
   }
