@@ -50,7 +50,7 @@ for(int i=8; i<=11; ++i) {
       // Enforce ordering to allow the prune step to happen between runs.
       // This will ensure we don't use up too much space (especially in CI environments)
       mustRunAfter(":sdks:python:container:push" + prev)
-    } 
+    }
     dependsOn ':sdks:python:container:py' + cur + ':dockerPush'
 
     doLast {
