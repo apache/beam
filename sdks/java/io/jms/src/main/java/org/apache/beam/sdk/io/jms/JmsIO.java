@@ -47,6 +47,8 @@ import org.apache.beam.sdk.io.Read.Unbounded;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
+import org.apache.beam.sdk.io.jms.pool.JmsPoolConfiguration;
+import org.apache.beam.sdk.io.jms.pool.JmsSessionPool;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.ExecutorOptions;
@@ -699,21 +701,23 @@ public class JmsIO {
   public abstract static class Write<EventT>
       extends PTransform<PCollection<EventT>, WriteJmsResult<EventT>> {
 
-    abstract @Nullable ConnectionFactory getConnectionFactory();
+    public abstract @Nullable ConnectionFactory getConnectionFactory();
 
     abstract @Nullable String getQueue();
 
     abstract @Nullable String getTopic();
 
-    abstract @Nullable String getUsername();
+    public abstract @Nullable String getUsername();
 
-    abstract @Nullable String getPassword();
+    public abstract @Nullable String getPassword();
 
     abstract @Nullable SerializableBiFunction<EventT, Session, Message> getValueMapper();
 
     abstract @Nullable SerializableFunction<EventT, String> getTopicNameMapper();
 
     abstract @Nullable RetryConfiguration getRetryConfiguration();
+
+    public abstract @Nullable JmsPoolConfiguration getJmsPoolConfiguration();
 
     abstract Builder<EventT> builder();
 
@@ -736,6 +740,8 @@ public class JmsIO {
           SerializableFunction<EventT, String> topicNameMapper);
 
       abstract Builder<EventT> setRetryConfiguration(RetryConfiguration retryConfiguration);
+
+      abstract Builder<EventT> setJmsPoolConfiguration(JmsPoolConfiguration jmsPoolConfiguration);
 
       abstract Write<EventT> build();
     }
@@ -919,6 +925,11 @@ public class JmsIO {
       return builder().setRetryConfiguration(retryConfiguration).build();
     }
 
+    public Write<EventT> withJmsPoolConfiguration(JmsPoolConfiguration poolConfiguration) {
+      checkArgument(poolConfiguration != null, "poolConfiguration can not be null");
+      return builder().setJmsPoolConfiguration(poolConfiguration).build();
+    }
+
     @Override
     public WriteJmsResult<EventT> expand(PCollection<EventT> input) {
       checkArgument(getConnectionFactory() != null, "withConnectionFactory() is required");
@@ -930,23 +941,21 @@ public class JmsIO {
           exclusiveTopicQueue,
           "Only one of withQueue(queue), withTopic(topic), or withTopicNameMapper(function) must be set.");
       checkArgument(getValueMapper() != null, "withValueMapper() is required");
+      checkArgument(getJmsPoolConfiguration() != null, "withJmsPoolConfiguration() is required");
 
       return input.apply(new Writer<>(this));
     }
 
     private boolean isExclusiveTopicQueue() {
-      boolean exclusiveTopicQueue =
-          Stream.of(getQueue() != null, getTopic() != null, getTopicNameMapper() != null)
-                  .filter(b -> b)
-                  .count()
-              == 1;
-      return exclusiveTopicQueue;
+      return Stream.of(getQueue() != null, getTopic() != null, getTopicNameMapper() != null)
+              .filter(b -> b)
+              .count()
+          == 1;
     }
   }
 
-  static class Writer<T> extends PTransform<PCollection<T>, WriteJmsResult<T>> {
+  public static class Writer<T> extends PTransform<PCollection<T>, WriteJmsResult<T>> {
 
-    public static final String CONNECTION_ERRORS_METRIC_NAME = "connectionErrors";
     public static final String PUBLICATION_RETRIES_METRIC_NAME = "publicationRetries";
     public static final String JMS_IO_PRODUCER_METRIC_NAME = Writer.class.getCanonicalName();
 
@@ -982,43 +991,15 @@ public class JmsIO {
       private static final long serialVersionUID = 1L;
 
       private transient @Initialized Session session;
-      private transient @Initialized Connection connection;
       private transient @Initialized Destination destination;
       private transient @Initialized MessageProducer producer;
 
       private final JmsIO.Write<T> spec;
-      private final Counter connectionErrors =
-          Metrics.counter(JMS_IO_PRODUCER_METRIC_NAME, CONNECTION_ERRORS_METRIC_NAME);
+      private final JmsSessionPool<T> sessionPool;
 
       JmsConnection(Write<T> spec) {
         this.spec = spec;
-      }
-
-      void connect() throws JMSException {
-        if (this.producer == null) {
-          ConnectionFactory connectionFactory = spec.getConnectionFactory();
-          if (spec.getUsername() != null) {
-            this.connection =
-                connectionFactory.createConnection(spec.getUsername(), spec.getPassword());
-          } else {
-            this.connection = connectionFactory.createConnection();
-          }
-          this.connection.setExceptionListener(
-              exception -> {
-                this.connectionErrors.inc();
-              });
-          this.connection.start();
-          // false means we don't use JMS transaction.
-          this.session = this.connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
-
-          if (spec.getQueue() != null) {
-            this.destination = session.createQueue(spec.getQueue());
-          } else if (spec.getTopic() != null) {
-            this.destination = session.createTopic(spec.getTopic());
-          }
-          // Create producer with null destination. Destination will be set with producer.send().
-          startProducer();
-        }
+        this.sessionPool = new JmsSessionPool<>(spec);
       }
 
       void publishMessage(T input) throws JMSException, JmsIOException {
@@ -1038,32 +1019,47 @@ public class JmsIO {
         }
       }
 
-      void startProducer() throws JMSException {
+      void addSessions() throws Exception {
+        JmsPoolConfiguration configuration = this.spec.getJmsPoolConfiguration();
+        sessionPool.addObjects(configuration.getInitialActiveConnections());
+      }
+
+      void startProducer() throws Exception {
+        this.session = sessionPool.borrowObject();
+        if (spec.getQueue() != null) {
+          this.destination = this.session.createQueue(spec.getQueue());
+        } else if (spec.getTopic() != null) {
+          this.destination = this.session.createTopic(spec.getTopic());
+        }
         this.producer = this.session.createProducer(null);
       }
 
-      void closeProducer() throws JMSException {
+      void releaseSession() throws Exception {
         if (producer != null) {
           producer.close();
           producer = null;
         }
+        sessionPool.returnObject(this.session);
+      }
+
+      void reconnect() throws Exception {
+        release();
+        startProducer();
+      }
+
+      void release() {
+        try {
+          releaseSession();
+        } catch (Exception exception) {
+          LOG.warn("The session couldn't be released", exception);
+        } finally {
+          session = null;
+        }
       }
 
       void close() {
-        try {
-          closeProducer();
-          if (session != null) {
-            session.close();
-          }
-          if (connection != null) {
-            connection.close();
-          }
-        } catch (JMSException exception) {
-          LOG.warn("The connection couldn't be closed", exception);
-        } finally {
-          session = null;
-          connection = null;
-        }
+        release();
+        this.sessionPool.close();
       }
     }
 
@@ -1084,8 +1080,7 @@ public class JmsIO {
       }
 
       @Setup
-      public void setup() throws JMSException {
-        this.jmsConnection.connect();
+      public void setup() throws Exception {
         RetryConfiguration retryConfiguration =
             MoreObjects.firstNonNull(spec.getRetryConfiguration(), RetryConfiguration.create());
         retryBackOff =
@@ -1093,10 +1088,11 @@ public class JmsIO {
                 .withInitialBackoff(checkStateNotNull(retryConfiguration.getInitialDuration()))
                 .withMaxCumulativeBackoff(checkStateNotNull(retryConfiguration.getMaxDuration()))
                 .withMaxRetries(retryConfiguration.getMaxAttempts());
+        this.jmsConnection.addSessions();
       }
 
       @StartBundle
-      public void startBundle() throws JMSException {
+      public void startBundle() throws Exception {
         this.jmsConnection.startProducer();
       }
 
@@ -1104,7 +1100,7 @@ public class JmsIO {
       public void processElement(@Element T input, ProcessContext context) {
         try {
           publishMessage(input);
-        } catch (JMSException | JmsIOException | IOException | InterruptedException exception) {
+        } catch (Exception exception) {
           LOG.error("Error while publishing the message", exception);
           context.output(this.failedMessagesTags, input);
           if (exception instanceof InterruptedException) {
@@ -1113,8 +1109,7 @@ public class JmsIO {
         }
       }
 
-      private void publishMessage(T input)
-          throws JMSException, JmsIOException, IOException, InterruptedException {
+      private void publishMessage(T input) throws Exception {
         Sleeper sleeper = Sleeper.DEFAULT;
         BackOff backoff = checkStateNotNull(retryBackOff).backoff();
         while (true) {
@@ -1126,14 +1121,15 @@ public class JmsIO {
               throw exception;
             } else {
               publicationRetries.inc();
+              this.jmsConnection.reconnect();
             }
           }
         }
       }
 
       @FinishBundle
-      public void finishBundle() throws JMSException {
-        this.jmsConnection.closeProducer();
+      public void finishBundle() {
+        this.jmsConnection.release();
       }
 
       @Teardown

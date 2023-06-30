@@ -32,6 +32,7 @@ dependencies {
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation library.java.slf4j_api
   implementation library.java.joda_time
+  implementation library.java.commons_pool2
   implementation "org.apache.geronimo.specs:geronimo-jms_1.1_spec:1.1.1"
   testImplementation library.java.activemq_amqp
   testImplementation library.java.activemq_broker

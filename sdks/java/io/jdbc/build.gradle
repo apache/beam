@@ -31,7 +31,7 @@ dependencies {
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation library.java.dbcp2
   implementation library.java.joda_time
-  implementation "org.apache.commons:commons-pool2:2.11.1"
+  implementation library.java.commons_pool2
   implementation library.java.slf4j_api
   testImplementation "org.apache.derby:derby:10.14.2.0"
   testImplementation "org.apache.derby:derbyclient:10.14.2.0"

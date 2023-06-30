@@ -58,7 +58,8 @@
 
 ## I/Os
 
-* Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Add Jms pool session to control number of connections (Java) ([#27312](https://github.com/apache/beam/issues/27312)).
+* Fixed JmsIO unit tests trying to bind on a hard coded port number (Java) ([#26203](https://github.com/apache/beam/issues/26203)).
 * Support for Bigtable Change Streams added in Java `BigtableIO.ReadChangeStream` ([#27183](https://github.com/apache/beam/issues/27183))
 
 ## New Features / Improvements

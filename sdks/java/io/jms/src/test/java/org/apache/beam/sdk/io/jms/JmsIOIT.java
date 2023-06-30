@@ -41,6 +41,7 @@ import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.common.IOITHelper;
 import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
+import org.apache.beam.sdk.io.jms.pool.JmsPoolConfiguration;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.Default;
@@ -241,7 +242,9 @@ public class JmsIOIT implements Serializable {
                 .withUsername(USERNAME)
                 .withPassword(PASSWORD)
                 .withValueMapper(new TextMessageMapper())
-                .withConnectionFactory(connectionFactory));
+                .withConnectionFactory(connectionFactory)
+                .withJmsPoolConfiguration(
+                    JmsPoolConfiguration.create(50, 10, Duration.standardSeconds(15))));
     return pipelineWrite.run();
   }
 

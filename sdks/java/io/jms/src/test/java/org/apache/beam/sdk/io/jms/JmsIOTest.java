@@ -49,7 +49,6 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import java.io.IOException;
-import java.io.Serializable;
 import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -78,6 +77,8 @@ import org.apache.activemq.util.Callback;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.io.jms.pool.JmsPoolConfiguration;
+import org.apache.beam.sdk.io.jms.utils.JmsIOTestUtils;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
@@ -117,16 +118,25 @@ public class JmsIOTest {
   private static final Logger LOG = LoggerFactory.getLogger(JmsIOTest.class);
   private final RetryConfiguration retryConfiguration =
       RetryConfiguration.create(1, Duration.standardSeconds(1), null);
+  private final JmsPoolConfiguration jmsPoolConfiguration =
+      JmsPoolConfiguration.create(10, 5, null);
+
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
   @Parameterized.Parameters(name = "with client class {3}")
   public static Collection<Object[]> connectionFactories() {
     return Arrays.asList(
         new Object[] {
-          "vm://localhost", 5672, "jms.sendAcksAsync=false", ActiveMQConnectionFactory.class
+          "vm://localhost",
+          JmsIOTestUtils.getUnusedPort(),
+          "jms.sendAcksAsync=false",
+          ActiveMQConnectionFactory.class
         },
         new Object[] {
-          "amqp://localhost", 5672, "jms.forceAsyncAcks=false", JmsConnectionFactory.class
+          "amqp://localhost",
+          JmsIOTestUtils.getUnusedPort(),
+          "jms.forceAsyncAcks=false",
+          JmsConnectionFactory.class
         });
   }
 
@@ -286,7 +296,8 @@ public class JmsIOTest {
                 .withRetryConfiguration(retryConfiguration)
                 .withQueue(QUEUE)
                 .withUsername(USERNAME)
-                .withPassword(PASSWORD));
+                .withPassword(PASSWORD)
+                .withJmsPoolConfiguration(jmsPoolConfiguration));
 
     pipeline.run();
 
@@ -314,11 +325,12 @@ public class JmsIOTest {
             .apply(
                 JmsIO.<String>write()
                     .withConnectionFactory(connectionFactory)
-                    .withValueMapper(new TextMessageMapperWithError())
+                    .withValueMapper(new JmsIOTestUtils.TextMessageMapperWithError())
                     .withRetryConfiguration(retryConfiguration)
                     .withQueue(QUEUE)
                     .withUsername(USERNAME)
-                    .withPassword(PASSWORD));
+                    .withPassword(PASSWORD)
+                    .withJmsPoolConfiguration(jmsPoolConfiguration));
 
     PAssert.that(output.getFailedMessages()).containsInAnyOrder("Message 1", "Message 2");
 
@@ -342,22 +354,23 @@ public class JmsIOTest {
     Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
     MessageConsumer consumerOne = session.createConsumer(session.createTopic("Topic_One"));
     MessageConsumer consumerTwo = session.createConsumer(session.createTopic("Topic_Two"));
-    ArrayList<TestEvent> data = new ArrayList<>();
+    ArrayList<JmsIOTestUtils.TestEvent> data = new ArrayList<>();
     for (int i = 0; i < 50; i++) {
-      data.add(new TestEvent("Topic_One", "Message One " + i));
+      data.add(new JmsIOTestUtils.TestEvent("Topic_One", "Message One " + i));
     }
     for (int i = 0; i < 100; i++) {
-      data.add(new TestEvent("Topic_Two", "Message Two " + i));
+      data.add(new JmsIOTestUtils.TestEvent("Topic_Two", "Message Two " + i));
     }
     pipeline
         .apply(Create.of(data))
         .apply(
-            JmsIO.<TestEvent>write()
+            JmsIO.<JmsIOTestUtils.TestEvent>write()
                 .withConnectionFactory(connectionFactory)
                 .withUsername(USERNAME)
                 .withPassword(PASSWORD)
                 .withRetryConfiguration(retryConfiguration)
                 .withTopicNameMapper(e -> e.getTopicName())
+                .withJmsPoolConfiguration(jmsPoolConfiguration)
                 .withValueMapper(
                     (e, s) -> {
                       try {
@@ -767,11 +780,12 @@ public class JmsIOTest {
             .apply(
                 JmsIO.<String>write()
                     .withConnectionFactory(connectionFactory)
-                    .withValueMapper(new TextMessageMapperWithErrorCounter())
+                    .withValueMapper(new JmsIOTestUtils.TextMessageMapperWithErrorCounter())
                     .withRetryConfiguration(retryPolicy)
                     .withQueue(QUEUE)
                     .withUsername(USERNAME)
-                    .withPassword(PASSWORD));
+                    .withPassword(PASSWORD)
+                    .withJmsPoolConfiguration(jmsPoolConfiguration));
 
     PAssert.that(output.getFailedMessages()).empty();
     pipeline.run();
@@ -813,7 +827,8 @@ public class JmsIOTest {
                     .withRetryConfiguration(retryConfiguration)
                     .withQueue(QUEUE)
                     .withUsername(USERNAME)
-                    .withPassword(PASSWORD));
+                    .withPassword(PASSWORD)
+                    .withJmsPoolConfiguration(jmsPoolConfiguration));
 
     PAssert.that(output.getFailedMessages()).containsInAnyOrder(messageText);
     PipelineResult pipelineResult = pipeline.run();
@@ -866,11 +881,12 @@ public class JmsIOTest {
             .apply(
                 JmsIO.<String>write()
                     .withConnectionFactory(connectionFactory)
-                    .withValueMapper(new TextMessageMapperWithErrorAndCounter())
+                    .withValueMapper(new JmsIOTestUtils.TextMessageMapperWithErrorAndCounter())
                     .withRetryConfiguration(retryConfiguration)
                     .withQueue(QUEUE)
                     .withUsername(USERNAME)
-                    .withPassword(PASSWORD));
+                    .withPassword(PASSWORD)
+                    .withJmsPoolConfiguration(jmsPoolConfiguration));
 
     PAssert.that(output.getFailedMessages()).containsInAnyOrder("Message 2");
     pipeline.run();
@@ -906,12 +922,43 @@ public class JmsIOTest {
                     .withValueMapper(new TextMessageMapper())
                     .withTopic(TOPIC)
                     .withUsername(USERNAME)
-                    .withPassword(PASSWORD));
+                    .withPassword(PASSWORD)
+                    .withJmsPoolConfiguration(jmsPoolConfiguration));
     PAssert.that(output.getFailedMessages()).empty();
     pipeline.run();
     Message message = consumer.receive(1000);
     assertNotNull(message);
     assertNull(consumer.receiveNoWait());
+  }
+
+  @Test
+  public void testWriteMessageWithClosedSession() throws Exception {
+    List<String> data = Arrays.asList("Message 1", "Message 2", "Message 3", "Message 4");
+
+    Connection connection = connectionFactory.createConnection(USERNAME, PASSWORD);
+    connection.start();
+    Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+    MessageConsumer consumer = session.createConsumer(session.createTopic(TOPIC));
+
+    WriteJmsResult<String> output =
+        pipeline
+            .apply(Create.of(data))
+            .apply(
+                JmsIO.<String>write()
+                    .withConnectionFactory(connectionFactory)
+                    .withValueMapper(new JmsIOTestUtils.TextMessageMapperWithSessionClosed())
+                    .withTopic(TOPIC)
+                    .withUsername(USERNAME)
+                    .withPassword(PASSWORD)
+                    .withJmsPoolConfiguration(JmsPoolConfiguration.create(1, 1, null)));
+    PAssert.that(output.getFailedMessages()).empty();
+    pipeline.run();
+
+    int count = 0;
+    while (consumer.receive(1000) != null) {
+      count++;
+    }
+    assertEquals(4, count);
   }
 
   private int count(String queue) throws Exception {
@@ -977,90 +1024,5 @@ public class JmsIOTest {
               }
               return result;
             });
-  }
-
-  private static class TestEvent implements Serializable {
-    private final String topicName;
-    private final String value;
-
-    private TestEvent(String topicName, String value) {
-      this.topicName = topicName;
-      this.value = value;
-    }
-
-    private String getTopicName() {
-      return this.topicName;
-    }
-
-    private String getValue() {
-      return this.value;
-    }
-  }
-
-  private static class TextMessageMapperWithError
-      implements SerializableBiFunction<String, Session, Message> {
-    @Override
-    public Message apply(String value, Session session) {
-      try {
-        if (value.equals("Message 1") || value.equals("Message 2")) {
-          throw new JMSException("Error!!");
-        }
-        TextMessage msg = session.createTextMessage();
-        msg.setText(value);
-        return msg;
-      } catch (JMSException e) {
-        throw new JmsIOException("Error creating TextMessage", e);
-      }
-    }
-  }
-
-  private static class TextMessageMapperWithErrorCounter
-      implements SerializableBiFunction<String, Session, Message> {
-
-    private static int errorCounter;
-
-    TextMessageMapperWithErrorCounter() {
-      errorCounter = 0;
-    }
-
-    @Override
-    public Message apply(String value, Session session) {
-      try {
-        if (errorCounter == 0) {
-          errorCounter++;
-          throw new JMSException("Error!!");
-        }
-        TextMessage msg = session.createTextMessage();
-        msg.setText(value);
-        return msg;
-      } catch (JMSException e) {
-        throw new JmsIOException("Error creating TextMessage", e);
-      }
-    }
-  }
-
-  private static class TextMessageMapperWithErrorAndCounter
-      implements SerializableBiFunction<String, Session, Message> {
-    private static int errorCounter = 0;
-
-    @Override
-    public Message apply(String value, Session session) {
-      try {
-        if (value.equals("Message 1") || value.equals("Message 2")) {
-          if (errorCounter != 0 && value.equals("Message 1")) {
-            TextMessage msg = session.createTextMessage();
-            msg.setText(value);
-            return msg;
-          }
-          errorCounter++;
-          throw new JMSException("Error!!");
-        }
-        TextMessage msg = session.createTextMessage();
-        msg.setText(value);
-        return msg;
-      } catch (JMSException e) {
-        throw new JmsIOException("Error creating TextMessage", e);
-      }
-    }
   }
 }
