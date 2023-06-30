@@ -91,8 +91,6 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
       artifact_location: str,
       artifact_mode: str = ArtifactMode.PRODUCE,
       transforms: Optional[List[BaseOperation]] = None,
-      is_input_record_batches: bool = False,
-      output_record_batches: bool = False,
   ):
     """
     Args:
@@ -111,8 +109,6 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
         are applied in the order they are specified. The input of the
         i-th transform is the output of the (i-1)-th transform. Multi-input
         transforms are not supported yet.
-      is_input_record_batches: Whether the input is a RecordBatch.
-      output_record_batches: Output RecordBatches instead of beam.Row().
       artifact_mode: Whether to produce or consume artifacts. If set to
         'consume', the handler will assume that the artifacts are already
         computed and stored in the artifact_location. Pass the same artifact
@@ -132,9 +128,7 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
     process_handler = TFTProcessHandler(
         artifact_location=artifact_location,
         artifact_mode=artifact_mode,
-        transforms=transforms,
-        is_input_record_batches=is_input_record_batches,
-        output_record_batches=output_record_batches)
+        transforms=transforms)
 
     self._process_handler = process_handler
 

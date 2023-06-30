@@ -44,7 +44,6 @@ from tensorflow_transform.beam.tft_beam_io import transform_fn_io
 from tensorflow_transform.tf_metadata import dataset_metadata
 from tensorflow_transform.tf_metadata import metadata_io
 from tensorflow_transform.tf_metadata import schema_utils
-from tfx_bsl.tfxio import tf_example_record
 
 __all__ = [
     'TFTProcessHandler',
@@ -126,8 +125,6 @@ class TFTProcessHandler(ProcessHandler[ProcessInputT, ProcessOutputT]):
       artifact_location: str = None,
       transforms: Optional[List[TFTOperation]] = None,
       preprocessing_fn: typing.Optional[typing.Callable] = None,
-      is_input_record_batches: bool = False,
-      output_record_batches: bool = False,
       artifact_mode: str = ArtifactMode.PRODUCE):
     """
     A handler class for processing data with TensorFlow Transform (TFT)
@@ -138,8 +135,6 @@ class TFTProcessHandler(ProcessHandler[ProcessInputT, ProcessOutputT]):
     self.transformed_schema = None
     self.artifact_location = artifact_location
     self.preprocessing_fn = preprocessing_fn
-    self.is_input_record_batches = is_input_record_batches
-    self.output_record_batches = output_record_batches
     self.artifact_mode = artifact_mode
     if artifact_mode not in ['produce', 'consume']:
       raise ValueError('artifact_mode must be either `produce` or `consume`.')
@@ -385,18 +380,7 @@ class TFTProcessHandler(ProcessHandler[ProcessInputT, ProcessOutputT]):
     # whether a scalar value or list or np array is passed as input,
     #  we will convert scalar values to list values and TFT will ouput
     # numpy array all the time.
-    if not self.is_input_record_batches:
-      raw_data |= beam.ParDo(ConvertScalarValuesToListValues())
-
-    if self.is_input_record_batches:
-      # record batches need TensorAdapter. Convert the raw_data_metadata to
-      # TensorAdapterConfig.
-      schema = raw_data_metadata.schema
-      _tfxio = tf_example_record.TFExampleBeamRecord(
-          physical_format='inmem',
-          telemetry_descriptors=['StandaloneTFTransform'],
-          schema=schema)
-      raw_data_metadata = _tfxio.TensorAdapterConfig()
+    raw_data |= beam.ParDo(ConvertScalarValuesToListValues())
 
     with tft_beam.Context(temp_dir=self.artifact_location):
       data = (raw_data, raw_data_metadata)
@@ -412,8 +396,7 @@ class TFTProcessHandler(ProcessHandler[ProcessInputT, ProcessOutputT]):
                 self.artifact_location))
       (transformed_dataset, transformed_metadata) = (
           ((raw_data, raw_data_metadata), transform_fn)
-          | "TransformDataset" >> tft_beam.TransformDataset(
-              output_record_batches=self.output_record_batches))
+          | "TransformDataset" >> tft_beam.TransformDataset())
 
       if isinstance(transformed_metadata, beam_metadata_io.BeamDatasetMetadata):
         self.transformed_schema = self._get_transformed_data_schema(
@@ -422,14 +405,13 @@ class TFTProcessHandler(ProcessHandler[ProcessInputT, ProcessOutputT]):
         self.transformed_schema = self._get_transformed_data_schema(
             transformed_metadata)
 
-      if not self.output_record_batches:
-        # We will a pass a schema'd PCollection to the next step.
-        # So we will use a RowTypeConstraint to create a schema'd PCollection.
-        # this is needed since new columns are included in the
-        # transformed_dataset.
-        row_type = RowTypeConstraint.from_fields(
-            list(self.transformed_schema.items()))
+      # We will a pass a schema'd PCollection to the next step.
+      # So we will use a RowTypeConstraint to create a schema'd PCollection.
+      # this is needed since new columns are included in the
+      # transformed_dataset.
+      row_type = RowTypeConstraint.from_fields(
+          list(self.transformed_schema.items()))
 
-        transformed_dataset |= "ConvertToRowType" >> beam.Map(
-            lambda x: beam.Row(**x)).with_output_types(row_type)
+      transformed_dataset |= "ConvertToRowType" >> beam.Map(
+          lambda x: beam.Row(**x)).with_output_types(row_type)
       return transformed_dataset
