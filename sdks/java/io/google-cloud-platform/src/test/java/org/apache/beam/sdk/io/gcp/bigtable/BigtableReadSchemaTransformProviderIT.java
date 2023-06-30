@@ -32,6 +32,7 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -56,7 +57,7 @@ public class BigtableReadSchemaTransformProviderIT {
 
   private static final String COLUMN_FAMILY_NAME_1 = "test_cf_1";
   private static final String COLUMN_FAMILY_NAME_2 = "test_cf_2";
-  private BigtableTableAdminClient adminClient;
+  private BigtableTableAdminClient tableAdminClient;
   private BigtableDataClient dataClient;
   private String tableId;
   private String projectId;
@@ -93,7 +94,7 @@ public class BigtableReadSchemaTransformProviderIT {
   public void setup() throws Exception {
     BigtableTestOptions options =
         TestPipeline.testingPipelineOptions().as(BigtableTestOptions.class);
-    projectId = options.as(GcpOptions.class).getProject();
+    projectId = "google.com:clouddfe";//options.as(GcpOptions.class).getProject();
     instanceId = options.getInstanceId();
 
     BigtableDataSettings settings =
@@ -106,31 +107,31 @@ public class BigtableReadSchemaTransformProviderIT {
             .setProjectId(projectId)
             .setInstanceId(instanceId)
             .build();
-    adminClient = BigtableTableAdminClient.create(adminSettings);
+    tableAdminClient = BigtableTableAdminClient.create(adminSettings);
+
+    tableId = String.format("BTReadSchemaTransformIT-%tF-%<tH-%<tM-%<tS-%<tL", new Date());
+    if (!tableAdminClient.exists(tableId)) {
+      CreateTableRequest createTableRequest =
+              CreateTableRequest.of(tableId)
+                      .addFamily(COLUMN_FAMILY_NAME_1)
+                      .addFamily(COLUMN_FAMILY_NAME_2);
+      tableAdminClient.createTable(createTableRequest);
+    }
   }
 
   @After
   public void tearDown() {
     try {
-      adminClient.deleteTable(tableId);
+      tableAdminClient.deleteTable(tableId);
       System.out.printf("Table %s deleted successfully%n", tableId);
     } catch (NotFoundException e) {
       System.err.println("Failed to delete a non-existent table: " + e.getMessage());
     }
     dataClient.close();
-    adminClient.close();
+    tableAdminClient.close();
   }
 
-  public List<Row> writeToTable(int numRows) throws Exception {
-    // Checks if table exists, creates table if does not exist.
-    if (!adminClient.exists(tableId)) {
-      CreateTableRequest createTableRequest =
-          CreateTableRequest.of(tableId)
-              .addFamily(COLUMN_FAMILY_NAME_1)
-              .addFamily(COLUMN_FAMILY_NAME_2);
-      adminClient.createTable(createTableRequest);
-    }
-
+  public List<Row> writeToTable(int numRows) {
     List<Row> expectedRows = new ArrayList<>();
 
     try {
@@ -199,6 +200,7 @@ public class BigtableReadSchemaTransformProviderIT {
 
         expectedRows.add(expectedRow);
       }
+      System.out.printf("Finished writing %s rows to table %s", numRows, tableId);
     } catch (NotFoundException e) {
       throw new RuntimeException("Failed to write to table", e);
     }
@@ -206,8 +208,7 @@ public class BigtableReadSchemaTransformProviderIT {
   }
 
   @Test
-  public void testRead() throws Exception {
-    tableId = "BigtableReadSchemaTransformIT";
+  public void testRead() {
     List<Row> expectedRows = writeToTable(20);
 
     BigtableReadSchemaTransformConfiguration config =
