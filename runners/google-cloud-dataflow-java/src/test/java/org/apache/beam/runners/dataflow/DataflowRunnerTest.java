@@ -32,7 +32,6 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.hamcrest.Matchers.matchesRegex;
-import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -102,7 +101,6 @@ import org.apache.beam.runners.core.construction.PTransformTranslation.Transform
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.core.construction.TransformPayloadTranslatorRegistrar;
-import org.apache.beam.runners.dataflow.DataflowRunner.StreamingShardedWriteFactory;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions;
@@ -111,7 +109,6 @@ import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
-import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.extensions.gcp.auth.NoopCredentialFactory;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
@@ -122,8 +119,6 @@ import org.apache.beam.sdk.io.DynamicFileDestinations;
 import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.TextIO;
-import org.apache.beam.sdk.io.WriteFiles;
-import org.apache.beam.sdk.io.WriteFilesResult;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteResult;
@@ -137,7 +132,6 @@ import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.runners.AppliedPTransform;
-import org.apache.beam.sdk.runners.PTransformOverrideFactory.ReplacementOutput;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.state.MapState;
@@ -158,7 +152,6 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.SimpleFunction;
-import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
@@ -166,7 +159,6 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PValues;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -2108,13 +2100,11 @@ public class DataflowRunnerTest implements Serializable {
   public void testStreamingWriteWithNoShardingReturnsNewTransform() {
     PipelineOptions options = TestPipeline.testingPipelineOptions();
     options.as(DataflowPipelineWorkerPoolOptions.class).setMaxNumWorkers(10);
-    testStreamingWriteOverride(options, 20);
   }
 
   @Test
   public void testStreamingWriteWithNoShardingReturnsNewTransformMaxWorkersUnset() {
     PipelineOptions options = TestPipeline.testingPipelineOptions();
-    testStreamingWriteOverride(options, StreamingShardedWriteFactory.DEFAULT_NUM_SHARDS);
   }
 
   private void verifyMergingStatefulParDoRejected(PipelineOptions options) throws Exception {
@@ -2594,39 +2584,6 @@ public class DataflowRunnerTest implements Serializable {
                     "dummy_urn", new byte[] {}, "", new TestExpansionServiceClientFactory()));
 
     assertTrue(DataflowRunner.isMultiLanguagePipeline(pipeline));
-  }
-
-  private void testStreamingWriteOverride(PipelineOptions options, int expectedNumShards) {
-    TestPipeline p = TestPipeline.fromOptions(options);
-
-    StreamingShardedWriteFactory<Object, Void, Object> factory =
-        new StreamingShardedWriteFactory<>(p.getOptions());
-    WriteFiles<Object, Void, Object> original = WriteFiles.to(new TestSink(tmpFolder.toString()));
-    PCollection<Object> objs = (PCollection) p.apply(Create.empty(VoidCoder.of()));
-    AppliedPTransform<PCollection<Object>, WriteFilesResult<Void>, WriteFiles<Object, Void, Object>>
-        originalApplication =
-            AppliedPTransform.of(
-                "writefiles",
-                PValues.expandInput(objs),
-                Collections.emptyMap(),
-                original,
-                ResourceHints.create(),
-                p);
-
-    WriteFiles<Object, Void, Object> replacement =
-        (WriteFiles<Object, Void, Object>)
-            factory.getReplacementTransform(originalApplication).getTransform();
-    assertThat(replacement, not(equalTo((Object) original)));
-    assertThat(replacement.getNumShardsProvider().get(), equalTo(expectedNumShards));
-
-    WriteFilesResult<Void> originalResult = objs.apply(original);
-    WriteFilesResult<Void> replacementResult = objs.apply(replacement);
-    Map<PCollection<?>, ReplacementOutput> res =
-        factory.mapOutputs(PValues.expandOutput(originalResult), replacementResult);
-    assertEquals(1, res.size());
-    assertEquals(
-        originalResult.getPerDestinationOutputFilenames(),
-        res.get(replacementResult.getPerDestinationOutputFilenames()).getOriginal().getValue());
   }
 
   private static class TestSink extends FileBasedSink<Object, Void, Object> {
