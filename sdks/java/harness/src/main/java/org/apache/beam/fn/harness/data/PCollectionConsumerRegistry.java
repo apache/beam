@@ -27,6 +27,7 @@ import java.util.Random;
 import javax.annotation.Nullable;
 import org.apache.beam.fn.harness.HandlesSplits;
 import org.apache.beam.fn.harness.control.BundleProgressReporter;
+import org.apache.beam.fn.harness.control.ExecutionStateSampler;
 import org.apache.beam.fn.harness.control.ExecutionStateSampler.ExecutionState;
 import org.apache.beam.fn.harness.control.ExecutionStateSampler.ExecutionStateTracker;
 import org.apache.beam.fn.harness.control.Metrics;
@@ -71,9 +72,12 @@ public class PCollectionConsumerRegistry {
   @SuppressWarnings({"rawtypes"})
   abstract static class ConsumerAndMetadata {
     public static ConsumerAndMetadata forConsumer(
-        FnDataReceiver consumer, String pTransformId, ExecutionState state) {
+        FnDataReceiver consumer,
+        String pTransformId,
+        ExecutionState state,
+        ExecutionStateTracker stateTracker) {
       return new AutoValue_PCollectionConsumerRegistry_ConsumerAndMetadata(
-          consumer, pTransformId, state);
+          consumer, pTransformId, state, stateTracker);
     }
 
     public abstract FnDataReceiver getConsumer();
@@ -81,6 +85,8 @@ public class PCollectionConsumerRegistry {
     public abstract String getPTransformId();
 
     public abstract ExecutionState getExecutionState();
+
+    public abstract ExecutionStateTracker getExecutionStateTracker();
   }
 
   private final ExecutionStateTracker stateTracker;
@@ -176,7 +182,7 @@ public class PCollectionConsumerRegistry {
     List<ConsumerAndMetadata> consumerAndMetadatas =
         pCollectionIdsToConsumers.computeIfAbsent(pCollectionId, (unused) -> new ArrayList<>());
     consumerAndMetadatas.add(
-        ConsumerAndMetadata.forConsumer(consumer, pTransformId, executionState));
+        ConsumerAndMetadata.forConsumer(consumer, pTransformId, executionState, stateTracker));
   }
 
   /**
@@ -250,6 +256,8 @@ public class PCollectionConsumerRegistry {
     private final SampleByteSizeDistribution<T> sampledByteSizeDistribution;
     private final Coder<T> coder;
     private final @Nullable OutputSampler<T> outputSampler;
+    private final String ptransformId;
+    private final ExecutionStateTracker executionStateTracker;
 
     public MetricTrackingFnDataReceiver(
         String pCollectionId,
@@ -258,6 +266,8 @@ public class PCollectionConsumerRegistry {
         @Nullable OutputSampler<T> outputSampler) {
       this.delegate = consumerAndMetadata.getConsumer();
       this.executionState = consumerAndMetadata.getExecutionState();
+      this.executionStateTracker = consumerAndMetadata.getExecutionStateTracker();
+      this.ptransformId = consumerAndMetadata.getPTransformId();
 
       HashMap<String, String> labels = new HashMap<>();
       labels.put(Labels.PCOLLECTION, pCollectionId);
@@ -315,7 +325,10 @@ public class PCollectionConsumerRegistry {
         this.delegate.accept(input);
       } catch (Exception e) {
         if (outputSampler != null) {
-          outputSampler.exception(elementSample, e);
+          ExecutionStateSampler.ExecutionStateTrackerStatus status =
+              executionStateTracker.getStatus();
+          String processBundleId = status == null ? null : status.getProcessBundleId();
+          outputSampler.exception(elementSample, e, ptransformId, processBundleId);
         }
         throw e;
       } finally {
@@ -407,7 +420,11 @@ public class PCollectionConsumerRegistry {
           consumerAndMetadata.getConsumer().accept(input);
         } catch (Exception e) {
           if (outputSampler != null) {
-            outputSampler.exception(elementSample, e);
+            ExecutionStateSampler.ExecutionStateTrackerStatus status =
+                consumerAndMetadata.getExecutionStateTracker().getStatus();
+            String processBundleId = status == null ? null : status.getProcessBundleId();
+            outputSampler.exception(
+                elementSample, e, consumerAndMetadata.getPTransformId(), processBundleId);
           }
           throw e;
         } finally {

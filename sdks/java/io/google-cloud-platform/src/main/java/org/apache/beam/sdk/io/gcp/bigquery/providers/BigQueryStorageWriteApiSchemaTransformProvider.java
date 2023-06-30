@@ -54,7 +54,6 @@ import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
@@ -236,30 +235,14 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
    * BigQueryStorageWriteApiSchemaTransformConfiguration} and instantiated by {@link
    * BigQueryStorageWriteApiSchemaTransformProvider}.
    */
-  private static class BigQueryStorageWriteApiSchemaTransform implements SchemaTransform {
+  protected static class BigQueryStorageWriteApiSchemaTransform extends SchemaTransform {
 
+    private BigQueryServices testBigQueryServices = null;
     private final BigQueryStorageWriteApiSchemaTransformConfiguration configuration;
 
     BigQueryStorageWriteApiSchemaTransform(
         BigQueryStorageWriteApiSchemaTransformConfiguration configuration) {
       configuration.validate();
-      this.configuration = configuration;
-    }
-
-    @Override
-    public PTransform<PCollectionRowTuple, PCollectionRowTuple> buildTransform() {
-      return new BigQueryStorageWriteApiPCollectionRowTupleTransform(configuration);
-    }
-  }
-
-  static class BigQueryStorageWriteApiPCollectionRowTupleTransform
-      extends PTransform<PCollectionRowTuple, PCollectionRowTuple> {
-
-    private final BigQueryStorageWriteApiSchemaTransformConfiguration configuration;
-    private BigQueryServices testBigQueryServices = null;
-
-    BigQueryStorageWriteApiPCollectionRowTupleTransform(
-        BigQueryStorageWriteApiSchemaTransformConfiguration configuration) {
       this.configuration = configuration;
     }
 
@@ -277,7 +260,7 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
 
       ElementCounterFn(String name) {
         this.bqGenericElementCounter =
-            Metrics.counter(BigQueryStorageWriteApiPCollectionRowTupleTransform.class, name);
+            Metrics.counter(BigQueryStorageWriteApiSchemaTransform.class, name);
       }
 
       @ProcessElement

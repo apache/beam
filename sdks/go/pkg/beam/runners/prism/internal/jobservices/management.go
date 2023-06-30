@@ -272,3 +272,17 @@ func (s *Server) GetPipeline(_ context.Context, req *jobpb.GetJobPipelineRequest
 		Pipeline: j.Pipeline,
 	}, nil
 }
+
+// GetState returns the current state of the job with the requested id.
+func (s *Server) GetState(_ context.Context, req *jobpb.GetJobStateRequest) (*jobpb.JobStateEvent, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	j, ok := s.jobs[req.GetJobId()]
+	if !ok {
+		return nil, fmt.Errorf("job with id %v not found", req.GetJobId())
+	}
+	return &jobpb.JobStateEvent{
+		State: j.state.Load().(jobpb.JobState_Enum),
+	}, nil
+}

@@ -147,7 +147,6 @@ else:
 # Exclude 1.5.0 and 1.5.1 because of
 # https://github.com/pandas-dev/pandas/issues/45725
 dataframe_dependency = [
-    'pandas<1.6.0;python_version=="3.7"',
     'pandas>=1.4.3,!=1.5.0,!=1.5.1,<1.6;python_version>="3.8"',
 ]
 
@@ -175,7 +174,7 @@ def get_portability_package_data():
   return files
 
 
-python_requires = '>=3.7'
+python_requires = '>=3.8'
 
 if sys.version_info.major == 3 and sys.version_info.minor >= 12:
   warnings.warn(
@@ -321,14 +320,13 @@ if __name__ == '__main__':
             'google-cloud-language>=2.0,<3',
             'google-cloud-videointelligence>=2.0,<3',
             'google-cloud-vision>=2,<4',
-            'google-cloud-recommendations-ai>=0.1.0,<0.11.0'
+            'google-cloud-recommendations-ai>=0.1.0,<0.11.0',
+            'google-cloud-aiplatform>=1.26.0, < 2.0'
           ],
           'interactive': [
             'facets-overview>=1.1.0,<2',
             'google-cloud-dataproc>=5.0.0,<6',
-            # IPython>=8 is not compatible with Python<=3.7
-            'ipython>=7,<8;python_version<="3.7"',
-            'ipython>=8,<9;python_version>"3.7"',
+            'ipython>=8,<9',
             'ipykernel>=6,<7',
             'ipywidgets>=8,<9',
             # Skip version 6.1.13 due to
@@ -363,7 +361,6 @@ if __name__ == '__main__':
           'Intended Audience :: End Users/Desktop',
           'License :: OSI Approved :: Apache Software License',
           'Operating System :: POSIX :: Linux',
-          'Programming Language :: Python :: 3.7',
           'Programming Language :: Python :: 3.8',
           'Programming Language :: Python :: 3.9',
           'Programming Language :: Python :: 3.10',

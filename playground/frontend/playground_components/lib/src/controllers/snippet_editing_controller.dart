@@ -265,4 +265,16 @@ class SnippetEditingController extends ChangeNotifier {
       snippet: descriptor.token,
     );
   }
+
+  bool shouldSaveBeforeSharing() {
+    if (!(descriptor?.isSerializableToUrl ?? false)) {
+      return true;
+    }
+
+    if (isChanged) {
+      return true;
+    }
+
+    return false;
+  }
 }

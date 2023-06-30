@@ -91,8 +91,7 @@ public class FileReadSchemaTransformProvider
   }
 
   @VisibleForTesting
-  static class FileReadSchemaTransform extends PTransform<PCollectionRowTuple, PCollectionRowTuple>
-      implements SchemaTransform {
+  static class FileReadSchemaTransform extends SchemaTransform {
     private FileReadSchemaTransformConfiguration configuration;
     private boolean useInputPCollection;
 
@@ -238,11 +237,6 @@ public class FileReadSchemaTransformProvider
           Optional.ofNullable(providers.get(format));
       checkState(provider.isPresent());
       return provider.get();
-    }
-
-    @Override
-    public PTransform<PCollectionRowTuple, PCollectionRowTuple> buildTransform() {
-      return this;
     }
   }
 }

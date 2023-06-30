@@ -21,6 +21,7 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 
+import '../constants/links.dart';
 import '../constants/sizes.dart';
 import '../state.dart';
 
@@ -44,6 +45,7 @@ class Footer extends StatelessWidget {
             children: [
               FeedbackWidget(
                 controller: GetIt.instance.get<FeedbackController>(),
+                feedbackFormUrl: tobFeedbackGoogleFormsUrl,
                 title: 'ui.feedbackTitle'.tr(),
               ),
               ReportIssueButton(playgroundController: playgroundController),
@@ -90,13 +92,9 @@ class _BeamVersion extends StatelessWidget {
   const _BeamVersion();
 
   Future<String?> _getBeamSdkVersion() async {
-    final sdk = GetIt.instance.get<AppNotifier>().sdk;
-    if (sdk == null) {
-      return null;
-    }
     final runnerVersion = await GetIt.instance
         .get<BuildMetadataController>()
-        .getRunnerVersion(sdk);
+        .getRunnerVersion(GetIt.instance.get<AppNotifier>().sdk);
     return runnerVersion.beamSdkVersion;
   }
 

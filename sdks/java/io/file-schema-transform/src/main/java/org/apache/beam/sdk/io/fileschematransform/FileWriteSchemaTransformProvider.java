@@ -39,7 +39,9 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 
 /**
@@ -52,10 +54,15 @@ public class FileWriteSchemaTransformProvider
 
   public static final Field FILE_NAME_FIELD = Field.of("fileName", FieldType.STRING);
   public static final Schema OUTPUT_SCHEMA = Schema.of(FILE_NAME_FIELD);
+  public static final Schema ERROR_SCHEMA =
+      Schema.builder().addStringField("error").addNullableByteArrayField("row").build();
 
   private static final String IDENTIFIER = "beam:schematransform:org.apache.beam:file_write:v1";
   static final String INPUT_TAG = "input";
   static final String OUTPUT_TAG = "output";
+  static final String ERROR_STRING = "error";
+  static final TupleTag<Row> ERROR_TAG = new TupleTag<Row>() {};
+  static final TupleTag<String> RESULT_TAG = new TupleTag<String>() {};
 
   /** Provides the required {@link TypedSchemaTransformProvider#configurationClass()}. */
   @Override
@@ -92,8 +99,7 @@ public class FileWriteSchemaTransformProvider
    * #inputCollectionNames()} tagged {@link Row}s into a {@link PCollectionRowTuple} of {@link
    * #outputCollectionNames()} tagged {@link Row}s.
    */
-  static class FileWriteSchemaTransform extends PTransform<PCollectionRowTuple, PCollectionRowTuple>
-      implements SchemaTransform {
+  static class FileWriteSchemaTransform extends SchemaTransform {
 
     final FileWriteSchemaTransformConfiguration configuration;
 
@@ -113,12 +119,13 @@ public class FileWriteSchemaTransformProvider
 
       PCollection<Row> rowInput = input.get(INPUT_TAG);
 
-      PTransform<PCollection<Row>, PCollection<String>> transform =
+      PTransform<PCollection<Row>, PCollectionTuple> transform =
           getProvider().buildTransform(configuration, rowInput.getSchema());
 
-      PCollection<String> files = rowInput.apply("Write Rows", transform);
+      PCollectionTuple files = rowInput.apply("Write Rows", transform);
       PCollection<Row> output =
           files
+              .get(RESULT_TAG)
               .apply(
                   "Filenames to Rows",
                   MapElements.into(rows())
@@ -129,12 +136,11 @@ public class FileWriteSchemaTransformProvider
                                   .build()))
               .setRowSchema(OUTPUT_SCHEMA);
 
-      return PCollectionRowTuple.of(OUTPUT_TAG, output);
-    }
-
-    @Override
-    public PTransform<PCollectionRowTuple, PCollectionRowTuple> buildTransform() {
-      return this;
+      if (files.has(ERROR_TAG)) {
+        return PCollectionRowTuple.of(OUTPUT_TAG, output).and(ERROR_STRING, files.get(ERROR_TAG));
+      } else {
+        return PCollectionRowTuple.of(OUTPUT_TAG, output);
+      }
     }
 
     /**

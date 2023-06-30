@@ -45,6 +45,7 @@ class MessagesParser {
         }
       } on FormatException catch (ex) {
         // TODO: Log
+        print('_tryParseIfJson FormatException: $ex');
       }
     }
 

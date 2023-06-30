@@ -1,0 +1,49 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+name: Build and Version Runner Docker Image
+
+on:
+  pull_request_target:
+    branches: ['master']
+    paths: ['.github/gh-actions-self-hosted-runners/arc/images/**']
+
+jobs:
+  build-and-version-runner:
+    env:
+        working-directory: .github/gh-actions-self-hosted-runners/arc/images/
+    runs-on: [self-hosted, ubuntu-20.04]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      with:
+        ref: ${{ github.event.pull_request.head.sha }}
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v1
+
+    - name: Build and push Docker image
+      id: docker_build
+      uses: docker/build-push-action@v2
+      with:
+        context: ${{ env.working-directory }}
+        push: false
+        tags: |
+          us-central1-docker.pkg.dev/apache-beam-testing/beam-github-actions/beam-arc-runner:latest
+          us-central1-docker.pkg.dev/apache-beam-testing/beam-github-actions/beam-arc-runner:${{ github.sha }}

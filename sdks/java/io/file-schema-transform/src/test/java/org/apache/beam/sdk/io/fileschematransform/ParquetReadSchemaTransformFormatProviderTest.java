@@ -92,8 +92,7 @@ public class ParquetReadSchemaTransformFormatProviderTest
             .build();
 
     SchemaTransform readTransform = new FileReadSchemaTransformProvider().from(config);
-    PCollectionRowTuple output =
-        PCollectionRowTuple.empty(readPipeline).apply(readTransform.buildTransform());
+    PCollectionRowTuple output = PCollectionRowTuple.empty(readPipeline).apply(readTransform);
 
     PAssert.that(output.get(FileReadSchemaTransformProvider.OUTPUT_TAG)).containsInAnyOrder(rows);
     readPipeline.run();
@@ -133,8 +132,7 @@ public class ParquetReadSchemaTransformFormatProviderTest
             .build();
     SchemaTransform readTransform = new FileReadSchemaTransformProvider().from(config);
 
-    PCollectionRowTuple output =
-        PCollectionRowTuple.empty(readPipeline).apply(readTransform.buildTransform());
+    PCollectionRowTuple output = PCollectionRowTuple.empty(readPipeline).apply(readTransform);
 
     // Write to three different files (test_1..., test_2..., test_3)
     // All three new files should be picked up and read.
@@ -214,7 +212,7 @@ public class ParquetReadSchemaTransformFormatProviderTest
 
     PCollectionRowTuple output =
         PCollectionRowTuple.of(FileReadSchemaTransformProvider.INPUT_TAG, filepatterns)
-            .apply(readTransform.buildTransform());
+            .apply(readTransform);
 
     // Check output matches with expected rows
     PAssert.that(output.get(FileReadSchemaTransformProvider.OUTPUT_TAG)).containsInAnyOrder(rows);
