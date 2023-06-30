@@ -31,7 +31,7 @@
 
 ## New Features / Improvements
 
-* X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+f* X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Breaking Changes
 
@@ -108,6 +108,8 @@
 
 ## Known Issues
 
+* Python Streaming pipelines sometimes crash with AttributError messages: [#27330](https://github.com/apache/beam/issues/27330). As a precaution, we recommend temporarily downgrading to Apache Beam 2.46.0.
+
 
 # [2.48.0] - 2023-05-31
 
@@ -153,6 +155,7 @@
 ## Known Issues
 
 * PubsubIO writes will throw *SizeLimitExceededException* for any message above 100 bytes, when used in batch (bounded) mode. (Java) ([#27000](https://github.com/apache/beam/issues/27000)).
+* Python Streaming pipelines sometimes crash with AttributError messages: [#27330](https://github.com/apache/beam/issues/27330). As a precaution, we recommend temporarily downgrading to Apache Beam 2.46.0.
 
 # [2.47.0] - 2023-05-10
 
@@ -196,6 +199,8 @@
 
 * The google-cloud-profiler dependency was accidentally removed from Beam's Python Docker
   Image [#26998](https://github.com/apache/beam/issues/26698). [Dataflow Docker images](https://cloud.google.com/dataflow/docs/concepts/sdk-worker-dependencies) still preinstall this dependency.
+* Python Streaming pipelines sometimes crash with AttributError messages: [#27330](https://github.com/apache/beam/issues/27330). As a precaution, we recommend temporarily downgrading to Apache Beam 2.46.0.
+
 
 # [2.46.0] - 2023-03-10
 
