@@ -138,6 +138,7 @@ jobs:
       
   stage_docker:
     if: ${{github.event.inputs.STAGE_DOCKER_ARTIFACTS == 'yes'}}
+    # Note: if this ever changes to self-hosted, remove the "Remove default github maven configuration" step
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
