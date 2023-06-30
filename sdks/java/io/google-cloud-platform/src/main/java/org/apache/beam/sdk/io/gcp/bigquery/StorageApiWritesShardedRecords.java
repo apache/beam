@@ -102,7 +102,7 @@ import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** A transform to write sharded records to BigQuery using the Storage API. */
+/** A transform to write sharded records to BigQuery using the Storage API (Streaming). */
 @SuppressWarnings({
   "FutureReturnValueIgnored",
   // TODO(https://github.com/apache/beam/issues/21230): Remove when new version of
@@ -652,9 +652,25 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
               return RetryType.RETRY_ALL_OPERATIONS;
             }
 
+            Throwable error = Preconditions.checkStateNotNull(failedContext.getError());
+            Status.Code statusCode = Status.fromThrowable(error).getCode();
+            // This means that the offset we have stored does not match the current end of
+            // the stream in the Storage API. Usually this happens because a crash or a bundle
+            // failure
+            // happened after an append but before the worker could checkpoint it's
+            // state. The records that were appended in a failed bundle will be retried,
+            // meaning that the unflushed tail of the stream must be discarded to prevent
+            // duplicates.
+            boolean offsetMismatch =
+                statusCode.equals(Code.OUT_OF_RANGE) || statusCode.equals(Code.ALREADY_EXISTS);
+
             // Invalidate the StreamWriter and force a new one to be created.
-            LOG.error(
-                "Got error " + failedContext.getError() + " closing " + failedContext.streamName);
+            if (!offsetMismatch) {
+              // Don't log errors for expected offset mismatch. These will be logged as warnings
+              // below.
+              LOG.error(
+                  "Got error " + failedContext.getError() + " closing " + failedContext.streamName);
+            }
 
             // TODO: Only do this on explicit NOT_FOUND errors once BigQuery reliably produces them.
             try {
@@ -667,17 +683,6 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
 
             boolean explicitStreamFinalized =
                 failedContext.getError() instanceof StreamFinalizedException;
-            Throwable error = Preconditions.checkStateNotNull(failedContext.getError());
-            Status.Code statusCode = Status.fromThrowable(error).getCode();
-            // This means that the offset we have stored does not match the current end of
-            // the stream in the Storage API. Usually this happens because a crash or a bundle
-            // failure
-            // happened after an append but before the worker could checkpoint it's
-            // state. The records that were appended in a failed bundle will be retried,
-            // meaning that the unflushed tail of the stream must be discarded to prevent
-            // duplicates.
-            boolean offsetMismatch =
-                statusCode.equals(Code.OUT_OF_RANGE) || statusCode.equals(Code.ALREADY_EXISTS);
             // This implies that the stream doesn't exist or has already been finalized. In this
             // case we have no choice but to create a new stream.
             boolean streamDoesNotExist =

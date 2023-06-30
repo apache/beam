@@ -55,7 +55,6 @@ import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.FinishBundle;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
@@ -100,54 +99,44 @@ public class SpannerChangestreamsReadSchemaTransformProvider
           configuration) {
     return new SchemaTransform() {
       @Override
-      public @UnknownKeyFor @NonNull @Initialized PTransform<
-              @UnknownKeyFor @NonNull @Initialized PCollectionRowTuple,
-              @UnknownKeyFor @NonNull @Initialized PCollectionRowTuple>
-          buildTransform() {
-        return new PTransform<PCollectionRowTuple, PCollectionRowTuple>() {
-          @Override
-          public PCollectionRowTuple expand(PCollectionRowTuple input) {
-            Pipeline p = input.getPipeline();
-            // TODO(pabloem): Does this action create/destroy a new metadata table??
-            Schema tableChangesSchema = getTableSchema(configuration);
-            SpannerIO.ReadChangeStream readChangeStream =
-                SpannerIO.readChangeStream()
-                    .withSpannerConfig(
-                        SpannerConfig.create()
-                            .withProjectId(configuration.getProjectId())
-                            .withInstanceId(configuration.getInstanceId())
-                            .withDatabaseId(configuration.getDatabaseId()))
-                    .withChangeStreamName(configuration.getChangeStreamName())
-                    .withInclusiveStartAt(
-                        Timestamp.parseTimestamp(configuration.getStartAtTimestamp()))
-                    .withDatabaseId(configuration.getDatabaseId())
-                    .withProjectId(configuration.getProjectId())
-                    .withInstanceId(configuration.getInstanceId());
+      public PCollectionRowTuple expand(PCollectionRowTuple input) {
+        Pipeline p = input.getPipeline();
+        // TODO(pabloem): Does this action create/destroy a new metadata table??
+        Schema tableChangesSchema = getTableSchema(configuration);
+        SpannerIO.ReadChangeStream readChangeStream =
+            SpannerIO.readChangeStream()
+                .withSpannerConfig(
+                    SpannerConfig.create()
+                        .withProjectId(configuration.getProjectId())
+                        .withInstanceId(configuration.getInstanceId())
+                        .withDatabaseId(configuration.getDatabaseId()))
+                .withChangeStreamName(configuration.getChangeStreamName())
+                .withInclusiveStartAt(Timestamp.parseTimestamp(configuration.getStartAtTimestamp()))
+                .withDatabaseId(configuration.getDatabaseId())
+                .withProjectId(configuration.getProjectId())
+                .withInstanceId(configuration.getInstanceId());
 
-            if (configuration.getEndAtTimestamp() != null) {
-              String endTs =
-                  Objects.requireNonNull(Objects.requireNonNull(configuration.getEndAtTimestamp()));
-              readChangeStream =
-                  readChangeStream.withInclusiveEndAt(Timestamp.parseTimestamp(endTs));
-            }
+        if (configuration.getEndAtTimestamp() != null) {
+          String endTs =
+              Objects.requireNonNull(Objects.requireNonNull(configuration.getEndAtTimestamp()));
+          readChangeStream = readChangeStream.withInclusiveEndAt(Timestamp.parseTimestamp(endTs));
+        }
 
-            PCollectionTuple outputTuple =
-                p.apply(readChangeStream)
-                    .apply(
-                        ParDo.of(
-                                new DataChangeRecordToRow(
-                                    configuration.getTable(),
-                                    tableChangesSchema,
-                                    "SpannerChangestreams-read-error-counter"))
-                            .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
+        PCollectionTuple outputTuple =
+            p.apply(readChangeStream)
+                .apply(
+                    ParDo.of(
+                            new DataChangeRecordToRow(
+                                configuration.getTable(),
+                                tableChangesSchema,
+                                "SpannerChangestreams-read-error-counter"))
+                        .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
 
-            return PCollectionRowTuple.of(
-                "output",
-                outputTuple.get(OUTPUT_TAG).setRowSchema(tableChangesSchema),
-                "errors",
-                outputTuple.get(ERROR_TAG).setRowSchema(ERROR_SCHEMA));
-          }
-        };
+        return PCollectionRowTuple.of(
+            "output",
+            outputTuple.get(OUTPUT_TAG).setRowSchema(tableChangesSchema),
+            "errors",
+            outputTuple.get(ERROR_TAG).setRowSchema(ERROR_SCHEMA));
       }
     };
   }

@@ -27,6 +27,7 @@ export 'src/examples/go/minimal_word_count.dart';
 export 'src/examples/go/word_count.dart';
 
 export 'src/examples/java/aggregation_max.dart';
+export 'src/examples/java/example.dart';
 export 'src/examples/java/minimal_word_count.dart';
 
 export 'src/examples/python/aggregation_mean.dart';

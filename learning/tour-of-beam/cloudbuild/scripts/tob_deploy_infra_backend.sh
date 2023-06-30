@@ -18,6 +18,7 @@
 # under the License.
 
 export DEBIAN_FRONTEND=noninteractive
+export FLUTTER_VERSION=3.10.4
 
 apt-get -qq  update
 
@@ -37,9 +38,9 @@ unzip terraform_1.4.2_linux_amd64.zip
 
 mv terraform /usr/local/bin/terraform
 
-wget -nv https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_3.10.2-stable.tar.xz
+wget -nv https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_$FLUTTER_VERSION-stable.tar.xz
 
-tar xf flutter_linux_3.10.2-stable.tar.xz
+tar xf flutter_linux_$FLUTTER_VERSION-stable.tar.xz
 
 git config --global --add safe.directory /usr/local/bin/flutter
 

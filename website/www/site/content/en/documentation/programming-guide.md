@@ -7664,7 +7664,7 @@ When an SDK-specific wrapper isn't available, you will have to access the cross-
             | beam.Create(['a', 'b']).with_output_types(unicode)
             | beam.ExternalTransform(
                 TEST_PREFIX_URN,
-                ImplicitSchemaPayloadBuilder({'data': u'0'}),
+                ImplicitSchemaPayloadBuilder({'data': '0'}),
                 <expansion service>))
         assert_that(res, equal_to(['0a', '0b']))
     ```

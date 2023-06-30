@@ -19,19 +19,49 @@ package main
 
 import (
 	"context"
+	"flag"
+	"fmt"
 	"log"
 
+	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+)
+
+var (
+	jobManagerEndpoint = flag.String("jm_override", "", "set to only stand up a web ui that refers to a seperate JobManagement endpoint")
+	serveHTTP          = flag.Bool("serve_http", true, "enable or disable the web ui")
 )
 
 func main() {
+	flag.Parse()
 	ctx := context.Background()
-	cli, err := prism.CreateJobServer(ctx, prism.Options{Port: 8073})
+	cli, err := makeJobClient(ctx, *jobManagerEndpoint)
 	if err != nil {
 		log.Fatalf("error creating job server: %v", err)
 	}
-
-	if err := prism.CreateWebServer(ctx, cli, prism.Options{Port: 8074}); err != nil {
-		log.Fatalf("error creating web server: %v", err)
+	if *serveHTTP {
+		if err := prism.CreateWebServer(ctx, cli, prism.Options{Port: 8074}); err != nil {
+			log.Fatalf("error creating web server: %v", err)
+		}
+	} else {
+		// Block main thread forever to keep main from exiting.
+		<-(chan struct{})(nil) // receives on nil channels block.
 	}
+}
+
+func makeJobClient(ctx context.Context, endpoint string) (jobpb.JobServiceClient, error) {
+	if endpoint != "" {
+		clientConn, err := grpc.DialContext(ctx, endpoint, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
+		if err != nil {
+			return nil, fmt.Errorf("error connecting to job server at %v: %v", endpoint, err)
+		}
+		return jobpb.NewJobServiceClient(clientConn), nil
+	}
+	cli, err := prism.CreateJobServer(ctx, prism.Options{Port: 8073})
+	if err != nil {
+		return nil, fmt.Errorf("error creating local job server: %v", err)
+	}
+	return cli, nil
 }

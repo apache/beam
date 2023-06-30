@@ -67,7 +67,7 @@ def generate_user_type_from_bq_schema(the_table_schema):
       the_table_schema)
   if the_schema == {}:
     raise ValueError("Encountered an empty schema")
-  
+
   field_names_and_types = []
   field_is_nested = []
   for i in range(len(the_schema['fields'])):
@@ -82,20 +82,25 @@ def generate_user_type_from_bq_schema(the_table_schema):
       raise ValueError(
           f"Encountered "
           f"an unsupported type: {the_schema['fields'][i]['type']!r}")
-    # TODO @svetaksundhar: Map remaining BQ types
     field_names_and_types.append((the_schema['fields'][i]['name'], typ))
     field_is_nested.append(is_nested)
 
-  # pass all primitive fields to named_fields_to_schema, but replace nested fields with type 'bytes'
-  sample_schema = beam.typehints.schemas.named_fields_to_schema(
-    [(name, bytes) if is_nested else (name, type)
-     for ((name, type), is_nested) in zip(field_names_and_types, field_is_nested)])
-  # for nested fields overwrite named tuple position with already processed named tuple
+  # pass all primitive fields to named_fields_to_schema
+  # and replace nested fields with type 'bytes'
+  sample_schema = beam.typehints.schemas.named_fields_to_schema([
+      (name, bytes) if is_nested else (name, type)
+      for ((name, type),
+           is_nested) in zip(field_names_and_types, field_is_nested)
+  ])
+  # for nested fields overwrite named tuple position
+  # with already processed named tuple
   usertype = beam.typehints.schemas.named_tuple_from_schema(
-    sample_schema,
-    overwrite_positions=[
-      type if is_nested else None
-      for ((_, type), is_nested) in zip(field_names_and_types, field_is_nested)])
+      sample_schema,
+      overwrite_positions=[
+          type if is_nested else None
+          for ((_, type),
+               is_nested) in zip(field_names_and_types, field_is_nested)
+      ])
   return usertype
 
 

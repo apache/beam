@@ -38,7 +38,6 @@ import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.FlatMapElements;
 import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.PCollection;
@@ -67,7 +66,7 @@ public class SpannerWriteSchemaTransformProvider
     return new SpannerSchemaTransformWrite(configuration);
   }
 
-  static class SpannerSchemaTransformWrite implements SchemaTransform, Serializable {
+  static class SpannerSchemaTransformWrite extends SchemaTransform implements Serializable {
     private final SpannerWriteSchemaTransformConfiguration configuration;
 
     SpannerSchemaTransformWrite(SpannerWriteSchemaTransformConfiguration configuration) {
@@ -100,69 +99,57 @@ public class SpannerWriteSchemaTransformProvider
     }
 
     @Override
-    public @UnknownKeyFor @NonNull @Initialized PTransform<
-            @UnknownKeyFor @NonNull @Initialized PCollectionRowTuple,
-            @UnknownKeyFor @NonNull @Initialized PCollectionRowTuple>
-        buildTransform() {
-      // TODO: For now we are allowing ourselves to fail at runtime, but we could
-      //    perform validations here at expansion time. This TODO is to add a few
-      //    validations (e.g. table/database/instance existence, schema match, etc).
-      return new PTransform<@NonNull PCollectionRowTuple, @NonNull PCollectionRowTuple>() {
-        @Override
-        public PCollectionRowTuple expand(@NonNull PCollectionRowTuple input) {
-          SpannerWriteResult result =
-              input
-                  .get("input")
-                  .apply(
-                      MapElements.via(
-                          new SimpleFunction<Row, Mutation>(
-                              row ->
-                                  MutationUtils.createMutationFromBeamRows(
-                                      Mutation.newInsertOrUpdateBuilder(configuration.getTableId()),
-                                      Objects.requireNonNull(row))) {}))
-                  .apply(
-                      SpannerIO.write()
-                          .withDatabaseId(configuration.getDatabaseId())
-                          .withInstanceId(configuration.getInstanceId())
-                          .withFailureMode(SpannerIO.FailureMode.REPORT_FAILURES));
-          Schema failureSchema =
-              Schema.builder()
-                  .addStringField("operation")
-                  .addStringField("instanceId")
-                  .addStringField("databaseId")
-                  .addStringField("tableId")
-                  .addStringField("mutationData")
-                  .build();
-          PCollection<Row> failures =
-              result
-                  .getFailedMutations()
-                  .apply(
-                      FlatMapElements.into(TypeDescriptors.rows())
-                          .via(
-                              mtg ->
-                                  Objects.requireNonNull(mtg).attached().stream()
-                                      .map(
-                                          mutation ->
-                                              Row.withSchema(failureSchema)
-                                                  .addValue(mutation.getOperation().toString())
-                                                  .addValue(configuration.getInstanceId())
-                                                  .addValue(configuration.getDatabaseId())
-                                                  .addValue(mutation.getTable())
-                                                  // TODO(pabloem): Figure out how to represent
-                                                  // mutation
-                                                  //  contents in DLQ
-                                                  .addValue(
-                                                      Iterators.toString(
-                                                          mutation.getValues().iterator()))
-                                                  .build())
-                                      .collect(Collectors.toList())))
-                  .apply(
-                      "error-count", ParDo.of(new ElementCounterFn("Spanner-write-error-counter")))
-                  .setRowSchema(failureSchema);
-
-          return PCollectionRowTuple.of("failures", failures).and("errors", failures);
-        }
-      };
+    public PCollectionRowTuple expand(@NonNull PCollectionRowTuple input) {
+      SpannerWriteResult result =
+          input
+              .get("input")
+              .apply(
+                  MapElements.via(
+                      new SimpleFunction<Row, Mutation>(
+                          row ->
+                              MutationUtils.createMutationFromBeamRows(
+                                  Mutation.newInsertOrUpdateBuilder(configuration.getTableId()),
+                                  Objects.requireNonNull(row))) {}))
+              .apply(
+                  SpannerIO.write()
+                      .withDatabaseId(configuration.getDatabaseId())
+                      .withInstanceId(configuration.getInstanceId())
+                      .withFailureMode(SpannerIO.FailureMode.REPORT_FAILURES));
+      Schema failureSchema =
+          Schema.builder()
+              .addStringField("operation")
+              .addStringField("instanceId")
+              .addStringField("databaseId")
+              .addStringField("tableId")
+              .addStringField("mutationData")
+              .build();
+      PCollection<Row> failures =
+          result
+              .getFailedMutations()
+              .apply(
+                  FlatMapElements.into(TypeDescriptors.rows())
+                      .via(
+                          mtg ->
+                              Objects.requireNonNull(mtg).attached().stream()
+                                  .map(
+                                      mutation ->
+                                          Row.withSchema(failureSchema)
+                                              .addValue(mutation.getOperation().toString())
+                                              .addValue(configuration.getInstanceId())
+                                              .addValue(configuration.getDatabaseId())
+                                              .addValue(mutation.getTable())
+                                              // TODO(pabloem): Figure out how to represent
+                                              // mutation
+                                              //  contents in DLQ
+                                              .addValue(
+                                                  Iterators.toString(
+                                                      mutation.getValues().iterator()))
+                                              .build())
+                                  .collect(Collectors.toList())))
+              .setRowSchema(failureSchema)
+              .apply("error-count", ParDo.of(new ElementCounterFn("Spanner-write-error-counter")))
+              .setRowSchema(failureSchema);
+      return PCollectionRowTuple.of("failures", failures).and("errors", failures);
     }
   }
 

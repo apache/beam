@@ -36,20 +36,14 @@ import org.slf4j.LoggerFactory;
 @Internal
 public class InitializeDoFn extends DoFn<byte[], InitialPipelineState> implements Serializable {
   private static final long serialVersionUID = 1868189906451252363L;
-
   private static final Logger LOG = LoggerFactory.getLogger(InitializeDoFn.class);
   private final DaoFactory daoFactory;
-  private final String metadataTableAppProfileId;
   private Instant startTime;
   private final ExistingPipelineOptions existingPipelineOptions;
 
   public InitializeDoFn(
-      DaoFactory daoFactory,
-      String metadataTableAppProfileId,
-      Instant startTime,
-      ExistingPipelineOptions existingPipelineOptions) {
+      DaoFactory daoFactory, Instant startTime, ExistingPipelineOptions existingPipelineOptions) {
     this.daoFactory = daoFactory;
-    this.metadataTableAppProfileId = metadataTableAppProfileId;
     this.startTime = startTime;
     this.existingPipelineOptions = existingPipelineOptions;
   }
@@ -59,35 +53,12 @@ public class InitializeDoFn extends DoFn<byte[], InitialPipelineState> implement
     LOG.info(daoFactory.getStreamTableDebugString());
     LOG.info(daoFactory.getMetadataTableDebugString());
     LOG.info("ChangeStreamName: " + daoFactory.getChangeStreamName());
-    if (!daoFactory
-        .getMetadataTableAdminDao()
-        .isAppProfileSingleClusterAndTransactional(this.metadataTableAppProfileId)) {
-      LOG.error(
-          "App profile id '"
-              + metadataTableAppProfileId
-              + "' provided to access metadata table needs to use single-cluster routing policy"
-              + " and allow single-row transactions.");
-      // Terminate this pipeline now.
-      return;
-    }
-    if (daoFactory.getMetadataTableAdminDao().createMetadataTable()) {
-      LOG.info("Created metadata table: " + daoFactory.getMetadataTableAdminDao().getTableId());
-    } else {
-      LOG.info(
-          "Reusing existing metadata table: " + daoFactory.getMetadataTableAdminDao().getTableId());
-    }
 
     boolean resume = false;
     DetectNewPartitionsState detectNewPartitionsState =
         daoFactory.getMetadataTableDao().readDetectNewPartitionsState();
 
     switch (existingPipelineOptions) {
-      case NEW:
-        // clean up table
-        LOG.info(
-            "Cleaning up an old pipeline with the same change stream name to start a new pipeline with the same name.");
-        daoFactory.getMetadataTableAdminDao().cleanUpPrefix();
-        break;
       case RESUME_OR_NEW:
         // perform resumption.
         if (detectNewPartitionsState != null) {
@@ -98,7 +69,6 @@ public class InitializeDoFn extends DoFn<byte[], InitialPipelineState> implement
           LOG.info(
               "Attempted to resume, but previous watermark does not exist, starting at {}",
               startTime);
-          daoFactory.getMetadataTableAdminDao().cleanUpPrefix();
         }
         break;
       case RESUME_OR_FAIL:
@@ -118,9 +88,6 @@ public class InitializeDoFn extends DoFn<byte[], InitialPipelineState> implement
               "A previous pipeline exists with the same change stream name and existingPipelineOption is set to FAIL_IF_EXISTS.");
           return;
         }
-        // We still want to clean up any existing prefixes in case there are lingering metadata that
-        // would interfere with the new run.
-        daoFactory.getMetadataTableAdminDao().cleanUpPrefix();
         break;
       case SKIP_CLEANUP:
         if (detectNewPartitionsState != null) {

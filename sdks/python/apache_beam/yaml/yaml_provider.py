@@ -63,11 +63,31 @@ class Provider:
       self,
       typ: str,
       args: Mapping[str, Any],
-      yaml_create_transform: Callable[[Mapping[str, Any]], beam.PTransform]
+      yaml_create_transform: Callable[
+          [Mapping[str, Any], Iterable[beam.PCollection]], beam.PTransform]
   ) -> beam.PTransform:
     """Creates a PTransform instance for the given transform type and arguments.
     """
     raise NotImplementedError(type(self))
+
+  def affinity(self, other: "Provider"):
+    """Returns a value approximating how good it would be for this provider
+    to be used immediately following a transform from the other provider
+    (e.g. to encourage fusion).
+    """
+    # TODO(yaml): This is a very rough heuristic. Consider doing better.
+    # E.g. we could look at the the expected environments themselves.
+    # Possibly, we could provide multiple expansions and have the runner itself
+    # choose the actual implementation based on fusion (and other) criteria.
+    return self._affinity(other) + other._affinity(self)
+
+  def _affinity(self, other: "Provider"):
+    if self is other or self == other:
+      return 100
+    elif type(self) == type(other):
+      return 10
+    else:
+      return 0
 
 
 def as_provider(name, provider_or_constructor):
@@ -200,6 +220,12 @@ class ExternalPythonProvider(ExternalProvider):
             'kwargs': args,
         }).payload(),
         self._service)
+
+  def _affinity(self, other: "Provider"):
+    if isinstance(other, InlineProvider):
+      return 50
+    else:
+      return super()._affinity(other)
 
 
 # This is needed because type inference can't handle *args, **kwargs forwarding.
