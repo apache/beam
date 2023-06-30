@@ -45,7 +45,7 @@ class ArtifactMode(object):
 class BaseOperation(Generic[OperationInputT, OperationOutputT], abc.ABC):
   @abc.abstractmethod
   def apply(
-      self, inputs: OperationInputT, column_name: str, *args,
+      self, inputs: OperationInputT, output_column_name: str, *args,
       **kwargs) -> OperationOutputT:
     """
     Define any processing logic in the apply() method.

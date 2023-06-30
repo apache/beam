@@ -16,7 +16,6 @@
 #
 import collections
 import os
-import tempfile
 import typing
 from typing import Dict
 from typing import List
@@ -26,15 +25,15 @@ from typing import Union
 import numpy as np
 
 import apache_beam as beam
+import tensorflow as tf
+import tensorflow_transform.beam as tft_beam
 from apache_beam.ml.transforms.base import ArtifactMode
 from apache_beam.ml.transforms.base import ProcessHandler
-from apache_beam.ml.transforms.tft_transforms import TFTOperation
 from apache_beam.ml.transforms.tft_transforms import _EXPECTED_TYPES
+from apache_beam.ml.transforms.tft_transforms import TFTOperation
 from apache_beam.typehints import native_type_compatibility
 from apache_beam.typehints.row_type import RowTypeConstraint
-import tensorflow as tf
 from tensorflow_metadata.proto.v0 import schema_pb2
-import tensorflow_transform.beam as tft_beam
 from tensorflow_transform import common_types
 from tensorflow_transform.beam.tft_beam_io import beam_metadata_io
 from tensorflow_transform.beam.tft_beam_io import transform_fn_io
@@ -121,7 +120,7 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
   def __init__(
       self,
       *,
-      artifact_location: str = None,
+      artifact_location: str,
       transforms: Optional[List[TFTOperation]] = None,
       preprocessing_fn: typing.Optional[typing.Callable] = None,
       artifact_mode: str = ArtifactMode.PRODUCE):
@@ -137,9 +136,6 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
     self.artifact_mode = artifact_mode
     if artifact_mode not in ['produce', 'consume']:
       raise ValueError('artifact_mode must be either `produce` or `consume`.')
-
-    if not self.artifact_location:
-      self.artifact_location = tempfile.mkdtemp()
 
   def append_transform(self, transform):
     self.transforms.append(transform)

@@ -18,16 +18,16 @@
 import shutil
 import tempfile
 import typing
+import unittest
 from typing import List
 
-import unittest
 import numpy as np
+from parameterized import param
+from parameterized import parameterized
 
 import apache_beam as beam
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-from parameterized import param
-from parameterized import parameterized
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
@@ -239,3 +239,7 @@ class BaseMLTransformTest(unittest.TestCase):
           actual_output_y,
           equal_to(expected_output_y, equals_fn=np.array_equal),
           label='actual_output_y')
+
+
+if __name__ == '__main__':
+  unittest.main()

@@ -14,20 +14,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-import shutil
-import tempfile
 import os
+import shutil
 import sys
+import tempfile
 import typing
-from typing import NamedTuple
+import unittest
 from typing import List
+from typing import NamedTuple
 from typing import Union
 
-import unittest
 import numpy as np
+from parameterized import parameterized
 
 import apache_beam as beam
-from parameterized import parameterized
 
 # pylint: disable=wrong-import-position, ungrouped-imports
 try:

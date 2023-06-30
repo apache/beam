@@ -39,9 +39,9 @@ from typing import List
 from typing import Optional
 from typing import Union
 
-from apache_beam.ml.transforms.base import BaseOperation
 import tensorflow as tf
 import tensorflow_transform as tft
+from apache_beam.ml.transforms.base import BaseOperation
 from tensorflow_transform import analyzers
 from tensorflow_transform import common_types
 from tensorflow_transform import tf_utils
@@ -70,7 +70,8 @@ def register_input_dtype(type):
   return wrapper
 
 
-class TFTOperation(BaseOperation):
+class TFTOperation(BaseOperation[common_types.TensorType,
+                                 common_types.TensorType]):
   def __init__(self, columns: List[str], **kwargs):
     """
     Base Opertation class for all the TFT operations.
