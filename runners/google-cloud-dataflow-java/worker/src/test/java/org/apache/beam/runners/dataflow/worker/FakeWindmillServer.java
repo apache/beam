@@ -49,6 +49,8 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationGetD
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetDataResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution.State;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.net.HostAndPort;
@@ -278,7 +280,11 @@ class FakeWindmillServer extends WindmillServerStub {
                   inputDataWatermark,
                   Instant.now(),
                   workItem,
-                  Collections.emptyList());
+                  Collections.singletonList(
+                      LatencyAttribution.newBuilder()
+                          .setState(State.GET_WORK_IN_TRANSIT_TO_USER_WORKER)
+                          .setTotalDurationMillis(1000)
+                          .build()));
             }
           }
         }

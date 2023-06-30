@@ -3624,12 +3624,13 @@ public class StreamingDataflowWorkerTest {
   public void testLatencyAttributionPopulatedInCommitRequest() throws Exception {
     final int workToken = 7272; // A unique id makes it easier to search logs.
 
+    long dofnWaitTimeMs = 1000;
     FakeClock clock = new FakeClock();
     List<ParallelInstruction> instructions =
         Arrays.asList(
             makeSourceInstruction(StringUtf8Coder.of()),
             makeDoFnInstruction(
-                new FakeSlowDoFn(clock, Duration.millis(1000)), 0, StringUtf8Coder.of()),
+                new FakeSlowDoFn(clock, Duration.millis(dofnWaitTimeMs)), 0, StringUtf8Coder.of()),
             makeSinkInstruction(StringUtf8Coder.of(), 0));
 
     FakeWindmillServer server = new FakeWindmillServer(errorCollector);
@@ -3656,8 +3657,18 @@ public class StreamingDataflowWorkerTest {
         workItemCommitRequest.get((long) workToken).getPerWorkItemLatencyAttributions(0),
         LatencyAttribution.newBuilder()
             .setState(State.ACTIVE)
-            .setTotalDurationMillis(1000)
+            .setTotalDurationMillis(dofnWaitTimeMs)
             .build());
+    if (streamingEngine) {
+      // Initial fake latency provided to FakeWindmillServer when invoke receiveWork in
+      // GetWorkStream().
+      assertEquals(
+          workItemCommitRequest.get((long) workToken).getPerWorkItemLatencyAttributions(1),
+          LatencyAttribution.newBuilder()
+              .setState(State.GET_WORK_IN_TRANSIT_TO_USER_WORKER)
+              .setTotalDurationMillis(1000)
+              .build());
+    }
   }
 
   /** For each input element, emits a large string. */
