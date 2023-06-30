@@ -950,18 +950,18 @@ public class KafkaIO {
     }
 
     /**
-     * Sets a {@link java.util.regex.Pattern} of topics to read from. All the partitions from each
-     * of the matching topics are read.
+     * Internally sets a {@link java.util.regex.Pattern} of topics to read from. All the partitions
+     * from each of the matching topics are read.
      *
      * <p>See {@link KafkaUnboundedSource#split(int, PipelineOptions)} for description of how the
      * partitions are distributed among the splits.
      */
-    public Read<K, V> withTopicPattern(Pattern topicPattern) {
+    public Read<K, V> withTopicPattern(String topicPattern) {
       checkState(
           (getTopics() == null || getTopics().isEmpty())
               && (getTopicPartitions() == null || getTopicPartitions().isEmpty()),
           "Only one of topics, topicPartitions or topicPattern can be set");
-      return toBuilder().setTopicPattern(topicPattern).build();
+      return toBuilder().setTopicPattern(Pattern.compile(topicPattern)).build();
     }
 
     /**

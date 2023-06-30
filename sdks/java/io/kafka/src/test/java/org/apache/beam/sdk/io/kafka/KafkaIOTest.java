@@ -60,7 +60,6 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
@@ -736,7 +735,7 @@ public class KafkaIOTest {
     KafkaIO.Read<byte[], Long> reader =
         KafkaIO.<byte[], Long>read()
             .withBootstrapServers("none")
-            .withTopicPattern(Pattern.compile("[a-z]est"))
+            .withTopicPattern("[a-z]est")
             .withConsumerFactoryFn(
                 new ConsumerFactoryFn(topics, 10, numElements, OffsetResetStrategy.EARLIEST))
             .withKeyDeserializer(ByteArrayDeserializer.class)
@@ -759,7 +758,7 @@ public class KafkaIOTest {
     KafkaIO.Read<byte[], Long> reader =
         KafkaIO.<byte[], Long>read()
             .withBootstrapServers("none")
-            .withTopicPattern(Pattern.compile("[a-z]est"))
+            .withTopicPattern("[a-z]est")
             .withConsumerFactoryFn(
                 new ConsumerFactoryFn(topics, 1, numElements, OffsetResetStrategy.EARLIEST))
             .withKeyDeserializer(ByteArrayDeserializer.class)
@@ -793,7 +792,7 @@ public class KafkaIOTest {
     KafkaIO.Read<byte[], Long> reader =
         KafkaIO.<byte[], Long>read()
             .withBootstrapServers("none")
-            .withTopicPattern(Pattern.compile("[a-z]est"))
+            .withTopicPattern("[a-z]est")
             .withConsumerFactoryFn(
                 new ConsumerFactoryFn(topics, 10, numElements, OffsetResetStrategy.EARLIEST))
             .withKeyDeserializer(ByteArrayDeserializer.class)
@@ -1916,7 +1915,7 @@ public class KafkaIOTest {
     KafkaIO.Read<byte[], byte[]> read =
         KafkaIO.readBytes()
             .withBootstrapServers("myServer1:9092,myServer2:9092")
-            .withTopicPattern(Pattern.compile("[a-z]est"))
+            .withTopicPattern("[a-z]est")
             .withConsumerFactoryFn(
                 new ConsumerFactoryFn(
                     Lists.newArrayList("test"), 10, 10, OffsetResetStrategy.EARLIEST));
