@@ -34,6 +34,7 @@ import org.apache.avro.LogicalType;
 import org.apache.avro.LogicalTypes;
 import org.apache.avro.RandomData;
 import org.apache.avro.Schema.Type;
+import org.apache.avro.generic.GenericFixed;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.avro.reflect.ReflectData;
@@ -219,9 +220,16 @@ public class AvroUtilsTest {
             "bytes", org.apache.avro.Schema.create(Type.BYTES), "", (Object) null));
     fields.add(
         new org.apache.avro.Schema.Field(
-            "decimal",
-            LogicalTypes.decimal(Integer.MAX_VALUE)
-                .addToSchema(org.apache.avro.Schema.create(Type.BYTES)),
+            "decimalBytes",
+            LogicalTypes.decimal(8, 4).addToSchema(org.apache.avro.Schema.create(Type.BYTES)),
+            "",
+            (Object) null));
+    fields.add(
+        new org.apache.avro.Schema.Field(
+            "decimalFixed",
+            LogicalTypes.decimal(8, 4)
+                .addToSchema(
+                    org.apache.avro.Schema.createFixed("decimalFixed", null, "topLevelRecord", 4)),
             "",
             (Object) null));
     fields.add(
@@ -260,7 +268,23 @@ public class AvroUtilsTest {
         .addField(Field.of("double", FieldType.DOUBLE))
         .addField(Field.of("string", FieldType.STRING))
         .addField(Field.of("bytes", FieldType.BYTES))
-        .addField(Field.of("decimal", FieldType.DECIMAL))
+        .addField(
+            Field.of(
+                "decimalBytes",
+                FieldType.DECIMAL,
+                Schema.Options.setOption("precision", FieldType.INT32, 8)
+                    .setOption("scale", FieldType.INT32, 4)
+                    .setOption("type", FieldType.STRING, "bytes")
+                    .build()))
+        .addField(
+            Field.of(
+                "decimalFixed",
+                FieldType.DECIMAL,
+                Schema.Options.setOption("precision", FieldType.INT32, 8)
+                    .setOption("scale", FieldType.INT32, 4)
+                    .setOption("size", FieldType.INT32, 4)
+                    .setOption("type", FieldType.STRING, "fixed")
+                    .build()))
         .addField(Field.of("timestampMillis", FieldType.DATETIME))
         .addField(Field.of("row", FieldType.row(subSchema)))
         .addField(Field.of("array", FieldType.array(FieldType.row(subSchema))))
@@ -271,7 +295,7 @@ public class AvroUtilsTest {
   private static final byte[] BYTE_ARRAY = new byte[] {1, 2, 3, 4};
   private static final DateTime DATE_TIME =
       new DateTime().withDate(1979, 3, 14).withTime(1, 2, 3, 4).withZone(DateTimeZone.UTC);
-  private static final BigDecimal BIG_DECIMAL = new BigDecimal(3600);
+  private static final BigDecimal BIG_DECIMAL = new BigDecimal("3600.3600");
 
   private Row getBeamRow() {
     Row subRow = Row.withSchema(getBeamSubSchema()).addValues(true, 42).build();
@@ -283,6 +307,7 @@ public class AvroUtilsTest {
         .addValue((double) 44.2)
         .addValue("string")
         .addValue(BYTE_ARRAY)
+        .addValue(BIG_DECIMAL)
         .addValue(BIG_DECIMAL)
         .addValue(DATE_TIME)
         .addValue(subRow)
@@ -300,12 +325,20 @@ public class AvroUtilsTest {
 
   private static GenericRecord getGenericRecord() {
 
-    LogicalType decimalType =
-        LogicalTypes.decimal(Integer.MAX_VALUE)
+    LogicalType decimalBytesType =
+        LogicalTypes.decimal(BIG_DECIMAL.precision(), BIG_DECIMAL.scale())
             .addToSchema(org.apache.avro.Schema.create(Type.BYTES))
             .getLogicalType();
-    ByteBuffer encodedDecimal =
-        new Conversions.DecimalConversion().toBytes(BIG_DECIMAL, null, decimalType);
+    ByteBuffer encodedDecimalBytes =
+        new Conversions.DecimalConversion().toBytes(BIG_DECIMAL, null, decimalBytesType);
+
+    org.apache.avro.Schema decimalFixedSchema =
+        LogicalTypes.decimal(BIG_DECIMAL.precision(), BIG_DECIMAL.scale())
+            .addToSchema(
+                org.apache.avro.Schema.createFixed("decimalFixed", null, "topLevelRecord", 4));
+    GenericFixed encodedDecimalFixed =
+        new Conversions.DecimalConversion()
+            .toFixed(BIG_DECIMAL, decimalFixedSchema, decimalFixedSchema.getLogicalType());
 
     return new GenericRecordBuilder(getAvroSchema())
         .set("bool", true)
@@ -315,7 +348,8 @@ public class AvroUtilsTest {
         .set("double", (double) 44.2)
         .set("string", new Utf8("string"))
         .set("bytes", ByteBuffer.wrap(BYTE_ARRAY))
-        .set("decimal", encodedDecimal)
+        .set("decimalBytes", encodedDecimalBytes)
+        .set("decimalFixed", encodedDecimalFixed)
         .set("timestampMillis", DATE_TIME.getMillis())
         .set("row", getSubGenericRecord("row"))
         .set("array", ImmutableList.of(getSubGenericRecord("array"), getSubGenericRecord("array")))

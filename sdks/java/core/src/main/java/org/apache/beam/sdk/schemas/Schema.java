@@ -1118,11 +1118,16 @@ public class Schema implements Serializable {
 
     /** Return's a field with the give name and type. */
     public static Field of(String name, FieldType fieldType) {
+      return of(name, fieldType, Options.none());
+    }
+
+    /** Return's a field with the give name, type and options. */
+    public static Field of(String name, FieldType fieldType, Options options) {
       return new AutoValue_Schema_Field.Builder()
           .setName(name)
           .setDescription("")
           .setType(fieldType)
-          .setOptions(Options.none())
+          .setOptions(options)
           .build();
     }
 
