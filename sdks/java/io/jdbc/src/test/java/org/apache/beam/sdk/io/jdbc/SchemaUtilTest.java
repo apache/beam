@@ -64,7 +64,8 @@ public class SchemaUtilTest {
             JdbcFieldInfo.of("boolean_col", Types.BOOLEAN),
             JdbcFieldInfo.of("char_col", Types.CHAR, 255),
             JdbcFieldInfo.of("date_col", Types.DATE),
-            JdbcFieldInfo.of("decimal_col", Types.DECIMAL),
+            JdbcFieldInfo.of("decimal_col", Types.DECIMAL, Integer.MAX_VALUE),
+            JdbcFieldInfo.of("decimal_scale_col", Types.DECIMAL, 12, 4),
             JdbcFieldInfo.of("double_col", Types.DOUBLE),
             JdbcFieldInfo.of("float_col", Types.FLOAT),
             JdbcFieldInfo.of("integer_col", Types.INTEGER),
@@ -72,7 +73,8 @@ public class SchemaUtilTest {
             JdbcFieldInfo.of("longvarchar_col", Types.LONGVARCHAR, 1024),
             JdbcFieldInfo.of("longvarbinary_col", Types.LONGVARBINARY, 1024),
             JdbcFieldInfo.of("nchar_col", Types.NCHAR, 255),
-            JdbcFieldInfo.of("numeric_col", Types.NUMERIC, 12, 4),
+            JdbcFieldInfo.of("numeric_col", Types.NUMERIC, -1),
+            JdbcFieldInfo.of("numeric_scale_col", Types.NUMERIC, 12, 4),
             JdbcFieldInfo.of("nvarchar_col", Types.NVARCHAR, 255),
             JdbcFieldInfo.of("real_col", Types.REAL),
             JdbcFieldInfo.of("smallint_col", Types.SMALLINT),
@@ -106,6 +108,7 @@ public class SchemaUtilTest {
             .addField("char_col", LogicalTypes.fixedLengthString(JDBCType.CHAR, 255))
             .addField("date_col", LogicalTypes.JDBC_DATE_TYPE)
             .addField("decimal_col", Schema.FieldType.DECIMAL)
+            .addField("decimal_scale_col", LogicalTypes.numeric(12, 4))
             .addField("double_col", Schema.FieldType.DOUBLE)
             .addField("float_col", LogicalTypes.JDBC_FLOAT_TYPE)
             .addField("integer_col", Schema.FieldType.INT32)
@@ -116,7 +119,8 @@ public class SchemaUtilTest {
             .addField(
                 "longvarbinary_col", LogicalTypes.variableLengthBytes(JDBCType.LONGVARBINARY, 1024))
             .addField("nchar_col", LogicalTypes.fixedLengthString(JDBCType.NCHAR, 255))
-            .addField("numeric_col", LogicalTypes.numeric(12, 4))
+            .addField("numeric_col", Schema.FieldType.DECIMAL)
+            .addField("numeric_scale_col", LogicalTypes.numeric(12, 4))
             .addField("nvarchar_col", LogicalTypes.variableLengthString(JDBCType.NVARCHAR, 255))
             .addField("real_col", Schema.FieldType.FLOAT)
             .addField("smallint_col", Schema.FieldType.INT16)
