@@ -217,7 +217,7 @@ public class SchemaUtil {
     return (index, md) -> {
       int precision = md.getPrecision(index);
       int scale = md.getScale(index);
-      if ((precision == Integer.MAX_VALUE || precision == -1) && scale==0) {
+      if ((precision == Integer.MAX_VALUE || precision == -1) && scale == 0) {
         // If a precision is not specified, the column stores values as given (e.g. in Oracle DB)
         return Schema.Field.of(md.getColumnLabel(index), FieldType.DECIMAL)
             .withNullable(md.isNullable(index) == ResultSetMetaData.columnNullable);
