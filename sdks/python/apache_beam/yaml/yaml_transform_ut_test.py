@@ -173,6 +173,7 @@ class MainTest(unittest.TestCase):
   def test_expand_leaf_transform_with_input(self):
     with new_pipeline() as p:
       spec = '''
+          transforms:
           - type: Create
             elements: [0]
           - type: PyMap
@@ -180,7 +181,7 @@ class MainTest(unittest.TestCase):
             fn: "lambda x: x*x"
           '''
       scope, spec = self.get_scope_by_spec(p, spec)
-      result = expand_leaf_transform(spec[1], scope)
+      result = expand_leaf_transform(spec['transforms'][1], scope)
       self.assertTrue('out' in result)
       self.assertIsInstance(result['out'], beam.PCollection)
       self.assertRegex(
@@ -189,11 +190,12 @@ class MainTest(unittest.TestCase):
   def test_expand_leaf_transform_without_input(self):
     with new_pipeline() as p:
       spec = '''
+          transforms:
           - type: Create
             elements: [0]
           '''
       scope, spec = self.get_scope_by_spec(p, spec)
-      result = expand_leaf_transform(spec[0], scope)
+      result = expand_leaf_transform(spec['transforms'][0], scope)
       self.assertTrue('out' in result)
       self.assertIsInstance(result['out'], beam.PCollection)
 
