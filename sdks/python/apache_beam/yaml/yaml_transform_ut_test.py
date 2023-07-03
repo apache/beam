@@ -441,3 +441,42 @@ class MainTest(unittest.TestCase):
     self.assertTrue('source' not in result)
     self.assertTrue('sink' not in result)
     self.assertEqual(len(result['transforms']), 1)
+
+  def test_preprocess_source_sink_composite(self):
+    spec = '''
+      type: composite
+      source:
+          type: Create
+          elements: [0,1,2]
+      transforms:
+      - type: PyMap
+        fn: 'lambda x: x*x'
+      '''
+    spec = yaml.load(spec, Loader=SafeLineLoader)
+    result = normalize_source_sink(spec)
+    self.assertTrue('source' not in result)
+    self.assertEqual(len(result['transforms']), 2)
+
+  def test_preprocess_source_sink_chain(self):
+    spec = '''
+      type: chain
+      source:
+          type: Create
+          elements: [0,1,2]
+      transforms:
+      - type: PyMap
+        fn: 'lambda x: x*x'
+      '''
+    spec = yaml.load(spec, Loader=SafeLineLoader)
+    result = normalize_source_sink(spec)
+    self.assertTrue('source' not in result)
+    self.assertEqual(len(result['transforms']), 2)
+
+  def test_preprocess_source_sink_other(self):
+    spec = '''
+      - type: PyMap
+        fn: 'lambda x: x*x'
+      '''
+    spec = yaml.load(spec, Loader=SafeLineLoader)
+    result = normalize_source_sink(spec)
+    self.assertCountEqual(result, spec)
