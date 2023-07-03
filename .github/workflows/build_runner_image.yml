@@ -20,8 +20,7 @@ name: Build and Version Runner Docker Image
 
 on:
   push:
-    tags: ['v*']
-    branches: ['master', 'release-*']
+    branches: ['master']
   pull_request_target:
     branches: ['master']
     paths: ['.github/gh-actions-self-hosted-runners/arc/images/**']
