@@ -25,6 +25,7 @@ from apache_beam.yaml import yaml_transform
 from apache_beam.yaml.yaml_transform import LightweightScope
 from apache_beam.yaml.yaml_transform import SafeLineLoader
 from apache_beam.yaml.yaml_transform import Scope
+from apache_beam.yaml.yaml_transform import chain_as_composite
 from apache_beam.yaml.yaml_transform import expand_composite_transform
 from apache_beam.yaml.yaml_transform import expand_leaf_transform
 from apache_beam.yaml.yaml_transform import pipeline_as_composite
@@ -294,3 +295,83 @@ class MainTest(unittest.TestCase):
       scope, spec = self.get_scope_by_spec(p, spec)
       result = expand_composite_transform(spec, scope)
       self.assertRegex(str(result['output']), r"PCollection.*Create/Map.*")
+
+  def test_chain_as_composite(self):
+    spec = '''
+        type: chain
+        transforms:
+        - type: Create
+          elements: [0,1,2]
+        - type: PyMap
+          fn: 'lambda x: x*x'
+      '''
+    spec = yaml.load(spec, Loader=SafeLineLoader)
+    result = chain_as_composite(spec)
+    self.assertEqual(result['type'], "composite")
+    self.assertEqual(result['name'], "Chain")
+    self.assertEqual(len(result['transforms']), 2)
+    self.assertEqual(result['transforms'][0]["input"], {})
+    self.assertEqual(
+        result['transforms'][1]["input"], spec['transforms'][0]['__uuid__'])
+    self.assertEqual(result['output'], spec['transforms'][1]['__uuid__'])
+
+  def test_chain_as_composite_with_wrong_output_type(self):
+    spec = '''
+        type: chain
+        transforms:
+        - type: Create
+          elements: [0,1,2]
+        - type: PyMap
+          fn: 'lambda x: x*x'
+        output:
+          Create
+      '''
+    spec = yaml.load(spec, Loader=SafeLineLoader)
+    with self.assertRaisesRegex(ValueError, r"Explicit output.*last transform"):
+      chain_as_composite(spec)
+
+  def test_chain_as_composite_with_wrong_output_name(self):
+    spec = '''
+        type: chain
+        transforms:
+        - type: Create
+          name: elements
+          elements: [0,1,2]
+        - type: PyMap
+          fn: 'lambda x: x*x'
+        output:
+          elements
+      '''
+    spec = yaml.load(spec, Loader=SafeLineLoader)
+    with self.assertRaisesRegex(ValueError, r"Explicit output.*last transform"):
+      chain_as_composite(spec)
+
+  def test_chain_as_composite_with_outputs_override(self):
+    spec = '''
+        type: chain
+        transforms:
+        - type: Create
+          elements: [0,1,2]
+        - type: PyMap
+          fn: 'lambda x: x*x'
+        output:
+          PyMap
+      '''
+    spec = yaml.load(spec, Loader=SafeLineLoader)
+    result = chain_as_composite(spec)
+    self.assertEqual(
+        result['output']['output'],
+        f"{spec['transforms'][1]['__uuid__']}.PyMap")
+
+  def test_chain_as_composite_with_input(self):
+    spec = '''
+        type: chain
+        input: 
+          elements
+        transforms:
+        - type: PyMap
+          fn: 'lambda x: x*x'
+      '''
+    spec = yaml.load(spec, Loader=SafeLineLoader)
+    result = chain_as_composite(spec)
+    self.assertEqual(result['transforms'][0]['input'], {"input": "input"})
