@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.schemas.utils.SchemaTestUtils.equivalentTo;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 
+import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
@@ -38,6 +39,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
+import org.apache.beam.sdk.schemas.logicaltypes.FixedPrecisionNumeric;
 import org.apache.beam.sdk.schemas.transforms.Group;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -108,6 +110,9 @@ public class AvroSchemaTest {
     public @AvroName("int") Integer anInt;
 
     @org.apache.avro.reflect.Nullable
+    public @AvroName("short") Short aShort;
+
+    @org.apache.avro.reflect.Nullable
     public @AvroName("long") Long aLong;
 
     @AvroName("float")
@@ -123,6 +128,10 @@ public class AvroSchemaTest {
 
     @AvroSchema("{\"type\": \"fixed\", \"size\": 4, \"name\": \"fixed4\"}")
     public byte[] fixed;
+
+    //@org.apache.avro.reflect.Nullable
+    @AvroSchema("[\"null\",{\"type\":\"bytes\", \"logicalType\": \"decimal\",\"precision\":10,\"scale\":2}]")
+    public BigDecimal decimalScale;
 
     @AvroSchema("{\"type\": \"int\", \"logicalType\": \"date\"}")
     public LocalDate date;
@@ -149,12 +158,14 @@ public class AvroSchemaTest {
       AvroPojo avroPojo = (AvroPojo) o;
       return boolNonNullable == avroPojo.boolNonNullable
           && Objects.equals(anInt, avroPojo.anInt)
+          && Objects.equals(aShort, avroPojo.aShort)
           && Objects.equals(aLong, avroPojo.aLong)
           && Objects.equals(aFloat, avroPojo.aFloat)
           && Objects.equals(aDouble, avroPojo.aDouble)
           && Objects.equals(string, avroPojo.string)
           && Objects.equals(bytes, avroPojo.bytes)
           && Arrays.equals(fixed, avroPojo.fixed)
+          && Objects.equals(decimalScale, avroPojo.decimalScale)
           && Objects.equals(date, avroPojo.date)
           && Objects.equals(timestampMillis, avroPojo.timestampMillis)
           && Objects.equals(testEnum, avroPojo.testEnum)
@@ -168,12 +179,14 @@ public class AvroSchemaTest {
       return Objects.hash(
           boolNonNullable,
           anInt,
+          aShort,
           aLong,
           aFloat,
           aDouble,
           string,
           bytes,
           Arrays.hashCode(fixed),
+          decimalScale,
           date,
           timestampMillis,
           testEnum,
@@ -185,12 +198,14 @@ public class AvroSchemaTest {
     public AvroPojo(
         boolean boolNonNullable,
         int anInt,
+        short aShort,
         long aLong,
         float aFloat,
         double aDouble,
         String string,
         ByteBuffer bytes,
         byte[] fixed,
+        BigDecimal decimalScale,
         LocalDate date,
         DateTime timestampMillis,
         TestEnum testEnum,
@@ -199,12 +214,14 @@ public class AvroSchemaTest {
         Map<String, AvroSubPojo> map) {
       this.boolNonNullable = boolNonNullable;
       this.anInt = anInt;
+      this.aShort = aShort;
       this.aLong = aLong;
       this.aFloat = aFloat;
       this.aDouble = aDouble;
       this.string = string;
       this.bytes = bytes;
       this.fixed = fixed;
+      this.decimalScale = decimalScale;
       this.date = date;
       this.timestampMillis = timestampMillis;
       this.testEnum = testEnum;
@@ -223,6 +240,7 @@ public class AvroSchemaTest {
           + boolNonNullable
           + ", anInt="
           + anInt
+              +", aShort="+aShort
           + ", aLong="
           + aLong
           + ", aFloat="
@@ -236,6 +254,7 @@ public class AvroSchemaTest {
           + bytes
           + ", fixed="
           + Arrays.toString(fixed)
+              +", decimalScale=" + decimalScale
           + ", date="
           + date
           + ", timestampMillis="
@@ -268,12 +287,14 @@ public class AvroSchemaTest {
       Schema.builder()
           .addField("bool_non_nullable", FieldType.BOOLEAN)
           .addNullableField("int", FieldType.INT32)
+          .addNullableField("short", FieldType.INT16)
           .addNullableField("long", FieldType.INT64)
           .addNullableField("float", FieldType.FLOAT)
           .addNullableField("double", FieldType.DOUBLE)
           .addNullableField("string", FieldType.STRING)
           .addNullableField("bytes", FieldType.BYTES)
           .addField("fixed", FieldType.logicalType(FixedBytes.of(4)))
+          .addNullableField("decimalScale", FieldType.logicalType(FixedPrecisionNumeric.of(10,2)))
           .addField("date", FieldType.DATETIME)
           .addField("timestampMillis", FieldType.DATETIME)
           .addField("TestEnum", FieldType.logicalType(TEST_ENUM_TYPE))
@@ -286,12 +307,14 @@ public class AvroSchemaTest {
       Schema.builder()
           .addField("bool_non_nullable", FieldType.BOOLEAN)
           .addNullableField("int", FieldType.INT32)
+          .addNullableField("short", FieldType.INT16)
           .addNullableField("long", FieldType.INT64)
           .addNullableField("float", FieldType.FLOAT)
           .addNullableField("double", FieldType.DOUBLE)
           .addNullableField("string", FieldType.STRING)
           .addNullableField("bytes", FieldType.BYTES)
           .addField("fixed", FieldType.logicalType(FixedBytes.of(4)))
+          .addNullableField("decimalScale", FieldType.logicalType(FixedPrecisionNumeric.of(10,2)))
           .addField("date", FieldType.DATETIME)
           .addField("timestampMillis", FieldType.DATETIME)
           .addField("testEnum", FieldType.logicalType(TEST_ENUM_TYPE))
@@ -309,6 +332,7 @@ public class AvroSchemaTest {
       TestAvroFactory.newInstance(
           true,
           43,
+              (short)42,
           44L,
           (float) 44.1,
           (double) 44.2,
@@ -330,6 +354,7 @@ public class AvroSchemaTest {
       new GenericRecordBuilder(TestAvro.SCHEMA$)
           .set("bool_non_nullable", true)
           .set("int", 43)
+          .set("short", (short)42) // TODO avro can't yield short
           .set("long", 44L)
           .set("float", (float) 44.1)
           .set("double", (double) 44.2)
@@ -340,6 +365,7 @@ public class AvroSchemaTest {
               GenericData.get()
                   .createFixed(
                       null, BYTE_ARRAY, org.apache.avro.Schema.createFixed("fixed4", "", "", 4)))
+          .set("decimalScale",ByteBuffer.wrap(BigDecimal.valueOf(12345,2).unscaledValue().toByteArray()))
           .set("date", (int) Days.daysBetween(new LocalDate(1970, 1, 1), DATE).getDays())
           .set("timestampMillis", DATE_TIME.getMillis())
           .set("TestEnum", TestEnum.abc)
@@ -358,12 +384,14 @@ public class AvroSchemaTest {
           .addValues(
               true,
               43,
+              42, // TODO Pardon No Shorts in Avro
               44L,
               (float) 44.1,
               (double) 44.2,
               "mystring",
               ByteBuffer.wrap(BYTE_ARRAY),
               BYTE_ARRAY,
+              BigDecimal.valueOf(12345,2),
               DATE.toDateTimeAtStartOfDay(DateTimeZone.UTC),
               DATE_TIME,
               TEST_ENUM_TYPE.valueOf("abc"),
@@ -379,6 +407,7 @@ public class AvroSchemaTest {
 
   @Test
   public void testPojoSchema() {
+    // TODO Short in AvroPojo may be only converted in INT32, but Pojo_SCHEMA may hold it as INT16
     assertThat(
         new AvroRecordSchema().schemaFor(TypeDescriptor.of(AvroPojo.class)),
         equivalentTo(POJO_SCHEMA));
@@ -409,6 +438,7 @@ public class AvroSchemaTest {
   public void testRowToGenericRecord() {
     SerializableFunction<Row, GenericRecord> fromRow =
         AvroUtils.getRowToGenericRecordFunction(TestAvro.SCHEMA$);
+    // TODO avro can't yield short !!
     assertEquals(AVRO_GENERIC_RECORD, fromRow.apply(ROW));
   }
 
@@ -417,12 +447,14 @@ public class AvroSchemaTest {
       new AvroPojo(
           true,
           43,
+              (short)42,
           44L,
           (float) 44.1,
           (double) 44.2,
           "mystring",
           ByteBuffer.wrap(BYTE_ARRAY),
           BYTE_ARRAY,
+          BigDecimal.valueOf(12345, 2),
           DATE,
           DATE_TIME,
           TestEnum.abc,
@@ -435,12 +467,14 @@ public class AvroSchemaTest {
           .addValues(
               true,
               43,
+              (short)42,
               44L,
               (float) 44.1,
               (double) 44.2,
               "mystring",
               ByteBuffer.wrap(BYTE_ARRAY),
               BYTE_ARRAY,
+              BigDecimal.valueOf(12345,2),
               DATE.toDateTimeAtStartOfDay(DateTimeZone.UTC),
               DATE_TIME,
               TEST_ENUM_TYPE.valueOf("abc"),

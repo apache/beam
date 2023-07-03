@@ -72,13 +72,7 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.SchemaUserTypeCreator;
-import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
-import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
-import org.apache.beam.sdk.schemas.logicaltypes.FixedString;
-import org.apache.beam.sdk.schemas.logicaltypes.OneOfType;
-import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
-import org.apache.beam.sdk.schemas.logicaltypes.VariableBytes;
-import org.apache.beam.sdk.schemas.logicaltypes.VariableString;
+import org.apache.beam.sdk.schemas.logicaltypes.*;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertType;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertValueForGetter;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertValueForSetter;
@@ -924,7 +918,12 @@ public class AvroUtils {
     LogicalType logicalType = LogicalTypes.fromSchema(avroSchema);
     if (logicalType != null) {
       if (logicalType instanceof LogicalTypes.Decimal) {
-        fieldType = FieldType.DECIMAL;
+        LogicalTypes.Decimal decimal = (LogicalTypes.Decimal)logicalType;
+        if (decimal.getScale()!=0 || !(decimal.getPrecision()==-1 || decimal.getPrecision()==Integer.MAX_VALUE)) { // these are constants from JdbcIO are they applicable here?
+          fieldType = FieldType.logicalType(FixedPrecisionNumeric.of(decimal.getPrecision(), decimal.getScale()));
+        }else {
+          fieldType = FieldType.DECIMAL;
+        }
       } else if (logicalType instanceof LogicalTypes.TimestampMillis) {
         // TODO: There is a desire to move Beam schema DATETIME to a micros representation. When
         // this is done, this logical type needs to be changed.
@@ -1183,7 +1182,9 @@ public class AvroUtils {
             throw new IllegalArgumentException("Incorrectly sized byte array.");
           }
           return GenericData.get().createFixed(null, (byte[]) value, typeWithNullability.type);
-        } else if (VariableBytes.IDENTIFIER.equals(identifier)) {
+        } else if (FixedPrecisionNumeric.IDENTIFIER.equals(identifier)) {
+          return new Conversions.DecimalConversion().toBytes((BigDecimal) value, null, typeWithNullability.type.getLogicalType());
+        } if (VariableBytes.IDENTIFIER.equals(identifier)) {
           return GenericData.get().createFixed(null, (byte[]) value, typeWithNullability.type);
         } else if (FixedString.IDENTIFIER.equals(identifier)
             || "CHAR".equals(identifier)
@@ -1317,7 +1318,12 @@ public class AvroUtils {
         return convertStringStrict((CharSequence) value, fieldType);
 
       case INT:
-        return convertIntStrict((Integer) value, fieldType);
+        Number num = (Number) value;
+        if (num instanceof Integer || num instanceof Byte || num instanceof Short) {
+          return convertIntStrict(num.intValue(), fieldType);
+        } else {
+          throw new IllegalArgumentException("Unable to convert " + value.getClass() + " into " + type.type.getType());
+        }
 
       case LONG:
         return convertLongStrict((Long) value, fieldType);

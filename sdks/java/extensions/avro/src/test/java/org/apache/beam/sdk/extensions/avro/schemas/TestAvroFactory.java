@@ -35,6 +35,7 @@ public class TestAvroFactory {
   public static TestAvro newInstance(
       Boolean boolNonNullable,
       Integer integer,
+      Short aShort, // TODO but there's no short in Avro
       Long aLong,
       Float aFloat,
       Double aDouble,
@@ -53,6 +54,7 @@ public class TestAvroFactory {
             TestAvro.class.getDeclaredConstructor(
                 Boolean.class,
                 Integer.class,
+                Integer.class, // TODO Pardon, not shorts in Avro
                 Long.class,
                 Float.class,
                 Double.class,
@@ -70,6 +72,7 @@ public class TestAvroFactory {
             constructor.newInstance(
                 boolNonNullable,
                 integer,
+                    aShort.intValue(),
                 aLong,
                 aFloat,
                 aDouble,
@@ -87,6 +90,7 @@ public class TestAvroFactory {
             TestAvro.class.getDeclaredConstructor(
                 Boolean.class,
                 Integer.class,
+                Integer.class,//TODO Pardon there's no shorts in Avro
                 Long.class,
                 Float.class,
                 Double.class,
@@ -104,6 +108,7 @@ public class TestAvroFactory {
             constructor.newInstance(
                 boolNonNullable,
                 integer,
+                    aShort.intValue(),
                 aLong,
                 aFloat,
                 aDouble,

@@ -115,6 +115,7 @@ public class AvroCoderTest {
       TestAvroFactory.newInstance(
           true,
           43,
+              (short)42,
           44L,
           44.1f,
           44.2d,
