@@ -231,8 +231,7 @@ public class SpannerWriteIT {
                         .setDatabaseId(databaseName)
                         .setInstanceId(options.getInstanceId())
                         .setTableId(options.getTable())
-                        .build())
-                .buildTransform());
+                        .build()));
 
     PipelineResult result = p.run();
     result.waitUntilFinish();

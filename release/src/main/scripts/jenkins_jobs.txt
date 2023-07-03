@@ -107,8 +107,6 @@ Run Python 3.10 PostCommit Sickbay,beam_PostCommit_Sickbay_Python310_PR
 Run Python 3.10 PostCommit,beam_PostCommit_Python310_PR
 Run Python 3.11 PostCommit Sickbay,beam_PostCommit_Sickbay_Python311_PR
 Run Python 3.11 PostCommit,beam_PostCommit_Python311_PR
-Run Python 3.7 PostCommit Sickbay,beam_PostCommit_Sickbay_Python37_PR
-Run Python 3.7 PostCommit,beam_PostCommit_Python37_PR
 Run Python 3.8 PostCommit Sickbay,beam_PostCommit_Sickbay_Python38_PR
 Run Python 3.8 PostCommit,beam_PostCommit_Python38_PR
 Run Python 3.9 PostCommit Sickbay,beam_PostCommit_Sickbay_Python39_PR

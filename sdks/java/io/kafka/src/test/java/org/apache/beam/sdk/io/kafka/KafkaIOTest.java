@@ -724,6 +724,87 @@ public class KafkaIOTest {
   }
 
   @Test
+  public void testUnboundedSourceWithPattern() {
+    int numElements = 1000;
+
+    List<String> topics =
+        ImmutableList.of(
+            "best", "gest", "hest", "jest", "lest", "nest", "pest", "rest", "test", "vest", "west",
+            "zest");
+
+    KafkaIO.Read<byte[], Long> reader =
+        KafkaIO.<byte[], Long>read()
+            .withBootstrapServers("none")
+            .withTopicPattern("[a-z]est")
+            .withConsumerFactoryFn(
+                new ConsumerFactoryFn(topics, 10, numElements, OffsetResetStrategy.EARLIEST))
+            .withKeyDeserializer(ByteArrayDeserializer.class)
+            .withValueDeserializer(LongDeserializer.class)
+            .withMaxNumRecords(numElements);
+
+    PCollection<Long> input = p.apply(reader.withoutMetadata()).apply(Values.create());
+
+    addCountingAsserts(input, numElements);
+    p.run();
+  }
+
+  @Test
+  public void testUnboundedSourceWithPartiallyMatchedPattern() {
+    int numElements = 1000;
+    long numMatchedElements = numElements / 2; // Expected elements if split across 2 topics
+
+    List<String> topics = ImmutableList.of("test", "Test");
+
+    KafkaIO.Read<byte[], Long> reader =
+        KafkaIO.<byte[], Long>read()
+            .withBootstrapServers("none")
+            .withTopicPattern("[a-z]est")
+            .withConsumerFactoryFn(
+                new ConsumerFactoryFn(topics, 1, numElements, OffsetResetStrategy.EARLIEST))
+            .withKeyDeserializer(ByteArrayDeserializer.class)
+            .withValueDeserializer(LongDeserializer.class)
+            .withMaxNumRecords(numMatchedElements);
+
+    PCollection<Long> input = p.apply(reader.withoutMetadata()).apply(Values.create());
+
+    // With 1 partition per topic element to partition allocation alternates between test and Test,
+    // producing even elements for test and odd elements for Test.
+    // The pattern only matches test, so we expect even elements.
+    PAssert.that(input).satisfies(new AssertMultipleOf(2));
+
+    PAssert.thatSingleton(input.apply("Count", Count.globally())).isEqualTo(numMatchedElements);
+
+    p.run();
+  }
+
+  @Test
+  public void testUnboundedSourceWithUnmatchedPattern() {
+    // Expect an exception when provided pattern doesn't match any Kafka topics.
+    thrown.expect(PipelineExecutionException.class);
+    thrown.expectCause(instanceOf(IllegalStateException.class));
+    thrown.expectMessage(
+        "Could not find any partitions. Please check Kafka configuration and topic names");
+
+    int numElements = 1000;
+
+    List<String> topics = ImmutableList.of("chest", "crest", "egest", "guest", "quest", "wrest");
+
+    KafkaIO.Read<byte[], Long> reader =
+        KafkaIO.<byte[], Long>read()
+            .withBootstrapServers("none")
+            .withTopicPattern("[a-z]est")
+            .withConsumerFactoryFn(
+                new ConsumerFactoryFn(topics, 10, numElements, OffsetResetStrategy.EARLIEST))
+            .withKeyDeserializer(ByteArrayDeserializer.class)
+            .withValueDeserializer(LongDeserializer.class)
+            .withMaxNumRecords(numElements);
+
+    p.apply(reader.withoutMetadata()).apply(Values.create());
+
+    p.run();
+  }
+
+  @Test
   public void testUnboundedSourceWithWrongTopic() {
     // Expect an exception when provided Kafka topic doesn't exist.
     thrown.expect(PipelineExecutionException.class);
@@ -1823,6 +1904,25 @@ public class KafkaIOTest {
     DisplayData displayData = DisplayData.from(read);
 
     assertThat(displayData, hasDisplayItem("topicPartitions", "test-5,test-6"));
+    assertThat(displayData, hasDisplayItem("enable.auto.commit", false));
+    assertThat(displayData, hasDisplayItem("bootstrap.servers", "myServer1:9092,myServer2:9092"));
+    assertThat(displayData, hasDisplayItem("auto.offset.reset", "latest"));
+    assertThat(displayData, hasDisplayItem("receive.buffer.bytes", 524288));
+  }
+
+  @Test
+  public void testSourceWithPatternDisplayData() {
+    KafkaIO.Read<byte[], byte[]> read =
+        KafkaIO.readBytes()
+            .withBootstrapServers("myServer1:9092,myServer2:9092")
+            .withTopicPattern("[a-z]est")
+            .withConsumerFactoryFn(
+                new ConsumerFactoryFn(
+                    Lists.newArrayList("test"), 10, 10, OffsetResetStrategy.EARLIEST));
+
+    DisplayData displayData = DisplayData.from(read);
+
+    assertThat(displayData, hasDisplayItem("topicPattern", "[a-z]est"));
     assertThat(displayData, hasDisplayItem("enable.auto.commit", false));
     assertThat(displayData, hasDisplayItem("bootstrap.servers", "myServer1:9092,myServer2:9092"));
     assertThat(displayData, hasDisplayItem("auto.offset.reset", "latest"));

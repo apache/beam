@@ -25,7 +25,6 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
@@ -80,30 +79,10 @@ public class SingleStoreSchemaTransformReadProvider
    * An implementation of {@link SchemaTransform} for SingleStoreDB read jobs configured using
    * {@link SingleStoreSchemaTransformReadConfiguration}.
    */
-  private static class SingleStoreReadSchemaTransform implements SchemaTransform {
+  private static class SingleStoreReadSchemaTransform extends SchemaTransform {
     private final SingleStoreSchemaTransformReadConfiguration configuration;
 
     SingleStoreReadSchemaTransform(SingleStoreSchemaTransformReadConfiguration configuration) {
-      this.configuration = configuration;
-    }
-
-    /** Implements {@link SchemaTransform} buildTransform method. */
-    @Override
-    public PTransform<PCollectionRowTuple, PCollectionRowTuple> buildTransform() {
-      return new PCollectionRowTupleTransform(configuration);
-    }
-  }
-
-  /**
-   * An implementation of {@link PTransform} for SingleStoreDB read jobs configured using {@link
-   * SingleStoreSchemaTransformReadConfiguration}.
-   */
-  static class PCollectionRowTupleTransform
-      extends PTransform<PCollectionRowTuple, PCollectionRowTuple> {
-
-    private final SingleStoreSchemaTransformReadConfiguration configuration;
-
-    PCollectionRowTupleTransform(SingleStoreSchemaTransformReadConfiguration configuration) {
       this.configuration = configuration;
     }
 

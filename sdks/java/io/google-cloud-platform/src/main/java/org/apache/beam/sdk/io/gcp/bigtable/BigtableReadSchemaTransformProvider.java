@@ -38,7 +38,6 @@ import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
@@ -139,8 +138,7 @@ public class BigtableReadSchemaTransformProvider
    * BigtableReadSchemaTransformConfiguration} and instantiated by {@link
    * BigtableReadSchemaTransformProvider}.
    */
-  private static class BigtableReadSchemaTransform
-      extends PTransform<PCollectionRowTuple, PCollectionRowTuple> implements SchemaTransform {
+  private static class BigtableReadSchemaTransform extends SchemaTransform {
     private final BigtableReadSchemaTransformConfiguration configuration;
 
     BigtableReadSchemaTransform(BigtableReadSchemaTransformConfiguration configuration) {
@@ -168,11 +166,6 @@ public class BigtableReadSchemaTransformProvider
           bigtableRows.apply(MapElements.via(new BigtableRowToBeamRow())).setRowSchema(ROW_SCHEMA);
 
       return PCollectionRowTuple.of(OUTPUT_TAG, beamRows);
-    }
-
-    @Override
-    public PTransform<PCollectionRowTuple, PCollectionRowTuple> buildTransform() {
-      return this;
     }
   }
 

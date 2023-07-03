@@ -80,6 +80,10 @@ Have ideas for new Runners? See the [runner-ideas label](https://github.com/apac
 
 To learn how to write Beam pipelines, read the Quickstart for [[Java](https://beam.apache.org/get-started/quickstart-java), [Python](https://beam.apache.org/get-started/quickstart-py), or
 [Go](https://beam.apache.org/get-started/quickstart-go)] available on our website.
+To play with some Beam examples, try [Beam Playground](https://play.beam.apache.org/?path=SDK_JAVA_MinimalWordCount&sdk=java).
+To learn basic Beam concepts, try [Tour of Beam](https://tour.beam.apache.org/).
+
+
 
 ## Contact Us
 

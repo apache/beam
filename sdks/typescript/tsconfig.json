@@ -17,6 +17,7 @@
         "after": true
       }
     ],
+    "declaration": true,
     "sourceMap": true,
     "outDir": "dist/",
     "baseUrl": ".",

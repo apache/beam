@@ -27,7 +27,6 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.testing.UsesSchema;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.junit.Test;
@@ -90,7 +89,7 @@ public class TypedSchemaTransformProviderTest {
     }
   }
 
-  public static class FakeSchemaTransform implements SchemaTransform {
+  public static class FakeSchemaTransform extends SchemaTransform {
 
     public Configuration config;
 
@@ -99,7 +98,7 @@ public class TypedSchemaTransformProviderTest {
     }
 
     @Override
-    public PTransform<PCollectionRowTuple, PCollectionRowTuple> buildTransform() {
+    public PCollectionRowTuple expand(PCollectionRowTuple input) {
       return null;
     }
   }
