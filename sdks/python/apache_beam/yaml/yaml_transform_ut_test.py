@@ -28,6 +28,8 @@ from apache_beam.yaml.yaml_transform import Scope
 from apache_beam.yaml.yaml_transform import chain_as_composite
 from apache_beam.yaml.yaml_transform import expand_composite_transform
 from apache_beam.yaml.yaml_transform import expand_leaf_transform
+from apache_beam.yaml.yaml_transform import extract_name
+from apache_beam.yaml.yaml_transform import identify_object
 from apache_beam.yaml.yaml_transform import normalize_inputs_outputs
 from apache_beam.yaml.yaml_transform import normalize_source_sink
 from apache_beam.yaml.yaml_transform import pipeline_as_composite
@@ -512,3 +514,59 @@ class MainTest(unittest.TestCase):
         })
     self.assertTrue("__uuid__" not in result['output'])
     self.assertTrue("__line_" not in result['output'])
+
+  def test_identify_object_with_name(self):
+    spec = '''
+      type: PyMap
+      fn: 'lambda x: x*x'
+    '''
+    spec = yaml.load(spec, Loader=SafeLineLoader)
+    result = identify_object(spec)
+    self.assertRegex(result, r"PyMap.*[0-9]")
+
+  def test_identify_object(self):
+    spec = '''
+      argument: PyMap
+      fn: 'lambda x: x*x'
+    '''
+    spec = yaml.load(spec, Loader=SafeLineLoader)
+    result = identify_object(spec)
+    self.assertRegex(result, r"at.*[0-9]")
+
+  def test_extract_name_by_type(self):
+    spec = '''
+      type: PyMap
+      fn: 'lambda x: x*x'
+    '''
+    spec = yaml.load(spec, Loader=SafeLineLoader)
+    result = extract_name(spec)
+    self.assertEqual(result, "PyMap")
+
+  def test_extract_name_by_id(self):
+    spec = '''
+      type: PyMap
+      id: PyMapId
+      fn: 'lambda x: x*x'
+    '''
+    spec = yaml.load(spec, Loader=SafeLineLoader)
+    result = extract_name(spec)
+    self.assertEqual(result, "PyMapId")
+
+  def test_extract_name_by_name(self):
+    spec = '''
+      type: PyMap
+      name: PyMapName
+      fn: 'lambda x: x*x'
+    '''
+    spec = yaml.load(spec, Loader=SafeLineLoader)
+    result = extract_name(spec)
+    self.assertEqual(result, "PyMapName")
+
+  def test_extract_name_no_name(self):
+    spec = '''
+      - arg: PyMap
+        fn: 'lambda x: x*x'
+    '''
+    spec = yaml.load(spec, Loader=SafeLineLoader)
+    result = extract_name(spec)
+    self.assertEqual(result, "")
