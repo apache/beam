@@ -15,22 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.sdk.io.gcp.bigtable.changestreams.estimator;
 
-import java.util.Arrays;
-import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.io.TextIO;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.transforms.Count;
-import org.apache.beam.sdk.transforms.Filter;
-import org.apache.beam.sdk.transforms.FlatMapElements;
-import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.TypeDescriptors;
+import static org.junit.Assert.assertEquals;
 
-public class TestCompletionsWrongClass {
-    public static void main(String[] args) {
-        String test = "Test";
-        test.apply(T<caret>);
-    }
+import org.junit.Test;
+
+public class NullSizeEstimatorTest {
+  private static final double DELTA = 1e-10;
+
+  @Test
+  public void alwaysReturns0AsEstimatedThroughput() {
+    final NullSizeEstimator<byte[]> estimator = new NullSizeEstimator<>();
+    assertEquals(estimator.sizeOf(new byte[40]), 0D, DELTA);
+    assertEquals(estimator.sizeOf(new byte[20]), 0D, DELTA);
+    assertEquals(estimator.sizeOf(new byte[10]), 0D, DELTA);
+  }
 }

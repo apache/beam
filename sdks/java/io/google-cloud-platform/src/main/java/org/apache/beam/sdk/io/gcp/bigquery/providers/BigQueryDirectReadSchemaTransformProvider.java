@@ -40,7 +40,6 @@ import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
@@ -162,29 +161,14 @@ public class BigQueryDirectReadSchemaTransformProvider
    * BigQueryDirectReadSchemaTransformConfiguration} and instantiated by {@link
    * BigQueryDirectReadSchemaTransformProvider}.
    */
-  private static class BigQueryDirectReadSchemaTransform implements SchemaTransform {
+  protected static class BigQueryDirectReadSchemaTransform extends SchemaTransform {
+    private BigQueryServices testBigQueryServices = null;
     private final BigQueryDirectReadSchemaTransformConfiguration configuration;
 
     BigQueryDirectReadSchemaTransform(
         BigQueryDirectReadSchemaTransformConfiguration configuration) {
       // Validate configuration parameters before PTransform expansion
       configuration.validate();
-      this.configuration = configuration;
-    }
-
-    @Override
-    public PTransform<PCollectionRowTuple, PCollectionRowTuple> buildTransform() {
-      return new BigQueryDirectReadPCollectionRowTupleTransform(configuration);
-    }
-  }
-
-  static class BigQueryDirectReadPCollectionRowTupleTransform
-      extends PTransform<PCollectionRowTuple, PCollectionRowTuple> {
-    private final BigQueryDirectReadSchemaTransformConfiguration configuration;
-    private BigQueryServices testBigQueryServices = null;
-
-    BigQueryDirectReadPCollectionRowTupleTransform(
-        BigQueryDirectReadSchemaTransformConfiguration configuration) {
       this.configuration = configuration;
     }
 

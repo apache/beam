@@ -226,9 +226,128 @@ class SumGlobally(beam.PTransform):
     return pcoll | beam.CombineGlobally(sum).without_defaults()
 
 
+class SizeLimiter(beam.PTransform):
+  def __init__(self, limit, error_handling):
+    self._limit = limit
+    self._error_handling = error_handling
+
+  def expand(self, pcoll):
+    def raise_on_big(element):
+      if len(element) > self._limit:
+        raise ValueError(element)
+      else:
+        return element
+
+    good, bad = pcoll | beam.Map(raise_on_big).with_exception_handling()
+    return {'small_elements': good, self._error_handling['output']: bad}
+
+
 TEST_PROVIDERS = {
-    'CreateTimestamped': CreateTimestamped, 'SumGlobally': SumGlobally
+    'CreateTimestamped': CreateTimestamped,
+    'SumGlobally': SumGlobally,
+    'SizeLimiter': SizeLimiter,
 }
+
+
+class ErrorHandlingTest(unittest.TestCase):
+  def test_error_handling_outputs(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      result = p | YamlTransform(
+          '''
+          type: composite
+          transforms:
+            - type: Create
+              elements: ['a', 'b', 'biiiiig']
+            - type: SizeLimiter
+              limit: 5
+              input: Create
+              error_handling:
+                output: errors
+            - name: TrimErrors
+              type: PyMap
+              input: SizeLimiter.errors
+              fn: "lambda x: x[1][1]"
+          output:
+            good: SizeLimiter
+            bad: TrimErrors
+          ''',
+          providers=TEST_PROVIDERS)
+      assert_that(result['good'], equal_to(['a', 'b']), label="CheckGood")
+      assert_that(result['bad'], equal_to(["ValueError('biiiiig')"]))
+
+  def test_must_handle_error_output(self):
+    with self.assertRaisesRegex(Exception, 'Unconsumed error output .*line 6'):
+      with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+          pickle_library='cloudpickle')) as p:
+        _ = p | YamlTransform(
+            '''
+            type: composite
+            transforms:
+              - type: Create
+                elements: ['a', 'b', 'biiiiig']
+              - type: SizeLimiter
+                limit: 5
+                input: Create
+                error_handling:
+                  output: errors
+            ''',
+            providers=TEST_PROVIDERS)
+
+  def test_mapping_errors(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      result = p | YamlTransform(
+          '''
+          type: composite
+          transforms:
+            - type: Create
+              elements: [0, 1, 2, 4]
+            - type: PyMap
+              name: ToRow
+              input: Create
+              fn: "lambda x: beam.Row(num=x, str='a' * x or 'bbb')"
+            - type: MapToFields
+              name: MapWithErrorHandling
+              input: ToRow
+              language: python
+              fields:
+                num: num
+                inverse: float(1 / num)
+              keep:
+                str[1] >= 'a'
+              error_handling:
+                output: errors
+            - type: PyMap
+              name: TrimErrors
+              input: MapWithErrorHandling.errors
+              fn: "lambda x: x.msg"
+            - type: MapToFields
+              name: Sum
+              language: python
+              input: MapWithErrorHandling
+              append: True
+              fields:
+                sum: num + inverse
+          output:
+            good: Sum
+            bad: TrimErrors
+          ''',
+          providers=TEST_PROVIDERS)
+      assert_that(
+          result['good'],
+          equal_to([
+              beam.Row(num=2, inverse=.5, sum=2.5),
+              beam.Row(num=4, inverse=.25, sum=4.25)
+          ]),
+          label="CheckGood")
+      assert_that(
+          result['bad'],
+          equal_to([
+              "IndexError('string index out of range')",  # from the filter
+              "ZeroDivisionError('division by zero')",  # from the mapping
+          ]),
+          label='CheckErrors')
 
 
 class YamlWindowingTest(unittest.TestCase):

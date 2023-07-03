@@ -192,6 +192,11 @@ class Scope(LightweightScope):
       if len(outputs) == 1:
         return only_element(outputs.values())
       else:
+        error_output = self._transforms_by_uuid[self.get_transform_id(
+            name)].get('error_handling', {}).get('output')
+        if error_output and error_output in outputs and len(outputs) == 2:
+          return next(
+              output for tag, output in outputs.items() if tag != error_output)
         raise ValueError(
             f'Ambiguous output at line {SafeLineLoader.get_line(name)}: '
             f'{name} has outputs {list(outputs.keys())}')
@@ -655,6 +660,34 @@ def preprocess_flattened_inputs(spec):
   return dict(spec, transforms=new_transforms)
 
 
+def ensure_transforms_have_types(spec):
+  if 'type' not in spec:
+    raise ValueError(f'Missing type specification in {identify_object(spec)}')
+  return spec
+
+
+def ensure_errors_consumed(spec):
+  if spec['type'] == 'composite':
+    scope = LightweightScope(spec['transforms'])
+    to_handle = {}
+    consumed = set(
+        scope.get_transform_id_and_output_name(output)
+        for output in spec['output'].values())
+    for t in spec['transforms']:
+      if 'error_handling' in t:
+        if 'output' not in t['error_handling']:
+          raise ValueError(
+              f'Missing output in error_handling of {identify_object(t)}')
+        to_handle[t['__uuid__'], t['error_handling']['output']] = t
+      for _, input in t['input'].items():
+        if input not in spec['input']:
+          consumed.add(scope.get_transform_id_and_output_name(input))
+    for error_pcoll, t in to_handle.items():
+      if error_pcoll not in consumed:
+        raise ValueError(f'Unconsumed error output for {identify_object(t)}.')
+  return spec
+
+
 def preprocess(spec, verbose=False):
   if verbose:
     pprint.pprint(spec)
@@ -666,10 +699,12 @@ def preprocess(spec, verbose=False):
           spec, transforms=[apply(phase, t) for t in spec['transforms']])
     return spec
 
-  for phase in [preprocess_source_sink,
+  for phase in [ensure_transforms_have_types,
+                preprocess_source_sink,
                 preprocess_chain,
                 normalize_inputs_outputs,
                 preprocess_flattened_inputs,
+                ensure_errors_consumed,
                 preprocess_windowing]:
     spec = apply(phase, spec)
     if verbose:
