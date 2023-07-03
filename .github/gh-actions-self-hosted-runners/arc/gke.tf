@@ -26,26 +26,68 @@ resource "google_container_cluster" "actions-runner-gke" {
   remove_default_node_pool = true
 
 }
-resource "google_container_node_pool" "actions-runner-pool" {
+resource "google_container_node_pool" "main-actions-runner-pool" {
   name       = "main-pool"
   cluster    = google_container_cluster.actions-runner-gke.name
   location   = google_container_cluster.actions-runner-gke.location
   autoscaling {
-    min_node_count = var.min_main_node_count
-    max_node_count = var.max_main_node_count
+    min_node_count = var.main_runner.min_node_count
+    max_node_count = var.main_runner.max_node_count
    }
+   initial_node_count = var.main_runner.min_node_count
   management {
     auto_repair  = "true"
     auto_upgrade = "true"
    }
   node_config {
-    machine_type    = var.machine_type
+    machine_type    = var.main_runner.machine_type
     oauth_scopes = [
       "https://www.googleapis.com/auth/cloud-platform"
     ]
     tags = ["actions-runner-pool"]
    }
 }
+
+resource "google_container_node_pool" "additional_runner_pools" {
+  for_each = {
+    for index, runner_pool in var.additional_runner_pools : runner_pool.name => runner_pool
+  }
+
+  name       = each.value.name
+  cluster    = google_container_cluster.actions-runner-gke.name
+  location   = google_container_cluster.actions-runner-gke.location
+  autoscaling {
+    min_node_count = each.value.min_node_count
+    max_node_count = each.value.max_node_count
+   }
+   initial_node_count = each.value.min_node_count
+  management {
+    auto_repair  = "true"
+    auto_upgrade = "true"
+   }
+  node_config {
+    machine_type    = each.value.machine_type
+    oauth_scopes = [
+      "https://www.googleapis.com/auth/cloud-platform"
+    ]
+    tags = ["actions-runner-pool"]
+    labels = {
+      "runner-pool" = each.value.name
+    }
+   
+    dynamic "taint" {
+      for_each = each.value.enable_taint == true ? [1] : []
+      content {
+        key = "runner-pool"
+        value = each.value.name
+        effect = "NO_SCHEDULE"
+        }
+    }
+   }
+
+}
+
+
 resource "google_compute_global_address" "actions-runner-ip" {
   name      = "${var.environment}-actions-runner-ip"
 }

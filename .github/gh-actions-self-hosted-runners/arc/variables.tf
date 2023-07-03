@@ -89,3 +89,61 @@ variable "webhook_scaling" {
     default = "false"
   
 }
+
+variable "main_runner" {
+    type = object({
+      name = string
+      machine_type = optional(string, "e2-standard-2")
+      min_node_count = optional(number, 1)
+      max_node_count = optional(number, 1)
+      min_replicas = optional(number, 1)
+      max_replicas = optional(number, 1)
+      webhook_scaling = optional(bool, false)
+      runner_image = optional(string, "summerwind/actions-runner:v2.304.0-ubuntu-20.04-30355f7")
+      labels = optional(list(string), ["self-hosted", "ubuntu-20.04","main"])
+      enable_selector = optional(bool, false)
+      enable_taint = optional(bool, false)
+      requests = optional(object({
+        cpu = string
+        memory = string
+        }), { cpu = "500m",
+              memory = "500Mi" 
+        })
+      limits = optional(object({
+        cpu = optional(string)
+        memory = optional(string)
+        }), {
+            cpu = "",
+            memory = ""
+        })
+    })
+}
+variable "additional_runner_pools" {
+    type = list(object({
+      name = string
+      machine_type = optional(string, "e2-standard-2")
+      min_node_count = optional(number, 1)
+      max_node_count = optional(number, 1)
+      min_replicas = optional(number, 1)
+      max_replicas = optional(number, 1)
+      webhook_scaling = optional(bool, false)
+      runner_image = optional(string, "summerwind/actions-runner:v2.304.0-ubuntu-20.04-30355f7")
+      labels = optional(list(string), ["self-hosted", "ubuntu-20.04","main"])
+      enable_selector = optional(bool, true)
+      enable_taint = optional(bool, true)
+      requests = optional(object({
+        cpu = string
+        memory = string
+        }), { cpu = "500m",
+              memory = "500Mi" 
+        })
+      limits = optional(object({
+        cpu = optional(string)
+        memory = optional(string)
+        }), {
+            cpu = "",
+            memory = ""
+        })
+    }))
+    default = []
+}
