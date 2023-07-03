@@ -45,8 +45,11 @@ RUN curl -OL https://services.gradle.org/distributions/gradle-7.3.3-bin.zip && \
     rm gradle-7.3.3-bin.zip && \
     mv gradle-7.3.3 /usr/local/gradle
 ENV PATH="${PATH}:/usr/local/gradle/bin"
-
-
+#Install GitHub CLI
+RUN curl -OL https://github.com/cli/cli/releases/download/v2.31.0/gh_2.31.0_linux_amd64.tar.gz && \
+    tar -xvf gh_2.31.0_linux_amd64.tar.gz && \
+    rm gh_2.31.0_linux_amd64.tar.gz && \
+    mv gh_2.31.0_linux_amd64/bin/gh /usr/local/bin 
 # Needed to transfer path addtitions to runner environment
 RUN echo PATH=$PATH >> /runnertmp/.env
 USER runner
