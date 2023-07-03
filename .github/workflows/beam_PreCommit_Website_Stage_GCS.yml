@@ -27,12 +27,27 @@ on:
     types: [created]
   schedule:
     - cron: '* */6 * * *'
+#Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
+permissions:
+  actions: write
+  pull-requests: read
+  checks: read
+  contents: read
+  deployments: read
+  id-token: read
+  issues: read
+  discussions: read
+  packages: read
+  pages: read
+  repository-projects: read
+  security-events: read
+  statuses: read
 
 jobs:
     beam_PreCommit_Website_Stage_GCS:
         if: github.event_name == 'push' || github.event_name == 'pull_request_target' || github.event_name == 'schedule' || github.event.comment.body == 'Run Website_Stage_GCS PreCommit'
         runs-on: [self-hosted, ubuntu-20.04]
-        name: "PreCommit Website Stage GCS"
+        name: "beam_PreCommit_Website_Stage_GCS"
         steps:
           - name: Git checkout
             uses: actions/checkout@v3
@@ -42,6 +57,15 @@ jobs:
               requires-py-37: false
               requires-py-39: false
               requires-go: false
+          - name: Rerun on comment
+            if: github.event.comment.body == 'Run Website_Stage_GCS PreCommit'
+            uses: ./.github/actions/rerun-job-action
+            with:
+              pull_request_url: ${{ github.event.issue.pull_request.url }}
+              github_repository: ${{ github.repository }}
+              github_token: ${{ secrets.GITHUB_TOKEN }}
+              github_job: ${{ github.job }}
+              github_current_run_id: ${{ github.run_id }}
           - name: Setup Gradle
             uses: gradle/gradle-build-action@v2
             with:
