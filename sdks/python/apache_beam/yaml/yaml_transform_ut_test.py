@@ -28,6 +28,7 @@ from apache_beam.yaml.yaml_transform import Scope
 from apache_beam.yaml.yaml_transform import chain_as_composite
 from apache_beam.yaml.yaml_transform import expand_composite_transform
 from apache_beam.yaml.yaml_transform import expand_leaf_transform
+from apache_beam.yaml.yaml_transform import normalize_source_sink
 from apache_beam.yaml.yaml_transform import pipeline_as_composite
 
 
@@ -375,3 +376,68 @@ class MainTest(unittest.TestCase):
     spec = yaml.load(spec, Loader=SafeLineLoader)
     result = chain_as_composite(spec)
     self.assertEqual(result['transforms'][0]['input'], {"input": "input"})
+
+  def test_normalize_source_sink(self):
+    spec = '''
+        source:
+          type: Create
+          elements: [0,1,2]
+        transforms:
+        - type: PyMap
+          fn: 'lambda x: x*x'
+        sink:
+          type: PyMap
+          fn: "lambda x: x + 41"
+      '''
+    spec = yaml.load(spec, Loader=SafeLineLoader)
+    result = normalize_source_sink(spec)
+    self.assertTrue('source' not in result)
+    self.assertTrue('sink' not in result)
+    self.assertEqual(len(result['transforms']), 3)
+    self.assertEqual(result['transforms'][0], spec['source'])
+    self.assertEqual(result['transforms'][2], spec['sink'])
+
+  def test_normalize_source_sink_only_source(self):
+    spec = '''
+        source:
+          type: Create
+          elements: [0,1,2]
+        transforms:
+        - type: PyMap
+          fn: 'lambda x: x*x'
+       
+      '''
+    spec = yaml.load(spec, Loader=SafeLineLoader)
+    result = normalize_source_sink(spec)
+    self.assertTrue('source' not in result)
+    self.assertTrue('sink' not in result)
+    self.assertEqual(len(result['transforms']), 2)
+    self.assertEqual(result['transforms'][0], spec['source'])
+
+  def test_normalize_source_sink_only_sink(self):
+    spec = '''
+        transforms:
+        - type: PyMap
+          fn: 'lambda x: x*x'
+        sink:
+          type: PyMap
+          fn: "lambda x: x + 41"
+      '''
+    spec = yaml.load(spec, Loader=SafeLineLoader)
+    result = normalize_source_sink(spec)
+    self.assertTrue('source' not in result)
+    self.assertTrue('sink' not in result)
+    self.assertEqual(len(result['transforms']), 2)
+    self.assertEqual(result['transforms'][1], spec['sink'])
+
+  def test_normalize_source_sink_no_source_no_sink(self):
+    spec = '''
+        transforms:
+        - type: PyMap
+          fn: 'lambda x: x*x'
+      '''
+    spec = yaml.load(spec, Loader=SafeLineLoader)
+    result = normalize_source_sink(spec)
+    self.assertTrue('source' not in result)
+    self.assertTrue('sink' not in result)
+    self.assertEqual(len(result['transforms']), 1)
