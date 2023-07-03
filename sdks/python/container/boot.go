@@ -92,15 +92,11 @@ func main() {
 			"--container_executable=/opt/apache/beam/boot",
 		}
 		log.Printf("Starting worker pool %v: python %v", workerPoolId, strings.Join(args, " "))
-		pythonVersion,err := expansionx.getPythonVersion()
-		if err == nil{
-			if err := execx.Execute(pythonVersion, args...); err != nil {
-				log.Fatalf("Python SDK worker pool exited with error: %v", err)
-			}
+		if pythonVersion, err := expansionx.getPythonVersion(); err != nil {
 			log.Print("Python SDK worker pool exited.")
 			os.Exit(0)
 		}
-	}
+		log.Fatalf("Python SDK worker pool exited with error: %v", err)
 
 	if *id == "" {
 		log.Fatalf("No id provided.")
@@ -334,10 +330,13 @@ func setupVenv(ctx context.Context, logger *tools.Logger, baseDir, workerId stri
 	if err := os.MkdirAll(dir, 0750); err != nil {
 		return "", fmt.Errorf("failed to create Python venv directory: %s", err)
 	}
-	if err := execx.Execute("python3", "-m", "venv", "--system-site-packages", dir); err != nil {
+	pythonVersion, err := expansionx.getPythonVersion()
+	if err != nil {
+		return "", fmt.Errorf("python interpreter is not available.")
+	}
+	if err := execx.Execute(pythonVersion, "-m", "venv", "--system-site-packages", dir); err != nil {
 		return "", fmt.Errorf("python venv initialization failed: %s", err)
 	}
-
 	os.Setenv("VIRTUAL_ENV", dir)
 	os.Setenv("PATH", strings.Join([]string{filepath.Join(dir, "bin"), os.Getenv("PATH")}, ":"))
 	return dir, nil

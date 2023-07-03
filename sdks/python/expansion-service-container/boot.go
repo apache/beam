@@ -66,10 +66,11 @@ func launchExpansionServiceProcess() error {
 
 	args := []string{"-m", expansionServiceEntrypoint, "-p", strconv.Itoa(*port), "--fully_qualified_name_glob", "*"}
 	pythonVersion,err := expansionx.getPythonVersion()
-	if err == nil{
-		if err := execx.Execute(pythonVersion, args...); err != nil {
-			return fmt.Errorf("Could not start the expansion service: %s", err)
-		}
+	if(err!=nil){
+		return fmt.Errorf("Python interpreter is not available")
+	}
+	if err := execx.Execute(pythonVersion, args...); err != nil {
+		return fmt.Errorf("Could not start the expansion service: %s", err)
 	}
 	return nil
 }

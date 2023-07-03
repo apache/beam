@@ -38,18 +38,20 @@ func pipInstallRequirements(files []string, dir, name string) error {
 			// option will make sure that only things staged in the worker will be
 			// used without following their dependencies.
 			args := []string{"-m", "pip", "install", "-r", filepath.Join(dir, name), "--no-cache-dir", "--disable-pip-version-check", "--no-index", "--no-deps", "--find-links", dir}
-			pythonVersion,err := expansionx.getPythonVersion()
-			if err == nil {
-				if err := execx.Execute(pythonVersion, args...); err != nil {
-					fmt.Println("Some packages could not be installed solely from the requirements cache. Installing packages from PyPI.")
-				}
-				// The second install round opens up the search for packages on PyPI and
-				// also installs dependencies. The key is that if all the packages have
-				// been installed in the first round then this command will be a no-op.
-				args = []string{"-m", "pip", "install", "-r", filepath.Join(dir, name), "--no-cache-dir", "--disable-pip-version-check", "--find-links", dir}
-				return execx.Execute("python", args...)
+			pythonVersion, err := expansionx.getPythonVersion()
+			if err != nil {
+				fmt.Println("Some packages could not be installed solely from the requirements cache. Installing packages from PyPI.")
+				return fmt.Errorf("Python interpreter is not available: %v", err)
 			}
-			return fmt.Errorf("Python interpreter is not available")
+			// The second install round opens up the search for packages on PyPI and
+			// also installs dependencies. The key is that if all the packages have
+			// been installed in the first round then this command will be a no-op.
+			args = []string{"-m", "pip", "install", "-r", filepath.Join(dir, name), "--no-cache-dir", "--disable-pip-version-check", "--find-links", dir}
+			if err := execx.Execute(pythonVersion, args...); err != nil {
+				return fmt.Errorf("Could not start the expansion service: %v", err)
+			}
+			return nil
+
 		}
 	}
 	return nil
@@ -57,6 +59,10 @@ func pipInstallRequirements(files []string, dir, name string) error {
 
 // pipInstallPackage installs the given package, if present.
 func pipInstallPackage(files []string, dir, name string, force, optional bool, extras []string) error {
+	pythonVersion, err := expansionx.getPythonVersion()
+	if err != nil {
+		return fmt.Errorf("python interpreter is not available.")
+	}
 	for _, file := range files {
 		if file == name {
 			var packageSpec = name
@@ -82,17 +88,17 @@ func pipInstallPackage(files []string, dir, name string, force, optional bool, e
 				// installed if necessary.  This achieves our goal outlined above.
 				args := []string{"-m", "pip", "install", "--no-cache-dir", "--disable-pip-version-check", "--upgrade", "--force-reinstall", "--no-deps",
 					filepath.Join(dir, packageSpec)}
-				err := execx.Execute("python3", args...)
+				err = execx.Execute(pythonVersion, args...)
 				if err != nil {
 					return err
 				}
 				args = []string{"-m", "pip", "install", "--no-cache-dir", "--disable-pip-version-check", filepath.Join(dir, packageSpec)}
-				return execx.Execute("python3", args...)
+				return execx.Execute(pythonVersion, args...)
 			}
 
 			// Case when we do not perform a forced reinstall.
 			args := []string{"-m", "pip", "install", "--no-cache-dir", "--disable-pip-version-check", filepath.Join(dir, packageSpec)}
-			return execx.Execute("python3", args...)
+			return execx.Execute(pythonVersion, args...)
 		}
 	}
 	if optional {
