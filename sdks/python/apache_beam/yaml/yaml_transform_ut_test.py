@@ -33,6 +33,7 @@ from apache_beam.yaml.yaml_transform import identify_object
 from apache_beam.yaml.yaml_transform import normalize_inputs_outputs
 from apache_beam.yaml.yaml_transform import normalize_source_sink
 from apache_beam.yaml.yaml_transform import pipeline_as_composite
+from apache_beam.yaml.yaml_transform import push_windowing_to_roots
 
 
 class YamlTransformTest(unittest.TestCase):
@@ -570,3 +571,29 @@ class MainTest(unittest.TestCase):
     spec = yaml.load(spec, Loader=SafeLineLoader)
     result = extract_name(spec)
     self.assertEqual(result, "")
+
+  def test_push_windowing_to_roots(self):
+    spec = '''
+      type: composite
+      transforms:
+      - type: Create
+        elements: [0,1,2]
+      - type: PyMap
+        fn: 'lambda x: x*x'
+        input: Create
+      windowing:
+        type: fixed
+        size: 2
+        
+    '''
+    spec = yaml.load(spec, Loader=SafeLineLoader)
+    spec = normalize_inputs_outputs(spec)
+    spec['transforms'] = [
+        normalize_inputs_outputs(t) for t in spec['transforms']
+    ]
+    result = push_windowing_to_roots(spec)
+    self.assertCountEqual(
+        result['transforms'][0]['windowing'], spec['windowing'])
+    self.assertEqual(result['transforms'][0]['__consumed_outputs'], {None})
+    self.assertTrue('windowing' not in result['transforms'][1])
+    self.assertTrue('__consumed_outputs' not in result['transforms'][1])
