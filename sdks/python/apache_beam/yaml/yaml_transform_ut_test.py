@@ -28,6 +28,7 @@ from apache_beam.yaml.yaml_transform import Scope
 from apache_beam.yaml.yaml_transform import chain_as_composite
 from apache_beam.yaml.yaml_transform import expand_composite_transform
 from apache_beam.yaml.yaml_transform import expand_leaf_transform
+from apache_beam.yaml.yaml_transform import normalize_inputs_outputs
 from apache_beam.yaml.yaml_transform import normalize_source_sink
 from apache_beam.yaml.yaml_transform import pipeline_as_composite
 
@@ -480,3 +481,34 @@ class MainTest(unittest.TestCase):
     spec = yaml.load(spec, Loader=SafeLineLoader)
     result = normalize_source_sink(spec)
     self.assertCountEqual(result, spec)
+
+  def test_normalize_inputs_outputs(self):
+    spec = '''
+        type: PyMap
+        input: [Create1, Create2]
+        fn: 'lambda x: x*x'
+        output: Squared
+      '''
+    spec = yaml.load(spec, Loader=SafeLineLoader)
+    result = normalize_inputs_outputs(spec)
+    self.assertCountEqual(result['input'], {"input": ["Create1", "Create2"]})
+    self.assertCountEqual(result['output'], {"output": "Squared"})
+
+  def test_normalize_inputs_outputs_dict(self):
+    spec = '''
+        type: PyMap
+        input: [Create1, Create2]
+        fn: 'lambda x: x*x'
+        output: 
+          out1: Squared1
+          out2: Squared2
+      '''
+    spec = yaml.load(spec, Loader=SafeLineLoader)
+    result = normalize_inputs_outputs(spec)
+    self.assertCountEqual(result['input'], {"input": ["Create1", "Create2"]})
+    self.assertCountEqual(
+        result['output'], {
+            "out1": "Squared1", "out2": "Squared2"
+        })
+    self.assertTrue("__uuid__" not in result['output'])
+    self.assertTrue("__line_" not in result['output'])
