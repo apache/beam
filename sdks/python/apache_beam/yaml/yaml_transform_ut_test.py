@@ -20,28 +20,26 @@ import unittest
 import yaml
 
 import apache_beam as beam
+from apache_beam import PCollection
 from apache_beam.yaml import yaml_provider
-from apache_beam.yaml import yaml_transform
 from apache_beam.yaml.yaml_transform import LightweightScope
 from apache_beam.yaml.yaml_transform import SafeLineLoader
 from apache_beam.yaml.yaml_transform import Scope
 from apache_beam.yaml.yaml_transform import chain_as_composite
+from apache_beam.yaml.yaml_transform import ensure_errors_consumed
 from apache_beam.yaml.yaml_transform import ensure_transforms_have_types
 from apache_beam.yaml.yaml_transform import expand_composite_transform
 from apache_beam.yaml.yaml_transform import expand_leaf_transform
+from apache_beam.yaml.yaml_transform import expand_pipeline
 from apache_beam.yaml.yaml_transform import extract_name
 from apache_beam.yaml.yaml_transform import identify_object
 from apache_beam.yaml.yaml_transform import normalize_inputs_outputs
 from apache_beam.yaml.yaml_transform import normalize_source_sink
+from apache_beam.yaml.yaml_transform import only_element
 from apache_beam.yaml.yaml_transform import pipeline_as_composite
 from apache_beam.yaml.yaml_transform import preprocess_flattened_inputs
 from apache_beam.yaml.yaml_transform import preprocess_windowing
 from apache_beam.yaml.yaml_transform import push_windowing_to_roots
-
-
-class YamlTransformTest(unittest.TestCase):
-  def test_only_element(self):
-    self.assertEqual(yaml_transform.only_element((1, )), 1)
 
 
 class SafeLineLoaderTest(unittest.TestCase):
@@ -849,3 +847,109 @@ class MainTest(unittest.TestCase):
     spec = yaml.load(spec, Loader=SafeLineLoader)
     with self.assertRaisesRegex(ValueError, r"Missing type .*"):
       ensure_transforms_have_types(copy.deepcopy(spec))
+
+  def test_ensure_errors_consumed_unconsumed(self):
+    spec = '''
+      type: composite
+      transforms:
+        - type: Create
+          elements: [1,2,3]
+        - type: MyTransform
+          input: Create
+          error_handling:
+            output: errors
+      output:
+        good: MyTransform
+    '''
+    spec = yaml.load(spec, Loader=SafeLineLoader)
+    spec = normalize_inputs_outputs(spec)
+    spec['transforms'] = [
+        normalize_inputs_outputs(t) for t in spec['transforms']
+    ]
+    with self.assertRaisesRegex(ValueError, r"Unconsumed error.*"):
+      ensure_errors_consumed(spec)
+
+  def test_ensure_errors_consumed_in_transform(self):
+    spec = '''
+      type: composite
+      transforms:
+        - type: Create
+          elements: [1,2,3]
+        - type: MyTransform
+          input: Create
+          error_handling:
+            output: errors
+        - name: SaveToFile
+          type: PyMap
+          input: MyTransform.errors
+      output:
+        good: MyTransform
+    '''
+    spec = yaml.load(spec, Loader=SafeLineLoader)
+    spec = normalize_inputs_outputs(spec)
+    spec['transforms'] = [
+        normalize_inputs_outputs(t) for t in spec['transforms']
+    ]
+    result = ensure_errors_consumed(copy.deepcopy(spec))
+    self.assertCountEqual(result, spec)
+    self.assertCountEqual(result['transforms'], spec['transforms'])
+
+  def test_ensure_errors_consumed_no_output_in_error_handling(self):
+    spec = '''
+      type: composite
+      transforms:
+        - type: Create
+          elements: [1,2,3]
+        - type: MyTransform
+          input: Create
+          error_handling:
+            arg: errors
+        - name: SaveToFile
+          type: PyMap
+          input: MyTransform.errors
+      output:
+        good: MyTransform
+    '''
+    spec = yaml.load(spec, Loader=SafeLineLoader)
+    spec = normalize_inputs_outputs(spec)
+    spec['transforms'] = [
+        normalize_inputs_outputs(t) for t in spec['transforms']
+    ]
+    with self.assertRaisesRegex(ValueError, r"Missing output.*"):
+      ensure_errors_consumed(spec)
+
+  def test_expand_pipeline_with_string_spec(self):
+    with new_pipeline() as p:
+      spec = '''
+        pipeline:
+          type: chain
+          transforms:
+            - type: Create
+              elements: [1,2,3]
+            - type: PyMap
+              fn: 'lambda x: x*x'
+      '''
+      result = expand_pipeline(p, spec)
+
+      self.assertIsInstance(result, PCollection)
+      self.assertEqual(str(result), 'PCollection[Map(lambda x: x*x).None]')
+
+  def test_expand_pipeline_with_spec(self):
+    with new_pipeline() as p:
+      spec = '''
+        pipeline:
+          type: chain
+          transforms:
+            - type: Create
+              elements: [1,2,3]
+            - type: PyMap
+              fn: 'lambda x: x*x'
+      '''
+      spec = yaml.load(spec, Loader=SafeLineLoader)
+      result = expand_pipeline(p, spec)
+
+      self.assertIsInstance(result, PCollection)
+      self.assertEqual(str(result), 'PCollection[Map(lambda x: x*x).None]')
+
+  def test_only_element(self):
+    self.assertEqual(only_element((1, )), 1)
