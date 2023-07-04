@@ -26,6 +26,7 @@ from apache_beam.yaml.yaml_transform import LightweightScope
 from apache_beam.yaml.yaml_transform import SafeLineLoader
 from apache_beam.yaml.yaml_transform import Scope
 from apache_beam.yaml.yaml_transform import chain_as_composite
+from apache_beam.yaml.yaml_transform import ensure_transforms_have_types
 from apache_beam.yaml.yaml_transform import expand_composite_transform
 from apache_beam.yaml.yaml_transform import expand_leaf_transform
 from apache_beam.yaml.yaml_transform import extract_name
@@ -828,3 +829,23 @@ class MainTest(unittest.TestCase):
     self.assertIn("__uuid__", result_flatten)
 
     self.assertCountEqual(result_pymap, spec['transforms'][1])
+
+  def test_ensure_transforms_have_types(self):
+    spec = '''
+      type: PyMap
+      fn: 'lambda x: x*x'
+      input: Flatten
+    '''
+    spec = yaml.load(spec, Loader=SafeLineLoader)
+    result = ensure_transforms_have_types(copy.deepcopy(spec))
+    self.assertCountEqual(result, spec)
+
+  def test_ensure_transforms_have_types_error(self):
+    spec = '''
+      name: PyMap
+      fn: 'lambda x: x*x'
+      input: Flatten
+    '''
+    spec = yaml.load(spec, Loader=SafeLineLoader)
+    with self.assertRaisesRegex(ValueError, r"Missing type .*"):
+      ensure_transforms_have_types(copy.deepcopy(spec))
