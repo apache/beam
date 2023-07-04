@@ -918,10 +918,16 @@ public class AvroUtils {
     LogicalType logicalType = LogicalTypes.fromSchema(avroSchema);
     if (logicalType != null) {
       if (logicalType instanceof LogicalTypes.Decimal) {
-        LogicalTypes.Decimal decimal = (LogicalTypes.Decimal)logicalType;
-        if (decimal.getScale()!=0 || !(decimal.getPrecision()==-1 || decimal.getPrecision()==Integer.MAX_VALUE)) { // these are constants from JdbcIO are they applicable here?
-          fieldType = FieldType.logicalType(FixedPrecisionNumeric.of(decimal.getPrecision(), decimal.getScale()));
-        }else {
+        LogicalTypes.Decimal decimal = (LogicalTypes.Decimal) logicalType;
+        if (decimal.getScale() != 0
+            || !(decimal.getPrecision() == -1
+                || decimal.getPrecision()
+                    == Integer
+                        .MAX_VALUE)) { // these are constants from JdbcIO are they applicable here?
+          fieldType =
+              FieldType.logicalType(
+                  FixedPrecisionNumeric.of(decimal.getPrecision(), decimal.getScale()));
+        } else {
           fieldType = FieldType.DECIMAL;
         }
       } else if (logicalType instanceof LogicalTypes.TimestampMillis) {
@@ -1142,6 +1148,10 @@ public class AvroUtils {
     switch (fieldType.getTypeName()) {
       case BYTE:
       case INT16:
+        if (Type.INT.equals(typeWithNullability.getType().getType())) {
+          return ((Number) value).intValue();
+        }
+        // fall through
       case INT32:
       case INT64:
       case FLOAT:
@@ -1183,8 +1193,10 @@ public class AvroUtils {
           }
           return GenericData.get().createFixed(null, (byte[]) value, typeWithNullability.type);
         } else if (FixedPrecisionNumeric.IDENTIFIER.equals(identifier)) {
-          return new Conversions.DecimalConversion().toBytes((BigDecimal) value, null, typeWithNullability.type.getLogicalType());
-        } if (VariableBytes.IDENTIFIER.equals(identifier)) {
+          return new Conversions.DecimalConversion()
+              .toBytes((BigDecimal) value, null, typeWithNullability.type.getLogicalType());
+        }
+        if (VariableBytes.IDENTIFIER.equals(identifier)) {
           return GenericData.get().createFixed(null, (byte[]) value, typeWithNullability.type);
         } else if (FixedString.IDENTIFIER.equals(identifier)
             || "CHAR".equals(identifier)
@@ -1288,7 +1300,11 @@ public class AvroUtils {
         BigDecimal bigDecimal =
             new Conversions.DecimalConversion()
                 .fromBytes(byteBuffer.duplicate(), type.type, logicalType);
-        return convertDecimal(bigDecimal, fieldType);
+        return convertDecimal(
+            bigDecimal,
+            fieldType.getLogicalType() != null
+                ? fieldType.getLogicalType().getBaseType()
+                : fieldType);
       } else if (logicalType instanceof LogicalTypes.TimestampMillis) {
         if (value instanceof ReadableInstant) {
           return convertDateTimeStrict(((ReadableInstant) value).getMillis(), fieldType);
@@ -1318,12 +1334,7 @@ public class AvroUtils {
         return convertStringStrict((CharSequence) value, fieldType);
 
       case INT:
-        Number num = (Number) value;
-        if (num instanceof Integer || num instanceof Byte || num instanceof Short) {
-          return convertIntStrict(num.intValue(), fieldType);
-        } else {
-          throw new IllegalArgumentException("Unable to convert " + value.getClass() + " into " + type.type.getType());
-        }
+        return convertIntStrict((Integer) value, fieldType);
 
       case LONG:
         return convertLongStrict((Long) value, fieldType);
@@ -1388,8 +1399,12 @@ public class AvroUtils {
   }
 
   private static Object convertIntStrict(Integer value, FieldType fieldType) {
-    checkTypeName(fieldType.getTypeName(), TypeName.INT32, "int");
-    return value;
+    if (TypeName.INT16.equals(fieldType.getTypeName())) {
+      return value.shortValue();
+    } else {
+      checkTypeName(fieldType.getTypeName(), TypeName.INT32, "int");
+      return value;
+    }
   }
 
   private static Object convertLongStrict(Long value, FieldType fieldType) {

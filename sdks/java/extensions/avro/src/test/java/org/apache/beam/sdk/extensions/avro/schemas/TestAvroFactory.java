@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.avro.schemas;
 
 import java.lang.reflect.Constructor;
+import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
@@ -35,13 +36,14 @@ public class TestAvroFactory {
   public static TestAvro newInstance(
       Boolean boolNonNullable,
       Integer integer,
-      Short aShort, // TODO but there's no short in Avro
+      Integer aShort, // TODO but there's no short in Avro
       Long aLong,
       Float aFloat,
       Double aDouble,
       CharSequence string,
       ByteBuffer bytes,
       fixed4 fixed,
+      BigDecimal decimalScale,
       LocalDate date,
       DateTime timestampMillis,
       TestEnum testEnum,
@@ -61,6 +63,7 @@ public class TestAvroFactory {
                 CharSequence.class,
                 ByteBuffer.class,
                 fixed4.class,
+                BigDecimal.class,
                 org.joda.time.LocalDate.class,
                 org.joda.time.DateTime.class,
                 TestEnum.class,
@@ -72,13 +75,14 @@ public class TestAvroFactory {
             constructor.newInstance(
                 boolNonNullable,
                 integer,
-                    aShort.intValue(),
+                aShort,
                 aLong,
                 aFloat,
                 aDouble,
                 string,
                 bytes,
                 fixed,
+                decimalScale,
                 date,
                 timestampMillis,
                 testEnum,
@@ -90,13 +94,14 @@ public class TestAvroFactory {
             TestAvro.class.getDeclaredConstructor(
                 Boolean.class,
                 Integer.class,
-                Integer.class,//TODO Pardon there's no shorts in Avro
+                Integer.class, // TODO Pardon there's no shorts in Avro
                 Long.class,
                 Float.class,
                 Double.class,
                 CharSequence.class,
                 ByteBuffer.class,
                 fixed4.class,
+                BigDecimal.class,
                 java.time.LocalDate.class,
                 java.time.Instant.class,
                 TestEnum.class,
@@ -108,13 +113,14 @@ public class TestAvroFactory {
             constructor.newInstance(
                 boolNonNullable,
                 integer,
-                    aShort.intValue(),
+                aShort,
                 aLong,
                 aFloat,
                 aDouble,
                 string,
                 bytes,
                 fixed,
+                decimalScale,
                 java.time.LocalDate.of(date.getYear(), date.getMonthOfYear(), date.getDayOfMonth()),
                 java.time.Instant.ofEpochMilli(timestampMillis.getMillis()),
                 testEnum,

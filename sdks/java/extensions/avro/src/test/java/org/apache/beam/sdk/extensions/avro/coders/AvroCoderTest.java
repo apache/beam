@@ -33,6 +33,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -115,13 +116,14 @@ public class AvroCoderTest {
       TestAvroFactory.newInstance(
           true,
           43,
-              (short)42,
+          42,
           44L,
           44.1f,
           44.2d,
           "mystring",
           ByteBuffer.wrap(new byte[] {1, 2, 3, 4}),
           new fixed4(new byte[] {1, 2, 3, 4}),
+          BigDecimal.valueOf(12345, 2),
           new LocalDate(1979, 3, 14),
           new DateTime().withDate(1979, 3, 14).withTime(1, 2, 3, 4),
           TestEnum.abc,

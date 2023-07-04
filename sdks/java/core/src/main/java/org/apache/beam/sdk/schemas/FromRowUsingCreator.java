@@ -148,6 +148,8 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T> {
         Schema.LogicalType<ValueT, ValueT> logicalType =
             (Schema.LogicalType<ValueT, ValueT>) type.getLogicalType();
         return logicalType.toBaseType(value);
+      } else if ((TypeName.INT16.equals(type.getTypeName()) || TypeName.BYTE.equals(type.getTypeName())) && Integer.class.equals(fieldType)) {
+        return (ValueT) Integer.valueOf(((Number)value).intValue());// TODO ugly
       }
       return value;
     }
