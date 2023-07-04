@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
+import copy
 import unittest
 
 import yaml
@@ -33,6 +33,7 @@ from apache_beam.yaml.yaml_transform import identify_object
 from apache_beam.yaml.yaml_transform import normalize_inputs_outputs
 from apache_beam.yaml.yaml_transform import normalize_source_sink
 from apache_beam.yaml.yaml_transform import pipeline_as_composite
+from apache_beam.yaml.yaml_transform import preprocess_windowing
 from apache_beam.yaml.yaml_transform import push_windowing_to_roots
 
 
@@ -565,6 +566,7 @@ class MainTest(unittest.TestCase):
 
   def test_extract_name_no_name(self):
     spec = '''
+      transforms:
       - arg: PyMap
         fn: 'lambda x: x*x'
     '''
@@ -597,3 +599,169 @@ class MainTest(unittest.TestCase):
     self.assertEqual(result['transforms'][0]['__consumed_outputs'], {None})
     self.assertTrue('windowing' not in result['transforms'][1])
     self.assertTrue('__consumed_outputs' not in result['transforms'][1])
+
+  def test_preprocess_windowing_custom_type(self):
+    spec = '''
+      type: composite
+      transforms:
+        - type: CreateTimestamped
+          name: Create1
+          elements: [0, 2, 4]
+        - type: SumGlobally
+          input: Create1
+          windowing:
+            type: fixed
+            size: 4
+      output: SumGlobally
+    '''
+    spec = yaml.load(spec, Loader=SafeLineLoader)
+    spec = normalize_inputs_outputs(spec)
+    spec['transforms'] = [
+        normalize_inputs_outputs(t) for t in spec['transforms']
+    ]
+
+    spec_sum = spec['transforms'][1]
+    # Pass a copy of spec_sum, because preprocess_windowing modifies
+    # the dict (spec.pop('windowing'))
+    result = preprocess_windowing(dict(spec_sum))
+    # Get resulting WindowInto transform
+    result_window = ([
+        t for t in result['transforms'] if t['type'] == "WindowInto"
+    ][0])
+
+    # Get resulting SumGlobally transform
+    result_sum = ([
+        t for t in result['transforms'] if t['type'] == "SumGlobally"
+    ][0])
+
+    self.assertEqual(result['type'], "composite")
+    self.assertEqual(result['name'], "SumGlobally")
+    self.assertEqual(len(result['transforms']), 2)
+    self.assertCountEqual(result['input'], spec_sum['input'])
+    self.assertEqual(result['__line__'], spec_sum['__line__'])
+    self.assertEqual(result['__uuid__'], spec_sum['__uuid__'])
+
+    # SumGlobally's input is the output of WindowInto
+    self.assertEqual(result_sum['input']['input'], result_window["__uuid__"])
+
+    self.assertEqual(result_sum['type'], "SumGlobally")
+    self.assertNotEqual(result_sum['__uuid__'], spec_sum['__uuid__'])
+    self.assertNotIn('windowing', result_sum)
+    self.assertIn('__line__', result_sum)
+    self.assertIn('__uuid__', result_sum)
+
+    self.assertEqual(result_window['type'], "WindowInto")
+    self.assertEqual(result_window['name'], "WindowInto[input]")
+    self.assertCountEqual(result_window['windowing'], spec_sum['windowing'])
+    self.assertEqual(result_window['input'], "input")
+    self.assertIn('__line__', result_window)
+    self.assertIn('__uuid__', result_window)
+
+  def test_preprocess_windowing_composite_with_windowing_outer(self):
+    spec = '''
+      type: composite
+      transforms:
+        - type: CreateTimestamped
+          name: Create1
+          elements: [0, 2, 4]
+        - type: SumGlobally
+          input: Create1
+      windowing:
+        type: fixed
+        size: 4
+      output: SumGlobally
+    '''
+    spec = yaml.load(spec, Loader=SafeLineLoader)
+    spec = normalize_inputs_outputs(spec)
+    spec['transforms'] = [
+        normalize_inputs_outputs(t) for t in spec['transforms']
+    ]
+
+    # Pass a copy of spec_sum, because preprocess_windowing modifies
+    # the dict (spec.pop('windowing'))
+    result = preprocess_windowing(copy.deepcopy(spec))
+    self.assertNotIn('windowing', result)
+    self.assertCountEqual(
+        spec['windowing'], result['transforms'][0]['windowing'])
+
+  def test_preprocess_windowing_composite_with_windowing_on_input(self):
+    spec = '''
+      type: composite
+      transforms:
+        - type: CreateTimestamped
+          name: Create1
+          elements: [0, 2, 4]
+        - type: SumGlobally
+          input: Create1
+          windowing:
+            type: fixed
+            size: 4
+      output: SumGlobally
+    '''
+    spec = yaml.load(spec, Loader=SafeLineLoader)
+    spec = normalize_inputs_outputs(spec)
+    spec['transforms'] = [
+        normalize_inputs_outputs(t) for t in spec['transforms']
+    ]
+
+    # Pass a copy of spec_sum, because preprocess_windowing modifies
+    # the dict (spec.pop('windowing'))
+    result = preprocess_windowing(copy.deepcopy(spec))
+    self.assertCountEqual(spec, result)
+    self.assertEqual(spec['transforms'], result['transforms'])
+
+  def test_preprocess_windowing_other_type_with_no_inputs(self):
+    spec = '''
+      type: composite
+      transforms:
+        - type: CreateTimestamped
+          name: Create1
+          elements: [0, 2, 4]
+          windowing:
+            type: fixed
+            size: 4
+      output: CreateTimestamped
+    '''
+    spec = yaml.load(spec, Loader=SafeLineLoader)
+    spec = normalize_inputs_outputs(spec)
+    spec['transforms'] = [
+        normalize_inputs_outputs(t) for t in spec['transforms']
+    ]
+
+    # Pass a copy of spec_sum, because preprocess_windowing modifies
+    # the dict (spec.pop('windowing'))
+    spec = preprocess_windowing(copy.deepcopy(spec))
+    spec = spec['transforms'][0]
+    result = preprocess_windowing(copy.deepcopy(spec))
+
+    # Get resulting WindowInto transform
+    result_window = ([
+        t for t in result['transforms'] if t['type'] == "WindowInto"
+    ][0])
+
+    # Get resulting SumGlobally transform
+    result_create = ([
+        t for t in result['transforms'] if t['type'] == "CreateTimestamped"
+    ][0])
+
+    self.assertEqual(result['type'], "composite")
+    self.assertEqual(result['name'], "Create1")
+    self.assertEqual(len(result['transforms']), 2)
+    self.assertEqual(result['output'], result_window['__uuid__'])
+    self.assertEqual(result['__line__'], spec['__line__'])
+    self.assertEqual(result['__uuid__'], spec['__uuid__'])
+
+    # WindowInto's input is the output of CreateTimestamped
+    self.assertEqual(result_window['input'], result_create["__uuid__"])
+
+    self.assertEqual(result_create['type'], "CreateTimestamped")
+    self.assertNotEqual(result_create['__uuid__'], spec['__uuid__'])
+    self.assertNotIn('windowing', result_create)
+    self.assertIn('__line__', result_create)
+    self.assertIn('__uuid__', result_create)
+
+    self.assertEqual(result_window['type'], "WindowInto")
+    self.assertEqual(result_window['name'], "WindowInto[None]")
+    self.assertCountEqual(result_window['windowing'], spec['windowing'])
+    self.assertIn('__line__', result_window)
+    self.assertIn('__uuid__', result_window)

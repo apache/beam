@@ -564,7 +564,7 @@ def preprocess_windowing(spec):
 
   windowing = spec.pop('windowing')
   if spec['input']:
-    # Apply the windowing to all inputs by wrapping it in a trasnform that
+    # Apply the windowing to all inputs by wrapping it in a transform that
     # first applies windowing and then applies the original transform.
     original_inputs = spec['input']
     windowing_transforms = [{
