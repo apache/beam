@@ -33,6 +33,7 @@ from apache_beam.yaml.yaml_transform import identify_object
 from apache_beam.yaml.yaml_transform import normalize_inputs_outputs
 from apache_beam.yaml.yaml_transform import normalize_source_sink
 from apache_beam.yaml.yaml_transform import pipeline_as_composite
+from apache_beam.yaml.yaml_transform import preprocess_flattened_inputs
 from apache_beam.yaml.yaml_transform import preprocess_windowing
 from apache_beam.yaml.yaml_transform import push_windowing_to_roots
 
@@ -165,6 +166,9 @@ def new_pipeline():
 
 
 class MainTest(unittest.TestCase):
+  def get_transform_by_type(self, result, type):
+    return ([t for t in result['transforms'] if t['type'] == type][0])
+
   def get_scope_by_spec(self, p, spec, inputs=None):
     if inputs is None:
       inputs = {}
@@ -735,14 +739,10 @@ class MainTest(unittest.TestCase):
     result = preprocess_windowing(copy.deepcopy(spec))
 
     # Get resulting WindowInto transform
-    result_window = ([
-        t for t in result['transforms'] if t['type'] == "WindowInto"
-    ][0])
+    result_window = self.get_transform_by_type(result, "WindowInto")
 
     # Get resulting SumGlobally transform
-    result_create = ([
-        t for t in result['transforms'] if t['type'] == "CreateTimestamped"
-    ][0])
+    result_create = self.get_transform_by_type(result, "CreateTimestamped")
 
     self.assertEqual(result['type'], "composite")
     self.assertEqual(result['name'], "Create1")
@@ -765,3 +765,66 @@ class MainTest(unittest.TestCase):
     self.assertCountEqual(result_window['windowing'], spec['windowing'])
     self.assertIn('__line__', result_window)
     self.assertIn('__uuid__', result_window)
+
+  def test_preprocess_flattened_inputs_implicit(self):
+    spec = '''
+      type: composite
+      transforms:
+        - type: PyMap
+          fn: 'lambda x: x*x'
+          input: [Create1, Create2]
+      output: CreateTimestamped
+    '''
+    spec = yaml.load(spec, Loader=SafeLineLoader)
+    spec['transforms'] = [
+        normalize_inputs_outputs(t) for t in spec['transforms']
+    ]
+    result = preprocess_flattened_inputs(copy.deepcopy(spec))
+    self.assertEqual(len(result['transforms']), 2)
+    result_flatten = self.get_transform_by_type(result, "Flatten")
+    result_pymap = self.get_transform_by_type(result, "PyMap")
+
+    self.assertDictEqual(
+        result_flatten["input"], {
+            'input0': 'Create1', 'input1': 'Create2'
+        })
+    self.assertEqual(result_flatten['type'], "Flatten")
+    self.assertIn("Flatten", result_flatten['name'])
+    self.assertIn("__line__", result_flatten)
+    self.assertIn("__uuid__", result_flatten)
+
+    self.assertEqual(result_pymap['input']['input'], result_flatten["__uuid__"])
+    self.assertEqual(result_pymap['type'], "PyMap")
+    self.assertEqual(result_pymap['fn'], 'lambda x: x*x')
+    self.assertIn("__line__", result_pymap)
+    self.assertIn("__uuid__", result_pymap)
+
+  def test_preprocess_flattened_inputs_explicit_flatten(self):
+    spec = '''
+      type: composite
+      transforms:
+        - type: Flatten
+          input: [Create1, Create2]
+        - type: PyMap
+          fn: 'lambda x: x*x'
+          input: Flatten
+      output: CreateTimestamped
+    '''
+    spec = yaml.load(spec, Loader=SafeLineLoader)
+    spec['transforms'] = [
+        normalize_inputs_outputs(t) for t in spec['transforms']
+    ]
+    result = preprocess_flattened_inputs(copy.deepcopy(spec))
+    self.assertEqual(len(result['transforms']), 2)
+    result_flatten = self.get_transform_by_type(result, "Flatten")
+    result_pymap = self.get_transform_by_type(result, "PyMap")
+
+    self.assertDictEqual(
+        result_flatten["input"], {
+            'input0': 'Create1', 'input1': 'Create2'
+        })
+    self.assertEqual(result_flatten['type'], "Flatten")
+    self.assertIn("__line__", result_flatten)
+    self.assertIn("__uuid__", result_flatten)
+
+    self.assertCountEqual(result_pymap, spec['transforms'][1])
