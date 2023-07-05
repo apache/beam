@@ -45,7 +45,7 @@ require (
 	github.com/johannesboyne/gofakes3 v0.0.0-20221110173912-32fb85c5aed6
 	github.com/lib/pq v1.10.9
 	github.com/linkedin/goavro/v2 v2.12.0
-	github.com/proullon/ramsql v0.0.0-20211120092837-c8d0a408b939
+	github.com/proullon/ramsql v0.0.1
 	github.com/spf13/cobra v1.7.0
 	github.com/testcontainers/testcontainers-go v0.21.0
 	github.com/tetratelabs/wazero v1.2.1
