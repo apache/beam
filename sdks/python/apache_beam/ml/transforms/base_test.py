@@ -33,12 +33,12 @@ from apache_beam.testing.util import equal_to
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
   from apache_beam.ml.transforms import base
-  from apache_beam.ml.transforms import tft_transforms
-  from apache_beam.ml.transforms.tft_transforms import TFTOperation
+  from apache_beam.ml.transforms import tft
+  from apache_beam.ml.transforms.tft import TFTOperation
 except ImportError:
-  tft_transforms = None  # type: ignore[assignment]
+  tft = None  # type: ignore
 
-if tft_transforms is None:
+if tft is None:
   raise unittest.SkipTest('tensorflow_transform is not installed')
 
 
@@ -73,7 +73,7 @@ class BaseMLTransformTest(unittest.TestCase):
         ml_transform._process_handler.transforms[1].name, 'fake_fn_2')
 
   def test_ml_transform_on_unbatched_dict(self):
-    transforms = [tft_transforms.ScaleTo01(columns=['x'])]
+    transforms = [tft.ScaleTo01(columns=['x'])]
     unbatched_data = [{'x': 1}, {'x': 2}]
     with beam.Pipeline() as p:
       result = (
@@ -90,7 +90,7 @@ class BaseMLTransformTest(unittest.TestCase):
           actual_output, equal_to(expected_output, equals_fn=np.array_equal))
 
   def test_ml_transform_on_batched_dict(self):
-    transforms = [tft_transforms.ScaleTo01(columns=['x'])]
+    transforms = [tft.ScaleTo01(columns=['x'])]
     batched_data = [{'x': [1, 2, 3]}, {'x': [4, 5, 6]}]
     with beam.Pipeline() as p:
       batched_result = (
@@ -161,7 +161,7 @@ class BaseMLTransformTest(unittest.TestCase):
   ])
   def test_ml_transform_dict_output_pcoll_schema(
       self, input_data, input_types, expected_dtype):
-    transforms = [tft_transforms.ScaleTo01(columns=['x'])]
+    transforms = [tft.ScaleTo01(columns=['x'])]
     with beam.Pipeline() as p:
       schema_data = (
           p
@@ -176,7 +176,7 @@ class BaseMLTransformTest(unittest.TestCase):
           self.assertEqual(expected_dtype[name], typ)
 
   def test_ml_transform_fail_for_non_global_windows_in_produce_mode(self):
-    transforms = [tft_transforms.ScaleTo01(columns=['x'])]
+    transforms = [tft.ScaleTo01(columns=['x'])]
     with beam.Pipeline() as p:
       with self.assertRaises(RuntimeError):
         _ = (
@@ -192,7 +192,7 @@ class BaseMLTransformTest(unittest.TestCase):
             ))
 
   def test_ml_transform_on_multiple_columns_single_transform(self):
-    transforms = [tft_transforms.ScaleTo01(columns=['x', 'y'])]
+    transforms = [tft.ScaleTo01(columns=['x', 'y'])]
     batched_data = [{'x': [1, 2, 3], 'y': [1.0, 10.0, 20.0]}]
     with beam.Pipeline() as p:
       batched_result = (
@@ -216,8 +216,8 @@ class BaseMLTransformTest(unittest.TestCase):
 
   def test_ml_transforms_on_multiple_columns_multiple_transforms(self):
     transforms = [
-        tft_transforms.ScaleTo01(columns=['x']),
-        tft_transforms.ComputeAndApplyVocabulary(columns=['y'])
+        tft.ScaleTo01(columns=['x']),
+        tft.ComputeAndApplyVocabulary(columns=['y'])
     ]
     batched_data = [{'x': [1, 2, 3], 'y': ['a', 'b', 'c']}]
     with beam.Pipeline() as p:
