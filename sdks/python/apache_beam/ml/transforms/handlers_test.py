@@ -34,17 +34,17 @@ import apache_beam as beam
 # pylint: disable=wrong-import-position, ungrouped-imports
 try:
   from apache_beam.ml.transforms import handlers
-  from apache_beam.ml.transforms import tft_transforms
-  from apache_beam.ml.transforms.tft_transforms import TFTOperation
+  from apache_beam.ml.transforms import tft
+  from apache_beam.ml.transforms.tft import TFTOperation
   from apache_beam.testing.util import assert_that
   from apache_beam.testing.util import equal_to
   import tensorflow as tf
   from tensorflow_transform.tf_metadata import dataset_metadata
   from tensorflow_transform.tf_metadata import schema_utils
 except ImportError:
-  tft_transforms = None  # type: ignore[assignment]
+  tft = None  # type: ignore[assignment]
 
-if not tft_transforms:
+if not tft:
   raise unittest.SkipTest('tensorflow_transform is not installed.')
 
 
@@ -264,10 +264,10 @@ class TFTProcessHandlerTest(unittest.TestCase):
 
   def test_tft_process_handler_default_transform_types(self):
     transforms = [
-        tft_transforms.ScaleTo01(columns=['x']),
-        tft_transforms.ScaleToZScore(columns=['y']),
-        tft_transforms.Bucketize(columns=['z'], num_buckets=2),
-        tft_transforms.ComputeAndApplyVocabulary(columns=['w'])
+        tft.ScaleTo01(columns=['x']),
+        tft.ScaleToZScore(columns=['y']),
+        tft.Bucketize(columns=['z'], num_buckets=2),
+        tft.ComputeAndApplyVocabulary(columns=['w'])
     ]
     process_handler = handlers.TFTProcessHandler(
         transforms=transforms, artifact_location=self.artifact_location)
@@ -321,7 +321,7 @@ class TFTProcessHandlerTest(unittest.TestCase):
               'x': np.array([4, 6])
           }]))
       process_handler = handlers.TFTProcessHandler(
-          transforms=[tft_transforms.ScaleTo01(columns=['x'])],
+          transforms=[tft.ScaleTo01(columns=['x'])],
           artifact_location=self.artifact_location,
       )
       _ = process_handler.process_data(raw_data)
