@@ -41,8 +41,8 @@ zone = "europe-west3-c"                                       # GCP zone for the
 main_runner = {
     name = "main-runner"                                      # Main runner pool name
     machine_type = "e2-standard-16"                           # Main runner pool machine type
-    min_node_count = "1"                                      # Main runner pool minimal node count 
-    max_node_count = "5"                                      # Main runner pool maximal node count  
+    min_node_count = "1"                                      # Main runner pool minimal node count
+    max_node_count = "5"                                      # Main runner pool maximal node count
     min_replicas = "5"                                        # Min number of runner PODs in the main pool . Do not confuse with Nodes
     max_replicas = "20"                                       # Max number of runner PODs in the main pool . Do not confuse with Nodes
     webhook_scaling                                           # Enable webhook scaling for main pool

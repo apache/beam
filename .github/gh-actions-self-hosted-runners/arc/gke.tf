@@ -23,7 +23,7 @@ resource "google_container_cluster" "actions-runner-gke" {
   initial_node_count         = 1
   network                    = google_compute_network.actions-runner-network.id
   subnetwork                 = google_compute_subnetwork.actions-runner-subnetwork.id
-  remove_default_node_pool = true
+  remove_default_node_pool   = true
 
 }
 resource "google_container_node_pool" "main-actions-runner-pool" {
@@ -41,7 +41,7 @@ resource "google_container_node_pool" "main-actions-runner-pool" {
    }
   node_config {
     disk_size_gb = var.main_runner.disk_size_gb
-    machine_type    = var.main_runner.machine_type
+    machine_type = var.main_runner.machine_type
     oauth_scopes = [
       "https://www.googleapis.com/auth/cloud-platform"
     ]
@@ -80,14 +80,13 @@ resource "google_container_node_pool" "additional_runner_pools" {
     dynamic "taint" {
       for_each = each.value.enable_taint == true ? [1] : []
       content {
-        key = "runner-pool"
-        value = each.value.name
+        key    = "runner-pool"
+        value  = each.value.name
         effect = "NO_SCHEDULE"
         }
+      }
     }
-   }
-
-}
+  }
 
 
 resource "google_compute_global_address" "actions-runner-ip" {
