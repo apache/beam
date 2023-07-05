@@ -128,7 +128,7 @@ public class BigtableReadSchemaTransformProviderIT {
   public void tearDown() {
     try {
       tableAdminClient.deleteTable(tableId);
-      LOG.info("Table %s deleted successfully.", tableId);
+      LOG.info("Table {} deleted successfully.", tableId);
     } catch (NotFoundException e) {
       LOG.warn("Failed to delete a non-existent table [{}]: \n{}", tableId, e.getMessage());
     }
