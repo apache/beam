@@ -19,10 +19,13 @@ import unittest
 from typing import Any
 from typing import Dict
 from typing import List
+from typing import TypeVar
 
 import apache_beam as beam
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.typehints.decorators import TypeCheckError
+
+T = TypeVar("T")
 
 
 def ConvertToTimestampedValue(plant: Dict[str, Any]) -> TimestampedValue[str]:
@@ -36,6 +39,10 @@ def ConvertToTimestampedValue_1(plant: Dict[str, Any]) -> TimestampedValue:
 def ConvertToTimestampedValue_2(
     plant: Dict[str, Any]) -> TimestampedValue[List[str]]:
   return TimestampedValue[List[str]](plant["name"], plant["season"])
+
+
+def ConvertToTimestampedValue_3(plant: Dict[str, Any]) -> TimestampedValue[T]:
+  return TimestampedValue[T](plant["name"], plant["season"])
 
 
 class TypeCheckTimestampedValueTestCase(unittest.TestCase):
@@ -116,6 +123,15 @@ class TypeCheckTimestampedValueTestCase(unittest.TestCase):
             p
             | "Garden plants" >> beam.Create(self.data_3)
             | "With timestamps" >> beam.Map(ConvertToTimestampedValue_2)
+            | beam.Map(print))
+
+  def test_opts_with_check_typevar(self):
+    with self.assertRaises(RuntimeError):
+      with beam.Pipeline(options=self.opts) as p:
+        _ = (
+            p
+            | "Garden plants" >> beam.Create(self.data_2)
+            | "With timestamps" >> beam.Map(ConvertToTimestampedValue_3)
             | beam.Map(print))
 
 
