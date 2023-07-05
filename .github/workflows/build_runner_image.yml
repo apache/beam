@@ -21,12 +21,13 @@ name: Build and Version Runner Docker Image
 on:
   push:
     branches: ['master']
+    paths: ['.github/gh-actions-self-hosted-runners/arc/images/**','.github/workflows/arc-runner-docker-image.yml']
   pull_request_target:
     branches: ['master']
     paths: ['.github/gh-actions-self-hosted-runners/arc/images/**']
 env:
-  docker_image: us-central1-docker.pkg.dev/apache-beam-testing/beam-github-actions/beam-arc-runner
-
+  docker_registry: us-central1-docker.pkg.dev
+  docker_repo: apache-beam-testing/beam-github-actions/beam-arc-runner
 jobs:
   build-and-version-runner:
     env:
@@ -47,7 +48,7 @@ jobs:
         export_default_credentials: true
     - name: GCloud Docker credential helper
       run: |
-        gcloud auth configure-docker europe-west3-docker.pkg.dev
+        gcloud auth configure-docker ${{env.docker_registry}}
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v1
     - name: Build and Load to docker
@@ -56,7 +57,7 @@ jobs:
         context: ${{ env.working-directory }}
         load: true
         tags: |
-          ${{env.docker_image}}:latest
+          ${{env.docker_registry}}/${{env.docker_repo}}:latest
           ${{env.docker_image}}:${{ github.sha }}
     - name: Push Docker image
       if: github.event_name == 'push'
@@ -66,5 +67,5 @@ jobs:
         context: ${{ env.working-directory }}
         push: true
         tags: |
-          ${{env.docker_image}}:latest
+          ${{env.docker_registry}}/${{env.docker_repo}}:latest
           ${{env.docker_image}}:${{ github.sha }}
