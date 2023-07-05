@@ -263,6 +263,7 @@ if [[ $confirmation = "y" ]]; then
     --github-user "${USER_GITHUB_ID}" \
     --repo-url "${GIT_REPO_BASE_URL}" \
     --rc-tag "${RC_TAG}" \
+    --rc-number "${RC_NUM}" \
     --release-commit "${RELEASE_COMMIT}" \
     --artifacts_dir "${SVN_ARTIFACTS_DIR}"
 

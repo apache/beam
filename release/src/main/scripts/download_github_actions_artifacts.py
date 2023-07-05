@@ -49,7 +49,7 @@ def parse_arguments():
   parser.add_argument("--rc-tag", required=True)
   parser.add_argument("--release-commit", required=True)
   parser.add_argument("--artifacts_dir", required=True)
-  parser.add_argument("--rc_number", required=False, default="")
+  parser.add_argument("--rc-number", required=False, default="")
 
   args = parser.parse_args()
   github_token = ask_for_github_token()
