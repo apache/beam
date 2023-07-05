@@ -2096,6 +2096,12 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
             'triggering_frequency with STREAMING_INSERTS can only be used with '
             'with_auto_sharding=True.')
 
+      if self._max_insert_payload_size > MAX_INSERT_PAYLOAD_SIZE:
+        raise ValueError(
+            'max_insert_payload_size can only go up to '
+            f'{MAX_INSERT_PAYLOAD_SIZE} bytes, as per BigQuery quota limits: '
+            'https://cloud.google.com/bigquery/quotas#streaming_inserts.')
+
       outputs = pcoll | _StreamToBigQuery(
           table_reference=self.table_reference,
           table_side_inputs=self.table_side_inputs,
