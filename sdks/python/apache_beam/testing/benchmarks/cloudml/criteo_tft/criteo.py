@@ -114,17 +114,17 @@ def make_input_feature_spec(include_label=True):
 
 
 def fill_in_missing(feature, default_value=-1):
-    if tf is not None:
-      feature = tf.sparse.SparseTensor(
-          indices=feature.indices,
-          values=feature.values,
-          dense_shape=[feature.dense_shape[0], 1])
-      feature = tf.sparse.to_dense(feature, default_value=default_value)
-      # Reshaping from a batch of vectors of size 1 to a batch of
-      # scalar and adding a bucketized version.
-      feature = tf.squeeze(feature, axis=1)
+  if tf is not None:
+    feature = tf.sparse.SparseTensor(
+        indices=feature.indices,
+        values=feature.values,
+        dense_shape=[feature.dense_shape[0], 1])
+    feature = tf.sparse.to_dense(feature, default_value=default_value)
+    # Reshaping from a batch of vectors of size 1 to a batch of
+    # scalar and adding a bucketized version.
+    feature = tf.squeeze(feature, axis=1)
       
-    return feature
+  return feature
 
 
 def make_preprocessing_fn(frequency_threshold):
