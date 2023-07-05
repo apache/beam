@@ -21,7 +21,9 @@ import yaml
 
 import apache_beam as beam
 from apache_beam import PCollection
+from apache_beam.yaml import YamlTransform
 from apache_beam.yaml import yaml_provider
+from apache_beam.yaml.yaml_provider import InlineProvider
 from apache_beam.yaml.yaml_transform import LightweightScope
 from apache_beam.yaml.yaml_transform import SafeLineLoader
 from apache_beam.yaml.yaml_transform import Scope
@@ -953,3 +955,89 @@ class MainTest(unittest.TestCase):
 
   def test_only_element(self):
     self.assertEqual(only_element((1, )), 1)
+
+
+class YamlTransformTest(unittest.TestCase):
+  def test_init_with_string(self):
+    provider1 = InlineProvider({"MyTransform1": lambda: beam.Map(lambda x: x)})
+    provider2 = InlineProvider({"MyTransform2": lambda: beam.Map(lambda x: x)})
+
+    providers_dict = {"p1": [provider1], "p2": [provider2]}
+
+    spec = '''
+        type: chain
+        transforms:
+          - type: Create
+            elements: [1,2,3]
+          - type: PyMap
+            fn: 'lambda x: x*x'
+      '''
+    result = YamlTransform(spec, providers_dict)
+    self.assertIn('p1', result._providers)  # check for custom providers
+    self.assertIn('p2', result._providers)  # check for custom providers
+    self.assertIn('PyMap', result._providers)  # check for standard provider
+    self.assertEqual(result._spec['type'], "composite")  # preprocessed spec
+
+  def test_init_with_dict(self):
+    spec = '''
+        type: chain
+        transforms:
+          - type: Create
+            elements: [1,2,3]
+          - type: PyMap
+            fn: 'lambda x: x*x'
+      '''
+    spec = yaml.load(spec, Loader=SafeLineLoader)
+    result = YamlTransform(spec)
+    self.assertIn('PyMap', result._providers)  # check for standard provider
+    self.assertEqual(result._spec['type'], "composite")  # preprocessed spec
+
+  def test_expand_pcollection(self):
+    with new_pipeline() as p:
+      spec = '''
+          type: chain
+          input:
+            elements: input
+          transforms:
+          - type: PyMap
+            fn: 'lambda x: x*x'
+        '''
+      spec = yaml.load(spec, Loader=SafeLineLoader)
+      create = p | beam.Create([1, 2, 3])
+      result = YamlTransform(spec).expand(create)
+      self.assertIsInstance(result, PCollection)
+      self.assertEqual(
+          str(result), 'PCollection[Chain/Map(lambda x: x*x).None]')
+
+  def test_expand_pbegin(self):
+    with new_pipeline() as p:
+      spec = '''
+          type: chain
+          transforms:
+          - type: Create
+            elements: [1,2,3]
+          - type: PyMap
+            fn: 'lambda x: x*x'
+        '''
+      spec = yaml.load(spec, Loader=SafeLineLoader)
+      result = YamlTransform(spec).expand(beam.pvalue.PBegin(p))
+      self.assertIsInstance(result, PCollection)
+      self.assertEqual(
+          str(result), 'PCollection[Chain/Map(lambda x: x*x).None]')
+
+  def test_expand_dict(self):
+    with new_pipeline() as p:
+      spec = '''
+          type: chain
+          input:
+              elements: input
+          transforms:
+          - type: PyMap
+            fn: 'lambda x: x*x'
+        '''
+      spec = yaml.load(spec, Loader=SafeLineLoader)
+      create = p | beam.Create([1, 2, 3])
+      result = YamlTransform(spec).expand({'input': create})
+      self.assertIsInstance(result, PCollection)
+      self.assertEqual(
+          str(result), 'PCollection[Chain/Map(lambda x: x*x).None]')
