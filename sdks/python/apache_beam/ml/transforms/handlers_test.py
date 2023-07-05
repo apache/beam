@@ -14,6 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+# pytype: skip-file
+
 import os
 import shutil
 import sys
@@ -40,7 +42,7 @@ try:
   from tensorflow_transform.tf_metadata import dataset_metadata
   from tensorflow_transform.tf_metadata import schema_utils
 except ImportError:
-  tft_transforms = None
+  tft_transforms = None  # type: ignore[assignment]
 
 if not tft_transforms:
   raise unittest.SkipTest('tensorflow_transform is not installed.')

@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+# pytype: skip-file
 
 import shutil
 import tempfile
@@ -31,7 +32,7 @@ try:
   from apache_beam.ml.transforms import base
   from apache_beam.ml.transforms import tft_transforms
 except ImportError:
-  tft_transforms = None
+  tft_transforms = None  # type: ignore[assignment]
 
 if not tft_transforms:
   raise unittest.SkipTest('tensorflow_transform is not installed.')

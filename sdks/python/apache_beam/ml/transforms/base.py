@@ -14,10 +14,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# pytype: skip-file
+
 import abc
 from typing import Generic
 from typing import List
 from typing import Optional
+from typing import Sequence
 from typing import TypeVar
 
 import apache_beam as beam
@@ -43,10 +46,17 @@ class ArtifactMode(object):
 
 
 class BaseOperation(Generic[OperationInputT, OperationOutputT], abc.ABC):
+  def __init__(self, columns: List[str]) -> None:
+    """
+    Base Opertation class data processing transformations.
+    Args:
+      columns: List of column names to apply the transformation.
+    """
+    self.columns = columns
+
   @abc.abstractmethod
   def apply(
-      self, inputs: OperationInputT, output_column_name: str, *args,
-      **kwargs) -> OperationOutputT:
+      self, data: OperationInputT, output_column_name: str) -> OperationOutputT:
     """
     Define any processing logic in the apply() method.
     processing logics are applied on inputs and returns a transformed
@@ -84,8 +94,7 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
       *,
       artifact_location: str,
       artifact_mode: str = ArtifactMode.PRODUCE,
-      transforms: Optional[List[BaseOperation]] = None,
-  ):
+      transforms: Optional[Sequence[BaseOperation]] = None):
     """
     Args:
       artifact_location: A storage location for artifacts resulting from
@@ -119,10 +128,10 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
     # TODO: When new ProcessHandlers(eg: JaxProcessHandler) are introduced,
     # create a mapping between transforms and ProcessHandler since
     # ProcessHandler is not exposed to the user.
-    process_handler = TFTProcessHandler(
+    process_handler: ProcessHandler = TFTProcessHandler(
         artifact_location=artifact_location,
         artifact_mode=artifact_mode,
-        transforms=transforms)
+        transforms=transforms)  # type: ignore[arg-type]
 
     self._process_handler = process_handler
 

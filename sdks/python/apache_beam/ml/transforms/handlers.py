@@ -14,12 +14,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+# pytype: skip-file
+
 import collections
 import os
 import typing
 from typing import Dict
 from typing import List
 from typing import Optional
+from typing import Sequence
 from typing import Union
 
 import numpy as np
@@ -78,8 +81,9 @@ tft_process_handler_output_type = typing.Union[beam.Row, Dict[str, np.ndarray]]
 
 class ConvertScalarValuesToListValues(beam.DoFn):
   def process(
-      self, element: Dict[str, typing.Any]
-  ) -> typing.Iterable[Dict[str, typing.List[typing.Any]]]:
+      self,
+      element,
+  ):
     new_dict = {}
     for key, value in element.items():
       if isinstance(value,
@@ -121,7 +125,7 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
       self,
       *,
       artifact_location: str,
-      transforms: Optional[List[TFTOperation]] = None,
+      transforms: Optional[Sequence[TFTOperation]] = None,
       preprocessing_fn: typing.Optional[typing.Callable] = None,
       artifact_mode: str = ArtifactMode.PRODUCE):
     """
@@ -130,7 +134,7 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
     implementing the `preprocessing_fn` method.
     """
     self.transforms = transforms if transforms else []
-    self.transformed_schema = None
+    self.transformed_schema: Dict[str, type] = {}
     self.artifact_location = artifact_location
     self.preprocessing_fn = preprocessing_fn
     self.artifact_mode = artifact_mode
@@ -227,8 +231,8 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
         typing.get_origin(typ) in primitive_containers_type)
 
     if is_primitive_container:
-      dtype = typing.get_args(typ)[0]  # type: ignore[attr-defined]
-      if len(typing.get_args(typ)) > 1 or typing.get_origin(dtype) == Union:  # type: ignore[attr-defined]
+      dtype = typing.get_args(typ)[0]
+      if len(typing.get_args(typ)) > 1 or typing.get_origin(dtype) == Union:
         raise RuntimeError(
             f"Union type is not supported for column: {col_name}. "
             f"Please pass a PCollection with valid schema for column "
@@ -296,7 +300,7 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
   def _get_transformed_data_schema(
       self,
       metadata: dataset_metadata.DatasetMetadata,
-  ) -> Dict[str, typing.Sequence[typing.Union[np.float32, np.int64, bytes]]]:
+  ):
     schema = metadata._schema
     transformed_types = {}
     for feature in schema.feature:
@@ -305,14 +309,9 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
       if feature_type == schema_pb2.FeatureType.FLOAT:
         transformed_types[name] = typing.Sequence[np.float32]
       elif feature_type == schema_pb2.FeatureType.INT:
-        transformed_types[name] = typing.Sequence[np.int64]
-      elif feature_type == schema_pb2.FeatureType.BYTES:
-        transformed_types[name] = typing.Sequence[bytes]
+        transformed_types[name] = typing.Sequence[np.int64]  # type: ignore[assignment]
       else:
-        # TODO: This else condition won't be hit since TFT doesn't output
-        # other than float, int and bytes. Refactor the code here.
-        raise RuntimeError(
-            'Unsupported feature type: %s encountered' % feature_type)
+        transformed_types[name] = typing.Sequence[bytes]  # type: ignore[assignment]
     return transformed_types
 
   def process_data(
@@ -345,7 +344,7 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
         raw_data = (
             raw_data
             | ConvertNamedTupleToDict().with_output_types(
-                Dict[str, typing.Union[tuple(column_type_mapping.values())]]))
+                Dict[str, typing.Union[tuple(column_type_mapping.values())]]))  # type: ignore
         # AnalyzeAndTransformDataset raise type hint since this is
         # schema'd PCollection and the current output type would be a
         # custom type(NamedTuple) or a beam.Row type.
