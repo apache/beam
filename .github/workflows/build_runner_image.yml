@@ -21,7 +21,7 @@ name: Build and Version Runner Docker Image
 on:
   push:
     branches: ['master']
-    paths: ['.github/gh-actions-self-hosted-runners/arc/images/**']
+    paths: ['.github/gh-actions-self-hosted-runners/arc/images/**','.github/workflows/arc-runner-docker-image.yml']
   pull_request_target:
     branches: ['master']
     paths: ['.github/gh-actions-self-hosted-runners/arc/images/**']
