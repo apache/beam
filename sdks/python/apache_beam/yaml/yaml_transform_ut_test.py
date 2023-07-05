@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
+import logging
 import unittest
 
 import yaml
@@ -294,3 +294,8 @@ class MainTest(unittest.TestCase):
       scope, spec = self.get_scope_by_spec(p, spec)
       result = expand_composite_transform(spec, scope)
       self.assertRegex(str(result['output']), r"PCollection.*Create/Map.*")
+
+
+if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.INFO)
+  unittest.main()
