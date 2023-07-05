@@ -1480,6 +1480,8 @@ class BigQueryWriteFn(DoFn):
             num_retries=self._max_retries,
             max_delay_secs=1500))
 
+    self._destination_buffer_byte_size = {}
+
   def _create_table_if_needed(self, table_reference, schema=None):
     str_table_reference = '%s:%s.%s' % (
         table_reference.projectId,
@@ -1527,7 +1529,8 @@ class BigQueryWriteFn(DoFn):
     if not self.with_batched_input:
       row_and_insert_id = element[1]
       row_byte_size = get_deep_size(row_and_insert_id)
-
+      # maintain buffer byte size for each destination
+      self._destination_buffer_byte_size.setdefault(destination, 0)
       # send large rows that exceed BigQuery insert limits to DLQ
       if row_byte_size >= self.max_insert_payload_size:
         row_mb_size = row_byte_size / 1_000_000
@@ -1546,19 +1549,20 @@ class BigQueryWriteFn(DoFn):
                     (destination, row_and_insert_id[0])))
         ]
 
-      buffer_byte_size_with_row = (
-          row_byte_size if not self._rows_buffer[destination] else
-          row_byte_size + get_deep_size(self._rows_buffer[destination]))
-
       # Flush current batch first if adding this row will exceed our limits
       # limits: byte size; number of rows
-      if ((buffer_byte_size_with_row > self.max_insert_payload_size) or
+      if ((self._destination_buffer_byte_size[destination] + row_byte_size >
+           self.max_insert_payload_size) or
           len(self._rows_buffer[destination]) >= self._max_batch_size):
         flushed_batch = self._flush_batch(destination)
+        # After flushing our existing batch, we now buffer the current row
+        # for the next flush
         self._rows_buffer[destination].append(row_and_insert_id)
+        self._destination_buffer_byte_size[destination] = row_byte_size
         return flushed_batch
 
       self._rows_buffer[destination].append(row_and_insert_id)
+      self._destination_buffer_byte_size[destination] += row_byte_size
       self._total_buffered_rows += 1
       if self._total_buffered_rows >= self._max_buffered_rows:
         return self._flush_all_batches()
@@ -1655,6 +1659,7 @@ class BigQueryWriteFn(DoFn):
 
     self._total_buffered_rows -= len(self._rows_buffer[destination])
     del self._rows_buffer[destination]
+    del self._destination_buffer_byte_size[destination]
 
     return itertools.chain([
         pvalue.TaggedOutput(
