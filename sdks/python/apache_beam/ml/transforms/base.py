@@ -25,7 +25,7 @@ from typing import TypeVar
 
 import apache_beam as beam
 
-__all__ = ['MLTransform']
+__all__ = ['MLTransform', 'ProcessHandler', 'BaseOperation']
 
 TransformedDatasetT = TypeVar('TransformedDatasetT')
 TransformedMetadataT = TypeVar('TransformedMetadataT')
