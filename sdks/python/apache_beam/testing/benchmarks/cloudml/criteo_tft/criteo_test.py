@@ -16,8 +16,9 @@
 #
 
 import unittest
-import pytest
 import numpy as np
+import pytest
+
 try:
   import tensorflow_transform as tft
   import tensorflow as tf
