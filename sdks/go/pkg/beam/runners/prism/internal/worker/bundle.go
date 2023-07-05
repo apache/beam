@@ -56,6 +56,8 @@ type B struct {
 	Resp chan *fnpb.ProcessBundleResponse
 
 	SinkToPCollection map[string]string
+
+	Error string // Set on Respond.
 }
 
 // Init initializes the bundle's internal state for waiting on all
@@ -86,6 +88,11 @@ func (b *B) LogValue() slog.Value {
 }
 
 func (b *B) Respond(resp *fnpb.InstructionResponse) {
+	if resp.GetError() != "" {
+		b.Error = resp.GetError()
+		close(b.Resp)
+		return
+	}
 	b.Resp <- resp.GetProcessBundle()
 }
 
