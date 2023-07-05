@@ -487,7 +487,7 @@ message GlobalDataRequest {
   optional string state_family = 3;
 }
 
-// next id: 27
+// next id: 28
 message WorkItemCommitRequest {
   required bytes key = 1;
   required fixed64 work_token = 2;
@@ -516,7 +516,7 @@ message WorkItemCommitRequest {
   repeated WatermarkHold watermark_holds = 14;
 
   // Collected work item processing state durations.
-  repeated LatencyAttribution per_work_item_latency_attributions = 26;
+  repeated LatencyAttribution per_work_item_latency_attributions = 27;
 
   // DEPRECATED
   repeated GlobalDataId global_data_id_requests = 9;
