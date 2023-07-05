@@ -103,7 +103,7 @@ variable "additional_runner_pools" {
       disk_size_gb = optional(number, 100)
       webhook_scaling = optional(bool, false)
       runner_image = optional(string, "summerwind/actions-runner:v2.304.0-ubuntu-20.04-30355f7")
-      labels = optional(list(string), ["self-hosted", "ubuntu-20.04","main"])
+      labels = optional(list(string), ["self-hosted", "ubuntu-20.04","changeme"])
       enable_selector = optional(bool, true)
       enable_taint = optional(bool, true)
       requests = optional(object({
