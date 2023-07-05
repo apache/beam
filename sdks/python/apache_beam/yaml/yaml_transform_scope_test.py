@@ -21,8 +21,8 @@ import unittest
 import yaml
 
 import apache_beam as beam
-from apache_beam.yaml.yaml_transform import SafeLineLoader
 from apache_beam.yaml import yaml_provider
+from apache_beam.yaml.yaml_transform import SafeLineLoader
 from apache_beam.yaml.yaml_transform import Scope
 
 

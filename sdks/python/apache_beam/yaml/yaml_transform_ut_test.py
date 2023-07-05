@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 import copy
+import logging
 import unittest
 
 import yaml
@@ -1041,3 +1042,8 @@ class YamlTransformTest(unittest.TestCase):
       self.assertIsInstance(result, PCollection)
       self.assertEqual(
           str(result), 'PCollection[Chain/Map(lambda x: x*x).None]')
+
+
+if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.INFO)
+  unittest.main()
