@@ -1467,7 +1467,11 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                   SdkHarnessContainerImage image = new SdkHarnessContainerImage();
                   image.setEnvironmentId(environmentInfo.environmentId());
                   image.setContainerImage(environmentInfo.containerUrl());
-                  if (environmentInfo.containerUrl().toLowerCase().contains("python")) {
+                  if (!environmentInfo
+                      .capabilities()
+                      .contains(
+                          BeamUrns.getUrn(
+                              RunnerApi.StandardProtocols.Enum.MULTI_CORE_BUNDLE_PROCESSING))) {
                     image.setUseSingleCorePerContainer(true);
                   }
                   image.setCapabilities(environmentInfo.capabilities());
@@ -1916,14 +1920,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
               ((NestedValueProvider) overriddenTransform.getTopicProvider()).propertyName());
         }
       } else {
-        DataflowPipelineOptions options =
-            input.getPipeline().getOptions().as(DataflowPipelineOptions.class);
-        if (options.getEnableDynamicPubsubDestinations()) {
-          stepContext.addInput(PropertyNames.PUBSUB_DYNAMIC_DESTINATIONS, true);
-        } else {
-          throw new RuntimeException(
-              "Dynamic Pubsub destinations not yet supported. Topic must be set.");
-        }
+        stepContext.addInput(PropertyNames.PUBSUB_DYNAMIC_DESTINATIONS, true);
       }
       if (overriddenTransform.getTimestampAttribute() != null) {
         stepContext.addInput(
@@ -2453,10 +2450,10 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   static void verifyDoFnSupported(
       DoFn<?, ?> fn, boolean streaming, DataflowPipelineOptions options) {
-    if (DoFnSignatures.usesMultimapState(fn)) {
+    if (!streaming && DoFnSignatures.usesMultimapState(fn)) {
       throw new UnsupportedOperationException(
           String.format(
-              "%s does not currently support %s",
+              "%s does not currently support %s in batch mode",
               DataflowRunner.class.getSimpleName(), MultimapState.class.getSimpleName()));
     }
     if (streaming && DoFnSignatures.requiresTimeSortedInput(fn)) {
@@ -2468,6 +2465,13 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     boolean streamingEngine = useStreamingEngine(options);
     boolean isUnifiedWorker = useUnifiedWorker(options);
+
+    if (DoFnSignatures.usesMultimapState(fn) && isUnifiedWorker) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "%s does not currently support %s running using streaming on unified worker",
+              DataflowRunner.class.getSimpleName(), MultimapState.class.getSimpleName()));
+    }
     if (DoFnSignatures.usesSetState(fn)) {
       if (streaming && (isUnifiedWorker || streamingEngine)) {
         throw new UnsupportedOperationException(

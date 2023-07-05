@@ -121,7 +121,7 @@ func (rc *Cache) SetCatalog(ctx context.Context, catalog []*pb.Categories) error
 func (rc *Cache) GetCatalog(ctx context.Context) ([]*pb.Categories, error) {
 	value, err := rc.Get(ctx, cache.ExamplesCatalog).Result()
 	if err != nil {
-		logger.Errorf("Redis Cache: get catalog: error during Get operation for key: %s, err: %s\n", cache.ExamplesCatalog, err.Error())
+		logger.Warnf("Redis Cache: get catalog: error during Get operation for key: %s, err: %s\n", cache.ExamplesCatalog, err.Error())
 		return nil, err
 	}
 	var result []*pb.Categories

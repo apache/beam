@@ -137,7 +137,7 @@ public class PubsubWriteSchemaTransformProviderIT {
                 .build());
 
     PCollectionRowTuple.of(INPUT_TAG, pipeline.apply(Create.of(input).withRowSchema(schema)))
-        .apply(new PubsubWriteSchemaTransformProvider().from(configuration).buildTransform());
+        .apply(new PubsubWriteSchemaTransformProvider().from(configuration));
 
     PipelineResult job = pipeline.run(TEST_PUBSUB_OPTIONS);
     Instant now = Instant.now();

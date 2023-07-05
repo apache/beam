@@ -43,8 +43,8 @@ public interface SchemaTransformProvider {
   Schema configurationSchema();
 
   /**
-   * Produce a SchemaTransform some transform-specific configuration object. Can throw a {@link
-   * InvalidConfigurationException} or a {@link InvalidSchemaException}.
+   * Produce a {@link SchemaTransform} from some transform-specific configuration object. Can throw
+   * a {@link InvalidConfigurationException} or a {@link InvalidSchemaException}.
    */
   SchemaTransform from(Row configuration);
 

@@ -115,14 +115,12 @@ public class JdbcWriteSchemaTransformProviderTest {
 
     PCollectionRowTuple.of("input", pipeline.apply(Create.of(rows).withRowSchema(schema)))
         .apply(
-            provider
-                .from(
-                    JdbcWriteSchemaTransformProvider.JdbcWriteSchemaTransformConfiguration.builder()
-                        .setDriverClassName(DATA_SOURCE_CONFIGURATION.getDriverClassName().get())
-                        .setJdbcUrl(DATA_SOURCE_CONFIGURATION.getUrl().get())
-                        .setLocation(WRITE_TABLE_NAME)
-                        .build())
-                .buildTransform());
+            provider.from(
+                JdbcWriteSchemaTransformProvider.JdbcWriteSchemaTransformConfiguration.builder()
+                    .setDriverClassName(DATA_SOURCE_CONFIGURATION.getDriverClassName().get())
+                    .setJdbcUrl(DATA_SOURCE_CONFIGURATION.getUrl().get())
+                    .setLocation(WRITE_TABLE_NAME)
+                    .build()));
     pipeline.run();
     DatabaseTestHelper.assertRowCount(DATA_SOURCE, WRITE_TABLE_NAME, 2);
   }

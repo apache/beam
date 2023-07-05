@@ -41,7 +41,6 @@ import org.apache.beam.sdk.extensions.avro.schemas.io.payloads.AvroPayloadSerial
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializer;
-import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -190,7 +189,7 @@ public class PubsubReadSchemaTransformProviderTest {
     PubsubTestClient.PubsubTestClientFactory clientFactory =
         clientFactory(incomingAvroMessagesOf(CLOCK.currentTimeMillis()));
     transform.setClientFactory(clientFactory);
-    PCollectionRowTuple reads = begin.apply(transform.buildTransform());
+    PCollectionRowTuple reads = begin.apply(transform);
 
     PAssert.that(reads.get(PubsubReadSchemaTransformProvider.OUTPUT_TAG)).containsInAnyOrder(ROWS);
 
@@ -206,7 +205,7 @@ public class PubsubReadSchemaTransformProviderTest {
     PubsubTestClient.PubsubTestClientFactory clientFactory =
         clientFactory(incomingJsonMessagesOf(CLOCK.currentTimeMillis()));
     transform.setClientFactory(clientFactory);
-    PCollectionRowTuple reads = begin.apply(transform.buildTransform());
+    PCollectionRowTuple reads = begin.apply(transform);
 
     PAssert.that(reads.get(PubsubReadSchemaTransformProvider.OUTPUT_TAG)).containsInAnyOrder(ROWS);
 
@@ -238,7 +237,7 @@ public class PubsubReadSchemaTransformProviderTest {
         assertThrows(
             testCase.name,
             RuntimeException.class,
-            () -> begin.apply(testCase.pubsubReadSchemaTransform().buildTransform()));
+            () -> begin.apply(testCase.pubsubReadSchemaTransform()));
       }
     }
   }
@@ -254,8 +253,7 @@ public class PubsubReadSchemaTransformProviderTest {
                     .from(
                         PubsubReadSchemaTransformConfiguration.builder()
                             .setDataSchema(SCHEMA)
-                            .build())
-                    .buildTransform()));
+                            .build())));
   }
 
   private PubsubReadSchemaTransformProvider.PubsubReadSchemaTransform schemaTransformWithClock(
@@ -268,8 +266,7 @@ public class PubsubReadSchemaTransformProviderTest {
                         .setDataSchema(SCHEMA)
                         .setSubscription(SUBSCRIPTION)
                         .setFormat(format)
-                        .build())
-                .buildTransform();
+                        .build());
 
     transform.setClock(CLOCK);
 
@@ -353,15 +350,11 @@ public class PubsubReadSchemaTransformProviderTest {
       this.configuration = configuration;
     }
 
-    SchemaTransform schemaTransform() {
+    PubsubReadSchemaTransformProvider.PubsubReadSchemaTransform pubsubReadSchemaTransform() {
       PubsubReadSchemaTransformProvider provider = new PubsubReadSchemaTransformProvider();
       Row configurationRow = toBeamRow();
-      return provider.from(configurationRow);
-    }
-
-    PubsubReadSchemaTransformProvider.PubsubReadSchemaTransform pubsubReadSchemaTransform() {
       return (PubsubReadSchemaTransformProvider.PubsubReadSchemaTransform)
-          schemaTransform().buildTransform();
+          provider.from(configurationRow);
     }
 
     private Row toBeamRow() {

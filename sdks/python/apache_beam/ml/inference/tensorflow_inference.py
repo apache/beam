@@ -56,7 +56,15 @@ class ModelType(enum.Enum):
 
 
 def _load_model(model_uri, custom_weights, load_model_args):
-  model = tf.keras.models.load_model(hub.resolve(model_uri), **load_model_args)
+  try:
+    model = tf.keras.models.load_model(
+        hub.resolve(model_uri), **load_model_args)
+  except Exception as e:
+    raise ValueError(
+        "Unable to load the TensorFlow model: {exception}. Make sure you've \
+        saved the model with TF2 format. Check out the list of TF2 Models on \
+        TensorFlow Hub - https://tfhub.dev/s?subtype=module,placeholder&tf-version=tf2."  # pylint: disable=line-too-long
+        .format(exception=e))
   if custom_weights:
     model.load_weights(custom_weights)
   return model
@@ -156,6 +164,7 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
             "Callable create_model_fn must be passed"
             "with ModelType.SAVED_WEIGHTS")
       return _load_model_from_weights(self._create_model_fn, self._model_uri)
+
     return _load_model(
         self._model_uri, self._custom_weights, self._load_model_args)
 

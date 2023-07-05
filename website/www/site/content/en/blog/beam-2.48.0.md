@@ -21,11 +21,13 @@ limitations under the License.
 
 We are happy to present the new 2.48.0 release of Beam.
 This release includes both improvements and new functionality.
-See the [download page](/get-started/downloads/{$DOWNLOAD_ANCHOR}) for this release.
+See the [download page](/get-started/downloads/#2480-2023-05-31) for this release.
 
-<{!--more-->
+<!--more-->
 
 For more information on changes in 2.48.0, check out the [detailed release notes](https://github.com/apache/beam/milestone/12).
+
+**Note: The release tag for Go SDK for this release is sdks/v2.48.2 instead of sdks/v2.48.0 because of incorrect commit attached to the release tag sdks/v2.48.0.**
 
 ## Highlights
 
@@ -61,6 +63,9 @@ For more information on changes in 2.48.0, check out the [detailed release notes
 
 * Fixed Java bootloader failing with Too Long Args due to long classpaths, with a pathing jar. (Java) ([#25582](https://github.com/apache/beam/issues/25582)).
 
+## Known Issues
+
+* PubsubIO writes will throw *SizeLimitExceededException* for any message above 100 bytes, when used in batch (bounded) mode. (Java) ([#27000](https://github.com/apache/beam/issues/27000)).
 
 ## List of Contributors
 

@@ -110,6 +110,8 @@ import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import org.apache.beam.fn.harness.logging.QuotaEvent;
+import org.apache.beam.fn.harness.logging.QuotaEvent.QuotaEventCloseable;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.ServiceCallMetric;
 import org.apache.beam.sdk.extensions.gcp.auth.NullCredentialInitializer;
@@ -356,8 +358,17 @@ class BigQueryServicesImpl implements BigQueryServices {
             LOG.info("BigQuery job " + jobRef + " already exists, will not retry inserting it:", e);
             return; // SUCCEEDED
           }
-          // ignore and retry
-          LOG.info("Failed to insert job " + jobRef + ", will retry:", e);
+
+          try (QuotaEventCloseable qec =
+              errorExtractor.quotaExceeded(e) || errorExtractor.rateLimited(e)
+                  ? new QuotaEvent.Builder()
+                      .withFullResourceName(BigQueryHelpers.toJobFullResourceName(jobRef))
+                      .withOperation("start_job")
+                      .create()
+                  : null) {
+            // ignore and retry
+            LOG.info("Failed to insert job " + jobRef + ", will retry:", e);
+          }
           lastException = e;
         }
       } while (nextBackOff(sleeper, backoff));
@@ -729,12 +740,21 @@ class BigQueryServicesImpl implements BigQueryServices {
             try {
               if (BackOffUtils.next(sleeper, backoff)) {
                 if (!retry) {
-                  LOG.info(
-                      "Quota limit reached when creating table {}:{}.{}, retrying up to {} minutes",
-                      table.getTableReference().getProjectId(),
-                      table.getTableReference().getDatasetId(),
-                      table.getTableReference().getTableId(),
-                      TimeUnit.MILLISECONDS.toMinutes(RETRY_CREATE_TABLE_DURATION_MILLIS));
+                  String fullResourceName =
+                      BigQueryHelpers.toTableFullResourceName(table.getTableReference());
+                  try (QuotaEventCloseable qec =
+                      new QuotaEvent.Builder()
+                          .withMessageText(extractor.getErrorMessage(e))
+                          .withFullResourceName(fullResourceName)
+                          .withOperation("create_table")
+                          .create()) {
+                    LOG.info(
+                        "Quota limit reached when creating table {}:{}.{}, retrying up to {} minutes",
+                        table.getTableReference().getProjectId(),
+                        table.getTableReference().getDatasetId(),
+                        table.getTableReference().getTableId(),
+                        TimeUnit.MILLISECONDS.toMinutes(RETRY_CREATE_TABLE_DURATION_MILLIS));
+                  }
                   retry = true;
                 }
                 continue;
@@ -999,10 +1019,16 @@ class BigQueryServicesImpl implements BigQueryServices {
               }
               throw e;
             }
-            LOG.info(
-                String.format(
-                    "BigQuery insertAll error, retrying: %s",
-                    ApiErrorExtractor.INSTANCE.getErrorMessage(e)));
+            try (QuotaEventCloseable qec =
+                new QuotaEvent.Builder()
+                    .withOperation("insert_all")
+                    .withFullResourceName(BigQueryHelpers.toTableFullResourceName(ref))
+                    .create()) {
+              LOG.info(
+                  String.format(
+                      "BigQuery insertAll error, retrying: %s",
+                      ApiErrorExtractor.INSTANCE.getErrorMessage(e)));
+            }
             try {
               long nextBackOffMillis = backoff1.nextBackOffMillis();
               if (nextBackOffMillis == BackOff.STOP) {

@@ -24,8 +24,6 @@
 # REGION       -> Region name to use for Dataflow
 #
 # Execute from the root of the repository:
-#     test Python3.7 container:
-#         ./gradlew :sdks:python:test-suites:dataflow:py37:validatesContainer
 #     test Python3.8 container:
 #         ./gradlew :sdks:python:test-suites:dataflow:py38:validatesContainer
 #     or test all supported python versions together:

@@ -29,12 +29,10 @@ The `Values` transform takes a collection of key-value pairs, and
 returns the value of each element.
 
 ## Examples
-**Example**
 
-{{< highlight java >}}
-PCollection<KV<String, Integer>> keyValuePairs = /* ... */;
-PCollection<Integer> values = keyValuePairs.apply(Values.create());
-{{< /highlight >}}
+{{< playground height="700px" >}}
+{{< playground_snippet language="java" path="SDK_JAVA_Values" show="main_section" >}}
+{{< /playground >}}
 
 ## Related transforms
 * [Keys](/documentation/transforms/java/elementwise/keys) for extracting the key of each component.

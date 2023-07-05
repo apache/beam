@@ -16,13 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
-resource "google_service_account" "actions_service_account" {
-  account_id   = "${var.environment}-runner-gke-sa"
-  display_name = "${var.environment}-runner-gke-sa"
-}
-
-
 data "google_client_config" "provider" {}
 
 data "google_client_openid_userinfo" "provider_identity" {

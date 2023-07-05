@@ -859,9 +859,14 @@ the BigQuery service, so you should use only as many streams as needed for your
 use case. Triggering frequency in single-digit seconds is a good choice for most
 pipelines.
 
-Currently, `STORAGE_WRITE_API` doesn’t support
-[`withAutoSharding`](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.Write.html#withAutoSharding--).
-The method will be supported in a future release.
+{{< paragraph class="language-java" wrap="span">}}
+Similar to streaming inserts, `STORAGE_WRITE_API` supports dynamically determining
+the number of parallel streams to write to BigQuery (starting 2.42.0). You can
+explicitly enable this using [`withAutoSharding`](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.Write.html#withAutoSharding--).
+
+***Note:*** `STORAGE_WRITE_API` will default to dynamic sharding when
+`numStorageWriteApiStreams` is set to 0 or is unspecified.
+{{< /paragraph >}}
 
 When using `STORAGE_WRITE_API`, the PCollection returned by
 [`WriteResult.getFailedInserts`](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/WriteResult.html#getFailedInserts--)

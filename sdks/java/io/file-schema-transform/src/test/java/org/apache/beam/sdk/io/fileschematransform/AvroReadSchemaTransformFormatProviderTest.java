@@ -25,7 +25,7 @@ import static org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions.RE
 import java.util.Arrays;
 import java.util.List;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.beam.sdk.extensions.avro.coders.AvroGenericCoder;
+import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.extensions.avro.io.AvroIO;
 import org.apache.beam.sdk.extensions.avro.io.DynamicAvroDestinations;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
@@ -79,7 +79,7 @@ public class AvroReadSchemaTransformFormatProviderTest
         .apply(
             MapElements.into(TypeDescriptor.of(GenericRecord.class))
                 .via(AvroUtils.getRowToGenericRecordFunction(avroSchema)))
-        .setCoder(AvroGenericCoder.of(avroSchema))
+        .setCoder(AvroCoder.of(avroSchema))
         .apply(AvroIO.writeGenericRecords(avroSchema).to(filePath));
     writePipeline.run().waitUntilFinish();
 
@@ -91,8 +91,7 @@ public class AvroReadSchemaTransformFormatProviderTest
             .build();
 
     SchemaTransform readTransform = new FileReadSchemaTransformProvider().from(config);
-    PCollectionRowTuple output =
-        PCollectionRowTuple.empty(readPipeline).apply(readTransform.buildTransform());
+    PCollectionRowTuple output = PCollectionRowTuple.empty(readPipeline).apply(readTransform);
 
     PAssert.that(output.get(FileReadSchemaTransformProvider.OUTPUT_TAG)).containsInAnyOrder(rows);
     readPipeline.run();
@@ -133,8 +132,7 @@ public class AvroReadSchemaTransformFormatProviderTest
             .build();
     SchemaTransform readTransform = new FileReadSchemaTransformProvider().from(config);
 
-    PCollectionRowTuple output =
-        PCollectionRowTuple.empty(readPipeline).apply(readTransform.buildTransform());
+    PCollectionRowTuple output = PCollectionRowTuple.empty(readPipeline).apply(readTransform);
 
     // Write to three different files (test_1..., test_2..., test_3)
     // All three new files should be picked up and read.
@@ -146,7 +144,7 @@ public class AvroReadSchemaTransformFormatProviderTest
                 .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
                 .discardingFiredPanes())
         .apply(MapElements.via(new CreateAvroPrimitiveGenericRecord(schema)))
-        .setCoder(AvroGenericCoder.of(avroSchema))
+        .setCoder(AvroCoder.of(avroSchema))
         .apply(
             AvroIO.writeGenericRecords(avroSchema)
                 .to(new TestDynamicDestinations(dir))
@@ -174,7 +172,7 @@ public class AvroReadSchemaTransformFormatProviderTest
         .apply(
             MapElements.into(TypeDescriptor.of(GenericRecord.class))
                 .via(AvroUtils.getRowToGenericRecordFunction(avroSchema)))
-        .setCoder(AvroGenericCoder.of(avroSchema))
+        .setCoder(AvroCoder.of(avroSchema))
         .apply(
             AvroIO.writeGenericRecords(avroSchema)
                 .to(new TestDynamicDestinations(dir))
@@ -210,7 +208,7 @@ public class AvroReadSchemaTransformFormatProviderTest
 
     PCollectionRowTuple output =
         PCollectionRowTuple.of(FileReadSchemaTransformProvider.INPUT_TAG, filepatterns)
-            .apply(readTransform.buildTransform());
+            .apply(readTransform);
 
     // Check output matches with expected rows
     PAssert.that(output.get(FileReadSchemaTransformProvider.OUTPUT_TAG)).containsInAnyOrder(rows);

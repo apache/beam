@@ -23,7 +23,9 @@ import copy
 import functools
 import glob
 import logging
+import subprocess
 import threading
+import uuid
 from collections import OrderedDict
 from collections import namedtuple
 from typing import Dict
@@ -32,6 +34,7 @@ import grpc
 
 from apache_beam import pvalue
 from apache_beam.coders import RowCoder
+from apache_beam.options.pipeline_options import CrossLanguageOptions
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_artifact_api_pb2_grpc
 from apache_beam.portability.api import beam_expansion_api_pb2
@@ -51,6 +54,7 @@ from apache_beam.typehints.trivial_inference import instance_to_type
 from apache_beam.typehints.typehints import Union
 from apache_beam.typehints.typehints import UnionConstraint
 from apache_beam.utils import subprocess_server
+from apache_beam.utils import transform_service_launcher
 
 DEFAULT_EXPANSION_SERVICE = 'localhost:8097'
 
@@ -668,7 +672,10 @@ class ExternalTransform(ptransform.PTransform):
         transform=transform_proto,
         output_coder_requests=output_coders)
 
-    with ExternalTransform.service(self._expansion_service) as service:
+    expansion_service = _maybe_use_transform_service(
+        self._expansion_service, pipeline.options)
+
+    with ExternalTransform.service(expansion_service) as service:
       response = service.Expand(request)
       if response.error:
         raise RuntimeError(response.error)
@@ -878,6 +885,9 @@ class JavaJarExpansionService(object):
     self._service_count = 0
     self._append_args = append_args or []
 
+  def is_existing_service(self):
+    return subprocess_server.is_service_endpoint(self._path_to_jar)
+
   @staticmethod
   def _expand_jars(jar):
     if glob.glob(jar):
@@ -971,6 +981,76 @@ class BeamJarExpansionService(JavaJarExpansionService):
         gradle_target, gradle_appendix)
     super().__init__(
         path_to_jar, extra_args, classpath=classpath, append_args=append_args)
+
+
+def _maybe_use_transform_service(provided_service=None, options=None):
+  # For anything other than 'JavaJarExpansionService' we just use the
+  # provided service. For example, string address of an already available
+  # service.
+  if not isinstance(provided_service, JavaJarExpansionService):
+    return provided_service
+
+  if provided_service.is_existing_service():
+    # This is an existing service supported through the 'beam_services'
+    # PipelineOption.
+    return provided_service
+
+  def is_java_available():
+    cmd = ['java', '--version']
+
+    try:
+      subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    except:  # pylint: disable=bare-except
+      return False
+
+    return True
+
+  def is_docker_available():
+    cmd = ['docker', '--version']
+
+    try:
+      subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    except:  # pylint: disable=bare-except
+      return False
+
+    return True
+
+  # We try java and docker based expansion services in that order.
+
+  java_available = is_java_available()
+  docker_available = is_docker_available()
+
+  use_transform_service = options.view_as(
+      CrossLanguageOptions).use_transform_service
+
+  if (java_available and provided_service and not use_transform_service):
+    return provided_service
+  elif docker_available:
+    if use_transform_service:
+      error_append = 'it was explicitly requested'
+    elif not java_available:
+      error_append = 'the Java executable is not available in the system'
+    else:
+      error_append = 'a Java expansion service was not provided.'
+
+    project_name = str(uuid.uuid4())
+    port = subprocess_server.pick_port(None)[0]
+
+    logging.info(
+        'Trying to expand the external transform using the Docker Compose '
+        'based transform service since %s. Transform service will be under '
+        'Docker Compose project name %s and will be made available at port %r.'
+        % (error_append, project_name, str(port)))
+
+    from apache_beam import version as beam_version
+    beam_version = beam_version.__version__
+
+    return transform_service_launcher.TransformServiceLauncher(
+        project_name, port, beam_version)
+  else:
+    raise ValueError(
+        'Cannot start an expansion service since neither Java nor '
+        'Docker executables are available in the system.')
 
 
 def memoize(func):

@@ -254,24 +254,13 @@ class GCSFileSystem(FileSystem):
       gcs_batches.append(gcs_current_batch)
 
     # Execute GCS renames if any and return exceptions.
-    exceptions = {}
-    for batch in gcs_batches:
-      copy_statuses = self._gcsIO().copy_batch(batch)
-      copy_succeeded = []
-      for src, dest, exception in copy_statuses:
-        if exception:
-          exceptions[(src, dest)] = exception
-        else:
-          copy_succeeded.append((src, dest))
-      delete_batch = [src for src, dest in copy_succeeded]
-      delete_statuses = self._gcsIO().delete_batch(delete_batch)
-      for i, (src, exception) in enumerate(delete_statuses):
-        dest = copy_succeeded[i][1]
-        if exception:
-          exceptions[(src, dest)] = exception
+    try:
+      for batch in gcs_batches:
+        self._gcsIO().copy_batch(batch)
+        self._gcsIO().delete_batch(source_file_names)
 
-    if exceptions:
-      raise BeamIOError("Rename operation failed", exceptions)
+    except Exception as exception:
+      raise BeamIOError("Rename operation failed", exception)
 
   def exists(self, path):
     """Check if the provided path exists on the FileSystem.
@@ -340,8 +329,7 @@ class GCSFileSystem(FileSystem):
     """
     try:
       file_metadata = self._gcsIO()._status(path)
-      return FileMetadata(
-          path, file_metadata['size'], file_metadata['last_updated'])
+      return FileMetadata(path, file_metadata['size'], file_metadata['updated'])
     except Exception as e:  # pylint: disable=broad-except
       raise BeamIOError("Metadata operation failed", {path: e})
 
@@ -360,12 +348,7 @@ class GCSFileSystem(FileSystem):
       else:
         path_to_use = path
       match_result = self.match([path_to_use])[0]
-      statuses = self._gcsIO().delete_batch(
-          [m.path for m in match_result.metadata_list])
-      # pylint: disable=used-before-assignment
-      failures = [e for (_, e) in statuses if e is not None]
-      if failures:
-        raise failures[0]
+      self._gcsIO().delete_batch([m.path for m in match_result.metadata_list])
 
     exceptions = {}
     for path in paths:

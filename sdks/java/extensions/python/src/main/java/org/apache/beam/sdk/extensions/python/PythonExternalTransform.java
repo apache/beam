@@ -62,7 +62,6 @@ import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
@@ -444,9 +443,15 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
     try {
       ExternalTransforms.ExternalConfigurationPayload payload = generatePayload();
       if (!Strings.isNullOrEmpty(expansionService)) {
+        int portIndex = expansionService.lastIndexOf(':');
+        if (portIndex <= 0) {
+          throw new IllegalArgumentException(
+              "Unexpected expansion service address. Expected to be in the "
+                  + "format \"<host>:<port>\"");
+        }
         PythonService.waitForPort(
-            Iterables.get(Splitter.on(':').split(expansionService), 0),
-            Integer.parseInt(Iterables.get(Splitter.on(':').split(expansionService), 1)),
+            expansionService.substring(0, portIndex),
+            Integer.parseInt(expansionService.substring(portIndex + 1, expansionService.length())),
             15000);
         return apply(input, expansionService, payload);
       } else {
