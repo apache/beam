@@ -1424,7 +1424,7 @@ class BigQueryWriteFn(DoFn):
         BigQueryWriteFn.STREAMING_API_LOGGING_FREQUENCY_SEC)
     self.ignore_unknown_columns = ignore_unknown_columns
     self._max_retries = max_retries
-    self.max_insert_payload_size = max_insert_payload_size
+    self._max_insert_payload_size = max_insert_payload_size
 
   def display_data(self):
     return {
@@ -1530,9 +1530,9 @@ class BigQueryWriteFn(DoFn):
       row_byte_size = get_deep_size(row_and_insert_id)
 
       # send large rows that exceed BigQuery insert limits to DLQ
-      if row_byte_size >= self.max_insert_payload_size:
+      if row_byte_size >= self._max_insert_payload_size:
         row_mb_size = row_byte_size / 1_000_000
-        max_mb_size = self.max_insert_payload_size / 1_000_000
+        max_mb_size = self._max_insert_payload_size / 1_000_000
         error = (
             f"Received row with size {row_mb_size}MB that exceeds "
             f"the maximum insert payload size set ({max_mb_size}MB).")
@@ -1550,7 +1550,7 @@ class BigQueryWriteFn(DoFn):
       # Flush current batch first if adding this row will exceed our limits
       # limits: byte size; number of rows
       if ((self._destination_buffer_byte_size[destination] + row_byte_size >
-           self.max_insert_payload_size) or
+           self._max_insert_payload_size) or
           len(self._rows_buffer[destination]) >= self._max_batch_size):
         flushed_batch = self._flush_batch(destination)
         # After flushing our existing batch, we now buffer the current row
@@ -1720,7 +1720,7 @@ class _StreamToBigQuery(PTransform):
     self.with_auto_sharding = with_auto_sharding
     self._num_streaming_keys = num_streaming_keys
     self.max_retries = max_retries or MAX_INSERT_RETRIES
-    self.max_insert_payload_size = max_insert_payload_size
+    self._max_insert_payload_size = max_insert_payload_size
 
   class InsertIdPrefixFn(DoFn):
     def start_bundle(self):
@@ -1748,7 +1748,7 @@ class _StreamToBigQuery(PTransform):
         ignore_unknown_columns=self.ignore_unknown_columns,
         with_batched_input=self.with_auto_sharding,
         max_retries=self.max_retries,
-        max_insert_payload_size=self.max_insert_payload_size)
+        max_insert_payload_size=self._max_insert_payload_size)
 
     def _add_random_shard(element):
       key = element[0]
@@ -2047,7 +2047,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     self._ignore_insert_ids = ignore_insert_ids
     self._ignore_unknown_columns = ignore_unknown_columns
     self.load_job_project_id = load_job_project_id
-    self.max_insert_payload_size = max_insert_payload_size
+    self._max_insert_payload_size = max_insert_payload_size
     self._num_streaming_keys = num_streaming_keys
 
   # Dict/schema methods were moved to bigquery_tools, but keep references
@@ -2112,7 +2112,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
           ignore_unknown_columns=self._ignore_unknown_columns,
           with_auto_sharding=self.with_auto_sharding,
           test_client=self.test_client,
-          max_insert_payload_size=self.max_insert_payload_size,
+          max_insert_payload_size=self._max_insert_payload_size,
           num_streaming_keys=self._num_streaming_keys)
 
       return WriteResult(
