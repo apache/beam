@@ -43,7 +43,9 @@
   <!-- Extension points defined by the plugin.
        Read more: https://plugins.jetbrains.com/docs/intellij/plugin-extension-points.html -->
   <extensions defaultExtensionNs="com.intellij">
-    <completion.contributor language="JAVA"
+    <completion.contributor language="JAVA" order="first"
                             implementationClass="BeamCompletionContributor"></completion.contributor>
+
+    <completion.confidence  language="JAVA" order="first" implementationClass="BeamCompletionConfidence"></completion.confidence>
   </extensions>
 </idea-plugin>

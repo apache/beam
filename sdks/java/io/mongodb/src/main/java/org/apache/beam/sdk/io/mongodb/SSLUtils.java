@@ -25,9 +25,12 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 import org.apache.beam.sdk.util.Preconditions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Utility class for registration of ssl context, and to allow all certificate requests. */
 class SSLUtils {
+  private static final Logger LOG = LoggerFactory.getLogger(SSLUtils.class);
 
   /** static class to allow all requests. */
   private static final TrustManager[] trustAllCerts =
@@ -62,11 +65,15 @@ class SSLUtils {
       ClassLoader classLoader =
           Preconditions.checkStateNotNull(
               SSLUtils.class.getClassLoader(), "SSLUtil classloader is null - boot classloader?");
-      InputStream inputStream =
-          Preconditions.checkStateNotNull(
-              classLoader.getResourceAsStream("resources/.keystore"),
-              "resources/.keystore not found");
-      ks.load(inputStream, "changeit".toCharArray());
+      InputStream inputStream = classLoader.getResourceAsStream("resources/.keystore");
+      if (inputStream != null) {
+        LOG.info("Found keystore in classpath 'resources/.keystore'. Loading...");
+        ks.load(inputStream, "changeit".toCharArray());
+      } else {
+        LOG.info(
+            "Unable to find keystore under 'resources/.keystore' in the classpath. "
+                + "Continuing with an empty keystore.");
+      }
       KeyManagerFactory kmf =
           KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
       kmf.init(ks, "changeit".toCharArray());

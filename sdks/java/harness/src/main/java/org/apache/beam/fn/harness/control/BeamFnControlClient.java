@@ -21,7 +21,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Thro
 
 import java.util.EnumMap;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import org.apache.beam.fn.harness.logging.BeamFnLoggingMDC;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
@@ -139,8 +138,8 @@ public class BeamFnControlClient {
   }
 
   /** This method blocks until the control stream has completed. */
-  public void waitForTermination() throws InterruptedException, ExecutionException {
-    onFinish.get();
+  public CompletableFuture<Object> terminationFuture() {
+    return onFinish;
   }
 
   public BeamFnApi.InstructionResponse delegateOnInstructionRequestType(

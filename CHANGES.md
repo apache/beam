@@ -49,7 +49,8 @@
 
 * ([#X](https://github.com/apache/beam/issues/X)).
 -->
-# [2.49.0] - Unreleased
+
+# [2.50.0] - Unreleased
 
 ## Highlights
 
@@ -59,6 +60,7 @@
 ## I/Os
 
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Python GCSIO is now implemented with GCP GCS Client instead of apitools ([#25676](https://github.com/apache/beam/issues/25676))
 
 ## New Features / Improvements
 
@@ -75,11 +77,36 @@
 ## Bugfixes
 
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
-* Fixed KinesisIO `NullPointerException` when a progress check is made before the reader is started (IO) ([#23868](https://github.com/apache/beam/issues/23868))
 
 ## Known Issues
 
 * ([#X](https://github.com/apache/beam/issues/X)).
+
+
+# [2.49.0] - Unreleased
+
+
+## I/Os
+
+* Support for Bigtable Change Streams added in Java `BigtableIO.ReadChangeStream` ([#27183](https://github.com/apache/beam/issues/27183))
+
+## New Features / Improvements
+
+* Allow prebuilding large images when using `--prebuild_sdk_container_engine=cloud_build`, like images depending on `tensorflow` or `torch` ([#27023](https://github.com/apache/beam/pull/27023)).
+* Disabled `pip` cache when installing packages on the workers. This reduces the size of prebuilt Python container images ([#27035](https://github.com/apache/beam/pull/27035)).
+* Select dedicated avro datum reader and writer (Java) ([#18874](https://github.com/apache/beam/issues/18874)).
+* Timer API for the Go SDK (Go) ([#22737](https://github.com/apache/beam/issues/22737)).
+
+
+## Deprecations
+
+* Remove Python 3.7 support. ([#26447](https://github.com/apache/beam/issues/26447))
+
+## Bugfixes
+
+* Fixed KinesisIO `NullPointerException` when a progress check is made before the reader is started (IO) ([#23868](https://github.com/apache/beam/issues/23868))
+
+## Known Issues
 
 
 # [2.48.0] - 2023-05-31
@@ -125,7 +152,7 @@
 
 ## Known Issues
 
-* ([#X](https://github.com/apache/beam/issues/X)).
+* PubsubIO writes will throw *SizeLimitExceededException* for any message above 100 bytes, when used in batch (bounded) mode. (Java) ([#27000](https://github.com/apache/beam/issues/27000)).
 
 # [2.47.0] - 2023-05-10
 

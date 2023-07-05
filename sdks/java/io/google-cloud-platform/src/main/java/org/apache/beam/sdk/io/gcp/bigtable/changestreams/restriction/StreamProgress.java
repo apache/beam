@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.bigtable.changestreams.restriction;
 import com.google.cloud.bigtable.data.v2.models.ChangeStreamContinuationToken;
 import com.google.cloud.bigtable.data.v2.models.CloseStream;
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.util.Objects;
 import org.apache.beam.sdk.annotations.Internal;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -41,15 +42,25 @@ public class StreamProgress implements Serializable {
 
   private @Nullable ChangeStreamContinuationToken currentToken;
   private @Nullable Instant estimatedLowWatermark;
+  private @Nullable BigDecimal throughputEstimate;
+  private @Nullable Instant lastRunTimestamp;
   private @Nullable CloseStream closeStream;
   private boolean failToLock;
+  private boolean isHeartbeat;
 
   public StreamProgress() {}
 
   public StreamProgress(
-      @Nullable ChangeStreamContinuationToken token, Instant estimatedLowWatermark) {
+      @Nullable ChangeStreamContinuationToken token,
+      Instant estimatedLowWatermark,
+      BigDecimal throughputEstimate,
+      Instant lastRunTimestamp,
+      boolean isHeartbeat) {
     this.currentToken = token;
     this.estimatedLowWatermark = estimatedLowWatermark;
+    this.throughputEstimate = throughputEstimate;
+    this.lastRunTimestamp = lastRunTimestamp;
+    this.isHeartbeat = isHeartbeat;
   }
 
   public StreamProgress(@Nullable CloseStream closeStream) {
@@ -64,6 +75,14 @@ public class StreamProgress implements Serializable {
     return estimatedLowWatermark;
   }
 
+  public @Nullable BigDecimal getThroughputEstimate() {
+    return throughputEstimate;
+  }
+
+  public @Nullable Instant getLastRunTimestamp() {
+    return lastRunTimestamp;
+  }
+
   public @Nullable CloseStream getCloseStream() {
     return closeStream;
   }
@@ -74,6 +93,10 @@ public class StreamProgress implements Serializable {
 
   public void setFailToLock(boolean failToLock) {
     this.failToLock = failToLock;
+  }
+
+  public boolean isHeartbeat() {
+    return this.isHeartbeat;
   }
 
   public boolean isEmpty() {
@@ -92,7 +115,10 @@ public class StreamProgress implements Serializable {
     return Objects.equals(getCurrentToken(), that.getCurrentToken())
         && Objects.equals(getEstimatedLowWatermark(), that.getEstimatedLowWatermark())
         && Objects.equals(getCloseStream(), that.getCloseStream())
-        && (isFailToLock() == that.isFailToLock());
+        && (isFailToLock() == that.isFailToLock())
+        && Objects.equals(getThroughputEstimate(), that.getThroughputEstimate())
+        && Objects.equals(getLastRunTimestamp(), that.getLastRunTimestamp())
+        && (isHeartbeat() == that.isHeartbeat());
   }
 
   @Override
@@ -111,6 +137,12 @@ public class StreamProgress implements Serializable {
         + closeStream
         + ", failToLock="
         + failToLock
+        + ", throughputEstimate="
+        + throughputEstimate
+        + ", lastRunTimestamp="
+        + lastRunTimestamp
+        + ", isHeartbeat="
+        + isHeartbeat
         + '}';
   }
 }

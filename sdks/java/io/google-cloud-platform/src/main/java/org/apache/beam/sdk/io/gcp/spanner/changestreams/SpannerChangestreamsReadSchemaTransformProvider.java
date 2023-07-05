@@ -25,6 +25,7 @@ import com.google.cloud.spanner.Type;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -42,6 +43,8 @@ import org.apache.beam.sdk.io.gcp.spanner.SpannerIO;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerSchema;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.Mod;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
@@ -51,13 +54,17 @@ import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.DoFn.FinishBundle;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.gson.Gson;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -65,6 +72,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @AutoService(SchemaTransformProvider.class)
 public class SpannerChangestreamsReadSchemaTransformProvider
@@ -76,52 +85,58 @@ public class SpannerChangestreamsReadSchemaTransformProvider
     return SpannerChangestreamsReadConfiguration.class;
   }
 
+  private static final Logger LOG =
+      LoggerFactory.getLogger(SpannerChangestreamsReadSchemaTransformProvider.class);
+
+  public static final TupleTag<Row> OUTPUT_TAG = new TupleTag<Row>() {};
+  public static final TupleTag<Row> ERROR_TAG = new TupleTag<Row>() {};
+  public static final Schema ERROR_SCHEMA =
+      Schema.builder().addStringField("error").addNullableStringField("row").build();
+
   @Override
   public @UnknownKeyFor @NonNull @Initialized SchemaTransform from(
       SpannerChangestreamsReadSchemaTransformProvider.SpannerChangestreamsReadConfiguration
           configuration) {
     return new SchemaTransform() {
       @Override
-      public @UnknownKeyFor @NonNull @Initialized PTransform<
-              @UnknownKeyFor @NonNull @Initialized PCollectionRowTuple,
-              @UnknownKeyFor @NonNull @Initialized PCollectionRowTuple>
-          buildTransform() {
-        return new PTransform<PCollectionRowTuple, PCollectionRowTuple>() {
-          @Override
-          public PCollectionRowTuple expand(PCollectionRowTuple input) {
-            Pipeline p = input.getPipeline();
-            // TODO(pabloem): Does this action create/destroy a new metadata table??
-            Schema tableChangesSchema = getTableSchema(configuration);
-            SpannerIO.ReadChangeStream readChangeStream =
-                SpannerIO.readChangeStream()
-                    .withSpannerConfig(
-                        SpannerConfig.create()
-                            .withProjectId(configuration.getProjectId())
-                            .withInstanceId(configuration.getInstanceId())
-                            .withDatabaseId(configuration.getDatabaseId()))
-                    .withChangeStreamName(configuration.getChangeStreamName())
-                    .withInclusiveStartAt(
-                        Timestamp.parseTimestamp(configuration.getStartAtTimestamp()))
-                    .withDatabaseId(configuration.getDatabaseId())
-                    .withProjectId(configuration.getProjectId())
-                    .withInstanceId(configuration.getInstanceId());
+      public PCollectionRowTuple expand(PCollectionRowTuple input) {
+        Pipeline p = input.getPipeline();
+        // TODO(pabloem): Does this action create/destroy a new metadata table??
+        Schema tableChangesSchema = getTableSchema(configuration);
+        SpannerIO.ReadChangeStream readChangeStream =
+            SpannerIO.readChangeStream()
+                .withSpannerConfig(
+                    SpannerConfig.create()
+                        .withProjectId(configuration.getProjectId())
+                        .withInstanceId(configuration.getInstanceId())
+                        .withDatabaseId(configuration.getDatabaseId()))
+                .withChangeStreamName(configuration.getChangeStreamName())
+                .withInclusiveStartAt(Timestamp.parseTimestamp(configuration.getStartAtTimestamp()))
+                .withDatabaseId(configuration.getDatabaseId())
+                .withProjectId(configuration.getProjectId())
+                .withInstanceId(configuration.getInstanceId());
 
-            if (configuration.getEndAtTimestamp() != null) {
-              String endTs =
-                  Objects.requireNonNull(Objects.requireNonNull(configuration.getEndAtTimestamp()));
-              readChangeStream =
-                  readChangeStream.withInclusiveEndAt(Timestamp.parseTimestamp(endTs));
-            }
-            return PCollectionRowTuple.of(
-                "output",
-                p.apply(readChangeStream)
-                    .apply(
-                        ParDo.of(
+        if (configuration.getEndAtTimestamp() != null) {
+          String endTs =
+              Objects.requireNonNull(Objects.requireNonNull(configuration.getEndAtTimestamp()));
+          readChangeStream = readChangeStream.withInclusiveEndAt(Timestamp.parseTimestamp(endTs));
+        }
+
+        PCollectionTuple outputTuple =
+            p.apply(readChangeStream)
+                .apply(
+                    ParDo.of(
                             new DataChangeRecordToRow(
-                                configuration.getTable(), tableChangesSchema)))
-                    .setRowSchema(tableChangesSchema));
-          }
-        };
+                                configuration.getTable(),
+                                tableChangesSchema,
+                                "SpannerChangestreams-read-error-counter"))
+                        .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
+
+        return PCollectionRowTuple.of(
+            "output",
+            outputTuple.get(OUTPUT_TAG).setRowSchema(tableChangesSchema),
+            "errors",
+            outputTuple.get(ERROR_TAG).setRowSchema(ERROR_SCHEMA));
       }
     };
   }
@@ -140,7 +155,7 @@ public class SpannerChangestreamsReadSchemaTransformProvider
   @Override
   public @UnknownKeyFor @NonNull @Initialized List<@UnknownKeyFor @NonNull @Initialized String>
       outputCollectionNames() {
-    return Collections.singletonList("output");
+    return Arrays.asList("output", "errors");
   }
 
   @DefaultSchema(AutoValueSchema.class)
@@ -193,15 +208,20 @@ public class SpannerChangestreamsReadSchemaTransformProvider
     }
   }
 
-  private static final class DataChangeRecordToRow extends DoFn<DataChangeRecord, Row> {
+  @VisibleForTesting
+  public static final class DataChangeRecordToRow extends DoFn<DataChangeRecord, Row> {
     private final Schema tableChangeRecordSchema;
     private final String tableName;
     private transient Gson gson;
+    private Counter errorCounter;
+    private Long errorsInBundle = 0L;
 
-    DataChangeRecordToRow(String tableName, Schema tableChangeRecordSchema) {
+    DataChangeRecordToRow(String tableName, Schema tableChangeRecordSchema, String name) {
       this.tableName = tableName;
       this.tableChangeRecordSchema = tableChangeRecordSchema;
       this.gson = new Gson();
+      this.errorCounter =
+          Metrics.counter(SpannerChangestreamsReadSchemaTransformProvider.class, name);
     }
 
     public Gson getGson() {
@@ -212,7 +232,7 @@ public class SpannerChangestreamsReadSchemaTransformProvider
     }
 
     @ProcessElement
-    public void process(@DoFn.Element DataChangeRecord record, OutputReceiver<Row> receiver) {
+    public void process(@DoFn.Element DataChangeRecord record, MultiOutputReceiver receiver) {
       if (!record.getTableName().equalsIgnoreCase(tableName)) {
         // If the element does not belong to the appropriate table name, we discard it.
         return;
@@ -225,50 +245,68 @@ public class SpannerChangestreamsReadSchemaTransformProvider
         if (internalRowSchema == null) {
           throw new RuntimeException("Row schema for internal row is null and cannot be utilized.");
         }
-        Row.FieldValueBuilder rowBuilder = Row.fromRow(Row.nullRow(internalRowSchema));
-        final Map<String, String> newValues =
-            Optional.ofNullable(mod.getNewValuesJson())
-                .map(nonNullValues -> getGson().fromJson(nonNullValues, Map.class))
-                .orElseGet(Collections::emptyMap);
-        final Map<String, String> keyValues =
-            Optional.ofNullable(mod.getKeysJson())
-                .map(nonNullValues -> getGson().fromJson(nonNullValues, Map.class))
-                .orElseGet(Collections::emptyMap);
 
-        for (Map.Entry<String, String> valueEntry : newValues.entrySet()) {
-          if (valueEntry.getValue() == null) {
-            continue;
-          }
-          // TODO(pabloem): Understand why SpannerSchema has field names in lowercase...
-          rowBuilder =
-              rowBuilder.withFieldValue(
-                  valueEntry.getKey().toLowerCase(),
-                  stringToParsedValue(
-                      internalRowSchema.getField(valueEntry.getKey().toLowerCase()).getType(),
-                      valueEntry.getValue()));
-        }
+        try {
+          Row.FieldValueBuilder rowBuilder = Row.fromRow(Row.nullRow(internalRowSchema));
+          final Map<String, String> newValues =
+              Optional.ofNullable(mod.getNewValuesJson())
+                  .map(nonNullValues -> getGson().fromJson(nonNullValues, Map.class))
+                  .orElseGet(Collections::emptyMap);
+          final Map<String, String> keyValues =
+              Optional.ofNullable(mod.getKeysJson())
+                  .map(nonNullValues -> getGson().fromJson(nonNullValues, Map.class))
+                  .orElseGet(Collections::emptyMap);
 
-        for (Map.Entry<String, String> pkEntry : keyValues.entrySet()) {
-          if (pkEntry.getValue() == null) {
-            continue;
+          for (Map.Entry<String, String> valueEntry : newValues.entrySet()) {
+            if (valueEntry.getValue() == null) {
+              continue;
+            }
+            // TODO(pabloem): Understand why SpannerSchema has field names in lowercase...
+            rowBuilder =
+                rowBuilder.withFieldValue(
+                    valueEntry.getKey().toLowerCase(),
+                    stringToParsedValue(
+                        internalRowSchema.getField(valueEntry.getKey().toLowerCase()).getType(),
+                        valueEntry.getValue()));
           }
-          // TODO(pabloem): Understand why SpannerSchema has field names in lowercase...
-          rowBuilder =
-              rowBuilder.withFieldValue(
-                  pkEntry.getKey().toLowerCase(),
-                  stringToParsedValue(
-                      internalRowSchema.getField(pkEntry.getKey().toLowerCase()).getType(),
-                      pkEntry.getValue()));
+
+          for (Map.Entry<String, String> pkEntry : keyValues.entrySet()) {
+            if (pkEntry.getValue() == null) {
+              continue;
+            }
+            // TODO(pabloem): Understand why SpannerSchema has field names in lowercase...
+            rowBuilder =
+                rowBuilder.withFieldValue(
+                    pkEntry.getKey().toLowerCase(),
+                    stringToParsedValue(
+                        internalRowSchema.getField(pkEntry.getKey().toLowerCase()).getType(),
+                        pkEntry.getValue()));
+          }
+          receiver
+              .get(OUTPUT_TAG)
+              .outputWithTimestamp(
+                  Row.withSchema(tableChangeRecordSchema)
+                      .addValue(record.getModType().toString())
+                      .addValue(record.getCommitTimestamp().toString())
+                      .addValue(Long.parseLong(record.getRecordSequence()))
+                      .addValue(rowBuilder.build())
+                      .build(),
+                  timestamp);
+        } catch (Exception e) {
+          errorsInBundle += 1;
+          LOG.warn("Error while parsing the DataChangeRecord", e);
+          String recordString = "Key:" + mod.getKeysJson() + " Value:" + mod.getNewValuesJson();
+          receiver
+              .get(ERROR_TAG)
+              .output(Row.withSchema(ERROR_SCHEMA).addValues(e.toString(), recordString).build());
         }
-        receiver.outputWithTimestamp(
-            Row.withSchema(tableChangeRecordSchema)
-                .addValue(record.getModType().toString())
-                .addValue(record.getCommitTimestamp().toString())
-                .addValue(Long.parseLong(record.getRecordSequence()))
-                .addValue(rowBuilder.build())
-                .build(),
-            timestamp);
       }
+    }
+
+    @FinishBundle
+    public void finish(FinishBundleContext c) {
+      errorCounter.inc(errorsInBundle);
+      errorsInBundle = 0L;
     }
   }
 

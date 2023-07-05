@@ -30,7 +30,7 @@ import org.apache.beam.sdk.io.gcp.bigtable.BigtableConfig;
 // Allows transient fields to be intialized later
 @SuppressWarnings("initialization.fields.uninitialized")
 @Internal
-public class DaoFactory implements Serializable {
+public class DaoFactory implements Serializable, AutoCloseable {
   private static final long serialVersionUID = 3732208768248394205L;
 
   private transient ChangeStreamDao changeStreamDao;
@@ -56,6 +56,19 @@ public class DaoFactory implements Serializable {
     this.changeStreamName = changeStreamName;
     this.tableId = tableId;
     this.metadataTableId = metadataTableId;
+  }
+
+  @Override
+  public void close() {
+    try {
+      if (metadataTableAdminDao != null || metadataTableDao != null) {
+        BigtableChangeStreamAccessor.getOrCreate(metadataTableConfig).close();
+      }
+      if (changeStreamDao != null) {
+        BigtableChangeStreamAccessor.getOrCreate(changeStreamConfig).close();
+      }
+    } catch (Exception ignored) {
+    }
   }
 
   public String getChangeStreamName() {

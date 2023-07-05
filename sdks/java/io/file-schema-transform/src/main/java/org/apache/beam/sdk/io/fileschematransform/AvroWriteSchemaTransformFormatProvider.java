@@ -19,23 +19,32 @@ package org.apache.beam.sdk.io.fileschematransform;
 
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.getNumShards;
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.getShardNameTemplate;
+import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformProvider.ERROR_SCHEMA;
+import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformProvider.ERROR_TAG;
+import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformProvider.RESULT_TAG;
 
 import com.google.auto.service.AutoService;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.beam.sdk.extensions.avro.coders.AvroGenericCoder;
+import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.extensions.avro.io.AvroIO;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
+import org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.BeamRowMapperWithDlq;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 
 /** A {@link FileWriteSchemaTransformFormatProvider} for avro format. */
 @AutoService(FileWriteSchemaTransformFormatProvider.class)
 public class AvroWriteSchemaTransformFormatProvider
     implements FileWriteSchemaTransformFormatProvider {
+  static final TupleTag<GenericRecord> ERROR_FN_OUPUT_TAG = new TupleTag<GenericRecord>() {};
 
   @Override
   public String identifier() {
@@ -44,25 +53,31 @@ public class AvroWriteSchemaTransformFormatProvider
 
   /**
    * Builds a {@link PTransform} that transforms a {@link Row} {@link PCollection} into result
-   * {@link PCollection} file names written using {@link AvroIO.Write}.
+   * {@link PCollectionTuple} with two tags, one for file names written using {@link AvroIO.Write},
+   * another for errored-out rows.
    */
   @Override
-  public PTransform<PCollection<Row>, PCollection<String>> buildTransform(
+  public PTransform<PCollection<Row>, PCollectionTuple> buildTransform(
       FileWriteSchemaTransformConfiguration configuration, Schema schema) {
 
-    return new PTransform<PCollection<Row>, PCollection<String>>() {
+    return new PTransform<PCollection<Row>, PCollectionTuple>() {
       @Override
-      public PCollection<String> expand(PCollection<Row> input) {
+      public PCollectionTuple expand(PCollection<Row> input) {
 
         org.apache.avro.Schema avroSchema = AvroUtils.toAvroSchema(schema);
-        AvroGenericCoder coder = AvroGenericCoder.of(avroSchema);
+        AvroCoder<GenericRecord> coder = AvroCoder.of(avroSchema);
 
-        PCollection<GenericRecord> avro =
-            input
-                .apply(
-                    "Row To Avro Generic Record",
-                    FileWriteSchemaTransformFormatProviders.mapRowsToGenericRecords(schema))
-                .setCoder(coder);
+        PCollectionTuple tuple =
+            input.apply(
+                "Row To Avro Generic Record",
+                ParDo.of(
+                        new BeamRowMapperWithDlq<GenericRecord>(
+                            "Avro-write-error-counter",
+                            AvroUtils.getRowToGenericRecordFunction(AvroUtils.toAvroSchema(schema)),
+                            ERROR_FN_OUPUT_TAG))
+                    .withOutputTags(ERROR_FN_OUPUT_TAG, TupleTagList.of(ERROR_TAG)));
+
+        PCollection<GenericRecord> avro = tuple.get(ERROR_FN_OUPUT_TAG).setCoder(coder);
 
         AvroIO.Write<GenericRecord> write =
             AvroIO.writeGenericRecords(avroSchema).to(configuration.getFilenamePrefix());
@@ -79,9 +94,13 @@ public class AvroWriteSchemaTransformFormatProvider
           write = write.withShardNameTemplate(getShardNameTemplate(configuration));
         }
 
-        return avro.apply("Write Avro", write.withOutputFilenames())
-            .getPerDestinationOutputFilenames()
-            .apply("perDestinationOutputFilenames", Values.create());
+        PCollection<String> output =
+            avro.apply("Write Avro", write.withOutputFilenames())
+                .getPerDestinationOutputFilenames()
+                .apply("perDestinationOutputFilenames", Values.create());
+
+        return PCollectionTuple.of(RESULT_TAG, output)
+            .and(ERROR_TAG, tuple.get(ERROR_TAG).setRowSchema(ERROR_SCHEMA));
       }
     };
   }

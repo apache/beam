@@ -16,3 +16,7 @@
 #  under the License.
 
 include: package:total_lints/app.yaml
+
+linter:
+  rules:
+    do_not_use_environment: false

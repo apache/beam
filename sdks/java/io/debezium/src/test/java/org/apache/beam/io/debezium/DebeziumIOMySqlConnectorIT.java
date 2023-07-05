@@ -158,8 +158,7 @@ public class DebeziumIOMySqlConnectorIT {
                             .setHost("localhost")
                             .setTable("inventory.customers")
                             .setPort(MY_SQL_CONTAINER.getMappedPort(3306))
-                            .build())
-                    .buildTransform())
+                            .build()))
             .get("output");
 
     PAssert.that(result)

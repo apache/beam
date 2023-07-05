@@ -47,7 +47,6 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.InferableFunction;
 import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.values.PCollection;
@@ -126,26 +125,6 @@ public class ExpansionServiceSchemaTransformProviderTest {
     }
   }
 
-  public static class TestSchemaTransform implements SchemaTransform {
-
-    private String str1;
-    private String str2;
-    private Integer int1;
-    private Integer int2;
-
-    public TestSchemaTransform(String str1, String str2, Integer int1, Integer int2) {
-      this.str1 = str1;
-      this.str2 = str2;
-      this.int1 = int1;
-      this.int2 = int2;
-    }
-
-    @Override
-    public PTransform<PCollectionRowTuple, PCollectionRowTuple> buildTransform() {
-      return new TestTransform(str1, str2, int1, int2);
-    }
-  }
-
   public static class TestDoFn extends DoFn<String, String> {
 
     public String str1;
@@ -166,14 +145,14 @@ public class ExpansionServiceSchemaTransformProviderTest {
     }
   }
 
-  public static class TestTransform extends PTransform<PCollectionRowTuple, PCollectionRowTuple> {
+  public static class TestSchemaTransform extends SchemaTransform {
 
     private String str1;
     private String str2;
     private Integer int1;
     private Integer int2;
 
-    public TestTransform(String str1, String str2, Integer int1, Integer int2) {
+    public TestSchemaTransform(String str1, String str2, Integer int1, Integer int2) {
       this.str1 = str1;
       this.str2 = str2;
       this.int1 = int1;
@@ -244,7 +223,7 @@ public class ExpansionServiceSchemaTransformProviderTest {
     }
   }
 
-  public static class TestSchemaTransformMultiInputOutput implements SchemaTransform {
+  public static class TestSchemaTransformMultiInputOutput extends SchemaTransform {
 
     private String str1;
     private String str2;
@@ -252,28 +231,6 @@ public class ExpansionServiceSchemaTransformProviderTest {
     private Integer int2;
 
     public TestSchemaTransformMultiInputOutput(
-        String str1, String str2, Integer int1, Integer int2) {
-      this.str1 = str1;
-      this.str2 = str2;
-      this.int1 = int1;
-      this.int2 = int2;
-    }
-
-    @Override
-    public PTransform<PCollectionRowTuple, PCollectionRowTuple> buildTransform() {
-      return new TestTransformMultiInputMultiOutput(str1, str2, int1, int2);
-    }
-  }
-
-  public static class TestTransformMultiInputMultiOutput
-      extends PTransform<PCollectionRowTuple, PCollectionRowTuple> {
-
-    private String str1;
-    private String str2;
-    private Integer int1;
-    private Integer int2;
-
-    public TestTransformMultiInputMultiOutput(
         String str1, String str2, Integer int1, Integer int2) {
       this.str1 = str1;
       this.str2 = str2;

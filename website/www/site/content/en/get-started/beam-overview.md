@@ -66,7 +66,7 @@ Get started using Beam for your data processing tasks.
 > If you already know [Apache Spark](https://spark.apache.org/),
 > check our [Getting started from Apache Spark](/get-started/from-spark) page.
 
-1. Take the [Tour of Beam](/get-started/tour-of-beam) as an online interactive learning experience.
+1. Take the [Tour of Beam](https://tour.beam.apache.org/) as an online interactive learning experience.
 
 1. Follow the Quickstart for the [Java SDK](/get-started/quickstart-java), the [Python SDK](/get-started/quickstart-py), or the [Go SDK](/get-started/quickstart-go).
 

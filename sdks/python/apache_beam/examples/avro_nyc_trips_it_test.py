@@ -196,11 +196,16 @@ class AvroNycTripsIT(unittest.TestCase):
     avro_nyc_trips.run(test_pipeline.get_full_options_as_args(**extra_opts))
 
     # load result avro file and compare
-    metadata = FileSystems.match([f'{test_output}*'])[0].metadata_list[0]
-    with FileSystems.open(metadata.path) as f:
-      avro_reader = fastavro.reader(f)
+    metadata_list = FileSystems.match([f'{test_output}*'])[0].metadata_list
+    result = []
 
-      result = sorted(avro_reader, key=lambda x: x['service'])
+    for metadata in metadata_list:
+      with FileSystems.open(metadata.path) as f:
+        avro_reader = fastavro.reader(f)
+
+        result.extend(avro_reader)
+
+    result.sort(key=lambda x: x['service'])
 
     self.assertEqual(self.EXPECTED, result)
 

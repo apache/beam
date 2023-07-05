@@ -43,7 +43,6 @@ import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.schemas.utils.JsonUtils;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
@@ -131,49 +130,39 @@ public class PubsubLiteWriteSchemaTransformProvider
     }
 
     return new SchemaTransform() {
-
       @Override
-      public @UnknownKeyFor @NonNull @Initialized PTransform<
-              @UnknownKeyFor @NonNull @Initialized PCollectionRowTuple,
-              @UnknownKeyFor @NonNull @Initialized PCollectionRowTuple>
-          buildTransform() {
-        return new PTransform<PCollectionRowTuple, PCollectionRowTuple>() {
-          @Override
-          public PCollectionRowTuple expand(PCollectionRowTuple input) {
-            Schema inputSchema = input.get("input").getSchema();
-            final SerializableFunction<Row, byte[]> toBytesFn =
-                configuration.getFormat().equals("JSON")
-                    ? JsonUtils.getRowToJsonBytesFunction(inputSchema)
-                    : AvroUtils.getRowToAvroBytesFunction(inputSchema);
+      public PCollectionRowTuple expand(PCollectionRowTuple input) {
+        Schema inputSchema = input.get("input").getSchema();
+        final SerializableFunction<Row, byte[]> toBytesFn =
+            configuration.getFormat().equals("JSON")
+                ? JsonUtils.getRowToJsonBytesFunction(inputSchema)
+                : AvroUtils.getRowToAvroBytesFunction(inputSchema);
 
-            PCollectionTuple outputTuple =
-                input
-                    .get("input")
-                    .apply(
-                        "Map Rows to PubSubMessages",
-                        ParDo.of(new ErrorCounterFn("PubSubLite-write-error-counter", toBytesFn))
-                            .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
-
-            outputTuple
-                .get(OUTPUT_TAG)
-                .apply("Add UUIDs", PubsubLiteIO.addUuids())
+        PCollectionTuple outputTuple =
+            input
+                .get("input")
                 .apply(
-                    "Write to PS Lite",
-                    PubsubLiteIO.write(
-                        PublisherOptions.newBuilder()
-                            .setTopicPath(
-                                TopicPath.newBuilder()
-                                    .setProject(ProjectId.of(configuration.getProject()))
-                                    .setName(TopicName.of(configuration.getTopicName()))
-                                    .setLocation(
-                                        CloudRegionOrZone.parse(configuration.getLocation()))
-                                    .build())
-                            .build()));
+                    "Map Rows to PubSubMessages",
+                    ParDo.of(new ErrorCounterFn("PubSubLite-write-error-counter", toBytesFn))
+                        .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
 
-            return PCollectionRowTuple.of(
-                "errors", outputTuple.get(ERROR_TAG).setRowSchema(ERROR_SCHEMA));
-          }
-        };
+        outputTuple
+            .get(OUTPUT_TAG)
+            .apply("Add UUIDs", PubsubLiteIO.addUuids())
+            .apply(
+                "Write to PS Lite",
+                PubsubLiteIO.write(
+                    PublisherOptions.newBuilder()
+                        .setTopicPath(
+                            TopicPath.newBuilder()
+                                .setProject(ProjectId.of(configuration.getProject()))
+                                .setName(TopicName.of(configuration.getTopicName()))
+                                .setLocation(CloudRegionOrZone.parse(configuration.getLocation()))
+                                .build())
+                        .build()));
+
+        return PCollectionRowTuple.of(
+            "errors", outputTuple.get(ERROR_TAG).setRowSchema(ERROR_SCHEMA));
       }
     };
   }

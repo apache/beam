@@ -76,7 +76,6 @@ import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.io.FileSystems;
-import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.fs.MoveOptions;
 import org.apache.beam.sdk.io.fs.ResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
@@ -477,6 +476,55 @@ import org.slf4j.LoggerFactory;
  * reviewers mentioned <a
  * href="https://github.com/apache/beam/blob/master/sdks/java/io/google-cloud-platform/OWNERS">
  * here</a>.
+ *
+ * <h3>Upserts and deletes</h3>
+ *
+ * The connector also supports streaming row updates to BigQuery, with the following qualifications:
+ * - The CREATE_IF_NEEDED CreateDisposition is not supported. Tables must be precreated with primary
+ * keys. - Only the STORAGE_WRITE_API_AT_LEAST_ONCE method is supported.
+ *
+ * <p>Two types of updates are supported. UPSERT replaces the row with the matching primary key or
+ * inserts the row if non exists. DELETE removes the row with the matching primary key. Row inserts
+ * are still allowed as normal using a separate instance of the sink, however care must be taken not
+ * to violate primary key uniqueness constraints, as those constraints are not enforced by BigQuery.
+ * If a table contains multiple rows with the same primary key, then row updates may not work as
+ * expected.
+ *
+ * <p>Since PCollections are unordered, in order to properly sequence updates a sequence number must
+ * be set on each update. BigQuery uses this sequence number to ensure that updates are correctly
+ * applied to the table even if they arrive out of order.
+ *
+ * <p>The simplest way to apply row updates if applying {@link TableRow} object is to use the {@link
+ * Write#applyRowMutations} method. Each {@link RowMutation} element contains a {@link TableRow}, an
+ * update type (UPSERT or DELETE), and a sequence number to order the updates.
+ *
+ * <pre>{@code
+ * PCollection<TableRow> rows = ...;
+ * row.apply(MapElements
+ *       .into(new TypeDescriptor<RowMutation>(){})
+ *       .via(tableRow -> RowMutation.of(tableRow, getUpdateType(tableRow), getSequenceNumber(tableRow))))
+ *    .apply(BigQueryIO.applyRowMutations()
+ *           .to(my_project:my_dataset.my_table)
+ *           .withSchema(schema)
+ *           .withCreateDisposition(Write.CreateDisposition.CREATE_NEVER));
+ * }</pre>
+ *
+ * <p>If writing a type other than TableRow (e.g. using {@link BigQueryIO#writeGenericRecords} or
+ * writing a custom user type), then the {@link Write#withRowMutationInformationFn} method can be
+ * used to set an update type and sequence number for each record. For example:
+ *
+ * <pre>{@code
+ * PCollection<CdcEvent> cdcEvent = ...;
+ *
+ * cdcEvent.apply(BigQueryIO.write()
+ *          .to("my-project:my_dataset.my_table")
+ *          .withSchema(schema)
+ *          .withFormatFunction(CdcEvent::getTableRow)
+ *          .withRowMutationInformationFn(cdc -> RowMutationInformation.of(cdc.getChangeType(),
+ *                                                                         cdc.getSequenceNumber()))
+ *          .withMethod(Write.Method.STORAGE_API_AT_LEAST_ONCE)
+ *          .withCreateDisposition(Write.CreateDisposition.CREATE_NEVER));
+ * }</pre>
  */
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20506)
@@ -2098,6 +2146,22 @@ public class BigQueryIO {
   }
 
   /**
+   * Write {@link RowMutation} messages to BigQuery. Each update contains a {@link TableRow} along
+   * with information on how to apply the update. This is a convenience method - {@link
+   * Write#withRowMutationInformationFn} can be called directly instead to tell the sink how to
+   * apply row updates; directly calling {@link Write#withRowMutationInformationFn} is preferred
+   * when writing non TableRows types (e.g. {@link #writeGenericRecords} or a custom user type).
+   *
+   * <p>This is only supported when using the {@link Write.Method#STORAGE_API_AT_LEAST_ONCE} insert
+   * method and {@link Write.CreateDisposition#CREATE_NEVER}. The tables must be precreated with a
+   * primary key.
+   */
+  public static Write<RowMutation> applyRowMutations() {
+    return BigQueryIO.<RowMutation>write()
+        .withFormatFunction(RowMutation::getTableRow)
+        .withRowMutationInformationFn(RowMutation::getMutationInformation);
+  }
+  /**
    * A {@link PTransform} that writes a {@link PCollection} containing {@link GenericRecord
    * GenericRecords} to a BigQuery table.
    */
@@ -2242,6 +2306,9 @@ public class BigQueryIO {
 
     abstract @Nullable String getWriteTempDataset();
 
+    abstract @Nullable SerializableFunction<T, RowMutationInformation>
+        getRowMutationInformationFn();
+
     abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
@@ -2337,6 +2404,9 @@ public class BigQueryIO {
           SerializableFunction<T, String> toUniqueIdFunction);
 
       abstract Builder<T> setWriteTempDataset(String writeTempDataset);
+
+      abstract Builder<T> setRowMutationInformationFn(
+          SerializableFunction<T, RowMutationInformation> rowMutationFn);
 
       abstract Write<T> build();
     }
@@ -2697,6 +2767,20 @@ public class BigQueryIO {
     }
 
     /**
+     * Allows upserting and deleting rows for tables with a primary key defined. Provides a mapping
+     * function that determines how a row is applied to BigQuery (upsert, or delete) along with a
+     * sequence number for ordering operations.
+     *
+     * <p>This is only supported when using the {@link Write.Method#STORAGE_API_AT_LEAST_ONCE}
+     * insert method and {@link Write.CreateDisposition#CREATE_NEVER}. The tables must be precreated
+     * with a primary key.
+     */
+    public Write<T> withRowMutationInformationFn(
+        SerializableFunction<T, RowMutationInformation> updateFn) {
+      return toBuilder().setRowMutationInformationFn(updateFn).build();
+    }
+
+    /**
      * Set the project the BigQuery load job will be initiated from. This is only applicable when
      * the write method is set to {@link Method#FILE_LOADS}. If omitted, the project of the
      * destination table is used.
@@ -2834,9 +2918,9 @@ public class BigQueryIO {
 
     /**
      * If true, enables using a dynamically determined number of shards to write to BigQuery. This
-     * can be used for both {@link Method#FILE_LOADS} and {@link Method#STREAMING_INSERTS}. Only
-     * applicable to unbounded data. If using {@link Method#FILE_LOADS}, numFileShards set via
-     * {@link #withNumFileShards} will be ignored.
+     * can be used for {@link Method#FILE_LOADS}, {@link Method#STREAMING_INSERTS} and {@link
+     * Method#STORAGE_WRITE_API}. Only applicable to unbounded data. If using {@link
+     * Method#FILE_LOADS}, numFileShards set via {@link #withNumFileShards} will be ignored.
      */
     public Write<T> withAutoSharding() {
       return toBuilder().setAutoSharding(true).build();
@@ -2982,6 +3066,9 @@ public class BigQueryIO {
       if (getMethod() != Write.Method.DEFAULT) {
         return getMethod();
       }
+      if (getRowMutationInformationFn() != null) {
+        return Method.STORAGE_API_AT_LEAST_ONCE;
+      }
       BigQueryOptions bqOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
       if (bqOptions.getUseStorageWriteApi()) {
         return bqOptions.getUseStorageWriteApiAtLeastOnce()
@@ -3067,6 +3154,13 @@ public class BigQueryIO {
         checkArgument(
             !getAutoSchemaUpdate(),
             "withAutoSchemaUpdate only supported when using storage-api writes.");
+      }
+      if (getRowMutationInformationFn() != null) {
+        checkArgument(getMethod() == Method.STORAGE_API_AT_LEAST_ONCE);
+        checkArgument(
+            getCreateDisposition() == CreateDisposition.CREATE_NEVER,
+            "CREATE_IF_NEEDED is not supported when applying row updates. Tables must be precreated "
+                + "with a primary key specified.");
       }
 
       if (getAutoSchemaUpdate()) {
@@ -3359,7 +3453,10 @@ public class BigQueryIO {
           // need to round trip through JSON TableRow objects.
           storageApiDynamicDestinations =
               new StorageApiDynamicDestinationsBeamRow<>(
-                  dynamicDestinations, elementSchema, elementToRowFunction);
+                  dynamicDestinations,
+                  elementSchema,
+                  elementToRowFunction,
+                  getRowMutationInformationFn() != null);
         } else if (getAvroRowWriterFactory() != null) {
           // we can configure the avro to storage write api proto converter for this
           // assuming the format function returns an Avro GenericRecord
@@ -3379,7 +3476,10 @@ public class BigQueryIO {
 
           storageApiDynamicDestinations =
               new StorageApiDynamicDestinationsGenericRecord<>(
-                  dynamicDestinations, avroSchemaFactory, recordWriterFactory.getToAvroFn());
+                  dynamicDestinations,
+                  avroSchemaFactory,
+                  recordWriterFactory.getToAvroFn(),
+                  getRowMutationInformationFn() != null);
         } else {
           RowWriterFactory.TableRowWriterFactory<T, DestinationT> tableRowWriterFactory =
               (RowWriterFactory.TableRowWriterFactory<T, DestinationT>) rowWriterFactory;
@@ -3388,6 +3488,7 @@ public class BigQueryIO {
               new StorageApiDynamicDestinationsTableRow<>(
                   dynamicDestinations,
                   tableRowWriterFactory.getToRowFn(),
+                  getRowMutationInformationFn() != null,
                   getCreateDisposition(),
                   getIgnoreUnknownValues(),
                   getAutoSchemaUpdate());
@@ -3402,6 +3503,7 @@ public class BigQueryIO {
             new StorageApiLoads<>(
                 destinationCoder,
                 storageApiDynamicDestinations,
+                getRowMutationInformationFn(),
                 getCreateDisposition(),
                 getKmsKey(),
                 getStorageApiTriggeringFrequency(bqOptions),
@@ -3411,7 +3513,8 @@ public class BigQueryIO {
                 enableAutoSharding,
                 getAutoSchemaUpdate(),
                 getIgnoreUnknownValues(),
-                getPropagateSuccessfulStorageApiWrites());
+                getPropagateSuccessfulStorageApiWrites(),
+                getRowMutationInformationFn() != null);
         return input.apply("StorageApiLoads", storageApiLoads);
       } else {
         throw new RuntimeException("Unexpected write method " + method);
