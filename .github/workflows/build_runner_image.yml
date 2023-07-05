@@ -21,7 +21,7 @@ name: Build and Version Runner Docker Image
 on:
   push:
     branches: ['master']
-    paths: ['.github/gh-actions-self-hosted-runners/arc/images/**','.github/workflows/arc-runner-docker-image.yml']
+    paths: ['.github/gh-actions-self-hosted-runners/arc/images/**','.github/workflows/build_runner_image.yml']
   pull_request_target:
     branches: ['master']
     paths: ['.github/gh-actions-self-hosted-runners/arc/images/**']
@@ -58,7 +58,7 @@ jobs:
         load: true
         tags: |
           ${{env.docker_registry}}/${{env.docker_repo}}:latest
-          ${{env.docker_image}}:${{ github.sha }}
+          ${{env.docker_registry}}/${{env.docker_repo}}:${{ github.sha }}
     - name: Push Docker image
       if: github.event_name == 'push'
       id: docker_build
@@ -68,4 +68,4 @@ jobs:
         push: true
         tags: |
           ${{env.docker_registry}}/${{env.docker_repo}}:latest
-          ${{env.docker_image}}:${{ github.sha }}
+          ${{env.docker_registry}}/${{env.docker_repo}}:${{ github.sha }}
