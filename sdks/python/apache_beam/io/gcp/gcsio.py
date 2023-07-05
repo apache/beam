@@ -203,6 +203,10 @@ class GcsIO(object):
     Args:
       paths: List of GCS file path patterns in the form gs://<bucket>/<name>,
              not to exceed MAX_BATCH_OPERATION_SIZE in length.
+
+    Returns: List of tuples of (path, exception) in the same order as the
+             paths argument, where exception is None if the operation
+             succeeded or the relevant exception if the operation failed.
     """
     final_results = []
     s = 0
@@ -219,7 +223,8 @@ class GcsIO(object):
           blobs = [blob_name]
           bucket.delete_blobs(blobs, on_error=lambda blob: None)
 
-      final_results.extend(current_batch._responses)
+      for path, resp in list(zip(current_paths, current_batch._responses)):
+        final_results += (path, resp.status_code)
 
       s += MAX_BATCH_OPERATION_SIZE
 
@@ -278,7 +283,9 @@ class GcsIO(object):
 
           src_bucket.copy_blob(src_blob, dest_bucket, dest_blob_name)
 
-      final_results += current_batch._responses
+      for pair, resp in list(zip(current_pairs, current_batch._responses)):
+        final_results += (pair[0], pair[1], resp.status_code)
+
       s += MAX_BATCH_OPERATION_SIZE
 
     return final_results

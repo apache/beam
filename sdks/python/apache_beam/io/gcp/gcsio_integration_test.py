@@ -96,16 +96,26 @@ class GcsIOIntegrationTest(unittest.TestCase):
     ]
     src_dest_pairs = list(zip(srcs, dests))
 
-    self.gcsio.copy_batch(src_dest_pairs)
+    copy_results = self.gcsio.copy_batch(src_dest_pairs)
 
-    for src, dest in src_dest_pairs:
-      self._verify_copy(src, dest)
+    for pair, result in list(zip(src_dest_pairs, copy_results)):
+      self._verify_copy(pair[0], pair[1])
+      self.assertEqual(pair[0], result[0], 'copy source %s does not match %s' % (pair[0], result[0]))
+      self.assertEqual(pair[1], result[1], 'copy destination %s does not match %s' % (pair[1], result[1]))
+      self.assertEqual(200, result[2], 'copy response code %s not equal to 200' % result[2])
 
-    self.gcsio.delete_batch(dests)
-    for dest in dests:
+    delete_results = self.gcsio.delete_batch(dests)
+
+    for dest, result in list(zip(dests, delete_results)):
       self.assertFalse(
           FileSystems.exists(dest), 'deleted file still exists: %s' % dest)
+      self.assertEqual(dest, result[0], 'delete path %s does not match %s' % (dest, result[0]))
+      self.assertEqual(200, result[1], 'delete response code %s not equal to 200' % result[1])
 
+    redelete_results = self.gcsio.delete_batch(dests)
+
+    for dest, result in list(zip(dests, redelete_results)):
+      self.assertEqual(200, result[1], 're-delete should not throw error: %s' % result[1])
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
