@@ -40,6 +40,7 @@ resource "google_container_node_pool" "main-actions-runner-pool" {
     auto_upgrade = "true"
    }
   node_config {
+    disk_size_gb = var.main_runner.disk_size_gb
     machine_type    = var.main_runner.machine_type
     oauth_scopes = [
       "https://www.googleapis.com/auth/cloud-platform"
@@ -66,6 +67,7 @@ resource "google_container_node_pool" "additional_runner_pools" {
     auto_upgrade = "true"
    }
   node_config {
+    disk_size_gb = each.value.disk_size_gb
     machine_type    = each.value.machine_type
     oauth_scopes = [
       "https://www.googleapis.com/auth/cloud-platform"

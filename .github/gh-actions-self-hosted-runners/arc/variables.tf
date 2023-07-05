@@ -27,28 +27,6 @@ variable "region" {
 variable "zone" {
     description = "Google Zone to use for deployment"
 }
-variable "min_main_node_count" {
-    description = "Minimal node count for GKE"
-    default = "1"
-}
-variable "max_main_node_count" {
-    description = "Maximal node count for GKE"
-    default = "2"
-}
-variable "max_main_replicas" {
-    description = "Maximal replicas for Action Runners"
-    default = "2"
-  
-}
-variable "min_main_replicas" {
-    description = "Minimal replicas for Action Runners"
-    default = "1"
-  
-}
-variable machine_type {
-    description = "Machine type to use for runner Node Pool"
-    default = "e2-standard-2"
-}
 variable "environment" {
     description = "name of environment"
     default = ""
@@ -84,11 +62,6 @@ variable "runner_group" {
   description = "value for the runner group label"
   default = ""
 }
-variable "webhook_scaling" {
-    description = "Enable scaling of runners based on webhook events"
-    default = "false"
-  
-}
 
 variable "main_runner" {
     type = object({
@@ -98,6 +71,7 @@ variable "main_runner" {
       max_node_count = optional(number, 1)
       min_replicas = optional(number, 1)
       max_replicas = optional(number, 1)
+      disk_size_gb = optional(number, 100)
       webhook_scaling = optional(bool, false)
       runner_image = optional(string, "summerwind/actions-runner:v2.304.0-ubuntu-20.04-30355f7")
       labels = optional(list(string), ["self-hosted", "ubuntu-20.04","main"])
@@ -126,6 +100,7 @@ variable "additional_runner_pools" {
       max_node_count = optional(number, 1)
       min_replicas = optional(number, 1)
       max_replicas = optional(number, 1)
+      disk_size_gb = optional(number, 100)
       webhook_scaling = optional(bool, false)
       runner_image = optional(string, "summerwind/actions-runner:v2.304.0-ubuntu-20.04-30355f7")
       labels = optional(list(string), ["self-hosted", "ubuntu-20.04","main"])
