@@ -15,6 +15,8 @@
 # limitations under the License.
 #
 
+__all__ = ['ArtifactsFetcher']
+
 import typing
 
 import tensorflow_transform as tft

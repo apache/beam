@@ -30,11 +30,11 @@ from apache_beam.testing.util import equal_to
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
   from apache_beam.ml.transforms import base
-  from apache_beam.ml.transforms import tft_transforms
+  from apache_beam.ml.transforms import tft
 except ImportError:
-  tft_transforms = None  # type: ignore[assignment]
+  tft = None  # type: ignore[assignment]
 
-if not tft_transforms:
+if not tft:
   raise unittest.SkipTest('tensorflow_transform is not installed.')
 
 z_score_expected = {'x_mean': 3.5, 'x_var': 2.9166666666666665}
@@ -91,7 +91,7 @@ class ScaleZScoreTest(unittest.TestCase):
           | "unbatchedCreate" >> beam.Create(unbatched_data)
           | "unbatchedMLTransform" >> base.MLTransform(
               artifact_location=self.artifact_location).with_transform(
-                  tft_transforms.ScaleToZScore(columns=['x'])))
+                  tft.ScaleToZScore(columns=['x'])))
       _ = (unbatched_result | beam.Map(assert_z_score_artifacts))
 
   def test_z_score_batched(self):
@@ -102,7 +102,7 @@ class ScaleZScoreTest(unittest.TestCase):
           | "batchedCreate" >> beam.Create(batched_data)
           | "batchedMLTransform" >> base.MLTransform(
               artifact_location=self.artifact_location).with_transform(
-                  tft_transforms.ScaleToZScore(columns=['x'])))
+                  tft.ScaleToZScore(columns=['x'])))
       _ = (batched_result | beam.Map(assert_z_score_artifacts))
 
 
@@ -121,7 +121,7 @@ class ScaleTo01Test(unittest.TestCase):
           | "batchedCreate" >> beam.Create(batched_data)
           | "batchedMLTransform" >> base.MLTransform(
               artifact_location=self.artifact_location).with_transform(
-                  tft_transforms.ScaleTo01(columns=['x'])))
+                  tft.ScaleTo01(columns=['x'])))
       _ = (batched_result | beam.Map(assert_ScaleTo01_artifacts))
 
       expected_output = [
@@ -152,7 +152,7 @@ class ScaleTo01Test(unittest.TestCase):
           | "unbatchedCreate" >> beam.Create(unbatched_data)
           | "unbatchedMLTransform" >> base.MLTransform(
               artifact_location=self.artifact_location).with_transform(
-                  tft_transforms.ScaleTo01(columns=['x'])))
+                  tft.ScaleTo01(columns=['x'])))
 
       _ = (unbatched_result | beam.Map(assert_ScaleTo01_artifacts))
       expected_output = (
@@ -182,7 +182,7 @@ class BucketizeTest(unittest.TestCase):
           | "unbatchedCreate" >> beam.Create(unbatched)
           | "unbatchedMLTransform" >> base.MLTransform(
               artifact_location=self.artifact_location).with_transform(
-                  tft_transforms.Bucketize(columns=['x'], num_buckets=3)))
+                  tft.Bucketize(columns=['x'], num_buckets=3)))
       _ = (unbatched_result | beam.Map(assert_bucketize_artifacts))
 
       transformed_data = (unbatched_result | beam.Map(lambda x: x.x))
@@ -205,7 +205,7 @@ class BucketizeTest(unittest.TestCase):
           | "batchedCreate" >> beam.Create(batched)
           | "batchedMLTransform" >> base.MLTransform(
               artifact_location=self.artifact_location).with_transform(
-                  tft_transforms.Bucketize(columns=['x'], num_buckets=3)))
+                  tft.Bucketize(columns=['x'], num_buckets=3)))
       _ = (batched_result | beam.Map(assert_bucketize_artifacts))
 
       transformed_data = (
@@ -235,9 +235,9 @@ class BucketizeTest(unittest.TestCase):
       result = (
           p
           | "Create" >> beam.Create(data)
-          | "MLTransform" >> base.
-          MLTransform(artifact_location=self.artifact_location).with_transform(
-              tft_transforms.Bucketize(columns=['x'], num_buckets=num_buckets)))
+          | "MLTransform" >> base.MLTransform(
+              artifact_location=self.artifact_location).with_transform(
+                  tft.Bucketize(columns=['x'], num_buckets=num_buckets)))
       actual_boundaries = (
           result
           | beam.Map(lambda x: x.as_dict())
@@ -268,7 +268,7 @@ class ApplyBucketsTest(unittest.TestCase):
           | "Create" >> beam.Create(data)
           | "MLTransform" >> base.MLTransform(
               artifact_location=self.artifact_location).with_transform(
-                  tft_transforms.ApplyBuckets(
+                  tft.ApplyBuckets(
                       columns=['x'], bucket_boundaries=bucket_boundaries)))
       expected_output = []
       bucket = 0
@@ -307,7 +307,7 @@ class ComputeAndApplyVocabTest(unittest.TestCase):
           | "Create" >> beam.Create(input_data)
           | "MLTransform" >> base.MLTransform(
               artifact_location=self.artifact_location).with_transform(
-                  tft_transforms.ComputeAndApplyVocabulary(columns=['x'])))
+                  tft.ComputeAndApplyVocabulary(columns=['x'])))
       actual_data |= beam.Map(lambda x: x.as_dict())
 
       assert_that(actual_data, equal_to(expected_data))
@@ -339,7 +339,7 @@ class ComputeAndApplyVocabTest(unittest.TestCase):
           | "Create" >> beam.Create(input_data)
           | "MLTransform" >> base.MLTransform(
               artifact_location=self.artifact_location).with_transform(
-                  tft_transforms.ComputeAndApplyVocabulary(columns=['x'])))
+                  tft.ComputeAndApplyVocabulary(columns=['x'])))
       actual_output = (result | beam.Map(lambda x: x.x))
       assert_that(
           actual_output, equal_to(excepted_data, equals_fn=np.array_equal))
@@ -359,8 +359,8 @@ class TFIDIFTest(unittest.TestCase):
     ]
     with beam.Pipeline() as p:
       transforms = [
-          tft_transforms.ComputeAndApplyVocabulary(columns=['x']),
-          tft_transforms.TFIDF(columns=['x'])
+          tft.ComputeAndApplyVocabulary(columns=['x']),
+          tft.TFIDF(columns=['x'])
       ]
       actual_output = (
           p

@@ -32,8 +32,8 @@ import tensorflow as tf
 import tensorflow_transform.beam as tft_beam
 from apache_beam.ml.transforms.base import ArtifactMode
 from apache_beam.ml.transforms.base import ProcessHandler
-from apache_beam.ml.transforms.tft_transforms import _EXPECTED_TYPES
-from apache_beam.ml.transforms.tft_transforms import TFTOperation
+from apache_beam.ml.transforms.tft import _EXPECTED_TYPES
+from apache_beam.ml.transforms.tft import TFTOperation
 from apache_beam.typehints import native_type_compatibility
 from apache_beam.typehints.row_type import RowTypeConstraint
 from tensorflow_metadata.proto.v0 import schema_pb2
