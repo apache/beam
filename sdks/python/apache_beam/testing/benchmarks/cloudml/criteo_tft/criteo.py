@@ -123,7 +123,7 @@ def fill_in_missing(feature, default_value=-1):
     # Reshaping from a batch of vectors of size 1 to a batch of
     # scalar and adding a bucketized version.
     feature = tf.squeeze(feature, axis=1)
-      
+
   return feature
 
 
