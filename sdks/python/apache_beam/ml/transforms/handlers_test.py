@@ -106,14 +106,15 @@ class TFTProcessHandlerTest(unittest.TestCase):
       self, inputs, columns, expected_result):
     add_fn = _AddOperation(columns=columns)
     mul_fn = _MultiplyOperation(columns=columns)
-    process_handler = handlers.TFTProcessHandler(transforms=[add_fn, mul_fn])
-
+    process_handler = handlers.TFTProcessHandler(
+        transforms=[add_fn, mul_fn], artifact_location=self.artifact_location)
     actual_result = process_handler.process_data_fn(inputs)
     self.assertDictEqual(actual_result, expected_result)
 
   def test_preprocessing_fn_with_artifacts(self):
     process_handler = handlers.TFTProcessHandler(
-        transforms=[_FakeOperationWithArtifacts(columns=['x'])])
+        transforms=[_FakeOperationWithArtifacts(columns=['x'])],
+        artifact_location=self.artifact_location)
     inputs = {'x': [1, 2, 3]}
     preprocessing_fn = process_handler.process_data_fn
     actual_result = preprocessing_fn(inputs)
@@ -128,7 +129,8 @@ class TFTProcessHandlerTest(unittest.TestCase):
           | beam.Map(lambda x: UnBatchedIntType(**x)).with_output_types(
               UnBatchedIntType))
     element_type = data.element_type
-    process_handler = handlers.TFTProcessHandler()
+    process_handler = handlers.TFTProcessHandler(
+        artifact_location=self.artifact_location)
     inferred_input_type = process_handler._map_column_names_to_types(
         element_type)
     expected_input_type = dict(x=List[int])
@@ -143,7 +145,8 @@ class TFTProcessHandlerTest(unittest.TestCase):
           | beam.Map(lambda x: BatchedIntType(**x)).with_output_types(
               BatchedIntType))
     element_type = data.element_type
-    process_handler = handlers.TFTProcessHandler()
+    process_handler = handlers.TFTProcessHandler(
+        artifact_location=self.artifact_location)
     inferred_input_type = process_handler._map_column_names_to_types(
         element_type)
     expected_input_type = dict(x=List[int])
@@ -156,7 +159,8 @@ class TFTProcessHandlerTest(unittest.TestCase):
           p | beam.Create(non_batched_data)
           | beam.Map(lambda ele: beam.Row(x=int(ele['x']))))
     element_type = data.element_type
-    process_handler = handlers.TFTProcessHandler()
+    process_handler = handlers.TFTProcessHandler(
+        artifact_location=self.artifact_location)
     inferred_input_type = process_handler._map_column_names_to_types(
         element_type)
     expected_input_type = dict(x=List[int])
@@ -171,7 +175,8 @@ class TFTProcessHandlerTest(unittest.TestCase):
               beam.row_type.RowTypeConstraint.from_fields([('x', List[int])])))
 
     element_type = data.element_type
-    process_handler = handlers.TFTProcessHandler()
+    process_handler = handlers.TFTProcessHandler(
+        artifact_location=self.artifact_location)
     inferred_input_type = process_handler._map_column_names_to_types(
         element_type)
     expected_input_type = dict(x=List[int])
@@ -189,7 +194,8 @@ class TFTProcessHandlerTest(unittest.TestCase):
           | beam.Map(lambda x: BatchedNumpyType(**x)).with_output_types(
               BatchedNumpyType))
       element_type = data.element_type
-      process_handler = handlers.TFTProcessHandler()
+      process_handler = handlers.TFTProcessHandler(
+          artifact_location=self.artifact_location)
       inferred_input_type = process_handler._map_column_names_to_types(
           element_type)
       expected_type = dict(x=np.int64)
@@ -197,7 +203,8 @@ class TFTProcessHandlerTest(unittest.TestCase):
 
   def test_tensorflow_raw_data_metadata_primitive_types(self):
     input_types = dict(x=int, y=float, k=bytes, l=str)
-    process_handler = handlers.TFTProcessHandler()
+    process_handler = handlers.TFTProcessHandler(
+        artifact_location=self.artifact_location)
 
     for col_name, typ in input_types.items():
       feature_spec = process_handler._get_raw_data_feature_spec_per_column(
@@ -209,7 +216,8 @@ class TFTProcessHandlerTest(unittest.TestCase):
   def test_tensorflow_raw_data_metadata_primitive_types_in_containers(self):
     input_types = dict([("x", List[int]), ("y", List[float]),
                         ("k", List[bytes]), ("l", List[str])])
-    process_handler = handlers.TFTProcessHandler()
+    process_handler = handlers.TFTProcessHandler(
+        artifact_location=self.artifact_location)
     for col_name, typ in input_types.items():
       feature_spec = process_handler._get_raw_data_feature_spec_per_column(
           typ=typ, col_name=col_name)
@@ -219,7 +227,8 @@ class TFTProcessHandlerTest(unittest.TestCase):
   def test_tensorflow_raw_data_metadata_primitive_native_container_types(self):
     input_types = dict([("x", list[int]), ("y", list[float]),
                         ("k", list[bytes]), ("l", list[str])])
-    process_handler = handlers.TFTProcessHandler()
+    process_handler = handlers.TFTProcessHandler(
+        artifact_location=self.artifact_location)
     for col_name, typ in input_types.items():
       feature_spec = process_handler._get_raw_data_feature_spec_per_column(
           typ=typ, col_name=col_name)
@@ -227,7 +236,8 @@ class TFTProcessHandlerTest(unittest.TestCase):
 
   def test_tensorflow_raw_data_metadata_numpy_types(self):
     input_types = dict(x=np.int64, y=np.float32, z=List[np.int64])
-    process_handler = handlers.TFTProcessHandler()
+    process_handler = handlers.TFTProcessHandler(
+        artifact_location=self.artifact_location)
     for col_name, typ in input_types.items():
       feature_spec = process_handler._get_raw_data_feature_spec_per_column(
           typ=typ, col_name=col_name)
@@ -235,7 +245,8 @@ class TFTProcessHandlerTest(unittest.TestCase):
 
   def test_tensorflow_raw_data_metadata_union_type_in_single_column(self):
     input_types = dict(x=Union[int, float])
-    process_handler = handlers.TFTProcessHandler()
+    process_handler = handlers.TFTProcessHandler(
+        artifact_location=self.artifact_location)
     with self.assertRaises(TypeError):
       for col_name, typ in input_types.items():
         _ = process_handler._get_raw_data_feature_spec_per_column(
@@ -244,7 +255,8 @@ class TFTProcessHandlerTest(unittest.TestCase):
   def test_tensorflow_raw_data_metadata_dtypes(self):
     input_types = dict(x=np.int32, y=np.float64)
     expected_dtype = dict(x=np.int64, y=np.float32)
-    process_handler = handlers.TFTProcessHandler()
+    process_handler = handlers.TFTProcessHandler(
+        artifact_location=self.artifact_location)
     for col_name, typ in input_types.items():
       feature_spec = process_handler._get_raw_data_feature_spec_per_column(
           typ=typ, col_name=col_name)
@@ -257,7 +269,8 @@ class TFTProcessHandlerTest(unittest.TestCase):
         tft_transforms.Bucketize(columns=['z'], num_buckets=2),
         tft_transforms.ComputeAndApplyVocabulary(columns=['w'])
     ]
-    process_handler = handlers.TFTProcessHandler(transforms=transforms)
+    process_handler = handlers.TFTProcessHandler(
+        transforms=transforms, artifact_location=self.artifact_location)
     column_type_mapping = (
         process_handler._map_column_names_to_types_from_transforms())
     expected_column_type_mapping = {
@@ -277,7 +290,8 @@ class TFTProcessHandlerTest(unittest.TestCase):
         actual_tft_raw_data_feature_spec, expected_tft_raw_data_feature_spec)
 
   def test_tft_process_handler_transformed_data_schema(self):
-    process_handler = handlers.TFTProcessHandler()
+    process_handler = handlers.TFTProcessHandler(
+        artifact_location=self.artifact_location)
     raw_data_feature_spec = {
         'x': tf.io.VarLenFeature(tf.float32),
         'y': tf.io.VarLenFeature(tf.float32),
