@@ -50,9 +50,14 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @RunWith(JUnit4.class)
 public class BigtableReadSchemaTransformProviderIT {
+  private static final Logger LOG =
+      LoggerFactory.getLogger(BigtableReadSchemaTransformProviderIT.class);
+
   @Rule public final transient TestPipeline p = TestPipeline.create();
 
   private static final String COLUMN_FAMILY_NAME_1 = "test_cf_1";
@@ -123,9 +128,9 @@ public class BigtableReadSchemaTransformProviderIT {
   public void tearDown() {
     try {
       tableAdminClient.deleteTable(tableId);
-      System.out.printf("Table %s deleted successfully%n", tableId);
+      LOG.info("Table %s deleted successfully.", tableId);
     } catch (NotFoundException e) {
-      System.err.println("Failed to delete a non-existent table: " + e.getMessage());
+      LOG.warn("Failed to delete a non-existent table [{}]: \n{}", tableId, e.getMessage());
     }
     dataClient.close();
     tableAdminClient.close();
@@ -200,7 +205,7 @@ public class BigtableReadSchemaTransformProviderIT {
 
         expectedRows.add(expectedRow);
       }
-      System.out.printf("Finished writing %s rows to table %s", numRows, tableId);
+      LOG.info("Finished writing {} rows to table {}", numRows, tableId);
     } catch (NotFoundException e) {
       throw new RuntimeException("Failed to write to table", e);
     }
