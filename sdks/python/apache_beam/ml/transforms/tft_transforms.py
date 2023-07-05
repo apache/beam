@@ -55,6 +55,7 @@ __all__ = [
     'ApplyBuckets',
     'Bucketize',
     'TFIDF',
+    'TFTOperation',
 ]
 
 # Register the expected input types for each operation
@@ -75,6 +76,15 @@ def register_input_dtype(type):
 class TFTOperation(BaseOperation[common_types.TensorType,
                                  common_types.TensorType]):
   def __init__(self, columns: List[str]) -> None:
+    """
+    Base Operation class for TFT data processing transformations.
+    Processing logic for the transformation is defined in the
+    apply() method. If you have a custom transformation that is not
+    supported by the existing transforms, you can extend this class
+    and implement the apply() method.
+    Args:
+      columns: List of column names to apply the transformation.
+    """
     super().__init__(columns)
     if not columns:
       raise RuntimeError(
