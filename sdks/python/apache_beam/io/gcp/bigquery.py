@@ -1440,6 +1440,7 @@ class BigQueryWriteFn(DoFn):
 
   def _reset_rows_buffer(self):
     self._rows_buffer = collections.defaultdict(lambda: [])
+    self._destination_buffer_byte_size = collections.defaultdict(lambda: 0)
 
   @staticmethod
   def get_table_schema(schema):
@@ -1479,8 +1480,6 @@ class BigQueryWriteFn(DoFn):
             initial_delay_secs=0.2,
             num_retries=self._max_retries,
             max_delay_secs=1500))
-
-    self._destination_buffer_byte_size = {}
 
   def _create_table_if_needed(self, table_reference, schema=None):
     str_table_reference = '%s:%s.%s' % (
@@ -1529,8 +1528,7 @@ class BigQueryWriteFn(DoFn):
     if not self.with_batched_input:
       row_and_insert_id = element[1]
       row_byte_size = get_deep_size(row_and_insert_id)
-      # maintain buffer byte size for each destination
-      self._destination_buffer_byte_size.setdefault(destination, 0)
+
       # send large rows that exceed BigQuery insert limits to DLQ
       if row_byte_size >= self.max_insert_payload_size:
         row_mb_size = row_byte_size / 1_000_000
@@ -1659,7 +1657,8 @@ class BigQueryWriteFn(DoFn):
 
     self._total_buffered_rows -= len(self._rows_buffer[destination])
     del self._rows_buffer[destination]
-    del self._destination_buffer_byte_size[destination]
+    if destination in self._destination_buffer_byte_size:
+      del self._destination_buffer_byte_size[destination]
 
     return itertools.chain([
         pvalue.TaggedOutput(
