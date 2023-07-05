@@ -109,7 +109,7 @@ jobs:
             RC_ZIP="${RC_DIR}.zip"
             RELEASE_DIR="beam-${{ github.event.inputs.RELEASE }}"
             RC_TAG="v${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
-            SOURCE_RELEASE_ZIP="apache-beam-${RELEASE}-source-release.zip"
+            SOURCE_RELEASE_ZIP="apache-beam-${{ github.event.inputs.RELEASE }}-source-release.zip"
               # Check whether there is an existing dist dir
             if (svn ls "${SOURCE_RELEASE_ZIP}"); then
               echo "Removing existing ${SOURCE_RELEASE_ZIP}."
