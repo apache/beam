@@ -110,6 +110,13 @@ runs:
       -H "Accept: application/vnd.github+json" \
       -H "X-GitHub-Api-Version: 2022-11-28" \
       -s $URL 
+  - name: Install GH Cli
+    if: ${{env.rerun != 'false' }}
+    shell: bash
+    run: |
+      wget https://github.com/cli/cli/releases/download/v2.31.0/gh_2.31.0_linux_amd64.tar.gz
+      tar -xvf gh_2.31.0_linux_amd64.tar.gz
+      sudo mv gh_2.31.0_linux_amd64/bin/gh /usr/local/bin
   - name: Exit rest of the run
     if: ${{env.rerun != 'false' }}
     shell: bash
