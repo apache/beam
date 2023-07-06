@@ -86,7 +86,7 @@ def _generate_job_name(job_name, job_type, step_name):
       job_name=job_name,
       step_id=step_name,
       job_type=job_type,
-      random=random.randint(0, 1000))
+      random=_bq_uuid())
 
 
 def file_prefix_generator(
@@ -664,7 +664,7 @@ class TriggerLoadJobs(beam.DoFn):
     # This assumption means that there will always be a single load job
     # triggered for each partition of files.
     destination = element[0]
-    files = element[1]
+    partition_key, files = element[1]
 
     if callable(self.schema):
       schema = self.schema(destination, *schema_side_inputs)
@@ -692,8 +692,7 @@ class TriggerLoadJobs(beam.DoFn):
             table_reference.projectId,
             table_reference.datasetId,
             table_reference.tableId))
-    uid = _bq_uuid()
-    job_name = '%s_%s_%s' % (load_job_name_prefix, destination_hash, uid)
+    job_name = '%s_%s_%s' % (load_job_name_prefix, destination_hash, partition_key)
     _LOGGER.info('Load job has %s files. Job name is %s.', len(files), job_name)
 
     create_disposition = self.create_disposition
@@ -799,8 +798,8 @@ class PartitionFiles(beam.DoFn):
     else:
       output_tag = PartitionFiles.SINGLE_PARTITION_TAG
 
-    for partition in partitions:
-      yield pvalue.TaggedOutput(output_tag, (destination, partition))
+    for index, partition in enumerate(partitions):
+      yield pvalue.TaggedOutput(output_tag, (destination, (index, partition)))
 
 
 class DeleteTablesFn(beam.DoFn):
