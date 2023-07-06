@@ -351,7 +351,7 @@ task chicagoTaxiExample {
 
 task validatesContainer() {
   def pyversion = "${project.ext.pythonVersion.replace('.', '')}"
-  if (project.hasProperty("testRCDependencies")) {
+  if (project.hasProperty("testRCDependencies") || project.hasProperty("regenerate-requirements")) {
     // Generate a requirements file with pre-release versions for the docker task
     // if testing with pre-release dependencies.
     dependsOn ":sdks:python:container:py${pyversion}:generatePythonRequirements"

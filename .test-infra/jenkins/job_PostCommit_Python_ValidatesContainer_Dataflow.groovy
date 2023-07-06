@@ -40,8 +40,8 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Py_ValCont',
           rootBuildScriptDir(commonJobProperties.checkoutDir)
           tasks(':sdks:python:test-suites:dataflow:validatesContainerTests')
           switches('-Pbuild-and-push-multiarch-containers')
-          // Set testRCDependencies to re-generates the base image requirements.
-          switches('-PtestRCDependencies=true')
+          // Regenerates the base image requirements to accommodate ARM.
+          switches('-Pregenerate-requirements')
           commonJobProperties.setGradleSwitches(delegate)
         }
       }

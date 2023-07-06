@@ -68,9 +68,6 @@ def copyLauncherDependencies = tasks.register("copyLauncherDependencies", Copy) 
 
 def pushContainers = project.rootProject.hasProperty("push-multiarch-containers") || project.hasProperty("build-and-push-multiarch-containers")
 
-def containerPlatforms = project.hasProperty("build-and-push-multiarch-containers")?
-["linux/arm64","linux/amd64"] : project.containerPlatforms()
-
 def useBuildx = project.containerPlatforms() != [project.nativeArchitecture()]
 
 docker {
@@ -88,7 +85,7 @@ docker {
              'pull_licenses': project.rootProject.hasProperty(["docker-pull-licenses"]) ||
                      project.rootProject.hasProperty(["isRelease"])])
   buildx useBuildx
-  platform(*containerPlatforms)
+  platform(*project.containerPlatforms())
   load useBuildx && !pushContainers
   push pushContainers
 }
