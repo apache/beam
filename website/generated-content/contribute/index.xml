@@ -629,7 +629,7 @@ limitations under the License.
 &lt;ul>
 &lt;li>&lt;a href="#gpg-key">GPG Key&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#access-to-apache-nexus-repository">Access to Apache Nexus repository&lt;/a>&lt;/li>
-&lt;li>&lt;a href="#submit-your-gpg-public-key-into-mit-pgp-public-key-server">Submit your GPG public key into MIT PGP Public Key Server&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#submit-your-gpg-public-key-into-ubuntu-openpgp-key-server">Submit your GPG public key into Ubuntu OpenPGP Key Server&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#website-development-setup">Website development setup&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#register-to-pypi">Register to PyPI&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#login-to-dockerhub">Login to DockerHub&lt;/a>&lt;/li>
@@ -882,7 +882,7 @@ sub rsa4096/BA4D50BEBA4D50BE 2016-02-23
 &lt;/code>&lt;/pre>
 &lt;/li>
 &lt;/ol>
-&lt;h4 id="submit-your-gpg-public-key-into-mit-pgp-public-key-server">Submit your GPG public key into MIT PGP Public Key Server&lt;/h4>
+&lt;h4 id="submit-your-gpg-public-key-into-ubuntu-openpgp-key-server">Submit your GPG public key into Ubuntu OpenPGP Key Server&lt;/h4>
 &lt;p>In order to make yourself have right permission to stage java artifacts in Apache Nexus staging repository,
 please submit your GPG public key into the &lt;a href="https://keyserver.ubuntu.com/">Ubuntu OpenPGP Key Server&lt;/a>.&lt;/p>
 &lt;p>You will need to use an ascii-armored version of your key.
