@@ -102,7 +102,7 @@ class GcsIOIntegrationTest(unittest.TestCase):
       self._verify_copy(pair[0], pair[1])
       self.assertEqual(
           pair[0],
-          result,
+          result[0],
           'copy source %s does not match %s' % (pair[0], str(result)))
       self.assertEqual(
           pair[1],

@@ -224,7 +224,7 @@ class GcsIO(object):
           bucket.delete_blobs(blobs, on_error=lambda blob: None)
 
       for path, resp in list(zip(current_paths, current_batch._responses)):
-        final_results += (path, resp.status_code)
+        final_results.append((path, resp.status_code))
 
       s += MAX_BATCH_OPERATION_SIZE
 
@@ -284,7 +284,7 @@ class GcsIO(object):
           src_bucket.copy_blob(src_blob, dest_bucket, dest_blob_name)
 
       for pair, resp in list(zip(current_pairs, current_batch._responses)):
-        final_results += (pair[0], pair[1], resp.status_code)
+        final_results.append((pair[0], pair[1], resp.status_code))
 
       s += MAX_BATCH_OPERATION_SIZE
 
