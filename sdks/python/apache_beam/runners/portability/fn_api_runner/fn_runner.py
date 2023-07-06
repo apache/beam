@@ -852,6 +852,9 @@ class FnApiRunner(runner.PipelineRunner):
               (consuming_stage_name, consuming_transform, buffer_id))
         # We enqueue all of the pending output buffers to be scheduled at the
         # MAX_TIMESTAMP for the downstream stage.
+        # buffer is None. Empty PCollection. Bug
+        if not buffer:
+          buffer = ListBuffer(None)
         runner_execution_context.queues.watermark_pending_inputs.enque(
             ((consuming_stage_name, timestamp.MAX_TIMESTAMP),
              DataInput({consuming_transform: buffer}, {})))  # type: ignore
