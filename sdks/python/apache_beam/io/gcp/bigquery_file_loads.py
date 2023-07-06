@@ -697,7 +697,7 @@ class TriggerLoadJobs(beam.DoFn):
             table_reference.projectId,
             table_reference.datasetId,
             table_reference.tableId))
-    job_name = '%s_%s_%s_%s' % (
+    job_name = '%s_%s_pane%s_partition%s' % (
         load_job_name_prefix, destination_hash, pane_info.index, partition_key)
     _LOGGER.info('Load job has %s files. Job name is %s.', len(files), job_name)
 
