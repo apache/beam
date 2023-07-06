@@ -1041,7 +1041,7 @@ class BigQueryFileLoadsIT(unittest.TestCase):
 
     # Override these parameters to induce copy jobs
     bqfl._DEFAULT_MAX_FILE_SIZE = 100
-    bqfl._MAXIMUM_LOAD_SIZE = 400
+    bqfl._MAXIMUM_LOAD_SIZE = 200
 
     with beam.Pipeline(argv=args) as p:
       stream_source = (
