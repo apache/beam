@@ -95,7 +95,7 @@ class UnionCoder(FastCoder):
   def is_deterministic(self) -> bool:
     """
         Returns True if all sub-coders are deterministic.
-        """
+    """
     return all(c.is_deterministic() for c in self._coders)
 
   def to_type_hint(self) -> typehints.UnionConstraint:
