@@ -118,7 +118,7 @@ class UnionCoder(FastCoder):
   def __repr__(self) -> str:
     """
         Returns a string representation of the coder with its sub-coders.
-        """
+    """
     return 'UnionCoder[%s]' % ', '.join(str(c) for c in self._coders)
 
   def __hash__(self):
