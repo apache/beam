@@ -189,8 +189,7 @@ def get_issue_description(
 
   description.append('\n'.join(runs_to_display))
   description.append('```')
-  new_lines = 2 * '\n'
-  return new_lines.join(description)
+  return constants._NEW_LINES_JOINER.join(description)
 
 
 def report_change_point_on_issues(

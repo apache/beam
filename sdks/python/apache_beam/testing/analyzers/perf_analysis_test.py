@@ -214,7 +214,7 @@ class TestChangePointAnalysis(unittest.TestCase):
             constants._NUM_RESULTS_TO_DISPLAY_ON_ISSUE_DESCRIPTION))
 
     runs_info = next((
-        line for line in description.split(2 * '\n')
+        line for line in description.split(constants._NEW_LINES_JOINER)
         if re.match(r'timestamp: .*, metric_value: .*', line.strip())),
                      '').split('\n')[::-1]
 

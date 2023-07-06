@@ -72,3 +72,4 @@ _SCHEMA = [{
            }]
 
 _ANOMALY_MARKER = ' <---- Anomaly'
+_NEW_LINES_JOINER = 2 * '\n'
