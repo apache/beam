@@ -45,14 +45,14 @@ public interface CosmosOptions extends AzureOptions {
 
   void setCosmosServiceEndpoint(String endpoint);
 
-  /** The Azure Cosmos key used to perform authentication for accessing resource */
+  /** The Azure Cosmos key used to perform authentication for accessing resource. */
   @Description("Sets the cosmos service endpoint")
   @Nullable
   String getCosmosKey();
 
   void setCosmosKey(String key);
 
-  /** Create a cosmos client from the pipeline options */
+  /** Create a cosmos client from the pipeline options. */
   class CosmosClientBuilderFactory implements DefaultValueFactory<CosmosClientBuilder> {
 
     @Override
