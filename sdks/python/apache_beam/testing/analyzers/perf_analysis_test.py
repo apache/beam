@@ -19,6 +19,7 @@
 import datetime
 import logging
 import os
+import re
 import unittest
 
 import mock
@@ -197,24 +198,31 @@ class TestChangePointAnalysis(unittest.TestCase):
         big_query_metrics_fetcher=None)
     self.assertFalse(is_alert)
 
-  def test_change_point_has_anomaly_marker_in_gh_description(
-      self):
+  def test_change_point_has_anomaly_marker_in_gh_description(self):
     metric_values, timestamps = get_fake_data_with_change_point()
     timestamps = [datetime.datetime.fromtimestamp(ts) for ts in timestamps]
     change_point_index = find_latest_change_point_index(metric_values)
-    description = github_issues_utils.get_runs_data(
-        change_point_index=change_point_index,
+
+    description = github_issues_utils.get_issue_description(
+        test_name=self.test_id,
+        test_description=self.params['test_description'],
+        metric_name=self.params['metric_name'],
         metric_values=metric_values,
         timestamps=timestamps,
-        num_runs_from_change_point=(
+        change_point_index=change_point_index,
+        max_results_to_display=(
             constants._NUM_RESULTS_TO_DISPLAY_ON_ISSUE_DESCRIPTION))
 
-    for i in range(len(description)):
-      if i == change_point_index:
-        cond = constants._ANOMALY_MARKER in description[i]
-      else:
-        cond = constants._ANOMALY_MARKER not in description[i]
-      self.assertTrue(cond)
+    runs_info = next((
+        line for line in description.split(2 * '\n')
+        if re.match(r'timestamp: .*, metric_value: .*', line.strip())),
+                     '').split('\n')[::-1]
+
+    self.assertTrue(
+        all(
+            constants._ANOMALY_MARKER in runs_info[i] if i == change_point_index
+            else constants._ANOMALY_MARKER not in runs_info[i]
+            for i in range(len(runs_info))))
 
 
 if __name__ == '__main__':
