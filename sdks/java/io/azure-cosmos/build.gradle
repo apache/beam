@@ -26,19 +26,19 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Azure Cosmos DB"
 ext.summary = "IO library to read and write Azure Cosmos DB"
 
 dependencies {
+  implementation enforcedPlatform(library.java.azure_sdk_bom)
+  implementation library.java.azure_core
   implementation library.java.azure_cosmos
   permitUnusedDeclared library.java.commons_io // BEAM-11761
-  implementation library.java.guava
+  implementation library.java.jackson_annotations
   implementation library.java.jackson_databind
-  // implementation library.java.slf4j_api
+  implementation library.java.vendored_guava_26_0_jre
+  implementation "io.projectreactor:reactor-core:3.4.29"
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation project(path: ":sdks:java:io:azure")
 
   testImplementation library.java.junit
   testImplementation library.java.testcontainers_azure
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
-//  testImplementation library.java.mockito_core
-//  testRuntimeOnly("org.apache.logging.log4j:log4j-api:$log4jVersion")
-//  testRuntimeOnly("org.apache.logging.log4j:log4j-core:$log4jVersion")
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }
