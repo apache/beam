@@ -85,8 +85,10 @@ limits = {                                # K8s cpu and memory limits
 
 5. Make sure you set the bucket name in the comment in the environment file for documentation purposes
 
-6.  From this directory, init terraform with:
+6.  From this directory, login to your gcloud account that you created the bucket with and  init terraform with:
 ```
+gcloud auth login
+gcloud auth application-default login
 terraform init -backend-config="bucket=bucket_name"
 ```
 7. Terraform apply
