@@ -101,7 +101,7 @@ class UnionCoder(FastCoder):
   def to_type_hint(self) -> typehints.UnionConstraint:
     """
         Returns a type hint representing the Union type with the sub-coders.
-        """
+    """
     return typehints.Union[list(self._coder_typehints.keys())]
 
   def estimate_size(self, value):
