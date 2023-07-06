@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.azure.cosmos;
 
+import com.azure.core.credential.TokenCredential;
 import com.azure.cosmos.CosmosClientBuilder;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.beam.sdk.io.azure.options.AzureOptions;
@@ -24,12 +25,8 @@ import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public interface CosmosOptions extends AzureOptions {
 
   @JsonIgnore
@@ -63,16 +60,19 @@ public interface CosmosOptions extends AzureOptions {
       CosmosOptions cosmosOptions = options.as(CosmosOptions.class);
       CosmosClientBuilder builder = new CosmosClientBuilder();
 
-      if (cosmosOptions.getAzureCredentialsProvider() != null) {
-        builder = builder.credential(cosmosOptions.getAzureCredentialsProvider());
+      TokenCredential credential = cosmosOptions.getAzureCredentialsProvider();
+      if (credential != null) {
+        builder = builder.credential(credential);
       }
 
-      if (!Strings.isNullOrEmpty(cosmosOptions.getCosmosServiceEndpoint())) {
-        builder = builder.endpoint(cosmosOptions.getCosmosServiceEndpoint());
+      String endpoint = cosmosOptions.getCosmosServiceEndpoint();
+      if (endpoint != null && !endpoint.isEmpty()) {
+        builder = builder.endpoint(endpoint);
       }
 
-      if (!Strings.isNullOrEmpty(cosmosOptions.getCosmosKey())) {
-        builder = builder.key(cosmosOptions.getCosmosKey());
+      String key = cosmosOptions.getCosmosKey();
+      if (key != null && !key.isEmpty()) {
+        builder = builder.key(key);
       }
 
       return builder;

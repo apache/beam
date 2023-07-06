@@ -138,7 +138,7 @@ public class CosmosIO {
       this(spec, NormalizedRange.FULL_RANGE, null);
     }
 
-    BoundedCosmosBDSource(Read<T> spec, NormalizedRange range, Long estimatedSize) {
+    BoundedCosmosBDSource(Read<T> spec, NormalizedRange range, @Nullable Long estimatedSize) {
       this.spec = spec;
       this.range = range;
       this.estimatedByteSize = estimatedSize;
