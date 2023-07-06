@@ -30,8 +30,15 @@ from apache_beam.typehints import typehints
 
 
 class UnionCoder(FastCoder):
+  """Coder of Python Union."""
   def __init__(self, components):
     # type: (Iterable[Coder]) -> None
+
+    """Initializes a :class:`UnionCoder`.
+
+    Args:
+      components: a list of coders for each type in Union.
+    """
     if not components or not isinstance(components, list):
       raise ValueError('A valid list of Coders must be provided.')
 
@@ -73,16 +80,14 @@ class UnionCoder(FastCoder):
             self, value, typehint_type))
 
   def encode(self, value):
-    """
-        Encodes the given Union value into bytes.
+    """Encodes the given Union value into bytes.
     """
     coder_tag, real_coder = self._get_coder(value)
     return coder_tag + real_coder.encode(value)
 
   def decode(self, encoded: bytes):
+    """Decodes the given bytes into a Union value.
     """
-        Decodes the given bytes into a Union value.
-        """
     try:
       coder_index = struct.unpack("B", encoded[:1])[0]
       coder = self._coders[coder_index]
@@ -93,14 +98,12 @@ class UnionCoder(FastCoder):
           'cannot decode {!r} with the coder {}'.format(encoded, self))
 
   def is_deterministic(self) -> bool:
-    """
-        Returns True if all sub-coders are deterministic.
+    """Returns True if all sub-coders are deterministic.
     """
     return all(c.is_deterministic() for c in self._coders)
 
   def to_type_hint(self) -> typehints.UnionConstraint:
-    """
-        Returns a type hint representing the Union type with the sub-coders.
+    """Returns a type hint representing the Union type with the sub-coders.
     """
     return typehints.Union[list(self._coder_typehints.keys())]
 
@@ -116,8 +119,7 @@ class UnionCoder(FastCoder):
     return type(self) == type(other) and self._coders == other.coders()
 
   def __repr__(self) -> str:
-    """
-        Returns a string representation of the coder with its sub-coders.
+    """Returns a string representation of the coder with its sub-coders.
     """
     return 'UnionCoder[%s]' % ', '.join(str(c) for c in self._coders)
 
