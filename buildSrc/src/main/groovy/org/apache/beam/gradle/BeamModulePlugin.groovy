@@ -498,7 +498,7 @@ class BeamModulePlugin implements Plugin<Project> {
         }
         return containerArchitectures
       } else if project.hasProperty("build-and-push-multiarch-containers") {
-        return ["arm64","amd64"]
+        return ["arm64", "amd64"];
       } else {
         return [project.nativeArchitecture()]
       }

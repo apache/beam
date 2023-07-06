@@ -66,6 +66,13 @@ def copyLauncherDependencies = tasks.register("copyLauncherDependencies", Copy) 
   }
 }
 
+def pushContainers = project.rootProject.hasProperty("push-multiarch-containers") || project.hasProperty("build-and-push-multiarch-containers")
+
+def containerPlatforms = project.hasProperty("build-and-push-multiarch-containers")?
+["linux/arm64","linux/amd64"] : project.containerPlatforms()
+
+def useBuildx = project.containerPlatforms() != [project.nativeArchitecture()]
+
 docker {
   name containerImageName(
           name: project.docker_image_default_repo_prefix + "python${project.ext.pythonVersion}_sdk",
@@ -80,10 +87,10 @@ docker {
   buildArgs(['py_version': "${project.ext.pythonVersion}",
              'pull_licenses': project.rootProject.hasProperty(["docker-pull-licenses"]) ||
                      project.rootProject.hasProperty(["isRelease"])])
-  buildx project.containerPlatforms() != [project.nativeArchitecture()]
-  platform(*project.containerPlatforms())
-  load project.containerPlatforms() != [project.nativeArchitecture()] && !project.rootProject.hasProperty("push-multiarch-containers")
-  push project.rootProject.hasProperty("push-multiarch-containers") || project.hasProperty("build-and-push-multiarch-containers")
+  buildx useBuildx
+  platform(containerPlatforms)
+  load useBuildx && !pushContainers
+  push pushContainers
 }
 
 dockerPrepare.dependsOn copyLauncherDependencies
