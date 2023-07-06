@@ -217,7 +217,7 @@ public class CosmosIO {
                 .byPage()
                 .take(1)
                 .map(FeedResponse::getDocumentUsage)
-                .map(kb -> kb * 1000)
+                .map(kiloByteSize -> kiloByteSize * 1024) // conversion from KB to bytes
                 .single()
                 .block();
 
