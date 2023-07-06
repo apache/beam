@@ -197,7 +197,7 @@ class TestChangePointAnalysis(unittest.TestCase):
         big_query_metrics_fetcher=None)
     self.assertFalse(is_alert)
 
-  def test_append_anomaly_marker_to_the_right_change_point_in_gh_description(
+  def test_change_point_has_anomaly_marker_in_gh_description(
       self):
     metric_values, timestamps = get_fake_data_with_change_point()
     timestamps = [datetime.datetime.fromtimestamp(ts) for ts in timestamps]
