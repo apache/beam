@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.azure.cosmos;
 
 import com.azure.cosmos.CosmosClientBuilder;
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.io.azure.options.AzureOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
@@ -28,7 +27,6 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-@Experimental(Experimental.Kind.SOURCE_SINK)
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
