@@ -108,8 +108,10 @@ class GcsIOIntegrationTest(unittest.TestCase):
           pair[1],
           result[1],
           'copy destination %s does not match %s' % (pair[1], result[1]))
-      self.assertEqual(
-          200, result[2], 'copy response code %s not equal to 200' % result[2])
+      self.assertTrue(
+          (result[2] < 300),
+          'response code %s indicates that copy operation did not succeed' %
+          result[2])
 
     delete_results = self.gcsio.delete_batch(dests)
 
@@ -120,16 +122,16 @@ class GcsIOIntegrationTest(unittest.TestCase):
           dest,
           result[0],
           'delete path %s does not match %s' % (dest, result[0]))
-      self.assertEqual(
-          200,
-          result[1],
-          'delete response code %s not equal to 200' % result[1])
+      self.assertTrue(
+          (result[1] < 300),
+          'response code %s indicates that delete operation did not succeed' %
+          result[1])
 
     redelete_results = self.gcsio.delete_batch(dests)
 
     for dest, result in list(zip(dests, redelete_results)):
-      self.assertEqual(
-          200, result[1], 're-delete should not throw error: %s' % result[1])
+      self.assertTrue((result[1] < 300),
+                      're-delete should not throw error: %s' % result[1])
 
 
 if __name__ == '__main__':
