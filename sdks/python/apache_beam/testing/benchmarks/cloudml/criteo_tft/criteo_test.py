@@ -49,3 +49,7 @@ class FillInMissingTest(unittest.TestCase):
     expected_output = np.array([1, -1, 2, -1, -1, -1, 4, -1, -1])
     actual_output = filled_tensor.numpy()
     self.assertEqual(expected_output, actual_output)
+
+
+if __name__ == '__main__':
+  unittest.main()
