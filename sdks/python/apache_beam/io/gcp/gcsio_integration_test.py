@@ -98,6 +98,8 @@ class GcsIOIntegrationTest(unittest.TestCase):
 
     copy_results = self.gcsio.copy_batch(src_dest_pairs)
 
+    self.assertEqual(len(copy_results), len(src_dest_pairs))
+
     for pair, result in list(zip(src_dest_pairs, copy_results)):
       self._verify_copy(pair[0], pair[1])
       self.assertEqual(
@@ -114,6 +116,8 @@ class GcsIOIntegrationTest(unittest.TestCase):
           result[2])
 
     delete_results = self.gcsio.delete_batch(dests)
+
+    self.assertEqual(len(delete_results), len(dests))
 
     for dest, result in list(zip(dests, delete_results)):
       self.assertFalse(
