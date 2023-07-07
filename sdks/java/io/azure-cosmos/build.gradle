@@ -25,10 +25,14 @@ applyJavaNature(automaticModuleName: "org.apache.beam.sdk.io.azure.cosmos")
 description = "Apache Beam :: SDKs :: Java :: IO :: Azure Cosmos DB"
 ext.summary = "IO library to read and write Azure Cosmos DB"
 
+def excludeNetty = {
+  exclude group: "io.netty", module: "*" // exclude more recent Netty version
+}
+
 dependencies {
-  implementation enforcedPlatform(library.java.azure_sdk_bom)
-  implementation library.java.azure_core
-  implementation library.java.azure_cosmos
+  implementation platform(library.java.azure_sdk_bom)
+  implementation "com.azure:azure-cosmos", excludeNetty
+  implementation "com.azure:azure-core", excludeNetty
   permitUnusedDeclared library.java.commons_io // BEAM-11761
   implementation library.java.jackson_annotations
   implementation library.java.jackson_databind
@@ -36,9 +40,11 @@ dependencies {
   implementation "io.projectreactor:reactor-core:3.4.29"
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation project(path: ":sdks:java:io:azure")
+  runtimeOnly library.java.netty_all // force version of netty used by Beam
 
   testImplementation library.java.junit
   testImplementation library.java.testcontainers_azure
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+  testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }
