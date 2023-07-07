@@ -196,6 +196,16 @@ func main() {
 	} else {
 		args = append(args, jammAgentArgs)
 	}
+
+	// If heap dumping is enabled, configure the JVM to dump it on oom events.
+	if pipelineOptions, ok := info.GetPipelineOptions().GetFields()["options"]; ok {
+		if heapDumpOption, ok := pipelineOptions.GetStructValue().GetFields()["enableHeapDumps"]; ok {
+			if heapDumpOption.GetBoolValue() {
+			  args = append(args, "-XX:+HeapDumpOnOutOfMemoryError", "-XX:HeapDumpPath=/tmp/heap_dump.hprof")
+			}
+		}
+	}
+
 	// Apply meta options
 	const metaDir = "/opt/apache/beam/options"
 
