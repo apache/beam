@@ -2686,7 +2686,10 @@ class CombineGlobally(PTransform):
       def inject_default(_, combined):
         if combined:
           if len(combined) > 1:
-            _LOGGER.error('Cannot inject default values with: %s', combined)
+            _LOGGER.error(
+                "Multiple combined values unexpectedly provided"
+                " for a global combine: %s",
+                combined)
           assert len(combined) == 1
           return combined[0]
         else:
