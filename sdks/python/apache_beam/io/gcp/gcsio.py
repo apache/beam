@@ -220,7 +220,7 @@ class GcsIO(object):
         for path in current_paths:
           bucket_name, blob_name = parse_gcs_path(path)
           bucket = self.client.get_bucket(bucket_name)
-          bucket.delete_blobs(blob_name)
+          bucket.delete_blob(blob_name)
 
       for path, resp in list(zip(current_paths, current_batch._responses)):
         if resp.status_code == 404:
