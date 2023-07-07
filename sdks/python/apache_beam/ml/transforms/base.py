@@ -157,6 +157,8 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
         will compute the artifacts and store them in the artifact_location.
         The artifacts will be read from this location during the consume phase.
     """
+    _ = [self._validate_transform(transform) for transform in transforms]
+
     # avoid circular import
     # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam.ml.transforms.handlers import TFTProcessHandler
@@ -196,5 +198,12 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
     Returns:
       A MLTransform instance.
     """
+    self._validate_transform(transform)
     self._process_handler.append_transform(transform)
     return self
+
+  def _validate_transform(self, transform):
+    if not isinstance(transform, BaseOperation):
+      raise TypeError(
+          'transform must be a subclass of BaseOperation. '
+          'Got: %s instead.' % type(transform))
