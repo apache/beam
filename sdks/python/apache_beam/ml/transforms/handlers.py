@@ -126,17 +126,14 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
       *,
       artifact_location: str,
       transforms: Optional[Sequence[TFTOperation]] = None,
-      preprocessing_fn: typing.Optional[typing.Callable] = None,
       artifact_mode: str = ArtifactMode.PRODUCE):
     """
     A handler class for processing data with TensorFlow Transform (TFT)
-    operations. This class is intended to be subclassed, with subclasses
-    implementing the `preprocessing_fn` method.
+    operations.
     """
     self.transforms = transforms if transforms else []
     self.transformed_schema: Dict[str, type] = {}
     self.artifact_location = artifact_location
-    self.preprocessing_fn = preprocessing_fn
     self.artifact_mode = artifact_mode
     if artifact_mode not in ['produce', 'consume']:
       raise ValueError('artifact_mode must be either `produce` or `consume`.')
@@ -291,8 +288,7 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
     for transform in self.transforms:
       columns = transform.columns
       for col in columns:
-        intermediate_result = transform.apply(
-            outputs[col], output_column_name=col)
+        intermediate_result = transform(outputs[col], output_column_name=col)
         for key, value in intermediate_result.items():
           outputs[key] = value
     return outputs

@@ -17,6 +17,7 @@
 # pytype: skip-file
 
 import abc
+from typing import Dict
 from typing import Generic
 from typing import List
 from typing import Optional
@@ -55,8 +56,8 @@ class BaseOperation(Generic[OperationInputT, OperationOutputT], abc.ABC):
     self.columns = columns
 
   @abc.abstractmethod
-  def apply(
-      self, data: OperationInputT, output_column_name: str) -> OperationOutputT:
+  def apply(self, data: OperationInputT,
+            output_column_name: str) -> Dict[str, OperationOutputT]:
     """
     Define any processing logic in the apply() method.
     processing logics are applied on inputs and returns a transformed
@@ -64,6 +65,27 @@ class BaseOperation(Generic[OperationInputT, OperationOutputT], abc.ABC):
     Args:
       inputs: input data.
     """
+
+  @abc.abstractmethod
+  def get_artifacts(
+      self, data: OperationInputT,
+      output_column_prefix: str) -> Optional[Dict[str, OperationOutputT]]:
+    """
+    If the operation generates any artifacts, they can be returned from this
+    method.
+    """
+    pass
+
+  def __call__(self, data: OperationInputT, output_column_name: str):
+    """
+    This method is called when the instance of the class is called.
+    This method will invoke the apply() method of the class.
+    """
+    transformed_data = self.apply(data, output_column_name)
+    artifacts = self.get_artifacts(data, output_column_name)
+    if artifacts:
+      transformed_data = {**transformed_data, **artifacts}
+    return transformed_data
 
 
 class ProcessHandler(Generic[ExampleT, MLTransformOutputT], abc.ABC):

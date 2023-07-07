@@ -188,13 +188,10 @@ class ScaleToZScore(TFTOperation):
 
   def apply(self, data: common_types.TensorType,
             output_column_name: str) -> Dict[str, common_types.TensorType]:
-    artifacts = self.get_artifacts(data, output_column_name)
     output_dict = {
         output_column_name: tft.scale_to_z_score(
             x=data, elementwise=self.elementwise, name=self.name)
     }
-    if artifacts is not None:
-      output_dict.update(artifacts)
     return output_dict
 
   def get_artifacts(self, data: common_types.TensorType,
@@ -247,13 +244,10 @@ class ScaleTo01(TFTOperation):
 
   def apply(self, data: common_types.TensorType,
             output_column_name: str) -> Dict[str, common_types.TensorType]:
-    artifacts = self.get_artifacts(data, output_column_name)
     output = tft.scale_to_0_1(
         x=data, elementwise=self.elementwise, name=self.name)
 
     output_dict = {output_column_name: output}
-    if artifacts is not None:
-      output_dict.update(artifacts)
     return output_dict
 
 
@@ -356,7 +350,6 @@ class Bucketize(TFTOperation):
 
   def apply(self, data: common_types.TensorType,
             output_column_name: str) -> Dict[str, common_types.TensorType]:
-    artifacts = self.get_artifacts(data, output_column_name)
     output = {
         output_column_name: tft.bucketize(
             x=data,
@@ -365,8 +358,6 @@ class Bucketize(TFTOperation):
             elementwise=self.elementwise,
             name=self.name)
     }
-    if artifacts is not None:
-      output.update(artifacts)
     return output
 
 
