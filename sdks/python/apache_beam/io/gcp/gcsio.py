@@ -220,11 +220,13 @@ class GcsIO(object):
         for path in current_paths:
           bucket_name, blob_name = parse_gcs_path(path)
           bucket = self.client.get_bucket(bucket_name)
-          blobs = [blob_name]
-          bucket.delete_blobs(blobs, on_error=lambda blob: None)
+          bucket.delete_blobs(blob_name)
 
       for path, resp in list(zip(current_paths, current_batch._responses)):
-        final_results.append((path, resp.status_code))
+        if resp.status_code == 404:
+          final_results.append((path, 200))
+        else:
+          final_results.append((path, resp.status_code))
 
       s += MAX_BATCH_OPERATION_SIZE
 
