@@ -50,7 +50,7 @@ __all__ = [
 TensorInferenceFn = Callable[[
     Sequence[Union[torch.Tensor, tf.Tensor]],
     Union[AutoModel, TFAutoModel],
-    torch.device,
+    str,
     Optional[Dict[str, Any]],
     Optional[str]
 ],
@@ -59,7 +59,7 @@ TensorInferenceFn = Callable[[
 KeyedTensorInferenceFn = Callable[[
     Sequence[Dict[str, Union[torch.Tensor, tf.Tensor]]],
     Union[AutoModel, TFAutoModel],
-    torch.device,
+    str,
     Optional[Dict[str, Any]],
     Optional[str]
 ],
@@ -84,8 +84,8 @@ def _validate_constructor_args(model_uri, model_class):
 
 def no_gpu_available_warning():
   logging.warning(
-      "Model handler specified a 'GPU' device, but GPUs are not available. "
-      "Switching to CPU.")
+      "HuggingFaceModelHandler specified a 'GPU' device, "
+      "but GPUs are not available. Switching to CPU.")
 
 
 def is_gpu_available_torch(device):

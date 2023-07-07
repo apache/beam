@@ -43,7 +43,7 @@ class HuggingFaceInference(unittest.TestCase):
   def test_hf_language_modeling(self):
     test_pipeline = TestPipeline(is_integration_test=True)
     # Path to text file containing some sentences
-    file_of_sentences = 'gs://apache-beam-ml/datasets/custom/hf_sentences.txt'  # pylint: disable=line-too-long
+    file_of_sentences = 'gs://apache-beam-ml/datasets/custom/hf_sentences.txt'
     output_file_dir = 'gs://apache-beam-ml/testing/predictions'
     output_file = '/'.join([output_file_dir, str(uuid.uuid4()), 'result.txt'])
 
