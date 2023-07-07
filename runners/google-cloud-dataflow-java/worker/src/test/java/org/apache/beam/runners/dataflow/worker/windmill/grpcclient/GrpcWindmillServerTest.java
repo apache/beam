@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker.windmill;
+package org.apache.beam.runners.dataflow.worker.windmill.grpcclient;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -39,7 +39,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1ImplBase;
-import org.apache.beam.runners.dataflow.worker.windmill.GrpcWindmillServer.GetWorkTimingInfosTracker;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitStatus;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationWorkItemMetadata;
@@ -88,19 +88,22 @@ import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Unit tests for {@link GrpcWindmillServer}. */
+/**
+ * Unit tests for {@link
+ * org.apache.beam.runners.dataflow.worker.windmill.grpcclient.GrpcWindmillServer}.
+ */
 @RunWith(JUnit4.class)
 @SuppressWarnings({
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class GrpcWindmillServerTest {
-  private static final Logger LOG = LoggerFactory.getLogger(GrpcWindmillServerTest.class);
 
+  private static final Logger LOG = LoggerFactory.getLogger(GrpcWindmillServerTest.class);
+  private static final int STREAM_CHUNK_SIZE = 2 << 20;
   private final MutableHandlerRegistry serviceRegistry = new MutableHandlerRegistry();
   @Rule public ErrorCollector errorCollector = new ErrorCollector();
   private Server server;
-  private GrpcWindmillServer client;
-  private static final int STREAM_CHUNK_SIZE = 2 << 20;
+  private org.apache.beam.runners.dataflow.worker.windmill.grpcclient.GrpcWindmillServer client;
   private int remainingErrors = 20;
 
   @Before
@@ -114,7 +117,7 @@ public class GrpcWindmillServerTest {
             .build()
             .start();
 
-    this.client = GrpcWindmillServer.newTestInstance(name, true);
+    this.client = GrpcWindmillServer.newTestInstance(name);
   }
 
   @After
@@ -133,50 +136,6 @@ public class GrpcWindmillServerTest {
     }
   }
 
-  class ResponseErrorInjector<Stream extends StreamObserver> {
-    private Stream stream;
-    private Thread errorThread;
-    private boolean cancelled = false;
-
-    public ResponseErrorInjector(Stream stream) {
-      this.stream = stream;
-      errorThread = new Thread(this::errorThreadBody);
-      errorThread.start();
-    }
-
-    private void errorThreadBody() {
-      int i = 0;
-      while (true) {
-        try {
-          Thread.sleep(ThreadLocalRandom.current().nextInt(++i * 10));
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-          break;
-        }
-        synchronized (this) {
-          if (cancelled) {
-            break;
-          }
-        }
-        maybeInjectError(stream);
-      }
-    }
-
-    public void cancel() {
-      LOG.info("Starting cancel of error injector.");
-      synchronized (this) {
-        cancelled = true;
-      }
-      errorThread.interrupt();
-      try {
-        errorThread.join();
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-      }
-      LOG.info("Done cancelling.");
-    }
-  }
-
   @Test
   public void testStreamingGetWork() throws Exception {
     // This fake server returns an infinite stream of identical WorkItems, obeying the request size
@@ -187,8 +146,8 @@ public class GrpcWindmillServerTest {
           public StreamObserver<StreamingGetWorkRequest> getWorkStream(
               StreamObserver<StreamingGetWorkResponseChunk> responseObserver) {
             return new StreamObserver<StreamingGetWorkRequest>() {
+              final ResponseErrorInjector injector = new ResponseErrorInjector(responseObserver);
               boolean sawHeader = false;
-              ResponseErrorInjector injector = new ResponseErrorInjector(responseObserver);
 
               @Override
               public void onNext(StreamingGetWorkRequest request) {
@@ -274,7 +233,7 @@ public class GrpcWindmillServerTest {
             (String computation,
                 @Nullable Instant inputDataWatermark,
                 Instant synchronizedProcessingTime,
-                Windmill.WorkItem workItem,
+                WorkItem workItem,
                 Collection<LatencyAttribution> getWorkStreamLatencies) -> {
               latch.countDown();
               assertEquals(inputDataWatermark, new Instant(18));
@@ -297,11 +256,11 @@ public class GrpcWindmillServerTest {
           public StreamObserver<StreamingGetDataRequest> getDataStream(
               StreamObserver<StreamingGetDataResponse> responseObserver) {
             return new StreamObserver<StreamingGetDataRequest>() {
-              boolean sawHeader = false;
-              HashSet<Long> seenIds = new HashSet<>();
-              ResponseErrorInjector injector = new ResponseErrorInjector(responseObserver);
-              StreamingGetDataResponse.Builder responseBuilder =
+              final HashSet<Long> seenIds = new HashSet<>();
+              final ResponseErrorInjector injector = new ResponseErrorInjector(responseObserver);
+              final StreamingGetDataResponse.Builder responseBuilder =
                   StreamingGetDataResponse.newBuilder();
+              boolean sawHeader = false;
 
               @Override
               public void onNext(StreamingGetDataRequest chunk) {
@@ -508,10 +467,10 @@ public class GrpcWindmillServerTest {
       StreamObserver<StreamingCommitResponse> responseObserver,
       Map<Long, WorkItemCommitRequest> commitRequests) {
     return new StreamObserver<StreamingCommitWorkRequest>() {
+      final ResponseErrorInjector injector = new ResponseErrorInjector(responseObserver);
       boolean sawHeader = false;
       InputStream buffer = null;
       long remainingBytes = 0;
-      ResponseErrorInjector injector = new ResponseErrorInjector(responseObserver);
 
       @Override
       public void onNext(StreamingCommitWorkRequest request) {
@@ -1015,5 +974,50 @@ public class GrpcWindmillServerTest {
     assertEquals(
         Math.min(34, (long) (elapsedTime * (130.0 / sumDurations))),
         latencies.get(State.GET_WORK_IN_TRANSIT_TO_USER_WORKER).getTotalDurationMillis());
+  }
+
+  class ResponseErrorInjector<Stream extends StreamObserver> {
+
+    private final Stream stream;
+    private final Thread errorThread;
+    private boolean cancelled = false;
+
+    public ResponseErrorInjector(Stream stream) {
+      this.stream = stream;
+      errorThread = new Thread(this::errorThreadBody);
+      errorThread.start();
+    }
+
+    private void errorThreadBody() {
+      int i = 0;
+      while (true) {
+        try {
+          Thread.sleep(ThreadLocalRandom.current().nextInt(++i * 10));
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          break;
+        }
+        synchronized (this) {
+          if (cancelled) {
+            break;
+          }
+        }
+        maybeInjectError(stream);
+      }
+    }
+
+    public void cancel() {
+      LOG.info("Starting cancel of error injector.");
+      synchronized (this) {
+        cancelled = true;
+      }
+      errorThread.interrupt();
+      try {
+        errorThread.join();
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
+      LOG.info("Done cancelling.");
+    }
   }
 }
