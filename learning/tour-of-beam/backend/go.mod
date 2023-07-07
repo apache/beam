@@ -23,10 +23,9 @@ require (
 )
 
 require (
-	cloud.google.com/go/datastore v1.8.0
-	cloud.google.com/go/firestore v1.7.0 // indirect
+	cloud.google.com/go/datastore v1.10.0
 	firebase.google.com/go/v4 v4.9.0
-	github.com/stretchr/testify v1.8.0
-	google.golang.org/grpc v1.49.0
+	github.com/stretchr/testify v1.8.1
+	google.golang.org/grpc v1.53.0
 	google.golang.org/protobuf v1.28.1
 )
