@@ -56,10 +56,10 @@ class BaseOperation(Generic[OperationInputT, OperationOutputT], abc.ABC):
     self.columns = columns
 
   @abc.abstractmethod
-  def apply(self, data: OperationInputT,
-            output_column_name: str) -> Dict[str, OperationOutputT]:
+  def apply_transform(self, data: OperationInputT,
+                      output_column_name: str) -> Dict[str, OperationOutputT]:
     """
-    Define any processing logic in the apply() method.
+    Define any processing logic in the apply_transform() method.
     processing logics are applied on inputs and returns a transformed
     output.
     Args:
@@ -76,12 +76,13 @@ class BaseOperation(Generic[OperationInputT, OperationOutputT], abc.ABC):
     """
     pass
 
-  def __call__(self, data: OperationInputT, output_column_name: str):
+  def __call__(self, data: OperationInputT,
+               output_column_name: str) -> Dict[str, OperationOutputT]:
     """
     This method is called when the instance of the class is called.
     This method will invoke the apply() method of the class.
     """
-    transformed_data = self.apply(data, output_column_name)
+    transformed_data = self.apply_transform(data, output_column_name)
     artifacts = self.get_artifacts(data, output_column_name)
     if artifacts:
       transformed_data = {**transformed_data, **artifacts}
