@@ -53,11 +53,11 @@ import org.testcontainers.utility.DockerImageName;
 // See https://learn.microsoft.com/en-us/azure/cosmos-db/nosql/quickstart-java
 public class CosmosIOTest {
 
-  private static String DOCKER_IMAGE_NAME =
+  private static final String DOCKER_IMAGE_NAME =
       "mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:latest";
-  private static String DATABASE = "AzureSampleFamilyDB";
-  private static String CONTAINER = "FamilyContainer";
-  private static String PARTITION_KEY_PATH = "/lastName";
+  private static final String DATABASE = "AzureSampleFamilyDB";
+  private static final String CONTAINER = "FamilyContainer";
+  private static final String PARTITION_KEY_PATH = "/lastName";
 
   private static PipelineOptions pipelineOptions = PipelineOptionsFactory.create();
   private static CosmosDBEmulatorContainer container;
@@ -65,8 +65,9 @@ public class CosmosIOTest {
 
   @BeforeClass
   public static void beforeClass() throws Exception {
-    // Create the azure cosmos container.
+    // Create the azure cosmos container and pull image as we use latest
     container = new CosmosDBEmulatorContainer(DockerImageName.parse(DOCKER_IMAGE_NAME));
+    container.withImagePullPolicy(imageName -> true);
 
     // Start the container. This step might take some time...
     container.start();
@@ -110,7 +111,9 @@ public class CosmosIOTest {
   @AfterClass
   public static void afterClass() {
     container.stop();
-    client.close();
+    if (client != null) {
+      client.close();
+    }
   }
 
   @Rule public TestPipeline pipeline = TestPipeline.fromOptions(pipelineOptions);
@@ -124,9 +127,9 @@ public class CosmosIOTest {
             .withCoder(SerializableCoder.of(Family.class));
 
     BoundedCosmosBDSource<Family> initialSource = new BoundedCosmosBDSource<>(read);
-    // CosmosDb precision is in KB. Inserted test data is ~3KB
+    // Cosmos DB precision is in KB. Inserted test data is ~3KB
     long estimatedSize = initialSource.getEstimatedSizeBytes(pipelineOptions);
-    assertEquals("Wrong estimated size", 3000, estimatedSize);
+    assertEquals("Wrong estimated size", 3072, estimatedSize);
   }
 
   @Test
@@ -138,8 +141,8 @@ public class CosmosIOTest {
             .withCoder(SerializableCoder.of(Family.class));
 
     BoundedCosmosBDSource<Family> initialSource = new BoundedCosmosBDSource<>(read);
-    // CosmosDb precision is in KB. Inserted test data is ~3KB
-    List<? extends BoundedSource<Family>> splits = initialSource.split(1000, pipelineOptions);
+    // Cosmos DB precision is in KB. Inserted test data is ~3KB
+    List<? extends BoundedSource<Family>> splits = initialSource.split(1024, pipelineOptions);
     assertEquals("Wrong split", 3, splits.size());
   }
 
