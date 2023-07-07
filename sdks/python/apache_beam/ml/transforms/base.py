@@ -157,7 +157,8 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
         will compute the artifacts and store them in the artifact_location.
         The artifacts will be read from this location during the consume phase.
     """
-    _ = [self._validate_transform(transform) for transform in transforms]
+    if transforms:
+      _ = [self._validate_transform(transform) for transform in transforms]
 
     # avoid circular import
     # pylint: disable=wrong-import-order, wrong-import-position
