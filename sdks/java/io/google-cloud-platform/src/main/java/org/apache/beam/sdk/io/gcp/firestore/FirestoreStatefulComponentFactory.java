@@ -49,6 +49,7 @@ class FirestoreStatefulComponentFactory implements Serializable {
 
   private static final String DEFAULT_FIRESTORE_HOST = "batch-firestore.googleapis.com:443";
   private static final String FIRESTORE_HOST_ENV_VARIABLE = "FIRESTORE_HOST";
+  private static final String FIRESTORE_EMULATOR_HOST_ENV_VARIABLE = "FIRESTORE_EMULATOR_HOST";
 
   static final FirestoreStatefulComponentFactory INSTANCE = new FirestoreStatefulComponentFactory();
 
@@ -89,7 +90,11 @@ class FirestoreStatefulComponentFactory implements Serializable {
 
       FirestoreOptions firestoreOptions = options.as(FirestoreOptions.class);
       String emulatorHostPort = firestoreOptions.getEmulatorHost();
+      if (emulatorHostPort == null) {
+        emulatorHostPort = System.getenv(FIRESTORE_EMULATOR_HOST_ENV_VARIABLE);
+      }
       if (emulatorHostPort != null) {
+        firestoreOptions.setEmulatorHost(emulatorHostPort);
         builder
             .setCredentialsProvider(FixedCredentialsProvider.create(new EmulatorCredentials()))
             .setEndpoint(emulatorHostPort)
