@@ -39,6 +39,8 @@ from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.ml.inference.base import PredictionT
 from apache_beam.ml.inference.pytorch_inference import _convert_to_device
 from transformers import AutoModel
+from transformers import Pipeline
+from transformers import pipeline
 from transformers import TFAutoModel
 
 __all__ = [
@@ -447,3 +449,105 @@ class HuggingFaceModelHandlerTensor(HuggingFaceModelHandler[Union[tf.Tensor,
        A namespace for metrics collected by the RunInference transform.
     """
     return 'BeamML_HuggingFaceModelHandler_Tensor'
+
+
+class HuggingFacePipelineModelHandler(ModelHandler[str,
+                                                   PredictionResult,
+                                                   Pipeline]):
+  def __init__(
+      self,
+      task: str = None,
+      model=None,
+      device: str = 'CPU',
+      *,
+      inference_fn: Optional[Callable[..., PredictionT]] = None,
+      load_model_args: Optional[Dict[str, Any]] = None,
+      inference_args: Optional[Dict[str, Any]] = None,
+      min_batch_size: Optional[int] = None,
+      max_batch_size: Optional[int] = None,
+      large_model: bool = False,
+      **kwargs):
+    """Implementation of the ModelHandler interface for Hugging Face Pipelines.
+
+    Example Usage model::
+    pcoll | RunInference(HuggingFaceModelHandlerKeyedTensor(
+      task="fill-mask"))
+
+    Args:
+      task (str): task supported by HuggingFace Pipelines.
+      model : path to pretrained model on Hugging Face Models Hub to use custom
+        model for the chosen task. If the model already defines the task then
+        no need to specify the task parameter.
+      device: specify device on which you wish to run the model.
+        Defaults to CPU.
+      inference_fn: the inference function to use during RunInference.
+        Default is _run_inference_torch_keyed_tensor or
+        _run_inference_tensorflow_keyed_tensor depending on the input type.
+      load_model_args (Dict[str, Any]): keyword arguments to provide load
+        options while loading models from Hugging Face Hub. Defaults to None.
+      inference_args [Dict[str, Any]]: Non-batchable arguments
+        required as inputs to the model's inference function. Unlike Tensors in
+        `batch`, these parameters will not be dynamically batched.
+        Defaults to None.
+      min_batch_size: the minimum batch size to use when batching inputs.
+      max_batch_size: the maximum batch size to use when batching inputs.
+      large_model: set to true if your model is large enough to run into
+        memory pressure if you load multiple copies. Given a model that
+        consumes N memory and a machine with W cores and M memory, you should
+        set this to True if N*W > M.
+      kwargs: 'env_vars' can be used to set environment variables
+        before loading the model.
+
+    **Supported Versions:** HuggingFacePipelineModelHandler supports
+    transformers>=4.18.0.
+    """
+    self._task = task
+    self._model = model
+    self._device = device
+    self._inference_fn = inference_fn
+    self._model_config_args = load_model_args if load_model_args else {}
+    self._inference_args = inference_args if inference_args else {}
+    self._batching_kwargs = {}
+    self._framework = "torch"
+    self._env_vars = kwargs.get('env_vars', {})
+    if min_batch_size is not None:
+      self._batching_kwargs['min_batch_size'] = min_batch_size
+    if max_batch_size is not None:
+      self._batching_kwargs['max_batch_size'] = max_batch_size
+    self._large_model = large_model
+
+  def load_model(self):
+    return pipeline(
+        task=self._task, model=self._model_uri, **self._model_config_args)
+
+  def run_inference(
+      self,
+      batch: Sequence[str],
+      model: Pipeline,
+      inference_args: Optional[Dict[str, Any]] = None
+  ) -> Iterable[PredictionResult]:
+    """
+    Runs inferences on a batch of examples passed as a string resource.
+    These can either be string sentences, or string path to images or
+    audio files.
+
+    Args:
+      batch: A sequence of strings resources.
+      model: A Hugging Face Pipeline.
+      inference_args: Non-batchable arguments required as inputs to the model's
+        inference function.
+    Returns:
+      An Iterable of type PredictionResult.
+    """
+    inference_args = {} if not inference_args else inference_args
+    predictions = model(batch, **inference_args)
+    return utils._convert_to_result(batch, predictions)
+
+  def get_num_bytes(self, batch: Sequence[str]) -> int:
+    return sum(sys.getsizeof(element) for element in batch)
+
+  def get_metrics_namespace(self) -> str:
+    return 'BeamML_HuggingFacePipelineModelHandler'
+
+  def batch_elements_kwargs(self):
+    return self._batching_kwargs
