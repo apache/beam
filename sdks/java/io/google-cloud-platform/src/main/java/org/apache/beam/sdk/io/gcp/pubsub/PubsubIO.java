@@ -36,7 +36,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.naming.SizeLimitExceededException;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.reflect.ReflectData;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -666,8 +665,8 @@ public class PubsubIO {
    * by the schema-transform library.
    */
   public static Read<GenericRecord> readAvroGenericRecords(org.apache.avro.Schema avroSchema) {
+    AvroCoder<GenericRecord> coder = AvroCoder.of(avroSchema);
     Schema schema = AvroUtils.getSchema(GenericRecord.class, avroSchema);
-    AvroCoder<GenericRecord> coder = AvroCoder.of(GenericRecord.class, avroSchema);
     return Read.newBuilder(parsePayloadUsingCoder(coder))
         .setCoder(
             SchemaCoder.of(
@@ -689,9 +688,9 @@ public class PubsubIO {
     if (clazz.equals(GenericRecord.class)) {
       throw new IllegalArgumentException("For GenericRecord, please call readAvroGenericRecords");
     }
-    org.apache.avro.Schema avroSchema = ReflectData.get().getSchema(clazz);
     AvroCoder<T> coder = AvroCoder.of(clazz);
-    Schema schema = AvroUtils.getSchema(clazz, null);
+    org.apache.avro.Schema avroSchema = coder.getSchema();
+    Schema schema = AvroUtils.getSchema(clazz, avroSchema);
     return Read.newBuilder(parsePayloadUsingCoder(coder))
         .setCoder(
             SchemaCoder.of(

@@ -67,7 +67,7 @@ def generate_user_type_from_bq_schema(the_table_schema):
       the_table_schema)
   if the_schema == {}:
     raise ValueError("Encountered an empty schema")
-  dict_of_tuples = []
+  field_names_and_types = []
   for i in range(len(the_schema['fields'])):
     if the_schema['fields'][i]['type'] in BIG_QUERY_TO_PYTHON_TYPES:
       typ = bq_field_to_type(
@@ -76,9 +76,9 @@ def generate_user_type_from_bq_schema(the_table_schema):
       raise ValueError(
           f"Encountered "
           f"an unsupported type: {the_schema['fields'][i]['type']!r}")
-    # TODO svetaksundhar@: Map remaining BQ types
-    dict_of_tuples.append((the_schema['fields'][i]['name'], typ))
-  sample_schema = beam.typehints.schemas.named_fields_to_schema(dict_of_tuples)
+    field_names_and_types.append((the_schema['fields'][i]['name'], typ))
+  sample_schema = beam.typehints.schemas.named_fields_to_schema(
+      field_names_and_types)
   usertype = beam.typehints.schemas.named_tuple_from_schema(sample_schema)
   return usertype
 

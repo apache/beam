@@ -75,7 +75,7 @@ class UnitProgressCache extends ChangeNotifier {
 
   List<UnitProgressModel> _getUnitProgress() {
     if (_future == null) {
-      unawaited(loadUnitProgress(GetIt.instance.get<AppNotifier>().sdk!));
+      unawaited(loadUnitProgress(GetIt.instance.get<AppNotifier>().sdk));
     }
     return _unitProgress;
   }
@@ -84,15 +84,13 @@ class UnitProgressCache extends ChangeNotifier {
 
   Future<void> completeUnit(String sdkId, String unitId) async {
     try {
-      addUpdatingUnitId(unitId);
+      _addUpdatingUnitId(unitId);
       await _getUserProgressRepository().completeUnit(sdkId, unitId);
     } finally {
-      await loadUnitProgress(GetIt.instance.get<AppNotifier>().sdk!);
-      clearUpdatingUnitId(unitId);
+      await loadUnitProgress(GetIt.instance.get<AppNotifier>().sdk);
+      _clearUpdatingUnitId(unitId);
     }
   }
-
-  Set<String> getUpdatingUnitIds() => _updatingUnitIds;
 
   Set<String> getCompletedUnits() {
     _completedUnitIds.clear();
@@ -104,12 +102,12 @@ class UnitProgressCache extends ChangeNotifier {
     return _completedUnitIds;
   }
 
-  void addUpdatingUnitId(String unitId) {
+  void _addUpdatingUnitId(String unitId) {
     _updatingUnitIds.add(unitId);
     notifyListeners();
   }
 
-  void clearUpdatingUnitId(String unitId) {
+  void _clearUpdatingUnitId(String unitId) {
     _updatingUnitIds.remove(unitId);
     notifyListeners();
   }
@@ -123,10 +121,6 @@ class UnitProgressCache extends ChangeNotifier {
 
   bool isUnitCompleted(String? unitId) {
     return getCompletedUnits().contains(unitId);
-  }
-
-  String? getUnitSavedSnippetId(String? unitId) {
-    return _unitProgressByUnitId[unitId]?.userSnippetId;
   }
 
   UnitCompletion _getUnitCompletion(String unitId) {

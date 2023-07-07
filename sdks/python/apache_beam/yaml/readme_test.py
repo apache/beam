@@ -68,6 +68,8 @@ class FakeSql(beam.PTransform):
           typ = float
         else:
           typ = str
+      elif '+' in expr:
+        typ = float
       else:
         part = parts[0]
         if '.' in part:
@@ -172,6 +174,8 @@ def replace_recursive(spec, transform_type, arg_name, arg_value):
 
 
 def create_test_method(test_type, test_name, test_yaml):
+  test_yaml = test_yaml.replace('pkg.module.fn', 'str')
+
   def test(self):
     with TestEnvironment() as env:
       spec = yaml.load(test_yaml, Loader=SafeLoader)
@@ -202,6 +206,7 @@ def create_test_method(test_type, test_name, test_yaml):
 
 
 def parse_test_methods(markdown_lines):
+  # pylint: disable=too-many-nested-blocks
   code_lines = None
   for ix, line in enumerate(markdown_lines):
     line = line.rstrip()
@@ -211,26 +216,37 @@ def parse_test_methods(markdown_lines):
         test_type = 'RUN'
         test_name = f'test_line_{ix + 2}'
       else:
-        if code_lines and code_lines[0] == 'pipeline:':
-          yaml_pipeline = '\n'.join(code_lines)
-          if 'providers:' in yaml_pipeline:
-            test_type = 'PARSE'
-          yield test_name, create_test_method(
-              test_type,
-              test_name,
-              yaml_pipeline)
+        if code_lines:
+          if code_lines[0].startswith('- type:'):
+            # Treat this as a fragment of a larger pipeline.
+            # pylint: disable=not-an-iterable
+            code_lines = [
+                'pipeline:',
+                '  type: chain',
+                '  transforms:',
+                '    - type: ReadFromCsv',
+                '      path: whatever',
+            ] + ['    ' + line for line in code_lines]
+          if code_lines[0] == 'pipeline:':
+            yaml_pipeline = '\n'.join(code_lines)
+            if 'providers:' in yaml_pipeline:
+              test_type = 'PARSE'
+            yield test_name, create_test_method(
+                test_type,
+                test_name,
+                yaml_pipeline)
         code_lines = None
     elif code_lines is not None:
       code_lines.append(line)
 
 
-def createTestSuite():
-  with open(os.path.join(os.path.dirname(__file__), 'README.md')) as readme:
-    return type(
-        'ReadMeTest', (unittest.TestCase, ), dict(parse_test_methods(readme)))
+def createTestSuite(name, path):
+  with open(path) as readme:
+    return type(name, (unittest.TestCase, ), dict(parse_test_methods(readme)))
 
 
-ReadMeTest = createTestSuite()
+ReadMeTest = createTestSuite(
+    'ReadMeTest', os.path.join(os.path.dirname(__file__), 'README.md'))
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()

@@ -463,7 +463,6 @@ tasks.register("playgroundPreCommit") {
 
 tasks.register("pythonPreCommit") {
   dependsOn(":sdks:python:test-suites:tox:pycommon:preCommitPyCommon")
-  dependsOn(":sdks:python:test-suites:tox:py37:preCommitPy37")
   dependsOn(":sdks:python:test-suites:tox:py38:preCommitPy38")
   dependsOn(":sdks:python:test-suites:tox:py39:preCommitPy39")
   dependsOn(":sdks:python:test-suites:tox:py310:preCommitPy310")
@@ -481,7 +480,6 @@ tasks.register("pythonDocsPreCommit") {
 }
 
 tasks.register("pythonDockerBuildPreCommit") {
-  dependsOn(":sdks:python:container:py37:docker")
   dependsOn(":sdks:python:container:py38:docker")
   dependsOn(":sdks:python:container:py39:docker")
   dependsOn(":sdks:python:container:py310:docker")
@@ -490,23 +488,11 @@ tasks.register("pythonDockerBuildPreCommit") {
 
 tasks.register("pythonLintPreCommit") {
   // TODO(https://github.com/apache/beam/issues/20209): Find a better way to specify lint and formatter tasks without hardcoding py version.
-  dependsOn(":sdks:python:test-suites:tox:py37:lint")
+  dependsOn(":sdks:python:test-suites:tox:py38:lint")
 }
 
 tasks.register("pythonFormatterPreCommit") {
   dependsOn("sdks:python:test-suites:tox:py38:formatter")
-}
-
-tasks.register("python37PostCommit") {
-  dependsOn(":sdks:python:test-suites:dataflow:py37:postCommitIT")
-  dependsOn(":sdks:python:test-suites:direct:py37:postCommitIT")
-  dependsOn(":sdks:python:test-suites:direct:py37:directRunnerIT")
-  dependsOn(":sdks:python:test-suites:direct:py37:hdfsIntegrationTest")
-  dependsOn(":sdks:python:test-suites:direct:py37:azureIntegrationTest")
-  dependsOn(":sdks:python:test-suites:portable:py37:postCommitPy37")
-  dependsOn(":sdks:python:test-suites:dataflow:py37:spannerioIT")
-  dependsOn(":sdks:python:test-suites:direct:py37:spannerioIT")
-  dependsOn(":sdks:python:test-suites:portable:py37:xlangSpannerIOIT")
 }
 
 tasks.register("python38PostCommit") {
@@ -547,12 +533,11 @@ tasks.register("python311PostCommit") {
 }
 
 tasks.register("portablePythonPreCommit") {
-  dependsOn(":sdks:python:test-suites:portable:py37:preCommitPy37")
+  dependsOn(":sdks:python:test-suites:portable:py38:preCommitPy38")
   dependsOn(":sdks:python:test-suites:portable:py311:preCommitPy311")
 }
 
 tasks.register("pythonSparkPostCommit") {
-  dependsOn(":sdks:python:test-suites:portable:py37:sparkValidatesRunner")
   dependsOn(":sdks:python:test-suites:portable:py38:sparkValidatesRunner")
   dependsOn(":sdks:python:test-suites:portable:py39:sparkValidatesRunner")
   dependsOn(":sdks:python:test-suites:portable:py311:sparkValidatesRunner")
@@ -588,18 +573,65 @@ tasks.register("typescriptPreCommit") {
   dependsOn(":sdks:python:test-suites:tox:py38:jest")
 }
 
-tasks.register("pushAllDockerImages") {
+tasks.register("pushAllRunnersDockerImages") {
   dependsOn(":runners:spark:3:job-server:container:dockerPush")
+  for (version in project.ext.get("allFlinkVersions") as Array<*>) {
+    dependsOn(":runners:flink:${version}:job-server-container:dockerPush")
+  }
+  
+  doLast {
+    if (project.hasProperty("prune-images")) {
+      exec {
+        executable("docker")
+        args("system", "prune", "-a", "--force")
+      }
+    }
+  }
+}
+
+tasks.register("pushAllSdkDockerImages") {
+  // Enforce ordering to allow the prune step to happen between runs.
+  // This will ensure we don't use up too much space (especially in CI environments)
+  mustRunAfter(":pushAllRunnersDockerImages")
+
   dependsOn(":sdks:java:container:pushAll")
   dependsOn(":sdks:python:container:pushAll")
   dependsOn(":sdks:go:container:pushAll")
   dependsOn(":sdks:typescript:container:pushAll")
-  for (version in project.ext.get("allFlinkVersions") as Array<*>) {
-    dependsOn(":runners:flink:${version}:job-server-container:dockerPush")
+  
+  doLast {
+    if (project.hasProperty("prune-images")) {
+      exec {
+        executable("docker")
+        args("system", "prune", "-a", "--force")
+      }
+    }
   }
+}
+
+tasks.register("pushAllXlangDockerImages") {
+  // Enforce ordering to allow the prune step to happen between runs.
+  // This will ensure we don't use up too much space (especially in CI environments)
+  mustRunAfter(":pushAllSdkDockerImages")
+
   dependsOn(":sdks:java:expansion-service:container:dockerPush")
   dependsOn(":sdks:java:transform-service:controller-container:dockerPush")
   dependsOn(":sdks:python:expansion-service-container:dockerPush")
+  
+  doLast {
+    if (project.hasProperty("prune-images")) {
+      exec {
+        executable("docker")
+        args("system", "prune", "-a", "--force")
+      }
+    }
+  }
+}
+
+tasks.register("pushAllDockerImages") {
+  dependsOn(":pushAllRunnersDockerImages")
+  dependsOn(":pushAllSdkDockerImages")
+  dependsOn(":pushAllXlangDockerImages")
 }
 
 // Use this task to validate the environment set up for Go, Python and Java

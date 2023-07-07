@@ -35,7 +35,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
-import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryStorageWriteApiSchemaTransformProvider.BigQueryStorageWriteApiPCollectionRowTupleTransform;
+import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryStorageWriteApiSchemaTransformProvider.BigQueryStorageWriteApiSchemaTransform;
 import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryStorageWriteApiSchemaTransformProvider.BigQueryStorageWriteApiSchemaTransformConfiguration;
 import org.apache.beam.sdk.io.gcp.testing.FakeBigQueryServices;
 import org.apache.beam.sdk.io.gcp.testing.FakeDatasetService;
@@ -140,17 +140,16 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
     BigQueryStorageWriteApiSchemaTransformProvider provider =
         new BigQueryStorageWriteApiSchemaTransformProvider();
 
-    BigQueryStorageWriteApiPCollectionRowTupleTransform writeRowTupleTransform =
-        (BigQueryStorageWriteApiPCollectionRowTupleTransform)
-            provider.from(config).buildTransform();
+    BigQueryStorageWriteApiSchemaTransform writeTransform =
+        (BigQueryStorageWriteApiSchemaTransform) provider.from(config);
 
-    writeRowTupleTransform.setBigQueryServices(fakeBigQueryServices);
+    writeTransform.setBigQueryServices(fakeBigQueryServices);
     String tag = provider.inputCollectionNames().get(0);
 
     PCollection<Row> rows = p.apply(Create.of(inputRows).withRowSchema(SCHEMA));
 
     PCollectionRowTuple input = PCollectionRowTuple.of(tag, rows);
-    PCollectionRowTuple result = input.apply(writeRowTupleTransform);
+    PCollectionRowTuple result = input.apply(writeTransform);
 
     return result;
   }
@@ -227,10 +226,9 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
     BigQueryStorageWriteApiSchemaTransformProvider provider =
         new BigQueryStorageWriteApiSchemaTransformProvider();
 
-    BigQueryStorageWriteApiPCollectionRowTupleTransform writeRowTupleTransform =
-        (BigQueryStorageWriteApiPCollectionRowTupleTransform)
-            provider.from(config).buildTransform();
-    writeRowTupleTransform.setBigQueryServices(fakeBigQueryServices);
+    BigQueryStorageWriteApiSchemaTransform writeTransform =
+        (BigQueryStorageWriteApiSchemaTransform) provider.from(config);
+    writeTransform.setBigQueryServices(fakeBigQueryServices);
     List<Row> testRows =
         Arrays.asList(
             Row.withSchema(SCHEMA)
@@ -243,7 +241,7 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
     Pipeline pipeline = Pipeline.create(options);
     PCollection<Row> rows = pipeline.apply(Create.of(testRows).withRowSchema(SCHEMA));
     PCollectionRowTuple input = PCollectionRowTuple.of(tag, rows);
-    writeRowTupleTransform.expand(input);
+    writeTransform.expand(input);
   }
 
   @Test
@@ -261,7 +259,7 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
             MetricsFilter.builder()
                 .addNameFilter(
                     MetricNameFilter.named(
-                        BigQueryStorageWriteApiPCollectionRowTupleTransform.class,
+                        BigQueryStorageWriteApiSchemaTransform.class,
                         "BigQuery-write-element-counter"))
                 .build());
 
@@ -334,7 +332,7 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
             MetricsFilter.builder()
                 .addNameFilter(
                     MetricNameFilter.named(
-                        BigQueryStorageWriteApiPCollectionRowTupleTransform.class,
+                        BigQueryStorageWriteApiSchemaTransform.class,
                         "BigQuery-write-error-counter"))
                 .build());
 

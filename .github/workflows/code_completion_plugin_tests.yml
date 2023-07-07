@@ -1,0 +1,112 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+
+# The workflow is triggered on the following events:
+# - pull requests that contain changes in plugins/beam-code-completion-plugin/ directory
+# - pushes to any branch except master. the push must contain changes in plugins/beam-code-completion-plugin/ directory
+
+# To learn more about GitHub Actions in Apache Beam check the CI.md
+
+name: Code Completion Plugin Tests
+on:
+  push:
+    branches-ignore:
+      - 'master'
+    paths:
+      - 'plugins/beam-code-completion-plugin/**'
+      - '.github/workflows/code_completion_plugin_tests.yml'
+  pull_request:
+    paths:
+      - 'plugins/beam-code-completion-plugin/**'
+      - '.github/workflows/code_completion_plugin_tests.yml'
+env:
+  INTELLIJ_IDEA_SOURCES: /home/runner/work/beam/beam/intellij
+jobs:
+  # Run Gradle Wrapper Validation Action to verify the wrapper's checksum
+  # Run verifyPlugin, IntelliJ Plugin Verifier, and test Gradle tasks
+  # Build plugin and provide the artifact for the next workflow jobs
+  test:
+    name: Build and run model-level tests
+    runs-on: ubuntu-latest
+    steps:
+      # Free GitHub Actions Environment Disk Space
+      - name: Maximize Build Space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+
+      # Check out beam repository
+      - name: Fetch beam Sources
+        uses: actions/checkout@v3
+        with:
+          path: main
+
+      # Check out intellij community repository for tests
+      - name: Fetch intellij-community Sources
+        uses: actions/checkout@v3
+        with:
+          repository: JetBrains/intellij-community
+          path: intellij
+
+      # Validate wrapper
+      - name: Gradle Wrapper Validation
+        uses: gradle/wrapper-validation-action@v1.0.6
+
+      # Setup Java environment for the next steps
+      - name: Setup Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+
+      # Set environment variables
+      - name: Export Properties
+        id: properties
+        shell: bash
+        run: |
+          pwd
+          cd main/plugins/beam-code-completion-plugin/
+          pwd
+          PROPERTIES="$(./gradlew properties --console=plain -q)"
+          VERSION="$(echo "$PROPERTIES" | grep "^version:" | cut -f2- -d ' ')"
+          NAME="$(echo "$PROPERTIES" | grep "^name:" | cut -f2- -d ' ')"
+
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "name=$NAME" >> $GITHUB_OUTPUT
+          echo "pluginVerifierHomeDir=~/.pluginVerifier" >> $GITHUB_OUTPUT
+          
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      # Run tests
+      - name: Run Tests
+        run: |
+          pwd
+          cd main/plugins/beam-code-completion-plugin/
+          pwd
+          ./gradlew test --info
+
+      # Collect Tests Result of failed tests
+      - name: Collect Tests Result
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: tests-result
+          path: ${{ github.workspace }}/build/reports/tests

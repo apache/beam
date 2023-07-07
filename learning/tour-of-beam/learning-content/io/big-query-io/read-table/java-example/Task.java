@@ -20,6 +20,8 @@
 //   name: read-table
 //   description: BigQueryIO read table example.
 //   multifile: false
+//   never_run: true
+//   always_run: true
 //   context_line: 56
 //   categories:
 //     - Quickstart
@@ -33,11 +35,16 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Flatten;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Sample;
 import org.apache.beam.sdk.values.PCollection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead;
+
 
 public class Task {
 
@@ -45,26 +52,29 @@ public class Task {
 
     public static void main(String[] args) {
         LOG.info("Running Task");
-        System.setProperty("GOOGLE_APPLICATION_CREDENTIALS", "to\\path\\credential.json");
         PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
-        options.setTempLocation("gs://bucket");
-        options.as(BigQueryOptions.class).setProject("project-id");
+        options.as(BigQueryOptions.class).setProject("apache-beam-testing");
 
         Pipeline pipeline = Pipeline.create(options);
 
         /*
-        * BigQueryIO.readTableRows().from("bucket.project-id.table") reads from the specified BigQuery table, and outputs a
-        * PCollection of TableRow objects. Each TableRow represents a row in the BigQuery table.
-        * The .apply("Log words", ParDo.of(new LogOutput<>())) line applies a ParDo transform that logs each row. This is done using the LogOutput class, a custom DoFn (element-wise function).
-        * LogOutput class: This is a custom DoFn that logs each element in the input PCollection. This is used to inspect the data in the pipeline for debugging or monitoring purposes.
-        */
-/*
-        PCollection<TableRow> pCollection = pipeline
-                .apply("ReadFromBigQuery", BigQueryIO.readTableRows().from("bucket.project-id.table"));
+         * BigQueryIO.readTableRows().from("bucket.project-id.table") reads from the specified BigQuery table, and outputs a
+         * PCollection of TableRow objects. Each TableRow represents a row in the BigQuery table.
+         * The .apply("Log words", ParDo.of(new LogOutput<>())) line applies a ParDo transform that logs each row. This is done using the LogOutput class, a custom DoFn (element-wise function).
+         * LogOutput class: This is a custom DoFn that logs each element in the input PCollection. This is used to inspect the data in the pipeline for debugging or monitoring purposes.
+         */
 
-        pCollection
+        PCollection<TableRow> pCollection = pipeline
+                .apply("ReadFromBigQuery", BigQueryIO.readTableRows().from("clouddataflow-readonly:samples.weather_stations").withMethod(TypedRead.Method.DIRECT_READ));
+
+        final PTransform<PCollection<TableRow>, PCollection<Iterable<TableRow>>> sample = Sample.fixedSizeGlobally(5);
+
+        PCollection<TableRow> limitedPCollection = pCollection.apply(sample).apply(Flatten.iterables());
+
+
+        limitedPCollection
                 .apply("Log words", ParDo.of(new LogOutput<>()));
-*/
+
 
 
         pipeline.run();

@@ -121,6 +121,8 @@ cdef class DoFnRunner:
   cdef list side_inputs
   cdef DoFnInvoker do_fn_invoker
   cdef public object bundle_finalizer_param
+  cdef str transform_id
+  cdef object execution_context
   cpdef process(self, WindowedValue windowed_value)
 
 
