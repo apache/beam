@@ -41,7 +41,7 @@ class FillInMissingTest(unittest.TestCase):
     sparse_tensor = tf.sparse.SparseTensor(indices, values, dense_shape)
 
     # Fill in missing values with -1
-    filled_tensor = None
+    filled_tensor = tf.Tensor()
     if fill_in_missing is not None:
       filled_tensor = fill_in_missing(sparse_tensor, -1)
 
