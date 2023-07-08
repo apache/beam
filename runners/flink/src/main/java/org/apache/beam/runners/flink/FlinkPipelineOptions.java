@@ -150,7 +150,7 @@ public interface FlinkPipelineOptions
 
   void setJobCheckIntervalInSecs(int seconds);
 
-  @Description("Set the attached mode")
+  @Description("Specifies if the pipeline is submitted in attached or detached mode")
   @Default.Boolean(true)
   boolean getAttachedMode();
 

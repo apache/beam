@@ -128,6 +128,7 @@ public class FlinkDetachedRunnerResult implements PipelineResult {
       case FAILED:
         return State.FAILED;
       case SUSPENDED:
+        return State.STOPPED;
       default:
         return State.UNKNOWN;
     }
