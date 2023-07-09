@@ -29,15 +29,15 @@ on:
       - 'examples/kotlin/**'
       - 'release/**'
       - '.github/workflows/beam_PreCommit_Java_Examples_Dataflow.yml'
-  pull_request_target:
-    branches: ['master', 'release-*']
-    paths:
-      - 'model/**'
-      - 'sdks/java/**'
-      - 'runners/google-cloud-dataflow-java/**'
-      - 'examples/java/**'
-      - 'examples/kotlin/**'
-      - 'release/**'
+  #pull_request_target:
+  #  branches: ['master', 'release-*']
+  #  paths:
+  #    - 'model/**'
+  #    - 'sdks/java/**'
+  #    - 'runners/google-cloud-dataflow-java/**'
+  #    - 'examples/java/**'
+  #    - 'examples/kotlin/**'
+  #    - 'release/**'
   issue_comment:
     types: [created]
   schedule:
