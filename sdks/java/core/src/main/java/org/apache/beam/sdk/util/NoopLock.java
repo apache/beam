@@ -21,19 +21,17 @@ import java.io.Serializable;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
-import javax.annotation.Nonnull;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A lock which can always be acquired. It should not be used when a proper lock is required, but it
  * is useful as a performance optimization when locking is not necessary but the code paths have to
  * be shared between the locking and the non-locking variant.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class NoopLock implements Lock, Serializable {
 
-  private static NoopLock instance;
+  private static @Nullable NoopLock instance;
 
   public static NoopLock get() {
     if (instance == null) {
@@ -56,16 +54,15 @@ public class NoopLock implements Lock, Serializable {
   }
 
   @Override
-  public boolean tryLock(long time, @Nonnull TimeUnit unit) {
+  public boolean tryLock(long time, @NonNull TimeUnit unit) {
     return true;
   }
 
   @Override
   public void unlock() {}
 
-  @Nonnull
   @Override
-  public Condition newCondition() {
+  public @NonNull Condition newCondition() {
     throw new UnsupportedOperationException("Not implemented");
   }
 }
