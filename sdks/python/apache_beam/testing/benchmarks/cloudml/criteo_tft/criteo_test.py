@@ -20,6 +20,8 @@ import unittest
 import numpy as np
 import pytest
 
+from typing import Any, Callable, Optional
+
 try:
   import tensorflow_transform as tft
   import tensorflow as tf
@@ -27,7 +29,7 @@ try:
 except ImportError:
   tft = None
   tf = None
-  fill_in_missing = None
+  fill_in_missing = Optional[Callable[[tf.sparse.SparseTensor, int], tf.Tensor]] = None
 
 
 @pytest.mark.uses_tft
