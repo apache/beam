@@ -83,11 +83,15 @@ if [ -z "$GOCMD" ] ; then
     # The download command isn't concurrency safe so we get an exclusive lock, without wait.
     # If we're first, we ensure the command is downloaded, releasing the lock afterwards.
     # This operation is cached on system and won't be re-downloaded at least.
+    # The dependency on flock below is documented at sdks/go/README.md. If this dependency is removed or changed,
+    # please make the corresponding changes at sdks/go/README.md.
     flock --exclusive --nonblock --conflict-exit-code 0 $LOCKFILE $GOBIN/$GOVERS download
 
     # Execute the script with the remaining arguments.
     # We get a shared lock for the ordinary go command execution.
     echo $GOBIN/$GOVERS $@
+    # The dependency on flock below is documented at sdks/go/README.md. If this dependency is removed or changed,
+    # please make the corresponding changes at sdks/go/README.md.
     flock --shared --timeout=10 $LOCKFILE $GOBIN/$GOVERS $@
 else
     # Minor TODO: Figure out if we can pull out the GOCMD env variable after goPrepare
