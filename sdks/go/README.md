@@ -180,7 +180,7 @@ To run [examples/wordcount](examples/wordcount) on the [Dataflow Runner](#datafl
         --staging_location=gs://$GCS_BUCKET/staging \
         --output=gs://$GCS_BUCKET/output
     ```
-   
+
     You should see:
     ```
     2023/07/09 10:57:13 Submitted job: <job-id>
@@ -196,7 +196,7 @@ To run [examples/wordcount](examples/wordcount) on the [Dataflow Runner](#datafl
     ```
     gcloud storage cat "gs://$GCS_BUCKET/output*" | head
     ```
-   
+
     You should see something similar to the following:
     ```
     feature: 1
