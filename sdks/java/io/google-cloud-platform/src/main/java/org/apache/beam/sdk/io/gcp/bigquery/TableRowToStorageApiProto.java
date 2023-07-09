@@ -830,7 +830,8 @@ public class TableRowToStorageApiProto {
             try {
               // for backwards compatibility, default time zone is UTC for values with no time-zone
               // '2011-12-03T10:15:30'
-              Instant timestamp = Instant.from(TIMESTAMP_FORMATTER.withZone(ZoneOffset.UTC).parse((String) value));
+              Instant timestamp =
+                  Instant.from(TIMESTAMP_FORMATTER.withZone(ZoneOffset.UTC).parse((String) value));
               return toEpochMicros(timestamp);
             } catch (DateTimeParseException err) {
               // "12345667"
