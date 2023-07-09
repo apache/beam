@@ -1072,15 +1072,15 @@ public class TableRowToStorageApiProtoTest {
 
     Object[][] validTimestampValues =
         new Object[][] {
-            // {"input value", "converted long in microseconds"}
-            {"1970-01-01T00:00:00.000041Z", 41L}, // ISO 8601
-            {"9999-12-31 23:59:59.999999Z", 253402300799999999L},
-            {"1970-01-01T00:00:00.000042", 42L}, // ISO 8601 w/out TZ, backward capability
-            {"9999-12-31 23:59:59.999999", 253402300799999999L},
-            {"123456", 123456000L}, // UNIX timestamp in seconds
-            {"253402300799999", 253402300799999000L},
-            {Instant.ofEpochMilli(123456L), 123456000L}, // Instant object
-            {Instant.ofEpochMilli(253402300799999L), 253402300799999000L},
+          // {"input value", "converted long in microseconds"}
+          {"1970-01-01T00:00:00.000041Z", 41L}, // ISO 8601
+          {"9999-12-31 23:59:59.999999Z", 253402300799999999L},
+          {"1970-01-01T00:00:00.000042", 42L}, // ISO 8601 w/out TZ, backward capability
+          {"9999-12-31 23:59:59.999999", 253402300799999999L},
+          {"123456", 123456000L}, // UNIX timestamp in seconds
+          {"253402300799999", 253402300799999000L},
+          {Instant.ofEpochMilli(123456L), 123456000L}, // Instant object
+          {Instant.ofEpochMilli(253402300799999L), 253402300799999000L},
         };
     for (Object[] validValue : validTimestampValues) {
       Object sourceValue = validValue[0];
