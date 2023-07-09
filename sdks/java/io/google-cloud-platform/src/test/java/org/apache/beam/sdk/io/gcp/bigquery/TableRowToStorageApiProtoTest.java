@@ -39,6 +39,7 @@ import com.google.protobuf.DynamicMessage;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -1045,6 +1046,58 @@ public class TableRowToStorageApiProtoTest {
                 + " to INTEGER");
       } catch (SchemaConversionException e) {
         assertEquals("Exception message", expectedError, e.getMessage());
+      }
+    }
+  }
+
+  @Test
+  public void testTimestampTypeConversion() throws DescriptorValidationException {
+    String timestampFieldName = "timestamp_field";
+    TableSchema tableSchema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.<TableFieldSchema>builder()
+                    .add(
+                        new TableFieldSchema()
+                            .setType("TIMESTAMP")
+                            .setName(timestampFieldName)
+                            .setMode("REQUIRED"))
+                    .build());
+    TableRowToStorageApiProto.SchemaInformation schemaInformation =
+        TableRowToStorageApiProto.SchemaInformation.fromTableSchema(tableSchema);
+    SchemaInformation fieldSchema = schemaInformation.getSchemaForField(timestampFieldName);
+    Descriptor schemaDescriptor =
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(tableSchema, true, false);
+    FieldDescriptor fieldDescriptor = schemaDescriptor.findFieldByName(timestampFieldName);
+
+    Object[][] validTimestampValues =
+        new Object[][] {
+            // {"input value", "converted long in microseconds"}
+            {"1970-01-01T00:00:00.000041Z", 41L}, // ISO 8601
+            {"9999-12-31 23:59:59.999999Z", 253402300799999999L},
+            {"1970-01-01T00:00:00.000042", 42L}, // ISO 8601 w/out TZ, backward capability
+            {"9999-12-31 23:59:59.999999", 253402300799999999L},
+            {"123456", 123456000L}, // UNIX timestamp in seconds
+            {"253402300799999", 253402300799999000L},
+            {Instant.ofEpochMilli(123456L), 123456000L}, // Instant object
+            {Instant.ofEpochMilli(253402300799999L), 253402300799999000L},
+        };
+    for (Object[] validValue : validTimestampValues) {
+      Object sourceValue = validValue[0];
+      long expectedConvertedValue = (long) validValue[1];
+      try {
+        Object converted =
+            TableRowToStorageApiProto.singularFieldToProtoValue(
+                fieldSchema, fieldDescriptor, sourceValue, false, false, () -> null);
+        assertEquals(expectedConvertedValue, converted);
+      } catch (SchemaConversionException e) {
+        fail(
+            "Failed to convert value "
+                + sourceValue
+                + " of type "
+                + validValue.getClass()
+                + " to LONG: "
+                + e);
       }
     }
   }
