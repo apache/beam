@@ -53,7 +53,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import reactor.core.publisher.Mono;
 
 @SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+  "nullness" // CosmosAsyncClient does not use nullable annotations
 })
 public class CosmosIO {
 
