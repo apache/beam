@@ -75,7 +75,7 @@ func (s *stage) Execute(j *jobservices.Job, wk *worker.W, comps *pipepb.Componen
 
 		// Do some accounting for the fake bundle.
 		b.Resp = make(chan *fnpb.ProcessBundleResponse, 1)
-		close(b.Resp) // To
+		close(b.Resp) // To avoid blocking downstream, since we don't send on this.
 		closed := make(chan struct{})
 		close(closed)
 		dataReady = closed
@@ -160,7 +160,15 @@ progress:
 	// Tentative Data is ready, commit it to the main datastore.
 	slog.Debug("Execute: commiting data", "bundle", rb, slog.Any("outputsWithData", maps.Keys(b.OutputData.Raw)), slog.Any("outputs", maps.Keys(s.OutputsToCoders)))
 
-	resp := <-b.Resp
+	resp, ok := <-b.Resp
+	// Bundle has failed, fail the job.
+	// TODO add retries & clean up this logic. Channels are closed by the "runner" transforms.
+	if !ok && b.Error != "" {
+		slog.Error("job failed", "error", b.Error, "bundle", rb, "job", j)
+		j.Failed(fmt.Errorf("bundle failed: %v", b.Error))
+		return
+	}
+
 	// Tally metrics immeadiately so they're available before
 	// pipeline termination.
 	unknownIDs := j.ContributeFinalMetrics(resp)
