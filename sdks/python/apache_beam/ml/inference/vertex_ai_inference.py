@@ -41,6 +41,22 @@ LOGGER = logging.getLogger("VertexAIModelHandlerJSON")
 # pylint: disable=line-too-long
 
 
+def retry_on_gcp_client_error(exception):
+  """
+  Retry filter that returns True if a returned HTTP error code is 4xx. This is
+  used to retry remote requests that fail, most notably 429 (TooManyRequests.)
+  This is used for GCP-specific client errors.
+
+  Args:
+    exception: the returned exception encountered during the request/response
+      loop.
+
+  Returns:
+    boolean indication whether or not the exception is a GCP ClientError.
+  """
+  return isinstance(exception, ClientError)
+
+
 class VertexAIModelHandlerJSON(ModelHandler[Any,
                                             PredictionResult,
                                             aiplatform.Endpoint]):
@@ -119,7 +135,7 @@ class VertexAIModelHandlerJSON(ModelHandler[Any,
     return ep
 
   @retry.with_exponential_backoff(
-      num_retries=5, retry_filter=utils.retry_on_gcp_client_error)
+      num_retries=5, retry_filter=retry_on_gcp_client_error)
   def get_request(
       self,
       batch: Sequence[Any],
