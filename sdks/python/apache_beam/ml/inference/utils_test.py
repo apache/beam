@@ -18,14 +18,17 @@
 
 import unittest
 
-from google.api_core.exceptions import TooManyRequests
-
 import apache_beam as beam
 from apache_beam.io.filesystem import FileMetadata
 from apache_beam.ml.inference import utils
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+
+try:
+  from google.api_core.exceptions import TooManyRequests
+except ImportError:
+  TooManyRequests = None  # type: ignore
 
 
 class WatchFilePatternTest(unittest.TestCase):
@@ -101,6 +104,7 @@ class WatchFilePatternTest(unittest.TestCase):
       assert_that(files_pc, equal_to(['', 'path3.py', 'path4.py']))
 
 
+@unittest.skipIf(TooManyRequests is None, 'GCP dependencies are not installed')
 class RetryOnClientErrorTest(unittest.TestCase):
   def test_retry_on_client_error_positive(self):
     e = TooManyRequests(message="fake service rate limiting")
