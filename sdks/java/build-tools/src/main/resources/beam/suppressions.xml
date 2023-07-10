@@ -49,6 +49,11 @@
   <suppress id="ForbidNonVendoredGuava" files=".*cdap.*Plugin\.java" />
   <suppress id="ForbidNonVendoredGuava" files=".*cdap.*PluginConfigInstantiationUtils\.java" />
   <suppress id="ForbidNonVendoredGuava" files=".*cdap.*Plugin\.java" />
+  <suppress id="ForbidNonVendoredGuava" files=".*it.*PipelineLauncher\.java" />
+  <suppress id="ForbidNonVendoredGuava" files=".*it.*ResourceManager\.java" />
+  <suppress id="ForbidNonVendoredGuava" files=".*it.*ResourceManagerTest\.java" />
+  <suppress id="ForbidNonVendoredGuava" files=".*it.*TemplateClientTest\.java" />
+  <suppress id="ForbidNonVendoredGuava" files=".*it.*LT\.java" />
 
   <!-- gRPC/protobuf exceptions -->
   <!-- Non-vendored gRPC/protobuf imports are allowed for files that depend on libraries that expose gRPC/protobuf in its public API -->
@@ -71,6 +76,13 @@
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*examples.*datatokenization.*BigTableIO\.java" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*aws2.*kinesis.*RecordsAggregator\.java" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*testinfra.*pipelines.*" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*it.*DefaultPipelineLauncher\.java" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*it.*ResourceManager\.java" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*it.*datastream.*Source\.java" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*it.*Base\.java" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*it.*Client\.java" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*it.*LT\.java" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*it.*ResourceManagerTest\.java" />
 
   <!-- Flink -->
   <!-- Checkstyle does not correctly detect package files across multiple source directories. -->
