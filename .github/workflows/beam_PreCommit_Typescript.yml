@@ -15,29 +15,16 @@
 # specific language governing permissions and limitations
 # under the License.
 
-name: PreCommit Java Examples Dataflow
+name: PreCommit Typescript
 
 on:
   push:
     tags: ['v*']
     branches: ['master', 'release-*']
-    paths:
-      - 'model/**'
-      - 'sdks/java/**'
-      - 'runners/google-cloud-dataflow-java/**'
-      - 'examples/java/**'
-      - 'examples/kotlin/**'
-      - 'release/**'
-      - '.github/workflows/beam_PreCommit_Java_Examples_Dataflow.yml'
-  #pull_request_target:
-  #  branches: ['master', 'release-*']
-  #  paths:
-  #    - 'model/**'
-  #    - 'sdks/java/**'
-  #    - 'runners/google-cloud-dataflow-java/**'
-  #    - 'examples/java/**'
-  #    - 'examples/kotlin/**'
-  #    - 'release/**'
+    paths: ['sdks/python/apache_beam/runners/interactive/extensions/**', '.github/workflows/beam_PreCommit_Typescript.yml']
+  pull_request_target:
+    branches: ['master', 'release-*']
+    paths: ['sdks/python/apache_beam/runners/interactive/extensions/**']
   issue_comment:
     types: [created]
   schedule:
@@ -59,21 +46,21 @@ permissions:
   security-events: read
   statuses: read
 jobs:
-  beam_PreCommit_Java_Examples_Dataflow:
-    name: beam_PreCommit_Java_Examples_Dataflow
+  beam_PreCommit_Typescript:
+    name: beam_PreCommit_Typescript
     runs-on: [self-hosted, ubuntu-20.04]
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
       github.event_name == 'schedule' ||
-      github.event.comment.body == 'Run Java_Examples_Dataflow PreCommit'
+      github.event.comment.body == 'Run Typescript PreCommit'   
     steps:
       - name: Check out repository code
         uses: actions/checkout@v3
         with:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: Rerun on comment
-        if: github.event.comment.body == 'Run Java_Examples_Dataflow PreCommit'
+        if: github.event.comment.body == 'Run Typescript PreCommit'
         uses: ./.github/actions/rerun-job-action
         with:
           pull_request_url: ${{ github.event.issue.pull_request.url }}
@@ -84,26 +71,11 @@ jobs:
       - name: Setup self-hosted
         uses: ./.github/actions/setup-self-hosted-action
         with:
-          requires-py-38: false
           requires-py-39: false
           requires-go: false
       - name: Setup Gradle
         uses: gradle/gradle-build-action@v2
         with:
           cache-read-only: false
-      - name: Authenticate on GCP
-        uses: google-github-actions/setup-gcloud@v0
-        with:
-          service_account_email: ${{ secrets.GCP_SA_EMAIL }}
-          service_account_key: ${{ secrets.GCP_SA_KEY }}
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
-          export_default_credentials: true
-      - name: run javaExamplesDataflowPrecommit script
-        run: ./gradlew :javaExamplesDataflowPrecommit
-          -PdisableSpotlessCheck=true
-          -PdisableCheckStyle=true
-      - name: Upload test report
-        uses: actions/upload-artifact@v3
-        with:
-          name: java-code-coverage-report
-          path: "**/build/test-results/**/*.xml"
+      - name: run typescriptPreCommit script
+        run: ./gradlew :typescriptPreCommit
