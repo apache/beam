@@ -55,7 +55,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: Rerun on comment
-        if: github.event.comment.body == 'Run PythonLint PreCommit'
+        if: github.event.comment.body == 'Run RAT PreCommit'
         uses: ./.github/actions/rerun-job-action
         with:
           pull_request_url: ${{ github.event.issue.pull_request.url }}
