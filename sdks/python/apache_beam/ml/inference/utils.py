@@ -177,6 +177,6 @@ def retry_on_gcp_client_error(exception):
       loop.
 
   Returns:
-    boolean indication whether or not the exception is a GCP ClientError. 
+    boolean indication whether or not the exception is a GCP ClientError.
   """
   return isinstance(exception, ClientError)
