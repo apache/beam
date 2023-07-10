@@ -27,6 +27,8 @@ from typing import Iterable
 from typing import Optional
 from typing import Union
 
+from google.api_core.exceptions import ClientError
+
 import apache_beam as beam
 from apache_beam.io.fileio import EmptyMatchTreatment
 from apache_beam.io.fileio import MatchContinuously
@@ -162,3 +164,19 @@ class WatchFilePattern(beam.PTransform):
             window.GlobalWindows(),
             trigger=trigger.Repeatedly(trigger.AfterProcessingTime(1)),
             accumulation_mode=trigger.AccumulationMode.DISCARDING))
+
+
+def retry_on_gcp_client_error(exception):
+  """
+  Retry filter that returns True if a returned HTTP error code is 4xx. This is
+  used to retry remote requests that fail, most notably 429 (TooManyRequests.)
+  This is used for GCP-specific client errors.
+
+  Args:
+    exception: the returned exception encountered during the request/response
+      loop.
+
+  Returns:
+    boolean indication whether or not the exception is a GCP ClientError. 
+  """
+  return isinstance(exception, ClientError)

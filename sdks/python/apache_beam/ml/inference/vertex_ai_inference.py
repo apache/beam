@@ -118,7 +118,8 @@ class VertexAIModelHandlerJSON(ModelHandler[Any,
     ep = self._retrieve_endpoint(self.endpoint_name)
     return ep
 
-  @retry.with_exponential_backoff(num_retries=5)
+  @retry.with_exponential_backoff(
+      num_retries=5, retry_filter=utils.retry_on_gcp_client_error)
   def get_request(
       self,
       batch: Sequence[Any],
@@ -143,6 +144,9 @@ class VertexAIModelHandlerJSON(ModelHandler[Any,
       raise
     except ClientError as e:
       LOGGER.warning("request failed with error code %i", e.code)
+      raise
+    except Exception as e:
+      LOGGER.error("unexpected exception raised as part of request, got %s", e)
       raise
 
   def run_inference(

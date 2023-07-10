@@ -18,6 +18,8 @@
 
 import unittest
 
+from google.api_core.exceptions import TooManyRequests
+
 import apache_beam as beam
 from apache_beam.io.filesystem import FileMetadata
 from apache_beam.ml.inference import utils
@@ -97,6 +99,16 @@ class WatchFilePatternTest(unittest.TestCase):
           | beam.ParDo(utils._ConvertIterToSingleton())
           | beam.Map(lambda x: x[0]))
       assert_that(files_pc, equal_to(['', 'path3.py', 'path4.py']))
+
+
+class RetryOnClientErrorTest(unittest.TestCase):
+  def test_retry_on_client_error_positive(self):
+    e = TooManyRequests(message="fake service rate limiting")
+    self.assertTrue(utils.retry_on_client_error(e))
+
+  def test_retry_on_client_error_negative(self):
+    e = ValueError()
+    self.assertFalse(utils.retry_on_client_error(e))
 
 
 if __name__ == '__main__':
