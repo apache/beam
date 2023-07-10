@@ -18,15 +18,13 @@
 
 import unittest
 
-from apache_beam.ml.inference.vertex_ai_inference import retry_on_gcp_client_error
-
 try:
+  from apache_beam.ml.inference.vertex_ai_inference import retry_on_gcp_client_error
   from google.api_core.exceptions import TooManyRequests
 except ImportError:
-  TooManyRequests = None  # type: ignore
+  raise unittest.SkipTest('VertexAI dependencies are not installed')
 
 
-@unittest.skipIf(TooManyRequests is None, 'GCP dependencies are not installed')
 class RetryOnClientErrorTest(unittest.TestCase):
   def test_retry_on_client_error_positive(self):
     e = TooManyRequests(message="fake service rate limiting")
