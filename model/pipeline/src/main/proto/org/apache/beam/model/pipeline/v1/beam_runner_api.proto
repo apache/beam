@@ -227,7 +227,7 @@ message StandardPTransforms {
     // PARAM_WINDOWED_VALUE coder.
     //
     // Payload: beam_fn_api.RemoteGrpcPort
-    DATASOURCE = 9 [(beam_urn) = "beam:runner:source:v1"];
+    DATA_SOURCE = 9 [(beam_urn) = "beam:runner:source:v1"];
 
     // DataSink is a transform that sends data to a remote port
     // beam_fn_api.ProcessBundleDescriptor. It represents a logical PCollection.
@@ -245,7 +245,7 @@ message StandardPTransforms {
     // for a WINDOWED_VALUE or PARAM_WINDOWED_VALUE coder.
     //
     // Payload: beam_fn_api.RemoteGrpcPort
-    DATASINK = 10 [(beam_urn) = "beam:runner:sink:v1"];
+    DATA_SINK = 10 [(beam_urn) = "beam:runner:sink:v1"];
 
     // ParDo is a Beam transform for generic parallel processing. The ParDo
     // processing paradigm is similar to the “Map” phase of a
