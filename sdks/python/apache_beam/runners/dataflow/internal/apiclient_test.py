@@ -653,25 +653,6 @@ class UtilTest(unittest.TestCase):
                 sys.version_info[1],
                 names.BEAM_FNAPI_CONTAINER_VERSION)))
 
-    # batch, legacy pipeline.
-    pipeline_options = pipeline_options = PipelineOptions([
-        '--temp_location',
-        'gs://any-location/temp',
-        '--experiments=disable_runner_v2_until_v2.50'
-    ])
-    env = apiclient.Environment(
-        [],  #packages
-        pipeline_options,
-        '2.0.0',  #any environment version
-        FAKE_PIPELINE_URL)
-    self.assertEqual(
-        env.proto.workerPools[0].workerHarnessContainerImage,
-        (
-            names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/python%d%d:%s' % (
-                sys.version_info[0],
-                sys.version_info[1],
-                names.BEAM_CONTAINER_VERSION)))
-
   @mock.patch(
       'apache_beam.runners.dataflow.internal.apiclient.'
       'beam_version.__version__',
@@ -706,23 +687,6 @@ class UtilTest(unittest.TestCase):
             '/beam_python%d.%d_sdk:2.2.0' %
             (sys.version_info[0], sys.version_info[1])))
 
-    # batch, legacy pipeline.
-    pipeline_options = pipeline_options = PipelineOptions([
-        '--temp_location',
-        'gs://any-location/temp',
-        '--experiments=disable_runner_v2_until_v2.50'
-    ])
-    env = apiclient.Environment(
-        [],  #packages
-        pipeline_options,
-        '2.0.0',  #any environment version
-        FAKE_PIPELINE_URL)
-    self.assertEqual(
-        env.proto.workerPools[0].workerHarnessContainerImage,
-        (
-            names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/python%d%d:2.2.0' %
-            (sys.version_info[0], sys.version_info[1])))
-
   @mock.patch(
       'apache_beam.runners.dataflow.internal.apiclient.'
       'beam_version.__version__',
@@ -755,23 +719,6 @@ class UtilTest(unittest.TestCase):
         (
             names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
             '/beam_python%d.%d_sdk:2.2.0' %
-            (sys.version_info[0], sys.version_info[1])))
-
-    # batch, legacy pipeline
-    pipeline_options = pipeline_options = PipelineOptions([
-        '--temp_location',
-        'gs://any-location/temp',
-        '--experiments=disable_runner_v2_until_v2.50'
-    ])
-    env = apiclient.Environment(
-        [],  #packages
-        pipeline_options,
-        '2.0.0',  #any environment version
-        FAKE_PIPELINE_URL)
-    self.assertEqual(
-        env.proto.workerPools[0].workerHarnessContainerImage,
-        (
-            names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/python%d%d:2.2.0' %
             (sys.version_info[0], sys.version_info[1])))
 
   def test_worker_harness_override_takes_precedence_over_sdk_defaults(self):
