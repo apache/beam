@@ -139,7 +139,9 @@ task archiveFilesToLint(type: Zip) {
   from ("$rootProject.projectDir") {
     include "**/*.md"
     include "**/build.gradle"
+    include '**/build.gradle.kts'
     exclude "**/node_modules/*"
+    exclude "**/.gogradle/*"
   }
 }
 
