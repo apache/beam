@@ -861,7 +861,7 @@ class FnApiRunner(runner.PipelineRunner):
         # MAX_TIMESTAMP for the downstream stage.
         runner_execution_context.queues.watermark_pending_inputs.enque(
             ((consuming_stage_name, timestamp.MAX_TIMESTAMP),
-             DataInput({consuming_transform: buffer}, {})))  # type: ignore
+             DataInput({consuming_transform: buffer}, {})))
 
     for bid in buffers_to_clean:
       if bid in runner_execution_context.pcoll_buffers:
