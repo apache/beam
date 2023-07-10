@@ -61,8 +61,42 @@ def parse_args():
   return parser.parse_known_args()
 
 
+def preprocess_data_for_ml_training(train_data, artifact_mode, args):
+  with beam.Pipeline() as p:
+    input_data = (p | "CreateData" >> beam.Create(train_data))
+    transformed_data_pcoll = (
+        input_data
+        | 'MLTransform' >> MLTransform(
+            artifact_location=args.artifact_location,
+            artifact_mode=artifact_mode,
+        ).with_transform(ComputeAndApplyVocabulary(
+            columns=['x'])).with_transform(TFIDF(columns=['x'])))
+
+    _ = transformed_data_pcoll | beam.Map(logging.info)
+  return transformed_data_pcoll
+
+
+def preprocess_data_for_ml_inference(test_data, artifact_mode, args):
+  with beam.Pipeline() as p:
+
+    test_data_pcoll = (p | beam.Create(test_data))
+    # During inference phase, we want the pipeline to consume the artifacts
+    # produced by the previous run of MLTransform.
+    # So, we set artifact_mode to ArtifactMode.CONSUME.
+    transformed_data_pcoll = (
+        test_data_pcoll
+        | "MLTransformOnTestData" >> MLTransform(
+            artifact_location=args.artifact_location,
+            artifact_mode=artifact_mode,
+            # you don't need to specify transforms as they are already saved in
+            # in the artifacts.
+        ))
+    _ = transformed_data_pcoll | beam.Map(logging.info)
+  return transformed_data_pcoll
+
+
 def run(args):
-  data = [
+  train_data = [
       dict(x=["Let's", "go", "to", "the", "park"]),
       dict(x=["I", "enjoy", "going", "to", "the", "park"]),
       dict(x=["I", "enjoy", "reading", "books"]),
@@ -73,37 +107,29 @@ def run(args):
       dict(x=["I", "love", "to", "program"]),
   ]
 
-  with beam.Pipeline() as p:
-    input_data = p | beam.Create(data)
+  test_data = [
+      dict(x=['I', 'love', 'books']), dict(x=['I', 'love', 'Apache', 'Beam'])
+  ]
 
-    # arfifacts produce mode.
-    input_data |= (
-        'MLTransform' >> MLTransform(
-            artifact_location=args.artifact_location,
-            artifact_mode=ArtifactMode.PRODUCE,
-        ).with_transform(ComputeAndApplyVocabulary(
-            columns=['x'])).with_transform(TFIDF(columns=['x'])))
+  # Preprocess the data for ML training.
+  # For the data going into the ML model training, we want to produce the
+  # artifacts. So, we set artifact_mode to ArtifactMode.PRODUCE.
+  _ = preprocess_data_for_ml_training(
+      train_data, artifact_mode=ArtifactMode.PRODUCE, args=args)
 
-    # _ =  input_data | beam.Map(logging.info)
+  # Do some ML model training here.
 
-  with beam.Pipeline() as p:
-    input_data = [
-        dict(x=['I', 'love', 'books']), dict(x=['I', 'love', 'Apache', 'Beam'])
-    ]
-    input_data = p | beam.Create(input_data)
+  # Preprocess the data for ML inference.
+  # For the data going into the ML model inference, we want to consume the
+  # artifacts produced during the stage where we preprocessed the data for ML
+  # training. So, we set artifact_mode to ArtifactMode.CONSUME.
+  _ = preprocess_data_for_ml_inference(
+      test_data, artifact_mode=ArtifactMode.CONSUME, args=args)
 
-    # artifacts consume mode.
-    input_data |= (
-        MLTransform(
-            artifact_location=args.artifact_location,
-            artifact_mode=ArtifactMode.CONSUME,
-            # you don't need to specify transforms as they are already saved in
-            # in the artifacts.
-        ))
-
-    _ = input_data | beam.Map(logging.info)
-
-  # To fetch the artifacts after the pipeline is run
+  # To fetch the artifacts produced in MLTransform, you can use
+  # ArtifactsFetcher for fetching vocab related artifacts. For
+  # others such as TFIDF weight, they can be accessed directly
+  # from the output of MLTransform.
   artifacts_fetcher = ArtifactsFetcher(artifact_location=args.artifact_location)
   vocab_list = artifacts_fetcher.get_vocab_list()
   assert vocab_list[22] == 'Beam'
