@@ -49,23 +49,18 @@ if not tft:
 
 
 class _AddOperation(TFTOperation):
-  def apply(self, inputs, output_column_name, **kwargs):
+  def apply_transform(self, inputs, output_column_name, **kwargs):
     return {output_column_name: inputs + 1}
 
 
 class _MultiplyOperation(TFTOperation):
-  def apply(self, inputs, output_column_name, **kwargs):
+  def apply_transform(self, inputs, output_column_name, **kwargs):
     return {output_column_name: inputs * 10}
 
 
 class _FakeOperationWithArtifacts(TFTOperation):
-  def apply(self, inputs, output_column_name, **kwargs):
-    return {
-        **{
-            output_column_name: inputs
-        },
-        **(self.get_artifacts(inputs, 'artifact'))
-    }
+  def apply_transform(self, inputs, output_column_name, **kwargs):
+    return {output_column_name: inputs}
 
   def get_artifacts(self, data, col_name):
     return {'artifact': tf.convert_to_tensor([1])}

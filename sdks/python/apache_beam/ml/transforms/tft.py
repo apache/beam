@@ -79,9 +79,9 @@ class TFTOperation(BaseOperation[common_types.TensorType,
     """
     Base Operation class for TFT data processing transformations.
     Processing logic for the transformation is defined in the
-    apply() method. If you have a custom transformation that is not
+    apply_transform() method. If you have a custom transformation that is not
     supported by the existing transforms, you can extend this class
-    and implement the apply() method.
+    and implement the apply_transform() method.
     Args:
       columns: List of column names to apply the transformation.
     """
@@ -141,8 +141,9 @@ class ComputeAndApplyVocabulary(TFTOperation):
         'compute_and_apply_vocab')
     self._name = name
 
-  def apply(self, data: common_types.TensorType,
-            output_column_name: str) -> Dict[str, common_types.TensorType]:
+  def apply_transform(
+      self, data: common_types.TensorType,
+      output_column_name: str) -> Dict[str, common_types.TensorType]:
     return {
         output_column_name: tft.compute_and_apply_vocabulary(
             x=data,
@@ -186,15 +187,13 @@ class ScaleToZScore(TFTOperation):
     self.elementwise = elementwise
     self.name = name
 
-  def apply(self, data: common_types.TensorType,
-            output_column_name: str) -> Dict[str, common_types.TensorType]:
-    artifacts = self.get_artifacts(data, output_column_name)
+  def apply_transform(
+      self, data: common_types.TensorType,
+      output_column_name: str) -> Dict[str, common_types.TensorType]:
     output_dict = {
         output_column_name: tft.scale_to_z_score(
             x=data, elementwise=self.elementwise, name=self.name)
     }
-    if artifacts is not None:
-      output_dict.update(artifacts)
     return output_dict
 
   def get_artifacts(self, data: common_types.TensorType,
@@ -245,15 +244,13 @@ class ScaleTo01(TFTOperation):
         col_name + '_max': tf.broadcast_to(tft.max(data), shape)
     }
 
-  def apply(self, data: common_types.TensorType,
-            output_column_name: str) -> Dict[str, common_types.TensorType]:
-    artifacts = self.get_artifacts(data, output_column_name)
+  def apply_transform(
+      self, data: common_types.TensorType,
+      output_column_name: str) -> Dict[str, common_types.TensorType]:
     output = tft.scale_to_0_1(
         x=data, elementwise=self.elementwise, name=self.name)
 
     output_dict = {output_column_name: output}
-    if artifacts is not None:
-      output_dict.update(artifacts)
     return output_dict
 
 
@@ -282,8 +279,9 @@ class ApplyBuckets(TFTOperation):
     self.bucket_boundaries = [bucket_boundaries]
     self.name = name
 
-  def apply(self, data: common_types.TensorType,
-            output_column_name: str) -> Dict[str, common_types.TensorType]:
+  def apply_transform(
+      self, data: common_types.TensorType,
+      output_column_name: str) -> Dict[str, common_types.TensorType]:
     output = {
         output_column_name: tft.apply_buckets(
             x=data, bucket_boundaries=self.bucket_boundaries, name=self.name)
@@ -354,9 +352,9 @@ class Bucketize(TFTOperation):
     # Should we change the prefix _quantiles to _bucket_boundaries?
     return {col_name + '_quantiles': tf.broadcast_to(quantiles, shape)}
 
-  def apply(self, data: common_types.TensorType,
-            output_column_name: str) -> Dict[str, common_types.TensorType]:
-    artifacts = self.get_artifacts(data, output_column_name)
+  def apply_transform(
+      self, data: common_types.TensorType,
+      output_column_name: str) -> Dict[str, common_types.TensorType]:
     output = {
         output_column_name: tft.bucketize(
             x=data,
@@ -365,8 +363,6 @@ class Bucketize(TFTOperation):
             elementwise=self.elementwise,
             name=self.name)
     }
-    if artifacts is not None:
-      output.update(artifacts)
     return output
 
 
@@ -408,7 +404,7 @@ class TFIDF(TFTOperation):
     self.name = name
     self.tfidf_weight = None
 
-  def apply(
+  def apply_transform(
       self, data: tf.SparseTensor, output_column_name: str) -> tf.SparseTensor:
 
     if self.vocab_size is None:

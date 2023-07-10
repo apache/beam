@@ -47,7 +47,7 @@ class _FakeOperation(TFTOperation):
     super().__init__(*args, **kwargs)
     self.name = name
 
-  def apply(self, inputs, output_column_name, **kwargs):
+  def apply_transform(self, inputs, output_column_name, **kwargs):
     return {output_column_name: inputs}
 
 

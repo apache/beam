@@ -17,6 +17,7 @@
 # pytype: skip-file
 
 import abc
+from typing import Dict
 from typing import Generic
 from typing import List
 from typing import Optional
@@ -55,15 +56,37 @@ class BaseOperation(Generic[OperationInputT, OperationOutputT], abc.ABC):
     self.columns = columns
 
   @abc.abstractmethod
-  def apply(
-      self, data: OperationInputT, output_column_name: str) -> OperationOutputT:
+  def apply_transform(self, data: OperationInputT,
+                      output_column_name: str) -> Dict[str, OperationOutputT]:
     """
-    Define any processing logic in the apply() method.
+    Define any processing logic in the apply_transform() method.
     processing logics are applied on inputs and returns a transformed
     output.
     Args:
       inputs: input data.
     """
+
+  @abc.abstractmethod
+  def get_artifacts(
+      self, data: OperationInputT,
+      output_column_prefix: str) -> Optional[Dict[str, OperationOutputT]]:
+    """
+    If the operation generates any artifacts, they can be returned from this
+    method.
+    """
+    pass
+
+  def __call__(self, data: OperationInputT,
+               output_column_name: str) -> Dict[str, OperationOutputT]:
+    """
+    This method is called when the instance of the class is called.
+    This method will invoke the apply() method of the class.
+    """
+    transformed_data = self.apply_transform(data, output_column_name)
+    artifacts = self.get_artifacts(data, output_column_name)
+    if artifacts:
+      transformed_data = {**transformed_data, **artifacts}
+    return transformed_data
 
 
 class ProcessHandler(Generic[ExampleT, MLTransformOutputT], abc.ABC):
@@ -96,6 +119,20 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
       artifact_mode: str = ArtifactMode.PRODUCE,
       transforms: Optional[Sequence[BaseOperation]] = None):
     """
+    MLTransform is a Beam PTransform that can be used to apply
+    transformations to the data. MLTransform is used to wrap the
+    data processing transforms provided by Apache Beam. MLTransform
+    works in two modes: produce and consume. In the produce mode,
+    MLTransform will apply the transforms to the data and store the
+    artifacts in the artifact_location. In the consume mode, MLTransform
+    will read the artifacts from the artifact_location and apply the
+    transforms to the data. The artifact_location should be a valid
+    storage path where the artifacts can be written to or read from.
+
+    Note that when consuming artifacts, it is not necessary to pass the
+    transforms since they are inherently stored within the artifacts
+    themselves.
+
     Args:
       artifact_location: A storage location for artifacts resulting from
         MLTransform. These artifacts include transformations applied to
@@ -113,15 +150,16 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
         i-th transform is the output of the (i-1)-th transform. Multi-input
         transforms are not supported yet.
       artifact_mode: Whether to produce or consume artifacts. If set to
-        'consume', the handler will assume that the artifacts are already
+        'consume', MLTransform will assume that the artifacts are already
         computed and stored in the artifact_location. Pass the same artifact
         location that was passed during produce phase to ensure that the
-        right artifacts are read. If set to 'produce', the handler
+        right artifacts are read. If set to 'produce', MLTransform
         will compute the artifacts and store them in the artifact_location.
         The artifacts will be read from this location during the consume phase.
-        There is no need to pass the transforms in this case since they are
-        already embedded in the stored artifacts.
     """
+    if transforms:
+      _ = [self._validate_transform(transform) for transform in transforms]
+
     # avoid circular import
     # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam.ml.transforms.handlers import TFTProcessHandler
@@ -161,5 +199,12 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
     Returns:
       A MLTransform instance.
     """
+    self._validate_transform(transform)
     self._process_handler.append_transform(transform)
     return self
+
+  def _validate_transform(self, transform):
+    if not isinstance(transform, BaseOperation):
+      raise TypeError(
+          'transform must be a subclass of BaseOperation. '
+          'Got: %s instead.' % type(transform))
