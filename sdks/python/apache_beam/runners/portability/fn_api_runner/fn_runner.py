@@ -846,7 +846,6 @@ class FnApiRunner(runner.PipelineRunner):
         # the buffer id and transform id
         if buffer is None:
           buffer = bundle_context_manager.get_buffer(buffer_id, transform_id)
-          assert buffer is not None
 
         # If the buffer has already been added to be consumed by
         # (stage, transform), then we don't need to add it again. This case
