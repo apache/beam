@@ -210,6 +210,43 @@ message PTransform {
 message StandardPTransforms {
   // Primitive transforms may not specify composite sub-transforms.
   enum Primitives {
+    // DataSource is a Root Transform, and a source of data for downstream
+    // transforms in the same beam_fn_api.ProcessBundleDescriptor. 
+    // It represents a logical PCollection.
+    //
+    // The DataSource transform is implemented in each SDK but not explicitly
+    // provided during pipeline construction. A runner inserts the transform
+    // in beam_fn_api.ProcessBundleDescriptors to indicate where the bundle
+    // can retrieve data for an associated beam_fn_api.ProcessBundleRequest.
+    // Data for the same request will be retrieved with the matching instruction ID,
+    // and transform ID determined by the runner.
+    //
+    // The DataSource transform will take a stream of bytes from the remote
+    // source for the matching instruction ID and decode them as windowed
+    // values using the provided coder ID, which must be for a WINDOWED_VALUE or
+    // PARAM_WINDOWED_VALUE coder.
+    //
+    // Payload: beam_fn_api.RemoteGrpcPort
+    DATASOURCE = 9 [(beam_urn) = "beam:runner:source:v1"];
+
+    // DataSink is a transform that sends data to a remote port
+    // beam_fn_api.ProcessBundleDescriptor. It represents a logical PCollection.
+    //
+    // The DataSink transform is implemented in each SDK but not explicitly
+    // provided during pipeline construction. A runner inserts the transform in
+    // beam_fn_api.ProcessBundleDescriptors to indicate where the bundle can send
+    // data for each associated beam_fn_api.ProcessBundleRequest. Data for the same
+    // request will be sent with the matching instruction ID and transform ID.
+    // Each PCollection that exits the ProcessBundleDescriptor subgraph will have
+    // it's own DataSink, keyed by a transform ID determined by the runner.
+    //  
+    // The DataSink will take in a stream of elements for a given instruction ID
+    // and encode them for transmission to the remote sink. The coder ID must be
+    // for a WINDOWED_VALUE or PARAM_WINDOWED_VALUE coder.
+    //
+    // Payload: beam_fn_api.RemoteGrpcPort
+    DATASINK = 10 [(beam_urn) = "beam:runner:sink:v1"];
+
     // ParDo is a Beam transform for generic parallel processing. The ParDo
     // processing paradigm is similar to the “Map” phase of a
     // Map/Shuffle/Reduce-style algorithm: a ParDo transform considers each
@@ -327,6 +364,8 @@ message StandardPTransforms {
     //
     // Payload: none
     TO_STRING = 8 [(beam_urn) = "beam:transform:to_string:v1"];
+
+    // Next ID: 11
   }
   enum DeprecatedPrimitives {
     // Represents the operation to read a Bounded or Unbounded source.
