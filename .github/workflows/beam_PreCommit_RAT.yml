@@ -23,7 +23,6 @@ on:
   push:
     tags: ['v*']
     branches: ['master', 'release-*']
-    paths: ["**","release/**",".github/workflows/beam_PreCommit_RAT.yml"]
   schedule:
     - cron: '* */6 * * *'
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
