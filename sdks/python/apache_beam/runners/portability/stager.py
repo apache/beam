@@ -290,9 +290,24 @@ class Stager(object):
                 setup_options.extra_packages, temp_dir=temp_dir))
 
       if hasattr(setup_options, 'sdk_location'):
-        if Stager._is_remote_path(setup_options.sdk_location):
-          # This branch is also used by internal tests running with the SDK
-          # built at head.
+        sdk_location = setup_options.sdk_location
+        # check if it is remote location
+        if Stager._is_remote_path(sdk_location):
+          try:
+            resources.extend(
+                Stager._create_beam_sdk(
+                    sdk_remote_location=setup_options.sdk_location,
+                    temp_dir=temp_dir,
+                ))
+          except:
+            raise RuntimeError(
+                'The --sdk_location option was used with an unsupported '
+                'type of location: %s' % sdk_location)
+
+        elif sdk_location == 'default' or sdk_location == 'container':
+          pass
+
+        else:
           if os.path.isdir(setup_options.sdk_location):
             sdk_path = os.path.join(
                 setup_options.sdk_location, names.STAGED_SDK_SOURCES_FILENAME)
@@ -306,8 +321,18 @@ class Stager(object):
                     sdk_path,
                     Stager._desired_sdk_filename_in_staging_location(
                         setup_options.sdk_location)))
-        elif setup_options.sdk_location in ('default', 'container'):
-          pass
+          else:
+            if setup_options.sdk_location == 'default':
+              raise RuntimeError(
+                  'Cannot find default Beam SDK tar file "%s"' % sdk_path)
+            elif not setup_options.sdk_location:
+              _LOGGER.info(
+                  'Beam SDK will not be staged since --sdk_location '
+                  'is empty.')
+            else:
+              raise RuntimeError(
+                  'The file "%s" cannot be found. Its location was specified '
+                  'by the --sdk_location command-line option.' % sdk_path)
     # The following artifacts are not processed by python sdk container boot
     # sequence in a setup mode and hence should not be skipped even if a
     # prebuilt sdk container image is used.
@@ -477,7 +502,7 @@ class Stager(object):
 
   @staticmethod
   def _is_remote_path(path):
-    return path.find('://') != -1 or os.path.exists(path)
+    return path.find('://') != -1
 
   @staticmethod
   def _create_jar_packages(jar_packages, temp_dir):
@@ -797,19 +822,14 @@ class Stager(object):
       Raises:
         RuntimeError: if staging was not successful.
       """
-    if Stager._is_remote_path(sdk_remote_location):
-      sdk_remote_parsed = urlparse(sdk_remote_location)
-      sdk_remote_filename = os.path.basename(sdk_remote_parsed.path)
-      local_download_file = os.path.join(temp_dir, sdk_remote_filename)
-      Stager._download_file(sdk_remote_location, local_download_file)
-      staged_name = Stager._desired_sdk_filename_in_staging_location(
-          local_download_file)
-      _LOGGER.info('Staging Beam SDK from %s', sdk_remote_location)
-      return [
-          Stager._create_file_stage_to_artifact(
-              local_download_file, staged_name)
-      ]
-    else:
-      raise RuntimeError(
-          'The --sdk_location option was used with an unsupported '
-          'type of location: %s' % sdk_remote_location)
+
+    sdk_remote_parsed = urlparse(sdk_remote_location)
+    sdk_remote_filename = os.path.basename(sdk_remote_parsed.path)
+    local_download_file = os.path.join(temp_dir, sdk_remote_filename)
+    Stager._download_file(sdk_remote_location, local_download_file)
+    staged_name = Stager._desired_sdk_filename_in_staging_location(
+        local_download_file)
+    _LOGGER.info('Staging Beam SDK from %s', sdk_remote_location)
+    return [
+        Stager._create_file_stage_to_artifact(local_download_file, staged_name)
+    ]

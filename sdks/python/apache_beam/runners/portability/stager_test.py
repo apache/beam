@@ -405,6 +405,24 @@ class StagerTest(unittest.TestCase):
     with open(tarball_path) as f:
       self.assertEqual(f.read(), 'Package content.')
 
+  def test_sdk_location_local_wheel_file(self):
+    staging_dir = self.make_temp_dir()
+    sdk_directory = self.make_temp_dir()
+    sdk_filename = 'apache_beam-1.0.0-cp27-cp27mu-manylinux1_x86_64.whl'
+    sdk_location = os.path.join(sdk_directory, sdk_filename)
+    self.create_temp_file(sdk_location, 'Package content.')
+
+    options = PipelineOptions()
+    self.update_options(options)
+    options.view_as(SetupOptions).sdk_location = sdk_location
+
+    self.assertEqual([sdk_filename],
+                     self.stager.create_and_stage_job_resources(
+                         options, staging_location=staging_dir)[1])
+    tarball_path = os.path.join(staging_dir, sdk_filename)
+    with open(tarball_path) as f:
+      self.assertEqual(f.read(), 'Package content.')
+
   def test_sdk_location_local_directory_not_present(self):
     staging_dir = self.make_temp_dir()
     sdk_location = 'nosuchdir'
