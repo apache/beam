@@ -116,12 +116,6 @@ class Stager(object):
     raise NotImplementedError
 
   @staticmethod
-  def get_sdk_package_name():
-    """For internal use only; no backwards-compatibility guarantees.
-        Returns the PyPI package name to be staged."""
-    return names.BEAM_PACKAGE_NAME
-
-  @staticmethod
   def _create_file_stage_to_artifact(local_path, staged_name):
     return beam_runner_api_pb2.ArtifactInformation(
         type_urn=common_urns.artifact_types.FILE.urn,
@@ -296,28 +290,7 @@ class Stager(object):
                 setup_options.extra_packages, temp_dir=temp_dir))
 
       if hasattr(setup_options, 'sdk_location'):
-
-        if (setup_options.sdk_location == 'default') or Stager._is_remote_path(
-            setup_options.sdk_location):
-          # If --sdk_location is not specified then the appropriate package
-          # will be obtained from PyPI (https://pypi.python.org) based on the
-          # version of the currently running SDK. If the option is
-          # present then no version matching is made and the exact URL or path
-          # is expected.
-          #
-          # Unit tests running in the 'python setup.py test' context will
-          # not have the sdk_location attribute present and therefore we
-          # will not stage SDK.
-          sdk_remote_location = 'pypi' if (
-              setup_options.sdk_location == 'default'
-          ) else setup_options.sdk_location
-          resources.extend(
-              Stager._create_beam_sdk(sdk_remote_location, temp_dir))
-        elif setup_options.sdk_location == 'container':
-          # Use the SDK that's built into the container, rather than re-staging
-          # it.
-          pass
-        else:
+        if Stager._is_remote_path(setup_options.sdk_location):
           # This branch is also used by internal tests running with the SDK
           # built at head.
           if os.path.isdir(setup_options.sdk_location):
@@ -333,19 +306,8 @@ class Stager(object):
                     sdk_path,
                     Stager._desired_sdk_filename_in_staging_location(
                         setup_options.sdk_location)))
-          else:
-            if setup_options.sdk_location == 'default':
-              raise RuntimeError(
-                  'Cannot find default Beam SDK tar file "%s"' % sdk_path)
-            elif not setup_options.sdk_location:
-              _LOGGER.info(
-                  'Beam SDK will not be staged since --sdk_location '
-                  'is empty.')
-            else:
-              raise RuntimeError(
-                  'The file "%s" cannot be found. Its location was specified '
-                  'by the --sdk_location command-line option.' % sdk_path)
-
+        elif setup_options.sdk_location in ('default', 'container'):
+          pass
     # The following artifacts are not processed by python sdk container boot
     # sequence in a setup mode and hence should not be skipped even if a
     # prebuilt sdk container image is used.
@@ -515,7 +477,7 @@ class Stager(object):
 
   @staticmethod
   def _is_remote_path(path):
-    return path.find('://') != -1
+    return path.find('://') != -1 or os.path.exists(path)
 
   @staticmethod
   def _create_jar_packages(jar_packages, temp_dir):
@@ -824,8 +786,7 @@ class Stager(object):
 
       Args:
         sdk_remote_location: A URL from which the file can be downloaded or a
-          remote file location. The SDK file can be a tarball or a wheel. Set
-          to 'pypi' to download and stage a wheel and source SDK from PyPi.
+          remote file location. The SDK file can be a tarball or a wheel.
         temp_dir: path to temporary location where the file should be
           downloaded.
 
@@ -836,43 +797,7 @@ class Stager(object):
       Raises:
         RuntimeError: if staging was not successful.
       """
-    if sdk_remote_location == 'pypi':
-      sdk_local_file = Stager._download_pypi_sdk_package(temp_dir)
-      sdk_sources_staged_name = Stager.\
-          _desired_sdk_filename_in_staging_location(sdk_local_file)
-      _LOGGER.info('Staging SDK sources from PyPI: %s', sdk_sources_staged_name)
-      staged_sdk_files = [
-          Stager._create_file_stage_to_artifact(
-              sdk_local_file, sdk_sources_staged_name)
-      ]
-      try:
-        abi_suffix = 'm' if sys.version_info < (3, 8) else ''
-        # Stage binary distribution of the SDK, for now on a best-effort basis.
-        platform_tag = Stager._get_platform_for_default_sdk_container()
-        sdk_local_file = Stager._download_pypi_sdk_package(
-            temp_dir,
-            fetch_binary=True,
-            language_version_tag='%d%d' %
-            (sys.version_info[0], sys.version_info[1]),
-            abi_tag='cp%d%d%s' %
-            (sys.version_info[0], sys.version_info[1], abi_suffix),
-            platform_tag=platform_tag)
-        sdk_binary_staged_name = Stager.\
-            _desired_sdk_filename_in_staging_location(sdk_local_file)
-        _LOGGER.info(
-            'Staging binary distribution of the SDK from PyPI: %s',
-            sdk_binary_staged_name)
-        staged_sdk_files.append(
-            Stager._create_file_stage_to_artifact(
-                sdk_local_file, sdk_binary_staged_name))
-      except RuntimeError as e:
-        _LOGGER.warning(
-            'Failed to download requested binary distribution '
-            'of the SDK: %s',
-            repr(e))
-
-      return staged_sdk_files
-    elif Stager._is_remote_path(sdk_remote_location):
+    if Stager._is_remote_path(sdk_remote_location):
       sdk_remote_parsed = urlparse(sdk_remote_location)
       sdk_remote_filename = os.path.basename(sdk_remote_parsed.path)
       local_download_file = os.path.join(temp_dir, sdk_remote_filename)
@@ -888,84 +813,3 @@ class Stager(object):
       raise RuntimeError(
           'The --sdk_location option was used with an unsupported '
           'type of location: %s' % sdk_remote_location)
-
-  @staticmethod
-  def _download_pypi_sdk_package(
-      temp_dir,
-      fetch_binary=False,
-      language_version_tag='39',
-      language_implementation_tag='cp',
-      abi_tag='cp39',
-      platform_tag='manylinux2014_x86_64'):
-    """Downloads SDK package from PyPI and returns path to local path."""
-    package_name = Stager.get_sdk_package_name()
-    try:
-      version = pkg_resources.get_distribution(package_name).version
-    except pkg_resources.DistributionNotFound:
-      raise RuntimeError(
-          'Please set --sdk_location command-line option '
-          'or install a valid {} distribution.'.format(package_name))
-    cmd_args = [
-        Stager._get_python_executable(),
-        '-m',
-        'pip',
-        'download',
-        '--dest',
-        temp_dir,
-        '%s==%s' % (package_name, version),
-        '--no-deps'
-    ]
-
-    if fetch_binary:
-      _LOGGER.info('Downloading binary distribution of the SDK from PyPi')
-      # Get a wheel distribution for the SDK from PyPI.
-      cmd_args.extend([
-          '--only-binary',
-          ':all:',
-          '--python-version',
-          language_version_tag,
-          '--implementation',
-          language_implementation_tag,
-          '--abi',
-          abi_tag,
-          '--platform',
-          platform_tag
-      ])
-      # Example wheel: with manylinux14 tag.
-      # apache_beam-2.43.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl # pylint: disable=line-too-long
-      if platform_tag == 'manylinux2014_x86_64':
-        platform_tag = 'manylinux_2_17_x86_64.' + platform_tag
-      expected_files = [
-          os.path.join(
-              temp_dir,
-              '%s-%s-%s%s-%s-%s.whl' % (
-                  package_name.replace('-', '_'),
-                  version,
-                  language_implementation_tag,
-                  language_version_tag,
-                  abi_tag,
-                  platform_tag)),
-      ]
-
-    else:
-      _LOGGER.info('Downloading source distribution of the SDK from PyPi')
-      cmd_args.extend(['--no-binary', ':all:'])
-      expected_files = [
-          os.path.join(temp_dir, '%s-%s.zip' % (package_name, version)),
-          os.path.join(temp_dir, '%s-%s.tar.gz' % (package_name, version))
-      ]
-
-    _LOGGER.info('Executing command: %s', cmd_args)
-    try:
-      processes.check_output(cmd_args)
-    except processes.CalledProcessError as e:
-      raise RuntimeError(repr(e))
-
-    for sdk_file in expected_files:
-      if os.path.exists(sdk_file):
-        return sdk_file
-
-    raise RuntimeError(
-        'Failed to download a distribution for the running SDK. '
-        'Expected either one of %s to be found in the download folder.' %
-        (expected_files))
