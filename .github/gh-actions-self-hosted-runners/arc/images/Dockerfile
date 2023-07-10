@@ -17,8 +17,11 @@
 # under the License.
 #
 
-
 FROM ghcr.io/actions-runner-controller/actions-runner-controller/actions-runner:ubuntu-20.04
+#install BuildX
+COPY --from=docker/buildx-bin:0.11.1 /buildx /usr/libexec/docker/cli-plugins/docker-buildx
+RUN docker buildx install && docker buildx version
+
 
 USER root
 #Install Node
@@ -56,7 +59,8 @@ RUN curl -OL https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-c
     rm google-cloud-sdk-367.0.0-linux-x86_64.tar.gz && \
     mv google-cloud-sdk /usr/local/google-cloud-sdk && \
     /usr/local/google-cloud-sdk/install.sh --quiet && \
-    /usr/local/google-cloud-sdk/bin/gcloud components install kubectl 
+    /usr/local/google-cloud-sdk/bin/gcloud components install kubectl && \
+    chown -R runner:runner /home/runner/.config/gcloud
 ENV PATH="${PATH}:/usr/local/google-cloud-sdk/bin"
 
 # Needed to transfer path addtitions to runner environment
