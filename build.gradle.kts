@@ -598,7 +598,7 @@ tasks.register("pushAllSdkDockerImages") {
   dependsOn(":sdks:python:container:pushAll")
   dependsOn(":sdks:go:container:pushAll")
   dependsOn(":sdks:typescript:container:pushAll")
-  
+
   doLast {
     if (project.hasProperty("prune-images")) {
       exec {
