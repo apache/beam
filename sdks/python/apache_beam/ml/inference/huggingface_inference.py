@@ -451,6 +451,16 @@ class HuggingFaceModelHandlerTensor(HuggingFaceModelHandler[Union[tf.Tensor,
     return 'BeamML_HuggingFaceModelHandler_Tensor'
 
 
+def _convert_to_result(
+    batch: Iterable,
+    predictions: Union[Iterable, Dict[Any, Iterable]],
+    model_id: Optional[str] = None,
+) -> Iterable[PredictionResult]:
+  return [
+      PredictionResult(x, y, model_id) for x, y in zip(batch, [predictions])
+  ]
+
+
 class HuggingFacePipelineModelHandler(ModelHandler[str,
                                                    PredictionResult,
                                                    Pipeline]):
@@ -518,7 +528,7 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
 
   def load_model(self):
     return pipeline(
-        task=self._task, model=self._model_uri, **self._model_config_args)
+        task=self._task, model=self._model, **self._model_config_args)
 
   def run_inference(
       self,
@@ -541,7 +551,7 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
     """
     inference_args = {} if not inference_args else inference_args
     predictions = model(batch, **inference_args)
-    return utils._convert_to_result(batch, predictions)
+    return _convert_to_result(batch, predictions)
 
   def get_num_bytes(self, batch: Sequence[str]) -> int:
     return sum(sys.getsizeof(element) for element in batch)

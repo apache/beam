@@ -23,6 +23,7 @@ import uuid
 
 import pytest
 
+from apache_beam.examples.inference import huggingface_question_answering
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.testing.test_pipeline import TestPipeline
 
@@ -63,6 +64,34 @@ class HuggingFaceInference(unittest.TestCase):
         filepath=output_file)
     actuals_file = 'gs://apache-beam-ml/testing/expected_outputs/test_hf_run_inference_for_masked_lm_actuals.txt'  # pylint: disable=line-too-long
     actuals = pytorch_inference_it_test.process_outputs(filepath=actuals_file)
+
+    predictions_dict = {}
+    for prediction in predictions:
+      text, predicted_text = prediction.split(';')
+      predictions_dict[text] = predicted_text.strip().lower()
+
+    for actual in actuals:
+      text, actual_predicted_text = actual.split(';')
+      predicted_predicted_text = predictions_dict[text]
+      self.assertEqual(actual_predicted_text, predicted_predicted_text)
+
+  def test_hf_pipeline(self):
+    test_pipeline = TestPipeline(is_integration_test=True)
+    # Path to text file containing some sentences
+    output_file_dir = 'gs://clouddfe-riteshghorse/hf/testing/predictions'
+    output_file = '/'.join([output_file_dir, str(uuid.uuid4()), 'result.txt'])
+    extra_opts = {
+        'output': output_file,
+    }
+    huggingface_question_answering.run(
+        test_pipeline.get_full_options_as_args(**extra_opts),
+        save_main_session=False)
+    self.assertEqual(FileSystems().exists(output_file), True)
+    predictions = pytorch_inference_it_test.process_outputs(
+        filepath=output_file)
+    actuals = [
+        "What does Apache Beam do?;enables batch and streaming data processing"
+    ]
 
     predictions_dict = {}
     for prediction in predictions:
