@@ -60,7 +60,6 @@ import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
@@ -128,8 +127,7 @@ public class PubsubWriteSchemaTransformProvider
    * An implementation of {@link SchemaTransform} for Pub/Sub writes configured using {@link
    * PubsubWriteSchemaTransformConfiguration}.
    */
-  static class PubsubWriteSchemaTransform
-      extends PTransform<PCollectionRowTuple, PCollectionRowTuple> implements SchemaTransform {
+  static class PubsubWriteSchemaTransform extends SchemaTransform {
 
     private final PubsubWriteSchemaTransformConfiguration configuration;
 
@@ -141,12 +139,6 @@ public class PubsubWriteSchemaTransformProvider
 
     PubsubWriteSchemaTransform withPubsubClientFactory(PubsubClient.PubsubClientFactory factory) {
       this.pubsubClientFactory = factory;
-      return this;
-    }
-
-    /** Implements {@link SchemaTransform} buildTransform method. */
-    @Override
-    public PTransform<PCollectionRowTuple, PCollectionRowTuple> buildTransform() {
       return this;
     }
 

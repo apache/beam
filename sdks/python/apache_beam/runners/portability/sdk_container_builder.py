@@ -252,7 +252,13 @@ class _SdkContainerImageCloudBuilder(SdkContainerImageBuilder):
     build.steps = []
     step = cloudbuild.BuildStep()
     step.name = 'gcr.io/kaniko-project/executor:latest'
-    step.args = ['--destination=' + container_image_name, '--cache=true']
+    # Disable compression caching to allow for large images to be cached.
+    # See: https://github.com/GoogleContainerTools/kaniko/issues/1669
+    step.args = [
+        '--destination=' + container_image_name,
+        '--cache=true',
+        '--compressed-caching=false',
+    ]
     step.dir = SOURCE_FOLDER
 
     build.steps.append(step)

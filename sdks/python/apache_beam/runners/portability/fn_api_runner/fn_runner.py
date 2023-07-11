@@ -825,10 +825,11 @@ class FnApiRunner(runner.PipelineRunner):
 
     buffers_to_clean = set()
     known_consumers = set()
-    for _, buffer_id in bundle_context_manager.stage_data_outputs.items():
-      for (consuming_stage_name, consuming_transform) in \
-          runner_execution_context.buffer_id_to_consumer_pairs.get(buffer_id,
-                                                                   []):
+    for transform_id, buffer_id in (
+      bundle_context_manager.stage_data_outputs.items()):
+      for (consuming_stage_name, consuming_transform
+           ) in runner_execution_context.buffer_id_to_consumer_pairs.get(
+               buffer_id, []):
         buffer = runner_execution_context.pcoll_buffers.get(buffer_id, None)
 
         if (buffer_id in runner_execution_context.pcoll_buffers and
@@ -840,6 +841,11 @@ class FnApiRunner(runner.PipelineRunner):
           # so we create a copy of the buffer for every new stage.
           runner_execution_context.pcoll_buffers[buffer_id] = buffer.copy()
           buffer = runner_execution_context.pcoll_buffers[buffer_id]
+        # When the buffer is not in the pcoll_buffers, it means that the
+        # it could be an empty PCollection. In this case, get the buffer using
+        # the buffer id and transform id
+        if buffer is None:
+          buffer = bundle_context_manager.get_buffer(buffer_id, transform_id)
 
         # If the buffer has already been added to be consumed by
         # (stage, transform), then we don't need to add it again. This case
@@ -854,7 +860,7 @@ class FnApiRunner(runner.PipelineRunner):
         # MAX_TIMESTAMP for the downstream stage.
         runner_execution_context.queues.watermark_pending_inputs.enque(
             ((consuming_stage_name, timestamp.MAX_TIMESTAMP),
-             DataInput({consuming_transform: buffer}, {})))  # type: ignore
+             DataInput({consuming_transform: buffer}, {})))
 
     for bid in buffers_to_clean:
       if bid in runner_execution_context.pcoll_buffers:

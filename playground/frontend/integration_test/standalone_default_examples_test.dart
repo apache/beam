@@ -53,11 +53,7 @@ Future<void> _expectExample(ExampleDescriptor example, WidgetTester wt) async {
   final visibleText = await example.getVisibleText();
 
   expectSdk(example.sdk, wt);
-  expectVisibleText(visibleText, wt);
-
-  if (example.contextLine1Based != null) {
-    expectContextLine(example.contextLine1Based!, wt, reason: example.path);
-  }
+  expectVisibleTextIfDeployed(visibleText, wt);
 
   if (example.hasGraphTab) {
     expect(find.graphTab(), findsOneWidget);

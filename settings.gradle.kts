@@ -49,8 +49,15 @@ buildCache {
   local {
     isEnabled = true
   }
-  remote(gradleEnterprise.buildCache) {
-    isEnabled = false
+  remote<HttpBuildCache> {
+    url = uri("https://beam-cache.apache.org/cache/")
+    isAllowUntrustedServer = false
+    credentials {
+      username = System.getenv("GRADLE_ENTERPRISE_CACHE_USERNAME")
+      password = System.getenv("GRADLE_ENTERPRISE_CACHE_PASSWORD")
+    }
+    isEnabled = true
+    isPush = isCi
   }
 }
 
@@ -187,6 +194,7 @@ include(":sdks:java:io:amazon-web-services")
 include(":sdks:java:io:amazon-web-services2")
 include(":sdks:java:io:amqp")
 include(":sdks:java:io:azure")
+include(":sdks:java:io:azure-cosmos")
 include(":sdks:java:io:cassandra")
 include(":sdks:java:io:clickhouse")
 include(":sdks:java:io:common")
@@ -250,37 +258,33 @@ include(":sdks:java:testing:test-utils")
 include(":sdks:java:testing:tpcds")
 include(":sdks:java:testing:watermarks")
 include(":sdks:java:transform-service")
+include(":sdks:java:transform-service:launcher")
 include(":sdks:java:transform-service:controller-container")
 include(":sdks:python")
 include(":sdks:python:apache_beam:testing:load_tests")
 include(":sdks:python:apache_beam:testing:benchmarks:nexmark")
 include(":sdks:python:container")
-include(":sdks:python:container:py37")
 include(":sdks:python:container:py38")
 include(":sdks:python:container:py39")
 include(":sdks:python:container:py310")
 include(":sdks:python:container:py311")
 include(":sdks:python:expansion-service-container")
 include(":sdks:python:test-suites:dataflow")
-include(":sdks:python:test-suites:dataflow:py37")
 include(":sdks:python:test-suites:dataflow:py38")
 include(":sdks:python:test-suites:dataflow:py39")
 include(":sdks:python:test-suites:dataflow:py310")
 include(":sdks:python:test-suites:dataflow:py311")
 include(":sdks:python:test-suites:direct")
-include(":sdks:python:test-suites:direct:py37")
 include(":sdks:python:test-suites:direct:py38")
 include(":sdks:python:test-suites:direct:py39")
 include(":sdks:python:test-suites:direct:py310")
 include(":sdks:python:test-suites:direct:py311")
 include(":sdks:python:test-suites:direct:xlang")
-include(":sdks:python:test-suites:portable:py37")
 include(":sdks:python:test-suites:portable:py38")
 include(":sdks:python:test-suites:portable:py39")
 include(":sdks:python:test-suites:portable:py310")
 include(":sdks:python:test-suites:portable:py311")
 include(":sdks:python:test-suites:tox:pycommon")
-include(":sdks:python:test-suites:tox:py37")
 include(":sdks:python:test-suites:tox:py38")
 include(":sdks:python:test-suites:tox:py39")
 include(":sdks:python:test-suites:tox:py310")
@@ -298,6 +302,8 @@ include(":runners:google-cloud-dataflow-java:worker:windmill")
 // no dots allowed for project paths
 include("beam-test-infra-metrics")
 project(":beam-test-infra-metrics").projectDir = file(".test-infra/metrics")
+include("beam-test-infra-pipelines")
+project(":beam-test-infra-pipelines").projectDir = file(".test-infra/pipelines")
 include("beam-test-tools")
 project(":beam-test-tools").projectDir = file(".test-infra/tools")
 include("beam-test-jenkins")

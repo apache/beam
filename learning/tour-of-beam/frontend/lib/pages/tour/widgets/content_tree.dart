@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
@@ -23,7 +24,6 @@ import 'package:playground_components/playground_components.dart';
 import '../../../components/builders/content_tree.dart';
 import '../../../state.dart';
 import '../controllers/content_tree.dart';
-import 'content_tree_title.dart';
 import 'module.dart';
 
 // TODO(nausharipov): make it collapsible
@@ -41,7 +41,7 @@ class ContentTreeWidget extends StatelessWidget {
       child: AnimatedBuilder(
         animation: GetIt.instance.get<AppNotifier>(),
         builder: (context, child) => ContentTreeBuilder(
-          sdk: controller.sdk,
+          sdk: GetIt.instance.get<AppNotifier>().sdk,
           builder: (context, contentTree, child) {
             if (contentTree == null) {
               return const Center(child: CircularProgressIndicator());
@@ -53,7 +53,7 @@ class ContentTreeWidget extends StatelessWidget {
               ),
               child: Column(
                 children: [
-                  const ContentTreeTitleWidget(),
+                  const _Title(),
                   ...contentTree.nodes.map(
                     (module) => ModuleWidget(
                       module: module,
@@ -66,6 +66,26 @@ class ContentTreeWidget extends StatelessWidget {
             );
           },
         ),
+      ),
+    );
+  }
+}
+
+class _Title extends StatelessWidget {
+  const _Title();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: BeamSizes.size12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            'pages.tour.summaryTitle',
+            style: Theme.of(context).textTheme.headlineLarge,
+          ).tr(),
+        ],
       ),
     );
   }

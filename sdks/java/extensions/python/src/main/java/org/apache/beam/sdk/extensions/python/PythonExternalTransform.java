@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.python;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.util.ArrayList;
@@ -36,6 +37,7 @@ import org.apache.beam.runners.core.construction.External;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.RowCoder;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
@@ -45,8 +47,10 @@ import org.apache.beam.sdk.schemas.logicaltypes.PythonCallable;
 import org.apache.beam.sdk.schemas.utils.StaticSchemaInference;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transformservice.launcher.TransformServiceLauncher;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.PythonCallableSource;
+import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -59,12 +63,13 @@ import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Wrapper for invoking external Python transforms. */
 public class PythonExternalTransform<InputT extends PInput, OutputT extends POutput>
@@ -85,6 +90,8 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
   private @Nullable Row providedKwargsRow;
 
   Map<String, Coder<?>> outputCoders;
+
+  private static final Logger LOG = LoggerFactory.getLogger(PythonExternalTransform.class);
 
   private PythonExternalTransform(String fullyQualifiedName, String expansionService) {
     this.fullyQualifiedName = fullyQualifiedName;
@@ -436,41 +443,124 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
     }
   }
 
+  private boolean isPythonAvailable() {
+    for (String executable : ImmutableList.of("python3", "python")) {
+      try {
+        new ProcessBuilder(executable, "--version").start().waitFor();
+        return true;
+      } catch (IOException | InterruptedException exn) {
+        // Ignore.
+      }
+    }
+    return false;
+  }
+
+  private boolean isDockerAvailable() {
+    String executable = "docker";
+    try {
+      new ProcessBuilder(executable, "--version").start().waitFor();
+      return true;
+    } catch (IOException | InterruptedException exn) {
+      // Ignore.
+    }
+    return false;
+  }
+
   @Override
   public OutputT expand(InputT input) {
     try {
       ExternalTransforms.ExternalConfigurationPayload payload = generatePayload();
       if (!Strings.isNullOrEmpty(expansionService)) {
+        int portIndex = expansionService.lastIndexOf(':');
+        if (portIndex <= 0) {
+          throw new IllegalArgumentException(
+              "Unexpected expansion service address. Expected to be in the "
+                  + "format \"<host>:<port>\"");
+        }
         PythonService.waitForPort(
-            Iterables.get(Splitter.on(':').split(expansionService), 0),
-            Integer.parseInt(Iterables.get(Splitter.on(':').split(expansionService), 1)),
+            expansionService.substring(0, portIndex),
+            Integer.parseInt(expansionService.substring(portIndex + 1, expansionService.length())),
             15000);
         return apply(input, expansionService, payload);
       } else {
+        OutputT output = null;
         int port = PythonService.findAvailablePort();
-        ImmutableList.Builder<String> args = ImmutableList.builder();
-        args.add("--port=" + port, "--fully_qualified_name_glob=*", "--pickle_library=cloudpickle");
-        if (!extraPackages.isEmpty()) {
-          File requirementsFile = File.createTempFile("requirements", ".txt");
-          requirementsFile.deleteOnExit();
-          try (Writer fout =
-              new OutputStreamWriter(
-                  new FileOutputStream(requirementsFile.getAbsolutePath()), Charsets.UTF_8)) {
-            for (String pkg : extraPackages) {
-              fout.write(pkg);
-              fout.write('\n');
-            }
+        PipelineOptionsFactory.register(PythonExternalTransformOptions.class);
+        boolean useTransformService =
+            input
+                .getPipeline()
+                .getOptions()
+                .as(PythonExternalTransformOptions.class)
+                .getUseTransformService();
+        boolean pythonAvailable = isPythonAvailable();
+        boolean dockerAvailable = isDockerAvailable();
+
+        // We use the transform service if either of the following is true.
+        // * It was explicitly requested.
+        // * Python executable is not available in the system but Docker is available.
+        if (useTransformService || (!pythonAvailable && dockerAvailable)) {
+          // A unique project name ensures that this expansion gets a dedicated instance of the
+          // transform service.
+          String projectName = UUID.randomUUID().toString();
+
+          String messageAppend =
+              useTransformService
+                  ? "it was explicitly requested"
+                  : "a Python executable is not available in the system";
+          LOG.info(
+              "Using the Docker Compose based transform service since {}. Service will have the "
+                  + "project name {} and will be made available at the port {}",
+              messageAppend,
+              projectName,
+              port);
+
+          TransformServiceLauncher service = TransformServiceLauncher.forProject(projectName, port);
+          service.setBeamVersion(ReleaseInfo.getReleaseInfo().getSdkVersion());
+          // TODO(https://github.com/apache/beam/issues/26833): add support for installing extra
+          // packages.
+          if (!extraPackages.isEmpty()) {
+            throw new RuntimeException(
+                "Transform Service does not support installing extra packages yet");
           }
-          args.add("--requirements_file=" + requirementsFile.getAbsolutePath());
-        }
-        PythonService service =
-            new PythonService(
-                    "apache_beam.runners.portability.expansion_service_main", args.build())
-                .withExtraPackages(extraPackages);
-        try (AutoCloseable p = service.start()) {
-          // allow more time waiting for the port ready for transient expansion service setup.
-          PythonService.waitForPort("localhost", port, 60000);
-          return apply(input, String.format("localhost:%s", port), payload);
+          try {
+            // Starting the transform service.
+            service.start();
+            // Waiting the service to be ready.
+            service.waitTillUp(15000);
+            // Expanding the transform.
+            output = apply(input, String.format("localhost:%s", port), payload);
+          } finally {
+            // Shutting down the transform service.
+            service.shutdown();
+          }
+          return output;
+        } else {
+
+          ImmutableList.Builder<String> args = ImmutableList.builder();
+          args.add(
+              "--port=" + port, "--fully_qualified_name_glob=*", "--pickle_library=cloudpickle");
+          if (!extraPackages.isEmpty()) {
+            File requirementsFile = File.createTempFile("requirements", ".txt");
+            requirementsFile.deleteOnExit();
+            try (Writer fout =
+                new OutputStreamWriter(
+                    new FileOutputStream(requirementsFile.getAbsolutePath()), Charsets.UTF_8)) {
+              for (String pkg : extraPackages) {
+                fout.write(pkg);
+                fout.write('\n');
+              }
+            }
+            args.add("--requirements_file=" + requirementsFile.getAbsolutePath());
+          }
+          PythonService service =
+              new PythonService(
+                      "apache_beam.runners.portability.expansion_service_main", args.build())
+                  .withExtraPackages(extraPackages);
+          try (AutoCloseable p = service.start()) {
+            // allow more time waiting for the port ready for transient expansion service setup.
+            PythonService.waitForPort("localhost", port, 60000);
+            return apply(input, String.format("localhost:%s", port), payload);
+          }
         }
       }
     } catch (RuntimeException exn) {

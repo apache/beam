@@ -21,9 +21,11 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.cloud.bigquery.storage.v1.TableSchema;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Message;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.Row;
 import org.checkerframework.checker.nullness.qual.NonNull;
 
@@ -33,13 +35,17 @@ class StorageApiDynamicDestinationsBeamRow<T, DestinationT extends @NonNull Obje
   private final TableSchema tableSchema;
   private final SerializableFunction<T, Row> toRow;
 
+  private final boolean usesCdc;
+
   StorageApiDynamicDestinationsBeamRow(
       DynamicDestinations<T, DestinationT> inner,
       Schema schema,
-      SerializableFunction<T, Row> toRow) {
+      SerializableFunction<T, Row> toRow,
+      boolean usesCdc) {
     super(inner);
     this.tableSchema = BeamRowToStorageApiProto.protoTableSchemaFromBeamSchema(schema);
     this.toRow = toRow;
+    this.usesCdc = usesCdc;
   }
 
   @Override
@@ -50,9 +56,18 @@ class StorageApiDynamicDestinationsBeamRow<T, DestinationT extends @NonNull Obje
 
   class BeamRowConverter implements MessageConverter<T> {
     final Descriptor descriptor;
+    final @Nullable Descriptor cdcDescriptor;
 
     BeamRowConverter() throws Exception {
-      this.descriptor = TableRowToStorageApiProto.getDescriptorFromTableSchema(tableSchema, true);
+      this.descriptor =
+          TableRowToStorageApiProto.getDescriptorFromTableSchema(tableSchema, true, false);
+      if (usesCdc) {
+        cdcDescriptor =
+            TableRowToStorageApiProto.getDescriptorFromTableSchema(
+                Preconditions.checkStateNotNull(tableSchema), true, true);
+      } else {
+        cdcDescriptor = null;
+      }
     }
 
     @Override
@@ -62,14 +77,20 @@ class StorageApiDynamicDestinationsBeamRow<T, DestinationT extends @NonNull Obje
 
     @Override
     @SuppressWarnings("nullness")
-    public StorageApiWritePayload toMessage(T element) throws Exception {
-      Message msg = BeamRowToStorageApiProto.messageFromBeamRow(descriptor, toRow.apply(element));
+    public StorageApiWritePayload toMessage(
+        T element, @Nullable RowMutationInformation rowMutationInformation) throws Exception {
+      String changeType = null;
+      long changeSequenceNum = -1;
+      Descriptor descriptorToUse = descriptor;
+      if (rowMutationInformation != null) {
+        changeType = rowMutationInformation.getMutationType().toString();
+        changeSequenceNum = rowMutationInformation.getSequenceNumber();
+        descriptorToUse = Preconditions.checkStateNotNull(cdcDescriptor);
+      }
+      Message msg =
+          BeamRowToStorageApiProto.messageFromBeamRow(
+              descriptorToUse, toRow.apply(element), changeType, changeSequenceNum);
       return StorageApiWritePayload.of(msg.toByteArray(), null);
-    }
-
-    @Override
-    public StorageApiWritePayload toMessage(TableRow tableRow, boolean respectRequired) {
-      throw new RuntimeException("Not supported");
     }
 
     @Override

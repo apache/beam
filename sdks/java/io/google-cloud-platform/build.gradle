@@ -36,6 +36,7 @@ dependencies {
   implementation project(path: ":model:pipeline", configuration: "shadow")
   implementation project(":runners:core-java")
   implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(":sdks:java:harness")
   implementation project(":sdks:java:expansion-service")
   implementation project(":sdks:java:extensions:avro")
   permitUnusedDeclared project(":sdks:java:expansion-service") // BEAM-11761

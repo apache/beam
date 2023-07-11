@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.regex.Pattern;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -64,6 +65,7 @@ class WatchForKafkaTopicPartitions extends PTransform<PBegin, PCollection<KafkaS
   private final Map<String, Object> kafkaConsumerConfig;
   private final @Nullable SerializableFunction<TopicPartition, Boolean> checkStopReadingFn;
   private final Set<String> topics;
+  private final @Nullable Pattern topicPattern;
   private final @Nullable Instant startReadTime;
   private final @Nullable Instant stopReadTime;
 
@@ -73,6 +75,7 @@ class WatchForKafkaTopicPartitions extends PTransform<PBegin, PCollection<KafkaS
       Map<String, Object> kafkaConsumerConfig,
       @Nullable SerializableFunction<TopicPartition, Boolean> checkStopReadingFn,
       Set<String> topics,
+      @Nullable Pattern topicPattern,
       @Nullable Instant startReadTime,
       @Nullable Instant stopReadTime) {
     this.checkDuration = firstNonNull(checkDuration, DEFAULT_CHECK_DURATION);
@@ -80,6 +83,7 @@ class WatchForKafkaTopicPartitions extends PTransform<PBegin, PCollection<KafkaS
     this.kafkaConsumerConfig = kafkaConsumerConfig;
     this.checkStopReadingFn = checkStopReadingFn;
     this.topics = topics;
+    this.topicPattern = topicPattern;
     this.startReadTime = startReadTime;
     this.stopReadTime = stopReadTime;
   }
@@ -91,7 +95,8 @@ class WatchForKafkaTopicPartitions extends PTransform<PBegin, PCollection<KafkaS
         .apply(
             "Match new TopicPartitions",
             Watch.growthOf(
-                    new WatchPartitionFn(kafkaConsumerFactoryFn, kafkaConsumerConfig, topics))
+                    new WatchPartitionFn(
+                        kafkaConsumerFactoryFn, kafkaConsumerConfig, topics, topicPattern))
                 .withPollInterval(checkDuration))
         .apply(ParDo.of(new ConvertToDescriptor(checkStopReadingFn, startReadTime, stopReadTime)));
   }
@@ -134,14 +139,17 @@ class WatchForKafkaTopicPartitions extends PTransform<PBegin, PCollection<KafkaS
         kafkaConsumerFactoryFn;
     private final Map<String, Object> kafkaConsumerConfig;
     private final Set<String> topics;
+    private final @Nullable Pattern topicPattern;
 
     private WatchPartitionFn(
         SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>> kafkaConsumerFactoryFn,
         Map<String, Object> kafkaConsumerConfig,
-        Set<String> topics) {
+        Set<String> topics,
+        @Nullable Pattern topicPattern) {
       this.kafkaConsumerFactoryFn = kafkaConsumerFactoryFn;
       this.kafkaConsumerConfig = kafkaConsumerConfig;
       this.topics = topics;
+      this.topicPattern = topicPattern;
     }
 
     @Override
@@ -149,7 +157,9 @@ class WatchForKafkaTopicPartitions extends PTransform<PBegin, PCollection<KafkaS
         throws Exception {
       Instant now = Instant.now();
       return Watch.Growth.PollResult.incomplete(
-              now, getAllTopicPartitions(kafkaConsumerFactoryFn, kafkaConsumerConfig, topics))
+              now,
+              getAllTopicPartitions(
+                  kafkaConsumerFactoryFn, kafkaConsumerConfig, topics, topicPattern))
           .withWatermark(now);
     }
   }
@@ -158,7 +168,8 @@ class WatchForKafkaTopicPartitions extends PTransform<PBegin, PCollection<KafkaS
   static List<TopicPartition> getAllTopicPartitions(
       SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>> kafkaConsumerFactoryFn,
       Map<String, Object> kafkaConsumerConfig,
-      Set<String> topics) {
+      Set<String> topics,
+      @Nullable Pattern topicPattern) {
     List<TopicPartition> current = new ArrayList<>();
     try (Consumer<byte[], byte[]> kafkaConsumer =
         kafkaConsumerFactoryFn.apply(kafkaConsumerConfig)) {
@@ -168,12 +179,13 @@ class WatchForKafkaTopicPartitions extends PTransform<PBegin, PCollection<KafkaS
             current.add(new TopicPartition(topic, partition.partition()));
           }
         }
-
       } else {
         for (Map.Entry<String, List<PartitionInfo>> topicInfo :
             kafkaConsumer.listTopics().entrySet()) {
-          for (PartitionInfo partition : topicInfo.getValue()) {
-            current.add(new TopicPartition(topicInfo.getKey(), partition.partition()));
+          if (topicPattern == null || topicPattern.matcher(topicInfo.getKey()).matches()) {
+            for (PartitionInfo partition : topicInfo.getValue()) {
+              current.add(new TopicPartition(partition.topic(), partition.partition()));
+            }
           }
         }
       }

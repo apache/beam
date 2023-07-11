@@ -79,6 +79,7 @@ class KafkaIOReadImplementationCompatibility {
     CONSUMER_CONFIG,
     TOPICS,
     TOPIC_PARTITIONS,
+    TOPIC_PATTERN,
     KEY_CODER,
     VALUE_CODER,
     CONSUMER_FACTORY_FN,

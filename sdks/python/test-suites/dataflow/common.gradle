@@ -458,6 +458,7 @@ project(":sdks:python:test-suites:xlang").ext.xlangTasks.each { taskMetadata ->
         "--runner=TestDataflowRunner",
         "--project=${dataflowProject}",
         "--region=${dataflowRegion}",
+        "--sdk_container_image=gcr.io/apache-beam-testing/beam-sdk/beam_python${project.ext.pythonVersion}_sdk:latest",
         "--sdk_harness_container_image_overrides=.*java.*,gcr.io/apache-beam-testing/beam-sdk/beam_java8_sdk:latest"
       ],
       pytestOptions: basicPytestOpts

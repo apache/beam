@@ -969,7 +969,7 @@ public class BigQueryServicesImplTest {
                     false,
                     successfulRows));
 
-    assertThat(e.getMessage(), containsString("this row is too large."));
+    assertThat(e.getMessage(), containsString("exceeded BigQueryIO limit of 9MB."));
   }
 
   @Test

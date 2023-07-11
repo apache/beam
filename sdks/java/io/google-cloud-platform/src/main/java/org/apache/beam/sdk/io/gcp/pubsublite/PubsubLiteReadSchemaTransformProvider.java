@@ -44,7 +44,6 @@ import org.apache.beam.sdk.schemas.utils.JsonUtils;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.FinishBundle;
 import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
@@ -139,48 +138,39 @@ public class PubsubLiteReadSchemaTransformProvider
             : AvroUtils.getAvroBytesToRowFunction(beamSchema);
     return new SchemaTransform() {
       @Override
-      public @UnknownKeyFor @NonNull @Initialized PTransform<
-              @UnknownKeyFor @NonNull @Initialized PCollectionRowTuple,
-              @UnknownKeyFor @NonNull @Initialized PCollectionRowTuple>
-          buildTransform() {
-        return new PTransform<PCollectionRowTuple, PCollectionRowTuple>() {
-          @Override
-          public PCollectionRowTuple expand(PCollectionRowTuple input) {
-            String project = configuration.getProject();
-            if (Strings.isNullOrEmpty(project)) {
-              project = input.getPipeline().getOptions().as(GcpOptions.class).getProject();
-            }
-            if (project == null) {
-              throw new IllegalArgumentException(
-                  "Unable to infer the project to read from Pubsub Lite. Please provide a project.");
-            }
-            PCollectionTuple outputTuple =
-                input
-                    .getPipeline()
-                    .apply(
-                        PubsubLiteIO.read(
-                            SubscriberOptions.newBuilder()
-                                .setSubscriptionPath(
-                                    SubscriptionPath.newBuilder()
-                                        .setLocation(
-                                            CloudRegionOrZone.parse(configuration.getLocation()))
-                                        .setProject(ProjectId.of(project))
-                                        .setName(
-                                            SubscriptionName.of(
-                                                configuration.getSubscriptionName()))
-                                        .build())
-                                .build()))
-                    .apply(
-                        ParDo.of(new ErrorFn("PubsubLite-read-error-counter", valueMapper))
-                            .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
+      public PCollectionRowTuple expand(PCollectionRowTuple input) {
+        String project = configuration.getProject();
+        if (Strings.isNullOrEmpty(project)) {
+          project = input.getPipeline().getOptions().as(GcpOptions.class).getProject();
+        }
+        if (project == null) {
+          throw new IllegalArgumentException(
+              "Unable to infer the project to read from Pubsub Lite. Please provide a project.");
+        }
+        PCollectionTuple outputTuple =
+            input
+                .getPipeline()
+                .apply(
+                    PubsubLiteIO.read(
+                        SubscriberOptions.newBuilder()
+                            .setSubscriptionPath(
+                                SubscriptionPath.newBuilder()
+                                    .setLocation(
+                                        CloudRegionOrZone.parse(configuration.getLocation()))
+                                    .setProject(ProjectId.of(project))
+                                    .setName(
+                                        SubscriptionName.of(configuration.getSubscriptionName()))
+                                    .build())
+                            .build()))
+                .apply(
+                    ParDo.of(new ErrorFn("PubsubLite-read-error-counter", valueMapper))
+                        .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
 
-            return PCollectionRowTuple.of(
-                "output",
-                outputTuple.get(OUTPUT_TAG).setRowSchema(beamSchema),
-                "errors",
-                outputTuple.get(ERROR_TAG).setRowSchema(ERROR_SCHEMA));
-          }
-        };
+        return PCollectionRowTuple.of(
+            "output",
+            outputTuple.get(OUTPUT_TAG).setRowSchema(beamSchema),
+            "errors",
+            outputTuple.get(ERROR_TAG).setRowSchema(ERROR_SCHEMA));
       }
     };
   }

@@ -23,7 +23,8 @@ import mock
 from apache_beam.examples.snippets.util import assert_matches_stdout
 from apache_beam.testing.test_pipeline import TestPipeline
 
-from . import sum as beam_sum
+from . import sum_globally as beam_sum_globally
+from . import sum_per_key as beam_sum_per_key
 
 
 def check_total(actual):
@@ -44,13 +45,17 @@ def check_totals_per_key(actual):
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)
 @mock.patch(
-    'apache_beam.examples.snippets.transforms.aggregation.sum.print', str)
+    'apache_beam.examples.snippets.transforms.aggregation.sum_globally.print',
+    str)
+@mock.patch(
+    'apache_beam.examples.snippets.transforms.aggregation.sum_per_key.print',
+    str)
 class SumTest(unittest.TestCase):
   def test_sum_globally(self):
-    beam_sum.sum_globally(check_total)
+    beam_sum_globally.sum_globally(check_total)
 
   def test_sum_per_key(self):
-    beam_sum.sum_per_key(check_totals_per_key)
+    beam_sum_per_key.sum_per_key(check_totals_per_key)
 
 
 if __name__ == '__main__':

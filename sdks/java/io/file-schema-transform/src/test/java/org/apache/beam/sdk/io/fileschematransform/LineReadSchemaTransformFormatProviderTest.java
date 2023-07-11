@@ -100,8 +100,7 @@ public class LineReadSchemaTransformFormatProviderTest {
             .build();
     SchemaTransform readTransform = new FileReadSchemaTransformProvider().from(config);
 
-    PCollectionRowTuple output =
-        PCollectionRowTuple.empty(readPipeline).apply(readTransform.buildTransform());
+    PCollectionRowTuple output = PCollectionRowTuple.empty(readPipeline).apply(readTransform);
     PCollection<String> outputStrings =
         output
             .get(FileReadSchemaTransformProvider.OUTPUT_TAG)
@@ -133,8 +132,7 @@ public class LineReadSchemaTransformFormatProviderTest {
             .build();
     SchemaTransform readTransform = new FileReadSchemaTransformProvider().from(config);
 
-    PCollectionRowTuple output =
-        PCollectionRowTuple.empty(readPipeline).apply(readTransform.buildTransform());
+    PCollectionRowTuple output = PCollectionRowTuple.empty(readPipeline).apply(readTransform);
 
     // Write to three different files (test_1..., test_2..., test_3)
     // All three new files should be picked up and read.
@@ -216,7 +214,7 @@ public class LineReadSchemaTransformFormatProviderTest {
 
     PCollectionRowTuple output =
         PCollectionRowTuple.of(FileReadSchemaTransformProvider.INPUT_TAG, filepatterns)
-            .apply(readTransform.buildTransform());
+            .apply(readTransform);
 
     PCollection<String> outputStrings =
         output

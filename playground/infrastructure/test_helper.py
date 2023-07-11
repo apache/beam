@@ -46,9 +46,8 @@ from helper import (
     _load_example,
     get_tag,
     Tag,
-    get_statuses,
     _check_no_nested,
-    _update_example_status,
+    update_example_status,
     _get_object_type,
     validate_examples_for_duplicates_by_name,
     validate_examples_for_conflicting_datasets,
@@ -116,16 +115,6 @@ def test_find_examples(
             ),
         ]
     )
-
-
-@pytest.mark.asyncio
-@mock.patch("helper._update_example_status")
-async def test_get_statuses(mock_update_example_status, create_test_example):
-    example = create_test_example()
-    client = mock.sentinel
-    await get_statuses(client, [example])
-
-    mock_update_example_status.assert_called_once_with(example, client)
 
 
 @mock.patch(
@@ -454,7 +443,7 @@ async def test__update_example_status(
     mock_grpc_client_run_code.return_value = "pipeline_id"
     mock_grpc_client_check_status.side_effect = [STATUS_VALIDATING, STATUS_FINISHED]
 
-    await _update_example_status(example, GRPCClient())
+    await update_example_status(example, GRPCClient())
 
     assert example.pipeline_id == "pipeline_id"
     assert example.status == STATUS_FINISHED

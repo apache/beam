@@ -189,8 +189,7 @@ public class JsonReadSchemaTransformFormatProviderTest
             .build();
 
     SchemaTransform readTransform = new FileReadSchemaTransformProvider().from(config);
-    PCollectionRowTuple output =
-        PCollectionRowTuple.empty(readPipeline).apply(readTransform.buildTransform());
+    PCollectionRowTuple output = PCollectionRowTuple.empty(readPipeline).apply(readTransform);
 
     List<Row> expectedRows =
         rows.stream().map(row -> getExpectedRow(row)).collect(Collectors.toList());
@@ -236,8 +235,7 @@ public class JsonReadSchemaTransformFormatProviderTest
             .build();
     SchemaTransform readTransform = new FileReadSchemaTransformProvider().from(config);
 
-    PCollectionRowTuple output =
-        PCollectionRowTuple.empty(readPipeline).apply(readTransform.buildTransform());
+    PCollectionRowTuple output = PCollectionRowTuple.empty(readPipeline).apply(readTransform);
 
     PayloadSerializer payloadSerializer =
         new JsonPayloadSerializerProvider().getSerializer(schema, ImmutableMap.of());
@@ -323,7 +321,7 @@ public class JsonReadSchemaTransformFormatProviderTest
 
     PCollectionRowTuple output =
         PCollectionRowTuple.of(FileReadSchemaTransformProvider.INPUT_TAG, filepatterns)
-            .apply(readTransform.buildTransform());
+            .apply(readTransform);
 
     // Check output matches with expected rows
     List<Row> expectedRows =

@@ -17,7 +17,10 @@ services:
     restart: on-failure
     command: -port 5001
     ports:
-      - "5001:5001"
+      - "${TRANSFORM_SERVICE_PORT}:5001"
+    depends_on:
+      - expansion-service-1
+      - expansion-service-2
   expansion-service-1:
     image: "apache/beam_java_expansion_service:${BEAM_VERSION}"
     restart: on-failure

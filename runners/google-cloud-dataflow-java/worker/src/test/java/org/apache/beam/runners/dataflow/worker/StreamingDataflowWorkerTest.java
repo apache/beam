@@ -110,6 +110,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataReq
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedMessageBundle;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution.State;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Timer;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Timer.Type;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WatermarkHold;
@@ -601,6 +602,11 @@ public class StreamingDataflowWorkerTest {
         parseCommitRequest(expectedCommitRequestBuilder.toString()));
   }
 
+  private WorkItemCommitRequest removeDynamicFields(WorkItemCommitRequest request) {
+    // Throw away per_work_item_attribution because it is dynamic in tests.
+    return request.toBuilder().clearPerWorkItemLatencyAttributions().build();
+  }
+
   private WorkItemCommitRequest.Builder makeExpectedTruncationRequestOutput(
       int index, String key, long shardingKey, long estimatedSize) throws Exception {
     StringBuilder expectedCommitRequestBuilder =
@@ -760,7 +766,8 @@ public class StreamingDataflowWorkerTest {
     for (int i = 0; i < numIters; ++i) {
       assertTrue(result.containsKey((long) i));
       assertEquals(
-          makeExpectedOutput(i, TimeUnit.MILLISECONDS.toMicros(i)).build(), result.get((long) i));
+          makeExpectedOutput(i, TimeUnit.MILLISECONDS.toMicros(i)).build(),
+          removeDynamicFields(result.get((long) i)));
     }
 
     verify(hotKeyLogger, atLeastOnce()).logHotKeyDetection(nullable(String.class), any());
@@ -799,7 +806,8 @@ public class StreamingDataflowWorkerTest {
     for (int i = 0; i < numIters; ++i) {
       assertTrue(result.containsKey((long) i));
       assertEquals(
-          makeExpectedOutput(i, TimeUnit.MILLISECONDS.toMicros(i)).build(), result.get((long) i));
+          makeExpectedOutput(i, TimeUnit.MILLISECONDS.toMicros(i)).build(),
+          removeDynamicFields(result.get((long) i)));
     }
 
     verify(hotKeyLogger, atLeastOnce()).logHotKeyDetection(nullable(String.class), any());
@@ -980,7 +988,8 @@ public class StreamingDataflowWorkerTest {
     for (int i = 0; i < numIters; ++i) {
       assertTrue(result.containsKey((long) i));
       assertEquals(
-          makeExpectedOutput(i, TimeUnit.MILLISECONDS.toMicros(i)).build(), result.get((long) i));
+          makeExpectedOutput(i, TimeUnit.MILLISECONDS.toMicros(i)).build(),
+          removeDynamicFields(result.get((long) i)));
       assertTrue(result.containsKey((long) i + 1000));
       assertEquals(
           makeExpectedOutput(
@@ -990,7 +999,7 @@ public class StreamingDataflowWorkerTest {
                   DEFAULT_SHARDING_KEY + 1,
                   keyStringForIndex(i))
               .build(),
-          result.get((long) i + 1000));
+          removeDynamicFields(result.get((long) i + 1000)));
       assertTrue(result.containsKey((long) i + numIters));
       assertEquals(
           makeExpectedOutput(
@@ -1000,7 +1009,7 @@ public class StreamingDataflowWorkerTest {
                   DEFAULT_SHARDING_KEY,
                   keyStringForIndex(i))
               .build(),
-          result.get((long) i + numIters));
+          removeDynamicFields(result.get((long) i + numIters)));
     }
 
     // Re-add the work, it should process due to the keys no longer being active.
@@ -1026,7 +1035,7 @@ public class StreamingDataflowWorkerTest {
                   DEFAULT_SHARDING_KEY,
                   keyStringForIndex(i))
               .build(),
-          result.get((long) i + numIters * 2));
+          removeDynamicFields(result.get((long) i + numIters * 2)));
     }
   }
 
@@ -1118,7 +1127,7 @@ public class StreamingDataflowWorkerTest {
     assertEquals(
         makeExpectedOutput(1, 0, DEFAULT_KEY_STRING, DEFAULT_SHARDING_KEY, DEFAULT_KEY_STRING)
             .build(),
-        result.get(1L));
+        removeDynamicFields(result.get(1L)));
     assertEquals(1, result.size());
   }
 
@@ -1166,7 +1175,8 @@ public class StreamingDataflowWorkerTest {
 
     assertEquals(2, result.size());
     assertEquals(
-        makeExpectedOutput(2, 0, "key", DEFAULT_SHARDING_KEY, "key").build(), result.get(2L));
+        makeExpectedOutput(2, 0, "key", DEFAULT_SHARDING_KEY, "key").build(),
+        removeDynamicFields(result.get(2L)));
 
     assertTrue(result.containsKey(1L));
     WorkItemCommitRequest largeCommit = result.get(1L);
@@ -1255,7 +1265,7 @@ public class StreamingDataflowWorkerTest {
                   DEFAULT_SHARDING_KEY,
                   keyStringForIndex(i) + "_data" + i)
               .build(),
-          result.get((long) i));
+          removeDynamicFields(result.get((long) i)));
       assertTrue(result.containsKey((long) i + 1000));
       assertEquals(
           makeExpectedOutput(
@@ -1265,7 +1275,7 @@ public class StreamingDataflowWorkerTest {
                   DEFAULT_SHARDING_KEY + i,
                   keyStringForIndex(i) + "_data" + (i + 1000))
               .build(),
-          result.get((long) i + 1000));
+          removeDynamicFields(result.get((long) i + 1000)));
     }
   }
 
@@ -1445,7 +1455,7 @@ public class StreamingDataflowWorkerTest {
     Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(2);
 
     assertThat(
-        result.get((long) timestamp1),
+        removeDynamicFields(result.get((long) timestamp1)),
         equalTo(
             setMessagesMetadata(
                     PaneInfo.NO_FIRING,
@@ -1454,7 +1464,7 @@ public class StreamingDataflowWorkerTest {
                 .build()));
 
     assertThat(
-        result.get((long) timestamp2),
+        removeDynamicFields(result.get((long) timestamp2)),
         equalTo(
             setMessagesMetadata(
                     PaneInfo.NO_FIRING,
@@ -1655,6 +1665,7 @@ public class StreamingDataflowWorkerTest {
         Windmill.WorkItemCommitRequest.newBuilder(actualOutput)
             .clearCounterUpdates()
             .clearOutputMessages()
+            .clearPerWorkItemLatencyAttributions()
             .build()
             .getSerializedSize(),
         splitIntToLong(getCounter(counters, "WindmillStateBytesWritten").getInteger()));
@@ -1777,7 +1788,7 @@ public class StreamingDataflowWorkerTest {
         splitIntToLong(getCounter(counters, "WindmillStateBytesRead").getInteger()));
     // State updates to clear state
     assertEquals(
-        Windmill.WorkItemCommitRequest.newBuilder(actualOutput)
+        Windmill.WorkItemCommitRequest.newBuilder(removeDynamicFields(actualOutput))
             .clearCounterUpdates()
             .clearOutputMessages()
             .build()
@@ -1950,7 +1961,7 @@ public class StreamingDataflowWorkerTest {
     assertEquals(0L, splitIntToLong(getCounter(counters, "WindmillStateBytesRead").getInteger()));
     // Timer + buffer + watermark hold
     assertEquals(
-        Windmill.WorkItemCommitRequest.newBuilder(actualOutput)
+        Windmill.WorkItemCommitRequest.newBuilder(removeDynamicFields(actualOutput))
             .clearCounterUpdates()
             .clearOutputMessages()
             .build()
@@ -2076,7 +2087,7 @@ public class StreamingDataflowWorkerTest {
         splitIntToLong(getCounter(counters, "WindmillStateBytesRead").getInteger()));
     // State updates to clear state
     assertEquals(
-        Windmill.WorkItemCommitRequest.newBuilder(actualOutput)
+        Windmill.WorkItemCommitRequest.newBuilder(removeDynamicFields(actualOutput))
             .clearCounterUpdates()
             .clearOutputMessages()
             .build()
@@ -2364,7 +2375,7 @@ public class StreamingDataflowWorkerTest {
         UnsignedLong.fromLongBits(commit.getSourceStateUpdates().getFinalizeIds(0));
 
     assertThat(
-        commit,
+        removeDynamicFields(commit),
         equalTo(
             setMessagesMetadata(
                     PaneInfo.NO_FIRING,
@@ -2426,7 +2437,7 @@ public class StreamingDataflowWorkerTest {
     finalizeId = UnsignedLong.fromLongBits(commit.getSourceStateUpdates().getFinalizeIds(0));
 
     assertThat(
-        commit,
+        removeDynamicFields(commit),
         equalTo(
             parseCommitRequest(
                     "key: \"0000000000000001\" "
@@ -2474,7 +2485,7 @@ public class StreamingDataflowWorkerTest {
     finalizeId = UnsignedLong.fromLongBits(commit.getSourceStateUpdates().getFinalizeIds(0));
 
     assertThat(
-        commit,
+        removeDynamicFields(commit),
         equalTo(
             parseCommitRequest(
                     "key: \"0000000000000002\" "
@@ -2531,7 +2542,7 @@ public class StreamingDataflowWorkerTest {
         UnsignedLong.fromLongBits(commit.getSourceStateUpdates().getFinalizeIds(0));
 
     assertThat(
-        commit,
+        removeDynamicFields(commit),
         equalTo(
             setMessagesMetadata(
                     PaneInfo.NO_FIRING,
@@ -2674,7 +2685,7 @@ public class StreamingDataflowWorkerTest {
                         + "source_watermark: 1000"))
             .build();
 
-    assertThat(commit, equalTo(expectedCommit));
+    assertThat(removeDynamicFields(commit), equalTo(expectedCommit));
 
     // Test retry of work item, it should return the same result and not start the reader from the
     // position it was left at.
@@ -2688,7 +2699,7 @@ public class StreamingDataflowWorkerTest {
         .getSourceStateUpdatesBuilder()
         .setFinalizeIds(0, commit.getSourceStateUpdates().getFinalizeIds(0));
     expectedCommit = commitBuilder.build();
-    assertThat(commit, equalTo(expectedCommit));
+    assertThat(removeDynamicFields(commit), equalTo(expectedCommit));
 
     // Continue with processing.
     server
@@ -2718,7 +2729,7 @@ public class StreamingDataflowWorkerTest {
     finalizeId = UnsignedLong.fromLongBits(commit.getSourceStateUpdates().getFinalizeIds(0));
 
     assertThat(
-        commit,
+        removeDynamicFields(commit),
         equalTo(
             parseCommitRequest(
                     "key: \"0000000000000001\" "
@@ -2743,7 +2754,8 @@ public class StreamingDataflowWorkerTest {
     public MockWork(long workToken) {
       super(
           Windmill.WorkItem.newBuilder().setKey(ByteString.EMPTY).setWorkToken(workToken).build(),
-          Instant::now);
+          Instant::now,
+          Collections.emptyList());
     }
 
     @Override
@@ -3137,7 +3149,11 @@ public class StreamingDataflowWorkerTest {
       assertThat(
           // The commit will include a timer to clean up state - this timer is irrelevant
           // for the current test. Also remove source_bytes_processed because it's dynamic.
-          setValuesTimestamps(commit.toBuilder().clearOutputTimers().clearSourceBytesProcessed())
+          setValuesTimestamps(
+                  removeDynamicFields(commit)
+                      .toBuilder()
+                      .clearOutputTimers()
+                      .clearSourceBytesProcessed())
               .build(),
           equalTo(
               setMessagesMetadata(
@@ -3397,7 +3413,7 @@ public class StreamingDataflowWorkerTest {
   public void testLatencyAttributionProtobufsPopulated() throws Exception {
     FakeClock clock = new FakeClock();
     StreamingDataflowWorker.Work work =
-        new StreamingDataflowWorker.Work(null, clock) {
+        new StreamingDataflowWorker.Work(null, clock, Collections.emptyList()) {
           @Override
           public void run() {}
         };
@@ -3414,7 +3430,7 @@ public class StreamingDataflowWorkerTest {
     work.setState(StreamingDataflowWorker.Work.State.COMMITTING);
     clock.sleep(Duration.millis(60));
 
-    Iterator<LatencyAttribution> it = work.getLatencyAttributionList().iterator();
+    Iterator<LatencyAttribution> it = work.getLatencyAttributions().iterator();
     assertTrue(it.hasNext());
     LatencyAttribution lat = it.next();
     assertTrue(lat.getState() == LatencyAttribution.State.QUEUED);
@@ -3673,6 +3689,57 @@ public class StreamingDataflowWorkerTest {
             .equals(Duration.millis(1000)));
   }
 
+  @Test
+  public void testLatencyAttributionPopulatedInCommitRequest() throws Exception {
+    final int workToken = 7272; // A unique id makes it easier to search logs.
+
+    long dofnWaitTimeMs = 1000;
+    FakeClock clock = new FakeClock();
+    List<ParallelInstruction> instructions =
+        Arrays.asList(
+            makeSourceInstruction(StringUtf8Coder.of()),
+            makeDoFnInstruction(
+                new FakeSlowDoFn(clock, Duration.millis(dofnWaitTimeMs)), 0, StringUtf8Coder.of()),
+            makeSinkInstruction(StringUtf8Coder.of(), 0));
+
+    FakeWindmillServer server = new FakeWindmillServer(errorCollector);
+    StreamingDataflowWorkerOptions options = createTestingPipelineOptions(server);
+    options.setActiveWorkRefreshPeriodMillis(100);
+    options.setNumberOfWorkerHarnessThreads(1);
+    StreamingDataflowWorker worker =
+        makeWorker(
+            instructions,
+            options,
+            false /* publishCounters */,
+            clock,
+            clock::newFakeScheduledExecutor);
+    worker.start();
+
+    ActiveWorkRefreshSink awrSink = new ActiveWorkRefreshSink(EMPTY_DATA_RESPONDER);
+    server.whenGetDataCalled().answerByDefault(awrSink::getData).delayEachResponseBy(Duration.ZERO);
+    server.whenGetWorkCalled().thenReturn(makeInput(workToken, 1 /* timestamp */));
+    Map<Long, WorkItemCommitRequest> workItemCommitRequest = server.waitForAndGetCommits(1);
+
+    worker.stop();
+
+    assertEquals(
+        workItemCommitRequest.get((long) workToken).getPerWorkItemLatencyAttributions(0),
+        LatencyAttribution.newBuilder()
+            .setState(State.ACTIVE)
+            .setTotalDurationMillis(dofnWaitTimeMs)
+            .build());
+    if (streamingEngine) {
+      // Initial fake latency provided to FakeWindmillServer when invoke receiveWork in
+      // GetWorkStream().
+      assertEquals(
+          workItemCommitRequest.get((long) workToken).getPerWorkItemLatencyAttributions(1),
+          LatencyAttribution.newBuilder()
+              .setState(State.GET_WORK_IN_TRANSIT_TO_USER_WORKER)
+              .setTotalDurationMillis(1000)
+              .build());
+    }
+  }
+
   /** For each input element, emits a large string. */
   private static class InflateDoFn extends DoFn<ValueWithRecordId<KV<Integer, Integer>>, String> {
 
@@ -3887,6 +3954,6 @@ public class StreamingDataflowWorkerTest {
         makeExpectedOutput(
                 1, TimeUnit.MILLISECONDS.toMicros(1), DEFAULT_KEY_STRING, 1, DEFAULT_KEY_STRING)
             .build(),
-        result.get(1L));
+        removeDynamicFields(result.get(1L)));
   }
 }

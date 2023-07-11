@@ -94,7 +94,7 @@ Please have these credentials ready at hand, you will likely need to enter them 
 * Apache ID and Password;
 * GitHub ID and Password.
 * DockerHub ID and Password. (You should be a member of maintainer team; email at dev@ if you are not.)
-
+* Account to access to apache-beam-testing Google Cloud Platform project. The account must have permissions to start Cloud Build triggers. Required for Playground environment update. (E-mail to pabloem@google.com to request access)
 
 ### One-time setup instructions
 
@@ -167,7 +167,7 @@ Configure access to the [Apache Nexus repository](https://repository.apache.org/
           </servers>
         </settings>
 
-#### Submit your GPG public key into MIT PGP Public Key Server
+#### Submit your GPG public key into Ubuntu OpenPGP Key Server
 In order to make yourself have right permission to stage java artifacts in Apache Nexus staging repository,
 please submit your GPG public key into the [Ubuntu OpenPGP Key Server](https://keyserver.ubuntu.com/).
 
@@ -200,7 +200,7 @@ You also need to be a maintainer (or an owner) of the [apache-beam](https://pypi
 Ask on the mailing list for assistance.
 
 #### Login to DockerHub
-If you are a member of the [`beammaintainers` DockerHub team](https://hub.docker.com/orgs/apache/teams/beammaintainers), run following command manually.
+If you are a member of the [`beam` DockerHub team](https://hub.docker.com/orgs/apache/teams/beam), run following command manually.
 It will ask you to input your DockerHub ID and password if authorization info cannot be found from ~/.docker/config.json file.
 
 ```
@@ -215,7 +215,7 @@ For example,
 }
 ```
 
-If you are not already a member of the `beammaintainers` team, please email `dev@` for help with any DockerHub related tasks. We are not able
+If you are not already a member of the `beam` team, please email `dev@` for help with any DockerHub related tasks. We are not able
 to add more members to the DockerHub team because [the ASF has a limited number of seats available](https://infra.apache.org/docker-hub-policy.html).
 
 ### Create a new milestone in GitHub
@@ -522,6 +522,7 @@ You don't need to wait for the action to complete to start running the script.
 * **The script will:**
   1. Clone the repo at the selected RC tag.
   1. Run gradle publish to push java artifacts into Maven staging repo.
+  1. Stage SDK docker images to [docker hub Apache organization](https://hub.docker.com/search?q=apache%2Fbeam&type=image).
 
 #### Tasks you need to do manually
 
@@ -548,10 +549,12 @@ You don't need to wait for the action to complete to start running the script.
 * **The script will:**
   1. Clone the repo at the selected RC tag.
   1. Stage source release into dist.apache.org dev [repo](https://dist.apache.org/repos/dist/dev/beam/).
+Skip this step if you already did it with the build_release_candidate GitHub Actions workflow.
   1. Stage, sign and hash python source distribution and wheels into dist.apache.org dev repo python dir
   1. Stage SDK docker images to [docker hub Apache organization](https://hub.docker.com/search?q=apache%2Fbeam&type=image).
-Note: if you are not a member of the [`beammaintainers` DockerHub team](https://hub.docker.com/orgs/apache/teams/beammaintainers) you will need
-help with this step. Please email `dev@` and ask a member of the `beammaintainers` DockerHub team for help.
+Skip this step if you already did it with the build_release_candidate GitHub Actions workflow.
+Note: if you are not a member of the [`beam` DockerHub team](https://hub.docker.com/orgs/apache/teams/beam) you will need
+help with this step. Please email `dev@` and ask a member of the `beam` DockerHub team for help.
   1. Create a PR to update beam-site, changes includes:
      * Copy python doc into beam-site
      * Copy java doc into beam-site
@@ -1148,8 +1151,8 @@ All wheels should be published, in addition to the zip of the release source.
 
 ### Deploy docker images to DockerHub
 
-Note: if you are not a member of the [beammaintainers DockerHub team](https://hub.docker.com/orgs/apache/teams/beammaintainers),
-you will need help with this step. Please email dev@ and ask a member of the beammaintainers DockerHub team for help.
+Note: if you are not a member of the [beam DockerHub team](https://hub.docker.com/orgs/apache/teams/beam),
+you will need help with this step. Please email dev@ and ask a member of the beam DockerHub team for help.
 
 * **Script:** [publish_docker_images.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/publish_docker_images.sh)
 * **Usage**
@@ -1178,6 +1181,13 @@ Create and push a new signed tag for the released version by copying the tag for
 gpg --output ~/doc.sig --sign ~/.bashrc
 
 VERSION_TAG="v${RELEASE_VERSION}"
+RC_TAG="${VERSION_TAG}-RC${RC_NUM}"
+
+# Ensure local tags are in sync. If there's a mismatch, it will tell you.
+git fetch --all --tags
+
+# If the tag exists, a commit number is produced, otherwise there's an error.
+git rev-list $RC_TAG -n 1
 
 # Tag for Go SDK
 git tag -s "sdks/$VERSION_TAG" "$RC_TAG"
@@ -1262,6 +1272,45 @@ Also, update [the Wikipedia article on Apache Beam](https://en.wikipedia.org/wik
 1. Update Wikipedia Apache Beam article.
 
 **********
+
+## 13. Update Beam Playground
+
+After new Beam Release is published, Beam Playgorund can be updated following the steps below:
+
+1. Open the [Cloud Build triggers in apache-beam-testing](https://console.cloud.google.com/cloud-build/triggers?project=apache-beam-testing) GCP project.
+1. Find the trigger "Deploy-Update-Playground-environment-stg":
+    1. Click on the trigger name to open its settings
+    1. Change the value for _SDK_TAG variable (Advanced -> Substitution Variables) to the actual version of Beam SDK (e.g. 2.47.0)
+    1. Click the Save button. The settings window should close without any errors
+    1. Click the RUN button next to the trigger name
+    1. Set the value for the _CONTAINER_TAG variable in format DD-MM-vXX (DD - day, MM - month, XX - version, e.g., 20-12-v01)
+    1. Click the Run Trigger button
+    1. Open the [Trigger History](https://console.cloud.google.com/cloud-build/builds?project=apache-beam-testing) and wait for the job completion. Ensure  that the job completed successfully (Status field shows a green tick)
+1. Find the trigger "Playground-CD-stable-manual-stg":
+    1. Click the RUN button next to the trigger name
+    1. Click the Run Trigger button (with default varaible vaues)
+    1. Open the [Trigger History](https://console.cloud.google.com/cloud-build/builds?project=apache-beam-testing) and wait for the job completion. Ensure  that the job completed successfully (Status field shows a green tick)
+    1. Click the RUN button next to the trigger name
+    1. Change values for the variables:
+        * _ORIGIN = PG_BEAMDOC
+        * _SUBDIRS = ./learning/beamdoc
+    1. Click the Run Trigger button
+    1. Open the [Trigger History](https://console.cloud.google.com/cloud-build/builds?project=apache-beam-testing) and wait for the job completion. Ensure  that the job completed successfully (Status field shows a green tick)
+1. Test updated [staging Playground](https://play-dev.beam.apache.org/) in a browser
+    1. Open the menu (represented by '...' in the right top corner) and click on Versions. Validate that commit is the same for all listed containers, and the hash belongs to a [recent master branch commit](https://github.com/apache/beam/commits/master)
+    1. For each of the supported SDKs (Java, Python, Go, SCIO):
+        * Switch to the SDK
+        * Make any changes to the loaded default example
+        * Click the Run button
+        * Wait for successful completion
+        * Click "Share My Code" to ensure that the link is generated
+1. Repeat the same steps for "Deploy-Update-Playground-environment-prod" trigger as for "Deploy-Update-Playground-environment-stg" trigger
+1. Repeat the same steps for "Playground-CD-stable-manual-prod" trigger as for "Playground-CD-stable-manual-stg" trigger
+1. Test updated [prod Playground](https://play.beam.apache.org/) in a browser. The process is similar to the staging environment.
+1. Find the trigger "Playground-CI-stable"
+    1. Click on the trigger name to open its settings
+    1. Set the value for the _BEAM_VERSION variable (Advanced -> Substitution Variables) to the actual version of Beam SDK (e.g., 2.47.0)
+    1. Click the Save button. Click the Save button. The settings window should close without any errors
 
 ## Improve the process
 
