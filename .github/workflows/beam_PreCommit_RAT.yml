@@ -12,17 +12,17 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-name: Python PreCommit Formatter
+
+name: Beam PreCommit RAT
+
 on:
-  pull_request_target:
-    branches: [ "master", "release-*" ]
-    paths: [ "sdks/python/apache_beam/**"]
-  issue_comment:
-    types: [created]
   push:
     tags: ['v*']
     branches: ['master', 'release-*']
-    paths: [ "sdks/python/apache_beam/**",".github/workflows/job_PreCommit_PythonAutoformatter.yml"]
+  pull_request_target:
+    branches: ['master', 'release-*']
+  issue_comment:
+    types: [created]
   schedule:
     - cron: '* */6 * * *'
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -42,19 +42,21 @@ permissions:
   statuses: read
 
 jobs:
-  beam_PreCommit_PythonFormatter:
+  beam_PreCommit_RAT:
     if: |
       github.event_name == 'push' || 
       github.event_name == 'pull_request_target' || 
-      github.event.comment.body == 'Run PythonFormatter PreCommit' || 
+      github.event.comment.body == 'Run RAT PreCommit' || 
       github.event_name == 'schedule'
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: [self-hosted, ubuntu-20.04]
+    name: beam_PreCommit_RAT
     steps:
-      - uses: actions/checkout@v3
+      - name: Check out repository code
+        uses: actions/checkout@v3
         with:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: Rerun on comment
-        if: github.event.comment.body == 'Run PythonFormatter PreCommit'
+        if: github.event.comment.body == 'Run RAT PreCommit'
         uses: ./.github/actions/rerun-job-action
         with:
           pull_request_url: ${{ github.event.issue.pull_request.url }}
@@ -67,12 +69,9 @@ jobs:
         with:
           distribution: 'zulu'
           java-version: '8'
-      - uses: actions/setup-python@v4
-        with:
-          python-version: '3.8'
       - name: Setup Gradle
         uses: gradle/gradle-build-action@v2
         with:
           cache-read-only: false
-      - name: run PythonDockerPreCommit script
-        run: ./gradlew :pythonFormatterPreCommit
+      - name: run RAT script
+        run: ./gradlew :rat

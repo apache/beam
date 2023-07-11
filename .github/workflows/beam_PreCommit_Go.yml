@@ -1,4 +1,4 @@
-name: Go Precommit
+name: Go PreCommit
 
 on:
   push:
