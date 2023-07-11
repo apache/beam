@@ -20,6 +20,7 @@ import CommonJobProperties as commonJobProperties
 import PostcommitJobBuilder
 
 import static PythonTestProperties.VALIDATES_CONTAINER_DATAFLOW_PYTHON_VERSIONS
+import java.util.UUID
 
 // This job runs the suite of Python ValidatesContainer tests against the
 // Dataflow runner.
@@ -34,6 +35,8 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Py_ValCont',
         archiveJunit('**/pytest*.xml')
       }
 
+      // Generates a unique tag for the container.
+      def unique_tag = UUID.randomUUID()
       // Execute shell command to test Python SDK.
       steps {
         gradle {
@@ -42,6 +45,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Py_ValCont',
           switches('-Pbuild-and-push-multiarch-containers')
           // Regenerates the base image requirements to accommodate ARM.
           switches('-Pregenerate-requirements')
+          switches('-Pdocker-tag=${unique_tag}')
           commonJobProperties.setGradleSwitches(delegate)
         }
       }

@@ -67,7 +67,7 @@ gcloud -v
 
 CONTAINER=us.gcr.io/$PROJECT/$USER/$IMAGE_NAME
 PREBUILD_SDK_CONTAINER_REGISTRY_PATH=us.gcr.io/$PROJECT/$USER/prebuild_python${PY_VERSION//.}_sdk
-TAG=latest
+TAG="$(grep 'unique_tag' job_PostCommit_Python_ValidatesContainer_Dataflow.groovy | cut -d'=' -f2)"
 
 # Verify docker image has been built and pushed during the build:
 # pull and tag the x86 components;
