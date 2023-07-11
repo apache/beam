@@ -135,7 +135,7 @@ def _run_inference_tensorflow_keyed_tensor(
     device,
     inference_args: Dict[str, Any],
     model_id: Optional[str] = None) -> Iterable[PredictionResult]:
-  is_gpu_available_tensorflow()
+  is_gpu_available_tensorflow(device)
   key_to_tensor_list = defaultdict(list)
   for example in batch:
     for key, tensor in example.items():
@@ -155,7 +155,7 @@ class HuggingFaceModelHandler(ModelHandler[ExampleT, PredictionT, ModelT], ABC):
       model_class: Union[AutoModel, TFAutoModel],
       device: str = 'CPU',
       *,
-      inference_fn: Optional[Callable[..., PredictionT]] = None,
+      inference_fn: Optional[Callable[..., Iterable[PredictionT]]] = None,
       load_model_args: Optional[Dict[str, Any]] = None,
       inference_args: Optional[Dict[str, Any]] = None,
       min_batch_size: Optional[int] = None,
@@ -247,7 +247,7 @@ class HuggingFaceModelHandler(ModelHandler[ExampleT, PredictionT, ModelT], ABC):
 
 class HuggingFaceModelHandlerKeyedTensor(
     HuggingFaceModelHandler[Dict[str, Union[tf.Tensor, torch.Tensor]],
-                            PredictionResult,
+                            Iterable[PredictionResult],
                             Union[AutoModel, TFAutoModel]]):
   """Implementation of the ModelHandler interface for HuggingFace with
     Keyed Tensors for PyTorch/Tensorflow backend.
@@ -313,7 +313,7 @@ def _default_inference_fn_torch(
     batch: Sequence[Union[tf.Tensor, torch.Tensor]],
     model: Union[AutoModel, TFAutoModel],
     device,
-    inference_args: Dict[str, Any] = None,
+    inference_args: Dict[str, Any],
     model_id: Optional[str] = None) -> Iterable[PredictionResult]:
   device = torch.device('cuda') if is_gpu_available_torch(
       device) else torch.device('cpu')
@@ -332,18 +332,16 @@ def _default_inference_fn_tensorflow(
     device,
     inference_args: Dict[str, Any],
     model_id: Optional[str] = None) -> Iterable[PredictionResult]:
-  is_gpu_available_tensorflow()
+  is_gpu_available_tensorflow(device)
   batched_tensors = tf.stack(batch, axis=0)
   predictions = model(batched_tensors, **inference_args)
   return utils._convert_to_result(batch, predictions, model_id)
 
 
-class HuggingFaceModelHandlerTensor(HuggingFaceModelHandler[Union[tf.Tensor,
-                                                                  torch.Tensor],
-                                                            PredictionResult,
-                                                            Union[AutoModel,
-                                                                  TFAutoModel]]
-                                    ):
+class HuggingFaceModelHandlerTensor(
+    HuggingFaceModelHandler[Union[tf.Tensor, torch.Tensor],
+                            Iterable[PredictionResult],
+                            Union[AutoModel, TFAutoModel]]):
   """Implementation of the ModelHandler interface for HuggingFace with
     Tensors for PyTorch/Tensorflow backend.
 
