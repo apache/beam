@@ -19,10 +19,10 @@ on:
   push:
     tags: ['v*']
     branches: ['master', 'release-*']
-    paths: [sdks/java/extensions/sql/**]
+    paths: ['sdks/java/extensions/sql/**','.github/workflows/beam_PreCommit_SQL_Java11.yml']
   pull_request_target:
     branches: ['master', 'release-*']
-    paths: ['sdks/java/extensions/sql/**','.github/workflows/beam_PreCommit_SQL_Java11.yml']
+    paths: [sdks/java/extensions/sql/**]
   issue_comment:
     types: [created]
   schedule:
