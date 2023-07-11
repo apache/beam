@@ -25,6 +25,7 @@ import (
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/urns"
 	"golang.org/x/exp/slog"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func (s *Server) nextId() string {
@@ -81,8 +82,10 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (*jo
 
 	// Queue initial state of the job.
 	job.state.Store(jobpb.JobState_STOPPED)
+	s.jobs[job.key] = job
 
 	if err := isSupported(job.Pipeline.GetRequirements()); err != nil {
+		job.Failed(err)
 		slog.Error("unable to run job", slog.String("error", err.Error()), slog.String("jobname", req.GetJobName()))
 		return nil, err
 	}
@@ -136,11 +139,12 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (*jo
 		}
 	}
 	if len(errs) > 0 {
-		err := &joinError{errs: errs}
-		slog.Error("unable to run job", slog.String("cause", "unimplemented features"), slog.String("jobname", req.GetJobName()), slog.String("errors", err.Error()))
-		return nil, fmt.Errorf("found %v uses of features unimplemented in prism in job %v: %v", len(errs), req.GetJobName(), err)
+		jErr := &joinError{errs: errs}
+		slog.Error("unable to run job", slog.String("cause", "unimplemented features"), slog.String("jobname", req.GetJobName()), slog.String("errors", jErr.Error()))
+		err := fmt.Errorf("found %v uses of features unimplemented in prism in job %v: %v", len(errs), req.GetJobName(), jErr)
+		job.Failed(err)
+		return nil, err
 	}
-	s.jobs[job.key] = job
 	return &jobpb.PrepareJobResponse{
 		PreparationId:       job.key,
 		StagingSessionToken: job.key,
@@ -177,8 +181,6 @@ func (s *Server) GetMessageStream(req *jobpb.JobMessagesRequest, stream jobpb.Jo
 	defer job.streamCond.L.Unlock()
 	curMsg := job.minMsg
 	curState := job.stateIdx
-
-	stream.Context()
 
 	state := job.state.Load().(jobpb.JobState_Enum)
 	for {
@@ -283,6 +285,7 @@ func (s *Server) GetState(_ context.Context, req *jobpb.GetJobStateRequest) (*jo
 		return nil, fmt.Errorf("job with id %v not found", req.GetJobId())
 	}
 	return &jobpb.JobStateEvent{
-		State: j.state.Load().(jobpb.JobState_Enum),
+		State:     j.state.Load().(jobpb.JobState_Enum),
+		Timestamp: timestamppb.New(j.stateTime),
 	}, nil
 }

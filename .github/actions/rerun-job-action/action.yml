@@ -57,17 +57,24 @@ runs:
     shell: bash
     run: | 
       URL="${{github.api_url}}/repos/${{inputs.github_repository}}/commits/${{env.prsha}}/check-runs"
-      read -r STATUS CONCLUSION CHECK_SUITE_ID<<< $(curl  \
+      CHECK_RUN=$(curl  \
       -H 'Authorization: Bearer ${{inputs.github_token}}' \
       -H "Accept: application/vnd.github+json" \
       -H "X-GitHub-Api-Version: 2022-11-28" \
-      -s $URL | jq -r '.check_runs | .[] | select(.name=="${{inputs.github_job}}") | "\(.status) \(.conclusion) \(.check_suite.id)"')
+      -s $URL | jq -r '.check_runs | .[] | select(.name=="${{inputs.github_job}}")')
+      if [ -z "$CHECK_RUN" ]; then
+        echo "No check runs found for this job"
+        echo skip=true >> $GITHUB_ENV
+        exit 0
+      fi
+      read -r STATUS CONCLUSION CHECK_SUITE_ID<<< $(echo $CHECK_RUN | jq -r '"\(.status) \(.conclusion) \(.check_suite.id)"')
       echo status=$STATUS >> $GITHUB_ENV
       echo conclusion=$CONCLUSION >> $GITHUB_ENV
       echo check_suite_id=$CHECK_SUITE_ID >> $GITHUB_ENV
  
-  - name: Enable Rerun
-    if: ${{env.status == 'completed' && (env.conclusion == 'success' || env.conclusion == 'skipped')}}
+
+  - name: Disable Rerun for Success or Skipped
+    if: ${{(env.status == 'completed' && (env.conclusion == 'success' || env.conclusion == 'skipped')) || env.skip == 'true'}}
     shell: bash
     run: echo rerun=false >> $GITHUB_ENV
 
@@ -103,6 +110,13 @@ runs:
       -H "Accept: application/vnd.github+json" \
       -H "X-GitHub-Api-Version: 2022-11-28" \
       -s $URL 
+  - name: Install GH Cli
+    if: ${{env.rerun != 'false' }}
+    shell: bash
+    run: |
+      wget https://github.com/cli/cli/releases/download/v2.31.0/gh_2.31.0_linux_amd64.tar.gz
+      tar -xvf gh_2.31.0_linux_amd64.tar.gz
+      sudo mv gh_2.31.0_linux_amd64/bin/gh /usr/local/bin
   - name: Exit rest of the run
     if: ${{env.rerun != 'false' }}
     shell: bash
