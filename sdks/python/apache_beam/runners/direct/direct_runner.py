@@ -91,7 +91,6 @@ class SwitchingDirectRunner(PipelineRunner):
 
       def visit_transform(self, applied_ptransform):
         transform = applied_ptransform.transform
-        print(applied_ptransform, transform)
         # The FnApiRunner does not support streaming execution.
         if isinstance(transform, TestStream):
           self.supported_by_fnapi_runner = False
