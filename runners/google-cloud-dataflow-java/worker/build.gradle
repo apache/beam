@@ -229,12 +229,6 @@ dependencies {
     shadowTest library.java.powermock
 }
 
-// test {
-//     filter {
-//         includeTestsMatching "*testMaxThreadMetric*"
-//     }
-// }
-
 project.task('validateShadedJarContainsSlf4jJdk14', dependsOn: 'shadowJar') {
     ext.outFile = project.file("${project.reportsDir}/${name}.out")
     inputs.files(project.configurations.shadow.artifacts.files)
