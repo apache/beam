@@ -369,6 +369,17 @@ class StagerTest(unittest.TestCase):
             'The --setup_file option expects the full path to a file named '
             'setup.py instead of '))
 
+  def test_sdk_location_default(self):
+    staging_dir = self.make_temp_dir()
+    options = PipelineOptions()
+    self.update_options(options)
+    options.view_as(SetupOptions).sdk_location = 'default'
+
+    _, staged_resources = self.stager.create_and_stage_job_resources(
+        options, temp_dir=self.make_temp_dir(), staging_location=staging_dir)
+
+    self.assertEqual([], staged_resources)
+
   def test_sdk_location_local_directory(self):
     staging_dir = self.make_temp_dir()
     sdk_location = self.make_temp_dir()
