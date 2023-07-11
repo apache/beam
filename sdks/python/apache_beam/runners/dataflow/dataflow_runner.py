@@ -42,7 +42,6 @@ from apache_beam.options.pipeline_options import TestOptions
 from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.options.pipeline_options import WorkerOptions
 from apache_beam.portability import common_urns
-from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.common import group_by_key_input_visitor
 from apache_beam.runners.dataflow.internal.clients import dataflow as dataflow_api
 from apache_beam.runners.runner import PipelineResult

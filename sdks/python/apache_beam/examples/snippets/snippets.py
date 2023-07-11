@@ -952,6 +952,14 @@ def model_bigqueryio(
       | beam.Map(lambda elem: elem['max_temperature']))
   # [END model_bigqueryio_read_query_std_sql]
 
+  # [START model_bigqueryio_read_table_with_storage_api]
+  max_temperatures = (
+      pipeline
+      | 'ReadTableWithStorageAPI' >> beam.io.ReadFromBigQuery(
+          table=table_spec, method=beam.io.ReadFromBigQuery.Method.DIRECT_READ)
+      | beam.Map(lambda elem: elem['max_temperature']))
+  # [END model_bigqueryio_read_table_with_storage_api]
+
   # [START model_bigqueryio_schema]
   # column_name:BIGQUERY_TYPE, ...
   table_schema = 'source:STRING, quote:STRING'
@@ -1018,6 +1026,55 @@ def model_bigqueryio(
           'type': 'HOUR'
       }})
   # [END model_bigqueryio_time_partitioning]
+
+
+def model_bigqueryio_xlang(
+    pipeline, write_project='', write_dataset='', write_table=''):
+  """Examples for cross-language BigQuery sources and sinks."""
+
+  # to avoid a validation error(input data schema and the table schema)
+  # use a table that does not exist
+  import uuid
+  never_exists_table = str(uuid.uuid4())
+  table_spec = 'clouddataflow-readonly:samples.{}'.format(never_exists_table)
+
+  if write_project and write_dataset and write_table:
+    table_spec = '{}:{}.{}'.format(write_project, write_dataset, write_table)
+
+  # [START model_bigqueryio_write_schema]
+  table_schema = {
+      'fields': [{
+          'name': 'source', 'type': 'STRING', 'mode': 'NULLABLE'
+      }, {
+          'name': 'quote', 'type': 'STRING', 'mode': 'REQUIRED'
+      }]
+  }
+  # [END model_bigqueryio_write_schema]
+
+  quotes = pipeline | beam.Create([
+      {
+          'source': 'Mahatma Gandhi', 'quote': 'My life is my message.'
+      },
+      {
+          'source': 'Yoda', 'quote': "Do, or do not. There is no 'try'."
+      },
+  ])
+
+  # [START model_bigqueryio_storage_write_api_with_frequency]
+  # The Python SDK doesn't currently support setting the number of write streams
+  quotes | "StorageWriteAPIWithFrequency" >> beam.io.WriteToBigQuery(
+      table_spec,
+      schema=table_schema,
+      method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API,
+      triggering_frequency=5)
+  # [END model_bigqueryio_storage_write_api_with_frequency]
+
+  # [START model_bigqueryio_write_with_storage_write_api]
+  quotes | "WriteTableWithStorageAPI" >> beam.io.WriteToBigQuery(
+      table_spec,
+      schema=table_schema,
+      method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API)
+  # [END model_bigqueryio_write_with_storage_write_api]
 
 
 def model_composite_transform_example(contents, output_path):
