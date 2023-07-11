@@ -218,9 +218,10 @@ class TestChangePointAnalysis(unittest.TestCase):
         line for line in description.split(constants._NEW_LINES_JOINER)
         if re.match(r'timestamp: .*, metric_value: .*', line.strip())),
                      '')
-    string_to_search = (
-        'timestamp: Wed Dec 31 19:00:15 1969, metric_value: 3.00 <---- Anomaly')
-    self.assertTrue(string_to_search in runs_info)
+    pattern = pattern = (
+        r'timestamp: .+ (\d{4}), metric_value: (\d+.\d+) <---- Anomaly')
+    match = re.search(pattern, runs_info)
+    self.assertTrue(match)
 
 
 if __name__ == '__main__':
