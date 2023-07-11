@@ -77,7 +77,7 @@
 
 ## Bugfixes
 
-* Fixed DirectRunner bug in Python SDK where GroupByKey gets empty PCollection and fails when `direct_num_workers!=1`. ([#27373]https://github.com/apache/beam/pull/27373)
+* Fixed DirectRunner bug in Python SDK where GroupByKey gets empty PCollection and fails when pipeline option `direct_num_workers!=1`. ([#27373](https://github.com/apache/beam/pull/27373))
 
 ## Known Issues
 
