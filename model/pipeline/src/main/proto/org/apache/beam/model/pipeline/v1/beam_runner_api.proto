@@ -327,7 +327,6 @@ message StandardPTransforms {
     //
     // Payload: none
     TO_STRING = 8 [(beam_urn) = "beam:transform:to_string:v1"];
-    
   }
   enum DeprecatedPrimitives {
     // Represents the operation to read a Bounded or Unbounded source.
