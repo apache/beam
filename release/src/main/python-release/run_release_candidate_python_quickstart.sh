@@ -144,6 +144,7 @@ function verify_wordcount_dataflow() {
 #######################################
 function verify_streaming_wordcount_direct() {
   cleanup_pubsub
+  sleep 10
   create_pubsub
   print_separator "Running Streaming wordcount example with DirectRunner"
   python -m apache_beam.examples.streaming_wordcount \
@@ -172,6 +173,7 @@ function verify_streaming_wordcount_direct() {
 #######################################
 function verify_streaming_wordcount_dataflow() {
   cleanup_pubsub
+  sleep 10
   create_pubsub
   print_separator "Running Streaming wordcount example with DataflowRunner "
   python -m apache_beam.examples.streaming_wordcount \
