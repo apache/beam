@@ -31,7 +31,6 @@ from apache_beam import typehints
 from apache_beam.coders import BytesCoder
 from apache_beam.io import Read
 from apache_beam.io.iobase import SourceBase
-from apache_beam.metrics import Metrics
 from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.pipeline import Pipeline
 from apache_beam.pipeline import PipelineOptions

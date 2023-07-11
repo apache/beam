@@ -477,7 +477,7 @@ class _PubSubSource(iobase.SourceBase):
             label='Timestamp Attribute').drop_if_none(),
     }
 
-  def default_output_coder():
+  def default_output_coder(self):
     return self.coder
 
   def is_bounded(self):
