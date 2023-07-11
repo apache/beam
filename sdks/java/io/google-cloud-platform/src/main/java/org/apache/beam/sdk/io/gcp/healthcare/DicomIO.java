@@ -172,6 +172,7 @@ public class DicomIO {
        * @param context The input containing the pub/sub message
        */
       @ProcessElement
+      @SuppressWarnings("FutureReturnValueIgnored")
       public void processElement(ProcessContext context) {
         String dicomWebPath = context.element();
         CompletableFuture.runAsync(() -> {
