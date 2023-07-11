@@ -1284,11 +1284,11 @@ class SetupOptions(PipelineOptions):
         '--sdk_location',
         default='default',
         help=(
-            'Override the default location from where the Beam SDK is '
-            'downloaded. It can be a URL, a GCS path, or a local path to an '
+            'Override the default location of the beam SDK. '
+            'It can be a URL, a GCS path, or a local path to an '
             'SDK tarball. Workflow submissions will download or copy an SDK '
-            'tarball from here. If set to the string "default", a standard '
-            'SDK location is used. If empty, no SDK is copied.'))
+            'tarball from here. If set to the string "default", '
+            'the beam SDK in the default container will be used.'))
     parser.add_argument(
         '--extra_package',
         '--extra_packages',
