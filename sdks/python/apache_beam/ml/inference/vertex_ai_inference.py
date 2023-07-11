@@ -71,7 +71,6 @@ class VertexAIModelHandlerJSON(ModelHandler[Any,
     """Implementation of the ModelHandler interface for Vertex AI.
     **NOTE:** This API and its implementation are under development and
     do not provide backward compatibility guarantees.
-
     Unlike other ModelHandler implementations, this does not load the model
     being used onto the worker and instead makes remote queries to a
     Vertex AI endpoint. In that way it functions more like a mid-pipeline
@@ -89,7 +88,6 @@ class VertexAIModelHandlerJSON(ModelHandler[Any,
     """
 
     self._env_vars = kwargs.get('env_vars', {})
-
     # TODO: support the full list of options for aiplatform.init()
     # See https://cloud.google.com/python/docs/reference/aiplatform/latest/google.cloud.aiplatform#google_cloud_aiplatform_init
     aiplatform.init(
