@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.healthcare;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -173,18 +174,19 @@ public class DicomIO {
       @ProcessElement
       public void processElement(ProcessContext context) {
         String dicomWebPath = context.element();
-        try {
-          // TODO [https://github.com/apache/beam/issues/20582] Change to asynchronous calls
-          String responseData = dicomStore.retrieveDicomStudyMetadata(dicomWebPath);
-          context.output(METADATA, responseData);
-        } catch (IOException e) {
-          String errorMessage = e.getMessage();
-          if (errorMessage != null) {
-            context.output(ERROR_MESSAGE, errorMessage);
+        CompletableFuture.runAsync(() -> {
+          try {
+            String responseData = dicomStore.retrieveDicomStudyMetadata(dicomWebPath);
+            context.output(METADATA, responseData);
+          } catch (IOException e) {
+            String errorMessage = e.getMessage();
+            if (errorMessage != null) {
+              context.output(ERROR_MESSAGE, errorMessage);
+            }
           }
+        });
         }
       }
-    }
 
     @Override
     public ReadStudyMetadata.Result expand(PCollection<String> input) {
