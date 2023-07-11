@@ -34,7 +34,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_Examples_Dataflow_V2_ja
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
           tasks(':runners:google-cloud-dataflow-java:examplesJavaRunnerV2IntegrationTest')
-
+          switches('-Pbuild-and-push-multiarch-containers')
           // Increase parallel worker threads above processor limit since most time is
           // spent waiting on Dataflow jobs. ValidatesRunner tests on Dataflow are slow
           // because each one launches a Dataflow job with about 3 mins of overhead.

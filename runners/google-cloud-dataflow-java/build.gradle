@@ -279,6 +279,7 @@ def buildAndPushDockerJavaContainer = tasks.register("buildAndPushDockerJavaCont
     javaVer = "java11"
   }
   dependsOn ":sdks:java:container:${javaVer}:docker"
+  // TODO: change the following since multi-arch Java containers have been pushed during build
   def defaultDockerImageName = containerImageName(
           name: "${project.docker_image_default_repo_prefix}${javaVer}_sdk",
           root: "apache",
