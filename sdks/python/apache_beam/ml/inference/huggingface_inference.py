@@ -105,6 +105,13 @@ def is_gpu_available_tensorflow(device):
   return True
 
 
+def _validate_constructor_args_hf_pipeline(task, model):
+  if not task and not model:
+    raise RuntimeError(
+        'Please provide both task and model to HuggingFacePipelineModelHandler.'
+        'If the model already defines the task, no need to specify the task.')
+
+
 def _run_inference_torch_keyed_tensor(
     batch: Sequence[Dict[str, torch.Tensor]],
     model: AutoModel,
@@ -468,9 +475,7 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
       self,
       task: str = None,
       model=None,
-      device: str = 'CPU',
       *,
-      inference_fn: Optional[Callable[..., PredictionT]] = None,
       load_model_args: Optional[Dict[str, Any]] = None,
       inference_args: Optional[Dict[str, Any]] = None,
       min_batch_size: Optional[int] = None,
@@ -479,8 +484,15 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
       **kwargs):
     """Implementation of the ModelHandler interface for Hugging Face Pipelines.
 
+    **Note:** To specify which device to use (CPU/GPU),
+    use the load_model_args with key-value as you would do in the usual
+    Hugging Face pipeline.
+    eg: HuggingFacePipelineModelHandler(
+      task="fill-mask",
+      device=0)
+
     Example Usage model::
-    pcoll | RunInference(HuggingFaceModelHandlerKeyedTensor(
+    pcoll | RunInference(HuggingFacePipelineModelHandler(
       task="fill-mask"))
 
     Args:
@@ -488,16 +500,10 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
       model : path to pretrained model on Hugging Face Models Hub to use custom
         model for the chosen task. If the model already defines the task then
         no need to specify the task parameter.
-      device: specify device on which you wish to run the model.
-        Defaults to CPU.
-      inference_fn: the inference function to use during RunInference.
-        Default is _run_inference_torch_keyed_tensor or
-        _run_inference_tensorflow_keyed_tensor depending on the input type.
       load_model_args (Dict[str, Any]): keyword arguments to provide load
         options while loading models from Hugging Face Hub. Defaults to None.
       inference_args [Dict[str, Any]]: Non-batchable arguments
-        required as inputs to the model's inference function. Unlike Tensors in
-        `batch`, these parameters will not be dynamically batched.
+        required as inputs to the model's inference function.
         Defaults to None.
       min_batch_size: the minimum batch size to use when batching inputs.
       max_batch_size: the maximum batch size to use when batching inputs.
@@ -513,9 +519,7 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
     """
     self._task = task
     self._model = model
-    self._device = device
-    self._inference_fn = inference_fn
-    self._model_config_args = load_model_args if load_model_args else {}
+    self._load_model_args = load_model_args if load_model_args else {}
     self._inference_args = inference_args if inference_args else {}
     self._batching_kwargs = {}
     self._framework = "torch"
@@ -525,10 +529,10 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
     if max_batch_size is not None:
       self._batching_kwargs['max_batch_size'] = max_batch_size
     self._large_model = large_model
+    _validate_constructor_args_hf_pipeline(self._task, self._model)
 
   def load_model(self):
-    return pipeline(
-        task=self._task, model=self._model, **self._model_config_args)
+    return pipeline(task=self._task, model=self._model, **self._load_model_args)
 
   def run_inference(
       self,

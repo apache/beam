@@ -15,14 +15,15 @@
 # limitations under the License.
 #
 
-""""A pipeline that uses RunInference to perform Language Modeling with
-model from Hugging Face.
+""""A pipeline that uses RunInference to perform Question Answering using the
+model from Hugging Face Models Hub.
 
-This pipeline takes sentences from a custom text file, converts the last word
-of the sentence into a <mask> token, and then uses the AutoModelForMaskedLM from
-Hugging Face to predict the best word for the masked token given all the words
-already in the sentence. The pipeline then writes the prediction to an output
-file in which users can then compare against the original sentence.
+This pipeline takes questions and context from a custom text file separated by
+a semicolon. These are converted to SquadExamples by using the utility provided
+by transformers.QuestionAnsweringPipeline and passed to the model handler.
+We just provide the model name here because the model repository specifies the
+task that it will do. The pipeline then writes the prediction to an output
+file in which users can then compare against the original context.
 """
 
 import argparse
@@ -106,7 +107,9 @@ def run(
     text = (
         pipeline | 'CreateSentences' >> beam.Create([
             "What does Apache Beam do?;"
-            "Apache Beam enables batch and streaming data processing."
+            "Apache Beam enables batch and streaming data processing.",
+            "What is the capital of France?;The capital of France is Paris .",
+            "Where was beam summit?;Apache Beam Summit 2023 was in NYC.",
         ]))
   else:
     text = (

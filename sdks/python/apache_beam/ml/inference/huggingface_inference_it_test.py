@@ -77,10 +77,12 @@ class HuggingFaceInference(unittest.TestCase):
 
   def test_hf_pipeline(self):
     test_pipeline = TestPipeline(is_integration_test=True)
-    # Path to text file containing some sentences
-    output_file_dir = 'gs://clouddfe-riteshghorse/hf/testing/predictions'
+    # Path to text file containing some questions and context
+    input_file = 'gs://apache-beam-ml/datasets/custom/questions.txt'
+    output_file_dir = 'gs://apache-beam-ml/hf/testing/predictions'
     output_file = '/'.join([output_file_dir, str(uuid.uuid4()), 'result.txt'])
     extra_opts = {
+        'input': input_file,
         'output': output_file,
     }
     huggingface_question_answering.run(
@@ -89,14 +91,15 @@ class HuggingFaceInference(unittest.TestCase):
     self.assertEqual(FileSystems().exists(output_file), True)
     predictions = pytorch_inference_it_test.process_outputs(
         filepath=output_file)
-    actuals = [
-        "What does Apache Beam do?;enables batch and streaming data processing"
-    ]
+    actuals_file = (
+        'gs://apache-beam-ml/testing/expected_outputs/'
+        'test_hf_pipeline_answers.txt')
+    actuals = pytorch_inference_it_test.process_outputs(filepath=actuals_file)
 
     predictions_dict = {}
     for prediction in predictions:
       text, predicted_text = prediction.split(';')
-      predictions_dict[text] = predicted_text.strip().lower()
+      predictions_dict[text] = predicted_text.strip()
 
     for actual in actuals:
       text, actual_predicted_text = actual.split(';')
