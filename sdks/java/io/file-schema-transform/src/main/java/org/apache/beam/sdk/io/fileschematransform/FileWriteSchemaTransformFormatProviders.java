@@ -17,8 +17,11 @@
  */
 package org.apache.beam.sdk.io.fileschematransform;
 
+import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformProvider.ERROR_SCHEMA;
+import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformProvider.ERROR_TAG;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Optional;
 import org.apache.avro.generic.GenericRecord;
@@ -27,12 +30,19 @@ import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.io.Compression;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.io.Providers;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * {@link FileWriteSchemaTransformFormatProviders} contains {@link
@@ -49,6 +59,8 @@ public final class FileWriteSchemaTransformFormatProviders {
   static final String JSON = "json";
   static final String PARQUET = "parquet";
   static final String XML = "xml";
+  private static final Logger LOG =
+      LoggerFactory.getLogger(FileWriteSchemaTransformFormatProviders.class);
 
   /** Load all {@link FileWriteSchemaTransformFormatProvider} implementations. */
   public static Map<String, FileWriteSchemaTransformFormatProvider> loadProviders() {
@@ -59,6 +71,49 @@ public final class FileWriteSchemaTransformFormatProviders {
   static MapElements<Row, GenericRecord> mapRowsToGenericRecords(Schema beamSchema) {
     return MapElements.into(TypeDescriptor.of(GenericRecord.class))
         .via(AvroUtils.getRowToGenericRecordFunction(AvroUtils.toAvroSchema(beamSchema)));
+  }
+
+  // Applies generic mapping from Beam row to other data types through the provided mapFn.
+  // Implemenets error handling with metrics and DLQ support.
+  // Arguments:
+  //    name: the metric name to use.
+  //    mapFn: the mapping function for mapping from Beam row to other data types.
+  //    outputTag: TupleTag for output. Used to direct output to correct output source, or in the
+  //        case of error, a DLQ.
+  static class BeamRowMapperWithDlq<OutputT extends Object> extends DoFn<Row, OutputT> {
+    private SerializableFunction<Row, OutputT> mapFn;
+    private Counter errorCounter;
+    private TupleTag<OutputT> outputTag;
+    private long errorsInBundle = 0L;
+
+    public BeamRowMapperWithDlq(
+        String name, SerializableFunction<Row, OutputT> mapFn, TupleTag<OutputT> outputTag) {
+      errorCounter = Metrics.counter(FileWriteSchemaTransformFormatProvider.class, name);
+      this.mapFn = mapFn;
+      this.outputTag = outputTag;
+    }
+
+    @ProcessElement
+    public void process(@DoFn.Element Row row, MultiOutputReceiver receiver) {
+      try {
+        receiver.get(outputTag).output(mapFn.apply(row));
+      } catch (Exception e) {
+        errorsInBundle += 1;
+        LOG.warn("Error while parsing input element", e);
+        receiver
+            .get(ERROR_TAG)
+            .output(
+                Row.withSchema(ERROR_SCHEMA)
+                    .addValues(e.toString(), row.toString().getBytes(StandardCharsets.UTF_8))
+                    .build());
+      }
+    }
+
+    @FinishBundle
+    public void finish() {
+      errorCounter.inc(errorsInBundle);
+      errorsInBundle = 0L;
+    }
   }
 
   /**

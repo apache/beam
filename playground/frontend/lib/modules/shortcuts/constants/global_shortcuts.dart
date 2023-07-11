@@ -51,7 +51,7 @@ final kNewExampleShortcut = BeamShortcut(
   ],
   actionIntent: const NewExampleIntent(),
   createAction: (_) => CallbackAction(
-    onInvoke: (_) => launchUrl(Uri.parse('/')),
+    onInvoke: (_) => launchUrl(Uri.parse(BeamLinks.newExample)),
   ),
 );
 

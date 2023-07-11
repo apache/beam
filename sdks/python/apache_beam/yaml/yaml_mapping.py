@@ -62,6 +62,7 @@ class _Explode(beam.PTransform):
   def __init__(self, fields, cross_product):
     self._fields = fields
     self._cross_product = cross_product
+    self._exception_handling_args = None
 
   def expand(self, pcoll):
     all_fields = [
@@ -86,11 +87,15 @@ class _Explode(beam.PTransform):
           copy[field] = values[ix]
         yield beam.Row(**copy)
 
-    return pcoll | beam.FlatMap(
-        lambda row: (
-        explode_cross_product if self._cross_product else explode_zip)(
-            {name: getattr(row, name) for name in all_fields},  # yapf break
-            to_explode))
+    return (
+        beam.core._MaybePValueWithErrors(
+            pcoll, self._exception_handling_args)
+        | beam.FlatMap(
+            lambda row: (
+                explode_cross_product if self._cross_product else explode_zip)(
+                    {name: getattr(row, name) for name in all_fields},  # yapf
+                    to_explode))
+        ).as_result()
 
   def infer_output_type(self, input_type):
     return row_type.RowTypeConstraint.from_fields([(
@@ -98,15 +103,36 @@ class _Explode(beam.PTransform):
         trivial_inference.element_type(typ) if name in self._fields else
         typ) for (name, typ) in named_fields_from_element_type(input_type)])
 
+  def with_exception_handling(self, **kwargs):
+    # It's possible there's an error in iteration...
+    self._exception_handling_args = kwargs
+    return self
+
 
 # TODO(yaml): Should Filter and Explode be distinct operations from Project?
 # We'll want these per-language.
 @beam.ptransform.ptransform_fn
 def _PythonProjectionTransform(
-    pcoll, *, fields, keep=None, explode=(), cross_product=True):
+    pcoll,
+    *,
+    fields,
+    keep=None,
+    explode=(),
+    cross_product=True,
+    error_handling=None):
   original_fields = [
       name for (name, _) in named_fields_from_element_type(pcoll.element_type)
   ]
+
+  if error_handling is None:
+    error_handling_args = None
+  else:
+    error_handling_args = {
+        'dead_letter_tag' if k == 'output' else k: v
+        for (k, v) in error_handling.items()
+    }
+
+  pcoll = beam.core._MaybePValueWithErrors(pcoll, error_handling_args)
 
   if keep:
     if isinstance(keep, str) and keep in original_fields:
@@ -131,7 +157,11 @@ def _PythonProjectionTransform(
   else:
     result = projected
 
-  return result
+  return result.as_result(
+      beam.MapTuple(
+          lambda element,
+          exc_info: beam.Row(
+              element=element, msg=str(exc_info[1]), stack=str(exc_info[2]))))
 
 
 @beam.ptransform.ptransform_fn
@@ -146,6 +176,7 @@ def MapToFields(
     append=False,
     drop=(),
     language=None,
+    error_handling=None,
     **language_keywords):
 
   if isinstance(explode, str):
@@ -192,6 +223,8 @@ def MapToFields(
     language = "python"
 
   if language in ("sql", "calcite"):
+    if error_handling:
+      raise ValueError('Error handling unsupported for sql.')
     selects = [f'{expr} AS {name}' for (name, expr) in fields.items()]
     query = "SELECT " + ", ".join(selects) + " FROM PCOLLECTION"
     if keep:
@@ -199,7 +232,7 @@ def MapToFields(
 
     result = pcoll | yaml_create_transform({
         'type': 'Sql', 'query': query, **language_keywords
-    })
+    }, [pcoll])
     if explode:
       # TODO(yaml): Implement via unnest.
       result = result | _Explode(explode, cross_product)
@@ -215,9 +248,10 @@ def MapToFields(
             'keep': keep,
             'explode': explode,
             'cross_product': cross_product,
+            'error_handling': error_handling,
         },
         **language_keywords
-    })
+    }, [pcoll])
 
   else:
     # TODO(yaml): Support javascript expressions and UDFs.

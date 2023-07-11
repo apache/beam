@@ -41,6 +41,9 @@ from apache_beam import pvalue
 from apache_beam import typehints
 from apache_beam.coders.coders import ToBytesCoder
 from apache_beam.examples.snippets import snippets
+from apache_beam.examples.snippets import snippets_examples_wordcount_debugging
+from apache_beam.examples.snippets import snippets_examples_wordcount_minimal
+from apache_beam.examples.snippets import snippets_examples_wordcount_wordcount
 from apache_beam.metrics import Metrics
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.options.pipeline_options import GoogleCloudOptions
@@ -60,10 +63,6 @@ from apache_beam.transforms.trigger import Repeatedly
 from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils.windowed_value import WindowedValue
-
-from . import snippets_examples_wordcount_debugging
-from . import snippets_examples_wordcount_minimal
-from . import snippets_examples_wordcount_wordcount
 
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -614,7 +613,7 @@ class SnippetsTest(unittest.TestCase):
       snippets.model_pipelines()
     self.assertEqual(
         self.get_output(result_path),
-        [str(s) for s in [(u'aa', 1), (u'bb', 2), (u'cc', 3)]])
+        [str(s) for s in [('aa', 1), ('bb', 2), ('cc', 3)]])
 
   def test_model_pcollection(self):
     temp_path = self.create_temp_file()
@@ -863,7 +862,7 @@ class SnippetsTest(unittest.TestCase):
     input_topic = 'projects/fake-beam-test-project/topic/intopic'
     input_values = [
         TimestampedValue(b'a a b', 1),
-        TimestampedValue(u'🤷 ¯\\_(ツ)_/¯ b b '.encode('utf-8'), 12),
+        TimestampedValue('🤷 ¯\\_(ツ)_/¯ b b '.encode('utf-8'), 12),
         TimestampedValue(b'a b c c c', 20)
     ]
     output_topic = 'projects/fake-beam-test-project/topic/outtopic'

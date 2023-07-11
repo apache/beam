@@ -201,7 +201,6 @@ public class SplunkIO {
      * @param batchCount for batching requests
      */
     public Write withBatchCount(ValueProvider<Integer> batchCount) {
-      checkNotNull(batchCount, "withBatchCount(batchCount) called with null input.");
       return toBuilder().setBatchCount(batchCount).build();
     }
 
@@ -211,7 +210,6 @@ public class SplunkIO {
      * @param batchCount for batching requests
      */
     public Write withBatchCount(Integer batchCount) {
-      checkNotNull(batchCount, "withBatchCount(batchCount) called with null input.");
       return toBuilder().setBatchCount(StaticValueProvider.of(batchCount)).build();
     }
 
@@ -221,7 +219,6 @@ public class SplunkIO {
      * @param parallelism for controlling the number of concurrent http client connections
      */
     public Write withParallelism(ValueProvider<Integer> parallelism) {
-      checkNotNull(parallelism, "withParallelism(parallelism) called with null input.");
       return toBuilder().setParallelism(parallelism).build();
     }
 
@@ -232,7 +229,6 @@ public class SplunkIO {
      * @return {@link Builder}
      */
     public Write withParallelism(Integer parallelism) {
-      checkNotNull(parallelism, "withParallelism(parallelism) called with null input.");
       return toBuilder().setParallelism(StaticValueProvider.of(parallelism)).build();
     }
 
@@ -245,9 +241,6 @@ public class SplunkIO {
      */
     public Write withDisableCertificateValidation(
         ValueProvider<Boolean> disableCertificateValidation) {
-      checkNotNull(
-          disableCertificateValidation,
-          "withDisableCertificateValidation(disableCertificateValidation) called with null input.");
       return toBuilder().setDisableCertificateValidation(disableCertificateValidation).build();
     }
 
@@ -257,9 +250,6 @@ public class SplunkIO {
      * @param disableCertificateValidation for disabling certificate validation
      */
     public Write withDisableCertificateValidation(Boolean disableCertificateValidation) {
-      checkNotNull(
-          disableCertificateValidation,
-          "withDisableCertificateValidation(disableCertificateValidation) called with null input.");
       return toBuilder()
           .setDisableCertificateValidation(StaticValueProvider.of(disableCertificateValidation))
           .build();
@@ -273,9 +263,6 @@ public class SplunkIO {
      * @return {@link Builder}
      */
     public Write withRootCaCertificatePath(ValueProvider<String> rootCaCertificatePath) {
-      checkNotNull(
-          rootCaCertificatePath,
-          "withRootCaCertificatePath(rootCaCertificatePath) called with null input.");
       return toBuilder().setRootCaCertificatePath(rootCaCertificatePath).build();
     }
 
@@ -286,9 +273,6 @@ public class SplunkIO {
      * @return {@link Builder}
      */
     public Write withRootCaCertificatePath(String rootCaCertificatePath) {
-      checkNotNull(
-          rootCaCertificatePath,
-          "withRootCaCertificatePath(rootCaCertificatePath) called with null input.");
       return toBuilder()
           .setRootCaCertificatePath(StaticValueProvider.of(rootCaCertificatePath))
           .build();
@@ -302,7 +286,6 @@ public class SplunkIO {
      * @return {@link Builder}
      */
     public Write withEnableBatchLogs(ValueProvider<Boolean> enableBatchLogs) {
-      checkNotNull(enableBatchLogs, "withEnableBatchLogs(enableBatchLogs) called with null input.");
       return toBuilder().setEnableBatchLogs(enableBatchLogs).build();
     }
 
@@ -313,7 +296,6 @@ public class SplunkIO {
      * @return {@link Builder}
      */
     public Write withEnableBatchLogs(Boolean enableBatchLogs) {
-      checkNotNull(enableBatchLogs, "withEnableBatchLogs(enableBatchLogs) called with null input.");
       return toBuilder().setEnableBatchLogs(StaticValueProvider.of(enableBatchLogs)).build();
     }
 
@@ -325,9 +307,6 @@ public class SplunkIO {
      * @return {@link Builder}
      */
     public Write withEnableGzipHttpCompression(ValueProvider<Boolean> enableGzipHttpCompression) {
-      checkNotNull(
-          enableGzipHttpCompression,
-          "withEnableGzipHttpCompression(enableGzipHttpCompression) called with null input.");
       return toBuilder().setEnableGzipHttpCompression(enableGzipHttpCompression).build();
     }
 
@@ -338,9 +317,6 @@ public class SplunkIO {
      * @return {@link Builder}
      */
     public Write withEnableGzipHttpCompression(Boolean enableGzipHttpCompression) {
-      checkNotNull(
-          enableGzipHttpCompression,
-          "withEnableGzipHttpCompression(enableGzipHttpCompression) called with null input.");
       return toBuilder()
           .setEnableGzipHttpCompression(StaticValueProvider.of(enableGzipHttpCompression))
           .build();

@@ -138,7 +138,7 @@ public class SqlTransformSchemaTransformProvider implements SchemaTransformProvi
     }
   }
 
-  static class SqlSchemaTransform implements SchemaTransform {
+  static class SqlSchemaTransform extends SchemaTransform {
     final Row config;
 
     public SqlSchemaTransform(Row config) {
@@ -146,94 +146,86 @@ public class SqlTransformSchemaTransformProvider implements SchemaTransformProvi
     }
 
     @Override
-    public PTransform<PCollectionRowTuple, PCollectionRowTuple> buildTransform() {
-      return new PTransform<PCollectionRowTuple, PCollectionRowTuple>() {
-        @Override
-        public PCollectionRowTuple expand(PCollectionRowTuple input) {
+    public PCollectionRowTuple expand(PCollectionRowTuple input) {
 
-          // Start with the query. In theory the exception can't be thrown, but all this nullness
-          // stuff
-          // isn't actually smart enough to know that. Could just cop and suppress that warning, but
-          // doing it the hard way for some reason.
-          String queryString = config.getString("query");
-          if (queryString == null) {
-            throw new IllegalArgumentException("Configuration must provide a query string.");
-          }
-          SqlTransform transform = SqlTransform.query(queryString);
+      // Start with the query. In theory the exception can't be thrown, but all this nullness
+      // stuff
+      // isn't actually smart enough to know that. Could just cop and suppress that warning, but
+      // doing it the hard way for some reason.
+      String queryString = config.getString("query");
+      if (queryString == null) {
+        throw new IllegalArgumentException("Configuration must provide a query string.");
+      }
+      SqlTransform transform = SqlTransform.query(queryString);
 
-          // Allow setting the query planner class via the dialect name.
-          EnumerationType.Value dialect =
-              config.getLogicalTypeValue("dialect", EnumerationType.Value.class);
-          if (dialect != null) {
-            Class<? extends QueryPlanner> queryPlannerClass =
-                QUERY_PLANNERS.get(QUERY_ENUMERATION.toString(dialect));
-            if (queryPlannerClass != null) {
-              transform = transform.withQueryPlannerClass(queryPlannerClass);
-            }
-          }
+      // Allow setting the query planner class via the dialect name.
+      EnumerationType.Value dialect =
+          config.getLogicalTypeValue("dialect", EnumerationType.Value.class);
+      if (dialect != null) {
+        Class<? extends QueryPlanner> queryPlannerClass =
+            QUERY_PLANNERS.get(QUERY_ENUMERATION.toString(dialect));
+        if (queryPlannerClass != null) {
+          transform = transform.withQueryPlannerClass(queryPlannerClass);
+        }
+      }
 
-          // Add any DDL strings
-          String ddl = config.getString("ddl");
-          if (ddl != null) {
-            transform = transform.withDdlString(ddl);
-          }
+      // Add any DDL strings
+      String ddl = config.getString("ddl");
+      if (ddl != null) {
+        transform = transform.withDdlString(ddl);
+      }
 
-          // Check to see if we autoload or not
-          Boolean autoload = config.getBoolean("autoload");
-          if (autoload != null && autoload) {
-            transform = transform.withAutoLoading(true);
-          } else {
-            transform = transform.withAutoLoading(false);
+      // Check to see if we autoload or not
+      Boolean autoload = config.getBoolean("autoload");
+      if (autoload != null && autoload) {
+        transform = transform.withAutoLoading(true);
+      } else {
+        transform = transform.withAutoLoading(false);
 
-            // Add any user specified table providers from the set of available tableproviders.
-            Map<String, TableProvider> tableProviders = new HashMap<>();
-            ServiceLoader.load(TableProvider.class)
-                .forEach(
-                    (provider) -> {
-                      tableProviders.put(provider.getTableType(), provider);
-                    });
-            Collection<?> tableproviderList = config.getArray("tableproviders");
-            if (tableproviderList != null) {
-              for (Object nameObj : tableproviderList) {
-                if (nameObj != null) { // This actually could in theory be null...
-                  TableProvider p = tableProviders.get(nameObj);
-                  if (p
-                      != null) { // TODO: We ignore tableproviders that don't exist, we could change
-                    // that.
-                    transform = transform.withTableProvider(p.getTableType(), p);
-                  }
-                }
+        // Add any user specified table providers from the set of available tableproviders.
+        Map<String, TableProvider> tableProviders = new HashMap<>();
+        ServiceLoader.load(TableProvider.class)
+            .forEach(
+                (provider) -> {
+                  tableProviders.put(provider.getTableType(), provider);
+                });
+        Collection<?> tableproviderList = config.getArray("tableproviders");
+        if (tableproviderList != null) {
+          for (Object nameObj : tableproviderList) {
+            if (nameObj != null) { // This actually could in theory be null...
+              TableProvider p = tableProviders.get(nameObj);
+              if (p != null) { // TODO: We ignore tableproviders that don't exist, we could change
+                // that.
+                transform = transform.withTableProvider(p.getTableType(), p);
               }
             }
           }
-
-          // TODO: Process query parameters. This is not necessary for Syndeo GA but would be
-          // really nice to have.
-
-          // TODO: See about reimplementing a correct version of SqlTransform
-          ErrorCapture errors = new ErrorCapture();
-          PCollection<Row> output = input.apply(transform.withErrorsTransformer(errors));
-
-          // TODO: One possibility for capturing the required tables would be to inject a
-          // tableprovider
-          // that we control and see which tables are requested during expansion. We could then
-          // modify the output schema to reflect these inputs via options for better validation.
-
-          List<PCollection<Row>> errorList = errors.getInputs();
-          if (errorList.size() == 0) {
-            PCollection<Row> emptyErrors =
-                input
-                    .getPipeline()
-                    .apply(Create.empty(BeamSqlRelUtils.getErrorRowSchema(Schema.of())));
-            return PCollectionRowTuple.of("output", output, "errors", emptyErrors);
-          } else if (errorList.size() == 1) {
-            return PCollectionRowTuple.of("output", output, "errors", errorList.get(0));
-          } else {
-            throw new UnsupportedOperationException(
-                "SqlTransform currently only supports a single dead letter queue collection");
-          }
         }
-      };
+      }
+
+      // TODO: Process query parameters. This is not necessary for Syndeo GA but would be
+      // really nice to have.
+
+      // TODO: See about reimplementing a correct version of SqlTransform
+      ErrorCapture errors = new ErrorCapture();
+      PCollection<Row> output = input.apply(transform.withErrorsTransformer(errors));
+
+      // TODO: One possibility for capturing the required tables would be to inject a
+      // tableprovider
+      // that we control and see which tables are requested during expansion. We could then
+      // modify the output schema to reflect these inputs via options for better validation.
+
+      List<PCollection<Row>> errorList = errors.getInputs();
+      if (errorList.size() == 0) {
+        PCollection<Row> emptyErrors =
+            input.getPipeline().apply(Create.empty(BeamSqlRelUtils.getErrorRowSchema(Schema.of())));
+        return PCollectionRowTuple.of("output", output, "errors", emptyErrors);
+      } else if (errorList.size() == 1) {
+        return PCollectionRowTuple.of("output", output, "errors", errorList.get(0));
+      } else {
+        throw new UnsupportedOperationException(
+            "SqlTransform currently only supports a single dead letter queue collection");
+      }
     }
   }
 }

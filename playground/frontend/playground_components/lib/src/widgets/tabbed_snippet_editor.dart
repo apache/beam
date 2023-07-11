@@ -47,6 +47,7 @@ class TabbedSnippetEditor extends StatelessWidget {
     final keys = files.map((f) => f.name).toList(growable: false);
     final initialKey = files.firstWhereOrNull((f) => f.isMain)?.name;
 
+    // TODO(nausharipov): fork keyed_collection_widgets and put prints.
     return DefaultKeyedTabController<String>.fromKeys(
       animationDuration: Duration.zero,
       initialKey: initialKey,

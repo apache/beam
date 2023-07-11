@@ -533,6 +533,13 @@ class CrossLanguageOptions(PipelineOptions):
             'Should be a json mapping of gradle build targets to pre-built '
             'artifacts (e.g. jar files) expansion endpoints (e.g. host:port).'))
 
+    parser.add_argument(
+        '--use_transform_service',
+        default=False,
+        action='store_true',
+        help='Use the Docker-composed-based transform service when expanding '
+        'cross-language transforms.')
+
 
 def additional_option_ptransform_fn():
   beam.transforms.ptransform.ptransform_fn_typehints_enabled = True

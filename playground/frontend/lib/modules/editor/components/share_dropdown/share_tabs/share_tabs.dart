@@ -48,9 +48,8 @@ class ShareTabs extends StatelessWidget {
         builder: (context, playgroundController, _) {
           final controller =
               playgroundController.requireSnippetEditingController();
-          final descriptor = controller.descriptor;
 
-          if (descriptor == null || controller.isChanged) {
+          if (controller.shouldSaveBeforeSharing()) {
             return SnippetSaveAndShareTabs(
               eventSnippetContext: eventSnippetContext,
               onError: onError,
@@ -61,7 +60,7 @@ class ShareTabs extends StatelessWidget {
           }
 
           return ExampleShareTabs(
-            descriptor: descriptor,
+            descriptor: controller.descriptor!,
             eventSnippetContext: eventSnippetContext,
             sdk: controller.sdk,
             tabController: tabController,
