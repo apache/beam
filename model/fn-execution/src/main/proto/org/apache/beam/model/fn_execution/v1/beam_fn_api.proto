@@ -47,6 +47,8 @@ import "google/protobuf/timestamp.proto";
 import "google/protobuf/duration.proto";
 
 
+// Describes transforms necessary to execute Beam over the FnAPI but are
+// implementation details rather than part of the core model.
 message FnApiTransforms {
   enum Runner {
     // DataSource is a Root Transform, and a source of data for downstream
