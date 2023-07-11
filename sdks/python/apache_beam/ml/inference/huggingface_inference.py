@@ -247,7 +247,7 @@ class HuggingFaceModelHandler(ModelHandler[ExampleT, PredictionT, ModelT], ABC):
 
 class HuggingFaceModelHandlerKeyedTensor(
     HuggingFaceModelHandler[Dict[str, Union[tf.Tensor, torch.Tensor]],
-                            Iterable[PredictionResult],
+                            PredictionResult,
                             Union[AutoModel, TFAutoModel]]):
   """Implementation of the ModelHandler interface for HuggingFace with
     Keyed Tensors for PyTorch/Tensorflow backend.
@@ -338,10 +338,12 @@ def _default_inference_fn_tensorflow(
   return utils._convert_to_result(batch, predictions, model_id)
 
 
-class HuggingFaceModelHandlerTensor(
-    HuggingFaceModelHandler[Union[tf.Tensor, torch.Tensor],
-                            Iterable[PredictionResult],
-                            Union[AutoModel, TFAutoModel]]):
+class HuggingFaceModelHandlerTensor(HuggingFaceModelHandler[Union[tf.Tensor,
+                                                                  torch.Tensor],
+                                                            PredictionResult,
+                                                            Union[AutoModel,
+                                                                  TFAutoModel]]
+                                    ):
   """Implementation of the ModelHandler interface for HuggingFace with
     Tensors for PyTorch/Tensorflow backend.
 
