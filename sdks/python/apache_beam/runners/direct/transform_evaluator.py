@@ -170,10 +170,10 @@ class TransformEvaluatorRegistry(object):
     Returns:
       True if executor should execute applied_ptransform serially.
     """
-    if isinstance(applied_ptransform.transform,
-                  (_GroupByKeyOnly,
-                   _StreamingGroupByKeyOnly,
-                   _StreamingGroupAlsoByWindow)):
+    if isinstance(
+        applied_ptransform.transform,
+        (_GroupByKeyOnly, _StreamingGroupByKeyOnly,
+         _StreamingGroupAlsoByWindow)):
       return True
     elif (isinstance(applied_ptransform.transform, core.ParDo) and
           is_stateful_dofn(applied_ptransform.transform.dofn)):
