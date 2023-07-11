@@ -45,6 +45,8 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Py_ValCont',
           switches('-Pbuild-and-push-multiarch-containers')
           // Regenerates the base image requirements to accommodate ARM.
           switches('-Pregenerate-requirements')
+          // Push multi-arch containers to the repository set in run_validatescontainer.sh
+          switches('-Pdocker-repository-root=us.gcr.io/apache-beam-testing/jenkins')
           switches('-Pdocker-tag=${unique_tag}')
           commonJobProperties.setGradleSwitches(delegate)
         }
