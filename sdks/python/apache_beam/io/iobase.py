@@ -923,10 +923,8 @@ class Read(ptransform.PTransform):
 
   def _infer_output_coder(self, input_type=None, input_coder=None):
     # type: (...) -> Optional[coders.Coder]
-    if isinstance(self.source, BoundedSource):
+    if isinstance(self.source, SourceBase):
       return self.source.default_output_coder()
-    elif isinstance(self.source, iobase.SourceBase):
-      return self.source.coder
     else:
       return None
 
