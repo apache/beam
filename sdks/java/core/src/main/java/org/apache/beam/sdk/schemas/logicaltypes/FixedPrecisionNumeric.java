@@ -22,6 +22,8 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import java.math.BigDecimal;
 import java.math.MathContext;
+
+import org.apache.avro.LogicalTypes;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.SchemaApi;
 import org.apache.beam.sdk.schemas.Schema;
@@ -112,5 +114,14 @@ public class FixedPrecisionNumeric extends PassThroughLogicalType<BigDecimal> {
           (base == null) ? null : base.scale());
     }
     return base;
+  }
+
+  /**
+   * @TODO is byte or fixed?
+   * @TODO should is pass namespace/field name, etc?
+   * */
+  public org.apache.avro.Schema toAvroType() {
+    return LogicalTypes.decimal(precision, scale)
+            .addToSchema(org.apache.avro.Schema.create(org.apache.avro.Schema.Type.FIXED)); // @TODO not bytes??
   }
 }

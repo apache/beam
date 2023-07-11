@@ -122,8 +122,6 @@ public class SchemaUtil {
         return beamLogicalField(CHAR.getName(), FixedString::of);
       case DATE:
         return beamFieldOfType(LogicalTypes.JDBC_DATE_TYPE);
-      case DECIMAL:
-        return beamFieldOfType(Schema.FieldType.DECIMAL);
       case DOUBLE:
         return beamFieldOfType(Schema.FieldType.DOUBLE);
       case FLOAT:
@@ -139,6 +137,7 @@ public class SchemaUtil {
       case NCHAR:
         return beamLogicalField(NCHAR.getName(), FixedString::of);
       case NUMERIC:
+      case DECIMAL:
         return beamLogicalNumericField();
       case NVARCHAR:
         return beamLogicalField(NVARCHAR.getName(), VariableString::of);
@@ -217,7 +216,7 @@ public class SchemaUtil {
   private static BeamFieldConverter beamLogicalNumericField() {
     return (index, md) -> {
       int precision = md.getPrecision(index);
-      if (precision == Integer.MAX_VALUE || precision == -1) {
+      if (precision == Integer.MAX_VALUE || precision == -1 || precision == 0 /* by PostgreSQL*/){
         // If a precision is not specified, the column stores values as given (e.g. in Oracle DB)
         return Schema.Field.of(md.getColumnLabel(index), FieldType.DECIMAL)
             .withNullable(md.isNullable(index) == ResultSetMetaData.columnNullable);

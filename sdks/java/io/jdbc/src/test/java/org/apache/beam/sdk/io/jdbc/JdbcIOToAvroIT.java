@@ -84,8 +84,8 @@ public class JdbcIOToAvroIT {
             try (Statement statement = connection.createStatement()) {
                 statement.execute(String.format("insert into %s values (%s,%s,%s,%s,%s,%s,%s,%s    ,%s)," +
                                 "(%s,%s,%s,%s,%s,%s,%s,%s    ,%s) ", tableName,
-                        1,2,"3.45","4.56",      1,2,"3.45","4.56",    "1",
-                        "NULL",2,"NULL","4.56", "NULL",2,"NULL","4.56",   "2"));
+                        "1.23","1.23","1.23","1.23",      "1.23","1.23","1.23","1.23",   "1",
+                        "NULL","1.23","NULL","1.23", "NULL","1.23","NULL","1.23",   "2"));
             }
         }
 
