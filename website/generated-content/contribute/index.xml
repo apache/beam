@@ -1201,6 +1201,7 @@ You don&amp;rsquo;t need to wait for the action to complete to start running the
 &lt;ol>
 &lt;li>Clone the repo at the selected RC tag.&lt;/li>
 &lt;li>Run gradle publish to push java artifacts into Maven staging repo.&lt;/li>
+&lt;li>Stage SDK docker images to &lt;a href="https://hub.docker.com/search?q=apache%2Fbeam&amp;amp;type=image">docker hub Apache organization&lt;/a>.&lt;/li>
 &lt;/ol>
 &lt;/li>
 &lt;/ul>
@@ -1235,9 +1236,11 @@ Some additional validation should be done during the rc validation step.&lt;/li>
 &lt;p>&lt;strong>The script will:&lt;/strong>&lt;/p>
 &lt;ol>
 &lt;li>Clone the repo at the selected RC tag.&lt;/li>
-&lt;li>Stage source release into dist.apache.org dev &lt;a href="https://dist.apache.org/repos/dist/dev/beam/">repo&lt;/a>.&lt;/li>
+&lt;li>Stage source release into dist.apache.org dev &lt;a href="https://dist.apache.org/repos/dist/dev/beam/">repo&lt;/a>.
+Skip this step if you already did it with the build_release_candidate GitHub Actions workflow.&lt;/li>
 &lt;li>Stage, sign and hash python source distribution and wheels into dist.apache.org dev repo python dir&lt;/li>
 &lt;li>Stage SDK docker images to &lt;a href="https://hub.docker.com/search?q=apache%2Fbeam&amp;amp;type=image">docker hub Apache organization&lt;/a>.
+Skip this step if you already did it with the build_release_candidate GitHub Actions workflow.
 Note: if you are not a member of the &lt;a href="https://hub.docker.com/orgs/apache/teams/beam">&lt;code>beam&lt;/code> DockerHub team&lt;/a> you will need
 help with this step. Please email &lt;code>dev@&lt;/code> and ask a member of the &lt;code>beam&lt;/code> DockerHub team for help.&lt;/li>
 &lt;li>Create a PR to update beam-site, changes includes:
