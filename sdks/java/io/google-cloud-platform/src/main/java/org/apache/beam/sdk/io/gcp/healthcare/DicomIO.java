@@ -176,7 +176,7 @@ public class DicomIO {
         try {
           String responseData = dicomStore.sendAsync(retrieveDicomStudyMetadata(dicomWebPath),
           BodyHandlers.ofString()).thenApply(response -> { System.out.println(response.statusCode());
-                return response; } )
+                return response; } );
           context.output(METADATA, responseData);
         } catch (IOException e) {
           String errorMessage = e.getMessage();
