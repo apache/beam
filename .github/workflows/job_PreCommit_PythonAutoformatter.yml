@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-name: Python Precommit Formatter
+name: Python PreCommit Formatter
 on:
   pull_request_target:
     branches: [ "master", "release-*" ]
@@ -74,5 +74,5 @@ jobs:
         uses: gradle/gradle-build-action@v2
         with:
           cache-read-only: false
-      - name: run PythonDockerPrecommit script
+      - name: run PythonDockerPreCommit script
         run: ./gradlew :pythonFormatterPreCommit
