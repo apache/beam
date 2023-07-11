@@ -174,9 +174,8 @@ public class DicomIO {
       public void processElement(ProcessContext context) {
         String dicomWebPath = context.element();
         try {
-          String responseData = dicomStore.sendAsync(retrieveDicomStudyMetadata(dicomWebPath),
-          BodyHandlers.ofString()).thenApply(response -> { System.out.println(response.statusCode());
-                return response; } );
+          // TODO [https://github.com/apache/beam/issues/20582] Change to asynchronous calls
+          String responseData = dicomStore.retrieveDicomStudyMetadata(dicomWebPath);
           context.output(METADATA, responseData);
         } catch (IOException e) {
           String errorMessage = e.getMessage();
