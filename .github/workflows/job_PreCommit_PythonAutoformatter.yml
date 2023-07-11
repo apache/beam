@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-name: Python Precommit Formatter
+name: Python PreCommit Formatter
 on:
   pull_request_target:
     branches: [ "master", "release-*" ]
@@ -48,7 +48,7 @@ jobs:
       github.event_name == 'pull_request_target' || 
       github.event.comment.body == 'Run PythonFormatter PreCommit' || 
       github.event_name == 'schedule'
-    runs-on: [self-hosted, ubuntu-20.04]
+    runs-on: [self-hosted, ubuntu-20.04, main]
     steps:
       - uses: actions/checkout@v3
         with:
@@ -74,5 +74,5 @@ jobs:
         uses: gradle/gradle-build-action@v2
         with:
           cache-read-only: false
-      - name: run PythonDockerPrecommit script
+      - name: run PythonDockerPreCommit script
         run: ./gradlew :pythonFormatterPreCommit

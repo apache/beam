@@ -48,7 +48,7 @@ jobs:
       github.event_name == 'pull_request_target' || 
       github.event.comment.body == 'Run PythonLint PreCommit' || 
       github.event_name == 'schedule'
-    runs-on: [self-hosted, ubuntu-20.04]
+    runs-on: [self-hosted, ubuntu-20.04, main]
     steps:
       - uses: actions/checkout@v3
         with:
@@ -77,5 +77,5 @@ jobs:
         uses: gradle/gradle-build-action@v2
         with:
           cache-read-only: false
-      - name: run PythonLintPrecommit script
+      - name: run PythonLintPreCommit script
         run: ./gradlew :pythonLintPreCommit
