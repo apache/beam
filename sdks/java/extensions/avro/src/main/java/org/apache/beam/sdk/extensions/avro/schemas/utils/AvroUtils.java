@@ -1089,7 +1089,7 @@ public class AvroUtils {
       baseType = fixedBytesField.toAvroType("fixed", namespace + "." + fieldName);
     } else if (FixedPrecisionNumeric.IDENTIFIER.equals(identifier)) {
       FixedPrecisionNumeric decimalType = fieldType.getLogicalType(FixedPrecisionNumeric.class);
-      baseType = decimalType.toAvroType();
+      baseType = decimalType.toAvroType("fix_dec",  namespace + "." + fieldName);
     } else if (VariableBytes.IDENTIFIER.equals(identifier)) {
       // treat VARBINARY as bytes as that is what avro supports
       baseType = org.apache.avro.Schema.create(Type.BYTES);

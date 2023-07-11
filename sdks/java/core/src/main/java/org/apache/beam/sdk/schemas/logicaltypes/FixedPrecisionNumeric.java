@@ -120,8 +120,9 @@ public class FixedPrecisionNumeric extends PassThroughLogicalType<BigDecimal> {
    * @TODO is byte or fixed?
    * @TODO should is pass namespace/field name, etc?
    * */
-  public org.apache.avro.Schema toAvroType() {
+  public org.apache.avro.Schema toAvroType(String name, String namespace) {
     return LogicalTypes.decimal(precision, scale)
-            .addToSchema(org.apache.avro.Schema.create(org.apache.avro.Schema.Type.FIXED)); // @TODO not bytes??
+            // @TODO should it turn digital precision into bytes size?
+            .addToSchema(org.apache.avro.Schema.createFixed(name,  "dunno", namespace, 4+1));
   }
 }

@@ -1,7 +1,9 @@
 package org.apache.beam.sdk.io.jdbc;
 
 import com.google.common.collect.Lists;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.io.common.DatabaseTestHelper;
 import org.apache.beam.sdk.io.common.PostgresIOTestPipelineOptions;
@@ -10,8 +12,10 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -118,7 +122,10 @@ public class JdbcIOToAvroIT {
         Schema schema = jdbcRows.getSchema();
         org.apache.avro.Schema avroSchema = AvroUtils.toAvroSchema(schema);
         assertNotNull( avroSchema.getField(columnUnderTest));
-        PAssert.thatSingleton(jdbcRows.apply("Count All", Count.globally()))
+        PCollection<GenericRecord> genRecs = jdbcRows.apply(MapElements.into(TypeDescriptor.of(GenericRecord.class)).via(AvroUtils.getRowToGenericRecordFunction(avroSchema)));
+        genRecs.setCoder(AvroCoder.of(avroSchema));
+
+        PAssert.thatSingleton(genRecs.apply("Count All", Count.globally()))
                 .isEqualTo((long) 2);
         PipelineResult pipelineResult = pipelineDecimals.run();
         pipelineResult.waitUntilFinish();
