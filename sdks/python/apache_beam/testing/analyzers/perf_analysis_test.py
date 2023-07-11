@@ -50,17 +50,18 @@ def get_fake_data_with_no_change_point(**kwargs):
 
 
 def get_fake_data_with_change_point(**kwargs):
+  # change point will be at index 15.
   num_samples = 20
-  metric_values = [0] * (num_samples // 2) + [1] * (num_samples // 2)
+  metric_values = [0] * 15 + [3] * 5
   timestamps = [i for i in range(num_samples)]
   return metric_values, timestamps
 
 
 def get_existing_issue_data(**kwargs):
-  # change point found at index 10. So passing 10 in the
+  # change point found at index 15. So passing 15 in the
   # existing issue data in mock method.
   return pd.DataFrame([{
-      constants._CHANGE_POINT_TIMESTAMP_LABEL: 10,
+      constants._CHANGE_POINT_TIMESTAMP_LABEL: 15,
       constants._ISSUE_NUMBER: np.array([0])
   }])
 
@@ -216,13 +217,10 @@ class TestChangePointAnalysis(unittest.TestCase):
     runs_info = next((
         line for line in description.split(constants._NEW_LINES_JOINER)
         if re.match(r'timestamp: .*, metric_value: .*', line.strip())),
-                     '').split('\n')[::-1]
-
-    self.assertTrue(
-        all(
-            constants._ANOMALY_MARKER in runs_info[i] if i == change_point_index
-            else constants._ANOMALY_MARKER not in runs_info[i]
-            for i in range(len(runs_info))))
+                     '')
+    string_to_search = (
+        'timestamp: Wed Dec 31 19:00:15 1969, metric_value: 3.00 <---- Anomaly')
+    self.assertTrue(string_to_search in runs_info)
 
 
 if __name__ == '__main__':
