@@ -29,7 +29,7 @@ try:
 except ImportError:
   tft = None
   tf = None
-  fill_in_missing = Optional[Callable[[tf.sparse.SparseTensor, int], tf.Tensor]] = None
+  fill_in_missing : Optional[Callable[[tf.sparse.SparseTensor, int], tf.Tensor]] = None
 
 
 @pytest.mark.uses_tft
