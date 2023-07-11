@@ -68,6 +68,7 @@
 ## New Features / Improvements
 
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* [Python]Beam SDK will not be staged from PyPI in the --staging_location for DataflowRunner. ([#26996](https://github.com/apache/beam/issues/26996))
 
 ## Breaking Changes
 
