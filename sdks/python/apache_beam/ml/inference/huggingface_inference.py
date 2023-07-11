@@ -17,9 +17,9 @@
 
 # pytype: skip-file
 
-from abc import ABC
 import logging
 import sys
+from abc import ABC
 from collections import defaultdict
 from typing import Any
 from typing import Callable
@@ -40,6 +40,8 @@ from apache_beam.ml.inference.base import PredictionT
 from apache_beam.ml.inference.pytorch_inference import _convert_to_device
 from transformers import AutoModel
 from transformers import TFAutoModel
+
+_LOGGER = logging.getLogger(__name__)
 
 __all__ = [
     'HuggingFaceModelHandler',
@@ -83,7 +85,7 @@ def _validate_constructor_args(model_uri, model_class):
 
 
 def no_gpu_available_warning():
-  logging.warning(
+  _LOGGER.warning(
       "HuggingFaceModelHandler specified a 'GPU' device, "
       "but GPUs are not available. Switching to CPU.")
 
@@ -257,30 +259,6 @@ class HuggingFaceModelHandlerKeyedTensor(
     pcoll | RunInference(HuggingFaceModelHandlerKeyedTensor(
       model_uri="bert-base-uncased", model_class=AutoModelForMaskedLM))
 
-  Args:
-    model_uri (str): path to the pretrained model on the hugging face
-      models hub.
-    model_class: model class to load the repository from model_uri.
-    device: For torch tensors, specify device on which you wish to
-      run the model. Defaults to CPU.
-    inference_fn: the inference function to use during RunInference.
-      Default is _run_inference_torch_keyed_tensor or
-      _run_inference_tensorflow_keyed_tensor depending on the input type.
-    load_model_args (Dict[str, Any]): keyword arguments to provide load
-      options while loading models from Hugging Face Hub. Defaults to None.
-    inference_args ([Dict[str, Any]]): Non-batchable arguments
-      required as inputs to the model's inference function. Unlike Tensors in
-      `batch`, these parameters will not be dynamically batched.
-      Defaults to None.
-    min_batch_size: the minimum batch size to use when batching inputs.
-    max_batch_size: the maximum batch size to use when batching inputs.
-    large_model: set to true if your model is large enough to run into
-      memory pressure if you load multiple copies. Given a model that
-      consumes N memory and a machine with W cores and M memory, you should
-      set this to True if N*W > M.
-    kwargs: 'env_vars' can be used to set environment variables
-      before loading the model.
-
   **Supported Versions:** HuggingFaceModelHandler supports transformers>=4.18.0.
   """
   def run_inference(
@@ -375,29 +353,6 @@ class HuggingFaceModelHandlerTensor(HuggingFaceModelHandler[Union[tf.Tensor,
     Example Usage model:
     pcoll | RunInference(HuggingFaceModelHandlerTensor(
       model_uri="bert-base-uncased", model_class=AutoModelForMaskedLM))
-
-  Args:
-    model_uri (str): path to the pretrained model on the hugging face
-      models hub.
-    model_class: model class to load the repository from model_uri.
-    device: For torch tensors, specify device on which you wish to
-      run the model. Defaults to CPU.
-    inference_fn: the inference function to use during RunInference.
-      Default is _default_inference_fn_tensor.
-    load_model_args (Dict[str, Any]): keyword arguments to provide load
-      options while loading models from Hugging Face Hub. Defaults to None.
-    inference_args ([Dict[str, Any]]): Non-batchable arguments
-      required as inputs to the model's inference function. Unlike Tensors in
-      `batch`, these parameters will not be dynamically batched.
-      Defaults to None.
-    min_batch_size: the minimum batch size to use when batching inputs.
-    max_batch_size: the maximum batch size to use when batching inputs.
-    large_model: set to true if your model is large enough to run into
-      memory pressure if you load multiple copies. Given a model that
-      consumes N memory and a machine with W cores and M memory, you should
-      set this to True if N*W > M.
-    kwargs: 'env_vars' can be used to set environment variables
-      before loading the model.
 
   **Supported Versions:** HuggingFaceModelHandler supports transformers>=4.18.0.
   """
