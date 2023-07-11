@@ -1992,7 +1992,7 @@ public class StreamingDataflowWorker {
     javaHarnessMaxMemory.getAndReset();
     javaHarnessMaxMemory.addValue(maxMemory);
   }
-  
+
   private void updateThreadMetrics() {
     timeAtMaxActiveThreads.getAndReset();
     timeAtMaxActiveThreads.addValue(workUnitExecutor.allThreadsActiveTime());

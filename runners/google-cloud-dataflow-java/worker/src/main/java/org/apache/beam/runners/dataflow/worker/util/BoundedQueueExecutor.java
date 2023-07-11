@@ -22,7 +22,6 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Monitor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Monitor.Guard;
 
@@ -57,29 +56,30 @@ public class BoundedQueueExecutor {
             unit,
             new LinkedBlockingQueue<>(),
             threadFactory) {
-              @Override
-              protected void beforeExecute(Thread t, Runnable r) {
-                super.beforeExecute(t, r);
-                synchronized(this) {
-                  if (activeCount.get() == maximumPoolSize - 1) {
-                    startTimeMaxActiveThreadsUsed = System.currentTimeMillis();
-                  }
-                  activeCount.incrementAndGet();
-                }
+          @Override
+          protected void beforeExecute(Thread t, Runnable r) {
+            super.beforeExecute(t, r);
+            synchronized (this) {
+              if (activeCount.get() == maximumPoolSize - 1) {
+                startTimeMaxActiveThreadsUsed = System.currentTimeMillis();
               }
+              activeCount.incrementAndGet();
+            }
+          }
 
-              @Override
-              protected void afterExecute(Runnable r, Throwable t) {
-                super.afterExecute(r, t);
-                synchronized(this) {
-                  if (activeCount.get() == maximumPoolSize) {
-                    totalTimeMaxActiveThreadsUsed += (System.currentTimeMillis() - startTimeMaxActiveThreadsUsed);
-                    startTimeMaxActiveThreadsUsed = 0;
-                  }
-                  activeCount.decrementAndGet();
-                }
+          @Override
+          protected void afterExecute(Runnable r, Throwable t) {
+            super.afterExecute(r, t);
+            synchronized (this) {
+              if (activeCount.get() == maximumPoolSize) {
+                totalTimeMaxActiveThreadsUsed +=
+                    (System.currentTimeMillis() - startTimeMaxActiveThreadsUsed);
+                startTimeMaxActiveThreadsUsed = 0;
               }
-            };
+              activeCount.decrementAndGet();
+            }
+          }
+        };
     executor.allowCoreThreadTimeOut(true);
     this.maximumElementsOutstanding = maximumElementsOutstanding;
     this.maximumBytesOutstanding = maximumBytesOutstanding;

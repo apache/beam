@@ -2847,14 +2847,17 @@ public class StreamingDataflowWorkerTest {
     int threadExpiration = 60;
     // setting up actual implementation of executor instead of mocking to keep track of
     // active thread count.
-    BoundedQueueExecutor executor = new BoundedQueueExecutor(
-      maxThreads,
-      threadExpiration,
-      TimeUnit.SECONDS,
-      maxThreads,
-      10000000,
-      new ThreadFactoryBuilder().setNameFormat("DataflowWorkUnits-%d").setDaemon(true).build()
-    );
+    BoundedQueueExecutor executor =
+        new BoundedQueueExecutor(
+            maxThreads,
+            threadExpiration,
+            TimeUnit.SECONDS,
+            maxThreads,
+            10000000,
+            new ThreadFactoryBuilder()
+                .setNameFormat("DataflowWorkUnits-%d")
+                .setDaemon(true)
+                .build());
 
     StreamingDataflowWorker.ComputationState computationState =
         new StreamingDataflowWorker.ComputationState(
@@ -2869,37 +2872,36 @@ public class StreamingDataflowWorkerTest {
     // overriding definition of MockWork to add sleep, which will help us keep track of how
     // long each work item takes to process and therefore let us manipulate how long the time
     // at which we're at max threads is.
-    MockWork m2 = new MockWork(2) {
-      @Override
-      public void run() {
-        try {
-          Thread.sleep(1000);
-        }
-        catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-        }
-      }
-    };
+    MockWork m2 =
+        new MockWork(2) {
+          @Override
+          public void run() {
+            try {
+              Thread.sleep(1000);
+            } catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
+            }
+          }
+        };
 
-    MockWork m3 = new MockWork(3) {
-      @Override
-      public void run() {
-        try {
-          Thread.sleep(1000);
-        }
-        catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-        }
-      }
-    };
-    
+    MockWork m3 =
+        new MockWork(3) {
+          @Override
+          public void run() {
+            try {
+              Thread.sleep(1000);
+            } catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
+            }
+          }
+        };
 
     assertTrue(computationState.activateWork(key1Shard1, m2));
     assertTrue(computationState.activateWork(key1Shard1, m3));
     executor.execute(m2, m2.getWorkItem().getSerializedSize());
 
     executor.execute(m3, m3.getWorkItem().getSerializedSize());
-    
+
     // Will get close to 1000ms that both work items are processing (sleeping, really)
     // give or take a few ms.
     long i = 990L;
