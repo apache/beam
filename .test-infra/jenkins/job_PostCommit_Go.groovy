@@ -38,6 +38,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Go', 'Run Go PostCommit',
           tasks(':goPostCommit')
           commonJobProperties.setGradleSwitches(delegate)
           switches('--no-parallel')
+          switches('-Pbuild-and-push-multiarch-containers')
         }
       }
     }

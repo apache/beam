@@ -124,10 +124,10 @@ docker {
                     project.rootProject.hasProperty(["isRelease"]),
             'java_version': imageJavaVersion,
     ])
-      buildx useBuildx
-      platform(*project.containerPlatforms())
-      load useBuildx && !pushContainers
-      push pushContainers
+    buildx useBuildx
+    platform(*project.containerPlatforms())
+    load useBuildx && !pushContainers
+    push pushContainers
 }
 
 if (project.rootProject.hasProperty(["docker-pull-licenses"]) ||

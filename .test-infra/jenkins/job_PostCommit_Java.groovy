@@ -44,6 +44,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java', 'Run Java PostCommit'
           commonJobProperties.setGradleSwitches(delegate)
           // Specify maven home on Jenkins, needed by Maven archetype integration tests.
           switches('-Pmaven_home=/home/jenkins/tools/maven/apache-maven-3.5.4')
+          switches('-Pbuild-and-push-multiarch-containers')
         }
       }
     }
