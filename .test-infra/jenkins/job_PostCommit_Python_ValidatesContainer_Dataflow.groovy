@@ -20,7 +20,7 @@ import CommonJobProperties as commonJobProperties
 import PostcommitJobBuilder
 
 import static PythonTestProperties.VALIDATES_CONTAINER_DATAFLOW_PYTHON_VERSIONS
-import java.util.UUID
+import java.time.LocalDateTime
 
 // This job runs the suite of Python ValidatesContainer tests against the
 // Dataflow runner.
@@ -35,8 +35,8 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Py_ValCont',
         archiveJunit('**/pytest*.xml')
       }
 
-      // Generates a unique tag for the container.
-      def unique_tag = UUID.randomUUID()
+      // Generates a unique tag for the container as the current time.
+      def unique_tag = '${now.date}${now.hour}${now.minute}${now.second}'
       // Execute shell command to test Python SDK.
       steps {
         gradle {
