@@ -70,11 +70,15 @@ class VertexAIModelHandlerJSON(ModelHandler[Any,
     """Implementation of the ModelHandler interface for Vertex AI.
     **NOTE:** This API and its implementation are under development and
     do not provide backward compatibility guarantees.
+
     Unlike other ModelHandler implementations, this does not load the model
     being used onto the worker and instead makes remote queries to a
     Vertex AI endpoint. In that way it functions more like a mid-pipeline
-    IO. At present this implementation only supports public endpoints with
-    a maximum request size of 1.5 MB.
+    IO. Public Vertex AI endpoints have a maximum request size of 1.5 MB.
+    If you wish to make larger requests and use a private endpoint, pass
+    the GCP subnetwork the private endpoint is hosted on as a 'subnetwork'
+    kwarg. 
+
     Args:
       endpoint_id: the numerical ID of the Vertex AI endpoint to query
       project: the GCP project name where the endpoint is deployed
@@ -83,9 +87,15 @@ class VertexAIModelHandlerJSON(ModelHandler[Any,
     """
 
     self._env_vars = kwargs.get('env_vars', {})
+
     # TODO: support the full list of options for aiplatform.init()
     # See https://cloud.google.com/python/docs/reference/aiplatform/latest/google.cloud.aiplatform#google_cloud_aiplatform_init
-    aiplatform.init(project=project, location=location, experiment=experiment)
+    subnetwork = kwargs.get('subnetwork', None)
+    aiplatform.init(
+        project=project,
+        location=location,
+        experiment=experiment,
+        subnetwork=subnetwork)
 
     # Check for liveness here but don't try to actually store the endpoint
     # in the class yet
