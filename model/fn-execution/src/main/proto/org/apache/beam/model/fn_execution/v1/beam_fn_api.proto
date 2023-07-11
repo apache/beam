@@ -68,7 +68,7 @@ message FnApiTransforms {
     // PARAM_WINDOWED_VALUE coder.
     //
     // Payload: RemoteGrpcPort
-    DATA_SOURCE = 0 [(beam_urn) = "beam:runner:source:v1"];
+    DATA_SOURCE = 0 [(org.apache.beam.model.pipeline.v1.beam_urn) = "beam:runner:source:v1"];
 
     // DataSink is a transform that sends data to a remote port
     // ProcessBundleDescriptor. It represents a logical PCollection.
@@ -86,7 +86,7 @@ message FnApiTransforms {
     // for a WINDOWED_VALUE or PARAM_WINDOWED_VALUE coder.
     //
     // Payload: RemoteGrpcPort
-    DATA_SINK = 1 [(beam_urn) = "beam:runner:sink:v1"];
+    DATA_SINK = 1 [(org.apache.beam.model.pipeline.v1.beam_urn) = "beam:runner:sink:v1"];
   }
 }
 
