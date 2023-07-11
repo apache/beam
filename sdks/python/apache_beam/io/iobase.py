@@ -101,6 +101,9 @@ class SourceBase(HasDisplayData, urns.RunnerApiFn):
   """
   urns.RunnerApiFn.register_pickle_urn(python_urns.PICKLED_SOURCE)
 
+  def default_output_coder(self):
+    raise NotImplementedError
+
   def is_bounded(self):
     # type: () -> bool
     raise NotImplementedError
