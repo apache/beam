@@ -17,16 +17,12 @@
  */
 package org.apache.beam.sdk.state;
 
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
-
 /**
  * A state cell, supporting a {@link #clear()} operation.
  *
  * <p>Specific types of state add appropriate accessors for reading and writing values, see {@link
  * ValueState}, {@link BagState}, and {@link GroupingState}.
  */
-@Experimental(Kind.STATE)
 public interface State {
 
   /** Clear out the state location. */

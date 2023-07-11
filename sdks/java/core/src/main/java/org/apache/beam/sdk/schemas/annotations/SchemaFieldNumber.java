@@ -23,8 +23,6 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import javax.annotation.Nonnull;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 
 /**
  * When used on a {@link org.apache.beam.sdk.schemas.JavaFieldSchema POJO} field, a {@link
@@ -55,7 +53,6 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 @SuppressWarnings({
   "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
-@Experimental(Kind.SCHEMAS)
 public @interface SchemaFieldNumber {
 
   /** The name to use for the generated schema field. */

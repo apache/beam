@@ -17,10 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.avro.schemas;
 
-import static org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils.toBeamSchema;
-
 import java.util.List;
-import org.apache.avro.reflect.ReflectData;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
@@ -43,7 +40,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 public class AvroRecordSchema extends GetterBasedSchemaProvider {
   @Override
   public <T> Schema schemaFor(TypeDescriptor<T> typeDescriptor) {
-    return toBeamSchema(ReflectData.get().getSchema(typeDescriptor.getRawType()));
+    return AvroUtils.toBeamSchema(typeDescriptor.getRawType());
   }
 
   @Override

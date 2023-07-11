@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.samza;
 
+import static org.apache.samza.config.JobConfig.JOB_JMX_ENABLED;
 import static org.apache.samza.config.JobConfig.JOB_LOGGED_STORE_BASE_DIR;
 import static org.apache.samza.config.JobConfig.JOB_NON_LOGGED_STORE_BASE_DIR;
 
@@ -56,6 +57,7 @@ public class TestSamzaRunner extends PipelineRunner<PipelineResult> {
 
       config.put(JOB_LOGGED_STORE_BASE_DIR, storeDir.getAbsolutePath());
       config.put(JOB_NON_LOGGED_STORE_BASE_DIR, storeDir.getAbsolutePath());
+      config.put(JOB_JMX_ENABLED, "false");
 
       if (samzaOptions.getConfigOverride() != null) {
         config.putAll(samzaOptions.getConfigOverride());

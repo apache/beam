@@ -20,11 +20,8 @@ package org.apache.beam.sdk.io.cassandra;
 import java.io.Serializable;
 import java.math.BigInteger;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 
 /** Models a Cassandra token range. */
-@Experimental(Kind.SOURCE_SINK)
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })

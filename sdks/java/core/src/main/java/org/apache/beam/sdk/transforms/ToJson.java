@@ -21,7 +21,6 @@ import static org.apache.beam.sdk.util.RowJsonUtils.newObjectMapperWith;
 import static org.apache.beam.sdk.util.RowJsonUtils.rowToJson;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.util.RowJson;
 import org.apache.beam.sdk.util.RowJson.RowJsonSerializer;
@@ -30,15 +29,12 @@ import org.apache.beam.sdk.values.Row;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * <i>Experimental</i>
- *
- * <p>Creates a {@link PTransform} that serializes UTF-8 JSON objects from a {@link Schema}-aware
+ * Creates a {@link PTransform} that serializes UTF-8 JSON objects from a {@link Schema}-aware
  * PCollection (i.e. {@link PCollection#hasSchema()} returns true). JSON format is compatible with
  * {@link JsonToRow}.
  *
  * <p>For specifics of JSON serialization see {@link RowJsonSerializer}.
  */
-@Experimental
 public class ToJson<T> extends PTransform<PCollection<T>, PCollection<String>> {
   private transient volatile @Nullable ObjectMapper objectMapper;
 

@@ -19,12 +19,9 @@ package org.apache.beam.sdk.io.mongodb;
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
 
-@Experimental(Kind.SOURCE_SINK)
 @AutoValue
 public abstract class UpdateField implements Serializable {
 

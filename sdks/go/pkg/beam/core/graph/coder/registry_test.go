@@ -21,7 +21,7 @@ import (
 )
 
 func clearRegistry() {
-	coderRegistry = make(map[uintptr]func(reflect.Type) *CustomCoder)
+	coderRegistry = make(map[reflect.Type]func(reflect.Type) *CustomCoder)
 	interfaceOrdering = []reflect.Type{}
 }
 

@@ -32,9 +32,9 @@ from github import GithubIntegration
 
 DB_HOST = os.environ['DB_HOST']
 DB_PORT = os.environ['DB_PORT']
-DB_NAME = os.environ['DB_NAME']
-DB_USER_NAME = os.environ['DB_USER']
-DB_PASSWORD = os.environ['DB_PASS']
+DB_NAME = os.environ['DB_DBNAME']
+DB_USER_NAME = os.environ['DB_DBUSERNAME']
+DB_PASSWORD = os.environ['DB_DBPWD']
 GH_WORKFLOWS_TABLE_NAME = "github_workflows"
 # Number of workflows that fetch github API
 GH_NUMBER_OF_WORKFLOWS = 100  

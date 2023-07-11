@@ -74,6 +74,9 @@ import org.junit.runners.JUnit4;
 /** Tests for AvroSource. */
 @RunWith(JUnit4.class)
 public class AvroSourceTest {
+  private static final String VERSION_AVRO =
+      org.apache.avro.Schema.class.getPackage().getImplementationVersion();
+
   @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
 
   @Rule public ExpectedException expectedException = ExpectedException.none();
@@ -85,6 +88,19 @@ public class AvroSourceTest {
   }
 
   private static final int DEFAULT_RECORD_COUNT = 1000;
+
+  private Iterable<String> avroSupportedCodec() {
+    List<String> codecs = new ArrayList<>();
+    codecs.add(DataFileConstants.NULL_CODEC);
+    codecs.add(DataFileConstants.BZIP2_CODEC);
+    codecs.add(DataFileConstants.DEFLATE_CODEC);
+    codecs.add(DataFileConstants.SNAPPY_CODEC);
+    codecs.add(DataFileConstants.XZ_CODEC);
+    if (!VERSION_AVRO.equals("1.8.2")) {
+      codecs.add("zstandard");
+    }
+    return codecs;
+  }
 
   /**
    * Generates an input Avro file containing the given records in the temporary directory and
@@ -142,20 +158,12 @@ public class AvroSourceTest {
 
   @Test
   public void testReadWithDifferentCodecs() throws Exception {
-    // Test reading files generated using all codecs.
-    String[] codecs = {
-      DataFileConstants.NULL_CODEC,
-      DataFileConstants.BZIP2_CODEC,
-      DataFileConstants.DEFLATE_CODEC,
-      DataFileConstants.SNAPPY_CODEC,
-      DataFileConstants.XZ_CODEC,
-    };
     // As Avro's default block size is 64KB, write 64K records to ensure at least one full block.
     // We could make this smaller than 64KB assuming each record is at least B bytes, but then the
     // test could silently stop testing the failure condition from BEAM-422.
     List<Bird> expected = createRandomRecords(1 << 16);
-
-    for (String codec : codecs) {
+    // Test reading files generated using all codecs.
+    for (String codec : avroSupportedCodec()) {
       String filename =
           generateTestFile(
               codec, expected, SyncBehavior.SYNC_DEFAULT, 0, AvroCoder.of(Bird.class), codec);
@@ -603,17 +611,9 @@ public class AvroSourceTest {
 
   @Test
   public void testReadMetadataWithCodecs() throws Exception {
-    // Test reading files generated using all codecs.
-    String[] codecs = {
-      DataFileConstants.NULL_CODEC,
-      DataFileConstants.BZIP2_CODEC,
-      DataFileConstants.DEFLATE_CODEC,
-      DataFileConstants.SNAPPY_CODEC,
-      DataFileConstants.XZ_CODEC
-    };
     List<Bird> expected = createRandomRecords(DEFAULT_RECORD_COUNT);
-
-    for (String codec : codecs) {
+    // Test reading files generated using all codecs.
+    for (String codec : avroSupportedCodec()) {
       String filename =
           generateTestFile(
               codec, expected, SyncBehavior.SYNC_DEFAULT, 0, AvroCoder.of(Bird.class), codec);

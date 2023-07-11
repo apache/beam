@@ -84,11 +84,6 @@ deps:
     artifact: stream
     owners:
 
-  com.commercehub.gradle.plugin:gradle-avro-plugin:
-    group: com.commercehub.gradle.plugin
-    artifact: gradle-avro-plugin
-    owners:
-
   com.datastax.cassandra:cassandra-driver-core:
     group: com.datastax.cassandra
     artifact: cassandra-driver-core
@@ -144,9 +139,9 @@ deps:
     artifact: jackson-module-scala_2.11
     owners:
 
-  com.github.ben-manes:gradle-versions-plugin:
-    group: com.github.ben-manes
-    artifact: gradle-versions-plugin
+  com.github.davidmc24.gradle-avro-plugin:gradle-avro-plugin:
+    group: com.github.davidmc24.gradle-avro-plugin
+    artifact: gradle-avro-plugin
     owners:
 
   com.github.jengelman.gradle.plugins:shadow:

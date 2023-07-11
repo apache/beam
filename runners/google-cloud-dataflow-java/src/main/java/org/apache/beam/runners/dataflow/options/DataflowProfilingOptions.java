@@ -18,14 +18,12 @@
 package org.apache.beam.runners.dataflow.options;
 
 import java.util.HashMap;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.Hidden;
 import org.apache.beam.sdk.options.PipelineOptions;
 
 /** Options for controlling profiling of pipeline execution. */
-@Description("[Experimental] Used to configure profiling of the Dataflow pipeline")
-@Experimental
+@Description("Used to configure profiling of the Dataflow pipeline")
 @Hidden
 public interface DataflowProfilingOptions extends PipelineOptions {
 

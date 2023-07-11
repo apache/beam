@@ -67,6 +67,7 @@ io:  ["sdks/go/pkg/beam/io/**/*", "sdks/java/io/**/*", "sdks/python/apache_beam/
 "rabbitmq":  ["sdks/java/io/rabbitmq/**/*"]
 "redis":  ["sdks/java/io/redis/**/*"]
 "solr":  ["sdks/java/io/solr/**/*"]
+"spanner": ["sdks/go/pkg/beam/io/spannerio/**/*", "sdks/python/apache_beam/io/gcp/spanner.py", "sdks/python/apache_beam/io/gcp/experimental/spannerio.py", "sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/spanner/**/*"]
 "synthetic":  ["sdks/java/io/synthetic/**/*"]
 "tests":  ["sdks/java/io/file-based-io-tests/**/*"]
 "thrift": ["sdks/java/io/thrift/**/*"]

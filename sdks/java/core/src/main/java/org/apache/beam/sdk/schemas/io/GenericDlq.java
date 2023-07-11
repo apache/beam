@@ -21,8 +21,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
@@ -31,7 +29,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
 
 /** Helper to generate a DLQ transform to write PCollection<Failure> to an external system. */
 @Internal
-@Experimental(Kind.SCHEMAS)
 public final class GenericDlq {
   private GenericDlq() {}
 

@@ -17,6 +17,7 @@
 #
 
 # pytype: skip-file
+# pylint:disable=line-too-long
 
 import unittest
 
@@ -25,7 +26,15 @@ import mock
 from apache_beam.examples.snippets.util import assert_matches_stdout
 from apache_beam.testing.test_pipeline import TestPipeline
 
-from . import flatmap
+from . import flatmap_function
+from . import flatmap_generator
+from . import flatmap_lambda
+from . import flatmap_multiple_arguments
+from . import flatmap_side_inputs_dict
+from . import flatmap_side_inputs_iter
+from . import flatmap_side_inputs_singleton
+from . import flatmap_simple
+from . import flatmap_tuple
 
 
 def check_plants(actual):
@@ -51,34 +60,59 @@ def check_valid_plants(actual):
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)
 @mock.patch(
-    'apache_beam.examples.snippets.transforms.elementwise.flatmap.print', str)
+    'apache_beam.examples.snippets.transforms.elementwise.flatmap_simple.print',
+    str)
+@mock.patch(
+    'apache_beam.examples.snippets.transforms.elementwise.flatmap_function.print',
+    str)
+@mock.patch(
+    'apache_beam.examples.snippets.transforms.elementwise.flatmap_lambda.print',
+    str)
+@mock.patch(
+    'apache_beam.examples.snippets.transforms.elementwise.flatmap_generator.print',
+    str)
+@mock.patch(
+    'apache_beam.examples.snippets.transforms.elementwise.flatmap_multiple_arguments.print',
+    str)
+@mock.patch(
+    'apache_beam.examples.snippets.transforms.elementwise.flatmap_tuple.print',
+    str)
+@mock.patch(
+    'apache_beam.examples.snippets.transforms.elementwise.flatmap_side_inputs_singleton.print',
+    str)
+@mock.patch(
+    'apache_beam.examples.snippets.transforms.elementwise.flatmap_side_inputs_iter.print',
+    str)
+@mock.patch(
+    'apache_beam.examples.snippets.transforms.elementwise.flatmap_side_inputs_dict.print',
+    str)
 class FlatMapTest(unittest.TestCase):
   def test_flatmap_simple(self):
-    flatmap.flatmap_simple(check_plants)
+    flatmap_simple.flatmap_simple(check_plants)
 
   def test_flatmap_function(self):
-    flatmap.flatmap_function(check_plants)
+    flatmap_function.flatmap_function(check_plants)
 
   def test_flatmap_lambda(self):
-    flatmap.flatmap_lambda(check_plants)
+    flatmap_lambda.flatmap_lambda(check_plants)
 
   def test_flatmap_generator(self):
-    flatmap.flatmap_generator(check_plants)
+    flatmap_generator.flatmap_generator(check_plants)
 
   def test_flatmap_multiple_arguments(self):
-    flatmap.flatmap_multiple_arguments(check_plants)
+    flatmap_multiple_arguments.flatmap_multiple_arguments(check_plants)
 
   def test_flatmap_tuple(self):
-    flatmap.flatmap_tuple(check_plants)
+    flatmap_tuple.flatmap_tuple(check_plants)
 
   def test_flatmap_side_inputs_singleton(self):
-    flatmap.flatmap_side_inputs_singleton(check_plants)
+    flatmap_side_inputs_singleton.flatmap_side_inputs_singleton(check_plants)
 
   def test_flatmap_side_inputs_iter(self):
-    flatmap.flatmap_side_inputs_iter(check_valid_plants)
+    flatmap_side_inputs_iter.flatmap_side_inputs_iter(check_valid_plants)
 
   def test_flatmap_side_inputs_dict(self):
-    flatmap.flatmap_side_inputs_dict(check_valid_plants)
+    flatmap_side_inputs_dict.flatmap_side_inputs_dict(check_valid_plants)
 
 
 if __name__ == '__main__':

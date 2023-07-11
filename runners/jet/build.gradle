@@ -84,6 +84,8 @@ task validatesRunnerBatch(type: Test) {
         excludeCategories 'org.apache.beam.sdk.testing.UsesMultimapState'
         excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
         excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesTriggeredSideInputs'
+
 
         //Jet Runner doesn't current support @RequiresTimeSortedInput annotation.
         excludeCategories 'org.apache.beam.sdk.testing.UsesRequiresTimeSortedInput'
@@ -129,6 +131,7 @@ task needsRunnerTests(type: Test) {
         includeCategories "org.apache.beam.sdk.testing.NeedsRunner"
         excludeCategories "org.apache.beam.sdk.testing.LargeKeys\$Above100MB"
         excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesTriggeredSideInputs'
     }
 }
 

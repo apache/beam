@@ -179,8 +179,13 @@ func (wk *W) Logging(stream fnpb.BeamFnLogging_LoggingServer) error {
 			return nil
 		}
 		if err != nil {
-			slog.Error("logging.Recv", err, "worker", wk)
-			return err
+			switch status.Code(err) {
+			case codes.Canceled:
+				return nil
+			default:
+				slog.Error("logging.Recv", err, "worker", wk)
+				return err
+			}
 		}
 		for _, l := range in.GetLogEntries() {
 			if l.Severity >= minsev {
@@ -228,20 +233,19 @@ func (wk *W) GetProcessBundleDescriptor(ctx context.Context, req *fnpb.GetProces
 //
 // Requests come from the runner, and are sent to the client in the SDK.
 func (wk *W) Control(ctrl fnpb.BeamFnControl_ControlServer) error {
-	done := make(chan bool)
+	done := make(chan struct{})
 	go func() {
 		for {
 			resp, err := ctrl.Recv()
 			if err == io.EOF {
 				slog.Debug("ctrl.Recv finished; marking done", "worker", wk)
-				done <- true // means stream is finished
+				done <- struct{}{} // means stream is finished
 				return
 			}
 			if err != nil {
 				switch status.Code(err) {
-				case codes.Canceled: // Might ignore this all the time instead.
-					slog.Error("ctrl.Recv Canceled", err, "worker", wk)
-					done <- true // means stream is finished
+				case codes.Canceled:
+					done <- struct{}{} // means stream is finished
 					return
 				default:
 					slog.Error("ctrl.Recv failed", err, "worker", wk)
@@ -254,9 +258,8 @@ func (wk *W) Control(ctrl fnpb.BeamFnControl_ControlServer) error {
 			if b, ok := wk.activeInstructions[resp.GetInstructionId()]; ok {
 				// TODO. Better pipeline error handling.
 				if resp.Error != "" {
-					slog.LogAttrs(context.TODO(), slog.LevelError, "ctrl.Recv pipeline error",
+					slog.LogAttrs(ctrl.Context(), slog.LevelError, "ctrl.Recv pipeline error",
 						slog.String("error", resp.GetError()))
-					panic(resp.GetError())
 				}
 				b.Respond(resp)
 			} else {
@@ -266,13 +269,18 @@ func (wk *W) Control(ctrl fnpb.BeamFnControl_ControlServer) error {
 		}
 	}()
 
-	for req := range wk.InstReqs {
-		ctrl.Send(req)
+	for {
+		select {
+		case req := <-wk.InstReqs:
+			ctrl.Send(req)
+		case <-ctrl.Context().Done():
+			slog.Debug("Control context canceled")
+			return ctrl.Context().Err()
+		case <-done:
+			slog.Debug("Control done")
+			return nil
+		}
 	}
-	slog.Debug("ctrl.Send finished waiting on done")
-	<-done
-	slog.Debug("Control done")
-	return nil
 }
 
 // Data relays elements and timer bytes to SDKs and back again, coordinated via
@@ -289,7 +297,6 @@ func (wk *W) Data(data fnpb.BeamFnData_DataServer) error {
 			if err != nil {
 				switch status.Code(err) {
 				case codes.Canceled:
-					slog.Error("data.Recv Canceled", err, "worker", wk)
 					return
 				default:
 					slog.Error("data.Recv failed", err, "worker", wk)
@@ -346,7 +353,6 @@ func (wk *W) State(state fnpb.BeamFnState_StateServer) error {
 			if err != nil {
 				switch status.Code(err) {
 				case codes.Canceled:
-					slog.Error("state.Recv Canceled", err, "worker", wk)
 					return
 				default:
 					slog.Error("state.Recv failed", err, "worker", wk)

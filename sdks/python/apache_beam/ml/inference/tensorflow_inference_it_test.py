@@ -18,7 +18,6 @@
 """End-to-End test for Tensorflow Inference"""
 
 import logging
-import sys
 import unittest
 import uuid
 from pathlib import Path
@@ -67,10 +66,6 @@ def clear_tf_hub_temp_dir(model_path):
   rmdir(local_path)
 
 
-@unittest.skipIf(
-    sys.version_info.major == 3 and sys.version_info.minor == 7,
-    "Tensorflow tests on Python 3.7 with Apache Beam 2.47.0 or "
-    "greater are skipped since tensorflow>=2.12 doesn't support Python 3.7")
 @unittest.skipIf(
     tf is None, 'Missing dependencies. '
     'Test depends on tensorflow')

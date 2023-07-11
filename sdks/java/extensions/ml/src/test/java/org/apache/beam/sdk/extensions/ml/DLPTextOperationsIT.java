@@ -116,7 +116,8 @@ public class DLPTextOperationsIT {
             List<Finding> resultList = item.getValue().getResult().getFindingsList();
             matches.add(
                 resultList.stream()
-                    .anyMatch(finding -> finding.getInfoType().equals(emailAddress)));
+                    .anyMatch(
+                        finding -> finding.getInfoType().getName().equals(emailAddress.getName())));
           });
       assertTrue(matches.contains(Boolean.TRUE));
       return null;

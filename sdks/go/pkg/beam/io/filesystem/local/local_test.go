@@ -161,12 +161,12 @@ func TestLocal_lastModified(t *testing.T) {
 	dir := t.TempDir()
 	filePath := filepath.Join(dir, "file.txt")
 
-	// Account for a timestamp resolution of one second.
-	t1 := time.Now().Truncate(time.Second)
+	// Account for time skew between system and go runtime.
+	t1 := time.Now().Truncate(time.Second).Add(-time.Second)
 	if err := filesystem.Write(ctx, localFS, filePath, []byte("")); err != nil {
 		t.Fatalf("filesystem.Write(ctx, %q) error = %v, want nil", filePath, err)
 	}
-	t2 := time.Now()
+	t2 := time.Now().Truncate(time.Second).Add(2 * time.Second)
 
 	got, err := localFS.LastModified(ctx, filePath)
 	if err != nil {

@@ -51,6 +51,8 @@ pages:
     solveYourself: Before revealing the solution, try solving the challenge on your own. Remember, the more you practice, the better you will become. Give it a shot and see how far you can get.
     example: Example
     myCode: My code
+    nextUnit: Next Unit
+    previousUnit: Previous Unit
     playground: Playground
     saving: Saving...
     summaryTitle: Table of Contents

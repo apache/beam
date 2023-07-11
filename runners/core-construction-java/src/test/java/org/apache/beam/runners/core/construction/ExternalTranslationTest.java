@@ -93,6 +93,12 @@ public class ExternalTranslationTest {
         }
 
         @Override
+        public ExpansionApi.DiscoverSchemaTransformResponse discover(
+            ExpansionApi.DiscoverSchemaTransformRequest request) {
+          return null;
+        }
+
+        @Override
         public void close() throws Exception {
           // do nothing
         }

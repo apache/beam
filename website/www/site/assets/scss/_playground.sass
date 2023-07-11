@@ -20,6 +20,7 @@
 .code-snippet-playground
   padding: 0
   background: none
+  margin-bottom: 2em
 
   iframe
     border: none
@@ -37,13 +38,15 @@
 
 .playground
   width: 100%
-  height: 700px
 
 @media (max-width: $mobile)
-  .playground
-    display: none
-  .playground__mobile
-    display: flex
+  .playground_or_image
+    .playground-wrapper
+      display: none
+    .playground__mobile
+      display: flex
+      img
+        box-shadow: 0 4px 16px 0 rgba(0, 0, 0, .16), 0 4px 4px 0 rgba(0, 0, 0, .16)
 
 @media (min-width: $mobile)
   .playground__mobile

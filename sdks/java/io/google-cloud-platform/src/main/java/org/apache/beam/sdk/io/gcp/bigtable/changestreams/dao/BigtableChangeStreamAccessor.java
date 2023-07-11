@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao;
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
+import com.google.api.gax.grpc.ChannelPoolSettings;
 import com.google.api.gax.retrying.RetrySettings;
 import com.google.cloud.bigtable.admin.v2.BigtableInstanceAdminClient;
 import com.google.cloud.bigtable.admin.v2.BigtableInstanceAdminSettings;
@@ -27,6 +28,7 @@ import com.google.cloud.bigtable.admin.v2.BigtableTableAdminClient;
 import com.google.cloud.bigtable.admin.v2.BigtableTableAdminSettings;
 import com.google.cloud.bigtable.data.v2.BigtableDataClient;
 import com.google.cloud.bigtable.data.v2.BigtableDataSettings;
+import com.google.cloud.bigtable.data.v2.stub.EnhancedBigtableStubSettings;
 import java.io.IOException;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.beam.sdk.annotations.Internal;
@@ -45,7 +47,8 @@ import org.threeten.bp.Duration;
  * backend and the jobs on the same machine shares the same sets of connections.
  */
 @Internal
-class BigtableChangeStreamAccessor {
+public class BigtableChangeStreamAccessor implements AutoCloseable {
+  static final Duration MUTATE_ROW_DEADLINE = Duration.ofSeconds(30);
   // Create one bigtable data/admin client per bigtable config (project/instance/table/app profile)
   private static final ConcurrentHashMap<BigtableConfig, BigtableChangeStreamAccessor>
       bigtableAccessors = new ConcurrentHashMap<>();
@@ -53,14 +56,31 @@ class BigtableChangeStreamAccessor {
   private final BigtableDataClient dataClient;
   private final BigtableTableAdminClient tableAdminClient;
   private final BigtableInstanceAdminClient instanceAdminClient;
+  private final BigtableConfig bigtableConfig;
 
   private BigtableChangeStreamAccessor(
       BigtableDataClient dataClient,
       BigtableTableAdminClient tableAdminClient,
-      BigtableInstanceAdminClient instanceAdminClient) {
+      BigtableInstanceAdminClient instanceAdminClient,
+      BigtableConfig bigtableConfig) {
     this.dataClient = dataClient;
     this.tableAdminClient = tableAdminClient;
     this.instanceAdminClient = instanceAdminClient;
+    this.bigtableConfig = bigtableConfig;
+  }
+
+  @Override
+  public synchronized void close() {
+    if (dataClient != null) {
+      dataClient.close();
+    }
+    if (tableAdminClient != null) {
+      tableAdminClient.close();
+    }
+    if (instanceAdminClient != null) {
+      instanceAdminClient.close();
+    }
+    bigtableAccessors.remove(bigtableConfig);
   }
 
   /**
@@ -86,7 +106,6 @@ class BigtableChangeStreamAccessor {
       throws IOException {
     String projectId = checkArgumentNotNull(bigtableConfig.getProjectId()).get();
     String instanceId = checkArgumentNotNull(bigtableConfig.getInstanceId()).get();
-    String appProfileId = checkArgumentNotNull(bigtableConfig.getAppProfileId()).get();
     BigtableDataSettings.Builder dataSettingsBuilder = BigtableDataSettings.newBuilder();
     BigtableTableAdminSettings.Builder tableAdminSettingsBuilder =
         BigtableTableAdminSettings.newBuilder();
@@ -100,9 +119,30 @@ class BigtableChangeStreamAccessor {
     dataSettingsBuilder.setInstanceId(instanceId);
     tableAdminSettingsBuilder.setInstanceId(instanceId);
 
-    if (appProfileId != null) {
-      dataSettingsBuilder.setAppProfileId(appProfileId);
-    }
+    String appProfileId = checkArgumentNotNull(bigtableConfig.getAppProfileId()).get();
+    dataSettingsBuilder.setAppProfileId(appProfileId);
+
+    dataSettingsBuilder
+        .stubSettings()
+        .setTransportChannelProvider(
+            EnhancedBigtableStubSettings.defaultGrpcTransportProviderBuilder()
+                .setAttemptDirectPath(false) // Disable DirectPath
+                .setChannelPoolSettings( // Autoscale Channel Size
+                    ChannelPoolSettings.builder()
+                        // Make sure that there are at least 2 channels regardless of RPCs
+                        .setMinChannelCount(2)
+                        // Limit number of channels to 100 regardless of QPS
+                        .setMaxChannelCount(100)
+                        // Start off with 5
+                        .setInitialChannelCount(5)
+                        // Make sure the channels are primed before use
+                        .setPreemptiveRefreshEnabled(true)
+                        // evict channels when there are less than 10 outstanding RPCs
+                        .setMinRpcsPerChannel(10)
+                        // add more channels when the channel has 50 outstanding RPCs
+                        .setMaxRpcsPerChannel(50)
+                        .build())
+                .build());
 
     RetrySettings.Builder readRowRetrySettings =
         dataSettingsBuilder.stubSettings().readRowSettings().retrySettings();
@@ -124,9 +164,10 @@ class BigtableChangeStreamAccessor {
         .readRowsSettings()
         .setRetrySettings(
             readRowsRetrySettings
-                .setInitialRpcTimeout(Duration.ofSeconds(30))
-                .setTotalTimeout(Duration.ofSeconds(30))
-                .setMaxRpcTimeout(Duration.ofSeconds(30))
+                // metadata table scans can get quite large, so use a higher deadline
+                .setInitialRpcTimeout(Duration.ofMinutes(3))
+                .setTotalTimeout(Duration.ofMinutes(3))
+                .setMaxRpcTimeout(Duration.ofMinutes(3))
                 .setMaxAttempts(10)
                 .build());
 
@@ -137,9 +178,9 @@ class BigtableChangeStreamAccessor {
         .mutateRowSettings()
         .setRetrySettings(
             mutateRowRetrySettings
-                .setInitialRpcTimeout(Duration.ofSeconds(30))
-                .setTotalTimeout(Duration.ofSeconds(30))
-                .setMaxRpcTimeout(Duration.ofSeconds(30))
+                .setInitialRpcTimeout(MUTATE_ROW_DEADLINE)
+                .setTotalTimeout(MUTATE_ROW_DEADLINE)
+                .setMaxRpcTimeout(MUTATE_ROW_DEADLINE)
                 .setMaxAttempts(10)
                 .build());
 
@@ -163,13 +204,10 @@ class BigtableChangeStreamAccessor {
         .readChangeStreamSettings()
         .setRetrySettings(
             readChangeStreamRetrySettings
-                // Set timeouts to 60s - dataflow should checkpoint before then, but it is not
-                // guaranteed to happen after a specific duration. We still want a conservative
-                // timeout so that it can't hang.
-                .setInitialRpcTimeout(Duration.ofSeconds(60))
-                .setTotalTimeout(Duration.ofSeconds(60))
-                .setMaxRpcTimeout(Duration.ofSeconds(60))
-                .setMaxAttempts(3)
+                .setInitialRpcTimeout(Duration.ofSeconds(15))
+                .setTotalTimeout(Duration.ofSeconds(15))
+                .setMaxRpcTimeout(Duration.ofSeconds(15))
+                .setMaxAttempts(10)
                 .build());
 
     BigtableDataClient dataClient = BigtableDataClient.create(dataSettingsBuilder.build());
@@ -177,7 +215,8 @@ class BigtableChangeStreamAccessor {
         BigtableTableAdminClient.create(tableAdminSettingsBuilder.build());
     BigtableInstanceAdminClient instanceAdminClient =
         BigtableInstanceAdminClient.create(instanceAdminSettingsBuilder.build());
-    return new BigtableChangeStreamAccessor(dataClient, tableAdminClient, instanceAdminClient);
+    return new BigtableChangeStreamAccessor(
+        dataClient, tableAdminClient, instanceAdminClient, bigtableConfig);
   }
 
   public BigtableDataClient getDataClient() {

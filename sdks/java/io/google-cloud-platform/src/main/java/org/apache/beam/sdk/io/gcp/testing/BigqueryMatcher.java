@@ -31,7 +31,6 @@ import java.util.List;
 import java.util.Objects;
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.NotThreadSafe;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryMatcher.TableAndQuery;
 import org.apache.beam.sdk.testing.SerializableMatcher;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
@@ -54,7 +53,6 @@ import org.slf4j.LoggerFactory;
  * ]}</pre>
  */
 @NotThreadSafe
-@Experimental
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })

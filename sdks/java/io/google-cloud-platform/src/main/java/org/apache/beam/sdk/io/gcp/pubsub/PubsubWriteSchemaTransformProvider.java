@@ -42,8 +42,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SchemaPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubRowToMessage.FieldMatcher;
@@ -62,7 +60,6 @@ import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
@@ -83,7 +80,6 @@ import org.joda.time.Instant;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 @Internal
-@Experimental(Kind.SCHEMAS)
 @AutoService(SchemaTransformProvider.class)
 public class PubsubWriteSchemaTransformProvider
     extends TypedSchemaTransformProvider<PubsubWriteSchemaTransformConfiguration> {
@@ -131,8 +127,7 @@ public class PubsubWriteSchemaTransformProvider
    * An implementation of {@link SchemaTransform} for Pub/Sub writes configured using {@link
    * PubsubWriteSchemaTransformConfiguration}.
    */
-  static class PubsubWriteSchemaTransform
-      extends PTransform<PCollectionRowTuple, PCollectionRowTuple> implements SchemaTransform {
+  static class PubsubWriteSchemaTransform extends SchemaTransform {
 
     private final PubsubWriteSchemaTransformConfiguration configuration;
 
@@ -144,12 +139,6 @@ public class PubsubWriteSchemaTransformProvider
 
     PubsubWriteSchemaTransform withPubsubClientFactory(PubsubClient.PubsubClientFactory factory) {
       this.pubsubClientFactory = factory;
-      return this;
-    }
-
-    /** Implements {@link SchemaTransform} buildTransform method. */
-    @Override
-    public PTransform<PCollectionRowTuple, PCollectionRowTuple> buildTransform() {
       return this;
     }
 

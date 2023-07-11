@@ -26,6 +26,12 @@ import '../../enums/unread_entry.dart';
 import '../../theme/theme.dart';
 import '../unread/clearer.dart';
 
+// TODO(alexeyinkin): Show the full text when fixed: https://github.com/flutter/flutter/issues/128575
+const _maxFirstCharacters = 1000;
+const _maxLastCharacters = 10000;
+const _cutTemplate = 'Showing the first $_maxFirstCharacters '
+    'and the last $_maxLastCharacters characters:\n';
+
 class ResultTabContent extends StatefulWidget {
   const ResultTabContent({
     required this.playgroundController,
@@ -39,7 +45,9 @@ class ResultTabContent extends StatefulWidget {
 
 class _ResultTabContentState extends State<ResultTabContent> {
   final ScrollController _scrollController = ScrollController();
-  final CodeController _codeController = CodeController();
+  final CodeController _codeController = CodeController(
+    readOnly: true,
+  );
 
   @override
   void initState() {
@@ -66,6 +74,20 @@ class _ResultTabContentState extends State<ResultTabContent> {
   }
 
   String _getText() {
+    final fullText = _getFullText();
+
+    if (fullText.length <= _maxFirstCharacters + _maxLastCharacters) {
+      return fullText;
+    }
+
+    // ignore: prefer_interpolation_to_compose_strings
+    return _cutTemplate +
+        fullText.substring(0, _maxFirstCharacters) +
+        '\n\n...\n\n' +
+        fullText.substring(fullText.length - _maxLastCharacters);
+  }
+
+  String _getFullText() {
     final filter = widget.playgroundController.resultFilterController.value;
 
     switch (filter) {
@@ -104,7 +126,6 @@ class _ResultTabContentState extends State<ResultTabContent> {
                     return CodeTheme(
                       data: ext.codeTheme,
                       child: CodeField(
-                        readOnly: true,
                         controller: _codeController,
                         gutterStyle: GutterStyle.none,
                         textStyle: ext.codeRootStyle,

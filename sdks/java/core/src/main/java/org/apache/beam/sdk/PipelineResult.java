@@ -18,8 +18,6 @@
 package org.apache.beam.sdk;
 
 import java.io.IOException;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.joda.time.Duration;
 
@@ -124,6 +122,5 @@ public interface PipelineResult {
    *
    * @throws UnsupportedOperationException if the runner doesn't support retrieving metrics.
    */
-  @Experimental(Kind.METRICS)
   MetricResults metrics();
 }

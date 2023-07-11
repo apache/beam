@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.aws2.sqs.testing;
 
 import static org.apache.beam.sdk.io.common.TestRow.getExpectedHashForRowCount;
 import static org.apache.beam.sdk.values.TypeDescriptors.strings;
+import static org.apache.commons.lang3.RandomStringUtils.randomAlphanumeric;
 import static org.testcontainers.containers.localstack.LocalStackContainer.Service.SQS;
 
 import java.io.Serializable;
@@ -103,6 +104,33 @@ public class SqsIOIT {
     pipelineRead.run();
   }
 
+  @Test
+  public void testWriteBatchesThenRead() {
+    int rows = env.options().getNumberOfRows();
+
+    // Write test dataset to SQS.
+    pipelineWrite
+        .apply("Generate Sequence", GenerateSequence.from(0).to(rows))
+        .apply("Prepare TestRows", ParDo.of(new DeterministicallyConstructTestRowFn()))
+        .apply(
+            "Write to SQS",
+            SqsIO.<TestRow>writeBatches((b, row) -> b.messageBody(row.name())).to(sqsQueue.url));
+
+    // Read test dataset from SQS.
+    PCollection<String> output =
+        pipelineRead
+            .apply("Read from SQS", SqsIO.read().withQueueUrl(sqsQueue.url).withMaxNumRecords(rows))
+            .apply("Extract body", MapElements.into(strings()).via(SqsMessage::getBody));
+
+    PAssert.thatSingleton(output.apply("Count All", Count.globally())).isEqualTo((long) rows);
+
+    PAssert.that(output.apply(Combine.globally(new HashingFn()).withoutDefaults()))
+        .containsInAnyOrder(getExpectedHashForRowCount(rows));
+
+    pipelineWrite.run();
+    pipelineRead.run();
+  }
+
   private static class SqsQueue extends ExternalResource implements Serializable {
     private transient SqsClient client = env.buildClient(SqsClient.builder());
     private String url;
@@ -113,7 +141,8 @@ public class SqsIOIT {
 
     @Override
     protected void before() throws Throwable {
-      url = client.createQueue(b -> b.queueName("beam-sqsio-it")).queueUrl();
+      url =
+          client.createQueue(b -> b.queueName("beam-sqsio-it-" + randomAlphanumeric(4))).queueUrl();
     }
 
     @Override

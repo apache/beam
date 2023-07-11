@@ -44,6 +44,7 @@ class ShortcutsDialogContent extends StatelessWidget {
         children: [
           ...[
             ...playgroundController.shortcuts,
+            BeamMainRunShortcut(onInvoke: () {}),
             ...globalShortcuts,
           ]
               .map(

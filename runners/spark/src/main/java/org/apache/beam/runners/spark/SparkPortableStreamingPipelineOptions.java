@@ -17,13 +17,11 @@
  */
 package org.apache.beam.runners.spark;
 
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
 
 /** Pipeline options specific to the Spark portable runner running a streaming job. */
-@Experimental
 public interface SparkPortableStreamingPipelineOptions
     extends SparkPipelineOptions, PortablePipelineOptions {
   @Description(

@@ -114,6 +114,12 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
         });
   }
 
+  // Returns data reflecting the state api appended values opposed
+  // to the logical concatenated value.
+  public Map<StateKey, List<ByteString>> getRawData() {
+    return data;
+  }
+
   @Override
   public CompletableFuture<StateResponse> handle(StateRequest.Builder requestBuilder) {
     // The id should never be filled out

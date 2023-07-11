@@ -30,10 +30,11 @@ import pytest
 from hamcrest.core import assert_that as hamcrest_assert
 
 import apache_beam as beam
+from apache_beam.io.external.generate_sequence import GenerateSequence
 from apache_beam.io.gcp.bigquery import StorageWriteToBigQuery
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
-from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
+from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultStreamingMatcher
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.utils.timestamp import Timestamp
 
@@ -95,6 +96,9 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
           "timestamp": Timestamp(4000, 400)
       }
   ]
+  ALL_TYPES_SCHEMA = (
+      "int:INTEGER,float:FLOAT,numeric:NUMERIC,str:STRING,"
+      "bool:BOOLEAN,bytes:BYTES,timestamp:TIMESTAMP")
 
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
@@ -102,7 +106,7 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
     self.project = self.test_pipeline.get_option('project')
 
     self.bigquery_client = BigQueryWrapper()
-    self.dataset_id = '%s%s%s' % (
+    self.dataset_id = '%s_%s_%s' % (
         self.BIGQUERY_DATASET, str(int(time.time())), secrets.token_hex(3))
     self.bigquery_client.get_or_create_dataset(self.project, self.dataset_id)
     _LOGGER.info(
@@ -112,12 +116,13 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
     self.expansion_service = ('localhost:%s' % os.environ.get('EXPANSION_PORT'))
 
   def tearDown(self):
-    request = bigquery.BigqueryDatasetsDeleteRequest(
-        projectId=self.project, datasetId=self.dataset_id, deleteContents=True)
     try:
       _LOGGER.info(
           "Deleting dataset %s in project %s", self.dataset_id, self.project)
-      self.bigquery_client.client.datasets.Delete(request)
+      self.bigquery_client._delete_dataset(
+          project_id=self.project,
+          dataset_id=self.dataset_id,
+          delete_contents=True)
     except HttpError:
       _LOGGER.debug(
           'Failed to clean up dataset %s in project %s',
@@ -137,7 +142,8 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
 
     return data
 
-  def storage_write_test(self, table_name, items, schema):
+  def run_storage_write_test(
+      self, table_name, items, schema, use_at_least_once=False):
     table_id = '{}:{}.{}'.format(self.project, self.dataset_id, table_name)
 
     bq_matcher = BigqueryFullResultMatcher(
@@ -153,18 +159,23 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
               table=table_id,
               method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API,
               schema=schema,
+              use_at_least_once=use_at_least_once,
               expansion_service=self.expansion_service))
     hamcrest_assert(p, bq_matcher)
 
-  def test_storage_write_all_types(self):
-    table_name = "python_storage_write_all_types"
-    schema = (
-        "int:INTEGER,float:FLOAT,numeric:NUMERIC,str:STRING,"
-        "bool:BOOLEAN,bytes:BYTES,timestamp:TIMESTAMP")
-    self.storage_write_test(table_name, self.ELEMENTS, schema)
+  def test_all_types(self):
+    table_name = "all_types"
+    schema = self.ALL_TYPES_SCHEMA
+    self.run_storage_write_test(table_name, self.ELEMENTS, schema)
 
-  def test_storage_write_nested_records_and_lists(self):
-    table_name = "python_storage_write_nested_records_and_lists"
+  def test_with_at_least_once_semantics(self):
+    table_name = "with_at_least_once_semantics"
+    schema = self.ALL_TYPES_SCHEMA
+    self.run_storage_write_test(
+        table_name, self.ELEMENTS, schema, use_at_least_once=True)
+
+  def test_nested_records_and_lists(self):
+    table_name = "nested_records_and_lists"
     schema = {
         "fields": [{
             "name": "repeated_int", "type": "INTEGER", "mode": "REPEATED"
@@ -203,11 +214,11 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
                             }]
     }]
 
-    self.storage_write_test(table_name, items, schema)
+    self.run_storage_write_test(table_name, items, schema)
 
-  def test_storage_write_beam_rows(self):
-    table_id = '{}:{}.python_xlang_storage_write_beam_rows'.format(
-        self.project, self.dataset_id)
+  def test_write_with_beam_rows(self):
+    table = 'write_with_beam_rows'
+    table_id = '{}:{}.{}'.format(self.project, self.dataset_id, table)
 
     row_elements = [
         beam.Row(
@@ -222,8 +233,7 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
 
     bq_matcher = BigqueryFullResultMatcher(
         project=self.project,
-        query="SELECT * FROM %s" %
-        '{}.python_xlang_storage_write_beam_rows'.format(self.dataset_id),
+        query="SELECT * FROM {}.{}".format(self.dataset_id, table),
         data=self.parse_expected_data(self.ELEMENTS))
 
     with beam.Pipeline(argv=self.args) as p:
@@ -233,6 +243,49 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
           | StorageWriteToBigQuery(
               table=table_id, expansion_service=self.expansion_service))
     hamcrest_assert(p, bq_matcher)
+
+  def run_streaming(
+      self, table_name, auto_sharding=False, use_at_least_once=False):
+    elements = self.ELEMENTS.copy()
+    schema = self.ALL_TYPES_SCHEMA
+    table_id = '{}:{}.{}'.format(self.project, self.dataset_id, table_name)
+
+    bq_matcher = BigqueryFullResultStreamingMatcher(
+        project=self.project,
+        query="SELECT * FROM {}.{}".format(self.dataset_id, table_name),
+        data=self.parse_expected_data(self.ELEMENTS))
+
+    args = self.test_pipeline.get_full_options_as_args(
+        on_success_matcher=bq_matcher,
+        streaming=True,
+        allow_unsafe_triggers=True)
+
+    with beam.Pipeline(argv=args) as p:
+      _ = (
+          p
+          | GenerateSequence(
+              start=0, stop=4, expansion_service=self.expansion_service)
+          | beam.Map(lambda x: elements[x])
+          | beam.io.WriteToBigQuery(
+              table=table_id,
+              method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API,
+              schema=schema,
+              with_auto_sharding=auto_sharding,
+              use_at_least_once=use_at_least_once,
+              expansion_service=self.expansion_service))
+    hamcrest_assert(p, bq_matcher)
+
+  def test_streaming(self):
+    table = 'streaming'
+    self.run_streaming(table_name=table)
+
+  def test_streaming_with_at_least_once(self):
+    table = 'streaming'
+    self.run_streaming(table_name=table, use_at_least_once=True)
+
+  def test_streaming_with_auto_sharding(self):
+    table = 'streaming_with_auto_sharding'
+    self.run_streaming(table_name=table, auto_sharding=True)
 
 
 if __name__ == '__main__':

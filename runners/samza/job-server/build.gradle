@@ -106,7 +106,8 @@ def portableValidatesRunnerTask(String name, boolean docker) {
             excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithMultipleStages'
             excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
             excludeCategories 'org.apache.beam.sdk.testing.UsesLoopingTimer'
-        },
+            excludeCategories 'org.apache.beam.sdk.testing.UsesTriggeredSideInputs'
+      },
         testFilter: {
             // TODO(https://github.com/apache/beam/issues/21042)
             excludeTestsMatching "org.apache.beam.sdk.transforms.FlattenTest.testFlattenWithDifferentInputAndOutputCoders2"

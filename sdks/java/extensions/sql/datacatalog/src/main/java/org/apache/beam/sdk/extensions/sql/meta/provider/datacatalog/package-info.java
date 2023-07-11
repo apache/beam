@@ -17,7 +17,4 @@
  */
 
 /** Table schema for Google Cloud Data Catalog. */
-@Experimental
 package org.apache.beam.sdk.extensions.sql.meta.provider.datacatalog;
-
-import org.apache.beam.sdk.annotations.Experimental;

@@ -25,15 +25,12 @@ import com.google.auto.service.AutoService;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializers;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -50,7 +47,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 @Internal
-@Experimental(Kind.SCHEMAS)
 @AutoService(SchemaTransformProvider.class)
 public class PubsubReadSchemaTransformProvider
     extends TypedSchemaTransformProvider<PubsubReadSchemaTransformConfiguration> {
@@ -98,8 +94,7 @@ public class PubsubReadSchemaTransformProvider
    * An implementation of {@link SchemaTransform} for Pub/Sub reads configured using {@link
    * PubsubReadSchemaTransformConfiguration}.
    */
-  static class PubsubReadSchemaTransform
-      extends PTransform<PCollectionRowTuple, PCollectionRowTuple> implements SchemaTransform {
+  static class PubsubReadSchemaTransform extends SchemaTransform {
 
     private final PubsubReadSchemaTransformConfiguration configuration;
     private final PubsubMessageToRow pubsubMessageToRow;
@@ -131,12 +126,6 @@ public class PubsubReadSchemaTransformProvider
      */
     void setClock(Clock clock) {
       this.clock = clock;
-    }
-
-    /** Implements {@link SchemaTransform} buildTransform method. */
-    @Override
-    public PTransform<PCollectionRowTuple, PCollectionRowTuple> buildTransform() {
-      return this;
     }
 
     /** Validates the {@link PubsubReadSchemaTransformConfiguration}. */

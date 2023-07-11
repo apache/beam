@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -59,13 +60,35 @@ public class OutputSamplerTest {
         .build();
   }
 
+  public BeamFnApi.SampledElement encodeException(
+      Integer i, String error, String ptransformId, @Nullable String processBundleId)
+      throws IOException {
+    VarIntCoder coder = VarIntCoder.of();
+    ByteArrayOutputStream stream = new ByteArrayOutputStream();
+    coder.encode(i, stream);
+
+    BeamFnApi.SampledElement.Exception.Builder builder =
+        BeamFnApi.SampledElement.Exception.newBuilder()
+            .setTransformId(ptransformId)
+            .setError(error);
+
+    if (processBundleId != null) {
+      builder.setInstructionId(processBundleId);
+    }
+
+    return BeamFnApi.SampledElement.newBuilder()
+        .setElement(ByteString.copyFrom(stream.toByteArray()))
+        .setException(builder)
+        .build();
+  }
+
   /**
    * Test that the first N are always sampled.
    *
-   * @throws Exception when encoding fails (shouldn't happen).
+   * @throws IOException when encoding fails (shouldn't happen).
    */
   @Test
-  public void testSamplesFirstN() throws Exception {
+  public void testSamplesFirstN() throws IOException {
     VarIntCoder coder = VarIntCoder.of();
     OutputSampler<Integer> outputSampler = new OutputSampler<>(coder, 10, 10);
 
@@ -85,7 +108,7 @@ public class OutputSamplerTest {
   }
 
   @Test
-  public void testWindowedValueSample() throws Exception {
+  public void testWindowedValueSample() throws IOException {
     WindowedValue.WindowedValueCoder<Integer> coder =
         WindowedValue.FullWindowedValueCoder.of(VarIntCoder.of(), GlobalWindow.Coder.INSTANCE);
 
@@ -99,7 +122,7 @@ public class OutputSamplerTest {
   }
 
   @Test
-  public void testNonWindowedValueSample() throws Exception {
+  public void testNonWindowedValueSample() throws IOException {
     VarIntCoder coder = VarIntCoder.of();
 
     OutputSampler<Integer> outputSampler = new OutputSampler<>(coder, 10, 10);
@@ -114,10 +137,10 @@ public class OutputSamplerTest {
   /**
    * Test that the previous values are overwritten and only the most recent `maxSamples` are kept.
    *
-   * @throws Exception when encoding fails (shouldn't happen).
+   * @throws IOException when encoding fails (shouldn't happen).
    */
   @Test
-  public void testActsLikeCircularBuffer() throws Exception {
+  public void testActsLikeCircularBuffer() throws IOException {
     VarIntCoder coder = VarIntCoder.of();
     OutputSampler<Integer> outputSampler = new OutputSampler<>(coder, 5, 20);
 
@@ -140,12 +163,131 @@ public class OutputSamplerTest {
   }
 
   /**
-   * Test that sampling a PCollection while retrieving samples from multiple threads is ok.
+   * Test that elements with exceptions can be sampled. TODO: test that the exception metadata is
+   * set.
    *
-   * @throws Exception
+   * @throws IOException when encoding fails (shouldn't happen).
    */
   @Test
-  public void testConcurrentSamples() throws Exception {
+  public void testCanSampleExceptions() throws IOException {
+    VarIntCoder coder = VarIntCoder.of();
+    OutputSampler<Integer> outputSampler = new OutputSampler<>(coder, 5, 20);
+
+    WindowedValue<Integer> windowedValue = WindowedValue.valueInGlobalWindow(1);
+    ElementSample<Integer> elementSample = outputSampler.sample(windowedValue);
+
+    Exception exception = new RuntimeException("Test exception");
+    String ptransformId = "ptransform";
+    String processBundleId = "processBundle";
+    outputSampler.exception(elementSample, exception, ptransformId, processBundleId);
+
+    List<BeamFnApi.SampledElement> expected = new ArrayList<>();
+    expected.add(encodeException(1, exception.toString(), ptransformId, processBundleId));
+
+    List<BeamFnApi.SampledElement> samples = outputSampler.samples();
+    assertThat(samples, containsInAnyOrder(expected.toArray()));
+  }
+
+  /**
+   * Test that in the event that an exception happens multiple times in a bundle, it's only recorded
+   * at the source.
+   *
+   * @throws IOException when encoding fails (shouldn't happen).
+   */
+  @Test
+  public void testNoDuplicateExceptions() throws IOException {
+    VarIntCoder coder = VarIntCoder.of();
+    OutputSampler<Integer> outputSampler = new OutputSampler<>(coder, 5, 20);
+
+    ElementSample<Integer> elementSampleA =
+        outputSampler.sample(WindowedValue.valueInGlobalWindow(1));
+    ElementSample<Integer> elementSampleB =
+        outputSampler.sample(WindowedValue.valueInGlobalWindow(2));
+
+    Exception exception = new RuntimeException("Test exception");
+    String ptransformIdA = "ptransformA";
+    String ptransformIdB = "ptransformB";
+    String processBundleId = "processBundle";
+    outputSampler.exception(elementSampleA, exception, ptransformIdA, processBundleId);
+    outputSampler.exception(elementSampleB, exception, ptransformIdB, processBundleId);
+
+    List<BeamFnApi.SampledElement> expected = new ArrayList<>();
+    expected.add(encodeException(1, exception.toString(), ptransformIdA, processBundleId));
+    expected.add(encodeInt(2));
+
+    List<BeamFnApi.SampledElement> samples = outputSampler.samples();
+    assertThat(samples, containsInAnyOrder(expected.toArray()));
+  }
+
+  /**
+   * Test that exception metadata is only set if there is a process bundle.
+   *
+   * @throws IOException when encoding fails (shouldn't happen).
+   */
+  @Test
+  public void testExceptionOnlySampledIfNonNullProcessBundle() throws IOException {
+    VarIntCoder coder = VarIntCoder.of();
+    OutputSampler<Integer> outputSampler = new OutputSampler<>(coder, 5, 20);
+
+    WindowedValue<Integer> windowedValue = WindowedValue.valueInGlobalWindow(1);
+    ElementSample<Integer> elementSample = outputSampler.sample(windowedValue);
+
+    Exception exception = new RuntimeException("Test exception");
+    String ptransformId = "ptransform";
+    outputSampler.exception(elementSample, exception, ptransformId, null);
+
+    List<BeamFnApi.SampledElement> expected = new ArrayList<>();
+    expected.add(encodeInt(1));
+
+    List<BeamFnApi.SampledElement> samples = outputSampler.samples();
+    assertThat(samples, containsInAnyOrder(expected.toArray()));
+  }
+
+  /**
+   * Tests that multiple samples don't push out exception samples. TODO: test that the exception
+   * metadata is set.
+   *
+   * @throws IOException when encoding fails (shouldn't happen).
+   */
+  @Test
+  public void testExceptionSamplesAreNotRemoved() throws IOException {
+    VarIntCoder coder = VarIntCoder.of();
+    OutputSampler<Integer> outputSampler = new OutputSampler<>(coder, 5, 20);
+
+    WindowedValue<Integer> windowedValue = WindowedValue.valueInGlobalWindow(0);
+    ElementSample<Integer> elementSample = outputSampler.sample(windowedValue);
+
+    for (int i = 1; i < 100; ++i) {
+      outputSampler.sample(WindowedValue.valueInGlobalWindow(i));
+    }
+
+    Exception exception = new RuntimeException("Test exception");
+    String ptransformId = "ptransform";
+    String processBundleId = "processBundle";
+    outputSampler.exception(elementSample, exception, ptransformId, processBundleId);
+
+    // The first 10 are always sampled, but with maxSamples = 5, the first ten are downsampled to
+    // 4..9 inclusive. Then, the 20th element is sampled (19) and every 20 after. Finally,
+    // exceptions are added to the list.
+    List<BeamFnApi.SampledElement> expected = new ArrayList<>();
+    expected.add(encodeInt(19));
+    expected.add(encodeInt(39));
+    expected.add(encodeInt(59));
+    expected.add(encodeInt(79));
+    expected.add(encodeInt(99));
+    expected.add(encodeException(0, exception.toString(), ptransformId, processBundleId));
+
+    List<BeamFnApi.SampledElement> samples = outputSampler.samples();
+    assertThat(samples, containsInAnyOrder(expected.toArray()));
+  }
+
+  /**
+   * Test that sampling a PCollection while retrieving samples from multiple threads is ok.
+   *
+   * @throws IOException, InterruptedException
+   */
+  @Test
+  public void testConcurrentSamples() throws IOException, InterruptedException {
     VarIntCoder coder = VarIntCoder.of();
     OutputSampler<Integer> outputSampler = new OutputSampler<>(coder, 10, 2);
 

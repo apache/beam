@@ -215,7 +215,7 @@ options = PipelineOptions([
     "--job_endpoint=localhost:8099",
     "--environment_type=LOOPBACK"
 ])
-with beam.Pipeline(options) as p:
+with beam.Pipeline(options=options) as p:
     ...
 {{< /highlight >}}
 

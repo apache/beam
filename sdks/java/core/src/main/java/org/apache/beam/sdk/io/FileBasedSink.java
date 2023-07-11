@@ -40,8 +40,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -121,7 +119,6 @@ import org.slf4j.LoggerFactory;
  *
  * @param <OutputT> the type of values written to the sink.
  */
-@Experimental(Kind.FILESYSTEM)
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
@@ -229,7 +226,6 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
    * {@code /}, {@code gs://my-bucket}, or {@code c://}. In that case, interpreting the string as a
    * file will fail and this function will return a directory {@link ResourceId} instead.
    */
-  @Experimental(Kind.FILESYSTEM)
   public static ResourceId convertToFileResourceIfPossible(String outputPrefix) {
     try {
       return FileSystems.matchNewResource(outputPrefix, false /* isDirectory */);
@@ -253,7 +249,6 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
    * <p>Users can define a custom type to represent destinations, and provide a mapping to turn this
    * destination type into an instance of {@link FilenamePolicy}.
    */
-  @Experimental(Kind.FILESYSTEM)
   public abstract static class DynamicDestinations<UserT, DestinationT, OutputT>
       implements HasDisplayData, Serializable {
     interface SideInputAccessor {
@@ -364,7 +359,6 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
   }
 
   /** A naming policy for output files. */
-  @Experimental(Kind.FILESYSTEM)
   public abstract static class FilenamePolicy implements Serializable {
     /**
      * When a sink has requested windowed or triggered output, this method will be invoked to return
@@ -374,7 +368,6 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
      *
      * <p>The policy must return unique and consistent filenames for different windows and panes.
      */
-    @Experimental(Kind.FILESYSTEM)
     public abstract ResourceId windowedFilename(
         int shardNumber,
         int numShards,
@@ -391,7 +384,6 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
      * <p>The shardNumber and numShards parameters, should be used by the policy to generate unique
      * and consistent filenames.
      */
-    @Experimental(Kind.FILESYSTEM)
     public abstract @Nullable ResourceId unwindowedFilename(
         int shardNumber, int numShards, OutputFileHints outputFileHints);
 
@@ -412,7 +404,6 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
   /**
    * Construct a {@link FileBasedSink} with the given temp directory, producing uncompressed files.
    */
-  @Experimental(Kind.FILESYSTEM)
   public FileBasedSink(
       ValueProvider<ResourceId> tempDirectoryProvider,
       DynamicDestinations<?, DestinationT, OutputT> dynamicDestinations) {
@@ -420,7 +411,6 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
   }
 
   /** Construct a {@link FileBasedSink} with the given temp directory and output channel type. */
-  @Experimental(Kind.FILESYSTEM)
   public FileBasedSink(
       ValueProvider<ResourceId> tempDirectoryProvider,
       DynamicDestinations<?, DestinationT, OutputT> dynamicDestinations,
@@ -432,7 +422,6 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
   }
 
   /** Construct a {@link FileBasedSink} with the given temp directory and output channel type. */
-  @Experimental(Kind.FILESYSTEM)
   public FileBasedSink(
       ValueProvider<ResourceId> tempDirectoryProvider,
       DynamicDestinations<?, DestinationT, OutputT> dynamicDestinations,
@@ -450,7 +439,6 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
    * Returns the directory inside which temporary files will be written according to the configured
    * {@link FilenamePolicy}.
    */
-  @Experimental(Kind.FILESYSTEM)
   public ValueProvider<ResourceId> getTempDirectoryProvider() {
     return tempDirectoryProvider;
   }
@@ -522,11 +510,9 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
     private final UUID subdirUUID;
 
     /** Whether windowed writes are being used. */
-    @Experimental(Kind.FILESYSTEM)
     protected boolean windowedWrites;
 
     /** Constructs a temporary file resource given the temporary directory and a filename. */
-    @Experimental(Kind.FILESYSTEM)
     protected static ResourceId buildTemporaryFilename(ResourceId tempDirectory, String filename)
         throws IOException {
       return tempDirectory.resolve(filename, StandardResolveOptions.RESOLVE_FILE);
@@ -561,7 +547,6 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
      * @param sink the FileBasedSink that will be used to configure this write operation.
      * @param tempDirectory the base directory to be used for temporary output files.
      */
-    @Experimental(Kind.FILESYSTEM)
     public WriteOperation(FileBasedSink<?, DestinationT, OutputT> sink, ResourceId tempDirectory) {
       this(sink, StaticValueProvider.of(tempDirectory), TempSubDirType.NONE);
     }
@@ -626,7 +611,6 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
       removeTemporaryFiles(filenames, !windowedWrites);
     }
 
-    @Experimental(Kind.FILESYSTEM)
     protected final List<KV<FileResult<DestinationT>, ResourceId>> finalizeDestination(
         @Nullable DestinationT dest,
         @Nullable BoundedWindow window,
@@ -783,7 +767,6 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
      * will be copied to dir/file-001-of-003.txt, etc.
      */
     @VisibleForTesting
-    @Experimental(Kind.FILESYSTEM)
     final void moveToOutputFiles(
         List<KV<FileResult<DestinationT>, ResourceId>> resultsToFinalFilenames) throws IOException {
       int numFiles = resultsToFinalFilenames.size();
@@ -818,7 +801,6 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
      * temporary files, this method will remove them.
      */
     @VisibleForTesting
-    @Experimental(Kind.FILESYSTEM)
     final void removeTemporaryFiles(
         Collection<ResourceId> knownFiles, boolean shouldRemoveTemporaryDirectory)
         throws IOException {
@@ -1105,7 +1087,6 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
     private final PaneInfo paneInfo;
     private final DestinationT destination;
 
-    @Experimental(Kind.FILESYSTEM)
     public FileResult(
         ResourceId tempFilename,
         int shard,
@@ -1121,7 +1102,6 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
       this.destination = destination;
     }
 
-    @Experimental(Kind.FILESYSTEM)
     public ResourceId getTempFilename() {
       return tempFilename;
     }
@@ -1146,7 +1126,6 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
       return destination;
     }
 
-    @Experimental(Kind.FILESYSTEM)
     public ResourceId getDestinationFile(
         boolean windowedWrites,
         DynamicDestinations<?, DestinationT, ?> dynamicDestinations,

@@ -15,13 +15,7 @@
 # limitations under the License.
 #
 
-"""Deprecated and experimental annotations.
-
-Experimental: Signifies that a public API (public class, method or field) is
-subject to incompatible changes, or even removal, in a future release. Note that
-the presence of this annotation implies nothing about the quality or performance
-of the API in question, only the fact that the API or behavior may change in any
-way.
+"""Deprecated annotations.
 
 Deprecated: Signifies that users are discouraged from using a public API
 typically because a better alternative exists, and the current form might be
@@ -55,30 +49,11 @@ same function 'multiply'.::
     print(arg1, '*', arg2, '(the old way)=', end=' ')
     return result
 
-# This annotation marks 'exp_multiply' as experimental and suggests
-# using 'multiply' instead.::
-
-  @experimental(since='v.1', current='multiply')
-  def exp_multiply(arg1, arg2):
-    print(arg1, '*', arg2, '(the experimental way)=', end=' ')
-    return (arg1*arg2)*(arg1/arg2)*(arg2/arg1)
-
-# If a custom message is needed, on both annotations types the
-# arg custom_message can be used.::
-
-  @experimental(since='v.1', current='multiply'
-                custom_message='Experimental since %since%
-                                Please use %current% insted.')
-  def exp_multiply(arg1, arg2):
-    print(arg1, '*', arg2, '(the experimental way)=', end=' ')
-    return (arg1*arg2)*(arg1/arg2)*(arg2/arg1)
-
 # Set a warning filter to control how often warnings are produced.::
 
   warnings.simplefilter("always")
   print(multiply(5, 6))
   print(old_multiply(5,6))
-  print(exp_multiply(5,6))
 """
 
 # pytype: skip-file
@@ -193,9 +168,3 @@ def annotate(label, since, current, extra_message, custom_message=None):
 # while 'since' will be mandatory for deprecated.
 deprecated = partial(
     annotate, label='deprecated', current=None, extra_message=None)
-experimental = partial(
-    annotate,
-    label='experimental',
-    current=None,
-    since=None,
-    extra_message=None)

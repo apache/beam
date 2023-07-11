@@ -73,6 +73,57 @@ public class ByteStringOutputStreamTest {
   }
 
   @Test
+  public void testWriteBytesConsumePrefix() throws Exception {
+    ByteStringOutputStream out = new ByteStringOutputStream();
+    assertEquals(0, out.size());
+    for (int numElements = 140; numElements < 1024 * 1024; numElements = next(numElements)) {
+      ByteArrayOutputStream baos = new ByteArrayOutputStream();
+      DataOutputStream dataOut = new DataOutputStream(baos);
+      try {
+        for (int i = 0; i < numElements; ++i) {
+          dataOut.writeInt(i);
+        }
+        dataOut.close();
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+      dataOut.close();
+      byte[] testBuffer = baos.toByteArray();
+
+      for (int pos = 0; pos < testBuffer.length; ) {
+        if (testBuffer[pos] == 0) {
+          out.write(testBuffer[pos]);
+          pos += 1;
+        } else {
+          int len = Math.min(testBuffer.length - pos, Math.abs(testBuffer[pos]));
+          out.write(testBuffer, pos, len);
+          pos += len;
+        }
+        assertEquals(pos, out.size());
+      }
+
+      assertEquals(UnsafeByteOperations.unsafeWrap(testBuffer), out.toByteString());
+      assertEquals(
+          UnsafeByteOperations.unsafeWrap(testBuffer, 0, 2), out.consumePrefixToByteString(2));
+      assertEquals(testBuffer.length - 2, out.size());
+      assertEquals(
+          UnsafeByteOperations.unsafeWrap(testBuffer, 2, 100), out.consumePrefixToByteString(100));
+      assertEquals(testBuffer.length - 102, out.size());
+      assertEquals(
+          UnsafeByteOperations.unsafeWrap(testBuffer, 102, 0), out.consumePrefixToByteString(0));
+      assertEquals(testBuffer.length - 102, out.size());
+      assertEquals(
+          UnsafeByteOperations.unsafeWrap(testBuffer, 102, testBuffer.length - 112),
+          out.consumePrefixToByteString(out.size() - 10));
+      assertEquals(10, out.size());
+      assertEquals(
+          UnsafeByteOperations.unsafeWrap(testBuffer, testBuffer.length - 10, 10),
+          out.consumePrefixToByteString(10));
+      assertEquals(0, out.size());
+    }
+  }
+
+  @Test
   public void testWriteBytesWithZeroInitialCapacity() throws Exception {
     for (int numElements = 0; numElements < 1024 * 1024; numElements = next(numElements)) {
       ByteArrayOutputStream baos = new ByteArrayOutputStream();

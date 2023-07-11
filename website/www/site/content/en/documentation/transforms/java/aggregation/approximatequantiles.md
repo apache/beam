@@ -30,10 +30,15 @@ globally or per-key. Using an approximation algorithm, it returns the
 minimum value, *n-2* intermediate values, and the maximum value.
 
 ## Examples
+
 **Example**: to compute the quartiles of a `PCollection` of integers, we
 would use `ApproximateQuantiles.globally(5)`. This will produce a list
 containing 5 values: the minimum value, Quartile 1 value, Quartile 2
 value, Quartile 3 value, and the maximum value.
+
+{{< playground height="700px" >}}
+{{< playground_snippet language="java" path="SDK_JAVA_ApproximateQuantiles" show="main_section" >}}
+{{< /playground >}}
 
 ## Related transforms
 * [ApproximateUnique](/documentation/transforms/java/aggregation/approximateunique)

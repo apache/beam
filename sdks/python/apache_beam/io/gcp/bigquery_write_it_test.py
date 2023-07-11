@@ -127,10 +127,10 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
             'number': 2, 'str': 'def'
         },
         {
-            'number': 3, 'str': u'你好'
+            'number': 3, 'str': '你好'
         },
         {
-            'number': 4, 'str': u'привет'
+            'number': 4, 'str': 'привет'
         },
     ]
     table_schema = {
@@ -153,10 +153,10 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
                 'def',
             ), (
                 3,
-                u'你好',
+                '你好',
             ), (
                 4,
-                u'привет',
+                'привет',
             )])
     ]
 

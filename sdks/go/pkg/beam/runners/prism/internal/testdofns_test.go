@@ -47,6 +47,7 @@ func init() {
 	register.Function3x0(dofnGBK3)
 	register.Function3x0(dofn1Counter)
 	register.Function2x0(dofnSink)
+	register.Function3x1(doFnFail)
 
 	register.Function2x1(combineIntSum)
 

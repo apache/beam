@@ -51,6 +51,7 @@ class CodeTextAreaWrapper extends StatelessWidget {
     final example = snippetController.example;
 
     return SnippetEditor(
+      autofocus: true,
       controller: snippetController,
       isEditable: true,
       actionsWidget: Row(

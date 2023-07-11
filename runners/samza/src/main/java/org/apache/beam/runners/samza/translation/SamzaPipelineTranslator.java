@@ -26,10 +26,12 @@ import java.util.ServiceLoader;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.TransformPayloadTranslatorRegistrar;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
+import org.apache.beam.runners.samza.metrics.SamzaMetricOpFactory;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /** This class knows all the translators from a primitive BEAM transform to a Samza operator. */
@@ -62,9 +64,17 @@ public class SamzaPipelineTranslator {
               Pipeline pipeline,
               TransformTranslator<T> translator) {
             ctx.setCurrentTransform(node.toAppliedPTransform(pipeline));
+            ctx.attachTransformMetricOp(
+                (PTransform<? extends PValue, ? extends PValue>) transform,
+                node,
+                SamzaMetricOpFactory.OpType.INPUT);
 
             translator.translate(transform, node, ctx);
 
+            ctx.attachTransformMetricOp(
+                (PTransform<? extends PValue, ? extends PValue>) transform,
+                node,
+                SamzaMetricOpFactory.OpType.OUTPUT);
             ctx.clearCurrentTransform();
           }
         };

@@ -33,8 +33,10 @@ import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.sdk.io.aws2.MockClientBuilderFactory;
 import org.apache.beam.sdk.io.aws2.options.AwsOptions;
 import org.apache.beam.sdk.io.aws2.sqs.EmbeddedSqsServer.TestCaseEnv;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -43,6 +45,7 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 import software.amazon.awssdk.services.sqs.SqsClient;
+import software.amazon.awssdk.services.sqs.SqsClientBuilder;
 
 /** Tests on {@link SqsUnboundedReader}. */
 @RunWith(MockitoJUnitRunner.StrictStubs.class)
@@ -56,7 +59,7 @@ public class SqsUnboundedReaderTest {
   @Mock(answer = RETURNS_DEEP_STUBS)
   public SqsUnboundedSource mockSource;
 
-  @Mock public AwsOptions options;
+  private AwsOptions options = PipelineOptionsFactory.create().as(AwsOptions.class);
 
   private void setupMessages(String... messages) {
     final SqsClient client = testCase.getClient();
@@ -65,7 +68,7 @@ public class SqsUnboundedReaderTest {
       client.sendMessage(b -> b.queueUrl(queueUrl).messageBody(message));
     }
 
-    when(mockSource.getRead().sqsClientProvider()).thenReturn(StaticSqsClientProvider.of(client));
+    MockClientBuilderFactory.set(options, SqsClientBuilder.class, client);
     when(mockSource.getRead().queueUrl()).thenReturn(queueUrl);
   }
 

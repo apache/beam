@@ -20,12 +20,9 @@ package org.apache.beam.sdk.metrics;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** The name of a metric. */
-@Experimental(Kind.METRICS)
 @AutoValue
 public abstract class MetricNameFilter {
 

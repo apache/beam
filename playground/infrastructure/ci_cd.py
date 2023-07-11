@@ -32,6 +32,7 @@ from helper import (
     find_examples,
     load_supported_categories,
     validate_examples_for_duplicates_by_name,
+    validate_examples_for_conflicting_datasets,
 )
 from logger import setup_logger
 
@@ -68,7 +69,7 @@ parser.add_argument(
     type=Origin,
     required=True,
     help="ORIGIN field of pg_examples/pg_snippets",
-    choices=[o.value for o in [Origin.PG_EXAMPLES, Origin.TB_EXAMPLES]],
+    choices=[o.value for o in [Origin.PG_EXAMPLES, Origin.PG_BEAMDOC, Origin.TB_EXAMPLES]],
 )
 parser.add_argument(
     "--subdirs",
@@ -98,6 +99,7 @@ def _run_ci_cd(step: str, raw_sdk: str, origin: Origin, project: str, namespace:
     logging.info("Start of searching Playground examples ...")
     examples = find_examples(root_dir, subdirs, sdk)
     validate_examples_for_duplicates_by_name(examples)
+    validate_examples_for_conflicting_datasets(examples)
     logging.info("Finish of searching Playground examples")
     logging.info("Number of found Playground examples: %s", len(examples))
 

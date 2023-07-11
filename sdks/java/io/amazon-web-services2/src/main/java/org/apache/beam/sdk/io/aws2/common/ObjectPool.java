@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.aws2.common;
 import static org.apache.beam.sdk.io.aws2.common.ClientBuilderFactory.buildClient;
 
 import java.util.function.Function;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.function.ThrowingConsumer;
 import org.apache.beam.sdk.io.aws2.options.AwsOptions;
@@ -46,7 +45,6 @@ import software.amazon.awssdk.core.SdkClient;
  * @param <ObjectT>> Shared object
  */
 @Internal
-@Experimental
 public class ObjectPool<KeyT extends @NonNull Object, ObjectT extends @NonNull Object> {
   private final BiMap<KeyT, RefCounted> pool = HashBiMap.create(2);
   private final Function<KeyT, ObjectT> builder;

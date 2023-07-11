@@ -71,6 +71,7 @@ excluded_patterns=(
     'apache_beam/testing/benchmarks/load_tests/'
     'apache_beam/testing/analyzers'
     'apache_beam/testing/.*test.py'
+    'apache_beam/testing/fast_test_utils.*'
     'apache_beam/tools/'
     'apache_beam/tools/map_fn_microbenchmark.*'
     'apache_beam/transforms/cy_combiners.*'
@@ -130,7 +131,7 @@ release = version
 autoclass_content = 'both'
 autodoc_inherit_docstrings = False
 autodoc_member_order = 'bysource'
-autodoc_mock_imports = ["tensorrt", "cuda", "torch", "onnxruntime", "onnx", "tensorflow", "tensorflow_hub"]
+autodoc_mock_imports = ["tensorrt", "cuda", "torch", "onnxruntime", "onnx", "tensorflow", "tensorflow_hub", "tensorflow_transform", "tensorflow_metadata"]
 
 # Allow a special section for documenting DataFrame API
 napoleon_custom_sections = ['Differences from pandas']

@@ -23,6 +23,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import org.apache.beam.fn.harness.Cache;
@@ -31,6 +32,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.junit.Test;
@@ -106,6 +108,42 @@ public class BagUserStateTest {
 
     assertEquals(encode("A1", "A2", "A3"), fakeClient.getData().get(key("A")));
     assertThrows(IllegalStateException.class, () -> userState.append("A4"));
+  }
+
+  @Test
+  public void testAppendBatchingLimit() throws Exception {
+    String a1 = "A1";
+    FakeBeamFnStateClient fakeClient =
+        new FakeBeamFnStateClient(StringUtf8Coder.of(), ImmutableMap.of(key("A"), asList(a1)));
+    BagUserState<String> userState =
+        new BagUserState<>(
+            Caches.noop(), fakeClient, "instructionId", key("A"), StringUtf8Coder.of());
+    String a2 = Strings.repeat("A2", 2 * 1024 * 1024);
+    userState.append(a2);
+    String a3 = Strings.repeat("A3", 4 * 1024 * 1024);
+    userState.append(a3);
+    String a4 = "A4";
+    userState.append(a4);
+    String a5 = Strings.repeat("A5", 100);
+    userState.append(a5);
+    String a6 = Strings.repeat("A6", 11 * 1024 * 1024);
+    userState.append(a6);
+    String a7 = "A7";
+    userState.append(a7);
+    Iterable<String> stateBeforeA3 = userState.get();
+    assertArrayEquals(
+        new String[] {a1, a2, a3, a4, a5, a6, a7}, Iterables.toArray(stateBeforeA3, String.class));
+    userState.asyncClose();
+
+    assertEquals(encode(a1, a2, a3, a4, a5, a6, a7), fakeClient.getData().get(key("A")));
+    assertTrue(encode(a2, a3).size() > BagUserState.BAG_APPEND_BATCHING_LIMIT);
+    assertTrue(encode(a3, a4, a5).size() < BagUserState.BAG_APPEND_BATCHING_LIMIT);
+    assertTrue(encode(a3, a4, a5, a6).size() > BagUserState.BAG_APPEND_BATCHING_LIMIT);
+    assertTrue(encode(a6, a7).size() > BagUserState.BAG_APPEND_BATCHING_LIMIT);
+
+    assertArrayEquals(
+        new ByteString[] {encode(a1), encode(a2), encode(a3, a4, a5), encode(a6), encode(a7)},
+        Iterables.toArray(fakeClient.getRawData().get(key("A")), ByteString.class));
   }
 
   @Test
