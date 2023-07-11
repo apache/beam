@@ -76,12 +76,7 @@ jobs:
             uses: gradle/gradle-build-action@v2
             with:
               cache-read-only: false
-          - name: Authenticate on GCP
-            uses: google-github-actions/setup-gcloud@v0
-            with:
-              service_account_email: ${{ secrets.GCP_SA_EMAIL }}
-              service_account_key: ${{ secrets.GCP_SA_KEY }}
-              project_id: ${{ secrets.GCP_PROJECT_ID }}
-              export_default_credentials: true
+          - name: Set up Cloud SDK
+            uses: google-github-actions/setup-gcloud@v1
           - name: run website_stageWebsite script
             run: ./gradlew :website:stageWebsite
