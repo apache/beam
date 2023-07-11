@@ -17,9 +17,13 @@
  */
 
 import 'package:equatable/equatable.dart';
+import 'package:json_annotation/json_annotation.dart';
 
 import '../util/string.dart';
 
+part 'example_view_options.g.dart';
+
+@JsonSerializable()
 class ExampleViewOptions with EquatableMixin {
   final bool foldCommentAtLineZero;
   final bool foldImports;
@@ -35,6 +39,16 @@ class ExampleViewOptions with EquatableMixin {
     this.foldImports = true,
   });
 
+  /// Parses a fully normalized map.
+  factory ExampleViewOptions.fromJson(Map<String, dynamic> json) =>
+      _$ExampleViewOptionsFromJson(json);
+
+  Map<String, dynamic> toJson() => _$ExampleViewOptionsToJson(this);
+
+  /// Parses a simplified map that comes from a URL.
+  ///
+  /// This map has CSV strings instead of JSON arrays
+  /// and cannot override folding parameters' defaults.
   factory ExampleViewOptions.fromShortMap(Map<String, dynamic> map) {
     return ExampleViewOptions(
       readOnlySectionNames: _split(map['readonly']),

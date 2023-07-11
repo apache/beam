@@ -29,6 +29,7 @@ import com.google.bigtable.v2.Row;
 import com.google.bigtable.v2.RowFilter;
 import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.data.v2.models.ChangeStreamMutation;
+import com.google.cloud.bigtable.data.v2.models.ChangeStreamRecord;
 import com.google.cloud.bigtable.data.v2.models.KeyOffset;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
@@ -40,8 +41,6 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import org.apache.beam.sdk.PipelineRunner;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -49,13 +48,14 @@ import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.UniqueIdGenerator;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.action.ActionFactory;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.BigtableChangeStreamAccessor;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.DaoFactory;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTableAdminDao;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dofn.DetectNewPartitionsDoFn;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dofn.FilterForMutationDoFn;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dofn.InitializeDoFn;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dofn.ReadChangeStreamPartitionDoFn;
-import org.apache.beam.sdk.io.gcp.bigtable.changestreams.estimator.BytesThroughputEstimator;
-import org.apache.beam.sdk.io.gcp.bigtable.changestreams.estimator.SizeEstimator;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.estimator.CoderSizeEstimator;
 import org.apache.beam.sdk.io.range.ByteKey;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
 import org.apache.beam.sdk.io.range.ByteKeyRangeTracker;
@@ -249,6 +249,13 @@ import org.slf4j.LoggerFactory;
  *            .withStartTime(startTime));
  * }</pre>
  *
+ * <h3>Enable client side metrics</h3>
+ *
+ * <p>Client side metrics can be enabled with an experiments flag when you run the pipeline:
+ * --experiments=bigtable_enable_client_side_metrics. These metrics can provide additional insights
+ * to your job. You can read more about client side metrics in this documentation:
+ * https://cloud.google.com/bigtable/docs/client-side-metrics.
+ *
  * <h3>Permissions</h3>
  *
  * <p>Permission requirements depend on the {@link PipelineRunner} that is used to execute the
@@ -304,7 +311,6 @@ public class BigtableIO {
    *
    * <ul>
    *   <li>{@link BigtableIO.ReadChangeStream#withStartTime} which defaults to now.
-   *   <li>{@link BigtableIO.ReadChangeStream#withHeartbeatDuration} with defaults to 1 seconds.
    *   <li>{@link BigtableIO.ReadChangeStream#withMetadataTableProjectId} which defaults to value
    *       from {@link BigtableIO.ReadChangeStream#withProjectId}
    *   <li>{@link BigtableIO.ReadChangeStream#withMetadataTableInstanceId} which defaults to value
@@ -317,7 +323,6 @@ public class BigtableIO {
    *       generated string.
    * </ul>
    */
-  @Experimental
   public static ReadChangeStream readChangeStream() {
     return ReadChangeStream.create();
   }
@@ -552,7 +557,6 @@ public class BigtableIO {
      * <p>When we have a builder, we initialize the value. When they call the method then we
      * override the value
      */
-    @Experimental(Kind.SOURCE_SINK)
     public Read withMaxBufferElementCount(@Nullable Integer maxBufferElementCount) {
       BigtableReadOptions bigtableReadOptions = getBigtableReadOptions();
       return toBuilder()
@@ -1000,6 +1004,26 @@ public class BigtableIO {
       BigtableWriteOptions options = getBigtableWriteOptions();
       return toBuilder()
           .setBigtableWriteOptions(options.toBuilder().setMaxOutstandingBytes(bytes).build())
+          .build();
+    }
+
+    /**
+     * Returns a new {@link BigtableIO.Write} with flow control enabled if enableFlowControl is
+     * true.
+     *
+     * <p>When enabled, traffic to Bigtable is automatically rate-limited to prevent overloading
+     * Bigtable clusters while keeping enough load to trigger Bigtable Autoscaling (if enabled) to
+     * provision more nodes as needed. It is different from the flow control set by {@link
+     * #withMaxOutstandingElements(long)} and {@link #withMaxOutstandingBytes(long)}, which is
+     * always enabled on batch writes and limits the number of outstanding requests to the Bigtable
+     * server.
+     *
+     * <p>Does not modify this object.
+     */
+    public Write withFlowControl(boolean enableFlowControl) {
+      BigtableWriteOptions options = getBigtableWriteOptions();
+      return toBuilder()
+          .setBigtableWriteOptions(options.toBuilder().setFlowControl(enableFlowControl).build())
           .build();
     }
 
@@ -1759,6 +1783,25 @@ public class BigtableIO {
           cause);
     }
   }
+  /**
+   * Overwrite options to determine what to do if change stream name is being reused and there
+   * exists metadata of the same change stream name.
+   */
+  public enum ExistingPipelineOptions {
+    // Don't start if there exists metadata of the same change stream name.
+    FAIL_IF_EXISTS,
+    // Pick up from where the previous pipeline left off. This will perform resumption at best
+    // effort guaranteeing, at-least-once delivery. So it's likely that duplicate data, seen before
+    // the pipeline was stopped, will be outputted. If previous pipeline doesn't exist, start a new
+    // pipeline.
+    RESUME_OR_NEW,
+    // Same as RESUME_OR_NEW except if previous pipeline doesn't exist, don't start.
+    RESUME_OR_FAIL,
+    // This skips cleaning up previous pipeline metadata and starts a new pipeline. This should
+    // only be used to skip cleanup in tests
+    @VisibleForTesting
+    SKIP_CLEANUP,
+  }
 
   @AutoValue
   public abstract static class ReadChangeStream
@@ -1780,15 +1823,20 @@ public class BigtableIO {
 
     abstract @Nullable Instant getStartTime();
 
-    abstract @Nullable Duration getHeartbeatDuration();
+    abstract @Nullable Instant getEndTime();
 
     abstract @Nullable String getChangeStreamName();
+
+    abstract @Nullable ExistingPipelineOptions getExistingPipelineOptions();
 
     abstract BigtableConfig getMetadataTableBigtableConfig();
 
     abstract @Nullable String getMetadataTableId();
 
+    abstract @Nullable Boolean getCreateOrUpdateMetadataTable();
+
     abstract ReadChangeStream.Builder toBuilder();
+
     /**
      * Returns a new {@link BigtableIO.ReadChangeStream} that will stream from the Cloud Bigtable
      * project indicated by given parameter, requires {@link #withInstanceId} to be called to
@@ -1853,14 +1901,10 @@ public class BigtableIO {
       return toBuilder().setStartTime(startTime).build();
     }
 
-    /**
-     * Returns a new {@link BigtableIO.ReadChangeStream} that will send heartbeat messages at
-     * specified interval.
-     *
-     * <p>Does not modify this object.
-     */
-    public ReadChangeStream withHeartbeatDuration(Duration interval) {
-      return toBuilder().setHeartbeatDuration(interval).build();
+    /** Used only for integration tests. Unsafe to use in production. */
+    @VisibleForTesting
+    ReadChangeStream withEndTime(Instant endTime) {
+      return toBuilder().setEndTime(endTime).build();
     }
 
     /**
@@ -1871,6 +1915,17 @@ public class BigtableIO {
      */
     public ReadChangeStream withChangeStreamName(String changeStreamName) {
       return toBuilder().setChangeStreamName(changeStreamName).build();
+    }
+
+    /**
+     * Returns a new {@link BigtableIO.ReadChangeStream} that decides what to do if an existing
+     * pipeline exists with the same change stream name.
+     *
+     * <p>Does not modify this object.
+     */
+    public ReadChangeStream withExistingPipelineOptions(
+        ExistingPipelineOptions existingPipelineOptions) {
+      return toBuilder().setExistingPipelineOptions(existingPipelineOptions).build();
     }
 
     /**
@@ -1933,79 +1988,132 @@ public class BigtableIO {
           .build();
     }
 
+    /**
+     * Returns a new {@link BigtableIO.ReadChangeStream} that, if set to true, will create or update
+     * metadata table before launching pipeline. Otherwise, it is expected that a metadata table
+     * with correct schema exists.
+     *
+     * <p>Optional: defaults to true
+     *
+     * <p>Does not modify this object.
+     */
+    public ReadChangeStream withCreateOrUpdateMetadataTable(boolean shouldCreate) {
+      return toBuilder().setCreateOrUpdateMetadataTable(shouldCreate).build();
+    }
+
     @Override
     public PCollection<KV<ByteString, ChangeStreamMutation>> expand(PBegin input) {
-      checkArgument(getBigtableConfig() != null);
-      checkArgument(getBigtableConfig().getProjectId() != null);
-      checkArgument(getBigtableConfig().getInstanceId() != null);
-      checkArgument(getBigtableConfig().getAppProfileId() != null);
-      checkArgument(getTableId() != null);
+      checkArgument(
+          getBigtableConfig() != null,
+          "BigtableIO ReadChangeStream is missing required configurations fields.");
+      checkArgument(
+          getBigtableConfig().getProjectId() != null, "Missing required projectId field.");
+      checkArgument(
+          getBigtableConfig().getInstanceId() != null, "Missing required instanceId field.");
+      checkArgument(getTableId() != null, "Missing required tableId field.");
+
+      BigtableConfig bigtableConfig = getBigtableConfig();
+      if (getBigtableConfig().getAppProfileId() == null
+          || getBigtableConfig().getAppProfileId().get().isEmpty()) {
+        bigtableConfig = bigtableConfig.withAppProfileId(StaticValueProvider.of("default"));
+      }
 
       BigtableConfig metadataTableConfig = getMetadataTableBigtableConfig();
+      String metadataTableId = getMetadataTableId();
       if (metadataTableConfig.getProjectId() == null
           || metadataTableConfig.getProjectId().get().isEmpty()) {
-        metadataTableConfig = metadataTableConfig.withProjectId(getBigtableConfig().getProjectId());
+        metadataTableConfig = metadataTableConfig.withProjectId(bigtableConfig.getProjectId());
       }
       if (metadataTableConfig.getInstanceId() == null
           || metadataTableConfig.getInstanceId().get().isEmpty()) {
-        metadataTableConfig =
-            metadataTableConfig.withInstanceId(getBigtableConfig().getInstanceId());
+        metadataTableConfig = metadataTableConfig.withInstanceId(bigtableConfig.getInstanceId());
       }
-      String metadataTableId = getMetadataTableId();
       if (metadataTableId == null || metadataTableId.isEmpty()) {
         metadataTableId = MetadataTableAdminDao.DEFAULT_METADATA_TABLE_NAME;
       }
       if (metadataTableConfig.getAppProfileId() == null
           || metadataTableConfig.getAppProfileId().get().isEmpty()) {
         metadataTableConfig =
-            metadataTableConfig.withAppProfileId(getBigtableConfig().getAppProfileId());
+            metadataTableConfig.withAppProfileId(bigtableConfig.getAppProfileId());
       }
 
       Instant startTime = getStartTime();
       if (startTime == null) {
         startTime = Instant.now();
       }
-      Duration heartbeatDuration = getHeartbeatDuration();
-      if (heartbeatDuration == null) {
-        heartbeatDuration = Duration.standardSeconds(1);
-      }
       String changeStreamName = getChangeStreamName();
       if (changeStreamName == null || changeStreamName.isEmpty()) {
         changeStreamName = UniqueIdGenerator.generateRowKeyPrefix();
       }
+      ExistingPipelineOptions existingPipelineOptions = getExistingPipelineOptions();
+      if (existingPipelineOptions == null) {
+        existingPipelineOptions = ExistingPipelineOptions.FAIL_IF_EXISTS;
+      }
+
+      boolean shouldCreateOrUpdateMetadataTable = true;
+      if (getCreateOrUpdateMetadataTable() != null) {
+        shouldCreateOrUpdateMetadataTable = getCreateOrUpdateMetadataTable();
+      }
 
       ActionFactory actionFactory = new ActionFactory();
+      ChangeStreamMetrics metrics = new ChangeStreamMetrics();
       DaoFactory daoFactory =
           new DaoFactory(
-              getBigtableConfig(),
-              metadataTableConfig,
-              getTableId(),
-              metadataTableId,
-              changeStreamName);
-      ChangeStreamMetrics metrics = new ChangeStreamMetrics();
-      InitializeDoFn initializeDoFn =
-          new InitializeDoFn(daoFactory, metadataTableConfig.getAppProfileId().get(), startTime);
-      DetectNewPartitionsDoFn detectNewPartitionsDoFn =
-          new DetectNewPartitionsDoFn(actionFactory, daoFactory, metrics);
-      ReadChangeStreamPartitionDoFn readChangeStreamPartitionDoFn =
-          new ReadChangeStreamPartitionDoFn(heartbeatDuration, daoFactory, actionFactory, metrics);
+              bigtableConfig, metadataTableConfig, getTableId(), metadataTableId, changeStreamName);
 
-      PCollection<KV<ByteString, ChangeStreamMutation>> output =
+      try {
+        MetadataTableAdminDao metadataTableAdminDao = daoFactory.getMetadataTableAdminDao();
+        checkArgument(metadataTableAdminDao != null);
+        checkArgument(
+            metadataTableAdminDao.isAppProfileSingleClusterAndTransactional(
+                metadataTableConfig.getAppProfileId().get()),
+            "App profile id '"
+                + metadataTableConfig.getAppProfileId().get()
+                + "' provided to access metadata table needs to use single-cluster routing policy"
+                + " and allow single-row transactions.");
+
+        // Only try to create or update metadata table if option is set to true. Otherwise, just
+        // check if the table exists.
+        if (shouldCreateOrUpdateMetadataTable && metadataTableAdminDao.createMetadataTable()) {
+          LOG.info("Created metadata table: " + metadataTableAdminDao.getTableId());
+        }
+        checkArgument(
+            metadataTableAdminDao.doesMetadataTableExist(),
+            "Metadata table does not exist: " + metadataTableAdminDao.getTableId());
+
+        try (BigtableChangeStreamAccessor bigtableChangeStreamAccessor =
+            BigtableChangeStreamAccessor.getOrCreate(bigtableConfig)) {
+          checkArgument(
+              bigtableChangeStreamAccessor.getTableAdminClient().exists(getTableId()),
+              "Change Stream table does not exist");
+        }
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      } finally {
+        daoFactory.close();
+      }
+
+      InitializeDoFn initializeDoFn =
+          new InitializeDoFn(daoFactory, startTime, existingPipelineOptions);
+      DetectNewPartitionsDoFn detectNewPartitionsDoFn =
+          new DetectNewPartitionsDoFn(getEndTime(), actionFactory, daoFactory, metrics);
+      ReadChangeStreamPartitionDoFn readChangeStreamPartitionDoFn =
+          new ReadChangeStreamPartitionDoFn(daoFactory, actionFactory, metrics);
+
+      PCollection<KV<ByteString, ChangeStreamRecord>> readChangeStreamOutput =
           input
               .apply(Impulse.create())
               .apply("Initialize", ParDo.of(initializeDoFn))
               .apply("DetectNewPartition", ParDo.of(detectNewPartitionsDoFn))
               .apply("ReadChangeStreamPartition", ParDo.of(readChangeStreamPartitionDoFn));
 
-      Coder<KV<ByteString, ChangeStreamMutation>> outputCoder = output.getCoder();
-      SizeEstimator<KV<ByteString, ChangeStreamMutation>> sizeEstimator =
-          new SizeEstimator<>(outputCoder);
-      BytesThroughputEstimator<KV<ByteString, ChangeStreamMutation>> throughputEstimator =
-          new BytesThroughputEstimator<>(
-              ReadChangeStreamPartitionDoFn.THROUGHPUT_ESTIMATION_WINDOW_SECONDS, sizeEstimator);
-      readChangeStreamPartitionDoFn.setThroughputEstimator(throughputEstimator);
+      Coder<KV<ByteString, ChangeStreamRecord>> outputCoder = readChangeStreamOutput.getCoder();
+      CoderSizeEstimator<KV<ByteString, ChangeStreamRecord>> sizeEstimator =
+          new CoderSizeEstimator<>(outputCoder);
+      readChangeStreamPartitionDoFn.setSizeEstimator(sizeEstimator);
 
-      return output;
+      return readChangeStreamOutput.apply(
+          "FilterForMutation", ParDo.of(new FilterForMutationDoFn()));
     }
 
     @AutoValue.Builder
@@ -2018,15 +2126,66 @@ public class BigtableIO {
       abstract ReadChangeStream.Builder setMetadataTableBigtableConfig(
           BigtableConfig bigtableConfig);
 
-      abstract ReadChangeStream.Builder setMetadataTableId(String tableId);
+      abstract ReadChangeStream.Builder setMetadataTableId(String metadataTableId);
 
       abstract ReadChangeStream.Builder setStartTime(Instant startTime);
 
-      abstract ReadChangeStream.Builder setHeartbeatDuration(Duration interval);
+      abstract ReadChangeStream.Builder setEndTime(Instant endTime);
 
       abstract ReadChangeStream.Builder setChangeStreamName(String changeStreamName);
 
+      abstract ReadChangeStream.Builder setExistingPipelineOptions(
+          ExistingPipelineOptions existingPipelineOptions);
+
+      abstract ReadChangeStream.Builder setCreateOrUpdateMetadataTable(boolean shouldCreate);
+
       abstract ReadChangeStream build();
+    }
+  }
+
+  /**
+   * Utility method to create or update Read Change Stream metadata table. This requires Bigtable
+   * table create permissions. This method is useful if the pipeline isn't granted permissions to
+   * create Bigtable tables. Run this method with correct permissions to create the metadata table,
+   * which is required to read Bigtable change streams. This method only needs to be run once, and
+   * the metadata table can be reused for all pipelines.
+   *
+   * @param projectId project id of the metadata table, usually the same as the project of the table
+   *     being streamed
+   * @param instanceId instance id of the metadata table, usually the same as the instance of the
+   *     table being streamed
+   * @param tableId name of the metadata table, leave it null or empty to use default.
+   * @return true if the table was successfully created. Otherwise, false.
+   */
+  public static boolean createOrUpdateReadChangeStreamMetadataTable(
+      String projectId, String instanceId, @Nullable String tableId) throws IOException {
+    BigtableConfig bigtableConfig =
+        BigtableConfig.builder()
+            .setValidate(true)
+            .setProjectId(StaticValueProvider.of(projectId))
+            .setInstanceId(StaticValueProvider.of(instanceId))
+            .setAppProfileId(
+                StaticValueProvider.of(
+                    "default")) // App profile is not used. It's only required for data API.
+            .build();
+
+    if (tableId == null || tableId.isEmpty()) {
+      tableId = MetadataTableAdminDao.DEFAULT_METADATA_TABLE_NAME;
+    }
+
+    DaoFactory daoFactory = new DaoFactory(null, bigtableConfig, null, tableId, null);
+
+    try {
+      MetadataTableAdminDao metadataTableAdminDao = daoFactory.getMetadataTableAdminDao();
+
+      // Only try to create or update metadata table if option is set to true. Otherwise, just
+      // check if the table exists.
+      if (metadataTableAdminDao.createMetadataTable()) {
+        LOG.info("Created metadata table: " + metadataTableAdminDao.getTableId());
+      }
+      return metadataTableAdminDao.doesMetadataTableExist();
+    } finally {
+      daoFactory.close();
     }
   }
 }

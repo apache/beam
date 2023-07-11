@@ -18,8 +18,6 @@
 package org.apache.beam.sdk.io.aws2.s3;
 
 import com.google.auto.value.AutoValue;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.aws2.options.S3ClientBuilderFactory;
 import org.apache.beam.sdk.io.aws2.options.S3Options;
 import org.apache.beam.sdk.util.InstanceBuilder;
@@ -33,7 +31,6 @@ import software.amazon.awssdk.services.s3.S3ClientBuilder;
  * @see S3FileSystemSchemeRegistrar
  */
 @AutoValue
-@Experimental(Kind.FILESYSTEM)
 public abstract class S3FileSystemConfiguration {
   public static final int MINIMUM_UPLOAD_BUFFER_SIZE_BYTES = 5_242_880;
 

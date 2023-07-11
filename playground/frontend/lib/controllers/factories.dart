@@ -36,7 +36,7 @@ PlaygroundController createPlaygroundController(
   final controller = PlaygroundController(
     examplesLoader: ExamplesLoader(),
     exampleCache: exampleCache,
-    codeRepository: GetIt.instance.get<CodeRepository>(),
+    codeClient: GetIt.instance.get<CodeClient>(),
   );
 
   unawaited(_loadExamples(controller, descriptor));
@@ -54,7 +54,7 @@ Future<void> _loadExamples(
   ExamplesLoadingDescriptor descriptor,
 ) async {
   try {
-    await controller.examplesLoader.load(descriptor);
+    await controller.examplesLoader.loadIfNew(descriptor);
   } on Exception catch (ex) {
     PlaygroundComponents.toastNotifier.addException(ex);
 

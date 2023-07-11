@@ -230,11 +230,11 @@ public class PubsubGrpcClient extends PubsubClient {
     PublishRequest.Builder request = PublishRequest.newBuilder().setTopic(topic.getPath());
     for (OutgoingMessage outgoingMessage : outgoingMessages) {
       PubsubMessage.Builder message =
-          outgoingMessage.message().toBuilder().clearMessageId().clearPublishTime();
+          outgoingMessage.getMessage().toBuilder().clearMessageId().clearPublishTime();
 
       if (timestampAttribute != null) {
         message.putAttributes(
-            timestampAttribute, String.valueOf(outgoingMessage.timestampMsSinceEpoch()));
+            timestampAttribute, String.valueOf(outgoingMessage.getTimestampMsSinceEpoch()));
       }
 
       if (idAttribute != null && !Strings.isNullOrEmpty(outgoingMessage.recordId())) {

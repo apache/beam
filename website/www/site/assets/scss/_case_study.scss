@@ -259,6 +259,10 @@ h2.case-study-h2 {
     }
 
     .case-study-quote-author-img {
+      @media(max-width: $tablet) {
+        padding-left: 50%;
+      }
+      
       padding-left: 72%;
     }
 

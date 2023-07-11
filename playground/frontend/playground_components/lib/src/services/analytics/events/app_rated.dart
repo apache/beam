@@ -25,6 +25,7 @@ class AppRatedAnalyticsEvent extends AnalyticsEventWithSnippetContext {
   const AppRatedAnalyticsEvent({
     required this.rating,
     required super.snippetContext,
+    super.additionalParams,
   }) : super(
           name: BeamAnalyticsEvents.appRated,
         );

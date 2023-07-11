@@ -326,13 +326,13 @@ func diff(c Coder, elem *exec.FullValue, eg yaml.MapItem) bool {
 		got, want = elem.Elm, rv.Interface()
 	case "beam:coder:timer:v1":
 		pass := true
-		tm := elem.Elm.(typex.TimerMap)
+		tm := elem.Elm.(exec.TimerRecv)
 		fs := eg.Value.(yaml.MapSlice)
 		for _, item := range fs {
 
 			switch item.Key.(string) {
 			case "userKey":
-				if want := item.Value.(string); want != tm.Key {
+				if want := item.Value.(string); want != tm.Key.Elm.(string) {
 					pass = false
 				}
 			case "dynamicTimerTag":

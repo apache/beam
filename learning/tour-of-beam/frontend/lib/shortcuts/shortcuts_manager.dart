@@ -35,27 +35,28 @@ class TobShortcutsManager extends StatelessWidget {
     return ShortcutsManager(
       shortcuts: [
         ...tourNotifier.playgroundController.shortcuts,
-        BeamRunShortcut(
-          onInvoke: () {
-            final codeRunner = tourNotifier.playgroundController.codeRunner;
-
-            if (codeRunner.canRun) {
-              codeRunner.runCode(
-                analyticsData: tourNotifier.tobEventContext.toJson(),
-              );
-
-              PlaygroundComponents.analyticsService.sendUnawaited(
-                RunStartedAnalyticsEvent(
-                  snippetContext: codeRunner.eventSnippetContext!,
-                  trigger: EventTrigger.shortcut,
-                  additionalParams: codeRunner.analyticsData,
-                ),
-              );
-            }
-          },
-        ),
+        BeamMainRunShortcut(onInvoke: _onRun),
+        BeamNumpadRunShortcut(onInvoke: _onRun),
       ],
       child: child,
     );
+  }
+
+  void _onRun() {
+    final codeRunner = tourNotifier.playgroundController.codeRunner;
+
+    if (codeRunner.canRun) {
+      codeRunner.runCode(
+        analyticsData: tourNotifier.tobEventContext.toJson(),
+      );
+
+      PlaygroundComponents.analyticsService.sendUnawaited(
+        RunStartedAnalyticsEvent(
+          snippetContext: codeRunner.eventSnippetContext!,
+          trigger: EventTrigger.shortcut,
+          additionalParams: codeRunner.analyticsData,
+        ),
+      );
+    }
   }
 }

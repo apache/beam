@@ -15,10 +15,7 @@
 # limitations under the License.
 #
 
-"""A BeamPlugin base class.
-
-For experimental usage only; no backwards-compatibility guarantees.
-"""
+"""A BeamPlugin base class."""
 
 # pytype: skip-file
 

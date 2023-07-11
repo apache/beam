@@ -43,8 +43,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.repackaged.core.org.apache.commons.lang3.StringUtils;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
@@ -310,7 +309,6 @@ import org.slf4j.LoggerFactory;
  * }
  * }</pre>
  */
-@Experimental(Kind.SOURCE_SINK)
 @SuppressWarnings({
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
@@ -702,6 +700,12 @@ public class HadoopFormatIO {
                     "mapreduce.job.inputformat.class",
                     hadoopConfig.get("mapreduce.job.inputformat.class"))
                 .withLabel("InputFormat Class"));
+        builder.addIfNotNull(
+            DisplayData.item(
+                    "mapreduce.input.fileinputformat.inputdir",
+                    StringUtils.abbreviate(
+                        hadoopConfig.get("mapreduce.input.fileinputformat.inputdir"), 250))
+                .withLabel("Input Directory"));
         builder.addIfNotNull(
             DisplayData.item("key.class", hadoopConfig.get("key.class")).withLabel("Key Class"));
         builder.addIfNotNull(

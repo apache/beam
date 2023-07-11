@@ -21,28 +21,30 @@ import 'package:equatable/equatable.dart';
 import '../../models/sdk.dart';
 
 enum RunCodeStatus {
-  unspecified,
+  cancelled,
+  compileError,
+  compiling,
+  executing,
+  finished,
   preparation,
   preparationError,
-  validationError,
-  compiling,
-  compileError,
-  executing,
   runError,
-  finished,
   timeout,
   unknownError,
+  unspecified,
+  validationError,
 }
 
-const kFinishedStatuses = [
-  RunCodeStatus.unknownError,
-  RunCodeStatus.timeout,
+const kFinishedStatuses = {
+  RunCodeStatus.cancelled,
   RunCodeStatus.compileError,
-  RunCodeStatus.runError,
-  RunCodeStatus.validationError,
-  RunCodeStatus.preparationError,
   RunCodeStatus.finished,
-];
+  RunCodeStatus.preparationError,
+  RunCodeStatus.runError,
+  RunCodeStatus.timeout,
+  RunCodeStatus.unknownError,
+  RunCodeStatus.validationError,
+};
 
 class RunCodeResult with EquatableMixin {
   final String? errorMessage;

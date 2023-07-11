@@ -263,8 +263,14 @@ func (n *DataSource) Process(ctx context.Context) ([]*Checkpoint, error) {
 		}
 	},
 		func(bcr *byteCountReader, ptransformID, timerFamilyID string) error {
-			tmap, err := decodeTimer(cp, wc, bcr)
-			log.Infof(ctx, "DEBUGLOG: timer received for: %v and %v - %+v  err: %v", ptransformID, timerFamilyID, tmap, err)
+			if node, ok := n.OnTimerTransforms[ptransformID]; ok {
+				if err := node.ProcessTimers(timerFamilyID, bcr); err != nil {
+					log.Warnf(ctx, "expected transform %v to have an OnTimer method attached to handle"+
+						"Timer Family ID: %v callback, but it did not. Please file an issue with Apache Beam"+
+						"if you have defined OnTimer method with reproducible code at https://github.com/apache/beam/issues", ptransformID, timerFamilyID)
+					return errors.WithContext(err, "ontimer callback invocation failed")
+				}
+			}
 			return nil
 		})
 

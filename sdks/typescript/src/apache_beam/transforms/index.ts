@@ -23,6 +23,7 @@ export * from "./group_and_combine";
 export * from "./pardo";
 export * from "./transform";
 export * from "./window";
+export * from "./windowings";
 export { impulse, withRowCoder } from "./internal";
 
 import { requireForSerialization } from "../serialization";

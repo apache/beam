@@ -29,6 +29,45 @@ services:
     ports:
       - "8081:8081"
 
+  cleanup_snippets:
+    build:
+      context: ./backend
+      dockerfile: ./playground_functions/Dockerfile
+    environment:
+      GOOGLE_CLOUD_PROJECT: test
+      DATASTORE_EMULATOR_HOST: datastore:8081
+      FUNCTION_TARGET: cleanupSnippets
+    expose:
+      - "8080"
+    depends_on:
+      - datastore
+
+  put_snippet:
+    build:
+      context: ./backend
+      dockerfile: ./playground_functions/Dockerfile
+    environment:
+      GOOGLE_CLOUD_PROJECT: test
+      DATASTORE_EMULATOR_HOST: datastore:8081
+      FUNCTION_TARGET: putSnippet
+    expose:
+      - "8080"
+    depends_on:
+      - datastore
+
+  increment_snippet_views:
+    build:
+      context: ./backend
+      dockerfile: ./playground_functions/Dockerfile
+    environment:
+      GOOGLE_CLOUD_PROJECT: test
+      DATASTORE_EMULATOR_HOST: datastore:8081
+      FUNCTION_TARGET: incrementSnippetViews
+    expose:
+      - "8080"
+    depends_on:
+      - datastore
+
   router:
     image: apache/beam_playground-backend-router
     environment:
@@ -38,11 +77,15 @@ services:
       CACHE_ADDRESS: redis:6379
       SDK_CONFIG: /opt/playground/backend/sdks-emulator.yaml
       SERVER_PORT: 8082
+      APPLY_MIGRATIONS: "True"
     ports:
       - "8082:8082"
     depends_on:
       - redis
       - datastore
+      - increment_snippet_views
+      - put_snippet
+      - cleanup_snippets
 
   go_runner:
     image: apache/beam_playground-backend-go

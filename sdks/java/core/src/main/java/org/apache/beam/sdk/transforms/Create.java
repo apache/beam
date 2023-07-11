@@ -33,8 +33,6 @@ import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Set;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -155,7 +153,6 @@ public class Create<T> {
    * Returns a new {@code Create.Values} transform that produces an empty {@link PCollection} of
    * rows.
    */
-  @Experimental(Kind.SCHEMAS)
   public static Values<Row> empty(Schema schema) {
     return new Values<Row>(
         new ArrayList<>(), Optional.of(SchemaCoder.of(schema)), Optional.absent(), false);
@@ -295,7 +292,6 @@ public class Create<T> {
      * Returns a {@link Create.Values} PTransform like this one that uses the given {@code Schema}
      * to represent objects.
      */
-    @Experimental(Kind.SCHEMAS)
     public Values<T> withSchema(
         Schema schema,
         TypeDescriptor<T> typeDescriptor,
@@ -308,7 +304,6 @@ public class Create<T> {
      * Returns a {@link Create.Values} PTransform like this one that uses the given {@code Schema}
      * to represent objects.
      */
-    @Experimental(Kind.SCHEMAS)
     public Values<T> withRowSchema(Schema schema) {
       return withCoder((SchemaCoder<T>) SchemaCoder.of(schema));
     }
@@ -631,7 +626,6 @@ public class Create<T> {
      * Returns a {@link Create.TimestampedValues} PTransform like this one that uses the given
      * {@code Schema} to represent objects.
      */
-    @Experimental(Kind.SCHEMAS)
     public TimestampedValues<T> withSchema(
         Schema schema,
         TypeDescriptor<T> typeDescriptor,

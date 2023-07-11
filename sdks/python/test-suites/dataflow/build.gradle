@@ -85,6 +85,12 @@ task examplesPostCommit {
   }
 }
 
+task gcpCrossLanguagePostCommit {
+  getVersionsAsList('cross_language_validates_gcp_py_versions').each {
+    dependsOn.add(":sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:gcpCrossLanguagePythonUsingJava")
+  }
+}
+
 task tftTests {
   getVersionsAsList('dataflow_cloudml_benchmark_tests_py_versions').each {
     dependsOn.add(":sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:tftTests")

@@ -32,7 +32,7 @@ import 'expect.dart';
 extension WidgetTesterExtension on WidgetTester {
   //workaround for https://github.com/flutter/flutter/issues/120060
   Future<void> enterCodeFieldText(String text) async {
-    final codeField = widget(find.codeField());
+    final codeField = widget(find.snippetCodeField());
     (codeField as CodeField).controller.fullText = text;
     codeField.focusNode?.requestFocus();
   }
@@ -48,7 +48,7 @@ extension WidgetTesterExtension on WidgetTester {
   }
 
   CodeController findOneCodeController() {
-    final codeField = find.codeField();
+    final codeField = find.snippetCodeField();
     expect(codeField, findsOneWidget);
 
     return widget<CodeField>(codeField).controller;
@@ -66,14 +66,12 @@ extension WidgetTesterExtension on WidgetTester {
   }
 
   String? findOutputText() {
-    final selectableText = find.outputSelectableText();
-    expect(selectableText, findsOneWidget);
-
-    return widget<SelectableText>(selectableText).data;
+    final codeField = widget(find.outputCodeField());
+    return (codeField as CodeField).controller.text;
   }
 
   PlaygroundController findPlaygroundController() {
-    final context = element(find.codeField());
+    final context = element(find.snippetCodeField());
     return context.read<PlaygroundController>();
   }
 
@@ -140,16 +138,15 @@ extension WidgetTesterExtension on WidgetTester {
     expect(codeRunner.isCodeRunning, false);
     expect(
       PlaygroundComponents.analyticsService.lastEvent,
-      isA<RunStartedAnalyticsEvent>(), // Cached finish does not fire events.
+      isA<RunFinishedAnalyticsEvent>(),
     );
 
     await pumpAndSettle(); // Let the UI catch up.
 
     expectOutputStartsWith(kCachedResultsLog, this);
-    expectOutput(example, this);
+    expectOutputIfDeployed(example, this);
   }
 
-  /// Runs and expects that the execution is as fast as it should be for cache.
   Future<void> modifyRunExpectReal(ExampleDescriptor example) async {
     modifyCodeController();
 
@@ -162,7 +159,10 @@ extension WidgetTesterExtension on WidgetTester {
 
     final actualText = findOutputText();
     expect(actualText, isNot(startsWith(kCachedResultsLog)));
-    expectOutput(example, this);
+    expectOutputIfDeployed(example, this);
+
+    // Animation stops just before the analytics event is fired, wait a bit.
+    await Future.delayed(const Duration(seconds: 1));
 
     final event = PlaygroundComponents.analyticsService.lastEvent;
     expect(event, isA<RunFinishedAnalyticsEvent>());

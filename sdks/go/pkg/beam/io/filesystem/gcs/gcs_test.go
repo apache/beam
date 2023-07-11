@@ -20,6 +20,7 @@ import (
 	"io"
 	"sort"
 	"testing"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem"
 	"github.com/fsouza/fake-gcs-server/fakestorage"
@@ -131,6 +132,29 @@ func TestLocal_listNoMatches(t *testing.T) {
 	want := []string(nil)
 	if !cmp.Equal(got, want) {
 		t.Errorf("List(%q) = %v, want %v", glob, got, want)
+	}
+}
+
+func TestGCS_lastModified(t *testing.T) {
+	ctx := context.Background()
+	server := createFakeGCSServer(t)
+	gcsFS := &fs{client: server.Client()}
+
+	filePath := "gs://beamgogcsfilesystemtest/file.txt"
+
+	t1 := time.Now()
+	if err := filesystem.Write(ctx, gcsFS, filePath, []byte("")); err != nil {
+		t.Fatalf("filesystem.Write(ctx, %q) error = %v, want nil", filePath, err)
+	}
+	t2 := time.Now()
+
+	got, err := gcsFS.LastModified(ctx, filePath)
+	if err != nil {
+		t.Fatalf("LastModified(%q) error = %v, want nil", filePath, err)
+	}
+
+	if got.Before(t1) || got.After(t2) {
+		t.Errorf("LastModified(%q) = %v, want in range [%v, %v]", filePath, got, t1, t2)
 	}
 }
 

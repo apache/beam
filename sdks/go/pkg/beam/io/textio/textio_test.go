@@ -36,6 +36,14 @@ var (
 	testGzFilePath = filepath.Join(testDir, "textio_test.gz")
 )
 
+type kv struct {
+	K, V string
+}
+
+func toKV(k, v string) kv {
+	return kv{k, v}
+}
+
 func TestRead(t *testing.T) {
 	p, s := beam.NewPipelineWithRoot()
 	lines := Read(s, testFilePath)
@@ -65,6 +73,20 @@ func TestReadAllGzip(t *testing.T) {
 	p, s, files := ptest.CreateList([]string{testGzFilePath})
 	got := ReadAll(s, files, ReadGzip())
 	want := []any{"hello", "go"}
+
+	passert.Equals(s, got, want...)
+	ptest.RunAndValidate(t, p)
+}
+
+func TestReadWithFilename(t *testing.T) {
+	p, s := beam.NewPipelineWithRoot()
+	lines := ReadWithFilename(s, testGzFilePath)
+	got := beam.ParDo(s, toKV, lines)
+
+	want := []any{
+		kv{K: testGzFilePath, V: "hello"},
+		kv{K: testGzFilePath, V: "go"},
+	}
 
 	passert.Equals(s, got, want...)
 	ptest.RunAndValidate(t, p)

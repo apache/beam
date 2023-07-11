@@ -127,7 +127,7 @@ def batchLoadTestJob = { scope, triggeringContext ->
 }
 
 
-CronJobBuilder.cronJob('beam_LoadTests_Java_ParDo_SparkStructuredStreaming_Batch', 'H 12 * * *', this) {
+CronJobBuilder.cronJob('beam_LoadTests_Java_ParDo_SparkStructuredStreaming_Batch', 'H H * * *', this) {
   additionalPipelineArgs = [
     influxDatabase: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
     influxHost: InfluxDBCredentialsHelper.InfluxDBHostUrl,

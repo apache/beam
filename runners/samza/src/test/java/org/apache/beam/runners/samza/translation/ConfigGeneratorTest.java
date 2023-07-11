@@ -21,6 +21,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -44,7 +45,9 @@ import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.samza.config.Config;
+import org.apache.samza.config.JobConfig;
 import org.apache.samza.config.JobCoordinatorConfig;
+import org.apache.samza.config.TaskConfig;
 import org.apache.samza.config.ZkConfig;
 import org.apache.samza.job.yarn.YarnJobFactory;
 import org.apache.samza.runtime.LocalApplicationRunner;
@@ -75,9 +78,9 @@ public class ConfigGeneratorTest {
 
     final Map<PValue, String> idMap = PViewToIdMapper.buildIdMap(pipeline);
     final Set<String> nonUniqueStateIds = StateIdParser.scan(pipeline);
+    final ConfigContext configCtx = new ConfigContext(idMap, nonUniqueStateIds, options);
     final ConfigBuilder configBuilder = new ConfigBuilder(options);
-    SamzaPipelineTranslator.createConfig(
-        pipeline, options, idMap, nonUniqueStateIds, configBuilder);
+    SamzaPipelineTranslator.createConfig(pipeline, configCtx, configBuilder);
     final Config config = configBuilder.build();
 
     assertEquals(
@@ -88,8 +91,7 @@ public class ConfigGeneratorTest {
     assertNull(config.get("stores.beamStore.changelog"));
 
     options.setStateDurable(true);
-    SamzaPipelineTranslator.createConfig(
-        pipeline, options, idMap, nonUniqueStateIds, configBuilder);
+    SamzaPipelineTranslator.createConfig(pipeline, configCtx, configBuilder);
     final Config config2 = configBuilder.build();
     assertEquals(
         "TestStoreConfig-1-beamStore-changelog", config2.get("stores.beamStore.changelog"));
@@ -108,9 +110,9 @@ public class ConfigGeneratorTest {
 
     final Map<PValue, String> idMap = PViewToIdMapper.buildIdMap(pipeline);
     final Set<String> nonUniqueStateIds = StateIdParser.scan(pipeline);
+    final ConfigContext configCtx = new ConfigContext(idMap, nonUniqueStateIds, options);
     final ConfigBuilder configBuilder = new ConfigBuilder(options);
-    SamzaPipelineTranslator.createConfig(
-        pipeline, options, idMap, nonUniqueStateIds, configBuilder);
+    SamzaPipelineTranslator.createConfig(pipeline, configCtx, configBuilder);
     final Config config = configBuilder.build();
 
     assertEquals(
@@ -121,8 +123,7 @@ public class ConfigGeneratorTest {
     assertNull(config.get("stores.beamStore.changelog"));
 
     options.setStateDurable(true);
-    SamzaPipelineTranslator.createConfig(
-        pipeline, options, idMap, nonUniqueStateIds, configBuilder);
+    SamzaPipelineTranslator.createConfig(pipeline, configCtx, configBuilder);
     final Config config2 = configBuilder.build();
     // For stateless jobs, ignore state durable pipeline option.
     assertNull(config2.get("stores.beamStore.changelog"));
@@ -142,9 +143,9 @@ public class ConfigGeneratorTest {
 
     final Map<PValue, String> idMap = PViewToIdMapper.buildIdMap(pipeline);
     final Set<String> nonUniqueStateIds = StateIdParser.scan(pipeline);
+    final ConfigContext configCtx = new ConfigContext(idMap, nonUniqueStateIds, options);
     final ConfigBuilder configBuilder = new ConfigBuilder(options);
-    SamzaPipelineTranslator.createConfig(
-        pipeline, options, idMap, nonUniqueStateIds, configBuilder);
+    SamzaPipelineTranslator.createConfig(pipeline, configCtx, configBuilder);
     final Config config = configBuilder.build();
 
     assertTrue(
@@ -172,9 +173,9 @@ public class ConfigGeneratorTest {
 
     final Map<PValue, String> idMap = PViewToIdMapper.buildIdMap(pipeline);
     final Set<String> nonUniqueStateIds = StateIdParser.scan(pipeline);
+    final ConfigContext configCtx = new ConfigContext(idMap, nonUniqueStateIds, options);
     final ConfigBuilder configBuilder = new ConfigBuilder(options);
-    SamzaPipelineTranslator.createConfig(
-        pipeline, options, idMap, nonUniqueStateIds, configBuilder);
+    SamzaPipelineTranslator.createConfig(pipeline, configCtx, configBuilder);
     try {
       Config config = configBuilder.build();
       assertEquals(config.get(APP_RUNNER_CLASS), RemoteApplicationRunner.class.getName());
@@ -204,9 +205,9 @@ public class ConfigGeneratorTest {
 
     final Map<PValue, String> idMap = PViewToIdMapper.buildIdMap(pipeline);
     final Set<String> nonUniqueStateIds = StateIdParser.scan(pipeline);
+    final ConfigContext configCtx = new ConfigContext(idMap, nonUniqueStateIds, options);
     final ConfigBuilder configBuilder = new ConfigBuilder(options);
-    SamzaPipelineTranslator.createConfig(
-        pipeline, options, idMap, nonUniqueStateIds, configBuilder);
+    SamzaPipelineTranslator.createConfig(pipeline, configCtx, configBuilder);
     try {
       Config config = configBuilder.build();
       assertEquals(config.get(APP_RUNNER_CLASS), LocalApplicationRunner.class.getName());
@@ -247,9 +248,10 @@ public class ConfigGeneratorTest {
 
     final Map<PValue, String> idMap = PViewToIdMapper.buildIdMap(pipeline);
     final Set<String> nonUniqueStateIds = StateIdParser.scan(pipeline);
+    final ConfigContext configCtx = new ConfigContext(idMap, nonUniqueStateIds, options);
     final ConfigBuilder configBuilder = new ConfigBuilder(options);
-    SamzaPipelineTranslator.createConfig(
-        pipeline, options, idMap, nonUniqueStateIds, configBuilder);
+
+    SamzaPipelineTranslator.createConfig(pipeline, configCtx, configBuilder);
     final Config config = configBuilder.build();
 
     assertEquals(
@@ -260,8 +262,7 @@ public class ConfigGeneratorTest {
     assertNull(config.get("stores.testState.changelog"));
 
     options.setStateDurable(true);
-    SamzaPipelineTranslator.createConfig(
-        pipeline, options, idMap, nonUniqueStateIds, configBuilder);
+    SamzaPipelineTranslator.createConfig(pipeline, configCtx, configBuilder);
     final Config config2 = configBuilder.build();
     assertEquals(
         "TestStoreConfig-1-testState-changelog", config2.get("stores.testState.changelog"));
@@ -308,9 +309,9 @@ public class ConfigGeneratorTest {
 
     final Map<PValue, String> idMap = PViewToIdMapper.buildIdMap(pipeline);
     final Set<String> nonUniqueStateIds = StateIdParser.scan(pipeline);
+    final ConfigContext configCtx = new ConfigContext(idMap, nonUniqueStateIds, options);
     final ConfigBuilder configBuilder = new ConfigBuilder(options);
-    SamzaPipelineTranslator.createConfig(
-        pipeline, options, idMap, nonUniqueStateIds, configBuilder);
+    SamzaPipelineTranslator.createConfig(pipeline, configCtx, configBuilder);
     final Config config = configBuilder.build();
 
     assertEquals(
@@ -328,8 +329,7 @@ public class ConfigGeneratorTest {
     assertNull(config.get("stores.testState-Second_stateful_ParDo.changelog"));
 
     options.setStateDurable(true);
-    SamzaPipelineTranslator.createConfig(
-        pipeline, options, idMap, nonUniqueStateIds, configBuilder);
+    SamzaPipelineTranslator.createConfig(pipeline, configCtx, configBuilder);
     final Config config2 = configBuilder.build();
     assertEquals(
         "TestStoreConfig-1-testState-First_stateful_ParDo-changelog",
@@ -380,9 +380,10 @@ public class ConfigGeneratorTest {
 
     final Map<PValue, String> idMap = PViewToIdMapper.buildIdMap(pipeline);
     final Set<String> nonUniqueStateIds = StateIdParser.scan(pipeline);
+    final ConfigContext configCtx = new ConfigContext(idMap, nonUniqueStateIds, options);
+
     final ConfigBuilder configBuilder = new ConfigBuilder(options);
-    SamzaPipelineTranslator.createConfig(
-        pipeline, options, idMap, nonUniqueStateIds, configBuilder);
+    SamzaPipelineTranslator.createConfig(pipeline, configCtx, configBuilder);
     final Config config = configBuilder.build();
 
     assertEquals(
@@ -404,8 +405,7 @@ public class ConfigGeneratorTest {
     assertNull(config.get("stores.testState-Same_stateful_ParDo_Name2.changelog"));
 
     options.setStateDurable(true);
-    SamzaPipelineTranslator.createConfig(
-        pipeline, options, idMap, nonUniqueStateIds, configBuilder);
+    SamzaPipelineTranslator.createConfig(pipeline, configCtx, configBuilder);
     final Config config2 = configBuilder.build();
     assertEquals(
         "TestStoreConfig-1-testState-Same_stateful_ParDo_Name-changelog",
@@ -413,5 +413,49 @@ public class ConfigGeneratorTest {
     assertEquals(
         "TestStoreConfig-1-testState-Same_stateful_ParDo_Name2-changelog",
         config2.get("stores.testState-Same_stateful_ParDo_Name2.changelog"));
+  }
+
+  @Test
+  public void testCreateBundleConfig() {
+    // autosizing = 0: disabled
+    // autosizing = 1: enabled
+    for (int autosizing = 0; autosizing < 2; autosizing++) {
+      final SamzaPipelineOptions options = PipelineOptionsFactory.as(SamzaPipelineOptions.class);
+      final Map<String, String> config = new HashMap<>();
+
+      // bundle size = 1
+      options.setMaxBundleSize(1);
+      config.put(JobConfig.JOB_CONTAINER_THREAD_POOL_SIZE, "5");
+      if (autosizing != 0) {
+        // Test autosizing enabled, the output should be the same
+        config.put(JobConfig.JOB_AUTOSIZING_CONTAINER_THREAD_POOL_SIZE, "5");
+      }
+
+      Map<String, String> bundleConfig = ConfigBuilder.createBundleConfig(options, config);
+
+      assertEquals("1", bundleConfig.get(TaskConfig.MAX_CONCURRENCY));
+      assertNull(bundleConfig.get(JobConfig.JOB_CONTAINER_THREAD_POOL_SIZE));
+      assertNull(bundleConfig.get(JobConfig.JOB_AUTOSIZING_CONTAINER_THREAD_POOL_SIZE));
+      assertEquals(1, options.getNumThreadsForProcessElement());
+
+      // bundle size = 3, NumThreadsForProcessElement = 10
+      options.setMaxBundleSize(3);
+      options.setNumThreadsForProcessElement(10);
+      bundleConfig = ConfigBuilder.createBundleConfig(options, config);
+
+      assertEquals("3", bundleConfig.get(TaskConfig.MAX_CONCURRENCY));
+      assertEquals("0", bundleConfig.get(JobConfig.JOB_CONTAINER_THREAD_POOL_SIZE));
+      assertEquals("0", bundleConfig.get(JobConfig.JOB_AUTOSIZING_CONTAINER_THREAD_POOL_SIZE));
+      assertEquals(10, options.getNumThreadsForProcessElement());
+
+      // bundle size = 3, NumThreadsForProcessElement = 1 (default), threadPoolSize = 5
+      options.setNumThreadsForProcessElement(1);
+      bundleConfig = ConfigBuilder.createBundleConfig(options, config);
+
+      assertEquals("3", bundleConfig.get(TaskConfig.MAX_CONCURRENCY));
+      assertEquals("0", bundleConfig.get(JobConfig.JOB_CONTAINER_THREAD_POOL_SIZE));
+      assertEquals("0", bundleConfig.get(JobConfig.JOB_AUTOSIZING_CONTAINER_THREAD_POOL_SIZE));
+      assertEquals(5, options.getNumThreadsForProcessElement());
+    }
   }
 }

@@ -19,15 +19,12 @@ package org.apache.beam.sdk.metrics;
 
 import java.io.Serializable;
 import org.apache.beam.model.pipeline.v1.MetricsApi;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.util.HistogramData;
 
 /**
  * Holds the metrics for a single step. Each of the methods should return an implementation of the
  * appropriate metrics interface for the "current" step.
  */
-@Experimental(Kind.METRICS)
 public interface MetricsContainer extends Serializable {
 
   /**

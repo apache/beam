@@ -166,6 +166,7 @@ func (lc *Cache) GetSdkCatalog(_ context.Context) ([]*entity.SDKEntity, error) {
 
 func (lc *Cache) startGC(ctx context.Context) {
 	ticker := time.NewTicker(lc.cleanupInterval)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-ctx.Done():

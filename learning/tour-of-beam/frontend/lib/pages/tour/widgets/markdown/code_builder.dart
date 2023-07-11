@@ -17,7 +17,7 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:flutter_markdown_selectionarea/flutter_markdown_selectionarea.dart';
 import 'package:markdown/markdown.dart' as md;
 import 'package:playground_components/playground_components.dart';
 
@@ -27,10 +27,39 @@ class MarkdownCodeBuilder extends MarkdownElementBuilder {
     final String textContent = element.textContent;
     final bool isCodeBlock = textContent.contains('\n');
     if (isCodeBlock) {
-      /// codeblockDecoration is applied
-      return null;
+      return _CodeBlock(text: textContent);
     }
     return _InlineCode(text: textContent);
+  }
+}
+
+class _CodeBlock extends StatelessWidget {
+  final String text;
+  const _CodeBlock({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    final scrollController = ScrollController();
+    return Padding(
+      padding: const EdgeInsets.all(BeamSizes.size4),
+      child: Scrollbar(
+        controller: scrollController,
+        scrollbarOrientation: ScrollbarOrientation.bottom,
+        thumbVisibility: true,
+        child: SingleChildScrollView(
+          controller: scrollController,
+          padding: const EdgeInsets.all(BeamSizes.size10),
+          scrollDirection: Axis.horizontal,
+          child: Text(
+            text,
+            style: Theme.of(context)
+                .extension<BeamThemeExtension>()!
+                .markdownStyle
+                .code,
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -53,7 +82,13 @@ class _InlineCode extends StatelessWidget {
       ),
       child: Text(
         text,
-        style: TextStyle(color: Theme.of(context).primaryColor),
+        style: Theme.of(context)
+            .extension<BeamThemeExtension>()!
+            .markdownStyle
+            .p!
+            .copyWith(
+              color: Theme.of(context).primaryColor,
+            ),
       ),
     );
   }

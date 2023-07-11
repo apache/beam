@@ -26,8 +26,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.annotations.SchemaIgnore;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.DefaultTypeConversionsFactory;
 import org.apache.beam.sdk.schemas.utils.FieldValueTypeSupplier;
@@ -51,7 +49,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
  * <p>TODO: Validate equals() method is provided, and if not generate a "slow" equals method based
  * on the schema.
  */
-@Experimental(Kind.SCHEMAS)
 @SuppressWarnings({"nullness", "rawtypes"})
 public class JavaFieldSchema extends GetterBasedSchemaProvider {
   /** {@link FieldValueTypeSupplier} that's based on public fields. */

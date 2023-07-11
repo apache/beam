@@ -71,10 +71,10 @@ class PayloadBase(object):
   values = {
       'integer_example': 1,
       'boolean': True,
-      'string_example': u'thing',
-      'list_of_strings': [u'foo', u'bar'],
+      'string_example': 'thing',
+      'list_of_strings': ['foo', 'bar'],
       'mapping': {
-          u'key': 1.1
+          'key': 1.1
       },
       'optional_integer': None,
   }
@@ -182,7 +182,7 @@ class ExternalTransformTest(unittest.TestCase):
         | beam.Create(['a', 'b'])
         | beam.ExternalTransform(
             'beam:transforms:xlang:test:prefix',
-            ImplicitSchemaPayloadBuilder({'data': u'0'}),
+            ImplicitSchemaPayloadBuilder({'data': '0'}),
             expansion_service.ExpansionServiceServicer()))
 
     proto, _ = pipeline.to_runner_api(return_context=True)
@@ -196,7 +196,7 @@ class ExternalTransformTest(unittest.TestCase):
     self.assertNotEqual([],
                         pipeline_from_proto.transforms_stack[0].parts[1].parts)
     self.assertEqual(
-        u'ExternalTransform(beam:transforms:xlang:test:prefix)/TestLabel',
+        'ExternalTransform(beam:transforms:xlang:test:prefix)/TestLabel',
         pipeline_from_proto.transforms_stack[0].parts[1].parts[0].full_label)
 
   @unittest.skipIf(apiclient is None, 'GCP dependencies are not installed')
@@ -222,7 +222,7 @@ class ExternalTransformTest(unittest.TestCase):
               'projects/dummy-project/subscriptions/dummy-subscription')
           | beam.ExternalTransform(
               'beam:transforms:xlang:test:prefix',
-              ImplicitSchemaPayloadBuilder({'data': u'0'}),
+              ImplicitSchemaPayloadBuilder({'data': '0'}),
               expansion_service.ExpansionServiceServicer()))
 
     pipeline_proto, _ = p.to_runner_api(return_context=True)
@@ -294,7 +294,7 @@ class ExternalTransformTest(unittest.TestCase):
     pipeline = beam.Pipeline()
     external_transform = beam.ExternalTransform(
         'beam:transforms:xlang:test:prefix',
-        ImplicitSchemaPayloadBuilder({'data': u'0'}),
+        ImplicitSchemaPayloadBuilder({'data': '0'}),
         expansion_service.ExpansionServiceServicer())
     _ = (pipeline | beam.Create(['a', 'b']) | external_transform)
     pipeline.run().wait_until_finish()
@@ -337,7 +337,7 @@ class ExternalTransformTest(unittest.TestCase):
         | beam.Create(['a', 'b'])
         | beam.ExternalTransform(
             'beam:transforms:xlang:test:prefix',
-            ImplicitSchemaPayloadBuilder({'data': u'0'}),
+            ImplicitSchemaPayloadBuilder({'data': '0'}),
             expansion_service.ExpansionServiceServicer())
         | beam.Map(lambda x: x))
     pipeline.run().wait_until_finish()
@@ -351,7 +351,7 @@ class ExternalTransformTest(unittest.TestCase):
         | beam.Create(['a', 'b'])
         | beam.ExternalTransform(
             'beam:transforms:xlang:test:nooutput',
-            ImplicitSchemaPayloadBuilder({'data': u'0'}),
+            ImplicitSchemaPayloadBuilder({'data': '0'}),
             expansion_service.ExpansionServiceServicer()))
     pipeline.run().wait_until_finish()
 
@@ -491,8 +491,11 @@ class SchemaAwareExternalTransformTest(unittest.TestCase):
           config_schema=schema_pb2.Schema(
               fields=[
                   schema_pb2.Field(
-                      name="test_field",
-                      type=schema_pb2.FieldType(atomic_type="STRING"))
+                      name="str_field",
+                      type=schema_pb2.FieldType(atomic_type="STRING")),
+                  schema_pb2.Field(
+                      name="int_field",
+                      type=schema_pb2.FieldType(atomic_type="INT64"))
               ],
               id="test-id"),
           input_pcollection_names=["input"],
@@ -516,6 +519,25 @@ class SchemaAwareExternalTransformTest(unittest.TestCase):
     with self.assertRaises(ValueError):
       beam.SchemaAwareExternalTransform.discover_config(
           "test_service", name="non_existent")
+
+  @mock.patch("apache_beam.transforms.external.ExternalTransform.service")
+  def test_rearrange_kwargs_based_on_discovery(self, mock_service):
+    mock_service.return_value = self.MockDiscoveryService()
+
+    identifier = "test_schematransform"
+    expansion_service = "test_service"
+    kwargs = {"int_field": 0, "str_field": "str"}
+
+    transform = beam.SchemaAwareExternalTransform(
+        identifier=identifier, expansion_service=expansion_service, **kwargs)
+    ordered_kwargs = transform._rearrange_kwargs(identifier)
+
+    schematransform_config = beam.SchemaAwareExternalTransform.discover_config(
+        expansion_service, identifier)
+    external_config_fields = schematransform_config.configuration_schema._fields
+
+    self.assertNotEqual(tuple(kwargs.keys()), external_config_fields)
+    self.assertEqual(tuple(ordered_kwargs.keys()), external_config_fields)
 
 
 class JavaClassLookupPayloadBuilderTest(unittest.TestCase):

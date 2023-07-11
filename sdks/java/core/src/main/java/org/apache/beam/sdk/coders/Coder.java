@@ -27,8 +27,6 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.PipelineRunner;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
@@ -64,7 +62,6 @@ public abstract class Coder<T> implements Serializable {
    *     implementations for methods accepting a {@link Context}.
    */
   @Deprecated
-  @Experimental(Kind.CODER_CONTEXT)
   public static class Context {
     /**
      * The outer context: the value being encoded or decoded takes up the remainder of the
@@ -130,7 +127,6 @@ public abstract class Coder<T> implements Serializable {
    * @deprecated only implement and call {@link #encode(Object value, OutputStream)}
    */
   @Deprecated
-  @Experimental(Kind.CODER_CONTEXT)
   public void encode(T value, OutputStream outStream, Context context)
       throws CoderException, IOException {
     encode(value, outStream);
@@ -154,7 +150,6 @@ public abstract class Coder<T> implements Serializable {
    * @deprecated only implement and call {@link #decode(InputStream)}
    */
   @Deprecated
-  @Experimental(Kind.CODER_CONTEXT)
   public T decode(InputStream inStream, Context context) throws CoderException, IOException {
     return decode(inStream);
   }
@@ -303,7 +298,6 @@ public abstract class Coder<T> implements Serializable {
   }
 
   /** Returns the {@link TypeDescriptor} for the type encoded. */
-  @Experimental(Kind.CODER_TYPE_ENCODING)
   public TypeDescriptor<T> getEncodedTypeDescriptor() {
     return (TypeDescriptor<T>)
         TypeDescriptor.of(getClass()).resolveType(new TypeDescriptor<T>() {}.getType());

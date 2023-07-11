@@ -58,16 +58,6 @@ echo "deb https://repo.scala-sbt.org/scalasbt/debian /" | tee /etc/apt/sources.l
 curl -sL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x2EE0EA64E40A89B84B2DF73499E82A75642AC823" | apt-key add
 RUN apt-get update && apt-get install -y sbt
 
-
-## Install mitmpoxy
-RUN mkdir /opt/mitmproxy &&\
-    cd /opt/mitmproxy &&\
-    wget https://snapshots.mitmproxy.org/7.0.4/mitmproxy-7.0.4-linux.tar.gz &&\
-    tar -zxvf mitmproxy-7.0.4-linux.tar.gz &&\
-    mkdir /usr/local/share/ca-certificates/extra
-COPY allow_list_proxy.py /opt/mitmproxy/
-COPY allow_list.py /opt/mitmproxy/
-
 COPY src/properties.yaml /opt/playground/backend/properties.yaml
 COPY entrypoint.sh /
 
@@ -84,25 +74,27 @@ RUN groupadd --gid 20000 appgroup \
 RUN mkdir -p /opt/playground/backend/executable_files/
 
 # Chown all required files to the `appuser`.
-RUN chown -R appuser:appgroup /opt/playground/backend/executable_files/ \
-  && chmod -R 777 /usr/local/share/ca-certificates/extra/ && chmod -R 777 /usr/local/openjdk-8/jre/lib/security/ \
-  && chmod -R 777 /etc/ssl/certs && chmod +x /entrypoint.sh
+RUN chown -R appuser:appgroup /opt/playground/backend/executable_files/ && chmod +x /entrypoint.sh
+
+# Let sbt download files from Maven
+RUN mkdir -p /opt/sbt-template
+RUN chown -R appuser:appgroup /opt/sbt-template
 
 # Switch to appuser
 USER appuser
 
-# Let sbt download files from Maven
-RUN mkdir -p /tmp/sbt-initialize
-WORKDIR /tmp/sbt-initialize
+# Cache sbt project template
+WORKDIR /opt/sbt-template
 RUN /opt/playground/backend/new_scio_project.sh
-WORKDIR /tmp/sbt-initialize/scio
+WORKDIR /opt/sbt-template/scio
 RUN sbt "+compile"
 WORKDIR /
-RUN rm -r /tmp/sbt-initialize
 
-# Enable mitmproxy
-ENV HTTP_PROXY="http://127.0.0.1:8081"
-ENV HTTPS_PROXY="http://127.0.0.1:8081"
+USER root
+RUN chown -R root:root /opt/sbt-template
+
+USER appuser
+
 ENV SBT_OPTS="-Xmx512M -XX:+UseG1GC -XX:+UseStringDeduplication"
 
 ENTRYPOINT ["/entrypoint.sh"]

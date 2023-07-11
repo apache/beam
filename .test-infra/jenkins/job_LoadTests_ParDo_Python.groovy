@@ -41,7 +41,8 @@ def loadTestConfigurations = { mode, datasetName ->
         input_options        : '\'{' +
         '"num_records": 20000000,' +
         '"key_size": 10,' +
-        '"value_size": 90}\'',
+        '"value_size": 90,' +
+        '"algorithm": "lcg"}\'',
         iterations           : 10,
         number_of_counter_operations: 0,
         number_of_counters   : 0,
@@ -65,7 +66,8 @@ def loadTestConfigurations = { mode, datasetName ->
         input_options        : '\'{' +
         '"num_records": 20000000,' +
         '"key_size": 10,' +
-        '"value_size": 90}\'',
+        '"value_size": 90,' +
+        '"algorithm": "lcg"}\'',
         iterations           : 200,
         number_of_counter_operations: 0,
         number_of_counters   : 0,
@@ -89,7 +91,8 @@ def loadTestConfigurations = { mode, datasetName ->
         input_options        : '\'{' +
         '"num_records": 20000000,' +
         '"key_size": 10,' +
-        '"value_size": 90}\'',
+        '"value_size": 90,' +
+        '"algorithm": "lcg"}\'',
         iterations           : 1,
         number_of_counter_operations: 10,
         number_of_counters   : 1,
@@ -113,7 +116,8 @@ def loadTestConfigurations = { mode, datasetName ->
         input_options        : '\'{' +
         '"num_records": 20000000,' +
         '"key_size": 10,' +
-        '"value_size": 90}\'',
+        '"value_size": 90,' +
+        '"algorithm": "lcg"}\'',
         iterations           : 1,
         number_of_counter_operations: 100,
         number_of_counters   : 1,
@@ -137,7 +141,7 @@ def addStreamingOptions(test) {
 
 def loadTestJob = { scope, triggeringContext, jobType ->
   scope.description("Runs Python ParDo load tests on Dataflow runner in ${jobType} mode")
-  commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 120)
+  commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 200)
 
   def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
   for (testConfiguration in loadTestConfigurations(jobType, datasetName)) {
@@ -155,7 +159,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
       loadTestJob(delegate, CommonTestProperties.TriggeringContext.PR, "batch")
     }
 
-CronJobBuilder.cronJob('beam_LoadTests_Python_ParDo_Dataflow_Batch', 'H 13 * * *', this) {
+CronJobBuilder.cronJob('beam_LoadTests_Python_ParDo_Dataflow_Batch', 'H H * * *', this) {
   additionalPipelineArgs = [
     influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
     influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,
@@ -173,7 +177,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
       loadTestJob(delegate, CommonTestProperties.TriggeringContext.PR, "streaming")
     }
 
-CronJobBuilder.cronJob('beam_LoadTests_Python_ParDo_Dataflow_Streaming', 'H 13 * * *', this) {
+CronJobBuilder.cronJob('beam_LoadTests_Python_ParDo_Dataflow_Streaming', 'H H * * *', this) {
   additionalPipelineArgs = [
     influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
     influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,

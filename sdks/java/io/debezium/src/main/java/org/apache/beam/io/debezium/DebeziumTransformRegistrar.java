@@ -20,7 +20,6 @@ package org.apache.beam.io.debezium;
 import com.google.auto.service.AutoService;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
 import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -30,7 +29,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Exposes {@link DebeziumIO.Read} as an external transform for cross-language usage. */
-@Experimental(Experimental.Kind.PORTABILITY)
 @AutoService(ExternalTransformRegistrar.class)
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)

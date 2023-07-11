@@ -268,6 +268,8 @@ class SdkHarness(object):
             work_request)
     finally:
       self._alive = False
+      if self.data_sampler:
+        self.data_sampler.stop()
 
     _LOGGER.info('No more requests from control plane')
     _LOGGER.info('SDK Harness waiting for in-flight requests to complete')
@@ -293,7 +295,7 @@ class SdkHarness(object):
     with statesampler.instruction_id(request.instruction_id):
       try:
         response = task()
-      except Exception:  # pylint: disable=broad-except
+      except:  # pylint: disable=bare-except
         traceback_string = traceback.format_exc()
         print(traceback_string, file=sys.stderr)
         _LOGGER.error(
@@ -378,18 +380,12 @@ class SdkHarness(object):
 
     def get_samples(request):
       # type: (beam_fn_api_pb2.InstructionRequest) -> beam_fn_api_pb2.InstructionResponse
-      samples: Dict[str, List[bytes]] = {}
-      if self.data_sampler:
+      samples = beam_fn_api_pb2.SampleDataResponse()
+      if self.data_sampler is not None:
         samples = self.data_sampler.samples(request.sample_data.pcollection_ids)
 
-      sample_response = beam_fn_api_pb2.SampleDataResponse()
-      for pcoll_id in samples:
-        sample_response.element_samples[pcoll_id].elements.extend(
-            beam_fn_api_pb2.SampledElement(element=s)
-            for s in samples[pcoll_id])
-
       return beam_fn_api_pb2.InstructionResponse(
-          instruction_id=request.instruction_id, sample_data=sample_response)
+          instruction_id=request.instruction_id, sample_data=samples)
 
     self._execute(lambda: get_samples(request), request)
 
@@ -680,7 +676,7 @@ class SdkWorker(object):
       if not requests_finalization:
         self.bundle_processor_cache.release(instruction_id)
       return response
-    except:  # pylint: disable=broad-except
+    except:  # pylint: disable=bare-except
       # Don't re-use bundle processors on failure.
       self.bundle_processor_cache.discard(instruction_id)
       raise

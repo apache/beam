@@ -18,8 +18,6 @@
 package org.apache.beam.sdk.io.kafka.serialization;
 
 import java.util.Map;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.LongDeserializer;
 import org.joda.time.Instant;
@@ -29,7 +27,6 @@ import org.joda.time.Instant;
  *
  * <p>This decodes the number of milliseconds since epoch using {@link LongDeserializer}.
  */
-@Experimental(Kind.SOURCE_SINK)
 public class InstantDeserializer implements Deserializer<Instant> {
   private static final LongDeserializer LONG_DESERIALIZER = new LongDeserializer();
 

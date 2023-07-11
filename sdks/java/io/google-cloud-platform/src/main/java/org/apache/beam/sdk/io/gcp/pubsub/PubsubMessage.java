@@ -33,6 +33,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public class PubsubMessage {
   @AutoValue
   abstract static class Impl {
+    abstract @Nullable String getTopic();
+
     @SuppressWarnings("mutable")
     abstract byte[] getPayload();
 
@@ -43,11 +45,12 @@ public class PubsubMessage {
     abstract @Nullable String getOrderingKey();
 
     static Impl create(
+        @Nullable String topic,
         byte[] payload,
         @Nullable Map<String, String> attributes,
         @Nullable String messageId,
         @Nullable String orderingKey) {
-      return new AutoValue_PubsubMessage_Impl(payload, attributes, messageId, orderingKey);
+      return new AutoValue_PubsubMessage_Impl(topic, payload, attributes, messageId, orderingKey);
     }
   }
 
@@ -59,7 +62,7 @@ public class PubsubMessage {
 
   public PubsubMessage(
       byte[] payload, @Nullable Map<String, String> attributes, @Nullable String messageId) {
-    impl = Impl.create(payload, attributes, messageId, null);
+    impl = Impl.create(null, payload, attributes, messageId, null);
   }
 
   public PubsubMessage(
@@ -67,7 +70,25 @@ public class PubsubMessage {
       @Nullable Map<String, String> attributes,
       @Nullable String messageId,
       @Nullable String orderingKey) {
-    impl = Impl.create(payload, attributes, messageId, orderingKey);
+    impl = Impl.create(null, payload, attributes, messageId, orderingKey);
+  }
+
+  private PubsubMessage(Impl impl) {
+    this.impl = impl;
+  }
+
+  public PubsubMessage withTopic(String topic) {
+    return new PubsubMessage(
+        Impl.create(
+            topic,
+            impl.getPayload(),
+            impl.getAttributeMap(),
+            impl.getMessageId(),
+            impl.getOrderingKey()));
+  }
+
+  public @Nullable String getTopic() {
+    return impl.getTopic();
   }
 
   /** Returns the main PubSub message. */

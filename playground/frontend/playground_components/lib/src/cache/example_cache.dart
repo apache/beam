@@ -19,10 +19,11 @@
 import 'dart:async';
 
 import 'package:collection/collection.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/foundation.dart';
 
 import '../exceptions/catalog_loading_exception.dart';
-import '../exceptions/example_loading_exception.dart';
+import '../exceptions/examples_loading_exception.dart';
 import '../exceptions/snippet_saving_exception.dart';
 import '../models/category_with_examples.dart';
 import '../models/example.dart';
@@ -42,6 +43,9 @@ import '../repositories/models/save_snippet_request.dart';
 class ExampleCache extends ChangeNotifier {
   final ExampleRepository _exampleRepository;
   final categoryListsBySdk = <Sdk, List<CategoryWithExamples>>{};
+
+  final _cachedExamplesByPath = <String, Example?>{};
+  final _cachedExamplesBySnippetId = <String, Example?>{};
 
   @visibleForTesting
   final Map<Sdk, Example> defaultExamplesBySdk = {};
@@ -89,10 +93,28 @@ class ExampleCache extends ChangeNotifier {
     return categoryListsBySdk[sdk] ?? [];
   }
 
-  Future<ExampleBase> getPrecompiledObject(String path, Sdk sdk) {
-    return _exampleRepository.getPrecompiledObject(
-      GetPrecompiledObjectRequest(path: path, sdk: sdk),
-    );
+  Future<Example> getPrecompiledObject(String path, Sdk sdk) async {
+    try {
+      if (_cachedExamplesByPath.containsKey(path)) {
+        final result = _cachedExamplesByPath[path];
+        if (result != null) {
+          return result;
+        }
+
+        throw Exception('Example was not found before at $path');
+      }
+
+      final exampleBase = await _exampleRepository.getPrecompiledObject(
+        GetPrecompiledObjectRequest(path: path, sdk: sdk),
+      );
+
+      final result = await loadExampleInfo(exampleBase);
+      _cachedExamplesByPath[path] = result;
+      return result;
+    } on Exception {
+      _cachedExamplesByPath[path] = null;
+      rethrow;
+    }
   }
 
   Future<String?> _getPrecompiledObjectOutput(ExampleBase example) async {
@@ -127,20 +149,38 @@ class ExampleCache extends ChangeNotifier {
     String id, {
     required ExampleViewOptions viewOptions,
   }) async {
-    final result = await _exampleRepository.getSnippet(
-      GetSnippetRequest(id: id),
-    );
+    if (_cachedExamplesBySnippetId.containsKey(id)) {
+      final result = _cachedExamplesBySnippetId[id];
+      if (result != null) {
+        return result;
+      }
 
-    return Example(
-      complexity: result.complexity,
-      files: result.files,
-      name: result.files.first.name,
-      path: id,
-      sdk: result.sdk,
-      pipelineOptions: result.pipelineOptions,
-      type: ExampleType.example,
-      viewOptions: viewOptions,
-    );
+      throw Exception('Snippet was not found before at $id');
+    }
+
+    try {
+      final response = await _exampleRepository.getSnippet(
+        GetSnippetRequest(id: id),
+      );
+
+      final example = Example(
+        complexity: response.complexity,
+        files: response.files,
+        name: 'examples.userSharedName'.tr(),
+        isMultiFile: response.files.length > 1,
+        path: id,
+        sdk: response.sdk,
+        pipelineOptions: response.pipelineOptions,
+        type: ExampleType.example,
+        viewOptions: viewOptions,
+      );
+
+      _cachedExamplesBySnippetId[id] = example;
+      return example;
+    } on Exception {
+      _cachedExamplesBySnippetId[id] = null;
+      rethrow;
+    }
   }
 
   Future<String> saveSnippet({
@@ -165,6 +205,11 @@ class ExampleCache extends ChangeNotifier {
   Future<Example> loadExampleInfo(ExampleBase example) async {
     if (example is Example) {
       return example;
+    }
+
+    final cachedExample = _cachedExamplesByPath[example.path];
+    if (cachedExample != null) {
+      return cachedExample;
     }
 
     //GRPC GetPrecompiledGraph errors hotfix
@@ -193,13 +238,16 @@ class ExampleCache extends ChangeNotifier {
       _getPrecompiledObjectGraph(example)
     ]);
 
-    return Example.fromBase(
+    final precompiledExample = Example.fromBase(
       example,
       files: exampleData[0]! as List<SnippetFile>,
       outputs: exampleData[1] as String?,
       logs: exampleData[2]! as String,
       graph: exampleData[3]! as String,
     );
+    _cachedExamplesByPath[example.path] = precompiledExample;
+
+    return precompiledExample;
   }
 
   Future<void> _loadAllPrecompiledObjects() async {
@@ -238,7 +286,7 @@ class ExampleCache extends ChangeNotifier {
       await Future.wait(Sdk.known.map(_loadDefaultPrecompiledObject));
     } on Exception catch (ex) {
       if (defaultExamplesBySdk.isEmpty) {
-        throw ExampleLoadingException(ex);
+        throw ExamplesLoadingException(ex);
       }
       // As long as any of the examples is loaded, continue.
       print(ex);

@@ -56,7 +56,7 @@ class RunButton extends StatelessWidget {
           width: _width,
           height: BeamSizes.buttonHeight,
           child: ShortcutTooltip(
-            shortcut: BeamRunShortcut(
+            shortcut: BeamMainRunShortcut(
               onInvoke: () {}, // Only the tooltip is used.
             ),
             child: ElevatedButton.icon(

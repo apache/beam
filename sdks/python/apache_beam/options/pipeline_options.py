@@ -22,6 +22,7 @@
 import argparse
 import json
 import logging
+import os
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -532,6 +533,13 @@ class CrossLanguageOptions(PipelineOptions):
             'Should be a json mapping of gradle build targets to pre-built '
             'artifacts (e.g. jar files) expansion endpoints (e.g. host:port).'))
 
+    parser.add_argument(
+        '--use_transform_service',
+        default=False,
+        action='store_true',
+        help='Use the Docker-composed-based transform service when expanding '
+        'cross-language transforms.')
+
 
 def additional_option_ptransform_fn():
   beam.transforms.ptransform.ptransform_fn_typehints_enabled = True
@@ -755,7 +763,6 @@ class GoogleCloudOptions(PipelineOptions):
         default=False,
         action='store_true',
         help='Update an existing streaming Cloud Dataflow job. '
-        'Experimental. '
         'See https://cloud.google.com/dataflow/docs/guides/'
         'updating-a-pipeline')
     parser.add_argument(
@@ -765,7 +772,6 @@ class GoogleCloudOptions(PipelineOptions):
         help='The transform mapping that maps the named '
         'transforms in your prior pipeline code to names '
         'in your replacement pipeline code.'
-        'Experimental. '
         'See https://cloud.google.com/dataflow/docs/guides/'
         'updating-a-pipeline')
     parser.add_argument(
@@ -875,6 +881,21 @@ class GoogleCloudOptions(PipelineOptions):
               self, 'dataflow_service_options'))
 
     return errors
+
+  def get_cloud_profiler_service_name(self):
+    _ENABLE_GOOGLE_CLOUD_PROFILER = 'enable_google_cloud_profiler'
+    if self.dataflow_service_options:
+      if _ENABLE_GOOGLE_CLOUD_PROFILER in self.dataflow_service_options:
+        return os.environ["JOB_NAME"]
+      for option_name in self.dataflow_service_options:
+        if option_name.startswith(_ENABLE_GOOGLE_CLOUD_PROFILER + '='):
+          return option_name.split('=', 1)[1]
+
+    experiments = self.view_as(DebugOptions).experiments or []
+    if _ENABLE_GOOGLE_CLOUD_PROFILER in experiments:
+      return os.environ["JOB_NAME"]
+
+    return None
 
 
 class AzureOptions(PipelineOptions):

@@ -25,7 +25,6 @@ const double kXlSpacing = 16.0;
 const double kXxlSpacing = 36.0;
 
 // sizes
-const kButtonHeight = 40.0;
 const kIconButtonSplashRadius = 24.0;
 
 // border radius
@@ -48,6 +47,3 @@ const double kContainerHeight = 40.0;
 
 const double kLabelFontSize = 16.0;
 const double kTitleFontSize = 18.0;
-
-//divider size
-const double kDividerHeight = 1.0;

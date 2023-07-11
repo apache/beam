@@ -29,8 +29,6 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.avro.Schema;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
@@ -44,7 +42,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * href="https://github.com/confluentinc/schema-registry">Confluent Schema Registry</a> to resolve a
  * {@link Deserializer}s and {@link Coder} given a subject.
  */
-@Experimental(Kind.SOURCE_SINK)
 public class ConfluentSchemaRegistryDeserializerProvider<T> implements DeserializerProvider<T> {
   private final SerializableFunction<Void, SchemaRegistryClient> schemaRegistryClientProviderFn;
   private final String schemaRegistryUrl;

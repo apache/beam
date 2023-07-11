@@ -161,6 +161,8 @@ class PipelineRenderer:
             mark_leaves(
                 self.pipeline.components.transforms[transform_id].subtransforms)
 
+      mark_leaves(self.roots)
+
     elif options.render_port >= 0:
       # Start interactive with no unfolding.
       self.leaf_composites = set(self.roots)

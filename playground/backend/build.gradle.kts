@@ -72,7 +72,20 @@ task("removeUnusedSnippet") {
     doLast {
       exec {
          executable("go")
-         args("run", "cmd/remove_unused_snippets.go", System.getProperty("dayDiff"), System.getProperty("projectId"))
+         args("run", "cmd/remove_unused_snippets/remove_unused_snippets.go", "cleanup",
+          "-day_diff", System.getProperty("dayDiff"), "-project_id", System.getProperty("projectId"),
+          "-namespace", System.getProperty("namespace"))
+      }
+    }
+}
+
+task("removeSnippet") {
+    doLast {
+      exec {
+         executable("go")
+         args("run", "cmd/remove_unused_snippets/remove_unused_snippets.go", "remove",
+          "-snippet_id", System.getProperty("snippetId"), "-project_id", System.getProperty("projectId"),
+          "-namespace", System.getProperty("namespace"))
       }
     }
 }

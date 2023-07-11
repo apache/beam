@@ -157,15 +157,25 @@ func launchSDKProcess() error {
 	signalChannel := make(chan os.Signal, 1)
 	signal.Notify(signalChannel, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM)
 
-	venvDir, err := setupVenv(ctx, logger, "/opt/apache/beam-venv", *id)
-	if err != nil {
-		return errors.New("failed to initialize Python venv")
+	// Create a separate virtual environment (with access to globally installed packages), unless disabled by the user.
+	// This improves usability on runners that persist the execution environment for the boot entrypoint between multiple pipeline executions.
+	if os.Getenv("RUN_PYTHON_SDK_IN_DEFAULT_ENVIRONMENT") == "" {
+		venvDir, err := setupVenv(ctx, logger, "/opt/apache/beam-venv", *id)
+		if err != nil {
+			return errors.New(
+				"failed to create a virtual environment. If running on Ubuntu systems, " +
+				"you might need to install `python3-venv` package. " +
+				"To run the SDK process in default environment instead, " +
+				"set the environment variable `RUN_PYTHON_SDK_IN_DEFAULT_ENVIRONMENT=1`. " +
+				"In custom Docker images, you can do that with an `ENV` statement. " +
+				fmt.Sprintf("Encountered error: %v", err))
+		}
+		cleanupFunc := func() {
+			os.RemoveAll(venvDir)
+			logger.Printf(ctx, "Cleaned up temporary venv for worker %v.", *id)
+		}
+		defer cleanupFunc()
 	}
-	cleanupFunc := func() {
-		os.RemoveAll(venvDir)
-		logger.Printf(ctx, "Cleaned up temporary venv for worker %v.", *id)
-	}
-	defer cleanupFunc()
 
 	dir := filepath.Join(*semiPersistDir, "staged")
 	files, err := artifact.Materialize(ctx, *artifactEndpoint, info.GetDependencies(), info.GetRetrievalToken(), dir)
@@ -308,9 +318,8 @@ func StartCommandEnv(env map[string]string, prog string, args ...string) *exec.C
 
 // setupVenv initializes a local Python venv and sets the corresponding env variables
 func setupVenv(ctx context.Context, logger *tools.Logger, baseDir, workerId string) (string, error) {
-	logger.Printf(ctx, "Initializing temporary Python venv ...")
-
 	dir := filepath.Join(baseDir, "beam-venv-worker-"+workerId)
+	logger.Printf(ctx, "Initializing temporary Python venv in %v", dir)
 	if _, err := os.Stat(dir); !os.IsNotExist(err) {
 		// Probably leftovers from a previous run
 		logger.Printf(ctx, "Cleaning up previous venv ...")

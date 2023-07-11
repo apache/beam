@@ -15,31 +15,49 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+import com.gradle.enterprise.gradleplugin.internal.extension.BuildScanExtensionWithHiddenFeatures
 
 plugins {
-  id("com.gradle.enterprise") version "3.4.1" apply false
+  id("com.gradle.enterprise") version "3.13.2"
+  id("com.gradle.common-custom-user-data-gradle-plugin") version "1.10"
 }
 
-
-// Plugins which require online access should not be enabled when running in offline mode.
-if (!gradle.startParameter.isOffline) {
-  apply(plugin = "com.gradle.enterprise")
-}
 
 // JENKINS_HOME and BUILD_ID set automatically during Jenkins execution
 val isJenkinsBuild = arrayOf("JENKINS_HOME", "BUILD_ID").all { System.getenv(it) != null }
 // GITHUB_REPOSITORY and GITHUB_RUN_ID set automatically during Github Actions run
 val isGithubActionsBuild = arrayOf("GITHUB_REPOSITORY", "GITHUB_RUN_ID").all { System.getenv(it) != null }
-if (isJenkinsBuild || isGithubActionsBuild) {
-  gradleEnterprise {
-    buildScan {
-      // Build Scan enabled and TOS accepted for Jenkins lab build. This does not apply to builds on
-      // non-Jenkins machines. Developers need to separately enable and accept TOS to use build scans.
-      termsOfServiceUrl = "https://gradle.com/terms-of-service"
-      termsOfServiceAgree = "yes"
-      publishAlways()
+val isCi = isJenkinsBuild || isGithubActionsBuild
+
+gradleEnterprise {
+  server = "https://ge.apache.org"
+  allowUntrustedServer = false
+
+  buildScan {
+    capture { isTaskInputFiles = true }
+    isUploadInBackground = !isCi
+    publishAlways()
+    this as BuildScanExtensionWithHiddenFeatures
+    publishIfAuthenticated()
+    obfuscation {
+      ipAddresses { addresses -> addresses.map { "0.0.0.0" } }
     }
+  }
+}
+
+buildCache {
+  local {
+    isEnabled = true
+  }
+  remote<HttpBuildCache> {
+    url = uri("https://beam-cache.apache.org/cache/")
+    isAllowUntrustedServer = false
+    credentials {
+      username = System.getenv("GRADLE_ENTERPRISE_CACHE_USERNAME")
+      password = System.getenv("GRADLE_ENTERPRISE_CACHE_PASSWORD")
+    }
+    isEnabled = true
+    isPush = isCi
   }
 }
 
@@ -59,6 +77,9 @@ include(":examples:java:cdap:servicenow")
 include(":examples:java:cdap:zendesk")
 include(":examples:kotlin")
 include(":examples:multi-language")
+include(":learning")
+include(":learning:tour-of-beam")
+include(":learning:tour-of-beam:frontend")
 include(":model:fn-execution")
 include(":model:job-management")
 include(":model:pipeline")
@@ -82,6 +103,9 @@ include(":runners:core-construction-java")
 include(":runners:core-java")
 include(":runners:direct-java")
 include(":runners:extensions-java:metrics")
+include(":learning")
+include(":learning:tour-of-beam")
+include(":learning:tour-of-beam:terraform")
 /* Begin Flink Runner related settings */
 // Flink 1.12
 include(":runners:flink:1.12")
@@ -134,6 +158,7 @@ include(":sdks:java:container:java17")
 include(":sdks:java:core")
 include(":sdks:java:core:jmh")
 include(":sdks:java:expansion-service")
+include(":sdks:java:expansion-service:container")
 include(":sdks:java:expansion-service:app")
 include(":sdks:java:extensions:arrow")
 include(":sdks:java:extensions:avro")
@@ -145,7 +170,7 @@ include(":sdks:java:extensions:join-library")
 include(":sdks:java:extensions:ml")
 include(":sdks:java:extensions:protobuf")
 include(":sdks:java:extensions:python")
-include("sdks:java:extensions:sbe")
+include(":sdks:java:extensions:sbe")
 include(":sdks:java:extensions:schemaio-expansion-service")
 include(":sdks:java:extensions:sketching")
 include(":sdks:java:extensions:sorter")
@@ -169,6 +194,7 @@ include(":sdks:java:io:amazon-web-services")
 include(":sdks:java:io:amazon-web-services2")
 include(":sdks:java:io:amqp")
 include(":sdks:java:io:azure")
+include(":sdks:java:io:azure-cosmos")
 include(":sdks:java:io:cassandra")
 include(":sdks:java:io:clickhouse")
 include(":sdks:java:io:common")
@@ -231,35 +257,34 @@ include(":sdks:java:testing:load-tests")
 include(":sdks:java:testing:test-utils")
 include(":sdks:java:testing:tpcds")
 include(":sdks:java:testing:watermarks")
+include(":sdks:java:transform-service")
+include(":sdks:java:transform-service:launcher")
+include(":sdks:java:transform-service:controller-container")
 include(":sdks:python")
 include(":sdks:python:apache_beam:testing:load_tests")
 include(":sdks:python:apache_beam:testing:benchmarks:nexmark")
 include(":sdks:python:container")
-include(":sdks:python:container:py37")
 include(":sdks:python:container:py38")
 include(":sdks:python:container:py39")
 include(":sdks:python:container:py310")
 include(":sdks:python:container:py311")
+include(":sdks:python:expansion-service-container")
 include(":sdks:python:test-suites:dataflow")
-include(":sdks:python:test-suites:dataflow:py37")
 include(":sdks:python:test-suites:dataflow:py38")
 include(":sdks:python:test-suites:dataflow:py39")
 include(":sdks:python:test-suites:dataflow:py310")
 include(":sdks:python:test-suites:dataflow:py311")
 include(":sdks:python:test-suites:direct")
-include(":sdks:python:test-suites:direct:py37")
 include(":sdks:python:test-suites:direct:py38")
 include(":sdks:python:test-suites:direct:py39")
 include(":sdks:python:test-suites:direct:py310")
 include(":sdks:python:test-suites:direct:py311")
 include(":sdks:python:test-suites:direct:xlang")
-include(":sdks:python:test-suites:portable:py37")
 include(":sdks:python:test-suites:portable:py38")
 include(":sdks:python:test-suites:portable:py39")
 include(":sdks:python:test-suites:portable:py310")
 include(":sdks:python:test-suites:portable:py311")
 include(":sdks:python:test-suites:tox:pycommon")
-include(":sdks:python:test-suites:tox:py37")
 include(":sdks:python:test-suites:tox:py38")
 include(":sdks:python:test-suites:tox:py39")
 include(":sdks:python:test-suites:tox:py310")
@@ -268,7 +293,6 @@ include(":sdks:python:test-suites:xlang")
 include(":sdks:typescript")
 include(":sdks:typescript:container")
 include(":vendor:bytebuddy-1_12_8")
-include(":vendor:grpc-1_48_1")
 include(":vendor:grpc-1_54_0")
 include(":vendor:calcite-1_28_0")
 include(":vendor:guava-26_0-jre")
@@ -278,6 +302,8 @@ include(":runners:google-cloud-dataflow-java:worker:windmill")
 // no dots allowed for project paths
 include("beam-test-infra-metrics")
 project(":beam-test-infra-metrics").projectDir = file(".test-infra/metrics")
+include("beam-test-infra-pipelines")
+project(":beam-test-infra-pipelines").projectDir = file(".test-infra/pipelines")
 include("beam-test-tools")
 project(":beam-test-tools").projectDir = file(".test-infra/tools")
 include("beam-test-jenkins")

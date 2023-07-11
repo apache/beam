@@ -45,7 +45,7 @@ import org.apache.beam.sdk.options.ExecutorOptions;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.HistogramData;
-import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTimeUtils.MillisProvider;
@@ -363,9 +363,14 @@ public class ExecutionStateSampler {
       ExecutionStateImpl current = currentStateLazy.get();
       if (current != null) {
         return ExecutionStateTrackerStatus.create(
-            current.ptransformId, current.ptransformUniqueName, thread, lastTransitionTimeMs);
+            current.ptransformId,
+            current.ptransformUniqueName,
+            thread,
+            lastTransitionTimeMs,
+            processBundleId.get());
       } else {
-        return ExecutionStateTrackerStatus.create(null, null, thread, lastTransitionTimeMs);
+        return ExecutionStateTrackerStatus.create(
+            null, null, thread, lastTransitionTimeMs, processBundleId.get());
       }
     }
 
@@ -518,9 +523,10 @@ public class ExecutionStateSampler {
         @Nullable String ptransformId,
         @Nullable String ptransformUniqueName,
         Thread trackedThread,
-        long lastTransitionTimeMs) {
+        long lastTransitionTimeMs,
+        @Nullable String processBundleId) {
       return new AutoValue_ExecutionStateSampler_ExecutionStateTrackerStatus(
-          ptransformId, ptransformUniqueName, trackedThread, lastTransitionTimeMs);
+          ptransformId, ptransformUniqueName, trackedThread, lastTransitionTimeMs, processBundleId);
     }
 
     public abstract @Nullable String getPTransformId();
@@ -530,5 +536,7 @@ public class ExecutionStateSampler {
     public abstract Thread getTrackedThread();
 
     public abstract long getLastTransitionTimeMillis();
+
+    public abstract @Nullable String getProcessBundleId();
   }
 }

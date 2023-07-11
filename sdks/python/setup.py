@@ -143,6 +143,13 @@ if sys.platform == 'win32' and sys.maxsize <= 2**32:
 else:
   pyarrow_dependency = 'pyarrow>=3.0.0,<12.0.0'
 
+# Exclude pandas<=1.4.2 since it doesn't work with numpy 1.24.x.
+# Exclude 1.5.0 and 1.5.1 because of
+# https://github.com/pandas-dev/pandas/issues/45725
+dataframe_dependency = [
+    'pandas>=1.4.3,!=1.5.0,!=1.5.1,<1.6;python_version>="3.8"',
+]
+
 
 # We must generate protos after setup_requires are installed.
 def generate_protos_first():
@@ -167,7 +174,7 @@ def get_portability_package_data():
   return files
 
 
-python_requires = '>=3.7'
+python_requires = '>=3.8'
 
 if sys.version_info.major == 3 and sys.version_info.minor >= 12:
   warnings.warn(
@@ -201,6 +208,7 @@ if __name__ == '__main__':
               '*/*.h',
               '*/*/*.h',
               'testing/data/*.yaml',
+              'yaml/*.yaml',
               *get_portability_package_data()
           ]
       },
@@ -236,7 +244,7 @@ if __name__ == '__main__':
         'fasteners>=0.3,<1.0',
         'grpcio>=1.33.1,!=1.48.0,<2',
         'hdfs>=2.1.0,<3.0.0',
-        'httplib2>=0.8,<0.22.0',
+        'httplib2>=0.8,<0.23.0',
         # numpy can have breaking changes in minor versions.
         # Use a strict upper bound.
         'numpy>=1.14.3,<1.25.0',   # Update build-requirements.txt as well.
@@ -248,7 +256,7 @@ if __name__ == '__main__':
         # does not exceed the minor version at runtime.
         # To avoid depending on an old dependency, update the minor version on
         # every Beam release, see: https://github.com/apache/beam/issues/25590
-        'protobuf>=4.21.1,<4.23.0',
+        'protobuf>=3.20.3,<4.24.0',
         'pydot>=1.2.0,<2',
         'python-dateutil>=2.8.0,<3',
         'pytz>=2018.3',
@@ -276,7 +284,7 @@ if __name__ == '__main__':
             'mock>=1.0.1,<6.0.0',
             'pandas<2.0.0',
             'parameterized>=0.7.1,<0.10.0',
-            'pyhamcrest>=1.9,!=1.10.0,<2.0.0',
+            'pyhamcrest>=1.9,!=1.10.0,<3.0.0',
             'pyyaml>=3.12,<7.0.0',
             'requests_mock>=1.7,<2.0',
             'tenacity>=8.0.0,<9',
@@ -291,7 +299,8 @@ if __name__ == '__main__':
             'hypothesis>5.0.0,<=7.0.0',
           ],
           'gcp': [
-            'cachetools>=3.1.0,<5',
+            'cachetools>=3.1.0,<6',
+            'google-api-core>=2.0.0,<3',
             'google-apitools>=0.5.31,<0.5.32',
             # NOTE: Maintainers, please do not require google-auth>=2.x.x
             # Until this issue is closed
@@ -305,35 +314,33 @@ if __name__ == '__main__':
             'google-cloud-bigquery>=2.0.0,<4',
             'google-cloud-bigquery-storage>=2.6.3,<3',
             'google-cloud-core>=2.0.0,<3',
-            'google-cloud-bigtable>=2.0.0,<3',
+            'google-cloud-bigtable>=2.19.0,<3',
             'google-cloud-spanner>=3.0.0,<4',
             # GCP Packages required by ML functionality
             'google-cloud-dlp>=3.0.0,<4',
             'google-cloud-language>=2.0,<3',
             'google-cloud-videointelligence>=2.0,<3',
             'google-cloud-vision>=2,<4',
-            'google-cloud-recommendations-ai>=0.1.0,<0.11.0'
+            'google-cloud-recommendations-ai>=0.1.0,<0.11.0',
+            'google-cloud-aiplatform>=1.26.0, < 2.0'
           ],
           'interactive': [
             'facets-overview>=1.1.0,<2',
             'google-cloud-dataproc>=5.0.0,<6',
-            # IPython>=8 is not compatible with Python<=3.7
-            'ipython>=7,<8;python_version<="3.7"',
-            'ipython>=8,<9;python_version>"3.7"',
+            'ipython>=8,<9',
             'ipykernel>=6,<7',
             'ipywidgets>=8,<9',
             # Skip version 6.1.13 due to
             # https://github.com/jupyter/jupyter_client/issues/637
-            'jupyter-client>=6.1.11,!=6.1.13,<8.1.1',
+            'jupyter-client>=6.1.11,!=6.1.13,<8.2.1',
             'timeloop>=1.0.2,<2',
-          ],
-          'interactive_test': [
-            # notebok utils
             'nbformat>=5.0.5,<6',
             'nbconvert>=6.2.0,<8',
+          ] + dataframe_dependency,
+          'interactive_test': [
             # headless chrome based integration tests
             'needle>=0.5.0,<1',
-            'chromedriver-binary>=100,<113',
+            'chromedriver-binary>=100,<114',
             # use a fixed major version of PIL for different python versions
             'pillow>=7.1.1,<10',
           ],
@@ -343,13 +350,7 @@ if __name__ == '__main__':
             'azure-core>=1.7.0,<2',
             'azure-identity>=1.12.0,<2',
           ],
-        # Exclude pandas<=1.4.2 since it doesn't work with numpy 1.24.x.
-        # Exclude 1.5.0 and 1.5.1 because of
-        # https://github.com/pandas-dev/pandas/issues/45725
-          'dataframe': [
-            'pandas<1.6.0;python_version=="3.7"',
-            'pandas>=1.4.3,!=1.5.0,!=1.5.1,<1.6;python_version>="3.8"',
-          ],
+          'dataframe': dataframe_dependency,
           'dask': [
             'dask >= 2022.6',
             'distributed >= 2022.6',
@@ -361,7 +362,6 @@ if __name__ == '__main__':
           'Intended Audience :: End Users/Desktop',
           'License :: OSI Approved :: Apache Software License',
           'Operating System :: POSIX :: Linux',
-          'Programming Language :: Python :: 3.7',
           'Programming Language :: Python :: 3.8',
           'Programming Language :: Python :: 3.9',
           'Programming Language :: Python :: 3.10',

@@ -39,14 +39,18 @@ class BeamSizes {
 
   static const double appBarHeight = 55;
   static const double buttonHeight = 40;
+  static const double elevation = 2;
   static const double headerButtonHeight = 46;
   static const double loadingIndicator = 40;
   static const double splitViewSeparator = BeamSizes.size8;
   static const double tabBarHeight = 50;
+  static const double textFieldHeight = 50;
+  static const double popupWidth = 420;
 }
 
 class BeamBorderRadius {
   static const double small = BeamSizes.size4;
+  static const double medium = BeamSizes.size6;
   static const double large = BeamSizes.size8;
   static const double infinite = 1000; // TODO: Use StadiumBorder
 }
@@ -54,7 +58,17 @@ class BeamBorderRadius {
 class BeamIconSizes {
   static const double xs = BeamSizes.size8;
   static const double small = BeamSizes.size16;
+  static const double medium = BeamSizes.size24;
   static const double large = BeamSizes.size32;
 
   static const double largeSplashRadius = 24;
+}
+
+class BeamSpacing {
+  static const double zero = BeamSizes.size0;
+  static const double small = BeamSizes.size4;
+  static const double medium = BeamSizes.size8;
+  static const double large = BeamSizes.size12;
+  static const double extraLarge = BeamSizes.size16;
+  static const double extraExtraLarge = BeamSizes.size36;
 }

@@ -23,6 +23,7 @@ import java.nio.charset.StandardCharsets;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.commons.csv.CSVFormat;
 
 /**
@@ -51,43 +52,41 @@ public abstract class FileWriteSchemaTransformConfiguration {
         .setCharset(StandardCharsets.UTF_8.name());
   }
 
-  /**
-   * The format of the file content. Used as String key lookup of {@link
-   * FileWriteSchemaTransformFormatProviders#loadProviders()}.
-   */
+  @SchemaFieldDescription(
+      "The format of the file content. Value must be one of: \"avro\", \"csv\", \"json\", \"parquet\", \"xml\"")
   public abstract String getFormat();
 
-  /** A common prefix to use for all generated filenames. */
+  @SchemaFieldDescription("A common prefix to use for all generated filenames.")
   public abstract String getFilenamePrefix();
 
-  /**
-   * The compression of all generated shard files. By default, appends the respective extension to
-   * the filename. See {@link org.apache.beam.sdk.io.Compression} for expected values.
-   */
+  /** See {@link org.apache.beam.sdk.io.Compression} for expected values. */
+  @SchemaFieldDescription(
+      "The compression of all generated shard files. By default, appends the respective extension to the filename. Valid options can be found in: https://beam.apache.org/releases/javadoc/2.46.0/org/apache/beam/sdk/io/Compression.html")
   @Nullable
   public abstract String getCompression();
 
-  /** The number of output shards produced; a value of 1 disables sharding. */
+  @SchemaFieldDescription("The number of output shards produced; a value of 1 disables sharding.")
   @Nullable
   public abstract Integer getNumShards();
 
-  /** Uses the given {@link org.apache.beam.sdk.io.ShardNameTemplate} for naming output files. */
+  /** See {@link org.apache.beam.sdk.io.ShardNameTemplate} for the expected values. */
+  @SchemaFieldDescription("Uses the given shard name template for naming output files.")
   @Nullable
   public abstract String getShardNameTemplate();
 
-  /** Configures the filename suffix for written files. */
+  @SchemaFieldDescription("Configures the filename suffix for written files.")
   @Nullable
   public abstract String getFilenameSuffix();
 
-  /** Configures extra details related to writing CSV formatted files. */
+  @SchemaFieldDescription("Configures extra details related to writing CSV formatted files.")
   @Nullable
   public abstract CsvConfiguration getCsvConfiguration();
 
-  /** Configures extra details related to writing Parquet formatted files. */
+  @SchemaFieldDescription("Configures extra details related to writing Parquet formatted files.")
   @Nullable
   public abstract ParquetConfiguration getParquetConfiguration();
 
-  /** Configures extra details related to writing XML formatted files. */
+  @SchemaFieldDescription("Configures extra details related to writing XML formatted files.")
   @Nullable
   public abstract XmlConfiguration getXmlConfiguration();
 
@@ -134,10 +133,9 @@ public abstract class FileWriteSchemaTransformConfiguration {
   @AutoValue
   public abstract static class CsvConfiguration {
 
-    /**
-     * The {@link CSVFormat.Predefined#name()} of the written CSV file. See {@link
-     * CSVFormat.Predefined#values()} for a list of allowed values.
-     */
+    /** See {@link CSVFormat.Predefined#values()} for a list of allowed values. */
+    @SchemaFieldDescription(
+        "The Predefined format of the written CSV file. Valid options can be found in: https://commons.apache.org/proper/commons-csv/apidocs/org/apache/commons/csv/CSVFormat.Predefined.html")
     public abstract String getPredefinedCsvFormat();
 
     @AutoValue.Builder
@@ -158,13 +156,12 @@ public abstract class FileWriteSchemaTransformConfiguration {
   @AutoValue
   public abstract static class ParquetConfiguration {
 
-    /**
-     * Specifies compression codec. See org.apache.parquet.hadoop.metadata.CompressionCodecName for
-     * allowed names.
-     */
+    @SchemaFieldDescription(
+        "Specifies compression codec. Valid values are: \"GZIP\", \"LZO\", \"SNAPPY\", \"UNCOMPRESSED\"")
     public abstract String getCompressionCodecName();
 
-    /** Specify row-group size; if not set or zero, a default is used by the underlying writer. */
+    @SchemaFieldDescription(
+        "Specify row-group size; if not set or zero, a default is used by the underlying writer.")
     @Nullable
     public abstract Integer getRowGroupSize();
 
@@ -189,13 +186,10 @@ public abstract class FileWriteSchemaTransformConfiguration {
   @AutoValue
   public abstract static class XmlConfiguration {
 
-    /** Sets the enclosing root element for the generated XML files. */
+    @SchemaFieldDescription("Sets the enclosing root element for the generated XML files.")
     public abstract String getRootElement();
 
-    /**
-     * The charset used to write the file. Defaults to {@link
-     * java.nio.charset.StandardCharsets#UTF_8}'s {@link Charset#name()}.
-     */
+    @SchemaFieldDescription("The charset used to write the file. Defaults to UTF_8")
     public abstract String getCharset();
 
     @AutoValue.Builder

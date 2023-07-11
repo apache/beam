@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.schemas.utils;
 
+import static org.apache.beam.sdk.util.ByteBuddyUtils.getClassLoadingStrategy;
+
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -28,7 +30,6 @@ import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.method.MethodDescription.ForLoadedMethod;
 import net.bytebuddy.dynamic.DynamicType;
-import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
 import net.bytebuddy.dynamic.scaffold.InstrumentedType;
 import net.bytebuddy.implementation.FixedValue;
 import net.bytebuddy.implementation.Implementation;
@@ -41,8 +42,6 @@ import net.bytebuddy.implementation.bytecode.member.MethodReturn;
 import net.bytebuddy.implementation.bytecode.member.MethodVariableAccess;
 import net.bytebuddy.jar.asm.ClassWriter;
 import net.bytebuddy.matcher.ElementMatchers;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.FieldValueSetter;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
@@ -57,7 +56,6 @@ import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 
 /** A set of utilities to generate getter and setter classes for JavaBean objects. */
-@Experimental(Kind.SCHEMAS)
 @SuppressWarnings({
   "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes"
@@ -162,7 +160,7 @@ public class JavaBeanUtils {
           .load(
               ReflectHelpers.findClassLoader(
                   typeInformation.getMethod().getDeclaringClass().getClassLoader()),
-              ClassLoadingStrategy.Default.INJECTION)
+              getClassLoadingStrategy(typeInformation.getMethod().getDeclaringClass()))
           .getLoaded()
           .getDeclaredConstructor()
           .newInstance();
@@ -226,7 +224,7 @@ public class JavaBeanUtils {
           .load(
               ReflectHelpers.findClassLoader(
                   typeInformation.getMethod().getDeclaringClass().getClassLoader()),
-              ClassLoadingStrategy.Default.INJECTION)
+              getClassLoadingStrategy(typeInformation.getMethod().getDeclaringClass()))
           .getLoaded()
           .getDeclaredConstructor()
           .newInstance();
@@ -290,7 +288,7 @@ public class JavaBeanUtils {
           .make()
           .load(
               ReflectHelpers.findClassLoader(clazz.getClassLoader()),
-              ClassLoadingStrategy.Default.INJECTION)
+              getClassLoadingStrategy(clazz))
           .getLoaded()
           .getDeclaredConstructor()
           .newInstance();
@@ -338,7 +336,7 @@ public class JavaBeanUtils {
           .make()
           .load(
               ReflectHelpers.findClassLoader(clazz.getClassLoader()),
-              ClassLoadingStrategy.Default.INJECTION)
+              getClassLoadingStrategy(clazz))
           .getLoaded()
           .getDeclaredConstructor()
           .newInstance();

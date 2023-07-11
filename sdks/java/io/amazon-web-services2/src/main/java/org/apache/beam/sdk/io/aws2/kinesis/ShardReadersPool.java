@@ -104,8 +104,11 @@ class ShardReadersPool {
     }
     shardIteratorsMap.set(shardsMap.build());
     if (!shardIteratorsMap.get().isEmpty()) {
-      recordsQueue =
-          new ArrayBlockingQueue<>(read.getMaxCapacityPerShard() * shardIteratorsMap.get().size());
+      int capacityPerShard =
+          read.getMaxCapacityPerShard() != null
+              ? read.getMaxCapacityPerShard()
+              : DEFAULT_CAPACITY_PER_SHARD;
+      recordsQueue = new ArrayBlockingQueue<>(capacityPerShard * shardIteratorsMap.get().size());
       String streamName = initialCheckpoint.getStreamName();
       startReadingShards(shardIteratorsMap.get().values(), streamName);
     } else {

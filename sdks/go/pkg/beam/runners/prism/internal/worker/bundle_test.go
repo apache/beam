@@ -36,7 +36,7 @@ func TestBundle_ProcessOn(t *testing.T) {
 		b.ProcessOn(wk)
 		completed.Done()
 	}()
-	b.dataWait.Done()
+	b.DataDone()
 	gotData := <-wk.DataReqs
 	if got, want := gotData.GetData()[0].GetData(), []byte{1, 2, 3}; !bytes.EqualFold(got, want) {
 		t.Errorf("ProcessOn(): data not sent; got %v, want %v", got, want)

@@ -17,8 +17,12 @@ package internal
 
 import (
 	"context"
+	"fmt"
+	"math/rand"
 	"os"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
@@ -60,6 +64,9 @@ func execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 
 func executeWithT(ctx context.Context, t *testing.T, p *beam.Pipeline) (beam.PipelineResult, error) {
 	t.Log("startingTest - ", t.Name())
+	s1 := rand.NewSource(time.Now().UnixNano())
+	r1 := rand.New(s1)
+	*jobopts.JobName = fmt.Sprintf("%v-%v", strings.ToLower(t.Name()), r1.Intn(1000))
 	return execute(ctx, p)
 }
 
@@ -128,6 +135,9 @@ func TestRunner_Pipelines(t *testing.T) {
 				qr := pr.Metrics().Query(func(sr metrics.SingleResult) bool {
 					return sr.Name() == "sunk"
 				})
+				if len(qr.Counters()) == 0 {
+					t.Fatal("no metrics, expected one.")
+				}
 				if got, want := qr.Counters()[0].Committed, int64(73); got != want {
 					t.Errorf("pr.Metrics.Query(Name = \"sunk\")).Committed = %v, want %v", got, want)
 				}
@@ -406,6 +416,20 @@ func TestRunner_Metrics(t *testing.T) {
 			t.Errorf("pr.Metrics.Query(Name = \"count\")).Committed = %v, want %v", got, want)
 		}
 	})
+}
+
+func TestFailure(t *testing.T) {
+	initRunner(t)
+
+	p, s := beam.NewPipelineWithRoot()
+	imp := beam.Impulse(s)
+	beam.ParDo(s, doFnFail, imp)
+	_, err := executeWithT(context.Background(), t, p)
+	if err == nil {
+		t.Fatalf("expected pipeline failure, but got a success")
+	}
+	// Job failure state reason isn't communicated with the state change over the API
+	// so we can't check for a reason here.
 }
 
 // TODO: PCollection metrics tests, in particular for element counts, in multi transform pipelines

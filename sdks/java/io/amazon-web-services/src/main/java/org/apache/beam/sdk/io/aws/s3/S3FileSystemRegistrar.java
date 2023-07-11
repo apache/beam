@@ -24,8 +24,6 @@ import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.FileSystem;
 import org.apache.beam.sdk.io.FileSystemRegistrar;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -39,7 +37,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Streams;
  * S3FileSystemSchemeRegistrar}.
  */
 @AutoService(FileSystemRegistrar.class)
-@Experimental(Kind.FILESYSTEM)
 public class S3FileSystemRegistrar implements FileSystemRegistrar {
 
   @Override

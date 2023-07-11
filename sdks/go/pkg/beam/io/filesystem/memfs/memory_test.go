@@ -19,6 +19,7 @@ import (
 	"context"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem"
 	"github.com/google/go-cmp/cmp"
@@ -28,7 +29,7 @@ import (
 // works as expected.
 func TestReadWrite(t *testing.T) {
 	ctx := context.Background()
-	fs := &fs{m: make(map[string][]byte)}
+	fs := &fs{m: make(map[string]file)}
 
 	if err := filesystem.Write(ctx, fs, "foo", []byte("foo")); err != nil {
 		t.Fatalf("Write(%q) error = %v", "foo", err)
@@ -76,7 +77,7 @@ func TestDirectWrite(t *testing.T) {
 
 func TestSize(t *testing.T) {
 	ctx := context.Background()
-	fs := &fs{m: make(map[string][]byte)}
+	fs := &fs{m: make(map[string]file)}
 
 	names := []string{"foo", "foobar"}
 	for _, name := range names {
@@ -96,7 +97,7 @@ func TestSize(t *testing.T) {
 
 func TestList(t *testing.T) {
 	ctx := context.Background()
-	fs := &fs{m: make(map[string][]byte)}
+	fs := &fs{m: make(map[string]file)}
 
 	names := []string{"fizzbuzz", "foo", "foobar", "baz", "bazfoo"}
 	for _, name := range names {
@@ -175,7 +176,7 @@ func TestListTable(t *testing.T) {
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			fs := &fs{m: make(map[string][]byte)}
+			fs := &fs{m: make(map[string]file)}
 
 			for _, name := range tt.files {
 				if err := filesystem.Write(ctx, fs, name, []byte("contents")); err != nil {
@@ -198,9 +199,40 @@ func TestListTable(t *testing.T) {
 	}
 }
 
+func TestLastModified(t *testing.T) {
+	ctx := context.Background()
+	memFS := &fs{m: make(map[string]file)}
+	filePath := "fizzbuzz"
+
+	t1 := time.Now()
+	if err := filesystem.Write(ctx, memFS, filePath, []byte("")); err != nil {
+		t.Fatalf("filesystem.Write(%q) error = %v, want nil", filePath, err)
+	}
+	t2 := time.Now()
+
+	got, err := memFS.LastModified(ctx, filePath)
+	if err != nil {
+		t.Errorf("LastModified(%q) error = %v, want nil", filePath, err)
+	}
+
+	if got.Before(t1) || got.After(t2) {
+		t.Errorf("LastModified(%q) = %v, want in range [%v, %v]", filePath, got, t1, t2)
+	}
+}
+
+func TestLastModifiedError(t *testing.T) {
+	ctx := context.Background()
+	memFS := &fs{m: make(map[string]file)}
+	filePath := "non-existent"
+
+	if _, err := memFS.LastModified(ctx, filePath); err == nil {
+		t.Errorf("LastModified(%q) error = nil, want error", filePath)
+	}
+}
+
 func TestRemove(t *testing.T) {
 	ctx := context.Background()
-	fs := &fs{m: make(map[string][]byte)}
+	fs := &fs{m: make(map[string]file)}
 
 	names := []string{"fizzbuzz", "foobar", "bazfoo"}
 	for _, name := range names {
@@ -227,16 +259,30 @@ func TestRemove(t *testing.T) {
 
 func TestCopy(t *testing.T) {
 	ctx := context.Background()
-	fs := &fs{m: make(map[string][]byte)}
+	fs := &fs{m: make(map[string]file)}
 
 	oldpath := "fizzbuzz"
-	file := []byte(oldpath)
-	if err := filesystem.Write(ctx, fs, oldpath, file); err != nil {
+	newpath := "fizzbang"
+
+	data := []byte(oldpath)
+	if err := filesystem.Write(ctx, fs, oldpath, data); err != nil {
 		t.Fatalf("Write() error = %v", err)
 	}
-	if err := filesystem.Copy(ctx, fs, "memfs://fizzbuzz", "memfs://fizzbang"); err != nil {
+
+	t1 := time.Now()
+	if err := filesystem.Copy(ctx, fs, oldpath, newpath); err != nil {
 		t.Fatalf("Copy() error = %v", err)
 	}
+	t2 := time.Now()
+
+	gotMTime, err := fs.LastModified(ctx, newpath)
+	if err != nil {
+		t.Errorf("LastModified(%q) error = %v, want nil", newpath, err)
+	}
+	if gotMTime.Before(t1) || gotMTime.After(t2) {
+		t.Errorf("LastModified(%q) = %v, want in range [%v, %v]", newpath, gotMTime, t1, t2)
+	}
+
 	glob := "memfs://fizz*"
 	got, err := fs.List(ctx, glob)
 	if err != nil {
@@ -257,9 +303,21 @@ func TestCopy(t *testing.T) {
 	}
 }
 
+func TestCopyError(t *testing.T) {
+	ctx := context.Background()
+	memFS := &fs{m: make(map[string]file)}
+
+	oldpath := "non-existent"
+	newpath := "fizzbang"
+
+	if err := filesystem.Copy(ctx, memFS, oldpath, newpath); err == nil {
+		t.Errorf("Copy(%q, %q) error = nil, want error", oldpath, newpath)
+	}
+}
+
 func TestRename(t *testing.T) {
 	ctx := context.Background()
-	fs := &fs{m: make(map[string][]byte)}
+	fs := &fs{m: make(map[string]file)}
 
 	oldpath := "fizzbuzz"
 	file := []byte(oldpath)

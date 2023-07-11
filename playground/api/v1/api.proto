@@ -195,6 +195,7 @@ message PrecompiledObject{
   string url_vcs = 14;
   string url_notebook = 15;
   bool always_run = 16;
+  bool never_run = 17;
 }
 
 // Categories represent the array of messages with sdk and categories at this sdk

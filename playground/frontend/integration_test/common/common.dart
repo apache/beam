@@ -30,10 +30,3 @@ void expectHasDescendant(Finder ancestor, Finder descendant) {
     findsOneWidget,
   );
 }
-
-void expectSimilar(double a, double b) {
-  Matcher closeToFraction(num value, double fraction) =>
-      closeTo(value, value * fraction);
-  Matcher onePerCentTolerance(num value) => closeToFraction(value, 0.01);
-  expect(a, onePerCentTolerance(b));
-}

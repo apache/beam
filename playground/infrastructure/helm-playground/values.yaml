@@ -19,7 +19,7 @@ image:
    router_image: beam_playground-backend-router
    scio_image: beam_playground-backend-scio
    python_image: beam_playground-backend-python
-   frontend_image: beam_playground-frontend 
+   frontend_image: beam_playground-frontend
    pullPolicy: Always
 service:
    type: NodePort
@@ -30,4 +30,15 @@ healthcheck:
    livInitialDelaySeconds: 30
    livPeriodSeconds: 30
    readInitialDelaySeconds: 30
-   readPeriodSeconds: 30    
+   readPeriodSeconds: 30
+autoscaling:
+   runners:
+     maxReplicas: 4
+     minReplicas: 2
+   rest:
+     maxReplicas: 4
+     minReplicas: 1
+   utilization:
+     memoryUtilization: 80
+     cpuUtilization: 95
+     

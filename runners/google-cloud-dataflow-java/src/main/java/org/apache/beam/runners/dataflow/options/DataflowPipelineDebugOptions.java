@@ -23,7 +23,6 @@ import java.util.Map;
 import org.apache.beam.runners.dataflow.util.DataflowTransport;
 import org.apache.beam.runners.dataflow.util.GcsStager;
 import org.apache.beam.runners.dataflow.util.Stager;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
@@ -301,10 +300,9 @@ public interface DataflowPipelineDebugOptions extends ExperimentalOptions, Pipel
    * setting this flag to true.
    */
   @Description(
-      "[EXPERIMENTAL] Set to a GCS bucket (directory) to upload heap dumps to the given location.\n"
+      "Set to a GCS bucket (directory) to upload heap dumps to the given location.\n"
           + "Enabling this implies that heap dumps should be generated on OOM (--dumpHeapOnOOM=true)\n"
           + "Uploads will continue until the pipeline is stopped or updated without this option.\n")
-  @Experimental
   String getSaveHeapDumpsToGcsPath();
 
   void setSaveHeapDumpsToGcsPath(String gcsPath);

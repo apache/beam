@@ -18,6 +18,7 @@ package fileio_test
 import (
 	"context"
 	"log"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/fileio"
@@ -43,6 +44,18 @@ func ExampleMatchAll() {
 
 	globs := beam.Create(s, "gs://path/to/sub1/*.gz", "gs://path/to/sub2/*.gz")
 	matches := fileio.MatchAll(s, globs)
+	debug.Print(s, matches)
+
+	if err := beamx.Run(context.Background(), p); err != nil {
+		log.Fatalf("Failed to execute job: %v", err)
+	}
+}
+
+func ExampleMatchContinuously() {
+	beam.Init()
+	p, s := beam.NewPipelineWithRoot()
+
+	matches := fileio.MatchContinuously(s, "gs://path/to/*.json", 10*time.Second)
 	debug.Print(s, matches)
 
 	if err := beamx.Run(context.Background(), p); err != nil {

@@ -25,8 +25,6 @@ import com.google.auto.service.AutoService;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
@@ -38,7 +36,6 @@ import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
@@ -57,7 +54,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 @Internal
-@Experimental(Kind.SCHEMAS)
 @AutoService(SchemaTransformProvider.class)
 public class BigQueryFileLoadsWriteSchemaTransformProvider
     extends TypedSchemaTransformProvider<BigQueryFileLoadsWriteSchemaTransformConfiguration> {
@@ -106,36 +102,13 @@ public class BigQueryFileLoadsWriteSchemaTransformProvider
    * A {@link SchemaTransform} that performs {@link BigQueryIO.Write}s based on a {@link
    * BigQueryFileLoadsWriteSchemaTransformConfiguration}.
    */
-  private static class BigQueryWriteSchemaTransform implements SchemaTransform {
-    private final BigQueryFileLoadsWriteSchemaTransformConfiguration configuration;
-
-    BigQueryWriteSchemaTransform(BigQueryFileLoadsWriteSchemaTransformConfiguration configuration) {
-      this.configuration = configuration;
-    }
-
-    /**
-     * Overrides {@link SchemaTransform#buildTransform()} by returning a {@link
-     * PCollectionRowTupleTransform}.
-     */
-    @Override
-    public PTransform<PCollectionRowTuple, PCollectionRowTuple> buildTransform() {
-      return new PCollectionRowTupleTransform(configuration);
-    }
-  }
-
-  /**
-   * An implementation of {@link PTransform} for BigQuery write jobs configured using {@link
-   * BigQueryFileLoadsWriteSchemaTransformConfiguration}.
-   */
-  static class PCollectionRowTupleTransform
-      extends PTransform<PCollectionRowTuple, PCollectionRowTuple> {
-
-    private final BigQueryFileLoadsWriteSchemaTransformConfiguration configuration;
-
+  protected static class BigQueryWriteSchemaTransform extends SchemaTransform {
     /** An instance of {@link BigQueryServices} used for testing. */
     private BigQueryServices testBigQueryServices = null;
 
-    PCollectionRowTupleTransform(BigQueryFileLoadsWriteSchemaTransformConfiguration configuration) {
+    private final BigQueryFileLoadsWriteSchemaTransformConfiguration configuration;
+
+    BigQueryWriteSchemaTransform(BigQueryFileLoadsWriteSchemaTransformConfiguration configuration) {
       this.configuration = configuration;
     }
 

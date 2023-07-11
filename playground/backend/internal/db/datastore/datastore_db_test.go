@@ -249,53 +249,6 @@ func TestDatastore_PutSDKs(t *testing.T) {
 	}
 }
 
-func TestDatastore_PutSchemaVersion(t *testing.T) {
-	type args struct {
-		ctx    context.Context
-		id     string
-		schema *entity.SchemaEntity
-	}
-	tests := []struct {
-		name      string
-		args      args
-		wantErr   bool
-		cleanData func()
-	}{
-		{
-			name: "PutSchemaVersion() in the usual case",
-			args: args{
-				ctx:    ctx,
-				id:     "MOCK_ID",
-				schema: &entity.SchemaEntity{Descr: "MOCK_DESCRIPTION"},
-			},
-			wantErr: false,
-			cleanData: func() {
-				test_cleaner.CleanSchemaVersion(ctx, t, "MOCK_ID")
-			},
-		},
-		{
-			name: "PutSchemaVersion() when input data is nil",
-			args: args{
-				ctx:    ctx,
-				id:     "MOCK_ID",
-				schema: nil,
-			},
-			wantErr:   false,
-			cleanData: func() {},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := datastoreDb.PutSchemaVersion(tt.args.ctx, tt.args.id, tt.args.schema)
-			if err != nil {
-				t.Error("PutSchemaVersion() method failed")
-			}
-			tt.cleanData()
-		})
-	}
-}
-
 func TestDatastore_GetFiles(t *testing.T) {
 	type args struct {
 		ctx           context.Context
@@ -858,7 +811,7 @@ func TestDatastore_DeleteUnusedSnippets(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.prepare()
-			err := datastoreDb.DeleteUnusedSnippets(tt.args.ctx, tt.args.dayDiff)
+			err := datastoreDb.DeleteUnusedSnippets(tt.args.ctx, time.Duration(tt.args.dayDiff)*time.Hour*24)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("DeleteUnusedSnippets() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -939,7 +892,7 @@ func TestNew(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := New(ctx, mapper.NewPrecompiledObjectMapper(), constants.EmulatorProjectId)
+			_, err := New(ctx, mapper.NewPrecompiledObjectMapper(), nil, constants.EmulatorProjectId)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("New() error = %v, wantErr %v", err, tt.wantErr)
 			}

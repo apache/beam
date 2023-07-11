@@ -102,7 +102,6 @@ func externalEnvironment(ctx context.Context, ep *pipepb.ExternalPayload, wk *wo
 	endpoint := &pipepb.ApiServiceDescriptor{
 		Url: wk.Endpoint(),
 	}
-
 	pool.StartWorker(ctx, &fnpb.StartWorkerRequest{
 		WorkerId:          wk.ID,
 		ControlEndpoint:   endpoint,
@@ -274,10 +273,16 @@ func executePipeline(ctx context.Context, wk *worker.W, j *jobservices.Job) {
 		em.Impulse(id)
 	}
 
+	// Use a channel to limit max parallelism for the pipeline.
+	maxParallelism := make(chan struct{}, 8)
 	// Execute stages here
 	for rb := range em.Bundles(ctx, wk.NextInst) {
-		s := stages[rb.StageID]
-		s.Execute(j, wk, comps, em, rb)
+		maxParallelism <- struct{}{}
+		go func(rb engine.RunBundle) {
+			defer func() { <-maxParallelism }()
+			s := stages[rb.StageID]
+			s.Execute(j, wk, comps, em, rb)
+		}(rb)
 	}
 	slog.Info("pipeline done!", slog.String("job", j.String()))
 }

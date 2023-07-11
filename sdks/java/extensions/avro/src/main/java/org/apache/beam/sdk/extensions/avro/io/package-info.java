@@ -17,10 +17,7 @@
  */
 /** Defines transforms for reading and writing Avro storage format. */
 @DefaultAnnotation(NonNull.class)
-@Experimental(Kind.EXTENSION)
 package org.apache.beam.sdk.extensions.avro.io;
 
 import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.checkerframework.checker.nullness.qual.NonNull;

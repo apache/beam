@@ -18,9 +18,12 @@
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 
+import '../constants/links.dart';
 import '../constants/sizes.dart';
+import '../state.dart';
 
 class Footer extends StatelessWidget {
   const Footer({
@@ -40,18 +43,17 @@ class Footer extends StatelessWidget {
             spacing: BeamSizes.size16,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
+              FeedbackWidget(
+                controller: GetIt.instance.get<FeedbackController>(),
+                feedbackFormUrl: tobFeedbackGoogleFormsUrl,
+                title: 'ui.feedbackTitle'.tr(),
+              ),
               ReportIssueButton(playgroundController: playgroundController),
               const PrivacyPolicyButton(),
               const CopyrightWidget(),
             ],
           ),
-          // TODO(nausharipov): get version, https://github.com/apache/beam/issues/23038
-          Text(
-            '${'ui.builtWith'.tr()} (TODO: Version)',
-            style: const TextStyle(
-              color: BeamColors.grey3,
-            ),
-          ),
+          const _BeamVersion(),
         ],
       ),
     );
@@ -82,6 +84,40 @@ class _Body extends StatelessWidget {
         ),
       ),
       child: child,
+    );
+  }
+}
+
+class _BeamVersion extends StatelessWidget {
+  const _BeamVersion();
+
+  Future<String?> _getBeamSdkVersion() async {
+    final runnerVersion = await GetIt.instance
+        .get<BuildMetadataController>()
+        .getRunnerVersion(GetIt.instance.get<AppNotifier>().sdk);
+    return runnerVersion.beamSdkVersion;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: GetIt.instance.get<AppNotifier>(),
+      builder: (context, child) => FutureBuilder<String?>(
+        // ignore: discarded_futures
+        future: _getBeamSdkVersion(),
+        builder: (context, snapshot) => snapshot.hasData
+            ? Text(
+                'ui.builtWith'.tr(
+                  namedArgs: {
+                    'beamSdkVersion': snapshot.data!,
+                  },
+                ),
+                style: const TextStyle(
+                  color: BeamColors.grey3,
+                ),
+              )
+            : Container(),
+      ),
     );
   }
 }

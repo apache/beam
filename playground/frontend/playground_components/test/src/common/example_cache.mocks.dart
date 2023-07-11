@@ -3,20 +3,20 @@
 // Do not manually edit this file.
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
-import 'dart:async' as _i7;
+import 'dart:async' as _i6;
 import 'dart:ui' as _i11;
 
 import 'package:mockito/mockito.dart' as _i1;
-import 'package:playground_components/src/cache/example_cache.dart' as _i4;
+import 'package:playground_components/src/cache/example_cache.dart' as _i3;
 import 'package:playground_components/src/models/category_with_examples.dart'
-    as _i6;
-import 'package:playground_components/src/models/example.dart' as _i3;
-import 'package:playground_components/src/models/example_base.dart' as _i2;
+    as _i5;
+import 'package:playground_components/src/models/example.dart' as _i2;
+import 'package:playground_components/src/models/example_base.dart' as _i10;
 import 'package:playground_components/src/models/example_view_options.dart'
-    as _i9;
-import 'package:playground_components/src/models/loading_status.dart' as _i8;
-import 'package:playground_components/src/models/sdk.dart' as _i5;
-import 'package:playground_components/src/models/snippet_file.dart' as _i10;
+    as _i8;
+import 'package:playground_components/src/models/loading_status.dart' as _i7;
+import 'package:playground_components/src/models/sdk.dart' as _i4;
+import 'package:playground_components/src/models/snippet_file.dart' as _i9;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -29,18 +29,8 @@ import 'package:playground_components/src/models/snippet_file.dart' as _i10;
 // ignore_for_file: camel_case_types
 // ignore_for_file: subtype_of_sealed_class
 
-class _FakeExampleBase_0 extends _i1.SmartFake implements _i2.ExampleBase {
-  _FakeExampleBase_0(
-    Object parent,
-    Invocation parentInvocation,
-  ) : super(
-          parent,
-          parentInvocation,
-        );
-}
-
-class _FakeExample_1 extends _i1.SmartFake implements _i3.Example {
-  _FakeExample_1(
+class _FakeExample_0 extends _i1.SmartFake implements _i2.Example {
+  _FakeExample_0(
     Object parent,
     Invocation parentInvocation,
   ) : super(
@@ -52,22 +42,22 @@ class _FakeExample_1 extends _i1.SmartFake implements _i3.Example {
 /// A class which mocks [ExampleCache].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockExampleCache extends _i1.Mock implements _i4.ExampleCache {
+class MockExampleCache extends _i1.Mock implements _i3.ExampleCache {
   MockExampleCache() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  Map<_i5.Sdk, List<_i6.CategoryWithExamples>> get categoryListsBySdk =>
+  Map<_i4.Sdk, List<_i5.CategoryWithExamples>> get categoryListsBySdk =>
       (super.noSuchMethod(
         Invocation.getter(#categoryListsBySdk),
-        returnValue: <_i5.Sdk, List<_i6.CategoryWithExamples>>{},
-      ) as Map<_i5.Sdk, List<_i6.CategoryWithExamples>>);
+        returnValue: <_i4.Sdk, List<_i5.CategoryWithExamples>>{},
+      ) as Map<_i4.Sdk, List<_i5.CategoryWithExamples>>);
   @override
-  Map<_i5.Sdk, _i3.Example> get defaultExamplesBySdk => (super.noSuchMethod(
+  Map<_i4.Sdk, _i2.Example> get defaultExamplesBySdk => (super.noSuchMethod(
         Invocation.getter(#defaultExamplesBySdk),
-        returnValue: <_i5.Sdk, _i3.Example>{},
-      ) as Map<_i5.Sdk, _i3.Example>);
+        returnValue: <_i4.Sdk, _i2.Example>{},
+      ) as Map<_i4.Sdk, _i2.Example>);
   @override
   bool get isSelectorOpened => (super.noSuchMethod(
         Invocation.getter(#isSelectorOpened),
@@ -82,42 +72,42 @@ class MockExampleCache extends _i1.Mock implements _i4.ExampleCache {
         returnValueForMissingStub: null,
       );
   @override
-  _i7.Future<void> get allExamplesFuture => (super.noSuchMethod(
+  _i6.Future<void> get allExamplesFuture => (super.noSuchMethod(
         Invocation.getter(#allExamplesFuture),
-        returnValue: _i7.Future<void>.value(),
-      ) as _i7.Future<void>);
+        returnValue: _i6.Future<void>.value(),
+      ) as _i6.Future<void>);
   @override
-  _i8.LoadingStatus get catalogStatus => (super.noSuchMethod(
+  _i7.LoadingStatus get catalogStatus => (super.noSuchMethod(
         Invocation.getter(#catalogStatus),
-        returnValue: _i8.LoadingStatus.loading,
-      ) as _i8.LoadingStatus);
+        returnValue: _i7.LoadingStatus.loading,
+      ) as _i7.LoadingStatus);
   @override
   bool get hasListeners => (super.noSuchMethod(
         Invocation.getter(#hasListeners),
         returnValue: false,
       ) as bool);
   @override
-  _i7.Future<void> loadAllPrecompiledObjectsIfNot() => (super.noSuchMethod(
+  _i6.Future<void> loadAllPrecompiledObjectsIfNot() => (super.noSuchMethod(
         Invocation.method(
           #loadAllPrecompiledObjectsIfNot,
           [],
         ),
-        returnValue: _i7.Future<void>.value(),
-        returnValueForMissingStub: _i7.Future<void>.value(),
-      ) as _i7.Future<void>);
+        returnValue: _i6.Future<void>.value(),
+        returnValueForMissingStub: _i6.Future<void>.value(),
+      ) as _i6.Future<void>);
   @override
-  List<_i6.CategoryWithExamples> getCategories(_i5.Sdk? sdk) =>
+  List<_i5.CategoryWithExamples> getCategories(_i4.Sdk? sdk) =>
       (super.noSuchMethod(
         Invocation.method(
           #getCategories,
           [sdk],
         ),
-        returnValue: <_i6.CategoryWithExamples>[],
-      ) as List<_i6.CategoryWithExamples>);
+        returnValue: <_i5.CategoryWithExamples>[],
+      ) as List<_i5.CategoryWithExamples>);
   @override
-  _i7.Future<_i2.ExampleBase> getPrecompiledObject(
+  _i6.Future<_i2.Example> getPrecompiledObject(
     String? path,
-    _i5.Sdk? sdk,
+    _i4.Sdk? sdk,
   ) =>
       (super.noSuchMethod(
         Invocation.method(
@@ -127,7 +117,7 @@ class MockExampleCache extends _i1.Mock implements _i4.ExampleCache {
             sdk,
           ],
         ),
-        returnValue: _i7.Future<_i2.ExampleBase>.value(_FakeExampleBase_0(
+        returnValue: _i6.Future<_i2.Example>.value(_FakeExample_0(
           this,
           Invocation.method(
             #getPrecompiledObject,
@@ -137,11 +127,11 @@ class MockExampleCache extends _i1.Mock implements _i4.ExampleCache {
             ],
           ),
         )),
-      ) as _i7.Future<_i2.ExampleBase>);
+      ) as _i6.Future<_i2.Example>);
   @override
-  _i7.Future<_i3.Example> loadSharedExample(
+  _i6.Future<_i2.Example> loadSharedExample(
     String? id, {
-    required _i9.ExampleViewOptions? viewOptions,
+    required _i8.ExampleViewOptions? viewOptions,
   }) =>
       (super.noSuchMethod(
         Invocation.method(
@@ -149,7 +139,7 @@ class MockExampleCache extends _i1.Mock implements _i4.ExampleCache {
           [id],
           {#viewOptions: viewOptions},
         ),
-        returnValue: _i7.Future<_i3.Example>.value(_FakeExample_1(
+        returnValue: _i6.Future<_i2.Example>.value(_FakeExample_0(
           this,
           Invocation.method(
             #loadSharedExample,
@@ -157,11 +147,11 @@ class MockExampleCache extends _i1.Mock implements _i4.ExampleCache {
             {#viewOptions: viewOptions},
           ),
         )),
-      ) as _i7.Future<_i3.Example>);
+      ) as _i6.Future<_i2.Example>);
   @override
-  _i7.Future<String> saveSnippet({
-    required List<_i10.SnippetFile>? files,
-    required _i5.Sdk? sdk,
+  _i6.Future<String> saveSnippet({
+    required List<_i9.SnippetFile>? files,
+    required _i4.Sdk? sdk,
     required String? pipelineOptions,
   }) =>
       (super.noSuchMethod(
@@ -174,23 +164,23 @@ class MockExampleCache extends _i1.Mock implements _i4.ExampleCache {
             #pipelineOptions: pipelineOptions,
           },
         ),
-        returnValue: _i7.Future<String>.value(''),
-      ) as _i7.Future<String>);
+        returnValue: _i6.Future<String>.value(''),
+      ) as _i6.Future<String>);
   @override
-  _i7.Future<_i3.Example> loadExampleInfo(_i2.ExampleBase? example) =>
+  _i6.Future<_i2.Example> loadExampleInfo(_i10.ExampleBase? example) =>
       (super.noSuchMethod(
         Invocation.method(
           #loadExampleInfo,
           [example],
         ),
-        returnValue: _i7.Future<_i3.Example>.value(_FakeExample_1(
+        returnValue: _i6.Future<_i2.Example>.value(_FakeExample_0(
           this,
           Invocation.method(
             #loadExampleInfo,
             [example],
           ),
         )),
-      ) as _i7.Future<_i3.Example>);
+      ) as _i6.Future<_i2.Example>);
   @override
   void setSelectorOpened(bool? value) => super.noSuchMethod(
         Invocation.method(
@@ -200,41 +190,41 @@ class MockExampleCache extends _i1.Mock implements _i4.ExampleCache {
         returnValueForMissingStub: null,
       );
   @override
-  _i7.Future<_i3.Example?> getDefaultExampleBySdk(_i5.Sdk? sdk) =>
+  _i6.Future<_i2.Example?> getDefaultExampleBySdk(_i4.Sdk? sdk) =>
       (super.noSuchMethod(
         Invocation.method(
           #getDefaultExampleBySdk,
           [sdk],
         ),
-        returnValue: _i7.Future<_i3.Example?>.value(),
-      ) as _i7.Future<_i3.Example?>);
+        returnValue: _i6.Future<_i2.Example?>.value(),
+      ) as _i6.Future<_i2.Example?>);
   @override
-  _i7.Future<void> loadDefaultPrecompiledObjects() => (super.noSuchMethod(
+  _i6.Future<void> loadDefaultPrecompiledObjects() => (super.noSuchMethod(
         Invocation.method(
           #loadDefaultPrecompiledObjects,
           [],
         ),
-        returnValue: _i7.Future<void>.value(),
-        returnValueForMissingStub: _i7.Future<void>.value(),
-      ) as _i7.Future<void>);
+        returnValue: _i6.Future<void>.value(),
+        returnValueForMissingStub: _i6.Future<void>.value(),
+      ) as _i6.Future<void>);
   @override
-  _i7.Future<void> loadDefaultPrecompiledObjectsIfNot() => (super.noSuchMethod(
+  _i6.Future<void> loadDefaultPrecompiledObjectsIfNot() => (super.noSuchMethod(
         Invocation.method(
           #loadDefaultPrecompiledObjectsIfNot,
           [],
         ),
-        returnValue: _i7.Future<void>.value(),
-        returnValueForMissingStub: _i7.Future<void>.value(),
-      ) as _i7.Future<void>);
+        returnValue: _i6.Future<void>.value(),
+        returnValueForMissingStub: _i6.Future<void>.value(),
+      ) as _i6.Future<void>);
   @override
-  _i7.Future<_i2.ExampleBase?> getCatalogExampleByPath(String? path) =>
+  _i6.Future<_i10.ExampleBase?> getCatalogExampleByPath(String? path) =>
       (super.noSuchMethod(
         Invocation.method(
           #getCatalogExampleByPath,
           [path],
         ),
-        returnValue: _i7.Future<_i2.ExampleBase?>.value(),
-      ) as _i7.Future<_i2.ExampleBase?>);
+        returnValue: _i6.Future<_i10.ExampleBase?>.value(),
+      ) as _i6.Future<_i10.ExampleBase?>);
   @override
   void addListener(_i11.VoidCallback? listener) => super.noSuchMethod(
         Invocation.method(

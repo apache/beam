@@ -27,7 +27,7 @@ import 'package:json_annotation/json_annotation.dart';
 
 part 'sdk.g.dart';
 
-@JsonSerializable(createToJson: false)
+@JsonSerializable()
 class Sdk with EquatableMixin {
   final String id;
   final String title;
@@ -117,6 +117,7 @@ class Sdk with EquatableMixin {
 
   Mode? get highlightMode => _idToHighlightMode[id];
 
-  factory Sdk.fromJson(Map<String, dynamic> json) =>
-      _$SdkFromJson(json);
+  factory Sdk.fromJson(Map<String, dynamic> json) => _$SdkFromJson(json);
+
+  Map<String, dynamic> toJson() => _$SdkToJson(this);
 }

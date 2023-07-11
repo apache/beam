@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.transforms;
 
 import java.util.concurrent.ThreadLocalRandom;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.ReshuffleTrigger;
@@ -62,7 +61,6 @@ public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollecti
    * Encapsulates the sequence "pair input with unique key, apply {@link Reshuffle#of}, drop the
    * key" commonly used to break fusion.
    */
-  @Experimental
   public static <T> ViaRandomKey<T> viaRandomKey() {
     return new ViaRandomKey<>();
   }

@@ -43,6 +43,15 @@ for (String runner : preCommitRunners) {
     configurations.create(runner + "PreCommit")
 }
 
+configurations.all {
+    // Ban certain dependencies to prevent a StackOverflow within Spark
+    // because JUL -> SLF4J -> JUL, and similarly JDK14 -> SLF4J -> JDK14
+    exclude group: "org.slf4j", module: "jul-to-slf4j"
+    exclude group: "org.slf4j", module: "slf4j-jdk14"
+    exclude group: "org.slf4j", module: "slf4j-log4j12"
+    exclude group: "ch.qos.logback", module: "logback-classic"
+}
+
 dependencies {
     implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
     implementation project(path: ":sdks:java:core", configuration: "shadow")
@@ -50,6 +59,7 @@ dependencies {
     implementation project(":sdks:java:io:cdap")
     implementation project(":sdks:java:io:hadoop-common")
     implementation library.java.cdap_api
+    runtimeOnly project(path: ":runners:google-cloud-dataflow-java")
     implementation library.java.cdap_api_commons
     permitUnusedDeclared library.java.cdap_api_commons
     implementation library.java.cdap_etl_api

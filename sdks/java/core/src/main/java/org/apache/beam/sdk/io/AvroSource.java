@@ -50,8 +50,6 @@ import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.beam.sdk.PipelineRunner;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
@@ -126,7 +124,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *     org.apache.beam.sdk.extensions.avro.io.AvroSource</code> instead of this one.
  */
 // CHECKSTYLE.ON: JavadocStyle
-@Experimental(Kind.SOURCE_SINK)
+
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
@@ -556,7 +554,6 @@ public class AvroSource<T> extends BlockBasedSource<T> {
    *
    * @param <T> The type of records stored in the block.
    */
-  @Experimental(Kind.SOURCE_SINK)
   static class AvroBlock<T> extends Block<T> {
 
     // The current record in the block. Initialized in readNextRecord.
@@ -611,7 +608,6 @@ public class AvroSource<T> extends BlockBasedSource<T> {
    *
    * @param <T> The type of records contained in the block.
    */
-  @Experimental(Kind.SOURCE_SINK)
   public static class AvroReader<T> extends BlockBasedReader<T> {
 
     private static class SeekableChannelInput implements SeekableInput {

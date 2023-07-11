@@ -25,6 +25,7 @@ import inspect
 import logging
 import random
 import sys
+import time
 import traceback
 import types
 import typing
@@ -124,8 +125,6 @@ class DoFnContext(object):
 class DoFnProcessContext(DoFnContext):
   """A processing context passed to DoFn process() during execution.
 
-  Experimental; no backwards-compatibility guarantees.
-
   Most importantly, a DoFn.process method will access context.element
   to get the element it is supposed to process.
 
@@ -176,8 +175,6 @@ class DoFnProcessContext(DoFnContext):
 class ProcessContinuation(object):
   """An object that may be produced as the last element of a process method
     invocation.
-
-  Experimental; no backwards-compatibility guarantees.
 
   If produced, indicates that there is more work to be done for the current
   input element.
@@ -1502,7 +1499,8 @@ class ParDo(PTransformWithSideInputs):
       partial=False,
       use_subprocess=False,
       threshold=1,
-      threshold_windowing=None):
+      threshold_windowing=None,
+      timeout=None):
     """Automatically provides a dead letter output for skipping bad records.
     This can allow a pipeline to continue successfully rather than fail or
     continuously throw errors on retry when bad elements are encountered.
@@ -1548,6 +1546,8 @@ class ParDo(PTransformWithSideInputs):
           up to 100% of records can be bad and the pipeline will still succeed).
       threshold_windowing: Event-time windowing to use for threshold. Optional,
           defaults to the windowing of the input.
+      timeout: If the element has not finished processing in timeout seconds,
+          raise a TimeoutError.  Defaults to None, meaning no time limit.
     """
     args, kwargs = self.raw_side_inputs
     return self.label >> _ExceptionHandlingWrapper(
@@ -1560,7 +1560,8 @@ class ParDo(PTransformWithSideInputs):
         partial,
         use_subprocess,
         threshold,
-        threshold_windowing)
+        threshold_windowing,
+        timeout)
 
   def default_type_hints(self):
     return self.fn.get_type_hints()
@@ -2152,7 +2153,8 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
       partial,
       use_subprocess,
       threshold,
-      threshold_windowing):
+      threshold_windowing,
+      timeout):
     if partial and use_subprocess:
       raise ValueError('partial and use_subprocess are mutually incompatible.')
     self._fn = fn
@@ -2165,17 +2167,24 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
     self._use_subprocess = use_subprocess
     self._threshold = threshold
     self._threshold_windowing = threshold_windowing
+    self._timeout = timeout
 
   def expand(self, pcoll):
+    if self._use_subprocess:
+      wrapped_fn = _SubprocessDoFn(self._fn, timeout=self._timeout)
+    elif self._timeout:
+      wrapped_fn = _TimeoutDoFn(self._fn, timeout=self._timeout)
+    else:
+      wrapped_fn = self._fn
     result = pcoll | ParDo(
         _ExceptionHandlingWrapperDoFn(
-            _SubprocessDoFn(self._fn) if self._use_subprocess else self._fn,
-            self._dead_letter_tag,
-            self._exc_class,
-            self._partial),
+            wrapped_fn, self._dead_letter_tag, self._exc_class, self._partial),
         *self._args,
         **self._kwargs).with_outputs(
             self._dead_letter_tag, main=self._main_tag, allow_unknown_tags=True)
+    #TODO(BEAM-18957): Fix when type inference supports tagged outputs.
+    result[self._main_tag].element_type = self._fn.infer_output_type(
+        pcoll.element_type)
 
     if self._threshold < 1.0:
 
@@ -2238,12 +2247,88 @@ class _ExceptionHandlingWrapperDoFn(DoFn):
                   traceback.format_exception(*sys.exc_info()))))
 
 
+# Idea adapted from https://github.com/tosun-si/asgarde.
+# TODO(robertwb): Consider how this could fit into the public API.
+# TODO(robertwb): Generalize to all PValue types.
+class _PValueWithErrors(object):
+  """This wraps a PCollection such that transforms can be chained in a linear
+  manner while still accumulating any errors."""
+  def __init__(self, pcoll, exception_handling_args, upstream_errors=()):
+    self._pcoll = pcoll
+    self._exception_handling_args = exception_handling_args
+    self._upstream_errors = upstream_errors
+
+  def main_output_tag(self):
+    return self._exception_handling_args.get('main_tag', 'good')
+
+  def error_output_tag(self):
+    return self._exception_handling_args.get('dead_letter_tag', 'bad')
+
+  def __or__(self, transform):
+    return self.apply(transform)
+
+  def apply(self, transform):
+    result = self._pcoll | transform.with_exception_handling(
+        **self._exception_handling_args)
+    if result[self.main_output_tag()].element_type == typehints.Any:
+      result[self.main_output_tag()].element_type = transform.infer_output_type(
+          self._pcoll.element_type)
+    # TODO(BEAM-18957): Add support for tagged type hints.
+    result[self.error_output_tag()].element_type = typehints.Any
+    return _PValueWithErrors(
+        result[self.main_output_tag()],
+        self._exception_handling_args,
+        self._upstream_errors + (result[self.error_output_tag()], ))
+
+  def accumulated_errors(self):
+    if len(self._upstream_errors) == 1:
+      return self._upstream_errors[0]
+    else:
+      return self._upstream_errors | Flatten()
+
+  def as_result(self, error_post_processing=None):
+    return {
+        self.main_output_tag(): self._pcoll,
+        self.error_output_tag(): self.accumulated_errors()
+        if error_post_processing is None else self.accumulated_errors()
+        | error_post_processing,
+    }
+
+
+class _MaybePValueWithErrors(object):
+  """This is like _PValueWithErrors, but only wraps values if
+  exception_handling_args is non-trivial.  It is useful for handling
+  error-catching and non-error-catching code in a uniform manner.
+  """
+  def __init__(self, pvalue, exception_handling_args=None):
+    if isinstance(pvalue, _PValueWithErrors):
+      assert exception_handling_args is None
+      self._pvalue = pvalue
+    elif exception_handling_args is None:
+      self._pvalue = pvalue
+    else:
+      self._pvalue = _PValueWithErrors(pvalue, exception_handling_args)
+
+  def __or__(self, transform):
+    return self.apply(transform)
+
+  def apply(self, transform):
+    return _MaybePValueWithErrors(self._pvalue | transform)
+
+  def as_result(self, error_post_processing=None):
+    if isinstance(self._pvalue, _PValueWithErrors):
+      return self._pvalue.as_result(error_post_processing)
+    else:
+      return self._pvalue
+
+
 class _SubprocessDoFn(DoFn):
   """Process method run in a subprocess, turning hard crashes into exceptions.
   """
-  def __init__(self, fn):
+  def __init__(self, fn, timeout=None):
     self._fn = fn
     self._serialized_fn = pickler.dumps(fn)
+    self._timeout = timeout
 
   def __getattribute__(self, name):
     if (name.startswith('__') or name in self.__dict__ or
@@ -2268,18 +2353,34 @@ class _SubprocessDoFn(DoFn):
 
   def teardown(self):
     self._call_remote(self._remote_teardown)
-    self._pool.shutdown()
-    self._pool = None
+    self._terminate_pool()
 
   def _call_remote(self, method, *args, **kwargs):
     if self._pool is None:
       self._pool = concurrent.futures.ProcessPoolExecutor(1)
       self._pool.submit(self._remote_init, self._serialized_fn).result()
     try:
-      return self._pool.submit(method, *args, **kwargs).result()
-    except concurrent.futures.process.BrokenProcessPool:
-      self._pool = None
+      return self._pool.submit(method, *args, **kwargs).result(
+          self._timeout if method == self._remote_process else None)
+    except (concurrent.futures.process.BrokenProcessPool,
+            TimeoutError,
+            concurrent.futures._base.TimeoutError):
+      self._terminate_pool()
       raise
+
+  def _terminate_pool(self):
+    """Forcibly terminate the pool, not leaving any live subprocesses."""
+    pool = self._pool
+    self._pool = None
+    processes = list(pool._processes.values())
+    pool.shutdown(wait=False)
+    for p in processes:
+      if p.is_alive():
+        p.kill()
+    time.sleep(1)
+    for p in processes:
+      if p.is_alive():
+        p.terminate()
 
   # These are classmethods to avoid picking the state of self.
   # They should only be called in an isolated process, so there's no concern
@@ -2319,6 +2420,43 @@ class _SubprocessDoFn(DoFn):
     if cls._fn:
       cls._fn.teardown()
     cls._fn = None
+
+
+class _TimeoutDoFn(DoFn):
+  """Process method run in a separate thread allowing timeouts.
+  """
+  def __init__(self, fn, timeout=None):
+    self._fn = fn
+    self._timeout = timeout
+    self._pool = None
+
+  def __getattribute__(self, name):
+    if (name.startswith('__') or name in self.__dict__ or
+        name in type(self).__dict__):
+      return object.__getattribute__(self, name)
+    else:
+      return getattr(self._fn, name)
+
+  def process(self, *args, **kwargs):
+    if self._pool is None:
+      self._pool = concurrent.futures.ThreadPoolExecutor(10)
+    # Ensure we iterate over the entire output list in the given amount of time.
+    try:
+      return self._pool.submit(
+          lambda: list(self._fn.process(*args, **kwargs))).result(
+              self._timeout)
+    except TimeoutError:
+      self._pool.shutdown(wait=False)
+      self._pool = None
+      raise
+
+  def teardown(self):
+    try:
+      self._fn.teardown()
+    finally:
+      if self._pool is not None:
+        self._pool.shutdown(wait=False)
+        self._pool = None
 
 
 def Filter(fn, *args, **kwargs):  # pylint: disable=invalid-name
@@ -2527,6 +2665,15 @@ class CombineGlobally(PTransform):
             "or CombineGlobally().as_singleton_view() to get the default "
             "output of the CombineFn if the input PCollection is empty.")
 
+      # log the error for this ill-defined streaming case now
+      if not pcoll.is_bounded and not pcoll.windowing.is_default():
+        _LOGGER.error(
+            "When combining elements in unbounded collections with "
+            "the non-default windowing strategy, you must explicitly "
+            "specify how to define the combined result of an empty window. "
+            "Please use CombineGlobally().without_defaults() to output "
+            "an empty PCollection if the input PCollection is empty.")
+
       def typed(transform):
         # TODO(robertwb): We should infer this.
         if combined.element_type:
@@ -2538,6 +2685,11 @@ class CombineGlobally(PTransform):
 
       def inject_default(_, combined):
         if combined:
+          if len(combined) > 1:
+            _LOGGER.error(
+                "Multiple combined values unexpectedly provided"
+                " for a global combine: %s",
+                combined)
           assert len(combined) == 1
           return combined[0]
         else:
@@ -3172,14 +3324,21 @@ class Select(PTransform):
         _expr_to_callable(expr, ix)) for (ix, expr) in enumerate(args)
                     ] + [(name, _expr_to_callable(expr, name))
                          for (name, expr) in kwargs.items()]
+    self._exception_handling_args = None
+
+  def with_exception_handling(self, **kwargs):
+    self._exception_handling_args = kwargs
+    return self
 
   def default_label(self):
     return 'ToRows(%s)' % ', '.join(name for name, _ in self._fields)
 
   def expand(self, pcoll):
-    return pcoll | Map(
-        lambda x: pvalue.Row(**{name: expr(x)
-                                for name, expr in self._fields}))
+    return (
+        _MaybePValueWithErrors(pcoll, self._exception_handling_args) | Map(
+            lambda x: pvalue.Row(
+                **{name: expr(x)
+                   for name, expr in self._fields}))).as_result()
 
   def infer_output_type(self, input_type):
     return row_type.RowTypeConstraint.from_fields([
@@ -3369,6 +3528,9 @@ class WindowInto(ParDo):
           timestamp, element=element, window=window)
       new_windows = self.windowing.windowfn.assign(context)
       yield WindowedValue(element, context.timestamp, new_windows)
+
+    def infer_output_type(self, input_type):
+      return input_type
 
   def __init__(
       self,
@@ -3633,7 +3795,8 @@ def _strip_output_annotations(type_hint):
   contains_annotation = False
 
   def visitor(t, unused_args):
-    if t in annotations:
+    if t in annotations or (hasattr(t, '__name__') and
+                            t.__name__ == TimestampedValue.__name__):
       raise StopIteration
 
   try:

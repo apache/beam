@@ -107,6 +107,8 @@ public class PTransformTranslation {
   public static final String PUBSUB_READ = "beam:transform:pubsub_read:v1";
   public static final String PUBSUB_WRITE = "beam:transform:pubsub_write:v1";
 
+  public static final String PUBSUB_WRITE_DYNAMIC = "beam:transform:pubsub_write:v2";
+
   // CombineComponents
   public static final String COMBINE_PER_KEY_PRECOMBINE_TRANSFORM_URN =
       "beam:transform:combine_per_key_precombine:v1";

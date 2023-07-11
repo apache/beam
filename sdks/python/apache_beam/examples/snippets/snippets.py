@@ -408,125 +408,6 @@ def pipeline_monitoring():
     # [END pipeline_monitoring_execution]
 
 
-def examples_wordcount_minimal():
-  """MinimalWordCount example snippets."""
-  import re
-
-  import apache_beam as beam
-
-  # [START examples_wordcount_minimal_options]
-  from apache_beam.options.pipeline_options import PipelineOptions
-
-  input_file = 'gs://dataflow-samples/shakespeare/kinglear.txt'
-  output_path = 'gs://my-bucket/counts.txt'
-
-  beam_options = PipelineOptions(
-      runner='DataflowRunner',
-      project='my-project-id',
-      job_name='unique-job-name',
-      temp_location='gs://my-bucket/temp',
-  )
-  # [END examples_wordcount_minimal_options]
-
-  # Run it locally for testing.
-  import argparse
-
-  parser = argparse.ArgumentParser()
-  parser.add_argument('--input-file')
-  parser.add_argument('--output-path')
-  args, beam_args = parser.parse_known_args()
-
-  input_file = args.input_file
-  output_path = args.output_path
-
-  beam_options = PipelineOptions(beam_args)
-
-  # [START examples_wordcount_minimal_create]
-  pipeline = beam.Pipeline(options=beam_options)
-  # [END examples_wordcount_minimal_create]
-
-  (
-      # [START examples_wordcount_minimal_read]
-      pipeline
-      | beam.io.ReadFromText(input_file)
-      # [END examples_wordcount_minimal_read]
-
-      # [START examples_wordcount_minimal_pardo]
-      | 'ExtractWords' >> beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
-      # [END examples_wordcount_minimal_pardo]
-
-      # [START examples_wordcount_minimal_count]
-      | beam.combiners.Count.PerElement()
-      # [END examples_wordcount_minimal_count]
-
-      # [START examples_wordcount_minimal_map]
-      | beam.MapTuple(lambda word, count: '%s: %s' % (word, count))
-      # [END examples_wordcount_minimal_map]
-
-      # [START examples_wordcount_minimal_write]
-      | beam.io.WriteToText(output_path)
-      # [END examples_wordcount_minimal_write]
-  )
-
-  # [START examples_wordcount_minimal_run]
-  result = pipeline.run()
-  # [END examples_wordcount_minimal_run]
-  result.wait_until_finish()
-
-
-def examples_wordcount_wordcount():
-  """WordCount example snippets."""
-  import re
-
-  import apache_beam as beam
-  from apache_beam.options.pipeline_options import PipelineOptions
-
-  # [START examples_wordcount_wordcount_options]
-  import argparse
-
-  parser = argparse.ArgumentParser()
-  parser.add_argument(
-      '--input-file',
-      default='gs://dataflow-samples/shakespeare/kinglear.txt',
-      help='The file path for the input text to process.')
-  parser.add_argument(
-      '--output-path', required=True, help='The path prefix for output files.')
-  args, beam_args = parser.parse_known_args()
-
-  beam_options = PipelineOptions(beam_args)
-  with beam.Pipeline(options=beam_options) as pipeline:
-    lines = pipeline | beam.io.ReadFromText(args.input_file)
-
-    # [END examples_wordcount_wordcount_options]
-
-    # [START examples_wordcount_wordcount_composite]
-    @beam.ptransform_fn
-    def CountWords(pcoll):
-      return (
-          pcoll
-          # Convert lines of text into individual words.
-          | 'ExtractWords' >>
-          beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
-
-          # Count the number of times each word occurs.
-          | beam.combiners.Count.PerElement())
-
-    counts = lines | CountWords()
-
-    # [END examples_wordcount_wordcount_composite]
-
-    # [START examples_wordcount_wordcount_dofn]
-    class FormatAsTextFn(beam.DoFn):
-      def process(self, element):
-        word, count = element
-        yield '%s: %s' % (word, count)
-
-    formatted = counts | beam.ParDo(FormatAsTextFn())
-    # [END examples_wordcount_wordcount_dofn]
-
-    formatted | beam.io.WriteToText(args.output_path)
-
-
 def examples_wordcount_templated():
   """Templated WordCount example snippet."""
   import re
@@ -573,79 +454,6 @@ def examples_wordcount_templated():
         'Sum' >> beam.Map(lambda word_ones: (word_ones[0], sum(word_ones[1])))
         | 'Format' >> beam.Map(format_result)
         | 'Write' >> WriteToText(args.output_path))
-
-
-def examples_wordcount_debugging(renames):
-  """DebuggingWordCount example snippets."""
-  import re
-
-  import apache_beam as beam
-
-  # [START example_wordcount_debugging_logging]
-  # [START example_wordcount_debugging_aggregators]
-  import logging
-
-  class FilterTextFn(beam.DoFn):
-    """A DoFn that filters for a specific key based on a regular expression."""
-    def __init__(self, pattern):
-      self.pattern = pattern
-      # A custom metric can track values in your pipeline as it runs. Create
-      # custom metrics matched_word and unmatched_words.
-      self.matched_words = Metrics.counter(self.__class__, 'matched_words')
-      self.umatched_words = Metrics.counter(self.__class__, 'umatched_words')
-
-    def process(self, element):
-      word, _ = element
-      if re.match(self.pattern, word):
-        # Log at INFO level each element we match. When executing this pipeline
-        # using the Dataflow service, these log lines will appear in the Cloud
-        # Logging UI.
-        logging.info('Matched %s', word)
-
-        # Add 1 to the custom metric counter matched_words
-        self.matched_words.inc()
-        yield element
-      else:
-        # Log at the "DEBUG" level each element that is not matched. Different
-        # log levels can be used to control the verbosity of logging providing
-        # an effective mechanism to filter less important information. Note
-        # currently only "INFO" and higher level logs are emitted to the Cloud
-        # Logger. This log message will not be visible in the Cloud Logger.
-        logging.debug('Did not match %s', word)
-
-        # Add 1 to the custom metric counter umatched_words
-        self.umatched_words.inc()
-
-  # [END example_wordcount_debugging_logging]
-  # [END example_wordcount_debugging_aggregators]
-
-  with TestPipeline() as pipeline:  # Use TestPipeline for testing.
-    filtered_words = (
-        pipeline
-        |
-        beam.io.ReadFromText('gs://dataflow-samples/shakespeare/kinglear.txt')
-        |
-        'ExtractWords' >> beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
-        | beam.combiners.Count.PerElement()
-        | 'FilterText' >> beam.ParDo(FilterTextFn('Flourish|stomach')))
-
-    # [START example_wordcount_debugging_assert]
-    beam.testing.util.assert_that(
-        filtered_words,
-        beam.testing.util.equal_to([('Flourish', 3), ('stomach', 1)]))
-
-    # [END example_wordcount_debugging_assert]
-
-    def format_result(word_count):
-      (word, count) = word_count
-      return '%s: %s' % (word, count)
-
-    output = (
-        filtered_words
-        | 'format' >> beam.Map(format_result)
-        | 'Write' >> beam.io.WriteToText('gs://my-bucket/counts.txt'))
-
-    pipeline.visit(SnippetUtils.RenameFiles(renames))
 
 
 def examples_wordcount_streaming():
@@ -1144,6 +952,14 @@ def model_bigqueryio(
       | beam.Map(lambda elem: elem['max_temperature']))
   # [END model_bigqueryio_read_query_std_sql]
 
+  # [START model_bigqueryio_read_table_with_storage_api]
+  max_temperatures = (
+      pipeline
+      | 'ReadTableWithStorageAPI' >> beam.io.ReadFromBigQuery(
+          table=table_spec, method=beam.io.ReadFromBigQuery.Method.DIRECT_READ)
+      | beam.Map(lambda elem: elem['max_temperature']))
+  # [END model_bigqueryio_read_table_with_storage_api]
+
   # [START model_bigqueryio_schema]
   # column_name:BIGQUERY_TYPE, ...
   table_schema = 'source:STRING, quote:STRING'
@@ -1210,6 +1026,55 @@ def model_bigqueryio(
           'type': 'HOUR'
       }})
   # [END model_bigqueryio_time_partitioning]
+
+
+def model_bigqueryio_xlang(
+    pipeline, write_project='', write_dataset='', write_table=''):
+  """Examples for cross-language BigQuery sources and sinks."""
+
+  # to avoid a validation error(input data schema and the table schema)
+  # use a table that does not exist
+  import uuid
+  never_exists_table = str(uuid.uuid4())
+  table_spec = 'clouddataflow-readonly:samples.{}'.format(never_exists_table)
+
+  if write_project and write_dataset and write_table:
+    table_spec = '{}:{}.{}'.format(write_project, write_dataset, write_table)
+
+  # [START model_bigqueryio_write_schema]
+  table_schema = {
+      'fields': [{
+          'name': 'source', 'type': 'STRING', 'mode': 'NULLABLE'
+      }, {
+          'name': 'quote', 'type': 'STRING', 'mode': 'REQUIRED'
+      }]
+  }
+  # [END model_bigqueryio_write_schema]
+
+  quotes = pipeline | beam.Create([
+      {
+          'source': 'Mahatma Gandhi', 'quote': 'My life is my message.'
+      },
+      {
+          'source': 'Yoda', 'quote': "Do, or do not. There is no 'try'."
+      },
+  ])
+
+  # [START model_bigqueryio_storage_write_api_with_frequency]
+  # The Python SDK doesn't currently support setting the number of write streams
+  quotes | "StorageWriteAPIWithFrequency" >> beam.io.WriteToBigQuery(
+      table_spec,
+      schema=table_schema,
+      method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API,
+      triggering_frequency=5)
+  # [END model_bigqueryio_storage_write_api_with_frequency]
+
+  # [START model_bigqueryio_write_with_storage_write_api]
+  quotes | "WriteTableWithStorageAPI" >> beam.io.WriteToBigQuery(
+      table_spec,
+      schema=table_schema,
+      method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API)
+  # [END model_bigqueryio_write_with_storage_write_api]
 
 
 def model_composite_transform_example(contents, output_path):

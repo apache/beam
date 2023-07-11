@@ -24,8 +24,6 @@ import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -100,7 +98,6 @@ import org.slf4j.LoggerFactory;
  * <p>See <a href="https://debezium.io/documentation/reference/1.3/connectors/index.html">Debezium
  * Connectors</a> for more info.
  */
-@Experimental(Kind.SOURCE_SINK)
 @SuppressWarnings({"nullness"})
 public class DebeziumIO {
   private static final Logger LOG = LoggerFactory.getLogger(DebeziumIO.class);

@@ -3,30 +3,28 @@
 // Do not manually edit this file.
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
-import 'dart:async' as _i6;
+import 'dart:async' as _i5;
 
 import 'package:mockito/mockito.dart' as _i1;
 import 'package:playground_components/src/models/category_with_examples.dart'
-    as _i8;
-import 'package:playground_components/src/models/example_base.dart' as _i3;
-import 'package:playground_components/src/models/sdk.dart' as _i7;
-import 'package:playground_components/src/models/snippet_file.dart' as _i11;
-import 'package:playground_components/src/repositories/example_client/example_client.dart'
-    as _i2;
+    as _i7;
+import 'package:playground_components/src/models/example_base.dart' as _i2;
+import 'package:playground_components/src/models/sdk.dart' as _i6;
+import 'package:playground_components/src/models/snippet_file.dart' as _i10;
 import 'package:playground_components/src/repositories/example_repository.dart'
-    as _i5;
-import 'package:playground_components/src/repositories/models/get_default_precompiled_object_request.dart'
-    as _i10;
-import 'package:playground_components/src/repositories/models/get_precompiled_object_request.dart'
-    as _i12;
-import 'package:playground_components/src/repositories/models/get_precompiled_objects_request.dart'
-    as _i9;
-import 'package:playground_components/src/repositories/models/get_snippet_request.dart'
-    as _i13;
-import 'package:playground_components/src/repositories/models/get_snippet_response.dart'
     as _i4;
+import 'package:playground_components/src/repositories/models/get_default_precompiled_object_request.dart'
+    as _i9;
+import 'package:playground_components/src/repositories/models/get_precompiled_object_request.dart'
+    as _i11;
+import 'package:playground_components/src/repositories/models/get_precompiled_objects_request.dart'
+    as _i8;
+import 'package:playground_components/src/repositories/models/get_snippet_request.dart'
+    as _i12;
+import 'package:playground_components/src/repositories/models/get_snippet_response.dart'
+    as _i3;
 import 'package:playground_components/src/repositories/models/save_snippet_request.dart'
-    as _i14;
+    as _i13;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -39,8 +37,8 @@ import 'package:playground_components/src/repositories/models/save_snippet_reque
 // ignore_for_file: camel_case_types
 // ignore_for_file: subtype_of_sealed_class
 
-class _FakeExampleClient_0 extends _i1.SmartFake implements _i2.ExampleClient {
-  _FakeExampleClient_0(
+class _FakeExampleBase_0 extends _i1.SmartFake implements _i2.ExampleBase {
+  _FakeExampleBase_0(
     Object parent,
     Invocation parentInvocation,
   ) : super(
@@ -49,19 +47,9 @@ class _FakeExampleClient_0 extends _i1.SmartFake implements _i2.ExampleClient {
         );
 }
 
-class _FakeExampleBase_1 extends _i1.SmartFake implements _i3.ExampleBase {
-  _FakeExampleBase_1(
-    Object parent,
-    Invocation parentInvocation,
-  ) : super(
-          parent,
-          parentInvocation,
-        );
-}
-
-class _FakeGetSnippetResponse_2 extends _i1.SmartFake
-    implements _i4.GetSnippetResponse {
-  _FakeGetSnippetResponse_2(
+class _FakeGetSnippetResponse_1 extends _i1.SmartFake
+    implements _i3.GetSnippetResponse {
+  _FakeGetSnippetResponse_1(
     Object parent,
     Invocation parentInvocation,
   ) : super(
@@ -73,128 +61,120 @@ class _FakeGetSnippetResponse_2 extends _i1.SmartFake
 /// A class which mocks [ExampleRepository].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockExampleRepository extends _i1.Mock implements _i5.ExampleRepository {
+class MockExampleRepository extends _i1.Mock implements _i4.ExampleRepository {
   MockExampleRepository() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  _i2.ExampleClient get client => (super.noSuchMethod(
-        Invocation.getter(#client),
-        returnValue: _FakeExampleClient_0(
-          this,
-          Invocation.getter(#client),
-        ),
-      ) as _i2.ExampleClient);
-  @override
-  _i6.Future<Map<_i7.Sdk, List<_i8.CategoryWithExamples>>>
-      getPrecompiledObjects(_i9.GetPrecompiledObjectsRequest? request) =>
+  _i5.Future<Map<_i6.Sdk, List<_i7.CategoryWithExamples>>>
+      getPrecompiledObjects(_i8.GetPrecompiledObjectsRequest? request) =>
           (super.noSuchMethod(
             Invocation.method(
               #getPrecompiledObjects,
               [request],
             ),
             returnValue:
-                _i6.Future<Map<_i7.Sdk, List<_i8.CategoryWithExamples>>>.value(
-                    <_i7.Sdk, List<_i8.CategoryWithExamples>>{}),
-          ) as _i6.Future<Map<_i7.Sdk, List<_i8.CategoryWithExamples>>>);
+                _i5.Future<Map<_i6.Sdk, List<_i7.CategoryWithExamples>>>.value(
+                    <_i6.Sdk, List<_i7.CategoryWithExamples>>{}),
+          ) as _i5.Future<Map<_i6.Sdk, List<_i7.CategoryWithExamples>>>);
   @override
-  _i6.Future<_i3.ExampleBase> getDefaultPrecompiledObject(
-          _i10.GetDefaultPrecompiledObjectRequest? request) =>
+  _i5.Future<_i2.ExampleBase> getDefaultPrecompiledObject(
+          _i9.GetDefaultPrecompiledObjectRequest? request) =>
       (super.noSuchMethod(
         Invocation.method(
           #getDefaultPrecompiledObject,
           [request],
         ),
-        returnValue: _i6.Future<_i3.ExampleBase>.value(_FakeExampleBase_1(
+        returnValue: _i5.Future<_i2.ExampleBase>.value(_FakeExampleBase_0(
           this,
           Invocation.method(
             #getDefaultPrecompiledObject,
             [request],
           ),
         )),
-      ) as _i6.Future<_i3.ExampleBase>);
+      ) as _i5.Future<_i2.ExampleBase>);
   @override
-  _i6.Future<List<_i11.SnippetFile>> getPrecompiledObjectCode(
-          _i12.GetPrecompiledObjectRequest? request) =>
+  _i5.Future<List<_i10.SnippetFile>> getPrecompiledObjectCode(
+          _i11.GetPrecompiledObjectRequest? request) =>
       (super.noSuchMethod(
         Invocation.method(
           #getPrecompiledObjectCode,
           [request],
         ),
         returnValue:
-            _i6.Future<List<_i11.SnippetFile>>.value(<_i11.SnippetFile>[]),
-      ) as _i6.Future<List<_i11.SnippetFile>>);
+            _i5.Future<List<_i10.SnippetFile>>.value(<_i10.SnippetFile>[]),
+      ) as _i5.Future<List<_i10.SnippetFile>>);
   @override
-  _i6.Future<String> getPrecompiledObjectOutput(
-          _i12.GetPrecompiledObjectRequest? request) =>
+  _i5.Future<String> getPrecompiledObjectOutput(
+          _i11.GetPrecompiledObjectRequest? request) =>
       (super.noSuchMethod(
         Invocation.method(
           #getPrecompiledObjectOutput,
           [request],
         ),
-        returnValue: _i6.Future<String>.value(''),
-      ) as _i6.Future<String>);
+        returnValue: _i5.Future<String>.value(''),
+      ) as _i5.Future<String>);
   @override
-  _i6.Future<String> getPrecompiledObjectLogs(
-          _i12.GetPrecompiledObjectRequest? request) =>
+  _i5.Future<String> getPrecompiledObjectLogs(
+          _i11.GetPrecompiledObjectRequest? request) =>
       (super.noSuchMethod(
         Invocation.method(
           #getPrecompiledObjectLogs,
           [request],
         ),
-        returnValue: _i6.Future<String>.value(''),
-      ) as _i6.Future<String>);
+        returnValue: _i5.Future<String>.value(''),
+      ) as _i5.Future<String>);
   @override
-  _i6.Future<String> getPrecompiledObjectGraph(
-          _i12.GetPrecompiledObjectRequest? request) =>
+  _i5.Future<String> getPrecompiledObjectGraph(
+          _i11.GetPrecompiledObjectRequest? request) =>
       (super.noSuchMethod(
         Invocation.method(
           #getPrecompiledObjectGraph,
           [request],
         ),
-        returnValue: _i6.Future<String>.value(''),
-      ) as _i6.Future<String>);
+        returnValue: _i5.Future<String>.value(''),
+      ) as _i5.Future<String>);
   @override
-  _i6.Future<_i3.ExampleBase> getPrecompiledObject(
-          _i12.GetPrecompiledObjectRequest? request) =>
+  _i5.Future<_i2.ExampleBase> getPrecompiledObject(
+          _i11.GetPrecompiledObjectRequest? request) =>
       (super.noSuchMethod(
         Invocation.method(
           #getPrecompiledObject,
           [request],
         ),
-        returnValue: _i6.Future<_i3.ExampleBase>.value(_FakeExampleBase_1(
+        returnValue: _i5.Future<_i2.ExampleBase>.value(_FakeExampleBase_0(
           this,
           Invocation.method(
             #getPrecompiledObject,
             [request],
           ),
         )),
-      ) as _i6.Future<_i3.ExampleBase>);
+      ) as _i5.Future<_i2.ExampleBase>);
   @override
-  _i6.Future<_i4.GetSnippetResponse> getSnippet(
-          _i13.GetSnippetRequest? request) =>
+  _i5.Future<_i3.GetSnippetResponse> getSnippet(
+          _i12.GetSnippetRequest? request) =>
       (super.noSuchMethod(
         Invocation.method(
           #getSnippet,
           [request],
         ),
         returnValue:
-            _i6.Future<_i4.GetSnippetResponse>.value(_FakeGetSnippetResponse_2(
+            _i5.Future<_i3.GetSnippetResponse>.value(_FakeGetSnippetResponse_1(
           this,
           Invocation.method(
             #getSnippet,
             [request],
           ),
         )),
-      ) as _i6.Future<_i4.GetSnippetResponse>);
+      ) as _i5.Future<_i3.GetSnippetResponse>);
   @override
-  _i6.Future<String> saveSnippet(_i14.SaveSnippetRequest? request) =>
+  _i5.Future<String> saveSnippet(_i13.SaveSnippetRequest? request) =>
       (super.noSuchMethod(
         Invocation.method(
           #saveSnippet,
           [request],
         ),
-        returnValue: _i6.Future<String>.value(''),
-      ) as _i6.Future<String>);
+        returnValue: _i5.Future<String>.value(''),
+      ) as _i5.Future<String>);
 }

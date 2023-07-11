@@ -106,8 +106,8 @@ func Setup(sdk pb.Sdk, sources []entity.FileEntity, pipelineId uuid.UUID, workin
 		return nil, errors.New("error during create file with code")
 	}
 
-	// start emulators if necessary
-	if len(emulatorConfiguration.Datasets) > 0 {
+	// start emulators
+	if emulatorConfiguration.KafkaEmulatorExecutablePath != "" {
 		err = lc.StartEmulators(emulatorConfiguration)
 		if err != nil {
 			logger.Errorf("error during starting emulators: %s", err.Error())
@@ -118,6 +118,8 @@ func Setup(sdk pb.Sdk, sources []entity.FileEntity, pipelineId uuid.UUID, workin
 			lc.StopEmulators()
 			return nil, err
 		}
+	} else {
+		logger.Warnf("kafka emulator executable path is empty, emulators will not be started")
 	}
 
 	return lc, nil

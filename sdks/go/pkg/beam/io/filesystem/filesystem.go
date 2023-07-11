@@ -28,6 +28,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
@@ -90,7 +91,13 @@ type Interface interface {
 }
 
 // The following interfaces are optional for the filesystems, but
-// to support
+// to support more efficient or composite operations when possible.
+
+// LastModifiedGetter is an interface for getting the last modified time
+// of a file.
+type LastModifiedGetter interface {
+	LastModified(ctx context.Context, filename string) (time.Time, error)
+}
 
 // Remover is an interface for removing files from the filesystem.
 // To be considered for promotion to Interface.
