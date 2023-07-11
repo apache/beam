@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: beam PreCommit Website Stage GCS
+name: Website Stage GCS PreCommit 
 
 on:
   push:
@@ -21,7 +21,7 @@ on:
     branches: ['master', 'release-*']
     paths: ['website/**']
   pull_request_target:
-    branches: ['master', 'release-*']
+    branches: ['master', 'release-*', '.github/workflows/beam_PreCommit_Website_Stage_GCS.yml']
     paths: ['website/**']
   issue_comment:
     types: [created]
@@ -50,7 +50,7 @@ jobs:
           github.event_name == 'pull_request_target' || 
           github.event.comment.body == 'Run Website_Stage_GCS PreCommit' || 
           github.event_name == 'schedule'
-        runs-on: [self-hosted, ubuntu-20.04]
+        runs-on: [self-hosted, ubuntu-20.04, main]
         name: beam_PreCommit_Website_Stage_GCS
         steps:
           - name: Git checkout
