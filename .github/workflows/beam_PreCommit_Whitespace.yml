@@ -13,29 +13,56 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: beam_PreCommit_Whitespace
+name: Whitespace PreCommit
 
 on:
   push:
     tags: ['v*']
     branches: ['master', 'release-*']
-    paths: ['*.md', '*.build.gradle']
-  pull_request:
+    paths: ['*.md', '*.build.gradle','.github/workflows/beam_PreCommit_Whitespace.yml']
+  pull_request_target:
     branches: ['master', 'release-*']
     paths: ['*.md', '*.build.gradle']
   issue_comment:
     types: [created]
   schedule:
     - cron: '* */6 * * *'
+permissions:
+  actions: write
+  pull-requests: read
+  checks: read
+  contents: read
+  deployments: read
+  id-token: none
+  issues: read
+  discussions: read
+  packages: read
+  pages: read
+  repository-projects: read
+  security-events: read
+  statuses: read
 
 jobs:
     beam_PreCommit_Whitespace:
-        if: ${{github.event.issue.pull_request}} || ${{github.event.comment.body == 'Run Whitespace PreCommit'}} || ${{github.event.schedule}}
-        runs-on: [self-hosted, ubuntu-20.04]
+        if: |
+          github.event_name == 'push' ||
+          github.event_name == 'pull_request_target' ||
+          github.event_name == 'schedule' ||
+          github.event.comment.body == 'Run Whitespace PreCommit'
+        runs-on: [self-hosted, ubuntu-20.04, main]
         name: beam_PreCommit_Whitespace
         steps:       
           - name: Git checkout
             uses: actions/checkout@v3
+          - name: Rerun on comment
+            if: github.event.comment.body == 'Run Whitespace PreCommit'
+            uses: ./.github/actions/rerun-job-action
+            with:
+              pull_request_url: ${{ github.event.issue.pull_request.url }}
+              github_repository: ${{ github.repository }}
+              github_token: ${{ secrets.GITHUB_TOKEN }}
+              github_job: ${{ github.job }}
+              github_current_run_id: ${{ github.run_id }}
           - name: Install Java
             uses: actions/setup-java@v3.8.0
             with:

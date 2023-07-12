@@ -16,13 +16,13 @@
 name: Beam PreCommit RAT
 
 on:
-  pull_request_target:
-    branches: [ 'master', 'release-*' ]
-  issue_comment:
-    types: [ created ]
   push:
     tags: ['v*']
     branches: ['master', 'release-*']
+  pull_request_target:
+    branches: ['master', 'release-*']
+  issue_comment:
+    types: [created]
   schedule:
     - cron: '* */6 * * *'
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -51,7 +51,8 @@ jobs:
     runs-on: [self-hosted, ubuntu-20.04]
     name: beam_PreCommit_RAT
     steps:
-      - uses: actions/checkout@v3
+      - name: Check out repository code
+        uses: actions/checkout@v3
         with:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: Rerun on comment
