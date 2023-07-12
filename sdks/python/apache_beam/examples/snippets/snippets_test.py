@@ -33,6 +33,7 @@ import uuid
 
 import mock
 import parameterized
+import pytest
 
 import apache_beam as beam
 from apache_beam import WindowInto
@@ -756,6 +757,15 @@ class SnippetsTest(unittest.TestCase):
       p = TestPipeline()
       p.options.view_as(GoogleCloudOptions).temp_location = 'gs://mylocation'
       snippets.model_bigqueryio(p)
+
+  @pytest.mark.uses_gcp_java_expansion_service
+  @unittest.skipUnless(
+      os.environ.get('EXPANSION_PORT'),
+      "EXPANSION_PORT environment var is not provided.")
+  def test_model_bigqueryio_xlang(self):
+    p = TestPipeline()
+    p.options.view_as(GoogleCloudOptions).temp_location = 'gs://mylocation'
+    snippets.model_bigqueryio_xlang(p)
 
   def _run_test_pipeline_for_options(self, fn):
     temp_path = self.create_temp_file('aa\nbb\ncc')
