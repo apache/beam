@@ -358,13 +358,11 @@ if [[ "$RUNNER" == "dataflow" ]]; then
   TAG=$(date +%Y%m%d-%H%M%S)
   CONTAINER=us.gcr.io/$PROJECT/$USER/beam_go_sdk
   echo "Using container $CONTAINER"
-  ./gradlew :sdks:go:container:docker -Pdocker-repository-root=us.gcr.io/$PROJECT/$USER -Pdocker-tag=$TAG
+  ./gradlew :sdks:go:container:docker -Pdocker-repository-root=us.gcr.io/$PROJECT/$USER -Pdocker-tag=$TAG -Pbuild-and-push-multiarch-containers
 
-  # Verify it exists
-  docker images | grep $TAG
-
-  # Push the container
-  gcloud docker -- push $CONTAINER:$TAG
+  # Verify both the x86 and ARM components of the Go multiarch container exist if the pull requests succeed
+  docker pull $CONTAINER:$TAG
+  docker pull --platform linux/arm64 $CONTAINER:$TAG
 
   if [[ -n "$TEST_EXPANSION_ADDR" || -n "$IO_EXPANSION_ADDR" || -n "$SCHEMAIO_EXPANSION_ADDR" || -n "$DEBEZIUMIO_EXPANSION_ADDR" ]]; then
     ARGS="$ARGS --experiments=use_portable_job_submission"
