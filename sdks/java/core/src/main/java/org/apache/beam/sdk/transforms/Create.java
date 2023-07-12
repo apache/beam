@@ -565,10 +565,7 @@ public class Create<T> {
     /** A subclass to avoid getting re-matched. */
     private static class AlwaysUseRead<T> extends Values<T> {
       private AlwaysUseRead(
-              Iterable<T> elems,
-              Optional<Coder<T>> coder,
-              Optional<TypeDescriptor<T>> typeDescriptor
-      ) {
+          Iterable<T> elems, Optional<Coder<T>> coder, Optional<TypeDescriptor<T>> typeDescriptor) {
         super(elems, coder, typeDescriptor, true);
       }
     }
