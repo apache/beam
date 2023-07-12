@@ -69,9 +69,8 @@ def basicPytestOpts = [
     "--log-cli-level=INFO", //log level
 ]
 
-def preCommitIT(String runScriptsDir, String envdir, Boolean streaming, Boolean runnerV2, String pythonSuffix) {
-  def suffix = runnerV2 ? '_V2' : ''
-  suffix = streaming ? "_streaming$suffix" : "_batch$suffix"
+def preCommitIT(String runScriptsDir, String envdir, Boolean streaming, String pythonSuffix) {
+  def suffix = streaming ? "_streaming" : "_batch"
   task "preCommitIT${suffix}" {
     dependsOn 'initializeForDataflowJob'
 
@@ -97,9 +96,6 @@ def preCommitIT(String runScriptsDir, String envdir, Boolean streaming, Boolean 
 
       if (streaming){
         argMap.put("streaming", "true")
-        argMap.put("runner_v2", "true")
-      } else if (runnerV2) {
-        argMap.put("runner_v2", "true")
       }
 
       def cmdArgs = mapToArgString(argMap)
@@ -111,19 +107,12 @@ def preCommitIT(String runScriptsDir, String envdir, Boolean streaming, Boolean 
   }
 }
 
-preCommitIT(runScriptsDir, envdir, false, false, pythonVersionSuffix)
-preCommitIT(runScriptsDir, envdir, true, false, pythonVersionSuffix)
-preCommitIT(runScriptsDir, envdir, false, true, pythonVersionSuffix)
-preCommitIT(runScriptsDir, envdir, true, true, pythonVersionSuffix)
+preCommitIT(runScriptsDir, envdir, false, pythonVersionSuffix)
+preCommitIT(runScriptsDir, envdir, true, pythonVersionSuffix)
 
 task preCommitIT{
   dependsOn preCommitIT_batch
   dependsOn preCommitIT_streaming
-}
-
-task preCommitIT_V2{
-  dependsOn preCommitIT_batch_V2
-  dependsOn preCommitIT_streaming_V2
 }
 
 task postCommitIT {

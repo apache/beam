@@ -19,10 +19,10 @@ on:
   push:
     tags: ['v*']
     branches: ['master', 'release-*']
-    paths: ['website/**']
+    paths: ['website/**','.github/workflows/beam_PreCommit_Website.yml']
   pull_request_target:
     branches: ['master', 'release-*']
-    paths: ['website/**','.github/workflows/beam_PreCommit_Website.yml']
+    paths: ['website/**']
   issue_comment:
     types: [created]
   schedule:

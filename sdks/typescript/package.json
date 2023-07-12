@@ -46,7 +46,7 @@
     "fast-deep-equal": "^3.1.3",
     "find-git-root": "^1.0.4",
     "long": "^4.0.0",
-    "protobufjs": "^6.11.3",
+    "protobufjs": "^7.2.4",
     "queue-typescript": "^1.0.1",
     "serialize-closures": "^0.2.7",
     "ts-closure-transform": "^0.1.7",
