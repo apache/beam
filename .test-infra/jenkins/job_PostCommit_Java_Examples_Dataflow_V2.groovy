@@ -34,13 +34,14 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_Examples_Dataflow_V2',
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
           tasks(':runners:google-cloud-dataflow-java:examplesJavaRunnerV2IntegrationTest')
-          switches('-Pbuild-and-push-multiarch-containers')
           // Increase parallel worker threads above processor limit since most time is
           // spent waiting on Dataflow jobs. ValidatesRunner tests on Dataflow are slow
           // because each one launches a Dataflow job with about 3 mins of overhead.
           // 3 x num_cores strikes a good balance between maxing out parallelism without
           // overloading the machines.
           commonJobProperties.setGradleSwitches(delegate, 3 * Runtime.runtime.availableProcessors())
+          switches '-Pbuild-and-push-multiarch-containers'
+          switches "-docker-repository-root=us.gcr.io/apache-beam-testing/java-postcommit-it"
         }
       }
     }

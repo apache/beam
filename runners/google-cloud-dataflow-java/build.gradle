@@ -144,11 +144,18 @@ def dataflowLegacyWorkerJar = project.findProperty('dataflowWorkerJar') ?: proje
 def dataflowKmsKey = project.findProperty('dataflowKmsKey') ?: "projects/apache-beam-testing/locations/global/keyRings/beam-it/cryptoKeys/test"
 def firestoreDb = project.findProperty('firestoreDb') ?: 'firestoredb'
 
-def dockerImageRoot = project.findProperty('dockerImageRoot') ?: "us.gcr.io/${dataflowProject}/java-postcommit-it"
-def dockerJavaImageContainer = "${dockerImageRoot}/java"
-def dockerPythonImageContainer = "${dockerImageRoot}/python"
-def dockerTag = new Date().format('yyyyMMddHHmmss')
-ext.dockerJavaImageName = "${dockerJavaImageContainer}:${dockerTag}"
+def javaVer = "java8"
+  if(project.hasProperty('compileAndRunTestsWithJava17')) {
+    javaVer = "java17"
+  } else if(project.hasProperty('compileAndRunTestsWithJava11')) {
+    javaVer = "java11"
+  }
+def pythonVer = project.project(':sdks:python').pythonVersion
+def dockerImageRoot = project.findProperty('docker-repository-root') ?: "us.gcr.io/${dataflowProject}/java-postcommit-it"
+def dockerJavaMultiarchImageContainer = "${dockerImageRoot}/${project.docker_image_default_repo_prefix}java${javaVer}_sdk"
+def dockerPythonImageContainer = "${dockerImageRoot}/${project.docker_image_default_repo_prefix}python${pythonVer}_sdk"
+def dockerTag = project.findProperty('docker-tag') ?: new Date().format('yyyyMMddHHmmss')
+ext.dockerJavaMultiarchImageName = "${dockerJavaMultiarchImageContainer}:${dockerTag}"
 ext.dockerPythonImageName = "${dockerPythonImageContainer}:${dockerTag}"
 
 def legacyPipelineOptions = [
@@ -165,7 +172,7 @@ def runnerV2PipelineOptions = [
   "--project=${dataflowProject}",
   "--region=${dataflowRegion}",
   "--tempRoot=${dataflowValidatesTempRoot}",
-  "--sdkContainerImage=${dockerJavaImageContainer}:${dockerTag}",
+  "--sdkContainerImage=${dockerJavaMultiarchImageContainer}:${dockerTag}",
   "--experiments=use_unified_worker,use_runner_v2",
   "--firestoreDb=${firestoreDb}",
 ]
@@ -272,39 +279,50 @@ def createRunnerV2ValidatesRunnerTest = { Map args ->
 // task directly ('dependsOn buildAndPushDockerJavaContainer'). This ensures the correct
 // task ordering such that the registry doesn't get cleaned up prior to task completion.
 def buildAndPushDockerJavaContainer = tasks.register("buildAndPushDockerJavaContainer") {
-  def javaVer = "java8"
-  if(project.hasProperty('compileAndRunTestsWithJava17')) {
-    javaVer = "java17"
-  } else if(project.hasProperty('compileAndRunTestsWithJava11')) {
-    javaVer = "java11"
-  }
   dependsOn ":sdks:java:container:${javaVer}:docker"
   // TODO: change the following since multi-arch Java containers have been pushed during build
-  def defaultDockerImageName = containerImageName(
-          name: "${project.docker_image_default_repo_prefix}${javaVer}_sdk",
+  // apache/beam_java11_sdk:tag
+  def localJavax86ImageName = containerImageName(
+          name: "${project.docker_image_default_repo_prefix}${javaVer}_sdk-x86",
           root: "apache",
-          tag: project.sdk_version)
+          tag: dockerTag)
+  def localJavaArmImageName = containerImageName(
+          name: "${project.docker_image_default_repo_prefix}${javaVer}_sdk-arm",
+          root: "apache",
+          tag: dockerTag)        
   doLast {
+    // Verify multi-arch Java docker image has been built and pushed during the build
+    // by pulling and tagging the x86  and arm components:
     exec {
-      commandLine "docker", "tag", "${defaultDockerImageName}", "${dockerJavaImageName}"
+      commandLine "docker", "pull", "${dockerJavaMultiarchImageName}"
     }
     exec {
-      commandLine "gcloud", "docker", "--", "push", "${dockerJavaImageName}"
+      commandLine "docker", "tag", "${dockerJavaMultiarchImageName}", "${localJavax86ImageName}"
+    }
+    exec {
+      commandLine "docker", "pull", "--platform=linux/arm64", "${dockerJavaMultiarchImageName}"
+    }
+    exec {
+      commandLine "docker", "tag", "${dockerJavaMultiarchImageName}", "${localJavaArmImageName}"
     }
   }
 }
 
+// TODO: change here for multi arch containers
 // Clean up built Java images
 def cleanUpDockerJavaImages = tasks.register("cleanUpDockerJavaImages") {
   doLast {
     exec {
-      commandLine "docker", "rmi", "--force", "${dockerJavaImageName}"
+      commandLine "docker", "rmi", "--force", "${localJavax86ImageName}"
     }
     exec {
-      commandLine "gcloud", "--quiet", "container", "images", "untag", "${dockerJavaImageName}"
+      commandLine "docker", "rmi", "--force", "${localJavaArmImageName}"
     }
     exec {
-      commandLine "./scripts/cleanup_untagged_gcr_images.sh", "${dockerJavaImageContainer}"
+      commandLine "gcloud", "--quiet", "container", "images", "untag", "${dockerJavaMultiarchImageName}"
+    }
+    exec {
+      commandLine "./scripts/cleanup_untagged_gcr_images.sh", "${dockerJavaMultiarchImageContainer}"
     }
   }
 }
@@ -319,7 +337,6 @@ def buildAndPushDockerPythonContainer = tasks.create("buildAndPushDockerPythonCo
     return
   }
   project.evaluationDependsOn(":sdks:python")
-  def pythonVer = project.project(':sdks:python').pythonVersion
   dependsOn ":sdks:python:container:py"+pythonVer.replace('.', '')+":docker"
   def defaultDockerImageName = containerImageName(
           name: "${project.docker_image_default_repo_prefix}python${pythonVer}_sdk",
@@ -369,7 +386,7 @@ task printRunnerV2PipelineOptions {
     println "To run a Dataflow job with runner V2, add the following pipeline options to your command-line:"
     println runnerV2PipelineOptions.join(' ')
     println "Please delete your image upon completion with the following command:"
-    println "docker rmi ${dockerJavaImageName}; gcloud container images delete --force-delete-tags ${dockerJavaImageName}"
+    println "docker rmi ${localJavax86ImageName}; docker rmi ${localJavaArmImageName}; gcloud container images delete --force-delete-tags ${dockerJavaMultiarchImageName}"
   }
 }
 
@@ -429,14 +446,14 @@ createCrossLanguageValidatesRunnerTask(
     "--runner=TestDataflowRunner",
     "--project=${dataflowProject}",
     "--region=${dataflowRegion}",
-    "--sdk_harness_container_image_overrides=.*java.*,${dockerJavaImageContainer}:${dockerTag}",
+    "--sdk_harness_container_image_overrides=.*java.*,${dockerJavaMultiarchImageContainer}:${dockerTag}",
   ],
   javaPipelineOptions: [
     "--runner=TestDataflowRunner",
     "--project=${dataflowProject}",
     "--region=${dataflowRegion}",
     "--tempRoot=${dataflowValidatesTempRoot}",
-    "--sdkContainerImage=${dockerJavaImageContainer}:${dockerTag}",
+    "--sdkContainerImage=${dockerJavaMultiarchImageContainer}:${dockerTag}",
     "--sdkHarnessContainerImageOverrides=.*python.*,${dockerPythonImageContainer}:${dockerTag}",
   ],
   pytestOptions: [
