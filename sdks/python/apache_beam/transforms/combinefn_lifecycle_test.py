@@ -20,12 +20,10 @@
 # pytype: skip-file
 
 import unittest
-from functools import wraps
 
 import pytest
 from parameterized import parameterized_class
 
-from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.runners.direct import direct_runner
