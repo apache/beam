@@ -63,9 +63,16 @@ def parse_args():
 
 def preprocess_data_for_ml_training(train_data, artifact_mode, args):
   with beam.Pipeline() as p:
-    input_data = (p | "CreateData" >> beam.Create(train_data))
+    train_data_pcoll = (p | "CreateData" >> beam.Create(train_data))
+
+    # When 'artifact_mode' is set to 'produce', the ComputeAndApplyVocabulary
+    # function generates a vocabulary file. This file, stored in
+    # 'artifact_location', contains the vocabulary of the entire dataset.
+    # This is considered as an artifact of ComputeAndApplyVocabulary transform.
+    # The indices of the vocabulary in this file are returned as
+    # the output of MLTransform.
     transformed_data_pcoll = (
-        input_data
+        train_data_pcoll
         | 'MLTransform' >> MLTransform(
             artifact_location=args.artifact_location,
             artifact_mode=artifact_mode,
@@ -73,26 +80,24 @@ def preprocess_data_for_ml_training(train_data, artifact_mode, args):
             columns=['x'])).with_transform(TFIDF(columns=['x'])))
 
     _ = transformed_data_pcoll | beam.Map(logging.info)
-  return transformed_data_pcoll
 
 
 def preprocess_data_for_ml_inference(test_data, artifact_mode, args):
   with beam.Pipeline() as p:
 
     test_data_pcoll = (p | beam.Create(test_data))
-    # During inference phase, we want the pipeline to consume the artifacts
-    # produced by the previous run of MLTransform.
-    # So, we set artifact_mode to ArtifactMode.CONSUME.
+    # Here, the previously saved vocabulary from an MLTransform run is used by
+    # ComputeAndApplyVocabulary to access and apply the stored artifacts to the
+    # test data.
     transformed_data_pcoll = (
         test_data_pcoll
         | "MLTransformOnTestData" >> MLTransform(
             artifact_location=args.artifact_location,
             artifact_mode=artifact_mode,
-            # you don't need to specify transforms as they are already saved in
+            # ww don't need to specify transforms as they are already saved in
             # in the artifacts.
         ))
     _ = transformed_data_pcoll | beam.Map(logging.info)
-  return transformed_data_pcoll
 
 
 def run(args):
@@ -114,7 +119,7 @@ def run(args):
   # Preprocess the data for ML training.
   # For the data going into the ML model training, we want to produce the
   # artifacts. So, we set artifact_mode to ArtifactMode.PRODUCE.
-  _ = preprocess_data_for_ml_training(
+  preprocess_data_for_ml_training(
       train_data, artifact_mode=ArtifactMode.PRODUCE, args=args)
 
   # Do some ML model training here.
@@ -123,7 +128,7 @@ def run(args):
   # For the data going into the ML model inference, we want to consume the
   # artifacts produced during the stage where we preprocessed the data for ML
   # training. So, we set artifact_mode to ArtifactMode.CONSUME.
-  _ = preprocess_data_for_ml_inference(
+  preprocess_data_for_ml_inference(
       test_data, artifact_mode=ArtifactMode.CONSUME, args=args)
 
   # To fetch the artifacts produced in MLTransform, you can use
