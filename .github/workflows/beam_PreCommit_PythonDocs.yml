@@ -24,10 +24,9 @@ on:
   push:
     tags: ['v*']
     branches: ['master', 'release-*']
-    paths: ["sdks/python/**",".github/workflows/job_PreCommit_PythonDocs.yml"]
+    paths: ["sdks/python/**",".github/workflows/beam_PreCommit_PythonDocs.yml"]
   schedule:
     - cron: '* */6 * * *'
-#Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
 permissions:
   actions: write
@@ -46,6 +45,7 @@ permissions:
 
 jobs:
   beam_PreCommit_PythonDocs:
+    name: beam_PreCommit_PythonDocs
     if: |
       github.event_name == 'push' || 
       github.event_name == 'pull_request_target' || 
