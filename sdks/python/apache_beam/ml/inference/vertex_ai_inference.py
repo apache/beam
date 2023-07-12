@@ -22,6 +22,7 @@ from typing import Dict
 from typing import Iterable
 from typing import Optional
 from typing import Sequence
+from typing import Union
 
 from google.api_core.exceptions import ClientError
 from google.api_core.exceptions import TooManyRequests
@@ -66,7 +67,7 @@ class VertexAIModelHandlerJSON(ModelHandler[Any,
       project: str,
       location: str,
       experiment: Optional[str] = None,
-      network: Optional[str] = None,
+      network: Union[str,None] = None,
       **kwargs):
     """Implementation of the ModelHandler interface for Vertex AI.
     **NOTE:** This API and its implementation are under development and
