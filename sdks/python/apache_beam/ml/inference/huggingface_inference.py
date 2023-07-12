@@ -90,11 +90,18 @@ def no_gpu_available_warning():
       "but GPUs are not available. Switching to CPU.")
 
 
-def is_gpu_available_torch(device):
-  if device == 'GPU' and torch.cuda.is_available():
+def is_gpu_available_torch():
+  if torch.cuda.is_available():
     return True
-  no_gpu_available_warning()
-  return False
+  else:
+    no_gpu_available_warning()
+    return False
+
+
+def get_device_torch(device):
+  if device == 'GPU' and is_gpu_available_torch():
+    return torch.device('cuda')
+  return torch.device('cpu')
 
 
 def is_gpu_available_tensorflow(device):
@@ -111,8 +118,7 @@ def _run_inference_torch_keyed_tensor(
     device,
     inference_args: Dict[str, Any],
     model_id: Optional[str] = None) -> Iterable[PredictionResult]:
-  device = torch.device('cuda') if is_gpu_available_torch(
-      device) else torch.device('cpu')
+  device = get_device_torch(device)
   key_to_tensor_list = defaultdict(list)
   # torch.no_grad() mitigates GPU memory issues
   # https://github.com/apache/beam/issues/22811
@@ -219,8 +225,6 @@ class HuggingFaceModelHandler(ModelHandler[ExampleT, PredictionT, ModelT], ABC):
     """Loads and initializes the model for processing."""
     model = self._model_class.from_pretrained(
         self._model_uri, **self._model_config_args)
-    if is_gpu_available_torch(self._device):
-      model.to(torch.device('cuda'))
     return model
 
   def update_model_path(self, model_path: Optional[str] = None):
@@ -288,7 +292,12 @@ class HuggingFaceModelHandlerKeyedTensor(
     """
     inference_args = {} if not inference_args else inference_args
     if not self._framework:
-      self._framework = "tf" if isinstance(batch[0], tf.Tensor) else "torch"
+      if isinstance(batch[0], tf.Tensor):
+        self._framework = "tf"
+      else:
+        self._framework = "torch"
+        if self._device == 'GPU' and is_gpu_available_torch():
+          model.to(torch.device('cuda'))
 
     if self._inference_fn:
       return self._inference_fn(
@@ -315,8 +324,7 @@ def _default_inference_fn_torch(
     device,
     inference_args: Dict[str, Any],
     model_id: Optional[str] = None) -> Iterable[PredictionResult]:
-  device = torch.device('cuda') if is_gpu_available_torch(
-      device) else torch.device('cpu')
+  device = get_device_torch(device)
   # torch.no_grad() mitigates GPU memory issues
   # https://github.com/apache/beam/issues/22811
   with torch.no_grad():
@@ -383,7 +391,12 @@ class HuggingFaceModelHandlerTensor(HuggingFaceModelHandler[Union[tf.Tensor,
     """
     inference_args = {} if not inference_args else inference_args
     if not self._framework:
-      self._framework = "tf" if isinstance(batch[0], tf.Tensor) else "torch"
+      if isinstance(batch[0], tf.Tensor):
+        self._framework = "tf"
+      else:
+        self._framework = "torch"
+        if self._device == 'GPU' and is_gpu_available_torch():
+          model.to(torch.device('cuda'))
 
     if self._inference_fn:
       return self._inference_fn(
