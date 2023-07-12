@@ -751,8 +751,15 @@ class _CustomBigQuerySource(BoundedSource):
           kms_key=self.kms_key,
           job_labels=self._get_bq_metadata().add_additional_bq_job_labels(
               self.bigquery_job_labels))
-      size = int(job.statistics.totalBytesProcessed)
-      return size
+
+      if job.statistics.totalBytesProcessed is None:
+          # Some queries may not have access to `totalBytesProcessed` as a result of row-level security
+          # > BigQuery hides sensitive statistics on all queries against tables with row-level security.
+          # https://cloud.google.com/bigquery/docs/managing-row-level-security
+          # https://cloud.google.com/bigquery/docs/best-practices-row-level-security#limit-side-channel-attacks
+          return None
+
+      return int(job.statistics.totalBytesProcessed)
     else:
       # Size estimation is best effort. We return None as we have
       # no access to the query that we're running.
@@ -1102,8 +1109,15 @@ class _CustomBigQueryStorageSource(BoundedSource):
           kms_key=self.kms_key,
           job_labels=self._get_bq_metadata().add_additional_bq_job_labels(
               self.bigquery_job_labels))
-      size = int(job.statistics.totalBytesProcessed)
-      return size
+
+      if job.statistics.totalBytesProcessed is None:
+          # Some queries may not have access to `totalBytesProcessed` as a result of row-level security
+          # > BigQuery hides sensitive statistics on all queries against tables with row-level security.
+          # https://cloud.google.com/bigquery/docs/managing-row-level-security
+          # https://cloud.google.com/bigquery/docs/best-practices-row-level-security#limit-side-channel-attacks
+          return None
+
+      return int(job.statistics.totalBytesProcessed)
     else:
       # Size estimation is best effort. We return None as we have
       # no access to the query that we're running.
