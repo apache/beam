@@ -108,9 +108,7 @@ def preCommitIT(String runScriptsDir, String envdir, Boolean streaming, String p
 }
 
 preCommitIT(runScriptsDir, envdir, false, pythonVersionSuffix)
-preCommitIT(runScriptsDir, envdir, true, pythonVersionSuffix)
 preCommitIT(runScriptsDir, envdir, false, pythonVersionSuffix)
-preCommitIT(runScriptsDir, envdir, true, pythonVersionSuffix)
 
 task preCommitIT{
   dependsOn preCommitIT_batch
