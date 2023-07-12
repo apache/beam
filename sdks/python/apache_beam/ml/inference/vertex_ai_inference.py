@@ -85,6 +85,7 @@ class VertexAIModelHandlerJSON(ModelHandler[Any,
       experiment (Optional): experiment label to apply to the queries
       network (Optional): the full name of the Compute Engine network
         the endpoint is deployed on; used for private endpoints only.
+        Ex: "projects/12345/global/networks/myVPC"
     """
 
     self._env_vars = kwargs.get('env_vars', {})
