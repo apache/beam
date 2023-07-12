@@ -753,11 +753,13 @@ class _CustomBigQuerySource(BoundedSource):
               self.bigquery_job_labels))
 
       if job.statistics.totalBytesProcessed is None:
-          # Some queries may not have access to `totalBytesProcessed` as a result of row-level security
-          # > BigQuery hides sensitive statistics on all queries against tables with row-level security.
-          # https://cloud.google.com/bigquery/docs/managing-row-level-security
-          # https://cloud.google.com/bigquery/docs/best-practices-row-level-security#limit-side-channel-attacks
-          return None
+        # Some queries may not have access to `totalBytesProcessed` as a
+        # result of row-level security.
+        # > BigQuery hides sensitive statistics on all queries against
+        # > tables with row-level security.
+        # See cloud.google.com/bigquery/docs/managing-row-level-security
+        # and cloud.google.com/bigquery/docs/best-practices-row-level-security
+        return None
 
       return int(job.statistics.totalBytesProcessed)
     else:
@@ -1111,11 +1113,13 @@ class _CustomBigQueryStorageSource(BoundedSource):
               self.bigquery_job_labels))
 
       if job.statistics.totalBytesProcessed is None:
-          # Some queries may not have access to `totalBytesProcessed` as a result of row-level security
-          # > BigQuery hides sensitive statistics on all queries against tables with row-level security.
-          # https://cloud.google.com/bigquery/docs/managing-row-level-security
-          # https://cloud.google.com/bigquery/docs/best-practices-row-level-security#limit-side-channel-attacks
-          return None
+        # Some queries may not have access to `totalBytesProcessed` as a
+        # result of row-level security
+        # > BigQuery hides sensitive statistics on all queries against
+        # > tables with row-level security.
+        # See cloud.google.com/bigquery/docs/managing-row-level-security
+        # and cloud.google.com/bigquery/docs/best-practices-row-level-security
+        return None
 
       return int(job.statistics.totalBytesProcessed)
     else:
