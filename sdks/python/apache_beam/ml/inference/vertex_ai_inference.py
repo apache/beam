@@ -22,7 +22,6 @@ from typing import Dict
 from typing import Iterable
 from typing import Optional
 from typing import Sequence
-from typing import Union
 
 from google.api_core.exceptions import ClientError
 from google.api_core.exceptions import TooManyRequests
@@ -67,7 +66,7 @@ class VertexAIModelHandlerJSON(ModelHandler[Any,
       project: str,
       location: str,
       experiment: Optional[str] = None,
-      network: Union[str,None] = None,
+      network: Optional[str] = None,
       **kwargs):
     """Implementation of the ModelHandler interface for Vertex AI.
     **NOTE:** This API and its implementation are under development and
@@ -83,9 +82,11 @@ class VertexAIModelHandlerJSON(ModelHandler[Any,
       endpoint_id: the numerical ID of the Vertex AI endpoint to query
       project: the GCP project name where the endpoint is deployed
       location: the GCP location where the endpoint is deployed
-      experiment (Optional): experiment label to apply to the queries
-      network (Optional): the full name of the Compute Engine network
-        the endpoint is deployed on; used for private endpoints only.
+      experiment: optional. experiment label to apply to the
+        queries
+      network: optional. the full name of the Compute Engine
+        network the endpoint is deployed on; used for private
+        endpoints only.
         Ex: "projects/12345/global/networks/myVPC"
     """
 
