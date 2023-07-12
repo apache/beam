@@ -41,6 +41,9 @@ from apache_beam import pvalue
 from apache_beam import typehints
 from apache_beam.coders.coders import ToBytesCoder
 from apache_beam.examples.snippets import snippets
+from apache_beam.examples.snippets import snippets_examples_wordcount_debugging
+from apache_beam.examples.snippets import snippets_examples_wordcount_minimal
+from apache_beam.examples.snippets import snippets_examples_wordcount_wordcount
 from apache_beam.metrics import Metrics
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.options.pipeline_options import GoogleCloudOptions
@@ -60,10 +63,6 @@ from apache_beam.transforms.trigger import Repeatedly
 from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils.windowed_value import WindowedValue
-
-from . import snippets_examples_wordcount_debugging
-from . import snippets_examples_wordcount_minimal
-from . import snippets_examples_wordcount_wordcount
 
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position

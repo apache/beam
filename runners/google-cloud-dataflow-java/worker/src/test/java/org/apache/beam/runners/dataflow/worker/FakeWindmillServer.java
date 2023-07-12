@@ -29,6 +29,7 @@ import static org.junit.Assert.assertFalse;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
@@ -48,6 +49,8 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationGetD
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetDataResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution.State;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.net.HostAndPort;
@@ -273,7 +276,15 @@ class FakeWindmillServer extends WindmillServerStub {
                     computationWork.getInputDataWatermark());
             for (Windmill.WorkItem workItem : computationWork.getWorkList()) {
               receiver.receiveWork(
-                  computationWork.getComputationId(), inputDataWatermark, Instant.now(), workItem);
+                  computationWork.getComputationId(),
+                  inputDataWatermark,
+                  Instant.now(),
+                  workItem,
+                  Collections.singletonList(
+                      LatencyAttribution.newBuilder()
+                          .setState(State.GET_WORK_IN_TRANSIT_TO_USER_WORKER)
+                          .setTotalDurationMillis(1000)
+                          .build()));
             }
           }
         }

@@ -31,7 +31,7 @@ import (
 
 var (
 	jobManagerEndpoint = flag.String("jm_override", "", "set to only stand up a web ui that refers to a seperate JobManagement endpoint")
-	serveHttp          = flag.Bool("serve_http", true, "enable or disable the web ui")
+	serveHTTP          = flag.Bool("serve_http", true, "enable or disable the web ui")
 )
 
 func main() {
@@ -41,7 +41,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("error creating job server: %v", err)
 	}
-	if *serveHttp {
+	if *serveHTTP {
 		if err := prism.CreateWebServer(ctx, cli, prism.Options{Port: 8074}); err != nil {
 			log.Fatalf("error creating web server: %v", err)
 		}

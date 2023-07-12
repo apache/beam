@@ -82,7 +82,7 @@ _FNAPI_ENVIRONMENT_MAJOR_VERSION = '8'
 
 _LOGGER = logging.getLogger(__name__)
 
-_PYTHON_VERSIONS_SUPPORTED_BY_DATAFLOW = ['3.7', '3.8', '3.9', '3.10', '3.11']
+_PYTHON_VERSIONS_SUPPORTED_BY_DATAFLOW = ['3.8', '3.9', '3.10', '3.11']
 
 
 class Step(object):
@@ -734,7 +734,7 @@ class DataflowApplicationClient(object):
     try:
       with FileSystems.create(gcs_location) as f:
         f.write(stream.read())
-        return
+      return
     except Exception as e:
       reportable_errors = [
           Forbidden,

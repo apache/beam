@@ -75,7 +75,7 @@ public class BeamFnStatusClientTest {
       when(executionStateTracker.getStatus())
           .thenReturn(
               ExecutionStateTrackerStatus.create(
-                  "ptransformId", "ptransformIdName", Thread.currentThread(), i * 1000));
+                  "ptransformId", "ptransformIdName", Thread.currentThread(), i * 1000, null));
       String instruction = Integer.toString(i);
       when(processorCache.find(instruction)).thenReturn(processor);
       bundleProcessorMap.put(instruction, processor);

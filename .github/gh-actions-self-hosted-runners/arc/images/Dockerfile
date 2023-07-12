@@ -21,14 +21,14 @@
 FROM ghcr.io/actions-runner-controller/actions-runner-controller/actions-runner:ubuntu-20.04
 
 USER root
-#Install Node 
+#Install Node
 RUN curl -OL https://nodejs.org/dist/v18.16.0/node-v18.16.0-linux-x64.tar.xz && \
     tar -C /usr/local -xf node-v18.16.0-linux-x64.tar.xz && \
     rm node-v18.16.0-linux-x64.tar.xz && \
     mv /usr/local/node-v18.16.0-linux-x64 /usr/local/node
 ENV PATH="${PATH}:/usr/local/node/bin"
 #Install Go
-ARG go_version=1.20.4
+ARG go_version=1.20.5
 RUN curl -OL https://go.dev/dl/go${go_version}.linux-amd64.tar.gz && \
     tar -C /usr/local -xzf go${go_version}.linux-amd64.tar.gz && \
     rm go${go_version}.linux-amd64.tar.gz
@@ -45,8 +45,11 @@ RUN curl -OL https://services.gradle.org/distributions/gradle-7.3.3-bin.zip && \
     rm gradle-7.3.3-bin.zip && \
     mv gradle-7.3.3 /usr/local/gradle
 ENV PATH="${PATH}:/usr/local/gradle/bin"
-
-
+#Install GitHub CLI
+RUN curl -OL https://github.com/cli/cli/releases/download/v2.31.0/gh_2.31.0_linux_amd64.tar.gz && \
+    tar -xvf gh_2.31.0_linux_amd64.tar.gz && \
+    rm gh_2.31.0_linux_amd64.tar.gz && \
+    mv gh_2.31.0_linux_amd64/bin/gh /usr/local/bin 
 # Needed to transfer path addtitions to runner environment
 RUN echo PATH=$PATH >> /runnertmp/.env
 USER runner

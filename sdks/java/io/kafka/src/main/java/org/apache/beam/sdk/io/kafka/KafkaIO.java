@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
@@ -350,10 +351,11 @@ import org.slf4j.LoggerFactory;
  * href="https://beam.apache.org/blog/splittable-do-fn/">blog post</a> and <a
  * href="https://s.apache.org/beam-fn-api">design doc</a>. The major difference from {@link
  * KafkaIO.Read} is, {@link ReadSourceDescriptors} doesn't require source descriptions(e.g., {@link
- * KafkaIO.Read#getTopicPartitions()}, {@link KafkaIO.Read#getTopics()}, {@link
- * KafkaIO.Read#getStartReadTime()}, etc.) during the pipeline construction time. Instead, the
- * pipeline can populate these source descriptions during runtime. For example, the pipeline can
- * query Kafka topics from a BigQuery table and read these topics via {@link ReadSourceDescriptors}.
+ * KafkaIO.Read#getTopicPattern()}, {@link KafkaIO.Read#getTopicPartitions()}, {@link
+ * KafkaIO.Read#getTopics()}, {@link KafkaIO.Read#getStartReadTime()}, etc.) during the pipeline
+ * construction time. Instead, the pipeline can populate these source descriptions during runtime.
+ * For example, the pipeline can query Kafka topics from a BigQuery table and read these topics via
+ * {@link ReadSourceDescriptors}.
  *
  * <h3>Common Kafka Consumer Configurations</h3>
  *
@@ -634,6 +636,9 @@ public class KafkaIO {
     abstract @Nullable List<TopicPartition> getTopicPartitions();
 
     @Pure
+    abstract @Nullable Pattern getTopicPattern();
+
+    @Pure
     abstract @Nullable Coder<K> getKeyCoder();
 
     @Pure
@@ -691,6 +696,8 @@ public class KafkaIO {
       abstract Builder<K, V> setTopics(List<String> topics);
 
       abstract Builder<K, V> setTopicPartitions(List<TopicPartition> topicPartitions);
+
+      abstract Builder<K, V> setTopicPattern(Pattern topicPattern);
 
       abstract Builder<K, V> setKeyCoder(Coder<K> keyCoder);
 
@@ -922,8 +929,9 @@ public class KafkaIO {
      */
     public Read<K, V> withTopics(List<String> topics) {
       checkState(
-          getTopicPartitions() == null || getTopicPartitions().isEmpty(),
-          "Only topics or topicPartitions can be set, not both");
+          (getTopicPartitions() == null || getTopicPartitions().isEmpty())
+              && getTopicPattern() == null,
+          "Only one of topics, topicPartitions or topicPattern can be set");
       return toBuilder().setTopics(ImmutableList.copyOf(topics)).build();
     }
 
@@ -936,9 +944,24 @@ public class KafkaIO {
      */
     public Read<K, V> withTopicPartitions(List<TopicPartition> topicPartitions) {
       checkState(
-          getTopics() == null || getTopics().isEmpty(),
-          "Only topics or topicPartitions can be set, not both");
+          (getTopics() == null || getTopics().isEmpty()) && getTopicPattern() == null,
+          "Only one of topics, topicPartitions or topicPattern can be set");
       return toBuilder().setTopicPartitions(ImmutableList.copyOf(topicPartitions)).build();
+    }
+
+    /**
+     * Internally sets a {@link java.util.regex.Pattern} of topics to read from. All the partitions
+     * from each of the matching topics are read.
+     *
+     * <p>See {@link KafkaUnboundedSource#split(int, PipelineOptions)} for description of how the
+     * partitions are distributed among the splits.
+     */
+    public Read<K, V> withTopicPattern(String topicPattern) {
+      checkState(
+          (getTopics() == null || getTopics().isEmpty())
+              && (getTopicPartitions() == null || getTopicPartitions().isEmpty()),
+          "Only one of topics, topicPartitions or topicPattern can be set");
+      return toBuilder().setTopicPattern(Pattern.compile(topicPattern)).build();
     }
 
     /**
@@ -1274,8 +1297,9 @@ public class KafkaIO {
       if (!isDynamicRead()) {
         checkArgument(
             (getTopics() != null && getTopics().size() > 0)
-                || (getTopicPartitions() != null && getTopicPartitions().size() > 0),
-            "Either withTopic(), withTopics() or withTopicPartitions() is required");
+                || (getTopicPartitions() != null && getTopicPartitions().size() > 0)
+                || getTopicPattern() != null,
+            "Either withTopic(), withTopics(), withTopicPartitions() or withTopicPattern() is required");
       } else {
         checkArgument(
             ExperimentalOptions.hasExperiment(input.getPipeline().getOptions(), "beam_fn_api"),
@@ -1537,6 +1561,7 @@ public class KafkaIO {
                       kafkaRead.getConsumerConfig(),
                       kafkaRead.getCheckStopReadingFn(),
                       topics,
+                      kafkaRead.getTopicPattern(),
                       kafkaRead.getStartReadTime(),
                       kafkaRead.getStopReadTime()));
         } else {
@@ -1561,6 +1586,7 @@ public class KafkaIO {
         this.consumerFactoryFn = read.getConsumerFactoryFn();
         this.topics = read.getTopics();
         this.topicPartitions = read.getTopicPartitions();
+        this.topicPattern = read.getTopicPattern();
         this.startReadTime = read.getStartReadTime();
         this.stopReadTime = read.getStopReadTime();
       }
@@ -1578,15 +1604,30 @@ public class KafkaIO {
 
       @VisibleForTesting final @Nullable List<String> topics;
 
+      private final @Nullable Pattern topicPattern;
+
       @ProcessElement
       public void processElement(OutputReceiver<KafkaSourceDescriptor> receiver) {
         List<TopicPartition> partitions =
             new ArrayList<>(Preconditions.checkStateNotNull(topicPartitions));
         if (partitions.isEmpty()) {
           try (Consumer<?, ?> consumer = consumerFactoryFn.apply(consumerConfig)) {
-            for (String topic : Preconditions.checkStateNotNull(topics)) {
-              for (PartitionInfo p : consumer.partitionsFor(topic)) {
-                partitions.add(new TopicPartition(p.topic(), p.partition()));
+            List<String> topics = Preconditions.checkStateNotNull(this.topics);
+            if (topics.isEmpty()) {
+              Pattern pattern = Preconditions.checkStateNotNull(topicPattern);
+              for (Map.Entry<String, List<PartitionInfo>> entry :
+                  consumer.listTopics().entrySet()) {
+                if (pattern.matcher(entry.getKey()).matches()) {
+                  for (PartitionInfo p : entry.getValue()) {
+                    partitions.add(new TopicPartition(p.topic(), p.partition()));
+                  }
+                }
+              }
+            } else {
+              for (String topic : topics) {
+                for (PartitionInfo p : consumer.partitionsFor(topic)) {
+                  partitions.add(new TopicPartition(p.topic(), p.partition()));
+                }
               }
             }
           }
@@ -1634,12 +1675,16 @@ public class KafkaIO {
       super.populateDisplayData(builder);
       List<String> topics = Preconditions.checkStateNotNull(getTopics());
       List<TopicPartition> topicPartitions = Preconditions.checkStateNotNull(getTopicPartitions());
+      Pattern topicPattern = getTopicPattern();
       if (topics.size() > 0) {
         builder.add(DisplayData.item("topics", Joiner.on(",").join(topics)).withLabel("Topic/s"));
       } else if (topicPartitions.size() > 0) {
         builder.add(
             DisplayData.item("topicPartitions", Joiner.on(",").join(topicPartitions))
                 .withLabel("Topic Partition/s"));
+      } else if (topicPattern != null) {
+        builder.add(
+            DisplayData.item("topicPattern", topicPattern.pattern()).withLabel("Topic Pattern"));
       }
       Set<String> disallowedConsumerPropertiesKeys =
           KafkaIOUtils.DISALLOWED_CONSUMER_PROPERTIES.keySet();

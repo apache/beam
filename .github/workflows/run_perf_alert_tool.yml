@@ -23,6 +23,10 @@ on:
   workflow_dispatch:
   schedule:
     - cron: '5 22 * * *'
+  pull_request:
+    branches: ['master']
+    tags: 'v*'
+    paths: ['sdks/python/apache_beam/testing/**']
 jobs:
   python_run_change_point_analysis:
     name: Run Change Point Analysis.
@@ -37,6 +41,7 @@ jobs:
         with:
           python-version: 3.8
       - name: Authenticate on GCP
+        if: github.event_name != 'pull_request'
         uses: google-github-actions/setup-gcloud@v0
         with:
           service_account_key: ${{ secrets.GCP_SA_KEY }}
@@ -55,6 +60,7 @@ jobs:
         working-directory: ./sdks/python/apache_beam/testing/analyzers
         shell: bash
         run: python perf_analysis.py
+        if: github.event_name != 'pull_request'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Run change point analysis tests.

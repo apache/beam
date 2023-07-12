@@ -96,15 +96,46 @@ class GcsIOIntegrationTest(unittest.TestCase):
     ]
     src_dest_pairs = list(zip(srcs, dests))
 
-    self.gcsio.copy_batch(src_dest_pairs)
+    copy_results = self.gcsio.copy_batch(src_dest_pairs)
 
-    for src, dest in src_dest_pairs:
-      self._verify_copy(src, dest)
+    self.assertEqual(len(copy_results), len(src_dest_pairs))
 
-    self.gcsio.delete_batch(dests)
-    for dest in dests:
+    for pair, result in list(zip(src_dest_pairs, copy_results)):
+      self._verify_copy(pair[0], pair[1])
+      self.assertEqual(
+          pair[0],
+          result[0],
+          'copy source %s does not match %s' % (pair[0], str(result)))
+      self.assertEqual(
+          pair[1],
+          result[1],
+          'copy destination %s does not match %s' % (pair[1], result[1]))
+      self.assertTrue(
+          (result[2] < 300),
+          'response code %s indicates that copy operation did not succeed' %
+          result[2])
+
+    delete_results = self.gcsio.delete_batch(dests)
+
+    self.assertEqual(len(delete_results), len(dests))
+
+    for dest, result in list(zip(dests, delete_results)):
       self.assertFalse(
           FileSystems.exists(dest), 'deleted file still exists: %s' % dest)
+      self.assertEqual(
+          dest,
+          result[0],
+          'delete path %s does not match %s' % (dest, result[0]))
+      self.assertTrue(
+          (result[1] < 300),
+          'response code %s indicates that delete operation did not succeed' %
+          result[1])
+
+    redelete_results = self.gcsio.delete_batch(dests)
+
+    for dest, result in list(zip(dests, redelete_results)):
+      self.assertTrue((result[1] < 300),
+                      're-delete should not throw error: %s' % result[1])
 
 
 if __name__ == '__main__':
