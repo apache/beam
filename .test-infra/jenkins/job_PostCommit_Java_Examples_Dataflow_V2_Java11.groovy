@@ -18,6 +18,7 @@
 
 import PostcommitJobBuilder
 import CommonJobProperties as commonJobProperties
+import java.time.LocalDateTime
 
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_Examples_Dataflow_V2_java11',
     'Run Java 11 Examples on Dataflow Runner V2', 'Google Cloud Dataflow Runner V2 Examples Java 11', this) {
@@ -30,6 +31,9 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_Examples_Dataflow_V2_ja
         archiveJunit('**/build/test-results/**/*.xml')
       }
 
+      // Generates a unique tag for the container as the current time.
+      def now = LocalDateTime.now()
+      def unique_tag = '${now.date}${now.hour}${now.minute}${now.second}'
       steps {
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)

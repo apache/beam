@@ -18,6 +18,7 @@
 
 import PostcommitJobBuilder
 import CommonJobProperties as commonJobProperties
+import java.time.LocalDateTime
 
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_Examples_Dataflow_V2',
     'Run Java Examples on Dataflow Runner V2', 'Google Cloud Dataflow Runner V2 Examples', this) {
@@ -30,6 +31,9 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_Examples_Dataflow_V2',
         archiveJunit('**/build/test-results/**/*.xml')
       }
 
+      // Generates a unique tag for the container as the current time.
+      def now = LocalDateTime.now()
+      def unique_tag = '${now.date}${now.hour}${now.minute}${now.second}'
       steps {
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
@@ -41,7 +45,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_Examples_Dataflow_V2',
           // overloading the machines.
           commonJobProperties.setGradleSwitches(delegate, 3 * Runtime.runtime.availableProcessors())
           switches '-Pbuild-and-push-multiarch-containers'
-          switches "-docker-repository-root=us.gcr.io/apache-beam-testing/java-postcommit-it"
+          switches "-Pdocker-repository-root=us.gcr.io/apache-beam-testing/java-postcommit-it"
         }
       }
     }

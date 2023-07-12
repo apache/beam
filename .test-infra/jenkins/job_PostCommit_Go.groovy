@@ -18,6 +18,7 @@
 
 import CommonJobProperties as commonJobProperties
 import PostcommitJobBuilder
+import java.time.LocalDateTime
 
 // This is the Go postcommit which runs a gradle build, and the current set
 // of postcommit tests.
@@ -32,6 +33,9 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Go', 'Run Go PostCommit',
           'master',
           300) // increased to 5 hours.
 
+      // Generates a unique tag for the container as the current time.
+      def now = LocalDateTime.now()
+      def unique_tag = '${now.date}${now.hour}${now.minute}${now.second}'
       steps {
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
@@ -39,6 +43,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Go', 'Run Go PostCommit',
           commonJobProperties.setGradleSwitches(delegate)
           switches('--no-parallel')
           switches('-Pbuild-and-push-multiarch-containers')
+          switches('-Pdocker-tag=${unique_tag}')
         }
       }
     }
