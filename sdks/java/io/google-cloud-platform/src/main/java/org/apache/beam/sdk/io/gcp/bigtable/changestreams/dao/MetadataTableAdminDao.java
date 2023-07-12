@@ -128,6 +128,11 @@ public class MetadataTableAdminDao {
     return false;
   }
 
+  /** @return true if metadata table exists, otherwise false. */
+  public boolean doesMetadataTableExist() {
+    return tableAdminClient.exists(tableId);
+  }
+
   /**
    * Create the metadata table if it does not exist yet. If the table does exist, verify all the
    * column families exists, if not add those column families. This table only need to be created

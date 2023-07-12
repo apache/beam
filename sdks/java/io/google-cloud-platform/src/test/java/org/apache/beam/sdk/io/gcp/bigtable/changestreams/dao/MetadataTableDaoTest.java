@@ -23,10 +23,14 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.google.api.core.ApiFuture;
 import com.google.cloud.bigtable.admin.v2.BigtableTableAdminClient;
 import com.google.cloud.bigtable.admin.v2.BigtableTableAdminSettings;
 import com.google.cloud.bigtable.data.v2.BigtableDataClient;
@@ -45,6 +49,9 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.UniqueIdGenerator;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.encoder.MetadataTableEncoder;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.model.NewPartition;
@@ -742,5 +749,29 @@ public class MetadataTableDaoTest {
                 ByteStringRange.serializeToByteString(token.getPartition()))
             .get(0)
             .getValue());
+  }
+
+  @Test
+  public void mutateRowWithHardTimeoutErrorHandling()
+      throws ExecutionException, InterruptedException, TimeoutException {
+    BigtableDataClient mockClient = Mockito.mock(BigtableDataClient.class);
+    MetadataTableDao daoWithMock =
+        new MetadataTableDao(mockClient, "test-table", ByteString.copyFromUtf8("test"));
+    ApiFuture<Void> mockFuture = mock(ApiFuture.class);
+    when(mockClient.mutateRowAsync(any())).thenReturn(mockFuture);
+
+    when(mockFuture.get(40, TimeUnit.SECONDS))
+        .thenThrow(TimeoutException.class)
+        .thenThrow(InterruptedException.class)
+        .thenThrow(ExecutionException.class);
+    assertThrows(
+        RuntimeException.class,
+        () -> daoWithMock.mutateRowWithHardTimeout(RowMutation.create("test", "test").deleteRow()));
+    assertThrows(
+        RuntimeException.class,
+        () -> daoWithMock.mutateRowWithHardTimeout(RowMutation.create("test", "test").deleteRow()));
+    assertThrows(
+        RuntimeException.class,
+        () -> daoWithMock.mutateRowWithHardTimeout(RowMutation.create("test", "test").deleteRow()));
   }
 }

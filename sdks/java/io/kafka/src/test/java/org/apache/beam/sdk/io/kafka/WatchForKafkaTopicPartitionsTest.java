@@ -23,6 +23,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.Set;
+import java.util.regex.Pattern;
 import org.apache.beam.sdk.io.kafka.KafkaMocks.PartitionGrowthMockConsumer;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SerializableMatcher;
@@ -77,7 +78,8 @@ public class WatchForKafkaTopicPartitionsTest {
             new TopicPartition("topic1", 1),
             new TopicPartition("topic2", 0),
             new TopicPartition("topic2", 1)),
-        WatchForKafkaTopicPartitions.getAllTopicPartitions((input) -> mockConsumer, null, null));
+        WatchForKafkaTopicPartitions.getAllTopicPartitions(
+            (input) -> mockConsumer, null, null, null));
   }
 
   @Test
@@ -103,7 +105,47 @@ public class WatchForKafkaTopicPartitionsTest {
             new TopicPartition("topic2", 0),
             new TopicPartition("topic2", 1)),
         WatchForKafkaTopicPartitions.getAllTopicPartitions(
-            (input) -> mockConsumer, null, givenTopics));
+            (input) -> mockConsumer, null, givenTopics, null));
+  }
+
+  @Test
+  public void testGetAllTopicPartitionsWithGivenPattern() throws Exception {
+    Consumer<byte[], byte[]> mockConsumer = Mockito.mock(Consumer.class);
+    when(mockConsumer.listTopics())
+        .thenReturn(
+            ImmutableMap.of(
+                "topic1",
+                ImmutableList.of(
+                    new PartitionInfo("topic1", 0, null, null, null),
+                    new PartitionInfo("topic1", 1, null, null, null)),
+                "topic2",
+                ImmutableList.of(
+                    new PartitionInfo("topic2", 0, null, null, null),
+                    new PartitionInfo("topic2", 1, null, null, null)),
+                "topicA",
+                ImmutableList.of(
+                    new PartitionInfo("topicA", 0, null, null, null),
+                    new PartitionInfo("topicA", 1, null, null, null)),
+                "topicB",
+                ImmutableList.of(
+                    new PartitionInfo("topicB", 0, null, null, null),
+                    new PartitionInfo("topicB", 1, null, null, null))));
+    assertEquals(
+        ImmutableList.of(
+            new TopicPartition("topic1", 0),
+            new TopicPartition("topic1", 1),
+            new TopicPartition("topic2", 0),
+            new TopicPartition("topic2", 1)),
+        WatchForKafkaTopicPartitions.getAllTopicPartitions(
+            (input) -> mockConsumer, null, null, Pattern.compile("topic[0-9]")));
+    assertEquals(
+        ImmutableList.of(
+            new TopicPartition("topicA", 0),
+            new TopicPartition("topicA", 1),
+            new TopicPartition("topicB", 0),
+            new TopicPartition("topicB", 1)),
+        WatchForKafkaTopicPartitions.getAllTopicPartitions(
+            (input) -> mockConsumer, null, null, Pattern.compile("topic[A-Z]")));
   }
 
   @Test
@@ -119,6 +161,7 @@ public class WatchForKafkaTopicPartitionsTest {
             null,
             null,
             givenTopics,
+            null,
             null,
             null);
 
@@ -144,6 +187,7 @@ public class WatchForKafkaTopicPartitionsTest {
             null,
             null,
             givenTopics,
+            null,
             null,
             null);
 

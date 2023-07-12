@@ -18,15 +18,16 @@
 """Unit tests for bundle processing."""
 # pytype: skip-file
 
-import time
 import unittest
 from typing import Dict
 from typing import List
 
+import apache_beam as beam
 from apache_beam.coders.coders import FastPrimitivesCoder
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.runners import common
+from apache_beam.runners.worker import bundle_processor
 from apache_beam.runners.worker import operations
 from apache_beam.runners.worker.bundle_processor import BeamTransformFactory
 from apache_beam.runners.worker.bundle_processor import BundleProcessor
@@ -240,6 +241,25 @@ def create_test_op(factory, transform_id, transform_proto, payload, consumers):
       payload)
 
 
+@BeamTransformFactory.register_urn('beam:internal:testexn:v1', bytes)
+def create_exception_dofn(
+    factory, transform_id, transform_proto, payload, consumers):
+  """Returns a test DoFn that raises the given exception."""
+  class RaiseException(beam.DoFn):
+    def __init__(self, msg):
+      self.msg = msg.decode()
+
+    def process(self, _):
+      raise RuntimeError(self.msg)
+
+  return bundle_processor._create_simple_pardo_operation(
+      factory,
+      transform_id,
+      transform_proto,
+      consumers,
+      RaiseException(payload))
+
+
 class DataSamplingTest(unittest.TestCase):
   def test_disabled_by_default(self):
     """Test that not providing the sampler does not enable Data Sampling.
@@ -252,32 +272,12 @@ class DataSamplingTest(unittest.TestCase):
     _ = BundleProcessor(descriptor, None, None)
     self.assertEqual(len(descriptor.transforms), 0)
 
-  def wait_for_samples(self, data_sampler: DataSampler,
-                       pcollection_id: str) -> Dict[str, List[bytes]]:
-    """Waits for samples from the given PCollection to exist."""
-    now = time.time()
-    end = now + 30
-
-    samples = {}
-    while now < end:
-      time.sleep(0.1)
-      now = time.time()
-      samples.update(data_sampler.samples([pcollection_id]))
-
-      if samples:
-        return samples
-
-    self.assertLess(
-        now, end, 'Timed out waiting for samples for {}'.format(pcollection_id))
-    return {}
-
   def test_can_sample(self):
     """Test that elements are sampled.
 
     This is a small integration test with the BundleProcessor and the
-    DataSampler. It ensures that the BundleProcessor correctly makes
-    DataSamplingOperations and samples are taken from in-flight elements. These
-    elements are then finally queried.
+    DataSampler. It ensures that samples are taken from in-flight elements.
+    These elements are then finally queried.
     """
     data_sampler = DataSampler(sample_every_sec=0.1)
     descriptor = beam_fn_api_pb2.ProcessBundleDescriptor()
@@ -306,8 +306,100 @@ class DataSamplingTest(unittest.TestCase):
           descriptor, None, None, data_sampler=data_sampler)
       processor.process_bundle('instruction_id')
 
-      samples = self.wait_for_samples(data_sampler, PCOLLECTION_ID)
-      self.assertEqual(samples, {PCOLLECTION_ID: [b'\rhello, world!']})
+      samples = data_sampler.wait_for_samples([PCOLLECTION_ID])
+      expected = beam_fn_api_pb2.SampleDataResponse(
+          element_samples={
+              PCOLLECTION_ID: beam_fn_api_pb2.SampleDataResponse.ElementList(
+                  elements=[
+                      beam_fn_api_pb2.SampledElement(
+                          element=b'\rhello, world!')
+                  ])
+          })
+      self.assertEqual(samples, expected)
+    finally:
+      data_sampler.stop()
+
+  def test_can_sample_exceptions(self):
+    """Test that exceptions are sampled."""
+    data_sampler = DataSampler(sample_every_sec=0.1)
+    descriptor = beam_fn_api_pb2.ProcessBundleDescriptor()
+
+    # Boiler plate for the DoFn.
+    WINDOWING_ID = 'window'
+    WINDOW_CODER_ID = 'cw'
+    window = descriptor.windowing_strategies[WINDOWING_ID]
+    window.window_fn.urn = common_urns.global_windows.urn
+    window.window_coder_id = WINDOW_CODER_ID
+    window.trigger.default.SetInParent()
+    window_coder = descriptor.coders[WINDOW_CODER_ID]
+    window_coder.spec.urn = common_urns.StandardCoders.Enum.GLOBAL_WINDOW.urn
+
+    # Input collection to the exception raising DoFn.
+    INPUT_PCOLLECTION_ID = 'pc-in'
+    INPUT_CODER_ID = 'c-in'
+    descriptor.pcollections[
+        INPUT_PCOLLECTION_ID].unique_name = INPUT_PCOLLECTION_ID
+    descriptor.pcollections[INPUT_PCOLLECTION_ID].coder_id = INPUT_CODER_ID
+    descriptor.pcollections[
+        INPUT_PCOLLECTION_ID].windowing_strategy_id = WINDOWING_ID
+    descriptor.coders[
+        INPUT_CODER_ID].spec.urn = common_urns.StandardCoders.Enum.BYTES.urn
+
+    # Output collection to the exception raising DoFn. Because the transform
+    # "failed" to process the input element, we do NOT expect to see a sample in
+    # this PCollection.
+    OUTPUT_PCOLLECTION_ID = 'pc-out'
+    OUTPUT_CODER_ID = 'c-out'
+    descriptor.pcollections[
+        OUTPUT_PCOLLECTION_ID].unique_name = OUTPUT_PCOLLECTION_ID
+    descriptor.pcollections[OUTPUT_PCOLLECTION_ID].coder_id = OUTPUT_CODER_ID
+    descriptor.pcollections[
+        OUTPUT_PCOLLECTION_ID].windowing_strategy_id = WINDOWING_ID
+    descriptor.coders[
+        OUTPUT_CODER_ID].spec.urn = common_urns.StandardCoders.Enum.BYTES.urn
+
+    # Add a simple transform to inject an element into the data sampler. This
+    # doesn't use the FnApi, so this uses a simple operation to forward its
+    # payload to consumers.
+    TEST_OP_TRANSFORM_ID = 'test_op'
+    test_transform = descriptor.transforms[TEST_OP_TRANSFORM_ID]
+    test_transform.outputs['None'] = INPUT_PCOLLECTION_ID
+    test_transform.spec.urn = 'beam:internal:testop:v1'
+    test_transform.spec.payload = b'hello, world!'
+
+    # Add the DoFn to create an exception to sample from.
+    TEST_EXCEPTION_TRANSFORM_ID = 'test_transform'
+    test_transform = descriptor.transforms[TEST_EXCEPTION_TRANSFORM_ID]
+    test_transform.inputs['0'] = INPUT_PCOLLECTION_ID
+    test_transform.outputs['None'] = OUTPUT_PCOLLECTION_ID
+    test_transform.spec.urn = 'beam:internal:testexn:v1'
+    test_transform.spec.payload = b'expected exception'
+
+    try:
+      # Create and process a fake bundle. The instruction id doesn't matter
+      # here.
+      processor = BundleProcessor(
+          descriptor, None, None, data_sampler=data_sampler)
+
+      with self.assertRaisesRegex(RuntimeError, 'expected exception'):
+        processor.process_bundle('instruction_id')
+
+      # NOTE: The expected sample comes from the input PCollection. This is very
+      # important because there can be coder issues if the sample is put in the
+      # wrong PCollection.
+      samples = data_sampler.wait_for_samples([INPUT_PCOLLECTION_ID])
+      self.assertEqual(len(samples.element_samples), 1)
+
+      element = samples.element_samples[INPUT_PCOLLECTION_ID].elements[0]
+      self.assertEqual(element.element, b'\rhello, world!')
+      self.assertTrue(element.HasField('exception'))
+
+      exception = element.exception
+      self.assertEqual(exception.instruction_id, 'instruction_id')
+      self.assertEqual(exception.transform_id, TEST_EXCEPTION_TRANSFORM_ID)
+      self.assertRegex(
+          exception.error, 'Traceback(\n|.)*RuntimeError: expected exception')
+
     finally:
       data_sampler.stop()
 

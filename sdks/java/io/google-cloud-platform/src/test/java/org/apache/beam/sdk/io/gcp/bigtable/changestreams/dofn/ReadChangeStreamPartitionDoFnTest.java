@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.gcp.bigtable.changestreams.dofn;
 import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.TimestampConverter.toThreetenInstant;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -94,7 +93,7 @@ public class ReadChangeStreamPartitionDoFnTest {
             sizeEstimator))
         .thenReturn(readChangeStreamPartitionAction);
 
-    doFn = new ReadChangeStreamPartitionDoFn(heartbeatDuration, daoFactory, actionFactory, metrics);
+    doFn = new ReadChangeStreamPartitionDoFn(daoFactory, actionFactory, metrics);
     doFn.setSizeEstimator(sizeEstimator);
   }
 
@@ -136,7 +135,7 @@ public class ReadChangeStreamPartitionDoFnTest {
     when(mockResponses.hasNext()).thenReturn(true, true, true);
     when(mockResponses.next()).thenReturn(mockMutation, mockMutation, mockMutation);
     when(mockStream.iterator()).thenReturn(mockResponses);
-    when(changeStreamDao.readChangeStreamPartition(any(), any(), any(), any(), anyBoolean()))
+    when(changeStreamDao.readChangeStreamPartition(any(), any(), any(), any()))
         .thenReturn(mockStream);
 
     when(watermarkEstimator.getState()).thenReturn(tenSecondsAgo);

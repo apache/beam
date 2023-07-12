@@ -19,6 +19,9 @@ package org.apache.beam.sdk.io.fileschematransform;
 
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.XML;
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.applyCommonFileIOWriteFeatures;
+import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformProvider.ERROR_SCHEMA;
+import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformProvider.ERROR_TAG;
+import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformProvider.RESULT_TAG;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
@@ -27,15 +30,18 @@ import java.nio.charset.Charset;
 import java.util.Optional;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformConfiguration.XmlConfiguration;
+import org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.BeamRowMapperWithDlq;
 import org.apache.beam.sdk.io.xml.XmlIO;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 
 /** A {@link FileWriteSchemaTransformFormatProvider} for XML format. */
@@ -44,6 +50,7 @@ public class XmlWriteSchemaTransformFormatProvider
     implements FileWriteSchemaTransformFormatProvider {
 
   private static final String SUFFIX = String.format(".%s", XML);
+  static final TupleTag<XmlRowAdapter> ERROR_FN_OUPUT_TAG = new TupleTag<XmlRowAdapter>() {};
 
   @Override
   public String identifier() {
@@ -52,19 +59,23 @@ public class XmlWriteSchemaTransformFormatProvider
 
   /**
    * Builds a {@link PTransform} that transforms a {@link Row} {@link PCollection} into result
-   * {@link PCollection} file names written using {@link XmlIO.Sink} and {@link FileIO.Write}.
+   * {@link PCollectionTuple} with two tags, one for file names written using {@link XmlIO.Sink} and
+   * {@link FileIO.Write}, another for errored-out rows.
    */
   @Override
-  public PTransform<PCollection<Row>, PCollection<String>> buildTransform(
+  public PTransform<PCollection<Row>, PCollectionTuple> buildTransform(
       FileWriteSchemaTransformConfiguration configuration, Schema schema) {
-    return new PTransform<PCollection<Row>, PCollection<String>>() {
+    return new PTransform<PCollection<Row>, PCollectionTuple>() {
       @Override
-      public PCollection<String> expand(PCollection<Row> input) {
+      public PCollectionTuple expand(PCollection<Row> input) {
 
-        PCollection<XmlRowAdapter> xml =
+        PCollectionTuple xml =
             input.apply(
                 "Row to XML",
-                MapElements.into(TypeDescriptor.of(XmlRowAdapter.class)).via(new RowToXmlFn()));
+                ParDo.of(
+                        new BeamRowMapperWithDlq<XmlRowAdapter>(
+                            "Xml-write-error-counter", new RowToXmlFn(), ERROR_FN_OUPUT_TAG))
+                    .withOutputTags(ERROR_FN_OUPUT_TAG, TupleTagList.of(ERROR_TAG)));
 
         XmlConfiguration xmlConfig = xmlConfiguration(configuration);
 
@@ -87,9 +98,13 @@ public class XmlWriteSchemaTransformFormatProvider
 
         write = applyCommonFileIOWriteFeatures(write, configuration);
 
-        return xml.apply("Write XML", write)
-            .getPerDestinationOutputFilenames()
-            .apply("perDestinationOutputFilenames", Values.create());
+        PCollection<String> output =
+            xml.get(ERROR_FN_OUPUT_TAG)
+                .apply("Write XML", write)
+                .getPerDestinationOutputFilenames()
+                .apply("perDestinationOutputFilenames", Values.create());
+        return PCollectionTuple.of(RESULT_TAG, output)
+            .and(ERROR_TAG, xml.get(ERROR_TAG).setRowSchema(ERROR_SCHEMA));
       }
     };
   }
