@@ -109,6 +109,7 @@ disable =
   logging-not-lazy,
   missing-docstring,
   multiple-statements,
+  no-self-use,
   no-else-break,
   no-else-continue,
   no-else-raise,
