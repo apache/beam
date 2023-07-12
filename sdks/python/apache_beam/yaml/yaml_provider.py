@@ -436,7 +436,7 @@ def create_builtin_provider():
         return schema_pb2.FieldType(
             iterable_type=schema_pb2.RowType(schema=parse_schema(spec[0])))
       else:
-        raise ValueError("Unknown schema type: {spec}")
+        raise ValueError(f"Unknown schema type: {spec}")
 
     def parse_schema(spec):
       return schema_pb2.Schema(
@@ -446,7 +446,9 @@ def create_builtin_provider():
           ],
           id=str(uuid.uuid4()))
 
-    named_tuple = schemas.named_tuple_from_schema(parse_schema(args))
+    if 'schema' not in args.keys():
+      raise ValueError("WithSchema transform missing required 'schema' tag.")
+    named_tuple = schemas.named_tuple_from_schema(parse_schema(args['schema']))
     names = list(args.keys())
 
     def extract_field(x, name):
