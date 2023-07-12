@@ -312,7 +312,7 @@ class UnsplittableRangeTracker(iobase.RangeTracker):
     Args:
       range_tracker (~apache_beam.io.iobase.RangeTracker): a
         :class:`~apache_beam.io.iobase.RangeTracker` to which all method
-        calls expect calls to :meth:`.try_split()` will be delegated.
+        calls except calls to :meth:`.try_split()` will be delegated.
     """
     assert isinstance(range_tracker, iobase.RangeTracker)
     self._range_tracker = range_tracker
