@@ -53,9 +53,12 @@ message FnApiTransforms {
   enum Runner {
     // DataSource is a Root Transform, and a source of data for downstream
     // transforms in the same ProcessBundleDescriptor. 
-    // It represents a logical PCollection.
+    // It represents a stream of values coming in from an external source/over
+    // a data channel, typically from the runner. It's not the PCollection itself
+    // but a description of how to get the portion of the PCollection for a given
+    // bundle.
     //
-    // The DataSource transform is implemented in each SDK but not explicitly
+    // The DataSource transform is implemented in each SDK and not explicitly
     // provided during pipeline construction. A runner inserts the transform
     // in ProcessBundleDescriptors to indicate where the bundle
     // can retrieve data for an associated ProcessBundleRequest.
@@ -64,16 +67,15 @@ message FnApiTransforms {
     //
     // The DataSource transform will take a stream of bytes from the remote
     // source for the matching instruction ID and decode them as windowed
-    // values using the provided coder ID, which must be for a WINDOWED_VALUE or
-    // PARAM_WINDOWED_VALUE coder.
+    // values using the provided coder ID, which must be a windowed value coder.
     //
     // Payload: RemoteGrpcPort
     DATA_SOURCE = 0 [(org.apache.beam.model.pipeline.v1.beam_urn) = "beam:runner:source:v1"];
 
-    // DataSink is a transform that sends data to a remote port
-    // ProcessBundleDescriptor. It represents a logical PCollection.
+    // DataSink is a transform that sends PCollection elements to a remote
+    // port using the Data API.
     //
-    // The DataSink transform is implemented in each SDK but not explicitly
+    // The DataSink transform is implemented in each SDK and not explicitly
     // provided during pipeline construction. A runner inserts the transform in
     // ProcessBundleDescriptors to indicate where the bundle can send
     // data for each associated ProcessBundleRequest. Data for the same
@@ -83,7 +85,7 @@ message FnApiTransforms {
     //  
     // The DataSink will take in a stream of elements for a given instruction ID
     // and encode them for transmission to the remote sink. The coder ID must be
-    // for a WINDOWED_VALUE or PARAM_WINDOWED_VALUE coder.
+    // for a windowed value coder.
     //
     // Payload: RemoteGrpcPort
     DATA_SINK = 1 [(org.apache.beam.model.pipeline.v1.beam_urn) = "beam:runner:sink:v1"];
