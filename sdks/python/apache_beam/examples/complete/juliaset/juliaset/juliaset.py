@@ -87,7 +87,7 @@ def run(argv=None):  # pylint: disable=missing-docstring
   parser.add_argument(
       '--grid_size',
       dest='grid_size',
-      default=1000,
+      default=10,
       help='Size of the NxN matrix')
   parser.add_argument(
       '--coordinate_output',
