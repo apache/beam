@@ -187,7 +187,7 @@ class HuggingFaceModelHandler(ModelHandler[ExampleT, PredictionT, ModelT], ABC):
         _run_inference_tensorflow_keyed_tensor depending on the input type.
       load_model_args (Dict[str, Any]): keyword arguments to provide load
         options while loading models from Hugging Face Hub. Defaults to None.
-      inference_args [Dict[str, Any]]: Non-batchable arguments
+      inference_args (Dict[str, Any]): Non-batchable arguments
         required as inputs to the model's inference function. Unlike Tensors in
         `batch`, these parameters will not be dynamically batched.
         Defaults to None.
@@ -383,9 +383,9 @@ class HuggingFaceModelHandlerTensor(HuggingFaceModelHandler[Union[tf.Tensor,
         Tensors with dimensions (batch_size, n_features, etc.) into the model's
         predict() function.
       model: A Tensorflow/PyTorch model.
-      inference_args: Non-batchable arguments required as inputs to the model's
-        inference function. Unlike Tensors in `batch`, these parameters will
-        not be dynamically batched
+      inference_args (Dict[str, Any]): Non-batchable arguments required as
+        inputs to the model's inference function. Unlike Tensors in `batch`,
+        these parameters will not be dynamically batched.
     Returns:
       An Iterable of type PredictionResult.
     """
