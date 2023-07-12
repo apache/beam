@@ -45,7 +45,11 @@ permissions:
 
 jobs:
   beam_PreCommit_SQL_Java11:
-    if: github.event_name == 'push' || github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event.comment.body == 'Run SQL_Java11 PreCommit'
+    if: |
+      github.event_name == 'push' ||
+      github.event_name == 'pull_request_target' ||
+      github.event_name == 'schedule' ||
+      github.event.comment.body == 'Run SQL_Java11 PreCommit'
     runs-on: [self-hosted, ubuntu-20.04, main]
     name: beam_PreCommit_SQL_Java11
     steps:
@@ -83,7 +87,13 @@ jobs:
           flutter-version: '3.10.4'
           channel: 'stable'
       - name: Build and Test
-        run: ./gradlew :sqlPreCommit -PdisableSpotlessCheck=true -PdisableCheckStyle=true -PcompileAndRunTestsWithJava11 -PskipCheckerFramework -Pjava11Home=/opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/11.0.19-7/x64 -Pdocker-pull-licenses
+        run: ./gradlew :sqlPreCommit 
+          -PdisableSpotlessCheck=true 
+          -PdisableCheckStyle=true 
+          -PcompileAndRunTestsWithJava11 
+          -PskipCheckerFramework 
+          -Pjava11Home=/opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/11.0.19-7/x64 
+          -Pdocker-pull-licenses
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v3
         with:
