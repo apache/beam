@@ -215,9 +215,9 @@ function create_pubsub() {
 function cleanup_pubsub() {
   # Suppress error and pass quietly if topic/subscription not exists. We don't want the script
   # to be interrupted in this case.
-  gcloud pubsub topics delete --project=$PROJECT_ID $PUBSUB_TOPIC1 2> /dev/null || true
-  gcloud pubsub topics delete --project=$PROJECT_ID $PUBSUB_TOPIC2 2> /dev/null || true
-  gcloud pubsub subscriptions delete --project=$PROJECT_ID $PUBSUB_SUBSCRIPTION 2> /dev/null || true
+  gcloud pubsub topics delete --project=$PROJECT_ID $PUBSUB_TOPIC1 || true
+  gcloud pubsub topics delete --project=$PROJECT_ID $PUBSUB_TOPIC2 || true
+  gcloud pubsub subscriptions delete --project=$PROJECT_ID $PUBSUB_SUBSCRIPTION || true
 }
 
 
