@@ -326,11 +326,7 @@ public class Create<T> {
     }
 
     public Values<T> alwaysUseRead() {
-      if (alwaysUseRead) {
-        return this;
-      } else {
-        return new Values<>(elems, coder, typeDescriptor, true);
-      }
+      return new AlwaysUseRead<>(elems, coder, typeDescriptor);
     }
 
     public Iterable<T> getElements() {
@@ -563,6 +559,17 @@ public class Create<T> {
             Optional.fromNullable(
                 CoderUtils.decodeFromByteArray(source.coder, source.allElementsBytes.get(index)));
         return true;
+      }
+    }
+
+    /** A subclass to avoid getting re-matched. */
+    private static class AlwaysUseRead<T> extends Values<T> {
+      private AlwaysUseRead(
+              Iterable<T> elems,
+              Optional<Coder<T>> coder,
+              Optional<TypeDescriptor<T>> typeDescriptor
+      ) {
+        super(elems, coder, typeDescriptor, true);
       }
     }
   }

@@ -499,11 +499,11 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   private static class AlwaysCreateViaRead<T>
       implements PTransformOverrideFactory<PBegin, PCollection<T>, Create.Values<T>> {
     @Override
-    public PTransformOverrideFactory.PTransformReplacement<PBegin, PCollection<T>> getReplacementTransform(
-        AppliedPTransform<PBegin, PCollection<T>, Create.Values<T>> appliedTransform) {
+    public PTransformOverrideFactory.PTransformReplacement<PBegin, PCollection<T>>
+        getReplacementTransform(
+            AppliedPTransform<PBegin, PCollection<T>, Create.Values<T>> appliedTransform) {
       return PTransformOverrideFactory.PTransformReplacement.of(
-          appliedTransform.getPipeline().begin(),
-          appliedTransform.getTransform().alwaysUseRead());
+          appliedTransform.getPipeline().begin(), appliedTransform.getTransform().alwaysUseRead());
     }
 
     @Override
@@ -686,6 +686,14 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             PTransformOverride.of(
                 PTransformMatchers.classEqualTo(ParDo.SingleOutput.class),
                 new PrimitiveParDoSingleFactory()));
+
+    if (streaming) {
+      // For update compatibility, always use a Read for Create in streaming mode.
+      overridesBuilder.add(
+          PTransformOverride.of(
+              PTransformMatchers.classEqualTo(Create.Values.class), new AlwaysCreateViaRead()));
+    }
+
     return overridesBuilder.build();
   }
 
