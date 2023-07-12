@@ -70,7 +70,7 @@ def basicPytestOpts = [
 ]
 
 def preCommitIT(String runScriptsDir, String envdir, Boolean streaming, String pythonSuffix) {
-  suffix = streaming ? "_streaming$suffix" : "_batch$suffix"
+  suffix = streaming ? "_streaming" : "_batch"
   task "preCommitIT${suffix}" {
     dependsOn 'initializeForDataflowJob'
 
