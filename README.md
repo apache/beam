@@ -103,3 +103,47 @@ are in the [contribution guide](https://beam.apache.org/contribute/).
 * [Overview](https://beam.apache.org/use/beam-overview/)
 * Quickstart: [Java](https://beam.apache.org/get-started/quickstart-java), [Python](https://beam.apache.org/get-started/quickstart-py), [Go](https://beam.apache.org/get-started/quickstart-go)
 * [Community metrics](https://s.apache.org/beam-community-metrics)
+
+
+## Test Sequence Diagram
+
+```mermaid
+sequenceDiagram
+participant User 
+participant "Apache Beam SDK"
+participant "DF service"
+participant "Worker VM"
+participant "Kubelet"
+participant Harness
+participant "SDK boot entrypoint" 
+participant "SDK worker"
+User -> "Apache Beam SDK" : Run the pipeline\n python -m pipeline.py ...
+"Apache Beam SDK" -> "DF service": Send pipeline graph
+
+"DF service" ->> "Worker VM":  Start Worker VM
+"DF service" ->> User:  "Workers have started successfully!"
+"Worker VM" -> "Kubelet":  Start container pod
+Note over "Kubelet": Start Harness container
+Note over Kubelet: Download SDK container image
+Note over Kubelet: Start SDK containers 
+Kubelet -> "SDK boot entrypoint": Start SDK container 
+Note over "SDK boot entrypoint": Retrieve staged artifacts 
+Note over "SDK boot entrypoint": Create a virtual environment
+Note over "SDK boot entrypoint": Install Beam SDK \n(no-op if already installed)
+Note over "SDK boot entrypoint": Install deps --requirements_file
+Note over "SDK boot entrypoint": Install --extra_package(s) 
+Note over "SDK boot entrypoint": Install workflow package (if any)
+Note over "SDK boot entrypoint": Start SDK worker process
+Note over "SDK worker": Load main session
+Note over Harness: Wait for ALL SDK workers to init
+"SDK worker" -> Harness: SDK is intialized, ready to work
+Note over Harness: All SDKs have registered.
+Harness -> "DF service": Request work
+"DF service" -> User:  "All workers have finished the \nstartup processes and began to receive work requests!"
+"DF service" -> Harness: Assign work item
+Harness -> "SDK worker": Assign work item
+Note over "SDK worker": Do work
+"SDK worker" -> Harness: Work completed
+Harness -> "DF service": Work completed
+"DF service" -> User: Job finished
+```
