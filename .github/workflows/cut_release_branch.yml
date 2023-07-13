@@ -100,6 +100,7 @@ jobs:
       MASTER_BRANCH: master
       NEXT_RELEASE: ${{ github.event.inputs.NEXT_VERSION }}
       SCRIPT_DIR: ./release/src/main/scripts
+      RELEASE: ${{ github.event.inputs.RELEASE_VERSION }}
     steps:
       - name: Mask Jenkins token
         run: |
@@ -152,7 +153,7 @@ jobs:
           JENKINS_TOKEN: ${{ github.event.inputs.JENKINS_TOKEN }}
       - name: Update .asf.yaml to protect new release branch from force push
         run: |
-          sed -i -e "s/master: {}/master: {}\n    ${RELEASE_BRANCH}: {}/g" .asf.yaml
+          sed -i -e "s/master: {}/master: {}\n    release-${RELEASE}: {}/g" .asf.yaml
       - name: Update master branch
         run: |
           bash "${SCRIPT_DIR}/set_version.sh" "${NEXT_VERSION_IN_BASE_BRANCH}"
