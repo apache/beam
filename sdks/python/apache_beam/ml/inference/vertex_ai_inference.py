@@ -41,6 +41,22 @@ LOGGER = logging.getLogger("VertexAIModelHandlerJSON")
 # pylint: disable=line-too-long
 
 
+def _retry_on_gcp_client_error(exception):
+  """
+  Retry filter that returns True if a returned HTTP error code is 4xx. This is
+  used to retry remote requests that fail, most notably 429 (TooManyRequests.)
+  This is used for GCP-specific client errors.
+
+  Args:
+    exception: the returned exception encountered during the request/response
+      loop.
+
+  Returns:
+    boolean indication whether or not the exception is a GCP ClientError.
+  """
+  return isinstance(exception, ClientError)
+
+
 class VertexAIModelHandlerJSON(ModelHandler[Any,
                                             PredictionResult,
                                             aiplatform.Endpoint]):
@@ -50,6 +66,7 @@ class VertexAIModelHandlerJSON(ModelHandler[Any,
       project: str,
       location: str,
       experiment: Optional[str] = None,
+      network: Optional[str] = None,
       **kwargs):
     """Implementation of the ModelHandler interface for Vertex AI.
     **NOTE:** This API and its implementation are under development and
@@ -57,19 +74,30 @@ class VertexAIModelHandlerJSON(ModelHandler[Any,
     Unlike other ModelHandler implementations, this does not load the model
     being used onto the worker and instead makes remote queries to a
     Vertex AI endpoint. In that way it functions more like a mid-pipeline
-    IO. At present this implementation only supports public endpoints with
-    a maximum request size of 1.5 MB.
+    IO. Public Vertex AI endpoints have a maximum request size of 1.5 MB.
+    If you wish to make larger requests and use a private endpoint, provide
+    the Compute Engine network you wish to use.
+
     Args:
       endpoint_id: the numerical ID of the Vertex AI endpoint to query
       project: the GCP project name where the endpoint is deployed
       location: the GCP location where the endpoint is deployed
-      experiment (Optional): experiment label to apply to the queries
+      experiment: optional. experiment label to apply to the
+        queries
+      network: optional. the full name of the Compute Engine
+        network the endpoint is deployed on; used for private
+        endpoints only.
+        Ex: "projects/12345/global/networks/myVPC"
     """
 
     self._env_vars = kwargs.get('env_vars', {})
     # TODO: support the full list of options for aiplatform.init()
     # See https://cloud.google.com/python/docs/reference/aiplatform/latest/google.cloud.aiplatform#google_cloud_aiplatform_init
-    aiplatform.init(project=project, location=location, experiment=experiment)
+    aiplatform.init(
+        project=project,
+        location=location,
+        experiment=experiment,
+        network=network)
 
     # Check for liveness here but don't try to actually store the endpoint
     # in the class yet
@@ -118,7 +146,8 @@ class VertexAIModelHandlerJSON(ModelHandler[Any,
     ep = self._retrieve_endpoint(self.endpoint_name)
     return ep
 
-  @retry.with_exponential_backoff(num_retries=5)
+  @retry.with_exponential_backoff(
+      num_retries=5, retry_filter=_retry_on_gcp_client_error)
   def get_request(
       self,
       batch: Sequence[Any],
@@ -143,6 +172,9 @@ class VertexAIModelHandlerJSON(ModelHandler[Any,
       raise
     except ClientError as e:
       LOGGER.warning("request failed with error code %i", e.code)
+      raise
+    except Exception as e:
+      LOGGER.error("unexpected exception raised as part of request, got %s", e)
       raise
 
   def run_inference(

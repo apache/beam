@@ -31,6 +31,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
@@ -77,6 +78,8 @@ type Job struct {
 	msgs           []string
 	stateIdx       int
 	state          atomic.Value // jobpb.JobState_Enum
+	stateTime      time.Time
+	failureErr     error
 
 	// Context used to terminate this job.
 	RootCtx  context.Context
@@ -134,6 +137,7 @@ func (j *Job) SendMsg(msg string) {
 func (j *Job) sendState(state jobpb.JobState_Enum) {
 	j.streamCond.L.Lock()
 	defer j.streamCond.L.Unlock()
+	j.stateTime = time.Now()
 	j.stateIdx++
 	j.state.Store(state)
 	j.streamCond.Broadcast()
@@ -155,6 +159,7 @@ func (j *Job) Done() {
 }
 
 // Failed indicates that the job completed unsuccessfully.
-func (j *Job) Failed() {
+func (j *Job) Failed(err error) {
 	j.sendState(jobpb.JobState_FAILED)
+	j.failureErr = err
 }

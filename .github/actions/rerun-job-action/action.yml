@@ -56,7 +56,9 @@ runs:
   - name: Get Status and Conclusion for PR Job
     shell: bash
     run: | 
-      URL="${{github.api_url}}/repos/${{inputs.github_repository}}/commits/${{env.prsha}}/check-runs"
+      JOB="${{inputs.github_job}}"
+      QUERY_JOB=${JOB// /+}
+      URL="${{github.api_url}}/repos/${{inputs.github_repository}}/commits/${{env.prsha}}/check-runs?check_name=$QUERY_JOB"
       CHECK_RUN=$(curl  \
       -H 'Authorization: Bearer ${{inputs.github_token}}' \
       -H "Accept: application/vnd.github+json" \
@@ -110,6 +112,13 @@ runs:
       -H "Accept: application/vnd.github+json" \
       -H "X-GitHub-Api-Version: 2022-11-28" \
       -s $URL 
+  - name: Install GH Cli
+    if: ${{env.rerun != 'false' }}
+    shell: bash
+    run: |
+      wget https://github.com/cli/cli/releases/download/v2.31.0/gh_2.31.0_linux_amd64.tar.gz
+      tar -xvf gh_2.31.0_linux_amd64.tar.gz
+      sudo mv gh_2.31.0_linux_amd64/bin/gh /usr/local/bin
   - name: Exit rest of the run
     if: ${{env.rerun != 'false' }}
     shell: bash

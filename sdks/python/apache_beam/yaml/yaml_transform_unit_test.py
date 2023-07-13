@@ -25,7 +25,6 @@ from apache_beam import PCollection
 from apache_beam.yaml import YamlTransform
 from apache_beam.yaml import yaml_provider
 from apache_beam.yaml.yaml_provider import InlineProvider
-from apache_beam.yaml.yaml_transform import LightweightScope
 from apache_beam.yaml.yaml_transform import SafeLineLoader
 from apache_beam.yaml.yaml_transform import Scope
 from apache_beam.yaml.yaml_transform import chain_as_composite
@@ -92,73 +91,6 @@ class SafeLineLoaderTest(unittest.TestCase):
 
     self.assertFalse(hasattr(stripped, '__line__'))
     self.assertFalse(hasattr(stripped, '__uuid__'))
-
-
-class LightweightScopeTest(unittest.TestCase):
-  @staticmethod
-  def get_spec():
-    pipeline_yaml = '''
-          - type: PyMap
-            name: Square
-            input: elements
-            fn: "lambda x: x * x"
-          - type: PyMap
-            name: PyMap
-            input: elements
-            fn: "lambda x: x * x * x"
-          - type: Filter
-            name: FilterOutBigNumbers
-            input: PyMap 
-            keep: "lambda x: x<100"
-          '''
-    return yaml.load(pipeline_yaml, Loader=SafeLineLoader)
-
-  def test_init(self):
-    spec = self.get_spec()
-    scope = LightweightScope(spec)
-    self.assertEqual(len(scope._transforms_by_uuid), 3)
-    self.assertCountEqual(
-        list(scope._uuid_by_name.keys()),
-        ["PyMap", "Square", "Filter", "FilterOutBigNumbers"])
-
-  def test_get_transform_id_and_output_name(self):
-    spec = self.get_spec()
-    scope = LightweightScope(spec)
-    transform_id, output = scope.get_transform_id_and_output_name("Square")
-    self.assertEqual(transform_id, spec[0]['__uuid__'])
-    self.assertEqual(output, None)
-
-  def test_get_transform_id_and_output_name_with_dot(self):
-    spec = self.get_spec()
-    scope = LightweightScope(spec)
-    transform_id, output = \
-      scope.get_transform_id_and_output_name("Square.OutputName")
-    self.assertEqual(transform_id, spec[0]['__uuid__'])
-    self.assertEqual(output, "OutputName")
-
-  def test_get_transform_id_by_uuid(self):
-    spec = self.get_spec()
-    scope = LightweightScope(spec)
-    transform_id = scope.get_transform_id(spec[0]['__uuid__'])
-    self.assertEqual(transform_id, spec[0]['__uuid__'])
-
-  def test_get_transform_id_by_unique_name(self):
-    spec = self.get_spec()
-    scope = LightweightScope(spec)
-    transform_id = scope.get_transform_id("Square")
-    self.assertEqual(transform_id, spec[0]['__uuid__'])
-
-  def test_get_transform_id_by_ambiguous_name(self):
-    spec = self.get_spec()
-    scope = LightweightScope(spec)
-    with self.assertRaisesRegex(ValueError, r'Ambiguous.*PyMap'):
-      scope.get_transform_id(scope.get_transform_id(spec[1]['name']))
-
-  def test_get_transform_id_by_unknown_name(self):
-    spec = self.get_spec()
-    scope = LightweightScope(spec)
-    with self.assertRaisesRegex(ValueError, r'Unknown.*NotExistingTransform'):
-      scope.get_transform_id("NotExistingTransform")
 
 
 def new_pipeline():

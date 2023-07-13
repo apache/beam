@@ -19,12 +19,12 @@
 apiVersion: actions.summerwind.dev/v1alpha1
 kind: HorizontalRunnerAutoscaler
 metadata:
-  name: main-runners
+  name: ${name}
 spec:
   scaleDownDelaySecondsAfterScaleOut: 300
   scaleTargetRef:
     kind: RunnerDeployment
-    name: main-runners
+    name: ${name}
   minReplicas: ${min_runners}
   maxReplicas: ${max_runners}
   %{~ if webhook_scaling == "true" ~}
