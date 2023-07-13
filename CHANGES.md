@@ -70,7 +70,7 @@
 
 ## Breaking Changes
 
-* X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
+* Legacy runner support removed from Dataflow, all pipelines must use runner v2.
 
 ## Deprecations
 

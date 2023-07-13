@@ -133,16 +133,6 @@ case $key in
         shift # past argument
         shift # past value
         ;;
-    --runner_v2)
-        RUNNER_V2="$2"
-        shift # past argument
-        shift # past value
-        ;;
-    --disable_runner_v2)
-        DISABLE_RUNNER_V2="$2"
-        shift # past argument
-        shift # past value
-        ;;
     --kms_key_name)
         KMS_KEY_NAME="$2"
         shift # past argument
@@ -242,23 +232,6 @@ if [[ -z $PIPELINE_OPTS ]]; then
   # Add --streaming if provided
   if [[ "$STREAMING" = true ]]; then
     opts+=("--streaming")
-  fi
-
-  # Add --runner_v2 if provided
-  if [[ "$RUNNER_V2" = true ]]; then
-    opts+=("--experiments=use_runner_v2")
-    if [[ "$STREAMING" = true ]]; then
-      # Dataflow Runner V2 only supports streaming engine.
-      opts+=("--enable_streaming_engine")
-    else
-      opts+=("--experiments=beam_fn_api")
-    fi
-
-  fi
-
-  # Add --disable_runner_v2 if provided
-  if [[ "$DISABLE_RUNNER_V2" = true ]]; then
-    opts+=("--experiments=disable_runner_v2")
   fi
 
   if [[ ! -z "$KMS_KEY_NAME" ]]; then
