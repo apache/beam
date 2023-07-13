@@ -202,9 +202,9 @@ class MainTest(unittest.TestCase):
               
         '''
       scope, spec = self.get_scope_by_spec(p, spec)
-      result = expand_composite_transform(spec, scope)
       self.assertRegex(
-          str(result['output']), r"PCollection.*Custom/Create/Map.*")
+          str(expand_composite_transform(spec, scope)['output']),
+          r"PCollection.*Custom/Create/Map.*")
 
   def test_expand_composite_transform_with_name_input(self):
     with new_pipeline() as p:
@@ -221,9 +221,9 @@ class MainTest(unittest.TestCase):
       elements = p | beam.Create(range(3))
       scope, spec = self.get_scope_by_spec(p, spec,
                                            inputs={'elements': elements})
-      result = expand_composite_transform(spec, scope)
-
-      self.assertRegex(str(result['output']), r"PCollection.*Composite/Map.*")
+      self.assertRegex(
+          str(expand_composite_transform(spec, scope)['output']),
+          r"PCollection.*Composite/Map.*")
 
   def test_expand_composite_transform_root(self):
     with new_pipeline() as p:
@@ -237,8 +237,9 @@ class MainTest(unittest.TestCase):
               
         '''
       scope, spec = self.get_scope_by_spec(p, spec)
-      result = expand_composite_transform(spec, scope)
-      self.assertRegex(str(result['output']), r"PCollection.*Create/Map.*")
+      self.assertRegex(
+          str(expand_composite_transform(spec, scope)['output']),
+          r"PCollection.*Create/Map.*")
 
   def test_chain_as_composite(self):
     spec = '''
@@ -302,9 +303,8 @@ class MainTest(unittest.TestCase):
           PyMap
       '''
     spec = yaml.load(spec, Loader=SafeLineLoader)
-    result = chain_as_composite(spec)
     self.assertEqual(
-        result['output']['output'],
+        chain_as_composite(spec)['output']['output'],
         f"{spec['transforms'][1]['__uuid__']}.PyMap")
 
   def test_chain_as_composite_with_input(self):
@@ -317,8 +317,8 @@ class MainTest(unittest.TestCase):
           fn: 'lambda x: x*x'
       '''
     spec = yaml.load(spec, Loader=SafeLineLoader)
-    result = chain_as_composite(spec)
-    self.assertEqual(result['transforms'][0]['input'], {"input": "input"})
+    self.assertEqual(
+        chain_as_composite(spec)['transforms'][0]['input'], {"input": "input"})
 
   def test_normalize_source_sink(self):
     spec = '''
@@ -421,8 +421,7 @@ class MainTest(unittest.TestCase):
         fn: 'lambda x: x*x'
       '''
     spec = yaml.load(spec, Loader=SafeLineLoader)
-    result = normalize_source_sink(spec)
-    self.assertCountEqual(result, spec)
+    self.assertCountEqual(normalize_source_sink(spec), spec)
 
   def test_normalize_inputs_outputs(self):
     spec = '''
@@ -461,8 +460,7 @@ class MainTest(unittest.TestCase):
       fn: 'lambda x: x*x'
     '''
     spec = yaml.load(spec, Loader=SafeLineLoader)
-    result = identify_object(spec)
-    self.assertRegex(result, r"PyMap.*[0-9]")
+    self.assertRegex(identify_object(spec), r"PyMap.*[0-9]")
 
   def test_identify_object(self):
     spec = '''
@@ -470,8 +468,7 @@ class MainTest(unittest.TestCase):
       fn: 'lambda x: x*x'
     '''
     spec = yaml.load(spec, Loader=SafeLineLoader)
-    result = identify_object(spec)
-    self.assertRegex(result, r"at.*[0-9]")
+    self.assertRegex(identify_object(spec), r"at.*[0-9]")
 
   def test_extract_name_by_type(self):
     spec = '''
@@ -479,8 +476,7 @@ class MainTest(unittest.TestCase):
       fn: 'lambda x: x*x'
     '''
     spec = yaml.load(spec, Loader=SafeLineLoader)
-    result = extract_name(spec)
-    self.assertEqual(result, "PyMap")
+    self.assertEqual(extract_name(spec), "PyMap")
 
   def test_extract_name_by_id(self):
     spec = '''
@@ -489,8 +485,7 @@ class MainTest(unittest.TestCase):
       fn: 'lambda x: x*x'
     '''
     spec = yaml.load(spec, Loader=SafeLineLoader)
-    result = extract_name(spec)
-    self.assertEqual(result, "PyMapId")
+    self.assertEqual(extract_name(spec), "PyMapId")
 
   def test_extract_name_by_name(self):
     spec = '''
@@ -499,8 +494,7 @@ class MainTest(unittest.TestCase):
       fn: 'lambda x: x*x'
     '''
     spec = yaml.load(spec, Loader=SafeLineLoader)
-    result = extract_name(spec)
-    self.assertEqual(result, "PyMapName")
+    self.assertEqual(extract_name(spec), "PyMapName")
 
   def test_extract_name_no_name(self):
     spec = '''
@@ -509,8 +503,7 @@ class MainTest(unittest.TestCase):
         fn: 'lambda x: x*x'
     '''
     spec = yaml.load(spec, Loader=SafeLineLoader)
-    result = extract_name(spec)
-    self.assertEqual(result, "")
+    self.assertEqual(extract_name(spec), "")
 
   def test_push_windowing_to_roots(self):
     spec = '''
