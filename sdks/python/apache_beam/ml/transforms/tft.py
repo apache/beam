@@ -57,7 +57,8 @@ __all__ = [
     'Bucketize',
     'TFIDF',
     'TFTOperation',
-    'ScaleByMinMax'
+    'ScaleByMinMax',
+    'NGrams',
 ]
 
 # Register the expected input types for each operation
