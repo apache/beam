@@ -738,7 +738,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
       Instant now = Instant.now();
       List<AppendRowsContext> contexts = Lists.newArrayList();
       RetryManager<AppendRowsResponse, AppendRowsContext> retryManager =
-          new RetryManager<>(Duration.standardSeconds(1), Duration.standardSeconds(10), 1000);
+          new RetryManager<>(Duration.standardSeconds(1), Duration.standardSeconds(5), 3);
       int numAppends = 0;
       for (SplittingIterable.Value splitValue : messages) {
         // Handle the case of a row that is too large.
