@@ -14,3 +14,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+# pytype: skip-file
+
+import unittest
+
+try:
+  from apache_beam.ml.inference.vertex_ai_inference import _retry_on_gcp_client_error
+  from google.api_core.exceptions import TooManyRequests
+except ImportError:
+  raise unittest.SkipTest('VertexAI dependencies are not installed')
+
+
+class RetryOnClientErrorTest(unittest.TestCase):
+  def test_retry_on_client_error_positive(self):
+    e = TooManyRequests(message="fake service rate limiting")
+    self.assertTrue(_retry_on_gcp_client_error(e))
+
+  def test_retry_on_client_error_negative(self):
+    e = ValueError()
+    self.assertFalse(_retry_on_gcp_client_error(e))
+
+
+if __name__ == '__main__':
+  unittest.main()
