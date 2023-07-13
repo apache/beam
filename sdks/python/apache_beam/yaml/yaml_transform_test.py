@@ -190,7 +190,7 @@ class YamlTransformE2ETest(unittest.TestCase):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:
       # pylint: disable=expression-not-assigned
-      with self.assertRaises(ValueError):
+      with self.assertRaisesRegex(ValueError, r'Ambiguous.*'):
         p | YamlTransform(
             '''
             type: composite

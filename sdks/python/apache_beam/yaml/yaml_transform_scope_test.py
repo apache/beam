@@ -22,6 +22,7 @@ import yaml
 
 import apache_beam as beam
 from apache_beam.yaml import yaml_provider
+from apache_beam.yaml.yaml_transform import LightweightScope
 from apache_beam.yaml.yaml_transform import SafeLineLoader
 from apache_beam.yaml.yaml_transform import Scope
 
@@ -64,32 +65,18 @@ class ScopeTest(unittest.TestCase):
 
     scope, spec = self.get_scope_by_spec(p, spec)
 
-    result = scope.get_pcollection("Create")
-    self.assertEqual("PCollection[Create/Map(decode).None]", str(result))
+    self.assertEqual(
+        "PCollection[Create/Map(decode).None]",
+        str(scope.get_pcollection("Create")))
 
-    result = scope.get_pcollection("Square")
-    self.assertEqual("PCollection[Square.None]", str(result))
+    self.assertEqual(
+        "PCollection[Square.None]", str(scope.get_pcollection("Square")))
 
-    result = scope.get_pcollection("PyMap")
-    self.assertEqual("PCollection[Square.None]", str(result))
+    self.assertEqual(
+        "PCollection[Square.None]", str(scope.get_pcollection("PyMap")))
 
-  def test_get_pcollection_ambigous_name(self):
-    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
-        pickle_library='cloudpickle')) as p:
-      spec = '''
-        transforms:
-          - type: Create
-            elements: [0, 1, 3, 4]
-          - type: PyMap
-            fn: "lambda x: x*x"
-          - type: PyMap
-            fn: "lambda x: x*x*x"
-        '''
-
-      scope, spec = self.get_scope_by_spec(p, spec)
-
-      with self.assertRaisesRegex(ValueError, r'Ambiguous.*'):
-        scope.get_pcollection("PyMap")
+    self.assertTrue(
+        scope.get_pcollection("Square") == scope.get_pcollection("PyMap"))
 
   def test_unique_name_by_name(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
@@ -113,7 +100,7 @@ class ScopeTest(unittest.TestCase):
       self.assertIn("MyElements@3", scope._seen_names)
       self.assertEqual(result, "MyElements@3")
 
-  def test_unique_name_by_label(self):
+  def test_unique_name_by_type(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:
       spec = '''
@@ -126,13 +113,12 @@ class ScopeTest(unittest.TestCase):
       spec_transform = spec['transforms'][0]
       p_transform = scope.create_ptransform(spec_transform, [])
 
-      result = scope.unique_name(spec_transform, p_transform)
-      self.assertEqual(result, "Create")
+      self.assertEqual(scope.unique_name(spec_transform, p_transform), "Create")
       self.assertIn("Create", scope._seen_names)
 
-      result = scope.unique_name(spec_transform, p_transform)
+      self.assertEqual(
+          scope.unique_name(spec_transform, p_transform), "Create@3")
       self.assertIn("Create@3", scope._seen_names)
-      self.assertEqual(result, "Create@3")
 
       self.assertEqual(len(scope._seen_names), 2)
 
@@ -206,6 +192,73 @@ class ScopeTest(unittest.TestCase):
           'yaml_provider': '{"type": "InlineProvider"}'
       }
       self.assertDictEqual(result_annotations, target_annotations)
+
+
+class LightweightScopeTest(unittest.TestCase):
+  @staticmethod
+  def get_spec():
+    pipeline_yaml = '''
+          - type: PyMap
+            name: Square
+            input: elements
+            fn: "lambda x: x * x"
+          - type: PyMap
+            name: PyMap
+            input: elements
+            fn: "lambda x: x * x * x"
+          - type: Filter
+            name: FilterOutBigNumbers
+            input: PyMap 
+            keep: "lambda x: x<100"
+          '''
+    return yaml.load(pipeline_yaml, Loader=SafeLineLoader)
+
+  def test_init(self):
+    spec = self.get_spec()
+    scope = LightweightScope(spec)
+    self.assertEqual(len(scope._transforms_by_uuid), 3)
+    self.assertCountEqual(
+        list(scope._uuid_by_name.keys()),
+        ["PyMap", "Square", "Filter", "FilterOutBigNumbers"])
+
+  def test_get_transform_id_and_output_name(self):
+    spec = self.get_spec()
+    scope = LightweightScope(spec)
+    transform_id, output = scope.get_transform_id_and_output_name("Square")
+    self.assertEqual(transform_id, spec[0]['__uuid__'])
+    self.assertEqual(output, None)
+
+  def test_get_transform_id_and_output_name_with_dot(self):
+    spec = self.get_spec()
+    scope = LightweightScope(spec)
+    transform_id, output = \
+      scope.get_transform_id_and_output_name("Square.OutputName")
+    self.assertEqual(transform_id, spec[0]['__uuid__'])
+    self.assertEqual(output, "OutputName")
+
+  def test_get_transform_id_by_uuid(self):
+    spec = self.get_spec()
+    scope = LightweightScope(spec)
+    transform_id = scope.get_transform_id(spec[0]['__uuid__'])
+    self.assertEqual(spec[0]['__uuid__'], transform_id)
+
+  def test_get_transform_id_by_unique_name(self):
+    spec = self.get_spec()
+    scope = LightweightScope(spec)
+    transform_id = scope.get_transform_id("Square")
+    self.assertEqual(transform_id, spec[0]['__uuid__'])
+
+  def test_get_transform_id_by_ambiguous_name(self):
+    spec = self.get_spec()
+    scope = LightweightScope(spec)
+    with self.assertRaisesRegex(ValueError, r'Ambiguous.*PyMap'):
+      scope.get_transform_id(scope.get_transform_id(spec[1]['name']))
+
+  def test_get_transform_id_by_unknown_name(self):
+    spec = self.get_spec()
+    scope = LightweightScope(spec)
+    with self.assertRaisesRegex(ValueError, r'Unknown.*NotExistingTransform'):
+      scope.get_transform_id("NotExistingTransform")
 
 
 if __name__ == '__main__':
