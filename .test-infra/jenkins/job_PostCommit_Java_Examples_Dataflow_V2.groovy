@@ -44,7 +44,8 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_Examples_Dataflow_V2',
           // 3 x num_cores strikes a good balance between maxing out parallelism without
           // overloading the machines.
           commonJobProperties.setGradleSwitches(delegate, 3 * Runtime.runtime.availableProcessors())
-          switches '-Pbuild-and-push-multiarch-containers'
+          switches "-Pcontainer-architecture-list=arm64,amd64"
+          switches '-Ppush-containers'
           switches "-Pdocker-repository-root=us.gcr.io/apache-beam-testing/java-postcommit-it"
         }
       }

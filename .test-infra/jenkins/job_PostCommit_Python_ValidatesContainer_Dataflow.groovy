@@ -43,7 +43,8 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Py_ValCont',
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
           tasks(':sdks:python:test-suites:dataflow:validatesContainerTests')
-          switches('-Pbuild-and-push-multiarch-containers')
+          switches('-Pcontainer-architecture-list=arm64,amd64')
+          switches('-Ppush-containers')
           // Regenerates the base image requirements to accommodate ARM.
           switches('-Pregenerate-requirements')
           // Push multi-arch containers to the repository set in run_validatescontainer.sh

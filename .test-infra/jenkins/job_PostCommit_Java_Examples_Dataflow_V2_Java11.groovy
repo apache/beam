@@ -49,7 +49,8 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_Examples_Dataflow_V2_ja
           switches '-PcompileAndRunTestsWithJava11'
           switches '-PskipCheckerFramework'
           switches "-Pjava11Home=${commonJobProperties.JAVA_11_HOME}"
-          switches '-Pbuild-and-push-multiarch-containers'
+          switches '-Ppush-containers'
+          switches "-Pcontainer-architecture-list=arm64,amd64"
           switches "-Pdocker-repository-root=us.gcr.io/apache-beam-testing/java-postcommit-it"
         }
       }
