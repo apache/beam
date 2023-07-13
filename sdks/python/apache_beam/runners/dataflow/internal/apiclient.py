@@ -491,12 +491,12 @@ class DataflowApplicationClient(object):
     self._root_staging_location = (
         root_staging_location or self.google_cloud_options.staging_location)
 
-    from apache_beam.runners.dataflow.dataflow_runner import _is_runner_v2
+    from apache_beam.runners.dataflow.dataflow_runner import _is_runner_v2_disabled
     from google.cloud import storage
-    if _is_runner_v2(options):
-      self.environment_version = _FNAPI_ENVIRONMENT_MAJOR_VERSION
-    else:
+    if _is_runner_v2_disabled(options):
       self.environment_version = _LEGACY_ENVIRONMENT_MAJOR_VERSION
+    else:
+      self.environment_version = _FNAPI_ENVIRONMENT_MAJOR_VERSION
 
     if self.google_cloud_options.no_auth:
       credentials = None
@@ -672,7 +672,7 @@ class DataflowApplicationClient(object):
     try:
       with FileSystems.create(gcs_location) as f:
         f.write(stream.read())
-        return
+      return
     except Exception as e:
       reportable_errors = [
           Forbidden,
