@@ -51,7 +51,7 @@ jobs:
       github.event_name == 'pull_request_target' || 
       github.event.comment.body == 'Run PythonDocs PreCommit' || 
       github.event_name == 'schedule'
-    runs-on: [self-hosted, ubuntu-20.04]
+    runs-on: [self-hosted, ubuntu-20.04, main]
     steps:
       - name: Check out repository code
         uses: actions/checkout@v3
