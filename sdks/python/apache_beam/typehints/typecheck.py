@@ -31,6 +31,7 @@ from apache_beam import pipeline
 from apache_beam.pvalue import TaggedOutput
 from apache_beam.transforms import core
 from apache_beam.transforms.core import DoFn
+from apache_beam.transforms.window import TimestampedValue
 from apache_beam.transforms.window import WindowedValue
 from apache_beam.typehints.decorators import GeneratorWrapper
 from apache_beam.typehints.decorators import TypeCheckError
@@ -39,6 +40,7 @@ from apache_beam.typehints.decorators import getcallargs_forhints
 from apache_beam.typehints.typehints import CompositeTypeHintError
 from apache_beam.typehints.typehints import SimpleTypeHintError
 from apache_beam.typehints.typehints import check_constraint
+from apache_beam.typehints.typehints import normalize
 
 
 class AbstractDoFnWrapper(DoFn):
@@ -146,9 +148,19 @@ class TypeCheckWrapperDoFn(AbstractDoFnWrapper):
       return transform_results
 
     def type_check_output(o):
-      # TODO(robertwb): Multi-output.
-      x = o.value if isinstance(o, (TaggedOutput, WindowedValue)) else o
-      self.type_check(self._output_type_hint, x, is_input=False)
+      if isinstance(o, TimestampedValue) and hasattr(o, "__orig_class__"):
+        # when a typed TimestampedValue is set, check the value type
+        x = o.value
+        # per https://stackoverflow.com/questions/57706180/,
+        # __orig_class__ is te safe way to obtain the actual type
+        # from from Generic[T], supported since Python 3.5.3
+        beam_type = normalize(o.__orig_class__.__args__[0])
+        self.type_check(beam_type, x, is_input=False)
+      else:
+        # TODO(robertwb): Multi-output.
+        x = o.value if isinstance(o, (TaggedOutput, WindowedValue)) else o
+
+        self.type_check(self._output_type_hint, x, is_input=False)
 
     # If the return type is a generator, then we will need to interleave our
     # type-checking with its normal iteration so we don't deplete the

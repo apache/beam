@@ -2450,10 +2450,10 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   static void verifyDoFnSupported(
       DoFn<?, ?> fn, boolean streaming, DataflowPipelineOptions options) {
-    if (DoFnSignatures.usesMultimapState(fn)) {
+    if (!streaming && DoFnSignatures.usesMultimapState(fn)) {
       throw new UnsupportedOperationException(
           String.format(
-              "%s does not currently support %s",
+              "%s does not currently support %s in batch mode",
               DataflowRunner.class.getSimpleName(), MultimapState.class.getSimpleName()));
     }
     if (streaming && DoFnSignatures.requiresTimeSortedInput(fn)) {
@@ -2465,6 +2465,13 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     boolean streamingEngine = useStreamingEngine(options);
     boolean isUnifiedWorker = useUnifiedWorker(options);
+
+    if (DoFnSignatures.usesMultimapState(fn) && isUnifiedWorker) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "%s does not currently support %s running using streaming on unified worker",
+              DataflowRunner.class.getSimpleName(), MultimapState.class.getSimpleName()));
+    }
     if (DoFnSignatures.usesSetState(fn)) {
       if (streaming && (isUnifiedWorker || streamingEngine)) {
         throw new UnsupportedOperationException(

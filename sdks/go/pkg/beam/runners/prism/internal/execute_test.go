@@ -418,6 +418,20 @@ func TestRunner_Metrics(t *testing.T) {
 	})
 }
 
+func TestFailure(t *testing.T) {
+	initRunner(t)
+
+	p, s := beam.NewPipelineWithRoot()
+	imp := beam.Impulse(s)
+	beam.ParDo(s, doFnFail, imp)
+	_, err := executeWithT(context.Background(), t, p)
+	if err == nil {
+		t.Fatalf("expected pipeline failure, but got a success")
+	}
+	// Job failure state reason isn't communicated with the state change over the API
+	// so we can't check for a reason here.
+}
+
 // TODO: PCollection metrics tests, in particular for element counts, in multi transform pipelines
 // There's a doubling bug since we re-use the same pcollection IDs for the source & sink, and
 // don't do any re-writing.

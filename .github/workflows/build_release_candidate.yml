@@ -109,7 +109,7 @@ jobs:
             RC_ZIP="${RC_DIR}.zip"
             RELEASE_DIR="beam-${{ github.event.inputs.RELEASE }}"
             RC_TAG="v${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
-            SOURCE_RELEASE_ZIP="apache-beam-${RELEASE}-source-release.zip"
+            SOURCE_RELEASE_ZIP="apache-beam-${{ github.event.inputs.RELEASE }}-source-release.zip"
               # Check whether there is an existing dist dir
             if (svn ls "${SOURCE_RELEASE_ZIP}"); then
               echo "Removing existing ${SOURCE_RELEASE_ZIP}."
@@ -126,7 +126,7 @@ jobs:
             rm -r "$RELEASE_DIR"
 
             echo "----Signing Source Release ${SOURCE_RELEASE_ZIP}-----"
-            gpg --local-user "${{steps.import_gpg.outputs.name}}" --armor --detach-sig "${SOURCE_RELEASE_ZIP}"
+            gpg --local-user "${{steps.import_gpg.outputs.name}}" --armor --batch --yes --detach-sig "${SOURCE_RELEASE_ZIP}"
 
             echo "----Creating Hash Value for ${SOURCE_RELEASE_ZIP}----"
             sha512sum ${SOURCE_RELEASE_ZIP} > ${SOURCE_RELEASE_ZIP}.sha512
@@ -171,7 +171,7 @@ jobs:
       - name: Login to Docker Hub
         uses: docker/login-action@v2
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          username: ${{ secrets.DOCKERHUB_USER }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Push docker images
         run: ./gradlew :pushAllDockerImages -PisRelease -Pdocker-pull-licenses -Pprune-images -Pdocker-tag=${{ github.event.inputs.RELEASE }}rc${{ github.event.inputs.RC }} -Pjava11Home=${{steps.export-java11.outputs.JAVA11_HOME}} --no-daemon --no-parallel
