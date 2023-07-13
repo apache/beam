@@ -150,10 +150,9 @@ def javaVer = "java8"
   } else if(project.hasProperty('compileAndRunTestsWithJava11')) {
     javaVer = "java11"
   }
-def pythonVer = project.project(':sdks:python').pythonVersion
 def dockerImageRoot = project.findProperty('docker-repository-root') ?: "us.gcr.io/${dataflowProject}/java-postcommit-it"
 def dockerJavaMultiarchImageContainer = "${dockerImageRoot}/${project.docker_image_default_repo_prefix}java${javaVer}_sdk"
-def dockerPythonMultiarchImageContainer = "${dockerImageRoot}/${project.docker_image_default_repo_prefix}python${pythonVer}_sdk"
+def dockerPythonImageContainer = "${dockerImageRoot}/python"
 def dockerTag = project.findProperty('docker-tag') ?: new Date().format('yyyyMMddHHmmss')
 ext.dockerJavaMultiarchImageName = "${dockerJavaMultiarchImageContainer}:${dockerTag}"
 ext.dockerPythonImageName = "${dockerPythonImageContainer}:${dockerTag}"
@@ -335,29 +334,18 @@ def buildAndPushDockerPythonContainer = tasks.create("buildAndPushDockerPythonCo
     return
   }
   project.evaluationDependsOn(":sdks:python")
+  def pythonVer = project.project(':sdks:python').pythonVersion
   dependsOn ":sdks:python:container:py"+pythonVer.replace('.', '')+":docker"
-  def localPythonx86ImageName = containerImageName(
-          name: "${project.docker_image_default_repo_prefix}${pythonVer}_sdk-x86",
+  def defaultDockerImageName = containerImageName(
+          name: "${project.docker_image_default_repo_prefix}python${pythonVer}_sdk",
           root: "apache",
-          tag: dockerTag)
-  def localPythonArmImageName = containerImageName(
-          name: "${project.docker_image_default_repo_prefix}${pythonVer}_sdk-arm",
-          root: "apache",
-          tag: dockerTag)
+          tag: project.sdk_version)
   doLast {
-    // Verify multi-arch Python docker image has been built and pushed during the build
-    // by pulling and tagging the x86 and arm components:
     exec {
-      commandLine "docker", "pull", "${dockerPythonMultiarchImageName}"
+      commandLine "docker", "tag", "${defaultDockerImageName}", "${dockerPythonImageName}"
     }
     exec {
-      commandLine "docker", "tag", "${dockerPythonMultiarchImageName}", "${localPythonx86ImageName}"
-    }
-    exec {
-      commandLine "docker", "pull", "--platform=linux/arm64", "${dockerPythonMultiarchImageName}"
-    }
-    exec {
-      commandLine "docker", "tag", "${dockerPythonMultiarchImageName}", "${localPythonArmImageName}"
+      commandLine "gcloud", "docker", "--", "push", "${dockerPythonImageName}"
     }
   }
 }
@@ -366,16 +354,13 @@ def buildAndPushDockerPythonContainer = tasks.create("buildAndPushDockerPythonCo
 def cleanUpDockerPythonImages = tasks.register("cleanUpDockerPythonImages") {
   doLast {
     exec {
-      commandLine "docker", "rmi", "--force", "${localPythonx86ImageName}"
+      commandLine "docker", "rmi", "--force", "${dockerPythonImageName}"
     }
     exec {
-      commandLine "docker", "rmi", "--force", "${localPythonArmImageName}"
+      commandLine "gcloud", "--quiet", "container", "images", "untag", "${dockerPythonImageName}"
     }
     exec {
-      commandLine "gcloud", "--quiet", "container", "images", "untag", "${dockerPythonMultiarchImageName}"
-    }
-    exec {
-      commandLine "./scripts/cleanup_untagged_gcr_images.sh", "${dockerPythonMultiarchImageContainer}"
+      commandLine "./scripts/cleanup_untagged_gcr_images.sh", "${dockerPythonImageContainer}"
     }
   }
 }
