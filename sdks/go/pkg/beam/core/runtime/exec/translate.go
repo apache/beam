@@ -27,6 +27,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
 	v1pb "github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/timers"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/protox"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
@@ -462,6 +463,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 		var data string
 		var sides map[string]*pipepb.SideInput
 		var userState map[string]*pipepb.StateSpec
+		var userTimers map[string]*pipepb.TimerFamilySpec
 		switch urn {
 		case graphx.URNParDo,
 			urnPairWithRestriction,
@@ -475,6 +477,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 			data = string(pardo.GetDoFn().GetPayload())
 			sides = pardo.GetSideInputs()
 			userState = pardo.GetStateSpecs()
+			userTimers = pardo.GetTimerFamilySpecs()
 		case urnPerKeyCombinePre, urnPerKeyCombineMerge, urnPerKeyCombineExtract, urnPerKeyCombineConvert:
 			var cmb pipepb.CombinePayload
 			if err := proto.Unmarshal(payload, &cmb); err != nil {
@@ -586,6 +589,21 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 							}
 							n.UState = NewUserStateAdapter(sid, coder.NewW(ec, wc), stateIDToCoder, stateIDToKeyCoder, stateIDToCombineFn)
 						}
+					}
+
+					if len(userTimers) > 0 {
+						sID := StreamID{Port: Port{URL: b.desc.GetTimerApiServiceDescriptor().GetUrl()}, PtransformID: id.to}
+
+						familyToSpec := map[string]timerFamilySpec{}
+						for fam, spec := range userTimers {
+							domain := timers.TimeDomain(spec.GetTimeDomain())
+							timerCoder, err := b.coders.Coder(spec.GetTimerFamilyCoderId())
+							if err != nil {
+								return nil, errors.WithContextf(err, "couldn't retreive coder for timer %v in DoFn %v, ID %v", fam, dofn.Name(), n.PID)
+							}
+							familyToSpec[fam] = newTimerFamilySpec(domain, timerCoder)
+						}
+						n.TimerTracker = newUserTimerAdapter(sID, familyToSpec)
 					}
 
 					for i := 1; i < len(input); i++ {

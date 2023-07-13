@@ -631,13 +631,12 @@ class UtilTest(unittest.TestCase):
     self.assertEqual(
         env.proto.workerPools[0].workerHarnessContainerImage,
         (
-            names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/python%d%d-fnapi:%s' %
-            (
+            names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
+            '/beam_python%d.%d_sdk:%s' % (
                 sys.version_info[0],
                 sys.version_info[1],
                 names.BEAM_FNAPI_CONTAINER_VERSION)))
 
-    # batch, legacy pipeline.
     pipeline_options = PipelineOptions(
         ['--temp_location', 'gs://any-location/temp'])
     env = apiclient.Environment(
@@ -648,10 +647,11 @@ class UtilTest(unittest.TestCase):
     self.assertEqual(
         env.proto.workerPools[0].workerHarnessContainerImage,
         (
-            names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/python%d%d:%s' % (
+            names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
+            '/beam_python%d.%d_sdk:%s' % (
                 sys.version_info[0],
                 sys.version_info[1],
-                names.BEAM_CONTAINER_VERSION)))
+                names.BEAM_FNAPI_CONTAINER_VERSION)))
 
   @mock.patch(
       'apache_beam.runners.dataflow.internal.apiclient.'
@@ -670,10 +670,9 @@ class UtilTest(unittest.TestCase):
         env.proto.workerPools[0].workerHarnessContainerImage,
         (
             names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
-            '/python%d%d-fnapi:2.2.0' %
+            '/beam_python%d.%d_sdk:2.2.0' %
             (sys.version_info[0], sys.version_info[1])))
 
-    # batch, legacy pipeline.
     pipeline_options = PipelineOptions(
         ['--temp_location', 'gs://any-location/temp'])
     env = apiclient.Environment(
@@ -684,7 +683,8 @@ class UtilTest(unittest.TestCase):
     self.assertEqual(
         env.proto.workerPools[0].workerHarnessContainerImage,
         (
-            names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/python%d%d:2.2.0' %
+            names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
+            '/beam_python%d.%d_sdk:2.2.0' %
             (sys.version_info[0], sys.version_info[1])))
 
   @mock.patch(
@@ -704,10 +704,9 @@ class UtilTest(unittest.TestCase):
         env.proto.workerPools[0].workerHarnessContainerImage,
         (
             names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
-            '/python%d%d-fnapi:2.2.0' %
+            '/beam_python%d.%d_sdk:2.2.0' %
             (sys.version_info[0], sys.version_info[1])))
 
-    # batch, legacy pipeline.
     pipeline_options = PipelineOptions(
         ['--temp_location', 'gs://any-location/temp'])
     env = apiclient.Environment(
@@ -718,7 +717,8 @@ class UtilTest(unittest.TestCase):
     self.assertEqual(
         env.proto.workerPools[0].workerHarnessContainerImage,
         (
-            names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/python%d%d:2.2.0' %
+            names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
+            '/beam_python%d.%d_sdk:2.2.0' %
             (sys.version_info[0], sys.version_info[1])))
 
   def test_worker_harness_override_takes_precedence_over_sdk_defaults(self):
@@ -825,6 +825,25 @@ class UtilTest(unittest.TestCase):
     self.assertEqual('value4', job.proto.labels.additionalProperties[3].value)
     self.assertEqual('key5', job.proto.labels.additionalProperties[4].key)
     self.assertEqual('', job.proto.labels.additionalProperties[4].value)
+
+    pipeline_options = PipelineOptions([
+        '--project',
+        'test_project',
+        '--job_name',
+        'test_job_name',
+        '--temp_location',
+        'gs://test-location/temp',
+        '--labels',
+        '{ "name": "wrench", "mass": "1_3kg", "count": "3" }'
+    ])
+    job = apiclient.Job(pipeline_options, beam_runner_api_pb2.Pipeline())
+    self.assertEqual(3, len(job.proto.labels.additionalProperties))
+    self.assertEqual('name', job.proto.labels.additionalProperties[0].key)
+    self.assertEqual('wrench', job.proto.labels.additionalProperties[0].value)
+    self.assertEqual('mass', job.proto.labels.additionalProperties[1].key)
+    self.assertEqual('1_3kg', job.proto.labels.additionalProperties[1].value)
+    self.assertEqual('count', job.proto.labels.additionalProperties[2].key)
+    self.assertEqual('3', job.proto.labels.additionalProperties[2].value)
 
   def test_experiment_use_multiple_sdk_containers(self):
     pipeline_options = PipelineOptions([
@@ -953,7 +972,7 @@ class UtilTest(unittest.TestCase):
 
   @mock.patch(
       'apache_beam.runners.dataflow.internal.apiclient.sys.version_info',
-      (3, 11, 0))
+      (3, 12, 0))
   @mock.patch(
       'apache_beam.runners.dataflow.internal.apiclient.'
       'beam_version.__version__',

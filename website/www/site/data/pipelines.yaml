@@ -19,6 +19,9 @@
 - title: Go
   image_url: /images/logos/sdks/go_pipelines.png
   url: /documentation/sdks/go/
+- title: Typescript
+  image_url: /images/logos/sdks/typescript_pipelines.png
+  url: /documentation/sdks/typescript/
 - title: Scala
   image_url: /images/logos/sdks/scala_pipeline.png
   url: /documentation/sdks/scala/

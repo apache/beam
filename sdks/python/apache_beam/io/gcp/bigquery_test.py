@@ -788,6 +788,37 @@ class TestWriteToBigQuery(unittest.TestCase):
               with_auto_sharding=True,
               test_client=client))
 
+  @mock.patch('google.cloud.bigquery.Client.insert_rows_json')
+  def test_streaming_inserts_flush_on_byte_size_limit(self, mock_insert):
+    mock_insert.return_value = []
+    table = 'project:dataset.table'
+    rows = [
+        {
+            'columnA': 'value1'
+        },
+        {
+            'columnA': 'value2'
+        },
+        # this very large row exceeds max size, so should be sent to DLQ
+        {
+            'columnA': "large_string" * 100
+        }
+    ]
+    with beam.Pipeline() as p:
+      failed_rows = (
+          p
+          | beam.Create(rows)
+          | WriteToBigQuery(
+              table=table,
+              method='STREAMING_INSERTS',
+              create_disposition='CREATE_NEVER',
+              schema='columnA:STRING',
+              max_insert_payload_size=500))
+
+      expected_failed_rows = [(table, rows[2])]
+      assert_that(failed_rows.failed_rows, equal_to(expected_failed_rows))
+    self.assertEqual(2, mock_insert.call_count)
+
   @parameterized.expand([
       param(
           exception_type=exceptions.Forbidden if exceptions else None,
@@ -1204,6 +1235,7 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
     fn.start_bundle()
     fn.process(('project-id:dataset_id.table_id', ({'month': 1}, 'insertid1')))
     fn.process(('project-id:dataset_id.table_id', ({'month': 2}, 'insertid2')))
+    fn.finish_bundle()
     # InsertRows called as batch size is hit
     self.assertTrue(client.insert_rows_json.called)
 
@@ -1351,7 +1383,8 @@ class PipelineBasedStreamingInsertTest(_TestCaseWithTempDirCleanUp):
               ignore_insert_ids=False,
               ignore_unknown_columns=False,
               with_auto_sharding=False,
-              test_client=client))
+              test_client=client,
+              num_streaming_keys=500))
 
     with open(file_name_1) as f1, open(file_name_2) as f2:
       self.assertEqual(json.load(f1), json.load(f2))
@@ -1447,7 +1480,8 @@ class PipelineBasedStreamingInsertTest(_TestCaseWithTempDirCleanUp):
                 ignore_insert_ids=False,
                 ignore_unknown_columns=False,
                 with_auto_sharding=False,
-                test_client=client))
+                test_client=client,
+                num_streaming_keys=500))
 
         failed_values = (
             bq_write_out[beam_bq.BigQueryWriteFn.FAILED_ROWS_WITH_ERRORS]
@@ -1523,7 +1557,8 @@ class PipelineBasedStreamingInsertTest(_TestCaseWithTempDirCleanUp):
                 ignore_unknown_columns=False,
                 with_auto_sharding=False,
                 test_client=client,
-                max_retries=10))
+                max_retries=10,
+                num_streaming_keys=500))
 
         failed_values = (
             bq_write_out[beam_bq.BigQueryWriteFn.FAILED_ROWS]
@@ -1589,7 +1624,8 @@ class PipelineBasedStreamingInsertTest(_TestCaseWithTempDirCleanUp):
               ignore_insert_ids=False,
               ignore_unknown_columns=False,
               with_auto_sharding=with_auto_sharding,
-              test_client=client))
+              test_client=client,
+              num_streaming_keys=500))
 
     with open(file_name_1) as f1, open(file_name_2) as f2:
       out1 = json.load(f1)

@@ -169,7 +169,8 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
               upstream.getSchema(),
               outputSchema,
               options.getZetaSqlDefaultTimezone(),
-              options.getVerifyRowValues());
+              options.getVerifyRowValues(),
+              errorsTransformer != null);
 
       PCollectionTuple tuple =
           upstream.apply(ParDo.of(calcFn).withOutputTags(rows, TupleTagList.of(errors)));
@@ -205,6 +206,7 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
     private final Schema outputSchema;
     private final String defaultTimezone;
     private final boolean verifyRowValues;
+    private final boolean dlqTransformDownstream;
 
     final Schema errorsSchema;
     private final List<Integer> referencedColumns;
@@ -222,7 +224,8 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
         Schema inputSchema,
         Schema outputSchema,
         String defaultTimezone,
-        boolean verifyRowValues) {
+        boolean verifyRowValues,
+        boolean dlqTransformDownstream) {
       this.sql = sql;
       this.exp = new PreparedExpression(sql);
       this.nullParams = nullParams;
@@ -230,6 +233,7 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
       this.outputSchema = outputSchema;
       this.defaultTimezone = defaultTimezone;
       this.verifyRowValues = verifyRowValues;
+      this.dlqTransformDownstream = dlqTransformDownstream;
 
       try (PreparedExpression exp =
           prepareExpression(sql, nullParams, inputSchema, defaultTimezone)) {
@@ -303,6 +307,9 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
         pendingWindow.add(TimestampedFuture.create(t, valueFuture, row));
 
       } catch (UnsupportedOperationException | ArithmeticException | IllegalArgumentException e) {
+        if (!dlqTransformDownstream) {
+          throw e;
+        }
         multiOutputReceiver
             .get(errors)
             .output(Row.withSchema(errorsSchema).addValues(row, e.toString()).build());
@@ -373,6 +380,9 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
       try {
         v = c.future().get();
       } catch (ExecutionException e) {
+        if (!dlqTransformDownstream) {
+          throw extractException(e);
+        }
         errorOutputReceiver.outputWithTimestamp(
             Row.withSchema(errorsSchema).addValues(c.row(), e.toString()).build(), c.timestamp());
         return;

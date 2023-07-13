@@ -28,7 +28,8 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     ],
     gradleSwitches: [
       '-PdisableSpotlessCheck=true',
-      '-PdisableCheckStyle=true'
+      '-PdisableCheckStyle=true',
+      '-PenableJacocoReport'
     ], // spotless checked in separate pre-commit
     timeoutMins: 120,
     triggerPathPatterns: [
@@ -47,5 +48,20 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
 builder.build {
   publishers {
     archiveJunit('**/build/test-results/**/*.xml')
+    recordIssues {
+      tools {
+        errorProne()
+        java()
+        spotBugs {
+          pattern('**/build/reports/spotbugs/*.xml')
+        }
+      }
+      enabledForFailure(true)
+    }
+    jacocoCodeCoverage {
+      execPattern('**/build/jacoco/*.exec')
+      exclusionPattern('**/AutoValue_*')
+      inclusionPattern("**/org/apache/beam/sdk/io/gcp/**")
+    }
   }
 }

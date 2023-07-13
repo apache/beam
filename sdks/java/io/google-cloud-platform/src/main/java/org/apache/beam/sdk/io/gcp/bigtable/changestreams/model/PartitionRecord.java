@@ -19,12 +19,14 @@ package org.apache.beam.sdk.io.gcp.bigtable.changestreams.model;
 
 import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper.formatByteStringRange;
 
-import com.google.cloud.Timestamp;
+import com.google.cloud.bigtable.data.v2.models.ChangeStreamContinuationToken;
 import com.google.cloud.bigtable.data.v2.models.Range.ByteStringRange;
 import java.io.Serializable;
+import java.util.List;
 import java.util.Objects;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
+import org.joda.time.Instant;
 
 /**
  * Output result of {@link
@@ -33,67 +35,99 @@ import org.apache.beam.sdk.annotations.Internal;
  */
 @Internal
 public class PartitionRecord implements Serializable {
-  private static final long serialVersionUID = -7613861834142734474L;
+  private static final long serialVersionUID = -4524061648930484599L;
 
-  private ByteStringRange partition;
-  @Nullable private Timestamp startTime;
-  @Nullable private Timestamp endTime;
+  private final ByteStringRange partition;
+  @Nullable private Instant startTime;
+  @Nullable private List<ChangeStreamContinuationToken> changeStreamContinuationTokens;
+  @Nullable private Instant endTime;
   private String uuid;
-  private Timestamp parentLowWatermark;
+  private final Instant parentLowWatermark;
+  private final List<NewPartition> parentPartitions;
 
   public PartitionRecord(
       ByteStringRange partition,
-      Timestamp startTime,
+      List<ChangeStreamContinuationToken> changeStreamContinuationTokens,
+      Instant parentLowWatermark,
+      List<NewPartition> parentPartitions) {
+    this(partition, changeStreamContinuationTokens, "", parentLowWatermark, parentPartitions, null);
+  }
+
+  public PartitionRecord(
+      ByteStringRange partition,
+      Instant startTime,
+      Instant parentLowWatermark,
+      List<NewPartition> parentPartitions) {
+    this(partition, startTime, "", parentLowWatermark, parentPartitions, null);
+  }
+
+  public PartitionRecord(
+      ByteStringRange partition,
+      Instant startTime,
       String uuid,
-      Timestamp parentLowWatermark,
-      @Nullable Timestamp endTime) {
+      Instant parentLowWatermark,
+      List<NewPartition> parentPartitions,
+      @Nullable Instant endTime) {
     this.partition = partition;
     this.startTime = startTime;
     this.uuid = uuid;
     this.parentLowWatermark = parentLowWatermark;
     this.endTime = endTime;
+    this.parentPartitions = parentPartitions;
   }
 
-  @Nullable
-  public Timestamp getStartTime() {
-    return startTime;
-  }
-
-  public void setStartTime(@Nullable Timestamp startTime) {
-    this.startTime = startTime;
-  }
-
-  @Nullable
-  public Timestamp getEndTime() {
-    return endTime;
-  }
-
-  public void setEndTime(@Nullable Timestamp endTime) {
+  public PartitionRecord(
+      ByteStringRange partition,
+      List<ChangeStreamContinuationToken> changeStreamContinuationTokens,
+      String uuid,
+      Instant parentLowWatermark,
+      List<NewPartition> parentPartitions,
+      @Nullable Instant endTime) {
+    this.partition = partition;
+    this.changeStreamContinuationTokens = changeStreamContinuationTokens;
+    this.uuid = uuid;
+    this.parentLowWatermark = parentLowWatermark;
     this.endTime = endTime;
+    this.parentPartitions = parentPartitions;
+  }
+
+  @Nullable
+  public Instant getStartTime() {
+    return startTime;
   }
 
   public String getUuid() {
     return uuid;
   }
 
-  public void setUuid(String uuid) {
-    this.uuid = uuid;
-  }
-
-  public Timestamp getParentLowWatermark() {
+  public Instant getParentLowWatermark() {
     return parentLowWatermark;
-  }
-
-  public void setParentLowWatermark(Timestamp parentLowWatermark) {
-    this.parentLowWatermark = parentLowWatermark;
   }
 
   public ByteStringRange getPartition() {
     return partition;
   }
 
-  public void setPartition(ByteStringRange partition) {
-    this.partition = partition;
+  @Nullable
+  public List<ChangeStreamContinuationToken> getChangeStreamContinuationTokens() {
+    return changeStreamContinuationTokens;
+  }
+
+  @Nullable
+  public Instant getEndTime() {
+    return endTime;
+  }
+
+  public List<NewPartition> getParentPartitions() {
+    return parentPartitions;
+  }
+
+  public void setUuid(String uuid) {
+    this.uuid = uuid;
+  }
+
+  public void setEndTime(@Nullable Instant endTime) {
+    this.endTime = endTime;
   }
 
   @Override
@@ -105,17 +139,26 @@ public class PartitionRecord implements Serializable {
       return false;
     }
     PartitionRecord that = (PartitionRecord) o;
-    return getPartition().equals(that.getPartition())
+    return Objects.equals(getPartition(), that.getPartition())
         && Objects.equals(getStartTime(), that.getStartTime())
+        && Objects.equals(
+            getChangeStreamContinuationTokens(), that.getChangeStreamContinuationTokens())
         && Objects.equals(getEndTime(), that.getEndTime())
-        && getUuid().equals(that.getUuid())
-        && Objects.equals(getParentLowWatermark(), that.getParentLowWatermark());
+        && Objects.equals(getUuid(), that.getUuid())
+        && Objects.equals(getParentLowWatermark(), that.getParentLowWatermark())
+        && Objects.equals(parentPartitions, that.parentPartitions);
   }
 
   @Override
   public int hashCode() {
     return Objects.hash(
-        getPartition(), getStartTime(), getEndTime(), getUuid(), getParentLowWatermark());
+        getPartition(),
+        getStartTime(),
+        getChangeStreamContinuationTokens(),
+        getEndTime(),
+        getUuid(),
+        getParentLowWatermark(),
+        parentPartitions);
   }
 
   @Override
@@ -125,6 +168,8 @@ public class PartitionRecord implements Serializable {
         + formatByteStringRange(partition)
         + ", startTime="
         + startTime
+        + ", changeStreamContinuationTokens="
+        + changeStreamContinuationTokens
         + ", endTime="
         + endTime
         + ", uuid='"
@@ -132,6 +177,8 @@ public class PartitionRecord implements Serializable {
         + '\''
         + ", parentLowWatermark="
         + parentLowWatermark
+        + ", parentPartitions="
+        + parentPartitions
         + '}';
   }
 }

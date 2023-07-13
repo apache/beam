@@ -38,7 +38,7 @@ func TestPlan_Checkpoint(t *testing.T) {
 func TestPlan_BundleFinalizers(t *testing.T) {
 	newPlan := func() Plan {
 		var p Plan
-		p.status = Up
+		p.setStatus(Up)
 		return p
 	}
 	t.Run("NoCallbacks", func(t *testing.T) {

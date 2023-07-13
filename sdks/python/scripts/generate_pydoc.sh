@@ -71,6 +71,7 @@ excluded_patterns=(
     'apache_beam/testing/benchmarks/load_tests/'
     'apache_beam/testing/analyzers'
     'apache_beam/testing/.*test.py'
+    'apache_beam/testing/fast_test_utils.*'
     'apache_beam/tools/'
     'apache_beam/tools/map_fn_microbenchmark.*'
     'apache_beam/transforms/cy_combiners.*'
@@ -130,7 +131,7 @@ release = version
 autoclass_content = 'both'
 autodoc_inherit_docstrings = False
 autodoc_member_order = 'bysource'
-autodoc_mock_imports = ["tensorrt", "cuda"]
+autodoc_mock_imports = ["tensorrt", "cuda", "torch", "onnxruntime", "onnx", "tensorflow", "tensorflow_hub", "tensorflow_transform", "tensorflow_metadata"]
 
 # Allow a special section for documenting DataFrame API
 napoleon_custom_sections = ['Differences from pandas']
@@ -253,10 +254,11 @@ EOF
 # Build the documentation using sphinx
 # Reference: http://www.sphinx-doc.org/en/stable/man/sphinx-build.html
 # Note we cut out warnings from apache_beam.dataframe, this package uses pandas
-# documentation verbatim.
+# documentation verbatim, as do some of the textio transforms.
 python $(type -p sphinx-build) -v -a -E -q target/docs/source \
   target/docs/_build -c target/docs/source \
   2>&1 | grep -E -v 'apache_beam\.dataframe.*WARNING:' \
+  2>&1 | grep -E -v 'apache_beam\.io\.textio\.(ReadFrom|WriteTo)(Csv|Json).*WARNING:' \
   2>&1 | tee "target/docs/sphinx-build.log"
 
 # Fail if there are errors or warnings in docs
@@ -269,6 +271,7 @@ python $(type -p sphinx-build) -v -a -E -q target/docs/source \
 python -msphinx -M doctest target/docs/source \
   target/docs/_build -c target/docs/source \
   2>&1 | grep -E -v 'apache_beam\.dataframe.*WARNING:' \
+  2>&1 | grep -E -v 'apache_beam\.io\.textio\.(ReadFrom|WriteTo)(Csv|Json).*WARNING:' \
   2>&1 | tee "target/docs/sphinx-doctest.log"
 
 # Fail if there are errors or warnings in docs

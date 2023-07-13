@@ -22,8 +22,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.Factory;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
@@ -39,7 +37,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * For example, the user's type may be a POJO, in which case the provided getters will simple read
  * the appropriate fields from the POJO.
  */
-@Experimental(Kind.SCHEMAS)
 @SuppressWarnings("rawtypes")
 public class RowWithGetters extends Row {
   private final Object getterTarget;

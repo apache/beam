@@ -49,7 +49,8 @@ def loadTestConfigurations = { mode, datasetName ->
         input_options       : '\'{' +
         '"num_records": 200000000,' +
         '"key_size": 1,' +
-        '"value_size": 9}\'',
+        '"value_size": 9,' +
+        '"algorithm": "lcg"}\'',
         parallelism         : 5,
         job_endpoint        : 'localhost:8099',
         environment_type    : 'DOCKER',
@@ -71,7 +72,8 @@ def loadTestConfigurations = { mode, datasetName ->
         input_options       : '\'{' +
         '"num_records": 5000000,' +
         '"key_size": 10,' +
-        '"value_size": 90}\'',
+        '"value_size": 90,' +
+        '"algorithm": "lcg"}\'',
         parallelism         : 16,
         job_endpoint        : 'localhost:8099',
         environment_type    : 'DOCKER',
@@ -94,7 +96,8 @@ def loadTestConfigurations = { mode, datasetName ->
         input_options       : '\'{' +
         '"num_records": 2500000,' +
         '"key_size": 10,' +
-        '"value_size": 90}\'',
+        '"value_size": 90,' +
+        '"algorithm": "lcg"}\'',
         parallelism         : 16,
         job_endpoint        : 'localhost:8099',
         environment_type    : 'DOCKER',
@@ -154,7 +157,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
       loadTestJob(delegate, CommonTestProperties.TriggeringContext.PR, 'batch')
     }
 
-CronJobBuilder.cronJob('beam_LoadTests_Python_Combine_Flink_Batch', 'H 15 * * *', this) {
+CronJobBuilder.cronJob('beam_LoadTests_Python_Combine_Flink_Batch', 'H H * * *', this) {
   additionalPipelineArgs = [
     influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
     influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,
@@ -172,7 +175,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
       loadTestJob(delegate, CommonTestProperties.TriggeringContext.PR, 'streaming')
     }
 
-CronJobBuilder.cronJob('beam_LoadTests_Python_Combine_Flink_Streaming', 'H 18 * * *', this) {
+CronJobBuilder.cronJob('beam_LoadTests_Python_Combine_Flink_Streaming', 'H H * * *', this) {
   additionalPipelineArgs = [
     influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
     influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,

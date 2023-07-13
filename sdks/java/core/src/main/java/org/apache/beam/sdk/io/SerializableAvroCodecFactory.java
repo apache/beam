@@ -39,10 +39,17 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /**
  * A wrapper that allows {@link org.apache.avro.file.CodecFactory}s to be serialized using Java's
  * standard serialization mechanisms.
+ *
+ * @deprecated Avro related classes are deprecated in module <code>beam-sdks-java-core</code> and
+ *     will be eventually removed. Please, migrate to a new module <code>
+ *     beam-sdks-java-extensions-avro</code> by importing <code>
+ *     org.apache.beam.sdk.extensions.avro.io.SerializableAvroCodecFactory</code> instead of this
+ *     one.
  */
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
+@Deprecated
 class SerializableAvroCodecFactory implements Externalizable {
   private static final long serialVersionUID = 7445324844109564303L;
   private static final List<String> noOptAvroCodecs =

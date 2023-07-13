@@ -44,10 +44,10 @@ import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.fn.test.TestStreams;
 import org.apache.beam.sdk.function.ThrowingFunction;
-import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.inprocess.InProcessServerBuilder;
-import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.stub.CallStreamObserver;
-import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.inprocess.InProcessServerBuilder;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.CallStreamObserver;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.junit.Rule;
 import org.junit.Test;
@@ -166,7 +166,7 @@ public class BeamFnControlClientTest {
       // Ensure that the server completing the stream translates to the completable future
       // being completed allowing for a successful shutdown of the client.
       outboundServerObserver.onCompleted();
-      client.waitForTermination();
+      client.terminationFuture().get();
     } finally {
       server.shutdownNow();
     }
@@ -236,7 +236,7 @@ public class BeamFnControlClientTest {
 
       // Ensure that the client shuts down when an Error is thrown from the harness
       try {
-        client.waitForTermination();
+        client.terminationFuture().get();
         throw new IllegalStateException("The future should have terminated with an error");
       } catch (ExecutionException errorWrapper) {
         assertThat(errorWrapper.getCause().getMessage(), containsString("Test Error"));

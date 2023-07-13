@@ -297,10 +297,10 @@ func (n *TruncateSizedRestriction) StartBundle(ctx context.Context, id string, d
 // Input Diagram:
 //
 //	  *FullValue {
-//	    Elm: *FullValue {
-//	      Elm:  *FullValue (original input)
+//	    Elm: *FullValue {  -- mainElm
+//	      Elm:  *FullValue (original input)  -- inp
 //	      Elm2: *FullValue {
-//		       Elm: Restriction
+//		       Elm: Restriction  -- rest
 //		       Elm2: Watermark estimator state
 //	      }
 //	    }
@@ -325,24 +325,19 @@ func (n *TruncateSizedRestriction) StartBundle(ctx context.Context, id string, d
 //	   }
 func (n *TruncateSizedRestriction) ProcessElement(ctx context.Context, elm *FullValue, values ...ReStream) error {
 	mainElm := elm.Elm.(*FullValue)
-	inp := mainElm.Elm
-	// For the main element, the way we fill it out depends on whether the input element
-	// is a KV or single-element. Single-elements might have been lifted out of
-	// their FullValue if they were decoded, so we need to have a case for that.
-	// TODO(https://github.com/apache/beam/issues/20196): Optimize this so it's decided in exec/translate.go
-	// instead of checking per-element.
-	if e, ok := mainElm.Elm.(*FullValue); ok {
-		mainElm = e
-		inp = e
-	}
-	rest := elm.Elm.(*FullValue).Elm2.(*FullValue).Elm
+
+	// If receiving directly from a datasource,
+	// the element may not be wrapped in a *FullValue
+	inp := convertIfNeeded(mainElm.Elm, &FullValue{})
+
+	rest := mainElm.Elm2.(*FullValue).Elm
 
 	rt, err := n.ctInv.Invoke(ctx, rest)
 	if err != nil {
 		return err
 	}
 
-	newRest, err := n.truncateInv.Invoke(ctx, rt, mainElm)
+	newRest, err := n.truncateInv.Invoke(ctx, rt, inp)
 	if err != nil {
 		return err
 	}
@@ -351,7 +346,7 @@ func (n *TruncateSizedRestriction) ProcessElement(ctx context.Context, elm *Full
 		return nil
 	}
 
-	size, err := n.sizeInv.Invoke(ctx, mainElm, newRest)
+	size, err := n.sizeInv.Invoke(ctx, inp, newRest)
 	if err != nil {
 		return err
 	}

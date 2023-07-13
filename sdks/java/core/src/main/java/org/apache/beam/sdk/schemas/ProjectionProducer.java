@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.schemas;
 
 import java.util.Map;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.values.TupleTag;
 
 /**
@@ -29,7 +28,6 @@ import org.apache.beam.sdk.values.TupleTag;
  * org.apache.beam.sdk.transforms.PTransform} or some component thereof that is capable of pushing
  * down a projection to an external source.
  */
-@Experimental
 public interface ProjectionProducer<T> {
   /** Whether {@code this} supports projection pushdown. */
   boolean supportsProjectionPushdown();

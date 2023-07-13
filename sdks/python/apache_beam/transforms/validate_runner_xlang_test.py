@@ -94,7 +94,7 @@ class CrossLanguageTestPipelines(object):
           | beam.Create(['a', 'b']).with_output_types(str)
           | beam.ExternalTransform(
               TEST_PREFIX_URN,
-              ImplicitSchemaPayloadBuilder({'data': u'0'}),
+              ImplicitSchemaPayloadBuilder({'data': '0'}),
               self.expansion_service))
       assert_that(res, equal_to(['0a', '0b']))
 

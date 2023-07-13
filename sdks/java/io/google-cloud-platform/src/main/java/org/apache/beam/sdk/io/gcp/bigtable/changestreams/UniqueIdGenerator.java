@@ -26,14 +26,29 @@ import org.apache.beam.sdk.annotations.Internal;
 public class UniqueIdGenerator {
   private static final SecureRandom secureRandom = new SecureRandom();
 
+  /**
+   * Return a random base64 encoded 8 byte string. This is used to identify streamer of a specific
+   * partition. We expect there to be at most single digit duplicates of the same partition at any
+   * one time. The odd of collision if we generate <10 values per partition is less than 1 in 10^18.
+   *
+   * @return a random 8 byte string.
+   */
   public static String getNextId() {
-    byte[] bytes = new byte[256];
+    byte[] bytes = new byte[8];
     secureRandom.nextBytes(bytes);
     return Base64.getEncoder().encodeToString(bytes);
   }
 
+  /**
+   * Return a random base64 encoded 8 byte string. This is used to identify a pipeline. Once a
+   * pipeline is complete, the metadata is left there and not cleaned up. It's possible, over the
+   * lifetime, there to be thousands and more pipelines in a single metadata table. The odds of
+   * collision if we expect 100,000 pipelines is less than 1 in 1 billion.
+   *
+   * @return a random 8 byte string.
+   */
   public static String generateRowKeyPrefix() {
-    byte[] bytes = new byte[50];
+    byte[] bytes = new byte[8];
     secureRandom.nextBytes(bytes);
     return Base64.getEncoder().encodeToString(bytes);
   }

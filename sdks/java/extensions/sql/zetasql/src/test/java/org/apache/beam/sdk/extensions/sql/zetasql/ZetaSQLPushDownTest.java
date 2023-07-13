@@ -53,9 +53,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
-})
 public class ZetaSQLPushDownTest {
   private static final Long PIPELINE_EXECUTION_WAITTIME_MINUTES = 2L;
   private static final Schema BASIC_SCHEMA =
@@ -172,6 +169,9 @@ public class ZetaSQLPushDownTest {
     initializeCalciteEnvironmentWithContext();
   }
 
+  @SuppressWarnings({
+    "rawtypes", // Frameworks.ConfigBuilder.traitDefs has method signature of raw type
+  })
   private static void initializeCalciteEnvironmentWithContext(Context... extraContext) {
     JdbcConnection jdbcConnection =
         JdbcDriver.connect(tableProvider, PipelineOptionsFactory.create());

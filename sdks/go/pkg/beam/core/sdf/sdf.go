@@ -14,9 +14,6 @@
 // limitations under the License.
 
 // Package contains interfaces used specifically for splittable DoFns.
-//
-// Warning: Splittable DoFns are still experimental, largely untested, and
-// likely to have bugs.
 package sdf
 
 import (

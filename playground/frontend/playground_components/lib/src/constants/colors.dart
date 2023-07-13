@@ -60,9 +60,9 @@ class BeamLightThemeColors {
   static const primary = Color(0xffE74D1A);
   static const icon = BeamColors.grey3;
 
-  static const code1 = Color(0xffDA2833);
+  static const code1 = primary;
   static const code2 = Color(0xff5929B4);
-  static const codeComment = Color(0xff4C6B60);
+  static const codeComment = Color(0xff1B5E20);
   static const codeBackground = Color(0xffFEF6F3);
 }
 
@@ -79,8 +79,8 @@ class BeamDarkThemeColors {
   static const primary = Color(0xffF26628);
   static const icon = Color(0xff606772);
 
-  static const code1 = Color(0xffDA2833);
-  static const code2 = Color(0xff5929B4);
-  static const codeComment = Color(0xff4C6B60);
+  static const code1 = Color(0xffFFEB3B);
+  static const code2 = primary;
+  static const codeComment = Color(0xff689F38);
   static const codeBackground = Color(0xff231B1B);
 }

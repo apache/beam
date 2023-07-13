@@ -22,7 +22,7 @@ import '../example_descriptor.dart';
 
 const goWordCount = ExampleDescriptor(
   'WordCount',
-  dbPath: 'SDK_GO/PRECOMPILED_OBJECT_TYPE_EXAMPLE/WordCount',
+  dbPath: 'SDK_GO_WordCount',
   path: '/sdks/go/examples/wordcount/wordcount.go',
   sdk: Sdk.go,
 );

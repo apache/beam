@@ -39,6 +39,7 @@ import com.google.protobuf.Message;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.RoundingMode;
+import java.time.DateTimeException;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -74,16 +75,41 @@ import org.joda.time.Days;
  * with the Storage write API.
  */
 public class TableRowToStorageApiProto {
+
   // Custom formatter that accepts "2022-05-09 18:04:59.123456"
   // The old dremel parser accepts this format, and so does insertall. We need to accept it
   // for backwards compatibility, and it is based on UTC time.
   private static final DateTimeFormatter DATETIME_SPACE_FORMATTER =
       new DateTimeFormatterBuilder()
           .append(DateTimeFormatter.ISO_LOCAL_DATE)
+          .optionalStart()
           .appendLiteral(' ')
+          .optionalEnd()
+          .optionalStart()
+          .appendLiteral('T')
+          .optionalEnd()
           .append(DateTimeFormatter.ISO_LOCAL_TIME)
           .toFormatter()
           .withZone(ZoneOffset.UTC);
+
+  private static final DateTimeFormatter TIMESTAMP_FORMATTER =
+      new DateTimeFormatterBuilder()
+          // 'yyyy-MM-dd(T| )HH:mm:ss.SSSSSSSSS'
+          .append(DATETIME_SPACE_FORMATTER)
+          // 'yyyy-MM-dd(T| )HH:mm:ss.SSSSSSSSS(+HH:mm:ss|Z)'
+          .optionalStart()
+          .appendOffsetId()
+          .optionalEnd()
+          .optionalStart()
+          .appendOffset("+HH:mm", "+00:00")
+          .optionalEnd()
+          // 'yyyy-MM-dd(T| )HH:mm:ss.SSSSSSSSS [time_zone]', time_zone -> UTC, Asia/Kolkata, etc
+          // if both an offset and a time zone are provided, the offset takes precedence
+          .optionalStart()
+          .appendLiteral(' ')
+          .parseCaseSensitive()
+          .appendZoneRegionId()
+          .toFormatter();
 
   abstract static class SchemaConversionException extends Exception {
     SchemaConversionException(String msg) {
@@ -388,9 +414,12 @@ public class TableRowToStorageApiProto {
           .build();
 
   public static Descriptor getDescriptorFromTableSchema(
-      com.google.api.services.bigquery.model.TableSchema jsonSchema, boolean respectRequired)
+      com.google.api.services.bigquery.model.TableSchema jsonSchema,
+      boolean respectRequired,
+      boolean includeCdcColumns)
       throws DescriptorValidationException {
-    return getDescriptorFromTableSchema(schemaToProtoTableSchema(jsonSchema), respectRequired);
+    return getDescriptorFromTableSchema(
+        schemaToProtoTableSchema(jsonSchema), respectRequired, includeCdcColumns);
   }
 
   /**
@@ -398,8 +427,10 @@ public class TableRowToStorageApiProto {
    * data using the BigQuery Storage API.
    */
   public static Descriptor getDescriptorFromTableSchema(
-      TableSchema tableSchema, boolean respectRequired) throws DescriptorValidationException {
-    DescriptorProto descriptorProto = descriptorSchemaFromTableSchema(tableSchema, respectRequired);
+      TableSchema tableSchema, boolean respectRequired, boolean includeCdcColumns)
+      throws DescriptorValidationException {
+    DescriptorProto descriptorProto =
+        descriptorSchemaFromTableSchema(tableSchema, respectRequired, includeCdcColumns);
     FileDescriptorProto fileDescriptorProto =
         FileDescriptorProto.newBuilder().addMessageType(descriptorProto).build();
     FileDescriptor fileDescriptor =
@@ -414,7 +445,9 @@ public class TableRowToStorageApiProto {
       AbstractMap<String, Object> map,
       boolean ignoreUnknownValues,
       boolean allowMissingRequiredFields,
-      @Nullable TableRow unknownFields)
+      @Nullable TableRow unknownFields,
+      @Nullable String changeType,
+      long changeSequenceNum)
       throws SchemaConversionException {
     DynamicMessage.Builder builder = DynamicMessage.newBuilder(descriptor);
     for (final Map.Entry<String, Object> entry : map.entrySet()) {
@@ -434,6 +467,7 @@ public class TableRowToStorageApiProto {
                   + schemaInformation.getFullName());
         }
       }
+
       SchemaInformation fieldSchemaInformation =
           schemaInformation.getSchemaForField(entry.getKey());
       try {
@@ -466,6 +500,18 @@ public class TableRowToStorageApiProto {
             e);
       }
     }
+
+    if (changeType != null) {
+      builder.setField(
+          Preconditions.checkStateNotNull(
+              descriptor.findFieldByName(StorageApiCDC.CHANGE_TYPE_COLUMN)),
+          changeType);
+      builder.setField(
+          Preconditions.checkStateNotNull(
+              descriptor.findFieldByName(StorageApiCDC.CHANGE_SQN_COLUMN)),
+          changeSequenceNum);
+    }
+
     try {
       return builder.build();
     } catch (Exception e) {
@@ -485,7 +531,9 @@ public class TableRowToStorageApiProto {
       TableRow tableRow,
       boolean ignoreUnknownValues,
       boolean allowMissingRequiredFields,
-      final @Nullable TableRow unknownFields)
+      final @Nullable TableRow unknownFields,
+      @Nullable String changeType,
+      long changeSequenceNum)
       throws SchemaConversionException {
     @Nullable Object fValue = tableRow.get("f");
     if (fValue instanceof List) {
@@ -549,6 +597,16 @@ public class TableRowToStorageApiProto {
               e);
         }
       }
+      if (changeType != null) {
+        builder.setField(
+            Preconditions.checkStateNotNull(
+                descriptor.findFieldByName(StorageApiCDC.CHANGE_TYPE_COLUMN)),
+            changeType);
+        builder.setField(
+            Preconditions.checkStateNotNull(
+                descriptor.findFieldByName(StorageApiCDC.CHANGE_SQN_COLUMN)),
+            changeSequenceNum);
+      }
 
       // If there are unknown fields, copy them into the output.
       if (unknownFields != null) {
@@ -570,30 +628,53 @@ public class TableRowToStorageApiProto {
           tableRow,
           ignoreUnknownValues,
           allowMissingRequiredFields,
-          unknownFields);
+          unknownFields,
+          changeType,
+          changeSequenceNum);
     }
   }
 
   @VisibleForTesting
   static DescriptorProto descriptorSchemaFromTableSchema(
-      com.google.api.services.bigquery.model.TableSchema tableSchema, boolean respectRequired) {
-    return descriptorSchemaFromTableSchema(schemaToProtoTableSchema(tableSchema), respectRequired);
+      com.google.api.services.bigquery.model.TableSchema tableSchema,
+      boolean respectRequired,
+      boolean includeCdcColumns) {
+    return descriptorSchemaFromTableSchema(
+        schemaToProtoTableSchema(tableSchema), respectRequired, includeCdcColumns);
   }
 
   @VisibleForTesting
   static DescriptorProto descriptorSchemaFromTableSchema(
-      TableSchema tableSchema, boolean respectRequired) {
-    return descriptorSchemaFromTableFieldSchemas(tableSchema.getFieldsList(), respectRequired);
+      TableSchema tableSchema, boolean respectRequired, boolean includeCdcColumns) {
+    return descriptorSchemaFromTableFieldSchemas(
+        tableSchema.getFieldsList(), respectRequired, includeCdcColumns);
   }
 
   private static DescriptorProto descriptorSchemaFromTableFieldSchemas(
-      Iterable<TableFieldSchema> tableFieldSchemas, boolean respectRequired) {
+      Iterable<TableFieldSchema> tableFieldSchemas,
+      boolean respectRequired,
+      boolean includeCdcColumns) {
     DescriptorProto.Builder descriptorBuilder = DescriptorProto.newBuilder();
     // Create a unique name for the descriptor ('-' characters cannot be used).
     descriptorBuilder.setName("D" + UUID.randomUUID().toString().replace("-", "_"));
     int i = 1;
     for (TableFieldSchema fieldSchema : tableFieldSchemas) {
       fieldDescriptorFromTableField(fieldSchema, i++, descriptorBuilder, respectRequired);
+    }
+    if (includeCdcColumns) {
+      FieldDescriptorProto.Builder fieldDescriptorBuilder = FieldDescriptorProto.newBuilder();
+      fieldDescriptorBuilder = fieldDescriptorBuilder.setName(StorageApiCDC.CHANGE_TYPE_COLUMN);
+      fieldDescriptorBuilder = fieldDescriptorBuilder.setNumber(i++);
+      fieldDescriptorBuilder = fieldDescriptorBuilder.setType(Type.TYPE_STRING);
+      fieldDescriptorBuilder = fieldDescriptorBuilder.setLabel(Label.LABEL_OPTIONAL);
+      descriptorBuilder.addField(fieldDescriptorBuilder.build());
+
+      fieldDescriptorBuilder = FieldDescriptorProto.newBuilder();
+      fieldDescriptorBuilder = fieldDescriptorBuilder.setName(StorageApiCDC.CHANGE_SQN_COLUMN);
+      fieldDescriptorBuilder = fieldDescriptorBuilder.setNumber(i++);
+      fieldDescriptorBuilder = fieldDescriptorBuilder.setType(Type.TYPE_INT64);
+      fieldDescriptorBuilder = fieldDescriptorBuilder.setLabel(Label.LABEL_OPTIONAL);
+      descriptorBuilder.addField(fieldDescriptorBuilder.build());
     }
     return descriptorBuilder.build();
   }
@@ -603,13 +684,18 @@ public class TableRowToStorageApiProto {
       int fieldNumber,
       DescriptorProto.Builder descriptorBuilder,
       boolean respectRequired) {
+    if (StorageApiCDC.COLUMNS.contains(fieldSchema.getName())) {
+      throw new RuntimeException(
+          "Reserved field name " + fieldSchema.getName() + " in user schema.");
+    }
     FieldDescriptorProto.Builder fieldDescriptorBuilder = FieldDescriptorProto.newBuilder();
     fieldDescriptorBuilder = fieldDescriptorBuilder.setName(fieldSchema.getName().toLowerCase());
     fieldDescriptorBuilder = fieldDescriptorBuilder.setNumber(fieldNumber);
     switch (fieldSchema.getType()) {
       case STRUCT:
         DescriptorProto nested =
-            descriptorSchemaFromTableFieldSchemas(fieldSchema.getFieldsList(), respectRequired);
+            descriptorSchemaFromTableFieldSchemas(
+                fieldSchema.getFieldsList(), respectRequired, false);
         descriptorBuilder.addNestedType(nested);
         fieldDescriptorBuilder =
             fieldDescriptorBuilder.setType(Type.TYPE_MESSAGE).setTypeName(nested.getName());
@@ -737,18 +823,21 @@ public class TableRowToStorageApiProto {
       case TIMESTAMP:
         if (value instanceof String) {
           try {
-            // '2011-12-03T10:15:30+01:00' '2011-12-03T10:15:30'
+            // '2011-12-03T10:15:30Z', '2011-12-03 10:15:30+05:00'
+            // '2011-12-03 10:15:30 UTC', '2011-12-03T10:15:30 America/New_York'
             return ChronoUnit.MICROS.between(
-                Instant.EPOCH, Instant.from(DateTimeFormatter.ISO_DATE_TIME.parse((String) value)));
-          } catch (DateTimeParseException e) {
+                Instant.EPOCH, Instant.from(TIMESTAMP_FORMATTER.parse((String) value)));
+          } catch (DateTimeException e) {
             try {
+              // for backwards compatibility, default time zone is UTC for values with no time-zone
+              // '2011-12-03T10:15:30'
+              return ChronoUnit.MICROS.between(
+                  Instant.EPOCH,
+                  Instant.from(TIMESTAMP_FORMATTER.withZone(ZoneOffset.UTC).parse((String) value)));
+            } catch (DateTimeParseException err) {
               // "12345667"
               return ChronoUnit.MICROS.between(
                   Instant.EPOCH, Instant.ofEpochMilli(Long.parseLong((String) value)));
-            } catch (NumberFormatException e2) {
-              // "yyyy-MM-dd HH:mm:ss.SSSSSS"
-              return ChronoUnit.MICROS.between(
-                  Instant.EPOCH, Instant.from(DATETIME_SPACE_FORMATTER.parse((String) value)));
             }
           }
         } else if (value instanceof Instant) {
@@ -851,7 +940,9 @@ public class TableRowToStorageApiProto {
               tableRow,
               ignoreUnknownValues,
               allowMissingRequiredFields,
-              getUnknownNestedFields.get());
+              getUnknownNestedFields.get(),
+              null,
+              -1);
         } else if (value instanceof AbstractMap) {
           // This will handle nested rows.
           AbstractMap<String, Object> map = ((AbstractMap<String, Object>) value);
@@ -861,7 +952,9 @@ public class TableRowToStorageApiProto {
               map,
               ignoreUnknownValues,
               allowMissingRequiredFields,
-              getUnknownNestedFields.get());
+              getUnknownNestedFields.get(),
+              null,
+              -1);
         }
         break;
       default:
@@ -880,14 +973,17 @@ public class TableRowToStorageApiProto {
   }
 
   @VisibleForTesting
-  public static TableRow tableRowFromMessage(Message message) {
+  public static TableRow tableRowFromMessage(Message message, boolean includeCdcColumns) {
     // TODO: Would be more correct to generate TableRows using setF.
     TableRow tableRow = new TableRow();
     for (Map.Entry<FieldDescriptor, Object> field : message.getAllFields().entrySet()) {
       FieldDescriptor fieldDescriptor = field.getKey();
       Object fieldValue = field.getValue();
-      tableRow.putIfAbsent(
-          fieldDescriptor.getName(), jsonValueFromMessageValue(fieldDescriptor, fieldValue, true));
+      if (includeCdcColumns || !StorageApiCDC.COLUMNS.contains(fieldDescriptor.getName())) {
+        tableRow.putIfAbsent(
+            fieldDescriptor.getName(),
+            jsonValueFromMessageValue(fieldDescriptor, fieldValue, true));
+      }
     }
     return tableRow;
   }
@@ -904,7 +1000,7 @@ public class TableRowToStorageApiProto {
     switch (fieldDescriptor.getType()) {
       case GROUP:
       case MESSAGE:
-        return tableRowFromMessage((Message) fieldValue);
+        return tableRowFromMessage((Message) fieldValue, false);
       case BYTES:
         return BaseEncoding.base64().encode(((ByteString) fieldValue).toByteArray());
       case ENUM:

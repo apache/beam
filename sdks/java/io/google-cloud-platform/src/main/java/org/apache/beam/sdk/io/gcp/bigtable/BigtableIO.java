@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable;
 
+import static org.apache.beam.sdk.io.gcp.bigtable.BigtableServiceFactory.BigtableServiceEntry;
 import static org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
@@ -26,36 +27,35 @@ import com.google.auto.value.AutoValue;
 import com.google.bigtable.v2.Mutation;
 import com.google.bigtable.v2.Row;
 import com.google.bigtable.v2.RowFilter;
-import com.google.bigtable.v2.SampleRowKeysResponse;
-import com.google.cloud.Timestamp;
 import com.google.cloud.bigtable.config.BigtableOptions;
+import com.google.cloud.bigtable.data.v2.models.ChangeStreamMutation;
+import com.google.cloud.bigtable.data.v2.models.ChangeStreamRecord;
+import com.google.cloud.bigtable.data.v2.models.KeyOffset;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import org.apache.beam.sdk.PipelineRunner;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics;
-import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMutation;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.UniqueIdGenerator;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.action.ActionFactory;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.BigtableChangeStreamAccessor;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.DaoFactory;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTableAdminDao;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dofn.DetectNewPartitionsDoFn;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dofn.FilterForMutationDoFn;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dofn.InitializeDoFn;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dofn.ReadChangeStreamPartitionDoFn;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.estimator.CoderSizeEstimator;
 import org.apache.beam.sdk.io.range.ByteKey;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
 import org.apache.beam.sdk.io.range.ByteKeyRangeTracker;
@@ -80,6 +80,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -132,6 +133,20 @@ import org.slf4j.LoggerFactory;
  *         .withInstanceId(instanceId)
  *         .withTableId("table")
  *         .withRowFilter(filter));
+ *
+ * // Configure timeouts for reads.
+ * // Let each attempt run for 1 second, retry if the attempt failed.
+ * // Give up after the request is retried for 60 seconds.
+ * Duration attemptTimeout = Duration.millis(1000);
+ * Duration operationTimeout = Duration.millis(60 * 1000);
+ * p.apply("read",
+ *     BigtableIO.read()
+ *         .withProjectId(projectId)
+ *         .withInstanceId(instanceId)
+ *         .withTableId("table")
+ *         .withKeyRange(keyRange)
+ *         .withAttemptTimeout(attemptTimeout)
+ *         .withOperationTimeout(operationTimeout);
  * }</pre>
  *
  * <h3>Writing to Cloud Bigtable</h3>
@@ -153,6 +168,15 @@ import org.slf4j.LoggerFactory;
  *         .withProjectId("project")
  *         .withInstanceId("instance")
  *         .withTableId("table"));
+ * }
+ *
+ * // Configure batch size for writes
+ * data.apply("write",
+ *     BigtableIO.write()
+ *         .withProjectId("project")
+ *         .withInstanceId("instance")
+ *         .withTableId("table")
+ *         .withBatchElements(100)); // every batch will have 100 elements
  * }</pre>
  *
  * <p>Optionally, BigtableIO.write() may be configured to emit {@link BigtableWriteResult} elements
@@ -181,6 +205,56 @@ import org.slf4j.LoggerFactory;
  *     .apply("do something", ParDo.of(...))
  *
  * }</pre>
+ *
+ * <h3>Streaming Changes from Cloud Bigtable</h3>
+ *
+ * <p>Cloud Bigtable change streams enable users to capture and stream out mutations from their
+ * Cloud Bigtable tables in real-time. Cloud Bigtable change streams enable many use cases including
+ * integrating with a user's data analytics pipelines, support audit and archival requirements as
+ * well as triggering downstream application logic on specific database changes.
+ *
+ * <p>Change stream connector creates and manages a metadata table to manage the state of the
+ * connector. By default, the table is created in the same instance as the table being streamed.
+ * However, it can be overridden with {@link
+ * BigtableIO.ReadChangeStream#withMetadataTableProjectId}, {@link
+ * BigtableIO.ReadChangeStream#withMetadataTableInstanceId}, {@link
+ * BigtableIO.ReadChangeStream#withMetadataTableTableId}, and {@link
+ * BigtableIO.ReadChangeStream#withMetadataTableAppProfileId}. The app profile for the metadata
+ * table must be a single cluster app profile with single row transaction enabled.
+ *
+ * <p>Note - To prevent unforeseen stream stalls, the BigtableIO connector outputs all data with an
+ * output timestamp of zero, making all data late, which will ensure that the stream will not stall.
+ * However, it means that you may have to deal with all data as late data, and features that depend
+ * on watermarks will not function. This means that Windowing functions and States and Timers are no
+ * longer effectively usable. Example use cases that are not possible because of this include:
+ *
+ * <ul>
+ *   <li>Completeness in a replicated cluster with writes to a row on multiple clusters.
+ *   <li>Ordering at the row level in a replicated cluster where the row is being written through
+ *       multiple-clusters.
+ * </ul>
+ *
+ * Users can use GlobalWindows with (non-event time) Triggers to group this late data into Panes.
+ * You can see an example of this in the pipeline below.
+ *
+ * <pre>{@code
+ * Pipeline pipeline = ...;
+ * pipeline
+ *    .apply(
+ *        BigtableIO.readChangeStream()
+ *            .withProjectId(projectId)
+ *            .withInstanceId(instanceId)
+ *            .withTableId(tableId)
+ *            .withAppProfileId(appProfileId)
+ *            .withStartTime(startTime));
+ * }</pre>
+ *
+ * <h3>Enable client side metrics</h3>
+ *
+ * <p>Client side metrics can be enabled with an experiments flag when you run the pipeline:
+ * --experiments=bigtable_enable_client_side_metrics. These metrics can provide additional insights
+ * to your job. You can read more about client side metrics in this documentation:
+ * https://cloud.google.com/bigtable/docs/client-side-metrics.
  *
  * <h3>Permissions</h3>
  *
@@ -237,8 +311,6 @@ public class BigtableIO {
    *
    * <ul>
    *   <li>{@link BigtableIO.ReadChangeStream#withStartTime} which defaults to now.
-   *   <li>{@link BigtableIO.ReadChangeStream#withEndTime} which defaults to empty.
-   *   <li>{@link BigtableIO.ReadChangeStream#withHeartbeatDuration} with defaults to 1 seconds.
    *   <li>{@link BigtableIO.ReadChangeStream#withMetadataTableProjectId} which defaults to value
    *       from {@link BigtableIO.ReadChangeStream#withProjectId}
    *   <li>{@link BigtableIO.ReadChangeStream#withMetadataTableInstanceId} which defaults to value
@@ -251,7 +323,6 @@ public class BigtableIO {
    *       generated string.
    * </ul>
    */
-  @Experimental
   public static ReadChangeStream readChangeStream() {
     return ReadChangeStream.create();
   }
@@ -269,16 +340,20 @@ public class BigtableIO {
 
     abstract BigtableReadOptions getBigtableReadOptions();
 
+    @VisibleForTesting
+    abstract BigtableServiceFactory getServiceFactory();
+
     /** Returns the table being read from. */
     public @Nullable String getTableId() {
-      ValueProvider<String> tableId = getBigtableConfig().getTableId();
+      ValueProvider<String> tableId = getBigtableReadOptions().getTableId();
       return tableId != null && tableId.isAccessible() ? tableId.get() : null;
     }
 
     /**
      * Returns the Google Cloud Bigtable instance being read from, and other parameters.
      *
-     * @deprecated will be replaced by bigtable options configurator.
+     * @deprecated read options are configured directly on BigtableIO.read(). Use {@link
+     *     #populateDisplayData(DisplayData.Builder)} to view the current configurations.
      */
     @Deprecated
     public @Nullable BigtableOptions getBigtableOptions() {
@@ -288,16 +363,17 @@ public class BigtableIO {
     abstract Builder toBuilder();
 
     static Read create() {
-      BigtableConfig config =
-          BigtableConfig.builder().setTableId(StaticValueProvider.of("")).setValidate(true).build();
+      BigtableConfig config = BigtableConfig.builder().setValidate(true).build();
 
       return new AutoValue_BigtableIO_Read.Builder()
           .setBigtableConfig(config)
           .setBigtableReadOptions(
               BigtableReadOptions.builder()
+                  .setTableId(StaticValueProvider.of(""))
                   .setKeyRanges(
                       StaticValueProvider.of(Collections.singletonList(ByteKeyRange.ALL_KEYS)))
                   .build())
+          .setServiceFactory(new BigtableServiceFactory())
           .build();
     }
 
@@ -307,6 +383,8 @@ public class BigtableIO {
       abstract Builder setBigtableConfig(BigtableConfig bigtableConfig);
 
       abstract Builder setBigtableReadOptions(BigtableReadOptions bigtableReadOptions);
+
+      abstract Builder setServiceFactory(BigtableServiceFactory factory);
 
       abstract Read build();
     }
@@ -363,8 +441,10 @@ public class BigtableIO {
      * <p>Does not modify this object.
      */
     public Read withTableId(ValueProvider<String> tableId) {
-      BigtableConfig config = getBigtableConfig();
-      return toBuilder().setBigtableConfig(config.withTableId(tableId)).build();
+      BigtableReadOptions bigtableReadOptions = getBigtableReadOptions();
+      return toBuilder()
+          .setBigtableReadOptions(bigtableReadOptions.toBuilder().setTableId(tableId).build())
+          .build();
     }
 
     /**
@@ -386,7 +466,9 @@ public class BigtableIO {
      *
      * <p>Does not modify this object.
      *
-     * @deprecated will be replaced by bigtable options configurator.
+     * @deprecated please set the configurations directly:
+     *     BigtableIO.read().withProjectId(projectId).withInstanceId(instanceId).withTableId(tableId)
+     *     and set credentials in {@link PipelineOptions}.
      */
     @Deprecated
     public Read withBigtableOptions(BigtableOptions options) {
@@ -407,12 +489,13 @@ public class BigtableIO {
      *
      * <p>Does not modify this object.
      *
-     * @deprecated will be replaced by bigtable options configurator.
+     * @deprecated please set the configurations directly:
+     *     BigtableIO.read().withProjectId(projectId).withInstanceId(instanceId).withTableId(tableId)
+     *     and set credentials in {@link PipelineOptions}.
      */
     @Deprecated
     public Read withBigtableOptions(BigtableOptions.Builder optionsBuilder) {
       BigtableConfig config = getBigtableConfig();
-      // TODO: is there a better way to clone a Builder? Want it to be immune from user changes.
       return toBuilder()
           .setBigtableConfig(config.withBigtableOptions(optionsBuilder.build().toBuilder().build()))
           .build();
@@ -426,7 +509,12 @@ public class BigtableIO {
      * {@link #withProjectId} and {@link #withInstanceId}.
      *
      * <p>Does not modify this object.
+     *
+     * @deprecated please set the configurations directly:
+     *     BigtableIO.read().withProjectId(projectId).withInstanceId(instanceId).withTableId(tableId)
+     *     and set credentials in {@link PipelineOptions}.
      */
+    @Deprecated
     public Read withBigtableOptionsConfigurator(
         SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder> configurator) {
       BigtableConfig config = getBigtableConfig();
@@ -469,7 +557,6 @@ public class BigtableIO {
      * <p>When we have a builder, we initialize the value. When they call the method then we
      * override the value
      */
-    @Experimental(Kind.SOURCE_SINK)
     public Read withMaxBufferElementCount(@Nullable Integer maxBufferElementCount) {
       BigtableReadOptions bigtableReadOptions = getBigtableReadOptions();
       return toBuilder()
@@ -521,20 +608,6 @@ public class BigtableIO {
     }
 
     /**
-     * Returns a new {@link BigtableIO.Read} that will read using the given Cloud Bigtable service
-     * implementation.
-     *
-     * <p>This is used for testing.
-     *
-     * <p>Does not modify this object.
-     */
-    @VisibleForTesting
-    Read withBigtableService(BigtableService bigtableService) {
-      BigtableConfig config = getBigtableConfig();
-      return toBuilder().setBigtableConfig(config.withBigtableService(bigtableService)).build();
-    }
-
-    /**
      * Returns a new {@link BigtableIO.Read} that will use an official Bigtable emulator.
      *
      * <p>This is used for testing.
@@ -545,19 +618,57 @@ public class BigtableIO {
       return toBuilder().setBigtableConfig(config.withEmulator(emulatorHost)).build();
     }
 
+    /**
+     * Returns a new {@link BigtableIO.Read} with the attempt timeout. Attempt timeout controls the
+     * timeout for each remote call.
+     *
+     * <p>Does not modify this object.
+     */
+    public Read withAttemptTimeout(Duration timeout) {
+      checkArgument(timeout.isLongerThan(Duration.ZERO), "attempt timeout must be positive");
+      BigtableReadOptions readOptions = getBigtableReadOptions();
+      return toBuilder()
+          .setBigtableReadOptions(readOptions.toBuilder().setAttemptTimeout(timeout).build())
+          .build();
+    }
+
+    /**
+     * Returns a new {@link BigtableIO.Read} with the operation timeout. Operation timeout has
+     * ultimate control over how long the logic should keep trying the remote call until it gives up
+     * completely.
+     *
+     * <p>Does not modify this object.
+     */
+    public Read withOperationTimeout(Duration timeout) {
+      checkArgument(timeout.isLongerThan(Duration.ZERO), "operation timeout must be positive");
+      BigtableReadOptions readOptions = getBigtableReadOptions();
+      return toBuilder()
+          .setBigtableReadOptions(readOptions.toBuilder().setOperationTimeout(timeout).build())
+          .build();
+    }
+
+    Read withServiceFactory(BigtableServiceFactory factory) {
+      return toBuilder().setServiceFactory(factory).build();
+    }
+
     @Override
     public PCollection<Row> expand(PBegin input) {
       getBigtableConfig().validate();
       getBigtableReadOptions().validate();
 
       BigtableSource source =
-          new BigtableSource(getBigtableConfig(), getBigtableReadOptions(), null);
+          new BigtableSource(
+              getServiceFactory(),
+              getServiceFactory().newId(),
+              getBigtableConfig(),
+              getBigtableReadOptions(),
+              null);
       return input.getPipeline().apply(org.apache.beam.sdk.io.Read.from(source));
     }
 
     @Override
     public void validate(PipelineOptions options) {
-      validateTableExists(getBigtableConfig(), options);
+      validateTableExists(getBigtableConfig(), getBigtableReadOptions(), options);
     }
 
     @Override
@@ -572,6 +683,21 @@ public class BigtableIO {
       ToStringHelper helper =
           MoreObjects.toStringHelper(Read.class).add("config", getBigtableConfig());
       return helper.add("readOptions", getBigtableReadOptions()).toString();
+    }
+
+    private void validateTableExists(
+        BigtableConfig config, BigtableReadOptions readOptions, PipelineOptions options) {
+      if (config.getValidate() && config.isDataAccessible() && readOptions.isDataAccessible()) {
+        String tableId = checkNotNull(readOptions.getTableId().get());
+        try {
+          checkArgument(
+              getServiceFactory().checkTableExists(config, options, tableId),
+              "Table %s does not exist",
+              tableId);
+        } catch (IOException e) {
+          LOG.warn("Error checking whether table {} exists; proceeding.", tableId, e);
+        }
+      }
     }
   }
 
@@ -601,10 +727,16 @@ public class BigtableIO {
 
     abstract BigtableConfig getBigtableConfig();
 
+    abstract BigtableWriteOptions getBigtableWriteOptions();
+
+    @VisibleForTesting
+    abstract BigtableServiceFactory getServiceFactory();
+
     /**
      * Returns the Google Cloud Bigtable instance being written to, and other parameters.
      *
-     * @deprecated will be replaced by bigtable options configurator.
+     * @deprecated write options are configured directly on BigtableIO.write(). Use {@link
+     *     #populateDisplayData(DisplayData.Builder)} to view the current configurations.
      */
     @Deprecated
     public @Nullable BigtableOptions getBigtableOptions() {
@@ -614,20 +746,26 @@ public class BigtableIO {
     abstract Builder toBuilder();
 
     static Write create() {
-      BigtableConfig config =
-          BigtableConfig.builder()
-              .setTableId(StaticValueProvider.of(""))
-              .setValidate(true)
-              .setBigtableOptionsConfigurator(enableBulkApiConfigurator(null))
-              .build();
+      BigtableConfig config = BigtableConfig.builder().setValidate(true).build();
 
-      return new AutoValue_BigtableIO_Write.Builder().setBigtableConfig(config).build();
+      BigtableWriteOptions writeOptions =
+          BigtableWriteOptions.builder().setTableId(StaticValueProvider.of("")).build();
+
+      return new AutoValue_BigtableIO_Write.Builder()
+          .setBigtableConfig(config)
+          .setBigtableWriteOptions(writeOptions)
+          .setServiceFactory(new BigtableServiceFactory())
+          .build();
     }
 
     @AutoValue.Builder
     abstract static class Builder {
 
       abstract Builder setBigtableConfig(BigtableConfig bigtableConfig);
+
+      abstract Builder setBigtableWriteOptions(BigtableWriteOptions writeOptions);
+
+      abstract Builder setServiceFactory(BigtableServiceFactory factory);
 
       abstract Write build();
     }
@@ -684,8 +822,10 @@ public class BigtableIO {
      * <p>Does not modify this object.
      */
     public Write withTableId(ValueProvider<String> tableId) {
-      BigtableConfig config = getBigtableConfig();
-      return toBuilder().setBigtableConfig(config.withTableId(tableId)).build();
+      BigtableWriteOptions writeOptions = getBigtableWriteOptions();
+      return toBuilder()
+          .setBigtableWriteOptions(writeOptions.toBuilder().setTableId(tableId).build())
+          .build();
     }
 
     /**
@@ -707,7 +847,9 @@ public class BigtableIO {
      *
      * <p>Does not modify this object.
      *
-     * @deprecated will be replaced by bigtable options configurator.
+     * @deprecated please configure the write options directly:
+     *     BigtableIO.write().withProjectId(projectId).withInstanceId(instanceId).withTableId(tableId)
+     *     and set credentials in {@link PipelineOptions}.
      */
     @Deprecated
     public Write withBigtableOptions(BigtableOptions options) {
@@ -728,14 +870,15 @@ public class BigtableIO {
      *
      * <p>Does not modify this object.
      *
-     * @deprecated will be replaced by bigtable options configurator.
+     * @deprecated please configure the write options directly:
+     *     BigtableIO.write().withProjectId(projectId).withInstanceId(instanceId).withTableId(tableId)
+     *     and set credentials in {@link PipelineOptions}.
      */
     @Deprecated
     public Write withBigtableOptions(BigtableOptions.Builder optionsBuilder) {
       BigtableConfig config = getBigtableConfig();
-      // TODO: is there a better way to clone a Builder? Want it to be immune from user changes.
       return toBuilder()
-          .setBigtableConfig(config.withBigtableOptions(optionsBuilder.build().toBuilder().build()))
+          .setBigtableConfig(config.withBigtableOptions(optionsBuilder.build()))
           .build();
     }
 
@@ -747,7 +890,12 @@ public class BigtableIO {
      * {@link #withProjectId} and {@link #withInstanceId}.
      *
      * <p>Does not modify this object.
+     *
+     * @deprecated please configure the write options directly:
+     *     BigtableIO.write().withProjectId(projectId).withInstanceId(instanceId).withTableId(tableId)
+     *     and set credentials in {@link PipelineOptions}.
      */
+    @Deprecated
     public Write withBigtableOptionsConfigurator(
         SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder> configurator) {
       BigtableConfig config = getBigtableConfig();
@@ -764,19 +912,6 @@ public class BigtableIO {
     }
 
     /**
-     * Returns a new {@link BigtableIO.Write} that will write using the given Cloud Bigtable service
-     * implementation.
-     *
-     * <p>This is used for testing.
-     *
-     * <p>Does not modify this object.
-     */
-    Write withBigtableService(BigtableService bigtableService) {
-      BigtableConfig config = getBigtableConfig();
-      return toBuilder().setBigtableConfig(config.withBigtableService(bigtableService)).build();
-    }
-
-    /**
      * Returns a new {@link BigtableIO.Write} that will use an official Bigtable emulator.
      *
      * <p>This is used for testing.
@@ -788,11 +923,122 @@ public class BigtableIO {
     }
 
     /**
+     * Returns a new {@link BigtableIO.Write} with the attempt timeout. Attempt timeout controls the
+     * timeout for each remote call.
+     *
+     * <p>Does not modify this object.
+     */
+    public Write withAttemptTimeout(Duration timeout) {
+      checkArgument(timeout.isLongerThan(Duration.ZERO), "attempt timeout must be positive");
+      BigtableWriteOptions options = getBigtableWriteOptions();
+      return toBuilder()
+          .setBigtableWriteOptions(options.toBuilder().setAttemptTimeout(timeout).build())
+          .build();
+    }
+
+    /**
+     * Returns a new {@link BigtableIO.Write} with the operation timeout. Operation timeout has
+     * ultimate control over how long the logic should keep trying the remote call until it gives up
+     * completely.
+     *
+     * <p>Does not modify this object.
+     */
+    public Write withOperationTimeout(Duration timeout) {
+      checkArgument(timeout.isLongerThan(Duration.ZERO), "operation timeout must be positive");
+      BigtableWriteOptions options = getBigtableWriteOptions();
+      return toBuilder()
+          .setBigtableWriteOptions(options.toBuilder().setOperationTimeout(timeout).build())
+          .build();
+    }
+
+    /**
+     * Returns a new {@link BigtableIO.Write} with the max elements a batch can have. After this
+     * many elements are accumulated, they will be wrapped up in a batch and sent to Bigtable.
+     *
+     * <p>Does not modify this object.
+     */
+    public Write withMaxElementsPerBatch(long size) {
+      checkArgument(size > 0, "max elements per batch size must be positive");
+      BigtableWriteOptions options = getBigtableWriteOptions();
+      return toBuilder()
+          .setBigtableWriteOptions(options.toBuilder().setMaxElementsPerBatch(size).build())
+          .build();
+    }
+
+    /**
+     * Returns a new {@link BigtableIO.Write} with the max bytes a batch can have. After this many
+     * bytes are accumulated, the elements will be wrapped up in a batch and sent to Bigtable.
+     *
+     * <p>Does not modify this object.
+     */
+    public Write withMaxBytesPerBatch(long size) {
+      checkArgument(size > 0, "max bytes per batch size must be positive");
+      BigtableWriteOptions options = getBigtableWriteOptions();
+      return toBuilder()
+          .setBigtableWriteOptions(options.toBuilder().setMaxBytesPerBatch(size).build())
+          .build();
+    }
+
+    /**
+     * Returns a new {@link BigtableIO.Write} with the max number of outstanding elements allowed
+     * before enforcing flow control.
+     *
+     * <p>Does not modify this object.
+     */
+    public Write withMaxOutstandingElements(long count) {
+      checkArgument(count > 0, "max outstanding elements must be positive");
+      BigtableWriteOptions options = getBigtableWriteOptions();
+      return toBuilder()
+          .setBigtableWriteOptions(options.toBuilder().setMaxOutstandingElements(count).build())
+          .build();
+    }
+
+    /**
+     * Returns a new {@link BigtableIO.Write} with the max number of outstanding bytes allowed
+     * before enforcing flow control.
+     *
+     * <p>Does not modify this object.
+     */
+    public Write withMaxOutstandingBytes(long bytes) {
+      checkArgument(bytes > 0, "max outstanding bytes must be positive");
+      BigtableWriteOptions options = getBigtableWriteOptions();
+      return toBuilder()
+          .setBigtableWriteOptions(options.toBuilder().setMaxOutstandingBytes(bytes).build())
+          .build();
+    }
+
+    /**
+     * Returns a new {@link BigtableIO.Write} with flow control enabled if enableFlowControl is
+     * true.
+     *
+     * <p>When enabled, traffic to Bigtable is automatically rate-limited to prevent overloading
+     * Bigtable clusters while keeping enough load to trigger Bigtable Autoscaling (if enabled) to
+     * provision more nodes as needed. It is different from the flow control set by {@link
+     * #withMaxOutstandingElements(long)} and {@link #withMaxOutstandingBytes(long)}, which is
+     * always enabled on batch writes and limits the number of outstanding requests to the Bigtable
+     * server.
+     *
+     * <p>Does not modify this object.
+     */
+    public Write withFlowControl(boolean enableFlowControl) {
+      BigtableWriteOptions options = getBigtableWriteOptions();
+      return toBuilder()
+          .setBigtableWriteOptions(options.toBuilder().setFlowControl(enableFlowControl).build())
+          .build();
+    }
+
+    @VisibleForTesting
+    Write withServiceFactory(BigtableServiceFactory factory) {
+      return toBuilder().setServiceFactory(factory).build();
+    }
+
+    /**
      * Returns a {@link BigtableIO.WriteWithResults} that will emit a {@link BigtableWriteResult}
      * for each batch of rows written.
      */
     public WriteWithResults withWriteResults() {
-      return new WriteWithResults(getBigtableConfig());
+      return new WriteWithResults(
+          getBigtableConfig(), getBigtableWriteOptions(), getServiceFactory());
     }
 
     @Override
@@ -829,67 +1075,107 @@ public class BigtableIO {
           PCollection<KV<ByteString, Iterable<Mutation>>>, PCollection<BigtableWriteResult>> {
 
     private final BigtableConfig bigtableConfig;
+    private final BigtableWriteOptions bigtableWriteOptions;
 
-    WriteWithResults(BigtableConfig bigtableConfig) {
+    private final BigtableServiceFactory factory;
+
+    WriteWithResults(
+        BigtableConfig bigtableConfig,
+        BigtableWriteOptions bigtableWriteOptions,
+        BigtableServiceFactory factory) {
       this.bigtableConfig = bigtableConfig;
+      this.bigtableWriteOptions = bigtableWriteOptions;
+      this.factory = factory;
     }
 
     @Override
     public PCollection<BigtableWriteResult> expand(
         PCollection<KV<ByteString, Iterable<Mutation>>> input) {
       bigtableConfig.validate();
+      bigtableWriteOptions.validate();
 
-      return input.apply(ParDo.of(new BigtableWriterFn(bigtableConfig)));
+      return input.apply(
+          ParDo.of(new BigtableWriterFn(factory, bigtableConfig, bigtableWriteOptions)));
     }
 
     @Override
     public void validate(PipelineOptions options) {
-      validateTableExists(bigtableConfig, options);
+      validateTableExists(bigtableConfig, bigtableWriteOptions, options);
     }
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       bigtableConfig.populateDisplayData(builder);
+      bigtableWriteOptions.populateDisplayData(builder);
     }
 
     @Override
     public String toString() {
       return MoreObjects.toStringHelper(WriteWithResults.class)
           .add("config", bigtableConfig)
+          .add("writeOptions", bigtableWriteOptions)
           .toString();
+    }
+
+    private void validateTableExists(
+        BigtableConfig config, BigtableWriteOptions writeOptions, PipelineOptions options) {
+      if (config.getValidate() && config.isDataAccessible() && writeOptions.isDataAccessible()) {
+        String tableId = checkNotNull(writeOptions.getTableId().get());
+        try {
+          checkArgument(
+              factory.checkTableExists(config, options, writeOptions.getTableId().get()),
+              "Table %s does not exist",
+              tableId);
+        } catch (IOException e) {
+          LOG.warn("Error checking whether table {} exists; proceeding.", tableId, e);
+        }
+      }
     }
   }
 
   private static class BigtableWriterFn
       extends DoFn<KV<ByteString, Iterable<Mutation>>, BigtableWriteResult> {
 
-    BigtableWriterFn(BigtableConfig bigtableConfig) {
+    private final BigtableServiceFactory factory;
+    private final BigtableServiceFactory.ConfigId id;
+
+    // Assign serviceEntry in startBundle and clear it in tearDown.
+    @Nullable private BigtableServiceEntry serviceEntry;
+
+    BigtableWriterFn(
+        BigtableServiceFactory factory,
+        BigtableConfig bigtableConfig,
+        BigtableWriteOptions writeOptions) {
+      this.factory = factory;
       this.config = bigtableConfig;
+      this.writeOptions = writeOptions;
       this.failures = new ConcurrentLinkedQueue<>();
+      this.id = factory.newId();
     }
 
     @StartBundle
     public void startBundle(StartBundleContext c) throws IOException {
-      if (bigtableWriter == null) {
-        bigtableWriter =
-            config
-                .getBigtableService(c.getPipelineOptions())
-                .openForWriting(config.getTableId().get());
-      }
       recordsWritten = 0;
       this.seenWindows = Maps.newHashMapWithExpectedSize(1);
+
+      if (bigtableWriter == null) {
+        serviceEntry =
+            factory.getServiceForWriting(id, config, writeOptions, c.getPipelineOptions());
+        bigtableWriter = serviceEntry.getService().openForWriting(writeOptions.getTableId().get());
+      }
     }
 
     @ProcessElement
     public void processElement(ProcessContext c, BoundedWindow window) throws Exception {
       checkForFailures();
+      KV<ByteString, Iterable<Mutation>> record = c.element();
       bigtableWriter
-          .writeRecord(c.element())
+          .writeRecord(record)
           .whenComplete(
               (mutationResult, exception) -> {
                 if (exception != null) {
-                  failures.add(new BigtableWriteException(c.element(), exception));
+                  failures.add(new BigtableWriteException(record, exception));
                 }
               });
       ++recordsWritten;
@@ -916,6 +1202,10 @@ public class BigtableIO {
         bigtableWriter.close();
         bigtableWriter = null;
       }
+      if (serviceEntry != null) {
+        serviceEntry.close();
+        serviceEntry = null;
+      }
     }
 
     @Override
@@ -925,6 +1215,7 @@ public class BigtableIO {
 
     ///////////////////////////////////////////////////////////////////////////////
     private final BigtableConfig config;
+    private final BigtableWriteOptions writeOptions;
     private BigtableService.Writer bigtableWriter;
     private long recordsWritten;
     private final ConcurrentLinkedQueue<BigtableWriteException> failures;
@@ -972,7 +1263,13 @@ public class BigtableIO {
 
   static class BigtableSource extends BoundedSource<Row> {
     public BigtableSource(
-        BigtableConfig config, BigtableReadOptions readOptions, @Nullable Long estimatedSizeBytes) {
+        BigtableServiceFactory factory,
+        BigtableServiceFactory.ConfigId configId,
+        BigtableConfig config,
+        BigtableReadOptions readOptions,
+        @Nullable Long estimatedSizeBytes) {
+      this.factory = factory;
+      this.configId = configId;
       this.config = config;
       this.readOptions = readOptions;
       this.estimatedSizeBytes = estimatedSizeBytes;
@@ -992,15 +1289,20 @@ public class BigtableIO {
     private final BigtableReadOptions readOptions;
     private @Nullable Long estimatedSizeBytes;
 
+    private final BigtableServiceFactory.ConfigId configId;
+
+    private final BigtableServiceFactory factory;
+
     /** Creates a new {@link BigtableSource} with just one {@link ByteKeyRange}. */
     protected BigtableSource withSingleRange(ByteKeyRange range) {
       checkArgument(range != null, "range can not be null");
-      return new BigtableSource(config, readOptions.withKeyRange(range), estimatedSizeBytes);
+      return new BigtableSource(
+          factory, configId, config, readOptions.withKeyRange(range), estimatedSizeBytes);
     }
 
     protected BigtableSource withEstimatedSizeBytes(Long estimatedSizeBytes) {
       checkArgument(estimatedSizeBytes != null, "estimatedSizeBytes can not be null");
-      return new BigtableSource(config, readOptions, estimatedSizeBytes);
+      return new BigtableSource(factory, configId, config, readOptions, estimatedSizeBytes);
     }
 
     /**
@@ -1008,9 +1310,11 @@ public class BigtableIO {
      * boundaries and estimated sizes. We can use these samples to ensure that splits are on
      * different tablets, and possibly generate sub-splits within tablets.
      */
-    private List<SampleRowKeysResponse> getSampleRowKeys(PipelineOptions pipelineOptions)
-        throws IOException {
-      return config.getBigtableService(pipelineOptions).getSampleRowKeys(this);
+    private List<KeyOffset> getSampleRowKeys(PipelineOptions pipelineOptions) throws IOException {
+      try (BigtableServiceFactory.BigtableServiceEntry serviceEntry =
+          factory.getServiceForReading(configId, config, readOptions, pipelineOptions)) {
+        return serviceEntry.getService().getSampleRowKeys(this);
+      }
     }
 
     private static final long MAX_SPLIT_COUNT = 15_360L;
@@ -1054,7 +1358,12 @@ public class BigtableIO {
         if (counter == numberToCombine
             || !checkRangeAdjacency(previousSourceRanges, source.getRanges())) {
           reducedSplits.add(
-              new BigtableSource(config, readOptions.withKeyRanges(previousSourceRanges), size));
+              new BigtableSource(
+                  factory,
+                  configId,
+                  config,
+                  readOptions.withKeyRanges(previousSourceRanges),
+                  size));
           counter = 0;
           size = 0;
           previousSourceRanges = new ArrayList<>();
@@ -1066,7 +1375,8 @@ public class BigtableIO {
       }
       if (size > 0) {
         reducedSplits.add(
-            new BigtableSource(config, readOptions.withKeyRanges(previousSourceRanges), size));
+            new BigtableSource(
+                factory, configId, config, readOptions.withKeyRanges(previousSourceRanges), size));
       }
       return reducedSplits;
     }
@@ -1127,7 +1437,7 @@ public class BigtableIO {
 
     /** Helper that splits this source into bundles based on Cloud Bigtable sampled row keys. */
     private List<BigtableSource> splitBasedOnSamples(
-        long desiredBundleSizeBytes, List<SampleRowKeysResponse> sampleRowKeys) {
+        long desiredBundleSizeBytes, List<KeyOffset> sampleRowKeys) {
       // There are no regions, or no samples available. Just scan the entire range.
       if (sampleRowKeys.isEmpty()) {
         LOG.info("Not splitting source {} because no sample row keys are available.", this);
@@ -1151,9 +1461,7 @@ public class BigtableIO {
      * keys.
      */
     private List<BigtableSource> splitRangeBasedOnSamples(
-        long desiredBundleSizeBytes,
-        List<SampleRowKeysResponse> sampleRowKeys,
-        ByteKeyRange range) {
+        long desiredBundleSizeBytes, List<KeyOffset> sampleRowKeys, ByteKeyRange range) {
 
       // Loop through all sampled responses and generate splits from the ones that overlap the
       // scan range. The main complication is that we must track the end range of the previous
@@ -1161,9 +1469,9 @@ public class BigtableIO {
       ByteKey lastEndKey = ByteKey.EMPTY;
       long lastOffset = 0;
       ImmutableList.Builder<BigtableSource> splits = ImmutableList.builder();
-      for (SampleRowKeysResponse response : sampleRowKeys) {
-        ByteKey responseEndKey = makeByteKey(response.getRowKey());
-        long responseOffset = response.getOffsetBytes();
+      for (KeyOffset keyOffset : sampleRowKeys) {
+        ByteKey responseEndKey = makeByteKey(keyOffset.getKey());
+        long responseOffset = keyOffset.getOffsetBytes();
         checkState(
             responseOffset >= lastOffset,
             "Expected response byte offset %s to come after the last offset %s",
@@ -1232,16 +1540,16 @@ public class BigtableIO {
      * Computes the estimated size in bytes based on the total size of all samples that overlap the
      * key ranges this source will scan.
      */
-    private long getEstimatedSizeBytesBasedOnSamples(List<SampleRowKeysResponse> samples) {
+    private long getEstimatedSizeBytesBasedOnSamples(List<KeyOffset> samples) {
       long estimatedSizeBytes = 0;
       long lastOffset = 0;
       ByteKey currentStartKey = ByteKey.EMPTY;
       // Compute the total estimated size as the size of each sample that overlaps the scan range.
       // TODO: In future, Bigtable service may provide finer grained APIs, e.g., to sample given a
       // filter or to sample on a given key range.
-      for (SampleRowKeysResponse response : samples) {
-        ByteKey currentEndKey = makeByteKey(response.getRowKey());
-        long currentOffset = response.getOffsetBytes();
+      for (KeyOffset keyOffset : samples) {
+        ByteKey currentEndKey = makeByteKey(keyOffset.getKey());
+        long currentOffset = keyOffset.getOffsetBytes();
         if (!currentStartKey.isEmpty() && currentStartKey.equals(currentEndKey)) {
           // Skip an empty region.
           lastOffset = currentOffset;
@@ -1264,7 +1572,8 @@ public class BigtableIO {
 
     @Override
     public BoundedReader<Row> createReader(PipelineOptions options) throws IOException {
-      return new BigtableReader(this, config.getBigtableService(options));
+      return new BigtableReader(
+          this, factory.getServiceForReading(configId, config, readOptions, options));
     }
 
     @Override
@@ -1274,7 +1583,7 @@ public class BigtableIO {
         return;
       }
 
-      ValueProvider<String> tableId = config.getTableId();
+      ValueProvider<String> tableId = readOptions.getTableId();
       checkArgument(
           tableId != null && tableId.isAccessible() && !tableId.get().isEmpty(),
           "tableId was not supplied");
@@ -1284,7 +1593,7 @@ public class BigtableIO {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
 
-      builder.add(DisplayData.item("tableId", config.getTableId()).withLabel("Table ID"));
+      builder.add(DisplayData.item("tableId", readOptions.getTableId()).withLabel("Table ID"));
 
       if (getRowFilter() != null) {
         builder.add(
@@ -1332,6 +1641,10 @@ public class BigtableIO {
       return splits.build();
     }
 
+    public BigtableReadOptions getReadOptions() {
+      return readOptions;
+    }
+
     public List<ByteKeyRange> getRanges() {
       return readOptions.getKeyRanges().get();
     }
@@ -1346,7 +1659,7 @@ public class BigtableIO {
     }
 
     public ValueProvider<String> getTableId() {
-      return config.getTableId();
+      return readOptions.getTableId();
     }
   }
 
@@ -1354,21 +1667,23 @@ public class BigtableIO {
     // Thread-safety: source is protected via synchronization and is only accessed or modified
     // inside a synchronized block (or constructor, which is the same).
     private BigtableSource source;
-    private BigtableService service;
+
+    // Assign serviceEntry at construction time and clear it in close().
+    @Nullable private BigtableServiceEntry serviceEntry;
     private BigtableService.Reader reader;
     private final ByteKeyRangeTracker rangeTracker;
     private long recordsReturned;
 
-    public BigtableReader(BigtableSource source, BigtableService service) {
+    public BigtableReader(BigtableSource source, BigtableServiceEntry service) {
       checkArgument(source.getRanges().size() == 1, "source must have exactly one key range");
       this.source = source;
-      this.service = service;
+      this.serviceEntry = service;
       rangeTracker = ByteKeyRangeTracker.of(source.getRanges().get(0));
     }
 
     @Override
     public boolean start() throws IOException {
-      reader = service.createReader(getCurrentSource());
+      reader = serviceEntry.getService().createReader(getCurrentSource());
       boolean hasRecord =
           (reader.start()
                   && rangeTracker.tryReturnRecordAt(
@@ -1407,8 +1722,11 @@ public class BigtableIO {
     public void close() throws IOException {
       LOG.info("Closing reader after reading {} records.", recordsReturned);
       if (reader != null) {
-        reader.close();
         reader = null;
+      }
+      if (serviceEntry != null) {
+        serviceEntry.close();
+        serviceEntry = null;
       }
     }
 
@@ -1465,19 +1783,24 @@ public class BigtableIO {
           cause);
     }
   }
-
-  static void validateTableExists(BigtableConfig config, PipelineOptions options) {
-    if (config.getValidate() && config.isDataAccessible()) {
-      String tableId = checkNotNull(config.getTableId().get());
-      try {
-        checkArgument(
-            config.getBigtableService(options).tableExists(tableId),
-            "Table %s does not exist",
-            tableId);
-      } catch (IOException e) {
-        LOG.warn("Error checking whether table {} exists; proceeding.", tableId, e);
-      }
-    }
+  /**
+   * Overwrite options to determine what to do if change stream name is being reused and there
+   * exists metadata of the same change stream name.
+   */
+  public enum ExistingPipelineOptions {
+    // Don't start if there exists metadata of the same change stream name.
+    FAIL_IF_EXISTS,
+    // Pick up from where the previous pipeline left off. This will perform resumption at best
+    // effort guaranteeing, at-least-once delivery. So it's likely that duplicate data, seen before
+    // the pipeline was stopped, will be outputted. If previous pipeline doesn't exist, start a new
+    // pipeline.
+    RESUME_OR_NEW,
+    // Same as RESUME_OR_NEW except if previous pipeline doesn't exist, don't start.
+    RESUME_OR_FAIL,
+    // This skips cleaning up previous pipeline metadata and starts a new pipeline. This should
+    // only be used to skip cleanup in tests
+    @VisibleForTesting
+    SKIP_CLEANUP,
   }
 
   @AutoValue
@@ -1485,10 +1808,8 @@ public class BigtableIO {
       extends PTransform<PBegin, PCollection<KV<ByteString, ChangeStreamMutation>>> {
 
     static ReadChangeStream create() {
-      BigtableConfig config =
-          BigtableConfig.builder().setTableId(StaticValueProvider.of("")).setValidate(true).build();
-      BigtableConfig metadataTableconfig =
-          BigtableConfig.builder().setTableId(StaticValueProvider.of("")).setValidate(true).build();
+      BigtableConfig config = BigtableConfig.builder().setValidate(true).build();
+      BigtableConfig metadataTableconfig = BigtableConfig.builder().setValidate(true).build();
 
       return new AutoValue_BigtableIO_ReadChangeStream.Builder()
           .setBigtableConfig(config)
@@ -1498,17 +1819,24 @@ public class BigtableIO {
 
     abstract BigtableConfig getBigtableConfig();
 
-    abstract @Nullable Timestamp getStartTime();
+    abstract @Nullable String getTableId();
 
-    abstract @Nullable Timestamp getEndTime();
+    abstract @Nullable Instant getStartTime();
 
-    abstract @Nullable Duration getHeartbeatDuration();
+    abstract @Nullable Instant getEndTime();
 
     abstract @Nullable String getChangeStreamName();
 
+    abstract @Nullable ExistingPipelineOptions getExistingPipelineOptions();
+
     abstract BigtableConfig getMetadataTableBigtableConfig();
 
+    abstract @Nullable String getMetadataTableId();
+
+    abstract @Nullable Boolean getCreateOrUpdateMetadataTable();
+
     abstract ReadChangeStream.Builder toBuilder();
+
     /**
      * Returns a new {@link BigtableIO.ReadChangeStream} that will stream from the Cloud Bigtable
      * project indicated by given parameter, requires {@link #withInstanceId} to be called to
@@ -1543,10 +1871,7 @@ public class BigtableIO {
      * <p>Does not modify this object.
      */
     public ReadChangeStream withTableId(String tableId) {
-      BigtableConfig config = getBigtableConfig();
-      return toBuilder()
-          .setBigtableConfig(config.withTableId(StaticValueProvider.of(tableId)))
-          .build();
+      return toBuilder().setTableId(tableId).build();
     }
 
     /**
@@ -1572,28 +1897,14 @@ public class BigtableIO {
      *
      * <p>Does not modify this object.
      */
-    public ReadChangeStream withStartTime(Timestamp startTime) {
+    public ReadChangeStream withStartTime(Instant startTime) {
       return toBuilder().setStartTime(startTime).build();
     }
 
-    /**
-     * Returns a new {@link BigtableIO.ReadChangeStream} that will stop streaming at the specified
-     * end time.
-     *
-     * <p>Does not modify this object.
-     */
-    public ReadChangeStream withEndTime(Timestamp endTime) {
+    /** Used only for integration tests. Unsafe to use in production. */
+    @VisibleForTesting
+    ReadChangeStream withEndTime(Instant endTime) {
       return toBuilder().setEndTime(endTime).build();
-    }
-
-    /**
-     * Returns a new {@link BigtableIO.ReadChangeStream} that will send heartbeat messages at
-     * specified interval.
-     *
-     * <p>Does not modify this object.
-     */
-    public ReadChangeStream withHeartbeatDuration(Duration interval) {
-      return toBuilder().setHeartbeatDuration(interval).build();
     }
 
     /**
@@ -1604,6 +1915,17 @@ public class BigtableIO {
      */
     public ReadChangeStream withChangeStreamName(String changeStreamName) {
       return toBuilder().setChangeStreamName(changeStreamName).build();
+    }
+
+    /**
+     * Returns a new {@link BigtableIO.ReadChangeStream} that decides what to do if an existing
+     * pipeline exists with the same change stream name.
+     *
+     * <p>Does not modify this object.
+     */
+    public ReadChangeStream withExistingPipelineOptions(
+        ExistingPipelineOptions existingPipelineOptions) {
+      return toBuilder().setExistingPipelineOptions(existingPipelineOptions).build();
     }
 
     /**
@@ -1645,10 +1967,7 @@ public class BigtableIO {
      * <p>Does not modify this object.
      */
     public ReadChangeStream withMetadataTableTableId(String tableId) {
-      BigtableConfig config = getMetadataTableBigtableConfig();
-      return toBuilder()
-          .setMetadataTableBigtableConfig(config.withTableId(StaticValueProvider.of(tableId)))
-          .build();
+      return toBuilder().setMetadataTableId(tableId).build();
     }
 
     /**
@@ -1669,65 +1988,132 @@ public class BigtableIO {
           .build();
     }
 
+    /**
+     * Returns a new {@link BigtableIO.ReadChangeStream} that, if set to true, will create or update
+     * metadata table before launching pipeline. Otherwise, it is expected that a metadata table
+     * with correct schema exists.
+     *
+     * <p>Optional: defaults to true
+     *
+     * <p>Does not modify this object.
+     */
+    public ReadChangeStream withCreateOrUpdateMetadataTable(boolean shouldCreate) {
+      return toBuilder().setCreateOrUpdateMetadataTable(shouldCreate).build();
+    }
+
     @Override
     public PCollection<KV<ByteString, ChangeStreamMutation>> expand(PBegin input) {
-      checkArgument(getBigtableConfig() != null);
-      checkArgument(getBigtableConfig().getProjectId() != null);
-      checkArgument(getBigtableConfig().getInstanceId() != null);
-      checkArgument(getBigtableConfig().getTableId() != null);
-      checkArgument(getBigtableConfig().getAppProfileId() != null);
+      checkArgument(
+          getBigtableConfig() != null,
+          "BigtableIO ReadChangeStream is missing required configurations fields.");
+      checkArgument(
+          getBigtableConfig().getProjectId() != null, "Missing required projectId field.");
+      checkArgument(
+          getBigtableConfig().getInstanceId() != null, "Missing required instanceId field.");
+      checkArgument(getTableId() != null, "Missing required tableId field.");
+
+      BigtableConfig bigtableConfig = getBigtableConfig();
+      if (getBigtableConfig().getAppProfileId() == null
+          || getBigtableConfig().getAppProfileId().get().isEmpty()) {
+        bigtableConfig = bigtableConfig.withAppProfileId(StaticValueProvider.of("default"));
+      }
 
       BigtableConfig metadataTableConfig = getMetadataTableBigtableConfig();
+      String metadataTableId = getMetadataTableId();
       if (metadataTableConfig.getProjectId() == null
           || metadataTableConfig.getProjectId().get().isEmpty()) {
-        metadataTableConfig = metadataTableConfig.withProjectId(getBigtableConfig().getProjectId());
+        metadataTableConfig = metadataTableConfig.withProjectId(bigtableConfig.getProjectId());
       }
       if (metadataTableConfig.getInstanceId() == null
           || metadataTableConfig.getInstanceId().get().isEmpty()) {
-        metadataTableConfig =
-            metadataTableConfig.withInstanceId(getBigtableConfig().getInstanceId());
+        metadataTableConfig = metadataTableConfig.withInstanceId(bigtableConfig.getInstanceId());
       }
-      if (metadataTableConfig.getTableId() == null
-          || metadataTableConfig.getTableId().get().isEmpty()) {
-        metadataTableConfig =
-            metadataTableConfig.withTableId(
-                StaticValueProvider.of(MetadataTableAdminDao.DEFAULT_METADATA_TABLE_NAME));
+      if (metadataTableId == null || metadataTableId.isEmpty()) {
+        metadataTableId = MetadataTableAdminDao.DEFAULT_METADATA_TABLE_NAME;
       }
       if (metadataTableConfig.getAppProfileId() == null
           || metadataTableConfig.getAppProfileId().get().isEmpty()) {
         metadataTableConfig =
-            metadataTableConfig.withAppProfileId(getBigtableConfig().getAppProfileId());
+            metadataTableConfig.withAppProfileId(bigtableConfig.getAppProfileId());
       }
 
-      Timestamp startTime = getStartTime();
+      Instant startTime = getStartTime();
       if (startTime == null) {
-        startTime = Timestamp.of(Date.from(Instant.now()));
-      }
-      Duration heartbeatDuration = getHeartbeatDuration();
-      if (heartbeatDuration == null) {
-        heartbeatDuration = Duration.standardSeconds(1);
+        startTime = Instant.now();
       }
       String changeStreamName = getChangeStreamName();
       if (changeStreamName == null || changeStreamName.isEmpty()) {
         changeStreamName = UniqueIdGenerator.generateRowKeyPrefix();
       }
+      ExistingPipelineOptions existingPipelineOptions = getExistingPipelineOptions();
+      if (existingPipelineOptions == null) {
+        existingPipelineOptions = ExistingPipelineOptions.FAIL_IF_EXISTS;
+      }
+
+      boolean shouldCreateOrUpdateMetadataTable = true;
+      if (getCreateOrUpdateMetadataTable() != null) {
+        shouldCreateOrUpdateMetadataTable = getCreateOrUpdateMetadataTable();
+      }
 
       ActionFactory actionFactory = new ActionFactory();
-      DaoFactory daoFactory =
-          new DaoFactory(getBigtableConfig(), metadataTableConfig, changeStreamName);
       ChangeStreamMetrics metrics = new ChangeStreamMetrics();
+      DaoFactory daoFactory =
+          new DaoFactory(
+              bigtableConfig, metadataTableConfig, getTableId(), metadataTableId, changeStreamName);
+
+      try {
+        MetadataTableAdminDao metadataTableAdminDao = daoFactory.getMetadataTableAdminDao();
+        checkArgument(metadataTableAdminDao != null);
+        checkArgument(
+            metadataTableAdminDao.isAppProfileSingleClusterAndTransactional(
+                metadataTableConfig.getAppProfileId().get()),
+            "App profile id '"
+                + metadataTableConfig.getAppProfileId().get()
+                + "' provided to access metadata table needs to use single-cluster routing policy"
+                + " and allow single-row transactions.");
+
+        // Only try to create or update metadata table if option is set to true. Otherwise, just
+        // check if the table exists.
+        if (shouldCreateOrUpdateMetadataTable && metadataTableAdminDao.createMetadataTable()) {
+          LOG.info("Created metadata table: " + metadataTableAdminDao.getTableId());
+        }
+        checkArgument(
+            metadataTableAdminDao.doesMetadataTableExist(),
+            "Metadata table does not exist: " + metadataTableAdminDao.getTableId());
+
+        try (BigtableChangeStreamAccessor bigtableChangeStreamAccessor =
+            BigtableChangeStreamAccessor.getOrCreate(bigtableConfig)) {
+          checkArgument(
+              bigtableChangeStreamAccessor.getTableAdminClient().exists(getTableId()),
+              "Change Stream table does not exist");
+        }
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      } finally {
+        daoFactory.close();
+      }
+
       InitializeDoFn initializeDoFn =
-          new InitializeDoFn(daoFactory, metadataTableConfig.getAppProfileId().get(), startTime);
+          new InitializeDoFn(daoFactory, startTime, existingPipelineOptions);
       DetectNewPartitionsDoFn detectNewPartitionsDoFn =
           new DetectNewPartitionsDoFn(getEndTime(), actionFactory, daoFactory, metrics);
       ReadChangeStreamPartitionDoFn readChangeStreamPartitionDoFn =
-          new ReadChangeStreamPartitionDoFn(heartbeatDuration, daoFactory, actionFactory, metrics);
+          new ReadChangeStreamPartitionDoFn(daoFactory, actionFactory, metrics);
 
-      return input
-          .apply(Impulse.create())
-          .apply("Initialize", ParDo.of(initializeDoFn))
-          .apply("DetectNewPartition", ParDo.of(detectNewPartitionsDoFn))
-          .apply("ReadChangeStreamPartition", ParDo.of(readChangeStreamPartitionDoFn));
+      PCollection<KV<ByteString, ChangeStreamRecord>> readChangeStreamOutput =
+          input
+              .apply(Impulse.create())
+              .apply("Initialize", ParDo.of(initializeDoFn))
+              .apply("DetectNewPartition", ParDo.of(detectNewPartitionsDoFn))
+              .apply("ReadChangeStreamPartition", ParDo.of(readChangeStreamPartitionDoFn));
+
+      Coder<KV<ByteString, ChangeStreamRecord>> outputCoder = readChangeStreamOutput.getCoder();
+      CoderSizeEstimator<KV<ByteString, ChangeStreamRecord>> sizeEstimator =
+          new CoderSizeEstimator<>(outputCoder);
+      readChangeStreamPartitionDoFn.setSizeEstimator(sizeEstimator);
+
+      return readChangeStreamOutput.apply(
+          "FilterForMutation", ParDo.of(new FilterForMutationDoFn()));
     }
 
     @AutoValue.Builder
@@ -1735,18 +2121,71 @@ public class BigtableIO {
 
       abstract ReadChangeStream.Builder setBigtableConfig(BigtableConfig bigtableConfig);
 
+      abstract ReadChangeStream.Builder setTableId(String tableId);
+
       abstract ReadChangeStream.Builder setMetadataTableBigtableConfig(
           BigtableConfig bigtableConfig);
 
-      abstract ReadChangeStream.Builder setStartTime(Timestamp startTime);
+      abstract ReadChangeStream.Builder setMetadataTableId(String metadataTableId);
 
-      abstract ReadChangeStream.Builder setEndTime(Timestamp endTime);
+      abstract ReadChangeStream.Builder setStartTime(Instant startTime);
 
-      abstract ReadChangeStream.Builder setHeartbeatDuration(Duration interval);
+      abstract ReadChangeStream.Builder setEndTime(Instant endTime);
 
       abstract ReadChangeStream.Builder setChangeStreamName(String changeStreamName);
 
+      abstract ReadChangeStream.Builder setExistingPipelineOptions(
+          ExistingPipelineOptions existingPipelineOptions);
+
+      abstract ReadChangeStream.Builder setCreateOrUpdateMetadataTable(boolean shouldCreate);
+
       abstract ReadChangeStream build();
+    }
+  }
+
+  /**
+   * Utility method to create or update Read Change Stream metadata table. This requires Bigtable
+   * table create permissions. This method is useful if the pipeline isn't granted permissions to
+   * create Bigtable tables. Run this method with correct permissions to create the metadata table,
+   * which is required to read Bigtable change streams. This method only needs to be run once, and
+   * the metadata table can be reused for all pipelines.
+   *
+   * @param projectId project id of the metadata table, usually the same as the project of the table
+   *     being streamed
+   * @param instanceId instance id of the metadata table, usually the same as the instance of the
+   *     table being streamed
+   * @param tableId name of the metadata table, leave it null or empty to use default.
+   * @return true if the table was successfully created. Otherwise, false.
+   */
+  public static boolean createOrUpdateReadChangeStreamMetadataTable(
+      String projectId, String instanceId, @Nullable String tableId) throws IOException {
+    BigtableConfig bigtableConfig =
+        BigtableConfig.builder()
+            .setValidate(true)
+            .setProjectId(StaticValueProvider.of(projectId))
+            .setInstanceId(StaticValueProvider.of(instanceId))
+            .setAppProfileId(
+                StaticValueProvider.of(
+                    "default")) // App profile is not used. It's only required for data API.
+            .build();
+
+    if (tableId == null || tableId.isEmpty()) {
+      tableId = MetadataTableAdminDao.DEFAULT_METADATA_TABLE_NAME;
+    }
+
+    DaoFactory daoFactory = new DaoFactory(null, bigtableConfig, null, tableId, null);
+
+    try {
+      MetadataTableAdminDao metadataTableAdminDao = daoFactory.getMetadataTableAdminDao();
+
+      // Only try to create or update metadata table if option is set to true. Otherwise, just
+      // check if the table exists.
+      if (metadataTableAdminDao.createMetadataTable()) {
+        LOG.info("Created metadata table: " + metadataTableAdminDao.getTableId());
+      }
+      return metadataTableAdminDao.doesMetadataTableExist();
+    } finally {
+      daoFactory.close();
     }
   }
 }

@@ -31,7 +31,6 @@ from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference import utils
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import PredictionResult
-from apache_beam.utils.annotations import experimental
 
 __all__ = [
     'PytorchModelHandlerTensor',
@@ -85,7 +84,8 @@ def _load_model(
     state_dict_path: Optional[str],
     device: torch.device,
     model_params: Optional[Dict[str, Any]],
-    torch_script_model_path: Optional[str]):
+    torch_script_model_path: Optional[str],
+    load_model_args: Optional[Dict[str, Any]]):
   if device == torch.device('cuda') and not torch.cuda.is_available():
     logging.warning(
         "Model handler specified a 'GPU' device, but GPUs are not available. "
@@ -97,12 +97,12 @@ def _load_model(
         "Loading state_dict_path %s onto a %s device", state_dict_path, device)
     if not torch_script_model_path:
       file = FileSystems.open(state_dict_path, 'rb')
-      model = model_class(**model_params)  # type: ignore[misc]
-      state_dict = torch.load(file, map_location=device)
+      model = model_class(**model_params)  # type: ignore[arg-type,misc]
+      state_dict = torch.load(file, map_location=device, **load_model_args)
       model.load_state_dict(state_dict)
     else:
       file = FileSystems.open(torch_script_model_path, 'rb')
-      model = torch.jit.load(file, map_location=device)
+      model = torch.jit.load(file, map_location=device, **load_model_args)
   except RuntimeError as e:
     if device == torch.device('cuda'):
       message = "Loading the model onto a GPU device failed due to an " \
@@ -113,7 +113,8 @@ def _load_model(
           state_dict_path,
           torch.device('cpu'),
           model_params,
-          torch_script_model_path)
+          torch_script_model_path,
+          load_model_args)
     else:
       raise e
 
@@ -190,7 +191,10 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
       inference_fn: TensorInferenceFn = default_tensor_inference_fn,
       torch_script_model_path: Optional[str] = None,
       min_batch_size: Optional[int] = None,
-      max_batch_size: Optional[int] = None):
+      max_batch_size: Optional[int] = None,
+      large_model: bool = False,
+      load_model_args: Optional[Dict[str, Any]] = None,
+      **kwargs):
     """Implementation of the ModelHandler interface for PyTorch.
 
     Example Usage for torch model::
@@ -222,6 +226,14 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
         batch will be fed into the inference_fn as a Sequence of Tensors.
       max_batch_size: the maximum batch size to use when batching inputs. This
         batch will be fed into the inference_fn as a Sequence of Tensors.
+      large_model: set to true if your model is large enough to run into
+        memory pressure if you load multiple copies. Given a model that
+        consumes N memory and a machine with W cores and M memory, you should
+        set this to True if N*W > M.
+      load_model_args: a dictionary of parameters passed to the torch.load
+        function to specify custom config for loading models.
+      kwargs: 'env_vars' can be used to set environment variables
+        before loading the model.
 
     **Supported Versions:** RunInference APIs in Apache Beam have been tested
     with PyTorch 1.9 and 1.10.
@@ -242,6 +254,9 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
     if max_batch_size is not None:
       self._batching_kwargs['max_batch_size'] = max_batch_size
     self._torch_script_model_path = torch_script_model_path
+    self._load_model_args = load_model_args if load_model_args else {}
+    self._env_vars = kwargs.get('env_vars', {})
+    self._large_model = large_model
 
     _validate_constructor_args(
         state_dict_path=self._state_dict_path,
@@ -251,11 +266,12 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
   def load_model(self) -> torch.nn.Module:
     """Loads and initializes a Pytorch model for processing."""
     model, device = _load_model(
-        self._model_class,
-        self._state_dict_path,
-        self._device,
-        self._model_params,
-        self._torch_script_model_path
+        model_class=self._model_class,
+        state_dict_path=self._state_dict_path,
+        device=self._device,
+        model_params=self._model_params,
+        torch_script_model_path=self._torch_script_model_path,
+        load_model_args=self._load_model_args
     )
     self._device = device
     return model
@@ -321,6 +337,9 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
   def batch_elements_kwargs(self):
     return self._batching_kwargs
 
+  def share_model_across_processes(self) -> bool:
+    return self._large_model
+
 
 def default_keyed_tensor_inference_fn(
     batch: Sequence[Dict[str, torch.Tensor]],
@@ -380,14 +399,13 @@ def make_keyed_tensor_model_fn(model_fn: str) -> KeyedTensorInferenceFn:
         batched_tensors = torch.stack(key_to_tensor_list[key])
         batched_tensors = _convert_to_device(batched_tensors, device)
         key_to_batched_tensors[key] = batched_tensors
-        pred_fn = getattr(model, model_fn)
+      pred_fn = getattr(model, model_fn)
       predictions = pred_fn(**key_to_batched_tensors, **inference_args)
     return utils._convert_to_result(batch, predictions, model_id)
 
   return attr_fn
 
 
-@experimental(extra_message="No backwards-compatibility guarantees.")
 class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
                                                   PredictionResult,
                                                   torch.nn.Module]):
@@ -401,7 +419,10 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
       inference_fn: KeyedTensorInferenceFn = default_keyed_tensor_inference_fn,
       torch_script_model_path: Optional[str] = None,
       min_batch_size: Optional[int] = None,
-      max_batch_size: Optional[int] = None):
+      max_batch_size: Optional[int] = None,
+      large_model: bool = False,
+      load_model_args: Optional[Dict[str, Any]] = None,
+      **kwargs):
     """Implementation of the ModelHandler interface for PyTorch.
 
      Example Usage for torch model::
@@ -433,12 +454,19 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
       torch_script_model_path: Path to the torch script model.
          the model will be loaded using `torch.jit.load()`.
         `state_dict_path`, `model_class` and `model_params`
-         arguments will be disregarded..
+         arguments will be disregarded.
       min_batch_size: the minimum batch size to use when batching inputs. This
         batch will be fed into the inference_fn as a Sequence of Keyed Tensors.
       max_batch_size: the maximum batch size to use when batching inputs. This
         batch will be fed into the inference_fn as a Sequence of Keyed Tensors.
-
+      large_model: set to true if your model is large enough to run into
+        memory pressure if you load multiple copies. Given a model that
+        consumes N memory and a machine with W cores and M memory, you should
+        set this to True if N*W > M.
+      load_model_args: a dictionary of parameters passed to the torch.load
+        function to specify custom config for loading models.
+      kwargs: 'env_vars' can be used to set environment variables
+        before loading the model.
 
     **Supported Versions:** RunInference APIs in Apache Beam have been tested
     on torch>=1.9.0,<1.14.0.
@@ -459,6 +487,10 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
     if max_batch_size is not None:
       self._batching_kwargs['max_batch_size'] = max_batch_size
     self._torch_script_model_path = torch_script_model_path
+    self._load_model_args = load_model_args if load_model_args else {}
+    self._env_vars = kwargs.get('env_vars', {})
+    self._large_model = large_model
+
     _validate_constructor_args(
         state_dict_path=self._state_dict_path,
         model_class=self._model_class,
@@ -467,11 +499,12 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
   def load_model(self) -> torch.nn.Module:
     """Loads and initializes a Pytorch model for processing."""
     model, device = _load_model(
-        self._model_class,
-        self._state_dict_path,
-        self._device,
-        self._model_params,
-        self._torch_script_model_path
+        model_class=self._model_class,
+        state_dict_path=self._state_dict_path,
+        device=self._device,
+        model_params=self._model_params,
+        torch_script_model_path=self._torch_script_model_path,
+        load_model_args=self._load_model_args
     )
     self._device = device
     return model
@@ -538,3 +571,6 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
 
   def batch_elements_kwargs(self):
     return self._batching_kwargs
+
+  def share_model_across_processes(self) -> bool:
+    return self._large_model

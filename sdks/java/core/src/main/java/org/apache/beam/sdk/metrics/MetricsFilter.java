@@ -19,12 +19,9 @@ package org.apache.beam.sdk.metrics;
 
 import com.google.auto.value.AutoValue;
 import java.util.Set;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 
 /** Simple POJO representing a filter for querying metrics. */
-@Experimental(Kind.METRICS)
 @AutoValue
 public abstract class MetricsFilter {
 

@@ -30,13 +30,6 @@ task preCommitIT {
   }
 }
 
-task preCommitIT_V2{
-  getVersionsAsList('dataflow_precommit_it_task_py_versions').each {
-    dependsOn.add(":sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:preCommitIT_batch_V2")
-    dependsOn.add(":sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:preCommitIT_streaming_V2")
-  }
-}
-
 task mongodbioIT {
   getVersionsAsList('dataflow_mongodbio_it_task_py_versions').each {
     dependsOn.add(":sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:mongodbioIT")
@@ -46,18 +39,6 @@ task mongodbioIT {
 task chicagoTaxiExample {
   getVersionsAsList('dataflow_chicago_taxi_example_task_py_versions').each {
     dependsOn.add("sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:chicagoTaxiExample")
-  }
-}
-
-task validatesRunnerBatchTests {
-  getVersionsAsList('dataflow_validates_runner_batch_tests').each {
-    dependsOn.add(":sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:validatesRunnerBatchTests")
-  }
-}
-
-task validatesRunnerStreamingTests {
-  getVersionsAsList('dataflow_validates_runner_streaming_tests').each {
-    dependsOn.add(":sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:validatesRunnerStreamingTests")
   }
 }
 
@@ -74,7 +55,7 @@ task validatesRunnerStreamingTestsV2 {
 }
 
 task validatesContainerTests {
-  getVersionsAsList('dataflow_validates_container_tests').each {
+  getVersionsAsList('python_versions').each {
     dependsOn.add(":sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:validatesContainer")
   }
 }
@@ -82,6 +63,12 @@ task validatesContainerTests {
 task examplesPostCommit {
   getVersionsAsList('dataflow_examples_postcommit_py_versions').each {
     dependsOn.add(":sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:examples")
+  }
+}
+
+task gcpCrossLanguagePostCommit {
+  getVersionsAsList('cross_language_validates_gcp_py_versions').each {
+    dependsOn.add(":sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:gcpCrossLanguagePythonUsingJava")
   }
 }
 

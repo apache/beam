@@ -15,7 +15,7 @@
 
 package constants
 
-//Emulator constants
+// Emulator constants
 const (
 	TopicNameKey       = "topic"
 	BootstrapServerKey = "bootstrapServer"

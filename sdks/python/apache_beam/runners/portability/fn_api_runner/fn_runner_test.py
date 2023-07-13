@@ -987,7 +987,7 @@ class FnApiRunnerTest(unittest.TestCase):
     self.run_sdf_initiated_checkpointing(is_drain=True)
 
   def test_sdf_default_truncate_when_bounded(self):
-    class SimleSDF(beam.DoFn):
+    class SimpleSDF(beam.DoFn):
       def process(
           self,
           element,
@@ -1000,11 +1000,11 @@ class FnApiRunnerTest(unittest.TestCase):
           cur += 1
 
     with self.create_pipeline(is_drain=True) as p:
-      actual = (p | beam.Create([10]) | beam.ParDo(SimleSDF()))
+      actual = (p | beam.Create([10]) | beam.ParDo(SimpleSDF()))
       assert_that(actual, equal_to(range(10)))
 
   def test_sdf_default_truncate_when_unbounded(self):
-    class SimleSDF(beam.DoFn):
+    class SimpleSDF(beam.DoFn):
       def process(
           self,
           element,
@@ -1017,11 +1017,11 @@ class FnApiRunnerTest(unittest.TestCase):
           cur += 1
 
     with self.create_pipeline(is_drain=True) as p:
-      actual = (p | beam.Create([10]) | beam.ParDo(SimleSDF()))
+      actual = (p | beam.Create([10]) | beam.ParDo(SimpleSDF()))
       assert_that(actual, equal_to([]))
 
   def test_sdf_with_truncate(self):
-    class SimleSDF(beam.DoFn):
+    class SimpleSDF(beam.DoFn):
       def process(
           self,
           element,
@@ -1034,7 +1034,7 @@ class FnApiRunnerTest(unittest.TestCase):
           cur += 1
 
     with self.create_pipeline(is_drain=True) as p:
-      actual = (p | beam.Create([10]) | beam.ParDo(SimleSDF()))
+      actual = (p | beam.Create([10]) | beam.ParDo(SimpleSDF()))
       assert_that(actual, equal_to(range(5)))
 
   def test_group_by_key(self):
@@ -1830,6 +1830,15 @@ class FnApiRunnerTestWithGrpcAndMultiWorkers(FnApiRunnerTest):
     #TODO(https://github.com/apache/beam/issues/19936): Fix these tests.
     p._options.view_as(DebugOptions).experiments.remove('beam_fn_api')
     return p
+
+  def test_group_by_key_with_empty_pcoll_elements(self):
+    with self.create_pipeline() as p:
+      res = (
+          p
+          | beam.Create([('test_key', 'test_value')])
+          | beam.Filter(lambda x: False)
+          | beam.GroupByKey())
+      assert_that(res, equal_to([]))
 
   def test_metrics(self):
     raise unittest.SkipTest("This test is for a single worker only.")

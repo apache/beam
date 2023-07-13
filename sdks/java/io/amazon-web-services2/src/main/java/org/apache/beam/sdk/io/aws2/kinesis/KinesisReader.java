@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import java.io.IOException;
 import java.util.NoSuchElementException;
 import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.io.aws2.kinesis.KinesisIO.Read;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.joda.time.Duration;
@@ -44,7 +45,7 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
   private final SimplifiedKinesisClient kinesis;
   private final KinesisSource source;
 
-  private final CheckpointGenerator checkpointGenerator;
+  private final KinesisReaderCheckpoint initCheckpoint;
   private final Duration backlogBytesCheckThreshold;
   private CustomOptional<KinesisRecord> currentRecord = CustomOptional.absent();
   private long lastBacklogBytes;
@@ -54,20 +55,20 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
   KinesisReader(
       Read spec,
       SimplifiedKinesisClient kinesis,
-      CheckpointGenerator initialCheckpointGenerator,
+      KinesisReaderCheckpoint initCheckpoint,
       KinesisSource source) {
-    this(spec, kinesis, initialCheckpointGenerator, source, Duration.standardSeconds(30));
+    this(spec, kinesis, initCheckpoint, source, Duration.standardSeconds(30));
   }
 
   KinesisReader(
       Read spec,
       SimplifiedKinesisClient kinesis,
-      CheckpointGenerator checkpointGenerator,
+      KinesisReaderCheckpoint initCheckpoint,
       KinesisSource source,
       Duration backlogBytesCheckThreshold) {
     this.spec = checkNotNull(spec, "spec");
     this.kinesis = checkNotNull(kinesis, "kinesis");
-    this.checkpointGenerator = checkNotNull(checkpointGenerator, "checkpointGenerator");
+    this.initCheckpoint = checkNotNull(initCheckpoint);
     this.source = source;
     this.backlogBytesCheckThreshold = backlogBytesCheckThreshold;
   }
@@ -75,7 +76,7 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
   /** Generates initial checkpoint and instantiates iterators for shards. */
   @Override
   public boolean start() throws IOException {
-    LOG.info("Starting reader using {}", checkpointGenerator);
+    LOG.info("Starting reader using {}", initCheckpoint);
 
     try {
       shardReadersPool = createShardReadersPool();
@@ -159,6 +160,11 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
    */
   @Override
   public long getSplitBacklogBytes() {
+    // Safety check in case a progress check is made for the start method is called.
+    if (shardReadersPool == null) {
+      return UnboundedReader.BACKLOG_UNKNOWN;
+    }
+
     Instant latestRecordTimestamp = shardReadersPool.getLatestRecordTimestamp();
 
     if (latestRecordTimestamp.equals(BoundedWindow.TIMESTAMP_MIN_VALUE)) {
@@ -202,6 +208,6 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
   }
 
   ShardReadersPool createShardReadersPool() throws TransientKinesisException {
-    return new ShardReadersPool(spec, kinesis, checkpointGenerator.generate(kinesis));
+    return new ShardReadersPool(spec, kinesis, initCheckpoint);
   }
 }

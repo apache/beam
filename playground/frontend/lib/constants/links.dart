@@ -16,12 +16,5 @@
  * limitations under the License.
  */
 
-const kReportIssueLink = 'https://github.com/apache/beam/issues';
-const kBeamPrivacyPolicyLink = 'https://beam.apache.org/privacy_policy/';
-const kBeamPlaygroundGithubLink =
-    'https://github.com/apache/beam/tree/master/playground';
-const kApacheBeamGithubLink = 'https://github.com/apache/beam';
-const kBeamWebsiteLink = 'https://beam.apache.org/';
-const kScioGithubLink = 'https://github.com/spotify/scio';
-const kAboutBeamLink = 'https://beam.apache.org/get-started/beam-overview';
-const kAddExampleLink = 'https://beam.apache.org/get-started/try-beam-playground/#how-to-add-new-examples';
+const playgroundFeedbackGoogleFormsUrl =
+    'https://docs.google.com/forms/d/e/1FAIpQLSd5_5XeOwwW2yjEVHUXmiBad8Lxk-4OtNcgG45pbyAZzd4EbA/viewform?usp=pp_url';

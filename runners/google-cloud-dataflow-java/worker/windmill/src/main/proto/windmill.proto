@@ -65,9 +65,42 @@ message LatencyAttribution {
     ACTIVE = 2;
     READING = 3;
     COMMITTING = 4;
+    // State which starts with the Windmill Worker receiving the GetWorkRequest
+    // and ends with the Windmill Worker sending the GetWorkResponse to the
+    // Windmill Dispatcher.
+    GET_WORK_IN_WINDMILL_WORKER = 5;
+    // State which starts with the Windmill Worker sending the GetWorkResponse
+    // and ends with the Windmill Dispatcher receiving the GetWorkResponse.
+    GET_WORK_IN_TRANSIT_TO_DISPATCHER = 6;
+    // State which starts with the Windmill Dispatcher sending the
+    // GetWorkResponse and ends with the user worker receiving the
+    // GetWorkResponse.
+    GET_WORK_IN_TRANSIT_TO_USER_WORKER = 7;
   }
   optional State state = 1;
   optional int64 total_duration_millis = 2;
+}
+
+message GetWorkStreamTimingInfo {
+  enum Event {
+    UNKNOWN = 0;
+    // Work item creation started by the Windmill Worker.
+    GET_WORK_CREATION_START = 1;
+    // Work item creation finished by the Windmill Worker.
+    GET_WORK_CREATION_END = 2;
+    // The GetWorkResponse containing this work item is received by the Windmill
+    // Dispatcher.
+    GET_WORK_RECEIVED_BY_DISPATCHER = 3;
+    // The GetWorkResponse containing this work item is forwarded by the
+    // Windmill Dispatcher to the user worker.
+    GET_WORK_FORWARDED_BY_DISPATCHER = 4;
+  }
+
+  // Critical event of the work item processing.
+  optional Event event = 1;
+
+  // Timestamp of the event.
+  optional int64 timestamp_usec = 2;
 }
 
 message OutputMessageBundle {
@@ -144,6 +177,79 @@ message TagBag {
   optional int64 continuation_position = 5;
   // In request: Limits the size of the fetched bag to this byte limit.
   optional int64 fetch_max_bytes = 6 [default = 0x7fffffffffffffff];
+}
+
+// For a given sharding key and state family, a TagMultimap is a collection of
+// `entry_name, bag of values` pairs, each pair is a TagMultimapEntry.
+//
+// The request_position, continuation_position and fetch_max_bytes fields in
+// TagMultimapEntry are used for the pagination and byte limiting of individual
+// entry fetch requests get(entry_name); while those fields in
+// TagMultimapFetchRequest and TagMultimapFetchResponse are used for full
+// multimap fetch requests entry_names() and entries().
+// Do not set both in a TagMultimapFetchRequest at the same time.
+message TagMultimapEntry {
+  optional bytes entry_name = 1;
+  // In update request: if true all values associated with this entry_name will
+  // be deleted. If new values are present they will be written.
+  optional bool delete_all = 2;
+  // In update request: The given values will be added to the collection and
+  // associated with entry_name.
+  // In fetch response: Values that are associated with this entry_name in the
+  // multimap.
+  repeated bytes values = 3;
+  // In fetch request: A previously returned continuation_position from an
+  // earlier read response. Indicates we wish to fetch the next page of values.
+  // If this is the first request, set to empty.
+  // In fetch response: copied from request.
+  optional int64 request_position = 4;
+  // In fetch response: Set when there are values after those returned above,
+  // but they were suppressed to respect the fetch_max_bytes limit. Subsequent
+  // requests should copy this to request_position to retrieve the next page of
+  // values.
+  optional int64 continuation_position = 5;
+  // In fetch request: Limits the size of the fetched values to this byte limit.
+  // A lower limit may be imposed by the service.
+  optional int64 fetch_max_bytes = 6 [default = 0x7fffffffffffffff];
+}
+
+message TagMultimapFetchRequest {
+  optional bytes tag = 1;
+  optional string state_family = 2;
+  // If true, values will be omitted in the response.
+  optional bool fetch_entry_names_only = 3;
+  // Limits the size of the fetched entries to this byte limit. A lower limit
+  // may be imposed by the service.
+  optional int64 fetch_max_bytes = 4 [default = 0x7fffffffffffffff];
+  // A previously returned continuation_position from an earlier fetch response.
+  // Indicates we wish to fetch the next page of entries. If this is the first
+  // request, set to empty.
+  optional bytes request_position = 5;
+  // Fetch the requested subset of entries only. Will fetch all entries if left
+  // empty. Entries in entries_to_fetch should only have the entry_name,
+  // request_position and fetch_max_bytes set.
+  repeated TagMultimapEntry entries_to_fetch = 6;
+}
+
+message TagMultimapFetchResponse {
+  optional bytes tag = 1;
+  optional string state_family = 2;
+  repeated TagMultimapEntry entries = 3;
+  // Will be set only if the entries_to_fetch in the request is empty when
+  // we want to fetch all entries.
+  optional bytes continuation_position = 4;
+  // Request position copied from request.
+  optional bytes request_position = 5;
+}
+
+message TagMultimapUpdateRequest {
+  optional bytes tag = 1;
+  optional string state_family = 2;
+  // All entries including the values in the multimap will be deleted.
+  optional bool delete_all = 3;
+  // If delete_all is true and updates are not empty, the multimap will first be
+  // cleared and then those updates will be applied.
+  repeated TagMultimapEntry updates = 4;
 }
 
 // A single entry in a sorted list
@@ -297,6 +403,8 @@ message KeyedGetDataRequest {
   repeated TagBag bags_to_fetch = 8;
   // Must be at most one sorted_list_to_fetch for a given state family and tag.
   repeated TagSortedListFetchRequest sorted_lists_to_fetch = 9;
+  // Must be at most one multimaps_to_fetch for a given state family and tag.
+  repeated TagMultimapFetchRequest multimaps_to_fetch = 12;
   repeated WatermarkHold watermark_holds_to_fetch = 5;
   repeated LatencyAttribution latency_attribution = 13;
 
@@ -329,6 +437,8 @@ message KeyedGetDataResponse {
   repeated TagBag bags = 6;
   // There is one TagSortedListFetchResponse per state-family, tag pair.
   repeated TagSortedListFetchResponse tag_sorted_lists = 8;
+  // There is one TagMultimapFetchResponse per state-family, tag pair.
+  repeated TagMultimapFetchResponse tag_multimaps = 10;
   repeated WatermarkHold watermark_holds = 5;
 
   reserved 4;
@@ -377,7 +487,7 @@ message GlobalDataRequest {
   optional string state_family = 3;
 }
 
-// next id: 24
+// next id: 28
 message WorkItemCommitRequest {
   required bytes key = 1;
   required fixed64 work_token = 2;
@@ -394,6 +504,7 @@ message WorkItemCommitRequest {
   repeated TagValuePrefix tag_value_prefix_deletes = 25;
   repeated TagBag bag_updates = 18;
   repeated TagSortedListUpdateRequest sorted_list_updates = 24;
+  repeated TagMultimapUpdateRequest multimap_updates = 26;
   repeated Counter counter_updates = 8;
   repeated GlobalDataRequest global_data_requests = 11;
   repeated GlobalData global_data_updates = 10;
@@ -403,6 +514,9 @@ message WorkItemCommitRequest {
   optional int64 source_bytes_processed = 22;
 
   repeated WatermarkHold watermark_holds = 14;
+
+  // Collected work item processing state durations.
+  repeated LatencyAttribution per_work_item_latency_attributions = 27;
 
   // DEPRECATED
   repeated GlobalDataId global_data_id_requests = 9;
@@ -537,6 +651,10 @@ message StreamingGetWorkResponseChunk {
   // responses for the same stream_id should be deserialized together. Responses
   // from other stream_ids may be interleaved on the physical stream.
   optional fixed64 stream_id = 4;
+
+  // Timing infos for the work item. Windmill Dispatcher and user worker should
+  // propagate critical event timings if the list is not empty.
+  repeated GetWorkStreamTimingInfo per_work_item_timing_infos = 8;
 
   // reserved field 5
 }

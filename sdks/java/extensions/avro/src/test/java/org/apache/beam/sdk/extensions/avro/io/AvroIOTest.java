@@ -118,6 +118,7 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.junit.runners.Parameterized;
@@ -191,6 +192,8 @@ public class AvroIOTest implements Serializable {
     @Rule public transient TemporaryFolder tmpFolder = new TemporaryFolder();
 
     @Rule public transient ExpectedException expectedException = ExpectedException.none();
+
+    @Rule public transient Timeout globalTimeout = Timeout.seconds(1200);
 
     @Parameterized.Parameters(name = "{index}: {0}")
     public static Collection<Object[]> params() {
@@ -331,7 +334,7 @@ public class AvroIOTest implements Serializable {
       writePipeline
           .apply(Create.of(values))
           .apply(
-              AvroIO.<Long, GenericClass>writeCustomType()
+              AvroIO.<Long, GenericClass>writeCustomType(GenericClass.class)
                   .to(writePipeline.newProvider(outputFile.getAbsolutePath()))
                   .withFormatFunction(new CreateGenericClass())
                   .withSchema(ReflectData.get().getSchema(GenericClass.class))
@@ -364,9 +367,9 @@ public class AvroIOTest implements Serializable {
 
       List<T> values =
           ImmutableList.of(
-              (T) new AvroGeneratedUser("Bob", 256, null),
-              (T) new AvroGeneratedUser("Alice", 128, null),
-              (T) new AvroGeneratedUser("Ted", null, "white"));
+              (T) AvroGeneratedUserFactory.newInstance("Bob", 256, null),
+              (T) AvroGeneratedUserFactory.newInstance("Alice", 128, null),
+              (T) AvroGeneratedUserFactory.newInstance("Ted", null, "white"));
 
       writePipeline
           .apply(Create.of(values))
@@ -1526,7 +1529,7 @@ public class AvroIOTest implements Serializable {
       Schema recordSchema = SchemaBuilder.record("root").fields().requiredInt("i1").endRecord();
 
       AvroIO.TypedWrite<Integer, Void, Integer> write =
-          AvroIO.<Integer, Integer>writeCustomType()
+          AvroIO.<Integer, Integer>writeCustomType(Integer.class)
               .to(outputFilePrefix)
               .withSchema(recordSchema)
               .withFormatFunction(f -> f)

@@ -85,7 +85,6 @@ import javax.annotation.Nonnull;
 import org.apache.beam.model.jobmanagement.v1.JobApi.PipelineOptionDescriptor;
 import org.apache.beam.model.jobmanagement.v1.JobApi.PipelineOptionType;
 import org.apache.beam.sdk.PipelineRunner;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.Validation.Required;
 import org.apache.beam.sdk.runners.PipelineRunnerRegistrar;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -570,13 +569,12 @@ public class PipelineOptionsFactory {
   /**
    * Resets the set of interfaces registered with this factory to the default state.
    *
-   * <p>IMPORTANT: this is marked as experimental because the correct usage of this method requires
-   * appropriate synchronization beyond the scope of this method.
+   * <p>IMPORTANT: correct usage of this method requires appropriate synchronization beyond the
+   * scope of this method.
    *
    * @see PipelineOptionsFactory#register(Class)
    * @see Cache#Cache()
    */
-  @Experimental
   public static synchronized void resetCache() {
     CACHE.set(new Cache());
   }

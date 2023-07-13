@@ -14,7 +14,7 @@
 // limitations under the License.
 
 // Package expansionx contains utilities for starting expansion services for
-// cross-language transforms. All code in this package is currently experimental.
+// cross-language transforms.
 package expansionx
 
 import (

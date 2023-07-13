@@ -53,6 +53,9 @@ This section contains the following example notebooks.
 * [Apache Beam RunInference for PyTorch](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_pytorch.ipynb)
 * [Apache Beam RunInference for scikit-learn](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_sklearn.ipynb)
 * [Apache Beam RunInference with TensorFlow](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_tensorflow.ipynb)
+* [Use RunInference with a model from TensorFlow Hub](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_with_tensorflow_hub.ipynb)
+* [Apache Beam RunInference with XGBoost](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_xgboost.ipynb)
+* [Use RunInference with TFX](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_tensorflow_with_tfx.ipynb)
 * [Use RunInference in Apache Beam](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_pytorch_tensorflow_sklearn.ipynb)
 
 ### Custom inference
@@ -60,9 +63,17 @@ This section contains the following example notebooks.
 * [Bring your own machine learning (ML) model to Apache Beam RunInference](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_custom_inference.ipynb)
 * [Remote inference](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/custom_remote_inference.ipynb)
 
+### Automatic Model Refresh
+
+* [Update your model in production](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/automatic_model_refresh.ipynb)
+
 ### Multi-model pipelines
 
 * [Ensemble model using an image captioning and ranking](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_multi_model.ipynb)
+
+### Model Evaluation
+
+* [Use TFMA to evaluate and compare model performance](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/tfma_beam.ipynb)
 
 ### Data processing
 

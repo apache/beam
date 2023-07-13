@@ -159,10 +159,12 @@ func inferProjection(t reflect.Type, tagKey string) bson.D {
 	return projection
 }
 
-func (fn *readFn) CreateInitialRestriction(_ []byte) idRangeRestriction {
-	ctx := context.Background()
+func (fn *readFn) CreateInitialRestriction(
+	ctx context.Context,
+	_ []byte,
+) (idRangeRestriction, error) {
 	if err := fn.Setup(ctx); err != nil {
-		panic(err)
+		return idRangeRestriction{}, err
 	}
 
 	outerRange, err := findOuterIDRange(ctx, fn.collection, fn.filter)
@@ -174,10 +176,10 @@ func (fn *readFn) CreateInitialRestriction(_ []byte) idRangeRestriction {
 				fn.Database,
 				fn.Collection,
 			)
-			return idRangeRestriction{}
+			return idRangeRestriction{}, nil
 		}
 
-		panic(err)
+		return idRangeRestriction{}, err
 	}
 
 	return newIDRangeRestriction(
@@ -185,7 +187,7 @@ func (fn *readFn) CreateInitialRestriction(_ []byte) idRangeRestriction {
 		fn.collection,
 		outerRange,
 		fn.filter,
-	)
+	), nil
 }
 
 func findOuterIDRange(
@@ -213,22 +215,25 @@ func findOuterIDRange(
 	return outerRange, nil
 }
 
-func (fn *readFn) SplitRestriction(_ []byte, rest idRangeRestriction) []idRangeRestriction {
+func (fn *readFn) SplitRestriction(
+	ctx context.Context,
+	_ []byte,
+	rest idRangeRestriction,
+) ([]idRangeRestriction, error) {
 	if rest.Count == 0 {
-		return []idRangeRestriction{rest}
+		return []idRangeRestriction{rest}, nil
 	}
 
-	ctx := context.Background()
 	if err := fn.Setup(ctx); err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	splits, err := rest.SizedSplits(ctx, fn.collection, fn.BundleSize, fn.BucketAuto)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
-	return splits
+	return splits, nil
 }
 
 func (fn *readFn) CreateTracker(rest idRangeRestriction) *sdf.LockRTracker {

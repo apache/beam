@@ -36,6 +36,7 @@ dependencies {
   implementation "org.bouncycastle:bcprov-jdk15on:1.70"
   implementation library.java.joda_time
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+  testImplementation project(path: ":sdks:java:extensions:avro", configuration: "testRuntimeMigration")
   testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
   testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntimeMigration")
   testImplementation 'com.google.cloud:google-cloud-storage:1.102.0'

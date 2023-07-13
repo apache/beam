@@ -21,16 +21,21 @@ import java.util.HashSet;
 import java.util.Set;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
+import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.PCollectionViews;
+import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 
 /**
  * Adds a {@link DirectRunner}-specific {@link WriteView} step for each {@link PCollectionView} for
@@ -85,12 +90,23 @@ class DirectWriteViewVisitor extends PipelineVisitor.Defaults {
 
     @Override
     public PCollection<ElemT> expand(final PCollection<ElemT> input) {
-      input
-          .apply("Key by null", WithKeys.of((Void) null))
-          .setCoder(KvCoder.of(VoidCoder.of(), input.getCoder()))
-          .apply("GBK", GroupByKey.create())
-          .apply("Get values", Values.create())
-          .apply("WriteView", new WriteView<>(view));
+      PCollection<Iterable<ElemT>> iterable;
+      if (view.getViewFn() instanceof PCollectionViews.IsSingletonView) {
+        iterable =
+            input
+                .apply(
+                    MapElements.into(TypeDescriptors.iterables(input.getTypeDescriptor()))
+                        .via(Lists::newArrayList))
+                .setCoder(IterableCoder.of(input.getCoder()));
+      } else {
+        iterable =
+            input
+                .apply("Key by null", WithKeys.of((Void) null))
+                .setCoder(KvCoder.of(VoidCoder.of(), input.getCoder()))
+                .apply("GBK", GroupByKey.create())
+                .apply("Get values", Values.create());
+      }
+      iterable.apply("WriteView", new WriteView<>(view));
       return input;
     }
   }

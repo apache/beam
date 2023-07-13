@@ -355,8 +355,8 @@ class PipelineOptionsTest(unittest.TestCase):
 
   def test_retain_unknown_options_binary_single_dash_store_string(self):
     options = PipelineOptions(['-i', 'some_value'])
-    result = options.get_all_options(retain_unknown_options=True)
-    self.assertEqual(result['i'], 'some_value')
+    with self.assertRaises(KeyError):
+      _ = options.get_all_options(retain_unknown_options=True)['i']
 
   def test_retain_unknown_options_unary_store_true(self):
     options = PipelineOptions(['--unknown_option'])

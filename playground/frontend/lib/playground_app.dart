@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-import 'package:app_state/app_state.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
@@ -26,13 +25,11 @@ import 'package:provider/provider.dart';
 
 import 'config/locale.dart';
 import 'l10n/l10n.dart';
-import 'modules/analytics/analytics_service.dart';
-import 'modules/analytics/google_analytics_service.dart';
 
 class PlaygroundApp extends StatelessWidget {
   final BackButtonDispatcher backButtonDispatcher;
-  final PageStackRouteInformationParser routeInformationParser;
-  final PageStackRouterDelegate routerDelegate;
+  final RouteInformationParser<Object> routeInformationParser;
+  final RouterDelegate<Object> routerDelegate;
 
   const PlaygroundApp({
     required this.backButtonDispatcher,
@@ -49,26 +46,23 @@ class PlaygroundApp extends StatelessWidget {
             create: (context) => LocaleProvider(),
             builder: (context, state) {
               final localeProvider = Provider.of<LocaleProvider>(context);
-              return Provider<AnalyticsService>(
-                create: (context) => GoogleAnalyticsService(),
-                child: MaterialApp.router(
-                  backButtonDispatcher: backButtonDispatcher,
-                  routeInformationParser: routeInformationParser,
-                  routerDelegate: routerDelegate,
-                  title: 'Apache Beam Playground',
-                  themeMode: themeSwitchNotifier.themeMode,
-                  theme: kLightTheme,
-                  darkTheme: kDarkTheme,
-                  debugShowCheckedModeBanner: false,
-                  locale: localeProvider.locale,
-                  supportedLocales: L10n.locales,
-                  localizationsDelegates: [
-                    ...context.localizationDelegates,
-                    AppLocalizations.delegate,
-                    GlobalMaterialLocalizations.delegate,
-                    GlobalWidgetsLocalizations.delegate,
-                  ],
-                ),
+              return MaterialApp.router(
+                backButtonDispatcher: backButtonDispatcher,
+                routeInformationParser: routeInformationParser,
+                routerDelegate: routerDelegate,
+                title: 'Apache Beam Playground',
+                themeMode: themeSwitchNotifier.themeMode,
+                theme: kLightTheme,
+                darkTheme: kDarkTheme,
+                debugShowCheckedModeBanner: false,
+                locale: localeProvider.locale,
+                supportedLocales: L10n.locales,
+                localizationsDelegates: [
+                  ...context.localizationDelegates,
+                  AppLocalizations.delegate,
+                  GlobalMaterialLocalizations.delegate,
+                  GlobalWidgetsLocalizations.delegate,
+                ],
               );
             },
           );

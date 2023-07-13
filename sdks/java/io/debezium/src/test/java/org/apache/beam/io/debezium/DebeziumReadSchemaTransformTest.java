@@ -104,8 +104,7 @@ public class DebeziumReadSchemaTransformTest {
                 // is "database.table".
                 .setTable("inventory.customers")
                 .setPort(port)
-                .build())
-        .buildTransform();
+                .build());
   }
 
   @Test

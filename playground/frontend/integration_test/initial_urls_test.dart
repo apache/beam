@@ -22,6 +22,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_code_editor/flutter_code_editor.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:playground/services/analytics/events/loaded.dart';
 import 'package:playground_components/playground_components.dart';
 import 'package:playground_components_dev/playground_components_dev.dart';
 
@@ -48,7 +49,7 @@ void main() {
     await _testCatalogDefaultExampleLoader(wt);
     await _testContentExampleLoader(wt);
     await _testEmptyExampleLoader(wt);
-    await _testHttpExampleLoader(wt);
+    await _testHttpExampleLoaderIfDeployed(wt);
     await _testStandardExampleLoader(wt);
     await _testUserSharedExampleLoader(wt);
 
@@ -75,7 +76,13 @@ final _croppedViewOptions = _mapToQueryString(_croppedViewOptionsMap);
 Future<void> _testEmbeddedRoot(WidgetTester wt) async {
   await wt.navigateAndSettle(_embeddedPath);
   expectSdk(Sdk.java, wt);
-  expectVisibleText('', wt);
+  expectVisibleTextIfDeployed('', wt);
+  expectLastAnalyticsEvent(
+    const LoadedAnalyticsEvent(
+      sdk: Sdk.java,
+      snippet: null,
+    ),
+  );
 }
 
 Future<void> _testStandaloneRoot(WidgetTester wt) async {
@@ -83,13 +90,25 @@ Future<void> _testStandaloneRoot(WidgetTester wt) async {
   await wt.navigateAndSettle(_standalonePath);
 
   expectSdk(Sdk.java, wt);
-  expectVisibleText(visibleText, wt);
+  expectVisibleTextIfDeployed(visibleText, wt);
+  expectLastAnalyticsEvent(
+    const LoadedAnalyticsEvent(
+      sdk: Sdk.java,
+      snippet: null, // Cannot tell from the initial data.
+    ),
+  );
 }
 
 Future<void> _testEmbeddedSdkOnly(WidgetTester wt) async {
   await wt.navigateAndSettle('$_embeddedPath?sdk=go');
   expectSdk(Sdk.go, wt);
-  expectVisibleText('', wt);
+  expectVisibleTextIfDeployed('', wt);
+  expectLastAnalyticsEvent(
+    const LoadedAnalyticsEvent(
+      sdk: Sdk.go,
+      snippet: null,
+    ),
+  );
 }
 
 Future<void> _testStandaloneSdkOnly(WidgetTester wt) async {
@@ -97,7 +116,13 @@ Future<void> _testStandaloneSdkOnly(WidgetTester wt) async {
   await wt.navigateAndSettle('$_standalonePath?sdk=go');
 
   expectSdk(Sdk.go, wt);
-  expectVisibleText(visibleText, wt);
+  expectVisibleTextIfDeployed(visibleText, wt);
+  expectLastAnalyticsEvent(
+    const LoadedAnalyticsEvent(
+      sdk: Sdk.go,
+      snippet: null, // Cannot tell from the initial data.
+    ),
+  );
 }
 
 Future<void> _testCatalogDefaultExampleLoader(WidgetTester wt) async {
@@ -105,7 +130,13 @@ Future<void> _testCatalogDefaultExampleLoader(WidgetTester wt) async {
   await wt.navigateAndSettle('$_standalonePath?sdk=go&default=true');
 
   expectSdk(Sdk.go, wt);
-  expectVisibleText(visibleText, wt);
+  expectVisibleTextIfDeployed(visibleText, wt);
+  expectLastAnalyticsEvent(
+    const LoadedAnalyticsEvent(
+      sdk: Sdk.go,
+      snippet: null, // Cannot tell from the initial data.
+    ),
+  );
 }
 
 Future<void> _testContentExampleLoader(WidgetTester wt) async {
@@ -119,14 +150,20 @@ Future<void> _testContentExampleLoader(WidgetTester wt) async {
       '$path?sdk=go&files=${Uri.encodeComponent(files)}&$_fullViewOptions',
     );
     expectSdk(Sdk.go, wt);
-    expectVisibleText(goExample.foldedVisibleText, wt);
+    expectVisibleTextIfDeployed(goExample.foldedVisibleText, wt);
+    expectLastAnalyticsEvent(
+      const LoadedAnalyticsEvent(
+        sdk: Sdk.go,
+        snippet: null,
+      ),
+    );
     await _expectEditableAndReadOnly(wt);
 
     await wt.navigateAndSettle(
       '$path?sdk=go&files=${Uri.encodeComponent(files)}&$_croppedViewOptions',
     );
     expectSdk(Sdk.go, wt);
-    expectVisibleText(goExample.croppedFoldedVisibleText, wt);
+    expectVisibleTextIfDeployed(goExample.croppedFoldedVisibleText, wt);
     _expectReadOnly(wt);
   }
 }
@@ -135,24 +172,46 @@ Future<void> _testEmptyExampleLoader(WidgetTester wt) async {
   for (final path in _paths) {
     await wt.navigateAndSettle('$path?sdk=go&empty=true');
     expectSdk(Sdk.go, wt);
-    expectVisibleText('', wt);
+    expectVisibleTextIfDeployed('', wt);
+    expectLastAnalyticsEvent(
+      const LoadedAnalyticsEvent(
+        sdk: Sdk.go,
+        snippet: null,
+      ),
+    );
   }
 }
 
-Future<void> _testHttpExampleLoader(WidgetTester wt) async {
+Future<void> _testHttpExampleLoaderIfDeployed(WidgetTester wt) async {
+  if (!areExamplesDeployed) {
+    return;
+  }
+
   for (final path in _paths) {
     await wt.navigateAndSettle(
-      '$path?sdk=go&url=${goExample.url}&$_fullViewOptions',
+      '$path?sdk=go&url=${goExample.rawUrl}&$_fullViewOptions',
     );
     expectSdk(Sdk.go, wt);
-    expectVisibleText(goExample.foldedVisibleText, wt);
+    expectVisibleTextIfDeployed(goExample.foldedVisibleText, wt);
+    expectLastAnalyticsEvent(
+      LoadedAnalyticsEvent(
+        sdk: Sdk.go,
+        snippet: goExample.rawUrl,
+      ),
+    );
     await _expectEditableAndReadOnly(wt);
 
     await wt.navigateAndSettle(
-      '$path?sdk=go&url=${goExample.url}&$_croppedViewOptions',
+      '$path?sdk=go&url=${goExample.rawUrl}&$_croppedViewOptions',
     );
     expectSdk(Sdk.go, wt);
-    expectVisibleText(goExample.croppedFoldedVisibleText, wt);
+    expectVisibleTextIfDeployed(goExample.croppedFoldedVisibleText, wt);
+    expectLastAnalyticsEvent(
+      LoadedAnalyticsEvent(
+        sdk: Sdk.go,
+        snippet: goExample.rawUrl,
+      ),
+    );
     _expectReadOnly(wt);
   }
 }
@@ -165,7 +224,13 @@ Future<void> _testStandardExampleLoader(WidgetTester wt) async {
       '$path?sdk=go&path=${goWordCount.dbPath}',
     );
     expectSdk(Sdk.go, wt);
-    expectVisibleText(visibleText, wt);
+    expectVisibleTextIfDeployed(visibleText, wt);
+    expectLastAnalyticsEvent(
+      LoadedAnalyticsEvent(
+        sdk: Sdk.go,
+        snippet: goWordCount.dbPath,
+      ),
+    );
   }
 }
 
@@ -173,46 +238,69 @@ Future<void> _testUserSharedExampleLoader(WidgetTester wt) async {
   final template = await goExample.getFullText();
   final tail = '\n//${DateTime.now().millisecondsSinceEpoch}';
   final content = '$template$tail';
-
-  final exampleCache = wt.findPlaygroundController().exampleCache;
-  final snippetId = await exampleCache.saveSnippet(
-    files: [SnippetFile(content: content, isMain: false, name: 'name')],
-    sdk: Sdk.go,
-    pipelineOptions: 'a=b',
-  );
-
-  print('Created user-shared example ID: $snippetId');
+  final snippetId = await _getSnippetId(wt, content, Sdk.go);
 
   for (final path in _paths) {
     await wt.navigateAndSettle(
       '$path?sdk=go&shared=$snippetId&$_fullViewOptions',
     );
     expectSdk(Sdk.go, wt);
-    expectVisibleText('${goExample.foldedVisibleText}$tail', wt);
+    expectVisibleTextIfDeployed('${goExample.foldedVisibleText}$tail', wt);
+    expectLastAnalyticsEvent(
+      LoadedAnalyticsEvent(
+        sdk: Sdk.go,
+        snippet: snippetId,
+      ),
+    );
     await _expectEditableAndReadOnly(wt);
 
     await wt.navigateAndSettle(
-      '$path?sdk=go&url=${goExample.url}&$_croppedViewOptions',
+      '$path?sdk=go&shared=$snippetId&$_croppedViewOptions',
     );
     expectSdk(Sdk.go, wt);
-    expectVisibleText(goExample.croppedFoldedVisibleText, wt);
+    expectVisibleTextIfDeployed(goExample.croppedFoldedVisibleText, wt);
+    expectLastAnalyticsEvent(
+      LoadedAnalyticsEvent(
+        sdk: Sdk.go,
+        snippet: snippetId,
+      ),
+    );
     _expectReadOnly(wt);
   }
 }
 
+Future<String> _getSnippetId(WidgetTester wt, String content, Sdk sdk) async {
+  final exampleCache = wt.findPlaygroundController().exampleCache;
+  final snippetId = await exampleCache.saveSnippet(
+    files: [SnippetFile(content: content, isMain: false, name: 'name')],
+    sdk: sdk,
+    pipelineOptions: '--name=value',
+  );
+
+  print('Created user-shared example ID: $snippetId');
+
+  return snippetId;
+}
+
 Future<void> _testMultipleExamples(WidgetTester wt) async {
-  final javaVisibleText = await javaAggregationMax.getVisibleText();
-  final goVisibleText = goExample.foldedVisibleText;
+  final javaTemplate = await javaExample.getFullText();
+  final goTemplate= await goExample.getFullText();
+  final tail = '\n//${DateTime.now().millisecondsSinceEpoch}';
+  final javaSnippetId = await _getSnippetId(wt, '$javaTemplate$tail', Sdk.java);
+  final goSnippetId = await _getSnippetId(wt, '$goTemplate$tail', Sdk.go);
+
+  final javaVisibleText = '${javaExample.foldedVisibleText}$tail';
+  final goVisibleText = '${goExample.foldedVisibleText}$tail';
 
   final examplesList = [
     {
       'sdk': Sdk.java.id,
-      'path': javaAggregationMax.dbPath,
+      'shared': javaSnippetId,
       ..._fullViewOptionsMap,
     },
     {
       'sdk': Sdk.go.id,
-      'url': goExample.url,
+      'shared': goSnippetId,
       ..._fullViewOptionsMap,
     },
   ];
@@ -221,7 +309,13 @@ Future<void> _testMultipleExamples(WidgetTester wt) async {
   for (final path in _paths) {
     await wt.navigateAndSettle('$path?sdk=go&examples=$examples');
     expectSdk(Sdk.go, wt);
-    expectVisibleText(goVisibleText, wt);
+    expectVisibleText(goVisibleText, wt, reason: 'go, $path');
+    expectLastAnalyticsEvent(
+      LoadedAnalyticsEvent(
+        sdk: Sdk.go,
+        snippet: goSnippetId,
+      ),
+    );
     await _expectEditableAndReadOnly(wt);
 
     final playgroundController = wt.findPlaygroundController();
@@ -229,7 +323,8 @@ Future<void> _testMultipleExamples(WidgetTester wt) async {
     await wt.pumpAndSettle();
 
     expectSdk(Sdk.java, wt);
-    expectVisibleText(javaVisibleText, wt);
+    expectVisibleText(javaVisibleText, wt, reason: 'java, $path');
+    await _expectEditableAndReadOnly(wt);
   }
 }
 

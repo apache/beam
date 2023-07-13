@@ -20,7 +20,15 @@ package org.apache.beam.sdk.coders;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 
-/** AvroCoder specialisation for GenericRecord. */
+/**
+ * AvroCoder specialisation for GenericRecord.
+ *
+ * @deprecated Avro related classes are deprecated in module <code>beam-sdks-java-core</code> and
+ *     will be eventually removed. Please, migrate to a new module <code>
+ *     beam-sdks-java-extensions-avro</code> by importing <code>
+ *     org.apache.beam.sdk.extensions.avro.coders.AvroGenericCoder</code> instead of this one.
+ */
+@Deprecated
 public class AvroGenericCoder extends AvroCoder<GenericRecord> {
   AvroGenericCoder(Schema schema) {
     super(GenericRecord.class, schema);

@@ -19,6 +19,7 @@
 import 'package:collection/collection.dart';
 import 'package:flutter/widgets.dart';
 
+import '../models/event_snippet_context.dart';
 import '../models/example.dart';
 import '../models/example_loading_descriptors/content_example_loading_descriptor.dart';
 import '../models/example_loading_descriptors/empty_example_loading_descriptor.dart';
@@ -43,6 +44,15 @@ class SnippetEditingController extends ChangeNotifier {
   SnippetFileEditingController? _activeFileController;
   final _fileControllers = <SnippetFileEditingController>[];
   final _fileControllersByName = <String, SnippetFileEditingController>{};
+
+  Map<String, dynamic> _defaultEventParams = const {};
+
+  void setDefaultEventParams(Map<String, dynamic> eventParams) {
+    _defaultEventParams = eventParams;
+    for (final fileController in _fileControllers) {
+      fileController.defaultEventParams = eventParams;
+    }
+  }
 
   SnippetEditingController({
     required this.sdk,
@@ -154,6 +164,7 @@ class SnippetEditingController extends ChangeNotifier {
       complexity: example.complexity,
       files: getFiles(),
       name: example.name,
+      pipelineOptions: _pipelineOptions,
       sdk: sdk,
     );
   }
@@ -190,6 +201,8 @@ class SnippetEditingController extends ChangeNotifier {
 
     _activeFileController =
         _fileControllers.firstWhereOrNull((c) => c.savedFile.isMain);
+
+    setDefaultEventParams(_defaultEventParams);
   }
 
   void _onFileControllerChanged() {
@@ -212,6 +225,20 @@ class SnippetEditingController extends ChangeNotifier {
   SnippetFileEditingController? get activeFileController =>
       _activeFileController;
 
+  SnippetFileEditingController requireFileControllerByName(String name) {
+    final result = getFileControllerByName(name);
+
+    if (result != null) {
+      return result;
+    }
+
+    throw Exception(
+      'Required SnippetFileEditingController for $name, '
+      'only have ${_fileControllers.map((c) => c.getFile().name)}, '
+      '${example?.path} ${example?.name}',
+    );
+  }
+
   SnippetFileEditingController? getFileControllerByName(String name) {
     return _fileControllersByName[name];
   }
@@ -227,5 +254,27 @@ class SnippetEditingController extends ChangeNotifier {
 
   List<SnippetFile> getFiles() {
     return _fileControllers.map((c) => c.getFile()).toList(growable: false);
+  }
+
+  EventSnippetContext get eventSnippetContext {
+    final descriptor = getLoadingDescriptor();
+
+    return EventSnippetContext(
+      originalSnippet: _descriptor?.token,
+      sdk: sdk,
+      snippet: descriptor.token,
+    );
+  }
+
+  bool shouldSaveBeforeSharing() {
+    if (!(descriptor?.isSerializableToUrl ?? false)) {
+      return true;
+    }
+
+    if (isChanged) {
+      return true;
+    }
+
+    return false;
   }
 }

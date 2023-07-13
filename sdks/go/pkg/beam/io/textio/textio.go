@@ -27,33 +27,84 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/fileio"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/rtrackers/offsetrange"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 )
 
 func init() {
-	beam.RegisterType(reflect.TypeOf((*readFn)(nil)).Elem())
+	register.DoFn4x1[context.Context, *sdf.LockRTracker, fileio.ReadableFile, func(string), error](&readFn{})
+	register.Emitter1[string]()
+
+	register.DoFn4x1[context.Context, *sdf.LockRTracker, fileio.ReadableFile, func(string, string), error](&readWNameFn{})
+	register.Emitter2[string, string]()
+
 	beam.RegisterType(reflect.TypeOf((*writeFileFn)(nil)).Elem())
-	beam.RegisterFunction(expandFn)
+	register.DoFn3x1[context.Context, int, func(*string) bool, error](&writeFileFn{})
+	register.Iter1[string]()
+}
+
+type readOption struct {
+	FileOpts []fileio.ReadOptionFn
+}
+
+// ReadOptionFn is a function that can be passed to Read or ReadAll to configure options for
+// reading files.
+type ReadOptionFn func(*readOption)
+
+// ReadAutoCompression specifies that the compression type of files should be auto-detected.
+func ReadAutoCompression() ReadOptionFn {
+	return func(o *readOption) {
+		o.FileOpts = append(o.FileOpts, fileio.ReadAutoCompression())
+	}
+}
+
+// ReadGzip specifies that files have been compressed using gzip.
+func ReadGzip() ReadOptionFn {
+	return func(o *readOption) {
+		o.FileOpts = append(o.FileOpts, fileio.ReadGzip())
+	}
+}
+
+// ReadUncompressed specifies that files have not been compressed.
+func ReadUncompressed() ReadOptionFn {
+	return func(o *readOption) {
+		o.FileOpts = append(o.FileOpts, fileio.ReadUncompressed())
+	}
 }
 
 // Read reads a set of files indicated by the glob pattern and returns
-// the lines as a PCollection<string>.
-// The newlines are not part of the lines.
-func Read(s beam.Scope, glob string) beam.PCollection {
+// the lines as a PCollection<string>. The newlines are not part of the lines.
+// Read accepts a variadic number of ReadOptionFn that can be used to configure the compression
+// type of the file. By default, the compression type is determined by the file extension.
+func Read(s beam.Scope, glob string, opts ...ReadOptionFn) beam.PCollection {
 	s = s.Scope("textio.Read")
 
 	filesystem.ValidateScheme(glob)
-	return read(s, beam.Create(s, glob))
+	return read(s, &readFn{}, beam.Create(s, glob), opts...)
 }
 
 // ReadAll expands and reads the filename given as globs by the incoming
 // PCollection<string>. It returns the lines of all files as a single
 // PCollection<string>. The newlines are not part of the lines.
-func ReadAll(s beam.Scope, col beam.PCollection) beam.PCollection {
+// ReadAll accepts a variadic number of ReadOptionFn that can be used to configure the compression
+// type of the files. By default, the compression type is determined by the file extension.
+func ReadAll(s beam.Scope, col beam.PCollection, opts ...ReadOptionFn) beam.PCollection {
 	s = s.Scope("textio.ReadAll")
-	return read(s, col)
+	return read(s, &readFn{}, col, opts...)
+}
+
+// ReadWithFilename reads a set of files indicated by the glob pattern and returns
+// a PCollection<KV<string, string>> of each filename and line. The newlines are not part of the lines.
+// ReadWithFilename accepts a variadic number of ReadOptionFn that can be used to configure the compression
+// type of the files. By default, the compression type is determined by the file extension.
+func ReadWithFilename(s beam.Scope, glob string, opts ...ReadOptionFn) beam.PCollection {
+	s = s.Scope("textio.ReadWithFilename")
+
+	filesystem.ValidateScheme(glob)
+	return read(s, &readWNameFn{}, beam.Create(s, glob), opts...)
 }
 
 // ReadSdf is a variation of Read implemented via SplittableDoFn. This should
@@ -64,7 +115,7 @@ func ReadSdf(s beam.Scope, glob string) beam.PCollection {
 	s = s.Scope("textio.ReadSdf")
 
 	filesystem.ValidateScheme(glob)
-	return read(s, beam.Create(s, glob))
+	return read(s, &readFn{}, beam.Create(s, glob), ReadUncompressed())
 }
 
 // ReadAllSdf is a variation of ReadAll implemented via SplittableDoFn. This
@@ -73,62 +124,59 @@ func ReadSdf(s beam.Scope, glob string) beam.PCollection {
 // Deprecated: Use ReadAll instead, which has been migrated to use this SDF implementation.
 func ReadAllSdf(s beam.Scope, col beam.PCollection) beam.PCollection {
 	s = s.Scope("textio.ReadAllSdf")
-	return read(s, col)
+	return read(s, &readFn{}, col, ReadUncompressed())
 }
 
-// read takes a PCollection of globs and returns a PCollection of lines from
-// all files in those globs. Uses an SDF to allow splitting reads of files
-// into separate bundles.
-func read(s beam.Scope, col beam.PCollection) beam.PCollection {
-	files := beam.ParDo(s, expandFn, col)
-	return beam.ParDo(s, &readFn{}, files)
+// read takes a PCollection of globs, finds all matching files, and applies
+// the given DoFn on the files.
+func read(s beam.Scope, dofn any, col beam.PCollection, opts ...ReadOptionFn) beam.PCollection {
+	option := &readOption{}
+	for _, opt := range opts {
+		opt(option)
+	}
+
+	matches := fileio.MatchAll(s, col, fileio.MatchEmptyAllow())
+	files := fileio.ReadMatches(s, matches, option.FileOpts...)
+	return beam.ParDo(s, dofn, files)
 }
 
-// expandFn expands a glob pattern into all matching file names.
-func expandFn(ctx context.Context, glob string, emit func(string)) error {
-	if strings.TrimSpace(glob) == "" {
-		return nil // ignore empty string elements here
-	}
-
-	fs, err := filesystem.New(ctx, glob)
-	if err != nil {
-		return err
-	}
-	defer fs.Close()
-
-	files, err := fs.List(ctx, glob)
-	if err != nil {
-		return err
-	}
-	for _, filename := range files {
-		emit(filename)
-	}
-	return nil
+// consumer is an interface for consuming a string value.
+type consumer interface {
+	Consume(value string)
 }
 
-// readFn reads individual lines from a text file. Implemented as an SDF
-// to allow splitting within a file.
-type readFn struct {
+// emitter emits a string element.
+type emitter struct {
+	Emit func(string)
+}
+
+func (e *emitter) Consume(value string) {
+	e.Emit(value)
+}
+
+// kvEmitter emits a KV<string, string> element.
+type kvEmitter struct {
+	Key  string
+	Emit func(string, string)
+}
+
+func (e *kvEmitter) Consume(value string) {
+	e.Emit(e.Key, value)
+}
+
+// readBaseFn implements a number of SDF methods that allows for splitting
+// a text file and reading individual lines. A struct that embeds readBaseFn
+// and also implements ProcessElement will serve as a complete SDF.
+type readBaseFn struct {
 }
 
 // CreateInitialRestriction creates an offset range restriction representing
 // the file's size in bytes.
-func (fn *readFn) CreateInitialRestriction(ctx context.Context, filename string) (offsetrange.Restriction, error) {
-	fs, err := filesystem.New(ctx, filename)
-	if err != nil {
-		return offsetrange.Restriction{}, err
-	}
-	defer fs.Close()
-
-	size, err := fs.Size(ctx, filename)
-	if err != nil {
-		return offsetrange.Restriction{}, err
-	}
-
+func (fn *readBaseFn) CreateInitialRestriction(file fileio.ReadableFile) offsetrange.Restriction {
 	return offsetrange.Restriction{
 		Start: 0,
-		End:   size,
-	}, nil
+		End:   file.Metadata.Size,
+	}
 }
 
 const (
@@ -139,9 +187,9 @@ const (
 	tooSmall = blockSize / 4
 )
 
-// SplitRestriction splits each file restriction into blocks of a predeterined
+// SplitRestriction splits each file restriction into blocks of a predetermined
 // size, with some checks to avoid having small remainders.
-func (fn *readFn) SplitRestriction(_ string, rest offsetrange.Restriction) []offsetrange.Restriction {
+func (fn *readBaseFn) SplitRestriction(_ fileio.ReadableFile, rest offsetrange.Restriction) []offsetrange.Restriction {
 	splits := rest.SizedSplits(blockSize)
 	numSplits := len(splits)
 	if numSplits > 1 {
@@ -155,35 +203,29 @@ func (fn *readFn) SplitRestriction(_ string, rest offsetrange.Restriction) []off
 	return splits
 }
 
-// Size returns the size of each restriction as its range.
-func (fn *readFn) RestrictionSize(_ string, rest offsetrange.Restriction) float64 {
+// RestrictionSize returns the size of each restriction as its range.
+func (fn *readBaseFn) RestrictionSize(_ fileio.ReadableFile, rest offsetrange.Restriction) float64 {
 	return rest.Size()
 }
 
 // CreateTracker creates sdf.LockRTrackers wrapping offsetRange.Trackers for
 // each restriction.
-func (fn *readFn) CreateTracker(rest offsetrange.Restriction) *sdf.LockRTracker {
+func (fn *readBaseFn) CreateTracker(rest offsetrange.Restriction) *sdf.LockRTracker {
 	return sdf.NewLockRTracker(offsetrange.NewTracker(rest))
 }
 
-// ProcessElement outputs all lines in the file that begin within the paired
-// restriction.
+// process processes all lines in the file that begin within the paired
+// restriction. How each line is output is determined by the consumer.
 //
 // Note that restrictions may not align perfectly with lines. So lines can begin
 // before the restriction and end within it (those are ignored), and lines can
 // begin within the restriction and past the restriction (those are entirely
 // output, including the portion outside the restriction). In some cases a
 // valid restriction might not output any lines.
-func (fn *readFn) ProcessElement(ctx context.Context, rt *sdf.LockRTracker, filename string, emit func(string)) error {
-	log.Infof(ctx, "Reading from %v", filename)
+func (fn *readBaseFn) process(ctx context.Context, rt *sdf.LockRTracker, file fileio.ReadableFile, consumer consumer) error {
+	log.Infof(ctx, "Reading from %v", file.Metadata.Path)
 
-	fs, err := filesystem.New(ctx, filename)
-	if err != nil {
-		return err
-	}
-	defer fs.Close()
-
-	fd, err := fs.OpenRead(ctx, filename)
+	fd, err := file.Open(ctx)
 	if err != nil {
 		return err
 	}
@@ -226,7 +268,7 @@ func (fn *readFn) ProcessElement(ctx context.Context, rt *sdf.LockRTracker, file
 		line, err := rd.ReadString('\n')
 		if err == io.EOF {
 			if len(line) != 0 {
-				emit(strings.TrimSuffix(line, "\n"))
+				consumer.Consume(strings.TrimSuffix(line, "\n"))
 			}
 			// Finish claiming restriction before breaking to avoid errors.
 			rt.TryClaim(rt.GetRestriction().(offsetrange.Restriction).End)
@@ -235,10 +277,29 @@ func (fn *readFn) ProcessElement(ctx context.Context, rt *sdf.LockRTracker, file
 		if err != nil {
 			return err
 		}
-		emit(strings.TrimSuffix(line, "\n"))
+		consumer.Consume(strings.TrimSuffix(line, "\n"))
 		i += int64(len(line))
 	}
 	return nil
+}
+
+// readFn is an SDF that emits individual lines from a text file.
+type readFn struct {
+	readBaseFn
+}
+
+func (fn *readFn) ProcessElement(ctx context.Context, rt *sdf.LockRTracker, file fileio.ReadableFile, emit func(string)) error {
+	return fn.process(ctx, rt, file, &emitter{Emit: emit})
+}
+
+// readWNameFn is an SDF that emits individual lines from a text file with
+// the filename as a key.
+type readWNameFn struct {
+	readBaseFn
+}
+
+func (fn *readWNameFn) ProcessElement(ctx context.Context, rt *sdf.LockRTracker, file fileio.ReadableFile, emit func(string, string)) error {
+	return fn.process(ctx, rt, file, &kvEmitter{Key: file.Metadata.Path, Emit: emit})
 }
 
 // TODO(herohde) 7/12/2017: extend Write to write to a series of files

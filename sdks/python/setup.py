@@ -36,7 +36,7 @@ from setuptools import Command
 # It is recommended to import setuptools prior to importing distutils to avoid
 # using legacy behavior from distutils.
 # https://setuptools.readthedocs.io/en/latest/history.html#v48-0-0
-from distutils.errors import DistutilsError # isort:skip
+from distutils.errors import DistutilsError  # isort:skip
 
 
 class mypy(Command):
@@ -127,6 +127,7 @@ except DistributionNotFound:
 try:
   # pylint: disable=wrong-import-position
   from Cython.Build import cythonize as cythonize0
+
   def cythonize(*args, **kwargs):
     import numpy
     extensions = cythonize0(*args, **kwargs)
@@ -140,7 +141,15 @@ except ImportError:
 if sys.platform == 'win32' and sys.maxsize <= 2**32:
   pyarrow_dependency = ''
 else:
-  pyarrow_dependency = 'pyarrow>=3.0.0,<10.0.0'
+  pyarrow_dependency = 'pyarrow>=3.0.0,<12.0.0'
+
+# Exclude pandas<=1.4.2 since it doesn't work with numpy 1.24.x.
+# Exclude 1.5.0 and 1.5.1 because of
+# https://github.com/pandas-dev/pandas/issues/45725
+dataframe_dependency = [
+    'pandas>=1.4.3,!=1.5.0,!=1.5.1,<1.6;python_version>="3.8"',
+]
+
 
 # We must generate protos after setup_requires are installed.
 def generate_protos_first():
@@ -165,9 +174,9 @@ def get_portability_package_data():
   return files
 
 
-python_requires = '>=3.7'
+python_requires = '>=3.8'
 
-if sys.version_info.major == 3 and sys.version_info.minor >= 11:
+if sys.version_info.major == 3 and sys.version_info.minor >= 12:
   warnings.warn(
       'This version of Apache Beam has not been sufficiently tested on '
       'Python %s.%s. You may encounter bugs or missing features.' %
@@ -180,16 +189,6 @@ if __name__ == '__main__':
   generate_protos_first()
   # Keep all dependencies inlined in the setup call, otherwise Dependabot won't
   # be able to parse it.
-  if sys.platform == 'darwin' and (
-          sys.version_info.major == 3 and sys.version_info.minor == 10):
-    # TODO (https://github.com/apache/beam/issues/23585): Protobuf wheels
-    # for version 3.19.5, 3.19.6 and 3.20.x on Python 3.10 and MacOS are
-    # rolled back due to some errors on MacOS. So, for Python 3.10 on MacOS
-    # restrict the protobuf with tight upper bound(3.19.4)
-    protobuf_dependency = ['protobuf>3.12.2,<3.19.5']
-  else:
-    protobuf_dependency = ['protobuf>3.12.2,<4']
-
   setuptools.setup(
       name=PACKAGE_NAME,
       version=PACKAGE_VERSION,
@@ -209,11 +208,11 @@ if __name__ == '__main__':
               '*/*.h',
               '*/*/*.h',
               'testing/data/*.yaml',
+              'yaml/*.yaml',
               *get_portability_package_data()
           ]
       },
       ext_modules=cythonize([
-          # Make sure to use language_level=3 cython directive in files below.
           'apache_beam/**/*.pyx',
           'apache_beam/coders/coder_impl.py',
           'apache_beam/metrics/cells.py',
@@ -226,8 +225,8 @@ if __name__ == '__main__':
           'apache_beam/transforms/stats.py',
           'apache_beam/utils/counters.py',
           'apache_beam/utils/windowed_value.py',
-      ]),
-      install_requires= protobuf_dependency + [
+      ], language_level=3),
+      install_requires = [
         'crcmod>=1.7,<2.0',
         'orjson<4.0',
         # Dill doesn't have forwards-compatibility guarantees within minor
@@ -245,13 +244,19 @@ if __name__ == '__main__':
         'fasteners>=0.3,<1.0',
         'grpcio>=1.33.1,!=1.48.0,<2',
         'hdfs>=2.1.0,<3.0.0',
-        'httplib2>=0.8,<0.22.0',
+        'httplib2>=0.8,<0.23.0',
         # numpy can have breaking changes in minor versions.
         # Use a strict upper bound.
         'numpy>=1.14.3,<1.25.0',   # Update build-requirements.txt as well.
         'objsize>=0.6.1,<0.7.0',
-        'pymongo>=3.8.0,<4.0.0',
+        'pymongo>=3.8.0,<5.0.0',
         'proto-plus>=1.7.1,<2',
+        # use a tighter upper bound in protobuf dependency
+        # to make sure the minor version at job submission
+        # does not exceed the minor version at runtime.
+        # To avoid depending on an old dependency, update the minor version on
+        # every Beam release, see: https://github.com/apache/beam/issues/25590
+        'protobuf>=3.20.3,<4.24.0',
         'pydot>=1.2.0,<2',
         'python-dateutil>=2.8.0,<3',
         'pytz>=2018.3',
@@ -270,20 +275,21 @@ if __name__ == '__main__':
               'Sphinx>=1.5.2,<2.0',
               # Pinning docutils as a workaround for Sphinx issue:
               # https://github.com/sphinx-doc/sphinx/issues/9727
-              'docutils==0.17.1'
+              'docutils==0.17.1',
+              'pandas<2.0.0',
           ],
           'test': [
             'freezegun>=0.3.12',
             'joblib>=1.0.1',
-            'mock>=1.0.1,<3.0.0',
+            'mock>=1.0.1,<6.0.0',
             'pandas<2.0.0',
-            'parameterized>=0.7.1,<0.9.0',
-            'pyhamcrest>=1.9,!=1.10.0,<2.0.0',
+            'parameterized>=0.7.1,<0.10.0',
+            'pyhamcrest>=1.9,!=1.10.0,<3.0.0',
             'pyyaml>=3.12,<7.0.0',
             'requests_mock>=1.7,<2.0',
-            'tenacity>=5.0.2,<6.0',
+            'tenacity>=8.0.0,<9',
             'pytest>=7.1.2,<8.0',
-            'pytest-xdist>=2.5.0,<3',
+            'pytest-xdist>=2.5.0,<4',
             'pytest-timeout>=2.1.0,<3',
             'scikit-learn>=0.20.0',
             'sqlalchemy>=1.3,<2.0',
@@ -293,65 +299,58 @@ if __name__ == '__main__':
             'hypothesis>5.0.0,<=7.0.0',
           ],
           'gcp': [
-            'cachetools>=3.1.0,<5',
+            'cachetools>=3.1.0,<6',
+            'google-api-core>=2.0.0,<3',
             'google-apitools>=0.5.31,<0.5.32',
             # NOTE: Maintainers, please do not require google-auth>=2.x.x
             # Until this issue is closed
             # https://github.com/googleapis/google-cloud-python/issues/10566
             'google-auth>=1.18.0,<3',
             'google-auth-httplib2>=0.1.0,<0.2.0',
-            'google-cloud-datastore>=1.8.0,<2',
+            'google-cloud-datastore>=2.0.0,<3',
             'google-cloud-pubsub>=2.1.0,<3',
             'google-cloud-pubsublite>=1.2.0,<2',
             # GCP packages required by tests
-            'google-cloud-bigquery>=1.6.0,<4',
-            'google-cloud-bigquery-storage>=2.6.3,<2.17',
-            'google-cloud-core>=0.28.1,<3',
-            'google-cloud-bigtable>=0.31.1,<2',
+            'google-cloud-bigquery>=2.0.0,<4',
+            'google-cloud-bigquery-storage>=2.6.3,<3',
+            'google-cloud-core>=2.0.0,<3',
+            'google-cloud-bigtable>=2.19.0,<3',
             'google-cloud-spanner>=3.0.0,<4',
             # GCP Packages required by ML functionality
             'google-cloud-dlp>=3.0.0,<4',
-            'google-cloud-language>=1.3.0,<2',
-            'google-cloud-videointelligence>=1.8.0,<2',
+            'google-cloud-language>=2.0,<3',
+            'google-cloud-videointelligence>=2.0,<3',
             'google-cloud-vision>=2,<4',
-            'google-cloud-recommendations-ai>=0.1.0,<0.8.0'
+            'google-cloud-recommendations-ai>=0.1.0,<0.11.0',
+            'google-cloud-aiplatform>=1.26.0, < 2.0'
           ],
           'interactive': [
-            'facets-overview>=1.0.0,<2',
-            'google-cloud-dataproc>=3.0.0,<3.2.0',
-            # IPython>=8 is not compatible with Python<=3.7
-            'ipython>=7,<8;python_version<="3.7"',
-            'ipython>=8,<9;python_version>"3.7"',
+            'facets-overview>=1.1.0,<2',
+            'google-cloud-dataproc>=5.0.0,<6',
+            'ipython>=8,<9',
             'ipykernel>=6,<7',
             'ipywidgets>=8,<9',
             # Skip version 6.1.13 due to
             # https://github.com/jupyter/jupyter_client/issues/637
-            'jupyter-client>=6.1.11,<8.0.3',
+            'jupyter-client>=6.1.11,!=6.1.13,<8.2.1',
             'timeloop>=1.0.2,<2',
-          ],
-          'interactive_test': [
-            # notebok utils
             'nbformat>=5.0.5,<6',
             'nbconvert>=6.2.0,<8',
+          ] + dataframe_dependency,
+          'interactive_test': [
             # headless chrome based integration tests
             'needle>=0.5.0,<1',
-            'chromedriver-binary>=100,<111',
+            'chromedriver-binary>=100,<114',
             # use a fixed major version of PIL for different python versions
-            'pillow>=7.1.1,<8',
+            'pillow>=7.1.1,<10',
           ],
-          'aws': ['boto3 >=1.9'],
+          'aws': ['boto3>=1.9,<2'],
           'azure': [
-            'azure-storage-blob >=12.3.2',
-            'azure-core >=1.7.0',
-            'azure-identity >=1.12.0',
+            'azure-storage-blob>=12.3.2,<13',
+            'azure-core>=1.7.0,<2',
+            'azure-identity>=1.12.0,<2',
           ],
-        # Exclude pandas<=1.4.2 since it doesn't work with numpy 1.24.x.
-        # Exclude 1.5.0 and 1.5.1 because of
-        # https://github.com/pandas-dev/pandas/issues/45725
-          'dataframe': [
-            'pandas<1.4.0;python_version=="3.7"',
-            'pandas>=1.4.3,!=1.5.0,!=1.5.1,<1.6;python_version>="3.8"',
-          ],
+          'dataframe': dataframe_dependency,
           'dask': [
             'dask >= 2022.6',
             'distributed >= 2022.6',
@@ -363,10 +362,10 @@ if __name__ == '__main__':
           'Intended Audience :: End Users/Desktop',
           'License :: OSI Approved :: Apache Software License',
           'Operating System :: POSIX :: Linux',
-          'Programming Language :: Python :: 3.7',
           'Programming Language :: Python :: 3.8',
           'Programming Language :: Python :: 3.9',
           'Programming Language :: Python :: 3.10',
+          'Programming Language :: Python :: 3.11',
           # When updating version classifiers, also update version warnings
           # above and in apache_beam/__init__.py.
           'Topic :: Software Development :: Libraries',

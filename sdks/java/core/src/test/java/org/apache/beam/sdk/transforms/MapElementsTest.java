@@ -50,6 +50,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -60,6 +61,8 @@ public class MapElementsTest implements Serializable {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
   @Rule public transient ExpectedException thrown = ExpectedException.none();
+
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(1200);
 
   /**
    * A {@link SimpleFunction} to test that the coder registry can propagate coders that are bound to

@@ -20,11 +20,14 @@
 module "infrastructure" {
   source                        = "./infrastructure"
   project_id                    = var.project_id
-  environment                   = var.environment
   region                        = var.region
+  environment                   = var.environment
   network_region                = var.region
   redis_region                  = var.region
-  location                      = var.location
+  location                      = var.zone
+  service_account_id            = var.service_account_id
+  state_bucket                  = var.state_bucket
+  env                           = var.env
   #Artifact Registry
   repository_id                 = var.repository_id
   repository_location           = var.region
@@ -36,51 +39,14 @@ module "infrastructure" {
   redis_memory_size_gb          = var.redis_memory_size_gb
   #NETWORK
   network_name                  = var.network_name
+  ip_address_name               = var.ip_address_name
+  subnetwork_name               = var.subnetwork_name
   #GKE
   gke_machine_type              = var.gke_machine_type
   gke_name                      = var.gke_name
-  gke_location                  = var.location
+  gke_location                  = var.zone
   service_account               = var.service_account
-}
-
-module "applications" {
-  source                = "./applications"
-  project_id            = var.project_id
-  environment           = var.environment
-  docker_image_name     = var.docker_image_name
-  docker_image_tag      = var.docker_image_tag
-  backend_service_name  = var.backend_service_name
-  frontend_service_name = var.frontend_service_name
-  cache_type            = var.cache_type
-
-  go_volume_size      = var.go_volume_size
-  go_cpu              = var.go_cpu
-  go_memory           = var.go_memory
-  go_max_instance     = var.go_max_instance
-  go_min_instance     = var.go_min_instance
-  java_volume_size    = var.java_volume_size
-  java_cpu            = var.java_cpu
-  java_memory         = var.java_memory
-  java_max_instance   = var.java_max_instance
-  java_min_instance   = var.java_min_instance
-  python_volume_size  = var.python_volume_size
-  python_cpu          = var.python_cpu
-  python_memory       = var.python_memory
-  python_max_instance = var.python_max_instance
-  python_min_instance = var.python_min_instance
-  router_volume_size  = var.router_volume_size
-  router_cpu          = var.router_cpu
-  router_memory       = var.router_memory
-  router_max_instance = var.router_max_instance
-  router_min_instance = var.router_min_instance
-  scio_volume_size    = var.scio_volume_size
-  scio_cpu            = var.scio_cpu
-  scio_memory         = var.scio_memory
-  scio_max_instance   = var.scio_max_instance
-  scio_min_instance   = var.scio_min_instance
-
- # location               = var.application_location
-  create_default_service = var.create_default_service
-  state_bucket           = var.state_bucket
-  state_prefix           = var.state_prefix
+  skip_appengine_deploy         = var.skip_appengine_deploy
+  min_count                     = var.min_count
+  max_count                     = var.max_count
 }

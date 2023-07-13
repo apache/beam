@@ -43,12 +43,18 @@ import org.joda.time.Duration;
 /**
  * An implementation of {@link SchemaIOProvider} for reading and writing Avro files with {@link
  * AvroIO}.
+ *
+ * @deprecated Avro related classes are deprecated in module <code>beam-sdks-java-core</code> and
+ *     will be eventually removed. Please, migrate to a new module <code>
+ *     beam-sdks-java-extensions-avro</code> by importing <code>
+ *     org.apache.beam.sdk.extensions.avro.io.AvroSchemaIOProvider</code> instead of this one.
  */
 @Internal
 @AutoService(SchemaIOProvider.class)
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
+@Deprecated
 public class AvroSchemaIOProvider implements SchemaIOProvider {
   /** Returns an id that uniquely represents this IO. */
   @Override

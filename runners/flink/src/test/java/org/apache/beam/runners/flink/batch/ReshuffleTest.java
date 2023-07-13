@@ -34,9 +34,13 @@ import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.flink.api.java.DataSet;
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 
 public class ReshuffleTest {
+
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(1200);
 
   private static class WithBundleIdFn extends DoFn<String, String> {
 

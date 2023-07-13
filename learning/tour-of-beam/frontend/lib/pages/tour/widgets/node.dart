@@ -42,6 +42,7 @@ class NodeWidget extends StatelessWidget {
       return GroupWidget(
         group: node,
         contentTreeController: contentTreeController,
+        key: Key(node.id),
       );
     }
 
@@ -49,6 +50,7 @@ class NodeWidget extends StatelessWidget {
       return UnitWidget(
         unit: node,
         contentTreeController: contentTreeController,
+        key: Key(node.id),
       );
     }
 

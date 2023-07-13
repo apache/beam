@@ -21,14 +21,17 @@ import java.io.IOException;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics;
-import org.apache.beam.sdk.io.gcp.bigtable.changestreams.TimestampConverter;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.action.ActionFactory;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.action.DetectNewPartitionsAction;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.action.GenerateInitialPartitionsAction;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.action.ProcessNewPartitionsAction;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.action.ResumeFromPreviousPipelineAction;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.ChangeStreamDao;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.DaoFactory;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTableDao;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.model.InitialPipelineState;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.model.PartitionRecord;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.restriction.DetectNewPartitionsTracker;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.UnboundedPerElement;
@@ -42,9 +45,9 @@ import org.joda.time.Instant;
 @SuppressWarnings("initialization.fields.uninitialized")
 @Internal
 @UnboundedPerElement
-public class DetectNewPartitionsDoFn extends DoFn<com.google.cloud.Timestamp, PartitionRecord> {
+public class DetectNewPartitionsDoFn extends DoFn<InitialPipelineState, PartitionRecord> {
   private static final long serialVersionUID = 8052524268978107367L;
-  @Nullable private final com.google.cloud.Timestamp endTime;
+  @Nullable private final Instant endTime;
 
   private final DaoFactory daoFactory;
   private final ChangeStreamMetrics metrics;
@@ -52,7 +55,7 @@ public class DetectNewPartitionsDoFn extends DoFn<com.google.cloud.Timestamp, Pa
   private DetectNewPartitionsAction detectNewPartitionsAction;
 
   public DetectNewPartitionsDoFn(
-      @Nullable com.google.cloud.Timestamp endTime,
+      @Nullable Instant endTime,
       ActionFactory actionFactory,
       DaoFactory daoFactory,
       ChangeStreamMetrics metrics) {
@@ -63,8 +66,9 @@ public class DetectNewPartitionsDoFn extends DoFn<com.google.cloud.Timestamp, Pa
   }
 
   @GetInitialWatermarkEstimatorState
-  public Instant getInitialWatermarkEstimatorState(@Element com.google.cloud.Timestamp startTime) {
-    return TimestampConverter.toInstant(startTime);
+  public Instant getInitialWatermarkEstimatorState(
+      @Element InitialPipelineState initialPipelineState) {
+    return initialPipelineState.getStartTime();
   }
 
   @NewWatermarkEstimator
@@ -80,7 +84,7 @@ public class DetectNewPartitionsDoFn extends DoFn<com.google.cloud.Timestamp, Pa
 
   @NewTracker
   public OffsetRangeTracker restrictionTracker(@Restriction OffsetRange restriction) {
-    return new OffsetRangeTracker(restriction);
+    return new DetectNewPartitionsTracker(restriction.getFrom());
   }
 
   // We never want to scale based on this DoFn, so we return a constant backlog estimate of zero.
@@ -93,22 +97,31 @@ public class DetectNewPartitionsDoFn extends DoFn<com.google.cloud.Timestamp, Pa
   public void setup() throws IOException {
     final MetadataTableDao metadataTableDao = daoFactory.getMetadataTableDao();
     final ChangeStreamDao changeStreamDao = daoFactory.getChangeStreamDao();
+    ProcessNewPartitionsAction processNewPartitionsAction =
+        actionFactory.processNewPartitionsAction(metrics, metadataTableDao, endTime);
     GenerateInitialPartitionsAction generateInitialPartitionsAction =
         actionFactory.generateInitialPartitionsAction(metrics, changeStreamDao, endTime);
+    ResumeFromPreviousPipelineAction resumeFromPreviousPipelineAction =
+        actionFactory.resumeFromPreviousPipelineAction(
+            metrics, metadataTableDao, endTime, processNewPartitionsAction);
     detectNewPartitionsAction =
         actionFactory.detectNewPartitionsAction(
-            metrics, metadataTableDao, endTime, generateInitialPartitionsAction);
+            metrics,
+            metadataTableDao,
+            endTime,
+            generateInitialPartitionsAction,
+            resumeFromPreviousPipelineAction,
+            processNewPartitionsAction);
   }
 
   @ProcessElement
   public ProcessContinuation processElement(
-      @Element com.google.cloud.Timestamp startTime,
+      @Element InitialPipelineState initialPipelineState,
       RestrictionTracker<OffsetRange, Long> tracker,
       OutputReceiver<PartitionRecord> receiver,
-      ManualWatermarkEstimator<Instant> watermarkEstimator,
-      BundleFinalizer bundleFinalizer)
+      ManualWatermarkEstimator<Instant> watermarkEstimator)
       throws Exception {
     return detectNewPartitionsAction.run(
-        tracker, receiver, watermarkEstimator, bundleFinalizer, startTime);
+        tracker, receiver, watermarkEstimator, initialPipelineState);
   }
 }

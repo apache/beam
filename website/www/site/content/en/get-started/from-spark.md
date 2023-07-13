@@ -312,11 +312,12 @@ with beam.Pipeline() as pipeline:
     min_value = values | beam.CombineGlobally(min)
     max_value = values | beam.CombineGlobally(max)
 
-    # To access `total`, we need to pass it as a side input.
+    # To access `min_value` and `max_value`, we need to pass them as a side input.
     scaled_values = values | beam.Map(
-        lambda x, min_value, max_value: x / lambda x: (x - min_value) / (max_value - min_value),
-        min_value =beam.pvalue.AsSingleton(min_value),
-        max_value =beam.pvalue.AsSingleton(max_value))
+        lambda x, minimum, maximum: (x - minimum) / (maximum - minimum),
+        minimum=beam.pvalue.AsSingleton(min_value),
+        maximum=beam.pvalue.AsSingleton(max_value),
+    )
 
     scaled_values | beam.Map(print)
 {{< /highlight >}}

@@ -22,37 +22,32 @@ import 'package:flutter/material.dart';
 import 'package:playground_components/playground_components.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'constants/params.dart';
 import 'constants/storage_keys.dart';
 
 class AppNotifier extends ChangeNotifier {
-  String? _sdkId;
+  Sdk? _sdk;
 
   AppNotifier() {
-    unawaited(_readSdkId());
+    unawaited(_readSdk());
   }
 
-  // TODO(nausharipov): remove sdkId getter and setter
-  String? get sdkId => _sdkId;
-  Sdk? get sdk => Sdk.tryParse(_sdkId);
+  Sdk get sdk => _sdk ?? defaultSdk;
 
-  set sdkId(String? newValue) {
-    _sdkId = newValue;
-    unawaited(_writeSdkId(newValue));
+  set sdk(Sdk newValue) {
+    _sdk = newValue;
+    unawaited(_writeSdk(newValue));
     notifyListeners();
   }
 
-  Future<void> _writeSdkId(String? value) async {
+  Future<void> _writeSdk(Sdk value) async {
     final preferences = await SharedPreferences.getInstance();
-    if (value != null) {
-      await preferences.setString(StorageKeys.sdkId, value);
-    } else {
-      await preferences.remove(StorageKeys.sdkId);
-    }
+    await preferences.setString(StorageKeys.sdkId, value.id);
   }
 
-  Future<void> _readSdkId() async {
+  Future<void> _readSdk() async {
     final preferences = await SharedPreferences.getInstance();
-    _sdkId = preferences.getString(StorageKeys.sdkId);
+    _sdk = Sdk.tryParse(preferences.getString(StorageKeys.sdkId));
     notifyListeners();
   }
 }

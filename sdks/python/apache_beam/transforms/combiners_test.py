@@ -20,6 +20,7 @@
 
 import itertools
 import random
+import time
 import unittest
 
 import hamcrest as hc
@@ -44,6 +45,7 @@ from apache_beam.transforms.core import Create
 from apache_beam.transforms.core import Map
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
+from apache_beam.transforms.periodicsequence import PeriodicImpulse
 from apache_beam.transforms.ptransform import PTransform
 from apache_beam.transforms.trigger import AfterAll
 from apache_beam.transforms.trigger import AfterCount
@@ -190,6 +192,20 @@ class CombineTest(unittest.TestCase):
     self.assertEqual(['aa', 'bbb', 'c', 'dddd']
                      | combine.Top.Of(3, key=len, reverse=True),
                      [['c', 'aa', 'bbb']])
+
+    self.assertEqual(['xc', 'zb', 'yd', 'wa']
+                     | combine.Top.Largest(3, key=lambda x: x[-1]),
+                     [['yd', 'xc', 'zb']])
+    self.assertEqual(['xc', 'zb', 'yd', 'wa']
+                     | combine.Top.Smallest(3, key=lambda x: x[-1]),
+                     [['wa', 'zb', 'xc']])
+
+    self.assertEqual([('a', x) for x in [1, 2, 3, 4, 1, 1]]
+                     | combine.Top.LargestPerKey(3, key=lambda x: -x),
+                     [('a', [1, 1, 1])])
+    self.assertEqual([('a', x) for x in [1, 2, 3, 4, 1, 1]]
+                     | combine.Top.SmallestPerKey(3, key=lambda x: -x),
+                     [('a', [4, 3, 2])])
 
   def test_sharded_top_combine_fn(self):
     def test_combine_fn(combine_fn, shards, expected):
@@ -961,6 +977,48 @@ class TimestampCombinerTest(unittest.TestCase):
           equal_to_per_window(expected_window_to_elements),
           use_global_window=False,
           label='assert per window')
+
+
+class CombineGloballyTest(unittest.TestCase):
+  def test_combine_globally_for_unbounded_source_with_default(self):
+    # this error is logged since the below combination is ill-defined.
+    with self.assertLogs() as captured_logs:
+      with TestPipeline() as p:
+        _ = (
+            p
+            | PeriodicImpulse(
+                start_timestamp=time.time(),
+                stop_timestamp=time.time() + 4,
+                fire_interval=1,
+                apply_windowing=False,
+            )
+            | beam.Map(lambda x: ('c', 1))
+            | beam.WindowInto(
+                window.GlobalWindows(),
+                trigger=trigger.Repeatedly(trigger.AfterCount(2)),
+                accumulation_mode=trigger.AccumulationMode.DISCARDING,
+            )
+            | beam.combiners.Count.Globally())
+    self.assertIn('unbounded collections', '\n'.join(captured_logs.output))
+
+  def test_combine_globally_for_unbounded_source_without_defaults(self):
+    # this is the supported case
+    with TestPipeline() as p:
+      _ = (
+          p
+          | PeriodicImpulse(
+              start_timestamp=time.time(),
+              stop_timestamp=time.time() + 4,
+              fire_interval=1,
+              apply_windowing=False,
+          )
+          | beam.Map(lambda x: 1)
+          | beam.WindowInto(
+              window.GlobalWindows(),
+              trigger=trigger.Repeatedly(trigger.AfterCount(2)),
+              accumulation_mode=trigger.AccumulationMode.DISCARDING,
+          )
+          | beam.CombineGlobally(sum).without_defaults())
 
 
 if __name__ == '__main__':

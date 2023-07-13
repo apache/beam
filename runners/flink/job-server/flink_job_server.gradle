@@ -185,6 +185,7 @@ def portableValidatesRunnerTask(String name, boolean streaming, boolean checkpoi
           excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime'
           excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithMultipleStages'
           excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithOutputTimestamp'
+          excludeCategories 'org.apache.beam.sdk.testing.UsesTriggeredSideInputs'
           return
         }
 

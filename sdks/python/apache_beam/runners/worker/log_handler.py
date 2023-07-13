@@ -69,8 +69,6 @@ LOGENTRY_TO_LOG_LEVEL_MAP = {
     beam_fn_api_pb2.LogEntry.Severity.UNSPECIFIED: logging.NOTSET,
 }
 
-# This module is experimental. No backwards-compatibility guarantees.
-
 
 class FnApiLogRecordHandler(logging.Handler):
   """A handler that writes log records to the fn API."""
@@ -112,7 +110,7 @@ class FnApiLogRecordHandler(logging.Handler):
     return self._logging_stub.Logging(self._write_log_entries())
 
   def map_log_level(self, level):
-    # type: (int) -> beam_fn_api_pb2.LogEntry.Severity.Enum
+    # type: (int) -> beam_fn_api_pb2.LogEntry.Severity.Enum.ValueType
     try:
       return LOG_LEVEL_TO_LOGENTRY_MAP[level]
     except KeyError:

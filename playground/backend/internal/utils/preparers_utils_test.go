@@ -27,6 +27,58 @@ import (
 	"testing"
 )
 
+const (
+	sourceDir         = "sourceDir"
+	fileName          = "file.txt"
+	fileContent       = "content"
+	testDataDir       = "test_data"
+	javaFileName      = "JavaFileName.java"
+	emptyFileName     = "emptyFile.java"
+	pythonExampleName = "wordcount.py"
+	filePermission    = 0600
+	fullPermission    = 0755
+)
+
+func TestMain(m *testing.M) {
+	err := setup()
+	if err != nil {
+		panic(fmt.Errorf("error during test setup: %s", err.Error()))
+	}
+	defer teardown()
+	m.Run()
+}
+
+func setup() error {
+	err := os.Mkdir(sourceDir, fullPermission)
+	if err != nil {
+		return err
+	}
+	filePath := filepath.Join(sourceDir, fileName)
+	err = os.WriteFile(filePath, []byte(fileContent), filePermission)
+	if err != nil {
+		return err
+	}
+	sourceJavaFilePath := filepath.Join(testDataDir, javaFileName)
+	javaFilePath := filepath.Join(sourceDir, javaFileName)
+	err = CopyFile(sourceJavaFilePath, javaFilePath)
+	if err != nil {
+		return err
+	}
+	emptyFilePath := filepath.Join(sourceDir, emptyFileName)
+	err = os.WriteFile(emptyFilePath, []byte(""), filePermission)
+	if err != nil {
+		return err
+	}
+	sourceWordCountPythonPath := filepath.Join(testDataDir, pythonExampleName)
+	wordCountPythonPath := filepath.Join(sourceDir, pythonExampleName)
+	err = CopyFile(sourceWordCountPythonPath, wordCountPythonPath)
+	return err
+}
+
+func teardown() error {
+	return os.RemoveAll(sourceDir)
+}
+
 func TestSpacesToEqualsOption(t *testing.T) {
 	type args struct {
 		pipelineOptions string
@@ -176,6 +228,15 @@ func TestGetPublicClassName(t *testing.T) {
 			},
 			want:    "MinimalWordCount",
 			wantErr: false,
+		},
+		{
+			name: "Get public class name from empty file",
+			args: args{
+				filePath: filepath.Join(sourceDir, emptyFileName),
+				pattern:  javaPublicClassNamePattern,
+			},
+			want:    "",
+			wantErr: true,
 		},
 		{
 			name: "Get public class name from non-existent file",

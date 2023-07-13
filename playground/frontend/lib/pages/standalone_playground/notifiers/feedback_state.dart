@@ -17,16 +17,15 @@
  */
 
 import 'package:flutter/material.dart';
-
-const kFeedbackKey = 'feedback';
+import 'package:playground_components/playground_components.dart';
 
 class FeedbackState with ChangeNotifier {
-  bool? isEnjoying;
+  FeedbackRating? feedbackRating;
 
   FeedbackState();
 
-  setEnjoying(bool isEnjoying) {
-    this.isEnjoying = isEnjoying;
+  setEnjoying(FeedbackRating feedbackRating) {
+    this.feedbackRating = feedbackRating;
     notifyListeners();
   }
 }

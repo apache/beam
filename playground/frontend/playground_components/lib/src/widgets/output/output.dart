@@ -17,88 +17,79 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:keyed_collection_widgets/keyed_collection_widgets.dart';
 
 import '../../controllers/playground_controller.dart';
-import '../tab_header.dart';
-import 'output_area.dart';
-import 'output_tabs.dart';
+import '../../enums/output_tab.dart';
+import '../tabs/tab_bar.dart';
+import 'graph_tab.dart';
+import 'graph_tab_content.dart';
+import 'result_tab.dart';
+import 'result_tab_content.dart';
 
-const kTabsCount = 2;
-
-class OutputWidget extends StatefulWidget {
+class OutputWidget extends StatelessWidget {
   final PlaygroundController playgroundController;
   final Widget? trailing;
   final Axis graphDirection;
 
-  OutputWidget({
+  const OutputWidget({
     required this.playgroundController,
     required this.graphDirection,
     this.trailing,
-  }) : super(
-          key: ValueKey(
-            '${playgroundController.sdk}_${playgroundController.selectedExample?.path}',
-          ),
-        );
-
-  @override
-  State<OutputWidget> createState() => _OutputWidgetState();
-}
-
-class _OutputWidgetState extends State<OutputWidget>
-    with SingleTickerProviderStateMixin {
-  late final TabController tabController;
-  int selectedTab = 0;
-
-  @override
-  void initState() {
-    final tabsCount = widget.playgroundController.graphAvailable
-        ? kTabsCount
-        : kTabsCount - 1;
-    tabController = TabController(vsync: this, length: tabsCount);
-    tabController.addListener(_onTabChange);
-    super.initState();
-  }
-
-  @override
-  void dispose() {
-    tabController.removeListener(_onTabChange);
-    tabController.dispose();
-    super.dispose();
-  }
-
-  void _onTabChange() {
-    setState(() {
-      selectedTab = tabController.index;
-    });
-  }
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Flexible(
-              child: TabHeader(
-                tabController: tabController,
-                tabsWidget: OutputTabs(
-                  playgroundController: widget.playgroundController,
-                  tabController: tabController,
+    return AnimatedBuilder(
+      animation: playgroundController,
+      builder: (context, child) {
+        final keys = [...OutputTabEnum.values];
+
+        if (!playgroundController.graphAvailable) {
+          keys.remove(OutputTabEnum.graph);
+        }
+
+        return DefaultKeyedTabController<OutputTabEnum>.fromKeys(
+          keys: keys,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: BeamTabBar(
+                      hasPadding: true,
+                      tabs: UnmodifiableOutputTabEnumMap(
+                        result: ResultTab(
+                          playgroundController: playgroundController,
+                        ),
+                        graph: GraphTab(
+                          playgroundController: playgroundController,
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (trailing != null) trailing!,
+                ],
+              ),
+              Expanded(
+                child: KeyedTabBarView.withDefaultController(
+                  children: UnmodifiableOutputTabEnumMap(
+                    result: ResultTabContent(
+                      playgroundController: playgroundController,
+                    ),
+                    graph: GraphTabContent(
+                      direction: graphDirection,
+                      playgroundController: playgroundController,
+                    ),
+                  ),
                 ),
               ),
-            ),
-            if (widget.trailing != null) widget.trailing!,
-          ],
-        ),
-        Expanded(
-          child: OutputArea(
-            playgroundController: widget.playgroundController,
-            tabController: tabController,
-            graphDirection: widget.graphDirection,
+            ],
           ),
-        ),
-      ],
+        );
+      },
     );
   }
 }

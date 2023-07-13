@@ -43,7 +43,7 @@ class ShortcutsManager extends StatelessWidget {
 
   Map<LogicalKeySet, Intent> get _shortcutsMap => {
         for (var shortcut in shortcuts)
-          shortcut.shortcuts: shortcut.actionIntent
+          shortcut.keySet: shortcut.actionIntent
       };
 
   Map<Type, Action<Intent>> _getActions(BuildContext context) => {

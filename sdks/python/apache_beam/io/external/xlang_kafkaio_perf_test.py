@@ -110,8 +110,7 @@ class _KafkaIOSDFReadPerfTest(LoadTest):
                 'bootstrap.servers': self.test_options.bootstrap_servers,
                 'auto.offset.reset': 'earliest'
             },
-            topics=[self.kafka_topic],
-            expansion_service=kafka.default_io_expansion_service())
+            topics=[self.kafka_topic])
         | 'Count records' >> beam.ParDo(CountMessages(self.metrics_namespace))
         | 'Measure time' >> beam.ParDo(MeasureTime(self.metrics_namespace)))
 

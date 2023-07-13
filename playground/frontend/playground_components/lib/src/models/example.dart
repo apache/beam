@@ -16,11 +16,19 @@
  * limitations under the License.
  */
 
+import 'package:json_annotation/json_annotation.dart';
+
+import '../enums/complexity.dart';
+import 'dataset.dart';
 import 'example_base.dart';
+import 'example_view_options.dart';
 import 'sdk.dart';
 import 'snippet_file.dart';
 
+part 'example.g.dart';
+
 /// A [ExampleBase] that also has all large fields fetched.
+@JsonSerializable()
 class Example extends ExampleBase {
   final List<SnippetFile> files;
   final String? graph;
@@ -33,6 +41,7 @@ class Example extends ExampleBase {
     required super.sdk,
     required super.type,
     required super.path,
+    super.alwaysRun,
     super.complexity,
     super.contextLine,
     super.datasets,
@@ -48,6 +57,12 @@ class Example extends ExampleBase {
     super.viewOptions,
   });
 
+  factory Example.fromJson(Map<String, dynamic> json) =>
+      _$ExampleFromJson(json);
+
+  @override
+  Map<String, dynamic> toJson() => _$ExampleToJson(this);
+
   Example.fromBase(
     ExampleBase example, {
     required this.files,
@@ -55,6 +70,7 @@ class Example extends ExampleBase {
     required this.outputs,
     this.graph,
   }) : super(
+          alwaysRun: example.alwaysRun,
           complexity: example.complexity,
           contextLine: example.contextLine,
           datasets: example.datasets,
@@ -79,4 +95,30 @@ class Example extends ExampleBase {
           sdk: sdk,
           type: ExampleType.example,
         );
+
+  Example copyWith({
+    ExampleViewOptions? viewOptions,
+  }) {
+    return Example(
+      alwaysRun: alwaysRun,
+      complexity: complexity,
+      contextLine: contextLine,
+      datasets: datasets,
+      description: description,
+      files: files,
+      graph: graph,
+      isMultiFile: isMultiFile,
+      logs: logs,
+      name: name,
+      outputs: outputs,
+      path: path,
+      pipelineOptions: pipelineOptions,
+      sdk: sdk,
+      tags: tags,
+      type: type,
+      urlNotebook: urlNotebook,
+      urlVcs: urlVcs,
+      viewOptions: viewOptions ?? this.viewOptions,
+    );
+  }
 }

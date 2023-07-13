@@ -1,0 +1,177 @@
+name: build_release_candidate
+
+# Workflow added after https://github.com/apache/beam/commit/4183e747becebd18becee5fff547af365910fc9c
+# If help is needed debugging issues, you can view the release guide at that commit for guidance on how to do this manually.
+# (https://github.com/apache/beam/blob/4183e747becebd18becee5fff547af365910fc9c/website/www/site/content/en/contribute/release-guide.md)
+on:
+  workflow_dispatch:
+    inputs:
+      RELEASE:
+        description: Beam version of current release (e.g. 2.XX.0)
+        required: true
+        default: '2.XX.0'
+      RC:
+        description: Integer RC version for the release (e.g. 3 for RC3)
+        required: true
+      APACHE_ID:
+        description: Your Apache id. Required if you want to stage artifacts into https://dist.apache.org/repos/dist/dev/beam/
+        required: false
+      APACHE_PASSWORD:
+        description: Your Apache password. Required if you want to stage artifacts into https://dist.apache.org/repos/dist/dev/beam/
+        required: false
+      PUBLISH_JAVA_ARTIFACTS:
+        description: Whether to publish java artifacts to https://repository.apache.org/#stagingRepositories (yes/no)
+        required: true
+        default: 'no'
+      STAGE_JAVA_SOURCE:
+        description: Whether to stage the java source into https://dist.apache.org/repos/dist/dev/beam/
+        required: true
+        default: 'no'
+      STAGE_DOCKER_ARTIFACTS:
+        description: Whether to stage SDK docker images to docker hub Apache organization
+        required: true
+        default: 'no'
+
+jobs:
+  publish_java_artifacts:
+    if: ${{github.event.inputs.PUBLISH_JAVA_ARTIFACTS == 'yes'}}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          ref: "v${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
+          repository: apache/beam
+      - name: Install Java 8
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '8'
+      - name: Import GPG key
+        id: import_gpg
+        uses: crazy-max/ghaction-import-gpg@111c56156bcc6918c056dbef52164cfa583dc549
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+      - name: Auth for nexus
+        run: |
+          mkdir -p ${HOME}/.m2
+          echo "<settings>
+           <servers>
+             <server>
+               <id>apache.releases.https</id>
+               <username>${{ secrets.NEXUS_STAGE_DEPLOYER_USER }}</username>
+               <password>${{ secrets.NEXUS_STAGE_DEPLOYER_PW }}</password>
+             </server>
+             <server>
+               <id>apache.snapshots.https</id>
+               <username>${{ secrets.NEXUS_USER }}</username>
+               <password>${{ secrets.NEXUS_PW }}</password>
+             </server>
+           </servers>
+          </settings>" > ${HOME}/.m2/settings.xml
+      - name: Configure git
+        run: git config credential.helper store
+      - name: Stage Java Artifacts into Maven
+        run: ./gradlew publish -Psigning.gnupg.keyName=${{steps.import_gpg.outputs.fingerprint}} -PisRelease --no-daemon --no-parallel
+        
+      
+  stage_java_source:
+    if: ${{github.event.inputs.STAGE_JAVA_SOURCE == 'yes'}}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate and mask apache id/password
+        run: |
+          echo "::add-mask::${{ github.event.inputs.APACHE_PASSWORD }}"
+          if [ "${{ github.event.inputs.APACHE_ID }}" == "" ]
+          then
+            echo "Must provide an apache id to stage artifacts to https://dist.apache.org/repos/dist/dev/beam/"
+          fi
+          if [ "${{ github.event.inputs.APACHE_PASSWORD }}" == "" ]
+          then
+            echo "Must provide an apache password to stage artifacts to https://dist.apache.org/repos/dist/dev/beam/"
+          fi
+      - name: Install Java 8
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '8'
+      - name: Import GPG key
+        id: import_gpg
+        uses: crazy-max/ghaction-import-gpg@111c56156bcc6918c056dbef52164cfa583dc549
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+      - name: stage source
+        run: |
+            svn co https://dist.apache.org/repos/dist/dev/beam
+            mkdir -p beam/${{ github.event.inputs.RELEASE }}
+            cd beam/${{ github.event.inputs.RELEASE }}
+            RC_DIR="beam-${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
+            RC_ZIP="${RC_DIR}.zip"
+            RELEASE_DIR="beam-${{ github.event.inputs.RELEASE }}"
+            RC_TAG="v${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
+            SOURCE_RELEASE_ZIP="apache-beam-${{ github.event.inputs.RELEASE }}-source-release.zip"
+              # Check whether there is an existing dist dir
+            if (svn ls "${SOURCE_RELEASE_ZIP}"); then
+              echo "Removing existing ${SOURCE_RELEASE_ZIP}."
+              svn delete "${SOURCE_RELEASE_ZIP}"
+            fi
+
+            echo "Downloading: https://github.com/apache/beam/archive/${RC_TAG}.zip"
+            wget https://github.com/apache/beam/archive/${RC_TAG}.zip  -O "${RC_ZIP}"
+
+            unzip "$RC_ZIP"
+            rm "$RC_ZIP"
+            mv "$RC_DIR" "$RELEASE_DIR"
+            zip -r "${SOURCE_RELEASE_ZIP}" "$RELEASE_DIR"
+            rm -r "$RELEASE_DIR"
+
+            echo "----Signing Source Release ${SOURCE_RELEASE_ZIP}-----"
+            gpg --local-user "${{steps.import_gpg.outputs.name}}" --armor --batch --yes --detach-sig "${SOURCE_RELEASE_ZIP}"
+
+            echo "----Creating Hash Value for ${SOURCE_RELEASE_ZIP}----"
+            sha512sum ${SOURCE_RELEASE_ZIP} > ${SOURCE_RELEASE_ZIP}.sha512
+
+            svn add --force .
+            svn status
+            svn commit -m "Staging Java artifacts for Apache Beam ${{ github.event.inputs.RELEASE }} RC${{ github.event.inputs.RC }}" --non-interactive --username ${{ github.event.inputs.APACHE_ID }} --password ${{ github.event.inputs.APACHE_PASSWORD }} 
+        
+      
+  stage_docker:
+    if: ${{github.event.inputs.STAGE_DOCKER_ARTIFACTS == 'yes'}}
+    # Note: if this ever changes to self-hosted, remove the "Remove default github maven configuration" step
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          ref: "v${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
+          repository: apache/beam
+      - name: Install Java 11
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+      - name: Install Python 3.8
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.8'
+      - run: echo $JAVA_HOME
+      - run: echo "JAVA11_HOME=${JAVA_HOME}" >> "$GITHUB_OUTPUT"
+        id: export-java11
+      - name: Install Java 8
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '8'
+      - name: Remove default github maven configuration
+        # This step is a workaround to avoid a decryption issue of Beam's
+        # net.linguica.gradle.maven.settings plugin and github's provided maven
+        # settings.xml file
+        run: rm ~/.m2/settings.xml || true
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USER }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Push docker images
+        run: ./gradlew :pushAllDockerImages -PisRelease -Pdocker-pull-licenses -Pprune-images -Pdocker-tag=${{ github.event.inputs.RELEASE }}rc${{ github.event.inputs.RC }} -Pjava11Home=${{steps.export-java11.outputs.JAVA11_HOME}} --no-daemon --no-parallel

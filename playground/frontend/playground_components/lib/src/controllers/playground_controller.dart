@@ -19,11 +19,13 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
 
 import '../cache/example_cache.dart';
+import '../models/event_snippet_context.dart';
 import '../models/example.dart';
 import '../models/example_base.dart';
 import '../models/example_loading_descriptors/empty_example_loading_descriptor.dart';
@@ -34,21 +36,19 @@ import '../models/example_loading_descriptors/user_shared_example_loading_descri
 import '../models/intents.dart';
 import '../models/sdk.dart';
 import '../models/shortcut.dart';
-import '../repositories/code_repository.dart';
+import '../repositories/code_client/code_client.dart';
 import '../services/symbols/loaders/map.dart';
 import '../services/symbols/symbols_notifier.dart';
+import '../util/logical_keyboard_key.dart';
 import 'code_runner.dart';
 import 'example_loaders/examples_loader.dart';
-import 'output_filter_type_controller.dart';
+import 'feedback_controller.dart';
+import 'result_filter_controller.dart';
 import 'snippet_editing_controller.dart';
 
 const kTitleLength = 25;
 const kExecutionTimeUpdate = 100;
 const kPrecompiledDelay = Duration(seconds: 1);
-const kTitle = 'Catalog';
-const kExecutionCancelledText = '\nPipeline cancelled';
-const kPipelineOptionsParseError =
-    'Failed to parse pipeline options, please check the format (example: --key1 value1 --key2 value2), only alphanumeric and ",*,/,-,:,;,\',. symbols are allowed';
 const kCachedResultsLog =
     'The results of this example are taken from the Apache Beam Playground cache.\n';
 
@@ -56,8 +56,7 @@ const kCachedResultsLog =
 class PlaygroundController with ChangeNotifier {
   final ExampleCache exampleCache;
   final ExamplesLoader examplesLoader;
-  final OutputFilterTypeController outputTypeController =
-      OutputFilterTypeController();
+  final resultFilterController = ResultFilterController();
 
   late final CodeRunner codeRunner;
 
@@ -68,12 +67,12 @@ class PlaygroundController with ChangeNotifier {
   PlaygroundController({
     required this.exampleCache,
     required this.examplesLoader,
-    CodeRepository? codeRepository,
+    CodeClient? codeClient,
   }) {
     examplesLoader.setPlaygroundController(this);
 
     codeRunner = CodeRunner(
-      codeRepository: codeRepository,
+      codeClient: codeClient,
       snippetEditingControllerGetter: requireSnippetEditingController,
     )..addListener(notifyListeners);
   }
@@ -101,7 +100,8 @@ class PlaygroundController with ChangeNotifier {
 
   // TODO(alexeyinkin): Return full, then shorten, https://github.com/apache/beam/issues/23250
   String get examplesTitle {
-    final name = snippetEditingController?.example?.name ?? kTitle;
+    final name =
+        snippetEditingController?.example?.name ?? 'examples.defaultTitle'.tr();
     return name.substring(0, min(kTitleLength, name.length));
   }
 
@@ -121,6 +121,11 @@ class PlaygroundController with ChangeNotifier {
 
     return controller;
   }
+
+  /// [EventSnippetContext] of the current [SnippetEditingController].
+  EventSnippetContext get eventSnippetContext =>
+      snippetEditingController?.eventSnippetContext ??
+      EventSnippetContext.empty;
 
   String? get source =>
       snippetEditingController?.activeFileController?.codeController.fullText;
@@ -203,22 +208,20 @@ class PlaygroundController with ChangeNotifier {
   }) {
     if (setCurrentSdk) {
       _sdk = example.sdk;
-      final controller = _getOrCreateSnippetEditingController(
-        example.sdk,
-        loadDefaultIfNot: false,
-      );
-
-      controller.setExample(example, descriptor: descriptor);
       _ensureSymbolsInitialized();
-    } else {
-      final controller = _getOrCreateSnippetEditingController(
-        example.sdk,
-        loadDefaultIfNot: false,
-      );
-      controller.setExample(example, descriptor: descriptor);
     }
 
-    codeRunner.clearResult();
+    final controller = _getOrCreateSnippetEditingController(
+      example.sdk,
+      loadDefaultIfNot: false,
+    );
+    controller.setExample(example, descriptor: descriptor);
+    if (example.sdk == _sdk) {
+      GetIt.instance.get<FeedbackController>().eventSnippetContext =
+          controller.eventSnippetContext;
+    }
+
+    codeRunner.reset();
     notifyListeners();
   }
 
@@ -227,10 +230,12 @@ class PlaygroundController with ChangeNotifier {
     bool notify = true,
   }) {
     _sdk = sdk;
-    _getOrCreateSnippetEditingController(
+    final controller = _getOrCreateSnippetEditingController(
       sdk,
       loadDefaultIfNot: true,
     );
+    GetIt.instance.get<FeedbackController>().eventSnippetContext =
+        controller.eventSnippetContext;
     _ensureSymbolsInitialized();
 
     if (notify) {
@@ -250,9 +255,15 @@ class PlaygroundController with ChangeNotifier {
   }
 
   Future<void> reset() async {
-    await codeRunner.cancelRun();
     snippetEditingController?.reset();
-    codeRunner.clearResult();
+    codeRunner.reset();
+    notifyListeners();
+  }
+
+  void showSuggestions() {
+    snippetEditingController?.activeFileController?.codeController
+        .generateSuggestions();
+    notifyListeners();
   }
 
   void resetErrorMessageText() {
@@ -278,10 +289,11 @@ class PlaygroundController with ChangeNotifier {
     final sharedExample = Example(
       datasets: snippetController.example?.datasets ?? [],
       files: files,
-      name: files.first.name,
+      name: 'examples.userSharedName'.tr(),
       path: snippetId,
       sdk: snippetController.sdk,
       type: ExampleType.example,
+      pipelineOptions: snippetController.pipelineOptions,
     );
 
     final descriptor = UserSharedExampleLoadingDescriptor(
@@ -307,32 +319,34 @@ class PlaygroundController with ChangeNotifier {
     );
   }
 
-  late BeamShortcut runShortcut = BeamShortcut(
-    shortcuts: LogicalKeySet(
-      LogicalKeyboardKey.meta,
-      LogicalKeyboardKey.enter,
-    ),
-    actionIntent: const RunIntent(),
-    createAction: (BuildContext context) => CallbackAction(
-      onInvoke: (_) => codeRunner.runCode(),
-    ),
-  );
-
   late BeamShortcut resetShortcut = BeamShortcut(
-    shortcuts: LogicalKeySet(
-      LogicalKeyboardKey.meta,
+    keys: [
+      LogicalKeyboardKeyExtension.metaOrControl,
       LogicalKeyboardKey.shift,
       LogicalKeyboardKey.keyE,
-    ),
+    ],
     actionIntent: const ResetIntent(),
     createAction: (BuildContext context) => CallbackAction(
       onInvoke: (_) => reset(),
     ),
   );
 
+  late BeamShortcut showSuggestionsShortcut = BeamShortcut(
+    keys: [
+      LogicalKeyboardKeyExtension.metaOrControl,
+      LogicalKeyboardKey.shift,
+      LogicalKeyboardKey.keyS,
+    ],
+    actionIntent: const ShowSuggestionsIntent(),
+    createAction: (BuildContext context) => CallbackAction(
+      onInvoke: (_) => showSuggestions(),
+    ),
+  );
+
   List<BeamShortcut> get shortcuts => [
-        runShortcut,
+        // TODO(nausharipov): refactor like BeamRunShortcut.
         resetShortcut,
+        showSuggestionsShortcut,
       ];
 
   @override

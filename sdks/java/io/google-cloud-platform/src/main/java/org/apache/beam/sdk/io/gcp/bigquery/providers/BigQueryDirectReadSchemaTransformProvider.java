@@ -26,8 +26,6 @@ import com.google.auto.value.AutoValue;
 import java.util.Collections;
 import java.util.List;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead;
@@ -37,11 +35,11 @@ import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryDirectReadSchemaTra
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
@@ -60,7 +58,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-@Experimental(Kind.SCHEMAS)
 @AutoService(SchemaTransformProvider.class)
 public class BigQueryDirectReadSchemaTransformProvider
     extends TypedSchemaTransformProvider<BigQueryDirectReadSchemaTransformConfiguration> {
@@ -123,15 +120,22 @@ public class BigQueryDirectReadSchemaTransformProvider
           .Builder();
     }
 
+    @SchemaFieldDescription("The SQL query to be executed to read from the BigQuery table.")
     @Nullable
     public abstract String getQuery();
 
+    @SchemaFieldDescription(
+        "The fully-qualified name of the BigQuery table to read from. Format: [${PROJECT}:]${DATASET}.${TABLE}")
     @Nullable
     public abstract String getTableSpec();
 
+    @SchemaFieldDescription(
+        "Read only rows that match this filter, which must be compatible with Google standard SQL. This is not supported when reading via query.")
     @Nullable
     public abstract String getRowRestriction();
 
+    @SchemaFieldDescription(
+        "Read only the specified fields (columns) from a BigQuery table. Fields may not be returned in the order specified. If no value is specified, then all fields are returned. Example: \"col1, col2, col3\"")
     @Nullable
     public abstract List<String> getSelectedFields();
 
@@ -157,29 +161,14 @@ public class BigQueryDirectReadSchemaTransformProvider
    * BigQueryDirectReadSchemaTransformConfiguration} and instantiated by {@link
    * BigQueryDirectReadSchemaTransformProvider}.
    */
-  private static class BigQueryDirectReadSchemaTransform implements SchemaTransform {
+  protected static class BigQueryDirectReadSchemaTransform extends SchemaTransform {
+    private BigQueryServices testBigQueryServices = null;
     private final BigQueryDirectReadSchemaTransformConfiguration configuration;
 
     BigQueryDirectReadSchemaTransform(
         BigQueryDirectReadSchemaTransformConfiguration configuration) {
       // Validate configuration parameters before PTransform expansion
       configuration.validate();
-      this.configuration = configuration;
-    }
-
-    @Override
-    public PTransform<PCollectionRowTuple, PCollectionRowTuple> buildTransform() {
-      return new BigQueryDirectReadPCollectionRowTupleTransform(configuration);
-    }
-  }
-
-  static class BigQueryDirectReadPCollectionRowTupleTransform
-      extends PTransform<PCollectionRowTuple, PCollectionRowTuple> {
-    private final BigQueryDirectReadSchemaTransformConfiguration configuration;
-    private BigQueryServices testBigQueryServices = null;
-
-    BigQueryDirectReadPCollectionRowTupleTransform(
-        BigQueryDirectReadSchemaTransformConfiguration configuration) {
       this.configuration = configuration;
     }
 

@@ -20,7 +20,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:playground_components/playground_components.dart';
 
-import '../../../../components/dropdown_button/dropdown_button.dart';
+import '../../../../services/analytics/events/share_code_clicked.dart';
 import 'share_dropdown_body.dart';
 
 const _kShareDropdownHeight = 140.0;
@@ -62,10 +62,17 @@ class ShareButton extends StatelessWidget {
         height: _kShareDropdownHeight,
         width: _kShareDropdownWidth,
         dropdownAlign: DropdownAlignment.right,
-        createDropdown: (closeCallback) => ShareDropdownBody(
-          onError: closeCallback,
-          playgroundController: playgroundController,
-        ),
+        createDropdown: (closeCallback) {
+          PlaygroundComponents.analyticsService.sendUnawaited(
+            ShareCodeClickedAnalyticsEvent(
+              snippetContext: playgroundController.eventSnippetContext,
+            ),
+          );
+          return ShareDropdownBody(
+            onError: closeCallback,
+            playgroundController: playgroundController,
+          );
+        },
       ),
     );
   }

@@ -26,6 +26,7 @@ import sonora.aio
 
 from api.v1 import api_pb2_grpc, api_pb2
 from config import Config
+from constants import BEAM_USE_WEBGRPC_ENV_VAR_KEY, GRPC_TIMEOUT_ENV_VAR_KEY
 from models import SdkEnum
 
 
@@ -33,8 +34,8 @@ class GRPCClient:
     """GRPCClient is gRPC client for sending a request to the backend."""
 
     def __init__(self, wait_for_ready=True):
-        use_webgrpc = os.getenv("BEAM_USE_WEBGRPC", False)
-        timeout = int(os.getenv("GRPC_TIMEOUT", 30))
+        use_webgrpc = os.getenv(BEAM_USE_WEBGRPC_ENV_VAR_KEY, False)
+        timeout = int(os.getenv(GRPC_TIMEOUT_ENV_VAR_KEY, 30))
         logging.info("grpc timeout: %d", timeout)
         if use_webgrpc:
             self._channel = sonora.aio.insecure_web_channel(Config.SERVER_ADDRESS)

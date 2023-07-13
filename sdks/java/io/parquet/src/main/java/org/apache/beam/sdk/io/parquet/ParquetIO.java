@@ -37,20 +37,18 @@ import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.specific.SpecificData;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
+import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.FileIO.ReadableFile;
 import org.apache.beam.sdk.io.hadoop.SerializableConfiguration;
 import org.apache.beam.sdk.io.parquet.ParquetIO.ReadFiles.SplitReadFn;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.options.ValueProvider;
-import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -236,13 +234,9 @@ import org.slf4j.LoggerFactory;
  *     .withSuffix(".parquet"));
  * }</pre>
  *
- * <p>This IO API is considered experimental and may break or receive backwards-incompatible changes
- * in future versions of the Apache Beam SDK.
- *
  * @see <a href="https://beam.apache.org/documentation/io/built-in/parquet/">Beam ParquetIO
  *     documentation</a>
  */
-@Experimental(Kind.SOURCE_SINK)
 @SuppressWarnings({
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
@@ -358,7 +352,6 @@ public class ParquetIO {
       return toBuilder().setConfiguration(new SerializableConfiguration(configuration)).build();
     }
 
-    @Experimental(Kind.SCHEMAS)
     public Read withBeamSchemas(boolean inferBeamSchema) {
       return toBuilder().setInferBeamSchema(inferBeamSchema).build();
     }
@@ -666,7 +659,6 @@ public class ParquetIO {
       return toBuilder().setConfiguration(new SerializableConfiguration(configuration)).build();
     }
 
-    @Experimental(Kind.SCHEMAS)
     public ReadFiles withBeamSchemas(boolean inferBeamSchema) {
       return toBuilder().setInferBeamSchema(inferBeamSchema).build();
     }
@@ -709,7 +701,6 @@ public class ParquetIO {
      * Returns {@link org.apache.beam.sdk.schemas.SchemaCoder} when using Beam schemas, {@link
      * AvroCoder} when not using Beam schema.
      */
-    @Experimental(Kind.SCHEMAS)
     private Coder<GenericRecord> getCollectionCoder() {
       Schema coderSchema = getProjectionSchema() != null ? getEncoderSchema() : getSchema();
 

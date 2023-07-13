@@ -91,9 +91,6 @@ func TestConcurrentWrites(t *testing.T) {
 	}
 	r.RegisterHook("google_logging", hf)
 
-	var actual, expected error
-	expected = nil
-
 	ch := make(chan struct{})
 	wg := sync.WaitGroup{}
 
@@ -107,9 +104,8 @@ func TestConcurrentWrites(t *testing.T) {
 					// When the channel is closed, exit.
 					return
 				default:
-					actual = r.EnableHook("google_logging")
-					if actual != expected {
-						t.Errorf("Got %s, wanted %s", actual, expected)
+					if got, want := r.EnableHook("google_logging"), error(nil); got != want {
+						t.Errorf("Got %s, wanted %s", got, want)
 					}
 				}
 			}

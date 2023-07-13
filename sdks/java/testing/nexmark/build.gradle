@@ -67,6 +67,7 @@ dependencies {
   implementation library.java.vendored_guava_26_0_jre
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation project(":sdks:java:io:google-cloud-platform")
+  implementation project(":sdks:java:extensions:avro")
   implementation project(":sdks:java:extensions:google-cloud-platform-core")
   implementation project(":sdks:java:extensions:sql")
   implementation project(":sdks:java:extensions:sql:zetasql")

@@ -64,7 +64,7 @@ public class ReadChangeStreamPartitionRangeTracker extends TimestampRangeTracker
       return true;
     }
 
-    return super.tryClaim(position);
+    return super.tryClaim(position, this.partition);
   }
 
   /**

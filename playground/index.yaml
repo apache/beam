@@ -23,4 +23,3 @@ indexes:
     properties:
     - name: persistenceKey
     - name: numberOfFiles
-

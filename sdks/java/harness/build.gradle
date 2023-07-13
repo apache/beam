@@ -31,7 +31,7 @@ dependencies {
   provided project(path: ":sdks:java:core", configuration: "shadow")
   provided library.java.joda_time
   provided library.java.slf4j_api
-  provided library.java.vendored_grpc_1_48_1
+  provided library.java.vendored_grpc_1_54_0
   provided library.java.vendored_guava_26_0_jre
 
   provided library.java.jamm
@@ -53,6 +53,7 @@ applyJavaNature(
     "org/apache/beam/model/fnexecution/**",
     "org/apache/beam/runners/core/**",
     "org/apache/beam/runners/core/construction/**",
+    "org/apache/beam/sdk/extensions/avro/**",
     "org/apache/beam/sdk/fn/**",
     "org/checkerframework/**",
     "org/hamcrest/**",

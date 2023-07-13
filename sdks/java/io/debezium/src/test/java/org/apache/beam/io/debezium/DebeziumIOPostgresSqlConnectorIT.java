@@ -131,8 +131,7 @@ public class DebeziumIOPostgresSqlConnectorIT {
                             .setHost("localhost")
                             .setTable("inventory.customers")
                             .setPort(POSTGRES_SQL_CONTAINER.getMappedPort(5432))
-                            .build())
-                    .buildTransform())
+                            .build()))
             .get("output");
 
     PAssert.that(result)

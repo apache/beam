@@ -50,15 +50,15 @@ func Test_newGoLifeCycle(t *testing.T) {
 			want: &LifeCycle{
 				folderGlobs: []string{baseFileFolder, srcFileFolder, binFileFolder},
 				Paths: LifeCyclePaths{
-					SourceFileName:                   pipelineId.String() + goSourceFileExtension,
+					SourceFileName:                   pipelineId.String() + GoSourceFileExtension,
 					AbsoluteSourceFileFolderPath:     srcFileFolder,
-					AbsoluteSourceFilePath:           filepath.Join(srcFileFolder, pipelineId.String()+goSourceFileExtension),
+					AbsoluteSourceFilePath:           filepath.Join(srcFileFolder, pipelineId.String()+GoSourceFileExtension),
 					ExecutableFileName:               pipelineId.String() + goExecutableFileExtension,
 					AbsoluteExecutableFileFolderPath: binFileFolder,
 					AbsoluteExecutableFilePath:       filepath.Join(binFileFolder, pipelineId.String()+goExecutableFileExtension),
 					AbsoluteBaseFolderPath:           baseFileFolder,
 					AbsoluteLogFilePath:              filepath.Join(baseFileFolder, logFileName),
-					AbsoluteGraphFilePath:            filepath.Join(baseFileFolder, utils.GraphFileName),
+					AbsoluteGraphFilePath:            filepath.Join(srcFileFolder, utils.GraphFileName),
 				},
 			},
 		},

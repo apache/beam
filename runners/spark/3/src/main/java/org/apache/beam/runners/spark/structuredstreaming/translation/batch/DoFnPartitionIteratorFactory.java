@@ -22,33 +22,16 @@ import static org.apache.beam.runners.spark.structuredstreaming.translation.util
 
 import java.io.Serializable;
 import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Deque;
-import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
-import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
-import org.apache.beam.runners.core.SideInputReader;
-import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.spark.structuredstreaming.metrics.MetricsAccumulator;
-import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.CachedSideInputReader;
-import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.NoOpStepContext;
-import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.runners.spark.structuredstreaming.translation.batch.DoFnRunnerFactory.DoFnRunnerWithTeardown;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.runners.AppliedPTransform;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
-import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
-import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.AbstractIterator;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import scala.Function1;
 import scala.Tuple2;
@@ -60,38 +43,18 @@ import scala.collection.Iterator;
  */
 abstract class DoFnPartitionIteratorFactory<InT, FnOutT, OutT extends @NonNull Object>
     implements Function1<Iterator<WindowedValue<InT>>, Iterator<OutT>>, Serializable {
-  protected final String stepName;
-  protected final DoFn<InT, FnOutT> doFn;
-  protected final DoFnSchemaInformation doFnSchema;
-  protected final Supplier<PipelineOptions> options;
-  protected final Coder<InT> coder;
-  protected final WindowingStrategy<?, ?> windowingStrategy;
-  protected final TupleTag<FnOutT> mainOutput;
-  protected final List<TupleTag<?>> additionalOutputs;
-  protected final Map<TupleTag<?>, Coder<?>> outputCoders;
-  protected final Map<String, PCollectionView<?>> sideInputs;
-  protected final SideInputReader sideInputReader;
 
+  protected final DoFnRunnerFactory<InT, FnOutT> factory;
+  protected final Supplier<PipelineOptions> options;
   private final MetricsAccumulator metrics;
 
   private DoFnPartitionIteratorFactory(
-      AppliedPTransform<PCollection<? extends InT>, ?, MultiOutput<InT, FnOutT>> appliedPT,
       Supplier<PipelineOptions> options,
-      PCollection<InT> input,
-      SideInputReader sideInputReader,
-      MetricsAccumulator metrics) {
-    this.stepName = appliedPT.getFullName();
-    this.doFn = appliedPT.getTransform().getFn();
-    this.doFnSchema = ParDoTranslation.getSchemaInformation(appliedPT);
+      MetricsAccumulator metrics,
+      DoFnRunnerFactory<InT, FnOutT> factory) {
     this.options = options;
-    this.coder = input.getCoder();
-    this.windowingStrategy = input.getWindowingStrategy();
-    this.mainOutput = appliedPT.getTransform().getMainOutputTag();
-    this.additionalOutputs = additionalOutputs(appliedPT.getTransform());
-    this.outputCoders = outputCoders(appliedPT.getOutputs());
-    this.sideInputs = appliedPT.getTransform().getSideInputs();
-    this.sideInputReader = sideInputReader;
     this.metrics = metrics;
+    this.factory = factory;
   }
 
   /**
@@ -99,12 +62,10 @@ abstract class DoFnPartitionIteratorFactory<InT, FnOutT, OutT extends @NonNull O
    * {@link OutT}.
    */
   static <InT, OutT> DoFnPartitionIteratorFactory<InT, ?, WindowedValue<OutT>> singleOutput(
-      AppliedPTransform<PCollection<? extends InT>, ?, MultiOutput<InT, OutT>> appliedPT,
       Supplier<PipelineOptions> options,
-      PCollection<InT> input,
-      SideInputReader sideInputReader,
-      MetricsAccumulator metrics) {
-    return new SingleOut<>(appliedPT, options, input, sideInputReader, metrics);
+      MetricsAccumulator metrics,
+      DoFnRunnerFactory<InT, OutT> factory) {
+    return new SingleOut<>(options, metrics, factory);
   }
 
   /**
@@ -114,13 +75,11 @@ abstract class DoFnPartitionIteratorFactory<InT, FnOutT, OutT extends @NonNull O
    */
   static <InT, FnOutT, OutT>
       DoFnPartitionIteratorFactory<InT, ?, Tuple2<Integer, WindowedValue<OutT>>> multiOutput(
-          AppliedPTransform<PCollection<? extends InT>, ?, MultiOutput<InT, FnOutT>> appliedPT,
           Supplier<PipelineOptions> options,
-          PCollection<InT> input,
-          SideInputReader sideInputReader,
           MetricsAccumulator metrics,
+          DoFnRunnerFactory<InT, FnOutT> factory,
           Map<String, Integer> tagColIdx) {
-    return new MultiOut<>(appliedPT, options, input, sideInputReader, metrics, tagColIdx);
+    return new MultiOut<>(options, metrics, factory, tagColIdx);
   }
 
   @Override
@@ -140,12 +99,10 @@ abstract class DoFnPartitionIteratorFactory<InT, FnOutT, OutT extends @NonNull O
   private static class SingleOut<InT, OutT>
       extends DoFnPartitionIteratorFactory<InT, OutT, WindowedValue<OutT>> {
     private SingleOut(
-        AppliedPTransform<PCollection<? extends InT>, ?, MultiOutput<InT, OutT>> appliedPT,
         Supplier<PipelineOptions> options,
-        PCollection<InT> input,
-        SideInputReader sideInputReader,
-        MetricsAccumulator metrics) {
-      super(appliedPT, options, input, sideInputReader, metrics);
+        MetricsAccumulator metrics,
+        DoFnRunnerFactory<InT, OutT> factory) {
+      super(options, metrics, factory);
     }
 
     @Override
@@ -153,11 +110,7 @@ abstract class DoFnPartitionIteratorFactory<InT, FnOutT, OutT extends @NonNull O
       return new DoFnRunners.OutputManager() {
         @Override
         public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
-          // SingleOut will only ever emmit the mainOutput. Though, there might be additional
-          // outputs which are skipped if unused to avoid caching.
-          if (mainOutput.equals(tag)) {
-            buffer.add((WindowedValue<OutT>) output);
-          }
+          buffer.add((WindowedValue<OutT>) output);
         }
       };
     }
@@ -173,13 +126,11 @@ abstract class DoFnPartitionIteratorFactory<InT, FnOutT, OutT extends @NonNull O
     private final Map<String, Integer> tagColIdx;
 
     public MultiOut(
-        AppliedPTransform<PCollection<? extends InT>, ?, MultiOutput<InT, FnOutT>> appliedPT,
         Supplier<PipelineOptions> options,
-        PCollection<InT> input,
-        SideInputReader sideInputReader,
         MetricsAccumulator metrics,
+        DoFnRunnerFactory<InT, FnOutT> factory,
         Map<String, Integer> tagColIdx) {
-      super(appliedPT, options, input, sideInputReader, metrics);
+      super(options, metrics, factory);
       this.tagColIdx = tagColIdx;
     }
 
@@ -208,20 +159,13 @@ abstract class DoFnPartitionIteratorFactory<InT, FnOutT, OutT extends @NonNull O
    */
   private class DoFnPartitionIt extends AbstractIterator<OutT> {
     private final Deque<OutT> buffer = new ArrayDeque<>();
-    private final DoFnRunner<InT, ?> doFnRunner = metricsRunner(simpleRunner(buffer));
+    private final DoFnRunnerWithTeardown<InT, ?> doFnRunner;
     private final Iterator<WindowedValue<InT>> partitionIt;
     private boolean isBundleFinished;
 
     private DoFnPartitionIt(Iterator<WindowedValue<InT>> partitionIt) {
       this.partitionIt = partitionIt;
-      // Before starting to iterate over the partition, invoke setup and then startBundle
-      DoFnInvokers.tryInvokeSetupFor(doFn, options.get());
-      try {
-        doFnRunner.startBundle();
-      } catch (RuntimeException re) {
-        DoFnInvokers.invokerFor(doFn).invokeTeardown();
-        throw re;
-      }
+      this.doFnRunner = factory.create(options.get(), metrics, outputManager(buffer));
     }
 
     @Override
@@ -240,47 +184,14 @@ abstract class DoFnPartitionIteratorFactory<InT, FnOutT, OutT extends @NonNull O
               doFnRunner.finishBundle();
               continue; // finishBundle can produce more output
             }
-            DoFnInvokers.invokerFor(doFn).invokeTeardown();
+            doFnRunner.teardown();
             return endOfData();
           }
         }
       } catch (RuntimeException re) {
-        DoFnInvokers.invokerFor(doFn).invokeTeardown();
+        doFnRunner.teardown();
         throw re;
       }
     }
-  }
-
-  private DoFnRunner<InT, FnOutT> simpleRunner(Deque<OutT> buffer) {
-    return DoFnRunners.simpleRunner(
-        options.get(),
-        doFn,
-        CachedSideInputReader.of(sideInputReader, sideInputs.values()),
-        outputManager(buffer),
-        mainOutput,
-        additionalOutputs,
-        new NoOpStepContext(),
-        coder,
-        outputCoders,
-        windowingStrategy,
-        doFnSchema,
-        sideInputs);
-  }
-
-  private DoFnRunner<InT, FnOutT> metricsRunner(DoFnRunner<InT, FnOutT> runner) {
-    return new DoFnRunnerWithMetrics<>(stepName, runner, metrics);
-  }
-
-  private static Map<TupleTag<?>, Coder<?>> outputCoders(Map<TupleTag<?>, PCollection<?>> outputs) {
-    Map<TupleTag<?>, Coder<?>> coders = Maps.newHashMapWithExpectedSize(outputs.size());
-    for (Map.Entry<TupleTag<?>, PCollection<?>> e : outputs.entrySet()) {
-      coders.put(e.getKey(), e.getValue().getCoder());
-    }
-    return coders;
-  }
-
-  private static List<TupleTag<?>> additionalOutputs(MultiOutput<?, ?> transform) {
-    List<TupleTag<?>> tags = transform.getAdditionalOutputTags().getAll();
-    return tags.isEmpty() ? Collections.emptyList() : new ArrayList<>(tags);
   }
 }

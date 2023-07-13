@@ -24,6 +24,7 @@ import com.google.api.client.util.BackOffUtils;
 import com.google.api.client.util.Sleeper;
 import com.google.api.services.bigquery.model.Dataset;
 import com.google.api.services.bigquery.model.Job;
+import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.JobStatus;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
@@ -244,26 +245,26 @@ public class BigQueryHelpers {
             // This might happen if BigQuery's job listing is slow. Retry with the same
             // job id.
             LOG.info(
-                "Load job {} finished in unknown state: {}: {}",
+                "Load job {} finished in unknown state, {}: {}",
                 currentJobId,
-                job.getStatus(),
-                shouldRetry() ? "will retry" : "will not retry");
+                shouldRetry() ? "will retry" : "will not retry",
+                statusToPrettyString(job.getStatus()));
             return false;
           case FAILED:
             String oldJobId = currentJobId.getJobId();
-            currentJobId = BigQueryHelpers.getRetryJobId(currentJobId, lookupJob).jobId;
+            currentJobId = getRetryJobId(currentJobId, lookupJob).jobId;
             LOG.warn(
                 "Load job {} failed, {}: {}. Next job id {}",
                 oldJobId,
                 shouldRetry() ? "will retry" : "will not retry",
-                job.getStatus(),
+                statusToPrettyString(job.getStatus()),
                 currentJobId);
             return false;
           default:
             throw new IllegalStateException(
                 String.format(
                     "Unexpected status [%s] of load job: %s.",
-                    job.getStatus(), BigQueryHelpers.jobToPrettyString(job)));
+                    job.getStatus(), jobToPrettyString(job)));
         }
       }
       return false;
@@ -364,6 +365,24 @@ public class BigQueryHelpers {
         + tableReference.getDatasetId()
         + "/tables/"
         + tableReference.getTableId();
+  }
+
+  /** Table full resource name formatted according to https://google.aip.dev/122. */
+  static String toTableFullResourceName(TableReference tableReference) {
+    return "//bigquery.googleapis.com/" + toTableResourceName(tableReference);
+  }
+
+  /**
+   * Unofficial full resource name for a BigQuery job. Used for logging QuotaEvents related to BQ
+   * jobs.
+   */
+  static String toJobFullResourceName(JobReference jobReference) {
+    return "//bigquery.googleapis.com/projects/"
+        + jobReference.getProjectId()
+        + "/locations/"
+        + jobReference.getLocation()
+        + "/jobs/"
+        + jobReference.getJobId();
   }
 
   /** Return a displayable string representation for a {@link TableReference}. */
@@ -567,6 +586,17 @@ public class BigQueryHelpers {
         return null;
       }
       return table.getNumRows();
+    } catch (IOException | InterruptedException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  public static @Nullable Table getTable(BigQueryOptions options, TableReference tableRef)
+      throws InterruptedException, IOException {
+    try (DatasetService datasetService = new BigQueryServicesImpl().getDatasetService(options)) {
+      return datasetService.getTable(tableRef);
     } catch (IOException | InterruptedException e) {
       throw e;
     } catch (Exception e) {

@@ -20,38 +20,41 @@ import 'package:flutter/widgets.dart';
 import 'package:playground_components/playground_components.dart';
 import 'package:provider/provider.dart';
 
-import '../modules/analytics/analytics_service.dart';
-import '../utils/analytics_utils.dart';
-
 class PlaygroundRunOrCancelButton extends StatelessWidget {
   const PlaygroundRunOrCancelButton();
 
   @override
   Widget build(BuildContext context) {
     return Consumer<PlaygroundController>(
-      builder: (context, playgroundController, child) {
-        final analyticsService = AnalyticsService.get(context);
-        final stopwatch = Stopwatch();
-        final exampleName = getAnalyticsExampleName(playgroundController);
-
-        return RunOrCancelButton(
-          playgroundController: playgroundController,
-          beforeCancel: () {
-            final exampleName = getAnalyticsExampleName(playgroundController);
-            analyticsService.trackClickCancelRunEvent(exampleName);
-          },
-          beforeRun: () {
-            stopwatch.start();
-            analyticsService.trackClickRunEvent(exampleName);
-          },
-          onComplete: () {
-            analyticsService.trackRunTimeEvent(
-              exampleName,
-              stopwatch.elapsedMilliseconds,
-            );
-          },
-        );
-      }
+      builder: (context, playgroundController, child) => RunOrCancelButton(
+        playgroundController: playgroundController,
+        beforeCancel: (runner) {
+          PlaygroundComponents.analyticsService.sendUnawaited(
+            RunCancelledAnalyticsEvent(
+              snippetContext: runner.eventSnippetContext!,
+              duration: runner.elapsed!,
+              trigger: EventTrigger.click,
+            ),
+          );
+        },
+        beforeRun: () {
+          PlaygroundComponents.analyticsService.sendUnawaited(
+            RunStartedAnalyticsEvent(
+              snippetContext: playgroundController.eventSnippetContext,
+              trigger: EventTrigger.click,
+            ),
+          );
+        },
+        onComplete: (runner) {
+          PlaygroundComponents.analyticsService.sendUnawaited(
+            RunFinishedAnalyticsEvent(
+              snippetContext: runner.eventSnippetContext!,
+              duration: runner.elapsed!,
+              trigger: EventTrigger.click,
+            ),
+          );
+        },
+      ),
     );
   }
 }

@@ -52,13 +52,28 @@ TensorInferenceFn = Callable[[
 class ModelType(enum.Enum):
   """Defines how a model file should be loaded."""
   SAVED_MODEL = 1
+  SAVED_WEIGHTS = 2
 
 
-def _load_model(model_uri, model_type):
-  if model_type == ModelType.SAVED_MODEL:
-    return tf.keras.models.load_model(hub.resolve(model_uri))
-  else:
-    raise AssertionError('Unsupported model type for loading.')
+def _load_model(model_uri, custom_weights, load_model_args):
+  try:
+    model = tf.keras.models.load_model(
+        hub.resolve(model_uri), **load_model_args)
+  except Exception as e:
+    raise ValueError(
+        "Unable to load the TensorFlow model: {exception}. Make sure you've \
+        saved the model with TF2 format. Check out the list of TF2 Models on \
+        TensorFlow Hub - https://tfhub.dev/s?subtype=module,placeholder&tf-version=tf2."  # pylint: disable=line-too-long
+        .format(exception=e))
+  if custom_weights:
+    model.load_weights(custom_weights)
+  return model
+
+
+def _load_model_from_weights(create_model_fn, weights_path):
+  model = create_model_fn()
+  model.load_weights(weights_path)
+  return model
 
 
 def default_numpy_inference_fn(
@@ -88,8 +103,15 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
       self,
       model_uri: str,
       model_type: ModelType = ModelType.SAVED_MODEL,
+      create_model_fn: Optional[Callable] = None,
       *,
-      inference_fn: TensorInferenceFn = default_numpy_inference_fn):
+      load_model_args: Optional[Dict[str, Any]] = None,
+      custom_weights: str = "",
+      inference_fn: TensorInferenceFn = default_numpy_inference_fn,
+      min_batch_size: Optional[int] = None,
+      max_batch_size: Optional[int] = None,
+      large_model: bool = False,
+      **kwargs):
     """Implementation of the ModelHandler interface for Tensorflow.
 
     Example Usage::
@@ -101,8 +123,21 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
     Args:
         model_uri (str): path to the trained model.
         model_type: type of model to be loaded. Defaults to SAVED_MODEL.
+        create_model_fn: a function that creates and returns a new
+          tensorflow model to load the saved weights.
+          It should be used with ModelType.SAVED_WEIGHTS.
+        load_model_args: a dictionary of parameters to pass to the load_model
+          function of TensorFlow to specify custom config.
+        custom_weights (str): path to the custom weights to be applied
+          once the model is loaded.
         inference_fn: inference function to use during RunInference.
           Defaults to default_numpy_inference_fn.
+        large_model: set to true if your model is large enough to run into
+          memory pressure if you load multiple copies. Given a model that
+          consumes N memory and a machine with W cores and M memory, you should
+          set this to True if N*W > M.
+        kwargs: 'env_vars' can be used to set environment variables
+          before loading the model.
 
     **Supported Versions:** RunInference APIs in Apache Beam have been tested
     with Tensorflow 2.9, 2.10, 2.11.
@@ -110,10 +145,28 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
     self._model_uri = model_uri
     self._model_type = model_type
     self._inference_fn = inference_fn
+    self._create_model_fn = create_model_fn
+    self._env_vars = kwargs.get('env_vars', {})
+    self._load_model_args = {} if not load_model_args else load_model_args
+    self._custom_weights = custom_weights
+    self._batching_kwargs = {}
+    if min_batch_size is not None:
+      self._batching_kwargs['min_batch_size'] = min_batch_size
+    if max_batch_size is not None:
+      self._batching_kwargs['max_batch_size'] = max_batch_size
+    self._large_model = large_model
 
   def load_model(self) -> tf.Module:
     """Loads and initializes a Tensorflow model for processing."""
-    return _load_model(self._model_uri, self._model_type)
+    if self._model_type == ModelType.SAVED_WEIGHTS:
+      if not self._create_model_fn:
+        raise ValueError(
+            "Callable create_model_fn must be passed"
+            "with ModelType.SAVED_WEIGHTS")
+      return _load_model_from_weights(self._create_model_fn, self._model_uri)
+
+    return _load_model(
+        self._model_uri, self._custom_weights, self._load_model_args)
 
   def update_model_path(self, model_path: Optional[str] = None):
     self._model_uri = model_path if model_path else self._model_uri
@@ -162,6 +215,12 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
   def validate_inference_args(self, inference_args: Optional[Dict[str, Any]]):
     pass
 
+  def batch_elements_kwargs(self):
+    return self._batching_kwargs
+
+  def share_model_across_processes(self) -> bool:
+    return self._large_model
+
 
 class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
                                         tf.Module]):
@@ -169,8 +228,15 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
       self,
       model_uri: str,
       model_type: ModelType = ModelType.SAVED_MODEL,
+      create_model_fn: Optional[Callable] = None,
       *,
-      inference_fn: TensorInferenceFn = default_tensor_inference_fn):
+      load_model_args: Optional[Dict[str, Any]] = None,
+      custom_weights: str = "",
+      inference_fn: TensorInferenceFn = default_tensor_inference_fn,
+      min_batch_size: Optional[int] = None,
+      max_batch_size: Optional[int] = None,
+      large_model: bool = False,
+      **kwargs):
     """Implementation of the ModelHandler interface for Tensorflow.
 
     Example Usage::
@@ -183,8 +249,21 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
         model_uri (str): path to the trained model.
         model_type: type of model to be loaded.
           Defaults to SAVED_MODEL.
+        create_model_fn: a function that creates and returns a new
+          tensorflow model to load the saved weights.
+          It should be used with ModelType.SAVED_WEIGHTS.
+        load_model_args: a dictionary of parameters to pass to the load_model
+          function of TensorFlow to specify custom config.
+        custom_weights (str): path to the custom weights to be applied
+          once the model is loaded.
         inference_fn: inference function to use during RunInference.
           Defaults to default_numpy_inference_fn.
+        large_model: set to true if your model is large enough to run into
+          memory pressure if you load multiple copies. Given a model that
+          consumes N memory and a machine with W cores and M memory, you should
+          set this to True if N*W > M.
+        kwargs: 'env_vars' can be used to set environment variables
+          before loading the model.
 
     **Supported Versions:** RunInference APIs in Apache Beam have been tested
     with Tensorflow 2.11.
@@ -192,10 +271,27 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
     self._model_uri = model_uri
     self._model_type = model_type
     self._inference_fn = inference_fn
+    self._create_model_fn = create_model_fn
+    self._env_vars = kwargs.get('env_vars', {})
+    self._load_model_args = {} if not load_model_args else load_model_args
+    self._custom_weights = custom_weights
+    self._batching_kwargs = {}
+    if min_batch_size is not None:
+      self._batching_kwargs['min_batch_size'] = min_batch_size
+    if max_batch_size is not None:
+      self._batching_kwargs['max_batch_size'] = max_batch_size
+    self._large_model = large_model
 
   def load_model(self) -> tf.Module:
     """Loads and initializes a tensorflow model for processing."""
-    return _load_model(self._model_uri, self._model_type)
+    if self._model_type == ModelType.SAVED_WEIGHTS:
+      if not self._create_model_fn:
+        raise ValueError(
+            "Callable create_model_fn must be passed"
+            "with ModelType.SAVED_WEIGHTS")
+      return _load_model_from_weights(self._create_model_fn, self._model_uri)
+    return _load_model(
+        self._model_uri, self._custom_weights, self._load_model_args)
 
   def update_model_path(self, model_path: Optional[str] = None):
     self._model_uri = model_path if model_path else self._model_uri
@@ -244,3 +340,9 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
 
   def validate_inference_args(self, inference_args: Optional[Dict[str, Any]]):
     pass
+
+  def batch_elements_kwargs(self):
+    return self._batching_kwargs
+
+  def share_model_across_processes(self) -> bool:
+    return self._large_model

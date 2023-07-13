@@ -41,7 +41,8 @@ please follow the below structure.
 ```
 # the test_1 must be a unique id.
 test_1:
-  test_name: apache_beam.testing.benchmarks.inference.pytorch_image_classification_benchmarks
+  test_name: Pytorch image classification on 50k images of size 224 x 224 with resnet 152
+  test_target: apache_beam.testing.benchmarks.inference.pytorch_image_classification_benchmarks
   source: big_query
   metrics_dataset: beam_run_inference
   metrics_table: torch_inference_imagenet_results_resnet152
@@ -53,9 +54,9 @@ test_1:
   num_runs_in_change_point_window: 30 # optional parameter
 ```
 
-**NOTE**: `test_name` should be in the format `apache_beam.foo.bar`. It should point to a single test target.
+**NOTE**: `test_target` is optional. It is used for identifying the test that was causing the regression.
 
-**Note**: If the source is **BigQuery**, the metrics_dataset, metrics_table, project and metric_name should match with the values defined for performance/load tests.
+**Note**: If the source is **BigQuery**, the `metrics_dataset`, `metrics_table`, `project` and `metric_name` should match with the values defined for performance/load tests.
 The above example uses this [test configuration](https://github.com/apache/beam/blob/0a91d139dea4276dc46176c4cdcdfce210fc50c4/.test-infra/jenkins/job_InferenceBenchmarkTests_Python.groovy#L30)
 to fill up the values required to fetch the data from source.
 
@@ -83,7 +84,7 @@ All the performance/load tests metrics defined at [beam/.test-infra/jenkins](htt
 find the alerted test dashboard to find a spike in the metric values.
 
 For example, for the below configuration,
-* test: `apache_beam.testing.benchmarks.inference.pytorch_image_classification_benchmarks`
+* test_target: `apache_beam.testing.benchmarks.inference.pytorch_image_classification_benchmarks`
 * metric_name: `mean_load_model_latency_milli_secs`
 
 Grafana dashboard can be found at http://104.154.241.245/d/ZpS8Uf44z/python-ml-runinference-benchmarks?orgId=1&viewPanel=7

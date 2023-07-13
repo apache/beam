@@ -64,6 +64,7 @@ import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
@@ -80,6 +81,7 @@ public class GroupIntoBatchesTest implements Serializable {
   private static final int ALLOWED_LATENESS = 0;
   private static final Logger LOG = LoggerFactory.getLogger(GroupIntoBatchesTest.class);
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(1200);
   private transient ArrayList<KV<String, String>> data = createTestData(EVEN_NUM_ELEMENTS);
 
   private static ArrayList<KV<String, String>> createTestData(long numElements) {

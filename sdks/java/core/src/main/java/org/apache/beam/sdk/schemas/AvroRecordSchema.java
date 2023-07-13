@@ -30,10 +30,16 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * <p>This provider infers a schema from generated SpecificRecord objects, and creates schemas and
  * rows that bind to the appropriate fields. This provider also infers schemas from Java POJO
  * objects, creating a schema that matches that inferred by the AVRO libraries.
+ *
+ * @deprecated Avro related classes are deprecated in module <code>beam-sdks-java-core</code> and
+ *     will be eventually removed. Please, migrate to a new module <code>
+ *     beam-sdks-java-extensions-avro</code> by importing <code>
+ *     org.apache.beam.sdk.extensions.avro.schemas.AvroRecordSchema</code> instead of this one.
  */
 @SuppressWarnings({
   "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
+@Deprecated
 public class AvroRecordSchema extends GetterBasedSchemaProvider {
   @Override
   public <T> Schema schemaFor(TypeDescriptor<T> typeDescriptor) {

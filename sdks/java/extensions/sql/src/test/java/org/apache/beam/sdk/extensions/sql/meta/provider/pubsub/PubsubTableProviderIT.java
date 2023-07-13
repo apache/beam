@@ -49,7 +49,8 @@ import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
-import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
+import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.protobuf.PayloadMessages;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
@@ -66,15 +67,14 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.SchemaCoder;
-import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.calcite.v1_28_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.calcite.v1_28_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.calcite.v1_28_0.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.jdbc.CalciteConnection;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.hamcrest.Matcher;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -973,32 +973,21 @@ public class PubsubTableProviderIT implements Serializable {
     @Override
     protected PubsubMessage messageIdName(Instant timestamp, int id, String name)
         throws IOException {
-      byte[] encodedRecord =
-          createEncodedGenericRecord(
-              PAYLOAD_SCHEMA,
-              org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList.of(
-                  id, name));
+      byte[] encodedRecord = createEncodedGenericRecord(PAYLOAD_SCHEMA, ImmutableList.of(id, name));
       return message(timestamp, encodedRecord, ImmutableMap.of(name, Integer.toString(id)));
     }
 
     @Override
     protected Matcher<PubsubMessage> matcherNames(String name) throws IOException {
       Schema schema = Schema.builder().addStringField("name").build();
-      byte[] encodedRecord =
-          createEncodedGenericRecord(
-              schema,
-              org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList.of(
-                  name));
+      byte[] encodedRecord = createEncodedGenericRecord(schema, ImmutableList.of(name));
       return hasProperty("payload", equalTo(encodedRecord));
     }
 
     @Override
     protected Matcher<PubsubMessage> matcherNameHeight(String name, int height) throws IOException {
       byte[] encodedRecord =
-          createEncodedGenericRecord(
-              NAME_HEIGHT_SCHEMA,
-              org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList.of(
-                  name, height));
+          createEncodedGenericRecord(NAME_HEIGHT_SCHEMA, ImmutableList.of(name, height));
       return hasProperty("payload", equalTo(encodedRecord));
     }
 
@@ -1007,9 +996,7 @@ public class PubsubTableProviderIT implements Serializable {
         String name, int height, boolean knowsJS) throws IOException {
       byte[] encodedRecord =
           createEncodedGenericRecord(
-              NAME_HEIGHT_KNOWS_JS_SCHEMA,
-              org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList.of(
-                  name, height, knowsJS));
+              NAME_HEIGHT_KNOWS_JS_SCHEMA, ImmutableList.of(name, height, knowsJS));
       return hasProperty("payload", equalTo(encodedRecord));
     }
 

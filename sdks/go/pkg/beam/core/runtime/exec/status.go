@@ -18,7 +18,7 @@ package exec
 import "fmt"
 
 // Status is the status of a unit or plan.
-type Status int
+type Status int32
 
 const (
 	Initializing Status = iota

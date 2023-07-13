@@ -158,6 +158,60 @@ void main() {
         expected,
       );
     });
+
+    group('initialSnippetSdk, initialSnippetToken.', () {
+      test('No descriptors -> null', () {
+        final descriptor = ExamplesLoadingDescriptor(
+          descriptors: const [],
+          initialSdk: Sdk.go,
+          lazyLoadDescriptors: {
+            Sdk.scio: const [_d1],
+          },
+        );
+
+        expect(descriptor.initialSnippetSdk, null);
+        expect(descriptor.initialSnippetToken, null);
+      });
+
+      test('No initialSdk, multiple descriptors -> null', () {
+        final descriptor = ExamplesLoadingDescriptor(
+          descriptors: const [_d1, _d2],
+          initialSdk: null,
+          lazyLoadDescriptors: {
+            Sdk.scio: const [_d1],
+          },
+        );
+
+        expect(descriptor.initialSnippetSdk, null);
+        expect(descriptor.initialSnippetToken, null);
+      });
+
+      test('No initialSdk, single descriptor -> from it', () {
+        final descriptor = ExamplesLoadingDescriptor(
+          descriptors: const [_d2],
+          initialSdk: null,
+          lazyLoadDescriptors: {
+            Sdk.scio: const [_d1],
+          },
+        );
+
+        expect(descriptor.initialSnippetSdk, _d2.sdk);
+        expect(descriptor.initialSnippetToken, _d2.token);
+      });
+
+      test('initialSdk, multiple descriptors -> initialSdk', () {
+        final descriptor = ExamplesLoadingDescriptor(
+          descriptors: const [_d1, _d2],
+          initialSdk: _d2.sdk,
+          lazyLoadDescriptors: {
+            Sdk.scio: const [_d1],
+          },
+        );
+
+        expect(descriptor.initialSnippetSdk, _d2.sdk);
+        expect(descriptor.initialSnippetToken, _d2.token);
+      });
+    });
   });
 }
 

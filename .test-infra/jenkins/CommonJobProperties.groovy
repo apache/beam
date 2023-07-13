@@ -38,7 +38,8 @@ class CommonJobProperties {
       int defaultTimeout = 100,
       boolean allowRemotePoll = true,
       String jenkinsExecutorLabel = 'beam',
-      boolean cleanWorkspace = true) {
+      boolean cleanWorkspace = true,
+      int numBuildsToRetain = -1) {
     // GitHub project.
     context.properties {
       githubProjectUrl('https://github.com/apache/beam/')
@@ -53,6 +54,7 @@ class CommonJobProperties {
     // Discard old builds. Build records are only kept up to this number of days.
     context.logRotator {
       daysToKeep(30)
+      numToKeep(numBuildsToRetain)
     }
 
     // Source code management.
@@ -69,6 +71,10 @@ class CommonJobProperties {
         extensions {
           wipeOutWorkspace()
           relativeTargetDirectory(checkoutDir)
+          cloneOptions {
+            shallow()
+            noTags()
+          }
           if (!allowRemotePoll) {
             disableRemotePoll()
           }
@@ -102,6 +108,7 @@ class CommonJobProperties {
       credentialsBinding {
         string("CODECOV_TOKEN", "beam-codecov-token")
         string("COVERALLS_REPO_TOKEN", "beam-coveralls-token")
+        usernamePassword("GRADLE_ENTERPRISE_CACHE_USERNAME", "GRADLE_ENTERPRISE_CACHE_PASSWORD", "beam_cache_node_credentials")
       }
       timestamps()
       colorizeOutput()
@@ -222,20 +229,13 @@ class CommonJobProperties {
   static void setAutoJob(context,
       String buildSchedule = 'H H/6 * * *',
       notifyAddress = 'builds@beam.apache.org',
-      triggerOnCommit = false,
       emailIndividuals = false) {
 
     // Set build triggers
     context.triggers {
       // By default runs every 6 hours.
       cron(buildSchedule)
-
-      if (triggerOnCommit){
-        githubPush()
-      }
     }
-
-
 
     context.publishers {
       // Notify an email address for each failed build (defaults to builds@).

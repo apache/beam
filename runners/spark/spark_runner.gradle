@@ -161,6 +161,7 @@ dependencies {
   implementation project(":runners:java-fn-execution")
   implementation project(":runners:java-job-service")
   implementation project(":sdks:java:extensions:google-cloud-platform-core")
+  implementation project(":sdks:java:extensions:avro")
   implementation library.java.jackson_annotations
   implementation library.java.slf4j_api
   implementation library.java.joda_time
@@ -169,7 +170,7 @@ dependencies {
   implementation project(path: ":model:fn-execution", configuration: "shadow")
   implementation project(path: ":model:job-management", configuration: "shadow")
   implementation project(":sdks:java:fn-execution")
-  implementation library.java.vendored_grpc_1_48_1
+  implementation library.java.vendored_grpc_1_54_0
   implementation library.java.vendored_guava_26_0_jre
   spark.components.each { component ->
     provided "$component:$spark_version"
@@ -191,6 +192,7 @@ dependencies {
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   // SparkStateInternalsTest extends abstract StateInternalsTest
   testImplementation project(path: ":runners:core-java", configuration: "testRuntimeMigration")
+  testImplementation project(path: ":sdks:java:extensions:avro", configuration: "testRuntimeMigration")
   testImplementation project(":sdks:java:harness")
   testImplementation library.java.avro
   testImplementation "org.apache.kafka:kafka_$spark_scala_version:2.4.1"
@@ -277,6 +279,7 @@ def applyBatchValidatesRunnerSetup = { Test it ->
     // Ordering
     excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderedDelivery'
     excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderInBundle'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesTriggeredSideInputs'
   }
 }
 
@@ -349,6 +352,7 @@ def validatesRunnerStreaming = tasks.register("validatesRunnerStreaming", Test) 
     // Ordering
     excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderedDelivery'
     excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderInBundle'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesTriggeredSideInputs'
   }
 }
 
@@ -401,6 +405,7 @@ tasks.register("validatesStructuredStreamingRunnerBatch", Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesJavaExpansionService'
     excludeCategories 'org.apache.beam.sdk.testing.UsesPythonExpansionService'
     excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesTriggeredSideInputs'
   }
   filter {
     // Combine with context not implemented

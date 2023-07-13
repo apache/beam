@@ -22,24 +22,23 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
 
 /** Builds a MongoDB UpdateConfiguration object. */
-@Experimental(Kind.SOURCE_SINK)
 @AutoValue
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public abstract class UpdateConfiguration implements Serializable {
 
+  @Pure
   abstract @Nullable String findKey();
 
+  @Pure
   abstract @Nullable String updateKey();
 
+  @Pure
   abstract @Nullable List<UpdateField> updateFields();
 
+  @Pure
   abstract boolean isUpsert();
 
   private static Builder builder() {

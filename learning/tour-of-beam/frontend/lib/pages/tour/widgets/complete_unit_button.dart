@@ -28,6 +28,17 @@ class CompleteUnitButton extends StatelessWidget {
   final TourNotifier tourNotifier;
   const CompleteUnitButton(this.tourNotifier);
 
+  Future<void> _onPressed() async {
+    final unitId = tourNotifier.currentUnitId;
+    if (unitId == null) {
+      return;
+    }
+    await GetIt.instance.get<UnitProgressCache>().completeUnit(
+          tourNotifier.currentSdk.id,
+          unitId,
+        );
+  }
+
   @override
   Widget build(BuildContext context) {
     final themeData = Theme.of(context);
@@ -40,27 +51,23 @@ class CompleteUnitButton extends StatelessWidget {
             unitProgressCache.canCompleteUnit(tourNotifier.currentUnitId);
         final borderColor =
             canComplete ? themeData.primaryColor : themeData.disabledColor;
-        final onPressed = canComplete
-            ? tourNotifier.currentUnitController?.completeUnit
-            : null;
+        final onPressed = canComplete ? _onPressed : null;
 
-        return Flexible(
-          child: OutlinedButton(
-            style: OutlinedButton.styleFrom(
-              foregroundColor: themeData.primaryColor,
-              side: BorderSide(color: borderColor),
-              shape: const RoundedRectangleBorder(
-                borderRadius: BorderRadius.all(
-                  Radius.circular(BeamSizes.size4),
-                ),
+        return OutlinedButton(
+          style: OutlinedButton.styleFrom(
+            foregroundColor: themeData.primaryColor,
+            side: BorderSide(color: borderColor),
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.all(
+                Radius.circular(BeamSizes.size4),
               ),
             ),
-            onPressed: onPressed,
-            child: const Text(
-              'pages.tour.completeUnit',
-              overflow: TextOverflow.visible,
-            ).tr(),
           ),
+          onPressed: onPressed,
+          child: const Text(
+            'pages.tour.completeUnit',
+            overflow: TextOverflow.visible,
+          ).tr(),
         );
       },
     );

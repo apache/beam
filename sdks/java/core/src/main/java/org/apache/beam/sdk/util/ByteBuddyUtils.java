@@ -30,10 +30,15 @@ public final class ByteBuddyUtils {
 
   /** Returns a class loading strategy that is compatible with Java 17+. */
   public static ClassLoadingStrategy<ClassLoader> getClassLoadingStrategy(Class<?> targetClass) {
-    try {
-      ClassLoadingStrategy<ClassLoader> strategy;
-      if (ClassInjector.UsingLookup.isAvailable()) {
-        ClassLoader classLoader = ReflectHelpers.findClassLoader(targetClass);
+    ClassLoadingStrategy<ClassLoader> strategy;
+    ClassLoader classLoader = ReflectHelpers.findClassLoader(targetClass);
+    // Use a Lookup-based strategy for user classes for compatibility with Java 17+, but use
+    // a legacy strategy to allow proxying some built-in JDK classes (e.g. interfaces, public
+    // abstract classes) since we don't have permissions to get a private lookup for the
+    // java.base module
+    boolean systemClass = classLoader == null;
+    if (ClassInjector.UsingLookup.isAvailable() && !systemClass) {
+      try {
         Class<?> methodHandles = Class.forName("java.lang.invoke.MethodHandles", true, classLoader);
         @SuppressWarnings("nullness") // MethodHandles#lookup accepts null
         Object lookup = methodHandles.getMethod("lookup").invoke(null);
@@ -44,14 +49,15 @@ public final class ByteBuddyUtils {
         @SuppressWarnings("nullness") // this is a static method, the receiver can be null
         Object privateLookup = requireNonNull(privateLookupIn.invoke(null, targetClass, lookup));
         strategy = ClassLoadingStrategy.UsingLookup.of(requireNonNull(privateLookup));
-      } else if (ClassInjector.UsingReflection.isAvailable()) {
-        strategy = ClassLoadingStrategy.Default.INJECTION;
-      } else {
-        throw new IllegalStateException("No code generation strategy available");
+      } catch (ReflectiveOperationException e) {
+        throw new IllegalStateException(
+            "No code generation strategy available " + targetClass + " " + classLoader, e);
       }
-      return strategy;
-    } catch (ReflectiveOperationException e) {
-      throw new IllegalStateException("No code generation strategy available", e);
+    } else if (ClassInjector.UsingReflection.isAvailable()) {
+      strategy = ClassLoadingStrategy.Default.INJECTION;
+    } else {
+      throw new IllegalStateException("No code generation strategy available");
     }
+    return strategy;
   }
 }

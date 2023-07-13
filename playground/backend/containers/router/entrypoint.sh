@@ -14,4 +14,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Check if APPLY_MIGRATIONS is set and apply mgirations in such case
+if [ -n "$APPLY_MIGRATIONS" ]; then
+    echo "Applying migrations"
+    # If SDK_CONFIG is not set, set it to default value
+    if [ -z "$SDK_CONFIG" ]; then
+        SDK_CONFIG=/opt/playground/backend/sdks.yaml
+    fi
+
+    if [ -n "$DATASTORE_NAMESPACE" ]; then
+        /opt/playground/backend/migration_tool -project-id $GOOGLE_CLOUD_PROJECT -sdk-config $SDK_CONFIG -namespace $DATASTORE_NAMESPACE
+    else
+        /opt/playground/backend/migration_tool -project-id $GOOGLE_CLOUD_PROJECT -sdk-config $SDK_CONFIG
+    fi
+fi
+
 /opt/playground/backend/server_go_backend

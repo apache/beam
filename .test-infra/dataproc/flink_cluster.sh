@@ -46,8 +46,7 @@ set -Eeuxo pipefail
 
 # GCloud properties
 GCLOUD_ZONE="${GCLOUD_ZONE:=us-central1-a}"
-# TODO: replace preview once dataproc 2.1 released
-DATAPROC_VERSION="${DATAPROC_VERSION:=preview-debian11}"
+DATAPROC_VERSION="${DATAPROC_VERSION:=2.1-debian}"
 GCLOUD_REGION=`echo $GCLOUD_ZONE | sed -E "s/(-[a-z])?$//"`
 
 MASTER_NAME="$CLUSTER_NAME-m"

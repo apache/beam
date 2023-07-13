@@ -12,15 +12,21 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-apiVersion: autoscaling/v1
+apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: playground-java
 spec:
-  maxReplicas: 10
-  minReplicas: 2
+  maxReplicas: {{ .Values.autoscaling.runners.maxReplicas }}
+  minReplicas: {{ .Values.autoscaling.runners.minReplicas }}
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
     name: playground-java
-  targetCPUUtilizationPercentage: 90
+  metrics:
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: {{ .Values.autoscaling.utilization.memoryUtilization }}

@@ -107,10 +107,15 @@ import org.joda.time.DateTimeZone;
  * org.apache.beam.sdk.transforms.GroupByKey} operations.
  *
  * @param <T> the type of elements handled by this coder
+ * @deprecated Avro related classes are deprecated in module <code>beam-sdks-java-core</code> and
+ *     will be eventually removed. Please, migrate to a new module <code>
+ *     beam-sdks-java-extensions-avro</code> by importing <code>
+ *     org.apache.beam.sdk.extensions.avro.coders.AvroCoder</code> instead of this one.
  */
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
+@Deprecated
 public class AvroCoder<T> extends CustomCoder<T> {
 
   /**

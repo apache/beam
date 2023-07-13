@@ -20,7 +20,6 @@ package org.apache.beam.sdk.coders;
 import com.google.auto.service.AutoService;
 import java.util.List;
 import java.util.ServiceLoader;
-import org.apache.beam.sdk.annotations.Experimental;
 
 /**
  * {@link Coder} creators have the ability to automatically have their {@link Coder coders}
@@ -30,7 +29,6 @@ import org.apache.beam.sdk.annotations.Experimental;
  * <p>It is optional but recommended to use one of the many build time tools such as {@link
  * AutoService} to generate the necessary META-INF files automatically.
  */
-@Experimental
 public interface CoderProviderRegistrar {
   /**
    * Returns a list of {@link CoderProvider coder providers} which will be registered by default

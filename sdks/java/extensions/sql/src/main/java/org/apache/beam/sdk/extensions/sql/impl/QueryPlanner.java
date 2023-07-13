@@ -22,17 +22,17 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
-import org.apache.beam.vendor.calcite.v1_28_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.calcite.v1_28_0.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlNode;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.tools.RuleSet;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /**
  * An interface that planners should implement to convert sql statement to {@link BeamRelNode} or
  * {@link SqlNode}.
  */
 @SuppressWarnings({
-  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447) rawtype signature of public method
 })
 public interface QueryPlanner {
   /** It parses and validate the input query, then convert into a {@link BeamRelNode} tree. */

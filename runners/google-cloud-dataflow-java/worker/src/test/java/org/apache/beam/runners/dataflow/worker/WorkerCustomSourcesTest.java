@@ -26,6 +26,7 @@ import static org.apache.beam.runners.dataflow.worker.SourceTranslationUtils.dic
 import static org.apache.beam.runners.dataflow.worker.SourceTranslationUtils.readerProgressToCloudProgress;
 import static org.apache.beam.runners.dataflow.worker.WorkerCustomSources.BoundedReaderIterator.getReaderProgress;
 import static org.apache.beam.runners.dataflow.worker.WorkerCustomSources.BoundedReaderIterator.longToParallelism;
+import static org.apache.beam.sdk.testing.ExpectedLogs.verifyLogged;
 import static org.apache.beam.sdk.testing.SourceTestUtils.readFromSource;
 import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
 import static org.apache.beam.sdk.util.SerializableUtils.deserializeFromByteArray;
@@ -67,7 +68,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Random;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
+import java.util.logging.LogManager;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
@@ -109,9 +113,10 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.ValueWithRecordId;
-import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
@@ -175,6 +180,72 @@ public class WorkerCustomSourcesTest {
           contains(valueInGlobalWindow(0L + 2 * i), valueInGlobalWindow(1L + 2 * i)));
       assertTrue(bundle.getSource().getMetadata().getEstimatedSizeBytes() > 0);
     }
+  }
+
+  private static class SourceProducingSubSourcesInSplit extends MockSource {
+    int numDesiredBundle;
+    int sourceObjectSize;
+
+    private transient @Nullable List<BoundedSource<Integer>> cachedSplitResult = null;
+
+    public SourceProducingSubSourcesInSplit(int numDesiredBundle, int sourceObjectSize) {
+      this.numDesiredBundle = numDesiredBundle;
+      this.sourceObjectSize = sourceObjectSize;
+    }
+
+    @Override
+    public List<? extends BoundedSource<Integer>> split(
+        long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
+      if (cachedSplitResult == null) {
+        ArrayList<SourceWithLargeObject> result = new ArrayList<>(numDesiredBundle);
+        for (int i = 0; i < numDesiredBundle; ++i) {
+          result.add(new SourceWithLargeObject(sourceObjectSize));
+        }
+        cachedSplitResult = ImmutableList.copyOf(result);
+      }
+      return cachedSplitResult;
+    }
+
+    @Override
+    public long getEstimatedSizeBytes(PipelineOptions options) {
+      return numDesiredBundle * 1000L;
+    }
+  }
+
+  private static class SourceWithLargeObject extends MockSource {
+    byte[] array;
+
+    public SourceWithLargeObject(int sourceObjectSize) {
+      byte[] array = new byte[sourceObjectSize];
+      new Random().nextBytes(array);
+    }
+
+    @Override
+    public long getEstimatedSizeBytes(PipelineOptions options) {
+      return 1000L;
+    }
+  }
+
+  @Test
+  public void testSplittingProducedResponseUnderLimit() throws Exception {
+    SourceProducingSubSourcesInSplit source = new SourceProducingSubSourcesInSplit(200, 10_000);
+    com.google.api.services.dataflow.model.Source cloudSource =
+        translateIOToCloudSource(source, options);
+    SourceSplitRequest splitRequest = new SourceSplitRequest();
+    splitRequest.setSource(cloudSource);
+
+    ExpectedLogs.LogSaver logSaver = new ExpectedLogs.LogSaver();
+    LogManager.getLogManager()
+        .getLogger("org.apache.beam.runners.dataflow.worker.WorkerCustomSources")
+        .addHandler(logSaver);
+
+    WorkerCustomSources.performSplitWithApiLimit(splitRequest, options, 100, 10_000);
+    // verify initial split is not valid
+    verifyLogged(
+        ExpectedLogs.matcher(Level.WARNING, "this is too large for the Google Cloud Dataflow API"),
+        logSaver);
+    // verify that re-bundle is effective
+    verifyLogged(ExpectedLogs.matcher(Level.WARNING, "Re-bundle source"), logSaver);
   }
 
   private static class SourceProducingNegativeEstimatedSizes extends MockSource {

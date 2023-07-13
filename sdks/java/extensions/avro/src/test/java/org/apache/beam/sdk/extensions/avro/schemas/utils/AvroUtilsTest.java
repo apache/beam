@@ -32,7 +32,6 @@ import java.util.Map;
 import org.apache.avro.Conversions;
 import org.apache.avro.LogicalType;
 import org.apache.avro.LogicalTypes;
-import org.apache.avro.RandomData;
 import org.apache.avro.Schema.Type;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
@@ -41,6 +40,7 @@ import org.apache.avro.util.Utf8;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.extensions.avro.io.AvroGeneratedUser;
+import org.apache.beam.sdk.extensions.avro.io.AvroGeneratedUserFactory;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -77,13 +77,37 @@ public class AvroUtilsTest {
   private static final org.apache.avro.Schema NULL_SCHEMA =
       org.apache.avro.Schema.create(Type.NULL);
 
+  private static final String VERSION_AVRO =
+      org.apache.avro.Schema.class.getPackage().getImplementationVersion();
+
+  private Iterable<?> randomData(org.apache.avro.Schema schema, int maxLength) throws Exception {
+    Iterable<?> data;
+    if (VERSION_AVRO.equals("1.8.2")) {
+      data =
+          (Iterable<?>)
+              Class.forName("org.apache.avro.RandomData")
+                  .getDeclaredConstructor(org.apache.avro.Schema.class, Integer.TYPE)
+                  .newInstance(schema, maxLength);
+    } else {
+      data =
+          (Iterable<?>)
+              Class.forName("org.apache.avro.util.RandomData")
+                  .getDeclaredConstructor(org.apache.avro.Schema.class, Integer.TYPE, Boolean.TYPE)
+                  // force Utf8 in random data to match with String type used in AvroUtils
+                  .newInstance(schema, maxLength, true);
+    }
+    return data;
+  }
+
   @Property(trials = 1000)
   @SuppressWarnings("unchecked")
   public void supportsAnyAvroSchema(
-      @From(AvroGenerators.RecordSchemaGenerator.class) org.apache.avro.Schema avroSchema) {
+      @From(AvroGenerators.RecordSchemaGenerator.class) org.apache.avro.Schema avroSchema)
+      throws Exception {
 
     Schema schema = AvroUtils.toBeamSchema(avroSchema);
-    Iterable iterable = new RandomData(avroSchema, 10);
+    Iterable<?> iterable = randomData(avroSchema, 10);
+
     List<GenericRecord> records = Lists.newArrayList((Iterable<GenericRecord>) iterable);
 
     for (GenericRecord record : records) {
@@ -94,10 +118,11 @@ public class AvroUtilsTest {
   @Property(trials = 1000)
   @SuppressWarnings("unchecked")
   public void avroToBeamRoundTrip(
-      @From(AvroGenerators.RecordSchemaGenerator.class) org.apache.avro.Schema avroSchema) {
+      @From(AvroGenerators.RecordSchemaGenerator.class) org.apache.avro.Schema avroSchema)
+      throws Exception {
 
     Schema schema = AvroUtils.toBeamSchema(avroSchema);
-    Iterable iterable = new RandomData(avroSchema, 10);
+    Iterable iterable = randomData(avroSchema, 10);
     List<GenericRecord> records = Lists.newArrayList((Iterable<GenericRecord>) iterable);
 
     for (GenericRecord record : records) {
@@ -156,7 +181,7 @@ public class AvroUtilsTest {
             ReflectData.makeNullable(
                 org.apache.avro.Schema.createArray(org.apache.avro.Schema.create(Type.INT))),
             "",
-            null);
+            (Object) null);
 
     Field expectedBeamField = Field.nullable("arrayField", FieldType.array(FieldType.INT32));
 
@@ -174,7 +199,7 @@ public class AvroUtilsTest {
             ReflectData.makeNullable(
                 org.apache.avro.Schema.createArray(org.apache.avro.Schema.create(Type.INT))),
             "",
-            null);
+            (Object) null);
 
     org.apache.avro.Schema.Field avroField = AvroUtils.toAvroField(beamField, "ignored");
     assertEquals(expectedAvroField, avroField);
@@ -184,9 +209,10 @@ public class AvroUtilsTest {
     List<org.apache.avro.Schema.Field> fields = Lists.newArrayList();
     fields.add(
         new org.apache.avro.Schema.Field(
-            "bool", org.apache.avro.Schema.create(Type.BOOLEAN), "", null));
+            "bool", org.apache.avro.Schema.create(Type.BOOLEAN), "", (Object) null));
     fields.add(
-        new org.apache.avro.Schema.Field("int", org.apache.avro.Schema.create(Type.INT), "", null));
+        new org.apache.avro.Schema.Field(
+            "int", org.apache.avro.Schema.create(Type.INT), "", (Object) null));
     return fields;
   }
 
@@ -402,21 +428,24 @@ public class AvroUtilsTest {
     List<org.apache.avro.Schema.Field> fields = Lists.newArrayList();
     fields.add(
         new org.apache.avro.Schema.Field(
-            "int", ReflectData.makeNullable(org.apache.avro.Schema.create(Type.INT)), "", null));
+            "int",
+            ReflectData.makeNullable(org.apache.avro.Schema.create(Type.INT)),
+            "",
+            (Object) null));
     fields.add(
         new org.apache.avro.Schema.Field(
             "array",
             org.apache.avro.Schema.createArray(
                 ReflectData.makeNullable(org.apache.avro.Schema.create(Type.BYTES))),
             "",
-            null));
+            (Object) null));
     fields.add(
         new org.apache.avro.Schema.Field(
             "map",
             org.apache.avro.Schema.createMap(
                 ReflectData.makeNullable(org.apache.avro.Schema.create(Type.INT))),
             "",
-            null));
+            (Object) null));
     fields.add(
         new org.apache.avro.Schema.Field(
             "enum",
@@ -424,7 +453,7 @@ public class AvroUtilsTest {
                 org.apache.avro.Schema.createEnum(
                     "fruit", "", "", ImmutableList.of("banana", "apple", "pear"))),
             "",
-            null));
+            (Object) null));
 
     org.apache.avro.Schema avroSchema =
         org.apache.avro.Schema.createRecord("topLevelRecord", null, null, false, fields);
@@ -472,21 +501,24 @@ public class AvroUtilsTest {
     List<org.apache.avro.Schema.Field> fields = Lists.newArrayList();
     fields.add(
         new org.apache.avro.Schema.Field(
-            "int", ReflectData.makeNullable(org.apache.avro.Schema.create(Type.INT)), "", null));
+            "int",
+            ReflectData.makeNullable(org.apache.avro.Schema.create(Type.INT)),
+            "",
+            (Object) null));
     fields.add(
         new org.apache.avro.Schema.Field(
             "array",
             org.apache.avro.Schema.createArray(
                 ReflectData.makeNullable(org.apache.avro.Schema.create(Type.INT))),
             "",
-            null));
+            (Object) null));
     fields.add(
         new org.apache.avro.Schema.Field(
             "map",
             org.apache.avro.Schema.createMap(
                 ReflectData.makeNullable(org.apache.avro.Schema.create(Type.INT))),
             "",
-            null));
+            (Object) null));
     org.apache.avro.Schema avroSchema =
         org.apache.avro.Schema.createRecord("topLevelRecord", null, null, false, fields);
     assertEquals(avroSchema, AvroUtils.toAvroSchema(beamSchema));
@@ -522,7 +554,7 @@ public class AvroUtilsTest {
 
     fields.add(
         new org.apache.avro.Schema.Field(
-            "union", org.apache.avro.Schema.createUnion(unionFields), "", null));
+            "union", org.apache.avro.Schema.createUnion(unionFields), "", (Object) null));
     org.apache.avro.Schema avroSchema =
         org.apache.avro.Schema.createRecord("topLevelRecord", null, null, false, fields);
     OneOfType oneOfType =
@@ -549,7 +581,7 @@ public class AvroUtilsTest {
     unionFields.add(org.apache.avro.Schema.create(Type.STRING));
     fields.add(
         new org.apache.avro.Schema.Field(
-            "union", org.apache.avro.Schema.createUnion(unionFields), "", null));
+            "union", org.apache.avro.Schema.createUnion(unionFields), "", (Object) null));
     org.apache.avro.Schema avroSchema =
         org.apache.avro.Schema.createRecord("topLevelRecord", null, null, false, fields);
     GenericRecord expectedGenericRecord =
@@ -796,7 +828,7 @@ public class AvroUtilsTest {
     assertTrue(records.hasSchema());
     CoderProperties.coderSerializable(records.getCoder());
 
-    AvroGeneratedUser user = new AvroGeneratedUser("foo", 42, "green");
+    AvroGeneratedUser user = AvroGeneratedUserFactory.newInstance("foo", 42, "green");
     PCollection<AvroGeneratedUser> users =
         pipeline.apply(Create.of(user).withCoder(AvroCoder.of(AvroGeneratedUser.class)));
     assertFalse(users.hasSchema());

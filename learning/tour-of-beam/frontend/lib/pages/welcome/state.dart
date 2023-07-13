@@ -21,7 +21,6 @@ import 'package:flutter/widgets.dart';
 import 'path.dart';
 
 class WelcomeNotifier extends ChangeNotifier with PageStateMixin<void> {
-  // TODO(nausharipov): remove state from Welcome?
   @override
   PagePath get path => const WelcomePath();
 }

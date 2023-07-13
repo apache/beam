@@ -23,6 +23,23 @@ import unittest
 from apache_beam.utils import multi_process_shared
 
 
+class CallableCounter(object):
+  def __init__(self, start=0):
+    self.running = start
+    self.lock = threading.Lock()
+
+  def __call__(self):
+    return self.running
+
+  def increment(self, value=1):
+    with self.lock:
+      self.running += value
+      return self.running
+
+  def error(self, msg):
+    raise RuntimeError(msg)
+
+
 class Counter(object):
   def __init__(self, start=0):
     self.running = start
@@ -44,7 +61,9 @@ class MultiProcessSharedTest(unittest.TestCase):
   @classmethod
   def setUpClass(cls):
     cls.shared = multi_process_shared.MultiProcessShared(
-        Counter, always_proxy=True).acquire()
+        Counter, tag='basic', always_proxy=True).acquire()
+    cls.sharedCallable = multi_process_shared.MultiProcessShared(
+        CallableCounter, tag='callable', always_proxy=True).acquire()
 
   def test_call(self):
     self.assertEqual(self.shared.get(), 0)
@@ -52,6 +71,13 @@ class MultiProcessSharedTest(unittest.TestCase):
     self.assertEqual(self.shared.increment(10), 11)
     self.assertEqual(self.shared.increment(value=10), 21)
     self.assertEqual(self.shared.get(), 21)
+
+  def test_call_callable(self):
+    self.assertEqual(self.sharedCallable(), 0)
+    self.assertEqual(self.sharedCallable.increment(), 1)
+    self.assertEqual(self.sharedCallable.increment(10), 11)
+    self.assertEqual(self.sharedCallable.increment(value=10), 21)
+    self.assertEqual(self.sharedCallable(), 21)
 
   def test_error(self):
     with self.assertRaisesRegex(Exception, 'something bad'):

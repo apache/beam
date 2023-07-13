@@ -60,23 +60,23 @@ public class Task {
         PipelineOptions options = PipelineOptionsFactory.create();
 
         // Create the Pipeline object with the options we defined above
-        Pipeline p = Pipeline.create(options);
+        Pipeline pipeline = Pipeline.create(options);
 
         // Concept #1. Read text file content line by line. resulting PCollection contains elements, where each element
         // contains a single line of text from the input file.
-        PCollection<String> lines = p.apply(TextIO.read().from("gs://apache-beam-samples/shakespeare/kinglear.txt"))
+        PCollection<String> input = pipeline.apply(TextIO.read().from("gs://apache-beam-samples/shakespeare/kinglear.txt"))
                 .apply(Filter.by((String line) -> !line.isEmpty()));
 
         // Concept #2. Output first 10 elements PCollection to the console.
         final PTransform<PCollection<String>, PCollection<Iterable<String>>> sample = Sample.fixedSizeGlobally(10);
 
-        PCollection<String> sampleLines = lines.apply(sample)
+        PCollection<String> sampleLines = input.apply(sample)
                 .apply(Flatten.iterables())
                 .apply("Log lines", ParDo.of(new LogStrings()));
 
 
         //Concept #3. Read text file and split into PCollection of words.
-        PCollection<String> words = p.apply(TextIO.read().from("gs://apache-beam-samples/shakespeare/kinglear.txt"))
+        PCollection<String> words = pipeline.apply(TextIO.read().from("gs://apache-beam-samples/shakespeare/kinglear.txt"))
                 .apply(FlatMapElements.into(TypeDescriptors.strings()).via((String line) -> Arrays.asList(line.split("[^\\p{L}]+"))))
                 .apply(Filter.by((String word) -> !word.isEmpty()));
 
@@ -86,7 +86,7 @@ public class Task {
 
         // Concept #4. Write PCollection to text file.
         sampleWords.apply(TextIO.write().to("sample-words"));
-        p.run().waitUntilFinish();
+        pipeline.run().waitUntilFinish();
     }
 
     public static class LogStrings extends DoFn<String, String> {

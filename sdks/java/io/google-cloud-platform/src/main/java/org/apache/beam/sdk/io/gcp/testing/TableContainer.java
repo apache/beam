@@ -19,14 +19,28 @@ package org.apache.beam.sdk.io.gcp.testing;
 
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableRow;
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import org.apache.beam.sdk.io.gcp.bigquery.TableRowJsonCoder;
+import org.apache.beam.sdk.util.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Encapsulates a BigQuery Table, and it's contents. */
 class TableContainer {
   Table table;
+
+  @Nullable List<String> primaryKeyColumns = null;
+  @Nullable List<Integer> primaryKeyColumnIndices = null;
+  Map<List<Object>, Long> lastSequenceNumber = Maps.newHashMap();
   List<TableRow> rows;
+
+  Map<List<Object>, TableRow> keyedRows;
   List<String> ids;
   Long sizeBytes;
 
@@ -34,15 +48,61 @@ class TableContainer {
     this.table = table;
 
     this.rows = new ArrayList<>();
+    this.keyedRows = Maps.newHashMap();
     this.ids = new ArrayList<>();
     this.sizeBytes = 0L;
   }
 
-  long addRow(TableRow row, String id) {
-    rows.add(row);
-    if (id != null) {
-      ids.add(id);
+  // Only top-level columns supported.
+  void setPrimaryKeyColumns(List<String> primaryKeyColumns) {
+    this.primaryKeyColumns = primaryKeyColumns;
+
+    Map<String, Integer> indices =
+        IntStream.range(0, table.getSchema().getFields().size())
+            .boxed()
+            .collect(Collectors.toMap(i -> table.getSchema().getFields().get(i).getName(), i -> i));
+    List<Integer> primaryKeyColumnIndices = Lists.newArrayList();
+    for (String columnName : primaryKeyColumns) {
+      primaryKeyColumnIndices.add(Preconditions.checkStateNotNull(indices.get(columnName)));
     }
+    this.primaryKeyColumnIndices = primaryKeyColumnIndices;
+  }
+
+  @Nullable
+  List<Object> getPrimaryKey(TableRow tableRow) {
+    if (primaryKeyColumns == null) {
+      return null;
+    }
+    @Nullable Object fValue = tableRow.get("f");
+    if (fValue instanceof List) {
+      List<Object> cellValues =
+          ((List<AbstractMap<String, Object>>) fValue)
+              .stream()
+                  .map(cell -> Preconditions.checkStateNotNull(cell.get("v")))
+                  .collect(Collectors.toList());
+      ;
+      return Preconditions.checkStateNotNull(primaryKeyColumnIndices).stream()
+          .map(cellValues::get)
+          .collect(Collectors.toList());
+    } else {
+      return primaryKeyColumns.stream().map(tableRow::get).collect(Collectors.toList());
+    }
+  }
+
+  long addRow(TableRow row, String id) {
+    List<Object> primaryKey = getPrimaryKey(row);
+    if (primaryKey != null) {
+      if (keyedRows.putIfAbsent(primaryKey, row) != null) {
+        throw new RuntimeException(
+            "Primary key validation error! Multiple inserts with the same primary key.");
+      }
+    } else {
+      rows.add(row);
+      if (id != null) {
+        ids.add(id);
+      }
+    }
+
     long tableSize = table.getNumBytes() == null ? 0L : table.getNumBytes();
     try {
       long rowSize = TableRowJsonCoder.of().getEncodedElementByteSize(row);
@@ -53,12 +113,64 @@ class TableContainer {
     }
   }
 
+  void upsertRow(TableRow row, long sequenceNumber) {
+    List<Object> primaryKey = getPrimaryKey(row);
+    if (primaryKey == null) {
+      throw new RuntimeException("Upserts only allowed when using primary keys");
+    }
+    long lastSequenceNumberForKey = lastSequenceNumber.getOrDefault(primaryKey, Long.MIN_VALUE);
+    if (sequenceNumber <= lastSequenceNumberForKey) {
+      // Out-of-order upsert - ignore it as we've already seen a more-recent update.
+      return;
+    }
+
+    TableRow oldValue = keyedRows.put(primaryKey, row);
+    try {
+      long tableSize = table.getNumBytes() == null ? 0L : table.getNumBytes();
+      if (oldValue != null) {
+        tableSize -= TableRowJsonCoder.of().getEncodedElementByteSize(oldValue);
+      }
+      tableSize += TableRowJsonCoder.of().getEncodedElementByteSize(row);
+      table.setNumBytes(tableSize);
+    } catch (Exception e) {
+      throw new RuntimeException("Failed to convert the row to JSON", e);
+    }
+    lastSequenceNumber.put(primaryKey, sequenceNumber);
+  }
+
+  void deleteRow(TableRow row, long sequenceNumber) {
+    List<Object> primaryKey = getPrimaryKey(row);
+    if (primaryKey == null) {
+      throw new RuntimeException("Upserts only allowed when using primary keys");
+    }
+    long lastSequenceNumberForKey = lastSequenceNumber.getOrDefault(primaryKey, -1L);
+    if (sequenceNumber <= lastSequenceNumberForKey) {
+      // Out-of-order upsert - ignore it as we've already seen a more-recent update.
+      return;
+    }
+
+    TableRow oldValue = keyedRows.remove(primaryKey);
+    try {
+      if (oldValue != null) {
+        long tableSize = table.getNumBytes() == null ? 0L : table.getNumBytes();
+        table.setNumBytes(tableSize - TableRowJsonCoder.of().getEncodedElementByteSize(row));
+      }
+    } catch (Exception e) {
+      throw new RuntimeException("Failed to convert the row to JSON", e);
+    }
+    lastSequenceNumber.put(primaryKey, sequenceNumber);
+  }
+
   Table getTable() {
     return table;
   }
 
   List<TableRow> getRows() {
-    return rows;
+    if (primaryKeyColumns != null) {
+      return Lists.newArrayList(keyedRows.values());
+    } else {
+      return rows;
+    }
   }
 
   List<String> getIds() {

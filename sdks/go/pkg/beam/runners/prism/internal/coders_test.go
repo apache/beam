@@ -334,7 +334,7 @@ func Test_pullDecoder(t *testing.T) {
 				ComponentCoderIds: []string{"elm"},
 			},
 			map[string]*pipepb.Coder{
-				"elm": &pipepb.Coder{
+				"elm": {
 					Spec: &pipepb.FunctionSpec{
 						Urn: urns.CoderVarInt,
 					},
@@ -350,12 +350,12 @@ func Test_pullDecoder(t *testing.T) {
 				ComponentCoderIds: []string{"key", "value"},
 			},
 			map[string]*pipepb.Coder{
-				"key": &pipepb.Coder{
+				"key": {
 					Spec: &pipepb.FunctionSpec{
 						Urn: urns.CoderVarInt,
 					},
 				},
-				"value": &pipepb.Coder{
+				"value": {
 					Spec: &pipepb.FunctionSpec{
 						Urn: urns.CoderBool,
 					},

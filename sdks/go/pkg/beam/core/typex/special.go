@@ -105,15 +105,6 @@ type Timers struct {
 	Pane                         PaneInfo
 }
 
-// TimerMap is a placeholder for timer details used in encoding/decoding.
-type TimerMap struct {
-	Key, Tag                     string
-	Windows                      []Window // []typex.Window
-	Clear                        bool
-	FireTimestamp, HoldTimestamp mtime.Time
-	Pane                         PaneInfo
-}
-
 // KV, Nullable, CoGBK, WindowedValue represent composite generic types. They are not used
 // directly in user code signatures, but only in FullTypes.
 

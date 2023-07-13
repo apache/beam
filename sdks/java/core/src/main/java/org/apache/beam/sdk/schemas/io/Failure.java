@@ -18,15 +18,12 @@
 package org.apache.beam.sdk.schemas.io;
 
 import com.google.auto.value.AutoValue;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 
 /** A generic failure of an SQL transform. */
 @Internal
-@Experimental(Kind.SCHEMAS)
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
 public abstract class Failure {

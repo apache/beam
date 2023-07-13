@@ -28,7 +28,7 @@ import (
 )
 
 func init() {
-	register.DoFn3x1[*sdf.LockRTracker, []byte, func(int64), sdf.ProcessContinuation](&TruncateFn{})
+	register.DoFn4x1[context.Context, *sdf.LockRTracker, []byte, func(int64), sdf.ProcessContinuation](&TruncateFn{})
 
 	register.Emitter1[int64]()
 }
@@ -83,9 +83,14 @@ func (fn *TruncateFn) SplitRestriction(_ []byte, rest offsetrange.Restriction) [
 }
 
 // TruncateRestriction truncates the restriction during drain.
-func (fn *TruncateFn) TruncateRestriction(rt *sdf.LockRTracker, _ []byte) offsetrange.Restriction {
-	start := rt.GetRestriction().(offsetrange.Restriction).Start
+func (fn *TruncateFn) TruncateRestriction(ctx context.Context, rt *sdf.LockRTracker, _ []byte) offsetrange.Restriction {
+	rest := rt.GetRestriction().(offsetrange.Restriction)
+	start := rest.Start
 	newEnd := start + 20
+
+	done, remaining := rt.GetProgress()
+	log.Infof(ctx, "Draining at: done %v, remaining %v, start %v, end %v, newEnd %v", done, remaining, start, rest.End, newEnd)
+
 	return offsetrange.Restriction{
 		Start: start,
 		End:   newEnd,
@@ -93,28 +98,25 @@ func (fn *TruncateFn) TruncateRestriction(rt *sdf.LockRTracker, _ []byte) offset
 }
 
 // ProcessElement continually gets the start position of the restriction and emits the element as it is.
-func (fn *TruncateFn) ProcessElement(rt *sdf.LockRTracker, _ []byte, emit func(int64)) sdf.ProcessContinuation {
+func (fn *TruncateFn) ProcessElement(ctx context.Context, rt *sdf.LockRTracker, _ []byte, emit func(int64)) sdf.ProcessContinuation {
 	position := rt.GetRestriction().(offsetrange.Restriction).Start
-	counter := 0
 	for {
 		if rt.TryClaim(position) {
+			log.Infof(ctx, "Claimed position: %v", position)
 			// Successful claim, emit the value and move on.
 			emit(position)
 			position++
-			counter++
 		} else if rt.GetError() != nil || rt.IsDone() {
 			// Stop processing on error or completion
 			if err := rt.GetError(); err != nil {
-				log.Errorf(context.Background(), "error in restriction tracker, got %v", err)
+				log.Errorf(ctx, "error in restriction tracker, got %v", err)
 			}
+			log.Infof(ctx, "Restriction done at position %v.", position)
 			return sdf.StopProcessing()
 		} else {
+			log.Infof(ctx, "Checkpointed at position %v, resuming later.", position)
 			// Resume later.
 			return sdf.ResumeProcessingIn(5 * time.Second)
-		}
-
-		if counter >= 10 {
-			return sdf.ResumeProcessingIn(1 * time.Second)
 		}
 		time.Sleep(1 * time.Second)
 	}

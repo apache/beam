@@ -28,12 +28,11 @@ import (
 	"beam.apache.org/playground/backend/internal/constants"
 	db "beam.apache.org/playground/backend/internal/db/datastore"
 	"beam.apache.org/playground/backend/internal/db/entity"
-	"beam.apache.org/playground/backend/internal/db/mapper"
 	"beam.apache.org/playground/backend/internal/tests/test_cleaner"
 	"beam.apache.org/playground/backend/internal/utils"
 )
 
-var datastoreDb *db.Datastore
+var datastoreDb *db.EmulatedDatastore
 var ctx context.Context
 var cacheComponent *CacheComponent
 var cacheService cache.Cache
@@ -47,22 +46,21 @@ func TestMain(m *testing.M) {
 }
 
 func setup() {
-	datastoreEmulatorHost := os.Getenv(constants.EmulatorHostKey)
-	if datastoreEmulatorHost == "" {
-		if err := os.Setenv(constants.EmulatorHostKey, constants.EmulatorHostValue); err != nil {
-			panic(err)
-		}
-	}
 	ctx = context.Background()
 	ctx = context.WithValue(ctx, constants.DatastoreNamespaceKey, "components")
 	cacheService = local.New(ctx)
-	datastoreDb, _ = db.New(ctx, mapper.NewPrecompiledObjectMapper(), constants.EmulatorProjectId)
+	var err error
+	datastoreDb, err = db.NewEmulated(ctx)
+	if err != nil {
+		panic(err)
+	}
 	cacheComponent = NewService(cacheService, datastoreDb)
 }
 
 func teardown() {
-	if err := datastoreDb.Client.Close(); err != nil {
-		panic(err)
+	clientCloseErr := datastoreDb.Close()
+	if clientCloseErr != nil {
+		panic(clientCloseErr)
 	}
 }
 
