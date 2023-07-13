@@ -400,9 +400,9 @@ To find out which version of Flink is compatible with Beam please see the table 
   <td>2.1.x - 2.2.0</td>
 </tr>
 <tr>
-  <td>2.0.0</td>
   <td>1.2.x with Scala 2.10</td>
   <td>beam-runners-flink_2.10</td>
+  <td>2.0.0</td>
 </tr>
 </table>
 
