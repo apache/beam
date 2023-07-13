@@ -87,12 +87,6 @@ public class SingleStoreIOConnectionAttributesIT {
           attributes.remove(attribute);
         }
       }
-    } catch (Exception e) {
-      File file = new File("/home/amakarovych-ua/Test/log");
-      PrintStream ps = new PrintStream(file);
-      e.printStackTrace(ps);
-      ps.close();
-      throw e;
     }
 
     assertTrue(attributes.isEmpty());
