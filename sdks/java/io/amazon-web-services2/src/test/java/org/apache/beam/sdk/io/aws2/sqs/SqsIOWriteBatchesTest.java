@@ -17,23 +17,28 @@
  */
 package org.apache.beam.sdk.io.aws2.sqs;
 
+import static java.lang.Math.sqrt;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 import static java.util.concurrent.CompletableFuture.supplyAsync;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.IntStream.range;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.commons.lang3.RandomUtils.nextInt;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.joda.time.Duration.millis;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -264,6 +269,29 @@ public class SqsIOWriteBatchesTest {
   }
 
   @Test
+  public void testWriteBatchesWithStrictTimeout() {
+    when(sqs.sendMessageBatch(any(SendMessageBatchRequest.class)))
+        .thenReturn(completedFuture(SendMessageBatchResponse.builder().build()));
+
+    p.apply(Create.of(5))
+        .apply(ParDo.of(new CreateMessages()))
+        .apply(
+            // simulate delay between messages > batch timeout
+            SqsIO.<String>writeBatches()
+                .withEntryMapper(withDelay(millis(100), SET_MESSAGE_BODY))
+                .withBatchTimeout(millis(150), true)
+                .to("queue"));
+
+    p.run().waitUntilFinish();
+
+    SendMessageBatchRequestEntry[] entries = entries(range(0, 5));
+    // using strict timeouts batches, batches are timed out by a separate thread
+    verify(sqs).sendMessageBatch(request("queue", entries[0], entries[1]));
+    verify(sqs).sendMessageBatch(request("queue", entries[2], entries[3]));
+    verify(sqs).sendMessageBatch(request("queue", entries[4]));
+  }
+
+  @Test
   public void testWriteBatchesToDynamic() {
     when(sqs.sendMessageBatch(anyRequest())).thenReturn(completedFuture(SUCCESS));
 
@@ -313,6 +341,36 @@ public class SqsIOWriteBatchesTest {
     verify(sqs).sendMessageBatch(request("even", entries[0], entries[2]));
     verify(sqs).sendMessageBatch(request("uneven", entries[1], entries[3]));
     verify(sqs).sendMessageBatch(request("even", entries[4]));
+  }
+
+  @Test
+  public void testWriteBatchesToDynamicWithStrictTimeout() {
+    when(sqs.sendMessageBatch(any(SendMessageBatchRequest.class)))
+        .thenReturn(completedFuture(SendMessageBatchResponse.builder().build()));
+
+    p.apply(Create.of(10000))
+        .apply(ParDo.of(new CreateMessages()))
+        .apply(
+            // simulate delay between messages > batch timeout
+            SqsIO.<String>writeBatches()
+                .withEntryMapper(withDelay(millis(1), SET_MESSAGE_BODY))
+                .withBatchTimeout(millis(10), true)
+                // Use sqrt to change the rate of newly created dynamic destinations over time
+                .to(msg -> String.valueOf(nextInt(0, (int) (1 + sqrt(Integer.valueOf(msg)))))));
+
+    p.run().waitUntilFinish();
+
+    ArgumentCaptor<SendMessageBatchRequest> reqCaptor =
+        ArgumentCaptor.forClass(SendMessageBatchRequest.class);
+    verify(sqs, atLeastOnce()).sendMessageBatch(reqCaptor.capture());
+
+    Set<String> capturedMessages = new HashSet<>();
+    for (SendMessageBatchRequest req : reqCaptor.getAllValues()) {
+      for (SendMessageBatchRequestEntry entry : req.entries()) {
+        assertTrue("duplicate message", capturedMessages.add(entry.messageBody()));
+      }
+    }
+    assertEquals("Invalid message count", 10000, capturedMessages.size());
   }
 
   private SendMessageBatchRequest anyRequest() {
