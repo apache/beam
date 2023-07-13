@@ -305,7 +305,6 @@ def buildAndPushDockerJavaContainer = tasks.register("buildAndPushDockerJavaCont
   }
 }
 
-// TODO: change here for multi arch containers
 // Clean up built Java images
 def cleanUpDockerJavaImages = tasks.register("cleanUpDockerJavaImages") {
   doLast {
