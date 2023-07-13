@@ -68,8 +68,8 @@ jobs:
           github_current_run_id: ${{ github.run_id }}
       - name: Install Python
         uses: actions/setup-python@v4
-          with:
-            python-version: '3.8'
+        with:
+          python-version: '3.8'
       - name: Install Java
         uses: actions/setup-java@v3.8.0
         with:
