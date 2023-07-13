@@ -52,6 +52,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_Examples_Dataflow_V2_ja
           switches '-Ppush-containers'
           switches "-Pcontainer-architecture-list=arm64,amd64"
           switches "-Pdocker-repository-root=us.gcr.io/apache-beam-testing/java-postcommit-it"
+          switches "-Pdocker-tag=${unique_tag}"
         }
       }
     }
