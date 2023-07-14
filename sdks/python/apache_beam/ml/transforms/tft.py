@@ -502,6 +502,8 @@ class NGrams(TFTOperation):
 
   def apply_transform(self, data: tf.SparseTensor,
                       output_column_name: str) -> Dict[str, tf.SparseTensor]:
-    # TODO: Perform splitting using separator when the input is a string.
+    # TODO: https://github.com/apache/beam/issues/27505
+    # When the input is passed as a string instead of list of strings,
+    # split the string using separator.
     output = tft.ngrams(data, self.ngram_range, self.separator)
     return {output_column_name: output}
