@@ -92,7 +92,7 @@ jobs:
           -PdisableCheckStyle=true 
           -PcompileAndRunTestsWithJava11 
           -PskipCheckerFramework 
-          -Pjava11Home=JAVA_HOME_11_X64 
+          -Pjava11Home=$JAVA_HOME_11_X64 
           -Pdocker-pull-licenses
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v3
