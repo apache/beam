@@ -50,7 +50,7 @@ def get_fake_data_with_no_change_point(**kwargs):
 
 
 def get_fake_data_with_change_point(**kwargs):
-  # change point will be at index 15.
+  # change point will be at index 13.
   num_samples = 20
   metric_values = [0] * 12 + [3] + [4] * 7
   timestamps = [i for i in range(num_samples)]
@@ -58,10 +58,10 @@ def get_fake_data_with_change_point(**kwargs):
 
 
 def get_existing_issue_data(**kwargs):
-  # change point found at index 15. So passing 15 in the
+  # change point found at index 13. So passing 13 in the
   # existing issue data in mock method.
   return pd.DataFrame([{
-      constants._CHANGE_POINT_TIMESTAMP_LABEL: 15,
+      constants._CHANGE_POINT_TIMESTAMP_LABEL: 13,
       constants._ISSUE_NUMBER: np.array([0])
   }])
 
