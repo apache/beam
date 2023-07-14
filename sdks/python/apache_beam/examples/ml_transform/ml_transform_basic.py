@@ -62,6 +62,12 @@ def parse_args():
 
 
 def preprocess_data_for_ml_training(train_data, artifact_mode, args):
+  """
+  Preprocess the data for ML training. This method runs a pipeline to
+  preprocess the data needed for ML training. It produces artifacts that
+  can be used for ML inference later.
+  """
+
   with beam.Pipeline() as p:
     train_data_pcoll = (p | "CreateData" >> beam.Create(train_data))
 
@@ -83,6 +89,11 @@ def preprocess_data_for_ml_training(train_data, artifact_mode, args):
 
 
 def preprocess_data_for_ml_inference(test_data, artifact_mode, args):
+  """
+  Preprocess the data for ML inference. This method runs a pipeline to
+  preprocess the data needed for ML inference. It consumes the artifacts
+  produced during the preprocessing stage for ML training.
+  """
   with beam.Pipeline() as p:
 
     test_data_pcoll = (p | beam.Create(test_data))
@@ -101,6 +112,17 @@ def preprocess_data_for_ml_inference(test_data, artifact_mode, args):
 
 
 def run(args):
+  """
+  This example demonstrates how to use MLTransform in ML workflow.
+  1. Preprocess the data for ML training.
+  2. Do some ML model training.
+  3. Preprocess the data for ML inference.
+
+  training and inference on ML modes are not shown in this example.
+  This example only shows how to use MLTransform for preparing data for ML
+  training and inference.
+  """
+
   train_data = [
       dict(x=["Let's", "go", "to", "the", "park"]),
       dict(x=["I", "enjoy", "going", "to", "the", "park"]),
