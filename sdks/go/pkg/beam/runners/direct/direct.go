@@ -17,7 +17,6 @@
 // pipelines in the current process. Useful for testing.
 //
 // Deprecated: Use prism as a local runner instead.
-// Reliance on the direct runner leads to non-portable pipelines.
 package direct
 
 import (

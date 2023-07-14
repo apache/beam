@@ -26,8 +26,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners" // common runner flag.
 
 	// ptest uses the prism runner to execute pipelines by default.
-	// but includes the direct runner for legacy fallback reasons to
-	// support users overriding the default back to the direct runner.
+	// but includes the direct runner for legacy fallback reasons.
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/direct"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism"
 )
