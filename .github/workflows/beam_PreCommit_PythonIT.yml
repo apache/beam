@@ -71,7 +71,7 @@ jobs:
         run: |
           echo "comment_body=Run PythonIT PreCommit (${{ matrix.python_version }})" >> $GITHUB_OUTPUT
       - name: Rerun on comment
-        if: github.event.comment.body  == steps.set_comment_body.outputs.comment_body
+        if: github.event.comment.body == steps.set_comment_body.outputs.comment_body
         uses: ./.github/actions/rerun-job-action
         with:
           pull_request_url: ${{ github.event.issue.pull_request.url }}
