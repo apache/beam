@@ -86,6 +86,11 @@ def preprocess_data_for_ml_training(train_data, artifact_mode, args):
             columns=['x'])).with_transform(TFIDF(columns=['x'])))
 
     _ = transformed_data_pcoll | beam.Map(logging.info)
+    # output for the element dict(x=["Let's", "go", "to", "the", "park"])
+    # will be:
+    # Row(x=array([21,  5,  0,  2,  3]),
+    # x_tfidf_weight=array([0.28109303, 0.36218604, 0.36218604, 0.41972247,
+    # 0.5008155 ], dtype=float32), x_vocab_index=array([ 0,  2,  3,  5, 21]))
 
 
 def preprocess_data_for_ml_inference(test_data, artifact_mode, args):
@@ -109,6 +114,10 @@ def preprocess_data_for_ml_inference(test_data, artifact_mode, args):
             # in the artifacts.
         ))
     _ = transformed_data_pcoll | beam.Map(logging.info)
+    # output for dict(x=['I', 'love', 'books']) will be:
+    # Row(x=array([1, 4, 7]),
+    # x_tfidf_weight=array([0.4684884 , 0.6036434 , 0.69953746], dtype=float32)
+    # , x_vocab_index=array([1, 4, 7]))
 
 
 def run(args):
