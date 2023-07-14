@@ -52,7 +52,7 @@ def get_fake_data_with_no_change_point(**kwargs):
 def get_fake_data_with_change_point(**kwargs):
   # change point will be at index 15.
   num_samples = 20
-  metric_values = [0] * 15 + [3] * 5
+  metric_values = [0] * 12 + [3] + [4] * 7
   timestamps = [i for i in range(num_samples)]
   return metric_values, timestamps
 
@@ -215,7 +215,7 @@ class TestChangePointAnalysis(unittest.TestCase):
             constants._NUM_RESULTS_TO_DISPLAY_ON_ISSUE_DESCRIPTION))
 
     runs_info = next((
-        line for line in description.split(constants._NEW_LINES_JOINER)
+        line for line in description.split(2 * os.linesep)
         if re.match(r'timestamp: .*, metric_value: .*', line.strip())),
                      '')
     pattern = (r'timestamp: .+ (\d{4}), metric_value: (\d+.\d+) <---- Anomaly')

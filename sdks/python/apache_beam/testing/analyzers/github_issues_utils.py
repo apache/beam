@@ -187,9 +187,9 @@ def get_issue_description(
       row_template += constants._ANOMALY_MARKER
     runs_to_display.append(row_template)
 
-  description.append('\n'.join(runs_to_display))
+  description.append(os.linesep.join(runs_to_display))
   description.append('```')
-  return constants._NEW_LINES_JOINER.join(description)
+  return (2 * os.linesep).join(description)
 
 
 def report_change_point_on_issues(
