@@ -1008,7 +1008,7 @@ func AddTimerGarbageCollection[V any](s beam.Scope, in beam.PCollection) beam.PC
 
 type Event struct{}
 
-func (*Event) isClick() bool {}
+func (*Event) isClick() bool { return false }
 
 // [START join_dofn_example]
 

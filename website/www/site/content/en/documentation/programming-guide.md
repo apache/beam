@@ -6435,7 +6435,7 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
 
 {{< highlight go >}}
 {{< code_sample "sdks/go/examples/snippets/04transforms.go" timer_output_timestamps_bad >}}
-{{< /highlight >}}\
+{{< /highlight >}}
 
 The problem with this code is that the ParDo is buffering elements, however nothing is preventing the watermark
 from advancing past the timestamp of those elements, so all those elements might be dropped as late data. In order
@@ -6473,7 +6473,7 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
         ? Instant.now().plus(Duration.standardMinutes(1)) : new Instant(timerTimestampMs);
     // Setting the outputTimestamp to the minimum timestamp in the bag holds the watermark to that timestamp until the
     // timer fires. This allows outputting all the elements with their timestamp.
-    timer.withOutputTimestamp(minTimestamp.read()).set(timerToSet).
+    timer.withOutputTimestamp(minTimestamp.read()).s et(timerToSet).
     timerTimestamp.write(timerToSet.getMillis());
   }
 
