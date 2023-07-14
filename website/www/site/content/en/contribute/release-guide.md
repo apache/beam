@@ -167,7 +167,7 @@ Configure access to the [Apache Nexus repository](https://repository.apache.org/
           </servers>
         </settings>
 
-#### Submit your GPG public key into MIT PGP Public Key Server
+#### Submit your GPG public key into Ubuntu OpenPGP Key Server
 In order to make yourself have right permission to stage java artifacts in Apache Nexus staging repository,
 please submit your GPG public key into the [Ubuntu OpenPGP Key Server](https://keyserver.ubuntu.com/).
 
@@ -522,6 +522,7 @@ You don't need to wait for the action to complete to start running the script.
 * **The script will:**
   1. Clone the repo at the selected RC tag.
   1. Run gradle publish to push java artifacts into Maven staging repo.
+  1. Stage SDK docker images to [docker hub Apache organization](https://hub.docker.com/search?q=apache%2Fbeam&type=image).
 
 #### Tasks you need to do manually
 
@@ -548,8 +549,10 @@ You don't need to wait for the action to complete to start running the script.
 * **The script will:**
   1. Clone the repo at the selected RC tag.
   1. Stage source release into dist.apache.org dev [repo](https://dist.apache.org/repos/dist/dev/beam/).
+Skip this step if you already did it with the build_release_candidate GitHub Actions workflow.
   1. Stage, sign and hash python source distribution and wheels into dist.apache.org dev repo python dir
   1. Stage SDK docker images to [docker hub Apache organization](https://hub.docker.com/search?q=apache%2Fbeam&type=image).
+Skip this step if you already did it with the build_release_candidate GitHub Actions workflow.
 Note: if you are not a member of the [`beam` DockerHub team](https://hub.docker.com/orgs/apache/teams/beam) you will need
 help with this step. Please email `dev@` and ask a member of the `beam` DockerHub team for help.
   1. Create a PR to update beam-site, changes includes:

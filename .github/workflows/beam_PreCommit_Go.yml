@@ -1,37 +1,68 @@
-name: beam_PreCommit_Go
+name: Go PreCommit
 
 on:
   push:
     tags: ['v*']
     branches: ['master', 'release-*']
-  pull_request:
-    branches: ['master']
+    paths: ['model/**', 'sdks/go.**', 'release/**', '.github/workflows/beam_PreCommit_Go.yml']
+  pull_request_target:
+    branches: ['master', 'release-*' ]
     paths: ['model/**', 'sdks/go.**', 'release/**']
   issue_comment:
     types: [created]
-  # schedule:
-  #   - cron: '* */6 * * *'
+  schedule:
+    - cron: '* */6 * * *'
+#Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
+permissions:
+  actions: write
+  pull-requests: read
+  checks: read
+  contents: read
+  deployments: read
+  id-token: none
+  issues: read
+  discussions: read
+  packages: read
+  pages: read
+  repository-projects: read
+  security-events: read
+  statuses: read
+
 
 jobs:
   beam_PreCommit_Go:
-        if: ${{github.event.issue.pull_request}} || ${{github.event.comment.body == 'Run Go PreCommit'}} || ${{github.event.schedule}}
-        runs-on: [self-hosted, ubuntu-20.04]
-        name: beam_PreCommit_Go
-        steps:       
-          - name: Git checkout
-            uses: actions/checkout@v3
-          - name: Install Java
-            uses: actions/setup-java@v3.8.0
-            with:
-              distribution: 'zulu'
-              java-version: '8'
-          - name: Install Go
-            uses: actions/setup-go@v4
-            with:
-              go-version: '1.20'
-          - name: Setup Gradle
-            uses: gradle/gradle-build-action@v2
-            with:
-              cache-read-only: false
-          - name: run goPreCommit script
-            run: ./gradlew :goPreCommit
+    if: |
+      github.event_name == 'push' ||
+      github.event_name == 'pull_request_target' ||
+      github.event_name == 'schedule' ||
+      github.event.comment.body == 'Run Go PreCommit'
+    runs-on: [self-hosted, ubuntu-20.04, main]
+    name: beam_PreCommit_Go
+    steps:       
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Rerun on comment
+        if: github.event.comment.body == 'Run Go PreCommit'
+        uses: ./.github/actions/rerun-job-action
+        with:
+          pull_request_url: ${{ github.event.issue.pull_request.url }}
+          github_repository: ${{ github.repository }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_job: ${{ github.job }}
+          github_current_run_id: ${{ github.run_id }}
+      - name: Install Java
+        uses: actions/setup-java@v3.8.0
+        with:
+          distribution: 'zulu'
+          java-version: '8'
+      - name: Install Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.20'
+      - name: Setup Gradle
+        uses: gradle/gradle-build-action@v2
+        with:
+          cache-read-only: false
+      - name: run goPreCommit script
+        run: ./gradlew :goPreCommit

@@ -49,18 +49,6 @@ task chicagoTaxiExample {
   }
 }
 
-task validatesRunnerBatchTests {
-  getVersionsAsList('dataflow_validates_runner_batch_tests').each {
-    dependsOn.add(":sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:validatesRunnerBatchTests")
-  }
-}
-
-task validatesRunnerStreamingTests {
-  getVersionsAsList('dataflow_validates_runner_streaming_tests').each {
-    dependsOn.add(":sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:validatesRunnerStreamingTests")
-  }
-}
-
 task validatesRunnerBatchTestsV2 {
   getVersionsAsList('dataflow_validates_runner_batch_tests_V2').each {
     dependsOn.add(":sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:validatesRunnerBatchTests")

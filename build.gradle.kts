@@ -573,18 +573,65 @@ tasks.register("typescriptPreCommit") {
   dependsOn(":sdks:python:test-suites:tox:py38:jest")
 }
 
-tasks.register("pushAllDockerImages") {
+tasks.register("pushAllRunnersDockerImages") {
   dependsOn(":runners:spark:3:job-server:container:dockerPush")
+  for (version in project.ext.get("allFlinkVersions") as Array<*>) {
+    dependsOn(":runners:flink:${version}:job-server-container:dockerPush")
+  }
+
+  doLast {
+    if (project.hasProperty("prune-images")) {
+      exec {
+        executable("docker")
+        args("system", "prune", "-a", "--force")
+      }
+    }
+  }
+}
+
+tasks.register("pushAllSdkDockerImages") {
+  // Enforce ordering to allow the prune step to happen between runs.
+  // This will ensure we don't use up too much space (especially in CI environments)
+  mustRunAfter(":pushAllRunnersDockerImages")
+
   dependsOn(":sdks:java:container:pushAll")
   dependsOn(":sdks:python:container:pushAll")
   dependsOn(":sdks:go:container:pushAll")
   dependsOn(":sdks:typescript:container:pushAll")
-  for (version in project.ext.get("allFlinkVersions") as Array<*>) {
-    dependsOn(":runners:flink:${version}:job-server-container:dockerPush")
+
+  doLast {
+    if (project.hasProperty("prune-images")) {
+      exec {
+        executable("docker")
+        args("system", "prune", "-a", "--force")
+      }
+    }
   }
+}
+
+tasks.register("pushAllXlangDockerImages") {
+  // Enforce ordering to allow the prune step to happen between runs.
+  // This will ensure we don't use up too much space (especially in CI environments)
+  mustRunAfter(":pushAllSdkDockerImages")
+
   dependsOn(":sdks:java:expansion-service:container:dockerPush")
   dependsOn(":sdks:java:transform-service:controller-container:dockerPush")
   dependsOn(":sdks:python:expansion-service-container:dockerPush")
+
+  doLast {
+    if (project.hasProperty("prune-images")) {
+      exec {
+        executable("docker")
+        args("system", "prune", "-a", "--force")
+      }
+    }
+  }
+}
+
+tasks.register("pushAllDockerImages") {
+  dependsOn(":pushAllRunnersDockerImages")
+  dependsOn(":pushAllSdkDockerImages")
+  dependsOn(":pushAllXlangDockerImages")
 }
 
 // Use this task to validate the environment set up for Go, Python and Java

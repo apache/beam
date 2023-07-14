@@ -49,7 +49,8 @@
 
 * ([#X](https://github.com/apache/beam/issues/X)).
 -->
-# [2.49.0] - Unreleased
+
+# [2.50.0] - Unreleased
 
 ## Highlights
 
@@ -59,6 +60,36 @@
 ## I/Os
 
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Python GCSIO is now implemented with GCP GCS Client instead of apitools ([#25676](https://github.com/apache/beam/issues/25676))
+* Java KafkaIO now supports picking up topics via topicPattern ([#26948](https://github.com/apache/beam/pull/26948))
+* Support for read from Cosmos DB Core SQL API [#23604](https://github.com/apache/beam/issues/23604)
+
+## New Features / Improvements
+
+* X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+
+## Breaking Changes
+
+* X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
+
+## Deprecations
+
+* X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
+
+## Bugfixes
+
+* Fixed DirectRunner bug in Python SDK where GroupByKey gets empty PCollection and fails when pipeline option `direct_num_workers!=1`. ([#27373](https://github.com/apache/beam/pull/27373))
+
+## Known Issues
+
+* ([#X](https://github.com/apache/beam/issues/X)).
+
+
+# [2.49.0] - Unreleased
+
+
+## I/Os
+
 * Support for Bigtable Change Streams added in Java `BigtableIO.ReadChangeStream` ([#27183](https://github.com/apache/beam/issues/27183))
 
 ## New Features / Improvements
@@ -68,9 +99,6 @@
 * Select dedicated avro datum reader and writer (Java) ([#18874](https://github.com/apache/beam/issues/18874)).
 * Timer API for the Go SDK (Go) ([#22737](https://github.com/apache/beam/issues/22737)).
 
-## Breaking Changes
-
-* X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Deprecations
 
@@ -78,12 +106,9 @@
 
 ## Bugfixes
 
-* Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Fixed KinesisIO `NullPointerException` when a progress check is made before the reader is started (IO) ([#23868](https://github.com/apache/beam/issues/23868))
 
 ## Known Issues
-
-* ([#X](https://github.com/apache/beam/issues/X)).
 
 
 # [2.48.0] - 2023-05-31

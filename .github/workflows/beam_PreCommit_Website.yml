@@ -13,23 +13,58 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: beam_PreCommit_Website
+name: Website PreCommit
 
 on:
-  workflow_dispatch:
+  push:
+    tags: ['v*']
+    branches: ['master', 'release-*']
+    paths: ['website/**','.github/workflows/beam_PreCommit_Website.yml']
+  pull_request_target:
+    branches: ['master', 'release-*']
+    paths: ['website/**']
+  issue_comment:
+    types: [created]
+  schedule:
+    - cron: '* */6 * * *'
+#Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
+permissions:
+  actions: write
+  pull-requests: read
+  checks: read
+  contents: read
+  deployments: read
+  id-token: none
+  issues: read
+  discussions: read
+  packages: read
+  pages: read
+  repository-projects: read
+  security-events: read
+  statuses: read
 
 jobs:
   beam_PreCommit_Website:
-    if: ${{github.event.issue.pull_request}} || ${{github.event.comment.body == 'Run Website PreCommit'}} || ${{github.event.schedule}}
-    runs-on: [self-hosted, ubuntu-20.04]
+    if: |
+      github.event_name == 'push' || 
+      github.event_name == 'pull_request_target' || 
+      github.event.comment.body == 'Run Website PreCommit' || 
+      github.event_name == 'schedule'
+    runs-on: [self-hosted, ubuntu-20.04, small]
     name: beam_PreCommit_Website
-    timeout-minutes: 120
-    strategy:
-      matrix:
-        instance: [1,2,3,4,5,6,7,8,9,10]
-    steps:
-      - name: Git checkout
-        uses: actions/checkout@v3
+    steps:       
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Rerun on comment
+        if: github.event.comment.body == 'Run Python_Coverage PreCommit'
+        uses: ./.github/actions/rerun-job-action
+        with:
+          pull_request_url: ${{ github.event.issue.pull_request.url }}
+          github_repository: ${{ github.repository }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_job: ${{ github.job }}
+          github_current_run_id: ${{ github.run_id }}
       - name: Install Java
         uses: actions/setup-java@v3.8.0
         with:
@@ -40,4 +75,4 @@ jobs:
         with:
           cache-read-only: false
       - name: run websitePreCommit script
-        run: echo ${{matrix.instance}} && ./gradlew :websitePreCommit
+        run: ./gradlew :websitePreCommit

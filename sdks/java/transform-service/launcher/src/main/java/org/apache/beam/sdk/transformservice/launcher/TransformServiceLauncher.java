@@ -115,9 +115,11 @@ public class TransformServiceLauncher {
       if (applicationDefaultCredentialsFile.exists()) {
         Files.copy(applicationDefaultCredentialsFile, applicationDefaultCredentialsFileCopied);
       } else {
-        throw new RuntimeException(
-            "Could not find the application default file: "
-                + applicationDefaultCredentialsFile.getAbsolutePath());
+        LOG.error(
+            "GCP credentials will not be available for the transform service since the Google "
+                + "Cloud application default credentials file could not be found at the expected "
+                + "location {}.",
+            applicationDefaultFilePath);
       }
     }
 

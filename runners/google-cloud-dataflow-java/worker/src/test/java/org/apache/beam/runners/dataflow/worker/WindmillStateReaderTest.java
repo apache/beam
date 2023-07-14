@@ -21,9 +21,16 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.when;
 
+import com.google.api.client.util.Lists;
+import com.google.common.collect.Maps;
 import java.io.IOException;
 import java.util.AbstractMap;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Future;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
@@ -37,6 +44,7 @@ import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Range;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.BaseEncoding;
 import org.hamcrest.Matchers;
@@ -46,6 +54,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.ArgumentCaptor;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
@@ -65,6 +74,11 @@ public class WindmillStateReaderTest {
   private static final long CONT_POSITION = 1391631351L;
 
   private static final ByteString STATE_KEY_PREFIX = ByteString.copyFromUtf8("key");
+  private static final ByteString STATE_MULTIMAP_KEY_1 = ByteString.copyFromUtf8("multimapkey1");
+  private static final ByteString STATE_MULTIMAP_KEY_2 = ByteString.copyFromUtf8("multimapkey2");
+  private static final ByteString STATE_MULTIMAP_KEY_3 = ByteString.copyFromUtf8("multimapkey3");
+  private static final ByteString STATE_MULTIMAP_CONT_1 = ByteString.copyFromUtf8("continuation_1");
+  private static final ByteString STATE_MULTIMAP_CONT_2 = ByteString.copyFromUtf8("continuation_2");
   private static final ByteString STATE_KEY_1 = ByteString.copyFromUtf8("key1");
   private static final ByteString STATE_KEY_2 = ByteString.copyFromUtf8("key2");
   private static final String STATE_FAMILY = "family";
@@ -97,6 +111,706 @@ public class WindmillStateReaderTest {
     ByteStringOutputStream output = new ByteStringOutputStream();
     INT_CODER.encode(value, output, Coder.Context.OUTER);
     return output.toByteString();
+  }
+
+  @Test
+  public void testReadMultimapSingleEntry() throws Exception {
+    Future<Iterable<Integer>> future =
+        underTest.multimapFetchSingleEntryFuture(
+            STATE_MULTIMAP_KEY_1, STATE_KEY_1, STATE_FAMILY, INT_CODER);
+    Mockito.verifyNoMoreInteractions(mockWindmill);
+
+    Windmill.KeyedGetDataRequest.Builder expectedRequest =
+        Windmill.KeyedGetDataRequest.newBuilder()
+            .setKey(DATA_KEY)
+            .setShardingKey(SHARDING_KEY)
+            .setWorkToken(WORK_TOKEN)
+            .setMaxBytes(WindmillStateReader.MAX_KEY_BYTES)
+            .addMultimapsToFetch(
+                Windmill.TagMultimapFetchRequest.newBuilder()
+                    .setTag(STATE_KEY_1)
+                    .setStateFamily(STATE_FAMILY)
+                    .setFetchEntryNamesOnly(false)
+                    .addEntriesToFetch(
+                        Windmill.TagMultimapEntry.newBuilder()
+                            .setEntryName(STATE_MULTIMAP_KEY_1)
+                            .setFetchMaxBytes(WindmillStateReader.INITIAL_MAX_MULTIMAP_BYTES)
+                            .build()));
+
+    Windmill.KeyedGetDataResponse.Builder response =
+        Windmill.KeyedGetDataResponse.newBuilder()
+            .setKey(DATA_KEY)
+            .addTagMultimaps(
+                Windmill.TagMultimapFetchResponse.newBuilder()
+                    .setTag(STATE_KEY_1)
+                    .setStateFamily(STATE_FAMILY)
+                    .addEntries(
+                        Windmill.TagMultimapEntry.newBuilder()
+                            .setEntryName(STATE_MULTIMAP_KEY_1)
+                            .addAllValues(Arrays.asList(intData(5), intData(6)))));
+    Mockito.when(mockWindmill.getStateData(COMPUTATION, expectedRequest.build()))
+        .thenReturn(response.build());
+
+    Iterable<Integer> results = future.get();
+    Mockito.verify(mockWindmill).getStateData(COMPUTATION, expectedRequest.build());
+
+    assertThat(results, Matchers.containsInAnyOrder(5, 6));
+    Mockito.verifyNoMoreInteractions(mockWindmill);
+    assertNoReader(future);
+  }
+
+  @Test
+  public void testReadMultimapSingleEntryPaginated() throws Exception {
+    Future<Iterable<Integer>> future =
+        underTest.multimapFetchSingleEntryFuture(
+            STATE_MULTIMAP_KEY_1, STATE_KEY_1, STATE_FAMILY, INT_CODER);
+    Mockito.verifyNoMoreInteractions(mockWindmill);
+
+    Windmill.KeyedGetDataRequest.Builder expectedRequest1 =
+        Windmill.KeyedGetDataRequest.newBuilder()
+            .setKey(DATA_KEY)
+            .setShardingKey(SHARDING_KEY)
+            .setWorkToken(WORK_TOKEN)
+            .setMaxBytes(WindmillStateReader.MAX_KEY_BYTES)
+            .addMultimapsToFetch(
+                Windmill.TagMultimapFetchRequest.newBuilder()
+                    .setTag(STATE_KEY_1)
+                    .setStateFamily(STATE_FAMILY)
+                    .setFetchEntryNamesOnly(false)
+                    .addEntriesToFetch(
+                        Windmill.TagMultimapEntry.newBuilder()
+                            .setEntryName(STATE_MULTIMAP_KEY_1)
+                            .setFetchMaxBytes(WindmillStateReader.INITIAL_MAX_MULTIMAP_BYTES)
+                            .build()));
+
+    Windmill.KeyedGetDataResponse.Builder response1 =
+        Windmill.KeyedGetDataResponse.newBuilder()
+            .setKey(DATA_KEY)
+            .addTagMultimaps(
+                Windmill.TagMultimapFetchResponse.newBuilder()
+                    .setTag(STATE_KEY_1)
+                    .setStateFamily(STATE_FAMILY)
+                    .addEntries(
+                        Windmill.TagMultimapEntry.newBuilder()
+                            .setEntryName(STATE_MULTIMAP_KEY_1)
+                            .addAllValues(Arrays.asList(intData(5), intData(6)))
+                            .setContinuationPosition(500)));
+    Windmill.KeyedGetDataRequest.Builder expectedRequest2 =
+        Windmill.KeyedGetDataRequest.newBuilder()
+            .setKey(DATA_KEY)
+            .setShardingKey(SHARDING_KEY)
+            .setWorkToken(WORK_TOKEN)
+            .setMaxBytes(WindmillStateReader.MAX_CONTINUATION_KEY_BYTES)
+            .addMultimapsToFetch(
+                Windmill.TagMultimapFetchRequest.newBuilder()
+                    .setTag(STATE_KEY_1)
+                    .setStateFamily(STATE_FAMILY)
+                    .setFetchEntryNamesOnly(false)
+                    .addEntriesToFetch(
+                        Windmill.TagMultimapEntry.newBuilder()
+                            .setEntryName(STATE_MULTIMAP_KEY_1)
+                            .setFetchMaxBytes(WindmillStateReader.CONTINUATION_MAX_MULTIMAP_BYTES)
+                            .setRequestPosition(500)
+                            .build()));
+
+    Windmill.KeyedGetDataResponse.Builder response2 =
+        Windmill.KeyedGetDataResponse.newBuilder()
+            .setKey(DATA_KEY)
+            .addTagMultimaps(
+                Windmill.TagMultimapFetchResponse.newBuilder()
+                    .setTag(STATE_KEY_1)
+                    .setStateFamily(STATE_FAMILY)
+                    .addEntries(
+                        Windmill.TagMultimapEntry.newBuilder()
+                            .setEntryName(STATE_MULTIMAP_KEY_1)
+                            .addAllValues(Arrays.asList(intData(7), intData(8)))
+                            .setContinuationPosition(800)
+                            .setRequestPosition(500)));
+    Windmill.KeyedGetDataRequest.Builder expectedRequest3 =
+        Windmill.KeyedGetDataRequest.newBuilder()
+            .setKey(DATA_KEY)
+            .setShardingKey(SHARDING_KEY)
+            .setWorkToken(WORK_TOKEN)
+            .setMaxBytes(WindmillStateReader.MAX_CONTINUATION_KEY_BYTES)
+            .addMultimapsToFetch(
+                Windmill.TagMultimapFetchRequest.newBuilder()
+                    .setTag(STATE_KEY_1)
+                    .setStateFamily(STATE_FAMILY)
+                    .setFetchEntryNamesOnly(false)
+                    .addEntriesToFetch(
+                        Windmill.TagMultimapEntry.newBuilder()
+                            .setEntryName(STATE_MULTIMAP_KEY_1)
+                            .setFetchMaxBytes(WindmillStateReader.CONTINUATION_MAX_MULTIMAP_BYTES)
+                            .setRequestPosition(800)
+                            .build()));
+
+    Windmill.KeyedGetDataResponse.Builder response3 =
+        Windmill.KeyedGetDataResponse.newBuilder()
+            .setKey(DATA_KEY)
+            .addTagMultimaps(
+                Windmill.TagMultimapFetchResponse.newBuilder()
+                    .setTag(STATE_KEY_1)
+                    .setStateFamily(STATE_FAMILY)
+                    .addEntries(
+                        Windmill.TagMultimapEntry.newBuilder()
+                            .setEntryName(STATE_MULTIMAP_KEY_1)
+                            .addAllValues(Arrays.asList(intData(9), intData(10)))
+                            .setRequestPosition(800)));
+    Mockito.when(mockWindmill.getStateData(COMPUTATION, expectedRequest1.build()))
+        .thenReturn(response1.build());
+    Mockito.when(mockWindmill.getStateData(COMPUTATION, expectedRequest2.build()))
+        .thenReturn(response2.build());
+    Mockito.when(mockWindmill.getStateData(COMPUTATION, expectedRequest3.build()))
+        .thenReturn(response3.build());
+
+    Iterable<Integer> results = future.get();
+
+    assertThat(results, Matchers.contains(5, 6, 7, 8, 9, 10));
+
+    Mockito.verify(mockWindmill).getStateData(COMPUTATION, expectedRequest1.build());
+    Mockito.verify(mockWindmill).getStateData(COMPUTATION, expectedRequest2.build());
+    Mockito.verify(mockWindmill).getStateData(COMPUTATION, expectedRequest3.build());
+    Mockito.verifyNoMoreInteractions(mockWindmill);
+    // NOTE: The future will still contain a reference to the underlying reader, thus not calling
+    // assertNoReader(future).
+  }
+
+  // check whether the two TagMultimapFetchRequests equal to each other, ignoring the order of
+  // entries and the order of values in each entry.
+  private static void assertMultimapFetchRequestEqual(
+      Windmill.TagMultimapFetchRequest req1, Windmill.TagMultimapFetchRequest req2) {
+    assertMultimapEntriesEqual(req1.getEntriesToFetchList(), req2.getEntriesToFetchList());
+    assertEquals(
+        req1.toBuilder().clearEntriesToFetch().build(),
+        req2.toBuilder().clearEntriesToFetch().build());
+  }
+
+  private static void assertMultimapEntriesEqual(
+      List<Windmill.TagMultimapEntry> left, List<Windmill.TagMultimapEntry> right) {
+    Map<ByteString, Windmill.TagMultimapEntry> map = Maps.newHashMap();
+    for (Windmill.TagMultimapEntry entry : left) {
+      map.put(entry.getEntryName(), entry);
+    }
+    for (Windmill.TagMultimapEntry entry : right) {
+      assertTrue(map.containsKey(entry.getEntryName()));
+      Windmill.TagMultimapEntry that = map.remove(entry.getEntryName());
+      if (entry.getValuesCount() == 0) {
+        assertEquals(0, that.getValuesCount());
+      } else {
+        assertThat(entry.getValuesList(), Matchers.containsInAnyOrder(that.getValuesList()));
+      }
+      assertEquals(entry.toBuilder().clearValues().build(), that.toBuilder().clearValues().build());
+    }
+    assertTrue(map.isEmpty());
+  }
+
+  @Test
+  public void testReadMultimapMultipleEntries() throws Exception {
+    Future<Iterable<Integer>> future1 =
+        underTest.multimapFetchSingleEntryFuture(
+            STATE_MULTIMAP_KEY_1, STATE_KEY_1, STATE_FAMILY, INT_CODER);
+    Future<Iterable<Integer>> future2 =
+        underTest.multimapFetchSingleEntryFuture(
+            STATE_MULTIMAP_KEY_2, STATE_KEY_1, STATE_FAMILY, INT_CODER);
+    Mockito.verifyNoMoreInteractions(mockWindmill);
+
+    Windmill.KeyedGetDataRequest.Builder expectedRequest =
+        Windmill.KeyedGetDataRequest.newBuilder()
+            .setKey(DATA_KEY)
+            .setShardingKey(SHARDING_KEY)
+            .setWorkToken(WORK_TOKEN)
+            .setMaxBytes(WindmillStateReader.MAX_KEY_BYTES)
+            .addMultimapsToFetch(
+                Windmill.TagMultimapFetchRequest.newBuilder()
+                    .setTag(STATE_KEY_1)
+                    .setStateFamily(STATE_FAMILY)
+                    .setFetchEntryNamesOnly(false)
+                    .addEntriesToFetch(
+                        Windmill.TagMultimapEntry.newBuilder()
+                            .setEntryName(STATE_MULTIMAP_KEY_1)
+                            .setFetchMaxBytes(WindmillStateReader.INITIAL_MAX_MULTIMAP_BYTES)
+                            .build())
+                    .addEntriesToFetch(
+                        Windmill.TagMultimapEntry.newBuilder()
+                            .setEntryName(STATE_MULTIMAP_KEY_2)
+                            .setFetchMaxBytes(WindmillStateReader.INITIAL_MAX_MULTIMAP_BYTES)
+                            .build()));
+
+    Windmill.KeyedGetDataResponse.Builder response =
+        Windmill.KeyedGetDataResponse.newBuilder()
+            .setKey(DATA_KEY)
+            .addTagMultimaps(
+                Windmill.TagMultimapFetchResponse.newBuilder()
+                    .setTag(STATE_KEY_1)
+                    .setStateFamily(STATE_FAMILY)
+                    .addEntries(
+                        Windmill.TagMultimapEntry.newBuilder()
+                            .setEntryName(STATE_MULTIMAP_KEY_1)
+                            .addAllValues(Arrays.asList(intData(5), intData(6))))
+                    .addEntries(
+                        Windmill.TagMultimapEntry.newBuilder()
+                            .setEntryName(STATE_MULTIMAP_KEY_2)
+                            .addAllValues(Arrays.asList(intData(15), intData(16)))));
+    when(mockWindmill.getStateData(ArgumentMatchers.eq(COMPUTATION), ArgumentMatchers.any()))
+        .thenReturn(response.build());
+
+    Iterable<Integer> results1 = future1.get();
+    Iterable<Integer> results2 = future2.get();
+
+    final ArgumentCaptor<Windmill.KeyedGetDataRequest> requestCaptor =
+        ArgumentCaptor.forClass(Windmill.KeyedGetDataRequest.class);
+    Mockito.verify(mockWindmill)
+        .getStateData(ArgumentMatchers.eq(COMPUTATION), requestCaptor.capture());
+    assertMultimapFetchRequestEqual(
+        expectedRequest.build().getMultimapsToFetch(0),
+        requestCaptor.getValue().getMultimapsToFetch(0));
+
+    assertThat(results1, Matchers.containsInAnyOrder(5, 6));
+    assertThat(results2, Matchers.containsInAnyOrder(15, 16));
+
+    Mockito.verifyNoMoreInteractions(mockWindmill);
+    assertNoReader(future1);
+    assertNoReader(future2);
+  }
+
+  @Test
+  public void testReadMultimapMultipleEntriesWithPagination() throws Exception {
+    Future<Iterable<Integer>> future1 =
+        underTest.multimapFetchSingleEntryFuture(
+            STATE_MULTIMAP_KEY_1, STATE_KEY_1, STATE_FAMILY, INT_CODER);
+    Future<Iterable<Integer>> future2 =
+        underTest.multimapFetchSingleEntryFuture(
+            STATE_MULTIMAP_KEY_2, STATE_KEY_1, STATE_FAMILY, INT_CODER);
+    Mockito.verifyNoMoreInteractions(mockWindmill);
+
+    Windmill.KeyedGetDataRequest.Builder expectedRequest1 =
+        Windmill.KeyedGetDataRequest.newBuilder()
+            .setKey(DATA_KEY)
+            .setShardingKey(SHARDING_KEY)
+            .setWorkToken(WORK_TOKEN)
+            .setMaxBytes(WindmillStateReader.MAX_KEY_BYTES)
+            .addMultimapsToFetch(
+                Windmill.TagMultimapFetchRequest.newBuilder()
+                    .setTag(STATE_KEY_1)
+                    .setStateFamily(STATE_FAMILY)
+                    .setFetchEntryNamesOnly(false)
+                    .addEntriesToFetch(
+                        Windmill.TagMultimapEntry.newBuilder()
+                            .setEntryName(STATE_MULTIMAP_KEY_1)
+                            .setFetchMaxBytes(WindmillStateReader.INITIAL_MAX_MULTIMAP_BYTES)
+                            .build())
+                    .addEntriesToFetch(
+                        Windmill.TagMultimapEntry.newBuilder()
+                            .setEntryName(STATE_MULTIMAP_KEY_2)
+                            .setFetchMaxBytes(WindmillStateReader.INITIAL_MAX_MULTIMAP_BYTES)
+                            .build()));
+
+    Windmill.KeyedGetDataResponse.Builder response1 =
+        Windmill.KeyedGetDataResponse.newBuilder()
+            .setKey(DATA_KEY)
+            .addTagMultimaps(
+                Windmill.TagMultimapFetchResponse.newBuilder()
+                    .setTag(STATE_KEY_1)
+                    .setStateFamily(STATE_FAMILY)
+                    .addEntries(
+                        Windmill.TagMultimapEntry.newBuilder()
+                            .setEntryName(STATE_MULTIMAP_KEY_1)
+                            .addAllValues(Arrays.asList(intData(5), intData(6)))
+                            .setContinuationPosition(800))
+                    .addEntries(
+                        Windmill.TagMultimapEntry.newBuilder()
+                            .setEntryName(STATE_MULTIMAP_KEY_2)
+                            .addAllValues(Arrays.asList(intData(15), intData(16)))));
+    Windmill.KeyedGetDataRequest.Builder expectedRequest2 =
+        Windmill.KeyedGetDataRequest.newBuilder()
+            .setKey(DATA_KEY)
+            .setShardingKey(SHARDING_KEY)
+            .setWorkToken(WORK_TOKEN)
+            .setMaxBytes(WindmillStateReader.MAX_CONTINUATION_KEY_BYTES)
+            .addMultimapsToFetch(
+                Windmill.TagMultimapFetchRequest.newBuilder()
+                    .setTag(STATE_KEY_1)
+                    .setStateFamily(STATE_FAMILY)
+                    .setFetchEntryNamesOnly(false)
+                    .addEntriesToFetch(
+                        Windmill.TagMultimapEntry.newBuilder()
+                            .setEntryName(STATE_MULTIMAP_KEY_1)
+                            .setFetchMaxBytes(WindmillStateReader.CONTINUATION_MAX_MULTIMAP_BYTES)
+                            .setRequestPosition(800)
+                            .build()));
+    Windmill.KeyedGetDataResponse.Builder response2 =
+        Windmill.KeyedGetDataResponse.newBuilder()
+            .setKey(DATA_KEY)
+            .addTagMultimaps(
+                Windmill.TagMultimapFetchResponse.newBuilder()
+                    .setTag(STATE_KEY_1)
+                    .setStateFamily(STATE_FAMILY)
+                    .addEntries(
+                        Windmill.TagMultimapEntry.newBuilder()
+                            .setEntryName(STATE_MULTIMAP_KEY_1)
+                            .addAllValues(Arrays.asList(intData(7), intData(8)))
+                            .setRequestPosition(800)));
+    when(mockWindmill.getStateData(ArgumentMatchers.eq(COMPUTATION), ArgumentMatchers.any()))
+        .thenReturn(response1.build())
+        .thenReturn(response2.build());
+
+    Iterable<Integer> results1 = future1.get();
+    Iterable<Integer> results2 = future2.get();
+
+    assertThat(results1, Matchers.containsInAnyOrder(5, 6, 7, 8));
+    assertThat(results2, Matchers.containsInAnyOrder(15, 16));
+
+    final ArgumentCaptor<Windmill.KeyedGetDataRequest> requestCaptor =
+        ArgumentCaptor.forClass(Windmill.KeyedGetDataRequest.class);
+    Mockito.verify(mockWindmill, times(2))
+        .getStateData(ArgumentMatchers.eq(COMPUTATION), requestCaptor.capture());
+    assertMultimapFetchRequestEqual(
+        expectedRequest1.build().getMultimapsToFetch(0),
+        requestCaptor.getAllValues().get(0).getMultimapsToFetch(0));
+    assertMultimapFetchRequestEqual(
+        expectedRequest2.build().getMultimapsToFetch(0),
+        requestCaptor.getAllValues().get(1).getMultimapsToFetch(0));
+    Mockito.verifyNoMoreInteractions(mockWindmill);
+    // NOTE: The future will still contain a reference to the underlying reader, thus not calling
+    // assertNoReader(future).
+  }
+
+  @Test
+  public void testReadMultimapKeys() throws Exception {
+    Future<Iterable<Map.Entry<ByteString, Iterable<Integer>>>> future =
+        underTest.multimapFetchAllFuture(true, STATE_KEY_1, STATE_FAMILY, INT_CODER);
+    Mockito.verifyNoMoreInteractions(mockWindmill);
+
+    Windmill.KeyedGetDataRequest.Builder expectedRequest =
+        Windmill.KeyedGetDataRequest.newBuilder()
+            .setKey(DATA_KEY)
+            .setShardingKey(SHARDING_KEY)
+            .setWorkToken(WORK_TOKEN)
+            .setMaxBytes(WindmillStateReader.MAX_KEY_BYTES)
+            .addMultimapsToFetch(
+                Windmill.TagMultimapFetchRequest.newBuilder()
+                    .setTag(STATE_KEY_1)
+                    .setStateFamily(STATE_FAMILY)
+                    .setFetchEntryNamesOnly(true)
+                    .setFetchMaxBytes(WindmillStateReader.INITIAL_MAX_MULTIMAP_BYTES));
+
+    Windmill.KeyedGetDataResponse.Builder response =
+        Windmill.KeyedGetDataResponse.newBuilder()
+            .setKey(DATA_KEY)
+            .addTagMultimaps(
+                Windmill.TagMultimapFetchResponse.newBuilder()
+                    .setTag(STATE_KEY_1)
+                    .setStateFamily(STATE_FAMILY)
+                    .addEntries(
+                        Windmill.TagMultimapEntry.newBuilder().setEntryName(STATE_MULTIMAP_KEY_1))
+                    .addEntries(
+                        Windmill.TagMultimapEntry.newBuilder().setEntryName(STATE_MULTIMAP_KEY_2)));
+    Mockito.when(mockWindmill.getStateData(COMPUTATION, expectedRequest.build()))
+        .thenReturn(response.build());
+
+    Iterable<Map.Entry<ByteString, Iterable<Integer>>> results = future.get();
+    Mockito.verify(mockWindmill).getStateData(COMPUTATION, expectedRequest.build());
+    List<ByteString> keys = Lists.newArrayList();
+    for (Map.Entry<ByteString, Iterable<Integer>> entry : results) {
+      keys.add(entry.getKey());
+      assertEquals(0, Iterables.size(entry.getValue()));
+    }
+    Mockito.verifyNoMoreInteractions(mockWindmill);
+
+    assertThat(keys, Matchers.containsInAnyOrder(STATE_MULTIMAP_KEY_1, STATE_MULTIMAP_KEY_2));
+    assertNoReader(future);
+  }
+
+  @Test
+  public void testReadMultimapKeysPaginated() throws Exception {
+    Future<Iterable<Map.Entry<ByteString, Iterable<Integer>>>> future =
+        underTest.multimapFetchAllFuture(true, STATE_KEY_1, STATE_FAMILY, INT_CODER);
+    Mockito.verifyNoMoreInteractions(mockWindmill);
+
+    Windmill.KeyedGetDataRequest.Builder expectedRequest1 =
+        Windmill.KeyedGetDataRequest.newBuilder()
+            .setKey(DATA_KEY)
+            .setShardingKey(SHARDING_KEY)
+            .setWorkToken(WORK_TOKEN)
+            .setMaxBytes(WindmillStateReader.MAX_KEY_BYTES)
+            .addMultimapsToFetch(
+                Windmill.TagMultimapFetchRequest.newBuilder()
+                    .setTag(STATE_KEY_1)
+                    .setStateFamily(STATE_FAMILY)
+                    .setFetchEntryNamesOnly(true)
+                    .setFetchMaxBytes(WindmillStateReader.INITIAL_MAX_MULTIMAP_BYTES));
+
+    Windmill.KeyedGetDataResponse.Builder response1 =
+        Windmill.KeyedGetDataResponse.newBuilder()
+            .setKey(DATA_KEY)
+            .addTagMultimaps(
+                Windmill.TagMultimapFetchResponse.newBuilder()
+                    .setTag(STATE_KEY_1)
+                    .setStateFamily(STATE_FAMILY)
+                    .addEntries(
+                        Windmill.TagMultimapEntry.newBuilder().setEntryName(STATE_MULTIMAP_KEY_1))
+                    .setContinuationPosition(STATE_MULTIMAP_CONT_1));
+
+    Windmill.KeyedGetDataRequest.Builder expectedRequest2 =
+        Windmill.KeyedGetDataRequest.newBuilder()
+            .setKey(DATA_KEY)
+            .setShardingKey(SHARDING_KEY)
+            .setWorkToken(WORK_TOKEN)
+            .setMaxBytes(WindmillStateReader.MAX_CONTINUATION_KEY_BYTES)
+            .addMultimapsToFetch(
+                Windmill.TagMultimapFetchRequest.newBuilder()
+                    .setTag(STATE_KEY_1)
+                    .setStateFamily(STATE_FAMILY)
+                    .setFetchEntryNamesOnly(true)
+                    .setFetchMaxBytes(WindmillStateReader.CONTINUATION_MAX_MULTIMAP_BYTES)
+                    .setRequestPosition(STATE_MULTIMAP_CONT_1));
+
+    Windmill.KeyedGetDataResponse.Builder response2 =
+        Windmill.KeyedGetDataResponse.newBuilder()
+            .setKey(DATA_KEY)
+            .addTagMultimaps(
+                Windmill.TagMultimapFetchResponse.newBuilder()
+                    .setTag(STATE_KEY_1)
+                    .setStateFamily(STATE_FAMILY)
+                    .addEntries(
+                        Windmill.TagMultimapEntry.newBuilder().setEntryName(STATE_MULTIMAP_KEY_2))
+                    .setRequestPosition(STATE_MULTIMAP_CONT_1)
+                    .setContinuationPosition(STATE_MULTIMAP_CONT_2));
+    Windmill.KeyedGetDataRequest.Builder expectedRequest3 =
+        Windmill.KeyedGetDataRequest.newBuilder()
+            .setKey(DATA_KEY)
+            .setShardingKey(SHARDING_KEY)
+            .setWorkToken(WORK_TOKEN)
+            .setMaxBytes(WindmillStateReader.MAX_CONTINUATION_KEY_BYTES)
+            .addMultimapsToFetch(
+                Windmill.TagMultimapFetchRequest.newBuilder()
+                    .setTag(STATE_KEY_1)
+                    .setStateFamily(STATE_FAMILY)
+                    .setFetchEntryNamesOnly(true)
+                    .setFetchMaxBytes(WindmillStateReader.CONTINUATION_MAX_MULTIMAP_BYTES)
+                    .setRequestPosition(STATE_MULTIMAP_CONT_2));
+
+    Windmill.KeyedGetDataResponse.Builder response3 =
+        Windmill.KeyedGetDataResponse.newBuilder()
+            .setKey(DATA_KEY)
+            .addTagMultimaps(
+                Windmill.TagMultimapFetchResponse.newBuilder()
+                    .setTag(STATE_KEY_1)
+                    .setStateFamily(STATE_FAMILY)
+                    .addEntries(
+                        Windmill.TagMultimapEntry.newBuilder().setEntryName(STATE_MULTIMAP_KEY_3))
+                    .setRequestPosition(STATE_MULTIMAP_CONT_2));
+    Mockito.when(mockWindmill.getStateData(COMPUTATION, expectedRequest1.build()))
+        .thenReturn(response1.build());
+    Mockito.when(mockWindmill.getStateData(COMPUTATION, expectedRequest2.build()))
+        .thenReturn(response2.build());
+    Mockito.when(mockWindmill.getStateData(COMPUTATION, expectedRequest3.build()))
+        .thenReturn(response3.build());
+
+    Iterable<Map.Entry<ByteString, Iterable<Integer>>> results = future.get();
+    Mockito.verify(mockWindmill).getStateData(COMPUTATION, expectedRequest1.build());
+    List<ByteString> keys = Lists.newArrayList();
+    for (Map.Entry<ByteString, Iterable<Integer>> entry : results) {
+      keys.add(entry.getKey());
+      assertEquals(0, Iterables.size(entry.getValue()));
+    }
+    Mockito.verify(mockWindmill).getStateData(COMPUTATION, expectedRequest2.build());
+    Mockito.verify(mockWindmill).getStateData(COMPUTATION, expectedRequest3.build());
+    Mockito.verifyNoMoreInteractions(mockWindmill);
+
+    assertThat(
+        keys,
+        Matchers.containsInAnyOrder(
+            STATE_MULTIMAP_KEY_1, STATE_MULTIMAP_KEY_2, STATE_MULTIMAP_KEY_3));
+    // NOTE: The future will still contain a reference to the underlying reader, thus not calling
+    // assertNoReader(future).
+  }
+
+  @Test
+  public void testReadMultimapAllEntries() throws Exception {
+    Future<Iterable<Map.Entry<ByteString, Iterable<Integer>>>> future =
+        underTest.multimapFetchAllFuture(false, STATE_KEY_1, STATE_FAMILY, INT_CODER);
+    Mockito.verifyNoMoreInteractions(mockWindmill);
+
+    Windmill.KeyedGetDataRequest.Builder expectedRequest =
+        Windmill.KeyedGetDataRequest.newBuilder()
+            .setKey(DATA_KEY)
+            .setShardingKey(SHARDING_KEY)
+            .setWorkToken(WORK_TOKEN)
+            .setMaxBytes(WindmillStateReader.MAX_KEY_BYTES)
+            .addMultimapsToFetch(
+                Windmill.TagMultimapFetchRequest.newBuilder()
+                    .setTag(STATE_KEY_1)
+                    .setStateFamily(STATE_FAMILY)
+                    .setFetchEntryNamesOnly(false)
+                    .setFetchMaxBytes(WindmillStateReader.INITIAL_MAX_MULTIMAP_BYTES));
+
+    Windmill.KeyedGetDataResponse.Builder response =
+        Windmill.KeyedGetDataResponse.newBuilder()
+            .setKey(DATA_KEY)
+            .addTagMultimaps(
+                Windmill.TagMultimapFetchResponse.newBuilder()
+                    .setTag(STATE_KEY_1)
+                    .setStateFamily(STATE_FAMILY)
+                    .addEntries(
+                        Windmill.TagMultimapEntry.newBuilder()
+                            .setEntryName(STATE_MULTIMAP_KEY_1)
+                            .addValues(intData(1))
+                            .addValues(intData(2)))
+                    .addEntries(
+                        Windmill.TagMultimapEntry.newBuilder()
+                            .setEntryName(STATE_MULTIMAP_KEY_2)
+                            .addValues(intData(10))
+                            .addValues(intData(20))));
+    Mockito.when(mockWindmill.getStateData(COMPUTATION, expectedRequest.build()))
+        .thenReturn(response.build());
+
+    Iterable<Map.Entry<ByteString, Iterable<Integer>>> results = future.get();
+    Mockito.verify(mockWindmill).getStateData(COMPUTATION, expectedRequest.build());
+    int foundEntries = 0;
+    for (Map.Entry<ByteString, Iterable<Integer>> entry : results) {
+      if (entry.getKey().equals(STATE_MULTIMAP_KEY_1)) {
+        foundEntries++;
+        assertThat(entry.getValue(), Matchers.containsInAnyOrder(1, 2));
+      } else {
+        foundEntries++;
+        assertEquals(STATE_MULTIMAP_KEY_2, entry.getKey());
+        assertThat(entry.getValue(), Matchers.containsInAnyOrder(10, 20));
+      }
+    }
+    assertEquals(2, foundEntries);
+    Mockito.verifyNoMoreInteractions(mockWindmill);
+    assertNoReader(future);
+  }
+
+  private static void assertMultimapEntries(
+      Iterable<Map.Entry<ByteString, Iterable<Integer>>> expected,
+      List<Map.Entry<ByteString, List<Integer>>> actual) {
+    Map<ByteString, List<Integer>> expectedMap = Maps.newHashMap();
+    for (Map.Entry<ByteString, Iterable<Integer>> entry : expected) {
+      ByteString key = entry.getKey();
+      if (!expectedMap.containsKey(key)) expectedMap.put(key, new ArrayList<>());
+      entry.getValue().forEach(expectedMap.get(key)::add);
+    }
+    for (Map.Entry<ByteString, List<Integer>> entry : actual) {
+      assertTrue(expectedMap.containsKey(entry.getKey()));
+      assertThat(
+          entry.getValue(),
+          Matchers.containsInAnyOrder(expectedMap.remove(entry.getKey()).toArray()));
+    }
+    assertTrue(expectedMap.isEmpty());
+  }
+
+  @Test
+  public void testReadMultimapEntriesPaginated() throws Exception {
+    Future<Iterable<Map.Entry<ByteString, Iterable<Integer>>>> future =
+        underTest.multimapFetchAllFuture(false, STATE_KEY_1, STATE_FAMILY, INT_CODER);
+    Mockito.verifyNoMoreInteractions(mockWindmill);
+
+    Windmill.KeyedGetDataRequest.Builder expectedRequest1 =
+        Windmill.KeyedGetDataRequest.newBuilder()
+            .setKey(DATA_KEY)
+            .setShardingKey(SHARDING_KEY)
+            .setWorkToken(WORK_TOKEN)
+            .setMaxBytes(WindmillStateReader.MAX_KEY_BYTES)
+            .addMultimapsToFetch(
+                Windmill.TagMultimapFetchRequest.newBuilder()
+                    .setTag(STATE_KEY_1)
+                    .setStateFamily(STATE_FAMILY)
+                    .setFetchEntryNamesOnly(false)
+                    .setFetchMaxBytes(WindmillStateReader.INITIAL_MAX_MULTIMAP_BYTES));
+
+    Windmill.KeyedGetDataResponse.Builder response1 =
+        Windmill.KeyedGetDataResponse.newBuilder()
+            .setKey(DATA_KEY)
+            .addTagMultimaps(
+                Windmill.TagMultimapFetchResponse.newBuilder()
+                    .setTag(STATE_KEY_1)
+                    .setStateFamily(STATE_FAMILY)
+                    .addEntries(
+                        Windmill.TagMultimapEntry.newBuilder()
+                            .setEntryName(STATE_MULTIMAP_KEY_1)
+                            .addValues(intData(1))
+                            .addValues(intData(2)))
+                    .addEntries(
+                        Windmill.TagMultimapEntry.newBuilder()
+                            .setEntryName(STATE_MULTIMAP_KEY_2)
+                            .addValues(intData(3))
+                            .addValues(intData(3)))
+                    .setContinuationPosition(STATE_MULTIMAP_CONT_1));
+
+    Windmill.KeyedGetDataRequest.Builder expectedRequest2 =
+        Windmill.KeyedGetDataRequest.newBuilder()
+            .setKey(DATA_KEY)
+            .setShardingKey(SHARDING_KEY)
+            .setWorkToken(WORK_TOKEN)
+            .setMaxBytes(WindmillStateReader.MAX_CONTINUATION_KEY_BYTES)
+            .addMultimapsToFetch(
+                Windmill.TagMultimapFetchRequest.newBuilder()
+                    .setTag(STATE_KEY_1)
+                    .setStateFamily(STATE_FAMILY)
+                    .setFetchEntryNamesOnly(false)
+                    .setFetchMaxBytes(WindmillStateReader.CONTINUATION_MAX_MULTIMAP_BYTES)
+                    .setRequestPosition(STATE_MULTIMAP_CONT_1));
+
+    Windmill.KeyedGetDataResponse.Builder response2 =
+        Windmill.KeyedGetDataResponse.newBuilder()
+            .setKey(DATA_KEY)
+            .addTagMultimaps(
+                Windmill.TagMultimapFetchResponse.newBuilder()
+                    .setTag(STATE_KEY_1)
+                    .setStateFamily(STATE_FAMILY)
+                    .addEntries(
+                        Windmill.TagMultimapEntry.newBuilder()
+                            .setEntryName(STATE_MULTIMAP_KEY_2)
+                            .addValues(intData(2)))
+                    .setRequestPosition(STATE_MULTIMAP_CONT_1)
+                    .setContinuationPosition(STATE_MULTIMAP_CONT_2));
+    Windmill.KeyedGetDataRequest.Builder expectedRequest3 =
+        Windmill.KeyedGetDataRequest.newBuilder()
+            .setKey(DATA_KEY)
+            .setShardingKey(SHARDING_KEY)
+            .setWorkToken(WORK_TOKEN)
+            .setMaxBytes(WindmillStateReader.MAX_CONTINUATION_KEY_BYTES)
+            .addMultimapsToFetch(
+                Windmill.TagMultimapFetchRequest.newBuilder()
+                    .setTag(STATE_KEY_1)
+                    .setStateFamily(STATE_FAMILY)
+                    .setFetchEntryNamesOnly(false)
+                    .setFetchMaxBytes(WindmillStateReader.CONTINUATION_MAX_MULTIMAP_BYTES)
+                    .setRequestPosition(STATE_MULTIMAP_CONT_2));
+
+    Windmill.KeyedGetDataResponse.Builder response3 =
+        Windmill.KeyedGetDataResponse.newBuilder()
+            .setKey(DATA_KEY)
+            .addTagMultimaps(
+                Windmill.TagMultimapFetchResponse.newBuilder()
+                    .setTag(STATE_KEY_1)
+                    .setStateFamily(STATE_FAMILY)
+                    .addEntries(
+                        Windmill.TagMultimapEntry.newBuilder()
+                            .setEntryName(STATE_MULTIMAP_KEY_2)
+                            .addValues(intData(4)))
+                    .setRequestPosition(STATE_MULTIMAP_CONT_2));
+    Mockito.when(mockWindmill.getStateData(COMPUTATION, expectedRequest1.build()))
+        .thenReturn(response1.build());
+    Mockito.when(mockWindmill.getStateData(COMPUTATION, expectedRequest2.build()))
+        .thenReturn(response2.build());
+    Mockito.when(mockWindmill.getStateData(COMPUTATION, expectedRequest3.build()))
+        .thenReturn(response3.build());
+
+    Iterable<Map.Entry<ByteString, Iterable<Integer>>> results = future.get();
+    Mockito.verify(mockWindmill).getStateData(COMPUTATION, expectedRequest1.build());
+    assertMultimapEntries(
+        results,
+        Arrays.asList(
+            new AbstractMap.SimpleEntry<>(STATE_MULTIMAP_KEY_1, Arrays.asList(1, 2)),
+            new AbstractMap.SimpleEntry<>(STATE_MULTIMAP_KEY_2, Arrays.asList(3, 3, 2, 4))));
+    Mockito.verify(mockWindmill).getStateData(COMPUTATION, expectedRequest2.build());
+    Mockito.verify(mockWindmill).getStateData(COMPUTATION, expectedRequest3.build());
+    Mockito.verifyNoMoreInteractions(mockWindmill);
+    // NOTE: The future will still contain a reference to the underlying reader , thus not calling
+    // assertNoReader(future).
   }
 
   @Test
@@ -206,7 +920,8 @@ public class WindmillStateReaderTest {
     Mockito.verifyNoMoreInteractions(mockWindmill);
 
     assertThat(results, Matchers.contains(5, 6, 7, 8));
-    // NOTE: The future will still contain a reference to the underlying reader.
+    // NOTE: The future will still contain a reference to the underlying reader , thus not calling
+    // assertNoReader(future).
   }
 
   @Test
@@ -501,7 +1216,8 @@ public class WindmillStateReaderTest {
             TimestampedValue.of(5, Instant.ofEpochMilli(5)),
             TimestampedValue.of(6, Instant.ofEpochMilli(6)),
             TimestampedValue.of(7, Instant.ofEpochMilli(7))));
-    // NOTE: The future will still contain a reference to the underlying reader.
+    // NOTE: The future will still contain a reference to the underlying reader , thus not calling
+    // assertNoReader(future).
   }
 
   @Test
@@ -634,7 +1350,8 @@ public class WindmillStateReaderTest {
         Matchers.containsInAnyOrder(
             new AbstractMap.SimpleEntry<>(STATE_KEY_1, 8),
             new AbstractMap.SimpleEntry<>(STATE_KEY_2, 9)));
-    // NOTE: The future will still contain a reference to the underlying reader.
+    // NOTE: The future will still contain a reference to the underlying reader , thus not calling
+    // assertNoReader(future).
   }
 
   @Test

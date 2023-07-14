@@ -15,37 +15,67 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# To learn more about GitHub Actions in Apache Beam check the CI.md
-
-name: beam_PreCommit_Typescript
+name: PreCommit Typescript
 
 on:
   push:
     tags: ['v*']
     branches: ['master', 'release-*']
-  pull_request:
+    paths: ['sdks/python/apache_beam/runners/interactive/extensions/**', '.github/workflows/beam_PreCommit_Typescript.yml']
+  pull_request_target:
     branches: ['master', 'release-*']
     paths: ['sdks/python/apache_beam/runners/interactive/extensions/**']
   issue_comment:
     types: [created]
-  # schedule:
-  #   - cron: '* */6 * * *'
+  schedule:
+    - cron: '* */6 * * *'
 
+#Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
+permissions:
+  actions: write
+  pull-requests: read
+  checks: read
+  contents: read
+  deployments: read
+  id-token: none
+  issues: read
+  discussions: read
+  packages: read
+  pages: read
+  repository-projects: read
+  security-events: read
+  statuses: read
 jobs:
-    beam_PreCommit_Typescript:
-        if: ${{github.event.issue.pull_request}} || ${{github.event.comment.body == 'Run Typescript PreCommit'}} || ${{github.event.schedule}}
-        runs-on: [self-hosted]
-        name: beam_PreCommit_Typescript
-        steps:
-          - name: Git checkout
-            uses: actions/checkout@v3
-          - name: Install Python
-            uses: actions/setup-python@v4
-            with:
-              python-version: '3.8'
-          - name: Setup Gradle
-            uses: gradle/gradle-build-action@v2
-            with:
-              cache-read-only: false
-          - name: run typescriptPreCommit script
-            run: ./gradlew :typescriptPreCommit
+  beam_PreCommit_Typescript:
+    name: beam_PreCommit_Typescript
+    runs-on: [self-hosted, ubuntu-20.04, main]
+    if: |
+      github.event_name == 'push' ||
+      github.event_name == 'pull_request_target' ||
+      github.event_name == 'schedule' ||
+      github.event.comment.body == 'Run Typescript PreCommit'   
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Rerun on comment
+        if: github.event.comment.body == 'Run Typescript PreCommit'
+        uses: ./.github/actions/rerun-job-action
+        with:
+          pull_request_url: ${{ github.event.issue.pull_request.url }}
+          github_repository: ${{ github.repository }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_job: ${{ github.job }}
+          github_current_run_id: ${{ github.run_id }}
+      - name: Setup self-hosted
+        uses: ./.github/actions/setup-self-hosted-action
+        with:
+          requires-py-39: false
+          requires-go: false
+      - name: Setup Gradle
+        uses: gradle/gradle-build-action@v2
+        with:
+          cache-read-only: false
+      - name: run typescriptPreCommit script
+        run: ./gradlew :typescriptPreCommit
