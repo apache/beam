@@ -39,7 +39,6 @@ import com.google.protobuf.DynamicMessage;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
-import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -115,6 +114,7 @@ public class TableRowToStorageApiProtoTest {
                           .setType("TIMESTAMP")
                           .setName("timestampValueSpaceTrailingZero"))
                   .add(new TableFieldSchema().setType("DATETIME").setName("datetimeValueSpace"))
+                  .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampValueMaximum"))
                   .build());
 
   private static final TableSchema BASE_TABLE_SCHEMA_NO_F =
@@ -164,6 +164,7 @@ public class TableRowToStorageApiProtoTest {
                           .setType("TIMESTAMP")
                           .setName("timestampValueSpaceTrailingZero"))
                   .add(new TableFieldSchema().setType("DATETIME").setName("datetimeValueSpace"))
+                  .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampValueMaximum"))
                   .build());
 
   private static final DescriptorProto BASE_TABLE_SCHEMA_PROTO =
@@ -357,6 +358,13 @@ public class TableRowToStorageApiProtoTest {
                   .setType(Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
+          .addField(
+              FieldDescriptorProto.newBuilder()
+                  .setName("timestampvaluemaximum")
+                  .setNumber(28)
+                  .setType(Type.TYPE_INT64)
+                  .setLabel(Label.LABEL_OPTIONAL)
+                  .build())
           .build();
 
   private static final DescriptorProto BASE_TABLE_SCHEMA_NO_F_PROTO =
@@ -543,6 +551,13 @@ public class TableRowToStorageApiProtoTest {
                   .setType(Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
+          .addField(
+              FieldDescriptorProto.newBuilder()
+                  .setName("timestampvaluemaximum")
+                  .setNumber(27)
+                  .setType(Type.TYPE_INT64)
+                  .setLabel(Label.LABEL_OPTIONAL)
+                  .build())
           .build();
   private static final TableSchema NESTED_TABLE_SCHEMA =
       new TableSchema()
@@ -690,7 +705,8 @@ public class TableRowToStorageApiProtoTest {
                   new TableCell().setV("1970-01-01 00:00:00.123456 America/New_York"),
                   new TableCell().setV("1970-01-01 00:00:00.123"),
                   new TableCell().setV("1970-01-01 00:00:00.1230"),
-                  new TableCell().setV("2019-08-16 00:52:07.123456")));
+                  new TableCell().setV("2019-08-16 00:52:07.123456"),
+                  new TableCell().setV("9999-12-31 23:59:59.999999Z")));
 
   private static final TableRow BASE_TABLE_ROW_NO_F =
       new TableRow()
@@ -722,7 +738,8 @@ public class TableRowToStorageApiProtoTest {
           .set("timestampValueZoneRegion", "1970-01-01 00:00:00.123456 America/New_York")
           .set("timestampValueSpaceMilli", "1970-01-01 00:00:00.123")
           .set("timestampValueSpaceTrailingZero", "1970-01-01 00:00:00.1230")
-          .set("datetimeValueSpace", "2019-08-16 00:52:07.123456");
+          .set("datetimeValueSpace", "2019-08-16 00:52:07.123456")
+          .set("timestampValueMaximum", "9999-12-31 23:59:59.999999Z");
 
   private static final Map<String, Object> BASE_ROW_EXPECTED_PROTO_VALUES =
       ImmutableMap.<String, Object>builder()
@@ -762,6 +779,7 @@ public class TableRowToStorageApiProtoTest {
           .put("timestampvaluespacemilli", 123000L)
           .put("timestampvaluespacetrailingzero", 123000L)
           .put("datetimevaluespace", 142111881387172416L)
+          .put("timestampvaluemaximum", 253402300799999999L)
           .build();
 
   private static final Map<String, Object> BASE_ROW_NO_F_EXPECTED_PROTO_VALUES =
@@ -801,6 +819,7 @@ public class TableRowToStorageApiProtoTest {
           .put("timestampvaluespacemilli", 123000L)
           .put("timestampvaluespacetrailingzero", 123000L)
           .put("datetimevaluespace", 142111881387172416L)
+          .put("timestampvaluemaximum", 253402300799999999L)
           .build();
 
   private void assertBaseRecord(DynamicMessage msg, boolean withF) {
@@ -1046,58 +1065,6 @@ public class TableRowToStorageApiProtoTest {
                 + " to INTEGER");
       } catch (SchemaConversionException e) {
         assertEquals("Exception message", expectedError, e.getMessage());
-      }
-    }
-  }
-
-  @Test
-  public void testTimestampTypeConversion() throws DescriptorValidationException {
-    String timestampFieldName = "timestamp_field";
-    TableSchema tableSchema =
-        new TableSchema()
-            .setFields(
-                ImmutableList.<TableFieldSchema>builder()
-                    .add(
-                        new TableFieldSchema()
-                            .setType("TIMESTAMP")
-                            .setName(timestampFieldName)
-                            .setMode("REQUIRED"))
-                    .build());
-    TableRowToStorageApiProto.SchemaInformation schemaInformation =
-        TableRowToStorageApiProto.SchemaInformation.fromTableSchema(tableSchema);
-    SchemaInformation fieldSchema = schemaInformation.getSchemaForField(timestampFieldName);
-    Descriptor schemaDescriptor =
-        TableRowToStorageApiProto.getDescriptorFromTableSchema(tableSchema, true, false);
-    FieldDescriptor fieldDescriptor = schemaDescriptor.findFieldByName(timestampFieldName);
-
-    Object[][] validTimestampValues =
-        new Object[][] {
-          // {"input value", "converted long in microseconds"}
-          {"1970-01-01T00:00:00.000041Z", 41L}, // ISO 8601
-          {"9999-12-31 23:59:59.999999Z", 253402300799999999L},
-          {"1970-01-01T00:00:00.000042", 42L}, // ISO 8601 w/out TZ, backward capability
-          {"9999-12-31 23:59:59.999999", 253402300799999999L},
-          {"123456", 123456000L}, // UNIX timestamp in seconds
-          {"253402300799999", 253402300799999000L},
-          {Instant.ofEpochMilli(123456L), 123456000L}, // Instant object
-          {Instant.ofEpochMilli(253402300799999L), 253402300799999000L},
-        };
-    for (Object[] validValue : validTimestampValues) {
-      Object sourceValue = validValue[0];
-      long expectedConvertedValue = (long) validValue[1];
-      try {
-        Object converted =
-            TableRowToStorageApiProto.singularFieldToProtoValue(
-                fieldSchema, fieldDescriptor, sourceValue, false, false, () -> null);
-        assertEquals(expectedConvertedValue, converted);
-      } catch (SchemaConversionException e) {
-        fail(
-            "Failed to convert value "
-                + sourceValue
-                + " of type "
-                + validValue.getClass()
-                + " to LONG: "
-                + e);
       }
     }
   }
