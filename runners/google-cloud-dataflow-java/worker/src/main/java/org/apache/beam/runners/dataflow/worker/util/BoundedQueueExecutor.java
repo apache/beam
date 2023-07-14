@@ -70,12 +70,11 @@ public class BoundedQueueExecutor {
           protected void afterExecute(Runnable r, Throwable t) {
             super.afterExecute(r, t);
             synchronized (this) {
-              if (activeCount.get() == maximumPoolSize) {
+              if (activeCount.getAndDecrement() == maximumPoolSize) {
                 totalTimeMaxActiveThreadsUsed +=
                     (System.currentTimeMillis() - startTimeMaxActiveThreadsUsed);
                 startTimeMaxActiveThreadsUsed = 0;
               }
-              activeCount.decrementAndGet();
             }
           }
         };
