@@ -17,7 +17,6 @@
 package textio
 
 import (
-	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -144,9 +143,7 @@ func TestReadSdf(t *testing.T) {
 	lines := ReadSdf(s, testFilePath)
 	passert.Count(s, lines, "NumLines", 1)
 
-	if _, err := beam.Run(context.Background(), "direct", p); err != nil {
-		t.Fatalf("Failed to execute job: %v", err)
-	}
+	ptest.RunAndValidate(t, p)
 }
 
 func TestReadAllSdf(t *testing.T) {
@@ -155,7 +152,5 @@ func TestReadAllSdf(t *testing.T) {
 	lines := ReadAllSdf(s, files)
 	passert.Count(s, lines, "NumLines", 1)
 
-	if _, err := beam.Run(context.Background(), "direct", p); err != nil {
-		t.Fatalf("Failed to execute job: %v", err)
-	}
+	ptest.RunAndValidate(t, p)
 }

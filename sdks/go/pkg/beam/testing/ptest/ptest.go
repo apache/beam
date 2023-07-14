@@ -25,11 +25,11 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners" // common runner flag.
 
-	// ptest uses the direct runner to execute pipelines by default.
+	// ptest uses the prism runner to execute pipelines by default.
+	// but includes the direct runner for legacy fallback reasons.
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/direct"
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism"
 )
-
-// TODO(herohde) 7/10/2017: add hooks to verify counters, logs, etc.
 
 // Create creates a pipeline and a PCollection with the given values.
 func Create(values []any) (*beam.Pipeline, beam.Scope, beam.PCollection) {
@@ -65,7 +65,7 @@ func CreateList2(a, b any) (*beam.Pipeline, beam.Scope, beam.PCollection, beam.P
 // to function.
 var (
 	Runner        = runners.Runner
-	defaultRunner = "direct"
+	defaultRunner = "prism"
 	mainCalled    = false
 )
 
@@ -132,7 +132,7 @@ func BuildAndRun(t *testing.T, build func(s beam.Scope)) beam.PipelineResult {
 //		ptest.Main(m)
 //	}
 func Main(m *testing.M) {
-	MainWithDefault(m, "direct")
+	MainWithDefault(m, "prism")
 }
 
 // MainWithDefault is an implementation of testing's TestMain to permit testing
@@ -156,7 +156,7 @@ func MainWithDefault(m *testing.M, runner string) {
 //		os.Exit(ptest.Main(m))
 //	}
 func MainRet(m *testing.M) int {
-	return MainRetWithDefault(m, "direct")
+	return MainRetWithDefault(m, "prism")
 }
 
 // MainRetWithDefault is equivelant to MainWithDefault but returns an exit code

@@ -30,8 +30,8 @@ single machine use.
 
 For Go SDK users:
   - `import "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism"`
-  - Short term: set runner to "prism" to use it, or invoke directly.
-  - Medium term: switch the default from "direct" to "prism".
+  - Short term: set runner to "prism" to use it, or invoke directly. &#x2611;
+  - Medium term: switch the default from "direct" to "prism". &#x2611;
   - Long term: alias "direct" to "prism", and delete legacy Go direct runner.
 
 Prisms allow breaking apart and separating a beam of light into

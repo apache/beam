@@ -136,6 +136,38 @@ var portableFilters = []string{
 	"TestSetStateClear",
 }
 
+var prismFilters = []string{
+	// The portable runner does not support the TestStream primitive
+	"TestTestStream.*",
+	// The trigger and pane tests uses TestStream
+	"TestTrigger.*",
+	"TestPanes",
+	// TODO(https://github.com/apache/beam/issues/21058): Python portable runner times out on Kafka reads.
+	"TestKafkaIO.*",
+	// TODO(BEAM-13215): GCP IOs currently do not work in non-Dataflow portable runners.
+	"TestBigQueryIO.*",
+	"TestSpannerIO.*",
+	// The portable runner does not support self-checkpointing
+	"TestCheckpointing",
+	// The portable runner does not support pipeline drain for SDF.
+	"TestDrain",
+	// FhirIO currently only supports Dataflow runner
+	"TestFhirIO.*",
+	// OOMs currently only lead to heap dumps on Dataflow runner
+	"TestOomParDo",
+	// The portable runner does not support user state.
+	"TestValueState",
+	"TestValueStateWindowed",
+	"TestValueStateClear",
+	"TestBagState",
+	"TestBagStateClear",
+	"TestCombiningState",
+	"TestMapState",
+	"TestMapStateClear",
+	"TestSetState",
+	"TestSetStateClear",
+}
+
 var flinkFilters = []string{
 	// TODO(https://github.com/apache/beam/issues/20723): Flink tests timing out on reads.
 	"TestXLang_Combine.*",
@@ -249,7 +281,7 @@ var dataflowFilters = []string{
 	"TestCheckpointing",
 	// TODO(21761): This test needs to provide GCP project to expansion service.
 	"TestBigQueryIO_BasicWriteQueryRead",
-	// Can't handle the test spanner container or access a local spanner. 
+	// Can't handle the test spanner container or access a local spanner.
 	"TestSpannerIO.*",
 	// Dataflow does not drain jobs by itself.
 	"TestDrain",
@@ -294,6 +326,8 @@ func CheckFilters(t *testing.T) {
 		filters = directFilters
 	case "portable", "PortableRunner":
 		filters = portableFilters
+	case "prism", "PrismRunner":
+		filters = prismFilters
 	case "flink", "FlinkRunner":
 		filters = flinkFilters
 	case "samza", "SamzaRunner":
