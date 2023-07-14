@@ -512,7 +512,7 @@ class DataflowApplicationClient(object):
         get_credentials=(not self.google_cloud_options.no_auth),
         http=http_client,
         response_encoding=get_response_encoding())
-    if credentials:
+    if storage_credentials:
       self._storage_client = storage.Client(credentials=storage_credentials)
     else:
       self._storage_client = storage.Client.create_anonymous_client()
@@ -672,7 +672,6 @@ class DataflowApplicationClient(object):
     try:
       with FileSystems.create(gcs_location) as f:
         f.write(stream.read())
-      return
     except Exception as e:
       reportable_errors = [
           Forbidden,
