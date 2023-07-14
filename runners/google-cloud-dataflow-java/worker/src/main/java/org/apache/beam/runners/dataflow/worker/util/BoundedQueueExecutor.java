@@ -60,10 +60,9 @@ public class BoundedQueueExecutor {
           protected void beforeExecute(Thread t, Runnable r) {
             super.beforeExecute(t, r);
             synchronized (this) {
-              if (activeCount.get() == maximumPoolSize - 1) {
+              if (activeCount.getAndIncrement() == maximumPoolSize - 1) {
                 startTimeMaxActiveThreadsUsed = System.currentTimeMillis();
               }
-              activeCount.incrementAndGet();
             }
           }
 
