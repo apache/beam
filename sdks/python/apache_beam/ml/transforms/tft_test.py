@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 # pytype: skip-file
 
 import shutil
@@ -389,6 +390,86 @@ class TFIDIFTest(unittest.TestCase):
                               'x_vocab_index': np.array([0, 1], dtype=np.int32)
                           }])
       assert_that(actual_output, equal_to(expected_output, equals_fn=equals_fn))
+
+
+class ScaleToMinMaxTest(unittest.TestCase):
+  def setUp(self) -> None:
+    self.artifact_location = tempfile.mkdtemp()
+
+  def tearDown(self):
+    shutil.rmtree(self.artifact_location)
+
+  def test_scale_to_min_max(self):
+    data = [{
+        'x': 4,
+    }, {
+        'x': 1,
+    }, {
+        'x': 5,
+    }, {
+        'x': 2,
+    }]
+    with beam.Pipeline() as p:
+      result = (
+          p
+          | "Create" >> beam.Create(data)
+          | "MLTransform" >> base.MLTransform(
+              artifact_location=self.artifact_location).with_transform(
+                  tft.ScaleByMinMax(
+                      columns=['x'],
+                      min_value=-1,
+                      max_value=1,
+                  ),
+              ))
+      result = result | beam.Map(lambda x: x.as_dict())
+      expected_data = [{
+          'x': np.array([0.5], dtype=np.float32)
+      }, {
+          'x': np.array([-1.0], dtype=np.float32)
+      }, {
+          'x': np.array([1.0], dtype=np.float32)
+      }, {
+          'x': np.array([-0.5], dtype=np.float32)
+      }]
+      assert_that(result, equal_to(expected_data))
+
+  def test_fail_max_value_less_than_min(self):
+    with self.assertRaises(ValueError):
+      tft.ScaleByMinMax(columns=['x'], min_value=10, max_value=0)
+
+
+class NGramsTest(unittest.TestCase):
+  def setUp(self) -> None:
+    self.artifact_location = tempfile.mkdtemp()
+
+  def tearDown(self):
+    shutil.rmtree(self.artifact_location)
+
+  def test_ngrams(self):
+    data = [{
+        'x': ['I', 'like', 'pie'],
+    }, {
+        'x': ['yum', 'yum', 'pie']
+    }]
+    with beam.Pipeline() as p:
+      result = (
+          p
+          | "Create" >> beam.Create(data)
+          | "MLTransform" >> base.MLTransform(
+              artifact_location=self.artifact_location,
+              transforms=[
+                  tft.NGrams(columns=['x'], ngram_range=(1, 3), separator=' ')
+              ]))
+      result = result | beam.Map(lambda x: x.x)
+      expected_data = [
+          np.array(
+              [b'I', b'I like', b'I like pie', b'like', b'like pie', b'pie'],
+              dtype=object),
+          np.array(
+              [b'yum', b'yum yum', b'yum yum pie', b'yum', b'yum pie', b'pie'],
+              dtype=object)
+      ]
+      assert_that(result, equal_to(expected_data, equals_fn=np.array_equal))
 
 
 if __name__ == '__main__':

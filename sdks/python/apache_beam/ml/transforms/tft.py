@@ -39,6 +39,7 @@ from typing import Dict
 from typing import Iterable
 from typing import List
 from typing import Optional
+from typing import Tuple
 from typing import Union
 
 import tensorflow as tf
@@ -56,6 +57,8 @@ __all__ = [
     'Bucketize',
     'TFIDF',
     'TFTOperation',
+    'ScaleByMinMax',
+    'NGrams',
 ]
 
 # Register the expected input types for each operation
@@ -434,3 +437,73 @@ class TFIDF(TFTOperation):
         output_column_name + '_tfidf_weight': tfidf_weight
     }
     return output
+
+
+@register_input_dtype(float)
+class ScaleByMinMax(TFTOperation):
+  def __init__(
+      self,
+      columns: List[str],
+      min_value: float = 0.0,
+      max_value: float = 1.0,
+      name: Optional[str] = None):
+    """
+    This function applies a scaling transformation on the given columns
+    of incoming data. The transformation scales the input values to the
+    range [min_value, max_value].
+
+    Args:
+      columns: A list of column names to apply the transformation on.
+      min_value: The minimum value of the output range.
+      max_value: The maximum value of the output range.
+      name: A name for the operation (optional).
+    """
+    super().__init__(columns)
+    self.min_value = min_value
+    self.max_value = max_value
+    self.name = name
+
+    if self.max_value <= self.min_value:
+      raise ValueError('max_value must be greater than min_value')
+
+  def apply_transform(
+      self, data: tf.Tensor, output_column_name: str) -> tf.Tensor:
+
+    output = tft.scale_by_min_max(
+        x=data, output_min=self.min_value, output_max=self.max_value)
+    return {output_column_name: output}
+
+
+@register_input_dtype(str)
+class NGrams(TFTOperation):
+  def __init__(
+      self,
+      columns: List[str],
+      ngram_range: Tuple[int, int],
+      separator: str,
+      name: Optional[str] = None):
+    """
+    An n-gram is a contiguous sequence of n items from a given sample of text
+    or speech. This operation applies an n-gram transformation to
+    specified columns of incoming data, splitting the input data into a
+    set of consecutive n-grams.
+
+    Args:
+      columns: A list of column names to apply the transformation on.
+      ngram_range: A tuple of integers(inclusive) specifying the range of
+        n-gram sizes.
+      separator: A string that specifies the separator between tokens.
+      name: A name for the operation (optional).
+    """
+    super().__init__(columns)
+    self.ngram_range = ngram_range
+    self.separator = separator
+    self.name = name
+
+  def apply_transform(self, data: tf.SparseTensor,
+                      output_column_name: str) -> Dict[str, tf.SparseTensor]:
+    # TODO: https://github.com/apache/beam/issues/27505
+    # When the input is passed as a string instead of list of strings,
+    # split the string using separator.
+    output = tft.ngrams(data, self.ngram_range, self.separator)
+    return {output_column_name: output}
