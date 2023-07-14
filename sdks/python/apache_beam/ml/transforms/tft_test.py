@@ -403,9 +403,11 @@ class ScaleToMinMaxTest(unittest.TestCase):
     data = [{
         'x': 4,
     }, {
-        'x': 4,
+        'x': 1,
     }, {
-        'x': 4,
+        'x': 5,
+    }, {
+        'x': 2,
     }]
     with beam.Pipeline() as p:
       result = (
@@ -415,17 +417,19 @@ class ScaleToMinMaxTest(unittest.TestCase):
               artifact_location=self.artifact_location).with_transform(
                   tft.ScaleByMinMax(
                       columns=['x'],
-                      min_value=0,
-                      max_value=10,
+                      min_value=-1,
+                      max_value=1,
                   ),
               ))
       result = result | beam.Map(lambda x: x.as_dict())
       expected_data = [{
-          'x': np.array([9.820138], dtype=np.float32)
+          'x': np.array([0.5], dtype=np.float32)
       }, {
-          'x': np.array([9.820138], dtype=np.float32)
+          'x': np.array([-1.0], dtype=np.float32)
       }, {
-          'x': np.array([9.820138], dtype=np.float32)
+          'x': np.array([1.0], dtype=np.float32)
+      }, {
+          'x': np.array([-0.5], dtype=np.float32)
       }]
       assert_that(result, equal_to(expected_data))
 
