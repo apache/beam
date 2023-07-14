@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Python PreCommit Runners
+name: Python PreCommit Coverage
 on:
   pull_request_target:
     branches: [ "master", "release-*" ]
@@ -23,7 +23,7 @@ on:
   push:
     tags: ['v*']
     branches: ['master', 'release-*']
-    paths: [ "model/**","sdks/python/**","release/**",".github/workflows/job_PreCommit_Python_Runners.yml"]
+    paths: [ "model/**","sdks/python/**","release/**", ".github/workflows/job_PreCommit_Python_Coverage.yml"]
   schedule:
     - cron: '* */6 * * *'
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -48,38 +48,29 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  beam_PreCommit_Python_Runners:
-    strategy:
-      fail-fast: false
-      matrix:
-        python_version: ['3.8','3.9','3.10','3.11']
+  beam_PreCommit_Python_Coverage:
     if: |
       github.event_name == 'push' || 
       github.event_name == 'pull_request_target' || 
-      startsWith(github.event.comment.body, 'Run Python_Runners PreCommit') ||
+      github.event.comment.body == 'Run Python_Coverage PreCommit' || 
       github.event_name == 'schedule'
     runs-on: [self-hosted, ubuntu-20.04, main]
-
     steps:
       - uses: actions/checkout@v3
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-      - name: Set comment body with matrix
-        id: set_comment_body
-        run: |
-          echo "comment_body=Run Python_Runners PreCommit (${{ matrix.python_version }})" >> $GITHUB_OUTPUT
       - name: Rerun on comment
-        if: github.event.comment.body  == steps.set_comment_body.outputs.comment_body 
+        if: github.event.comment.body == 'Run Python_Coverage PreCommit'
         uses: ./.github/actions/rerun-job-action
         with:
           pull_request_url: ${{ github.event.issue.pull_request.url }}
           github_repository: ${{ github.repository }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: "${{ github.job }} (${{ matrix.python_version }})"
+          github_job: ${{ github.job }}
           github_current_run_id: ${{ github.run_id }}
       - uses: actions/setup-python@v4
         with:
-          python-version: ${{ matrix.python_version }}
+          python-version: '3.8'
       - name: Install Java
         uses: actions/setup-java@v3
         with:
@@ -89,10 +80,8 @@ jobs:
         uses: gradle/gradle-build-action@v2
         with:
           cache-read-only: false
-      - name: Run pythonPreCommit
-        run: |
-          PY_VER=${{ matrix.python_version }}
-          ./gradlew :sdks:python:test-suites:tox:py${PY_VER//.}:preCommitPy${PY_VER//.} -Pposargs=apache_beam/runners/ -PpythonVersion=${PY_VER}
+      - name: Run preCommitPyCoverage
+        run: ./gradlew :sdks:python:test-suites:tox:py38:preCommitPyCoverage 
       - name: Archive code coverage results
         uses: actions/upload-artifact@v3
         with:

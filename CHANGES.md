@@ -70,7 +70,7 @@
 
 ## Breaking Changes
 
-* X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
+* Legacy runner support removed from Dataflow, all pipelines must use runner v2.
 
 ## Deprecations
 
@@ -78,7 +78,7 @@
 
 ## Bugfixes
 
-* Fixed DirectRunner bug in Python SDK where GroupByKey gets empty PCollection and fails when pipeline option `direct_num_workers!=1`. ([#27373](https://github.com/apache/beam/pull/27373))
+* Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Known Issues
 
