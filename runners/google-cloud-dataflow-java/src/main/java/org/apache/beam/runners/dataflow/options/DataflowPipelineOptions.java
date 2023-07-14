@@ -136,6 +136,23 @@ public interface DataflowPipelineOptions
 
   void setRegion(String region);
 
+  /**
+   * Dataflow endpoint to use.
+   *
+   * <p>Defaults to the current version of the Google Cloud Dataflow API, at the time the current
+   * SDK version was released.
+   *
+   * <p>If the string contains "://", then this is treated as a URL, otherwise {@link
+   * #getApiRootUrl()} is used as the root URL.
+   */
+  @Description(
+      "The URL for the Dataflow API. If the string contains \"://\", this"
+          + " will be treated as the entire URL, otherwise will be treated relative to apiRootUrl.")
+  @Default.String(Dataflow.DEFAULT_SERVICE_PATH)
+  String getDataflowEndpoint();
+
+  void setDataflowEndpoint(String value);
+
   /** Labels that will be applied to the billing records for this job. */
   @Description("Labels that will be applied to the billing records for this job.")
   Map<String, String> getLabels();
