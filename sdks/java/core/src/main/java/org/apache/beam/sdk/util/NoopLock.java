@@ -21,8 +21,8 @@ import java.io.Serializable;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A lock which can always be acquired. It should not be used when a proper lock is required, but it
@@ -31,9 +31,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public class NoopLock implements Lock, Serializable {
 
-  private static @Nullable NoopLock instance;
+  private static @MonotonicNonNull NoopLock instance;
 
-  public static NoopLock get() {
+  public static @NonNull NoopLock get() {
     if (instance == null) {
       instance = new NoopLock();
     }
@@ -54,7 +54,7 @@ public class NoopLock implements Lock, Serializable {
   }
 
   @Override
-  public boolean tryLock(long time, @NonNull TimeUnit unit) {
+  public boolean tryLock(long time, TimeUnit unit) {
     return true;
   }
 
@@ -62,7 +62,7 @@ public class NoopLock implements Lock, Serializable {
   public void unlock() {}
 
   @Override
-  public @NonNull Condition newCondition() {
+  public Condition newCondition() {
     throw new UnsupportedOperationException("Not implemented");
   }
 }
