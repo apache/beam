@@ -85,7 +85,7 @@ dependencies {
   implementation library.java.vendored_grpc_1_54_0
   implementation library.java.vendored_guava_26_0_jre
   implementation "com.google.api.grpc:proto-google-cloud-language-v1:1.81.4"
-  implementation ("io.confluent:kafka-avro-serializer:5.3.2") {
+  implementation ("io.confluent:kafka-avro-serializer:5.5.15") {
     // It depends on "spotbugs-annotations:3.1.9" which clashes with current
     // "spotbugs-annotations:3.1.12" used in Beam. Not required.
     exclude group: "org.apache.zookeeper", module: "zookeeper"
