@@ -554,7 +554,10 @@ This table provides a consolidated, at-a-glance overview of the available built-
     </td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.bigtableio.html">native</a>
+      <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.bigtableio.html">native</a> (sink)
+      <br>
+      ✔
+      <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.bigtableio.html">via X-language</a>
     </td>
     <td>Not available</td>
     <td>Not available</td>

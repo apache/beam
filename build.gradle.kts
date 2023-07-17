@@ -472,7 +472,6 @@ tasks.register("pythonPreCommit") {
 tasks.register("pythonPreCommitIT") {
   dependsOn(":sdks:python:test-suites:tox:pycommon:preCommitPyCommon")
   dependsOn(":sdks:python:test-suites:dataflow:preCommitIT")
-  dependsOn(":sdks:python:test-suites:dataflow:preCommitIT_V2")
 }
 
 tasks.register("pythonDocsPreCommit") {
@@ -578,7 +577,7 @@ tasks.register("pushAllRunnersDockerImages") {
   for (version in project.ext.get("allFlinkVersions") as Array<*>) {
     dependsOn(":runners:flink:${version}:job-server-container:dockerPush")
   }
-  
+
   doLast {
     if (project.hasProperty("prune-images")) {
       exec {
@@ -598,7 +597,7 @@ tasks.register("pushAllSdkDockerImages") {
   dependsOn(":sdks:python:container:pushAll")
   dependsOn(":sdks:go:container:pushAll")
   dependsOn(":sdks:typescript:container:pushAll")
-  
+
   doLast {
     if (project.hasProperty("prune-images")) {
       exec {
@@ -617,7 +616,7 @@ tasks.register("pushAllXlangDockerImages") {
   dependsOn(":sdks:java:expansion-service:container:dockerPush")
   dependsOn(":sdks:java:transform-service:controller-container:dockerPush")
   dependsOn(":sdks:python:expansion-service-container:dockerPush")
-  
+
   doLast {
     if (project.hasProperty("prune-images")) {
       exec {

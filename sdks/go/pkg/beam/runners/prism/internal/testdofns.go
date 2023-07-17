@@ -239,6 +239,11 @@ func dofn1Counter(ctx context.Context, _ []byte, emit func(int64)) {
 	beam.NewCounter(ns, "count").Inc(ctx, 1)
 }
 
+func doFnFail(ctx context.Context, _ []byte, emit func(int64)) error {
+	beam.NewCounter(ns, "count").Inc(ctx, 1)
+	return fmt.Errorf("doFnFail: failing as intended")
+}
+
 func combineIntSum(a, b int64) int64 {
 	return a + b
 }

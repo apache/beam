@@ -125,6 +125,7 @@ import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Combine.GroupedValues;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.Impulse;
@@ -491,6 +492,23 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     this.ptransformViewsWithNonDeterministicKeyCoders = new HashSet<>();
   }
 
+  private static class AlwaysCreateViaRead<T>
+      implements PTransformOverrideFactory<PBegin, PCollection<T>, Create.Values<T>> {
+    @Override
+    public PTransformOverrideFactory.PTransformReplacement<PBegin, PCollection<T>>
+        getReplacementTransform(
+            AppliedPTransform<PBegin, PCollection<T>, Create.Values<T>> appliedTransform) {
+      return PTransformOverrideFactory.PTransformReplacement.of(
+          appliedTransform.getPipeline().begin(), appliedTransform.getTransform().alwaysUseRead());
+    }
+
+    @Override
+    public final Map<PCollection<?>, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PCollection<?>> outputs, PCollection<T> newOutput) {
+      return ReplacementOutputs.singleton(outputs, newOutput);
+    }
+  }
+
   private List<PTransformOverride> getOverrides(boolean streaming) {
     ImmutableList.Builder<PTransformOverride> overridesBuilder = ImmutableList.builder();
 
@@ -504,6 +522,13 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         .add(
             PTransformOverride.of(
                 PTransformMatchers.emptyFlatten(), EmptyFlattenAsCreateFactory.instance()));
+
+    if (streaming) {
+      // For update compatibility, always use a Read for Create in streaming mode.
+      overridesBuilder.add(
+          PTransformOverride.of(
+              PTransformMatchers.classEqualTo(Create.Values.class), new AlwaysCreateViaRead()));
+    }
 
     // By default Dataflow runner replaces single-output ParDo with a ParDoSingle override.
     // However, we want a different expansion for single-output splittable ParDo.
@@ -650,6 +675,29 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             PTransformOverride.of(
                 PTransformMatchers.classEqualTo(ParDo.SingleOutput.class),
                 new PrimitiveParDoSingleFactory()));
+
+    if (streaming) {
+      // For update compatibility, always use a Read for Create in streaming mode.
+      overridesBuilder
+          .add(
+              PTransformOverride.of(
+                  PTransformMatchers.classEqualTo(Create.Values.class), new AlwaysCreateViaRead()))
+          // Create is implemented in terms of BoundedRead.
+          .add(
+              PTransformOverride.of(
+                  PTransformMatchers.classEqualTo(Read.Bounded.class),
+                  new StreamingBoundedReadOverrideFactory()))
+          // Streaming Bounded Read is implemented in terms of Streaming Unbounded Read.
+          .add(
+              PTransformOverride.of(
+                  PTransformMatchers.classEqualTo(Read.Unbounded.class),
+                  new StreamingUnboundedReadOverrideFactory()))
+          .add(
+              PTransformOverride.of(
+                  PTransformMatchers.classEqualTo(ParDo.SingleOutput.class),
+                  new PrimitiveParDoSingleFactory()));
+    }
+
     return overridesBuilder.build();
   }
 
@@ -2376,10 +2424,10 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   static void verifyDoFnSupported(
       DoFn<?, ?> fn, boolean streaming, DataflowPipelineOptions options) {
-    if (DoFnSignatures.usesMultimapState(fn)) {
+    if (!streaming && DoFnSignatures.usesMultimapState(fn)) {
       throw new UnsupportedOperationException(
           String.format(
-              "%s does not currently support %s",
+              "%s does not currently support %s in batch mode",
               DataflowRunner.class.getSimpleName(), MultimapState.class.getSimpleName()));
     }
     if (streaming && DoFnSignatures.requiresTimeSortedInput(fn)) {
@@ -2391,6 +2439,13 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     boolean streamingEngine = useStreamingEngine(options);
     boolean isUnifiedWorker = useUnifiedWorker(options);
+
+    if (DoFnSignatures.usesMultimapState(fn) && isUnifiedWorker) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "%s does not currently support %s running using streaming on unified worker",
+              DataflowRunner.class.getSimpleName(), MultimapState.class.getSimpleName()));
+    }
     if (DoFnSignatures.usesSetState(fn)) {
       if (streaming && (isUnifiedWorker || streamingEngine)) {
         throw new UnsupportedOperationException(
