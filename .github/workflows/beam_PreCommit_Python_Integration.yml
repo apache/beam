@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: PreCommit Python IT
+name: PreCommit Python Integration
 
 on:
   pull_request_target:
@@ -24,7 +24,7 @@ on:
   push:
     tags: ['v*']
     branches: ['master', 'release-*']
-    paths: ["model/**", "sdks/python/**", "release/**", ".github/workflows/beam_PreCommit_PythonIT.yml"]
+    paths: ["model/**", "sdks/python/**", "release/**", ".github/workflows/beam_PreCommit_Python_Integration.yml"]
   schedule:
     - cron: '* */6 * * *'
 
@@ -50,8 +50,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  beam_PreCommit_PythonIT:
-    name: beam_PreCommit_PythonIT
+  beam_PreCommit_Python_Integration:
+    name: beam_PreCommit_Python_Integration
     strategy:
       fail-fast: false
       matrix:
@@ -59,7 +59,7 @@ jobs:
     if: |
       github.event_name == 'push' || 
       github.event_name == 'pull_request_target' || 
-      startsWith(github.event.comment.body, 'Run PythonIT PreCommit') || 
+      startsWith(github.event.comment.body, 'Run Python_Integration PreCommit') || 
       github.event_name == 'schedule'
     runs-on: [self-hosted, ubuntu-20.04, main]
     steps:
@@ -70,7 +70,7 @@ jobs:
       - name: Set comment body with matrix
         id: set_comment_body
         run: |
-          echo "comment_body=Run PythonIT PreCommit (${{ matrix.python_version }})" >> $GITHUB_OUTPUT
+          echo "comment_body=Run Python_Integration PreCommit (${{ matrix.python_version }})" >> $GITHUB_OUTPUT
       - name: Rerun on comment
         if: github.event.comment.body == steps.set_comment_body.outputs.comment_body
         uses: ./.github/actions/rerun-job-action
@@ -93,11 +93,11 @@ jobs:
         uses: gradle/gradle-build-action@v2
         with:
           cache-read-only: false
-      - name: run PythonIT PreCommit batch script
+      - name: run Python Integration PreCommit batch script
         run: |
           PY_VER=${{ matrix.python_version }}
           ./gradlew :sdks:python:test-suites:dataflow:py${PY_VER//.}:preCommitIT_batch -PuseWheelDistribution -PpythonVersion=${PY_VER}
-      - name: run PythonIT PreCommit streaming script
+      - name: run Python Integration PreCommit streaming script
         run: |
           PY_VER=${{ matrix.python_version }}
           ./gradlew :sdks:python:test-suites:dataflow:py${PY_VER//.}:preCommitIT_streaming -PuseWheelDistribution -PpythonVersion=${PY_VER}
