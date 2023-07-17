@@ -21,6 +21,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Monitor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Monitor.Guard;
 
@@ -36,6 +37,9 @@ public class BoundedQueueExecutor {
   private final Monitor monitor = new Monitor();
   private int elementsOutstanding = 0;
   private long bytesOutstanding = 0;
+  private final AtomicInteger activeCount = new AtomicInteger();
+  private long startTimeMaxActiveThreadsUsed;
+  private long totalTimeMaxActiveThreadsUsed;
 
   public BoundedQueueExecutor(
       int maximumPoolSize,
@@ -51,7 +55,29 @@ public class BoundedQueueExecutor {
             keepAliveTime,
             unit,
             new LinkedBlockingQueue<>(),
-            threadFactory);
+            threadFactory) {
+          @Override
+          protected void beforeExecute(Thread t, Runnable r) {
+            super.beforeExecute(t, r);
+            synchronized (this) {
+              if (activeCount.getAndIncrement() >= maximumPoolSize - 1) {
+                startTimeMaxActiveThreadsUsed = System.currentTimeMillis();
+              }
+            }
+          }
+
+          @Override
+          protected void afterExecute(Runnable r, Throwable t) {
+            super.afterExecute(r, t);
+            synchronized (this) {
+              if (activeCount.getAndDecrement() == maximumPoolSize) {
+                totalTimeMaxActiveThreadsUsed +=
+                    (System.currentTimeMillis() - startTimeMaxActiveThreadsUsed);
+                startTimeMaxActiveThreadsUsed = 0;
+              }
+            }
+          }
+        };
     executor.allowCoreThreadTimeOut(true);
     this.maximumElementsOutstanding = maximumElementsOutstanding;
     this.maximumBytesOutstanding = maximumBytesOutstanding;
@@ -87,6 +113,10 @@ public class BoundedQueueExecutor {
 
   public boolean executorQueueIsEmpty() {
     return executor.getQueue().isEmpty();
+  }
+
+  public long allThreadsActiveTime() {
+    return totalTimeMaxActiveThreadsUsed;
   }
 
   public String summaryHtml() {
