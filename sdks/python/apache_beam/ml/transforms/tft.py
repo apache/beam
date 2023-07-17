@@ -101,6 +101,32 @@ class TFTOperation(BaseOperation[common_types.TensorType,
     """
     return {}
 
+  def _split_string_with_delimiter(self, data, delimiter):
+    """
+    only applicable to string columns.
+    """
+    data = tf.sparse.to_dense(data)
+    # this method acts differently compared to tf.strings.split
+    # this will split the string based on multiple delimiters while
+    # the latter will split the string based on a single delimiter.
+    fn = lambda data: tf.compat.v1.string_split(
+        data, delimiter, result_type='RaggedTensor')
+    # tf.compat.v1.string_split works on a single string. Use tf.map_fn
+    # to apply the function on each element of the input data.
+    data = tf.map_fn(
+        fn,
+        data,
+        fn_output_signature=tf.RaggedTensorSpec(
+            tf.TensorShape([None, None]), tf.string))
+    data = data.values.to_sparse()
+    # the columns of the sparse tensor are suffixed with $indices, $values
+    # related to sparse tensor. Create a new sparse tensor by extracting
+    # the indices, values and dense_shape from the original sparse tensor
+    # to preserve the original column name.
+    data = tf.sparse.SparseTensor(
+        indices=data.indices, values=data.values, dense_shape=data.dense_shape)
+    return data
+
 
 @register_input_dtype(str)
 class ComputeAndApplyVocabulary(TFTOperation):
@@ -148,29 +174,12 @@ class ComputeAndApplyVocabulary(TFTOperation):
     self._name = name
     self.split_string_by_delimiter = split_string_by_delimiter
 
-    if split_string_by_delimiter and len(split_string_by_delimiter) > 1:
-      raise ValueError(
-          'Multiple characters are not supported. The value of '
-          'split_string_by_delimiter should be a single character. '
-          'Got %s' % split_string_by_delimiter)
-
-  def _split_string_with_delimiter(self, data):
-    data = tf.sparse.to_dense(data)
-    data = tf.strings.split(data, self.split_string_by_delimiter)
-    data = data.values.to_sparse()
-    # the columns of the sparse tensor are suffixed with $indices, $values
-    # related to sparse tensor. Create a new sparse tensor by extracting
-    # the indices, values and dense_shape from the original sparse tensor.
-    data = tf.sparse.SparseTensor(
-        indices=data.indices, values=data.values, dense_shape=data.dense_shape)
-    return data
-
   def apply_transform(
       self, data: common_types.TensorType,
       output_column_name: str) -> Dict[str, common_types.TensorType]:
     if self.split_string_by_delimiter:
-      data = self._split_string_with_delimiter(data)
-
+      data = self._split_string_with_delimiter(
+          data, self.split_string_by_delimiter)
     return {
         output_column_name: tft.compute_and_apply_vocabulary(
             x=data,
@@ -528,26 +537,11 @@ class NGrams(TFTOperation):
     self.ngrams_separator = ngrams_separator
     self.name = name
     self.split_string_by_delimiter = split_string_by_delimiter
-    if split_string_by_delimiter and len(split_string_by_delimiter) > 1:
-      raise ValueError(
-          'Multiple characters are not supported. The value of '
-          'split_string_by_delimiter should be a single character. '
-          'Got %s' % split_string_by_delimiter)
-
-  def _split_string_with_delimiter(self, data):
-    data = tf.sparse.to_dense(data)
-    data = tf.strings.split(data, self.split_string_by_delimiter)
-    data = data.values.to_sparse()
-    # the columns of the sparse tensor are suffixed with $indices, $values
-    # related to sparse tensor. Create a new sparse tensor by extracting
-    # the indices, values and dense_shape from the original sparse tensor.
-    data = tf.sparse.SparseTensor(
-        indices=data.indices, values=data.values, dense_shape=data.dense_shape)
-    return data
 
   def apply_transform(self, data: tf.SparseTensor,
                       output_column_name: str) -> Dict[str, tf.SparseTensor]:
     if self.split_string_by_delimiter:
-      data = self._split_string_with_delimiter(data)
+      data = self._split_string_with_delimiter(
+          data, self.split_string_by_delimiter)
     output = tft.ngrams(data, self.ngram_range, self.ngrams_separator)
     return {output_column_name: output}
