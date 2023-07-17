@@ -1,6 +1,6 @@
 ---
 title:  "Apache Beam 2.49.0"
-date:   2023-07-DD $H:MM:00 Z
+date:   2023-07-17 09:00:00 -0400
 categories:
   - blog
   - release
@@ -21,7 +21,7 @@ limitations under the License.
 
 We are happy to present the new 2.49.0 release of Beam.
 This release includes both improvements and new functionality.
-See the [download page](/get-started/downloads/{$DOWNLOAD_ANCHOR}) for this release.
+See the [download page](/get-started/downloads/#2490-2023-07-17) for this release.
 
 <!--more-->
 
