@@ -321,7 +321,7 @@ class ComputeAndApplyVocabTest(unittest.TestCase):
       assert_that(
           actual_output, equal_to(excepted_data, equals_fn=np.array_equal))
 
-  def test_string_split(self):
+  def test_string_split_with_delimiter(self):
     data = [{
         'x': ['I like pie', 'yum yum pie'],
     }, {
@@ -340,6 +340,11 @@ class ComputeAndApplyVocabTest(unittest.TestCase):
           np.array([3, 2, 1]), np.array([0, 0, 1]), np.array([0, 0, 1])
       ]
       assert_that(result, equal_to(expected_result, equals_fn=np.array_equal))
+
+  def test_with_multiple_string_delimiters(self):
+    with self.assertRaises(ValueError):
+      tft.ComputeAndApplyVocabulary(
+          columns=['x'], split_string_by_delimiter=' ??')
 
 
 class TFIDIFTest(unittest.TestCase):
@@ -441,7 +446,7 @@ class NGramsTest(unittest.TestCase):
   def tearDown(self):
     shutil.rmtree(self.artifact_location)
 
-  def test_ngrams(self):
+  def test_ngrams_on_list_separated_words(self):
     data = [{
         'x': ['I', 'like', 'pie'],
     }, {
@@ -454,7 +459,8 @@ class NGramsTest(unittest.TestCase):
           | "MLTransform" >> base.MLTransform(
               artifact_location=self.artifact_location,
               transforms=[
-                  tft.NGrams(columns=['x'], ngram_range=(1, 3), separator=' ')
+                  tft.NGrams(
+                      columns=['x'], ngram_range=(1, 3), ngrams_separator=' ')
               ]))
       result = result | beam.Map(lambda x: x.x)
       expected_data = [
@@ -466,6 +472,45 @@ class NGramsTest(unittest.TestCase):
               dtype=object)
       ]
       assert_that(result, equal_to(expected_data, equals_fn=np.array_equal))
+
+  def test_with_string_split_delimiter(self):
+    data = [{
+        'x': 'I like pie',
+    }, {
+        'x': 'yum yum pie'
+    }]
+    with beam.Pipeline() as p:
+      result = (
+          p
+          | "Create" >> beam.Create(data)
+          | "MLTransform" >> base.MLTransform(
+              artifact_location=self.artifact_location,
+              transforms=[
+                  tft.NGrams(
+                      columns=['x'],
+                      split_string_by_delimiter=' ',
+                      ngram_range=(1, 3),
+                      ngrams_separator=' ')
+              ]))
+      result = result | beam.Map(lambda x: x.x)
+
+      expected_data = [
+          np.array(
+              [b'I', b'I like', b'I like pie', b'like', b'like pie', b'pie'],
+              dtype=object),
+          np.array(
+              [b'yum', b'yum yum', b'yum yum pie', b'yum', b'yum pie', b'pie'],
+              dtype=object)
+      ]
+      assert_that(result, equal_to(expected_data, equals_fn=np.array_equal))
+
+  def test_with_multiple_string_delimiters(self):
+    with self.assertRaises(ValueError):
+      tft.NGrams(
+          columns=['x'],
+          split_string_by_delimiter=' ??',
+          ngram_range=(1, 3),
+          ngrams_separator=' ')
 
 
 if __name__ == '__main__':

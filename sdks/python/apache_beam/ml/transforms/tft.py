@@ -154,7 +154,7 @@ class ComputeAndApplyVocabulary(TFTOperation):
           'split_string_by_delimiter should be a single character. '
           'Got %s' % split_string_by_delimiter)
 
-  def _split_string(self, data):
+  def _split_string_with_delimiter(self, data):
     data = tf.sparse.to_dense(data)
     data = tf.strings.split(data, self.split_string_by_delimiter)
     data = data.values.to_sparse()
@@ -169,7 +169,7 @@ class ComputeAndApplyVocabulary(TFTOperation):
       self, data: common_types.TensorType,
       output_column_name: str) -> Dict[str, common_types.TensorType]:
     if self.split_string_by_delimiter:
-      data = self._split_string(data)
+      data = self._split_string_with_delimiter(data)
 
     return {
         output_column_name: tft.compute_and_apply_vocabulary(
@@ -506,7 +506,7 @@ class NGrams(TFTOperation):
       split_string_by_delimiter: Optional[str] = None,
       *,
       ngram_range: Tuple[int, int],
-      separator: str,
+      ngrams_separator: str,
       name: Optional[str] = None):
     """
     An n-gram is a contiguous sequence of n items from a given sample of text
@@ -517,24 +517,24 @@ class NGrams(TFTOperation):
     Args:
       columns: A list of column names to apply the transformation on.
       split_string_by_delimiter: (Optional) A string that specifies the
-        delimiter to split strings.
+        delimiter to split the input strings before computing ngrams.
       ngram_range: A tuple of integers(inclusive) specifying the range of
         n-gram sizes.
-      separator: A string that specifies the separator between tokens.
+      ngrams_separator: A string that will be inserted between each ngram.
       name: A name for the operation (optional).
     """
     super().__init__(columns)
     self.ngram_range = ngram_range
-    self.separator = separator
+    self.ngrams_separator = ngrams_separator
     self.name = name
     self.split_string_by_delimiter = split_string_by_delimiter
-    if split_string_by_delimiter and (split_string_by_delimiter) > 1:
+    if split_string_by_delimiter and len(split_string_by_delimiter) > 1:
       raise ValueError(
           'Multiple characters are not supported. The value of '
           'split_string_by_delimiter should be a single character. '
           'Got %s' % split_string_by_delimiter)
 
-  def _split_string(self, data):
+  def _split_string_with_delimiter(self, data):
     data = tf.sparse.to_dense(data)
     data = tf.strings.split(data, self.split_string_by_delimiter)
     data = data.values.to_sparse()
@@ -548,6 +548,6 @@ class NGrams(TFTOperation):
   def apply_transform(self, data: tf.SparseTensor,
                       output_column_name: str) -> Dict[str, tf.SparseTensor]:
     if self.split_string_by_delimiter:
-      data = self._split_string(data)
-    output = tft.ngrams(data, self.ngram_range, self.separator)
+      data = self._split_string_with_delimiter(data)
+    output = tft.ngrams(data, self.ngram_range, self.ngrams_separator)
     return {output_column_name: output}
