@@ -289,7 +289,7 @@ class ComputeAndApplyVocabTest(unittest.TestCase):
 
       assert_that(actual_data, equal_to(expected_data))
 
-  def test_compute_and_apply_vocabulary_(self):
+  def test_compute_and_apply_vocabulary(self):
     num_elements = 100
     num_instances = num_elements + 1
     input_data = [
@@ -371,7 +371,7 @@ class TFIDIFTest(unittest.TestCase):
   def tearDown(self):
     shutil.rmtree(self.artifact_location)
 
-  def test_tfidf__compute_vocab_size_during_runtime(self):
+  def test_tfidf_compute_vocab_size_during_runtime(self):
     raw_data = [
         dict(x=["I", "like", "pie", "pie", "pie"]),
         dict(x=["yum", "yum", "pie"])
