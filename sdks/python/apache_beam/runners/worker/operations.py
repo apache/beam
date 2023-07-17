@@ -1053,6 +1053,12 @@ class SdfTruncateSizedRestrictions(DoOperation):
     return self.receivers[0].try_split(fraction_of_remainder)
 
 
+def encode_progress(value):
+  # type: (float) -> bytes
+  coder = coders.IterableCoder(coders.FloatCoder())
+  return coder.encode([value])
+
+
 class SdfProcessSizedElements(DoOperation):
   def __init__(self, *args, **kwargs):
     super(SdfProcessSizedElements, self).__init__(*args, **kwargs)
@@ -1105,12 +1111,6 @@ class SdfProcessSizedElements(DoOperation):
 
   def monitoring_infos(self, transform_id, tag_to_pcollection_id):
     # type: (str, Dict[str, str]) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]
-
-    def encode_progress(value):
-      # type: (float) -> bytes
-      coder = coders.IterableCoder(coders.FloatCoder())
-      return coder.encode([value])
-
     with self.lock:
       infos = super(SdfProcessSizedElements,
                     self).monitoring_infos(transform_id, tag_to_pcollection_id)
