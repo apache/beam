@@ -335,7 +335,7 @@ class ComputeAndApplyVocabTest(unittest.TestCase):
           | "MLTransform" >> base.MLTransform(
               artifact_location=self.artifact_location).with_transform(
                   tft.ComputeAndApplyVocabulary(
-                      columns=['x'], split_string_by_delimiter='')))
+                      columns=['x'], split_string_by_delimiter=' ')))
       result = result | beam.Map(lambda x: x.x)
       expected_result = [
           np.array([3, 2, 1]), np.array([0, 0, 1]), np.array([0, 0, 1])
