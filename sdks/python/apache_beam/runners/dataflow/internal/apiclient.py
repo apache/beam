@@ -672,6 +672,7 @@ class DataflowApplicationClient(object):
     try:
       with FileSystems.create(gcs_location) as f:
         f.write(stream.read())
+      return
     except Exception as e:
       reportable_errors = [
           Forbidden,
