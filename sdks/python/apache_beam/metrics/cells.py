@@ -125,7 +125,8 @@ class CounterCell(MetricCell):
   def dec(self, n=1):
     self.update(-n)
 
-  def update(self, value: int):
+  def update(self, value):
+    # type: (int) -> None
     if cython.compiled:
       ivalue = value
       # Since We hold the GIL, no need for another lock.
