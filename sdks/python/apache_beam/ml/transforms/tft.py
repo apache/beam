@@ -101,12 +101,39 @@ class TFTOperation(BaseOperation[common_types.TensorType,
     """
     return {}
 
+  def _split_string_with_delimiter(self, data, delimiter):
+    """
+    only applicable to string columns.
+    """
+    data = tf.sparse.to_dense(data)
+    # this method acts differently compared to tf.strings.split
+    # this will split the string based on multiple delimiters while
+    # the latter will split the string based on a single delimiter.
+    fn = lambda data: tf.compat.v1.string_split(
+        data, delimiter, result_type='RaggedTensor')
+    # tf.compat.v1.string_split works on a single string. Use tf.map_fn
+    # to apply the function on each element of the input data.
+    data = tf.map_fn(
+        fn,
+        data,
+        fn_output_signature=tf.RaggedTensorSpec(
+            tf.TensorShape([None, None]), tf.string))
+    data = data.values.to_sparse()
+    # the columns of the sparse tensor are suffixed with $indices, $values
+    # related to sparse tensor. Create a new sparse tensor by extracting
+    # the indices, values and dense_shape from the original sparse tensor
+    # to preserve the original column name.
+    data = tf.sparse.SparseTensor(
+        indices=data.indices, values=data.values, dense_shape=data.dense_shape)
+    return data
+
 
 @register_input_dtype(str)
 class ComputeAndApplyVocabulary(TFTOperation):
   def __init__(
       self,
       columns: List[str],
+      split_string_by_delimiter: Optional[str] = None,
       *,
       default_value: Any = -1,
       top_k: Optional[int] = None,
@@ -121,6 +148,8 @@ class ComputeAndApplyVocabulary(TFTOperation):
 
     Args:
       columns: List of column names to apply the transformation.
+      split_string_by_delimiter: (Optional) A string that specifies the
+        delimiter to split strings.
       default_value: (Optional) The value to use for out-of-vocabulary values.
       top_k: (Optional) The number of most frequent tokens to keep.
       frequency_threshold: (Optional) Limit the generated vocabulary only to
@@ -143,10 +172,14 @@ class ComputeAndApplyVocabulary(TFTOperation):
     self._vocab_filename = vocab_filename if vocab_filename else (
         'compute_and_apply_vocab')
     self._name = name
+    self.split_string_by_delimiter = split_string_by_delimiter
 
   def apply_transform(
       self, data: common_types.TensorType,
       output_column_name: str) -> Dict[str, common_types.TensorType]:
+    if self.split_string_by_delimiter:
+      data = self._split_string_with_delimiter(
+          data, self.split_string_by_delimiter)
     return {
         output_column_name: tft.compute_and_apply_vocabulary(
             x=data,
@@ -479,8 +512,10 @@ class NGrams(TFTOperation):
   def __init__(
       self,
       columns: List[str],
+      split_string_by_delimiter: Optional[str] = None,
+      *,
       ngram_range: Tuple[int, int],
-      separator: str,
+      ngrams_separator: str,
       name: Optional[str] = None):
     """
     An n-gram is a contiguous sequence of n items from a given sample of text
@@ -490,20 +525,23 @@ class NGrams(TFTOperation):
 
     Args:
       columns: A list of column names to apply the transformation on.
+      split_string_by_delimiter: (Optional) A string that specifies the
+        delimiter to split the input strings before computing ngrams.
       ngram_range: A tuple of integers(inclusive) specifying the range of
         n-gram sizes.
-      separator: A string that specifies the separator between tokens.
+      ngrams_separator: A string that will be inserted between each ngram.
       name: A name for the operation (optional).
     """
     super().__init__(columns)
     self.ngram_range = ngram_range
-    self.separator = separator
+    self.ngrams_separator = ngrams_separator
     self.name = name
+    self.split_string_by_delimiter = split_string_by_delimiter
 
   def apply_transform(self, data: tf.SparseTensor,
                       output_column_name: str) -> Dict[str, tf.SparseTensor]:
-    # TODO: https://github.com/apache/beam/issues/27505
-    # When the input is passed as a string instead of list of strings,
-    # split the string using separator.
-    output = tft.ngrams(data, self.ngram_range, self.separator)
+    if self.split_string_by_delimiter:
+      data = self._split_string_with_delimiter(
+          data, self.split_string_by_delimiter)
+    output = tft.ngrams(data, self.ngram_range, self.ngrams_separator)
     return {output_column_name: output}
