@@ -94,6 +94,21 @@ class ConvertScalarValuesToListValues(beam.DoFn):
     yield new_dict
 
 
+class RawDataWithColumnsNotInSchema(beam.DoFn):
+  def __init__(self, columns):
+    self.columns = columns
+
+  def process(self, element):
+    for key in element.keys():
+      if key not in self.columns:
+        yield (key, element[key])
+
+
+class JoinMissingColumns(beam.DoFn):
+  def process(self, element, raw_data):
+    yield {**element, **raw_data}
+
+
 class ConvertNamedTupleToDict(
     beam.PTransform[beam.PCollection[typing.Union[beam.Row, typing.NamedTuple]],
                     beam.PCollection[Dict[str,
@@ -369,10 +384,10 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
     # whether a scalar value or list or np array is passed as input,
     #  we will convert scalar values to list values and TFT will ouput
     # numpy array all the time.
-    raw_data |= beam.ParDo(ConvertScalarValuesToListValues())
+    raw_data_list = (raw_data | beam.ParDo(ConvertScalarValuesToListValues()))
 
     with tft_beam.Context(temp_dir=self.artifact_location):
-      data = (raw_data, raw_data_metadata)
+      data = (raw_data_list, raw_data_metadata)
       if self.artifact_mode == ArtifactMode.PRODUCE:
         transform_fn = (
             data
@@ -380,11 +395,11 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
         self.write_transform_artifacts(transform_fn, self.artifact_location)
       else:
         transform_fn = (
-            raw_data.pipeline
+            raw_data_list.pipeline
             | "ReadTransformFn" >> tft_beam.ReadTransformFn(
                 self.artifact_location))
       (transformed_dataset, transformed_metadata) = (
-          ((raw_data, raw_data_metadata), transform_fn)
+          ((raw_data_list, raw_data_metadata), transform_fn)
           | "TransformDataset" >> tft_beam.TransformDataset())
 
       if isinstance(transformed_metadata, beam_metadata_io.BeamDatasetMetadata):
@@ -401,6 +416,20 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
       row_type = RowTypeConstraint.from_fields(
           list(self.transformed_schema.items()))
 
-      transformed_dataset |= "ConvertToRowType" >> beam.Map(
-          lambda x: beam.Row(**x)).with_output_types(row_type)
+      # If a non schema PCollection is passed, and one of the input columns
+      # is not transformed by any of the transforms, then the output will
+      # not have that column. So we will join the missing columns from the
+      # raw_data to the transformed_dataset.
+      raw_data_excluded_columns = (
+          raw_data | beam.ParDo(
+              RawDataWithColumnsNotInSchema(columns=self.transformed_schema)))
+      transformed_dataset = (
+          transformed_dataset | beam.ParDo(
+              JoinMissingColumns(),
+              beam.pvalue.AsDict(raw_data_excluded_columns)))
+
+      transformed_dataset = (
+          transformed_dataset | "ConvertToRowType" >>
+          beam.Map(lambda x: beam.Row(**x)).with_output_types(row_type))
+
       return transformed_dataset

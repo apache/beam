@@ -342,6 +342,25 @@ class TFTProcessHandlerTest(unittest.TestCase):
           equal_to([np.array([0.2, 0.8], dtype=np.float32)],
                    equals_fn=np.array_equal))
 
+  def test_tft_process_handler_unused_column(self):
+    data = [{'x': [5, 1], 'y': 2}]
+    scale_to_0_1_fn = tft.ScaleTo01(columns=['x'])
+    with beam.Pipeline() as p:
+      raw_data = p | beam.Create(data)
+      process_handler = handlers.TFTProcessHandler(
+          transforms=[scale_to_0_1_fn],
+          artifact_location=self.artifact_location,
+      )
+      transformed_pcoll = process_handler.process_data(raw_data)
+      transformed_pcoll_x = transformed_pcoll | beam.Map(lambda x: x.x)
+      transformed_pcoll_y = transformed_pcoll | beam.Map(lambda x: x.y)
+      assert_that(
+          transformed_pcoll_x,
+          equal_to([np.array([1, 0], dtype=np.float32)],
+                   equals_fn=np.array_equal))
+      assert_that(
+          transformed_pcoll_y, equal_to([2]), label='y_column_not_transformed')
+
 
 if __name__ == '__main__':
   unittest.main()
