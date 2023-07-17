@@ -568,7 +568,6 @@ public class ByteBuddyUtils {
     @Override
     public void clear() {
       delegateMap.clear();
-      ;
     }
 
     @Override
