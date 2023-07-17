@@ -24,12 +24,19 @@ import logging
 from typing import TYPE_CHECKING
 from typing import Optional
 
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import PortableOptions
+from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
+from apache_beam.options.pipeline_options import TypeOptions
+from apache_beam.portability import common_urns
+from apache_beam.portability.api import beam_runner_api_pb2
+from apache_beam.runners.common import group_by_key_input_visitor
+from apache_beam.transforms import environments
 
 if TYPE_CHECKING:
   from apache_beam import pvalue
   from apache_beam import PTransform
-  from apache_beam.options.pipeline_options import PipelineOptions
   from apache_beam.pipeline import Pipeline
 
 __all__ = ['PipelineRunner', 'PipelineState', 'PipelineResult']
@@ -144,6 +151,24 @@ class PipelineRunner(object):
       transform(PBegin(p))
     return p.run()
 
+  def run_full_pipeline(
+      self, pipeline: beam_runner_api_pb2.Pipeline,
+      options: PipelineOptions) -> 'PipelineResult':
+    """Execute the entire pipeline.
+
+    Runners should override this method.
+    """
+    raise NotImplementedError
+
+  def default_environment(
+      self, options: PipelineOptions) -> environments.Environment:
+    """Returns the default environment that should be used for this runner.
+
+    Runners may override this method to provide alternative environments.
+    """
+    return environments.Environment.from_options(
+        options.view_as(PortableOptions))
+
   def run_pipeline(
       self,
       pipeline,  # type: Pipeline
@@ -152,10 +177,21 @@ class PipelineRunner(object):
     # type: (...) -> PipelineResult
 
     """Execute the entire pipeline or the sub-DAG reachable from a node.
-
-    Runners should override this method.
     """
-    raise NotImplementedError
+    pipeline.visit(
+        group_by_key_input_visitor(
+            not options.view_as(TypeOptions).allow_non_deterministic_key_coders)
+    )
+
+    # TODO: https://github.com/apache/beam/issues/19168
+    # portable runner specific default
+    if options.view_as(SetupOptions).sdk_location == 'default':
+      options.view_as(SetupOptions).sdk_location = 'container'
+
+    return self.run_full_pipeline(
+        pipeline.to_runner_api(
+            default_environment=self.default_environment(options)),
+        options)
 
   def apply(self,
             transform,  # type: PTransform
