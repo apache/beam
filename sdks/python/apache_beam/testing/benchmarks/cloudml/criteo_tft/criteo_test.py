@@ -25,7 +25,7 @@ try:
   import tensorflow as tf
   from apache_beam.testing.benchmarks.cloudml.criteo_tft.criteo import fill_in_missing
 except ImportError:
-  tft = None  
+  tft = None
 
 if not tft:
   raise unittest.SkipTest('tensorflow_transform is not installed.')
