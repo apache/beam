@@ -278,29 +278,15 @@ def createRunnerV2ValidatesRunnerTest = { Map args ->
 // task directly ('dependsOn buildAndPushDockerJavaContainer'). This ensures the correct
 // task ordering such that the registry doesn't get cleaned up prior to task completion.
 def buildAndPushDockerJavaContainer = tasks.register("buildAndPushDockerJavaContainer") {
-  dependsOn ":sdks:java:container:${javaVer}:docker"
-  def localJavax86ImageName = containerImageName(
-          name: "${project.docker_image_default_repo_prefix}${javaVer}_sdk-x86",
-          root: "apache",
-          tag: dockerTag)
-  def localJavaArmImageName = containerImageName(
-          name: "${project.docker_image_default_repo_prefix}${javaVer}_sdk-arm",
-          root: "apache",
-          tag: dockerTag)        
+  dependsOn ":sdks:java:container:${javaVer}:docker"     
   doLast {
     // Verify multi-arch Java docker image has been built and pushed during the build
-    // by pulling and tagging the x86 and arm components:
+    // by pulling the x86 and arm components:
     exec {
-      commandLine "docker", "pull", "${dockerJavaMultiarchImageName}"
+      commandLine "gcloud", "docker", "--", "pull", "${dockerJavaMultiarchImageName}"
     }
     exec {
-      commandLine "docker", "tag", "${dockerJavaMultiarchImageName}", "${localJavax86ImageName}"
-    }
-    exec {
-      commandLine "docker", "pull", "--platform=linux/arm64", "${dockerJavaMultiarchImageName}"
-    }
-    exec {
-      commandLine "docker", "tag", "${dockerJavaMultiarchImageName}", "${localJavaArmImageName}"
+      commandLine "gcloud", "docker", "--", "pull", "--platform=linux/arm64", "${dockerJavaMultiarchImageName}"
     }
   }
 }
@@ -309,10 +295,7 @@ def buildAndPushDockerJavaContainer = tasks.register("buildAndPushDockerJavaCont
 def cleanUpDockerJavaImages = tasks.register("cleanUpDockerJavaImages") {
   doLast {
     exec {
-      commandLine "docker", "rmi", "--force", "${localJavax86ImageName}"
-    }
-    exec {
-      commandLine "docker", "rmi", "--force", "${localJavaArmImageName}"
+      commandLine "docker", "rmi", "-q", "${dockerJavaMultiarchImageName}"
     }
     exec {
       commandLine "gcloud", "--quiet", "container", "images", "untag", "${dockerJavaMultiarchImageName}"
@@ -383,7 +366,7 @@ task printRunnerV2PipelineOptions {
     println "To run a Dataflow job with runner V2, add the following pipeline options to your command-line:"
     println runnerV2PipelineOptions.join(' ')
     println "Please delete your image upon completion with the following command:"
-    println "docker rmi ${localJavax86ImageName}; docker rmi ${localJavaArmImageName}; gcloud container images delete --force-delete-tags ${dockerJavaMultiarchImageName}"
+    println "docker rmi -q ${dockerJavaMultiarchImageName}; gcloud container images delete --force-delete-tags ${dockerJavaMultiarchImageName}"
   }
 }
 
