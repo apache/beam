@@ -27,9 +27,11 @@ try:
   import tensorflow as tf
   from apache_beam.testing.benchmarks.cloudml.criteo_tft.criteo import fill_in_missing
 except ImportError:
-  tft = None
-  tf = None
-  fill_in_missing : Optional[Callable[[tf.sparse.SparseTensor, int], tf.Tensor]] = None
+  except ImportError:
+  tft = None  # type: ignore[assignment]
+
+if not tft:
+  raise unittest.SkipTest('tensorflow_transform is not installed.')
 
 
 @pytest.mark.uses_tft
