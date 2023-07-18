@@ -826,5 +826,4 @@ class GcsUploader(Uploader):
     if self._upload_thread.last_error is not None:
       e = self._upload_thread.last_error
       raise type(self._upload_thread.last_error)(
-          "Error while uploading file %s" % self._path
-      ) from e # pylint: disable=raising-bad-type
+          "Error while uploading file %s" % self._path) from e  # pylint: disable=raising-bad-type
