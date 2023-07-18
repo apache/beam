@@ -448,7 +448,7 @@ createCrossLanguageValidatesRunnerTask(
     "--dataflow_project ${dataflowProject}",
     "--region ${dataflowRegion}",
     "--tests \"./test/integration/xlang ./test/integration/io/xlang/...\"",
-    "--sdk_overrides \".*java.*,${dockerJavaImageContainer}:${dockerTag}\"",
+    "--sdk_overrides \".*java.*,${dockerJavaMultiarchImageContainer}:${dockerTag}\"",
   ],
 )
 
