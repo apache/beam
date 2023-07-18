@@ -151,10 +151,10 @@ def javaVer = "java8"
     javaVer = "java11"
   }
 def dockerImageRoot = project.findProperty('docker-repository-root') ?: "us.gcr.io/${dataflowProject}/java-postcommit-it"
-def dockerJavaMultiarchImageContainer = "${dockerImageRoot}/${project.docker_image_default_repo_prefix}java${javaVer}_sdk"
+def dockerJavaImageContainer = "${dockerImageRoot}/${project.docker_image_default_repo_prefix}java${javaVer}_sdk"
 def dockerPythonImageContainer = "${dockerImageRoot}/python"
 def dockerTag = project.findProperty('docker-tag') ?: new Date().format('yyyyMMddHHmmss')
-ext.dockerJavaMultiarchImageName = "${dockerJavaMultiarchImageContainer}:${dockerTag}"
+ext.dockerJavaImageName = "${dockerJavaImageContainer}:${dockerTag}"
 ext.dockerPythonImageName = "${dockerPythonImageContainer}:${dockerTag}"
 
 def legacyPipelineOptions = [
@@ -171,7 +171,7 @@ def runnerV2PipelineOptions = [
   "--project=${dataflowProject}",
   "--region=${dataflowRegion}",
   "--tempRoot=${dataflowValidatesTempRoot}",
-  "--sdkContainerImage=${dockerJavaMultiarchImageContainer}:${dockerTag}",
+  "--sdkContainerImage=${dockerJavaImageContainer}:${dockerTag}",
   "--experiments=use_unified_worker,use_runner_v2",
   "--firestoreDb=${firestoreDb}",
 ]
@@ -286,10 +286,10 @@ def buildAndPushDockerJavaContainer = tasks.register("buildAndPushDockerJavaCont
 def cleanUpDockerJavaImages = tasks.register("cleanUpDockerJavaImages") {
   doLast {
     exec {
-      commandLine "gcloud", "--quiet", "container", "images", "untag", "${dockerJavaMultiarchImageName}"
+      commandLine "gcloud", "--quiet", "container", "images", "untag", "${dockerJavaImageName}"
     }
     exec {
-      commandLine "./scripts/cleanup_untagged_gcr_images.sh", "${dockerJavaMultiarchImageContainer}"
+      commandLine "./scripts/cleanup_untagged_gcr_images.sh", "${dockerJavaImageContainer}"
     }
   }
 }
@@ -354,7 +354,7 @@ task printRunnerV2PipelineOptions {
     println "To run a Dataflow job with runner V2, add the following pipeline options to your command-line:"
     println runnerV2PipelineOptions.join(' ')
     println "Please delete your image upon completion with the following command:"
-    println "docker rmi -q ${dockerJavaMultiarchImageName}; gcloud container images delete --force-delete-tags ${dockerJavaMultiarchImageName}"
+    println "gcloud container images delete --force-delete-tags ${dockerJavaImageName}"
   }
 }
 
@@ -414,14 +414,14 @@ createCrossLanguageValidatesRunnerTask(
     "--runner=TestDataflowRunner",
     "--project=${dataflowProject}",
     "--region=${dataflowRegion}",
-    "--sdk_harness_container_image_overrides=.*java.*,${dockerJavaMultiarchImageContainer}:${dockerTag}",
+    "--sdk_harness_container_image_overrides=.*java.*,${dockerJavaImageContainer}:${dockerTag}",
   ],
   javaPipelineOptions: [
     "--runner=TestDataflowRunner",
     "--project=${dataflowProject}",
     "--region=${dataflowRegion}",
     "--tempRoot=${dataflowValidatesTempRoot}",
-    "--sdkContainerImage=${dockerJavaMultiarchImageContainer}:${dockerTag}",
+    "--sdkContainerImage=${dockerJavaImageContainer}:${dockerTag}",
     "--sdkHarnessContainerImageOverrides=.*python.*,${dockerPythonImageContainer}:${dockerTag}",
   ],
   pytestOptions: [
@@ -436,7 +436,7 @@ createCrossLanguageValidatesRunnerTask(
     "--dataflow_project ${dataflowProject}",
     "--region ${dataflowRegion}",
     "--tests \"./test/integration/xlang ./test/integration/io/xlang/...\"",
-    "--sdk_overrides \".*java.*,${dockerJavaMultiarchImageContainer}:${dockerTag}\"",
+    "--sdk_overrides \".*java.*,${dockerJavaImageContainer}:${dockerTag}\"",
   ],
 )
 
