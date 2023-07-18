@@ -44,9 +44,9 @@ from transformers import TFAutoModel
 _LOGGER = logging.getLogger(__name__)
 
 __all__ = [
-    'HuggingFaceModelHandler',
-    'HuggingFaceModelHandlerTensor',
-    'HuggingFaceModelHandlerKeyedTensor',
+    "HuggingFaceModelHandler",
+    "HuggingFaceModelHandlerTensor",
+    "HuggingFaceModelHandlerKeyedTensor",
 ]
 
 TensorInferenceFn = Callable[[
@@ -54,18 +54,20 @@ TensorInferenceFn = Callable[[
     Union[AutoModel, TFAutoModel],
     str,
     Optional[Dict[str, Any]],
-    Optional[str]
+    Optional[str],
 ],
-                             Iterable[PredictionResult]]
+                             Iterable[PredictionResult],
+                             ]
 
 KeyedTensorInferenceFn = Callable[[
     Sequence[Dict[str, Union[torch.Tensor, tf.Tensor]]],
     Union[AutoModel, TFAutoModel],
     str,
     Optional[Dict[str, Any]],
-    Optional[str]
+    Optional[str],
 ],
-                                  Iterable[PredictionResult]]
+                                  Iterable[PredictionResult],
+                                  ]
 
 
 def _validate_constructor_args(model_uri, model_class):
@@ -99,9 +101,9 @@ def is_gpu_available_torch():
 
 
 def get_device_torch(device):
-  if device == 'GPU' and is_gpu_available_torch():
-    return torch.device('cuda')
-  return torch.device('cpu')
+  if device == "GPU" and is_gpu_available_torch():
+    return torch.device("cuda")
+  return torch.device("cpu")
 
 
 def is_gpu_available_tensorflow(device):
@@ -141,7 +143,7 @@ def _run_inference_tensorflow_keyed_tensor(
     device,
     inference_args: Dict[str, Any],
     model_id: Optional[str] = None) -> Iterable[PredictionResult]:
-  if device == 'GPU':
+  if device == "GPU":
     is_gpu_available_tensorflow(device)
   key_to_tensor_list = defaultdict(list)
   for example in batch:
@@ -160,7 +162,7 @@ class HuggingFaceModelHandler(ModelHandler[ExampleT, PredictionT, ModelT], ABC):
       self,
       model_uri: str,
       model_class: Union[AutoModel, TFAutoModel],
-      device: str = 'CPU',
+      device: str = "CPU",
       *,
       inference_fn: Optional[Callable[..., Iterable[PredictionT]]] = None,
       load_model_args: Optional[Dict[str, Any]] = None,
@@ -212,11 +214,11 @@ class HuggingFaceModelHandler(ModelHandler[ExampleT, PredictionT, ModelT], ABC):
     self._model_config_args = load_model_args if load_model_args else {}
     self._inference_args = inference_args if inference_args else {}
     self._batching_kwargs = {}
-    self._env_vars = kwargs.get('env_vars', {})
+    self._env_vars = kwargs.get("env_vars", {})
     if min_batch_size is not None:
-      self._batching_kwargs['min_batch_size'] = min_batch_size
+      self._batching_kwargs["min_batch_size"] = min_batch_size
     if max_batch_size is not None:
-      self._batching_kwargs['max_batch_size'] = max_batch_size
+      self._batching_kwargs["max_batch_size"] = max_batch_size
     self._large_model = large_model
     self._framework = ""
 
@@ -297,8 +299,8 @@ class HuggingFaceModelHandlerKeyedTensor(
         self._framework = "tf"
       else:
         self._framework = "torch"
-        if self._device == 'GPU' and is_gpu_available_torch():
-          model.to(torch.device('cuda'))
+        if self._device == "GPU" and is_gpu_available_torch():
+          model.to(torch.device("cuda"))
 
     if self._inference_fn:
       return self._inference_fn(
@@ -314,9 +316,9 @@ class HuggingFaceModelHandlerKeyedTensor(
   def get_metrics_namespace(self) -> str:
     """
     Returns:
-       A namespace for metrics collected by the RunInference transform.
+        A namespace for metrics collected by the RunInference transform.
     """
-    return 'BeamML_HuggingFaceModelHandler_KeyedTensor'
+    return "BeamML_HuggingFaceModelHandler_KeyedTensor"
 
 
 def _default_inference_fn_torch(
@@ -341,7 +343,7 @@ def _default_inference_fn_tensorflow(
     device,
     inference_args: Dict[str, Any],
     model_id: Optional[str] = None) -> Iterable[PredictionResult]:
-  if device == 'GPU':
+  if device == "GPU":
     is_gpu_available_tensorflow(device)
   batched_tensors = tf.stack(batch, axis=0)
   predictions = model(batched_tensors, **inference_args)
@@ -397,8 +399,8 @@ class HuggingFaceModelHandlerTensor(HuggingFaceModelHandler[Union[tf.Tensor,
         self._framework = "tf"
       else:
         self._framework = "torch"
-        if self._device == 'GPU' and is_gpu_available_torch():
-          model.to(torch.device('cuda'))
+        if self._device == "GPU" and is_gpu_available_torch():
+          model.to(torch.device("cuda"))
 
     if self._inference_fn:
       return self._inference_fn(
@@ -414,6 +416,6 @@ class HuggingFaceModelHandlerTensor(HuggingFaceModelHandler[Union[tf.Tensor,
   def get_metrics_namespace(self) -> str:
     """
     Returns:
-       A namespace for metrics collected by the RunInference transform.
+        A namespace for metrics collected by the RunInference transform.
     """
-    return 'BeamML_HuggingFaceModelHandler_Tensor'
+    return "BeamML_HuggingFaceModelHandler_Tensor"
