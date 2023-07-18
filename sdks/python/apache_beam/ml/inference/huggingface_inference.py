@@ -171,7 +171,8 @@ class HuggingFaceModelHandler(ModelHandler[ExampleT, PredictionT, ModelT], ABC):
       max_batch_size: Optional[int] = None,
       large_model: bool = False,
       **kwargs):
-    """Implementation of the abstract base class of ModelHandler interface
+    """
+    Implementation of the abstract base class of ModelHandler interface
     for Hugging Face. This class shouldn't be instantiated directly.
 
     Use HuggingFaceModelHandlerKeyedTensor or HuggingFaceModelHandlerTensor.
@@ -257,7 +258,8 @@ class HuggingFaceModelHandlerKeyedTensor(
     HuggingFaceModelHandler[Dict[str, Union[tf.Tensor, torch.Tensor]],
                             PredictionResult,
                             Union[AutoModel, TFAutoModel]]):
-  """Implementation of the ModelHandler interface for HuggingFace with
+  """
+  Implementation of the ModelHandler interface for HuggingFace with
   Keyed Tensors for PyTorch/Tensorflow backend.
 
   Depending on the type of tensors, the model framework is determined
@@ -275,7 +277,8 @@ class HuggingFaceModelHandlerKeyedTensor(
       model: Union[AutoModel, TFAutoModel],
       inference_args: Optional[Dict[str, Any]] = None
   ) -> Iterable[PredictionResult]:
-    """Runs inferences on a batch of Keyed Tensors and returns an Iterable of
+    """
+    Runs inferences on a batch of Keyed Tensors and returns an Iterable of
     Tensors Predictions.
 
     This method stacks the list of Tensors in a vectorized format to optimize
@@ -356,7 +359,8 @@ class HuggingFaceModelHandlerTensor(HuggingFaceModelHandler[Union[tf.Tensor,
                                                             Union[AutoModel,
                                                                   TFAutoModel]]
                                     ):
-  """Implementation of the ModelHandler interface for HuggingFace with
+  """
+  Implementation of the ModelHandler interface for HuggingFace with
   Tensors for PyTorch/Tensorflow backend.
 
   Depending on the type of tensors, the model framework is determined
@@ -374,7 +378,8 @@ class HuggingFaceModelHandlerTensor(HuggingFaceModelHandler[Union[tf.Tensor,
       model: Union[AutoModel, TFAutoModel],
       inference_args: Optional[Dict[str, Any]] = None
   ) -> Iterable[PredictionResult]:
-    """Runs inferences on a batch of Tensors and returns an Iterable of
+    """
+    Runs inferences on a batch of Tensors and returns an Iterable of
     Tensors Predictions.
 
     This method stacks the list of Tensors in a vectorized format to optimize
