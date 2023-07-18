@@ -29,7 +29,7 @@ RUN go mod download
 
 RUN go build -o /app/cloudfunction ./cmd
 
-FROM alpine:3.17
+FROM alpine:3
 
 COPY --from=build /app/cloudfunction /app/cloudfunction
 
