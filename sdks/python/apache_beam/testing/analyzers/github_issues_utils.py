@@ -24,6 +24,8 @@ from typing import Tuple
 import pandas as pd
 import requests
 
+from apache_beam.testing.analyzers import constants
+
 try:
   _GITHUB_TOKEN: Optional[str] = os.environ['GITHUB_TOKEN']
 except KeyError as e:
@@ -162,28 +164,32 @@ def get_issue_description(
   """
 
   # TODO: Add mean and median before and after the changepoint index.
+
+  description = []
+
+  description.append(_ISSUE_DESCRIPTION_TEMPLATE.format(test_name, metric_name))
+
+  description.append(("`Test description:` " +
+                      f'{test_description}') if test_description else '')
+
+  description.append('```')
+
+  runs_to_display = []
   max_timestamp_index = min(
       change_point_index + max_results_to_display, len(metric_values) - 1)
   min_timestamp_index = max(0, change_point_index - max_results_to_display)
 
-  description = _ISSUE_DESCRIPTION_TEMPLATE.format(
-      test_name, metric_name) + 2 * '\n'
+  # run in reverse to display the most recent runs first.
+  for i in reversed(range(min_timestamp_index, max_timestamp_index + 1)):
+    row_template = _METRIC_INFO_TEMPLATE.format(
+        timestamps[i].ctime(), format(metric_values[i], '.2f'))
+    if i == change_point_index:
+      row_template += constants._ANOMALY_MARKER
+    runs_to_display.append(row_template)
 
-  description += (
-      "`Test description:` " + f'{test_description}' +
-      2 * '\n') if test_description else ''
-
-  description += '```' + '\n'
-  runs_to_display = [
-      _METRIC_INFO_TEMPLATE.format(
-          timestamps[i].ctime(), format(metric_values[i], '.2f'))
-      for i in reversed(range(min_timestamp_index, max_timestamp_index + 1))
-  ]
-
-  runs_to_display[change_point_index - min_timestamp_index] += " <---- Anomaly"
-  description += '\n'.join(runs_to_display) + '\n'
-  description += '```' + '\n'
-  return description
+  description.append(os.linesep.join(runs_to_display))
+  description.append('```')
+  return (2 * os.linesep).join(description)
 
 
 def report_change_point_on_issues(

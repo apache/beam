@@ -30,11 +30,11 @@ require (
 	cloud.google.com/go/pubsub v1.32.0
 	cloud.google.com/go/spanner v1.47.0
 	cloud.google.com/go/storage v1.31.0
-	github.com/aws/aws-sdk-go-v2 v1.18.1
-	github.com/aws/aws-sdk-go-v2/config v1.18.27
-	github.com/aws/aws-sdk-go-v2/credentials v1.13.26
-	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.11.71
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.36.0
+	github.com/aws/aws-sdk-go-v2 v1.19.0
+	github.com/aws/aws-sdk-go-v2/config v1.18.28
+	github.com/aws/aws-sdk-go-v2/credentials v1.13.27
+	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.11.72
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.37.0
 	github.com/aws/smithy-go v1.13.5
 	github.com/docker/go-connections v0.4.0
 	github.com/dustin/go-humanize v1.0.1
@@ -57,8 +57,8 @@ require (
 	golang.org/x/sync v0.3.0
 	golang.org/x/sys v0.10.0
 	golang.org/x/text v0.11.0
-	google.golang.org/api v0.130.0
-	google.golang.org/genproto v0.0.0-20230530153820-e85fd2cbaebc
+	google.golang.org/api v0.131.0
+	google.golang.org/genproto v0.0.0-20230629202037-9506855d4529
 	google.golang.org/grpc v1.56.2
 	google.golang.org/protobuf v1.31.0
 	gopkg.in/retry.v1 v1.0.3
@@ -85,18 +85,18 @@ require (
 	github.com/apache/thrift v0.16.0 // indirect
 	github.com/aws/aws-sdk-go v1.34.0 // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.4.10 // indirect
-	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.13.4 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/configsources v1.1.34 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.4.28 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/ini v1.3.35 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/v4a v1.0.26 // indirect
+	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.13.5 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.1.35 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.4.29 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/ini v1.3.36 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/v4a v1.0.27 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.9.11 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.1.29 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.9.28 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.14.3 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sso v1.12.12 // indirect
-	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.14.12 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sts v1.19.2 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.1.30 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.9.29 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.14.4 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sso v1.12.13 // indirect
+	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.14.13 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sts v1.19.3 // indirect
 	github.com/cenkalti/backoff/v4 v4.2.0 // indirect
 	github.com/census-instrumentation/opencensus-proto v0.4.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
@@ -119,7 +119,7 @@ require (
 	github.com/google/renameio/v2 v2.0.0 // indirect
 	github.com/google/s2a-go v0.1.4 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.2.5 // indirect
-	github.com/googleapis/gax-go/v2 v2.11.0 // indirect
+	github.com/googleapis/gax-go/v2 v2.12.0 // indirect
 	github.com/gorilla/handlers v1.5.1 // indirect
 	github.com/gorilla/mux v1.8.0 // indirect
 	github.com/imdario/mergo v0.3.15 // indirect
@@ -158,6 +158,6 @@ require (
 	golang.org/x/tools v0.9.1 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20230530153820-e85fd2cbaebc // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20230629202037-9506855d4529 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20230629202037-9506855d4529 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20230706204954-ccb25ca9f130 // indirect
 )

@@ -12,18 +12,17 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-name: Python PreCommit Coverage
+name: Python PreCommit Lint
 on:
   pull_request_target:
     branches: [ "master", "release-*" ]
-    paths: [ "model/**","sdks/python/**","release/**"]
+    paths: ["sdks/python/**","release/**"]
   issue_comment:
     types: [created]
   push:
     tags: ['v*']
     branches: ['master', 'release-*']
-    paths: [ "model/**","sdks/python/**","release/**", ".github/workflows/job_PreCommit_Python_Coverage.yml"]
+    paths: ["sdks/python/**","release/**",".github/workflows/job_PreCommit_PythonLint.yml"]
   schedule:
     - cron: '* */6 * * *'
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -42,12 +41,17 @@ permissions:
   security-events: read
   statuses: read
 
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
+  cancel-in-progress: true
+
 jobs:
-  beam_PreCommit_Python_Coverage:
+  beam_PreCommit_PythonLint:
     if: |
       github.event_name == 'push' || 
       github.event_name == 'pull_request_target' || 
-      github.event.comment.body == 'Run Python_Coverage PreCommit' || 
+      github.event.comment.body == 'Run PythonLint PreCommit' || 
       github.event_name == 'schedule'
     runs-on: [self-hosted, ubuntu-20.04, main]
     steps:
@@ -55,7 +59,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: Rerun on comment
-        if: github.event.comment.body == 'Run Python_Coverage PreCommit'
+        if: github.event.comment.body == 'Run PythonLint PreCommit'
         uses: ./.github/actions/rerun-job-action
         with:
           pull_request_url: ${{ github.event.issue.pull_request.url }}
@@ -63,22 +67,20 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ github.job }}
           github_current_run_id: ${{ github.run_id }}
-      - uses: actions/setup-python@v4
-        with:
-          python-version: '3.8'
       - name: Install Java
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v3.8.0
         with:
           distribution: 'zulu'
           java-version: '8'
+      - uses: actions/setup-go@v4
+        with:
+          go-version: '1.16'
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.8'
       - name: Setup Gradle
         uses: gradle/gradle-build-action@v2
         with:
           cache-read-only: false
-      - name: Run preCommitPyCoverage
-        run: ./gradlew :sdks:python:test-suites:tox:py38:preCommitPyCoverage 
-      - name: Archive code coverage results
-        uses: actions/upload-artifact@v3
-        with:
-          name: python-code-coverage-report
-          path: "**/pytest*.xml"
+      - name: run PythonLintPreCommit script
+        run: ./gradlew :pythonLintPreCommit
