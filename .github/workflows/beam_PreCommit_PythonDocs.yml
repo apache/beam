@@ -12,17 +12,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-name: Python PreCommit Lint
+
+name: Python PreCommit Docs
+
 on:
   pull_request_target:
     branches: [ "master", "release-*" ]
-    paths: ["sdks/python/**","release/**"]
+    paths: ["sdks/python/**"]
   issue_comment:
     types: [created]
   push:
     tags: ['v*']
     branches: ['master', 'release-*']
-    paths: ["sdks/python/**","release/**",".github/workflows/job_PreCommit_PythonLint.yml"]
+    paths: ["sdks/python/**",".github/workflows/beam_PreCommit_PythonDocs.yml"]
   schedule:
     - cron: '* */6 * * *'
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -42,19 +44,21 @@ permissions:
   statuses: read
 
 jobs:
-  beam_PreCommit_PythonLint:
+  beam_PreCommit_PythonDocs:
+    name: beam_PreCommit_PythonDocs
     if: |
       github.event_name == 'push' || 
       github.event_name == 'pull_request_target' || 
-      github.event.comment.body == 'Run PythonLint PreCommit' || 
+      github.event.comment.body == 'Run PythonDocs PreCommit' || 
       github.event_name == 'schedule'
     runs-on: [self-hosted, ubuntu-20.04, main]
     steps:
-      - uses: actions/checkout@v3
+      - name: Check out repository code
+        uses: actions/checkout@v3
         with:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: Rerun on comment
-        if: github.event.comment.body == 'Run PythonLint PreCommit'
+        if: github.event.comment.body == 'Run PythonDocs PreCommit'
         uses: ./.github/actions/rerun-job-action
         with:
           pull_request_url: ${{ github.event.issue.pull_request.url }}
@@ -67,15 +71,13 @@ jobs:
         with:
           distribution: 'zulu'
           java-version: '8'
-      - uses: actions/setup-go@v4
-        with:
-          go-version: '1.16'
-      - uses: actions/setup-python@v4
+      - name: Install Python
+        uses: actions/setup-python@v4
         with:
           python-version: '3.8'
       - name: Setup Gradle
         uses: gradle/gradle-build-action@v2
         with:
           cache-read-only: false
-      - name: run PythonLintPreCommit script
-        run: ./gradlew :pythonLintPreCommit
+      - name: run PythonDocsPrecommit script
+        run: ./gradlew :pythonDocsPreCommit

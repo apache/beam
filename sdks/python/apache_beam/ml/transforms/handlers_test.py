@@ -66,15 +66,15 @@ class _FakeOperationWithArtifacts(TFTOperation):
     return {'artifact': tf.convert_to_tensor([1])}
 
 
-class UnBatchedIntType(NamedTuple):
+class IntType(NamedTuple):
   x: int
 
 
-class BatchedIntType(NamedTuple):
+class ListIntType(NamedTuple):
   x: List[int]
 
 
-class BatchedNumpyType(NamedTuple):
+class NumpyType(NamedTuple):
   x: np.int64
 
 
@@ -116,13 +116,12 @@ class TFTProcessHandlerTest(unittest.TestCase):
     expected_result = {'x': [1, 2, 3], 'artifact': tf.convert_to_tensor([1])}
     self.assertDictEqual(actual_result, expected_result)
 
-  def test_input_type_from_schema_named_tuple_pcoll_unbatched(self):
-    non_batched_data = [{'x': 1}]
+  def test_input_type_from_schema_named_tuple_pcoll(self):
+    data = [{'x': 1}]
     with beam.Pipeline() as p:
       data = (
-          p | beam.Create(non_batched_data)
-          | beam.Map(lambda x: UnBatchedIntType(**x)).with_output_types(
-              UnBatchedIntType))
+          p | beam.Create(data)
+          | beam.Map(lambda x: IntType(**x)).with_output_types(IntType))
     element_type = data.element_type
     process_handler = handlers.TFTProcessHandler(
         artifact_location=self.artifact_location)
@@ -132,13 +131,12 @@ class TFTProcessHandlerTest(unittest.TestCase):
 
     self.assertEqual(inferred_input_type, expected_input_type)
 
-  def test_input_type_from_schema_named_tuple_pcoll_batched(self):
-    batched_data = [{'x': [1, 2, 3]}, {'x': [4, 5, 6]}]
+  def test_input_type_from_schema_named_tuple_pcoll_list(self):
+    data = [{'x': [1, 2, 3]}, {'x': [4, 5, 6]}]
     with beam.Pipeline() as p:
       data = (
-          p | beam.Create(batched_data)
-          | beam.Map(lambda x: BatchedIntType(**x)).with_output_types(
-              BatchedIntType))
+          p | beam.Create(data)
+          | beam.Map(lambda x: ListIntType(**x)).with_output_types(ListIntType))
     element_type = data.element_type
     process_handler = handlers.TFTProcessHandler(
         artifact_location=self.artifact_location)
@@ -147,11 +145,11 @@ class TFTProcessHandlerTest(unittest.TestCase):
     expected_input_type = dict(x=List[int])
     self.assertEqual(inferred_input_type, expected_input_type)
 
-  def test_input_type_from_row_type_pcoll_unbatched(self):
-    non_batched_data = [{'x': 1}]
+  def test_input_type_from_row_type_pcoll(self):
+    data = [{'x': 1}]
     with beam.Pipeline() as p:
       data = (
-          p | beam.Create(non_batched_data)
+          p | beam.Create(data)
           | beam.Map(lambda ele: beam.Row(x=int(ele['x']))))
     element_type = data.element_type
     process_handler = handlers.TFTProcessHandler(
@@ -161,11 +159,11 @@ class TFTProcessHandlerTest(unittest.TestCase):
     expected_input_type = dict(x=List[int])
     self.assertEqual(inferred_input_type, expected_input_type)
 
-  def test_input_type_from_row_type_pcoll_batched(self):
-    batched_data = [{'x': [1, 2, 3]}, {'x': [4, 5, 6]}]
+  def test_input_type_from_row_type_pcoll_list(self):
+    data = [{'x': [1, 2, 3]}, {'x': [4, 5, 6]}]
     with beam.Pipeline() as p:
       data = (
-          p | beam.Create(batched_data)
+          p | beam.Create(data)
           | beam.Map(lambda ele: beam.Row(x=list(ele['x']))).with_output_types(
               beam.row_type.RowTypeConstraint.from_fields([('x', List[int])])))
 
@@ -177,17 +175,16 @@ class TFTProcessHandlerTest(unittest.TestCase):
     expected_input_type = dict(x=List[int])
     self.assertEqual(inferred_input_type, expected_input_type)
 
-  def test_input_type_from_named_tuple_pcoll_batched_numpy(self):
-    batched = [{
+  def test_input_type_from_named_tuple_pcoll_numpy(self):
+    np_data = [{
         'x': np.array([1, 2, 3], dtype=np.int64)
     }, {
         'x': np.array([4, 5, 6], dtype=np.int64)
     }]
     with beam.Pipeline() as p:
       data = (
-          p | beam.Create(batched)
-          | beam.Map(lambda x: BatchedNumpyType(**x)).with_output_types(
-              BatchedNumpyType))
+          p | beam.Create(np_data)
+          | beam.Map(lambda x: NumpyType(**x)).with_output_types(NumpyType))
       element_type = data.element_type
       process_handler = handlers.TFTProcessHandler(
           artifact_location=self.artifact_location)

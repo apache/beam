@@ -70,3 +70,5 @@ _SCHEMA = [{
            }, {
                'name': _ISSUE_URL, 'field_type': 'STRING', 'mode': 'REQUIRED'
            }]
+
+_ANOMALY_MARKER = ' <---- Anomaly'
