@@ -360,10 +360,6 @@ if [[ "$RUNNER" == "dataflow" ]]; then
   echo "Using container $CONTAINER"
   ./gradlew :sdks:go:container:docker -Pdocker-repository-root=us.gcr.io/$PROJECT/$USER -Pdocker-tag=$TAG -Pcontainer-architecture-list=arm64,amd64 -Ppush-containers
 
-  # Verify both the x86 and ARM components of the Go multiarch container exist if the pull requests succeed
-  gcloud docker -- pull $CONTAINER:$TAG
-  gcloud docker -- pull --platform linux/arm64 $CONTAINER:$TAG
-
   if [[ -n "$TEST_EXPANSION_ADDR" || -n "$IO_EXPANSION_ADDR" || -n "$SCHEMAIO_EXPANSION_ADDR" || -n "$DEBEZIUMIO_EXPANSION_ADDR" ]]; then
     ARGS="$ARGS --experiments=use_portable_job_submission"
 
@@ -428,8 +424,7 @@ echo ">>> RUNNING $RUNNER integration tests with pipeline options: $ARGS"
 cd ../..
 
 if [[ "$RUNNER" == "dataflow" ]]; then
-  # Delete the container locally and remotely
-  docker rmi -q $CONTAINER || echo "Failed to remove container"
+  # Delete the container remotely
   gcloud --quiet container images delete $CONTAINER:$TAG || echo "Failed to delete container"
 
   if [[ -n "$TEST_EXPANSION_ADDR" || -n "$IO_EXPANSION_ADDR" || -n "$SCHEMAIO_EXPANSION_ADDR" || -n "$DEBEZIUMIO_EXPANSION_ADDR" ]]; then

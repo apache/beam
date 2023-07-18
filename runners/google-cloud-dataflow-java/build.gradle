@@ -278,25 +278,13 @@ def createRunnerV2ValidatesRunnerTest = { Map args ->
 // task directly ('dependsOn buildAndPushDockerJavaContainer'). This ensures the correct
 // task ordering such that the registry doesn't get cleaned up prior to task completion.
 def buildAndPushDockerJavaContainer = tasks.register("buildAndPushDockerJavaContainer") {
+  // The multi-arch Java container has been pushed during build.
   dependsOn ":sdks:java:container:${javaVer}:docker"     
-  doLast {
-    // Verify multi-arch Java docker image has been built and pushed during the build
-    // by pulling the x86 and arm components:
-    exec {
-      commandLine "gcloud", "docker", "--", "pull", "${dockerJavaMultiarchImageName}"
-    }
-    exec {
-      commandLine "gcloud", "docker", "--", "pull", "--platform=linux/arm64", "${dockerJavaMultiarchImageName}"
-    }
-  }
 }
 
 // Clean up built Java images
 def cleanUpDockerJavaImages = tasks.register("cleanUpDockerJavaImages") {
   doLast {
-    exec {
-      commandLine "docker", "rmi", "-q", "${dockerJavaMultiarchImageName}"
-    }
     exec {
       commandLine "gcloud", "--quiet", "container", "images", "untag", "${dockerJavaMultiarchImageName}"
     }

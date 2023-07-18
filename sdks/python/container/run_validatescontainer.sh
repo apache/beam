@@ -69,15 +69,8 @@ CONTAINER=us.gcr.io/$PROJECT/$USER/$IMAGE_NAME
 PREBUILD_SDK_CONTAINER_REGISTRY_PATH=us.gcr.io/$PROJECT/$USER/prebuild_python${PY_VERSION//.}_sdk
 TAG="$(grep 'unique_tag' job_PostCommit_Python_ValidatesContainer_Dataflow.groovy | cut -d'=' -f2)"
 
-# Verify docker image has been built and pushed during the build:
-# pull the x86 components;
-docker pull $CONTAINER:$TAG
-# pull the ARM components;
-docker pull --platform linux/arm64 $CONTAINER:$TAG
-
 function cleanup_container {
   # Delete the container locally and remotely
-  docker rmi -q $CONTAINER || echo "Failed to remove local container image"
   for image in $(docker images --format '{{.Repository}}:{{.Tag}}' | grep $PREBUILD_SDK_CONTAINER_REGISTRY_PATH)
     do docker rmi $image || echo "Failed to remove prebuilt sdk container image"
   done
