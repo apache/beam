@@ -25,7 +25,6 @@ from apache_beam.yaml import yaml_transform
 from apache_beam.yaml.yaml_transform import SafeLineLoader
 from apache_beam.yaml.yaml_transform import Scope
 from apache_beam.yaml.yaml_transform import expand_composite_transform
-from apache_beam.yaml.yaml_transform import expand_leaf_transform
 from apache_beam.yaml.yaml_transform import pipeline_as_composite
 
 
@@ -102,35 +101,6 @@ class MainTest(unittest.TestCase):
         yaml_provider.standard_providers(), {})
     return scope, spec
 
-  def test_expand_leaf_transform_with_input(self):
-    with new_pipeline() as p:
-      spec = '''
-          transforms:
-          - type: Create
-            elements: [0]
-          - type: PyMap
-            input: Create
-            fn: "lambda x: x*x"
-          '''
-      scope, spec = self.get_scope_by_spec(p, spec)
-      result = expand_leaf_transform(spec['transforms'][1], scope)
-      self.assertTrue('out' in result)
-      self.assertIsInstance(result['out'], beam.PCollection)
-      self.assertRegex(
-          str(result['out'].producer.inputs[0]), r"PCollection.*Create/Map.*")
-
-  def test_expand_leaf_transform_without_input(self):
-    with new_pipeline() as p:
-      spec = '''
-          transforms:
-          - type: Create
-            elements: [0]
-          '''
-      scope, spec = self.get_scope_by_spec(p, spec)
-      result = expand_leaf_transform(spec['transforms'][0], scope)
-      self.assertTrue('out' in result)
-      self.assertIsInstance(result['out'], beam.PCollection)
-
   def test_pipeline_as_composite_with_type_transforms(self):
     spec = '''
       type: composite
@@ -186,7 +156,6 @@ class MainTest(unittest.TestCase):
             elements: [0,1,2]
         output: 
           Create
-              
         '''
       scope, spec = self.get_scope_by_spec(p, spec)
       result = expand_composite_transform(spec, scope)
@@ -221,7 +190,6 @@ class MainTest(unittest.TestCase):
             elements: [0,1,2]
         output: 
           Create
-              
         '''
       scope, spec = self.get_scope_by_spec(p, spec)
       result = expand_composite_transform(spec, scope)
