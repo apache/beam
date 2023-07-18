@@ -1059,7 +1059,7 @@ class SdfProcessSizedElements(DoOperation):
     self.lock = threading.RLock()
     self.element_start_output_bytes = None  # type: Optional[int]
 
-  def encode_progress(value):
+  def encode_progresss(self, value):
     # type: (float) -> bytes
     coder = coders.IterableCoder(coders.FloatCoder())
     return coder.encode([value])
