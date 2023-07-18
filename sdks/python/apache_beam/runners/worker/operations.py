@@ -878,6 +878,8 @@ class DoOperation(Operation):
       # See fn_data in dataflow_runner.py
       fn, args, kwargs, tags_and_types, window_fn = (
         pickler.loads(self.spec.serialized_fn))
+      
+      assert(isinstance(args, list))
 
       state = common.DoFnState(self.counter_factory)
       state.step_name = self.name_context.logging_name()
