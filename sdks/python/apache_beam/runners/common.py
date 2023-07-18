@@ -447,7 +447,8 @@ class DoFnInvoker(object):
       output_handler,  # type: OutputHandler
       context=None,  # type: Optional[DoFnContext]
       side_inputs=None,   # type: Optional[List[sideinputs.SideInputMap]]
-      input_args=None, input_kwargs=None,
+      input_args=None, # type: Optional[List[Any]]
+      input_kwargs=None,
       process_invocation=True,
       user_state_context=None,  # type: Optional[userstate.UserStateContext]
       bundle_finalizer_param=None  # type: Optional[core._BundleFinalizerParam]
@@ -717,7 +718,7 @@ class PerWindowInvoker(DoFnInvoker):
                signature,  # type: DoFnSignature
                context,  # type: DoFnContext
                side_inputs,  # type: Iterable[sideinputs.SideInputMap]
-               input_args,
+               input_args, # type: Optional[List[Any]]
                input_kwargs,
                user_state_context,  # type: Optional[userstate.UserStateContext]
                bundle_finalizer_param  # type: Optional[core._BundleFinalizerParam]
@@ -1329,7 +1330,7 @@ class DoFnRunner:
 
   def __init__(self,
                fn,  # type: core.DoFn
-               args,
+               args, # type: Optional[List[Any]]
                kwargs,
                side_inputs,  # type: Iterable[sideinputs.SideInputMap]
                windowing,
@@ -1554,8 +1555,8 @@ class _OutputHandler(OutputHandler):
                tagged_receivers,  # type: Mapping[Optional[str], Receiver]
                per_element_output_counter,
                output_batch_converter, # type: Optional[BatchConverter]
-               process_yields_batches, # type: bool,
-               process_batch_yields_elements, # type: bool,
+               process_yields_batches, # type: bool
+               process_batch_yields_elements, # type: bool
                ):
     """Initializes ``_OutputHandler``.
 
