@@ -23,4 +23,16 @@ BigQuery. See the [glossary](/performance/glossary) for definitions.
 
 # Read
 
-{{< performance/bigquery_read >}}
+{{< performance_looks io="bigquery" read_or_write="read" section="test_name" >}}
+
+{{< performance_looks io="bigquery" read_or_write="read" section="version" >}}
+
+{{< performance_looks io="bigquery" read_or_write="read" section="date" >}}
+
+# Write
+
+{{< performance_looks io="bigquery" read_or_write="write" section="test_name" >}}
+
+{{< performance_looks io="bigquery" read_or_write="write" section="version" >}}
+
+{{< performance_looks io="bigquery" read_or_write="write" section="date" >}}

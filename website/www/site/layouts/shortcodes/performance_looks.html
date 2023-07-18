@@ -11,19 +11,21 @@ limitations under the License. See accompanying LICENSE file.
 */}}
 
 <div>
-  <div></div>
   {{ $host := .Site.Data.performance.host }}
   {{ $path := .Site.Data.performance.path }}
-  {{ range .Site.Data.performance.looks.bigquery.read }}
+  {{ $looks := .Site.Data.performance.looks }}
+  {{ $io := index $looks (.Get "io") }}
+  {{ $rw := index $io (.Get "read_or_write") }}
+  {{ $section := index $rw (.Get "section") }}
+  {{ range $section }}
   <h2>{{.title}}</h2>
-  {{.commentary | markdownify}}
-  <iframe
-      width="800px"
-      height="800px"
-    src="{{ $host }}/{{ $path }}/{{.id}}.png?apply_formatting=true&apply_vis=true"
-      style="border: none; margin-top: 10px;"
-  >
-
-  </iframe>
+    <iframe
+            height="575px"
+            width="660px"
+            class="performance"
+            src="{{ $host }}/{{ $path }}/{{.id}}.png?apply_formatting=true&apply_vis=true"
+            frameborder="0"
+    >
+    </iframe>
   {{ end }}
 </div>

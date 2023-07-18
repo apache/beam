@@ -1,5 +1,5 @@
 ---
-title: "BigQuery Performance"
+title: "TextIO Performance"
 ---
 
 <!--
@@ -16,6 +16,23 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
+# TextIO Performance
+
+The following graphs show various metrics when reading from and writing to
+TextIO. See the [glossary](/performance/glossary) for definitions.
+
 # Read
 
+{{< performance_looks io="textio" read_or_write="read" section="test_name" >}}
+
+{{< performance_looks io="textio" read_or_write="read" section="version" >}}
+
+{{< performance_looks io="textio" read_or_write="read" section="date" >}}
+
 # Write
+
+{{< performance_looks io="textio" read_or_write="write" section="test_name" >}}
+
+{{< performance_looks io="textio" read_or_write="write" section="version" >}}
+
+{{< performance_looks io="textio" read_or_write="write" section="date" >}}
