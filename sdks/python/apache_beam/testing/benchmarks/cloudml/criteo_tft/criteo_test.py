@@ -27,7 +27,6 @@ try:
   import tensorflow as tf
   from apache_beam.testing.benchmarks.cloudml.criteo_tft.criteo import fill_in_missing
 except ImportError:
-  except ImportError:
   tft = None  # type: ignore[assignment]
 
 if not tft:
