@@ -34,7 +34,7 @@ click==8.1.5
 cloudpickle==2.2.1
 crcmod==1.7
 cryptography==41.0.2
-Cython==0.29.36
+Cython==3.0.0
 deprecation==2.1.0
 dill==0.3.1.1
 dnspython==2.3.0
