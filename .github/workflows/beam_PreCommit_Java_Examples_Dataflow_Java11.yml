@@ -108,7 +108,7 @@ jobs:
             -PdisableCheckStyle=true \
             -PskipCheckerFramework \
             -PcompileAndRunTestsWithJava11 \
-            -Pjava11Home=$JAVA_HOME_11_X64
+            -Pjava11Home=$JAVA_HOME_11_X64 \
       - name: Upload test report
         uses: actions/upload-artifact@v3
         with:
