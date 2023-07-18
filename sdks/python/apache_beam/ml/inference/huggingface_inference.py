@@ -170,39 +170,40 @@ class HuggingFaceModelHandler(ModelHandler[ExampleT, PredictionT, ModelT], ABC):
       large_model: bool = False,
       **kwargs):
     """Implementation of the abstract base class of ModelHandler interface
-      for Hugging Face. This class shouldn't be instantiated directly.
-      Use HuggingFaceModelHandlerKeyedTensor or HuggingFaceModelHandlerTensor.
+    for Hugging Face. This class shouldn't be instantiated directly.
 
-      Example Usage model::
-      pcoll | RunInference(HuggingFaceModelHandlerKeyedTensor(
-        model_uri="bert-base-uncased", model_class=AutoModelForMaskedLM))
+    Use HuggingFaceModelHandlerKeyedTensor or HuggingFaceModelHandlerTensor.
 
-      Args:
-        model_uri (str): path to the pretrained model on the hugging face
-          models hub.
-        model_class: model class to load the repository from model_uri.
-        device: For torch tensors, specify device on which you wish to
-          run the model. Defaults to CPU.
-        inference_fn: the inference function to use during RunInference.
-          Default is _run_inference_torch_keyed_tensor or
-          _run_inference_tensorflow_keyed_tensor depending on the input type.
-        load_model_args (Dict[str, Any]): keyword arguments to provide load
-          options while loading models from Hugging Face Hub. Defaults to None.
-        inference_args (Dict[str, Any]): Non-batchable arguments
-          required as inputs to the model's inference function. Unlike Tensors
-          in `batch`, these parameters will not be dynamically batched.
-          Defaults to None.
-        min_batch_size: the minimum batch size to use when batching inputs.
-        max_batch_size: the maximum batch size to use when batching inputs.
-        large_model: set to true if your model is large enough to run into
-          memory pressure if you load multiple copies. Given a model that
-          consumes N memory and a machine with W cores and M memory, you should
-          set this to True if N*W > M.
-        kwargs: 'env_vars' can be used to set environment variables
-          before loading the model.
+    Example Usage model::
+    pcoll | RunInference(HuggingFaceModelHandlerKeyedTensor(
+      model_uri="bert-base-uncased", model_class=AutoModelForMaskedLM))
 
-      **Supported Versions:** HuggingFaceModelHandler supports
-      transformers>=4.18.0.
+    Args:
+      model_uri (str): path to the pretrained model on the hugging face
+        models hub.
+      model_class: model class to load the repository from model_uri.
+      device: For torch tensors, specify device on which you wish to
+        run the model. Defaults to CPU.
+      inference_fn: the inference function to use during RunInference.
+        Default is _run_inference_torch_keyed_tensor or
+        _run_inference_tensorflow_keyed_tensor depending on the input type.
+      load_model_args (Dict[str, Any]): keyword arguments to provide load
+        options while loading models from Hugging Face Hub. Defaults to None.
+      inference_args (Dict[str, Any]): Non-batchable arguments
+        required as inputs to the model's inference function. Unlike Tensors
+        in `batch`, these parameters will not be dynamically batched.
+        Defaults to None.
+      min_batch_size: the minimum batch size to use when batching inputs.
+      max_batch_size: the maximum batch size to use when batching inputs.
+      large_model: set to true if your model is large enough to run into
+        memory pressure if you load multiple copies. Given a model that
+        consumes N memory and a machine with W cores and M memory, you should
+        set this to True if N*W > M.
+      kwargs: 'env_vars' can be used to set environment variables
+        before loading the model.
+
+    **Supported Versions:** HuggingFaceModelHandler supports
+    transformers>=4.18.0.
     """
     self._model_uri = model_uri
     self._model_class = model_class
@@ -255,14 +256,14 @@ class HuggingFaceModelHandlerKeyedTensor(
                             PredictionResult,
                             Union[AutoModel, TFAutoModel]]):
   """Implementation of the ModelHandler interface for HuggingFace with
-    Keyed Tensors for PyTorch/Tensorflow backend.
+  Keyed Tensors for PyTorch/Tensorflow backend.
 
-    Depending on the type of tensors,
-    the model framework is determined automatically.
+  Depending on the type of tensors, the model framework is determined
+  automatically.
 
-    Example Usage model::
-    pcoll | RunInference(HuggingFaceModelHandlerKeyedTensor(
-      model_uri="bert-base-uncased", model_class=AutoModelForMaskedLM))
+  Example Usage model::
+  pcoll | RunInference(HuggingFaceModelHandlerKeyedTensor(
+    model_uri="bert-base-uncased", model_class=AutoModelForMaskedLM))
 
   **Supported Versions:** HuggingFaceModelHandler supports transformers>=4.18.0.
   """
@@ -273,22 +274,22 @@ class HuggingFaceModelHandlerKeyedTensor(
       inference_args: Optional[Dict[str, Any]] = None
   ) -> Iterable[PredictionResult]:
     """Runs inferences on a batch of Keyed Tensors and returns an Iterable of
-      Tensors Predictions.
+    Tensors Predictions.
 
-      This method stacks the list of Tensors in a vectorized format to optimize
-      the inference call.
+    This method stacks the list of Tensors in a vectorized format to optimize
+    the inference call.
 
-      Args:
-        batch: A sequence of Keyed Tensors. These Tensors should be batchable,
-          as this method will call `tf.stack()`/`torch.stack()` and pass in
-          batched Tensors with dimensions (batch_size, n_features, etc.) into
-          the model's predict() function.
-        model: A Tensorflow/PyTorch model.
-        inference_args: Non-batchable arguments required as inputs to the
-          model's inference function. Unlike Tensors in `batch`,
-          these parameters will not be dynamically batched.
-      Returns:
-        An Iterable of type PredictionResult.
+    Args:
+      batch: A sequence of Keyed Tensors. These Tensors should be batchable,
+        as this method will call `tf.stack()`/`torch.stack()` and pass in
+        batched Tensors with dimensions (batch_size, n_features, etc.) into
+        the model's predict() function.
+      model: A Tensorflow/PyTorch model.
+      inference_args: Non-batchable arguments required as inputs to the
+        model's inference function. Unlike Tensors in `batch`,
+        these parameters will not be dynamically batched.
+    Returns:
+      An Iterable of type PredictionResult.
     """
     inference_args = {} if not inference_args else inference_args
     if not self._framework:
@@ -354,14 +355,14 @@ class HuggingFaceModelHandlerTensor(HuggingFaceModelHandler[Union[tf.Tensor,
                                                                   TFAutoModel]]
                                     ):
   """Implementation of the ModelHandler interface for HuggingFace with
-    Tensors for PyTorch/Tensorflow backend.
+  Tensors for PyTorch/Tensorflow backend.
 
-    Depending on the type of tensors,
-    the model framework is determined automatically.
+  Depending on the type of tensors, the model framework is determined
+  automatically.
 
-    Example Usage model:
-    pcoll | RunInference(HuggingFaceModelHandlerTensor(
-      model_uri="bert-base-uncased", model_class=AutoModelForMaskedLM))
+  Example Usage model:
+  pcoll | RunInference(HuggingFaceModelHandlerTensor(
+    model_uri="bert-base-uncased", model_class=AutoModelForMaskedLM))
 
   **Supported Versions:** HuggingFaceModelHandler supports transformers>=4.18.0.
   """
@@ -374,20 +375,21 @@ class HuggingFaceModelHandlerTensor(HuggingFaceModelHandler[Union[tf.Tensor,
     """Runs inferences on a batch of Tensors and returns an Iterable of
     Tensors Predictions.
 
-      This method stacks the list of Tensors in a vectorized format to optimize
-      the inference call.
+    This method stacks the list of Tensors in a vectorized format to optimize
+    the inference call.
 
-      Args:
-        batch: A sequence of Tensors. These Tensors should be batchable, as
-          this method will call `tf.stack()`/`torch.stack()` and pass in
-          batched Tensors with dimensions (batch_size, n_features, etc.)
-          into the model's predict() function.
-        model: A Tensorflow/PyTorch model.
-        inference_args (Dict[str, Any]): Non-batchable arguments required as
-          inputs to the model's inference function. Unlike Tensors in `batch`,
-          these parameters will not be dynamically batched.
-      Returns:
-        An Iterable of type PredictionResult.
+    Args:
+      batch: A sequence of Tensors. These Tensors should be batchable, as
+        this method will call `tf.stack()`/`torch.stack()` and pass in
+        batched Tensors with dimensions (batch_size, n_features, etc.)
+        into the model's predict() function.
+      model: A Tensorflow/PyTorch model.
+      inference_args (Dict[str, Any]): Non-batchable arguments required as
+        inputs to the model's inference function. Unlike Tensors in `batch`,
+        these parameters will not be dynamically batched.
+
+    Returns:
+      An Iterable of type PredictionResult.
     """
     inference_args = {} if not inference_args else inference_args
     if not self._framework:
