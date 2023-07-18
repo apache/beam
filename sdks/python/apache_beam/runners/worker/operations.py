@@ -1059,11 +1059,6 @@ class SdfProcessSizedElements(DoOperation):
     self.lock = threading.RLock()
     self.element_start_output_bytes = None  # type: Optional[int]
 
-  def encode_progress(self, value):
-    # type: (float) -> bytes
-    coder = coders.IterableCoder(coders.FloatCoder())
-    return coder.encode([value])
-
   def process(self, o):
     # type: (WindowedValue) -> None
     assert self.tagged_receivers is not None
@@ -1123,16 +1118,17 @@ class SdfProcessSizedElements(DoOperation):
           remaining = current_element_progress.fraction_remaining
         assert completed is not None
         assert remaining is not None
+        coder = coders.IterableCoder(coders.FloatCoder())
         completed_mi = metrics_pb2.MonitoringInfo(
             urn=monitoring_infos.WORK_COMPLETED_URN,
             type=monitoring_infos.PROGRESS_TYPE,
             labels=monitoring_infos.create_labels(ptransform=transform_id),
-            payload=self.encode_progress(completed))
+            payload=coder.encode([completed]))
         remaining_mi = metrics_pb2.MonitoringInfo(
             urn=monitoring_infos.WORK_REMAINING_URN,
             type=monitoring_infos.PROGRESS_TYPE,
             labels=monitoring_infos.create_labels(ptransform=transform_id),
-            payload=self.encode_progress(remaining))
+            payload=coder.encode([remaining]))
         infos[monitoring_infos.to_key(completed_mi)] = completed_mi
         infos[monitoring_infos.to_key(remaining_mi)] = remaining_mi
     return infos
