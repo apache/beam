@@ -20,14 +20,12 @@ import unittest
 import numpy as np
 import pytest
 
-from typing import Any, Callable, Optional
-
 try:
   import tensorflow_transform as tft
   import tensorflow as tf
   from apache_beam.testing.benchmarks.cloudml.criteo_tft.criteo import fill_in_missing
 except ImportError:
-  tft = None  # type: ignore[assignment]
+  tft = None  
 
 if not tft:
   raise unittest.SkipTest('tensorflow_transform is not installed.')
