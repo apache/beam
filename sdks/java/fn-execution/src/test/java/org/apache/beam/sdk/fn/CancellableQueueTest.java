@@ -21,7 +21,9 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.empty;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -218,5 +220,31 @@ public class CancellableQueueTest {
     assertThrows("First cancel exception", RuntimeException.class, () -> queue.take());
     queue.cancel(new RuntimeException("Second cancel exception"));
     assertThrows("First cancel exception", RuntimeException.class, () -> queue.take());
+  }
+
+  @Test
+  public void testMemoryReferenceOnTake() throws Exception {
+    String s1 = new String("test1");
+    String s2 = new String("test2");
+    WeakReference<String> weakReference1 = new WeakReference<>(s1);
+    WeakReference<String> weakReference2 = new WeakReference<>(s2);
+    CancellableQueue<String> queue = new CancellableQueue<>(100);
+    queue.put(s1);
+    queue.put(s2);
+    s1 = null;
+    s2 = null;
+    System.gc();
+    assertTrue(weakReference1.get() != null);
+    assertTrue(weakReference2.get() != null);
+
+    assertEquals("test1", queue.take());
+    System.gc();
+    assertTrue(weakReference1.get() == null);
+    assertTrue(weakReference2.get() != null);
+
+    queue.reset();
+    System.gc();
+    assertTrue(weakReference1.get() == null);
+    assertTrue(weakReference2.get() == null);
   }
 }

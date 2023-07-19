@@ -58,7 +58,7 @@ dependencies {
   runtimeOnly("com.avast.gradle:gradle-docker-compose-plugin:0.16.12")                                       // Enable docker compose tasks
   runtimeOnly("ca.cutterslade.gradle:gradle-dependency-analyze:1.8.3")                                     // Enable dep analysis
   runtimeOnly("gradle.plugin.net.ossindex:ossindex-gradle-plugin:0.4.11")                                  // Enable dep vulnerability analysis
-  runtimeOnly("org.checkerframework:checkerframework-gradle-plugin:0.6.19")                                 // Enable enhanced static checking plugin
+  runtimeOnly("org.checkerframework:checkerframework-gradle-plugin:0.6.29")                                 // Enable enhanced static checking plugin
 }
 
 // Because buildSrc is built and tested automatically _before_ gradle

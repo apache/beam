@@ -19,6 +19,7 @@ import org.apache.beam.gradle.kafka.KafkaTestUtilities
 
 apply plugin: 'org.apache.beam.module'
 applyJavaNature(
+        publish: false,
         automaticModuleName: 'org.apache.beam.sdk.io.kafka',
         mavenRepositories: [
                 [id: 'io.confluent', url: 'https://packages.confluent.io/maven/']

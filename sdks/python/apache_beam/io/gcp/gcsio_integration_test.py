@@ -20,6 +20,21 @@
 Runs tests against Google Cloud Storage service.
 Instantiates a TestPipeline to get options such as GCP project name, but
 doesn't actually start a Beam pipeline or test any specific runner.
+
+Options:
+  --kms_key_name=projects/<project-name>/locations/<region>/keyRings/\
+      <key-ring-name>/cryptoKeys/<key-name>/cryptoKeyVersions/<version>
+    Pass a Cloud KMS key name to test GCS operations using customer managed
+    encryption keys (CMEK).
+
+Cloud KMS permissions:
+The project's Cloud Storage service account requires Encrypter/Decrypter
+permissions for the key specified in --kms_key_name.
+
+To run these tests manually:
+  ./gradlew :sdks:python:test-suites:dataflow:integrationTest \
+    -Dtests=apache_beam.io.gcp.gcsio_integration_test:GcsIOIntegrationTest \
+    -DkmsKeyName=KMS_KEY_NAME
 """
 
 # pytype: skip-file
@@ -43,6 +58,9 @@ except ImportError:
 class GcsIOIntegrationTest(unittest.TestCase):
 
   INPUT_FILE = 'gs://dataflow-samples/shakespeare/kinglear.txt'
+  # Larger than 1MB to test maxBytesRewrittenPerCall.
+  # Also needs to be in a different region than the dest to take effect.
+  INPUT_FILE_LARGE = 'gs://apache-beam-samples-us-east1/wikipedia_edits/wiki_data-000000000000.json'  # pylint: disable=line-too-long
 
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
@@ -56,55 +74,126 @@ class GcsIOIntegrationTest(unittest.TestCase):
     self.gcs_tempdir = (
         self.test_pipeline.get_option('temp_location') + '/gcs_it-' +
         str(uuid.uuid4()))
+    self.kms_key_name = self.test_pipeline.get_option('kms_key_name')
     self.gcsio = gcsio.GcsIO()
 
   def tearDown(self):
     FileSystems.delete([self.gcs_tempdir + '/'])
 
-  def _verify_copy(self, src, dest, dest_kms_key_name=None):
-    self.assertTrue(
-        FileSystems.exists(src), 'source file does not exist: %s' % src)
-    self.assertTrue(
-        FileSystems.exists(dest),
-        'copied file not present in destination: %s' % dest)
+  def _verify_copy(self, src, dst, dst_kms_key_name=None):
+    self.assertTrue(FileSystems.exists(src), 'src does not exist: %s' % src)
+    self.assertTrue(FileSystems.exists(dst), 'dst does not exist: %s' % dst)
     src_checksum = self.gcsio.checksum(src)
-    dest_checksum = self.gcsio.checksum(dest)
-    self.assertEqual(src_checksum, dest_checksum)
-    actual_dest_kms_key = self.gcsio.kms_key(dest)
-    if actual_dest_kms_key is None:
-      self.assertEqual(actual_dest_kms_key, dest_kms_key_name)
+    dst_checksum = self.gcsio.checksum(dst)
+    self.assertEqual(src_checksum, dst_checksum)
+    actual_dst_kms_key = self.gcsio.kms_key(dst)
+    if actual_dst_kms_key is None:
+      self.assertEqual(actual_dst_kms_key, dst_kms_key_name)
     else:
       self.assertTrue(
-          actual_dest_kms_key.startswith(dest_kms_key_name),
+          actual_dst_kms_key.startswith(dst_kms_key_name),
           "got: %s, wanted startswith: %s" %
-          (actual_dest_kms_key, dest_kms_key_name))
+          (actual_dst_kms_key, dst_kms_key_name))
+
+  def _test_copy(
+      self,
+      name,
+      kms_key_name=None,
+      max_bytes_rewritten_per_call=None,
+      src=None):
+    src = src or self.INPUT_FILE
+    dst = self.gcs_tempdir + '/%s' % name
+    extra_kwargs = {}
+    if max_bytes_rewritten_per_call is not None:
+      extra_kwargs['max_bytes_rewritten_per_call'] = (
+          max_bytes_rewritten_per_call)
+
+    self.gcsio.copy(src, dst, kms_key_name, **extra_kwargs)
+    self._verify_copy(src, dst, kms_key_name)
 
   @pytest.mark.it_postcommit
   def test_copy(self):
-    src = self.INPUT_FILE
-    dest = self.gcs_tempdir + '/test_copy'
-
-    self.gcsio.copy(src, dest)
-    self._verify_copy(src, dest)
+    self._test_copy("test_copy")
 
   @pytest.mark.it_postcommit
-  def test_batch_copy_and_delete(self):
+  def test_copy_kms(self):
+    if self.kms_key_name is None:
+      raise unittest.SkipTest('--kms_key_name not specified')
+    self._test_copy("test_copy_kms", self.kms_key_name)
+
+  @pytest.mark.it_postcommit
+  def test_copy_rewrite_token(self):
+    # Tests a multi-part copy (rewrite) operation. This is triggered by a
+    # combination of 3 conditions:
+    #  - a large enough src
+    #  - setting max_bytes_rewritten_per_call
+    #  - setting kms_key_name
+    if self.kms_key_name is None:
+      raise unittest.SkipTest('--kms_key_name not specified')
+
+    rewrite_responses = []
+    self.gcsio._set_rewrite_response_callback(
+        lambda response: rewrite_responses.append(response))
+    self._test_copy(
+        "test_copy_rewrite_token",
+        kms_key_name=self.kms_key_name,
+        max_bytes_rewritten_per_call=50 * 1024 * 1024,
+        src=self.INPUT_FILE_LARGE)
+    # Verify that there was a multi-part rewrite.
+    self.assertTrue(any(not r.done for r in rewrite_responses))
+
+  def _test_copy_batch(
+      self,
+      name,
+      kms_key_name=None,
+      max_bytes_rewritten_per_call=None,
+      src=None):
     num_copies = 10
-    srcs = [self.INPUT_FILE] * num_copies
-    dests = [
-        self.gcs_tempdir + '/test_copy_batch_%d' % i for i in range(num_copies)
-    ]
-    src_dest_pairs = list(zip(srcs, dests))
+    srcs = [src or self.INPUT_FILE] * num_copies
+    dsts = [self.gcs_tempdir + '/%s_%d' % (name, i) for i in range(num_copies)]
+    src_dst_pairs = list(zip(srcs, dsts))
+    extra_kwargs = {}
+    if max_bytes_rewritten_per_call is not None:
+      extra_kwargs['max_bytes_rewritten_per_call'] = (
+          max_bytes_rewritten_per_call)
 
-    self.gcsio.copy_batch(src_dest_pairs)
+    result_statuses = self.gcsio.copy_batch(
+        src_dst_pairs, kms_key_name, **extra_kwargs)
+    for status in result_statuses:
+      self.assertIsNone(status[2], status)
+    for _src, _dst in src_dst_pairs:
+      self._verify_copy(_src, _dst, kms_key_name)
 
-    for src, dest in src_dest_pairs:
-      self._verify_copy(src, dest)
+  @pytest.mark.it_postcommit
+  def test_copy_batch(self):
+    self._test_copy_batch("test_copy_batch")
 
-    self.gcsio.delete_batch(dests)
-    for dest in dests:
-      self.assertFalse(
-          FileSystems.exists(dest), 'deleted file still exists: %s' % dest)
+  @pytest.mark.it_postcommit
+  def test_copy_batch_kms(self):
+    if self.kms_key_name is None:
+      raise unittest.SkipTest('--kms_key_name not specified')
+    self._test_copy_batch("test_copy_batch_kms", self.kms_key_name)
+
+  @pytest.mark.it_postcommit
+  def test_copy_batch_rewrite_token(self):
+    # Tests a multi-part copy (rewrite) operation. This is triggered by a
+    # combination of 3 conditions:
+    #  - a large enough src
+    #  - setting max_bytes_rewritten_per_call
+    #  - setting kms_key_name
+    if self.kms_key_name is None:
+      raise unittest.SkipTest('--kms_key_name not specified')
+
+    rewrite_responses = []
+    self.gcsio._set_rewrite_response_callback(
+        lambda response: rewrite_responses.append(response))
+    self._test_copy_batch(
+        "test_copy_batch_rewrite_token",
+        kms_key_name=self.kms_key_name,
+        max_bytes_rewritten_per_call=50 * 1024 * 1024,
+        src=self.INPUT_FILE_LARGE)
+    # Verify that there was a multi-part rewrite.
+    self.assertTrue(any(not r.done for r in rewrite_responses))
 
 
 if __name__ == '__main__':

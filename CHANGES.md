@@ -61,6 +61,8 @@
 
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Python GCSIO is now implemented with GCP GCS Client instead of apitools ([#25676](https://github.com/apache/beam/issues/25676))
+* Java KafkaIO now supports picking up topics via topicPattern ([#26948](https://github.com/apache/beam/pull/26948))
+* Support for read from Cosmos DB Core SQL API [#23604](https://github.com/apache/beam/issues/23604)
 
 ## New Features / Improvements
 
@@ -68,7 +70,7 @@
 
 ## Breaking Changes
 
-* X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
+* Legacy runner support removed from Dataflow, all pipelines must use runner v2.
 
 ## Deprecations
 
