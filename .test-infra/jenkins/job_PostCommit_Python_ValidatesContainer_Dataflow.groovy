@@ -45,8 +45,6 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Py_ValCont',
           tasks(':sdks:python:test-suites:dataflow:validatesContainerTests')
           switches('-Pcontainer-architecture-list=arm64,amd64')
           switches('-Ppush-containers')
-          // Regenerates the base image requirements to accommodate ARM.
-          switches('-Pregenerate-requirements')
           // Push multi-arch containers to the repository set in run_validatescontainer.sh
           switches('-Pdocker-repository-root=us.gcr.io/apache-beam-testing/jenkins')
           switches('-Pdocker-tag=${unique_tag}')
