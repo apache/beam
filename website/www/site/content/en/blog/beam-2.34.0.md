@@ -63,9 +63,9 @@ notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527
 
 ### Known Issues
 
-* Large BigQueryIO writes that use file loads method will fail in batch mode. Specifically, writes that are large enough to use copy jobs.
-  Will result in `IllegalArgumentException: Attempting to access unknown side input` errors. If you're running into this,
-  we recommend upgrading to a newer version or using another write method.
+* Large BigQueryIO writes with the FILE_LOADS method will fail in batch mode (specifically, when copy jobs are used). 
+  This results in the error message: `IllegalArgumentException: Attempting to access unknown side input`. 
+  Please upgrade to a newer version (> 2.34.0) or use another write method (e.g. `STORAGE_WRITE_API`).
 
 ## List of Contributors
 
