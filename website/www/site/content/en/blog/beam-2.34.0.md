@@ -61,6 +61,10 @@ notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527
 * Fixed error when importing the DataFrame API with pandas 1.0.x installed ([BEAM-12945](https://issues.apache.org/jira/browse/BEAM-12945)).
 * Fixed top.SmallestPerKey implementation in the Go SDK ([BEAM-12946](https://issues.apache.org/jira/browse/BEAM-12946)).
 
+### Known Issues
+
+* Large BigQueryIO writes that use file loads method will fail in batch mode. Specifically, writes that are large enough to use copy jobs.
+
 ## List of Contributors
 
 According to git shortlog, the following people contributed to the 2.34.0 release. Thank you to all contributors!
