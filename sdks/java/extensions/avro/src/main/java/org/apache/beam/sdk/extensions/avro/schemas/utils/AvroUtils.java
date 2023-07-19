@@ -441,16 +441,35 @@ public class AvroUtils {
   }
 
   /** Get Beam Field from avro Field. */
-  public static Field toBeamField(org.apache.avro.Schema.Field field) {
-    TypeWithNullability nullableType = new TypeWithNullability(field.schema());
+  public static Schema.Field toBeamField(org.apache.avro.Schema.Field field) {
+    org.apache.avro.Schema avroSchema = field.schema();
+    TypeWithNullability nullableType = TypeWithNullability.create(avroSchema);
     FieldType beamFieldType = toFieldType(nullableType);
-    return Field.of(field.name(), beamFieldType);
+
+    if (beamFieldType.getTypeName() == TypeName.DECIMAL) {
+      Integer precision = (Integer) nullableType.type.getObjectProp("precision");
+      Integer scale = (Integer) nullableType.type.getObjectProp("scale");
+      String type = nullableType.type.getType().getName();
+
+      Schema.Options.Builder optionsBuilder =
+              Schema.Options.setOption("precision", FieldType.INT32, precision)
+                      .setOption("scale", FieldType.INT32, scale)
+                      .setOption("type", FieldType.STRING, type);
+
+      if (nullableType.type.getType() == Type.FIXED) {
+        optionsBuilder.setOption("size", FieldType.INT32, nullableType.type.getFixedSize());
+      }
+
+      return Field.of(field.name(), beamFieldType, optionsBuilder.build());
+    } else {
+      return Field.of(field.name(), beamFieldType);
+    }
   }
 
   /** Get Avro Field from Beam Field. */
   public static org.apache.avro.Schema.Field toAvroField(Field field, String namespace) {
     org.apache.avro.Schema fieldSchema =
-        getFieldSchema(field.getType(), field.getName(), namespace);
+        getFieldSchema(field.getType(), field.getName(), namespace, field.getOptions());
     return new org.apache.avro.Schema.Field(
         field.getName(), fieldSchema, field.getDescription(), (Object) null);
   }
@@ -1008,7 +1027,12 @@ public class AvroUtils {
   }
 
   private static org.apache.avro.Schema getFieldSchema(
-      FieldType fieldType, String fieldName, String namespace) {
+          Schema.FieldType fieldType, String fieldName, String namespace) {
+    return getFieldSchema(fieldType, fieldName, namespace, Schema.Options.none());
+  }
+
+  private static org.apache.avro.Schema getFieldSchema(
+          Schema.FieldType fieldType, String fieldName, String namespace, Schema.Options options) {
     org.apache.avro.Schema baseType;
     switch (fieldType.getTypeName()) {
       case BYTE:
@@ -1022,9 +1046,23 @@ public class AvroUtils {
         break;
 
       case DECIMAL:
-        baseType =
-            LogicalTypes.decimal(Integer.MAX_VALUE)
-                .addToSchema(org.apache.avro.Schema.create(Type.BYTES));
+        // Beam avro decimal defaults: type=bytes, precision=MAX_INT, scale=0
+        String type = options.hasOption("type") ? options.getValue("type") : "bytes";
+        Type decimalType = Type.valueOf(type.toUpperCase());
+        Integer precision =
+                options.hasOption("precision") ? options.getValue("precision") : Integer.MAX_VALUE;
+        Integer scale = options.hasOption("scale") ? options.getValue("scale") : 0;
+        LogicalTypes.Decimal decimal = LogicalTypes.decimal(precision, scale);
+        if (decimalType == Type.FIXED) {
+          Integer size = options.getValue("size");
+          baseType =
+                  decimal.addToSchema(
+                          org.apache.avro.Schema.createFixed(fieldName, null, namespace, size));
+        } else {
+          // decimalType == Type.BYTES
+          baseType = decimal.addToSchema(org.apache.avro.Schema.create(Type.BYTES));
+        }
+        decimal.validate(baseType);
         break;
 
       case FLOAT:
@@ -1156,7 +1194,13 @@ public class AvroUtils {
       case DECIMAL:
         BigDecimal decimal = (BigDecimal) value;
         LogicalType logicalType = typeWithNullability.type.getLogicalType();
-        return new Conversions.DecimalConversion().toBytes(decimal, null, logicalType);
+        if (typeWithNullability.type.getType() == Type.FIXED) {
+          return new Conversions.DecimalConversion()
+                  .toFixed(decimal, typeWithNullability.type, logicalType);
+        } else {
+          // typeWithNullability.type.getType() == Type.BYTES
+          return new Conversions.DecimalConversion().toBytes(decimal, null, logicalType);
+        }
 
       case DATETIME:
         if (typeWithNullability.type.getType() == Type.INT) {
@@ -1283,11 +1327,20 @@ public class AvroUtils {
     LogicalType logicalType = LogicalTypes.fromSchema(type.type);
     if (logicalType != null) {
       if (logicalType instanceof LogicalTypes.Decimal) {
-        ByteBuffer byteBuffer = (ByteBuffer) value;
-        BigDecimal bigDecimal =
-            new Conversions.DecimalConversion()
-                .fromBytes(byteBuffer.duplicate(), type.type, logicalType);
-        return convertDecimal(bigDecimal, fieldType);
+        if (avroSchema.getType() == Type.FIXED) {
+          GenericFixed genericFixed = (GenericFixed) value;
+          BigDecimal bigDecimal =
+                  new Conversions.DecimalConversion().fromFixed(genericFixed, type.type, logicalType);
+          return convertDecimal(bigDecimal, fieldType);
+        } else {
+          // avroSchema.getType() == Type.BYTES
+          ByteBuffer byteBuffer = (ByteBuffer) value;
+          BigDecimal bigDecimal =
+                  new Conversions.DecimalConversion()
+                          .fromBytes(byteBuffer.duplicate(), type.type, logicalType);
+          return convertDecimal(bigDecimal, fieldType);
+        }
+
       } else if (logicalType instanceof LogicalTypes.TimestampMillis) {
         if (value instanceof ReadableInstant) {
           return convertDateTimeStrict(((ReadableInstant) value).getMillis(), fieldType);
