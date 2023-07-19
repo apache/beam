@@ -67,6 +67,7 @@
 ## New Features / Improvements
 
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* The Go SDK now requires Go 1.20 to build. ([#25545](https://github.com/apache/beam/pull/25545))
 
 ## Breaking Changes
 
