@@ -158,6 +158,9 @@ func (em *ElementManager) AddStage(ID string, inputIDs, sides, outputIDs []strin
 		em.consumers[input] = append(em.consumers[input], ss.ID)
 	}
 	for _, side := range ss.sides {
+		// TODO: clean up this hack to identify the stage for side input consumers.
+		// drop the _prismside suffix for any side input ID the ids.
+		// side, _ = strings.CutSuffix(side, "_prismside")
 		em.sideConsumers[side] = append(em.sideConsumers[side], ss.ID)
 	}
 }
@@ -706,8 +709,14 @@ func (ss *stageState) bundleReady(em *ElementManager) (mtime.Time, bool) {
 	}
 	ready := true
 	for _, side := range ss.sides {
-		pID := em.pcolParents[side]
-		parent := em.stages[pID]
+		pID, ok := em.pcolParents[side]
+		if !ok {
+			panic(fmt.Sprintf("stage[%v] no parent ID for side input %v", ss.ID, side))
+		}
+		parent, ok := em.stages[pID]
+		if !ok {
+			panic(fmt.Sprintf("stage[%v] no parent for side input %v, with parent ID %v", ss.ID, side, pID))
+		}
 		ow := parent.OutputWatermark()
 		if upstreamW > ow {
 			ready = false

@@ -48,6 +48,9 @@ type JobOptions struct {
 	RetainDocker bool
 
 	Parallelism int
+
+	// Loopback indicates this job is running in loopback mode and will reconnect to the local process.
+	Loopback bool
 }
 
 // Prepare prepares a job to the given job service. It returns the preparation id
@@ -101,10 +104,17 @@ func WaitForCompletion(ctx context.Context, client jobpb.JobServiceClient, jobID
 		return errors.Wrap(err, "failed to get job stream")
 	}
 
+	mostRecentError := "<no error received>"
+	var errReceived, jobFailed bool
+
 	for {
 		msg, err := stream.Recv()
 		if err != nil {
 			if err == io.EOF {
+				if jobFailed {
+					// Connection finished, so time to exit, produce what we have.
+					return errors.Errorf("job %v failed:\n%v", jobID, mostRecentError)
+				}
 				return nil
 			}
 			return err
@@ -120,7 +130,11 @@ func WaitForCompletion(ctx context.Context, client jobpb.JobServiceClient, jobID
 			case jobpb.JobState_DONE, jobpb.JobState_CANCELLED:
 				return nil
 			case jobpb.JobState_FAILED:
-				return errors.Errorf("job %v failed", jobID)
+				jobFailed = true
+				if errReceived {
+					return errors.Errorf("job %v failed:\n%v", jobID, mostRecentError)
+				}
+				// Otherwise we should wait for at least one error log from the runner.
 			}
 
 		case msg.GetMessageResponse() != nil:
@@ -128,6 +142,15 @@ func WaitForCompletion(ctx context.Context, client jobpb.JobServiceClient, jobID
 
 			text := fmt.Sprintf("%v (%v): %v", resp.GetTime(), resp.GetMessageId(), resp.GetMessageText())
 			log.Output(ctx, messageSeverity(resp.GetImportance()), 1, text)
+
+			if resp.GetImportance() >= jobpb.JobMessage_JOB_MESSAGE_ERROR {
+				errReceived = true
+				mostRecentError = resp.GetMessageText()
+
+				if jobFailed {
+					return errors.Errorf("job %v failed:\n%w", jobID, errors.New(mostRecentError))
+				}
+			}
 
 		default:
 			return errors.Errorf("unexpected job update: %v", proto.MarshalTextString(msg))

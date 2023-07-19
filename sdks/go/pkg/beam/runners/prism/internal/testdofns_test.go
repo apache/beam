@@ -32,6 +32,7 @@ import (
 // Test DoFns are registered in the test file, to allow them to be pruned
 // by the compiler outside of test use.
 func init() {
+	register.Function2x0(dofnEmpty)
 	register.Function2x0(dofn1)
 	register.Function2x0(dofn1kv)
 	register.Function3x0(dofn1x2)
@@ -73,6 +74,9 @@ func init() {
 
 // Registrations should happen in the test files, so the compiler can prune these
 // when they are not in use.
+
+func dofnEmpty(imp []byte, emit func(int64)) {
+}
 
 func dofn1(imp []byte, emit func(int64)) {
 	emit(1)

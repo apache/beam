@@ -41,7 +41,7 @@ func Execute(ctx context.Context, p *pipepb.Pipeline, endpoint string, opt *JobO
 	presult := &universalPipelineResult{}
 
 	bin := opt.Worker
-	if bin == "" {
+	if bin == "" && !opt.Loopback {
 		if self, ok := IsWorkerCompatibleBinary(); ok {
 			bin = self
 			log.Infof(ctx, "Using running binary as worker binary: '%v'", bin)
@@ -56,6 +56,10 @@ func Execute(ctx context.Context, p *pipepb.Pipeline, endpoint string, opt *JobO
 
 			bin = worker
 		}
+	} else if opt.Loopback {
+		// TODO, determine the canonical location for Beam temp files.
+		f, _ := os.CreateTemp(os.TempDir(), "beamloopbackworker-*")
+		bin = f.Name()
 	} else {
 		log.Infof(ctx, "Using specified worker binary: '%v'", bin)
 	}

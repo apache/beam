@@ -24,9 +24,18 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/local"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 )
+
+func TestMain(m *testing.M) {
+	ptest.Main(m)
+}
+
+func init() {
+	register.Function2x1(toKV)
+}
 
 const testDir = "../../../../data"
 

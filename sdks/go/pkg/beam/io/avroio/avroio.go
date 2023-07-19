@@ -25,11 +25,12 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/linkedin/goavro/v2"
 )
 
 func init() {
-	beam.RegisterFunction(expandFn)
+	register.Function3x1(expandFn)
 	beam.RegisterType(reflect.TypeOf((*avroReadFn)(nil)).Elem())
 	beam.RegisterType(reflect.TypeOf((*writeAvroFn)(nil)).Elem())
 }

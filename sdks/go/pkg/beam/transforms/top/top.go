@@ -29,6 +29,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 )
 
 //go:generate go install github.com/apache/beam/sdks/v2/go/cmd/starcgen
@@ -36,7 +37,7 @@ import (
 //go:generate go fmt
 
 func init() {
-	beam.RegisterDoFn(reflect.TypeOf((*combineFn)(nil)))
+	register.Combiner3[accum, beam.T, []beam.T]((*combineFn)(nil))
 }
 
 var (
