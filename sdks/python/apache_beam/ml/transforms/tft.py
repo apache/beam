@@ -101,6 +101,7 @@ class TFTOperation(BaseOperation[common_types.TensorType,
     """
     return {}
 
+  @tf.function
   def _split_string_with_delimiter(self, data, delimiter):
     """
     only applicable to string columns.
@@ -119,12 +120,16 @@ class TFTOperation(BaseOperation[common_types.TensorType,
         fn_output_signature=tf.RaggedTensorSpec(
             tf.TensorShape([None, None]), tf.string))
     data = data.values.to_sparse()
-    # the columns of the sparse tensor are suffixed with $indices, $values
-    # related to sparse tensor. Create a new sparse tensor by extracting
-    # the indices, values and dense_shape from the original sparse tensor
-    # to preserve the original column name.
+    # # the columns of the sparse tensor are suffixed with $indices, $values
+    # # related to sparse tensor. Create a new sparse tensor by extracting
+    # # the indices, values and dense_shape from the original sparse tensor
+    # # to preserve the original column name.
     data = tf.sparse.SparseTensor(
         indices=data.indices, values=data.values, dense_shape=data.dense_shape)
+    # for list of string, batch dimensions becomes inverted after tf.map_fn,
+    #  transpose the data to get the original shape.
+    if tf.shape(data)[1] == 1:
+      data = tf.sparse.transpose(data)
     return data
 
 
@@ -177,9 +182,11 @@ class ComputeAndApplyVocabulary(TFTOperation):
   def apply_transform(
       self, data: common_types.TensorType,
       output_column_name: str) -> Dict[str, common_types.TensorType]:
+
     if self.split_string_by_delimiter:
       data = self._split_string_with_delimiter(
           data, self.split_string_by_delimiter)
+
     return {
         output_column_name: tft.compute_and_apply_vocabulary(
             x=data,

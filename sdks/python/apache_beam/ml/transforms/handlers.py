@@ -85,6 +85,7 @@ class ConvertScalarValuesToListValues(beam.DoFn):
       self,
       element,
   ):
+    hash_key, element = element
     new_dict = {}
     for key, value in element.items():
       if isinstance(value,
@@ -92,7 +93,7 @@ class ConvertScalarValuesToListValues(beam.DoFn):
         new_dict[key] = [value]
       else:
         new_dict[key] = value
-    yield new_dict
+    yield (hash_key, new_dict)
 
 
 class ConvertNamedTupleToDict(
@@ -158,8 +159,10 @@ class MakeHashKeyAsColumn(beam.DoFn):
 class ExtractHashAndKeyPColl(beam.DoFn):
   def process(self, element):
     hashkey = element['hash_key']
+    if isinstance(hashkey, np.ndarray):
+      hashkey = hashkey[0]
     del element['hash_key']
-    yield (hashkey[0].decode('utf-8'), element)
+    yield (hashkey.decode('utf-8'), element)
 
 
 class MergeDicts(beam.DoFn):
@@ -299,6 +302,8 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
   def get_raw_data_metadata(
       self, input_types: Dict[str, type]) -> dataset_metadata.DatasetMetadata:
     raw_data_feature_spec = self.get_raw_data_feature_spec(input_types)
+    raw_data_feature_spec['hash_key'] = tf.io.FixedLenFeature([],
+                                                              dtype=tf.string)
     return self.convert_raw_data_feature_spec_to_dataset_metadata(
         raw_data_feature_spec)
 
@@ -399,7 +404,7 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
         # custom type(NamedTuple) or a beam.Row type.
       else:
         column_type_mapping = self._map_column_names_to_types_from_transforms()
-        column_type_mapping['hash_key'] = str
+        # Add hash key so TFT can output hash_key as output but as a no-op.
       raw_data_metadata = self.get_raw_data_metadata(
           input_types=column_type_mapping)
       # Write untransformed metadata to a file so that it can be re-used
@@ -424,18 +429,17 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
     #  we will convert scalar values to list values and TFT will ouput
     # numpy array all the time.
 
-    keyed_with_hash_raw_data = raw_data | beam.ParDo(ComputeAndAttachHashKey())
-
-    raw_data_with_hash = (
-        keyed_with_hash_raw_data | beam.ParDo(MakeHashKeyAsColumn()))
+    keyed_raw_data = (raw_data | beam.ParDo(ComputeAndAttachHashKey()))
 
     feature_set = [feature.name for feature in raw_data_metadata.schema.feature]
     columns_not_in_schema_with_hash = (
-        keyed_with_hash_raw_data
+        keyed_raw_data
         | beam.ParDo(GetMissingColumnsPColl(feature_set)))
 
-    raw_data_list = (
-        raw_data_with_hash | beam.ParDo(ConvertScalarValuesToListValues()))
+    keyed_raw_data = keyed_raw_data | beam.ParDo(
+        ConvertScalarValuesToListValues())
+
+    raw_data_list = (keyed_raw_data | beam.ParDo(MakeHashKeyAsColumn()))
 
     with tft_beam.Context(temp_dir=self.artifact_location):
       data = (raw_data_list, raw_data_metadata)
@@ -443,7 +447,8 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
         transform_fn = (
             data
             | "AnalyzeDataset" >> tft_beam.AnalyzeDataset(self.process_data_fn))
-        # TODO: Remove the 'hash_key' column from the transformed dataset.
+        # TODO: Remove the 'hash_key' column from the transformed
+        # dataset schema.
         self.write_transform_artifacts(transform_fn, self.artifact_location)
       else:
         transform_fn = (
@@ -465,8 +470,7 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
       # So we will use a RowTypeConstraint to create a schema'd PCollection.
       # this is needed since new columns are included in the
       # transformed_dataset.
-
-      del self.transformed_schema['hash_key']  # Exclude hash_key from schema.
+      del self.transformed_schema['hash_key']
       row_type = RowTypeConstraint.from_fields(
           list(self.transformed_schema.items()))
 
