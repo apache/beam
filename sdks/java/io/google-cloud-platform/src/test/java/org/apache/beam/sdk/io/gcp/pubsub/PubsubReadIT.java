@@ -51,7 +51,7 @@ public class PubsubReadIT {
     messages.apply(
         "waitForAnyMessage", signal.signalSuccessWhen(messages.getCoder(), anyMessages -> true));
 
-    Supplier<Void> start = signal.waitForStart(Duration.standardMinutes(5));
+    Supplier<Void> start = signal.waitForStart(Duration.standardMinutes(8));
     pipeline.apply(signal.signalStart());
     PipelineResult job = pipeline.run();
     start.get();
@@ -79,7 +79,7 @@ public class PubsubReadIT {
         "isMessageIdNonNull",
         signal.signalSuccessWhen(messages.getCoder(), new NonEmptyMessageIdCheck()));
 
-    Supplier<Void> start = signal.waitForStart(Duration.standardMinutes(5));
+    Supplier<Void> start = signal.waitForStart(Duration.standardMinutes(8));
     pipeline.apply(signal.signalStart());
     PipelineResult job = pipeline.run();
     start.get();

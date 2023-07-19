@@ -23,7 +23,6 @@ import contextlib
 import logging
 import unittest
 from collections import namedtuple
-from typing import Any
 
 import grpc
 import hamcrest as hc
