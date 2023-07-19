@@ -812,7 +812,7 @@ class DoOperation(Operation):
 
     # See fn_data in dataflow_runner.py
     # TODO: Store all the items from spec?
-    self.fn, _, _, _, _ = pickler.loads(self.spec.serialized_fn)
+    self.fn, _, _, _, _ = (pickler.loads(self.spec.serialized_fn))
 
   def _read_side_inputs(self, tags_and_types):
     # type: (...) -> Iterator[apache_sideinputs.SideInputMap]
@@ -877,7 +877,7 @@ class DoOperation(Operation):
 
       # See fn_data in dataflow_runner.py
       fn, args, kwargs, tags_and_types, window_fn = (
-        pickler.loads(self.spec.serialized_fn))
+          pickler.loads(self.spec.serialized_fn))
 
       state = common.DoFnState(self.counter_factory)
       state.step_name = self.name_context.logging_name()
@@ -1118,17 +1118,17 @@ class SdfProcessSizedElements(DoOperation):
           remaining = current_element_progress.fraction_remaining
         assert completed is not None
         assert remaining is not None
-        coder = coders.IterableCoder(coders.FloatCoder())
+        progressCoder = coders.IterableCoder(coders.FloatCoder())
         completed_mi = metrics_pb2.MonitoringInfo(
             urn=monitoring_infos.WORK_COMPLETED_URN,
             type=monitoring_infos.PROGRESS_TYPE,
             labels=monitoring_infos.create_labels(ptransform=transform_id),
-            payload=coder.encode([completed]))
+            payload=progressCoder.encode([completed]))
         remaining_mi = metrics_pb2.MonitoringInfo(
             urn=monitoring_infos.WORK_REMAINING_URN,
             type=monitoring_infos.PROGRESS_TYPE,
             labels=monitoring_infos.create_labels(ptransform=transform_id),
-            payload=coder.encode([remaining]))
+            payload=progressCoder.encode([remaining]))
         infos[monitoring_infos.to_key(completed_mi)] = completed_mi
         infos[monitoring_infos.to_key(remaining_mi)] = remaining_mi
     return infos
