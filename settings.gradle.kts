@@ -18,7 +18,7 @@
 import com.gradle.enterprise.gradleplugin.internal.extension.BuildScanExtensionWithHiddenFeatures
 
 plugins {
-  id("com.gradle.enterprise") version "3.13.2"
+  id("com.gradle.enterprise") version "3.14"
   id("com.gradle.common-custom-user-data-gradle-plugin") version "1.10"
 }
 
