@@ -271,8 +271,8 @@ echo "This task will create a PR against apache/beam, trigger a jenkins job to r
 echo "1. Python quickstart validations(batch & streaming)"
 echo "2. Python MobileGame validations(UserScore, HourlyTeamScore)"
 if [[ "$python_quickstart_mobile_game" = true && ! -z `which hub` ]]; then
-  touch empty_file.txt
-  git add empty_file.txt
+  touch empty_file.json
+  git add empty_file.json
   git commit -m "Add empty file in order to create PR" --quiet
   git push -f ${GITHUB_USERNAME} --quiet
   # Create a test PR

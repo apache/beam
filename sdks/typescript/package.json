@@ -56,8 +56,9 @@
   "main": "./dist/src/apache_beam/index.js",
   "exports": {
     ".": "./dist/src/apache_beam/index.js",
-    "./transforms": "./dist/src/apache_beam/transforms/index.js",
+    "./io": "./dist/src/apache_beam/io/index.js",
     "./runners": "./dist/src/apache_beam/index.js",
+    "./transforms": "./dist/src/apache_beam/transforms/index.js",
     "./*": "./dist/src/apache_beam/*.js"
   }
 }

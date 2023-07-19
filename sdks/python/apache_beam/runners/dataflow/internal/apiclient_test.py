@@ -635,7 +635,7 @@ class UtilTest(unittest.TestCase):
             '/beam_python%d.%d_sdk:%s' % (
                 sys.version_info[0],
                 sys.version_info[1],
-                names.BEAM_FNAPI_CONTAINER_VERSION)))
+                names.BEAM_DEV_SDK_CONTAINER_TAG)))
 
     pipeline_options = PipelineOptions(
         ['--temp_location', 'gs://any-location/temp'])
@@ -651,7 +651,7 @@ class UtilTest(unittest.TestCase):
             '/beam_python%d.%d_sdk:%s' % (
                 sys.version_info[0],
                 sys.version_info[1],
-                names.BEAM_FNAPI_CONTAINER_VERSION)))
+                names.BEAM_DEV_SDK_CONTAINER_TAG)))
 
   @mock.patch(
       'apache_beam.runners.dataflow.internal.apiclient.'
