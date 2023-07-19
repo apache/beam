@@ -1001,7 +1001,7 @@ You only need to enable &amp;ldquo;repo&amp;rdquo; permissions to this token.&lt
 &lt;li>Then run
 &lt;pre>&lt;code>cd beam/release/src/main/scripts &amp;amp;&amp;amp; ./verify_release_build.sh
 &lt;/code>&lt;/pre>&lt;/li>
-&lt;li>Trigger &lt;code>beam_Release_Gradle_Build&lt;/code> and all Jenkins PostCommit jobs from the PR created by the previous step.
+&lt;li>Trigger all Jenkins PostCommit jobs from the PR created by the previous step.
 You can run &lt;a href="https://github.com/apache/beam/blob/master/release/src/main/scripts/mass_comment.py">mass_comment.py&lt;/a> to do that.
 Or manually add one trigger phrase per PR comment.
 See &lt;a href="https://github.com/apache/beam/blob/master/release/src/main/scripts/jenkins_jobs.txt">jenkins_jobs.txt&lt;/a>
@@ -1016,8 +1016,6 @@ for a full list of phrases.&lt;/li>
 &lt;/ol>
 &lt;/li>
 &lt;/ul>
-&lt;p>The &lt;a href="https://ci-beam.apache.org/job/beam_Release_Gradle_Build/">&lt;code>beam_Release_Gradle_Build&lt;/code>&lt;/a> Jenkins job runs &lt;code>./gradlew build -PisRelease&lt;/code>.
-This only verifies that everything builds with unit tests passing.&lt;/p>
 &lt;h4 id="verify-the-build-succeeds">Verify the build succeeds&lt;/h4>
 &lt;ul>
 &lt;li>Tasks you need to do manually to &lt;strong>verify the build succeed&lt;/strong>:
