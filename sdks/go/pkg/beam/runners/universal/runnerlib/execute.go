@@ -57,8 +57,7 @@ func Execute(ctx context.Context, p *pipepb.Pipeline, endpoint string, opt *JobO
 			bin = worker
 		}
 	} else if opt.Loopback {
-		// TODO(https://github.com/apache/beam/issues/27569: determine the canonical location for Beam temp files.
-		// In loopback mode, the binary is unused, so we can avoid an unnecessary compile step.
+		// TODO, determine the canonical location for Beam temp files.
 		f, _ := os.CreateTemp(os.TempDir(), "beamloopbackworker-*")
 		bin = f.Name()
 	} else {

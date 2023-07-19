@@ -83,6 +83,9 @@ func init() {
 // Registrations should happen in the test files, so the compiler can prune these
 // when they are not in use.
 
+func dofnEmpty(imp []byte, emit func(int64)) {
+}
+
 func dofn1(imp []byte, emit func(int64)) {
 	emit(1)
 	emit(2)

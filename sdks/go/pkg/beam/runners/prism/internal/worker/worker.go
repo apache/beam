@@ -256,7 +256,6 @@ func (wk *W) Control(ctrl fnpb.BeamFnControl_ControlServer) error {
 			// TODO: Do more than assume these are ProcessBundleResponses.
 			wk.mu.Lock()
 			if b, ok := wk.activeInstructions[resp.GetInstructionId()]; ok {
-				// Error is handled in the resonse handler.
 				b.Respond(resp)
 			} else {
 				slog.Debug("ctrl.Recv: %v", resp)
@@ -322,13 +321,9 @@ func (wk *W) Data(data fnpb.BeamFnData_DataServer) error {
 			wk.mu.Unlock()
 		}
 	}()
-
 	for {
 		select {
-		case req, ok := <-wk.DataReqs:
-			if !ok {
-				return nil
-			}
+		case req := <-wk.DataReqs:
 			if err := data.Send(req); err != nil {
 				slog.LogAttrs(context.TODO(), slog.LevelDebug, "data.Send error", slog.Any("error", err))
 			}

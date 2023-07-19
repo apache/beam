@@ -212,7 +212,6 @@ func (s *Server) GetMessageStream(req *jobpb.JobMessagesRequest, stream jobpb.Jo
 				// Reached terminal state.
 				return nil
 			case jobpb.JobState_FAILED:
-				// Ensure we send an error message with the cause of the job failure.
 				stream.Send(&jobpb.JobMessagesResponse{
 					Response: &jobpb.JobMessagesResponse_MessageResponse{
 						MessageResponse: &jobpb.JobMessage{

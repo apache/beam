@@ -22,6 +22,10 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 )
 
+func TestMain(m *testing.M) {
+	ptest.Main(m)
+}
+
 func TestCount(t *testing.T) {
 	var tests = []struct {
 		name     string

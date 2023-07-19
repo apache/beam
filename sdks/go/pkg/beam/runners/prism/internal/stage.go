@@ -135,6 +135,11 @@ progress:
 				slog.Debug("SDK Error from progress, aborting progress", "bundle", rb, "error", err.Error())
 				break progress
 			}
+			resp, err := b.Progress(wk)
+			if err != nil {
+				slog.Debug("SDK Error from progress, aborting progress", "bundle", rb, "error", err.Error())
+				break progress
+			}
 			index, unknownIDs := j.ContributeTentativeMetrics(resp)
 			if len(unknownIDs) > 0 {
 				md := wk.MonitoringMetadata(unknownIDs)

@@ -500,6 +500,53 @@ func TestRunner_Metrics(t *testing.T) {
 	})
 }
 
+func TestRunner_Passert(t *testing.T) {
+	initRunner(t)
+	tests := []struct {
+		name     string
+		pipeline func(s beam.Scope)
+		metrics  func(t *testing.T, pr beam.PipelineResult)
+	}{
+		{
+			name: "Empty",
+			pipeline: func(s beam.Scope) {
+				imp := beam.Impulse(s)
+				col1 := beam.ParDo(s, dofnEmpty, imp)
+				passert.Empty(s, col1)
+			},
+		}, {
+			name: "Equals-TwoEmpty",
+			pipeline: func(s beam.Scope) {
+				imp := beam.Impulse(s)
+				col1 := beam.ParDo(s, dofnEmpty, imp)
+				col2 := beam.ParDo(s, dofnEmpty, imp)
+				passert.Equals(s, col1, col2)
+			},
+		}, {
+			name: "Equals",
+			pipeline: func(s beam.Scope) {
+				imp := beam.Impulse(s)
+				col1 := beam.ParDo(s, dofn1, imp)
+				col2 := beam.ParDo(s, dofn1, imp)
+				passert.Equals(s, col1, col2)
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			p, s := beam.NewPipelineWithRoot()
+			test.pipeline(s)
+			pr, err := executeWithT(context.Background(), t, p)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if test.metrics != nil {
+				test.metrics(t, pr)
+			}
+		})
+	}
+}
+
 func TestFailure(t *testing.T) {
 	initRunner(t)
 

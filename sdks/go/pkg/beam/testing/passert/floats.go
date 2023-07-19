@@ -31,7 +31,6 @@ func init() {
 	register.DoFn2x1[[]byte, func(*beam.T) bool, error]((*boundsFn)(nil))
 	register.DoFn3x1[[]byte, func(*beam.T) bool, func(*beam.T) bool, error]((*thresholdFn)(nil))
 	register.Emitter1[beam.T]()
-	register.Iter1[beam.T]()
 }
 
 // EqualsFloat calls into TryEqualsFloat, checkong that two PCollections of non-complex

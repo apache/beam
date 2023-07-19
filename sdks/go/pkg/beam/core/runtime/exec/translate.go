@@ -612,7 +612,6 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 
 					for i := 1; i < len(input); i++ {
 						// TODO(https://github.com/apache/beam/issues/18602) Handle ViewFns for side inputs
-
 						ec, wc, err := b.makeCoderForPCollection(input[i])
 						if err != nil {
 							return nil, err

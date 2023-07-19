@@ -426,7 +426,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 			c.failed[instID] = err
 		} else if dataError != io.EOF && dataError != nil {
 			// If there was an error on the data channel reads, fail this bundle
-			// since we may have had a short read.
+			// since we may have had a short read.'
 			c.failed[instID] = dataError
 			err = dataError
 		} else {

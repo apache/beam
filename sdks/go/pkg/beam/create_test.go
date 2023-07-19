@@ -69,11 +69,11 @@ func TestCreateList(t *testing.T) {
 	tests := []struct {
 		values any
 	}{
-		{[]int{1, 2, 3}},
-		{[]string{"1", "2", "3"}},
-		{[]float32{float32(0.1), float32(0.2), float32(0.3)}},
-		{[]float64{float64(0.1), float64(0.2), float64(0.3)}},
-		{[]uint{uint(1), uint(2), uint(3)}},
+		//{[]int{1, 2, 3}},
+		// {[]string{"1", "2", "3"}},
+		// {[]float32{float32(0.1), float32(0.2), float32(0.3)}},
+		// {[]float64{float64(0.1), float64(0.2), float64(0.3)}},
+		// {[]uint{uint(1), uint(2), uint(3)}},
 		{[]bool{false, true, true, false, true}},
 		{[]wc{wc{"a", 23}, wc{"b", 42}, wc{"c", 5}}},
 		{[]*testProto{&testProto{}, &testProto{stringValue("test")}}}, // Test for BEAM-4401

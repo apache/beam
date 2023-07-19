@@ -26,15 +26,14 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/linkedin/goavro/v2"
 )
 
 func init() {
 	register.Function3x1(expandFn)
-	register.DoFn3x1[context.Context, string, func(beam.X), error]((*avroReadFn)(nil))
-	register.DoFn3x1[context.Context, int, func(*string) bool, error]((*writeAvroFn)(nil))
-	register.Emitter1[beam.X]()
-	register.Iter1[string]()
+	beam.RegisterType(reflect.TypeOf((*avroReadFn)(nil)).Elem())
+	beam.RegisterType(reflect.TypeOf((*writeAvroFn)(nil)).Elem())
 }
 
 // Read reads a set of files and returns lines as a PCollection<elem>

@@ -19,6 +19,8 @@ import (
 	"context"
 	"testing"
 
+	spannertest "github.com/apache/beam/sdks/v2/go/test/integration/io/spannerio"
+
 	"cloud.google.com/go/spanner"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
