@@ -73,7 +73,6 @@ func makeWindowedValueCoder(pID string, comps *pipepb.Components, coders map[str
 	}
 	// Populate the coders to send with the new windowed value coder.
 	coders[wvcID] = wInC
-	// col.CoderId = cID // So PCollection coders are looked up correctly for side inputs.
 	return wvcID
 }
 
