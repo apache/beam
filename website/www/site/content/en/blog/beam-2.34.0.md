@@ -64,6 +64,8 @@ notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527
 ### Known Issues
 
 * Large BigQueryIO writes that use file loads method will fail in batch mode. Specifically, writes that are large enough to use copy jobs.
+  Will result in `IllegalArgumentException: Attempting to access unknown side input` errors. If you're running into this,
+  we recommend upgrading to a newer version or using another write method.
 
 ## List of Contributors
 
