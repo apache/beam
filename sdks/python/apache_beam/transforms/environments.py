@@ -57,7 +57,6 @@ from apache_beam.utils import proto_utils
 
 if TYPE_CHECKING:
   from apache_beam.options.pipeline_options import PipelineOptions
-  from apache_beam.options.pipeline_options import PortableOptions
   from apache_beam.runners.pipeline_context import PipelineContext
 
 __all__ = [

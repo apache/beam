@@ -38,9 +38,7 @@ from apache_beam.metrics.execution import MetricResult
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import PortableOptions
-from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
-from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.options.value_provider import ValueProvider
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
@@ -48,7 +46,6 @@ from apache_beam.portability.api import beam_artifact_api_pb2_grpc
 from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners import runner
-from apache_beam.runners.common import group_by_key_input_visitor
 from apache_beam.runners.job import utils as job_utils
 from apache_beam.runners.portability import artifact_service
 from apache_beam.runners.portability import job_server
@@ -300,8 +297,6 @@ class PortableRunner(runner.PipelineRunner):
   @staticmethod
   def get_proto_pipeline(pipeline, options):
     # type: (Pipeline, PipelineOptions) -> beam_runner_api_pb2.Pipeline
-    portable_options = options.view_as(PortableOptions)
-
     proto_pipeline = pipeline.to_runner_api(
         default_environment=environments.Environment.from_options(
             options.view_as(PortableOptions)))
