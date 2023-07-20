@@ -124,7 +124,7 @@ func WaitForCompletion(ctx context.Context, client jobpb.JobServiceClient, jobID
 		case msg.GetStateResponse() != nil:
 			resp := msg.GetStateResponse()
 
-			log.Infof(ctx, "Job state: %v", resp.GetState().String())
+			log.Infof(ctx, "Job[%v] state: %v", jobID, resp.GetState().String())
 
 			switch resp.State {
 			case jobpb.JobState_DONE, jobpb.JobState_CANCELLED:

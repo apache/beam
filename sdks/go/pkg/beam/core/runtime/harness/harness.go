@@ -394,7 +394,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 
 		if err != nil {
 			c.failed[instID] = err
-			return fail(ctx, instID, "ProcessBundle failed: %v", err)
+			return fail(ctx, instID, "process bundle failed for instruction %v using plan %v : %v", instID, bdID, err)
 		}
 
 		tokens := msg.GetCacheTokens()
@@ -708,6 +708,6 @@ func fail(ctx context.Context, id instructionID, format string, args ...any) *fn
 // dial to the specified endpoint. if timeout <=0, call blocks until
 // grpc.Dial succeeds.
 func dial(ctx context.Context, endpoint, purpose string, timeout time.Duration) (*grpc.ClientConn, error) {
-	log.Infof(ctx, "Connecting via grpc @ %s for %s ...", endpoint, purpose)
+	log.Output(ctx, log.SevDebug, 1, fmt.Sprintf("Connecting via grpc @ %s for %s ...", endpoint, purpose))
 	return grpcx.Dial(ctx, endpoint, timeout)
 }
