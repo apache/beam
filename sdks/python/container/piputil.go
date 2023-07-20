@@ -37,14 +37,15 @@ func pipInstallRequirements(files []string, dir, name string) error {
 			// as possible PyPI downloads. In the first round the --find-links
 			// option will make sure that only things staged in the worker will be
 			// used without following their dependencies.
-			args := []string{"-m", "pip", "install", "-r", filepath.Join(dir, name), "--no-cache-dir", "--disable-pip-version-check", "--no-index", "--no-deps", "--find-links", dir}
+			args := []string{"-m", "pip", "install", "-r", filepath.Join(dir, name), "--no-cache-dir", "--disable-pip-version-check", "--no-index", "--no-deps", "--find-links",
+				"-q", dir}
 			if err := execx.Execute("python", args...); err != nil {
 				fmt.Println("Some packages could not be installed solely from the requirements cache. Installing packages from PyPI.")
 			}
 			// The second install round opens up the search for packages on PyPI and
 			// also installs dependencies. The key is that if all the packages have
 			// been installed in the first round then this command will be a no-op.
-			args = []string{"-m", "pip", "install", "-r", filepath.Join(dir, name), "--no-cache-dir", "--disable-pip-version-check", "--find-links", dir}
+			args = []string{"-m", "pip", "install", "-r", filepath.Join(dir, name), "--no-cache-dir", "--disable-pip-version-check", "--find-links", "-q", dir}
 			return execx.Execute("python", args...)
 		}
 	}
