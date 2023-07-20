@@ -18,7 +18,7 @@ limitations under the License.
 
 # TextIO Performance
 
-The following graphs show various metrics when reading from Google Cloud Storage using and writing to
+The following graphs show various metrics when reading from or writing to Google Cloud Storage using
 TextIO. See the [glossary](/performance/glossary) for definitions.
 
 ## Read
