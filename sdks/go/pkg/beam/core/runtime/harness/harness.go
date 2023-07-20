@@ -393,7 +393,8 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		c.mu.Unlock()
 
 		if err != nil {
-			return fail(ctx, instID, "Failed: %v", err)
+			c.failed[instID] = err
+			return fail(ctx, instID, "ProcessBundle failed: %v", err)
 		}
 
 		tokens := msg.GetCacheTokens()
@@ -427,6 +428,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 			// If there was an error on the data channel reads, fail this bundle
 			// since we may have had a short read.
 			c.failed[instID] = dataError
+			err = dataError
 		} else {
 			// Non failure plans should either be moved to the finalized state
 			// or to plans so they can be re-used.

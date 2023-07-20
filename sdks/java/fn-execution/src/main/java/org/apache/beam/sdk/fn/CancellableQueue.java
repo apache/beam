@@ -22,9 +22,9 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A simplified {@link ThreadSafe} blocking queue that can be cancelled freeing any blocked {@link
@@ -36,7 +36,7 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 public class CancellableQueue<T extends @NonNull Object> {
 
   private final int capacity;
-  private final Object[] elements;
+  private final @Nullable Object[] elements;
   private final Lock lock;
   private final Condition notFull;
   private final Condition notEmpty;
@@ -86,8 +86,9 @@ public class CancellableQueue<T extends @NonNull Object> {
    *     must invoke {@link #cancel} if the interrupt is unrecoverable.
    * @throws Exception if the queue is cancelled.
    */
+  @SuppressWarnings({"cast"})
   public T take() throws Exception, InterruptedException {
-    Object rval;
+    T rval;
     try {
       lock.lockInterruptibly();
       while (count == 0 && cancellationException == null) {
@@ -97,14 +98,15 @@ public class CancellableQueue<T extends @NonNull Object> {
         throw cancellationException;
       }
 
-      rval = elements[takeIndex];
+      rval = (T) elements[takeIndex];
+      elements[takeIndex] = null;
       takeIndex = (takeIndex + 1) % elements.length;
       count -= 1;
       notFull.signal();
     } finally {
       lock.unlock();
     }
-    return (T) rval;
+    return rval;
   }
 
   /**
@@ -119,6 +121,7 @@ public class CancellableQueue<T extends @NonNull Object> {
     try {
       if (cancellationException == null) {
         cancellationException = exception;
+        clearElementsLocked();
       }
       notEmpty.signalAll();
       notFull.signalAll();
@@ -127,14 +130,21 @@ public class CancellableQueue<T extends @NonNull Object> {
     }
   }
 
+  private void clearElementsLocked() {
+    for (int i = takeIndex; count > 0; i = (i + 1) % elements.length) {
+      elements[i] = null;
+      --count;
+    }
+    addIndex = 0;
+    takeIndex = 0;
+  }
+
   /** Enables the queue to be re-used after it has been cancelled. */
   public void reset() {
     lock.lock();
     try {
       cancellationException = null;
-      addIndex = 0;
-      takeIndex = 0;
-      count = 0;
+      clearElementsLocked();
     } finally {
       lock.unlock();
     }

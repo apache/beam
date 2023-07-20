@@ -69,9 +69,8 @@ def basicPytestOpts = [
     "--log-cli-level=INFO", //log level
 ]
 
-def preCommitIT(String runScriptsDir, String envdir, Boolean streaming, Boolean runnerV2, String pythonSuffix) {
-  def suffix = runnerV2 ? '_V2' : ''
-  suffix = streaming ? "_streaming$suffix" : "_batch$suffix"
+def preCommitIT(String runScriptsDir, String envdir, Boolean streaming, String pythonSuffix) {
+  def suffix = streaming ? "_streaming" : "_batch"
   task "preCommitIT${suffix}" {
     dependsOn 'initializeForDataflowJob'
 
@@ -97,9 +96,6 @@ def preCommitIT(String runScriptsDir, String envdir, Boolean streaming, Boolean 
 
       if (streaming){
         argMap.put("streaming", "true")
-        argMap.put("runner_v2", "true")
-      } else if (runnerV2) {
-        argMap.put("runner_v2", "true")
       }
 
       def cmdArgs = mapToArgString(argMap)
@@ -111,19 +107,12 @@ def preCommitIT(String runScriptsDir, String envdir, Boolean streaming, Boolean 
   }
 }
 
-preCommitIT(runScriptsDir, envdir, false, false, pythonVersionSuffix)
-preCommitIT(runScriptsDir, envdir, true, false, pythonVersionSuffix)
-preCommitIT(runScriptsDir, envdir, false, true, pythonVersionSuffix)
-preCommitIT(runScriptsDir, envdir, true, true, pythonVersionSuffix)
+preCommitIT(runScriptsDir, envdir, false, pythonVersionSuffix)
+preCommitIT(runScriptsDir, envdir, true, pythonVersionSuffix)
 
 task preCommitIT{
   dependsOn preCommitIT_batch
   dependsOn preCommitIT_streaming
-}
-
-task preCommitIT_V2{
-  dependsOn preCommitIT_batch_V2
-  dependsOn preCommitIT_streaming_V2
 }
 
 task postCommitIT {
@@ -192,7 +181,6 @@ task examples {
     def argMap = [
             "test_opts": testOpts + ["--numprocesses=8", "--dist=loadfile"],
             "sdk_location": project.ext.sdkLocation,
-            "runner_v2": "true",
             "suite": "postCommitIT-df${pythonVersionSuffix}-xdist",
             "collect": "examples_postcommit and not no_xdist and not sickbay_dataflow"
     ]
@@ -208,7 +196,6 @@ task examples {
     def argMap = [
             "test_opts": testOpts,
             "sdk_location": project.ext.sdkLocation,
-            "runner_v2": "true",
             "suite": "postCommitIT-df${pythonVersionSuffix}-no-xdist",
             "collect": "examples_postcommit and no_xdist and not sickbay_dataflow"
     ]
@@ -231,13 +218,6 @@ task validatesRunnerBatchTests {
         "collect": "it_validatesrunner and not no_sickbay_batch"
     ]
 
-    if (project.hasProperty('useRunnerV2')) {
-      argMap.put("runner_v2", "true")
-    }
-
-    if (project.hasProperty('disableRunnerV2')) {
-      argMap.put("disable_runner_v2", "true")
-    }
     def cmdArgs = mapToArgString(argMap)
     exec {
       executable 'sh'
@@ -258,7 +238,6 @@ task validatesRunnerStreamingTests {
                 "sdk_location": project.ext.sdkLocation,
                 "suite": "validatesRunnerStreamingTests-df${pythonVersionSuffix}-xdist",
                 "collect": "it_validatesrunner and not no_sickbay_streaming and not no_xdist",
-                "runner_v2": "true",
                 ]
 
     def cmdArgs = mapToArgString(argMap)
@@ -276,7 +255,6 @@ task validatesRunnerStreamingTests {
                 "sdk_location": project.ext.sdkLocation,
                 "suite": "validatesRunnerStreamingTests-df${pythonVersionSuffix}-noxdist",
                 "collect": "it_validatesrunner and not no_sickbay_streaming and no_xdist",
-                "runner_v2": "true",
                 ]
 
     def cmdArgs = mapToArgString(argMap)

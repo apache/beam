@@ -337,10 +337,9 @@ func (f *writeFn) ProcessElement(ctx context.Context, _ int, iter func(*beam.X) 
 			}
 			data = nil
 			size = writeOverheadBytes
-		} else {
-			data = append(data, reflect.ValueOf(val.(any)))
-			size += current
 		}
+		data = append(data, reflect.ValueOf(val.(any)))
+		size += current
 	}
 	if len(data) == 0 {
 		return nil
