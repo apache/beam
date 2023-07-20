@@ -20,13 +20,10 @@ package org.apache.beam.sdk.io.gcp.firestore.it;
 import com.google.api.core.ApiFunction;
 import com.google.api.core.ApiFuture;
 import com.google.api.core.ApiFutures;
-import com.google.api.gax.core.FixedCredentialsProvider;
-import com.google.api.gax.grpc.InstantiatingGrpcChannelProvider;
 import com.google.cloud.firestore.CollectionReference;
 import com.google.cloud.firestore.DocumentReference;
 import com.google.cloud.firestore.Firestore;
 import com.google.cloud.firestore.FirestoreOptions;
-import com.google.cloud.firestore.FirestoreOptions.EmulatorCredentials;
 import com.google.cloud.firestore.WriteBatch;
 import com.google.cloud.firestore.WriteResult;
 import com.google.cloud.firestore.spi.v1.FirestoreRpc;
@@ -80,9 +77,6 @@ import org.slf4j.LoggerFactory;
 
 final class FirestoreTestingHelper implements TestRule {
   private static final Logger LOG = LoggerFactory.getLogger(FirestoreTestingHelper.class);
-  private static final String DEFAULT_FIRESTORE_HOST = "batch-firestore.googleapis.com:443";
-  private static final String FIRESTORE_HOST_ENV_VARIABLE = "FIRESTORE_HOST";
-  private static final String FIRESTORE_EMULATOR_HOST_ENV_VARIABLE = "FIRESTORE_EMULATOR_HOST";
 
   static final String BASE_COLLECTION_ID;
 
@@ -110,7 +104,7 @@ final class FirestoreTestingHelper implements TestRule {
     DataLayout value() default DataLayout.Shallow;
   }
 
-  private final GcpOptions options;
+  private final GcpOptions gcpOptions;
   private final org.apache.beam.sdk.io.gcp.firestore.FirestoreOptions firestoreBeamOptions;
   private final FirestoreOptions firestoreOptions;
 
@@ -131,42 +125,17 @@ final class FirestoreTestingHelper implements TestRule {
       "initialization.fields.uninitialized") // testClass and testName are managed via #apply
   public FirestoreTestingHelper(CleanupMode cleanupMode) {
     this.cleanupMode = cleanupMode;
-    options = TestPipeline.testingPipelineOptions().as(GcpOptions.class);
+    gcpOptions = TestPipeline.testingPipelineOptions().as(GcpOptions.class);
     firestoreBeamOptions =
         TestPipeline.testingPipelineOptions()
             .as(org.apache.beam.sdk.io.gcp.firestore.FirestoreOptions.class);
-    String emulatorHostPort = firestoreBeamOptions.getEmulatorHost();
-    if (emulatorHostPort == null) {
-      emulatorHostPort = System.getenv(FIRESTORE_EMULATOR_HOST_ENV_VARIABLE);
-    }
-    if (emulatorHostPort != null) {
-      firestoreBeamOptions.setEmulatorHost(emulatorHostPort);
-      firestoreOptions =
-          FirestoreOptions.newBuilder()
-              .setCredentialsProvider(FixedCredentialsProvider.create(new EmulatorCredentials()))
-              .setProjectId(options.getProject())
-              .setDatabaseId(firestoreBeamOptions.getFirestoreDb())
-              .setHost(emulatorHostPort)
-              .setChannelProvider(
-                  InstantiatingGrpcChannelProvider.newBuilder()
-                      .setEndpoint(emulatorHostPort)
-                      .setChannelConfigurator(c -> c.usePlaintext())
-                      .build())
-              .build();
-    } else {
-      String host = firestoreBeamOptions.getHost();
-      if (host == null) {
-        host = System.getenv().getOrDefault(FIRESTORE_HOST_ENV_VARIABLE, DEFAULT_FIRESTORE_HOST);
-        firestoreBeamOptions.setHost(host);
-      }
-      firestoreOptions =
-          FirestoreOptions.newBuilder()
-              .setCredentials(options.getGcpCredential())
-              .setProjectId(options.getProject())
-              .setDatabaseId(firestoreBeamOptions.getFirestoreDb())
-              .setHost(firestoreBeamOptions.getHost())
-              .build();
-    }
+    firestoreOptions =
+        FirestoreOptions.newBuilder()
+            .setCredentials(gcpOptions.getGcpCredential())
+            .setProjectId(gcpOptions.getProject())
+            .setDatabaseId(firestoreBeamOptions.getFirestoreDb())
+            .setHost(firestoreBeamOptions.getHost())
+            .build();
     fs = firestoreOptions.getService();
     rpc = (FirestoreRpc) firestoreOptions.getRpc();
   }
