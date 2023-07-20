@@ -178,8 +178,8 @@ class HuggingFaceModelHandler(ModelHandler[ExampleT, PredictionT, ModelT], ABC):
     Use HuggingFaceModelHandlerKeyedTensor or HuggingFaceModelHandlerTensor.
 
     Example Usage model::
-    pcoll | RunInference(HuggingFaceModelHandlerKeyedTensor(
-      model_uri="bert-base-uncased", model_class=AutoModelForMaskedLM))
+      pcoll | RunInference(HuggingFaceModelHandlerKeyedTensor(
+        model_uri="bert-base-uncased", model_class=AutoModelForMaskedLM))
 
     Args:
       model_uri (str): path to the pretrained model on the hugging face
@@ -266,8 +266,8 @@ class HuggingFaceModelHandlerKeyedTensor(
   automatically.
 
   Example Usage model::
-  pcoll | RunInference(HuggingFaceModelHandlerKeyedTensor(
-    model_uri="bert-base-uncased", model_class=AutoModelForMaskedLM))
+    pcoll | RunInference(HuggingFaceModelHandlerKeyedTensor(
+      model_uri="bert-base-uncased", model_class=AutoModelForMaskedLM))
 
   **Supported Versions:** HuggingFaceModelHandler supports transformers>=4.18.0.
   """
@@ -367,8 +367,8 @@ class HuggingFaceModelHandlerTensor(HuggingFaceModelHandler[Union[tf.Tensor,
   automatically.
 
   Example Usage model:
-  pcoll | RunInference(HuggingFaceModelHandlerTensor(
-    model_uri="bert-base-uncased", model_class=AutoModelForMaskedLM))
+    pcoll | RunInference(HuggingFaceModelHandlerTensor(
+      model_uri="bert-base-uncased", model_class=AutoModelForMaskedLM))
 
   **Supported Versions:** HuggingFaceModelHandler supports transformers>=4.18.0.
   """
