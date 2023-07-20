@@ -3383,6 +3383,12 @@ we&amp;rsquo;ve verified compatibility with. We now recommend installing Beam wi
 &lt;li>Fixed error when importing the DataFrame API with pandas 1.0.x installed (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12945">BEAM-12945&lt;/a>).&lt;/li>
 &lt;li>Fixed top.SmallestPerKey implementation in the Go SDK (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12946">BEAM-12946&lt;/a>).&lt;/li>
 &lt;/ul>
+&lt;h3 id="known-issues">Known Issues&lt;/h3>
+&lt;ul>
+&lt;li>Large Java BigQueryIO writes with the FILE_LOADS method will fail in batch mode (specifically, when copy jobs are used).
+This results in the error message: &lt;code>IllegalArgumentException: Attempting to access unknown side input&lt;/code>.
+Please upgrade to a newer version (&amp;gt; 2.34.0) or use another write method (e.g. &lt;code>STORAGE_WRITE_API&lt;/code>).&lt;/li>
+&lt;/ul>
 &lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
 &lt;p>According to git shortlog, the following people contributed to the 2.34.0 release. Thank you to all contributors!&lt;/p>
 &lt;p>Ahmet Altay,
@@ -3704,6 +3710,9 @@ of BoundedSource (Python)
 &lt;li>Spark 2.x users will need to update Spark&amp;rsquo;s Jackson runtime dependencies (&lt;code>spark.jackson.version&lt;/code>) to at least version 2.9.2, due to Beam updating its dependencies.&lt;/li>
 &lt;li>See a full list of open &lt;a href="https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20affectedVersion%20%3D%202.33.0%20ORDER%20BY%20priority%20DESC%2C%20updated%20DESC">issues that affect&lt;/a> this version.&lt;/li>
 &lt;li>Go SDK jobs may produce &amp;ldquo;Failed to deduce Step from MonitoringInfo&amp;rdquo; messages following successful job execution. The messages are benign and don&amp;rsquo;t indicate job failure. These are due to not yet handling PCollection metrics.&lt;/li>
+&lt;li>Large Java BigQueryIO writes with the FILE_LOADS method will fail in batch mode (specifically, when copy jobs are used).
+This results in the error message: &lt;code>IllegalArgumentException: Attempting to access unknown side input&lt;/code>.
+Please upgrade to a newer version (&amp;gt; 2.34.0) or use another write method (e.g. &lt;code>STORAGE_WRITE_API&lt;/code>).&lt;/li>
 &lt;/ul>
 &lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
 &lt;p>According to git shortlog, the following people contributed to the 2.33.0 release. Thank you to all contributors!&lt;/p>
