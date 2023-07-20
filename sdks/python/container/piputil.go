@@ -76,18 +76,18 @@ func pipInstallPackage(files []string, dir, name string, force, optional bool, e
 				// installed version will match the package specified, the package itself
 				// will not be reinstalled, but its dependencies will now be resolved and
 				// installed if necessary.  This achieves our goal outlined above.
-				args := []string{"-m", "pip", "install", "--no-cache-dir", "--disable-pip-version-check", "--upgrade", "--force-reinstall", "--no-deps",
+				args := []string{"-m", "pip", "install", "--no-cache-dir", "--disable-pip-version-check", "--upgrade", "--force-reinstall", "--no-deps", "-q",
 					filepath.Join(dir, packageSpec)}
 				err := execx.Execute("python", args...)
 				if err != nil {
 					return err
 				}
-				args = []string{"-m", "pip", "install", "--no-cache-dir", "--disable-pip-version-check", filepath.Join(dir, packageSpec)}
+				args = []string{"-m", "pip", "install", "--no-cache-dir", "--disable-pip-version-check", "-q", filepath.Join(dir, packageSpec)}
 				return execx.Execute("python", args...)
 			}
 
 			// Case when we do not perform a forced reinstall.
-			args := []string{"-m", "pip", "install", "--no-cache-dir", "--disable-pip-version-check", filepath.Join(dir, packageSpec)}
+			args := []string{"-m", "pip", "install", "--no-cache-dir", "--disable-pip-version-check", "-q", filepath.Join(dir, packageSpec)}
 			return execx.Execute("python", args...)
 		}
 	}
