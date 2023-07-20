@@ -120,10 +120,10 @@ class TFTOperation(BaseOperation[common_types.TensorType,
         fn_output_signature=tf.RaggedTensorSpec(
             tf.TensorShape([None, None]), tf.string))
     data = data.values.to_sparse()
-    # # the columns of the sparse tensor are suffixed with $indices, $values
-    # # related to sparse tensor. Create a new sparse tensor by extracting
-    # # the indices, values and dense_shape from the original sparse tensor
-    # # to preserve the original column name.
+    # the columns of the sparse tensor are suffixed with $indices, $values
+    # related to sparse tensor. Create a new sparse tensor by extracting
+    # the indices, values and dense_shape from the original sparse tensor
+    # to preserve the original column name.
     data = tf.sparse.SparseTensor(
         indices=data.indices, values=data.values, dense_shape=data.dense_shape)
     # for list of string, batch dimensions becomes inverted after tf.map_fn,

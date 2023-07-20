@@ -121,10 +121,11 @@ class ConvertNamedTupleToDict(
       return pcoll | beam.Map(lambda x: x._asdict())
 
 
-# Helper methods to compute hash key for elements of PCollections.
-# These are needed to group transformed elements with their appropriate
-# subset of untransformed raw data elements.
 class ComputeAndAttachHashKey(beam.DoFn):
+  """
+  Computues and attaches a hash key to the element.
+  Only for internal use. No backwards compatibility guarantees.
+  """
   def process(self, element):
     hash_object = hashlib.sha256()
     for _, value in element.items():
@@ -137,6 +138,13 @@ class ComputeAndAttachHashKey(beam.DoFn):
 
 
 class GetMissingColumnsPColl(beam.DoFn):
+  """
+  Returns data containing only the columns that are not
+  present in the schema. This is needed since TFT only outputs
+  columns that are transformed by any of the data processing transforms.
+
+  Only for internal use. No backwards compatibility guarantees.
+  """
   def __init__(self, existing_columns):
     self.existing_columns = existing_columns
 
@@ -150,6 +158,11 @@ class GetMissingColumnsPColl(beam.DoFn):
 
 
 class MakeHashKeyAsColumn(beam.DoFn):
+  """
+  Extracts the hash key from the element and adds it as a column.
+
+  Only for internal use. No backwards compatibility guarantees.
+  """
   def process(self, element):
     hash_key, element = element
     element['hash_key'] = hash_key
@@ -157,6 +170,11 @@ class MakeHashKeyAsColumn(beam.DoFn):
 
 
 class ExtractHashAndKeyPColl(beam.DoFn):
+  """
+  Extracts the hash key and return hashkey and element as a tuple.
+
+  Only for internal use. No backwards compatibility guarantees.
+  """
   def process(self, element):
     hashkey = element['hash_key']
     if isinstance(hashkey, np.ndarray):
@@ -166,6 +184,11 @@ class ExtractHashAndKeyPColl(beam.DoFn):
 
 
 class MergeDicts(beam.DoFn):
+  """
+  Merges the dictionaries in the PCollection.
+
+  Only for internal use. No backwards compatibility guarantees.
+  """
   def process(self, element):
     _, element = element
     new_dict = {}
@@ -302,8 +325,7 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
   def get_raw_data_metadata(
       self, input_types: Dict[str, type]) -> dataset_metadata.DatasetMetadata:
     raw_data_feature_spec = self.get_raw_data_feature_spec(input_types)
-    raw_data_feature_spec['hash_key'] = tf.io.FixedLenFeature([],
-                                                              dtype=tf.string)
+    raw_data_feature_spec['hash_key'] = tf.io.VarLenFeature(dtype=tf.string)
     return self.convert_raw_data_feature_spec_to_dataset_metadata(
         raw_data_feature_spec)
 
@@ -424,11 +446,6 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
       raw_data_metadata = metadata_io.read_metadata(
           os.path.join(self.artifact_location, RAW_DATA_METADATA_DIR))
 
-    # To maintain consistency by outputting numpy array all the time,
-    # whether a scalar value or list or np array is passed as input,
-    #  we will convert scalar values to list values and TFT will ouput
-    # numpy array all the time.
-
     keyed_raw_data = (raw_data | beam.ParDo(ComputeAndAttachHashKey()))
 
     feature_set = [feature.name for feature in raw_data_metadata.schema.feature]
@@ -436,6 +453,10 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
         keyed_raw_data
         | beam.ParDo(GetMissingColumnsPColl(feature_set)))
 
+    # To maintain consistency by outputting numpy array all the time,
+    # whether a scalar value or list or np array is passed as input,
+    #  we will convert scalar values to list values and TFT will ouput
+    # numpy array all the time.
     keyed_raw_data = keyed_raw_data | beam.ParDo(
         ConvertScalarValuesToListValues())
 
@@ -481,12 +502,16 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
       transformed_dataset = (
           transformed_dataset | beam.ParDo(ExtractHashAndKeyPColl()))
 
+      # The grouping is needed here since tensorflow transform only outputs
+      # columns that are transformed by any of the transforms. So we will
+      # join the missing columns from the raw_data to the transformed_dataset
+      # using the hash key.
       transformed_dataset = (
           (transformed_dataset, columns_not_in_schema_with_hash)
-          | beam.CoGroupByKey())
+          | beam.CoGroupByKey()
+          | beam.ParDo(MergeDicts()))
 
-      transformed_dataset = (transformed_dataset | beam.ParDo(MergeDicts()))
-
+      # The schema only contains the columns that are transformed.
       transformed_dataset = (
           transformed_dataset | "ConvertToRowType" >>
           beam.Map(lambda x: beam.Row(**x)).with_output_types(row_type))
