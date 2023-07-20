@@ -785,7 +785,8 @@ class _CustomBigQuerySource(BoundedSource):
     if self.export_result is None:
       bq = bigquery_tools.BigQueryWrapper(
           temp_dataset_id=(
-              self.temp_dataset.datasetId if self.temp_dataset else None))
+              self.temp_dataset.datasetId if self.temp_dataset else None),
+          client=bigquery_tools.BigQueryWrapper._bigquery_client(self.options))
 
       if self.query is not None:
         self._setup_temporary_dataset(bq)
@@ -1082,7 +1083,8 @@ class _CustomBigQueryStorageSource(BoundedSource):
 
   def estimate_size(self):
     # Returns the pre-filtering size of the (temporary) table being read.
-    bq = bigquery_tools.BigQueryWrapper()
+    bq = bigquery_tools.BigQueryWrapper.from_pipeline_options(
+        self.pipeline_options)
     if self.table_reference is not None:
       return self._get_table_size(bq, self.table_reference)
     elif self.query is not None and self.query.is_accessible():
@@ -1112,7 +1114,9 @@ class _CustomBigQueryStorageSource(BoundedSource):
   def split(self, desired_bundle_size, start_position=None, stop_position=None):
     if self.split_result is None:
       bq = bigquery_tools.BigQueryWrapper(
-          temp_table_ref=(self.temp_table if self.temp_table else None))
+          temp_table_ref=(self.temp_table if self.temp_table else None),
+          client=bigquery_tools.BigQueryWrapper._bigquery_client(
+              self.pipeline_options))
 
       if self.query is not None:
         self._setup_temporary_dataset(bq)
