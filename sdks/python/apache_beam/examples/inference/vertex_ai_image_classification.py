@@ -33,6 +33,7 @@ from typing import Tuple
 
 import apache_beam as beam
 import tensorflow as tf
+from apache_beam.io import fileio
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.base import KeyedModelHandler
 from apache_beam.ml.inference.base import PredictionResult
@@ -52,7 +53,7 @@ def parse_known_args(argv):
       dest='input',
       type=str,
       required=True,
-      help='File path to read an image from.')
+      help='File glob to read images from.')
   parser.add_argument(
       '--output',
       dest='output',
@@ -135,11 +136,10 @@ def run(
   if not test_pipeline:
     pipeline = beam.Pipeline(options=pipeline_options)
 
-  # TODO: Process a glob of files instead of a single file name.
-  read_image_name = pipeline | "Get file name" >> beam.Create(
-      [known_args.input])
+  read_glob = pipeline | "Get glob" >> beam.Create([known_args.input])
+  read_image_name = read_glob | "Get Image Paths" >> fileio.MatchAll()
   load_image = read_image_name | "Read Image" >> beam.Map(
-      lambda image_name: read_image(image_name))
+      lambda image_name: read_image(image_name.path))
   preprocess = load_image | "Preprocess Image" >> beam.MapTuple(
       lambda img_name, img: (img_name, preprocess_image(img)))
   predictions = preprocess | "RunInference" >> RunInference(
