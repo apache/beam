@@ -28,6 +28,7 @@ import argparse
 import io
 import logging
 from typing import Iterable
+from typing import List
 from typing import Tuple
 
 import apache_beam as beam
@@ -93,7 +94,7 @@ def read_image(image_file_name: str) -> Tuple[str, bytes]:
     return image_file_name, data
 
 
-def preprocess_image(data: bytes) -> list[float]:
+def preprocess_image(data: bytes) -> List[float]:
   """Preprocess the image, resizing it and normalizing it before
   converting to a list.
   """
