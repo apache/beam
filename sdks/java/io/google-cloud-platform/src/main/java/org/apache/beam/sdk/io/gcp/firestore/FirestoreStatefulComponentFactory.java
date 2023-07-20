@@ -94,7 +94,6 @@ class FirestoreStatefulComponentFactory implements Serializable {
         emulatorHostPort = System.getenv(FIRESTORE_EMULATOR_HOST_ENV_VARIABLE);
       }
       if (emulatorHostPort != null) {
-        firestoreOptions.setEmulatorHost(emulatorHostPort);
         builder
             .setCredentialsProvider(FixedCredentialsProvider.create(new EmulatorCredentials()))
             .setEndpoint(emulatorHostPort)
