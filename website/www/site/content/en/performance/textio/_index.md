@@ -18,21 +18,33 @@ limitations under the License.
 
 # TextIO Performance
 
-The following graphs show various metrics when reading from and writing to
+The following graphs show various metrics when reading from Google Cloud Storage using and writing to
 TextIO. See the [glossary](/performance/glossary) for definitions.
 
-# Read
+## Read
+
+### What is the estimated cost of reading from Google Cloud Storage using TextIO?
 
 {{< performance_looks io="textio" read_or_write="read" section="test_name" >}}
 
+### How has various metrics changed when reading from Google Cloud Storage using TextIO for different Beam SDK versions?
+
 {{< performance_looks io="textio" read_or_write="read" section="version" >}}
+
+### How has various metrics changed over time when reading from Google Cloud Storage using TextIO?
 
 {{< performance_looks io="textio" read_or_write="read" section="date" >}}
 
-# Write
+## Write
+
+### What is the estimated cost of writing to Google Cloud Storage using TextIO?
 
 {{< performance_looks io="textio" read_or_write="write" section="test_name" >}}
 
+### How has various metrics changed when writing to Google Cloud Storage using TextIO for different Beam SDK versions?
+
 {{< performance_looks io="textio" read_or_write="write" section="version" >}}
+
+### How has various metrics changed over time when writing to Google Cloud Storage using TextIO?
 
 {{< performance_looks io="textio" read_or_write="write" section="date" >}}

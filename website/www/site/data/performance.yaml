@@ -10,11 +10,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-host: https://28cd0c7f-7a84-428c-bfa7-6e8316f6931b.looker.app
-path: looks
+host: https://storage.googleapis.com
+path: public_looker_explores_us_a3853f40
 looks:
   bigquery:
     read:
+      folder: 30
       test_name:
         - id: nwQxvsnQFdBPTk27pZYxjcGNm2rRfNJk
           title: Runtime and Estimated Cost by Test Name
@@ -61,6 +62,7 @@ looks:
         - id: GMPy2M9bgg7nXFhVhYFJjH9FQqXRhmV7
           title: AvgCpuUtilization by Version
     write:
+      folder: 31
       test_name:
         - id: sHyRfwCfGCPqSwsTWXSsxfbHKH5hXjzc
           title: Write BigQuery RunTime and EstimatedCost
@@ -108,6 +110,7 @@ looks:
           title: AvgCpuUtilization by Version
   bigtable:
     read:
+      folder: 32
       test_name:
         - id: YQ2W3wdNnBXMgDgpzCRbmQWMHjyPvZny
           title: Read BigTable RunTime and EstimatedCost
@@ -150,6 +153,7 @@ looks:
         - id: j4wqtYBy6NFnWH5ZN4FVkvqqzQBkzvKP
           title: AvgCpuUtilization by Version
     write:
+      folder: 33
       test_name:
         - id: 2sC27RQwWy2MP9DXVHjbvTYSNFYpFvxj
           title: Write BigTable RunTime and EstimatedCost
@@ -203,6 +207,7 @@ looks:
         title: AvgCpuUtilization by Version
   textio:
     read:
+      folder: 34
       test_name:
         - id: SsfFgvwyMthnHjdRwBjWGNbvfNgym4wb
           title: Read TextIO RunTime and EstimatedCost
@@ -245,6 +250,7 @@ looks:
         - id: dXXZW4SbRyF4PKY7CVSJWkk2hNsCyBDf
           title: AvgCpuUtilization by Version
     write:
+      folder: 35
       test_name:
         - id: Mm2j2QPc2x4hZqYNSpZC4bDpH2fgvqvp
           title: Write TextIO RunTime and EstimatedCost

@@ -18,14 +18,13 @@ limitations under the License. See accompanying LICENSE file.
   {{ $rw := index $io (.Get "read_or_write") }}
   {{ $section := index $rw (.Get "section") }}
   {{ range $section }}
-  <h2>{{.title}}</h2>
-    <iframe
-            height="575px"
-            width="660px"
-            class="performance"
-            src="{{ $host }}/{{ $path }}/{{.id}}.png?apply_formatting=true&apply_vis=true"
-            frameborder="0"
-    >
-    </iframe>
+  {{ $folder := index $rw "folder" }}
+  <h4>{{.title}}</h4>
+    <div class="performance">
+      <img 
+         src="{{$host}}/{{$path}}/{{$folder}}/{{.id}}.png"
+         alt="{{.title}}"
+      >
+    </div>
   {{ end }}
 </div>

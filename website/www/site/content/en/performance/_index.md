@@ -16,3 +16,25 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
+# Beam IO Performance
+
+Various Beam pipelines measure characteristics of reading from and writing to
+various IOs.
+
+# Available Metrics
+
+Various metrics were gathered using the Beam SDK
+[Metrics API](/documentation/programming-guide/#metrics)
+from a pipeline Job running on [Dataflow](/documentation/runners/dataflow/).
+
+See the [glossary](/performance/glossary) for a list of the metrics and their
+definition.
+
+# Measured Beam IOs
+
+See the following pages for performance measures recorded when reading from and
+writing to various Beam IOs.
+
+- [BigQuery](/performance/bigquery)
+- [BigTable](/performance/bigtable)
+- [TextIO](/performance/textio)

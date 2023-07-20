@@ -21,18 +21,30 @@ limitations under the License.
 The following graphs show various metrics when reading from and writing to
 BigTable. See the [glossary](/performance/glossary) for definitions.
 
-# Read
+## Read
+
+### What is the estimated cost to read from BigTable?
 
 {{< performance_looks io="bigquery" read_or_write="read" section="test_name" >}}
 
+### How has various metrics changed when reading from BigTable for different Beam SDK versions?
+
 {{< performance_looks io="bigquery" read_or_write="read" section="version" >}}
+
+### How has various metrics changed over time when reading from BigTable?
 
 {{< performance_looks io="bigquery" read_or_write="read" section="date" >}}
 
-# Write
+## Write
+
+### What is the estimated cost to write to BigTable?
 
 {{< performance_looks io="bigquery" read_or_write="write" section="test_name" >}}
 
+### How has various metrics changed when writing to BigTable for different Beam SDK versions?
+
 {{< performance_looks io="bigquery" read_or_write="write" section="version" >}}
+
+### How has various metrics changed over time when writing to BigTable?
 
 {{< performance_looks io="bigquery" read_or_write="write" section="date" >}}

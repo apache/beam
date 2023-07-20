@@ -21,18 +21,30 @@ limitations under the License.
 The following graphs show various metrics when reading from and writing to
 BigQuery. See the [glossary](/performance/glossary) for definitions.
 
-# Read
+## Read
+
+### What is the estimated cost to read from BigQuery?
 
 {{< performance_looks io="bigquery" read_or_write="read" section="test_name" >}}
 
+### How has various metrics changed when reading from BigQuery for different Beam SDK versions?
+
 {{< performance_looks io="bigquery" read_or_write="read" section="version" >}}
+
+### How has various metrics changed over time when reading from BigQuery?
 
 {{< performance_looks io="bigquery" read_or_write="read" section="date" >}}
 
-# Write
+## Write
+
+### What is the estimated cost to write to BigQuery?
 
 {{< performance_looks io="bigquery" read_or_write="write" section="test_name" >}}
 
+### How has various metrics changed when writing to BigQuery for different Beam SDK versions?
+
 {{< performance_looks io="bigquery" read_or_write="write" section="version" >}}
+
+### How has various metrics changed over time when writing to BigQuery?
 
 {{< performance_looks io="bigquery" read_or_write="write" section="date" >}}
