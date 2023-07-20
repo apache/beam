@@ -31,18 +31,18 @@ func TestMain(m *testing.M) {
 	ptest.Main(m)
 }
 
+func init() {
+	register.Function2x2(addKeyFn)
+	register.Function2x1(lessInt)
+	register.Function2x1(shorterString)
+}
+
 func lessInt(a, b int) bool {
 	return a < b
 }
 
 func shorterString(a, b string) bool {
 	return len(a) < len(b)
-}
-
-func init() {
-	register.Function2x2(addKeyFn)
-	register.Function2x1(lessInt)
-	register.Function2x1(shorterString)
 }
 
 // TestCombineFn3String verifies that the accumulator correctly
