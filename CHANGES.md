@@ -56,6 +56,7 @@
 
 * New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
 * New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
+* Spark 3.2.2 is used as default version for Spark runner ([#23804](https://github.com/apache/beam/issues/23804)).
 
 ## I/Os
 
