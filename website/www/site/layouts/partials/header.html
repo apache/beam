@@ -81,16 +81,6 @@
        <li>
          <a class="navbar-link" href={{ "/case-studies/" | relLangURL }}>{{ T "nav-case-studies" }}</a>
        </li>
-        <li>
-          <span class="navbar-link">Performance</span>
-          <ul>
-            <li><a href={{ "/performance" | relLangURL }}>{{ T "nav-performance-general" }}</a></li>
-            <li><a href={{ "/performance/bigquery" | relLangURL }}>{{ T "nav-performance-bigquery" }}</a></li>
-            <li><a href={{ "/performance/bigtable" | relLangURL }}>{{ T "nav-performance-bigtable" }}</a></li>
-            <li><a href={{ "/performance/textio" | relLangURL }}>{{ T "nav-performance-textio" }}</a></li>
-            <li><a href={{ "/performance/glossary" | relLangURL }}>{{ T "nav-performance-glossary" }}</a></li>
-          </ul>
-        </li>
       </ul>
       <ul class="nav navbar-nav navbar-right">
 
@@ -157,23 +147,6 @@
      <a class="navbar-link" href={{ "/contribute/" | relLangURL }}>{{ T "nav-contribute" }}</a>
      <a class="navbar-link" href={{ "/blog/" | relLangURL }}>{{ T "nav-blog" }}</a>
      <a class="navbar-link" href={{ "/case-studies/" | relLangURL }}>{{ T "nav-case-studies" }}</a>
-     <li class="dropdown navbar-dropdown navbar-dropdown-performance">
-       <a href="#" class="dropdown-toggle navbar-link" role="button" aria-haspopup="true" aria-expanded="false">
-         Performance
-         <span>
-           {{ with resources.Get "icons/navbar-documentation-icon.svg" }}
-             {{ .Content | safeHTML }}
-           {{ end }}
-         </span>
-       </a>
-       <ul class="dropdown-menu">
-         <li><a class="navbar-dropdown-menu-link" href={{ "/performance" | relLangURL }}>{{ T "nav-performance-general" }}</a></li>
-         <li><a class="navbar-dropdown-menu-link" href={{ "/performance/bigquery" | relLangURL }}>{{ T "nav-performance-bigquery" }}</a></li>
-         <li><a class="navbar-dropdown-menu-link" href={{ "/performance/bigtable" | relLangURL }}>{{ T "nav-performance-bigtable" }}</a></li>
-         <li><a class="navbar-dropdown-menu-link" href={{ "/performance/textio" | relLangURL }}>{{ T "nav-performance-textio" }}</a></li>
-         <li><a class="navbar-dropdown-menu-link" href={{ "/performance/glossary" | relLangURL }}>{{ T "nav-performance-glossary" }}</a></li>
-       </ul>
-     </li>
    </div>
   <div id="iconsBar">
     <a type="button" onclick="showSearch()">

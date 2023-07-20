@@ -125,32 +125,6 @@
          }
        }
      }
-
-     .navbar-dropdown-performance{
-       list-style-type: none;
-       ul {
-         width: 209px;
-         left: -25%;
-         text-align: center;
-         border: none;
-         box-shadow: none;
-         padding-top: 34px;
-         padding-bottom: 0;
-         border-radius: 0;
-         li {
-           height: 36px;
-         }
-         a {
-           @extend .component-text;
-           line-height: 1.63;
-           letter-spacing: 0.2px;
-           @media(max-width: 1273px){
-             font-size: 14px;
-             margin-right: 5px;
-           }
-         }
-       }
-     }
    }
 
    .navbar-dropdown-apache {
