@@ -24,6 +24,8 @@ on it via rpc.
 
 import logging
 import multiprocessing.managers
+from inspect import signature
+from functools import wraps
 import os
 import tempfile
 import threading
@@ -35,6 +37,19 @@ from typing import Optional
 from typing import TypeVar
 
 import fasteners
+
+# Backup original AutoProxy function
+backup_autoproxy = multiprocessing.managers.AutoProxy
+
+# Defining a new AutoProxy that handles unwanted key argument 'manager_owned'
+def redefined_autoproxy(token, serializer, manager=None, authkey=None,
+          exposed=None, incref=True, manager_owned=True):
+    # Calling original AutoProxy without the unwanted key argument
+    return backup_autoproxy(token, serializer, manager, authkey,
+                     exposed, incref)
+
+# Updating AutoProxy definition in multiprocessing.managers package
+multiprocessing.managers.AutoProxy = redefined_autoproxy
 
 T = TypeVar('T')
 AUTH_KEY = b'mps'
@@ -55,7 +70,7 @@ class _SingletonProxy:
       raise RuntimeError('Entry was released.')
     return self._SingletonProxy_entry.obj.__call__(*args, **kwargs)
 
-  def _SingletonProxy_release(self):
+  def singletonProxy_release(self):
     assert self._SingletonProxy_valid
     self._SingletonProxy_valid = False
 
@@ -68,6 +83,7 @@ class _SingletonProxy:
     # Needed for multiprocessing.managers's proxying.
     dir = self._SingletonProxy_entry.obj.__dir__()
     dir.append('singletonProxy_call__')
+    dir.append('singletonProxy_release')
     return dir
 
 
@@ -92,7 +108,7 @@ class _SingletonEntry:
       return _SingletonProxy(self)
 
   def release(self, proxy):
-    proxy._SingletonProxy_release()
+    proxy.singletonProxy_release()
     with self.lock:
       self.refcount -= 1
       if self.refcount == 0:
@@ -150,6 +166,9 @@ class _AutoProxyWrapper:
 
   def __getattr__(self, name):
     return getattr(self._proxyObject, name)
+
+  def get_auto_proxy_object(self):
+    return self._proxyObject
 
 
 class MultiProcessShared(Generic[T]):
@@ -252,7 +271,7 @@ class MultiProcessShared(Generic[T]):
     return _AutoProxyWrapper(singleton)
 
   def release(self, obj):
-    self._manager.release_singleton(self._tag, obj)
+    self._manager.release_singleton(self._tag, obj.get_auto_proxy_object())
 
   def _create_server(self, address_file):
     # We need to be able to authenticate with both the manager and the process.
