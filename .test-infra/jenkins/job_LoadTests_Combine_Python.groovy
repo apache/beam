@@ -38,6 +38,7 @@ def loadTestConfigurations = { datasetName, mode ->
         metrics_dataset      : datasetName,
         metrics_table        : "python_dataflow_${mode}_combine_1",
         influx_measurement   : "python_${mode}_combine_1",
+        worker_machine_type  : "n1-highmem-2",
         input_options        : '\'{' +
         '"num_records": 200000000,' +
         '"key_size": 1,' +
@@ -61,6 +62,7 @@ def loadTestConfigurations = { datasetName, mode ->
         metrics_dataset      : datasetName,
         metrics_table        : "python_dataflow_${mode}_combine_4",
         influx_measurement   : "python_${mode}_combine_4",
+        worker_machine_type  : "n1-highmem-2",
         input_options        : '\'{' +
         '"num_records": 5000000,' +
         '"key_size": 10,' +
@@ -84,6 +86,7 @@ def loadTestConfigurations = { datasetName, mode ->
         publish_to_big_query : true,
         metrics_dataset      : datasetName,
         metrics_table        : "python_dataflow_${mode}_combine_5",
+        worker_machine_type  : "n1-highmem-2",
         influx_measurement   : "python_${mode}_combine_5",
         input_options        : '\'{' +
         '"num_records": 2500000,' +
