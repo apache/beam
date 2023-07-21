@@ -730,7 +730,10 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 			}
 			// Strip PCollections from Expand nodes, as CoGBK metrics are handled by
 			// the DataSource that preceeds them.
-			trueOut := out[0].(*PCollection).Out
+			trueOut := out[0]
+			if pcol, ok := trueOut.(*PCollection); ok {
+				trueOut = pcol.Out
+			}
 			b.units = b.units[:len(b.units)-1]
 			u = &Expand{UID: b.idgen.New(), ValueDecoders: decoders, Out: trueOut}
 

@@ -109,7 +109,8 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (*jo
 			urns.TransformGBK,
 			urns.TransformFlatten,
 			urns.TransformCombinePerKey,
-			urns.TransformAssignWindows:
+			urns.TransformAssignWindows,
+			urns.TransformReshuffle:
 		// Very few expected transforms types for submitted pipelines.
 		// Most URNs are for the runner to communicate back to the SDK for execution.
 		case "":
@@ -131,17 +132,19 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (*jo
 		if ws.GetWindowFn().GetUrn() != urns.WindowFnSession {
 			check("WindowingStrategy.MergeStatus", ws.GetMergeStatus(), pipepb.MergeStatus_NON_MERGING)
 		}
-		check("WindowingStrategy.OnTimerBehavior", ws.GetOnTimeBehavior(), pipepb.OnTimeBehavior_FIRE_IF_NONEMPTY)
-		check("WindowingStrategy.OutputTime", ws.GetOutputTime(), pipepb.OutputTime_END_OF_WINDOW)
-		// Non nil triggers should fail.
-		if ws.GetTrigger().GetDefault() == nil {
-			check("WindowingStrategy.Trigger", ws.GetTrigger(), &pipepb.Trigger_Default{})
-		}
+		// These are used by reshuffle
+		// TODO have a more aware blocking for reshuffle specifically.
+		// check("WindowingStrategy.OnTimeBehavior", ws.GetOnTimeBehavior(), pipepb.OnTimeBehavior_FIRE_IF_NONEMPTY)
+		// check("WindowingStrategy.OutputTime", ws.GetOutputTime(), pipepb.OutputTime_END_OF_WINDOW)
+		// // Non nil triggers should fail.
+		// if ws.GetTrigger().GetDefault() == nil {
+		// 	 check("WindowingStrategy.Trigger", ws.GetTrigger(), &pipepb.Trigger_Default{})
+		// }
 	}
 	if len(errs) > 0 {
 		jErr := &joinError{errs: errs}
 		slog.Error("unable to run job", slog.String("cause", "unimplemented features"), slog.String("jobname", req.GetJobName()), slog.String("errors", jErr.Error()))
-		err := fmt.Errorf("found %v uses of features unimplemented in prism in job %v: %v", len(errs), req.GetJobName(), jErr)
+		err := fmt.Errorf("found %v uses of features unimplemented in prism in job %v:\n%v", len(errs), req.GetJobName(), jErr)
 		job.Failed(err)
 		return nil, err
 	}

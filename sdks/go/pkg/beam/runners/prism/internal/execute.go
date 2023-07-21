@@ -145,7 +145,8 @@ func executePipeline(ctx context.Context, wk *worker.W, j *jobservices.Job) {
 		Combine(CombineCharacteristic{EnableLifting: true}),
 		ParDo(ParDoCharacteristic{DisableSDF: true}),
 		Runner(RunnerCharacteristic{
-			SDKFlatten: false,
+			SDKFlatten:   false,
+			SDKReshuffle: false,
 		}),
 	}
 
