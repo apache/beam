@@ -116,7 +116,11 @@ progress:
 			progTick.Stop()
 			break progress // exit progress loop on close.
 		case <-progTick.C:
-			resp := b.Progress(wk)
+			resp, err := b.Progress(wk)
+			if err != nil {
+				slog.Debug("SDK Error from progress, aborting progress", "bundle", rb, "error", err.Error())
+				break progress
+			}
 			index, unknownIDs := j.ContributeTentativeMetrics(resp)
 			if len(unknownIDs) > 0 {
 				md := wk.MonitoringMetadata(unknownIDs)
@@ -125,7 +129,11 @@ progress:
 			slog.Debug("progress report", "bundle", rb, "index", index)
 			// Progress for the bundle hasn't advanced. Try splitting.
 			if previousIndex == index && !splitsDone {
-				sr := b.Split(wk, 0.5 /* fraction of remainder */, nil /* allowed splits */)
+				sr, err := b.Split(wk, 0.5 /* fraction of remainder */, nil /* allowed splits */)
+				if err != nil {
+					slog.Debug("SDK Error from split, aborting splits", "bundle", rb, "error", err.Error())
+					break progress
+				}
 				if sr.GetChannelSplits() == nil {
 					slog.Warn("split failed", "bundle", rb)
 					splitsDone = true
@@ -164,8 +172,8 @@ progress:
 	// Bundle has failed, fail the job.
 	// TODO add retries & clean up this logic. Channels are closed by the "runner" transforms.
 	if !ok && b.Error != "" {
-		slog.Error("job failed", "error", b.Error, "bundle", rb, "job", j)
-		j.Failed(fmt.Errorf("bundle failed: %v", b.Error))
+		slog.Error("job failed", "bundle", rb, "job", j)
+		j.Failed(fmt.Errorf("%v", b.Error))
 		return
 	}
 
@@ -245,31 +253,54 @@ func buildStage(s *stage, tid string, t *pipepb.PTransform, comps *pipepb.Compon
 	}
 	var inputInfo engine.PColInfo
 	var sides []string
+	localIdReplacements := map[string]string{}
+	globalIDReplacements := map[string]string{}
 	for local, global := range t.GetInputs() {
+		if _, ok := sis[local]; ok {
+			col := comps.GetPcollections()[global]
+			oCID := col.GetCoderId()
+			nCID := lpUnknownCoders(oCID, coders, comps.GetCoders())
+
+			sides = append(sides, global)
+			if oCID != nCID {
+				// Add a synthetic PCollection set with the new coder.
+				newGlobal := global + "_prismside"
+				comps.GetPcollections()[newGlobal] = &pipepb.PCollection{
+					DisplayData:         col.GetDisplayData(),
+					UniqueName:          col.GetUniqueName(),
+					CoderId:             nCID,
+					IsBounded:           col.GetIsBounded(),
+					WindowingStrategyId: col.WindowingStrategyId,
+				}
+				localIdReplacements[local] = newGlobal
+				globalIDReplacements[newGlobal] = global
+			}
+			continue
+		}
 		// This id is directly used for the source, but this also copies
 		// coders used by side inputs to the coders map for the bundle, so
 		// needs to be run for every ID.
 		wInCid := makeWindowedValueCoder(global, comps, coders)
-		_, ok := sis[local]
-		if ok {
-			sides = append(sides, global)
-		} else {
-			// this is the main input
-			transforms[s.inputTransformID] = sourceTransform(s.inputTransformID, portFor(wInCid, wk), global)
-			col := comps.GetPcollections()[global]
-			ed := collectionPullDecoder(col.GetCoderId(), coders, comps)
-			wDec, wEnc := getWindowValueCoders(comps, col, coders)
-			inputInfo = engine.PColInfo{
-				GlobalID: global,
-				WDec:     wDec,
-				WEnc:     wEnc,
-				EDec:     ed,
-			}
+
+		// this is the main input
+		transforms[s.inputTransformID] = sourceTransform(s.inputTransformID, portFor(wInCid, wk), global)
+		col := comps.GetPcollections()[global]
+		ed := collectionPullDecoder(col.GetCoderId(), coders, comps)
+		wDec, wEnc := getWindowValueCoders(comps, col, coders)
+		inputInfo = engine.PColInfo{
+			GlobalID: global,
+			WDec:     wDec,
+			WEnc:     wEnc,
+			EDec:     ed,
 		}
 		// We need to process all inputs to ensure we have all input coders, so we must continue.
 	}
+	// Update side inputs to point to new PCollection with any replaced coders.
+	for l, g := range localIdReplacements {
+		t.GetInputs()[l] = g
+	}
 
-	prepareSides, err := handleSideInputs(t, comps, coders, wk)
+	prepareSides, err := handleSideInputs(t, comps, coders, wk, globalIDReplacements)
 	if err != nil {
 		slog.Error("buildStage: handleSideInputs", err, slog.String("transformID", tid))
 		panic(err)
@@ -322,7 +353,7 @@ func buildStage(s *stage, tid string, t *pipepb.PTransform, comps *pipepb.Compon
 }
 
 // handleSideInputs ensures appropriate coders are available to the bundle, and prepares a function to stage the data.
-func handleSideInputs(t *pipepb.PTransform, comps *pipepb.Components, coders map[string]*pipepb.Coder, wk *worker.W) (func(b *worker.B, tid string, watermark mtime.Time), error) {
+func handleSideInputs(t *pipepb.PTransform, comps *pipepb.Components, coders map[string]*pipepb.Coder, wk *worker.W, replacements map[string]string) (func(b *worker.B, tid string, watermark mtime.Time), error) {
 	sis, err := getSideInputs(t)
 	if err != nil {
 		return nil, err
@@ -334,6 +365,11 @@ func handleSideInputs(t *pipepb.PTransform, comps *pipepb.Components, coders map
 		si, ok := sis[local]
 		if !ok {
 			continue // This is the main input.
+		}
+		// Use the old global ID as the identifier for the data storage
+		// This matches what we do in the rest of the stage layer.
+		if oldGlobal, ok := replacements[global]; ok {
+			global = oldGlobal
 		}
 
 		// this is a side input

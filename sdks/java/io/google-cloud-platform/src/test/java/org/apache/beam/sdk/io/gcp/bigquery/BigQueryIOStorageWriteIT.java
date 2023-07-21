@@ -128,15 +128,15 @@ public class BigQueryIOStorageWriteIT {
   }
 
   @Test
-  public void testBigQueryStorageWrite30MProto() {
+  public void testBigQueryStorageWrite3MProto() {
     setUpTestEnvironment(WriteMode.EXACT_ONCE);
-    runBigQueryIOStorageWritePipeline(3000000, WriteMode.EXACT_ONCE, false);
+    runBigQueryIOStorageWritePipeline(3_000_000, WriteMode.EXACT_ONCE, false);
   }
 
   @Test
-  public void testBigQueryStorageWrite30MProtoALO() {
+  public void testBigQueryStorageWrite3MProtoALO() {
     setUpTestEnvironment(WriteMode.AT_LEAST_ONCE);
-    runBigQueryIOStorageWritePipeline(3000000, WriteMode.AT_LEAST_ONCE, false);
+    runBigQueryIOStorageWritePipeline(3_000_000, WriteMode.AT_LEAST_ONCE, false);
   }
 
   @Test

@@ -42,14 +42,14 @@ task chicagoTaxiExample {
   }
 }
 
-task validatesRunnerBatchTestsV2 {
-  getVersionsAsList('dataflow_validates_runner_batch_tests_V2').each {
+task validatesRunnerBatchTests {
+  getVersionsAsList('dataflow_validates_runner_batch_tests').each {
     dependsOn.add(":sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:validatesRunnerBatchTests")
   }
 }
 
-task validatesRunnerStreamingTestsV2 {
-  getVersionsAsList('dataflow_validates_runner_streaming_tests_V2').each {
+task validatesRunnerStreamingTests {
+  getVersionsAsList('dataflow_validates_runner_streaming_tests').each {
     dependsOn.add(":sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:validatesRunnerStreamingTests")
   }
 }

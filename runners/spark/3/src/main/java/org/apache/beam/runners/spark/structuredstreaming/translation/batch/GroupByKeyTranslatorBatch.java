@@ -167,7 +167,7 @@ class GroupByKeyTranslatorBatch<K, V>
       result =
           input
               .select(explode(col("windows")).as("window"), col("value"), col("timestamp"))
-              .groupBy(col("value.key"), col("window"))
+              .groupBy(col("value.key").as("key"), col("window"))
               .agg(collect_list(col("value.value")).as("values"), timestampAggregator(tsCombiner))
               .select(
                   inSingleWindow(

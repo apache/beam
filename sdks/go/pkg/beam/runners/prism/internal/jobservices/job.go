@@ -160,6 +160,6 @@ func (j *Job) Done() {
 
 // Failed indicates that the job completed unsuccessfully.
 func (j *Job) Failed(err error) {
-	j.sendState(jobpb.JobState_FAILED)
 	j.failureErr = err
+	j.sendState(jobpb.JobState_FAILED)
 }

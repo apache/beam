@@ -164,11 +164,13 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.UnsignedLong;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ErrorCollector;
@@ -2850,6 +2852,75 @@ public class StreamingDataflowWorkerTest {
     assertFalse(computationState.activateWork(key1Shard2, m4));
     computationState.completeWork(key1Shard2, 3);
     Mockito.verifyNoMoreInteractions(mockExecutor);
+  }
+
+  @Test
+  @Ignore // Test is flaky on Jenkins (#27555)
+  public void testMaxThreadMetric() throws Exception {
+    int maxThreads = 2;
+    int threadExpiration = 60;
+    // setting up actual implementation of executor instead of mocking to keep track of
+    // active thread count.
+    BoundedQueueExecutor executor =
+        new BoundedQueueExecutor(
+            maxThreads,
+            threadExpiration,
+            TimeUnit.SECONDS,
+            maxThreads,
+            10000000,
+            new ThreadFactoryBuilder()
+                .setNameFormat("DataflowWorkUnits-%d")
+                .setDaemon(true)
+                .build());
+
+    StreamingDataflowWorker.ComputationState computationState =
+        new StreamingDataflowWorker.ComputationState(
+            "computation",
+            defaultMapTask(Arrays.asList(makeSourceInstruction(StringUtf8Coder.of()))),
+            executor,
+            ImmutableMap.of(),
+            null);
+
+    ShardedKey key1Shard1 = ShardedKey.create(ByteString.copyFromUtf8("key1"), 1);
+
+    // overriding definition of MockWork to add sleep, which will help us keep track of how
+    // long each work item takes to process and therefore let us manipulate how long the time
+    // at which we're at max threads is.
+    MockWork m2 =
+        new MockWork(2) {
+          @Override
+          public void run() {
+            try {
+              Thread.sleep(1000);
+            } catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
+            }
+          }
+        };
+
+    MockWork m3 =
+        new MockWork(3) {
+          @Override
+          public void run() {
+            try {
+              Thread.sleep(1000);
+            } catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
+            }
+          }
+        };
+
+    assertTrue(computationState.activateWork(key1Shard1, m2));
+    assertTrue(computationState.activateWork(key1Shard1, m3));
+    executor.execute(m2, m2.getWorkItem().getSerializedSize());
+
+    executor.execute(m3, m3.getWorkItem().getSerializedSize());
+
+    // Will get close to 1000ms that both work items are processing (sleeping, really)
+    // give or take a few ms.
+    long i = 990L;
+    assertTrue(executor.allThreadsActiveTime() >= i);
+    executor.shutdown();
   }
 
   static class TestExceptionInvalidatesCacheFn

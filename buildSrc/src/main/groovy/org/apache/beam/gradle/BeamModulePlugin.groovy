@@ -559,7 +559,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def singlestore_jdbc_version = "1.1.4"
     def slf4j_version = "1.7.30"
     def spark2_version = "2.4.8"
-    def spark3_version = "3.1.2"
+    def spark3_version = "3.2.2"
     def spotbugs_version = "4.0.6"
     def testcontainers_version = "1.17.3"
     def arrow_version = "5.0.0"
