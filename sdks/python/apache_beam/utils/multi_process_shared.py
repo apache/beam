@@ -38,18 +38,19 @@ from typing import TypeVar
 
 import fasteners
 
-# Backup original AutoProxy function
-backup_autoproxy = multiprocessing.managers.AutoProxy
+# In some python versions, there is a bug where AutoProxy doesn't handle
+# the kwarg 'manager_owned'. We implement our own backup here to make sure
+# we avoid this problem. More info here:
+# https://stackoverflow.com/questions/46779860/multiprocessing-managers-and-custom-classes
+autoproxy = multiprocessing.managers.AutoProxy
 
-# Defining a new AutoProxy that handles unwanted key argument 'manager_owned'
-def redefined_autoproxy(token, serializer, manager=None, authkey=None,
+def patched_autoproxy(token, serializer, manager=None, authkey=None,
           exposed=None, incref=True, manager_owned=True):
     # Calling original AutoProxy without the unwanted key argument
-    return backup_autoproxy(token, serializer, manager, authkey,
+    return autoproxy(token, serializer, manager, authkey,
                      exposed, incref)
 
-# Updating AutoProxy definition in multiprocessing.managers package
-multiprocessing.managers.AutoProxy = redefined_autoproxy
+multiprocessing.managers.AutoProxy = patched_autoproxy
 
 T = TypeVar('T')
 AUTH_KEY = b'mps'
