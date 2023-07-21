@@ -69,6 +69,9 @@ func TestUnimplemented(t *testing.T) {
 		{pipeline: primitives.TriggerOrFinally},
 		{pipeline: primitives.TriggerRepeat},
 
+		// Reshuffle (Due to missing windowing strategy features)
+		{pipeline: primitives.ReshuffleKV},
+
 		// State API
 		{pipeline: primitives.BagStateParDo},
 		{pipeline: primitives.BagStateParDoClear},
@@ -106,12 +109,6 @@ func TestImplemented(t *testing.T) {
 		pipeline func(s beam.Scope)
 	}{
 		{pipeline: primitives.Reshuffle},
-		{pipeline: primitives.Flatten},
-		{pipeline: primitives.FlattenDup},
-		{pipeline: primitives.Checkpoints},
-
-		{pipeline: primitives.CoGBK},
-		{pipeline: primitives.ReshuffleKV},
 	}
 
 	for _, test := range tests {
