@@ -46,7 +46,6 @@ autoproxy = multiprocessing.managers.AutoProxy
 
 def patched_autoproxy(token, serializer, manager=None, authkey=None,
           exposed=None, incref=True, manager_owned=True):
-    # Calling original AutoProxy without the unwanted key argument
     return autoproxy(token, serializer, manager, authkey,
                      exposed, incref)
 
