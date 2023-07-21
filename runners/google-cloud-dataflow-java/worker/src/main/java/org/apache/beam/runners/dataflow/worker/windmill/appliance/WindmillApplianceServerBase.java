@@ -15,25 +15,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker.windmill;
+package org.apache.beam.runners.dataflow.worker.windmill.appliance;
 
 import java.io.IOException;
 import java.util.Set;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.net.HostAndPort;
 
 /**
- * Implementation of a WindmillServerStub which communcates with an actual windmill server at the
+ * Implementation of a WindmillServerStub which communicates with an actual windmill server at the
  * specified location.
  */
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-public class WindmillServerBase extends WindmillServerStub {
+public class WindmillApplianceServerBase extends WindmillServerStub {
 
   /** Pointer to the underlying native windmill client object. */
   private final long nativePointer;
 
-  WindmillServerBase(String host) {
+  WindmillApplianceServerBase(String host) {
     this.nativePointer = create(host);
   }
 

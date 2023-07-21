@@ -108,7 +108,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitR
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.CommitWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.GetWorkStream;
-import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.StreamPool;
+import org.apache.beam.runners.dataflow.worker.windmill.WindmillStreamPool;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
@@ -1716,8 +1716,8 @@ public class StreamingDataflowWorker {
   }
 
   private void streamingCommitLoop() {
-    StreamPool<CommitWorkStream> streamPool =
-        new StreamPool<>(
+    WindmillStreamPool<CommitWorkStream> streamPool =
+        WindmillStreamPool.create(
             NUM_COMMIT_STREAMS, COMMIT_STREAM_TIMEOUT, windmillServer::commitWorkStream);
     Commit initialCommit = null;
     while (running.get()) {
