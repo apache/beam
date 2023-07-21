@@ -889,7 +889,7 @@ public class Neo4jIO {
   /** This is the class which handles the work behind the {@link #writeUnwind()} method. */
   @AutoValue
   public abstract static class WriteUnwind<ParameterT>
-      extends PTransform<PCollection<ParameterT>, PDone> {
+      extends PTransform<PCollection<ParameterT>, PCollection<ParameterT>> {
 
     abstract @Nullable SerializableFunction<Void, Driver> getDriverProviderFn();
 
@@ -998,7 +998,7 @@ public class Neo4jIO {
     }
 
     @Override
-    public PDone expand(PCollection<ParameterT> input) {
+    public PCollection<ParameterT> expand(PCollection<ParameterT> input) {
 
       final SerializableFunction<Void, Driver> driverProviderFn = getDriverProviderFn();
       final SerializableFunction<ParameterT, Map<String, Object>> parametersFunction =
@@ -1043,9 +1043,8 @@ public class Neo4jIO {
               logCypher,
               unwindMapName);
 
-      input.apply(ParDo.of(writeFn));
-
-      return PDone.in(input.getPipeline());
+      return input.apply(ParDo.of(writeFn))
+              .setRowSchema(input.getSchema());
     }
 
     @Override
@@ -1087,7 +1086,7 @@ public class Neo4jIO {
   }
 
   /** A {@link DoFn} to execute a Cypher query to read from Neo4j. */
-  private static class WriteUnwindFn<ParameterT> extends ReadWriteFn<ParameterT, Void> {
+  private static class WriteUnwindFn<ParameterT> extends ReadWriteFn<ParameterT, ParameterT> {
 
     private final @NonNull String cypher;
     private final @Nullable SerializableFunction<ParameterT, Map<String, Object>>
