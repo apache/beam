@@ -46,6 +46,7 @@ func TestUnimplemented(t *testing.T) {
 		// {pipeline: primitives.Checkpoints},  // Doesn't self terminate?
 		// {pipeline: primitives.Flatten}, // Times out, should be quick.
 		// {pipeline: primitives.FlattenDup}, // Times out, should be quick.
+		{pipeline: primitives.CoGBK},
 
 		{pipeline: primitives.TestStreamBoolSequence},
 		{pipeline: primitives.TestStreamByteSliceSequence},
