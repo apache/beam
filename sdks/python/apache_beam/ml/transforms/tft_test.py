@@ -72,7 +72,26 @@ class ScaleZScoreTest(unittest.TestCase):
     shutil.rmtree(self.artifact_location)
 
   def test_z_score(self):
-    data = [{'x': 1}, {'x': 2}, {'x': 3}, {'x': 4}, {'x': 5}, {'x': 6}]
+    data = [
+        {
+            'x': 1
+        },
+        {
+            'x': 2
+        },
+        {
+            'x': 3
+        },
+        {
+            'x': 4
+        },
+        {
+            'x': 5
+        },
+        {
+            'x': 6
+        },
+    ]
 
     with beam.Pipeline() as p:
       result = (
@@ -321,13 +340,29 @@ class ComputeAndApplyVocabTest(unittest.TestCase):
       assert_that(
           actual_output, equal_to(excepted_data, equals_fn=np.array_equal))
 
+  def test_with_basic_example_list(self):
+    data = [{
+        'x': ['I', 'like', 'pie'],
+    }, {
+        'x': ['yum', 'yum', 'pie'],
+    }]
+    with beam.Pipeline() as p:
+      result = (
+          p
+          | "Create" >> beam.Create(data)
+          | "MLTransform" >> base.MLTransform(
+              artifact_location=self.artifact_location).with_transform(
+                  tft.ComputeAndApplyVocabulary(columns=['x'])))
+      result = result | beam.Map(lambda x: x.x)
+      expected_result = [np.array([3, 2, 1]), np.array([0, 0, 1])]
+      assert_that(result, equal_to(expected_result, equals_fn=np.array_equal))
+
   def test_string_split_with_single_delimiter(self):
     data = [{
-        'x': ['I like pie', 'yum yum pie'],
+        'x': 'I like pie',
     }, {
         'x': 'yum yum pie'
     }]
-
     with beam.Pipeline() as p:
       result = (
           p
@@ -337,14 +372,14 @@ class ComputeAndApplyVocabTest(unittest.TestCase):
                   tft.ComputeAndApplyVocabulary(
                       columns=['x'], split_string_by_delimiter=' ')))
       result = result | beam.Map(lambda x: x.x)
-      expected_result = [
-          np.array([3, 2, 1]), np.array([0, 0, 1]), np.array([0, 0, 1])
-      ]
+      expected_result = [np.array([3, 2, 1]), np.array([0, 0, 1])]
       assert_that(result, equal_to(expected_result, equals_fn=np.array_equal))
 
   def test_string_split_with_multiple_delimiters(self):
     data = [{
-        'x': ['I like pie', 'yum;yum;pie'],
+        'x': 'I like pie',
+    }, {
+        'x': 'yum;yum;pie'
     }, {
         'x': 'yum yum pie'
     }]
