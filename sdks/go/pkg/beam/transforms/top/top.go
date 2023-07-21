@@ -168,7 +168,6 @@ func accumEnc() func(accum) ([]byte, error) {
 			}
 			values = append(values, buf.Bytes())
 		}
-		a.list = nil
 
 		var buf bytes.Buffer
 		if err := coder.WriteSimpleRowHeader(1, &buf); err != nil {
