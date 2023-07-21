@@ -17,12 +17,12 @@ package spannerio
 
 import (
 	"context"
-	spannertest "github.com/apache/beam/sdks/v2/go/test/integration/io/spannerio"
 	"testing"
 
 	"cloud.google.com/go/spanner"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
+	spannertest "github.com/apache/beam/sdks/v2/go/test/integration/io/spannerio"
 	"google.golang.org/api/iterator"
 )
 
@@ -77,7 +77,7 @@ func TestWrite(t *testing.T) {
 			p, s, col := ptest.CreateList(testCase.rows)
 
 			fn := newWriteFn(testCase.database, testCase.table, col.Type().Type())
-			fn.endpoint = srv.Addr
+			fn.TestEndpoint = srv.Addr
 
 			beam.ParDo0(s, fn, col)
 
