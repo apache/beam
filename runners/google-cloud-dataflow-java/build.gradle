@@ -279,7 +279,7 @@ def createRunnerV2ValidatesRunnerTest = { Map args ->
 // task ordering such that the registry doesn't get cleaned up prior to task completion.
 def buildAndPushDockerJavaContainer = tasks.register("buildAndPushDockerJavaContainer") {
   // The multi-arch Java container has been pushed during build.
-  dependsOn ":sdks:java:container:${javaVer}:docker"     
+  dependsOn ":sdks:java:container:${javaVer}:docker"
 }
 
 // Clean up built Java images
