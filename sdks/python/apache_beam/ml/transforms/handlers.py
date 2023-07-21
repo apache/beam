@@ -176,7 +176,7 @@ class ExtractHashAndKeyPColl(beam.DoFn):
   Only for internal use. No backwards compatibility guarantees.
   """
   def process(self, element):
-    hashkey = element['hash_key']
+    hashkey = element['hash_key'][0]
     del element['hash_key']
     yield (hashkey.decode('utf-8'), element)
 
