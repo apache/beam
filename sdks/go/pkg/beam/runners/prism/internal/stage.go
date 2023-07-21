@@ -253,7 +253,7 @@ func buildStage(s *stage, tid string, t *pipepb.PTransform, comps *pipepb.Compon
 	}
 	var inputInfo engine.PColInfo
 	var sides []string
-	localIdReplacements := map[string]string{}
+	localIDReplacements := map[string]string{}
 	globalIDReplacements := map[string]string{}
 	for local, global := range t.GetInputs() {
 		if _, ok := sis[local]; ok {
@@ -272,7 +272,7 @@ func buildStage(s *stage, tid string, t *pipepb.PTransform, comps *pipepb.Compon
 					IsBounded:           col.GetIsBounded(),
 					WindowingStrategyId: col.WindowingStrategyId,
 				}
-				localIdReplacements[local] = newGlobal
+				localIDReplacements[local] = newGlobal
 				globalIDReplacements[newGlobal] = global
 			}
 			continue
@@ -296,7 +296,7 @@ func buildStage(s *stage, tid string, t *pipepb.PTransform, comps *pipepb.Compon
 		// We need to process all inputs to ensure we have all input coders, so we must continue.
 	}
 	// Update side inputs to point to new PCollection with any replaced coders.
-	for l, g := range localIdReplacements {
+	for l, g := range localIDReplacements {
 		t.GetInputs()[l] = g
 	}
 
