@@ -1148,6 +1148,9 @@ check our &lt;a href="/get-started/from-spark">Getting started from Apache Spark
 &lt;li>
 &lt;p>Dive into the &lt;a href="/documentation/">Documentation&lt;/a> section for in-depth concepts and reference materials for the Beam model, SDKs, and runners.&lt;/p>
 &lt;/li>
+&lt;li>
+&lt;p>Dive into the &lt;a href="https://github.com/GoogleCloudPlatform/dataflow-cookbook">cookbook examples&lt;/a> for learning how to run Beam on Dataflow.&lt;/p>
+&lt;/li>
 &lt;/ol>
 &lt;h2 id="contribute">Contribute&lt;/h2>
 &lt;p>Beam is an &lt;a href="https://www.apache.org" target="_blank">Apache Software Foundation&lt;/a> project, available under the Apache v2 license. Beam is an open source community and contributions are greatly appreciated! If you&amp;rsquo;d like to contribute, please see the &lt;a href="/contribute/">Contribute&lt;/a> section.&lt;/p></description></item><item><title>Get-Started: Beam Quickstart for Go</title><link>/get-started/quickstart-go/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/get-started/quickstart-go/</guid><description>
