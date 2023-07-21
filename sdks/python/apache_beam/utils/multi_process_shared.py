@@ -44,10 +44,17 @@ import fasteners
 # https://stackoverflow.com/questions/46779860/multiprocessing-managers-and-custom-classes
 autoproxy = multiprocessing.managers.AutoProxy
 
-def patched_autoproxy(token, serializer, manager=None, authkey=None,
-          exposed=None, incref=True, manager_owned=True):
-    return autoproxy(token, serializer, manager, authkey,
-                     exposed, incref)
+
+def patched_autoproxy(
+    token,
+    serializer,
+    manager=None,
+    authkey=None,
+    exposed=None,
+    incref=True,
+    manager_owned=True):
+  return autoproxy(token, serializer, manager, authkey, exposed, incref)
+
 
 multiprocessing.managers.AutoProxy = patched_autoproxy
 
