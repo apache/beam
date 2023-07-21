@@ -40,7 +40,7 @@ import fasteners
 # the kwarg 'manager_owned'. We implement our own backup here to make sure
 # we avoid this problem. More info here:
 # https://stackoverflow.com/questions/46779860/multiprocessing-managers-and-custom-classes
-autoproxy = multiprocessing.managers.AutoProxy
+autoproxy = multiprocessing.managers.AutoProxy  # type: ignore[attr-defined]
 
 
 def patched_autoproxy(
@@ -54,7 +54,7 @@ def patched_autoproxy(
   return autoproxy(token, serializer, manager, authkey, exposed, incref)
 
 
-multiprocessing.managers.AutoProxy = patched_autoproxy
+multiprocessing.managers.AutoProxy = patched_autoproxy  # type: ignore[attr-defined]
 
 T = TypeVar('T')
 AUTH_KEY = b'mps'
