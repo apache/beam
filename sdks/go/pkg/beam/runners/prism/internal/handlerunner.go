@@ -43,7 +43,7 @@ import (
 type RunnerCharacteristic struct {
 	SDKFlatten   bool // Sets whether we should force an SDK side flatten.
 	SDKGBK       bool // Sets whether the GBK should be handled by the SDK, if possible by the SDK.
-	SDKReshuffle bool
+	SDKReshuffle bool // Sets whether we should use the SDK backup implementation to handle a Reshuffle.
 }
 
 func Runner(config any) *runner {
@@ -75,10 +75,6 @@ func (h *runner) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipep
 	// TODO: Implement the windowing strategy the "backup" transforms used for Reshuffle.
 	// TODO: Implement a fusion break for reshuffles.
 
-	if h.config.SDKReshuffle {
-		panic("SDK side reshuffle not yet supported")
-	}
-
 	// A Reshuffle, in principle, is a no-op on the pipeline structure, WRT correctness.
 	// It could however affect performance, so it exists to tell the runner that this
 	// point in the pipeline needs a fusion break, to enable the pipeline to change it's
@@ -91,11 +87,11 @@ func (h *runner) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipep
 	// since the input collection and output collection types match.
 
 	// Get the input and output PCollections, there should only be 1 each.
-	if len(t.GetInputs()) != 1 {
-		panic("Expected single input PCollection in reshuffle: " + prototext.Format(t))
+	if len(t.GetOutputs()) != 1 {
+		panic("Expected single putput PCollection in reshuffle: " + prototext.Format(t))
 	}
 	if len(t.GetOutputs()) != 1 {
-		panic("Expected single output PCollection in reshuffle: " + prototext.Format(t))
+		panic("Expected single putput PCollection in reshuffle: " + prototext.Format(t))
 	}
 
 	inColID := getOnlyValue(t.GetInputs())
