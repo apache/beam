@@ -548,7 +548,8 @@ class BeamModulePlugin implements Plugin<Project> {
     def kafka_version = "2.4.1"
     def log4j2_version = "2.20.0"
     def nemo_version = "0.1"
-    def netty_version = "4.1.77.Final"
+    // Try to keep netty_version consistent with the netty version in grpc_bom (includes grpc_netty) in google_cloud_platform_libraries_bom
+    def netty_version = "4.1.87.Final"
     def postgres_version = "42.2.16"
     def powermock_version = "2.0.9"
     // Try to keep protobuf_version consistent with the protobuf version in google_cloud_platform_libraries_bom
