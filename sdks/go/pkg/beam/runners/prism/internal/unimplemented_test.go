@@ -43,6 +43,10 @@ func TestUnimplemented(t *testing.T) {
 	}{
 		// These tests don't terminate, so can't be run.
 		// {pipeline: primitives.Drain}, // Can't test drain automatically yet.
+		// {pipeline: primitives.Checkpoints},  // Doesn't self terminate?
+		// {pipeline: primitives.Flatten}, // Times out, should be quick.
+		// {pipeline: primitives.FlattenDup}, // Times out, should be quick.
+		{pipeline: primitives.CoGBK},
 
 		{pipeline: primitives.TestStreamBoolSequence},
 		{pipeline: primitives.TestStreamByteSliceSequence},
