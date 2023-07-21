@@ -19,6 +19,7 @@
 # mypy: check-untyped-defs
 
 import atexit
+import copy
 import functools
 import itertools
 import logging
@@ -428,7 +429,7 @@ class PortableRunner(runner.PipelineRunner):
 
   @staticmethod
   def start_and_replace_loopback_environments(pipeline, options):
-    portable_options = options.view_as(PortableOptions)
+    portable_options = copy.deepcopy(options.view_as(PortableOptions))
     experiments = options.view_as(DebugOptions).experiments or []
     cleanup_callbacks = []
     for env in pipeline.components.environments.values():

@@ -724,6 +724,7 @@ class EmbeddedPythonGrpcEnvironment(Environment):
 class PythonLoopbackEnvironment(EmbeddedPythonEnvironment):
   """Used as a stub when the loopback worker has not yet been started."""
   def to_runner_api_parameter(self, context):
+    # type: (PipelineContext) -> Tuple[str, None]
     return python_urns.EMBEDDED_PYTHON_LOOPBACK, None
 
   @staticmethod
