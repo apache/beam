@@ -73,7 +73,6 @@ func TestUnimplemented(t *testing.T) {
 		{pipeline: primitives.TriggerRepeat},
 
 		// Reshuffle (Due to missing windowing strategy features)
-		{pipeline: primitives.Reshuffle},
 		{pipeline: primitives.ReshuffleKV},
 
 		// State API
@@ -98,6 +97,30 @@ func TestUnimplemented(t *testing.T) {
 			_, err := executeWithT(context.Background(), t, p)
 			if err == nil {
 				t.Fatalf("pipeline passed, but feature should be unimplemented in Prism")
+			}
+		})
+	}
+}
+
+// TODO move these to a more appropriate location.
+// Mostly placed here to have structural parity with the above test
+// and make it easy to move them to a "it works" expectation.
+func TestImplemented(t *testing.T) {
+	initRunner(t)
+
+	tests := []struct {
+		pipeline func(s beam.Scope)
+	}{
+		{pipeline: primitives.Reshuffle},
+	}
+
+	for _, test := range tests {
+		t.Run(intTestName(test.pipeline), func(t *testing.T) {
+			p, s := beam.NewPipelineWithRoot()
+			test.pipeline(s)
+			_, err := executeWithT(context.Background(), t, p)
+			if err != nil {
+				t.Fatalf("pipeline failed, but feature should be implemented in Prism: %v", err)
 			}
 		})
 	}
