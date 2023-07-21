@@ -30,7 +30,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.StringUtils;
+import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.harness.JvmInitializer;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
@@ -39,11 +41,14 @@ import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.checkerframework.checker.initialization.qual.Initialized;
@@ -908,6 +913,8 @@ public class Neo4jIO {
 
     abstract @Nullable ValueProvider<Boolean> getLogCypher();
 
+    abstract @Nullable ValueProvider<Integer> getParallelism();
+
     abstract Builder<ParameterT> toBuilder();
 
     public WriteUnwind<ParameterT> withDriverConfiguration(DriverConfiguration config) {
@@ -985,6 +992,19 @@ public class Neo4jIO {
       return toBuilder().setBatchSize(batchSize).build();
     }
 
+    public WriteUnwind<ParameterT> withParallelism(ValueProvider<Integer> parallelism) {
+      checkArgument(
+          parallelism != null && parallelism.get() >= 0,
+          "Neo4jIO.writeUnwind().withBatchSize(parallelism) called with parallelism<=0");
+      return toBuilder().setParallelism(parallelism).build();
+    }
+
+    public WriteUnwind<ParameterT> withParallelism(int parallelism) {
+      checkArgument(
+          parallelism > 0, "Neo4jIO.writeUnwind().withBatchSize(parallelism) called with parallelism<=0");
+      return withParallelism(ValueProvider.StaticValueProvider.of(parallelism));
+    }
+
     public WriteUnwind<ParameterT> withParametersFunction(
         SerializableFunction<ParameterT, Map<String, Object>> parametersFunction) {
       checkArgument(
@@ -1043,7 +1063,15 @@ public class Neo4jIO {
               logCypher,
               unwindMapName);
 
-      return input.apply(ParDo.of(writeFn))
+      Integer parallelism = getProvidedValue(getParallelism());
+      if (parallelism == null) {
+        parallelism = 1;
+      }
+
+      return input
+              .apply(ParDo.of(new Reshuffle.AssignShardFn<>(parallelism)))
+              .setCoder(KvCoder.of(BigEndianIntegerCoder.of(), input.getCoder()))
+              .apply(ParDo.of(writeFn))
               .setRowSchema(input.getSchema());
     }
 
@@ -1079,6 +1107,8 @@ public class Neo4jIO {
 
       abstract Builder<ParameterT> setBatchSize(ValueProvider<Long> batchSize);
 
+      abstract Builder<ParameterT> setParallelism(ValueProvider<Integer> parallelism);
+
       abstract Builder<ParameterT> setLogCypher(ValueProvider<Boolean> logCypher);
 
       abstract WriteUnwind<ParameterT> build();
@@ -1086,7 +1116,7 @@ public class Neo4jIO {
   }
 
   /** A {@link DoFn} to execute a Cypher query to read from Neo4j. */
-  private static class WriteUnwindFn<ParameterT> extends ReadWriteFn<ParameterT, ParameterT> {
+  private static class WriteUnwindFn<ParameterT> extends ReadWriteFn<KV<Integer, ParameterT>, ParameterT> {
 
     private final @NonNull String cypher;
     private final @Nullable SerializableFunction<ParameterT, Map<String, Object>>
@@ -1125,11 +1155,11 @@ public class Neo4jIO {
     public void processElement(ProcessContext context) {
       // Map the input data to the parameters map...
       //
-      ParameterT parameters = context.element();
+      KV<Integer, ParameterT> parameters = context.element();
       if (parametersFunction != null) {
         // Every input element creates a new Map<String,Object> entry in unwindList
         //
-        unwindList.add(parametersFunction.apply(parameters));
+        unwindList.add(parametersFunction.apply(parameters.getValue()));
       } else {
         // Someone is writing a bunch of static or procedurally generated values to Neo4j
         unwindList.add(Collections.emptyMap());
