@@ -47,8 +47,6 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.checkerframework.checker.initialization.qual.Initialized;
@@ -1001,7 +999,8 @@ public class Neo4jIO {
 
     public WriteUnwind<ParameterT> withParallelism(int parallelism) {
       checkArgument(
-          parallelism > 0, "Neo4jIO.writeUnwind().withBatchSize(parallelism) called with parallelism<=0");
+          parallelism > 0,
+          "Neo4jIO.writeUnwind().withBatchSize(parallelism) called with parallelism<=0");
       return withParallelism(ValueProvider.StaticValueProvider.of(parallelism));
     }
 
@@ -1069,10 +1068,10 @@ public class Neo4jIO {
       }
 
       return input
-              .apply(ParDo.of(new Reshuffle.AssignShardFn<>(parallelism)))
-              .setCoder(KvCoder.of(BigEndianIntegerCoder.of(), input.getCoder()))
-              .apply(ParDo.of(writeFn))
-              .setRowSchema(input.getSchema());
+          .apply(ParDo.of(new Reshuffle.AssignShardFn<>(parallelism)))
+          .setCoder(KvCoder.of(BigEndianIntegerCoder.of(), input.getCoder()))
+          .apply(ParDo.of(writeFn))
+          .setRowSchema(input.getSchema());
     }
 
     @Override
@@ -1116,7 +1115,8 @@ public class Neo4jIO {
   }
 
   /** A {@link DoFn} to execute a Cypher query to read from Neo4j. */
-  private static class WriteUnwindFn<ParameterT> extends ReadWriteFn<KV<Integer, ParameterT>, ParameterT> {
+  private static class WriteUnwindFn<ParameterT>
+      extends ReadWriteFn<KV<Integer, ParameterT>, ParameterT> {
 
     private final @NonNull String cypher;
     private final @Nullable SerializableFunction<ParameterT, Map<String, Object>>
