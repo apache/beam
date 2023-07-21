@@ -29,7 +29,6 @@ Beam is particularly useful for [embarrassingly parallel](https://en.wikipedia.o
   <img src="/images/learner_graph.png" width="800px" alt="Learner Graph">
 </div>
 
-
 ## Apache Beam SDKs
 
 The Beam SDKs provide a unified programming model that can represent and transform data sets of any size, whether the input is a finite data set from a batch data source, or an infinite data set from a streaming data source. The Beam SDKs use the same classes to represent both bounded and unbounded data, and the same transforms to operate on that data. You use the Beam SDK of your choice to build a program that defines your data processing pipeline.
@@ -75,6 +74,8 @@ Get started using Beam for your data processing tasks.
 1. Take a self-paced tour through our [Learning Resources](/documentation/resources/learning-resources).
 
 1. Dive into the [Documentation](/documentation/) section for in-depth concepts and reference materials for the Beam model, SDKs, and runners.
+
+1. Dive into the [cookbook examples](https://github.com/GoogleCloudPlatform/dataflow-cookbook) for learning how to run Beam on Dataflow.
 
 ## Contribute
 
