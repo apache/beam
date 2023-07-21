@@ -27,14 +27,14 @@ option java_outer_classname = "Windmill";
 // API Data types
 
 message Message {
-  required int64 timestamp = 1 [default=-0x8000000000000000];
+  required int64 timestamp = 1 [default = -0x8000000000000000];
   required bytes data = 2;
   optional bytes metadata = 3;
 }
 
 message Timer {
   required bytes tag = 1;
-  optional int64 timestamp = 2 [default=-0x8000000000000000];
+  optional int64 timestamp = 2 [default = -0x8000000000000000];
   enum Type {
     WATERMARK = 0;
     REALTIME = 1;
@@ -65,9 +65,42 @@ message LatencyAttribution {
     ACTIVE = 2;
     READING = 3;
     COMMITTING = 4;
+    // State which starts with the Windmill Worker receiving the GetWorkRequest
+    // and ends with the Windmill Worker sending the GetWorkResponse to the
+    // Windmill Dispatcher.
+    GET_WORK_IN_WINDMILL_WORKER = 5;
+    // State which starts with the Windmill Worker sending the GetWorkResponse
+    // and ends with the Windmill Dispatcher receiving the GetWorkResponse.
+    GET_WORK_IN_TRANSIT_TO_DISPATCHER = 6;
+    // State which starts with the Windmill Dispatcher sending the
+    // GetWorkResponse and ends with the user worker receiving the
+    // GetWorkResponse.
+    GET_WORK_IN_TRANSIT_TO_USER_WORKER = 7;
   }
   optional State state = 1;
   optional int64 total_duration_millis = 2;
+}
+
+message GetWorkStreamTimingInfo {
+  enum Event {
+    UNKNOWN = 0;
+    // Work item creation started by the Windmill Worker.
+    GET_WORK_CREATION_START = 1;
+    // Work item creation finished by the Windmill Worker.
+    GET_WORK_CREATION_END = 2;
+    // The GetWorkResponse containing this work item is received by the Windmill
+    // Dispatcher.
+    GET_WORK_RECEIVED_BY_DISPATCHER = 3;
+    // The GetWorkResponse containing this work item is forwarded by the
+    // Windmill Dispatcher to the user worker.
+    GET_WORK_FORWARDED_BY_DISPATCHER = 4;
+  }
+
+  // Critical event of the work item processing.
+  optional Event event = 1;
+
+  // Timestamp of the event.
+  optional int64 timestamp_usec = 2;
 }
 
 message OutputMessageBundle {
@@ -91,7 +124,7 @@ message TimerBundle {
 }
 
 message Value {
-  required int64 timestamp = 1 [default=-0x8000000000000000];
+  required int64 timestamp = 1 [default = -0x8000000000000000];
   required bytes data = 2;
 }
 
@@ -146,6 +179,79 @@ message TagBag {
   optional int64 fetch_max_bytes = 6 [default = 0x7fffffffffffffff];
 }
 
+// For a given sharding key and state family, a TagMultimap is a collection of
+// `entry_name, bag of values` pairs, each pair is a TagMultimapEntry.
+//
+// The request_position, continuation_position and fetch_max_bytes fields in
+// TagMultimapEntry are used for the pagination and byte limiting of individual
+// entry fetch requests get(entry_name); while those fields in
+// TagMultimapFetchRequest and TagMultimapFetchResponse are used for full
+// multimap fetch requests entry_names() and entries().
+// Do not set both in a TagMultimapFetchRequest at the same time.
+message TagMultimapEntry {
+  optional bytes entry_name = 1;
+  // In update request: if true all values associated with this entry_name will
+  // be deleted. If new values are present they will be written.
+  optional bool delete_all = 2;
+  // In update request: The given values will be added to the collection and
+  // associated with entry_name.
+  // In fetch response: Values that are associated with this entry_name in the
+  // multimap.
+  repeated bytes values = 3;
+  // In fetch request: A previously returned continuation_position from an
+  // earlier read response. Indicates we wish to fetch the next page of values.
+  // If this is the first request, set to empty.
+  // In fetch response: copied from request.
+  optional int64 request_position = 4;
+  // In fetch response: Set when there are values after those returned above,
+  // but they were suppressed to respect the fetch_max_bytes limit. Subsequent
+  // requests should copy this to request_position to retrieve the next page of
+  // values.
+  optional int64 continuation_position = 5;
+  // In fetch request: Limits the size of the fetched values to this byte limit.
+  // A lower limit may be imposed by the service.
+  optional int64 fetch_max_bytes = 6 [default = 0x7fffffffffffffff];
+}
+
+message TagMultimapFetchRequest {
+  optional bytes tag = 1;
+  optional string state_family = 2;
+  // If true, values will be omitted in the response.
+  optional bool fetch_entry_names_only = 3;
+  // Limits the size of the fetched entries to this byte limit. A lower limit
+  // may be imposed by the service.
+  optional int64 fetch_max_bytes = 4 [default = 0x7fffffffffffffff];
+  // A previously returned continuation_position from an earlier fetch response.
+  // Indicates we wish to fetch the next page of entries. If this is the first
+  // request, set to empty.
+  optional bytes request_position = 5;
+  // Fetch the requested subset of entries only. Will fetch all entries if left
+  // empty. Entries in entries_to_fetch should only have the entry_name,
+  // request_position and fetch_max_bytes set.
+  repeated TagMultimapEntry entries_to_fetch = 6;
+}
+
+message TagMultimapFetchResponse {
+  optional bytes tag = 1;
+  optional string state_family = 2;
+  repeated TagMultimapEntry entries = 3;
+  // Will be set only if the entries_to_fetch in the request is empty when
+  // we want to fetch all entries.
+  optional bytes continuation_position = 4;
+  // Request position copied from request.
+  optional bytes request_position = 5;
+}
+
+message TagMultimapUpdateRequest {
+  optional bytes tag = 1;
+  optional string state_family = 2;
+  // All entries including the values in the multimap will be deleted.
+  optional bool delete_all = 3;
+  // If delete_all is true and updates are not empty, the multimap will first be
+  // cleared and then those updates will be applied.
+  repeated TagMultimapEntry updates = 4;
+}
+
 // A single entry in a sorted list
 message SortedListEntry {
   // The value payload.
@@ -187,7 +293,7 @@ message TagSortedListFetchResponse {
   repeated SortedListRange fetch_ranges = 5;
   // Request position copied from request.
   optional bytes request_position = 6;
-  }
+}
 
 message TagSortedListUpdateRequest {
   optional bytes tag = 1;
@@ -226,7 +332,7 @@ message SourceState {
 
 message WatermarkHold {
   required bytes tag = 1;
-  repeated int64 timestamps = 2 [packed=true];
+  repeated int64 timestamps = 2 [packed = true];
   optional bool reset = 3;
   optional string state_family = 4;
 }
@@ -248,7 +354,7 @@ message WorkItem {
   optional TimerBundle timers = 4;
   repeated GlobalDataId global_data_id_notifications = 5;
   optional SourceState source_state = 6;
-  optional int64 output_data_watermark = 8 [default=-0x8000000000000000];
+  optional int64 output_data_watermark = 8 [default = -0x8000000000000000];
   // Indicates that this is a new key with no data associated. This allows
   // the harness to optimize data fetching.
   optional bool is_new_key = 10;
@@ -262,9 +368,9 @@ message WorkItem {
 message ComputationWorkItems {
   required string computation_id = 1;
   repeated WorkItem work = 2;
-  optional int64 input_data_watermark = 3 [default=-0x8000000000000000];
+  optional int64 input_data_watermark = 3 [default = -0x8000000000000000];
   optional int64 dependent_realtime_input_watermark = 4
-      [default = -0x8000000000000000];
+  [default = -0x8000000000000000];
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -297,6 +403,8 @@ message KeyedGetDataRequest {
   repeated TagBag bags_to_fetch = 8;
   // Must be at most one sorted_list_to_fetch for a given state family and tag.
   repeated TagSortedListFetchRequest sorted_lists_to_fetch = 9;
+  // Must be at most one multimaps_to_fetch for a given state family and tag.
+  repeated TagMultimapFetchRequest multimaps_to_fetch = 12;
   repeated WatermarkHold watermark_holds_to_fetch = 5;
   repeated LatencyAttribution latency_attribution = 13;
 
@@ -329,6 +437,8 @@ message KeyedGetDataResponse {
   repeated TagBag bags = 6;
   // There is one TagSortedListFetchResponse per state-family, tag pair.
   repeated TagSortedListFetchResponse tag_sorted_lists = 8;
+  // There is one TagMultimapFetchResponse per state-family, tag pair.
+  repeated TagMultimapFetchResponse tag_multimaps = 10;
   repeated WatermarkHold watermark_holds = 5;
 
   reserved 4;
@@ -368,16 +478,16 @@ message Counter {
   // value accumulated since the worker started working on this WorkItem.
   // By default this is false, indicating that this metric is reported
   // as a delta that is not associated with any WorkItem.
-   optional bool cumulative = 7;
+  optional bool cumulative = 7;
 }
 
 message GlobalDataRequest {
   required GlobalDataId data_id = 1;
-  optional int64 existence_watermark_deadline = 2 [default=0x7FFFFFFFFFFFFFFF];
+  optional int64 existence_watermark_deadline = 2 [default = 0x7FFFFFFFFFFFFFFF];
   optional string state_family = 3;
 }
 
-// next id: 24
+// next id: 28
 message WorkItemCommitRequest {
   required bytes key = 1;
   required fixed64 work_token = 2;
@@ -394,15 +504,19 @@ message WorkItemCommitRequest {
   repeated TagValuePrefix tag_value_prefix_deletes = 25;
   repeated TagBag bag_updates = 18;
   repeated TagSortedListUpdateRequest sorted_list_updates = 24;
+  repeated TagMultimapUpdateRequest multimap_updates = 26;
   repeated Counter counter_updates = 8;
   repeated GlobalDataRequest global_data_requests = 11;
   repeated GlobalData global_data_updates = 10;
   optional SourceState source_state_updates = 12;
-  optional int64 source_watermark = 13 [default=-0x8000000000000000];
-  optional int64 source_backlog_bytes = 17 [default=-1];
+  optional int64 source_watermark = 13 [default = -0x8000000000000000];
+  optional int64 source_backlog_bytes = 17 [default = -1];
   optional int64 source_bytes_processed = 22;
 
   repeated WatermarkHold watermark_holds = 14;
+
+  // Collected work item processing state durations.
+  repeated LatencyAttribution per_work_item_latency_attributions = 27;
 
   // DEPRECATED
   repeated GlobalDataId global_data_id_requests = 9;
@@ -478,7 +592,7 @@ message GetConfigResponse {
     optional string computation_id = 2;
   }
   repeated SystemNameToComputationIdMapEntry
-    system_name_to_computation_id_map = 3;
+      system_name_to_computation_id_map = 3;
 
   // Map of computation id to ComputationConfig.
   message ComputationConfigMapEntry {
@@ -513,10 +627,10 @@ message ReportStatsResponse {
 // Streaming API
 
 message StreamingGetWorkRequest {
- oneof chunk_type {
+  oneof chunk_type {
     GetWorkRequest request = 1;
     StreamingGetWorkRequestExtension request_extension = 2;
- }
+  }
 }
 
 message StreamingGetWorkRequestExtension {
@@ -538,12 +652,16 @@ message StreamingGetWorkResponseChunk {
   // from other stream_ids may be interleaved on the physical stream.
   optional fixed64 stream_id = 4;
 
+  // Timing infos for the work item. Windmill Dispatcher and user worker should
+  // propagate critical event timings if the list is not empty.
+  repeated GetWorkStreamTimingInfo per_work_item_timing_infos = 8;
+
   // reserved field 5
 }
 
 message ComputationWorkItemMetadata {
   optional string computation_id = 1;
-  optional int64 input_data_watermark = 2 [default=-0x8000000000000000];
+  optional int64 input_data_watermark = 2 [default = -0x8000000000000000];
   optional int64 dependent_realtime_input_watermark = 3
   [default = -0x8000000000000000];
 }
@@ -622,6 +740,36 @@ message StreamingCommitResponse {
   // Commit status for each request_id in the message.  Indices must line up
   // with the request_id field, but trailing OKs may be omitted.
   repeated CommitStatus status = 2;
+}
+
+message WorkerMetadataRequest {
+  optional JobHeader header = 1;
+}
+
+message WorkerMetadataResponse {
+  // The metadata version increases with every modification. Within a single
+  // stream it will always be increasing. The version may be used across streams
+  // to ensure that the view of the metadata does not move backwards.
+  optional int64 metadata_version = 1;
+
+  // Endpoints that should be used for requesting work with GetWorkStream.
+  // Additional data for returned work should be fetched from the endpoint with
+  // GetDataStream. The work should be committed to the endpoint with
+  // CommitWorkStream. Each response on this stream replaces the previous, and
+  // connections to endpoints that are no longer present should be closed.
+  message Endpoint {
+    optional string endpoint = 1;
+  }
+  repeated Endpoint work_endpoints = 2;
+
+  // Maps from GlobalData tag to the endpoint that should be used for GetData
+  // calls to retrieve that global data.
+  map<string, Endpoint> global_data_endpoints = 3;
+
+  // DirectPath endpoints to be used by user workers for streaming engine jobs.
+  // DirectPath endpoints here are virtual IPv6 addresses of the windmill
+  // workers.
+  repeated Endpoint direct_path_endpoints = 4;
 }
 
 service WindmillAppliance {

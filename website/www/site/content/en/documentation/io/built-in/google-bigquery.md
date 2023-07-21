@@ -363,7 +363,7 @@ GitHub](https://github.com/apache/beam/blob/master/examples/java/src/main/java/o
 {{< /highlight >}}
 
 {{< highlight py >}}
-# The SDK for Python does not support the BigQuery Storage API.
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_read_table_with_storage_api >}}
 {{< /highlight >}}
 
 The following code snippet reads with a query string.
@@ -779,6 +779,17 @@ Starting with version 2.36.0 of the Beam SDK for Java, you can use the
 [BigQuery Storage Write API](https://cloud.google.com/bigquery/docs/write-api)
 from the BigQueryIO connector.
 
+Also after version 2.47.0 of Beam SDK for Python, SDK supports BigQuery Storage Write API.
+
+{{< paragraph class="language-py" >}}
+BigQuery Storage Write API for Python SDK currently has some limitations on supported data types. As this method makes use of cross-language transforms, we are limited to the types supported at the cross-language boundary. For example, `apache_beam.utils.timestamp.Timestamp` is needed to write a `TIMESTAMP` BigQuery type. Also, some types (e.g. `DATETIME`) are not supported yet. For more details, please refer to the [full type mapping](https://github.com/apache/beam/blob/0b430748cdd2e25edc553747ce018195e9cce888/sdks/python/apache_beam/io/gcp/bigquery_tools.py#L112-L123).
+{{< /paragraph >}}
+
+{{< paragraph class="language-py" >}}
+**Note:** If you want to run WriteToBigQuery with Storage Write API from the source code, you need to run `./gradlew :sdks:java:io:google-cloud-platform:expansion-service:build` to build the expansion-service jar. If you are running from a released Beam SDK, the jar will already be included.
+
+{{< /paragraph >}}
+
 #### Exactly-once semantics
 
 To write to BigQuery using the Storage Write API, set `withMethod` to
@@ -795,7 +806,7 @@ BigQueryIO.writeTableRows()
 );
 {{< /highlight >}}
 {{< highlight py >}}
-# The SDK for Python does not support the BigQuery Storage API.
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_write_with_storage_write_api >}}
 {{< /highlight >}}
 
 If you want to change the behavior of BigQueryIO so that all the BigQuery sinks
@@ -820,7 +831,7 @@ TableSchema schema = new TableSchema().setFields(
                 .setMode("REQUIRED")));
 {{< /highlight >}}
 {{< highlight py >}}
-# The SDK for Python does not support the BigQuery Storage API.
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_write_schema >}}
 {{< /highlight >}}
 
 For streaming pipelines, you need to set two additional parameters: the number
@@ -834,7 +845,7 @@ BigQueryIO.writeTableRows()
 );
 {{< /highlight >}}
 {{< highlight py >}}
-# The SDK for Python does not support the BigQuery Storage API.
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_storage_write_api_with_frequency >}}
 {{< /highlight >}}
 
 The number of streams defines the parallelism of the BigQueryIO Write transform
@@ -859,9 +870,14 @@ the BigQuery service, so you should use only as many streams as needed for your
 use case. Triggering frequency in single-digit seconds is a good choice for most
 pipelines.
 
-Currently, `STORAGE_WRITE_API` doesn’t support
-[`withAutoSharding`](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.Write.html#withAutoSharding--).
-The method will be supported in a future release.
+{{< paragraph class="language-java" wrap="span">}}
+Similar to streaming inserts, `STORAGE_WRITE_API` supports dynamically determining
+the number of parallel streams to write to BigQuery (starting 2.42.0). You can
+explicitly enable this using [`withAutoSharding`](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.Write.html#withAutoSharding--).
+
+***Note:*** `STORAGE_WRITE_API` will default to dynamic sharding when
+`numStorageWriteApiStreams` is set to 0 or is unspecified.
+{{< /paragraph >}}
 
 When using `STORAGE_WRITE_API`, the PCollection returned by
 [`WriteResult.getFailedInserts`](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/WriteResult.html#getFailedInserts--)

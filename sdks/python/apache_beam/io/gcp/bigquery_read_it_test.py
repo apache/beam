@@ -792,10 +792,7 @@ class ReadAllBQTests(BigQueryReadIntegrationTests):
   @skip(['PortableRunner', 'FlinkRunner'])
   @pytest.mark.it_postcommit
   def test_read_queries(self):
-    # TODO(https://github.com/apache/beam/issues/20610): Remove experiment when
-    # tests run on r_v2.
-    args = self.args + ["--experiments=use_runner_v2"]
-    with beam.Pipeline(argv=args) as p:
+    with beam.Pipeline(argv=self.args) as p:
       result = (
           p
           | beam.Create([

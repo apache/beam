@@ -27,9 +27,10 @@ import static org.junit.Assert.assertTrue;
 
 import java.util.Collection;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.Phaser;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Handler;
 import java.util.logging.Level;
@@ -234,7 +235,7 @@ public class BeamFnLoggingClientTest {
     // removes the only reference and the logger may get GC'd before the assertions (BEAM-4136).
     Logger rootLogger = null;
     Logger configuredLogger = null;
-    Phaser streamBlocker = new Phaser(1);
+    CompletableFuture<Object> streamBlocker = new CompletableFuture<Object>();
 
     Endpoints.ApiServiceDescriptor apiServiceDescriptor =
         Endpoints.ApiServiceDescriptor.newBuilder()
@@ -249,7 +250,7 @@ public class BeamFnLoggingClientTest {
                       StreamObserver<BeamFnApi.LogControl> outboundObserver) {
                     // Block before returning an error on the stream so that we can observe the
                     // loggers before they are reset.
-                    streamBlocker.awaitAdvance(1);
+                    streamBlocker.join();
                     outboundServerObserver.set(outboundObserver);
                     outboundObserver.onError(
                         Status.INTERNAL.withDescription("TEST ERROR").asException());
@@ -275,7 +276,7 @@ public class BeamFnLoggingClientTest {
       rootLogger = LogManager.getLogManager().getLogger("");
       configuredLogger = LogManager.getLogManager().getLogger("ConfiguredLogger");
       // Allow the stream to return with an error.
-      assertEquals(0, streamBlocker.arrive());
+      streamBlocker.complete(new Object());
       thrown.expectMessage("TEST ERROR");
       client.close();
     } finally {
@@ -356,15 +357,22 @@ public class BeamFnLoggingClientTest {
   @Test
   public void testClosableWhenBlockingForOnReady() throws Exception {
     BeamFnLoggingMDC.setInstructionId("instruction-1");
-    Collection<BeamFnApi.LogEntry> values = new ConcurrentLinkedQueue<>();
+    AtomicInteger testEntriesObserved = new AtomicInteger();
+    AtomicBoolean onReadyBlocking = new AtomicBoolean();
     AtomicReference<StreamObserver<BeamFnApi.LogControl>> outboundServerObserver =
         new AtomicReference<>();
 
     final AtomicBoolean elementsAllowed = new AtomicBoolean(true);
     CallStreamObserver<BeamFnApi.LogEntry.List> inboundServerObserver =
         TestStreams.withOnNext(
-                (BeamFnApi.LogEntry.List logEntries) ->
-                    values.addAll(logEntries.getLogEntriesList()))
+                (BeamFnApi.LogEntry.List logEntries) -> {
+                  for (BeamFnApi.LogEntry entry : logEntries.getLogEntriesList()) {
+                    if (entry.toBuilder().clearCustomData().build().equals(TEST_ENTRY)) {
+                      testEntriesObserved.addAndGet(1);
+                    }
+                  }
+                })
+            .withOnCompleted(() -> outboundServerObserver.get().onCompleted())
             .build();
 
     Endpoints.ApiServiceDescriptor apiServiceDescriptor =
@@ -397,6 +405,10 @@ public class BeamFnLoggingClientTest {
                         delegate) {
                       @Override
                       public boolean isReady() {
+                        if (elementsAllowed.get()) {
+                          return true;
+                        }
+                        onReadyBlocking.set(true);
                         return elementsAllowed.get();
                       }
                     };
@@ -430,20 +442,28 @@ public class BeamFnLoggingClientTest {
       }
       // Measure how long it takes all the logs to appear.
       int sleepTime = 0;
-      while (values.size() < numEntries) {
+      while (testEntriesObserved.get() < numEntries) {
         ++sleepTime;
         Thread.sleep(1);
       }
       // Attempt to enter the blocking state by pushing back on the stream, publishing records and
       // then giving them time for it to block.
       elementsAllowed.set(false);
-      for (int i = 0; i < numEntries; ++i) {
+      int postAllowedLogs = 0;
+      while (!onReadyBlocking.get()) {
+        ++postAllowedLogs;
         configuredLogger.log(TEST_RECORD);
+        Thread.sleep(1);
       }
+
+      // Even with sleeping to give some additional time for the logs that were sent by the client
+      // to be observed by the server we should not observe all the client logs, indicating we're
+      // blocking as intended.
       Thread.sleep(sleepTime * 3);
-      // At this point, the background thread is either blocking as intended or the background
-      // thread hasn't yet observed all the input. In either case the test should pass.
-      assertTrue(values.size() < numEntries * 2);
+      assertTrue(testEntriesObserved.get() < numEntries + postAllowedLogs);
+
+      // Allow entries to drain to speed up close.
+      elementsAllowed.set(true);
 
       client.close();
 
@@ -463,13 +483,11 @@ public class BeamFnLoggingClientTest {
   @Test
   public void testServerCloseNotifiesTermination() throws Exception {
     BeamFnLoggingMDC.setInstructionId("instruction-1");
-    Collection<BeamFnApi.LogEntry> values = new ConcurrentLinkedQueue<>();
     AtomicReference<StreamObserver<BeamFnApi.LogControl>> outboundServerObserver =
         new AtomicReference<>();
     CallStreamObserver<BeamFnApi.LogEntry.List> inboundServerObserver =
-        TestStreams.withOnNext(
-                (BeamFnApi.LogEntry.List logEntries) ->
-                    values.addAll(logEntries.getLogEntriesList()))
+        TestStreams.withOnNext((BeamFnApi.LogEntry.List logEntries) -> {})
+            .withOnCompleted(() -> outboundServerObserver.get().onCompleted())
             .build();
 
     Endpoints.ApiServiceDescriptor apiServiceDescriptor =

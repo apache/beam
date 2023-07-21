@@ -45,7 +45,7 @@ build, test, and deploy the frontend and backend services.
 
     **Ubuntu 22.04 and newer:**
     ```shell
-    sudo apt install golang`
+    sudo apt install golang
     ```
 
     **Other Linux variants:** Follow manual at https://go.dev/doc/install

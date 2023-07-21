@@ -22,7 +22,6 @@ import unittest
 from itertools import chain
 
 import numpy as np
-from google.protobuf import json_format
 from numpy.testing import assert_array_equal
 
 import apache_beam as beam
@@ -397,16 +396,6 @@ class RowCoderTest(unittest.TestCase):
     # Should raise an exception referencing the problem field
     self.assertRaisesRegex(
         ValueError, "type_with_no_typeinfo", lambda: RowCoder(schema_proto))
-
-  def test_row_coder_cloud_object_schema(self):
-    schema_proto = schema_pb2.Schema(id='some-cloud-object-schema')
-    schema_proto_json = json_format.MessageToJson(schema_proto).encode('utf-8')
-
-    coder = RowCoder(schema_proto)
-
-    cloud_object = coder.as_cloud_object()
-
-    self.assertEqual(schema_proto_json, cloud_object['schema'])
 
   def test_batch_encode_decode(self):
     coder = RowCoder(typing_to_runner_api(Person).row_type.schema).get_impl()
