@@ -75,7 +75,7 @@ Get started using Beam for your data processing tasks.
 
 1. Dive into the [Documentation](/documentation/) section for in-depth concepts and reference materials for the Beam model, SDKs, and runners.
 
-1. Dive into the [cookbook examples](https://github.com/GoogleCloudPlatform/dataflow-cookbook) for learning how to run Beam with Dataflow.
+1. Dive into the [cookbook examples](https://github.com/GoogleCloudPlatform/dataflow-cookbook) for learning how to run Beam on Dataflow.
 
 ## Contribute
 
