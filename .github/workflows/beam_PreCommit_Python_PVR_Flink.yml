@@ -97,6 +97,9 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: 3.11
+      - name: Upgrade Python setuptools
+        shell: bash
+        run: pip install --upgrade pip setuptools wheel
       - name: Install Java
         uses: actions/setup-java@v3.8.0
         with:
@@ -116,7 +119,11 @@ jobs:
           install: true
           driver: 'docker'
       - name: run Python PVR Flink PreCommit script
-        run: ./gradlew :sdks:python:test-suites:portable:py311:flinkValidatesRunner -PpythonVersion=3.11
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :sdks:python:test-suites:portable:py311:flinkValidatesRunner
+          arguments: |
+            -PpythonVersion=3.11 \
       - name: Archive code coverage results
         uses: actions/upload-artifact@v3
         with:
