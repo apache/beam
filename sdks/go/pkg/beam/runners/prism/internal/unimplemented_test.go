@@ -41,12 +41,11 @@ func TestUnimplemented(t *testing.T) {
 	tests := []struct {
 		pipeline func(s beam.Scope)
 	}{
-		// These tests don't terminate, so can't be run.
 		// {pipeline: primitives.Drain}, // Can't test drain automatically yet.
-		// {pipeline: primitives.Checkpoints},  // Doesn't self terminate?
-		// {pipeline: primitives.Flatten}, // Times out, should be quick.
-		// {pipeline: primitives.FlattenDup}, // Times out, should be quick.
+
+		// Can't do Expand/CoGBK
 		{pipeline: primitives.CoGBK},
+		{pipeline: primitives.ReshuffleKV},
 
 		{pipeline: primitives.TestStreamBoolSequence},
 		{pipeline: primitives.TestStreamByteSliceSequence},
@@ -72,9 +71,6 @@ func TestUnimplemented(t *testing.T) {
 		{pipeline: primitives.TriggerNever},
 		{pipeline: primitives.TriggerOrFinally},
 		{pipeline: primitives.TriggerRepeat},
-
-		// Reshuffle (Due to missing windowing strategy features)
-		{pipeline: primitives.ReshuffleKV},
 
 		// State API
 		{pipeline: primitives.BagStateParDo},
@@ -113,6 +109,9 @@ func TestImplemented(t *testing.T) {
 		pipeline func(s beam.Scope)
 	}{
 		{pipeline: primitives.Reshuffle},
+		{pipeline: primitives.Flatten},
+		{pipeline: primitives.FlattenDup},
+		{pipeline: primitives.Checkpoints},
 	}
 
 	for _, test := range tests {
