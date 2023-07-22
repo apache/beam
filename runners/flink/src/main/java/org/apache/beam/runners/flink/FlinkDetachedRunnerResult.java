@@ -84,7 +84,7 @@ public class FlinkDetachedRunnerResult implements PipelineResult {
 
   @Override
   public State waitUntilFinish() {
-    return waitUntilFinish(Duration.standardDays(Long.MAX_VALUE));
+    return waitUntilFinish(Duration.millis(Long.MAX_VALUE));
   }
 
   @Override
