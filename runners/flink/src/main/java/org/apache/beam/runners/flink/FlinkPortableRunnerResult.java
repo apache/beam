@@ -23,9 +23,6 @@ import org.apache.beam.model.jobmanagement.v1.JobApi;
 import org.apache.beam.model.pipeline.v1.MetricsApi;
 import org.apache.beam.runners.jobsubmission.PortablePipelineResult;
 import org.apache.beam.sdk.metrics.MetricResults;
-import org.checkerframework.checker.initialization.qual.Initialized;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,28 +61,27 @@ public class FlinkPortableRunnerResult extends FlinkRunnerResult implements Port
     }
 
     @Override
-    public @UnknownKeyFor @NonNull @Initialized State getState() {
+    public State getState() {
       return State.UNKNOWN;
     }
 
     @Override
-    public @UnknownKeyFor @NonNull @Initialized State cancel() throws IOException {
+    public State cancel() throws IOException {
       throw new UnsupportedOperationException("Cancelling is not yet supported.");
     }
 
     @Override
-    public @UnknownKeyFor @NonNull @Initialized State waitUntilFinish(
-        @UnknownKeyFor @NonNull @Initialized Duration duration) {
+    public State waitUntilFinish(Duration duration) {
       return State.UNKNOWN;
     }
 
     @Override
-    public @UnknownKeyFor @NonNull @Initialized State waitUntilFinish() {
+    public State waitUntilFinish() {
       return State.UNKNOWN;
     }
 
     @Override
-    public @UnknownKeyFor @NonNull @Initialized MetricResults metrics() {
+    public MetricResults metrics() {
       throw new UnsupportedOperationException(
           "The FlinkRunner does not currently support metrics.");
     }

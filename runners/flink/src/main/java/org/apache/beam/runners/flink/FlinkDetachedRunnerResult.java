@@ -36,7 +36,6 @@ import org.slf4j.LoggerFactory;
 public class FlinkDetachedRunnerResult implements PipelineResult {
 
   private static final Logger LOG = LoggerFactory.getLogger(FlinkDetachedRunnerResult.class);
-  private static final int TEN_YEAR_DAYS = 365 * 10;
 
   private JobClient jobClient;
   private int jobCheckIntervalInSecs;
@@ -85,7 +84,7 @@ public class FlinkDetachedRunnerResult implements PipelineResult {
 
   @Override
   public State waitUntilFinish() {
-    return waitUntilFinish(Duration.standardDays(TEN_YEAR_DAYS));
+    return waitUntilFinish(Duration.standardDays(Long.MAX_VALUE));
   }
 
   @Override
