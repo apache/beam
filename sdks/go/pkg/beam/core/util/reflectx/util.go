@@ -22,7 +22,7 @@ import (
 
 // ShallowClone creates a shallow copy of the given value. Most
 // useful for slices and maps.
-func ShallowClone(v interface{}) interface{} {
+func ShallowClone(v any) any {
 	if v == nil {
 		return nil
 	}
@@ -65,7 +65,7 @@ func ShallowClone(v interface{}) interface{} {
 // UpdateMap merges two maps of type map[K]*V, with the second overwriting values
 // into the first (and mutating it). If the overwriting value is nil, the key is
 // deleted.
-func UpdateMap(base, updates interface{}) {
+func UpdateMap(base, updates any) {
 	if updates == nil {
 		return // ok: nop
 	}

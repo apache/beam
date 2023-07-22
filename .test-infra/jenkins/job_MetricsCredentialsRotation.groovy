@@ -47,7 +47,7 @@ job('Rotate Metrics Cluster Credentials') {
       triggers {
         failure {
           subject('Credentials Rotation Failure on Metrics cluster')
-          content("Something went wrong during the automatic credentials rotation for Metrics Cluster, performed at ${date}. It may be necessary to check the state of the cluster certificates. For further details refer to the following links:\n * ${JOB_URL} \n * ${JENKINS_URL}.")
+          content("Something went wrong during the automatic credentials rotation for Metrics Cluster, performed at ${date}. It may be necessary to check the state of the cluster certificates. For further details refer to the following links:\n * Failing job: https://ci-beam.apache.org/job/Rotate%20Metrics%20Cluster%20Credentials/ \n * Job configuration: https://github.com/apache/beam/blob/master/.test-infra/jenkins/job_MetricsCredentialsRotation.groovy \n * Cluster URL: https://pantheon.corp.google.com/kubernetes/clusters/details/us-central1-a/metrics/details?mods=dataflow_dev&project=apache-beam-testing")
           recipientList('dev@beam.apache.org')
         }
       }

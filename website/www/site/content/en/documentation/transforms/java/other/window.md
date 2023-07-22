@@ -18,7 +18,7 @@ limitations under the License.
 <table align="left">
     <a target="_blank" class="button"
         href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/transforms/windowing/Window.html">
-      <img src="https://beam.apache.org/images/logos/sdks/java.png" width="20px" height="20px"
+      <img src="/images/logos/sdks/java.png" width="20px" height="20px"
            alt="Javadoc" />
      Javadoc
     </a>
@@ -29,7 +29,10 @@ Logically divides up or groups the elements of a collection into finite
 windows according to a function.
 
 ## Examples
-See [BEAM-7704](https://issues.apache.org/jira/browse/BEAM-7704) for updates.
+
+{{< playground height="700px" >}}
+{{< playground_snippet language="java" path="SDK_JAVA_Window" show="main_section" >}}
+{{< /playground >}}
 
 ## Related transforms
 * [Reify](/documentation/transforms/java/elementwise/reify)

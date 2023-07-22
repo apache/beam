@@ -18,17 +18,11 @@ package primitives
 import (
 	"testing"
 
-	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 	"github.com/apache/beam/sdks/v2/go/test/integration"
 )
 
 func TestDrain(t *testing.T) {
 	integration.CheckFilters(t)
-	p, s := beam.NewPipelineWithRoot()
-	Drain(s)
-	_, err := ptest.RunWithMetrics(p)
-	if err != nil {
-		t.Errorf("Drain test failed: %v", err)
-	}
+	ptest.BuildAndRun(t, Drain)
 }

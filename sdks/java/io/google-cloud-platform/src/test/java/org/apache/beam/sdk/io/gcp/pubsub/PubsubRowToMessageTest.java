@@ -19,7 +19,9 @@ package org.apache.beam.sdk.io.gcp.pubsub;
 
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubRowToMessage.ATTRIBUTES_FIELD_TYPE;
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubRowToMessage.ATTRIBUTES_KEY_NAME;
-import static org.apache.beam.sdk.io.gcp.pubsub.PubsubRowToMessage.DEFAULT_KEY_PREFIX;
+import static org.apache.beam.sdk.io.gcp.pubsub.PubsubRowToMessage.DEFAULT_ATTRIBUTES_KEY_NAME;
+import static org.apache.beam.sdk.io.gcp.pubsub.PubsubRowToMessage.DEFAULT_EVENT_TIMESTAMP_KEY_NAME;
+import static org.apache.beam.sdk.io.gcp.pubsub.PubsubRowToMessage.DEFAULT_PAYLOAD_KEY_NAME;
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubRowToMessage.ERROR;
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubRowToMessage.EVENT_TIMESTAMP_FIELD_TYPE;
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubRowToMessage.EVENT_TIMESTAMP_KEY_NAME;
@@ -40,6 +42,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.sdk.extensions.avro.schemas.io.payloads.AvroPayloadSerializerProvider;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubRowToMessage.FieldMatcher;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubRowToMessage.PubsubRowToMessageDoFn;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubRowToMessage.SchemaReflection;
@@ -50,7 +53,6 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
-import org.apache.beam.sdk.schemas.io.payloads.AvroPayloadSerializerProvider;
 import org.apache.beam.sdk.schemas.io.payloads.JsonPayloadSerializerProvider;
 import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializer;
 import org.apache.beam.sdk.testing.PAssert;
@@ -72,22 +74,17 @@ import org.junit.runners.JUnit4;
 public class PubsubRowToMessageTest {
 
   private static final PipelineOptions PIPELINE_OPTIONS = PipelineOptionsFactory.create();
-  private static final String DEFAULT_ATTRIBUTES_KEY_NAME =
-      DEFAULT_KEY_PREFIX + ATTRIBUTES_KEY_NAME;
-  private static final String DEFAULT_EVENT_TIMESTAMP_KEY_NAME =
-      DEFAULT_KEY_PREFIX + EVENT_TIMESTAMP_KEY_NAME;
-  private static final String DEFAULT_PAYLOAD_KEY_NAME = DEFAULT_KEY_PREFIX + PAYLOAD_KEY_NAME;
-  private static final Field BOOLEAN_FIELD = Field.of("boolean", FieldType.BOOLEAN);
-  private static final Field BYTE_FIELD = Field.of("byte", FieldType.BYTE);
-  private static final Field DATETIME_FIELD = Field.of("datetime", FieldType.DATETIME);
-  private static final Field DECIMAL_FIELD = Field.of("decimal", FieldType.DECIMAL);
-  private static final Field DOUBLE_FIELD = Field.of("double", FieldType.DOUBLE);
-  private static final Field FLOAT_FIELD = Field.of("float", FieldType.FLOAT);
-  private static final Field INT16_FIELD = Field.of("int16", FieldType.INT16);
-  private static final Field INT32_FIELD = Field.of("int32", FieldType.INT32);
-  private static final Field INT64_FIELD = Field.of("int64", FieldType.INT64);
-  private static final Field STRING_FIELD = Field.of("string", FieldType.STRING);
-  private static final Schema ALL_DATA_TYPES_SCHEMA =
+  static final Field BOOLEAN_FIELD = Field.of("boolean", FieldType.BOOLEAN);
+  static final Field BYTE_FIELD = Field.of("byte", FieldType.BYTE);
+  static final Field DATETIME_FIELD = Field.of("datetime", FieldType.DATETIME);
+  static final Field DECIMAL_FIELD = Field.of("decimal", FieldType.DECIMAL);
+  static final Field DOUBLE_FIELD = Field.of("double", FieldType.DOUBLE);
+  static final Field FLOAT_FIELD = Field.of("float", FieldType.FLOAT);
+  static final Field INT16_FIELD = Field.of("int16", FieldType.INT16);
+  static final Field INT32_FIELD = Field.of("int32", FieldType.INT32);
+  static final Field INT64_FIELD = Field.of("int64", FieldType.INT64);
+  static final Field STRING_FIELD = Field.of("string", FieldType.STRING);
+  static final Schema ALL_DATA_TYPES_SCHEMA =
       Schema.of(
           BOOLEAN_FIELD,
           BYTE_FIELD,
@@ -100,19 +97,19 @@ public class PubsubRowToMessageTest {
           INT64_FIELD,
           STRING_FIELD);
 
-  private static final Schema NON_USER_WITH_BYTES_PAYLOAD =
+  static final Schema NON_USER_WITH_BYTES_PAYLOAD =
       Schema.of(
           Field.of(DEFAULT_ATTRIBUTES_KEY_NAME, ATTRIBUTES_FIELD_TYPE),
           Field.of(DEFAULT_EVENT_TIMESTAMP_KEY_NAME, EVENT_TIMESTAMP_FIELD_TYPE),
           Field.of(DEFAULT_PAYLOAD_KEY_NAME, FieldType.BYTES));
 
-  private static final Schema NON_USER_WITH_ROW_PAYLOAD =
+  static final Schema NON_USER_WITH_ROW_PAYLOAD =
       Schema.of(
           Field.of(DEFAULT_ATTRIBUTES_KEY_NAME, ATTRIBUTES_FIELD_TYPE),
           Field.of(DEFAULT_EVENT_TIMESTAMP_KEY_NAME, EVENT_TIMESTAMP_FIELD_TYPE),
           Field.of(DEFAULT_PAYLOAD_KEY_NAME, FieldType.row(ALL_DATA_TYPES_SCHEMA)));
 
-  private static final Schema NON_USER_WITHOUT_PAYLOAD =
+  static final Schema NON_USER_WITHOUT_PAYLOAD =
       Schema.of(
           Field.of(DEFAULT_ATTRIBUTES_KEY_NAME, ATTRIBUTES_FIELD_TYPE),
           Field.of(DEFAULT_EVENT_TIMESTAMP_KEY_NAME, EVENT_TIMESTAMP_FIELD_TYPE));
@@ -821,6 +818,71 @@ public class PubsubRowToMessageTest {
   }
 
   @Test
+  public void testSchemaReflection_matchesAny() {
+    SchemaReflection schemaReflection = SchemaReflection.of(ALL_DATA_TYPES_SCHEMA);
+    assertTrue(
+        schemaReflection.matchesAny(
+            FieldMatcher.of(BOOLEAN_FIELD.getName()),
+            FieldMatcher.of(BYTE_FIELD.getName()),
+            FieldMatcher.of(DATETIME_FIELD.getName()),
+            FieldMatcher.of(DECIMAL_FIELD.getName()),
+            FieldMatcher.of(DOUBLE_FIELD.getName()),
+            FieldMatcher.of(FLOAT_FIELD.getName()),
+            FieldMatcher.of(INT16_FIELD.getName()),
+            FieldMatcher.of(INT32_FIELD.getName()),
+            FieldMatcher.of(INT64_FIELD.getName()),
+            FieldMatcher.of(STRING_FIELD.getName())));
+
+    assertTrue(
+        schemaReflection.matchesAny(
+            FieldMatcher.of(BOOLEAN_FIELD.getName(), FieldType.BOOLEAN),
+            FieldMatcher.of(BYTE_FIELD.getName(), FieldType.BYTE),
+            FieldMatcher.of(DATETIME_FIELD.getName(), FieldType.DATETIME),
+            FieldMatcher.of(DECIMAL_FIELD.getName(), FieldType.DECIMAL),
+            FieldMatcher.of(DOUBLE_FIELD.getName(), FieldType.DOUBLE),
+            FieldMatcher.of(FLOAT_FIELD.getName(), FieldType.FLOAT),
+            FieldMatcher.of(INT16_FIELD.getName(), FieldType.INT16),
+            FieldMatcher.of(INT32_FIELD.getName(), FieldType.INT32),
+            FieldMatcher.of(INT64_FIELD.getName(), FieldType.INT64),
+            FieldMatcher.of(STRING_FIELD.getName(), FieldType.STRING)));
+
+    assertTrue(
+        schemaReflection.matchesAny(
+            FieldMatcher.of(BOOLEAN_FIELD.getName(), TypeName.BOOLEAN),
+            FieldMatcher.of(BYTE_FIELD.getName(), TypeName.BYTE),
+            FieldMatcher.of(DATETIME_FIELD.getName(), TypeName.DATETIME),
+            FieldMatcher.of(DECIMAL_FIELD.getName(), TypeName.DECIMAL),
+            FieldMatcher.of(DOUBLE_FIELD.getName(), TypeName.DOUBLE),
+            FieldMatcher.of(FLOAT_FIELD.getName(), TypeName.FLOAT),
+            FieldMatcher.of(INT16_FIELD.getName(), TypeName.INT16),
+            FieldMatcher.of(INT32_FIELD.getName(), TypeName.INT32),
+            FieldMatcher.of(INT64_FIELD.getName(), TypeName.INT64),
+            FieldMatcher.of(STRING_FIELD.getName(), TypeName.STRING)));
+
+    assertTrue(
+        schemaReflection.matchesAny(
+            FieldMatcher.of("idontexist"), FieldMatcher.of(STRING_FIELD.getName())));
+
+    assertTrue(
+        schemaReflection.matchesAny(
+            FieldMatcher.of(INT64_FIELD.getName(), FieldType.INT64),
+            // should not match type:
+            FieldMatcher.of(STRING_FIELD.getName(), FieldType.BYTE)));
+
+    assertTrue(
+        schemaReflection.matchesAny(
+            FieldMatcher.of(INT64_FIELD.getName(), TypeName.INT64),
+            // should not match TypeName:
+            FieldMatcher.of(STRING_FIELD.getName(), TypeName.INT16)));
+
+    assertFalse(
+        schemaReflection.matchesAny(
+            FieldMatcher.of("idontexist"),
+            FieldMatcher.of(STRING_FIELD.getName(), FieldType.BYTE),
+            FieldMatcher.of(STRING_FIELD.getName(), TypeName.INT16)));
+  }
+
+  @Test
   public void testFieldMatcher_match_NameOnly() {
     FieldMatcher fieldMatcher = FieldMatcher.of(DEFAULT_PAYLOAD_KEY_NAME);
     assertTrue(fieldMatcher.match(NON_USER_WITH_ROW_PAYLOAD));
@@ -1045,7 +1107,7 @@ public class PubsubRowToMessageTest {
         payloadSerializer);
   }
 
-  private static Row rowWithAllDataTypes(
+  static Row rowWithAllDataTypes(
       boolean boolean0,
       byte byte0,
       ReadableDateTime datetime,

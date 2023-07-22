@@ -103,6 +103,11 @@ class Timestamp(object):
     Args:
       dt: A ``datetime.datetime`` object in UTC (offset-aware).
     """
+    if dt.tzinfo is None:
+      raise ValueError(
+          "dt has no timezone info " +
+          "(https://docs.python.org/3/library/datetime.html" +
+          "#aware-and-naive-objects): %s" % dt)
     if dt.tzinfo != pytz.utc and dt.tzinfo != datetime.timezone.utc:
       raise ValueError('dt not in UTC: %s' % dt)
     duration = dt - cls._epoch_datetime_utc()
@@ -151,12 +156,29 @@ class Timestamp(object):
       return 'Timestamp(%s%d.%06d)' % (sign, int_part, frac_part)
     return 'Timestamp(%s%d)' % (sign, int_part)
 
-  def to_utc_datetime(self):
-    # type: () -> datetime.datetime
+  def to_utc_datetime(self, has_tz=False):
+    # type: (bool) -> datetime.datetime
+
+    """Returns a ``datetime.datetime`` object of UTC for this Timestamp.
+
+    Note that this method returns a ``datetime.datetime`` object without a
+    timezone info by default, as builtin `datetime.datetime.utcnow` method. If
+    this is used as part of the processed data, one should set has_tz=True to
+    avoid offset due to default timezone mismatch.
+
+    Args:
+      has_tz: whether the timezone info is attached, default to False.
+
+    Returns:
+      a ``datetime.datetime`` object of UTC for this Timestamp.
+    """
+
     # We can't easily construct a datetime object from microseconds, so we
     # create one at the epoch and add an appropriate timedelta interval.
-    return self._epoch_datetime_utc().replace(tzinfo=None) + datetime.timedelta(
-        microseconds=self.micros)
+    epoch = self._epoch_datetime_utc()
+    if not has_tz:
+      epoch = epoch.replace(tzinfo=None)
+    return epoch + datetime.timedelta(microseconds=self.micros)
 
   def to_rfc3339(self):
     # type: () -> str

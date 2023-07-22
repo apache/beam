@@ -36,3 +36,11 @@
     overflow-x: auto;
   }
 }
+
+.wrapper-join-beam {
+  @media (max-width: $ak-breakpoint-sm) {
+    h2:last-of-type {
+      padding-top: 90px
+    }
+  }
+}

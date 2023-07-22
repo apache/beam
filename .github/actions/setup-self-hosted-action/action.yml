@@ -18,10 +18,6 @@
 name: 'Setup environment for self-hosted runners'
 description: 'Setup action to run jobs in a self-hosted runner'
 inputs:
-  requires-py-37:
-    required: false
-    description: 'Set as false if does not require py37 setup'
-    default: 'true'
   requires-py-38:
     required: false
     description: 'Set as false if does not require py38 setup'
@@ -34,19 +30,14 @@ inputs:
     required: false
     description: 'Set as false if does not require java-8 setup'
     default: 'true'
-  requires-go-18:
+  requires-go:
     required: false
-    description: 'Set as false if does not require go-18 setup'
+    description: 'Set as false if does not require go setup'
     default: 'true'
 
 runs:
   using: "composite"
   steps:
-    - name: Install python 3.7
-      if: ${{ inputs.requires-py-37 == 'true'  }}
-      uses: actions/setup-python@v4
-      with:
-        python-version: "3.7"
     - name: Install python 3.8
       if: ${{ inputs.requires-py-38 == 'true'  }}
       uses: actions/setup-python@v4
@@ -64,7 +55,7 @@ runs:
         distribution: 'temurin'
         java-version: 8
     - name: Set Go Version
-      if: ${{ inputs.requires-go-18 == 'true'  }}
+      if: ${{ inputs.requires-go == 'true'  }}
       uses: actions/setup-go@v3
       with:
-        go-version: '1.18.0'
+        go-version: '1.20' # never set patch, to get latest patch releases.

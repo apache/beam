@@ -287,8 +287,8 @@ func TestTracker_TrySplit(t *testing.T) {
 			if err != nil {
 				t.Fatalf("tracker failed on split: %v", err)
 			}
-			var wantP interface{} = Restriction{Start: test.rest.Start, End: test.splitPt}
-			var wantR interface{} = Restriction{Start: test.splitPt, End: test.rest.End}
+			var wantP any = Restriction{Start: test.rest.Start, End: test.splitPt}
+			var wantR any = Restriction{Start: test.splitPt, End: test.rest.End}
 			if test.splitPt == test.rest.End {
 				wantR = nil // When residuals are empty we should get nil.
 			}
@@ -356,8 +356,8 @@ func TestTracker_TrySplit_WithoutClaiming(t *testing.T) {
 			if err != nil {
 				t.Fatalf("tracker failed on split: %v", err)
 			}
-			var wantP interface{} = Restriction{Start: test.rest.Start, End: test.splitPt}
-			var wantR interface{} = Restriction{Start: test.splitPt, End: test.rest.End}
+			var wantP any = Restriction{Start: test.rest.Start, End: test.splitPt}
+			var wantR any = Restriction{Start: test.splitPt, End: test.rest.End}
 			if test.splitPt == test.rest.End {
 				wantR = nil // When residuals are empty we should get nil.
 			}
@@ -516,8 +516,8 @@ func TestGrowableTracker_Splits(t *testing.T) {
 			if err != nil {
 				t.Fatalf("tracker failed on split rt.TrySplit(%v): %v", test.fraction, err)
 			}
-			var wantP interface{} = Restriction{Start: test.rest.Start, End: test.splitPt}
-			var wantR interface{} = Restriction{Start: test.splitPt, End: test.rest.End}
+			var wantP any = Restriction{Start: test.rest.Start, End: test.splitPt}
+			var wantR any = Restriction{Start: test.splitPt, End: test.rest.End}
 			if test.splitPt == test.rest.End {
 				wantR = nil // When residuals are empty we should get nil.
 			}

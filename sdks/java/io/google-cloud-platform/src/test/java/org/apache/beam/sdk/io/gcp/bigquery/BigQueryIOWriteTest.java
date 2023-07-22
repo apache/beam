@@ -33,6 +33,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.junit.Assume.assumeTrue;
 
 import com.google.api.services.bigquery.model.Clustering;
 import com.google.api.services.bigquery.model.ErrorProto;
@@ -71,17 +72,22 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 import java.util.stream.StreamSupport;
+import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.io.Encoder;
+import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.ShardedKeyCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.extensions.avro.coders.AvroGenericCoder;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
@@ -99,6 +105,10 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
+import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.state.Timer;
+import org.apache.beam.sdk.state.TimerSpec;
+import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -108,11 +118,13 @@ import org.apache.beam.sdk.transforms.Distinct;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -122,6 +134,7 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
@@ -148,6 +161,7 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestRule;
+import org.junit.rules.Timeout;
 import org.junit.runner.Description;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -184,6 +198,8 @@ public class BigQueryIOWriteTest implements Serializable {
   @Parameter(2)
   public boolean useStreaming;
 
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
+
   @Rule
   public final transient TestRule folderThenPipeline =
       new TestRule() {
@@ -199,7 +215,6 @@ public class BigQueryIOWriteTest implements Serializable {
                 public void evaluate() throws Throwable {
                   options = TestPipeline.testingPipelineOptions();
                   BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
-                  bqOptions.setSchemaUpdateRetries(Integer.MAX_VALUE);
                   bqOptions.setProject("project-id");
                   if (description.getAnnotations().stream()
                       .anyMatch(a -> a.annotationType().equals(ProjectOverride.class))) {
@@ -212,7 +227,6 @@ public class BigQueryIOWriteTest implements Serializable {
                       bqOptions.setUseStorageWriteApiAtLeastOnce(true);
                     }
                     if (useStreaming) {
-                      bqOptions.setNumStorageWriteApiStreams(2);
                       bqOptions.setStorageWriteApiTriggeringFrequencySec(1);
                     }
                   }
@@ -254,9 +268,8 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testWriteEmptyPCollection() throws Exception {
-    if (useStreaming || useStorageApi) {
-      return;
-    }
+    assumeTrue(!useStreaming);
+    assumeTrue(!useStorageApi);
     TableSchema schema =
         new TableSchema()
             .setFields(
@@ -290,12 +303,8 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testWriteDynamicDestinationsStreamingWithAutoSharding() throws Exception {
-    if (useStorageApi) {
-      return;
-    }
-    if (!useStreaming) {
-      return;
-    }
+    assumeTrue(useStreaming);
+    assumeTrue(!useStorageApiApproximate); // STORAGE_API_AT_LEAST_ONCE ignores auto-sharding
     writeDynamicDestinations(true, true);
   }
 
@@ -304,6 +313,11 @@ public class BigQueryIOWriteTest implements Serializable {
         Schema.builder().addField("name", FieldType.STRING).addField("id", FieldType.INT64).build();
 
     final Pattern userPattern = Pattern.compile("([a-z]+)([0-9]+)");
+
+    // Explicitly set maxNumWritersPerBundle and the parallelism for the runner to make sure
+    // bundle size is predictable and maxNumWritersPerBundle can be reached.
+    final int maxNumWritersPerBundle = 5;
+    p.getOptions().as(DirectOptions.class).setTargetParallelism(3);
 
     final PCollectionView<List<String>> sideInput1 =
         p.apply("Create SideInput 1", Create.of("a", "b", "c").withCoder(StringUtf8Coder.of()))
@@ -314,16 +328,19 @@ public class BigQueryIOWriteTest implements Serializable {
 
     final List<String> allUsernames = ImmutableList.of("bill", "bob", "randolph");
     List<String> userList = Lists.newArrayList();
-    // Make sure that we generate enough users so that WriteBundlesToFiles is forced to spill to
-    // WriteGroupedRecordsToFiles.
-    for (int i = 0; i < BatchLoads.DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE * 10; ++i) {
-      // Every user has 10 nicknames.
-      for (int j = 0; j < 10; ++j) {
+    // i controls the number of destinations
+    for (int i = 0; i < maxNumWritersPerBundle * 2; ++i) {
+      // Make sure that we generate enough users so that WriteBundlesToFiles is forced to spill to
+      // WriteGroupedRecordsToFiles.
+      for (int j = 0; j < 40; ++j) {
         String nickname =
             allUsernames.get(ThreadLocalRandom.current().nextInt(allUsernames.size()));
         userList.add(nickname + i);
       }
     }
+    // shuffle the input so that each bundle gets evenly distributed destinations
+    Collections.shuffle(userList);
+
     PCollection<String> users =
         p.apply("CreateUsers", Create.of(userList))
             .apply(Window.into(new PartitionedGlobalWindows<>(arg -> arg)));
@@ -354,8 +371,9 @@ public class BigQueryIOWriteTest implements Serializable {
     BigQueryIO.Write<String> write =
         BigQueryIO.<String>write()
             .withTestServices(fakeBqServices)
-            .withMaxFilesPerBundle(5)
-            .withMaxFileSize(10)
+            .withMaxFilesPerBundle(maxNumWritersPerBundle)
+            // a file can contain a couple of records in this size limit
+            .withMaxFileSize(30)
             .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
             .to(
                 new StringLongDestinations() {
@@ -584,11 +602,10 @@ public class BigQueryIOWriteTest implements Serializable {
     assertEquals(clustering, table.getClustering());
   }
 
-  @Test
-  public void testTriggeredFileLoads() throws Exception {
-    if (useStorageApi || !useStreaming) {
-      return;
-    }
+  public void runStreamingFileLoads(String tableRef, boolean useTempTables, boolean useTempDataset)
+      throws Exception {
+    assumeTrue(!useStorageApi);
+    assumeTrue(useStreaming);
     List<TableRow> elements = Lists.newArrayList();
     for (int i = 0; i < 30; ++i) {
       elements.add(new TableRow().set("number", i));
@@ -606,65 +623,29 @@ public class BigQueryIOWriteTest implements Serializable {
                 elements.get(20), Iterables.toArray(elements.subList(21, 30), TableRow.class))
             .advanceWatermarkToInfinity();
 
-    BigQueryIO.Write.Method method = Method.FILE_LOADS;
-    p.apply(testStream)
-        .apply(
-            BigQueryIO.writeTableRows()
-                .to("project-id:dataset-id.table-id")
-                .withSchema(
-                    new TableSchema()
-                        .setFields(
-                            ImmutableList.of(
-                                new TableFieldSchema().setName("number").setType("INTEGER"))))
-                .withTestServices(fakeBqServices)
-                .withTriggeringFrequency(Duration.standardSeconds(30))
-                .withNumFileShards(2)
-                .withMethod(method)
-                .withoutValidation());
-    p.run();
+    BigQueryIO.Write<TableRow> writeTransform =
+        BigQueryIO.writeTableRows()
+            .to(tableRef)
+            .withSchema(
+                new TableSchema()
+                    .setFields(
+                        ImmutableList.of(
+                            new TableFieldSchema().setName("number").setType("INTEGER"))))
+            .withTestServices(fakeBqServices)
+            .withWriteDisposition(Write.WriteDisposition.WRITE_APPEND)
+            .withTriggeringFrequency(Duration.standardSeconds(30))
+            .withNumFileShards(2)
+            .withMethod(Method.FILE_LOADS)
+            .withoutValidation();
 
-    assertThat(
-        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
-        containsInAnyOrder(Iterables.toArray(elements, TableRow.class)));
-  }
-
-  @Test
-  public void testTriggeredFileLoadsWithTempTablesAndDataset() throws Exception {
-    String tableRef = "bigquery-project-id:dataset-id.table-id";
-    List<TableRow> elements = Lists.newArrayList();
-    for (int i = 0; i < 30; ++i) {
-      elements.add(new TableRow().set("number", i));
+    if (useTempTables) {
+      writeTransform = writeTransform.withMaxBytesPerPartition(1).withMaxFilesPerPartition(1);
     }
-    TestStream<TableRow> testStream =
-        TestStream.create(TableRowJsonCoder.of())
-            .addElements(
-                elements.get(0), Iterables.toArray(elements.subList(1, 10), TableRow.class))
-            .advanceProcessingTime(Duration.standardMinutes(1))
-            .addElements(
-                elements.get(10), Iterables.toArray(elements.subList(11, 20), TableRow.class))
-            .advanceProcessingTime(Duration.standardMinutes(1))
-            .addElements(
-                elements.get(20), Iterables.toArray(elements.subList(21, 30), TableRow.class))
-            .advanceWatermarkToInfinity();
+    if (useTempDataset) {
+      writeTransform = writeTransform.withWriteTempDataset("temp-dataset-id");
+    }
 
-    BigQueryIO.Write.Method method = Method.FILE_LOADS;
-    p.apply(testStream)
-        .apply(
-            BigQueryIO.writeTableRows()
-                .to(tableRef)
-                .withSchema(
-                    new TableSchema()
-                        .setFields(
-                            ImmutableList.of(
-                                new TableFieldSchema().setName("number").setType("INTEGER"))))
-                .withTestServices(fakeBqServices)
-                .withTriggeringFrequency(Duration.standardSeconds(30))
-                .withNumFileShards(2)
-                .withMaxBytesPerPartition(1)
-                .withMaxFilesPerPartition(1)
-                .withMethod(method)
-                .withoutValidation()
-                .withWriteTempDataset("temp-dataset-id"));
+    p.apply(testStream).apply(writeTransform);
     p.run();
 
     final int projectIdSplitter = tableRef.indexOf(':');
@@ -676,107 +657,51 @@ public class BigQueryIOWriteTest implements Serializable {
         containsInAnyOrder(Iterables.toArray(elements, TableRow.class)));
   }
 
-  public void testTriggeredFileLoadsWithTempTables(String tableRef) throws Exception {
-    if (useStorageApi || !useStreaming) {
-      return;
-    }
-    List<TableRow> elements = Lists.newArrayList();
-    for (int i = 0; i < 30; ++i) {
-      elements.add(new TableRow().set("number", i));
-    }
+  public void runStreamingFileLoads(String tableRef) throws Exception {
+    runStreamingFileLoads(tableRef, true, false);
+  }
 
-    TestStream<TableRow> testStream =
-        TestStream.create(TableRowJsonCoder.of())
-            .addElements(
-                elements.get(0), Iterables.toArray(elements.subList(1, 10), TableRow.class))
-            .advanceProcessingTime(Duration.standardMinutes(1))
-            .addElements(
-                elements.get(10), Iterables.toArray(elements.subList(11, 20), TableRow.class))
-            .advanceProcessingTime(Duration.standardMinutes(1))
-            .addElements(
-                elements.get(20), Iterables.toArray(elements.subList(21, 30), TableRow.class))
-            .advanceWatermarkToInfinity();
+  @Test
+  public void testStreamingFileLoads() throws Exception {
+    runStreamingFileLoads("project-id:dataset-id.table-id", false, false);
+  }
 
-    BigQueryIO.Write.Method method = Method.FILE_LOADS;
-    p.apply(testStream)
-        .apply(
-            BigQueryIO.writeTableRows()
-                .to(tableRef)
-                .withSchema(
-                    new TableSchema()
-                        .setFields(
-                            ImmutableList.of(
-                                new TableFieldSchema().setName("number").setType("INTEGER"))))
-                .withTestServices(fakeBqServices)
-                .withTriggeringFrequency(Duration.standardSeconds(30))
-                .withNumFileShards(2)
-                .withMaxBytesPerPartition(1)
-                .withMaxFilesPerPartition(1)
-                .withMethod(method)
-                .withoutValidation());
-    p.run();
+  @Test
+  public void testStreamingFileLoadsWithTempTables() throws Exception {
+    runStreamingFileLoads("project-id:dataset-id.table-id");
+  }
 
-    final int projectIdSplitter = tableRef.indexOf(':');
-    final String projectId =
-        projectIdSplitter == -1 ? "project-id" : tableRef.substring(0, projectIdSplitter);
-
-    assertThat(
-        fakeDatasetService.getAllRows(projectId, "dataset-id", "table-id"),
-        containsInAnyOrder(Iterables.toArray(elements, TableRow.class)));
+  @Test
+  public void testStreamingFileLoadsWithTempTablesDefaultProject() throws Exception {
+    runStreamingFileLoads("dataset-id.table-id");
   }
 
   @Test
   @ProjectOverride
-  public void testTriggeredFileLoadsWithTempTablesBigQueryProject() throws Exception {
-    testTriggeredFileLoadsWithTempTables("bigquery-project-id:dataset-id.table-id");
+  public void testStreamingFileLoadsWithTempTablesBigQueryProject() throws Exception {
+    runStreamingFileLoads("bigquery-project-id:dataset-id.table-id");
   }
 
   @Test
-  public void testTriggeredFileLoadsWithTempTables() throws Exception {
-    testTriggeredFileLoadsWithTempTables("project-id:dataset-id.table-id");
+  public void testStreamingFileLoadsWithTempTablesAndDataset() throws Exception {
+    runStreamingFileLoads("bigquery-project-id:dataset-id.table-id", true, true);
   }
 
   @Test
-  public void testUntriggeredFileLoadsWithTempTables() throws Exception {
-    // Test only non-streaming inserts.
-    if (useStorageApi || useStreaming) {
-      return;
-    }
-    List<TableRow> elements = Lists.newArrayList();
-    for (int i = 0; i < 30; ++i) {
-      elements.add(new TableRow().set("number", i));
-    }
-    p.apply(Create.of(elements))
-        .apply(
-            BigQueryIO.writeTableRows()
-                .to("project-id:dataset-id.table-id")
-                .withSchema(
-                    new TableSchema()
-                        .setFields(
-                            ImmutableList.of(
-                                new TableFieldSchema().setName("number").setType("INTEGER"))))
-                .withTestServices(fakeBqServices)
-                .withMaxBytesPerPartition(1)
-                .withMaxFilesPerPartition(1)
-                .withoutValidation());
-    p.run();
-
-    assertThat(
-        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
-        containsInAnyOrder(Iterables.toArray(elements, TableRow.class)));
+  public void testStreamingFileLoadsWithTempTablesToExistingNullSchemaTable() throws Exception {
+    TableReference ref =
+        new TableReference()
+            .setProjectId("project-id")
+            .setDatasetId("dataset-id")
+            .setTableId("table-id");
+    fakeDatasetService.createTable(new Table().setTableReference(ref).setSchema(null));
+    runStreamingFileLoads("project-id:dataset-id.table-id");
   }
 
   @Test
-  public void testTriggeredFileLoadsWithTempTablesDefaultProject() throws Exception {
-    testTriggeredFileLoadsWithTempTables("dataset-id.table-id");
-  }
-
-  @Test
-  public void testTriggeredFileLoadsWithAutoSharding() throws Exception {
-    if (useStorageApi || !useStreaming) {
-      // This test does not make sense for the storage API.
-      return;
-    }
+  public void testStreamingFileLoadsWithAutoSharding() throws Exception {
+    assumeTrue(!useStorageApi);
+    assumeTrue(useStreaming);
     List<TableRow> elements = Lists.newArrayList();
     for (int i = 0; i < 30; ++i) {
       elements.add(new TableRow().set("number", i));
@@ -844,10 +769,119 @@ public class BigQueryIOWriteTest implements Serializable {
   }
 
   @Test
-  public void testFailuresNoRetryPolicy() throws Exception {
-    if (useStorageApi || !useStreaming) {
-      return;
+  public void testBatchFileLoads() throws Exception {
+    assumeTrue(!useStreaming);
+    assumeTrue(!useStorageApi);
+    List<TableRow> elements = Lists.newArrayList();
+    for (int i = 0; i < 30; ++i) {
+      elements.add(new TableRow().set("number", i));
     }
+
+    WriteResult result =
+        p.apply(Create.of(elements).withCoder(TableRowJsonCoder.of()))
+            .apply(
+                BigQueryIO.writeTableRows()
+                    .to("dataset-id.table-id")
+                    .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+                    .withSchema(
+                        new TableSchema()
+                            .setFields(
+                                ImmutableList.of(
+                                    new TableFieldSchema().setName("name").setType("STRING"),
+                                    new TableFieldSchema().setName("number").setType("INTEGER"))))
+                    .withTestServices(fakeBqServices)
+                    .withoutValidation());
+
+    PAssert.that(result.getSuccessfulTableLoads())
+        .containsInAnyOrder(new TableDestination("project-id:dataset-id.table-id", null));
+    p.run();
+
+    assertThat(
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
+        containsInAnyOrder(Iterables.toArray(elements, TableRow.class)));
+  }
+
+  @Test
+  public void testBatchFileLoadsWithTempTables() throws Exception {
+    // Test only non-streaming inserts.
+    assumeTrue(!useStorageApi);
+    assumeTrue(!useStreaming);
+    List<TableRow> elements = Lists.newArrayList();
+    for (int i = 0; i < 30; ++i) {
+      elements.add(new TableRow().set("number", i));
+    }
+    WriteResult result =
+        p.apply(Create.of(elements))
+            .apply(
+                BigQueryIO.writeTableRows()
+                    .to("project-id:dataset-id.table-id")
+                    .withSchema(
+                        new TableSchema()
+                            .setFields(
+                                ImmutableList.of(
+                                    new TableFieldSchema().setName("number").setType("INTEGER"))))
+                    .withTestServices(fakeBqServices)
+                    .withMaxBytesPerPartition(1)
+                    .withMaxFilesPerPartition(1)
+                    .withoutValidation());
+
+    PAssert.that(result.getSuccessfulTableLoads())
+        .containsInAnyOrder(new TableDestination("project-id:dataset-id.table-id", null));
+    p.run();
+
+    assertThat(
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
+        containsInAnyOrder(Iterables.toArray(elements, TableRow.class)));
+  }
+
+  @Test
+  public void testBatchFileLoadsWithTempTablesCreateNever() throws Exception {
+    assumeTrue(!useStorageApi);
+    assumeTrue(!useStreaming);
+
+    // Create table and give it a schema
+    TableSchema schema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("str").setType("STRING"),
+                    new TableFieldSchema().setName("num").setType("INTEGER")));
+    Table fakeTable = new Table();
+    TableReference ref =
+        new TableReference()
+            .setProjectId("project-id")
+            .setDatasetId("dataset-id")
+            .setTableId("table-id");
+    fakeTable.setSchema(schema);
+    fakeTable.setTableReference(ref);
+    fakeDatasetService.createTable(fakeTable);
+
+    List<TableRow> elements = Lists.newArrayList();
+    for (int i = 1; i < 10; i++) {
+      elements.add(new TableRow().set("str", "a").set("num", i));
+    }
+
+    // Write to table with CREATE_NEVER and with no schema
+    p.apply(Create.of(elements))
+        .apply(
+            BigQueryIO.writeTableRows()
+                .to("project-id:dataset-id.table-id")
+                .withCreateDisposition(CreateDisposition.CREATE_NEVER)
+                .withTestServices(fakeBqServices)
+                .withMaxBytesPerPartition(1)
+                .withMaxFilesPerPartition(1)
+                .withoutValidation());
+    p.run();
+
+    assertThat(
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
+        containsInAnyOrder(Iterables.toArray(elements, TableRow.class)));
+  }
+
+  @Test
+  public void testStreamingInsertsFailuresNoRetryPolicy() throws Exception {
+    assumeTrue(!useStorageApi);
+    assumeTrue(useStreaming);
     TableRow row1 = new TableRow().set("name", "a").set("number", "1");
     TableRow row2 = new TableRow().set("name", "b").set("number", "2");
     TableRow row3 = new TableRow().set("name", "c").set("number", "3");
@@ -883,10 +917,9 @@ public class BigQueryIOWriteTest implements Serializable {
   }
 
   @Test
-  public void testRetryPolicy() throws Exception {
-    if (useStorageApi || !useStreaming) {
-      return;
-    }
+  public void testStreamingInsertsRetryPolicy() throws Exception {
+    assumeTrue(!useStorageApi);
+    assumeTrue(useStreaming);
     TableRow row1 = new TableRow().set("name", "a").set("number", "1");
     TableRow row2 = new TableRow().set("name", "b").set("number", "2");
     TableRow row3 = new TableRow().set("name", "c").set("number", "3");
@@ -959,76 +992,9 @@ public class BigQueryIOWriteTest implements Serializable {
   }
 
   @Test
-  public void testWriteWithSuccessfulBatchInserts() throws Exception {
-    if (useStreaming || useStorageApi) {
-      return;
-    }
-
-    WriteResult result =
-        p.apply(
-                Create.of(
-                        new TableRow().set("name", "a").set("number", 1),
-                        new TableRow().set("name", "b").set("number", 2),
-                        new TableRow().set("name", "c").set("number", 3))
-                    .withCoder(TableRowJsonCoder.of()))
-            .apply(
-                BigQueryIO.writeTableRows()
-                    .to("dataset-id.table-id")
-                    .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
-                    .withSchema(
-                        new TableSchema()
-                            .setFields(
-                                ImmutableList.of(
-                                    new TableFieldSchema().setName("name").setType("STRING"),
-                                    new TableFieldSchema().setName("number").setType("INTEGER"))))
-                    .withTestServices(fakeBqServices)
-                    .withoutValidation());
-
-    PAssert.that(result.getSuccessfulTableLoads())
-        .containsInAnyOrder(new TableDestination("project-id:dataset-id.table-id", null));
-
-    p.run();
-  }
-
-  @Test
-  public void testWriteWithSuccessfulBatchInsertsAndWriteRename() throws Exception {
-    if (useStreaming || useStorageApi) {
-      return;
-    }
-
-    WriteResult result =
-        p.apply(
-                Create.of(
-                        new TableRow().set("name", "a").set("number", 1),
-                        new TableRow().set("name", "b").set("number", 2),
-                        new TableRow().set("name", "c").set("number", 3))
-                    .withCoder(TableRowJsonCoder.of()))
-            .apply(
-                BigQueryIO.writeTableRows()
-                    .to("dataset-id.table-id")
-                    .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
-                    .withSchema(
-                        new TableSchema()
-                            .setFields(
-                                ImmutableList.of(
-                                    new TableFieldSchema().setName("name").setType("STRING"),
-                                    new TableFieldSchema().setName("number").setType("INTEGER"))))
-                    .withMaxFileSize(1)
-                    .withMaxFilesPerPartition(1)
-                    .withTestServices(fakeBqServices)
-                    .withoutValidation());
-
-    PAssert.that(result.getSuccessfulTableLoads())
-        .containsInAnyOrder(new TableDestination("project-id:dataset-id.table-id", null));
-
-    p.run();
-  }
-
-  @Test
   public void testWriteWithoutInsertId() throws Exception {
-    if (useStorageApi || !useStreaming) {
-      return;
-    }
+    assumeTrue(!useStorageApi);
+    assumeTrue(useStreaming);
     TableRow row1 = new TableRow().set("name", "a").set("number", 1);
     TableRow row2 = new TableRow().set("name", "b").set("number", 2);
     TableRow row3 = new TableRow().set("name", "c").set("number", 3);
@@ -1077,62 +1043,96 @@ public class BigQueryIOWriteTest implements Serializable {
   private static final Coder<InputRecord> INPUT_RECORD_CODER =
       SerializableCoder.of(InputRecord.class);
 
-  @Test
-  public void testWriteAvro() throws Exception {
-    if (useStorageApi || useStreaming) {
-      return;
+  public void runTestWriteAvro(boolean schemaFromView) throws Exception {
+    String tableName = "project-id:dataset-id.table-id";
+    BigQueryIO.Write<InputRecord> bqWrite =
+        BigQueryIO.<InputRecord>write()
+            .to(tableName)
+            .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+            .withTestServices(fakeBqServices)
+            .withAvroFormatFunction(
+                r -> {
+                  GenericRecord rec = new GenericData.Record(r.getSchema());
+                  InputRecord i = r.getElement();
+                  rec.put("strval", i.strVal());
+                  rec.put("longval", i.longVal());
+                  rec.put("doubleval", i.doubleVal());
+                  rec.put("instantval", i.instantVal().getMillis() * 1000);
+                  return rec;
+                })
+            .withoutValidation();
+    TableSchema tableSchema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("strval").setType("STRING"),
+                    new TableFieldSchema().setName("longval").setType("INTEGER"),
+                    new TableFieldSchema().setName("doubleval").setType("FLOAT"),
+                    new TableFieldSchema().setName("instantval").setType("TIMESTAMP")));
+    if (schemaFromView) {
+      bqWrite =
+          bqWrite.withSchemaFromView(
+              p.apply(
+                      "CreateTableSchemaString",
+                      Create.of(KV.of(tableName, BigQueryHelpers.toJsonString(tableSchema))))
+                  .setCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
+                  .apply(View.<String, String>asMap()));
+    } else {
+      bqWrite = bqWrite.withSchema(tableSchema);
     }
+
     p.apply(
             Create.of(
                     InputRecord.create("test", 1, 1.0, Instant.parse("2019-01-01T00:00:00Z")),
                     InputRecord.create("test2", 2, 2.0, Instant.parse("2019-02-01T00:00:00Z")))
                 .withCoder(INPUT_RECORD_CODER))
-        .apply(
-            BigQueryIO.<InputRecord>write()
-                .to("dataset-id.table-id")
-                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
-                .withSchema(
-                    new TableSchema()
-                        .setFields(
-                            ImmutableList.of(
-                                new TableFieldSchema().setName("strVal").setType("STRING"),
-                                new TableFieldSchema().setName("longVal").setType("INTEGER"),
-                                new TableFieldSchema().setName("doubleVal").setType("FLOAT"),
-                                new TableFieldSchema().setName("instantVal").setType("TIMESTAMP"))))
-                .withTestServices(fakeBqServices)
-                .withAvroFormatFunction(
-                    r -> {
-                      GenericRecord rec = new GenericData.Record(r.getSchema());
-                      InputRecord i = r.getElement();
-                      rec.put("strVal", i.strVal());
-                      rec.put("longVal", i.longVal());
-                      rec.put("doubleVal", i.doubleVal());
-                      rec.put("instantVal", i.instantVal().getMillis() * 1000);
-                      return rec;
-                    })
-                .withoutValidation());
+        .apply(bqWrite);
+
     p.run();
 
     assertThat(
         fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
         containsInAnyOrder(
             new TableRow()
-                .set("strVal", "test")
-                .set("longVal", "1")
-                .set("doubleVal", 1.0D)
-                .set("instantVal", "2019-01-01 00:00:00 UTC"),
+                .set("strval", "test")
+                .set("longval", "1")
+                .set("doubleval", 1.0)
+                .set(
+                    "instantval",
+                    useStorageApi || useStorageApiApproximate
+                        ? String.valueOf(Instant.parse("2019-01-01T00:00:00Z").getMillis() * 1000)
+                        : "2019-01-01 00:00:00 UTC"),
             new TableRow()
-                .set("strVal", "test2")
-                .set("longVal", "2")
-                .set("doubleVal", 2.0D)
-                .set("instantVal", "2019-02-01 00:00:00 UTC")));
+                .set("strval", "test2")
+                .set("longval", "2")
+                .set("doubleval", 2.0D)
+                .set(
+                    "instantval",
+                    useStorageApi || useStorageApiApproximate
+                        ? String.valueOf(Instant.parse("2019-02-01T00:00:00Z").getMillis() * 1000)
+                        : "2019-02-01 00:00:00 UTC")));
+  }
+
+  @Test
+  public void testWriteAvro() throws Exception {
+    // only streaming inserts don't support avro types
+    assumeTrue(!useStreaming);
+
+    runTestWriteAvro(false);
+  }
+
+  @Test
+  public void testWriteAvroWithSchemaFromView() throws Exception {
+    // only streaming inserts don't support avro types
+    assumeTrue(useStorageApi);
+
+    runTestWriteAvro(true);
   }
 
   @Test
   public void testWriteAvroWithCustomWriter() throws Exception {
-    if (useStorageApi || useStreaming) {
-      return;
-    }
+    assumeTrue(!useStorageApi);
+    assumeTrue(!useStreaming);
     SerializableFunction<AvroWriteRequest<InputRecord>, GenericRecord> formatFunction =
         r -> {
           GenericRecord rec = new GenericData.Record(r.getSchema());
@@ -1202,9 +1202,13 @@ public class BigQueryIOWriteTest implements Serializable {
   }
 
   private void streamingWrite(boolean autoSharding) throws Exception {
-    if (!useStreaming) {
-      return;
-    }
+    assumeTrue(useStreaming);
+    List<TableRow> elements =
+        ImmutableList.of(
+            new TableRow().set("name", "a").set("number", "1"),
+            new TableRow().set("name", "b").set("number", "2"),
+            new TableRow().set("name", "c").set("number", "3"),
+            new TableRow().set("name", "d").set("number", "4"));
     BigQueryIO.Write<TableRow> write =
         BigQueryIO.writeTableRows()
             .to("project-id:dataset-id.table-id")
@@ -1220,35 +1224,39 @@ public class BigQueryIOWriteTest implements Serializable {
     if (autoSharding) {
       write = write.withAutoSharding();
     }
-    p.apply(
-            Create.of(
-                    new TableRow().set("name", "a").set("number", "1"),
-                    new TableRow().set("name", "b").set("number", "2"),
-                    new TableRow().set("name", "c").set("number", "3"),
-                    new TableRow().set("name", "d").set("number", "4"))
-                .withCoder(TableRowJsonCoder.of()))
+    p.apply(Create.of(elements).withCoder(TableRowJsonCoder.of()))
         .setIsBoundedInternal(PCollection.IsBounded.UNBOUNDED)
         .apply("WriteToBQ", write);
     p.run();
 
     assertThat(
         fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
-        containsInAnyOrder(
-            new TableRow().set("name", "a").set("number", "1"),
-            new TableRow().set("name", "b").set("number", "2"),
-            new TableRow().set("name", "c").set("number", "3"),
-            new TableRow().set("name", "d").set("number", "4")));
-  }
-
-  @Test
-  public void testStorageApiWriteWithAutoSharding() throws Exception {
-    storageWrite(true);
+        containsInAnyOrder(Iterables.toArray(elements, TableRow.class)));
   }
 
   private void storageWrite(boolean autoSharding) throws Exception {
-    if (!useStorageApi) {
-      return;
+    assumeTrue(useStorageApi);
+    if (autoSharding) {
+      assumeTrue(!useStorageApiApproximate);
+      assumeTrue(useStreaming);
     }
+    List<TableRow> elements = Lists.newArrayList();
+    for (int i = 0; i < 30; ++i) {
+      elements.add(new TableRow().set("number", String.valueOf(i)));
+    }
+
+    TestStream<TableRow> testStream =
+        TestStream.create(TableRowJsonCoder.of())
+            .addElements(
+                elements.get(0), Iterables.toArray(elements.subList(1, 10), TableRow.class))
+            .advanceProcessingTime(Duration.standardMinutes(1))
+            .addElements(
+                elements.get(10), Iterables.toArray(elements.subList(11, 20), TableRow.class))
+            .advanceProcessingTime(Duration.standardMinutes(1))
+            .addElements(
+                elements.get(20), Iterables.toArray(elements.subList(21, 30), TableRow.class))
+            .advanceWatermarkToInfinity();
+
     BigQueryIO.Write<TableRow> write =
         BigQueryIO.writeTableRows()
             .to("project-id:dataset-id.table-id")
@@ -1257,35 +1265,50 @@ public class BigQueryIOWriteTest implements Serializable {
                 new TableSchema()
                     .setFields(
                         ImmutableList.of(
-                            new TableFieldSchema().setName("name").setType("STRING"),
                             new TableFieldSchema().setName("number").setType("INTEGER"))))
             .withTestServices(fakeBqServices)
             .withoutValidation();
-    if (autoSharding) {
-      write =
-          write
-              .withAutoSharding()
-              .withTriggeringFrequency(Duration.standardSeconds(5))
-              .withMethod(Method.STORAGE_WRITE_API);
+
+    if (useStreaming) {
+      if (!useStorageApiApproximate) {
+        write =
+            write
+                .withTriggeringFrequency(Duration.standardSeconds(30))
+                .withNumStorageWriteApiStreams(2);
+      }
+      if (autoSharding) {
+        write = write.withAutoSharding();
+      }
     }
-    p.apply(
-            Create.of(
-                    new TableRow().set("name", "a").set("number", "1"),
-                    new TableRow().set("name", "b").set("number", "2"),
-                    new TableRow().set("name", "c").set("number", "3"),
-                    new TableRow().set("name", "d").set("number", "4"))
-                .withCoder(TableRowJsonCoder.of()))
-        .setIsBoundedInternal(PCollection.IsBounded.UNBOUNDED)
-        .apply("WriteToBQ", write);
-    p.run();
+
+    PTransform<PBegin, PCollection<TableRow>> source =
+        useStreaming ? testStream : Create.of(elements).withCoder(TableRowJsonCoder.of());
+
+    p.apply(source).apply("WriteToBQ", write);
+    p.run().waitUntilFinish();
 
     assertThat(
         fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
-        containsInAnyOrder(
-            new TableRow().set("name", "a").set("number", "1"),
-            new TableRow().set("name", "b").set("number", "2"),
-            new TableRow().set("name", "c").set("number", "3"),
-            new TableRow().set("name", "d").set("number", "4")));
+        containsInAnyOrder(Iterables.toArray(elements, TableRow.class)));
+  }
+
+  @Test
+  public void testBatchStorageApiWrite() throws Exception {
+    assumeTrue(!useStreaming);
+    storageWrite(false);
+  }
+
+  @Test
+  public void testStreamingStorageApiWrite() throws Exception {
+    assumeTrue(useStreaming);
+    storageWrite(false);
+  }
+
+  @Test
+  public void testStreamingStorageApiWriteWithAutoSharding() throws Exception {
+    assumeTrue(useStreaming);
+    assumeTrue(!useStorageApiApproximate);
+    storageWrite(true);
   }
 
   @DefaultSchema(JavaFieldSchema.class)
@@ -1302,8 +1325,9 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testSchemaWriteLoads() throws Exception {
+    assumeTrue(!useStreaming);
     // withMethod overrides the pipeline option, so we need to explicitly request
-    // STORAGE_API_WRITES.
+    // STORAGE_WRITE_API.
     BigQueryIO.Write.Method method =
         useStorageApi
             ? (useStorageApiApproximate
@@ -1329,17 +1353,17 @@ public class BigQueryIOWriteTest implements Serializable {
     assertThat(
         fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
         containsInAnyOrder(
-            new TableRow().set("name", "a").set("number", 1),
-            new TableRow().set("name", "b").set("number", 2),
-            new TableRow().set("name", "c").set("number", 3),
-            new TableRow().set("name", "d").set("number", 4)));
+            new TableRow().set("name", "a").set("number", "1"),
+            new TableRow().set("name", "b").set("number", "2"),
+            new TableRow().set("name", "c").set("number", "3"),
+            new TableRow().set("name", "d").set("number", "4")));
   }
 
   @Test
   public void testSchemaWriteStreams() throws Exception {
-    if (useStorageApi || !useStreaming) {
-      return;
-    }
+    assumeTrue(!useStorageApi);
+    assumeTrue(useStreaming);
+
     WriteResult result =
         p.apply(
                 Create.of(
@@ -1358,22 +1382,20 @@ public class BigQueryIOWriteTest implements Serializable {
 
     PAssert.that(result.getSuccessfulInserts())
         .satisfies(
-            new SerializableFunction<Iterable<TableRow>, Void>() {
-              @Override
-              public Void apply(Iterable<TableRow> input) {
-                assertThat(Lists.newArrayList(input).size(), is(4));
-                return null;
-              }
-            });
+            (SerializableFunction<Iterable<TableRow>, Void>)
+                input -> {
+                  assertThat(Lists.newArrayList(input).size(), is(4));
+                  return null;
+                });
     p.run();
 
     assertThat(
         fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
         containsInAnyOrder(
-            new TableRow().set("name", "a").set("number", 1),
-            new TableRow().set("name", "b").set("number", 2),
-            new TableRow().set("name", "c").set("number", 3),
-            new TableRow().set("name", "d").set("number", 4)));
+            new TableRow().set("name", "a").set("number", "1"),
+            new TableRow().set("name", "b").set("number", "2"),
+            new TableRow().set("name", "c").set("number", "3"),
+            new TableRow().set("name", "d").set("number", "4")));
   }
 
   /**
@@ -1572,9 +1594,7 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testWriteUnknown() throws Exception {
-    if (useStorageApi) {
-      return;
-    }
+    assumeTrue(!useStorageApi);
     p.apply(
             Create.of(
                     new TableRow().set("name", "a").set("number", 1),
@@ -1595,9 +1615,7 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testWriteFailedJobs() throws Exception {
-    if (useStorageApi) {
-      return;
-    }
+    assumeTrue(!useStorageApi);
     p.apply(
             Create.of(
                     new TableRow().set("name", "a").set("number", 1),
@@ -1773,6 +1791,7 @@ public class BigQueryIOWriteTest implements Serializable {
             .to(tableRef)
             .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
             .withSchema(new TableSchema())
+            .withNumStorageWriteApiStreams(2)
             .withTestServices(fakeBqServices));
     p.run();
   }
@@ -1814,6 +1833,7 @@ public class BigQueryIOWriteTest implements Serializable {
             .to(tableRef)
             .withMethod(method)
             .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER)
+            .withNumStorageWriteApiStreams(2)
             .withTestServices(fakeBqServices)
             .withoutValidation());
     p.run();
@@ -1829,10 +1849,65 @@ public class BigQueryIOWriteTest implements Serializable {
     updateTableSchemaTest(false);
   }
 
-  public void updateTableSchemaTest(boolean useSet) throws Exception {
-    if (!useStreaming || !useStorageApi) {
-      return;
+  @Test
+  public void testUpdateTableSchemaNoUnknownValues() throws Exception {
+    assumeTrue(useStreaming);
+    assumeTrue(useStorageApi);
+    thrown.expect(IllegalArgumentException.class);
+    p.apply("create", Create.empty(TableRowJsonCoder.of()))
+        .apply(
+            BigQueryIO.writeTableRows()
+                .to(BigQueryHelpers.parseTableSpec("project-id:dataset-id.table"))
+                .withMethod(Method.STORAGE_WRITE_API)
+                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER)
+                .withAutoSchemaUpdate(true)
+                .withTestServices(fakeBqServices)
+                .withoutValidation());
+    p.run();
+  }
+
+  @SuppressWarnings({"unused"})
+  static class UpdateTableSchemaDoFn extends DoFn<KV<String, TableRow>, TableRow> {
+    @TimerId("updateTimer")
+    private final TimerSpec updateTimerSpec = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
+
+    private final Duration timerOffset;
+    private final String updatedSchema;
+    private final FakeDatasetService fakeDatasetService;
+
+    UpdateTableSchemaDoFn(
+        Duration timerOffset, TableSchema updatedSchema, FakeDatasetService fakeDatasetService) {
+      this.timerOffset = timerOffset;
+      this.updatedSchema = BigQueryHelpers.toJsonString(updatedSchema);
+      this.fakeDatasetService = fakeDatasetService;
     }
+
+    @ProcessElement
+    public void processElement(
+        @Element KV<String, TableRow> element,
+        @TimerId("updateTimer") Timer updateTimer,
+        OutputReceiver<TableRow> o)
+        throws IOException {
+      updateTimer.offset(timerOffset).setRelative();
+      o.output(element.getValue());
+    }
+
+    @OnTimer("updateTimer")
+    public void onTimer(@Key String tableSpec) throws IOException {
+      fakeDatasetService.updateTableSchema(
+          BigQueryHelpers.parseTableSpec(tableSpec),
+          BigQueryHelpers.fromJsonString(updatedSchema, TableSchema.class));
+    }
+  }
+
+  public void updateTableSchemaTest(boolean useSet) throws Exception {
+    assumeTrue(useStreaming);
+    assumeTrue(useStorageApi);
+
+    // Make sure that GroupIntoBatches does not buffer data.
+    p.getOptions().as(BigQueryOptions.class).setStorageApiAppendThresholdBytes(1);
+    p.getOptions().as(BigQueryOptions.class).setNumStorageWriteApiStreams(1);
+
     BigQueryIO.Write.Method method =
         useStorageApiApproximate ? Method.STORAGE_API_AT_LEAST_ONCE : Method.STORAGE_WRITE_API;
     p.enableAbandonedNodeEnforcement(false);
@@ -1842,95 +1917,138 @@ public class BigQueryIOWriteTest implements Serializable {
         new TableSchema()
             .setFields(
                 ImmutableList.of(
+                    new TableFieldSchema().setName("number").setType("INTEGER"),
                     new TableFieldSchema().setName("name").setType("STRING"),
-                    new TableFieldSchema().setName("number").setType("INTEGER")));
+                    new TableFieldSchema().setName("req").setType("STRING").setMode("REQUIRED")));
+
+    // Add new fields to the update schema. Also reorder some existing fields to validate that we
+    // handle update
+    // field reordering correctly.
+    TableSchema tableSchemaUpdated =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("name").setType("STRING"),
+                    new TableFieldSchema().setName("number").setType("INTEGER"),
+                    new TableFieldSchema().setName("req").setType("STRING"),
+                    new TableFieldSchema().setName("double_number").setType("INTEGER")));
     fakeDatasetService.createTable(new Table().setTableReference(tableRef).setSchema(tableSchema));
 
     LongFunction<TableRow> getRowSet =
         (LongFunction<TableRow> & Serializable)
             (long i) -> {
-              if (i < 5) {
-                return new TableRow().set("name", "name" + i).set("number", Long.toString(i));
-
-              } else {
-                return new TableRow()
-                    .set("name", "name" + i)
-                    .set("number", Long.toString(i))
-                    .set("double_number", Long.toString(i * 2));
+              TableRow row =
+                  new TableRow()
+                      .set("name", "name" + i)
+                      .set("number", Long.toString(i))
+                      .set("double_number", Long.toString(i * 2));
+              if (i <= 5) {
+                row = row.set("req", "foo");
               }
+              return row;
             };
 
     LongFunction<TableRow> getRowSetF =
         (LongFunction<TableRow> & Serializable)
-            (long i) -> {
-              if (i < 5) {
-                return new TableRow()
+            (long i) ->
+                new TableRow()
                     .setF(
                         ImmutableList.of(
-                            new TableCell().setV("name" + i),
-                            new TableCell().setV(Long.toString(i))));
-              } else {
-                return new TableRow()
-                    .setF(
-                        ImmutableList.of(
-                            new TableCell().setV("name" + i),
                             new TableCell().setV(Long.toString(i)),
+                            new TableCell().setV("name" + i),
+                            new TableCell().setV(i > 5 ? null : "foo"),
                             new TableCell().setV(Long.toString(i * 2))));
-              }
-            };
 
     LongFunction<TableRow> getRow = useSet ? getRowSet : getRowSetF;
-    final int numRows = 10;
+
+    TestStream.Builder<Long> testStream =
+        TestStream.create(VarLongCoder.of()).advanceWatermarkTo(new Instant(0));
+    // These rows contain unknown fields, which should be dropped.
+    for (long i = 0; i < 5; i++) {
+      testStream = testStream.addElements(i);
+    }
+    // Expire the timer, which should update the schema.
+    testStream = testStream.advanceProcessingTime(Duration.standardSeconds(10));
+    // Add one element to trigger discovery of new schema.
+    testStream = testStream.addElements(5L);
+    testStream = testStream.advanceProcessingTime(Duration.standardSeconds(10));
+
+    // Now all fields should be known.
+    for (long i = 6; i < 10; i++) {
+      testStream = testStream.addElements(i);
+    }
+
     PCollection<TableRow> tableRows =
-        p.apply(GenerateSequence.from(0).to(numRows))
+        p.apply(testStream.advanceWatermarkToInfinity())
+            .apply("getRow", MapElements.into(TypeDescriptor.of(TableRow.class)).via(getRow::apply))
+            .apply("add key", WithKeys.of("project-id:dataset-id.table"))
             .apply(
-                MapElements.via(
-                    new SimpleFunction<Long, TableRow>() {
-                      @Override
-                      public TableRow apply(Long input) {
-                        return getRow.apply(input);
-                      }
-                    }))
+                "update schema",
+                ParDo.of(
+                    new UpdateTableSchemaDoFn(
+                        Duration.standardSeconds(5), tableSchemaUpdated, fakeDatasetService)))
             .setCoder(TableRowJsonCoder.of());
+
     tableRows.apply(
         BigQueryIO.writeTableRows()
             .to(tableRef)
             .withMethod(method)
             .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER)
+            .ignoreUnknownValues()
             .withAutoSchemaUpdate(true)
             .withTestServices(fakeBqServices)
             .withoutValidation());
 
-    Thread thread =
-        new Thread(
-            () -> {
-              try {
-                Thread.sleep(5000);
-                TableSchema tableSchemaUpdated =
-                    new TableSchema()
-                        .setFields(
-                            ImmutableList.of(
-                                new TableFieldSchema().setName("name").setType("STRING"),
-                                new TableFieldSchema().setName("number").setType("INTEGER"),
-                                new TableFieldSchema()
-                                    .setName("double_number")
-                                    .setType("INTEGER")));
-                fakeDatasetService.updateTableSchema(tableRef, tableSchemaUpdated);
-              } catch (Exception e) {
-                throw new RuntimeException(e);
-              }
-            });
-    thread.start();
     p.run();
-    thread.join();
 
+    Iterable<TableRow> expectedDroppedValues =
+        LongStream.range(0, 6)
+            .mapToObj(getRowSet)
+            .map(tr -> filterUnknownValues(tr, tableSchema.getFields()))
+            .collect(Collectors.toList());
+    Iterable<TableRow> expectedFullValues =
+        LongStream.range(6, 10).mapToObj(getRowSet).collect(Collectors.toList());
     assertThat(
         fakeDatasetService.getAllRows(
             tableRef.getProjectId(), tableRef.getDatasetId(), tableRef.getTableId()),
         containsInAnyOrder(
             Iterables.toArray(
-                LongStream.range(0, numRows).mapToObj(getRowSet).collect(Collectors.toList()),
-                TableRow.class)));
+                Iterables.concat(expectedDroppedValues, expectedFullValues), TableRow.class)));
+  }
+
+  TableRow filterUnknownValues(TableRow row, List<TableFieldSchema> tableSchemaFields) {
+    Map<String, String> schemaTypes =
+        tableSchemaFields.stream()
+            .collect(Collectors.toMap(TableFieldSchema::getName, TableFieldSchema::getType));
+    Map<String, List<TableFieldSchema>> schemaFields =
+        tableSchemaFields.stream()
+            .filter(tf -> tf.getFields() != null && !tf.getFields().isEmpty())
+            .collect(Collectors.toMap(TableFieldSchema::getName, TableFieldSchema::getFields));
+    TableRow filtered = new TableRow();
+    if (row.getF() != null) {
+      List<TableCell> values = Lists.newArrayList();
+      for (int i = 0; i < tableSchemaFields.size(); ++i) {
+        String fieldType = tableSchemaFields.get(i).getType();
+        Object value = row.getF().get(i).getV();
+        if (fieldType.equals("STRUCT") || fieldType.equals("RECORD")) {
+          value = filterUnknownValues((TableRow) value, tableSchemaFields.get(i).getFields());
+        }
+        values.add(new TableCell().setV(value));
+      }
+      filtered = filtered.setF(values);
+    } else {
+      for (Map.Entry<String, Object> entry : row.entrySet()) {
+        Object value = entry.getValue();
+        @Nullable String fieldType = schemaTypes.get(entry.getKey());
+        if (fieldType != null) {
+          if (fieldType.equals("STRUCT") || fieldType.equals("RECORD")) {
+            value = filterUnknownValues((TableRow) value, schemaFields.get(entry.getKey()));
+          }
+          filtered = filtered.set(entry.getKey(), value);
+        }
+      }
+    }
+    return filtered;
   }
 
   @Test
@@ -1969,9 +2087,7 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testWriteValidateFailsBothFormatFunctions() {
-    if (useStorageApi) {
-      return;
-    }
+    assumeTrue(!useStorageApi);
     p.enableAbandonedNodeEnforcement(false);
 
     thrown.expect(IllegalArgumentException.class);
@@ -1990,9 +2106,7 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testWriteValidateFailsWithBeamSchemaAndAvroFormatFunction() {
-    if (useStorageApi) {
-      return;
-    }
+    assumeTrue(!useStorageApi);
     p.enableAbandonedNodeEnforcement(false);
 
     thrown.expect(IllegalArgumentException.class);
@@ -2008,13 +2122,12 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testWriteValidateFailsWithAvroFormatAndStreamingInserts() {
-    if (!useStreaming && !useStorageApi) {
-      return;
-    }
+    assumeTrue(useStreaming);
+    assumeTrue(!useStorageApi);
     p.enableAbandonedNodeEnforcement(false);
 
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Writing avro formatted data is only supported for FILE_LOADS");
+    thrown.expectMessage("Avro output is not supported when method == STREAMING_INSERTS");
     p.apply(Create.empty(INPUT_RECORD_CODER))
         .apply(
             BigQueryIO.<InputRecord>write()
@@ -2027,9 +2140,7 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testWriteValidateFailsWithBatchAutoSharding() {
-    if (useStorageApi) {
-      return;
-    }
+    assumeTrue(!useStorageApi);
     p.enableAbandonedNodeEnforcement(false);
 
     thrown.expect(IllegalArgumentException.class);
@@ -2042,6 +2153,21 @@ public class BigQueryIOWriteTest implements Serializable {
                 .withMethod(Method.STREAMING_INSERTS)
                 .withAutoSharding()
                 .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED));
+  }
+
+  @Test
+  public void testMaxRetryJobs() {
+    assumeTrue(!useStorageApi);
+    BigQueryIO.Write<TableRow> write =
+        BigQueryIO.writeTableRows()
+            .to("dataset.table")
+            .withSchema(new TableSchema())
+            .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+            .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
+            .withSchemaUpdateOptions(
+                EnumSet.of(BigQueryIO.Write.SchemaUpdateOption.ALLOW_FIELD_ADDITION))
+            .withMaxRetryJobs(500);
+    assertEquals(500, write.getMaxRetryJobs());
   }
 
   @Test
@@ -2496,10 +2622,8 @@ public class BigQueryIOWriteTest implements Serializable {
   }
 
   @Test
-  public void testExtendedErrorRetrieval() throws Exception {
-    if (useStorageApi) {
-      return;
-    }
+  public void testStreamingInsertsExtendedErrorRetrieval() throws Exception {
+    assumeTrue(!useStorageApi);
     TableRow row1 = new TableRow().set("name", "a").set("number", "1");
     TableRow row2 = new TableRow().set("name", "b").set("number", "2");
     TableRow row3 = new TableRow().set("name", "c").set("number", "3");
@@ -2552,13 +2676,7 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testStorageApiErrors() throws Exception {
-    BigQueryOptions bqOptions = p.getOptions().as(BigQueryOptions.class);
-    bqOptions.setSchemaUpdateRetries(1);
-
-    if (!useStorageApi) {
-      return;
-    }
-
+    assumeTrue(useStorageApi);
     final Method method =
         useStorageApiApproximate ? Method.STORAGE_API_AT_LEAST_ONCE : Method.STORAGE_WRITE_API;
 
@@ -2633,6 +2751,7 @@ public class BigQueryIOWriteTest implements Serializable {
                     .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
                     .withSchema(tableSchema)
                     .withFailedInsertRetryPolicy(InsertRetryPolicy.retryTransientErrors())
+                    .withPropagateSuccessfulStorageApiWrites(true)
                     .withTestServices(fakeBqServices)
                     .withoutValidation());
 
@@ -2642,10 +2761,15 @@ public class BigQueryIOWriteTest implements Serializable {
             .apply(
                 MapElements.into(TypeDescriptor.of(TableRow.class))
                     .via(BigQueryStorageApiInsertError::getRow));
+    PCollection<TableRow> successfulRows = result.getSuccessfulStorageApiInserts();
 
     PAssert.that(deadRows)
         .containsInAnyOrder(
             Iterables.concat(badRows, Iterables.filter(goodRows, shouldFailRow::apply)));
+    PAssert.that(successfulRows)
+        .containsInAnyOrder(
+            Iterables.toArray(
+                Iterables.filter(goodRows, r -> !shouldFailRow.apply(r)), TableRow.class));
     p.run();
 
     assertThat(
@@ -2656,10 +2780,8 @@ public class BigQueryIOWriteTest implements Serializable {
   }
 
   @Test
-  public void testWrongErrorConfigs() {
-    if (useStorageApi) {
-      return;
-    }
+  public void testStreamingInsertsWrongErrorConfigs() {
+    assumeTrue(!useStorageApi);
     p.enableAutoRunIfMissing(true);
     TableRow row1 = new TableRow().set("name", "a").set("number", "1");
 
@@ -2722,6 +2844,7 @@ public class BigQueryIOWriteTest implements Serializable {
   void schemaUpdateOptionsTest(
       BigQueryIO.Write.Method insertMethod, Set<SchemaUpdateOption> schemaUpdateOptions)
       throws Exception {
+    assumeTrue(!useStorageApi);
     TableRow row = new TableRow().set("date", "2019-01-01").set("number", "1");
 
     TableSchema schema =
@@ -2777,13 +2900,433 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testSchemaUpdateOptionsFailsStreamingInserts() throws Exception {
-    if (!useStreaming && !useStorageApi) {
-      return;
-    }
+    assumeTrue(useStreaming);
+    assumeTrue(!useStorageApi);
     Set<SchemaUpdateOption> options = EnumSet.of(SchemaUpdateOption.ALLOW_FIELD_ADDITION);
     p.enableAbandonedNodeEnforcement(false);
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("SchemaUpdateOptions are not supported when method == STREAMING_INSERTS");
     schemaUpdateOptionsTest(BigQueryIO.Write.Method.STREAMING_INSERTS, options);
+  }
+
+  @Test
+  public void testWriteWithStorageApiWithDefaultProject() throws Exception {
+    assumeTrue(useStorageApi);
+    BigQueryIO.Write<TableRow> write =
+        BigQueryIO.writeTableRows()
+            .to("dataset-id.table-id")
+            .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+            .withSchema(
+                new TableSchema()
+                    .setFields(
+                        ImmutableList.of(new TableFieldSchema().setName("name").setType("STRING"))))
+            .withMethod(Method.STORAGE_WRITE_API)
+            .withoutValidation()
+            .withTestServices(fakeBqServices);
+
+    p.apply(
+            Create.of(new TableRow().set("name", "a"), new TableRow().set("name", "b"))
+                .withCoder(TableRowJsonCoder.of()))
+        .apply("WriteToBQ", write);
+    p.run();
+    assertThat(
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
+        containsInAnyOrder(new TableRow().set("name", "a"), new TableRow().set("name", "b")));
+  }
+
+  @Test
+  public void testBatchStorageWriteWithMultipleAppendsPerStream() throws Exception {
+    assumeTrue(useStorageApi);
+    assumeTrue(!useStreaming);
+
+    // reduce threshold to trigger multiple stream appends
+    p.getOptions().as(BigQueryOptions.class).setStorageApiAppendThresholdRecordCount(0);
+    // limit parallelism to limit the number of write streams we have open
+    p.getOptions().as(DirectOptions.class).setTargetParallelism(1);
+
+    TableSchema schema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("num").setType("INTEGER"),
+                    new TableFieldSchema().setName("name").setType("STRING")));
+    Table fakeTable = new Table();
+    TableReference ref =
+        new TableReference()
+            .setProjectId("project-id")
+            .setDatasetId("dataset-id")
+            .setTableId("table-id");
+    fakeTable.setSchema(schema);
+    fakeTable.setTableReference(ref);
+    fakeDatasetService.createTable(fakeTable);
+
+    List<TableRow> rows = new ArrayList<TableRow>(100);
+    for (int i = 0; i < 100; i++) {
+      rows.add(new TableRow().set("num", String.valueOf(i)).set("name", String.valueOf(i)));
+    }
+    p.apply(Create.of(rows))
+        .apply(
+            "Save Events To BigQuery",
+            BigQueryIO.writeTableRows()
+                .to(ref)
+                .withMethod(Write.Method.STORAGE_WRITE_API)
+                .withCreateDisposition(CreateDisposition.CREATE_NEVER)
+                .withTestServices(fakeBqServices));
+
+    p.run();
+
+    assertThat(
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
+        containsInAnyOrder(Iterables.toArray(rows, TableRow.class)));
+  }
+
+  @Test
+  public void testUpsertAndDeleteTableRows() throws Exception {
+    assumeTrue(useStorageApi);
+    assumeTrue(useStorageApiApproximate);
+
+    TableSchema tableSchema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("key1").setType("STRING"),
+                    new TableFieldSchema().setName("key2").setType("STRING"),
+                    new TableFieldSchema().setName("value").setType("STRING")));
+
+    Table fakeTable = new Table();
+    TableReference ref =
+        new TableReference()
+            .setProjectId("project-id")
+            .setDatasetId("dataset-id")
+            .setTableId("table-id");
+    fakeTable.setSchema(tableSchema);
+    fakeTable.setTableReference(ref);
+    fakeDatasetService.createTable(fakeTable);
+    fakeDatasetService.setPrimaryKey(ref, Lists.newArrayList("key1", "key2"));
+
+    List<RowMutation> items =
+        Lists.newArrayList(
+            RowMutation.of(
+                new TableRow().set("key1", "foo0").set("key2", "bar0").set("value", "1"),
+                RowMutationInformation.of(RowMutationInformation.MutationType.UPSERT, 0)),
+            RowMutation.of(
+                new TableRow().set("key1", "foo1").set("key2", "bar1").set("value", "1"),
+                RowMutationInformation.of(RowMutationInformation.MutationType.UPSERT, 0)),
+            RowMutation.of(
+                new TableRow().set("key1", "foo0").set("key2", "bar0").set("value", "2"),
+                RowMutationInformation.of(RowMutationInformation.MutationType.UPSERT, 1)),
+            RowMutation.of(
+                new TableRow().set("key1", "foo1").set("key2", "bar1").set("value", "1"),
+                RowMutationInformation.of(RowMutationInformation.MutationType.DELETE, 1)),
+            RowMutation.of(
+                new TableRow().set("key1", "foo3").set("key2", "bar3").set("value", "1"),
+                RowMutationInformation.of(RowMutationInformation.MutationType.UPSERT, 0)),
+            RowMutation.of(
+                new TableRow().set("key1", "foo1").set("key2", "bar1").set("value", "3"),
+                RowMutationInformation.of(RowMutationInformation.MutationType.UPSERT, 2)),
+            RowMutation.of(
+                new TableRow().set("key1", "foo4").set("key2", "bar4").set("value", "1"),
+                RowMutationInformation.of(RowMutationInformation.MutationType.UPSERT, 0)),
+            RowMutation.of(
+                new TableRow().set("key1", "foo4").set("key2", "bar4").set("value", "1"),
+                RowMutationInformation.of(RowMutationInformation.MutationType.DELETE, 1)));
+
+    BigQueryIO.Write<RowMutation> write =
+        BigQueryIO.applyRowMutations()
+            .to("dataset-id.table-id")
+            .withCreateDisposition(CreateDisposition.CREATE_NEVER)
+            .withSchema(tableSchema)
+            .withMethod(Method.STORAGE_API_AT_LEAST_ONCE)
+            .withoutValidation()
+            .withTestServices(fakeBqServices);
+
+    p.apply(Create.of(items)).apply("WriteToBQ", write);
+    p.run();
+
+    List<TableRow> expected =
+        Lists.newArrayList(
+            new TableRow().set("key1", "foo0").set("key2", "bar0").set("value", "2"),
+            new TableRow().set("key1", "foo1").set("key2", "bar1").set("value", "3"),
+            new TableRow().set("key1", "foo3").set("key2", "bar3").set("value", "1"));
+
+    assertThat(
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
+        containsInAnyOrder(Iterables.toArray(expected, TableRow.class)));
+  }
+
+  @Test
+  public void testUpsertAndDeleteGenericRecords() throws Exception {
+    assumeTrue(useStorageApi);
+    assumeTrue(useStorageApiApproximate);
+
+    TableSchema tableSchema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("key1").setType("STRING"),
+                    new TableFieldSchema().setName("key2").setType("STRING"),
+                    new TableFieldSchema().setName("value").setType("STRING"),
+                    new TableFieldSchema().setName("updateType").setType("STRING"),
+                    new TableFieldSchema().setName("sqn").setType("INT64")));
+
+    Table fakeTable = new Table();
+    TableReference ref =
+        new TableReference()
+            .setProjectId("project-id")
+            .setDatasetId("dataset-id")
+            .setTableId("table-id");
+    fakeTable.setSchema(tableSchema);
+    fakeTable.setTableReference(ref);
+    fakeDatasetService.createTable(fakeTable);
+    fakeDatasetService.setPrimaryKey(ref, Lists.newArrayList("key1", "key2"));
+
+    org.apache.avro.Schema avroSchema =
+        SchemaBuilder.record("TestRecord")
+            .fields()
+            .optionalString("key1")
+            .optionalString("key2")
+            .optionalString("value")
+            .optionalString("updateType")
+            .optionalLong("sqn")
+            .endRecord();
+
+    List<GenericRecord> items =
+        Lists.newArrayList(
+            new GenericRecordBuilder(avroSchema)
+                .set("key1", "foo0")
+                .set("key2", "bar0")
+                .set("value", "1")
+                .set("updateType", "UPSERT")
+                .set("sqn", 0L)
+                .build(),
+            new GenericRecordBuilder(avroSchema)
+                .set("key1", "foo1")
+                .set("key2", "bar1")
+                .set("value", "1")
+                .set("updateType", "UPSERT")
+                .set("sqn", 0L)
+                .build(),
+            new GenericRecordBuilder(avroSchema)
+                .set("key1", "foo0")
+                .set("key2", "bar0")
+                .set("value", "2")
+                .set("updateType", "UPSERT")
+                .set("sqn", 1L)
+                .build(),
+            new GenericRecordBuilder(avroSchema)
+                .set("key1", "foo1")
+                .set("key2", "bar1")
+                .set("value", "1")
+                .set("updateType", "DELETE")
+                .set("sqn", 1L)
+                .build(),
+            new GenericRecordBuilder(avroSchema)
+                .set("key1", "foo3")
+                .set("key2", "bar3")
+                .set("value", "1")
+                .set("updateType", "UPSERT")
+                .set("sqn", 0L)
+                .build(),
+            new GenericRecordBuilder(avroSchema)
+                .set("key1", "foo1")
+                .set("key2", "bar1")
+                .set("value", "3")
+                .set("updateType", "UPSERT")
+                .set("sqn", 2L)
+                .build(),
+            new GenericRecordBuilder(avroSchema)
+                .set("key1", "foo4")
+                .set("key2", "bar4")
+                .set("value", "1")
+                .set("updateType", "UPSERT")
+                .set("sqn", 0L)
+                .build(),
+            new GenericRecordBuilder(avroSchema)
+                .set("key1", "foo4")
+                .set("key2", "bar4")
+                .set("value", "1")
+                .set("updateType", "DELETE")
+                .set("sqn", 1L)
+                .build());
+
+    BigQueryIO.Write<GenericRecord> write =
+        BigQueryIO.writeGenericRecords()
+            .to("dataset-id.table-id")
+            .withCreateDisposition(CreateDisposition.CREATE_NEVER)
+            .withSchema(tableSchema)
+            .withMethod(Method.STORAGE_API_AT_LEAST_ONCE)
+            .withRowMutationInformationFn(
+                r ->
+                    RowMutationInformation.of(
+                        RowMutationInformation.MutationType.valueOf(r.get("updateType").toString()),
+                        (long) r.get("sqn")))
+            .withoutValidation()
+            .withTestServices(fakeBqServices);
+
+    p.apply(Create.of(items).withCoder(AvroGenericCoder.of(avroSchema))).apply("WriteToBQ", write);
+    p.run();
+
+    List<TableRow> expected =
+        Lists.newArrayList(
+            new TableRow()
+                .set("key1", "foo0")
+                .set("key2", "bar0")
+                .set("value", "2")
+                .set("updatetype", "UPSERT")
+                .set("sqn", "1"),
+            new TableRow()
+                .set("key1", "foo1")
+                .set("key2", "bar1")
+                .set("value", "3")
+                .set("updatetype", "UPSERT")
+                .set("sqn", "2"),
+            new TableRow()
+                .set("key1", "foo3")
+                .set("key2", "bar3")
+                .set("value", "1")
+                .set("updatetype", "UPSERT")
+                .set("sqn", "0"));
+
+    assertThat(
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
+        containsInAnyOrder(Iterables.toArray(expected, TableRow.class)));
+  }
+
+  @Test
+  public void testUpsertAndDeleteBeamRows() throws Exception {
+    assumeTrue(useStorageApi);
+    assumeTrue(useStorageApiApproximate);
+
+    TableSchema tableSchema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("key1").setType("STRING"),
+                    new TableFieldSchema().setName("key2").setType("STRING"),
+                    new TableFieldSchema().setName("value").setType("STRING"),
+                    new TableFieldSchema().setName("updateType").setType("STRING"),
+                    new TableFieldSchema().setName("sqn").setType("INT64")));
+
+    Table fakeTable = new Table();
+    TableReference ref =
+        new TableReference()
+            .setProjectId("project-id")
+            .setDatasetId("dataset-id")
+            .setTableId("table-id");
+    fakeTable.setSchema(tableSchema);
+    fakeTable.setTableReference(ref);
+    fakeDatasetService.createTable(fakeTable);
+    fakeDatasetService.setPrimaryKey(ref, Lists.newArrayList("key1", "key2"));
+
+    Schema beamSchema =
+        Schema.builder()
+            .addNullableStringField("key1")
+            .addNullableStringField("key2")
+            .addNullableStringField("value")
+            .addNullableStringField("updateType")
+            .addNullableInt64Field("sqn")
+            .build();
+
+    List<Row> items =
+        Lists.newArrayList(
+            Row.withSchema(beamSchema)
+                .withFieldValue("key1", "foo0")
+                .withFieldValue("key2", "bar0")
+                .withFieldValue("value", "1")
+                .withFieldValue("updateType", "UPSERT")
+                .withFieldValue("sqn", 0L)
+                .build(),
+            Row.withSchema(beamSchema)
+                .withFieldValue("key1", "foo1")
+                .withFieldValue("key2", "bar1")
+                .withFieldValue("value", "1")
+                .withFieldValue("updateType", "UPSERT")
+                .withFieldValue("sqn", 0L)
+                .build(),
+            Row.withSchema(beamSchema)
+                .withFieldValue("key1", "foo0")
+                .withFieldValue("key2", "bar0")
+                .withFieldValue("value", "2")
+                .withFieldValue("updateType", "UPSERT")
+                .withFieldValue("sqn", 1L)
+                .build(),
+            Row.withSchema(beamSchema)
+                .withFieldValue("key1", "foo1")
+                .withFieldValue("key2", "bar1")
+                .withFieldValue("value", "1")
+                .withFieldValue("updateType", "DELETE")
+                .withFieldValue("sqn", 1L)
+                .build(),
+            Row.withSchema(beamSchema)
+                .withFieldValue("key1", "foo3")
+                .withFieldValue("key2", "bar3")
+                .withFieldValue("value", "1")
+                .withFieldValue("updateType", "UPSERT")
+                .withFieldValue("sqn", 0L)
+                .build(),
+            Row.withSchema(beamSchema)
+                .withFieldValue("key1", "foo1")
+                .withFieldValue("key2", "bar1")
+                .withFieldValue("value", "3")
+                .withFieldValue("updateType", "UPSERT")
+                .withFieldValue("sqn", 2L)
+                .build(),
+            Row.withSchema(beamSchema)
+                .withFieldValue("key1", "foo4")
+                .withFieldValue("key2", "bar4")
+                .withFieldValue("value", "1")
+                .withFieldValue("updateType", "UPSERT")
+                .withFieldValue("sqn", 0L)
+                .build(),
+            Row.withSchema(beamSchema)
+                .withFieldValue("key1", "foo4")
+                .withFieldValue("key2", "bar4")
+                .withFieldValue("value", "1")
+                .withFieldValue("updateType", "DELETE")
+                .withFieldValue("sqn", 1L)
+                .build());
+
+    BigQueryIO.Write<Row> write =
+        BigQueryIO.<Row>write()
+            .to("dataset-id.table-id")
+            .withCreateDisposition(CreateDisposition.CREATE_NEVER)
+            .withSchema(tableSchema)
+            .withMethod(Method.STORAGE_API_AT_LEAST_ONCE)
+            .useBeamSchema()
+            .withRowMutationInformationFn(
+                r ->
+                    RowMutationInformation.of(
+                        RowMutationInformation.MutationType.valueOf(r.getString("updateType")),
+                        r.getInt64("sqn")))
+            .withoutValidation()
+            .withTestServices(fakeBqServices);
+
+    p.apply(Create.of(items).withRowSchema(beamSchema)).apply("WriteToBQ", write);
+    p.run();
+
+    List<TableRow> expected =
+        Lists.newArrayList(
+            new TableRow()
+                .set("key1", "foo0")
+                .set("key2", "bar0")
+                .set("value", "2")
+                .set("updatetype", "UPSERT")
+                .set("sqn", "1"),
+            new TableRow()
+                .set("key1", "foo1")
+                .set("key2", "bar1")
+                .set("value", "3")
+                .set("updatetype", "UPSERT")
+                .set("sqn", "2"),
+            new TableRow()
+                .set("key1", "foo3")
+                .set("key2", "bar3")
+                .set("value", "1")
+                .set("updatetype", "UPSERT")
+                .set("sqn", "0"));
+
+    assertThat(
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
+        containsInAnyOrder(Iterables.toArray(expected, TableRow.class)));
   }
 }

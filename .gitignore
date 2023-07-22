@@ -45,6 +45,7 @@ sdks/java/maven-archetypes/examples/src/main/resources/archetype-resources/sampl
 **/env/**/*
 **/.mypy_cache
 **/.dmypy.json
+**/.hypothesis
 sdks/python/**/*.c
 sdks/python/**/*.so
 sdks/python/**/*.egg
@@ -126,6 +127,8 @@ website/www/yarn-error.log
 **/.packages
 **/generated_plugin_registrant.dart
 playground/frontend/playground_components/pubspec.lock
+playground/frontend/playground_components/test/tools/extract_symbols_java/dependencies
+playground/frontend/playground_components_dev/pubspec.lock
 
 # Ignore Beam Playground Terraform
 **/.terraform
@@ -133,6 +136,10 @@ playground/frontend/playground_components/pubspec.lock
 **/*.tfstate.*
 **/*.hcl
 **/*.tfvars
+playground/cloudfunction.zip
 
 # Ignore Katas auto-generated files
 **/*-remote-info.yaml
+
+# Exception to .gitignore .test-infra/pipelines related files
+!.test-infra/pipelines/**/apache-beam-testing.tfvars

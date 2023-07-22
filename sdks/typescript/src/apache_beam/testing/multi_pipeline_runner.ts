@@ -30,6 +30,25 @@ class FakePipelineResult extends PipelineResult {
   }
 }
 
+/**
+ * A Runner implementation used to turn multiple pipeline `run()`s into a
+ * a single `run()` of all the pipelines in parallel.
+ *
+ * This is primarily useful for testing runners (e.g. distributed runners)
+ * whose per-pipeline costs are substantially larger than the typical amount
+ * of computation done in a single unit test.
+ *
+ * After invoking `run()` on several pipelines, one must invoke
+ * `reallyRunPipelines()` which will actually execute the pipelines on
+ * the underlying runner. Any individual pipeline failure will cause the
+ * entire pipeline to fail.
+ *
+ * Note that due to the (doubly) deferred nature of `run()`, the test in
+ * question should use transforms like `testing.assert.assertDeepEqual`
+ * (which fail if the input PCollection does not have the expected contents)
+ * rather than trying to validate any side effects of the (not-yet-executed)
+ * pipeline directly.
+ */
 export class MultiPipelineRunner extends Runner {
   allPipelines?: runnerApi.Pipeline;
   counter: number = 0;

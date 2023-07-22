@@ -16,93 +16,162 @@
  * limitations under the License.
  */
 
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:keyed_collection_widgets/keyed_collection_widgets.dart';
 import 'package:playground_components/playground_components.dart';
 
 import '../../components/scaffold.dart';
 import '../../constants/sizes.dart';
+import '../../enums/tour_view.dart';
+import '../../shortcuts/shortcuts_manager.dart';
 import 'state.dart';
-import 'widgets/content.dart';
 import 'widgets/content_tree.dart';
-import 'widgets/playground_demo.dart';
+import 'widgets/playground.dart';
+import 'widgets/unit_content.dart';
 
 class TourScreen extends StatelessWidget {
-  final TourNotifier notifier;
+  final TourNotifier tourNotifier;
+  static const dragHandleKey = Key('dragHandleKey');
 
-  const TourScreen(this.notifier);
+  const TourScreen(this.tourNotifier);
 
   @override
   Widget build(BuildContext context) {
-    return TobScaffold(
-      child: MediaQuery.of(context).size.width > ScreenBreakpoints.twoColumns
-          ? _WideTour(notifier)
-          : _NarrowTour(notifier),
+    return AnimatedBuilder(
+      animation: tourNotifier,
+      builder: (context, child) {
+        return TobShortcutsManager(
+          tourNotifier: tourNotifier,
+          child: TobScaffold(
+            playgroundController: tourNotifier.isPlaygroundShown
+                ? tourNotifier.playgroundController
+                : null,
+            child:
+                MediaQuery.of(context).size.width > ScreenBreakpoints.twoColumns
+                    ? _WideTour(tourNotifier)
+                    : _NarrowTour(tourNotifier),
+          ),
+        );
+      },
     );
   }
 }
 
 class _WideTour extends StatelessWidget {
-  final TourNotifier notifier;
+  final TourNotifier tourNotifier;
 
-  const _WideTour(this.notifier);
+  const _WideTour(this.tourNotifier);
 
   @override
   Widget build(BuildContext context) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ContentTreeWidget(controller: notifier.contentTreeController),
+        ContentTreeWidget(controller: tourNotifier.contentTreeController),
         Expanded(
-          child: SplitView(
-            direction: Axis.horizontal,
-            first: ContentWidget(notifier),
-            second: PlaygroundDemoWidget(
-              playgroundController: notifier.playgroundController,
-            ),
-          ),
+          child: _UnitContentWidget(tourNotifier: tourNotifier),
         ),
       ],
     );
   }
 }
 
-class _NarrowTour extends StatelessWidget {
-  final TourNotifier notifier;
+class _UnitContentWidget extends StatelessWidget {
+  const _UnitContentWidget({required this.tourNotifier});
 
-  const _NarrowTour(this.notifier);
+  final TourNotifier tourNotifier;
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      child: Column(
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ContentTreeWidget(controller: notifier.contentTreeController),
-              Expanded(child: ContentWidget(notifier)),
-            ],
-          ),
-          DecoratedBox(
-            decoration: BoxDecoration(
-              border: Border(
-                top: BorderSide(color: Theme.of(context).dividerColor),
-              ),
-            ),
-            child: const _NarrowScreenPlayground(),
-          ),
-        ],
-      ),
+    return AnimatedBuilder(
+      animation: tourNotifier,
+      builder: (context, widget) {
+        return tourNotifier.isPlaygroundShown
+            ? _UnitContentWithPlaygroundSplitView(tourNotifier)
+            : UnitContentWidget(tourNotifier);
+      },
     );
   }
 }
 
-class _NarrowScreenPlayground extends StatelessWidget {
-  const _NarrowScreenPlayground();
+class _UnitContentWithPlaygroundSplitView extends StatelessWidget {
+  final TourNotifier tourNotifier;
+  const _UnitContentWithPlaygroundSplitView(this.tourNotifier);
 
   @override
   Widget build(BuildContext context) {
-    // TODO(alexeyinkin): Even this way the narrow layout breaks, https://github.com/apache/beam/issues/23244
-    return const Center(child: Text('TODO: Playground for narrow screen'));
+    final isPlaygroundLoading = tourNotifier.currentUnitContent == null ||
+        tourNotifier.isSnippetLoading;
+
+    return SplitView(
+      direction: Axis.horizontal,
+      dragHandleKey: TourScreen.dragHandleKey,
+      first: UnitContentWidget(tourNotifier),
+      second: isPlaygroundLoading
+          ? const Center(child: CircularProgressIndicator())
+          : PlaygroundWidget(
+              tourNotifier: tourNotifier,
+            ),
+    );
+  }
+}
+
+class _NarrowTour extends StatelessWidget {
+  final TourNotifier tourNotifier;
+
+  const _NarrowTour(this.tourNotifier);
+
+  @override
+  Widget build(BuildContext context) {
+    final borderSide = BorderSide(
+      color: Theme.of(context).dividerColor,
+    );
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ContentTreeWidget(controller: tourNotifier.contentTreeController),
+        Expanded(
+          child: DefaultKeyedTabController.fromKeys(
+            keys: TourView.values,
+            child: Column(
+              children: [
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    border: Border(
+                      left: borderSide,
+                      bottom: borderSide,
+                    ),
+                  ),
+                  child: KeyedTabBar.withDefaultController<TourView>(
+                    tabs: UnmodifiableTourViewMap(
+                      content: Tab(
+                        text: 'pages.tour.content'.tr(),
+                      ),
+                      playground: Tab(
+                        text: 'pages.tour.playground'.tr(),
+                      ),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: KeyedTabBarView.withDefaultController<TourView>(
+                    children: UnmodifiableTourViewMap(
+                      content: UnitContentWidget(
+                        tourNotifier,
+                      ),
+                      playground: PlaygroundWidget(
+                        tourNotifier: tourNotifier,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }

@@ -24,8 +24,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
-import org.apache.beam.sdk.coders.AvroCoder;
+import java.util.Map;
+import java.util.regex.Pattern;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.kafka.KafkaIO.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -65,14 +67,26 @@ class KafkaUnboundedSource<K, V> extends UnboundedSource<KafkaRecord<K, V>, Kafk
 
     if (partitions.isEmpty()) {
       try (Consumer<?, ?> consumer = spec.getConsumerFactoryFn().apply(spec.getConsumerConfig())) {
-        for (String topic : Preconditions.checkStateNotNull(spec.getTopics())) {
-          List<PartitionInfo> partitionInfoList = consumer.partitionsFor(topic);
-          checkState(
-              partitionInfoList != null,
-              "Could not find any partitions info. Please check Kafka configuration and make sure "
-                  + "that provided topics exist.");
-          for (PartitionInfo p : partitionInfoList) {
-            partitions.add(new TopicPartition(p.topic(), p.partition()));
+        List<String> topics = Preconditions.checkStateNotNull(spec.getTopics());
+        if (topics.isEmpty()) {
+          Pattern pattern = Preconditions.checkStateNotNull(spec.getTopicPattern());
+          for (Map.Entry<String, List<PartitionInfo>> entry : consumer.listTopics().entrySet()) {
+            if (pattern.matcher(entry.getKey()).matches()) {
+              for (PartitionInfo p : entry.getValue()) {
+                partitions.add(new TopicPartition(p.topic(), p.partition()));
+              }
+            }
+          }
+        } else {
+          for (String topic : topics) {
+            List<PartitionInfo> partitionInfoList = consumer.partitionsFor(topic);
+            checkState(
+                partitionInfoList != null,
+                "Could not find any partitions info. Please check Kafka configuration and make sure "
+                    + "that provided topics exist.");
+            for (PartitionInfo p : partitionInfoList) {
+              partitions.add(new TopicPartition(p.topic(), p.partition()));
+            }
           }
         }
       }

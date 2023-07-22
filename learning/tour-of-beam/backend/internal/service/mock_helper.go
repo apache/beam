@@ -18,7 +18,7 @@ package service
 import (
 	context "context"
 
-	pb "beam.apache.org/learning/tour-of-beam/backend/playground_api"
+	pb "beam.apache.org/learning/tour-of-beam/backend/playground_api/api/v1"
 	grpc "google.golang.org/grpc"
 )
 

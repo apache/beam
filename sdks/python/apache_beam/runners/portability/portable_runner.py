@@ -39,11 +39,13 @@ from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
+from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.options.value_provider import ValueProvider
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_artifact_api_pb2_grpc
 from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.runners import runner
+from apache_beam.runners.common import group_by_key_input_visitor
 from apache_beam.runners.job import utils as job_utils
 from apache_beam.runners.portability import artifact_service
 from apache_beam.runners.portability import job_server
@@ -434,6 +436,11 @@ class PortableRunner(runner.PipelineRunner):
       cleanup_callbacks = [functools.partial(server.stop, 1)]
     else:
       cleanup_callbacks = []
+
+    pipeline.visit(
+        group_by_key_input_visitor(
+            not options.view_as(TypeOptions).allow_non_deterministic_key_coders)
+    )
 
     proto_pipeline = self.get_proto_pipeline(pipeline, options)
     job_service_handle = self.create_job_service(options)

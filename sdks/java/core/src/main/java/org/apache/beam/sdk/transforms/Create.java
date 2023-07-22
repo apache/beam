@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Deque;
 import java.util.Iterator;
 import java.util.List;
@@ -32,8 +33,6 @@ import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Set;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -124,7 +123,7 @@ public class Create<T> {
    * Otherwise, use {@link Create.Values#withCoder} to set the coder explicitly.
    */
   public static <T> Values<T> of(Iterable<T> elems) {
-    return new Values<>(elems, Optional.absent(), Optional.absent());
+    return new Values<>(elems, Optional.absent(), Optional.absent(), false);
   }
 
   /**
@@ -154,10 +153,9 @@ public class Create<T> {
    * Returns a new {@code Create.Values} transform that produces an empty {@link PCollection} of
    * rows.
    */
-  @Experimental(Kind.SCHEMAS)
   public static Values<Row> empty(Schema schema) {
     return new Values<Row>(
-        new ArrayList<>(), Optional.of(SchemaCoder.of(schema)), Optional.absent());
+        new ArrayList<>(), Optional.of(SchemaCoder.of(schema)), Optional.absent(), false);
   }
 
   /**
@@ -170,7 +168,7 @@ public class Create<T> {
    * the {@code Coder} is provided via the {@code coder} argument.
    */
   public static <T> Values<T> empty(Coder<T> coder) {
-    return new Values<>(new ArrayList<>(), Optional.of(coder), Optional.absent());
+    return new Values<>(new ArrayList<>(), Optional.of(coder), Optional.absent(), false);
   }
 
   /**
@@ -184,7 +182,7 @@ public class Create<T> {
    * must be registered for the class described in the {@code TypeDescriptor<T>}.
    */
   public static <T> Values<T> empty(TypeDescriptor<T> type) {
-    return new Values<>(new ArrayList<>(), Optional.absent(), Optional.of(type));
+    return new Values<>(new ArrayList<>(), Optional.absent(), Optional.of(type), false);
   }
 
   /**
@@ -287,14 +285,13 @@ public class Create<T> {
      * <p>Note that for {@link Create.Values} with no elements, the {@link VoidCoder} is used.
      */
     public Values<T> withCoder(Coder<T> coder) {
-      return new Values<>(elems, Optional.of(coder), typeDescriptor);
+      return new Values<>(elems, Optional.of(coder), typeDescriptor, alwaysUseRead);
     }
 
     /**
      * Returns a {@link Create.Values} PTransform like this one that uses the given {@code Schema}
      * to represent objects.
      */
-    @Experimental(Kind.SCHEMAS)
     public Values<T> withSchema(
         Schema schema,
         TypeDescriptor<T> typeDescriptor,
@@ -307,7 +304,6 @@ public class Create<T> {
      * Returns a {@link Create.Values} PTransform like this one that uses the given {@code Schema}
      * to represent objects.
      */
-    @Experimental(Kind.SCHEMAS)
     public Values<T> withRowSchema(Schema schema) {
       return withCoder((SchemaCoder<T>) SchemaCoder.of(schema));
     }
@@ -326,7 +322,11 @@ public class Create<T> {
      * <p>Note that for {@link Create.Values} with no elements, the {@link VoidCoder} is used.
      */
     public Values<T> withType(TypeDescriptor<T> type) {
-      return new Values<>(elems, coder, Optional.of(type));
+      return new Values<>(elems, coder, Optional.of(type), alwaysUseRead);
+    }
+
+    public Values<T> alwaysUseRead() {
+      return new AlwaysUseRead<>(elems, coder, typeDescriptor);
     }
 
     public Iterable<T> getElements() {
@@ -367,6 +367,41 @@ public class Create<T> {
             e);
       }
       try {
+        if (!alwaysUseRead) {
+          int numElements = Iterables.size(elems);
+          if (numElements == 0) {
+            return input
+                .apply(Impulse.create())
+                .apply(
+                    FlatMapElements.via(
+                        new SimpleFunction<byte[], Iterable<T>>() {
+                          @Override
+                          public Iterable<T> apply(byte[] input) {
+                            return Collections.emptyList();
+                          }
+                        }))
+                .setCoder(coder);
+          } else if (numElements == 1) {
+            final byte[] encodedElement =
+                CoderUtils.encodeToByteArray(coder, Iterables.getOnlyElement(elems));
+            final Coder<T> capturedCoder = coder;
+            return input
+                .apply(Impulse.create())
+                .apply(
+                    MapElements.via(
+                        new SimpleFunction<byte[], T>() {
+                          @Override
+                          public T apply(byte[] input) {
+                            try {
+                              return CoderUtils.decodeFromByteArray(capturedCoder, encodedElement);
+                            } catch (CoderException exn) {
+                              throw new RuntimeException(exn);
+                            }
+                          }
+                        }))
+                .setCoder(coder);
+          }
+        }
         CreateSource<T> source = CreateSource.fromIterable(elems, coder);
         return input.getPipeline().apply(Read.from(source));
       } catch (IOException e) {
@@ -386,6 +421,9 @@ public class Create<T> {
     /** The value type. */
     private final transient Optional<TypeDescriptor<T>> typeDescriptor;
 
+    /** Whether to unconditionally implement this via reading a CreateSource. */
+    private final transient boolean alwaysUseRead;
+
     /**
      * Constructs a {@code Create.Values} transform that produces a {@link PCollection} containing
      * the specified elements.
@@ -393,10 +431,14 @@ public class Create<T> {
      * <p>The arguments should not be modified after this is called.
      */
     private Values(
-        Iterable<T> elems, Optional<Coder<T>> coder, Optional<TypeDescriptor<T>> typeDescriptor) {
+        Iterable<T> elems,
+        Optional<Coder<T>> coder,
+        Optional<TypeDescriptor<T>> typeDescriptor,
+        boolean alwaysUseRead) {
       this.elems = elems;
       this.coder = coder;
       this.typeDescriptor = typeDescriptor;
+      this.alwaysUseRead = alwaysUseRead;
     }
 
     @VisibleForTesting
@@ -519,6 +561,14 @@ public class Create<T> {
         return true;
       }
     }
+
+    /** A subclass to avoid getting re-matched. */
+    private static class AlwaysUseRead<T> extends Values<T> {
+      private AlwaysUseRead(
+          Iterable<T> elems, Optional<Coder<T>> coder, Optional<TypeDescriptor<T>> typeDescriptor) {
+        super(elems, coder, typeDescriptor, true);
+      }
+    }
   }
 
   /////////////////////////////////////////////////////////////////////////////
@@ -580,7 +630,6 @@ public class Create<T> {
      * Returns a {@link Create.TimestampedValues} PTransform like this one that uses the given
      * {@code Schema} to represent objects.
      */
-    @Experimental(Kind.SCHEMAS)
     public TimestampedValues<T> withSchema(
         Schema schema,
         TypeDescriptor<T> typeDescriptor,

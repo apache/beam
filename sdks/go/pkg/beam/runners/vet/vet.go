@@ -466,7 +466,7 @@ func (e *Eval) diag(s string) {
 }
 
 // diag invokes fmt.Fprintf on the diagnostic buffer.
-func (e *Eval) diagf(f string, args ...interface{}) {
+func (e *Eval) diagf(f string, args ...any) {
 	fmt.Fprintf(&e.d, f, args...)
 }
 
@@ -476,7 +476,7 @@ func (e *Eval) Print(s string) {
 }
 
 // Printf invokes fmt.Fprintf on the Eval buffer.
-func (e *Eval) Printf(f string, args ...interface{}) {
+func (e *Eval) Printf(f string, args ...any) {
 	fmt.Fprintf(&e.w, f, args...)
 }
 
@@ -485,7 +485,7 @@ func (e *Eval) Bytes() []byte {
 	return e.w.Bytes()
 }
 
-// We need to take graph.Fns (which can be created from interface{} from graph.NewFn)
+// We need to take graph.Fns (which can be created from any from graph.NewFn)
 // and convert them to all needed function caller signatures,
 // and emitters.
 //

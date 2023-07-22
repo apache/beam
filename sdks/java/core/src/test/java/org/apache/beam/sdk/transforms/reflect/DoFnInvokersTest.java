@@ -1021,7 +1021,7 @@ public class DoFnInvokersTest {
 
     MockFn fn = mock(MockFn.class);
     DoFnInvoker<String, String> invoker = DoFnInvokers.invokerFor(fn);
-    assertEquals(1.0, invoker.invokeGetSize(mockArgumentProvider), 0.0001);
+    assertEquals(0.0, invoker.invokeGetSize(mockArgumentProvider), 0.0001);
   }
 
   @Test

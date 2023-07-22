@@ -20,10 +20,7 @@ package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
-import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingRunner;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.runners.spark.structuredstreaming.SparkSessionRule;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.CombineFnBase;
@@ -41,6 +38,7 @@ import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -52,15 +50,11 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class CombinePerKeyTest implements Serializable {
-  @Rule public transient TestPipeline pipeline = TestPipeline.fromOptions(testOptions());
+  @ClassRule public static final SparkSessionRule SESSION = new SparkSessionRule();
 
-  private static PipelineOptions testOptions() {
-    SparkStructuredStreamingPipelineOptions options =
-        PipelineOptionsFactory.create().as(SparkStructuredStreamingPipelineOptions.class);
-    options.setRunner(SparkStructuredStreamingRunner.class);
-    options.setTestMode(true);
-    return options;
-  }
+  @Rule
+  public transient TestPipeline pipeline =
+      TestPipeline.fromOptions(SESSION.createPipelineOptions());
 
   @Test
   public void testCombinePerKey() {

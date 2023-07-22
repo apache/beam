@@ -19,7 +19,11 @@
 import '../sdk.dart';
 import 'example_loading_descriptor.dart';
 
+const _key = 'empty';
+
+/// Indicates that an empty content should be loaded for the [sdk].
 class EmptyExampleLoadingDescriptor extends ExampleLoadingDescriptor {
+  @override
   final Sdk sdk;
 
   const EmptyExampleLoadingDescriptor({
@@ -27,5 +31,29 @@ class EmptyExampleLoadingDescriptor extends ExampleLoadingDescriptor {
   });
 
   @override
-  List<Object> get props => [sdk];
+  List<Object> get props => [sdk.id];
+
+  @override
+  EmptyExampleLoadingDescriptor copyWithoutViewOptions() => this;
+
+  @override
+  Map<String, dynamic> toJson() => {
+        _key: true,
+        'sdk': sdk.id,
+      };
+
+  static EmptyExampleLoadingDescriptor? tryParse(
+    Map<String, dynamic> map,
+  ) {
+    if (!map.containsKey(_key)) {
+      return null;
+    }
+
+    return EmptyExampleLoadingDescriptor(
+      sdk: Sdk.parseOrCreate(map['sdk']),
+    );
+  }
+
+  @override
+  bool get isSerializableToUrl => true;
 }

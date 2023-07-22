@@ -32,7 +32,7 @@ lowest precedence. Precedence determines the order in which operators will be ev
 
 <div class="table-container-wrapper">
 {{< table >}}
-<table>
+<table class="table-wrapper--equal-p">
   <thead>
     <tr>
       <th>Order of Precedence</th>
@@ -251,7 +251,7 @@ is recommended over:
 
 <div class="table-container-wrapper">
 {{< table >}}
-<table>
+<table class="table-wrapper--equal-p">
 <thead>
 <tr>
 <th>Operator</th>
@@ -323,7 +323,7 @@ has type T unless otherwise indicated in the description below:
 Result types for Addition and Multiplication:
 
 {{< table >}}
-<table>
+<table class="table-wrapper--equal-p">
 <thead>
 <tr><th>&nbsp;</th><th>INT64</th><th>FLOAT64</th></tr>
 </thead>
@@ -334,7 +334,7 @@ Result types for Addition and Multiplication:
 Result types for Subtraction:
 
 {{< table >}}
-<table>
+<table class="table-wrapper--equal-p">
 <thead>
 <tr><th>&nbsp;</th><th>INT64</th><th>FLOAT64</th></tr>
 </thead>
@@ -345,7 +345,7 @@ Result types for Subtraction:
 Result types for Division:
 
 {{< table >}}
-<table>
+<table class="table-wrapper--equal-p">
 <thead>
   <tr><th>&nbsp;</th><th>INT64</th><th>FLOAT64</th></tr>
 </thead>
@@ -385,7 +385,7 @@ All logical operators allow only BOOL input.
 
 <div class="table-container-wrapper">
 {{< table >}}
-<table>
+<table class="table-wrapper--equal-p">
 <thead>
 <tr>
 <th>Name</th>
@@ -448,7 +448,7 @@ The following rules apply when comparing these data types:
 
 <div class="table-container-wrapper">
 {{< table >}}
-<table>
+<table class="table-wrapper--equal-p">
 <thead>
 <tr>
 <th>Name</th>
@@ -533,7 +533,7 @@ The following table demonstrates how STRUCT data
 types are compared when they have fields that are `NULL` valued.
 
 {{< table >}}
-<table>
+<table class="table-wrapper--equal-p">
 <thead>
 <tr>
 <th>Struct1</th>
@@ -571,7 +571,7 @@ is inverted.
 
 <div class="table-container-wrapper">
 {{< table >}}
-<table>
+<table class="table-wrapper--equal-p">
 <thead>
 <tr>
 <th>Function Syntax</th>

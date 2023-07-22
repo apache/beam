@@ -52,7 +52,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryOptions;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.StorageClient;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
-import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryDirectReadSchemaTransformProvider.BigQueryDirectReadPCollectionRowTupleTransform;
+import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryDirectReadSchemaTransformProvider.BigQueryDirectReadSchemaTransform;
 import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryDirectReadSchemaTransformProvider.BigQueryDirectReadSchemaTransformConfiguration;
 import org.apache.beam.sdk.io.gcp.testing.FakeBigQueryServices;
 import org.apache.beam.sdk.io.gcp.testing.FakeBigQueryServices.FakeBigQueryServerStream;
@@ -267,17 +267,15 @@ public class BigQueryDirectReadSchemaTransformProviderTest {
         .thenReturn(new FakeBigQueryServerStream<>(responses));
 
     BigQueryDirectReadSchemaTransformConfiguration config =
-        BigQueryDirectReadSchemaTransformConfiguration.builder()
-            .setTableSpec(TABLE_SPEC)
-            .setBigQueryServices(fakeBigQueryServices.withStorageClient(fakeStorageClient))
-            .build();
+        BigQueryDirectReadSchemaTransformConfiguration.builder().setTableSpec(TABLE_SPEC).build();
     BigQueryDirectReadSchemaTransformProvider provider =
         new BigQueryDirectReadSchemaTransformProvider();
-    BigQueryDirectReadPCollectionRowTupleTransform readTransform =
-        (BigQueryDirectReadPCollectionRowTupleTransform) provider.from(config).buildTransform();
+    BigQueryDirectReadSchemaTransform readTransform =
+        (BigQueryDirectReadSchemaTransform) provider.from(config);
     PCollectionRowTuple input = PCollectionRowTuple.empty(p);
     String tag = provider.outputCollectionNames().get(0);
 
+    readTransform.setBigQueryServices(fakeBigQueryServices.withStorageClient(fakeStorageClient));
     PCollectionRowTuple output = input.apply(readTransform);
     assertTrue(output.has(tag));
     PCollection<Row> rows = output.get(tag);
@@ -333,15 +331,15 @@ public class BigQueryDirectReadSchemaTransformProviderTest {
             .setTableSpec(TABLE_SPEC)
             .setSelectedFields(Arrays.asList("str"))
             .setRowRestriction("num > 1")
-            .setBigQueryServices(fakeBigQueryServices.withStorageClient(fakeStorageClient))
             .build();
     BigQueryDirectReadSchemaTransformProvider provider =
         new BigQueryDirectReadSchemaTransformProvider();
-    BigQueryDirectReadPCollectionRowTupleTransform readTransform =
-        (BigQueryDirectReadPCollectionRowTupleTransform) provider.from(config).buildTransform();
+    BigQueryDirectReadSchemaTransform readTransform =
+        (BigQueryDirectReadSchemaTransform) provider.from(config);
     PCollectionRowTuple input = PCollectionRowTuple.empty(p);
     String tag = provider.outputCollectionNames().get(0);
 
+    readTransform.setBigQueryServices(fakeBigQueryServices.withStorageClient(fakeStorageClient));
     PCollectionRowTuple output = input.apply(readTransform);
     assertTrue(output.has(tag));
     PCollection<Row> rows = output.get(tag);

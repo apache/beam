@@ -24,7 +24,7 @@ import (
 
 func TestIsIter(t *testing.T) {
 	tests := []struct {
-		Fn  interface{}
+		Fn  any
 		Exp bool
 	}{
 		{func(*int) {}, false},                                // no return
@@ -39,6 +39,7 @@ func TestIsIter(t *testing.T) {
 		{func(*typex.EventTime, *int, *string) bool { return false }, false},            // EventTimes disallowed
 		{func(*int, *typex.Y, *typex.Z) bool { return false }, false},                   // too many values
 		{func(*typex.EventTime, *int, *typex.Y, *typex.Z) bool { return false }, false}, // too many values, EventTimes disallowed
+		{func(*any) bool { return false }, false},                                       // *any is not allowed as a param
 	}
 
 	for _, test := range tests {
@@ -51,7 +52,7 @@ func TestIsIter(t *testing.T) {
 
 func TestIsReIter(t *testing.T) {
 	tests := []struct {
-		Fn  interface{}
+		Fn  any
 		Exp bool
 	}{
 		{func() bool { return false }, false},                                      // not returning an Iter
@@ -71,7 +72,7 @@ func TestIsReIter(t *testing.T) {
 
 func TestIsMultiMap(t *testing.T) {
 	tests := []struct {
-		Fn  interface{}
+		Fn  any
 		Exp bool
 	}{
 		{func(int) func(*int) bool { return nil }, true},

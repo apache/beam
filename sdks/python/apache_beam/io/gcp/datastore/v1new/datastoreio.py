@@ -34,12 +34,12 @@ import time
 
 from apache_beam import typehints
 from apache_beam.internal.metrics.metric import ServiceCallMetric
+from apache_beam.io.components.adaptive_throttler import AdaptiveThrottler
 from apache_beam.io.gcp import resource_identifiers
 from apache_beam.io.gcp.datastore.v1new import helper
 from apache_beam.io.gcp.datastore.v1new import query_splitter
 from apache_beam.io.gcp.datastore.v1new import types
 from apache_beam.io.gcp.datastore.v1new import util
-from apache_beam.io.gcp.datastore.v1new.adaptive_throttler import AdaptiveThrottler
 from apache_beam.io.gcp.datastore.v1new.rampup_throttling_fn import RampupThrottlingFn
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.metric import Metrics
@@ -477,7 +477,7 @@ class _Mutate(PTransform):
       client_element = self.element_to_client_batch_item(element)
       self._batch_elements.append(client_element)
       self.add_to_batch(client_element)
-      self._batch_bytes_size += self._batch.mutations[-1].ByteSize()
+      self._batch_bytes_size += self._batch.mutations[-1]._pb.ByteSize()
 
       if (len(self._batch.mutations) >= self._target_batch_size or
           self._batch_bytes_size > util.WRITE_BATCH_MAX_BYTES_SIZE):

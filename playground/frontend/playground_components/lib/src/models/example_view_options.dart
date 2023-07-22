@@ -17,9 +17,13 @@
  */
 
 import 'package:equatable/equatable.dart';
+import 'package:json_annotation/json_annotation.dart';
 
 import '../util/string.dart';
 
+part 'example_view_options.g.dart';
+
+@JsonSerializable()
 class ExampleViewOptions with EquatableMixin {
   final bool foldCommentAtLineZero;
   final bool foldImports;
@@ -28,17 +32,25 @@ class ExampleViewOptions with EquatableMixin {
   final List<String> unfoldSectionNames;
 
   const ExampleViewOptions({
-    required this.foldCommentAtLineZero,
-    required this.foldImports,
     required this.readOnlySectionNames,
     required this.showSectionNames,
     required this.unfoldSectionNames,
+    this.foldCommentAtLineZero = true,
+    this.foldImports = true,
   });
 
+  /// Parses a fully normalized map.
+  factory ExampleViewOptions.fromJson(Map<String, dynamic> json) =>
+      _$ExampleViewOptionsFromJson(json);
+
+  Map<String, dynamic> toJson() => _$ExampleViewOptionsToJson(this);
+
+  /// Parses a simplified map that comes from a URL.
+  ///
+  /// This map has CSV strings instead of JSON arrays
+  /// and cannot override folding parameters' defaults.
   factory ExampleViewOptions.fromShortMap(Map<String, dynamic> map) {
     return ExampleViewOptions(
-      foldCommentAtLineZero: true,
-      foldImports: true,
       readOnlySectionNames: _split(map['readonly']),
       showSectionNames: _split(map['show']),
       unfoldSectionNames: _split(map['unfold']),
@@ -53,9 +65,16 @@ class ExampleViewOptions with EquatableMixin {
     return value.splitNotEmpty(',');
   }
 
+  Map<String, String> toShortMap() {
+    return {
+      if (readOnlySectionNames.isNotEmpty)
+        'readonly': readOnlySectionNames.join(','),
+      if (showSectionNames.isNotEmpty) 'show': showSectionNames.join(','),
+      if (unfoldSectionNames.isNotEmpty) 'unfold': unfoldSectionNames.join(','),
+    };
+  }
+
   static const empty = ExampleViewOptions(
-    foldCommentAtLineZero: true,
-    foldImports: true,
     readOnlySectionNames: [],
     showSectionNames: [],
     unfoldSectionNames: [],

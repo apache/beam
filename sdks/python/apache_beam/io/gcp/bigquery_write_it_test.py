@@ -23,7 +23,7 @@
 import base64
 import datetime
 import logging
-import random
+import secrets
 import time
 import unittest
 from decimal import Decimal
@@ -66,10 +66,8 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
     self.project = self.test_pipeline.get_option('project')
 
     self.bigquery_client = BigQueryWrapper()
-    self.dataset_id = '%s%s%d' % (
-        self.BIG_QUERY_DATASET_ID,
-        str(int(time.time())),
-        random.randint(0, 10000))
+    self.dataset_id = '%s%d%s' % (
+        self.BIG_QUERY_DATASET_ID, int(time.time()), secrets.token_hex(3))
     self.bigquery_client.get_or_create_dataset(self.project, self.dataset_id)
     _LOGGER.info(
         "Created dataset %s in project %s", self.dataset_id, self.project)
@@ -129,10 +127,10 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
             'number': 2, 'str': 'def'
         },
         {
-            'number': 3, 'str': u'你好'
+            'number': 3, 'str': '你好'
         },
         {
-            'number': 4, 'str': u'привет'
+            'number': 4, 'str': 'привет'
         },
     ]
     table_schema = {
@@ -155,10 +153,10 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
                 'def',
             ), (
                 3,
-                u'你好',
+                '你好',
             ), (
                 4,
-                u'привет',
+                'привет',
             )])
     ]
 

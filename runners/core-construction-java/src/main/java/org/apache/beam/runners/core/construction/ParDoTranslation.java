@@ -79,8 +79,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
@@ -634,6 +634,17 @@ public class ParDoTranslation {
                 .setSetSpec(
                     RunnerApi.SetStateSpec.newBuilder()
                         .setElementCoderId(registerCoderOrThrow(components, elementCoder)))
+                .setProtocol(FunctionSpec.newBuilder().setUrn(MULTIMAP_USER_STATE))
+                .build();
+          }
+
+          @Override
+          public RunnerApi.StateSpec dispatchMultimap(Coder<?> keyCoder, Coder<?> valueCoder) {
+            return builder
+                .setMultimapSpec(
+                    RunnerApi.MultimapStateSpec.newBuilder()
+                        .setKeyCoderId(registerCoderOrThrow(components, keyCoder))
+                        .setValueCoderId(registerCoderOrThrow(components, valueCoder)))
                 .setProtocol(FunctionSpec.newBuilder().setUrn(MULTIMAP_USER_STATE))
                 .build();
           }

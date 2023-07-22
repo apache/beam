@@ -37,6 +37,14 @@ _LOGGER = logging.getLogger(__name__)
 _TypeMapEntry = collections.namedtuple(
     '_TypeMapEntry', ['match', 'arity', 'beam_type'])
 
+_BUILTINS_TO_TYPING = {
+    dict: typing.Dict,
+    list: typing.List,
+    tuple: typing.Tuple,
+    set: typing.Set,
+    frozenset: typing.FrozenSet,
+}
+
 
 def _get_args(typ):
   """Returns a list of arguments to the given type.
@@ -148,10 +156,7 @@ def is_new_type(typ):
   return hasattr(typ, '__supertype__')
 
 
-try:
-  _ForwardRef = typing.ForwardRef  # Python 3.7+
-except AttributeError:
-  _ForwardRef = typing._ForwardRef
+_ForwardRef = typing.ForwardRef  # Python 3.7+
 
 
 def is_forward_ref(typ):
@@ -161,6 +166,41 @@ def is_forward_ref(typ):
 # Mapping from typing.TypeVar/typehints.TypeVariable ids to an object of the
 # other type. Bidirectional mapping preserves typing.TypeVar instances.
 _type_var_cache = {}  # type: typing.Dict[int, typehints.TypeVariable]
+
+
+def convert_builtin_to_typing(typ):
+  """Convert recursively a given builtin to a typing object.
+
+  Args:
+    typ (`builtins`): builtin object that exist in _BUILTINS_TO_TYPING.
+
+  Returns:
+    type: The given builtins converted to a type.
+
+  """
+  if getattr(typ, '__origin__', None) in _BUILTINS_TO_TYPING:
+    args = map(convert_builtin_to_typing, typ.__args__)
+    typ = _BUILTINS_TO_TYPING[typ.__origin__].copy_with(tuple(args))
+  return typ
+
+
+def convert_collections_to_typing(typ):
+  """Converts a given collections.abc type to a typing object.
+
+  Args:
+    typ: an object inheriting from a collections.abc object
+
+  Returns:
+    type: The corresponding typing object.
+  """
+  if hasattr(typ, '__iter__'):
+    if hasattr(typ, '__next__'):
+      typ = typing.Iterator[typ.__args__]
+    elif hasattr(typ, 'send') and hasattr(typ, 'throw'):
+      typ = typing.Generator[typ.__args__]
+    elif _match_is_exactly_iterable(typ):
+      typ = typing.Iterable[typ.__args__]
+  return typ
 
 
 def convert_to_beam_type(typ):
@@ -184,6 +224,13 @@ def convert_to_beam_type(typ):
   if (sys.version_info.major == 3 and
       sys.version_info.minor >= 10) and (isinstance(typ, types.UnionType)):
     typ = typing.Union[typ]
+
+  if sys.version_info >= (3, 9) and isinstance(typ, types.GenericAlias):
+    typ = convert_builtin_to_typing(typ)
+
+  if sys.version_info >= (3, 9) and getattr(typ, '__module__',
+                                            None) == 'collections.abc':
+    typ = convert_collections_to_typing(typ)
 
   if isinstance(typ, typing.TypeVar):
     # This is a special case, as it's not parameterized by types.

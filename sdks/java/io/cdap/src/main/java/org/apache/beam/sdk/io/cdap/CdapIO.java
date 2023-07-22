@@ -17,34 +17,36 @@
  */
 package org.apache.beam.sdk.io.cdap;
 
-import static org.apache.beam.sdk.io.cdap.MappingUtils.getOffsetFnForPluginClass;
 import static org.apache.beam.sdk.io.cdap.MappingUtils.getPluginByClass;
-import static org.apache.beam.sdk.io.cdap.MappingUtils.getReceiverBuilderByPluginClass;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
 import io.cdap.cdap.api.plugin.PluginConfig;
 import java.util.Map;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.hadoop.format.HDFSSynchronization;
 import org.apache.beam.sdk.io.hadoop.format.HadoopFormatIO;
+import org.apache.beam.sdk.io.sparkreceiver.ReceiverBuilder;
 import org.apache.beam.sdk.io.sparkreceiver.SparkReceiverIO;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.commons.lang3.NotImplementedException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.apache.hadoop.mapreduce.OutputFormat;
+import org.apache.spark.streaming.receiver.Receiver;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -148,10 +150,17 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>To configure {@link CdapIO} source, you must specify Cdap {@link Plugin}, Cdap {@link
  * PluginConfig}, key and value classes.
  *
+ * <p>Optionally you can pass {@code pullFrequencySec} which is a delay in seconds between polling
+ * for new records updates, you can pass {@code startOffset} which is inclusive start offset from
+ * which the reading should be started. Also, you can pass {@code startPollTimeoutSec} which is
+ * delay in seconds before start polling.
+ *
  * <p>{@link Plugin} is the Wrapper class for the Cdap Plugin. It contains main information about
  * the Plugin. The object of the {@link Plugin} class can be created with the {@link
- * Plugin#createStreaming(Class)} method. Method requires {@link
- * io.cdap.cdap.etl.api.streaming.StreamingSource} class parameter.
+ * Plugin#createStreaming(Class, SerializableFunction, Class)} method. Method requires {@link
+ * io.cdap.cdap.etl.api.streaming.StreamingSource} class, {@code getOffsetFn} which is a {@link
+ * SerializableFunction} that defines how to get {@code Long offset} from {@code V record}, Spark
+ * {@link Receiver} class parameters.
  *
  * <p>Every Cdap Plugin has its {@link PluginConfig} class with necessary fields to configure the
  * Plugin. You can set the {@link Map} of your parameters with the {@link
@@ -169,13 +178,19 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * // Read using CDAP streaming plugin
  * p.apply("ReadStreaming",
  * CdapIO.<String, String>read()
- *             .withCdapPlugin(Plugin.createStreaming(EmployeeStreamingSource.class))
+ *             .withCdapPlugin(
+ *                Plugin.createStreaming(
+ *                     EmployeeStreamingSource.class,
+ *                     Long::valueOf,
+ *                     EmployeeReceiver.class))
  *             .withPluginConfig(pluginConfig)
  *             .withKeyClass(String.class)
- *             .withValueClass(String.class));
+ *             .withValueClass(String.class)
+ *             .withPullFrequencySec(1L)
+ *             .withStartPollTimeoutSec(2L)
+ *             .withStartOffset(10L);
  * }</pre>
  */
-@Experimental(Kind.SOURCE_SINK)
 public class CdapIO {
 
   public static <K, V> Read<K, V> read() {
@@ -193,7 +208,7 @@ public class CdapIO {
 
     abstract @Nullable PluginConfig getPluginConfig();
 
-    abstract @Nullable Plugin getCdapPlugin();
+    abstract @Nullable Plugin<K, V> getCdapPlugin();
 
     /**
      * Depending on selected {@link HadoopFormatIO} type ({@link InputFormat} or {@link
@@ -211,25 +226,36 @@ public class CdapIO {
      */
     abstract @Nullable Class<V> getValueClass();
 
+    abstract @Nullable Long getPullFrequencySec();
+
+    abstract @Nullable Long getStartPollTimeoutSec();
+
+    abstract @Nullable Long getStartOffset();
+
     abstract Builder<K, V> toBuilder();
 
-    @Experimental(Experimental.Kind.PORTABILITY)
     @AutoValue.Builder
     abstract static class Builder<K, V> {
 
       abstract Builder<K, V> setPluginConfig(PluginConfig config);
 
-      abstract Builder<K, V> setCdapPlugin(Plugin plugin);
+      abstract Builder<K, V> setCdapPlugin(Plugin<K, V> plugin);
 
       abstract Builder<K, V> setKeyClass(Class<K> keyClass);
 
       abstract Builder<K, V> setValueClass(Class<V> valueClass);
 
+      abstract Builder<K, V> setPullFrequencySec(Long pullFrequencySec);
+
+      abstract Builder<K, V> setStartPollTimeoutSec(Long startPollTimeoutSec);
+
+      abstract Builder<K, V> setStartOffset(Long startOffset);
+
       abstract Read<K, V> build();
     }
 
     /** Sets a CDAP {@link Plugin}. */
-    public Read<K, V> withCdapPlugin(Plugin plugin) {
+    public Read<K, V> withCdapPlugin(Plugin<K, V> plugin) {
       checkArgument(plugin != null, "Cdap plugin can not be null");
       return toBuilder().setCdapPlugin(plugin).build();
     }
@@ -237,7 +263,7 @@ public class CdapIO {
     /** Sets a CDAP Plugin class. */
     public Read<K, V> withCdapPluginClass(Class<?> cdapPluginClass) {
       checkArgument(cdapPluginClass != null, "Cdap plugin class can not be null");
-      Plugin plugin = MappingUtils.getPluginByClass(cdapPluginClass);
+      Plugin<K, V> plugin = MappingUtils.getPluginByClass(cdapPluginClass);
       return toBuilder().setCdapPlugin(plugin).build();
     }
 
@@ -259,9 +285,33 @@ public class CdapIO {
       return toBuilder().setValueClass(valueClass).build();
     }
 
+    /**
+     * Delay in seconds between polling for new records updates. Applicable only for streaming Cdap
+     * Plugins.
+     */
+    public Read<K, V> withPullFrequencySec(Long pullFrequencySec) {
+      checkArgument(pullFrequencySec != null, "Pull frequency can not be null");
+      return toBuilder().setPullFrequencySec(pullFrequencySec).build();
+    }
+
+    /** Delay in seconds before start polling. Applicable only for streaming Cdap Plugins. */
+    public Read<K, V> withStartPollTimeoutSec(Long startPollTimeoutSec) {
+      checkArgument(startPollTimeoutSec != null, "Start poll timeout can not be null");
+      return toBuilder().setStartPollTimeoutSec(startPollTimeoutSec).build();
+    }
+
+    /**
+     * Inclusive start offset from which the reading should be started. Applicable only for
+     * streaming Cdap Plugins.
+     */
+    public Read<K, V> withStartOffset(Long startOffset) {
+      checkArgument(startOffset != null, "Start offset can not be null");
+      return toBuilder().setStartOffset(startOffset).build();
+    }
+
     @Override
     public PCollection<KV<K, V>> expand(PBegin input) {
-      Plugin cdapPlugin = getCdapPlugin();
+      Plugin<K, V> cdapPlugin = getCdapPlugin();
       checkStateNotNull(cdapPlugin, "withCdapPluginClass() is required");
 
       PluginConfig pluginConfig = getPluginConfig();
@@ -276,12 +326,27 @@ public class CdapIO {
       cdapPlugin.withConfig(pluginConfig);
 
       if (cdapPlugin.isUnbounded()) {
+        SerializableFunction<V, Long> getOffsetFn = cdapPlugin.getGetOffsetFn();
+        checkStateNotNull(getOffsetFn, "Plugin get offset function can't be null!");
+        ReceiverBuilder<V, ? extends Receiver<V>> receiverBuilder = cdapPlugin.getReceiverBuilder();
+        checkStateNotNull(receiverBuilder, "Plugin Receiver builder can't be null!");
+
         SparkReceiverIO.Read<V> reader =
             SparkReceiverIO.<V>read()
-                .withGetOffsetFn(getOffsetFnForPluginClass(cdapPlugin.getPluginClass(), valueClass))
-                .withSparkReceiverBuilder(
-                    getReceiverBuilderByPluginClass(
-                        cdapPlugin.getPluginClass(), pluginConfig, valueClass));
+                .withGetOffsetFn(getOffsetFn)
+                .withSparkReceiverBuilder(receiverBuilder);
+        Long pullFrequencySec = getPullFrequencySec();
+        if (pullFrequencySec != null) {
+          reader = reader.withPullFrequencySec(pullFrequencySec);
+        }
+        Long startPollTimeoutSec = getStartPollTimeoutSec();
+        if (startPollTimeoutSec != null) {
+          reader = reader.withStartPollTimeoutSec(startPollTimeoutSec);
+        }
+        Long startOffset = getStartOffset();
+        if (startOffset != null) {
+          reader = reader.withStartOffset(startOffset);
+        }
         try {
           Coder<V> coder = input.getPipeline().getCoderRegistry().getCoder(valueClass);
           PCollection<V> values = input.apply(reader).setCoder(coder);
@@ -307,7 +372,7 @@ public class CdapIO {
 
     abstract @Nullable PluginConfig getPluginConfig();
 
-    abstract @Nullable Plugin getCdapPlugin();
+    abstract @Nullable Plugin<K, V> getCdapPlugin();
 
     /**
      * Depending on selected {@link HadoopFormatIO} type ({@link InputFormat} or {@link
@@ -335,13 +400,12 @@ public class CdapIO {
 
     abstract Builder<K, V> toBuilder();
 
-    @Experimental(Experimental.Kind.PORTABILITY)
     @AutoValue.Builder
     abstract static class Builder<K, V> {
 
       abstract Builder<K, V> setPluginConfig(PluginConfig config);
 
-      abstract Builder<K, V> setCdapPlugin(Plugin plugin);
+      abstract Builder<K, V> setCdapPlugin(Plugin<K, V> plugin);
 
       abstract Builder<K, V> setKeyClass(Class<K> keyClass);
 
@@ -353,7 +417,7 @@ public class CdapIO {
     }
 
     /** Sets a CDAP {@link Plugin}. */
-    public Write<K, V> withCdapPlugin(Plugin plugin) {
+    public Write<K, V> withCdapPlugin(Plugin<K, V> plugin) {
       checkArgument(plugin != null, "Cdap plugin can not be null");
       return toBuilder().setCdapPlugin(plugin).build();
     }
@@ -361,7 +425,7 @@ public class CdapIO {
     /** Sets a CDAP Plugin class. */
     public Write<K, V> withCdapPluginClass(Class<?> cdapPluginClass) {
       checkArgument(cdapPluginClass != null, "Cdap plugin class can not be null");
-      Plugin plugin = getPluginByClass(cdapPluginClass);
+      Plugin<K, V> plugin = getPluginByClass(cdapPluginClass);
       return toBuilder().setCdapPlugin(plugin).build();
     }
 
@@ -391,7 +455,7 @@ public class CdapIO {
 
     @Override
     public PDone expand(PCollection<KV<K, V>> input) {
-      Plugin cdapPlugin = getCdapPlugin();
+      Plugin<K, V> cdapPlugin = getCdapPlugin();
       checkStateNotNull(cdapPlugin, "withCdapPluginClass() is required");
 
       PluginConfig pluginConfig = getPluginConfig();
@@ -415,12 +479,42 @@ public class CdapIO {
         throw new NotImplementedException("Support for unbounded plugins is not implemented!");
       } else {
         Configuration hConf = cdapPlugin.getHadoopConfiguration();
-        HadoopFormatIO.Write<K, V> writeHadoop =
-            HadoopFormatIO.<K, V>write()
-                .withConfiguration(hConf)
-                .withPartitioning()
-                .withExternalSynchronization(new HDFSSynchronization(locksDirPath));
+        HadoopFormatIO.Write<K, V> writeHadoop;
+        if (input.isBounded().equals(PCollection.IsBounded.UNBOUNDED)
+            || !input.getWindowingStrategy().equals(WindowingStrategy.globalDefault())) {
+          ConfigTransform<K, V> configTransform = new ConfigTransform<>(hConf);
+          writeHadoop =
+              HadoopFormatIO.<K, V>write()
+                  .withConfigurationTransform(configTransform)
+                  .withExternalSynchronization(new HDFSSynchronization(locksDirPath));
+        } else {
+          writeHadoop =
+              HadoopFormatIO.<K, V>write()
+                  .withConfiguration(hConf)
+                  .withPartitioning()
+                  .withExternalSynchronization(new HDFSSynchronization(locksDirPath));
+        }
         return input.apply(writeHadoop);
+      }
+    }
+
+    /** Simple transform for providing Hadoop {@link Configuration} into {@link HadoopFormatIO}. */
+    private static class ConfigTransform<KeyT, ValueT>
+        extends PTransform<
+            PCollection<? extends KV<KeyT, ValueT>>, PCollectionView<Configuration>> {
+
+      private final transient Configuration hConf;
+
+      private ConfigTransform(Configuration hConf) {
+        this.hConf = hConf;
+      }
+
+      @Override
+      public PCollectionView<Configuration> expand(PCollection<? extends KV<KeyT, ValueT>> input) {
+        return input
+            .getPipeline()
+            .apply(Create.<Configuration>of(hConf))
+            .apply(View.<Configuration>asSingleton().withDefaultValue(hConf));
       }
     }
   }

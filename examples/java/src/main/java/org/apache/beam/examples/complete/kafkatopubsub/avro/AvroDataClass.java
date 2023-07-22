@@ -17,8 +17,8 @@
  */
 package org.apache.beam.examples.complete.kafkatopubsub.avro;
 
-import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
+import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 
 /**
  * Example of AVRO serialization class. To configure your AVRO schema, change this class to

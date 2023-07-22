@@ -33,9 +33,11 @@ import (
 //
 // For example,
 //
-//     func (t EventTime, k typex.X, v int, emit func(string, typex.X))
+//	func (t EventTime, k typex.X, v int, emit func(string, typex.X))
+//
 // or
-//     func (context.Context, k typex.X, v int) (string, typex.X, error)
+//
+//	func (context.Context, k typex.X, v int) (string, typex.X, error)
 //
 // are UserFns that may take one or two incoming fulltypes: either KV<X,int>
 // or X with a singleton side input of type int. For the purpose of the
@@ -45,18 +47,18 @@ import (
 //
 // If either was bound to the input type [KV<string,int>], bind would return:
 //
-//     inbound:  [Main: KV<X,int>]
-//     outbound: [KV<string,X>]
-//     output:   [KV<string,string>]
+//	inbound:  [Main: KV<X,int>]
+//	outbound: [KV<string,X>]
+//	output:   [KV<string,string>]
 //
 // Note that it propagates the assignment of X to string in the output type.
 //
 // If either was instead bound to the input fulltypes [float, int], the
 // result would be:
 //
-//     inbound:  [Main: X, Singleton: int]
-//     outbound: [KV<string,X>]
-//     output:   [KV<string, float>]
+//	inbound:  [Main: X, Singleton: int]
+//	outbound: [KV<string,X>]
+//	output:   [KV<string, float>]
 //
 // Here, the inbound shape and output types are different from before.
 func Bind(fn *funcx.Fn, typedefs map[string]reflect.Type, in ...typex.FullType) ([]typex.FullType, []InputKind, []typex.FullType, []typex.FullType, error) {
@@ -132,7 +134,7 @@ func returnTypes(list []funcx.ReturnParam) []reflect.Type {
 
 func findInbound(fn *funcx.Fn, in ...typex.FullType) ([]typex.FullType, []InputKind, error) {
 	// log.Printf("Bind inbound: %v %v", fn, in)
-	addContext := func(err error, p []funcx.FnParam, in interface{}) error {
+	addContext := func(err error, p []funcx.FnParam, in any) error {
 		return errors.WithContextf(err, "binding params %v to input %v", p, in)
 	}
 

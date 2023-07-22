@@ -136,7 +136,7 @@ dependencies {
   implementation project(":runners:java-fn-execution")
   implementation project(":runners:java-job-service")
   implementation project(":sdks:java:extensions:google-cloud-platform-core")
-  implementation library.java.vendored_grpc_1_48_1
+  implementation library.java.vendored_grpc_1_54_0
   implementation library.java.slf4j_api
   implementation library.java.joda_time
   implementation library.java.args4j
@@ -179,6 +179,7 @@ dependencies {
   if (flink_version.compareTo("1.14") >= 0) {
     implementation "org.apache.flink:flink-runtime:$flink_version"
     implementation "org.apache.flink:flink-optimizer:$flink_version"
+    implementation "org.apache.flink:flink-metrics-core:$flink_version"
     testImplementation "org.apache.flink:flink-runtime:$flink_version:tests"
     testImplementation "org.apache.flink:flink-rpc-akka:$flink_version"
   } else {
@@ -197,6 +198,7 @@ dependencies {
   testImplementation project(":sdks:java:io:google-cloud-platform")
   testImplementation library.java.jackson_dataformat_yaml
   testImplementation "org.apache.flink:flink-core:$flink_version:tests"
+  testImplementation "org.apache.flink:flink-connector-test-utils:$flink_version"
   testImplementation project(":sdks:java:harness")
   testRuntimeOnly library.java.slf4j_simple
   validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
@@ -208,7 +210,6 @@ dependencies {
   implementation project(":sdks:java:fn-execution")
   implementation library.java.jackson_databind
   runtimeOnly library.java.jackson_jaxb_annotations
-  implementation "org.apache.flink:flink-annotations:$flink_version"
   examplesJavaIntegrationTest project(project.path)
   examplesJavaIntegrationTest project(":examples:java")
   examplesJavaIntegrationTest project(path: ":examples:java", configuration: "testRuntimeMigration")
@@ -272,11 +273,13 @@ def createValidatesRunnerTask(Map m) {
       excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
       excludeCategories 'org.apache.beam.sdk.testing.UsesSystemMetrics'
       excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesMultimapState'
       excludeCategories 'org.apache.beam.sdk.testing.UsesLoopingTimer'
       if (config.streaming) {
         excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithMultipleStages'  // BEAM-8598
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesTriggeredSideInputs'
       } else {
         excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
         excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'

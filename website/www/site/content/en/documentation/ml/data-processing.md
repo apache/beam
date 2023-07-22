@@ -1,5 +1,5 @@
 ---
-title: "Overview"
+title: "Data processing"
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,7 +27,7 @@ Data processing can be grouped into two main topics. This example first examimes
 
 ## Initial data exploration
 
-[Pandas](https://pandas.pydata.org/) is a popular tool for performing data exploration. Pandas is a data analysis and manipulation tool for Python. It uses DataFrames, which is a data structure that contains two-dimensional tabular data and that provides labeled rows and columns for the data. The Apache Beam Python SDK provides a [DataFrame API](https://beam.apache.org/documentation/dsls/dataframes/overview/) for working with Pandas-like DataFrame objects.
+[Pandas](https://pandas.pydata.org/) is a popular tool for performing data exploration. Pandas is a data analysis and manipulation tool for Python. It uses DataFrames, which is a data structure that contains two-dimensional tabular data and that provides labeled rows and columns for the data. The Apache Beam Python SDK provides a [DataFrame API](/documentation/dsls/dataframes/overview/) for working with Pandas-like DataFrame objects.
 
 The Beam DataFrame API is intended to provide access to a familiar programming interface within an Apache Beam pipeline. This API allows you to perform data exploration. You can reuse the code for your data preprocessing pipeline. Using the DataFrame API, you can build complex data processing pipelines by invoking standard Pandas commands.
 
@@ -57,7 +57,7 @@ For a full end-to-end example that implements data exploration and data preproce
 
 ## Data pipeline for ML
 A typical data preprocessing pipeline consists of the following steps:
-1. Read and write data: Read and write the data from your file system, database, or messaging queue. Apache Beam has a rich set of [IO connectors](https://beam.apache.org/documentation/io/built-in/) for ingesting and writing data.
+1. Read and write data: Read and write the data from your file system, database, or messaging queue. Apache Beam has a rich set of [IO connectors](/documentation/io/built-in/) for ingesting and writing data.
 2. Data cleaning: Filter and clean your data before using it in your ML model. You might remove duplicate or irrelevant data, correct mistakes in your dataset, filter out unwanted outliers, or handle missing data.
 3. Data transformations: Your data needs to fit the expected input your model needs to train. You might need to normalize, one-hot encode, scale, or vectorize your data.
 4. Data enrichment: You might want to enrich your data with external data sources to make your data more meaningful or easier for an ML model to interpret. For example, you might want to transform a city name or address into a set of coordinates.

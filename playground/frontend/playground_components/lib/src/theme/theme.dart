@@ -18,10 +18,11 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_code_editor/flutter_code_editor.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:flutter_markdown_selectionarea/flutter_markdown.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../playground_components.dart';
+import 'transitions.dart';
 
 const codeFontSize = 14.0;
 
@@ -32,9 +33,12 @@ class BeamThemeExtension extends ThemeExtension<BeamThemeExtension> {
   final Color primaryBackgroundTextColor;
   final Color lightGreyBackgroundTextColor;
   final Color secondaryBackgroundColor;
+
   // TODO(nausharipov): simplify new color addition
   final Color selectedProgressColor;
   final Color unselectedProgressColor;
+
+  final ButtonStyle textButtonStyle;
 
   final Color codeBackgroundColor;
   final TextStyle codeRootStyle;
@@ -44,50 +48,53 @@ class BeamThemeExtension extends ThemeExtension<BeamThemeExtension> {
 
   const BeamThemeExtension({
     required this.borderColor,
-    required this.fieldBackgroundColor,
-    required this.iconColor,
-    required this.primaryBackgroundTextColor,
-    required this.lightGreyBackgroundTextColor,
-    required this.markdownStyle,
-    required this.secondaryBackgroundColor,
     required this.codeBackgroundColor,
     required this.codeRootStyle,
     required this.codeTheme,
+    required this.fieldBackgroundColor,
+    required this.iconColor,
+    required this.lightGreyBackgroundTextColor,
+    required this.markdownStyle,
+    required this.primaryBackgroundTextColor,
+    required this.secondaryBackgroundColor,
     required this.selectedProgressColor,
+    required this.textButtonStyle,
     required this.unselectedProgressColor,
   });
 
   @override
   ThemeExtension<BeamThemeExtension> copyWith({
     Color? borderColor,
-    Color? fieldBackgroundColor,
-    Color? iconColor,
-    Color? primaryBackgroundTextColor,
-    Color? lightGreyBackgroundTextColor,
-    MarkdownStyleSheet? markdownStyle,
-    Color? secondaryBackgroundColor,
     Color? codeBackgroundColor,
     TextStyle? codeRootStyle,
     CodeThemeData? codeTheme,
+    Color? fieldBackgroundColor,
+    Color? iconColor,
+    Color? lightGreyBackgroundTextColor,
+    MarkdownStyleSheet? markdownStyle,
+    Color? primaryBackgroundTextColor,
+    Color? secondaryBackgroundColor,
     Color? selectedProgressColor,
+    ButtonStyle? textButtonStyle,
     Color? unselectedProgressColor,
   }) {
     return BeamThemeExtension(
       borderColor: borderColor ?? this.borderColor,
-      fieldBackgroundColor: fieldBackgroundColor ?? this.fieldBackgroundColor,
-      iconColor: iconColor ?? this.iconColor,
-      primaryBackgroundTextColor:
-          primaryBackgroundTextColor ?? this.primaryBackgroundTextColor,
-      lightGreyBackgroundTextColor:
-          lightGreyBackgroundTextColor ?? this.lightGreyBackgroundTextColor,
-      markdownStyle: markdownStyle ?? this.markdownStyle,
-      secondaryBackgroundColor:
-          secondaryBackgroundColor ?? this.secondaryBackgroundColor,
       codeBackgroundColor: codeBackgroundColor ?? this.codeBackgroundColor,
       codeRootStyle: codeRootStyle ?? this.codeRootStyle,
       codeTheme: codeTheme ?? this.codeTheme,
+      fieldBackgroundColor: fieldBackgroundColor ?? this.fieldBackgroundColor,
+      iconColor: iconColor ?? this.iconColor,
+      lightGreyBackgroundTextColor:
+          lightGreyBackgroundTextColor ?? this.lightGreyBackgroundTextColor,
+      markdownStyle: markdownStyle ?? this.markdownStyle,
+      primaryBackgroundTextColor:
+          primaryBackgroundTextColor ?? this.primaryBackgroundTextColor,
+      secondaryBackgroundColor:
+          secondaryBackgroundColor ?? this.secondaryBackgroundColor,
       selectedProgressColor:
           selectedProgressColor ?? this.selectedProgressColor,
+      textButtonStyle: textButtonStyle ?? this.textButtonStyle,
       unselectedProgressColor:
           unselectedProgressColor ?? this.unselectedProgressColor,
     );
@@ -100,23 +107,50 @@ class BeamThemeExtension extends ThemeExtension<BeamThemeExtension> {
   ) {
     return BeamThemeExtension(
       borderColor: Color.lerp(borderColor, other?.borderColor, t)!,
-      fieldBackgroundColor:
-          Color.lerp(fieldBackgroundColor, other?.fieldBackgroundColor, t)!,
+      codeBackgroundColor: Color.lerp(
+        codeBackgroundColor,
+        other?.codeBackgroundColor,
+        t,
+      )!,
+      codeRootStyle: TextStyle.lerp(
+        codeRootStyle,
+        other?.codeRootStyle,
+        t,
+      )!,
+      codeTheme: t == 0.0 ? codeTheme : other?.codeTheme ?? codeTheme,
+      fieldBackgroundColor: Color.lerp(
+        fieldBackgroundColor,
+        other?.fieldBackgroundColor,
+        t,
+      )!,
       iconColor: Color.lerp(iconColor, other?.iconColor, t)!,
-      primaryBackgroundTextColor: Color.lerp(
-          primaryBackgroundTextColor, other?.primaryBackgroundTextColor, t)!,
-      lightGreyBackgroundTextColor: Color.lerp(lightGreyBackgroundTextColor,
-          other?.lightGreyBackgroundTextColor, t)!,
+      lightGreyBackgroundTextColor: Color.lerp(
+        lightGreyBackgroundTextColor,
+        other?.lightGreyBackgroundTextColor,
+        t,
+      )!,
       markdownStyle:
           t < 0.5 ? markdownStyle : other?.markdownStyle ?? markdownStyle,
+      primaryBackgroundTextColor: Color.lerp(
+        primaryBackgroundTextColor,
+        other?.primaryBackgroundTextColor,
+        t,
+      )!,
       secondaryBackgroundColor: Color.lerp(
-          secondaryBackgroundColor, other?.secondaryBackgroundColor, t)!,
-      codeBackgroundColor:
-          Color.lerp(codeBackgroundColor, other?.codeBackgroundColor, t)!,
-      codeRootStyle: TextStyle.lerp(codeRootStyle, other?.codeRootStyle, t)!,
-      codeTheme: t == 0.0 ? codeTheme : other?.codeTheme ?? codeTheme,
-      selectedProgressColor:
-          Color.lerp(selectedProgressColor, other?.selectedProgressColor, t)!,
+        secondaryBackgroundColor,
+        other?.secondaryBackgroundColor,
+        t,
+      )!,
+      selectedProgressColor: Color.lerp(
+        selectedProgressColor,
+        other?.selectedProgressColor,
+        t,
+      )!,
+      textButtonStyle: ButtonStyle.lerp(
+        textButtonStyle,
+        other?.textButtonStyle,
+        t,
+      )!,
       unselectedProgressColor: Color.lerp(
         unselectedProgressColor,
         other?.unselectedProgressColor,
@@ -129,6 +163,7 @@ class BeamThemeExtension extends ThemeExtension<BeamThemeExtension> {
 final kLightTheme = ThemeData(
   brightness: Brightness.light,
   appBarTheme: _getAppBarTheme(BeamLightThemeColors.secondaryBackground),
+  // TODO(nausharipov): Migrate to Material 3: https://github.com/apache/beam/issues/24610
   backgroundColor: BeamLightThemeColors.primaryBackground,
   canvasColor: BeamLightThemeColors.primaryBackground,
   dividerColor: BeamLightThemeColors.grey,
@@ -137,6 +172,7 @@ final kLightTheme = ThemeData(
     BeamLightThemeColors.text,
     BeamLightThemeColors.primary,
   ),
+  pageTransitionsTheme: NoTransitionsTheme(),
   primaryColor: BeamLightThemeColors.primary,
   scaffoldBackgroundColor: BeamLightThemeColors.secondaryBackground,
   selectedRowColor: BeamLightThemeColors.selectedUnitColor,
@@ -156,6 +192,7 @@ final kLightTheme = ThemeData(
       markdownStyle: _getMarkdownStyle(Brightness.light),
       secondaryBackgroundColor: BeamLightThemeColors.secondaryBackground,
       selectedProgressColor: BeamLightThemeColors.selectedProgressColor,
+      textButtonStyle: _textButtonStyle,
       unselectedProgressColor: BeamLightThemeColors.unselectedProgressColor,
       codeBackgroundColor: BeamLightThemeColors.codeBackground,
       codeRootStyle: GoogleFonts.sourceCodePro(
@@ -163,7 +200,7 @@ final kLightTheme = ThemeData(
         fontSize: codeFontSize,
       ),
       codeTheme: CodeThemeData(
-        styles: {
+        styles: const {
           'root': TextStyle(
             backgroundColor: BeamLightThemeColors.primaryBackground,
             color: BeamLightThemeColors.text,
@@ -194,8 +231,8 @@ final kLightTheme = ThemeData(
           'symbol': TextStyle(color: BeamLightThemeColors.code2),
           'bullet': TextStyle(color: BeamLightThemeColors.code2),
           'link': TextStyle(color: BeamLightThemeColors.code2),
-          'emphasis': const TextStyle(fontStyle: FontStyle.italic),
-          'strong': const TextStyle(fontWeight: FontWeight.bold),
+          'emphasis': TextStyle(fontStyle: FontStyle.italic),
+          'strong': TextStyle(fontWeight: FontWeight.bold),
         },
       ),
     ),
@@ -213,6 +250,7 @@ final kDarkTheme = ThemeData(
     BeamDarkThemeColors.text,
     BeamDarkThemeColors.primary,
   ),
+  pageTransitionsTheme: NoTransitionsTheme(),
   primaryColor: BeamDarkThemeColors.primary,
   scaffoldBackgroundColor: BeamDarkThemeColors.secondaryBackground,
   selectedRowColor: BeamDarkThemeColors.selectedUnitColor,
@@ -232,6 +270,7 @@ final kDarkTheme = ThemeData(
       markdownStyle: _getMarkdownStyle(Brightness.dark),
       secondaryBackgroundColor: BeamDarkThemeColors.secondaryBackground,
       selectedProgressColor: BeamDarkThemeColors.selectedProgressColor,
+      textButtonStyle: _textButtonStyle,
       unselectedProgressColor: BeamDarkThemeColors.unselectedProgressColor,
       codeBackgroundColor: BeamDarkThemeColors.codeBackground,
       codeRootStyle: GoogleFonts.sourceCodePro(
@@ -239,7 +278,7 @@ final kDarkTheme = ThemeData(
         fontSize: codeFontSize,
       ),
       codeTheme: CodeThemeData(
-        styles: {
+        styles: const {
           'root': TextStyle(
             backgroundColor: BeamDarkThemeColors.primaryBackground,
             color: BeamDarkThemeColors.text,
@@ -270,8 +309,8 @@ final kDarkTheme = ThemeData(
           'symbol': TextStyle(color: BeamDarkThemeColors.code2),
           'bullet': TextStyle(color: BeamDarkThemeColors.code2),
           'link': TextStyle(color: BeamDarkThemeColors.code2),
-          'emphasis': const TextStyle(fontStyle: FontStyle.italic),
-          'strong': const TextStyle(fontWeight: FontWeight.bold),
+          'emphasis': TextStyle(fontStyle: FontStyle.italic),
+          'strong': TextStyle(fontWeight: FontWeight.bold),
         },
       ),
     ),
@@ -406,28 +445,40 @@ RoundedRectangleBorder _getButtonBorder(double radius) {
 MarkdownStyleSheet _getMarkdownStyle(Brightness brightness) {
   final Color primaryColor;
   final Color codeblockBackgroundColor;
-  final Color textColor;
   if (brightness == Brightness.light) {
     primaryColor = BeamLightThemeColors.primary;
     codeblockBackgroundColor = BeamLightThemeColors.codeBackground;
-    textColor = BeamLightThemeColors.text;
   } else {
     primaryColor = BeamDarkThemeColors.primary;
     codeblockBackgroundColor = BeamDarkThemeColors.codeBackground;
-    textColor = BeamDarkThemeColors.text;
   }
-  final textTheme = _getTextTheme(textColor);
 
   return MarkdownStyleSheet(
-    p: textTheme.bodyMedium,
-    pPadding: EdgeInsets.only(top: BeamSizes.size2),
-    h1: textTheme.headlineLarge,
-    h3: textTheme.headlineMedium,
-    h3Padding: EdgeInsets.only(top: BeamSizes.size4),
+    p: const TextStyle(
+      fontSize: 16,
+      fontWeight: FontWeight.w400,
+    ),
+    pPadding: const EdgeInsets.only(top: BeamSizes.size2),
+    h1: const TextStyle(
+      fontSize: 18,
+      fontWeight: FontWeight.w600,
+    ),
+    h2: const TextStyle(
+      fontSize: 17,
+      fontWeight: FontWeight.w600,
+    ),
+    h3: const TextStyle(
+      fontSize: 16,
+      fontWeight: FontWeight.w600,
+    ),
+    h3Padding: const EdgeInsets.only(top: BeamSizes.size4),
+    blockquoteDecoration: BoxDecoration(
+      color: codeblockBackgroundColor,
+      borderRadius: BorderRadius.circular(BeamSizes.size6),
+    ),
     code: GoogleFonts.sourceCodePro(
-      color: textColor,
       backgroundColor: BeamColors.transparent,
-      fontSize: BeamSizes.size12,
+      fontSize: 14,
     ),
     codeblockDecoration: BoxDecoration(
       color: codeblockBackgroundColor,
@@ -436,6 +487,13 @@ MarkdownStyleSheet _getMarkdownStyle(Brightness brightness) {
     ),
   );
 }
+
+final _textButtonStyle = TextButton.styleFrom(
+  textStyle: const TextStyle(
+    fontSize: BeamSizes.size12,
+    fontWeight: FontWeight.w400,
+  ),
+);
 
 /// This is used to easily distinguish unimplemented text styles.
 const TextStyle _emptyTextStyle = TextStyle();

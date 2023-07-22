@@ -24,8 +24,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.value.AutoValue;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -45,10 +43,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * <i>Experimental</i>
- *
- * <p>Creates a {@link PTransform} to convert input JSON objects to {@link Row Rows} with given
- * {@link Schema}.
+ * Creates a {@link PTransform} to convert input JSON objects to {@link Row Rows} with given {@link
+ * Schema}.
  *
  * <p>Currently supported {@link Schema} field types are:
  *
@@ -84,7 +80,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * NullBehavior#REQUIRE_NULL} means that JSON values must be null to be parsed as null, otherwise an
  * error will be thrown, as with previous versions of Beam.
  */
-@Experimental(Kind.SCHEMAS)
 public class JsonToRow {
 
   public static PTransform<PCollection<String>, PCollection<Row>> withSchema(Schema rowSchema) {
@@ -165,7 +160,6 @@ public class JsonToRow {
    *
    * @return {@link JsonToRowWithErrFn}
    */
-  @Experimental(Kind.SCHEMAS)
   public static JsonToRowWithErrFn withExceptionReporting(Schema rowSchema) {
     return JsonToRowWithErrFn.forSchema(rowSchema);
   }

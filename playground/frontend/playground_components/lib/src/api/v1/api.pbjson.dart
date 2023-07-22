@@ -1,27 +1,9 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 ///
 //  Generated code. Do not modify.
 //  source: api/v1/api.proto
 //
 // @dart = 2.12
-// ignore_for_file: annotate_overrides,camel_case_types,unnecessary_const,non_constant_identifier_names,library_prefixes,unused_import,unused_shown_name,return_of_invalid_type,unnecessary_this,prefer_final_fields,deprecated_member_use_from_same_package
+// ignore_for_file: annotate_overrides,camel_case_types,constant_identifier_names,deprecated_member_use_from_same_package,directives_ordering,library_prefixes,non_constant_identifier_names,prefer_final_fields,return_of_invalid_type,unnecessary_const,unnecessary_import,unnecessary_this,unused_import,unused_shown_name
 
 import 'dart:core' as $core;
 import 'dart:convert' as $convert;
@@ -88,6 +70,40 @@ const Complexity$json = const {
 
 /// Descriptor for `Complexity`. Decode as a `google.protobuf.EnumDescriptorProto`.
 final $typed_data.Uint8List complexityDescriptor = $convert.base64Decode('CgpDb21wbGV4aXR5EhoKFkNPTVBMRVhJVFlfVU5TUEVDSUZJRUQQABIUChBDT01QTEVYSVRZX0JBU0lDEAESFQoRQ09NUExFWElUWV9NRURJVU0QAhIXChNDT01QTEVYSVRZX0FEVkFOQ0VEEAM=');
+@$core.Deprecated('Use emulatorTypeDescriptor instead')
+const EmulatorType$json = const {
+  '1': 'EmulatorType',
+  '2': const [
+    const {'1': 'EMULATOR_TYPE_UNSPECIFIED', '2': 0},
+    const {'1': 'EMULATOR_TYPE_KAFKA', '2': 1},
+  ],
+};
+
+/// Descriptor for `EmulatorType`. Decode as a `google.protobuf.EnumDescriptorProto`.
+final $typed_data.Uint8List emulatorTypeDescriptor = $convert.base64Decode('CgxFbXVsYXRvclR5cGUSHQoZRU1VTEFUT1JfVFlQRV9VTlNQRUNJRklFRBAAEhcKE0VNVUxBVE9SX1RZUEVfS0FGS0EQAQ==');
+@$core.Deprecated('Use datasetDescriptor instead')
+const Dataset$json = const {
+  '1': 'Dataset',
+  '2': const [
+    const {'1': 'type', '3': 1, '4': 1, '5': 14, '6': '.api.v1.EmulatorType', '10': 'type'},
+    const {'1': 'options', '3': 2, '4': 3, '5': 11, '6': '.api.v1.Dataset.OptionsEntry', '10': 'options'},
+    const {'1': 'dataset_path', '3': 3, '4': 1, '5': 9, '10': 'datasetPath'},
+  ],
+  '3': const [Dataset_OptionsEntry$json],
+};
+
+@$core.Deprecated('Use datasetDescriptor instead')
+const Dataset_OptionsEntry$json = const {
+  '1': 'OptionsEntry',
+  '2': const [
+    const {'1': 'key', '3': 1, '4': 1, '5': 9, '10': 'key'},
+    const {'1': 'value', '3': 2, '4': 1, '5': 9, '10': 'value'},
+  ],
+  '7': const {'7': true},
+};
+
+/// Descriptor for `Dataset`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List datasetDescriptor = $convert.base64Decode('CgdEYXRhc2V0EigKBHR5cGUYASABKA4yFC5hcGkudjEuRW11bGF0b3JUeXBlUgR0eXBlEjYKB29wdGlvbnMYAiADKAsyHC5hcGkudjEuRGF0YXNldC5PcHRpb25zRW50cnlSB29wdGlvbnMSIQoMZGF0YXNldF9wYXRoGAMgASgJUgtkYXRhc2V0UGF0aBo6CgxPcHRpb25zRW50cnkSEAoDa2V5GAEgASgJUgNrZXkSFAoFdmFsdWUYAiABKAlSBXZhbHVlOgI4AQ==');
 @$core.Deprecated('Use runCodeRequestDescriptor instead')
 const RunCodeRequest$json = const {
   '1': 'RunCodeRequest',
@@ -95,11 +111,13 @@ const RunCodeRequest$json = const {
     const {'1': 'code', '3': 1, '4': 1, '5': 9, '10': 'code'},
     const {'1': 'sdk', '3': 2, '4': 1, '5': 14, '6': '.api.v1.Sdk', '10': 'sdk'},
     const {'1': 'pipeline_options', '3': 3, '4': 1, '5': 9, '10': 'pipelineOptions'},
+    const {'1': 'datasets', '3': 4, '4': 3, '5': 11, '6': '.api.v1.Dataset', '10': 'datasets'},
+    const {'1': 'files', '3': 5, '4': 3, '5': 11, '6': '.api.v1.SnippetFile', '10': 'files'},
   ],
 };
 
 /// Descriptor for `RunCodeRequest`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List runCodeRequestDescriptor = $convert.base64Decode('Cg5SdW5Db2RlUmVxdWVzdBISCgRjb2RlGAEgASgJUgRjb2RlEh0KA3NkaxgCIAEoDjILLmFwaS52MS5TZGtSA3NkaxIpChBwaXBlbGluZV9vcHRpb25zGAMgASgJUg9waXBlbGluZU9wdGlvbnM=');
+final $typed_data.Uint8List runCodeRequestDescriptor = $convert.base64Decode('Cg5SdW5Db2RlUmVxdWVzdBISCgRjb2RlGAEgASgJUgRjb2RlEh0KA3NkaxgCIAEoDjILLmFwaS52MS5TZGtSA3NkaxIpChBwaXBlbGluZV9vcHRpb25zGAMgASgJUg9waXBlbGluZU9wdGlvbnMSKwoIZGF0YXNldHMYBCADKAsyDy5hcGkudjEuRGF0YXNldFIIZGF0YXNldHMSKQoFZmlsZXMYBSADKAsyEy5hcGkudjEuU25pcHBldEZpbGVSBWZpbGVz');
 @$core.Deprecated('Use runCodeResponseDescriptor instead')
 const RunCodeResponse$json = const {
   '1': 'RunCodeResponse',
@@ -303,11 +321,16 @@ const PrecompiledObject$json = const {
     const {'1': 'sdk', '3': 10, '4': 1, '5': 14, '6': '.api.v1.Sdk', '10': 'sdk'},
     const {'1': 'complexity', '3': 11, '4': 1, '5': 14, '6': '.api.v1.Complexity', '10': 'complexity'},
     const {'1': 'tags', '3': 12, '4': 3, '5': 9, '10': 'tags'},
+    const {'1': 'datasets', '3': 13, '4': 3, '5': 11, '6': '.api.v1.Dataset', '10': 'datasets'},
+    const {'1': 'url_vcs', '3': 14, '4': 1, '5': 9, '10': 'urlVcs'},
+    const {'1': 'url_notebook', '3': 15, '4': 1, '5': 9, '10': 'urlNotebook'},
+    const {'1': 'always_run', '3': 16, '4': 1, '5': 8, '10': 'alwaysRun'},
+    const {'1': 'never_run', '3': 17, '4': 1, '5': 8, '10': 'neverRun'},
   ],
 };
 
 /// Descriptor for `PrecompiledObject`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List precompiledObjectDescriptor = $convert.base64Decode('ChFQcmVjb21waWxlZE9iamVjdBIdCgpjbG91ZF9wYXRoGAEgASgJUgljbG91ZFBhdGgSEgoEbmFtZRgCIAEoCVIEbmFtZRIgCgtkZXNjcmlwdGlvbhgDIAEoCVILZGVzY3JpcHRpb24SMQoEdHlwZRgEIAEoDjIdLmFwaS52MS5QcmVjb21waWxlZE9iamVjdFR5cGVSBHR5cGUSKQoQcGlwZWxpbmVfb3B0aW9ucxgFIAEoCVIPcGlwZWxpbmVPcHRpb25zEhIKBGxpbmsYBiABKAlSBGxpbmsSHAoJbXVsdGlmaWxlGAcgASgIUgltdWx0aWZpbGUSIQoMY29udGV4dF9saW5lGAggASgFUgtjb250ZXh0TGluZRInCg9kZWZhdWx0X2V4YW1wbGUYCSABKAhSDmRlZmF1bHRFeGFtcGxlEh0KA3NkaxgKIAEoDjILLmFwaS52MS5TZGtSA3NkaxIyCgpjb21wbGV4aXR5GAsgASgOMhIuYXBpLnYxLkNvbXBsZXhpdHlSCmNvbXBsZXhpdHkSEgoEdGFncxgMIAMoCVIEdGFncw==');
+final $typed_data.Uint8List precompiledObjectDescriptor = $convert.base64Decode('ChFQcmVjb21waWxlZE9iamVjdBIdCgpjbG91ZF9wYXRoGAEgASgJUgljbG91ZFBhdGgSEgoEbmFtZRgCIAEoCVIEbmFtZRIgCgtkZXNjcmlwdGlvbhgDIAEoCVILZGVzY3JpcHRpb24SMQoEdHlwZRgEIAEoDjIdLmFwaS52MS5QcmVjb21waWxlZE9iamVjdFR5cGVSBHR5cGUSKQoQcGlwZWxpbmVfb3B0aW9ucxgFIAEoCVIPcGlwZWxpbmVPcHRpb25zEhIKBGxpbmsYBiABKAlSBGxpbmsSHAoJbXVsdGlmaWxlGAcgASgIUgltdWx0aWZpbGUSIQoMY29udGV4dF9saW5lGAggASgFUgtjb250ZXh0TGluZRInCg9kZWZhdWx0X2V4YW1wbGUYCSABKAhSDmRlZmF1bHRFeGFtcGxlEh0KA3NkaxgKIAEoDjILLmFwaS52MS5TZGtSA3NkaxIyCgpjb21wbGV4aXR5GAsgASgOMhIuYXBpLnYxLkNvbXBsZXhpdHlSCmNvbXBsZXhpdHkSEgoEdGFncxgMIAMoCVIEdGFncxIrCghkYXRhc2V0cxgNIAMoCzIPLmFwaS52MS5EYXRhc2V0UghkYXRhc2V0cxIXCgd1cmxfdmNzGA4gASgJUgZ1cmxWY3MSIQoMdXJsX25vdGVib29rGA8gASgJUgt1cmxOb3RlYm9vaxIdCgphbHdheXNfcnVuGBAgASgIUglhbHdheXNSdW4SGwoJbmV2ZXJfcnVuGBEgASgIUghuZXZlclJ1bg==');
 @$core.Deprecated('Use categoriesDescriptor instead')
 const Categories$json = const {
   '1': 'Categories',
@@ -425,11 +448,12 @@ const GetPrecompiledObjectCodeResponse$json = const {
   '1': 'GetPrecompiledObjectCodeResponse',
   '2': const [
     const {'1': 'code', '3': 1, '4': 1, '5': 9, '10': 'code'},
+    const {'1': 'files', '3': 2, '4': 3, '5': 11, '6': '.api.v1.SnippetFile', '10': 'files'},
   ],
 };
 
 /// Descriptor for `GetPrecompiledObjectCodeResponse`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List getPrecompiledObjectCodeResponseDescriptor = $convert.base64Decode('CiBHZXRQcmVjb21waWxlZE9iamVjdENvZGVSZXNwb25zZRISCgRjb2RlGAEgASgJUgRjb2Rl');
+final $typed_data.Uint8List getPrecompiledObjectCodeResponseDescriptor = $convert.base64Decode('CiBHZXRQcmVjb21waWxlZE9iamVjdENvZGVSZXNwb25zZRISCgRjb2RlGAEgASgJUgRjb2RlEikKBWZpbGVzGAIgAygLMhMuYXBpLnYxLlNuaXBwZXRGaWxlUgVmaWxlcw==');
 @$core.Deprecated('Use getPrecompiledObjectOutputResponseDescriptor instead')
 const GetPrecompiledObjectOutputResponse$json = const {
   '1': 'GetPrecompiledObjectOutputResponse',
@@ -490,11 +514,12 @@ const SaveSnippetRequest$json = const {
     const {'1': 'sdk', '3': 2, '4': 1, '5': 14, '6': '.api.v1.Sdk', '10': 'sdk'},
     const {'1': 'pipeline_options', '3': 3, '4': 1, '5': 9, '10': 'pipelineOptions'},
     const {'1': 'complexity', '3': 4, '4': 1, '5': 14, '6': '.api.v1.Complexity', '10': 'complexity'},
+    const {'1': 'persistence_key', '3': 5, '4': 1, '5': 9, '10': 'persistenceKey'},
   ],
 };
 
 /// Descriptor for `SaveSnippetRequest`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List saveSnippetRequestDescriptor = $convert.base64Decode('ChJTYXZlU25pcHBldFJlcXVlc3QSKQoFZmlsZXMYASADKAsyEy5hcGkudjEuU25pcHBldEZpbGVSBWZpbGVzEh0KA3NkaxgCIAEoDjILLmFwaS52MS5TZGtSA3NkaxIpChBwaXBlbGluZV9vcHRpb25zGAMgASgJUg9waXBlbGluZU9wdGlvbnMSMgoKY29tcGxleGl0eRgEIAEoDjISLmFwaS52MS5Db21wbGV4aXR5Ugpjb21wbGV4aXR5');
+final $typed_data.Uint8List saveSnippetRequestDescriptor = $convert.base64Decode('ChJTYXZlU25pcHBldFJlcXVlc3QSKQoFZmlsZXMYASADKAsyEy5hcGkudjEuU25pcHBldEZpbGVSBWZpbGVzEh0KA3NkaxgCIAEoDjILLmFwaS52MS5TZGtSA3NkaxIpChBwaXBlbGluZV9vcHRpb25zGAMgASgJUg9waXBlbGluZU9wdGlvbnMSMgoKY29tcGxleGl0eRgEIAEoDjISLmFwaS52MS5Db21wbGV4aXR5Ugpjb21wbGV4aXR5EicKD3BlcnNpc3RlbmNlX2tleRgFIAEoCVIOcGVyc2lzdGVuY2VLZXk=');
 @$core.Deprecated('Use saveSnippetResponseDescriptor instead')
 const SaveSnippetResponse$json = const {
   '1': 'SaveSnippetResponse',
@@ -528,3 +553,23 @@ const GetSnippetResponse$json = const {
 
 /// Descriptor for `GetSnippetResponse`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List getSnippetResponseDescriptor = $convert.base64Decode('ChJHZXRTbmlwcGV0UmVzcG9uc2USKQoFZmlsZXMYASADKAsyEy5hcGkudjEuU25pcHBldEZpbGVSBWZpbGVzEh0KA3NkaxgCIAEoDjILLmFwaS52MS5TZGtSA3NkaxIpChBwaXBlbGluZV9vcHRpb25zGAMgASgJUg9waXBlbGluZU9wdGlvbnMSMgoKY29tcGxleGl0eRgEIAEoDjISLmFwaS52MS5Db21wbGV4aXR5Ugpjb21wbGV4aXR5');
+@$core.Deprecated('Use getMetadataRequestDescriptor instead')
+const GetMetadataRequest$json = const {
+  '1': 'GetMetadataRequest',
+};
+
+/// Descriptor for `GetMetadataRequest`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List getMetadataRequestDescriptor = $convert.base64Decode('ChJHZXRNZXRhZGF0YVJlcXVlc3Q=');
+@$core.Deprecated('Use getMetadataResponseDescriptor instead')
+const GetMetadataResponse$json = const {
+  '1': 'GetMetadataResponse',
+  '2': const [
+    const {'1': 'runner_sdk', '3': 1, '4': 1, '5': 9, '10': 'runnerSdk'},
+    const {'1': 'build_commit_hash', '3': 2, '4': 1, '5': 9, '10': 'buildCommitHash'},
+    const {'1': 'build_commit_timestamp_seconds_since_epoch', '3': 3, '4': 1, '5': 3, '10': 'buildCommitTimestampSecondsSinceEpoch'},
+    const {'1': 'beam_sdk_version', '3': 4, '4': 1, '5': 9, '10': 'beamSdkVersion'},
+  ],
+};
+
+/// Descriptor for `GetMetadataResponse`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List getMetadataResponseDescriptor = $convert.base64Decode('ChNHZXRNZXRhZGF0YVJlc3BvbnNlEh0KCnJ1bm5lcl9zZGsYASABKAlSCXJ1bm5lclNkaxIqChFidWlsZF9jb21taXRfaGFzaBgCIAEoCVIPYnVpbGRDb21taXRIYXNoElkKKmJ1aWxkX2NvbW1pdF90aW1lc3RhbXBfc2Vjb25kc19zaW5jZV9lcG9jaBgDIAEoA1IlYnVpbGRDb21taXRUaW1lc3RhbXBTZWNvbmRzU2luY2VFcG9jaBIoChBiZWFtX3Nka192ZXJzaW9uGAQgASgJUg5iZWFtU2RrVmVyc2lvbg==');

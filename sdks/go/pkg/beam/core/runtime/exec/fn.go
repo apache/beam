@@ -70,16 +70,47 @@ func (bf *bundleFinalizer) RegisterCallback(t time.Duration, cb func() error) {
 
 // Invoke invokes the fn with the given values. The extra values must match the non-main
 // side input and emitters. It returns the direct output, if any.
-func Invoke(ctx context.Context, pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime, fn *funcx.Fn, opt *MainInput, bf *bundleFinalizer, we sdf.WatermarkEstimator, sa UserStateAdapter, reader StateReader, extra ...interface{}) (*FullValue, error) {
+//
+// Deprecated: prefer InvokeWithOpts
+func Invoke(ctx context.Context, pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime, fn *funcx.Fn, opt *MainInput, bf *bundleFinalizer, we sdf.WatermarkEstimator, sa UserStateAdapter, sr StateReader, extra ...any) (*FullValue, error) {
+	if fn == nil {
+		return nil, nil
+	}
+	inv := newInvoker(fn)
+	return inv.invokeWithOpts(ctx, pn, ws, ts, InvokeOpts{opt: opt, bf: bf, we: we, sa: sa, sr: sr, extra: extra})
+}
+
+// InvokeOpts are optional parameters to invoke a Fn.
+type InvokeOpts struct {
+	opt   *MainInput
+	bf    *bundleFinalizer
+	we    sdf.WatermarkEstimator
+	sa    UserStateAdapter
+	sr    StateReader
+	ta    *userTimerAdapter
+	tm    DataManager
+	extra []any
+}
+
+// InvokeWithOpts invokes the fn with the given values. The extra values must match the non-main
+// side input and emitters. It returns the direct output, if any.
+func InvokeWithOpts(ctx context.Context, fn *funcx.Fn, pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime, opts InvokeOpts) (*FullValue, error) {
 	if fn == nil {
 		return nil, nil // ok: nothing to Invoke
 	}
 	inv := newInvoker(fn)
-	return inv.Invoke(ctx, pn, ws, ts, opt, bf, we, sa, reader, extra...)
+	return inv.invokeWithOpts(ctx, pn, ws, ts, opts)
+}
+
+// InvokeWithOptsWithoutEventTime runs the given function at time 0 in the global window.
+func InvokeWithOptsWithoutEventTime(ctx context.Context, fn *funcx.Fn, opts InvokeOpts) (*FullValue, error) {
+	return InvokeWithOpts(ctx, fn, typex.NoFiringPane(), window.SingleGlobalWindow, mtime.ZeroTimestamp, opts)
 }
 
 // InvokeWithoutEventTime runs the given function at time 0 in the global window.
-func InvokeWithoutEventTime(ctx context.Context, fn *funcx.Fn, opt *MainInput, bf *bundleFinalizer, we sdf.WatermarkEstimator, sa UserStateAdapter, reader StateReader, extra ...interface{}) (*FullValue, error) {
+//
+// Deprecated: prefer InvokeWithOptsWithoutEventTime
+func InvokeWithoutEventTime(ctx context.Context, fn *funcx.Fn, opt *MainInput, bf *bundleFinalizer, we sdf.WatermarkEstimator, sa UserStateAdapter, reader StateReader, extra ...any) (*FullValue, error) {
 	if fn == nil {
 		return nil, nil // ok: nothing to Invoke
 	}
@@ -91,22 +122,24 @@ func InvokeWithoutEventTime(ctx context.Context, fn *funcx.Fn, opt *MainInput, b
 // repeating fixed set up per element.
 type invoker struct {
 	fn   *funcx.Fn
-	args []interface{}
+	args []any
 	sp   *stateProvider
-	// TODO(lostluck):  2018/07/06 consider replacing with a slice of functions to run over the args slice, as an improvement.
-	ctxIdx, pnIdx, wndIdx, etIdx, bfIdx, weIdx, spIdx int   // specialized input indexes
-	outEtIdx, outPcIdx, outErrIdx                     int   // specialized output indexes
-	in, out                                           []int // general indexes
+	tp   *timerProvider
 
-	ret                     FullValue                     // ret is a cached allocation for passing to the next Unit. Units never modify the passed in FullValue.
-	elmConvert, elm2Convert func(interface{}) interface{} // Cached conversion functions, which assums this invoker is always used with the same parameter types.
+	// TODO(lostluck):  2018/07/06 consider replacing with a slice of functions to run over the args slice, as an improvement.
+	ctxIdx, pnIdx, wndIdx, etIdx, bfIdx, weIdx, spIdx, tpIdx int   // specialized input indexes
+	outEtIdx, outPcIdx, outErrIdx                            int   // specialized output indexes
+	in, out                                                  []int // general indexes
+
+	ret                     FullValue     // ret is a cached allocation for passing to the next Unit. Units never modify the passed in FullValue.
+	elmConvert, elm2Convert func(any) any // Cached conversion functions, which assums this invoker is always used with the same parameter types.
 	call                    func(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime) (*FullValue, error)
 }
 
 func newInvoker(fn *funcx.Fn) *invoker {
 	n := &invoker{
 		fn:   fn,
-		args: make([]interface{}, len(fn.Param)),
+		args: make([]any, len(fn.Param)),
 		in:   fn.Params(funcx.FnValue | funcx.FnIter | funcx.FnReIter | funcx.FnEmit | funcx.FnMultiMap | funcx.FnRTracker),
 		out:  fn.Returns(funcx.RetValue),
 	}
@@ -128,6 +161,9 @@ func newInvoker(fn *funcx.Fn) *invoker {
 	}
 	if n.spIdx, ok = fn.StateProvider(); !ok {
 		n.spIdx = -1
+	}
+	if n.tpIdx, ok = fn.TimerProvider(); !ok {
+		n.tpIdx = -1
 	}
 	if n.outEtIdx, ok = fn.OutEventTime(); !ok {
 		n.outEtIdx = -1
@@ -157,13 +193,17 @@ func (n *invoker) Reset() {
 }
 
 // InvokeWithoutEventTime runs the function at time 0 in the global window.
-func (n *invoker) InvokeWithoutEventTime(ctx context.Context, opt *MainInput, bf *bundleFinalizer, we sdf.WatermarkEstimator, sa UserStateAdapter, reader StateReader, extra ...interface{}) (*FullValue, error) {
+func (n *invoker) InvokeWithoutEventTime(ctx context.Context, opt *MainInput, bf *bundleFinalizer, we sdf.WatermarkEstimator, sa UserStateAdapter, reader StateReader, extra ...any) (*FullValue, error) {
 	return n.Invoke(ctx, typex.NoFiringPane(), window.SingleGlobalWindow, mtime.ZeroTimestamp, opt, bf, we, sa, reader, extra...)
 }
 
 // Invoke invokes the fn with the given values. The extra values must match the non-main
 // side input and emitters. It returns the direct output, if any.
-func (n *invoker) Invoke(ctx context.Context, pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime, opt *MainInput, bf *bundleFinalizer, we sdf.WatermarkEstimator, sa UserStateAdapter, reader StateReader, extra ...interface{}) (*FullValue, error) {
+func (n *invoker) Invoke(ctx context.Context, pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime, opt *MainInput, bf *bundleFinalizer, we sdf.WatermarkEstimator, sa UserStateAdapter, sr StateReader, extra ...any) (*FullValue, error) {
+	return n.invokeWithOpts(ctx, pn, ws, ts, InvokeOpts{opt: opt, bf: bf, we: we, sa: sa, sr: sr, extra: extra})
+}
+
+func (n *invoker) invokeWithOpts(ctx context.Context, pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime, opts InvokeOpts) (*FullValue, error) {
 	// (1) Populate contexts
 	// extract these to make things easier to read.
 	args := n.args
@@ -178,7 +218,7 @@ func (n *invoker) Invoke(ctx context.Context, pn typex.PaneInfo, ws []typex.Wind
 	}
 	if n.wndIdx >= 0 {
 		if len(ws) != 1 {
-			return nil, errors.Errorf("DoFns that observe windows must be invoked with single window: %v", opt.Key.Windows)
+			return nil, errors.Errorf("DoFns that observe windows must be invoked with single window: %v", opts.opt.Key.Windows)
 		}
 		args[n.wndIdx] = ws[0]
 	}
@@ -186,14 +226,14 @@ func (n *invoker) Invoke(ctx context.Context, pn typex.PaneInfo, ws []typex.Wind
 		args[n.etIdx] = ts
 	}
 	if n.bfIdx >= 0 {
-		args[n.bfIdx] = bf
+		args[n.bfIdx] = opts.bf
 	}
 	if n.weIdx >= 0 {
-		args[n.weIdx] = we
+		args[n.weIdx] = opts.we
 	}
 
 	if n.spIdx >= 0 {
-		sp, err := sa.NewStateProvider(ctx, reader, ws[0], opt)
+		sp, err := opts.sa.NewStateProvider(ctx, opts.sr, ws[0], opts.opt)
 		if err != nil {
 			return nil, err
 		}
@@ -201,29 +241,34 @@ func (n *invoker) Invoke(ctx context.Context, pn typex.PaneInfo, ws []typex.Wind
 		args[n.spIdx] = n.sp
 	}
 
+	if n.tpIdx >= 0 {
+		n.tp = opts.ta.NewTimerProvider(pn, ws)
+		args[n.tpIdx] = n.tp
+	}
+
 	// (2) Main input from value, if any.
 	i := 0
-	if opt != nil {
-		if opt.RTracker != nil {
-			args[in[i]] = opt.RTracker
+	if opts.opt != nil {
+		if opts.opt.RTracker != nil {
+			args[in[i]] = opts.opt.RTracker
 			i++
 		}
 		if n.elmConvert == nil {
-			from := reflect.TypeOf(opt.Key.Elm)
+			from := reflect.TypeOf(opts.opt.Key.Elm)
 			n.elmConvert = ConvertFn(from, fn.Param[in[i]].T)
 		}
-		args[in[i]] = n.elmConvert(opt.Key.Elm)
+		args[in[i]] = n.elmConvert(opts.opt.Key.Elm)
 		i++
-		if opt.Key.Elm2 != nil {
+		if opts.opt.Key.Elm2 != nil {
 			if n.elm2Convert == nil {
-				from := reflect.TypeOf(opt.Key.Elm2)
+				from := reflect.TypeOf(opts.opt.Key.Elm2)
 				n.elm2Convert = ConvertFn(from, fn.Param[in[i]].T)
 			}
-			args[in[i]] = n.elm2Convert(opt.Key.Elm2)
+			args[in[i]] = n.elm2Convert(opts.opt.Key.Elm2)
 			i++
 		}
 
-		for _, iter := range opt.Values {
+		for _, iter := range opts.opt.Values {
 			param := fn.Param[in[i]]
 
 			if param.Kind != funcx.FnIter {
@@ -243,7 +288,7 @@ func (n *invoker) Invoke(ctx context.Context, pn typex.PaneInfo, ws []typex.Wind
 	}
 
 	// (3) Precomputed side input and emitters (or other output).
-	for _, arg := range extra {
+	for _, arg := range opts.extra {
 		args[in[i]] = arg
 		i++
 	}
@@ -254,7 +299,7 @@ func (n *invoker) Invoke(ctx context.Context, pn typex.PaneInfo, ws []typex.Wind
 
 // ret1 handles processing of a single return value.
 // Errors, single values, or a ProcessContinuation are the only options.
-func (n *invoker) ret1(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime, r0 interface{}) (*FullValue, error) {
+func (n *invoker) ret1(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime, r0 any) (*FullValue, error) {
 	switch {
 	case n.outErrIdx == 0:
 		if r0 != nil {
@@ -276,7 +321,7 @@ func (n *invoker) ret1(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime,
 }
 
 // ret2 handles processing of a pair of return values.
-func (n *invoker) ret2(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime, r0, r1 interface{}) (*FullValue, error) {
+func (n *invoker) ret2(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime, r0, r1 any) (*FullValue, error) {
 	switch {
 	case n.outErrIdx == 1:
 		if r1 != nil {
@@ -310,7 +355,7 @@ func (n *invoker) ret2(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime,
 }
 
 // ret3 handles processing of a trio of return values.
-func (n *invoker) ret3(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime, r0, r1, r2 interface{}) (*FullValue, error) {
+func (n *invoker) ret3(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime, r0, r1, r2 any) (*FullValue, error) {
 	switch {
 	case n.outEtIdx == 0:
 		if n.outErrIdx == 2 {
@@ -352,7 +397,7 @@ func (n *invoker) ret3(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime,
 }
 
 // ret4 handles processing of a quad of return values.
-func (n *invoker) ret4(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime, r0, r1, r2, r3 interface{}) (*FullValue, error) {
+func (n *invoker) ret4(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime, r0, r1, r2, r3 any) (*FullValue, error) {
 	if n.outEtIdx == 0 {
 		if n.outErrIdx == 3 {
 			if r3 != nil {
@@ -386,7 +431,7 @@ func (n *invoker) ret4(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime,
 }
 
 // ret5 handles processing five return values.
-func (n *invoker) ret5(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime, r0, r1, r2, r3, r4 interface{}) (*FullValue, error) {
+func (n *invoker) ret5(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime, r0, r1, r2, r3, r4 any) (*FullValue, error) {
 	if r4 != nil {
 		return nil, r4.(error)
 	}

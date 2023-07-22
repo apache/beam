@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.DescriptorProtos.DescriptorProto;
@@ -28,10 +29,12 @@ import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.DynamicMessage;
 import java.math.BigDecimal;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.schemas.Schema;
@@ -43,16 +46,14 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Functions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.commons.math3.util.Pair;
 import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-@RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 /** Unit tests form {@link BeamRowToStorageApiProto}. */
+@RunWith(JUnit4.class)
 public class BeamRowToStorageApiProtoTest {
   private static final EnumerationType TEST_ENUM =
       EnumerationType.create("ONE", "TWO", "RED", "BLUE");
@@ -85,21 +86,21 @@ public class BeamRowToStorageApiProtoTest {
               FieldDescriptorProto.newBuilder()
                   .setName("bytevalue")
                   .setNumber(1)
-                  .setType(Type.TYPE_INT32)
+                  .setType(Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("int16value")
                   .setNumber(2)
-                  .setType(Type.TYPE_INT32)
+                  .setType(Type.TYPE_INT64)
                   .setLabel(Label.LABEL_REQUIRED)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("int32value")
                   .setNumber(3)
-                  .setType(Type.TYPE_INT32)
+                  .setType(Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
@@ -120,7 +121,7 @@ public class BeamRowToStorageApiProtoTest {
               FieldDescriptorProto.newBuilder()
                   .setName("floatvalue")
                   .setNumber(6)
-                  .setType(Type.TYPE_FLOAT)
+                  .setType(Type.TYPE_DOUBLE)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
@@ -228,19 +229,19 @@ public class BeamRowToStorageApiProtoTest {
           .withFieldValue("sqlDateValue", LocalDate.now())
           .withFieldValue("sqlTimeValue", LocalTime.now())
           .withFieldValue("sqlDatetimeValue", LocalDateTime.now())
-          .withFieldValue("sqlTimestampValue", java.time.Instant.now())
+          .withFieldValue("sqlTimestampValue", java.time.Instant.now().plus(123, ChronoUnit.MICROS))
           .withFieldValue("enumValue", TEST_ENUM.valueOf("RED"))
           .build();
   private static final Map<String, Object> BASE_PROTO_EXPECTED_FIELDS =
       ImmutableMap.<String, Object>builder()
-          .put("bytevalue", (int) 1)
-          .put("int16value", (int) 2)
-          .put("int32value", (int) 3)
-          .put("int64value", (long) 4)
+          .put("bytevalue", 1L)
+          .put("int16value", 2L)
+          .put("int32value", 3L)
+          .put("int64value", 4L)
           .put(
               "decimalvalue",
               BeamRowToStorageApiProto.serializeBigDecimalToNumeric(BigDecimal.valueOf(5)))
-          .put("floatvalue", (float) 3.14)
+          .put("floatvalue", (double) 3.14)
           .put("doublevalue", (double) 2.68)
           .put("stringvalue", "I am a string. Hear me roar.")
           .put("datetimevalue", BASE_ROW.getDateTime("datetimeValue").getMillis() * 1000)
@@ -257,14 +258,13 @@ public class BeamRowToStorageApiProtoTest {
                   BASE_ROW.getLogicalTypeValue("sqlTimeValue", LocalTime.class)))
           .put(
               "sqldatetimevalue",
-              CivilTimeEncoder.encodePacked64DatetimeSeconds(
+              CivilTimeEncoder.encodePacked64DatetimeMicros(
                   BASE_ROW.getLogicalTypeValue("sqlDatetimeValue", LocalDateTime.class)))
           .put(
               "sqltimestampvalue",
-              BASE_ROW
-                      .getLogicalTypeValue("sqlTimestampValue", java.time.Instant.class)
-                      .toEpochMilli()
-                  * 1000)
+              ChronoUnit.MICROS.between(
+                  java.time.Instant.EPOCH,
+                  BASE_ROW.getLogicalTypeValue("sqlTimestampValue", java.time.Instant.class)))
           .put("enumvalue", "RED")
           .build();
 
@@ -284,7 +284,8 @@ public class BeamRowToStorageApiProtoTest {
   @Test
   public void testDescriptorFromSchema() {
     DescriptorProto descriptor =
-        BeamRowToStorageApiProto.descriptorSchemaFromBeamSchema(BASE_SCHEMA);
+        TableRowToStorageApiProto.descriptorSchemaFromTableSchema(
+            BeamRowToStorageApiProto.protoTableSchemaFromBeamSchema(BASE_SCHEMA), true, false);
     Map<String, Type> types =
         descriptor.getFieldList().stream()
             .collect(
@@ -315,7 +316,8 @@ public class BeamRowToStorageApiProtoTest {
   @Test
   public void testNestedFromSchema() {
     DescriptorProto descriptor =
-        BeamRowToStorageApiProto.descriptorSchemaFromBeamSchema(NESTED_SCHEMA);
+        TableRowToStorageApiProto.descriptorSchemaFromTableSchema(
+            BeamRowToStorageApiProto.protoTableSchemaFromBeamSchema((NESTED_SCHEMA)), true, false);
     Map<String, Type> expectedBaseTypes =
         BASE_SCHEMA_PROTO.getFieldList().stream()
             .collect(
@@ -371,15 +373,17 @@ public class BeamRowToStorageApiProtoTest {
   private void assertBaseRecord(DynamicMessage msg) {
     Map<String, Object> recordFields =
         msg.getAllFields().entrySet().stream()
-            .collect(
-                Collectors.toMap(entry -> entry.getKey().getName(), entry -> entry.getValue()));
+            .collect(Collectors.toMap(entry -> entry.getKey().getName(), Map.Entry::getValue));
     assertEquals(BASE_PROTO_EXPECTED_FIELDS, recordFields);
   }
 
   @Test
   public void testMessageFromTableRow() throws Exception {
-    Descriptor descriptor = BeamRowToStorageApiProto.getDescriptorFromSchema(NESTED_SCHEMA);
-    DynamicMessage msg = BeamRowToStorageApiProto.messageFromBeamRow(descriptor, NESTED_ROW);
+    Descriptor descriptor =
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(
+            BeamRowToStorageApiProto.protoTableSchemaFromBeamSchema(NESTED_SCHEMA), true, false);
+    DynamicMessage msg =
+        BeamRowToStorageApiProto.messageFromBeamRow(descriptor, NESTED_ROW, null, -1);
     assertEquals(3, msg.getAllFields().size());
 
     Map<String, FieldDescriptor> fieldDescriptors =
@@ -387,5 +391,50 @@ public class BeamRowToStorageApiProtoTest {
             .collect(Collectors.toMap(FieldDescriptor::getName, Functions.identity()));
     DynamicMessage nestedMsg = (DynamicMessage) msg.getField(fieldDescriptors.get("nested"));
     assertBaseRecord(nestedMsg);
+  }
+
+  @Test
+  public void testCdcFields() throws Exception {
+    Descriptor descriptor =
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(
+            BeamRowToStorageApiProto.protoTableSchemaFromBeamSchema(NESTED_SCHEMA), true, true);
+    assertNotNull(descriptor.findFieldByName(StorageApiCDC.CHANGE_TYPE_COLUMN));
+    assertNotNull(descriptor.findFieldByName(StorageApiCDC.CHANGE_SQN_COLUMN));
+    DynamicMessage msg =
+        BeamRowToStorageApiProto.messageFromBeamRow(descriptor, NESTED_ROW, "UPDATE", 42);
+    assertEquals(5, msg.getAllFields().size());
+
+    Map<String, FieldDescriptor> fieldDescriptors =
+        descriptor.getFields().stream()
+            .collect(Collectors.toMap(FieldDescriptor::getName, Functions.identity()));
+    DynamicMessage nestedMsg = (DynamicMessage) msg.getField(fieldDescriptors.get("nested"));
+    assertBaseRecord(nestedMsg);
+    assertEquals(
+        "UPDATE", msg.getField(descriptor.findFieldByName(StorageApiCDC.CHANGE_TYPE_COLUMN)));
+    assertEquals(42L, msg.getField(descriptor.findFieldByName(StorageApiCDC.CHANGE_SQN_COLUMN)));
+  }
+
+  @Test
+  public void testScalarToProtoValue() {
+    Map<FieldType, Iterable<Pair<Object, Object>>> testCases =
+        ImmutableMap.<FieldType, Iterable<Pair<Object, Object>>>builder()
+            .put(
+                FieldType.BYTES,
+                ImmutableList.of(
+                    Pair.create(BYTES, ByteString.copyFrom(BYTES)),
+                    Pair.create(ByteBuffer.wrap(BYTES), ByteString.copyFrom(BYTES)),
+                    Pair.create(
+                        new String(BYTES, StandardCharsets.UTF_8), ByteString.copyFrom(BYTES))))
+            .build();
+    for (Map.Entry<FieldType, Iterable<Pair<Object, Object>>> entry : testCases.entrySet()) {
+      entry
+          .getValue()
+          .forEach(
+              p -> {
+                assertEquals(
+                    p.getValue(),
+                    BeamRowToStorageApiProto.scalarToProtoValue(entry.getKey(), p.getKey()));
+              });
+    }
   }
 }

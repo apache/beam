@@ -24,6 +24,7 @@ import Flink
 import InfluxDBCredentialsHelper
 
 import static LoadTestsBuilder.DOCKER_CONTAINER_REGISTRY
+import static LoadTestsBuilder.DOCKER_BEAM_JOBSERVER
 import static LoadTestsBuilder.DOCKER_BEAM_SDK_IMAGE
 
 String now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
@@ -101,7 +102,7 @@ def scenarios = { datasetName ->
         metrics_dataset     : datasetName,
         metrics_table       : "python_flink_batch_GBK_5",
         influx_measurement  : 'python_batch_gbk_5',
-        input_options       : '\'{"num_records": 2500000,"key_size": 10,"value_size":90}\'',
+        input_options       : '\'{"num_records":2500000,"key_size":10,"value_size":90,"algorithm":"lcg"}\'',
         iterations          : 1,
         fanout              : 8,
         parallelism         : 16,
@@ -121,7 +122,7 @@ def scenarios = { datasetName ->
         metrics_dataset     : datasetName,
         metrics_table       : "python_flink_batch_GBK_6",
         influx_measurement  : 'python_batch_gbk_6',
-        input_options       : '\'{"num_records": 20000000,"key_size": 10,"value_size":90, "num_hot_keys": 200, "hot_key_fraction": 1}\'',
+        input_options       : '\'{"num_records":20000000,"key_size":10,"value_size":90,"num_hot_keys":200,"hot_key_fraction":1,"algorithm":"lcg"}\'',
         iterations          : 4,
         fanout              : 1,
         parallelism         : 5,
@@ -146,7 +147,7 @@ def loadTest = { scope, triggeringContext ->
         "${DOCKER_CONTAINER_REGISTRY}/${DOCKER_BEAM_SDK_IMAGE}"
       ],
       numberOfWorkers,
-      "${DOCKER_CONTAINER_REGISTRY}/beam_flink${CommonTestProperties.getFlinkVersion()}_job_server:latest")
+      "${DOCKER_BEAM_JOBSERVER}/beam_flink${CommonTestProperties.getFlinkVersion()}_job_server:latest")
 
   def configurations = testScenarios.findAll { it.pipelineOptions?.parallelism?.value == numberOfWorkers }
   loadTestsBuilder.loadTests(scope, sdk, configurations, "GBK", "batch")

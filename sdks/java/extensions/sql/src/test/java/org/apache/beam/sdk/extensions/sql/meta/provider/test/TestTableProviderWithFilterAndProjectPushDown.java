@@ -41,10 +41,10 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.calcite.v1_28_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptRule;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.rules.CoreRules;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.tools.RuleSets;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
 import org.junit.Before;
 import org.junit.Rule;
@@ -65,8 +65,6 @@ public class TestTableProviderWithFilterAndProjectPushDown {
   private static final List<RelOptRule> rulesWithPushDown =
       ImmutableList.of(
           BeamCalcRule.INSTANCE,
-          CoreRules.FILTER_CALC_MERGE,
-          CoreRules.PROJECT_CALC_MERGE,
           BeamIOPushDownRule.INSTANCE,
           CoreRules.FILTER_TO_CALC,
           CoreRules.PROJECT_TO_CALC,

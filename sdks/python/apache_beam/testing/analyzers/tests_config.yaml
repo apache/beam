@@ -1,0 +1,103 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# for the unique key to define a test, please use the following format:
+# {test_name}-{metric_name}
+
+pytorch_image_classification_benchmarks-resnet152-mean_inference_batch_latency_micro_secs:
+  test_description:
+    Pytorch image classification on 50k images of size 224 x 224 with resnet 152.
+    Test link - https://github.com/apache/beam/blob/42d0a6e3564d8b9c5d912428a6de18fb22a13ac1/.test-infra/jenkins/job_InferenceBenchmarkTests_Python.groovy#L63
+    Test dashboard - http://104.154.241.245/d/ZpS8Uf44z/python-ml-runinference-benchmarks?orgId=1&viewPanel=2
+  test_target:
+  metrics_dataset: beam_run_inference
+  metrics_table: torch_inference_imagenet_results_resnet152
+  project: apache-beam-testing
+  metric_name: mean_inference_batch_latency_micro_secs
+
+pytorch_image_classification_benchmarks-resnet101-mean_load_model_latency_milli_secs:
+  test_description:
+    Pytorch image classification on 50k images of size 224 x 224 with resnet 101.
+    Test link - https://github.com/apache/beam/blob/42d0a6e3564d8b9c5d912428a6de18fb22a13ac1/.test-infra/jenkins/job_InferenceBenchmarkTests_Python.groovy#L34
+    Test dashboard - http://104.154.241.245/d/ZpS8Uf44z/python-ml-runinference-benchmarks?orgId=1&viewPanel=7
+  test_target: apache_beam.testing.benchmarks.inference.pytorch_image_classification_benchmarks
+  metrics_dataset: beam_run_inference
+  metrics_table: torch_inference_imagenet_results_resnet101
+  project: apache-beam-testing
+  metric_name: mean_load_model_latency_milli_secs
+
+pytorch_image_classification_benchmarks-resnet101-mean_inference_batch_latency_micro_secs:
+  test_description:
+    Pytorch image classification on 50k images of size 224 x 224 with resnet 101.
+    Test link - https://github.com/apache/beam/blob/42d0a6e3564d8b9c5d912428a6de18fb22a13ac1/.test-infra/jenkins/job_InferenceBenchmarkTests_Python.groovy#L34
+    Test dashboard - http://104.154.241.245/d/ZpS8Uf44z/python-ml-runinference-benchmarks?orgId=1&viewPanel=2
+  test_target: apache_beam.testing.benchmarks.inference.pytorch_image_classification_benchmarks
+  metrics_dataset: beam_run_inference
+  metrics_table: torch_inference_imagenet_results_resnet101
+  project: apache-beam-testing
+  metric_name: mean_inference_batch_latency_micro_secs
+
+pytorch_image_classification_benchmarks-resnet152-GPU-mean_inference_batch_latency_micro_secs:
+  test_description:
+    Pytorch image classification on 50k images of size 224 x 224 with resnet 152 with Tesla T4 GPU.
+    Test link - https://github.com/apache/beam/blob/42d0a6e3564d8b9c5d912428a6de18fb22a13ac1/.test-infra/jenkins/job_InferenceBenchmarkTests_Python.groovy#L151
+    Test dashboard - http://104.154.241.245/d/ZpS8Uf44z/python-ml-runinference-benchmarks?orgId=1&viewPanel=7
+  test_target: apache_beam.testing.benchmarks.inference.pytorch_image_classification_benchmarks
+  metrics_dataset: beam_run_inference
+  metrics_table: torch_inference_imagenet_results_resnet101
+  project: apache-beam-testing
+  metric_name: mean_inference_batch_latency_micro_secs
+
+pytorch_image_classification_benchmarks-resnet152-GPU-mean_load_model_latency_milli_secs:
+  test_description:
+    Pytorch image classification on 50k images of size 224 x 224 with resnet 152 with Tesla T4 GPU.
+    Test link - https://github.com/apache/beam/blob/42d0a6e3564d8b9c5d912428a6de18fb22a13ac1/.test-infra/jenkins/job_InferenceBenchmarkTests_Python.groovy#L151
+    Test dashboard - http://104.154.241.245/d/ZpS8Uf44z/python-ml-runinference-benchmarks?orgId=1&viewPanel=7
+  test_target: apache_beam.testing.benchmarks.inference.pytorch_image_classification_benchmarks
+  metrics_dataset: beam_run_inference
+  metrics_table: torch_inference_imagenet_results_resnet152_tesla_t4
+  project: apache-beam-testing
+  metric_name: mean_load_model_latency_milli_secs
+
+pytorch_image_classification_benchmarks-resnet152-GPU-mean_inference_batch_latency_micro_secs:
+  test_description:
+    Pytorch image classification on 50k images of size 224 x 224 with resnet 152 with Tesla T4 GPU.
+    Test link - https://github.com/apache/beam/blob/42d0a6e3564d8b9c5d912428a6de18fb22a13ac1/.test-infra/jenkins/job_InferenceBenchmarkTests_Python.groovy#L151).
+    Test dashboard - http://104.154.241.245/d/ZpS8Uf44z/python-ml-runinference-benchmarks?from=now-90d&to=now&viewPanel=2
+  test_target: apache_beam.testing.benchmarks.inference.pytorch_image_classification_benchmarks
+  metrics_dataset: beam_run_inference
+  metrics_table: torch_inference_imagenet_results_resnet152_tesla_t4
+  project: apache-beam-testing
+  metric_name: mean_inference_batch_latency_micro_secs
+
+test_cloudml_benchmark_cirteo_no_shuffle_10GB-runtime_sec:
+  test_description:
+    TFT Criteo test on 10 GB data with no Reshuffle.
+    Test link - [Test link](https://github.com/apache/beam/blob/42d0a6e3564d8b9c5d912428a6de18fb22a13ac1/sdks/python/apache_beam/testing/benchmarks/cloudml/cloudml_benchmark_test.py#L82)
+  metrics_dataset: beam_cloudml
+  metrics_table: cloudml_benchmark_cirteo_no_shuffle_10GB
+  project: apache-beam-testing
+  metric_name: runtime_sec
+
+test_cloudml_benchmark_criteo_10GB-runtime_sec:
+  test_description:
+    TFT Criteo test on 10 GB data.
+    Test link - https://github.com/apache/beam/blob/42d0a6e3564d8b9c5d912428a6de18fb22a13ac1/sdks/python/apache_beam/testing/benchmarks/cloudml/cloudml_benchmark_test.py#LL104C7-L104C41
+  metrics_dataset: beam_cloudml
+  metrics_table: cloudml_benchmark_criteo_10GB
+  project: apache-beam-testing
+  metric_name: runtime_sec

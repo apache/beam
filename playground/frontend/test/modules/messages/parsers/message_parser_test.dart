@@ -92,9 +92,23 @@ void main() {
 
         expect(
           parsed,
-          const SetContentMessage(
+          SetContentMessage(
             descriptor: ExamplesLoadingDescriptor(
-              descriptors: [EmptyExampleLoadingDescriptor(sdk: Sdk.java)],
+              descriptors: const [EmptyExampleLoadingDescriptor(sdk: Sdk.java)],
+              lazyLoadDescriptors: {
+                Sdk.go: const [
+                  CatalogDefaultExampleLoadingDescriptor(sdk: Sdk.go),
+                ],
+                Sdk.java: const [
+                  CatalogDefaultExampleLoadingDescriptor(sdk: Sdk.java),
+                ],
+                Sdk.python: const [
+                  CatalogDefaultExampleLoadingDescriptor(sdk: Sdk.python),
+                ],
+                Sdk.scio: const [
+                  CatalogDefaultExampleLoadingDescriptor(sdk: Sdk.scio),
+                ],
+              },
             ),
           ),
         );

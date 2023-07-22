@@ -86,7 +86,7 @@ def _generate_job_name(job_name, job_type, step_name):
       job_name=job_name,
       step_id=step_name,
       job_type=job_type,
-      random=random.randint(0, 1000))
+      random=_bq_uuid())
 
 
 def file_prefix_generator(
@@ -333,7 +333,7 @@ class UpdateDestinationSchema(beam.DoFn):
   regardless of whether data is loaded directly to the destination table or
   loaded into temporary tables before being copied into the destination.
 
-  This tranform takes as input a (destination, job_reference) pair where the
+  This transform takes as input a (destination, job_reference) pair where the
   job_reference refers to a completed load job into a temporary table.
 
   This transform emits (destination, job_reference) pairs where the
@@ -508,16 +508,26 @@ class TriggerCopyJobs(beam.DoFn):
             True, label="This Dataflow job launches bigquery jobs.")
     }
 
-  def start_bundle(self):
+  def setup(self):
     self._observed_tables = set()
+
+  def start_bundle(self):
     self.bq_wrapper = bigquery_tools.BigQueryWrapper(client=self.test_client)
     if not self.bq_io_metadata:
       self.bq_io_metadata = create_bigquery_io_metadata(self._step_name)
     self.pending_jobs = []
 
-  def process(self, element, job_name_prefix=None, unused_schema_mod_jobs=None):
-    destination = element[0]
-    job_reference = element[1]
+  def process(
+      self, element_list, job_name_prefix=None, unused_schema_mod_jobs=None):
+    if isinstance(element_list, tuple):
+      # Allow this for streaming update compatibility while fixing BEAM-24535.
+      self.process_one(element_list, job_name_prefix)
+    else:
+      for element in element_list:
+        self.process_one(element, job_name_prefix)
+
+  def process_one(self, element, job_name_prefix):
+    destination, job_reference = element
 
     copy_to_reference = bigquery_tools.parse_table_reference(destination)
     if copy_to_reference.projectId is None:
@@ -647,14 +657,19 @@ class TriggerLoadJobs(beam.DoFn):
       self.bq_io_metadata = create_bigquery_io_metadata(self._step_name)
     self.pending_jobs = []
 
-  def process(self, element, load_job_name_prefix, *schema_side_inputs):
+  def process(
+      self,
+      element,
+      load_job_name_prefix,
+      pane_info=beam.DoFn.PaneInfoParam,
+      *schema_side_inputs):
     # Each load job is assumed to have files respecting these constraints:
     # 1. Total size of all files < 15 TB (Max size for load jobs)
     # 2. Total no. of files in a single load job < 10,000
     # This assumption means that there will always be a single load job
     # triggered for each partition of files.
     destination = element[0]
-    files = element[1]
+    partition_key, files = element[1]
 
     if callable(self.schema):
       schema = self.schema(destination, *schema_side_inputs)
@@ -682,8 +697,8 @@ class TriggerLoadJobs(beam.DoFn):
             table_reference.projectId,
             table_reference.datasetId,
             table_reference.tableId))
-    uid = _bq_uuid()
-    job_name = '%s_%s_%s' % (load_job_name_prefix, destination_hash, uid)
+    job_name = '%s_%s_pane%s_partition%s' % (
+        load_job_name_prefix, destination_hash, pane_info.index, partition_key)
     _LOGGER.info('Load job has %s files. Job name is %s.', len(files), job_name)
 
     create_disposition = self.create_disposition
@@ -789,8 +804,10 @@ class PartitionFiles(beam.DoFn):
     else:
       output_tag = PartitionFiles.SINGLE_PARTITION_TAG
 
-    for partition in partitions:
-      yield pvalue.TaggedOutput(output_tag, (destination, partition))
+    # we also pass along the index of partition as a key, which is used
+    # to create a deterministic load job name
+    for key, partition in enumerate(partitions):
+      yield pvalue.TaggedOutput(output_tag, (destination, (key, partition)))
 
 
 class DeleteTablesFn(beam.DoFn):
@@ -1085,8 +1102,25 @@ class BigQueryBatchFileLoads(beam.PTransform):
                 load_job_project_id=self.load_job_project_id),
             schema_mod_job_name_pcv))
 
+    if self.write_disposition in ('WRITE_EMPTY', 'WRITE_TRUNCATE'):
+      # All loads going to the same table must be processed together so that
+      # the truncation happens only once. See
+      # https://github.com/apache/beam/issues/24535.
+      finished_temp_tables_load_job_ids_list_pc = (
+          finished_temp_tables_load_job_ids_pc | beam.MapTuple(
+              lambda destination,
+              job_reference: (
+                  bigquery_tools.parse_table_reference(destination).tableId,
+                  (destination, job_reference)))
+          | beam.GroupByKey()
+          | beam.MapTuple(lambda tableId, batch: list(batch)))
+    else:
+      # Loads can happen in parallel.
+      finished_temp_tables_load_job_ids_list_pc = (
+          finished_temp_tables_load_job_ids_pc | beam.Map(lambda x: [x]))
+
     copy_job_outputs = (
-        finished_temp_tables_load_job_ids_pc
+        finished_temp_tables_load_job_ids_list_pc
         | beam.ParDo(
             TriggerCopyJobs(
                 project=self.project,

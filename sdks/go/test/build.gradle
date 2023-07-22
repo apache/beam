@@ -28,7 +28,6 @@ task dataflowValidatesRunner() {
   group = "Verification"
 
   dependsOn ":sdks:go:test:goBuild"
-  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
   dependsOn ":sdks:java:testing:expansion-service:buildTestExpansionServiceJar"
 
   doLast {
@@ -37,7 +36,6 @@ task dataflowValidatesRunner() {
     ]
     def options = [
         "--runner dataflow",
-        "--dataflow_worker_jar ${project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath}",
         "--pipeline_opts \"${pipelineOptions.join(' ')}\"",
     ]
     exec {

@@ -17,9 +17,11 @@
  */
 package org.apache.beam.runners.core;
 
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -36,6 +38,7 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.MapState;
+import org.apache.beam.sdk.state.MultimapState;
 import org.apache.beam.sdk.state.OrderedListState;
 import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.ReadableStates;
@@ -51,11 +54,13 @@ import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.CombineFnUtil;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ArrayListMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
@@ -151,6 +156,14 @@ public class InMemoryStateInternals<K> implements StateInternals {
         Coder<KeyT> mapKeyCoder,
         Coder<ValueT> mapValueCoder) {
       return new InMemoryMap<>(mapKeyCoder, mapValueCoder);
+    }
+
+    @Override
+    public <KeyT, ValueT> MultimapState<KeyT, ValueT> bindMultimap(
+        StateTag<MultimapState<KeyT, ValueT>> spec,
+        Coder<KeyT> keyCoder,
+        Coder<ValueT> valueCoder) {
+      return new InMemoryMultimap<>(keyCoder, valueCoder);
     }
 
     @Override
@@ -463,6 +476,141 @@ public class InMemoryStateInternals<K> implements StateInternals {
     }
   }
 
+  /** An {@link InMemoryState} implementation of {@link MultimapState}. */
+  public static final class InMemoryMultimap<K, V>
+      implements MultimapState<K, V>, InMemoryState<InMemoryMultimap<K, V>> {
+    private final Coder<K> keyCoder;
+    private final Coder<V> valueCoder;
+    private Multimap<Object, V> contents = ArrayListMultimap.create();
+    private Map<Object, K> structuralKeysMapping = Maps.newHashMap();
+
+    public InMemoryMultimap(Coder<K> keyCoder, Coder<V> valueCoder) {
+      this.keyCoder = keyCoder;
+      this.valueCoder = valueCoder;
+    }
+
+    @Override
+    public void clear() {
+      contents = ArrayListMultimap.create();
+      structuralKeysMapping = Maps.newHashMap();
+    }
+
+    @Override
+    public void put(K key, V value) {
+      Object structuralKey = keyCoder.structuralValue(key);
+      structuralKeysMapping.put(structuralKey, key);
+      contents.put(structuralKey, value);
+    }
+
+    @Override
+    public void remove(K key) {
+      Object structuralKey = keyCoder.structuralValue(key);
+      structuralKeysMapping.remove(structuralKey);
+      contents.removeAll(structuralKey);
+    }
+
+    @Override
+    public ReadableState<Iterable<V>> get(K key) {
+      return new ReadableState<Iterable<V>>() {
+        @Override
+        public Iterable<V> read() {
+          return ImmutableList.copyOf(contents.get(keyCoder.structuralValue(key)));
+        }
+
+        @Override
+        public ReadableState<Iterable<V>> readLater() {
+          return this;
+        }
+      };
+    }
+
+    @Override
+    public ReadableState<Iterable<K>> keys() {
+      return new ReadableState<Iterable<K>>() {
+        @Override
+        public Iterable<K> read() {
+          return ImmutableList.copyOf(structuralKeysMapping.values());
+        }
+
+        @Override
+        public ReadableState<Iterable<K>> readLater() {
+          return this;
+        }
+      };
+    }
+
+    @Override
+    public ReadableState<Iterable<Map.Entry<K, V>>> entries() {
+      return new ReadableState<Iterable<Map.Entry<K, V>>>() {
+        @Override
+        public Iterable<Map.Entry<K, V>> read() {
+          List<Map.Entry<K, V>> result =
+              Lists.newArrayListWithExpectedSize(contents.entries().size());
+          for (Map.Entry<Object, V> entry : contents.entries()) {
+            result.add(
+                new AbstractMap.SimpleEntry<>(
+                    structuralKeysMapping.get(entry.getKey()), entry.getValue()));
+          }
+          return Collections.unmodifiableList(result);
+        }
+
+        @Override
+        public ReadableState<Iterable<Map.Entry<K, V>>> readLater() {
+          return this;
+        }
+      };
+    }
+
+    @Override
+    public ReadableState<Boolean> containsKey(K key) {
+      return new ReadableState<Boolean>() {
+        @Override
+        public Boolean read() {
+          return structuralKeysMapping.containsKey(keyCoder.structuralValue(key));
+        }
+
+        @Override
+        public ReadableState<Boolean> readLater() {
+          return this;
+        }
+      };
+    }
+
+    @Override
+    public ReadableState<Boolean> isEmpty() {
+      return new ReadableState<Boolean>() {
+        @Override
+        public Boolean read() {
+          return contents.isEmpty();
+        }
+
+        @Override
+        public ReadableState<Boolean> readLater() {
+          return this;
+        }
+      };
+    }
+
+    @Override
+    public boolean isCleared() {
+      return contents.isEmpty();
+    }
+
+    @Override
+    public InMemoryMultimap<K, V> copy() {
+      InMemoryMultimap<K, V> that = new InMemoryMultimap<>(keyCoder, valueCoder);
+      for (K key : this.structuralKeysMapping.values()) {
+        // Make a copy of structuralKey as well
+        Object structuralKey = keyCoder.structuralValue(key);
+        that.structuralKeysMapping.put(structuralKey, uncheckedClone(keyCoder, key));
+        for (V value : this.contents.get(structuralKey)) {
+          that.contents.put(structuralKey, uncheckedClone(valueCoder, value));
+        }
+      }
+      return that;
+    }
+  }
+
   /** An {@link InMemoryState} implementation of {@link OrderedListState}. */
   public static final class InMemoryOrderedList<T>
       implements OrderedListState<T>, InMemoryState<InMemoryOrderedList<T>> {
@@ -625,6 +773,28 @@ public class InMemoryStateInternals<K> implements StateInternals {
     }
   }
 
+  private static class CollectionViewState<T> implements ReadableState<Iterable<T>> {
+    private final Collection<T> collection;
+
+    private CollectionViewState(Collection<T> collection) {
+      this.collection = collection;
+    }
+
+    public static <T> CollectionViewState<T> of(Collection<T> collection) {
+      return new CollectionViewState<>(collection);
+    }
+
+    @Override
+    public Iterable<T> read() {
+      return ImmutableList.copyOf(collection);
+    }
+
+    @Override
+    public ReadableState<Iterable<T>> readLater() {
+      return this;
+    }
+  }
+
   /** An {@link InMemoryState} implementation of {@link MapState}. */
   public static final class InMemoryMap<K, V>
       implements MapState<K, V>, InMemoryState<InMemoryMap<K, V>> {
@@ -683,28 +853,6 @@ public class InMemoryStateInternals<K> implements StateInternals {
     @Override
     public void remove(K key) {
       contents.remove(key);
-    }
-
-    private static class CollectionViewState<T> implements ReadableState<Iterable<T>> {
-      private final Collection<T> collection;
-
-      private CollectionViewState(Collection<T> collection) {
-        this.collection = collection;
-      }
-
-      public static <T> CollectionViewState<T> of(Collection<T> collection) {
-        return new CollectionViewState<>(collection);
-      }
-
-      @Override
-      public Iterable<T> read() {
-        return ImmutableList.copyOf(collection);
-      }
-
-      @Override
-      public ReadableState<Iterable<T>> readLater() {
-        return this;
-      }
     }
 
     @Override

@@ -15,7 +15,10 @@
 
 package sdf
 
-import "sync"
+import (
+	"fmt"
+	"sync"
+)
 
 // NewLockRTracker creates a LockRTracker initialized with the specified
 // restriction tracker as its underlying restriction tracker.
@@ -35,7 +38,7 @@ type LockRTracker struct {
 
 // TryClaim locks a mutex for thread safety, and then delegates to the
 // underlying tracker's TryClaim.
-func (rt *LockRTracker) TryClaim(pos interface{}) (ok bool) {
+func (rt *LockRTracker) TryClaim(pos any) (ok bool) {
 	rt.Mu.Lock()
 	defer rt.Mu.Unlock()
 	return rt.Rt.TryClaim(pos)
@@ -51,7 +54,7 @@ func (rt *LockRTracker) GetError() error {
 
 // TrySplit locks a mutex for thread safety, and then delegates to the
 // underlying tracker's TrySplit.
-func (rt *LockRTracker) TrySplit(fraction float64) (interface{}, interface{}, error) {
+func (rt *LockRTracker) TrySplit(fraction float64) (any, any, error) {
 	rt.Mu.Lock()
 	defer rt.Mu.Unlock()
 	return rt.Rt.TrySplit(fraction)
@@ -75,7 +78,7 @@ func (rt *LockRTracker) IsDone() bool {
 
 // GetRestriction locks a mutex for thread safety, and then delegates to the
 // underlying tracker's GetRestriction.
-func (rt *LockRTracker) GetRestriction() interface{} {
+func (rt *LockRTracker) GetRestriction() any {
 	rt.Mu.Lock()
 	defer rt.Mu.Unlock()
 	return rt.Rt.GetRestriction()
@@ -91,4 +94,8 @@ func (rt *LockRTracker) IsBounded() bool {
 		return tracker.IsBounded()
 	}
 	return true
+}
+
+func (rt *LockRTracker) String() string {
+	return fmt.Sprintf("LockRTracker(%v)", rt.Rt)
 }

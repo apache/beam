@@ -36,6 +36,8 @@ import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.connect.connector.Task;
 import org.apache.kafka.connect.data.Schema;
+import org.apache.kafka.connect.data.SchemaBuilder;
+import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.source.SourceConnector;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.apache.kafka.connect.source.SourceTask;
@@ -68,7 +70,8 @@ public class KafkaSourceConsumerFnTest implements Serializable {
                 ParDo.of(
                     new KafkaSourceConsumerFn<>(
                         CounterSourceConnector.class,
-                        sourceRecord -> (Integer) sourceRecord.value(),
+                        sourceRecord ->
+                            ((Struct) sourceRecord.value()).getInt64("value").intValue(),
                         10)))
             .setCoder(VarIntCoder.of());
 
@@ -95,12 +98,12 @@ public class KafkaSourceConsumerFnTest implements Serializable {
             ParDo.of(
                 new KafkaSourceConsumerFn<>(
                     CounterSourceConnector.class,
-                    sourceRecord -> (Integer) sourceRecord.value(),
+                    sourceRecord -> ((Struct) sourceRecord.value()).getInt64("value").intValue(),
                     1)))
         .setCoder(VarIntCoder.of());
 
     pipeline.run().waitUntilFinish();
-    Assert.assertEquals(3, CounterTask.getCountTasks());
+    Assert.assertEquals(1, CounterTask.getCountTasks());
   }
 }
 
@@ -228,6 +231,11 @@ class CounterTask extends SourceTask {
     if (this.last.equals(to)) {
       return null;
     }
+    Schema recordSchema =
+        SchemaBuilder.struct()
+            .field("value", Schema.INT64_SCHEMA)
+            .field("ts_ms", Schema.INT64_SCHEMA)
+            .build();
 
     List<SourceRecord> records = new ArrayList<>();
     Long callTime = System.currentTimeMillis();
@@ -242,7 +250,13 @@ class CounterTask extends SourceTask {
 
       records.add(
           new SourceRecord(
-              sourcePartition, sourceOffset, this.topic, Schema.INT64_SCHEMA, this.last));
+              sourcePartition,
+              sourceOffset,
+              this.topic,
+              recordSchema,
+              new Struct(recordSchema)
+                  .put("value", this.last.longValue())
+                  .put("ts_ms", this.last.longValue())));
 
       if (records.size() >= recordsToOutput) {
         break;

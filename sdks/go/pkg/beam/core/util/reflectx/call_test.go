@@ -25,7 +25,7 @@ type mapperString struct {
 	fn func(string) string
 }
 
-func mapperStringMaker(fn interface{}) Func {
+func mapperStringMaker(fn any) Func {
 	f := fn.(func(string) string)
 	return &mapperString{fn: f}
 }
@@ -38,12 +38,12 @@ func (c *mapperString) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *mapperString) Call(args []interface{}) []interface{} {
+func (c *mapperString) Call(args []any) []any {
 	out := c.fn(args[0].(string))
-	return []interface{}{out}
+	return []any{out}
 }
 
-func (c *mapperString) Call1x1(v interface{}) interface{} {
+func (c *mapperString) Call1x1(v any) any {
 	return c.fn(v.(string))
 }
 
@@ -66,7 +66,7 @@ func TestCallNoPanic(t *testing.T) {
 	}
 	madeFn := MakeFunc(fn)
 
-	ret, err := CallNoPanic(madeFn, []interface{}{"tester"})
+	ret, err := CallNoPanic(madeFn, []any{"tester"})
 	if err != nil {
 		t.Fatalf("CallNoPanic(madeFn, [\"tester\"]) - unexpected error %v", err)
 	}
@@ -85,7 +85,7 @@ func TestCallNoPanic_Panic(t *testing.T) {
 	}
 	madeFn := MakeFunc(fn)
 
-	_, err := CallNoPanic(madeFn, []interface{}{"tester"})
+	_, err := CallNoPanic(madeFn, []any{"tester"})
 	if err == nil {
 		t.Fatalf("CallNoPanic(madeFn, [\"tester\"]) didn't error when it should have")
 	}
@@ -95,7 +95,7 @@ func TestCallNoPanic_Panic(t *testing.T) {
 }
 
 func TestValue(t *testing.T) {
-	interfaces := []interface{}{"hi", 42, func() {}}
+	interfaces := []any{"hi", 42, func() {}}
 	want := []reflect.Kind{reflect.String, reflect.Int, reflect.Func}
 
 	got := ValueOf(interfaces)
@@ -110,7 +110,7 @@ func TestValue(t *testing.T) {
 }
 
 func TestInterface(t *testing.T) {
-	interfaces := []interface{}{"hi", 42}
+	interfaces := []any{"hi", 42}
 	values := ValueOf(interfaces)
 	got := Interface(values)
 

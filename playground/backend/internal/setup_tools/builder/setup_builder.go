@@ -16,6 +16,12 @@
 package builder
 
 import (
+	"context"
+	"fmt"
+	"path/filepath"
+	"strings"
+	"sync"
+
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/environment"
 	"beam.apache.org/playground/backend/internal/executors"
@@ -23,10 +29,6 @@ import (
 	"beam.apache.org/playground/backend/internal/preparers"
 	"beam.apache.org/playground/backend/internal/utils"
 	"beam.apache.org/playground/backend/internal/validators"
-	"fmt"
-	"path/filepath"
-	"strings"
-	"sync"
 )
 
 const (
@@ -49,9 +51,9 @@ func Validator(paths *fs_tool.LifeCyclePaths, sdkEnv *environment.BeamEnvs) (*ex
 }
 
 // Preparer return executor with set args for preparer
-func Preparer(paths *fs_tool.LifeCyclePaths, sdkEnv *environment.BeamEnvs, valResults *sync.Map) (*executors.ExecutorBuilder, error) {
+func Preparer(paths *fs_tool.LifeCyclePaths, sdkEnv *environment.BeamEnvs, valResults *sync.Map, prepareParams map[string]string) (*executors.ExecutorBuilder, error) {
 	sdk := sdkEnv.ApacheBeamSdk
-	prep, err := preparers.GetPreparers(sdk, paths.AbsoluteSourceFilePath, valResults)
+	prep, err := preparers.GetPreparers(sdk, paths.AbsoluteSourceFilePath, valResults, prepareParams)
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +65,7 @@ func Preparer(paths *fs_tool.LifeCyclePaths, sdkEnv *environment.BeamEnvs, valRe
 }
 
 // Compiler return executor with set args for compiler
-func Compiler(paths *fs_tool.LifeCyclePaths, sdkEnv *environment.BeamEnvs) *executors.ExecutorBuilder {
+func Compiler(paths *fs_tool.LifeCyclePaths, sdkEnv *environment.BeamEnvs) (*executors.ExecutorBuilder, error) {
 	sdk := sdkEnv.ApacheBeamSdk
 	executorConfig := sdkEnv.ExecutorConfig
 	builder := executors.NewExecutorBuilder().
@@ -71,21 +73,38 @@ func Compiler(paths *fs_tool.LifeCyclePaths, sdkEnv *environment.BeamEnvs) *exec
 		WithCommand(executorConfig.CompileCmd).
 		WithWorkingDir(paths.AbsoluteBaseFolderPath).
 		WithArgs(executorConfig.CompileArgs).
-		WithFileName(paths.AbsoluteSourceFilePath).
 		ExecutorBuilder
 
 	switch sdk {
 	case pb.Sdk_SDK_JAVA:
+		javaSources, err := GetFilesFromFolder(paths.AbsoluteSourceFileFolderPath, fs_tool.JavaSourceFileExtension)
+		if err != nil {
+			return nil, err
+		}
 		builder = builder.
 			WithCompiler().
-			WithFileName(GetFirstFileFromFolder(paths.AbsoluteSourceFileFolderPath)).
+			WithFileNames(javaSources...).
+			ExecutorBuilder
+	case pb.Sdk_SDK_GO:
+		goSources, err := GetFilesFromFolder(paths.AbsoluteSourceFileFolderPath, fs_tool.GoSourceFileExtension)
+		if err != nil {
+			return nil, err
+		}
+		builder = builder.
+			WithCompiler().
+			WithFileNames(goSources...).
+			ExecutorBuilder
+	default:
+		builder = builder.
+			WithCompiler().
+			WithFileNames(paths.AbsoluteSourceFilePath).
 			ExecutorBuilder
 	}
-	return &builder
+	return &builder, nil
 }
 
 // Runner return executor with set args for runner
-func Runner(paths *fs_tool.LifeCyclePaths, pipelineOptions string, sdkEnv *environment.BeamEnvs) (*executors.ExecutorBuilder, error) {
+func Runner(ctx context.Context, paths *fs_tool.LifeCyclePaths, pipelineOptions string, sdkEnv *environment.BeamEnvs) (*executors.ExecutorBuilder, error) {
 	sdk := sdkEnv.ApacheBeamSdk
 
 	if sdk == pb.Sdk_SDK_JAVA || sdk == pb.Sdk_SDK_SCIO {
@@ -94,7 +113,7 @@ func Runner(paths *fs_tool.LifeCyclePaths, pipelineOptions string, sdkEnv *envir
 	executorConfig := sdkEnv.ExecutorConfig
 	builder := executors.NewExecutorBuilder().
 		WithRunner().
-		WithWorkingDir(paths.AbsoluteBaseFolderPath).
+		WithWorkingDir(paths.AbsoluteSourceFileFolderPath).
 		WithCommand(executorConfig.RunCmd).
 		WithArgs(executorConfig.RunArgs).
 		ExecutorBuilder
@@ -102,31 +121,30 @@ func Runner(paths *fs_tool.LifeCyclePaths, pipelineOptions string, sdkEnv *envir
 	switch sdk {
 	case pb.Sdk_SDK_JAVA: // Executable name for java class is known after compilation
 		args := replaceLogPlaceholder(paths, executorConfig)
-		className, err := paths.ExecutableName(paths.AbsoluteExecutableFileFolderPath)
+		className, err := paths.FindExecutableName(ctx, paths.AbsoluteExecutableFileFolderPath)
 		if err != nil {
 			return nil, fmt.Errorf("no executable file name found for JAVA pipeline at %s", paths.AbsoluteExecutableFileFolderPath)
 		}
 		builder = builder.
 			WithRunner().
 			WithArgs(args).
-			WithExecutableFileName(className).
+			WithExecutableFileNames(className).
 			WithPipelineOptions(strings.Split(pipelineOptions, " ")).
 			ExecutorBuilder
 	case pb.Sdk_SDK_GO: //go run command is executable file itself
 		builder = builder.
 			WithRunner().
-			WithExecutableFileName("").
 			WithCommand(paths.AbsoluteExecutableFilePath).
 			WithPipelineOptions(strings.Split(pipelineOptions, " ")).
 			ExecutorBuilder
 	case pb.Sdk_SDK_PYTHON:
 		builder = builder.
 			WithRunner().
-			WithExecutableFileName(paths.AbsoluteExecutableFilePath).
+			WithExecutableFileNames(paths.AbsoluteExecutableFilePath).
 			WithPipelineOptions(strings.Split(pipelineOptions, " ")).
 			ExecutorBuilder
 	case pb.Sdk_SDK_SCIO:
-		className, err := paths.ExecutableName(paths.AbsoluteBaseFolderPath)
+		className, err := paths.FindExecutableName(ctx, paths.AbsoluteBaseFolderPath)
 		if err != nil {
 			return nil, fmt.Errorf("no executable file name found for SCIO pipeline at %s", paths.AbsoluteBaseFolderPath)
 		}
@@ -141,12 +159,11 @@ func Runner(paths *fs_tool.LifeCyclePaths, pipelineOptions string, sdkEnv *envir
 }
 
 // TestRunner return executor with set args for runner
-func TestRunner(paths *fs_tool.LifeCyclePaths, sdkEnv *environment.BeamEnvs) (*executors.ExecutorBuilder, error) {
+func TestRunner(ctx context.Context, paths *fs_tool.LifeCyclePaths, sdkEnv *environment.BeamEnvs) (*executors.ExecutorBuilder, error) {
 	sdk := sdkEnv.ApacheBeamSdk
 	executorConfig := sdkEnv.ExecutorConfig
 	builder := executors.NewExecutorBuilder().
 		WithTestRunner().
-		WithExecutableFileName(paths.AbsoluteExecutableFilePath).
 		WithCommand(executorConfig.TestCmd).
 		WithArgs(executorConfig.TestArgs).
 		WithWorkingDir(paths.AbsoluteSourceFileFolderPath).
@@ -154,7 +171,7 @@ func TestRunner(paths *fs_tool.LifeCyclePaths, sdkEnv *environment.BeamEnvs) (*e
 
 	switch sdk {
 	case pb.Sdk_SDK_JAVA: // Executable name for java class is known after compilation
-		className, err := paths.ExecutableName(paths.AbsoluteExecutableFileFolderPath)
+		className, err := paths.FindTestExecutableName(ctx, paths.AbsoluteExecutableFileFolderPath)
 		if err != nil {
 			return nil, fmt.Errorf("no executable file name found for JAVA pipeline at %s", paths.AbsoluteExecutableFileFolderPath)
 		}
@@ -165,6 +182,10 @@ func TestRunner(paths *fs_tool.LifeCyclePaths, sdkEnv *environment.BeamEnvs) (*e
 	case pb.Sdk_SDK_GO:
 		builder = builder.WithTestRunner().
 			WithExecutableFileName(paths.AbsoluteSourceFileFolderPath). // run all tests in folder
+			ExecutorBuilder
+	default:
+		builder = builder.WithTestRunner().
+			WithExecutableFileName(paths.AbsoluteExecutableFilePath).
 			ExecutorBuilder
 	}
 	return &builder, nil
@@ -184,7 +205,6 @@ func replaceLogPlaceholder(paths *fs_tool.LifeCyclePaths, executorConfig *enviro
 }
 
 // GetFirstFileFromFolder return a name of the first file in a specified folder
-func GetFirstFileFromFolder(folderAbsolutePath string) string {
-	files, _ := filepath.Glob(fmt.Sprintf("%s/*%s", folderAbsolutePath, fs_tool.JavaSourceFileExtension))
-	return files[0]
+func GetFilesFromFolder(folderAbsolutePath string, extension string) ([]string, error) {
+	return filepath.Glob(fmt.Sprintf("%s/*%s", folderAbsolutePath, extension))
 }

@@ -23,7 +23,7 @@
 import base64
 import datetime
 import logging
-import random
+import secrets
 import time
 import unittest
 import uuid
@@ -98,10 +98,8 @@ class BigQueryReadIntegrationTests(unittest.TestCase):
     cls.project = cls.test_pipeline.get_option('project')
 
     cls.bigquery_client = BigQueryWrapper()
-    cls.dataset_id = '%s%s%d' % (
-        cls.BIG_QUERY_DATASET_ID,
-        str(int(time.time())),
-        random.randint(0, 10000))
+    cls.dataset_id = '%s%d%s' % (
+        cls.BIG_QUERY_DATASET_ID, int(time.time()), secrets.token_hex(3))
     cls.bigquery_client.get_or_create_dataset(cls.project, cls.dataset_id)
     _LOGGER.info(
         "Created dataset %s in project %s", cls.dataset_id, cls.project)
@@ -127,9 +125,9 @@ class ReadTests(BigQueryReadIntegrationTests):
   }, {
       'number': 2, 'str': 'def'
   }, {
-      'number': 3, 'str': u'你好'
+      'number': 3, 'str': '你好'
   }, {
-      'number': 4, 'str': u'привет'
+      'number': 4, 'str': 'привет'
   }]
 
   @classmethod
@@ -311,14 +309,14 @@ class ReadTests(BigQueryReadIntegrationTests):
 class ReadUsingStorageApiTests(BigQueryReadIntegrationTests):
   TABLE_DATA = [{
       'number': 1,
-      'string': u'你好',
+      'string': '你好',
       'time': '12:44:31',
       'datetime': '2018-12-31 12:44:31',
       'rec': None
   },
                 {
                     'number': 4,
-                    'string': u'привет',
+                    'string': 'привет',
                     'time': '12:44:31',
                     'datetime': '2018-12-31 12:44:31',
                     'rec': {
@@ -409,7 +407,7 @@ class ReadUsingStorageApiTests(BigQueryReadIntegrationTests):
         'materializing_table_before_reading',
         str(uuid.uuid4())[0:10],
         bigquery_tools.BigQueryJobTypes.QUERY,
-        '%s_%s' % (int(time.time()), random.randint(0, 1000)))
+        '%d_%s' % (int(time.time()), secrets.token_hex(3)))
     cls._setup_temporary_dataset(cls.project, cls.query)
     job = cls.bigquery_client._start_query_job(
         project,
@@ -427,14 +425,14 @@ class ReadUsingStorageApiTests(BigQueryReadIntegrationTests):
     EXPECTED_TABLE_DATA = [
         {
             'number': 1,
-            'string': u'你好',
+            'string': '你好',
             'time': datetime.time(12, 44, 31),
             'datetime': '2018-12-31T12:44:31',
             'rec': None,
         },
         {
             'number': 4,
-            'string': u'привет',
+            'string': 'привет',
             'time': datetime.time(12, 44, 31),
             'datetime': '2018-12-31T12:44:31',
             'rec': {
@@ -457,14 +455,14 @@ class ReadUsingStorageApiTests(BigQueryReadIntegrationTests):
     EXPECTED_TABLE_DATA = [
         {
             'number': 1,
-            'string': u'你好',
+            'string': '你好',
             'time': datetime.time(12, 44, 31),
             'datetime': datetime.datetime(2018, 12, 31, 12, 44, 31),
             'rec': None,
         },
         {
             'number': 4,
-            'string': u'привет',
+            'string': 'привет',
             'time': datetime.time(12, 44, 31),
             'datetime': datetime.datetime(2018, 12, 31, 12, 44, 31),
             'rec': {
@@ -499,7 +497,7 @@ class ReadUsingStorageApiTests(BigQueryReadIntegrationTests):
   def test_iobase_source_with_row_restriction(self):
     EXPECTED_TABLE_DATA = [{
         'number': 1,
-        'string': u'你好',
+        'string': '你好',
         'time': datetime.time(12, 44, 31),
         'datetime': datetime.datetime(2018, 12, 31, 12, 44, 31),
         'rec': None
@@ -515,7 +513,7 @@ class ReadUsingStorageApiTests(BigQueryReadIntegrationTests):
 
   @pytest.mark.it_postcommit
   def test_iobase_source_with_column_selection_and_row_restriction(self):
-    EXPECTED_TABLE_DATA = [{'string': u'привет'}]
+    EXPECTED_TABLE_DATA = [{'string': 'привет'}]
     with beam.Pipeline(argv=self.args) as p:
       result = (
           p | 'Read with BigQuery Storage API' >> beam.io.ReadFromBigQuery(
@@ -543,14 +541,14 @@ class ReadUsingStorageApiTests(BigQueryReadIntegrationTests):
     EXPECTED_TABLE_DATA = [
         {
             'number': 1,
-            'string': u'你好',
+            'string': '你好',
             'time': datetime.time(12, 44, 31),
             'datetime': datetime.datetime(2018, 12, 31, 12, 44, 31),
             'rec': None,
         },
         {
             'number': 4,
-            'string': u'привет',
+            'string': 'привет',
             'time': datetime.time(12, 44, 31),
             'datetime': datetime.datetime(2018, 12, 31, 12, 44, 31),
             'rec': {
@@ -575,7 +573,7 @@ class ReadUsingStorageApiTests(BigQueryReadIntegrationTests):
 
   @pytest.mark.it_postcommit
   def test_iobase_source_with_query_and_filters(self):
-    EXPECTED_TABLE_DATA = [{'string': u'привет'}]
+    EXPECTED_TABLE_DATA = [{'string': 'привет'}]
     query = StaticValueProvider(str, self.query)
     with beam.Pipeline(argv=self.args) as p:
       result = (
@@ -715,9 +713,9 @@ class ReadAllBQTests(BigQueryReadIntegrationTests):
   }, {
       'number': 2, 'str': 'def'
   }, {
-      'number': 3, 'str': u'你好'
+      'number': 3, 'str': '你好'
   }, {
-      'number': 4, 'str': u'привет'
+      'number': 4, 'str': 'привет'
   }]
 
   TABLE_DATA_2 = [{
@@ -725,9 +723,9 @@ class ReadAllBQTests(BigQueryReadIntegrationTests):
   }, {
       'number': 20, 'str': 'defg'
   }, {
-      'number': 30, 'str': u'你好'
+      'number': 30, 'str': '你好'
   }, {
-      'number': 40, 'str': u'привет'
+      'number': 40, 'str': 'привет'
   }]
 
   TABLE_DATA_3 = [{'number': 10, 'str': 'abcde', 'extra': 3}]
@@ -794,10 +792,7 @@ class ReadAllBQTests(BigQueryReadIntegrationTests):
   @skip(['PortableRunner', 'FlinkRunner'])
   @pytest.mark.it_postcommit
   def test_read_queries(self):
-    # TODO(https://github.com/apache/beam/issues/20610): Remove experiment when
-    # tests run on r_v2.
-    args = self.args + ["--experiments=use_runner_v2"]
-    with beam.Pipeline(argv=args) as p:
+    with beam.Pipeline(argv=self.args) as p:
       result = (
           p
           | beam.Create([

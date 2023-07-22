@@ -17,40 +17,71 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import com.google.api.services.bigquery.model.TableRow;
+import com.google.auto.value.AutoValue;
 import com.google.cloud.bigquery.storage.v1.ProtoRows;
 import com.google.protobuf.ByteString;
-import com.google.protobuf.DynamicMessage;
-import com.google.protobuf.InvalidProtocolBufferException;
 import java.util.Iterator;
+import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
-import org.apache.beam.sdk.io.gcp.bigquery.StorageApiDynamicDestinations.DescriptorWrapper;
+import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Instant;
 
 /**
  * Takes in an iterable and batches the results into multiple ProtoRows objects. The splitSize
  * parameter controls how many rows are batched into a single ProtoRows object before we move on to
  * the next one.
  */
-class SplittingIterable implements Iterable<ProtoRows> {
+class SplittingIterable implements Iterable<SplittingIterable.Value> {
+  @AutoValue
+  abstract static class Value {
+    abstract ProtoRows getProtoRows();
+
+    abstract List<Instant> getTimestamps();
+  }
+
+  interface ConvertUnknownFields {
+    ByteString convert(TableRow tableRow, boolean ignoreUnknownValues)
+        throws TableRowToStorageApiProto.SchemaConversionException;
+  }
+
   private final Iterable<StorageApiWritePayload> underlying;
   private final long splitSize;
-  private final Function<Long, DescriptorWrapper> updateSchema;
-  private DescriptorWrapper currentDescriptor;
+
+  private final ConvertUnknownFields unknownFieldsToMessage;
+  private final Function<ByteString, TableRow> protoToTableRow;
+  private final BiConsumer<TimestampedValue<TableRow>, String> failedRowsConsumer;
+  private final boolean autoUpdateSchema;
+  private final boolean ignoreUnknownValues;
+
+  private final Instant elementsTimestamp;
 
   public SplittingIterable(
       Iterable<StorageApiWritePayload> underlying,
       long splitSize,
-      DescriptorWrapper currentDescriptor,
-      Function<Long, DescriptorWrapper> updateSchema) {
+      ConvertUnknownFields unknownFieldsToMessage,
+      Function<ByteString, TableRow> protoToTableRow,
+      BiConsumer<TimestampedValue<TableRow>, String> failedRowsConsumer,
+      boolean autoUpdateSchema,
+      boolean ignoreUnknownValues,
+      Instant elementsTimestamp) {
     this.underlying = underlying;
     this.splitSize = splitSize;
-    this.updateSchema = updateSchema;
-    this.currentDescriptor = currentDescriptor;
+    this.unknownFieldsToMessage = unknownFieldsToMessage;
+    this.protoToTableRow = protoToTableRow;
+    this.failedRowsConsumer = failedRowsConsumer;
+    this.autoUpdateSchema = autoUpdateSchema;
+    this.ignoreUnknownValues = ignoreUnknownValues;
+    this.elementsTimestamp = elementsTimestamp;
   }
 
   @Override
-  public Iterator<ProtoRows> iterator() {
-    return new Iterator<ProtoRows>() {
+  public Iterator<Value> iterator() {
+    return new Iterator<Value>() {
       final Iterator<StorageApiWritePayload> underlyingIterator = underlying.iterator();
 
       @Override
@@ -59,39 +90,64 @@ class SplittingIterable implements Iterable<ProtoRows> {
       }
 
       @Override
-      public ProtoRows next() {
+      public Value next() {
         if (!hasNext()) {
           throw new NoSuchElementException();
         }
 
+        List<Instant> timestamps = Lists.newArrayList();
         ProtoRows.Builder inserts = ProtoRows.newBuilder();
         long bytesSize = 0;
         while (underlyingIterator.hasNext()) {
           StorageApiWritePayload payload = underlyingIterator.next();
-          if (payload.getSchemaHash() != currentDescriptor.hash) {
-            // Schema doesn't match. Try and get an updated schema hash (from the base table).
-            currentDescriptor = updateSchema.apply(payload.getSchemaHash());
-            // Validate that the record can now be parsed.
+          ByteString byteString = ByteString.copyFrom(payload.getPayload());
+          if (autoUpdateSchema) {
             try {
-              DynamicMessage msg =
-                  DynamicMessage.parseFrom(currentDescriptor.descriptor, payload.getPayload());
-              if (msg.getUnknownFields() != null && !msg.getUnknownFields().asMap().isEmpty()) {
-                throw new RuntimeException(
-                    "Record schema does not match table. Unknown fields: "
-                        + msg.getUnknownFields());
+              @Nullable TableRow unknownFields = payload.getUnknownFields();
+              if (unknownFields != null) {
+                // Protocol buffer serialization format supports concatenation. We serialize any new
+                // "known" fields
+                // into a proto and concatenate to the existing proto.
+                try {
+                  byteString =
+                      byteString.concat(
+                          unknownFieldsToMessage.convert(unknownFields, ignoreUnknownValues));
+                } catch (TableRowToStorageApiProto.SchemaConversionException e) {
+                  // This generally implies that ignoreUnknownValues=false and there were still
+                  // unknown values here.
+                  // Reconstitute the TableRow and send it to the failed-rows consumer.
+                  TableRow tableRow = protoToTableRow.apply(byteString);
+                  // TODO(24926, reuvenlax): We need to merge the unknown fields in! Currently we
+                  // only execute this
+                  // codepath when ignoreUnknownFields==true, so we should never hit this codepath.
+                  // However once
+                  // 24926 is fixed, we need to merge the unknownFields back into the main row
+                  // before outputting to the
+                  // failed-rows consumer.
+                  Instant timestamp = payload.getTimestamp();
+                  if (timestamp == null) {
+                    timestamp = elementsTimestamp;
+                  }
+                  failedRowsConsumer.accept(TimestampedValue.of(tableRow, timestamp), e.toString());
+                  continue;
+                }
               }
-            } catch (InvalidProtocolBufferException e) {
+            } catch (Exception e) {
               throw new RuntimeException(e);
             }
           }
-          ByteString byteString = ByteString.copyFrom(payload.getPayload());
           inserts.addSerializedRows(byteString);
+          Instant timestamp = payload.getTimestamp();
+          if (timestamp == null) {
+            timestamp = elementsTimestamp;
+          }
+          timestamps.add(timestamp);
           bytesSize += byteString.size();
           if (bytesSize > splitSize) {
             break;
           }
         }
-        return inserts.build();
+        return new AutoValue_SplittingIterable_Value(inserts.build(), timestamps);
       }
     };
   }

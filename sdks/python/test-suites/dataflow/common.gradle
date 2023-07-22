@@ -17,14 +17,46 @@
  */
 
 evaluationDependsOn(':runners:google-cloud-dataflow-java:worker')
+evaluationDependsOn(':sdks:python:test-suites:xlang')
 enablePythonPerformanceTest()
 
+String pythonVersionNumber = project.ext.pythonVersion.replace('.', '')
 String pythonVersionSuffix = project.ext.pythonVersion
-        ? "-py${project.ext.pythonVersion.replace('.', '')}"
+        ? "-py${pythonVersionNumber}"
         : ''
 
 dependencies {
   distTarBall project(path: ":sdks:python", configuration: "distTarBall")
+}
+
+task initializeForDataflowJob{
+  def wheelCompatible = "amd64".equalsIgnoreCase(System.getProperty("os.arch"))
+  if (!wheelCompatible && project.hasProperty('useWheelDistribution')) {
+      throw new GradleException('-PuseWheelDistribution is set for the task but the ' +
+      'host system platform is not compatible with Dataflow worker container image.')
+  }
+  dependsOn 'installGcpTest'
+
+  if (project.hasProperty('useWheelDistribution')) {
+    dependsOn ":sdks:python:bdistPy${pythonVersionNumber}linux"
+
+    doLast {
+      def collection = project.fileTree(project.project(':sdks:python').buildDir){
+          include "**/apache_beam-*cp${pythonVersionNumber}*manylinux*.whl"
+      }
+      // sdkLocation ext is set at execution time
+      String packageFilename = collection.singleFile.toString()
+      project.ext.sdkLocation = packageFilename
+      logger.info('Use wheel {} for sdk_location.', packageFilename)
+    }
+  } else {
+    dependsOn ':sdks:python:sdist'
+
+    // sdkLocation ext is available at config time
+    String packageFilename = files(configurations.distTarBall.files).singleFile
+    project.ext.sdkLocation = packageFilename
+    logger.info('Use tarball {} for sdk_location.', packageFilename)
+  }
 }
 
 def runScriptsDir = "${rootDir}/sdks/python/scripts"
@@ -37,15 +69,10 @@ def basicPytestOpts = [
     "--log-cli-level=INFO", //log level
 ]
 
-def preCommitIT(String runScriptsDir, String envdir, Boolean streaming, Boolean runnerV2, String pythonSuffix) {
-  def suffix = runnerV2 ? '_V2' : ''
-  suffix = streaming ? "_streaming$suffix" : "_batch$suffix"
+def preCommitIT(String runScriptsDir, String envdir, Boolean streaming, String pythonSuffix) {
+  def suffix = streaming ? "_streaming" : "_batch"
   task "preCommitIT${suffix}" {
-    dependsOn 'installGcpTest'
-    dependsOn ':sdks:python:sdist'
-    dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
-
-    def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
+    dependsOn 'initializeForDataflowJob'
 
     doLast {
       // Basic integration tests to run in PreCommit
@@ -63,16 +90,10 @@ def preCommitIT(String runScriptsDir, String envdir, Boolean streaming, Boolean 
 
       def argMap = [
               "test_opts"   : testOpts,
-              "sdk_location": files(configurations.distTarBall.files).singleFile,
-              "worker_jar"  : dataflowWorkerJar,
+              "sdk_location": project.ext.sdkLocation,
               "suite"       : "preCommitIT-df${pythonSuffix}",
       ]
 
-      if (runnerV2) {
-        argMap.put("runner_v2", "true")
-        // KMS is not supported for streaming engine.
-        argMap.put("kms_key_name", "\"\"")
-      }
       if (streaming){
         argMap.put("streaming", "true")
       }
@@ -86,34 +107,22 @@ def preCommitIT(String runScriptsDir, String envdir, Boolean streaming, Boolean 
   }
 }
 
-preCommitIT(runScriptsDir, envdir, false, false, pythonVersionSuffix)
-preCommitIT(runScriptsDir, envdir, true, false, pythonVersionSuffix)
-preCommitIT(runScriptsDir, envdir, false, true, pythonVersionSuffix)
-preCommitIT(runScriptsDir, envdir, true, true, pythonVersionSuffix)
+preCommitIT(runScriptsDir, envdir, false, pythonVersionSuffix)
+preCommitIT(runScriptsDir, envdir, true, pythonVersionSuffix)
 
 task preCommitIT{
   dependsOn preCommitIT_batch
   dependsOn preCommitIT_streaming
 }
 
-task preCommitIT_V2{
-  dependsOn preCommitIT_batch_V2
-  dependsOn preCommitIT_streaming_V2
-}
-
 task postCommitIT {
-  dependsOn 'installGcpTest'
-  dependsOn ':sdks:python:sdist'
-  dependsOn ':runners:google-cloud-dataflow-java:worker:shadowJar'
-
-  def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
+  dependsOn 'initializeForDataflowJob'
 
   doLast {
     def testOpts = basicPytestOpts + ["--numprocesses=8", "--dist=loadfile"]
     def argMap = [
         "test_opts": testOpts,
-        "sdk_location": files(configurations.distTarBall.files).singleFile,
-        "worker_jar": dataflowWorkerJar,
+        "sdk_location": project.ext.sdkLocation,
         "suite": "postCommitIT-df${pythonVersionSuffix}",
         "collect": "it_postcommit"
     ]
@@ -126,14 +135,13 @@ task postCommitIT {
 }
 
 task postCommitSickbay {
-  dependsOn 'installGcpTest'
-  dependsOn ':sdks:python:sdist'
+  dependsOn 'initializeForDataflowJob'
 
   doLast {
     def testOpts = basicPytestOpts + ["--numprocesses=8", "--dist=loadfile"]
     def argMap = [
         "test_opts": testOpts,
-        "sdk_location": files(configurations.distTarBall.files).singleFile,
+        "sdk_location": project.ext.sdkLocation,
         "suite": "postCommitIT-df${pythonVersionSuffix}",
         "collect": "it_postcommit_sickbay"
     ]
@@ -146,18 +154,13 @@ task postCommitSickbay {
 }
 
 task spannerioIT {
-  dependsOn 'installGcpTest'
-  dependsOn ':sdks:python:sdist'
-  dependsOn ':runners:google-cloud-dataflow-java:worker:shadowJar'
-
-  def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
+  dependsOn 'initializeForDataflowJob'
 
   doLast {
     def testOpts = basicPytestOpts + ["--numprocesses=8", "--dist=loadfile"]
     def argMap = [
         "test_opts": testOpts,
-        "sdk_location": files(configurations.distTarBall.files).singleFile,
-        "worker_jar": dataflowWorkerJar,
+        "sdk_location": project.ext.sdkLocation,
         "suite": "postCommitIT-df${pythonVersionSuffix}",
         "collect": "spannerio_it"
     ]
@@ -170,16 +173,14 @@ task spannerioIT {
 }
 
 task examples {
-  dependsOn 'installGcpTest'
-  dependsOn ':sdks:python:sdist'
+  dependsOn 'initializeForDataflowJob'
   def testOpts = basicPytestOpts
 
   // Execute tests with xdists
   doFirst {
     def argMap = [
             "test_opts": testOpts + ["--numprocesses=8", "--dist=loadfile"],
-            "sdk_location": files(configurations.distTarBall.files).singleFile,
-            "runner_v2": "true",
+            "sdk_location": project.ext.sdkLocation,
             "suite": "postCommitIT-df${pythonVersionSuffix}-xdist",
             "collect": "examples_postcommit and not no_xdist and not sickbay_dataflow"
     ]
@@ -194,8 +195,7 @@ task examples {
   doLast {
     def argMap = [
             "test_opts": testOpts,
-            "sdk_location": files(configurations.distTarBall.files).singleFile,
-            "runner_v2": "true",
+            "sdk_location": project.ext.sdkLocation,
             "suite": "postCommitIT-df${pythonVersionSuffix}-no-xdist",
             "collect": "examples_postcommit and no_xdist and not sickbay_dataflow"
     ]
@@ -208,30 +208,16 @@ task examples {
 }
 
 task validatesRunnerBatchTests {
-  dependsOn 'installGcpTest'
-  dependsOn ':sdks:python:sdist'
-  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
-
-  def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
-  def argMap = [
-          "test_opts"   : basicPytestOpts + ["--numprocesses=8"],
-          "worker_jar"  : dataflowWorkerJar,
-          "sdk_location": files(configurations.distTarBall.files).singleFile,
-          "suite"       : "validatesRunnerBatchTests-df${pythonVersionSuffix}",
-          "collect": "it_validatesrunner and not no_sickbay_batch"
-          ]
-
-  if (project.hasProperty('useRunnerV2')) {
-    argMap.put("runner_v2", "true")
-    // KMS is not supported for streaming engine.
-    argMap.put("kms_key_name", "\"\"")
-  }
-
-  if (project.hasProperty('disableRunnerV2')) {
-    argMap.put("disable_runner_v2", "true")
-  }
+  dependsOn 'initializeForDataflowJob'
 
   doLast {
+    def argMap = [
+        "test_opts"   : basicPytestOpts + ["--numprocesses=8"],
+        "sdk_location": project.ext.sdkLocation,
+        "suite"       : "validatesRunnerBatchTests-df${pythonVersionSuffix}",
+        "collect": "it_validatesrunner and not no_sickbay_batch"
+    ]
+
     def cmdArgs = mapToArgString(argMap)
     exec {
       executable 'sh'
@@ -241,11 +227,7 @@ task validatesRunnerBatchTests {
 }
 
 task validatesRunnerStreamingTests {
-  dependsOn 'installGcpTest'
-  dependsOn ':sdks:python:sdist'
-  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
-
-  def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
+  dependsOn 'initializeForDataflowJob'
 
   // TODO(BEAM-3544,https://github.com/apache/beam/issues/19012): Disable tests with 'sickbay-streaming' tag.
   // Execute tests with xdists
@@ -253,16 +235,10 @@ task validatesRunnerStreamingTests {
     def argMap = [
                 "test_opts": basicPytestOpts + ["--numprocesses=8"],
                 "streaming": "true",
-                "sdk_location": files(configurations.distTarBall.files).singleFile,
-                "worker_jar": dataflowWorkerJar,
+                "sdk_location": project.ext.sdkLocation,
                 "suite": "validatesRunnerStreamingTests-df${pythonVersionSuffix}-xdist",
-                "collect": "it_validatesrunner and not no_sickbay_streaming and not no_xdist"
+                "collect": "it_validatesrunner and not no_sickbay_streaming and not no_xdist",
                 ]
-    if (project.hasProperty('useRunnerV2')) {
-      argMap.put("runner_v2", "true")
-      // KMS is not supported for streaming engine.
-      argMap.put("kms_key_name", "\"\"")
-    }
 
     def cmdArgs = mapToArgString(argMap)
     exec {
@@ -276,16 +252,10 @@ task validatesRunnerStreamingTests {
     def argMap = [
                 "test_opts": basicPytestOpts,
                 "streaming": "true",
-                "sdk_location": files(configurations.distTarBall.files).singleFile,
-                "worker_jar": dataflowWorkerJar,
+                "sdk_location": project.ext.sdkLocation,
                 "suite": "validatesRunnerStreamingTests-df${pythonVersionSuffix}-noxdist",
-                "collect": "it_validatesrunner and not no_sickbay_streaming and no_xdist"
+                "collect": "it_validatesrunner and not no_sickbay_streaming and no_xdist",
                 ]
-    if (project.hasProperty('useRunnerV2')) {
-      argMap.put("runner_v2", "true")
-      // KMS is not supported for streaming engine.
-      argMap.put("kms_key_name", "\"\"")
-    }
 
     def cmdArgs = mapToArgString(argMap)
     exec {
@@ -295,28 +265,33 @@ task validatesRunnerStreamingTests {
   }
 }
 
-task runPerformanceTest(type: Exec) {
-  dependsOn 'installGcpTest'
-  dependsOn ':sdks:python:sdist'
+task runPerformanceTest {
+  dependsOn 'initializeForDataflowJob'
 
   def test = project.findProperty('test')
   def suite = "runPerformanceTest-df${pythonVersionSuffix}"
   def xUnitFile ="pytest-${suite}.xml"
 
-  def testOpts = project.findProperty('test-pipeline-options')
-  testOpts += " --sdk_location=${files(configurations.distTarBall.files).singleFile}"
+  doLast {
+    def testOpts = project.findProperty('test-pipeline-options')
+    testOpts += " --sdk_location=${project.ext.sdkLocation}"
 
-  setWorkingDir "${project.rootDir}/sdks/python"
-  commandLine 'sh', '-c', ". ${envdir}/bin/activate && pytest -o junit_suite_name=${suite}" +
+    exec {
+      workingDir "${project.rootDir}/sdks/python"
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && pytest -o junit_suite_name=${suite}" +
               " ${test} --test-pipeline-options=\"${testOpts}\" --junitxml=${xUnitFile} --timeout=1800"
+    }
+  }
 }
 
 task mongodbioIT {
-  dependsOn 'installGcpTest'
-  dependsOn ':sdks:python:sdist'
-  def opts = findProperty('opts')
-  opts = String.format("%s %s", opts, "--sdk_location=${files(configurations.distTarBall.files).singleFile}")
+  dependsOn 'initializeForDataflowJob'
+
   doLast {
+    def opts = findProperty('opts')
+    opts = String.format("%s %s", opts, "--sdk_location=${project.ext.sdkLocation}")
+
     exec {
       executable 'sh'
       args '-c', ". ${envdir}/bin/activate && python -m apache_beam.io.mongodbio_it_test ${opts}"
@@ -325,7 +300,7 @@ task mongodbioIT {
 }
 
 task installChicagoTaxiExampleRequirements {
-  dependsOn 'installGcpTest'
+  dependsOn 'initializeForDataflowJob'
 
   doLast {
     exec {
@@ -338,13 +313,12 @@ task installChicagoTaxiExampleRequirements {
 
 task chicagoTaxiExample {
   dependsOn 'installChicagoTaxiExampleRequirements'
-  dependsOn ':sdks:python:sdist'
-
-  def gcsRoot = findProperty('gcsRoot')
-  def pipelineOptions = findProperty('pipelineOptions') ?: ""
-  pipelineOptions += " --sdk_location=\"${files(configurations.distTarBall.files).singleFile}\""
 
   doLast {
+    def gcsRoot = findProperty('gcsRoot')
+    def pipelineOptions = findProperty('pipelineOptions') ?: ""
+    pipelineOptions += " --sdk_location=\"${project.ext.sdkLocation}\""
+
     exec {
       workingDir "$rootProject.projectDir/sdks/python/apache_beam/testing/benchmarks/chicago_taxi/"
       executable 'sh'
@@ -355,8 +329,13 @@ task chicagoTaxiExample {
 
 task validatesContainer() {
   def pyversion = "${project.ext.pythonVersion.replace('.', '')}"
-  dependsOn 'installGcpTest'
-  dependsOn ':sdks:python:sdist'
+  if (project.hasProperty("testRCDependencies")) {
+    // Generate a requirements file with pre-release versions for the docker task
+    // if testing with pre-release dependencies.
+    dependsOn ":sdks:python:container:py${pyversion}:generatePythonRequirements"
+    mustRunAfter ":sdks:python:container:py${pyversion}:generatePythonRequirements"
+  }
+  dependsOn 'initializeForDataflowJob'
   dependsOn ":sdks:python:container:py${pyversion}:docker"
   def runScriptsPath = "${rootDir}/sdks/python/container/run_validatescontainer.sh"
   doLast {
@@ -364,7 +343,7 @@ task validatesContainer() {
       executable 'sh'
       args '-c', ". ${envdir}/bin/activate && cd ${rootDir} && ${runScriptsPath} " +
               "${project.ext.pythonVersion} " +
-              "${files(configurations.distTarBall.files).singleFile}"
+              "${project.ext.sdkLocation}"
     }
   }
 }
@@ -377,6 +356,9 @@ def tensorRTTests = tasks.create("tensorRTtests") {
   def argMap = [
     "runner": "DataflowRunner",
     "machine_type":"n1-standard-4",
+    // TODO(https://github.com/apache/beam/issues/22651): Build docker image for tensor RT tests during Run time.
+    // This would also enable to use wheel "--sdk_location" as other tasks, and eliminate distTarBall dependency
+    // declaration for this project.
     "sdk_container_image": "us.gcr.io/apache-beam-testing/python-postcommit-it/tensor_rt:latest",
     "sdk_location": files(configurations.distTarBall.files).singleFile,
     "project": "apache-beam-testing",
@@ -394,6 +376,40 @@ def tensorRTTests = tasks.create("tensorRTtests") {
  }
 }
 
+task installTFTRequirements {
+  dependsOn 'initializeForDataflowJob'
+  doLast {
+    exec {
+      workingDir "$rootProject.projectDir/sdks/python/apache_beam/testing/benchmarks/cloudml/"
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && pip install -r requirements.txt"
+    }
+  }
+}
+
+// Tensorflow transform integration and benchmarking tests on Apache Beam.
+task tftTests {
+  dependsOn "installTFTRequirements"
+
+  doLast {
+    def opts = project.findProperty('opts')
+    opts += " --sdk_location=${project.ext.sdkLocation}"
+    def testOpts = basicPytestOpts + ["--numprocesses=8", "--dist=loadfile"]
+    def argMap = [
+        "test_opts": testOpts,
+        "suite": "TFTransformTests-df${pythonVersionSuffix}",
+        "collect": "uses_tft",
+        "requirements_file": "apache_beam/testing/benchmarks/cloudml/requirements.txt",
+        "pipeline_opts": opts,
+    ]
+    def cmdArgs = mapToArgString(argMap)
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs "
+    }
+  }
+}
+
 // add all RunInference E2E tests that run on DataflowRunner
 // As of now, this test suite is enable in py38 suite as the base NVIDIA image used for Tensor RT
 // contains Python 3.8.
@@ -402,4 +418,27 @@ project.tasks.register("inferencePostCommitIT") {
   dependsOn = [
   'tensorRTtests',
   ]
+}
+
+
+// Create cross-language tasks for running tests against Java expansion service(s)
+def dataflowProject = project.findProperty('dataflowProject') ?: 'apache-beam-testing'
+def dataflowRegion = project.findProperty('dataflowRegion') ?: 'us-central1'
+
+project(":sdks:python:test-suites:xlang").ext.xlangTasks.each { taskMetadata ->
+    createCrossLanguageUsingJavaExpansionTask(
+      name: taskMetadata.name,
+      expansionProjectPath: taskMetadata.expansionProjectPath,
+      collectMarker: taskMetadata.collectMarker,
+      startJobServer: taskMetadata.startJobServer,
+      cleanupJobServer: taskMetadata.cleanupJobServer,
+      pythonPipelineOptions: [
+        "--runner=TestDataflowRunner",
+        "--project=${dataflowProject}",
+        "--region=${dataflowRegion}",
+        "--sdk_container_image=gcr.io/apache-beam-testing/beam-sdk/beam_python${project.ext.pythonVersion}_sdk:latest",
+        "--sdk_harness_container_image_overrides=.*java.*,gcr.io/apache-beam-testing/beam-sdk/beam_java8_sdk:latest"
+      ],
+      pytestOptions: basicPytestOpts
+    )
 }

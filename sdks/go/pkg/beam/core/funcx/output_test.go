@@ -24,7 +24,7 @@ import (
 
 func TestIsEmit(t *testing.T) {
 	tests := []struct {
-		Fn  interface{}
+		Fn  any
 		Exp bool
 	}{
 		{func() {}, false}, // no values
@@ -37,6 +37,8 @@ func TestIsEmit(t *testing.T) {
 		{func(typex.EventTime, string) {}, true},
 		{func(typex.EventTime, typex.T, typex.X) {}, true},
 		{func(typex.EventTime, typex.T, typex.X, int) {}, false}, // too many values
+		{func(any) {}, false},                                    // any is not allowed as a param
+		{func(*any) {}, false},                                   // *any is also not allowed
 	}
 
 	for _, test := range tests {

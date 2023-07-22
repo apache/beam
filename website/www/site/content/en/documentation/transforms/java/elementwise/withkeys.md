@@ -18,7 +18,7 @@ limitations under the License.
 <table align="left">
     <a target="_blank" class="button"
         href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/transforms/WithKeys.html">
-      <img src="https://beam.apache.org/images/logos/sdks/java.png" width="20px" height="20px"
+      <img src="/images/logos/sdks/java.png" width="20px" height="20px"
            alt="Javadoc" />
      Javadoc
     </a>
@@ -35,17 +35,10 @@ There are two versions of `WithKeys`, depending on how the key should be determi
 * `WithKeys.of(K key)` associates each value with the specified key.
 
 ## Examples
-**Example**
-{{< highlight java >}}
-PCollection<String> words = Create.of("Hello", "World", "Beam", "is", "fun");
-PCollection<KV<Integer, String>> lengthAndWord =
-  words.apply(WithKeys.of(new SerialiazableFunction<String, Integer>() {
-    @Override
-    public Integer apply(String s) {
-      return s.length();
-    }
-  });
-{{< /highlight >}}
+
+{{< playground height="700px" >}}
+{{< playground_snippet language="java" path="PG_BEAMDOC_SDK_JAVA_WithKeys" show="main_section" >}}
+{{< /playground >}}
 
 ## Related transforms
 * [Keys](/documentation/transforms/java/elementwise/keys) for extracting the key of each component.

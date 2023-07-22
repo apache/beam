@@ -42,9 +42,6 @@ import org.powermock.modules.junit4.PowerMockRunner;
 /** Tests for {@link ProducerRecordCoder}. */
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(ConsumerSpEL.class)
-@SuppressWarnings({
-  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
-})
 public class ProducerRecordCoderTest {
   @Test
   public void testCoderIsSerializableWithWellKnownCoderType() {
@@ -61,7 +58,7 @@ public class ProducerRecordCoderTest {
 
   @Test
   public void testProducerRecordSerializableWithoutHeaders() throws IOException {
-    ConsumerRecord consumerRecord = new ConsumerRecord<>("", 0, 0L, "", "");
+    ConsumerRecord<String, String> consumerRecord = new ConsumerRecord<>("", 0, 0L, "", "");
     verifySerialization(consumerRecord.headers(), 0, System.currentTimeMillis());
   }
 
@@ -96,14 +93,14 @@ public class ProducerRecordCoderTest {
   public void testProducerRecordStructuralValueWithHeadersApi() throws IOException {
     RecordHeaders headers = new RecordHeaders();
     headers.add("headerKey", "headerVal".getBytes(UTF_8));
-    ProducerRecordCoder producerRecordCoder =
+    ProducerRecordCoder<byte[], byte[]> producerRecordCoder =
         ProducerRecordCoder.of(ByteArrayCoder.of(), ByteArrayCoder.of());
     ProducerRecord<byte[], byte[]> producerRecord =
         new ProducerRecord<>(
             "topic", 1, null, "key".getBytes(UTF_8), "value".getBytes(UTF_8), headers);
 
-    ProducerRecord testProducerRecord =
-        (ProducerRecord) producerRecordCoder.structuralValue(producerRecord);
+    ProducerRecord<byte[], byte[]> testProducerRecord =
+        (ProducerRecord<byte[], byte[]>) producerRecordCoder.structuralValue(producerRecord);
     assertEquals(testProducerRecord.headers(), headers);
   }
 
@@ -111,15 +108,15 @@ public class ProducerRecordCoderTest {
   public void testProducerRecordStructuralValueWithoutHeadersApi() throws IOException {
     RecordHeaders headers = new RecordHeaders();
     headers.add("headerKey", "headerVal".getBytes(UTF_8));
-    ProducerRecordCoder producerRecordCoder =
+    ProducerRecordCoder<byte[], byte[]> producerRecordCoder =
         ProducerRecordCoder.of(ByteArrayCoder.of(), ByteArrayCoder.of());
     ProducerRecord<byte[], byte[]> producerRecord =
         new ProducerRecord<>(
             "topic", 1, null, "key".getBytes(UTF_8), "value".getBytes(UTF_8), headers);
     mockStatic(ConsumerSpEL.class);
     when(ConsumerSpEL.hasHeaders()).thenReturn(false);
-    ProducerRecord testProducerRecord =
-        (ProducerRecord) producerRecordCoder.structuralValue(producerRecord);
+    ProducerRecord<byte[], byte[]> testProducerRecord =
+        (ProducerRecord<byte[], byte[]>) producerRecordCoder.structuralValue(producerRecord);
     assertEquals(testProducerRecord.headers(), new RecordHeaders());
   }
 
@@ -134,7 +131,7 @@ public class ProducerRecordCoderTest {
         new ProducerRecord<>("topic", partition, timestamp, "key", "value", headers);
 
     ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-    ProducerRecordCoder producerRecordCoder =
+    ProducerRecordCoder<String, String> producerRecordCoder =
         ProducerRecordCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of());
 
     producerRecordCoder.encode(producerRecord, outputStream);

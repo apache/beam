@@ -101,6 +101,14 @@ cdef class OutputStream(object):
     self.data[self.pos + 3] = <unsigned char>(v      )
     self.pos += 4
 
+  cpdef write_bigendian_int16(self, libc.stdint.int16_t signed_v):
+    cdef libc.stdint.uint16_t v = signed_v
+    if  self.buffer_size < self.pos + 2:
+      self.extend(2)
+    self.data[self.pos    ] = <unsigned char>(v >>  8)
+    self.data[self.pos + 1] = <unsigned char>(v      )
+    self.pos += 2
+
   cpdef write_bigendian_double(self, double d):
     self.write_bigendian_int64((<libc.stdint.int64_t*><char*>&d)[0])
 
@@ -156,6 +164,9 @@ cdef class ByteCountingOutputStream(OutputStream):
 
   cpdef write_bigendian_int32(self, libc.stdint.int32_t _):
     self.count += 4
+
+  cpdef write_bigendian_int16(self, libc.stdint.int16_t _):
+    self.count += 2
 
   cpdef size_t get_count(self):
     return self.count
@@ -236,6 +247,11 @@ cdef class InputStream(object):
       | <libc.stdint.uint32_t><unsigned char>self.allc[self.pos - 2] <<  8
       | <libc.stdint.uint32_t><unsigned char>self.allc[self.pos - 3] << 16
       | <libc.stdint.uint32_t><unsigned char>self.allc[self.pos - 4] << 24)
+
+  cpdef libc.stdint.int16_t read_bigendian_int16(self) except? -1:
+    self.pos += 2
+    return (<unsigned char>self.allc[self.pos - 1]
+      | <libc.stdint.uint16_t><unsigned char>self.allc[self.pos - 2] <<  8)
 
   cpdef double read_bigendian_double(self) except? -1:
     cdef libc.stdint.int64_t as_long = self.read_bigendian_int64()

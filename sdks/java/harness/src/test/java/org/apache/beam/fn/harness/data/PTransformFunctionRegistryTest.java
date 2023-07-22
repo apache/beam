@@ -20,32 +20,28 @@ package org.apache.beam.fn.harness.data;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.fn.harness.control.ExecutionStateSampler;
 import org.apache.beam.fn.harness.control.ExecutionStateSampler.ExecutionStateTracker;
 import org.apache.beam.fn.harness.control.ExecutionStateSampler.ExecutionStateTrackerStatus;
-import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Urns;
 import org.apache.beam.runners.core.metrics.ShortIdMap;
 import org.apache.beam.sdk.function.ThrowingRunnable;
-import org.apache.beam.sdk.metrics.MetricsContainer;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
-import org.apache.beam.sdk.metrics.MetricsEnvironment.MetricsEnvironmentState;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.mockito.InOrder;
-import org.mockito.Mockito;
 
 /** Tests for {@link PTransformFunctionRegistry}. */
 @RunWith(JUnit4.class)
 public class PTransformFunctionRegistryTest {
+  private static final Counter TEST_USER_COUNTER = Metrics.counter("foo", "bar");
 
   private ExecutionStateSampler sampler;
 
@@ -56,19 +52,17 @@ public class PTransformFunctionRegistryTest {
 
   @After
   public void tearDown() {
+    MetricsEnvironment.setCurrentContainer(null);
     sampler.stop();
   }
 
   @Test
   public void testStateTrackerRecordsStateTransitions() throws Exception {
     ExecutionStateTracker executionStateTracker = sampler.create();
+    MetricsEnvironment.setCurrentContainer(executionStateTracker.getMetricsContainer());
     PTransformFunctionRegistry testObject =
         new PTransformFunctionRegistry(
-            mock(MetricsContainerStepMap.class),
-            MetricsEnvironment::setCurrentContainer,
-            new ShortIdMap(),
-            executionStateTracker,
-            Urns.START_BUNDLE_MSECS);
+            new ShortIdMap(), executionStateTracker, Urns.START_BUNDLE_MSECS);
 
     final AtomicBoolean runnableAWasCalled = new AtomicBoolean();
     final AtomicBoolean runnableBWasCalled = new AtomicBoolean();
@@ -111,46 +105,49 @@ public class PTransformFunctionRegistryTest {
 
   @Test
   public void testMetricsUponRunningFunctions() throws Exception {
-    MetricsEnvironmentState metricsEnvironmentState = mock(MetricsEnvironmentState.class);
     ExecutionStateTracker executionStateTracker = sampler.create();
-    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+    MetricsEnvironment.setCurrentContainer(executionStateTracker.getMetricsContainer());
     PTransformFunctionRegistry testObject =
         new PTransformFunctionRegistry(
-            metricsContainerRegistry,
-            metricsEnvironmentState,
-            new ShortIdMap(),
-            executionStateTracker,
-            Urns.START_BUNDLE_MSECS);
+            new ShortIdMap(), executionStateTracker, Urns.START_BUNDLE_MSECS);
 
-    ThrowingRunnable runnableA = mock(ThrowingRunnable.class);
-    ThrowingRunnable runnableB = mock(ThrowingRunnable.class);
-    testObject.register("pTransformA", "pTranformAName", runnableA);
-    testObject.register("pTransformB", "pTranformBName", runnableB);
+    testObject.register("pTransformA", "pTranformAName", () -> TEST_USER_COUNTER.inc());
+    testObject.register("pTransformB", "pTranformBName", () -> TEST_USER_COUNTER.inc(2));
 
     // Test both cases; when there is an existing container and where there is no container
-    MetricsContainer oldContainer = mock(MetricsContainer.class);
-    when(metricsEnvironmentState.activate(metricsContainerRegistry.getContainer("pTransformA")))
-        .thenReturn(oldContainer);
-    when(metricsEnvironmentState.activate(metricsContainerRegistry.getContainer("pTransformB")))
-        .thenReturn(null);
-
     executionStateTracker.start("testBundleId");
     for (ThrowingRunnable func : testObject.getFunctions()) {
       func.run();
     }
-    executionStateTracker.reset();
+    TEST_USER_COUNTER.inc(3);
 
-    // Verify that metrics environment state is updated with pTransformA's container, then reset to
-    // the oldContainer, then pTransformB's container and then reset to null.
-    InOrder inOrder = Mockito.inOrder(metricsEnvironmentState);
-    inOrder
-        .verify(metricsEnvironmentState)
-        .activate(metricsContainerRegistry.getContainer("pTransformA"));
-    inOrder.verify(metricsEnvironmentState).activate(oldContainer);
-    inOrder
-        .verify(metricsEnvironmentState)
-        .activate(metricsContainerRegistry.getContainer("pTransformB"));
-    inOrder.verify(metricsEnvironmentState).activate(null);
-    inOrder.verifyNoMoreInteractions();
+    // Verify that metrics environment state is updated with pTransform's counters including the
+    // unbound container when outside the scope of the function
+    assertEquals(
+        1L,
+        (long)
+            executionStateTracker
+                .getMetricsContainerRegistry()
+                .getContainer("pTransformA")
+                .getCounter(TEST_USER_COUNTER.getName())
+                .getCumulative());
+    assertEquals(
+        2L,
+        (long)
+            executionStateTracker
+                .getMetricsContainerRegistry()
+                .getContainer("pTransformB")
+                .getCounter(TEST_USER_COUNTER.getName())
+                .getCumulative());
+    assertEquals(
+        3L,
+        (long)
+            executionStateTracker
+                .getMetricsContainerRegistry()
+                .getUnboundContainer()
+                .getCounter(TEST_USER_COUNTER.getName())
+                .getCumulative());
+
+    executionStateTracker.reset();
   }
 }

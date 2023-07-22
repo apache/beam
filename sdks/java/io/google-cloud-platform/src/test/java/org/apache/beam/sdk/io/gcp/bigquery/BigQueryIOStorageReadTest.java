@@ -83,8 +83,10 @@ import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.Encoder;
 import org.apache.avro.io.EncoderFactory;
+import org.apache.avro.util.Utf8;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.extensions.protobuf.ByteStringCoder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -2204,6 +2206,54 @@ public class BigQueryIOStorageReadTest {
             read.actuateProjectionPushdown(
                 ImmutableMap.of(
                     new TupleTag<>("output"), FieldAccessDescriptor.withFieldNames("foo"))));
+  }
+
+  @Test
+  public void testReadFromBigQueryAvroObjectsMutation() throws Exception {
+    ReadSession readSession =
+        ReadSession.newBuilder()
+            .setName("readSession")
+            .setAvroSchema(AvroSchema.newBuilder().setSchema(AVRO_SCHEMA_STRING))
+            .build();
+
+    ReadRowsRequest expectedRequest =
+        ReadRowsRequest.newBuilder().setReadStream("readStream").build();
+
+    List<GenericRecord> records =
+        Lists.newArrayList(createRecord("A", 1, AVRO_SCHEMA), createRecord("B", 2, AVRO_SCHEMA));
+
+    List<ReadRowsResponse> responses =
+        Lists.newArrayList(
+            createResponse(AVRO_SCHEMA, records.subList(0, 1), 0.0, 0.5),
+            createResponse(AVRO_SCHEMA, records.subList(1, 2), 0.5, 1.0));
+
+    StorageClient fakeStorageClient = mock(StorageClient.class);
+    when(fakeStorageClient.readRows(expectedRequest, ""))
+        .thenReturn(new FakeBigQueryServerStream<>(responses));
+
+    BigQueryStorageStreamSource<GenericRecord> streamSource =
+        BigQueryStorageStreamSource.create(
+            readSession,
+            ReadStream.newBuilder().setName("readStream").build(),
+            TABLE_SCHEMA,
+            SchemaAndRecord::getRecord,
+            AvroCoder.of(AVRO_SCHEMA),
+            new FakeBigQueryServices().withStorageClient(fakeStorageClient));
+
+    BoundedReader<GenericRecord> reader = streamSource.createReader(options);
+
+    // Reads A.
+    assertTrue(reader.start());
+    GenericRecord rowA = reader.getCurrent();
+    assertEquals(new Utf8("A"), rowA.get("name"));
+
+    // Reads B.
+    assertTrue(reader.advance());
+    GenericRecord rowB = reader.getCurrent();
+    assertEquals(new Utf8("B"), rowB.get("name"));
+
+    // Make sure rowA has not mutated after advance
+    assertEquals(new Utf8("A"), rowA.get("name"));
   }
 
   private static org.apache.arrow.vector.types.pojo.Field field(

@@ -29,6 +29,7 @@ import static org.mockito.Mockito.when;
 
 import com.google.api.gax.longrunning.OperationFuture;
 import com.google.cloud.spanner.DatabaseAdminClient;
+import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.ErrorCode;
 import com.google.cloud.spanner.SpannerException;
 import com.google.spanner.admin.database.v1.UpdateDatabaseDdlMetadata;
@@ -44,6 +45,8 @@ public class PartitionMetadataAdminDaoTest {
   private DatabaseAdminClient databaseAdminClient;
 
   private PartitionMetadataAdminDao partitionMetadataAdminDao;
+
+  private PartitionMetadataAdminDao partitionMetadataAdminDaoPostgres;
 
   private OperationFuture<Void, UpdateDatabaseDdlMetadata> op;
 
@@ -65,7 +68,11 @@ public class PartitionMetadataAdminDaoTest {
   public void setUp() {
     databaseAdminClient = mock(DatabaseAdminClient.class);
     partitionMetadataAdminDao =
-        new PartitionMetadataAdminDao(databaseAdminClient, INSTANCE_ID, DATABASE_ID, TABLE_NAME);
+        new PartitionMetadataAdminDao(
+            databaseAdminClient, INSTANCE_ID, DATABASE_ID, TABLE_NAME, Dialect.GOOGLE_STANDARD_SQL);
+    partitionMetadataAdminDaoPostgres =
+        new PartitionMetadataAdminDao(
+            databaseAdminClient, INSTANCE_ID, DATABASE_ID, TABLE_NAME, Dialect.POSTGRESQL);
     op = (OperationFuture<Void, UpdateDatabaseDdlMetadata>) mock(OperationFuture.class);
     statements = ArgumentCaptor.forClass(Iterable.class);
     when(databaseAdminClient.updateDatabaseDdl(
@@ -81,6 +88,16 @@ public class PartitionMetadataAdminDaoTest {
         .updateDatabaseDdl(eq(INSTANCE_ID), eq(DATABASE_ID), statements.capture(), isNull());
     assertEquals(1, ((Collection<?>) statements.getValue()).size());
     assertTrue(statements.getValue().iterator().next().contains("CREATE TABLE"));
+  }
+
+  @Test
+  public void testCreatePartitionMetadataTablePostgres() throws Exception {
+    when(op.get(TIMEOUT_MINUTES, TimeUnit.MINUTES)).thenReturn(null);
+    partitionMetadataAdminDaoPostgres.createPartitionMetadataTable();
+    verify(databaseAdminClient, times(1))
+        .updateDatabaseDdl(eq(INSTANCE_ID), eq(DATABASE_ID), statements.capture(), isNull());
+    assertEquals(1, ((Collection<?>) statements.getValue()).size());
+    assertTrue(statements.getValue().iterator().next().contains("CREATE TABLE \""));
   }
 
   @Test
@@ -114,6 +131,16 @@ public class PartitionMetadataAdminDaoTest {
         .updateDatabaseDdl(eq(INSTANCE_ID), eq(DATABASE_ID), statements.capture(), isNull());
     assertEquals(1, ((Collection<?>) statements.getValue()).size());
     assertTrue(statements.getValue().iterator().next().contains("DROP TABLE"));
+  }
+
+  @Test
+  public void testDeletePartitionMetadataTablePostgres() throws Exception {
+    when(op.get(TIMEOUT_MINUTES, TimeUnit.MINUTES)).thenReturn(null);
+    partitionMetadataAdminDaoPostgres.deletePartitionMetadataTable();
+    verify(databaseAdminClient, times(1))
+        .updateDatabaseDdl(eq(INSTANCE_ID), eq(DATABASE_ID), statements.capture(), isNull());
+    assertEquals(1, ((Collection<?>) statements.getValue()).size());
+    assertTrue(statements.getValue().iterator().next().contains("DROP TABLE \""));
   }
 
   @Test

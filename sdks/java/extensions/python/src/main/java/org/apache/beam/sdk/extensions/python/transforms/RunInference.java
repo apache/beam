@@ -36,7 +36,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Wrapper for invoking external Python {@code RunInference}. @Experimental */
+/** Wrapper for invoking external Python {@code RunInference}. */
 public class RunInference<OutputT> extends PTransform<PCollection<?>, PCollection<OutputT>> {
   private static final Logger LOG = LoggerFactory.getLogger(RunInference.class);
 
@@ -128,21 +128,25 @@ public class RunInference<OutputT> extends PTransform<PCollection<?>, PCollectio
   }
 
   /**
-   * Specifies any extra Pypi packages required by the RunInference model handler.
+   * Specifies any extra packages required by the RunInference model handler.
    *
    * <p>This should only be specified when using the default expansion service, i.e. when not using
    * {@link #withExpansionService(String)} to provide an expansion service.
+   *
+   * <p>The package can either be a PyPi package or the path to a locally available Python package.
    *
    * <p>For model handlers provided by Beam Python SDK, the implementation will automatically try to
    * infer correct packages needed, so this may be omitted.
    *
    * @param extraPackages a list of PyPi packages. May include the version.
+   * @return A {@link RunInference} with extra packages.
    */
-  public void withExtraPackages(List<String> extraPackages) {
+  public RunInference<OutputT> withExtraPackages(List<String> extraPackages) {
     if (!this.extraPackages.isEmpty()) {
       throw new IllegalArgumentException("Extra packages were already specified");
     }
     this.extraPackages.addAll(extraPackages);
+    return this;
   }
 
   /**

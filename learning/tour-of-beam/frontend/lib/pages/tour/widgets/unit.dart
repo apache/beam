@@ -17,32 +17,38 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 
-import '../../../assets/assets.gen.dart';
+import '../../../cache/unit_progress.dart';
 import '../../../models/unit.dart';
 import '../controllers/content_tree.dart';
-import 'tour_progress_indicator.dart';
+import 'binary_progress.dart';
 
 class UnitWidget extends StatelessWidget {
   final UnitModel unit;
   final ContentTreeController contentTreeController;
+  static const containerKey = Key('UnitContainer');
 
   const UnitWidget({
     required this.unit,
     required this.contentTreeController,
+    super.key,
   });
 
   @override
   Widget build(BuildContext context) {
+    final unitProgressCache = GetIt.instance.get<UnitProgressCache>();
+
     return AnimatedBuilder(
       animation: contentTreeController,
       builder: (context, child) {
         final isSelected = contentTreeController.currentNode?.id == unit.id;
 
         return ClickableWidget(
-          onTap: () => contentTreeController.openNode(unit),
+          onTap: () => contentTreeController.onNodePressed(unit),
           child: Container(
+            key: containerKey,
             decoration: BoxDecoration(
               color: isSelected ? Theme.of(context).selectedRowColor : null,
               borderRadius: BorderRadius.circular(BeamSizes.size3),
@@ -50,9 +56,12 @@ class UnitWidget extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: BeamSizes.size10),
             child: Row(
               children: [
-                TourProgressIndicator(
-                  assetPath: Assets.svg.unitProgress0,
-                  isSelected: isSelected,
+                AnimatedBuilder(
+                  animation: unitProgressCache,
+                  builder: (context, child) => BinaryProgressIndicator(
+                    isCompleted: unitProgressCache.isUnitCompleted(unit.id),
+                    isSelected: isSelected,
+                  ),
                 ),
                 Expanded(
                   child: Text(unit.title),

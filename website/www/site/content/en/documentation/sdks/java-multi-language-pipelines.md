@@ -142,7 +142,7 @@ cases, [start the expansion service](#advanced-start-an-expansion-service)
 before running your pipeline.
 
 Before running the pipeline, make sure to perform the
-[runner specific setup](https://beam.apache.org/get-started/quickstart-java/#run-a-pipeline) for your selected Beam runner.
+[runner specific setup](/get-started/quickstart-java/#run-a-pipeline) for your selected Beam runner.
 
 ### Run with Dataflow runner using a Maven Archetype (Beam 2.43.0 and later)
 
@@ -260,7 +260,7 @@ For example, to start the standard expansion service for a Python transform,
 follow these steps:
 
 1. Activate a new virtual environment following
-[these instructions](https://beam.apache.org/get-started/quickstart-py/#create-and-activate-a-virtual-environment).
+[these instructions](/get-started/quickstart-py/#create-and-activate-a-virtual-environment).
 
 2. Install Apache Beam with `gcp` and `dataframe` packages.
 

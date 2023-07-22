@@ -89,3 +89,7 @@ func (d *Mock) SaveUserSnippetId(
 ) error {
 	return nil
 }
+
+func (d *Mock) DeleteProgress(ctx context.Context, uid string) error {
+	return nil
+}

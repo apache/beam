@@ -143,6 +143,20 @@ public interface FlinkPipelineOptions
   void setNumberOfExecutionRetries(Integer retries);
 
   @Description(
+      "Set job check interval in seconds under detached mode in method waitUntilFinish, "
+          + "by default it is 5 seconds")
+  @Default.Integer(5)
+  int getJobCheckIntervalInSecs();
+
+  void setJobCheckIntervalInSecs(int seconds);
+
+  @Description("Specifies if the pipeline is submitted in attached or detached mode")
+  @Default.Boolean(true)
+  boolean getAttachedMode();
+
+  void setAttachedMode(boolean attachedMode);
+
+  @Description(
       "Sets the delay in milliseconds between executions. A value of {@code -1} "
           + "indicates that the default value should be used.")
   @Default.Long(-1L)
@@ -155,6 +169,12 @@ public interface FlinkPipelineOptions
   Boolean getObjectReuse();
 
   void setObjectReuse(Boolean reuse);
+
+  @Description("Sets the behavior of operator chaining.")
+  @Default.Boolean(true)
+  Boolean getOperatorChaining();
+
+  void setOperatorChaining(Boolean chaining);
 
   /**
    * State backend to store Beam's state during computation. Note: Only applicable when executing in

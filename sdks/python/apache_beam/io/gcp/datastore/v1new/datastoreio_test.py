@@ -49,6 +49,20 @@ except ImportError:
   client = None
 
 
+# used for internal testing only
+class FakeMessage:
+  def __init__(self, entity, key):
+    self.entity = entity
+    self.key = key
+
+  def ByteSize(self):
+    if self.entity is not None:
+      return helpers.entity_to_protobuf(self.entity)._pb.ByteSize()
+    else:
+      return self.key.to_protobuf()._pb.ByteSize()
+
+
+# used for internal testing only
 class FakeMutation(object):
   def __init__(self, entity=None, key=None):
     """Fake mutation request object.
@@ -63,12 +77,7 @@ class FakeMutation(object):
     """
     self.entity = entity
     self.key = key
-
-  def ByteSize(self):
-    if self.entity is not None:
-      return helpers.entity_to_protobuf(self.entity).ByteSize()
-    else:
-      return self.key.to_protobuf().ByteSize()
+    self._pb = FakeMessage(entity, key)
 
 
 class FakeBatch(object):
@@ -429,7 +438,7 @@ class DatastoreioTest(unittest.TestCase):
       datastore_write_fn = WriteToDatastore._DatastoreWriteFn(self._PROJECT)
       datastore_write_fn.start_bundle()
       for entity in entities:
-        entity.set_properties({'large': u'A' * 100000})
+        entity.set_properties({'large': 'A' * 100000})
         datastore_write_fn.process(entity)
       datastore_write_fn.finish_bundle()
 

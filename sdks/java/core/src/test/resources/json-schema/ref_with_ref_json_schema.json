@@ -1,0 +1,43 @@
+{
+  "$id": "https://example.com/arrays.schema.json",
+  "type": "object",
+  "properties": {
+    "vegetables": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/veggie" }
+    }
+  },
+  "$defs": {
+    "veggie": {
+      "type": "object",
+      "required": [ "veggieName", "veggieLike" ],
+      "properties": {
+        "veggieName": {
+          "type": "string",
+          "description": "The name of the vegetable."
+        },
+        "veggieLike": {
+          "type": "boolean",
+          "description": "Do I like this vegetable?"
+        },
+        "origin": {
+          "$ref": "#/$defs/location"
+        }
+      }
+    },
+    "location": {
+      "type": "object",
+      "properties": {
+        "country": {
+          "type": "string"
+        },
+        "region": {
+          "type": "string"
+        },
+        "town": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

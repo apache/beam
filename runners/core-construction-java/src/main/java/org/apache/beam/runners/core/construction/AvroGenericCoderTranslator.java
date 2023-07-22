@@ -21,8 +21,8 @@ import java.util.Collections;
 import java.util.List;
 import org.apache.avro.Schema;
 import org.apache.beam.runners.core.construction.CoderTranslation.TranslationContext;
-import org.apache.beam.sdk.coders.AvroGenericCoder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.extensions.avro.coders.AvroGenericCoder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 
 /** Coder translator for AvroGenericCoder. */

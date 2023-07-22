@@ -54,12 +54,13 @@ class PytorchVisionBenchmarkTest(LoadTest):
 
     extra_opts = {}
     extra_opts['input'] = self.pipeline.get_option('input_file')
-
+    device = self.pipeline.get_option('device')
     self.result = pytorch_image_classification.run(
         self.pipeline.get_full_options_as_args(**extra_opts),
         model_class=model_class,
         model_params=model_params,
-        test_pipeline=self.pipeline)
+        test_pipeline=self.pipeline,
+        device=device)
 
 
 if __name__ == '__main__':

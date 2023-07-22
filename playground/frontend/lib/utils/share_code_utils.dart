@@ -18,89 +18,17 @@
 
 import 'dart:convert';
 
-import 'package:playground/constants/params.dart';
-
-enum PlaygroundView {
-  standalone,
-  embedded,
-  ;
-
-  String get path {
-    switch (this) {
-      case PlaygroundView.standalone:
-        return '/';
-      case PlaygroundView.embedded:
-        return '/embedded';
-    }
-  }
-}
-
-extension CopyWith on Uri {
-  Uri copyWith({
-    String? path,
-    Map<String, dynamic>? queryParameters,
-  }) {
-    return Uri(
-      scheme: scheme,
-      userInfo: userInfo,
-      host: host,
-      port: port,
-      path: path ?? this.path,
-      queryParameters: queryParameters ?? this.queryParameters,
-    );
-  }
-}
-
 class ShareCodeUtils {
   static const _width = '90%';
   static const _height = '600px';
 
-  static Uri examplePathToPlaygroundUrl({
-    required String examplePath,
-    required PlaygroundView view,
-  }) {
-    return Uri.base.copyWith(
-      path: view.path,
-      queryParameters: _getExampleQueryParameters(
-        examplePath: examplePath,
-        view: view,
-      ),
-    );
-  }
-
-  static Map<String, dynamic> _getExampleQueryParameters({
-    required String examplePath,
-    required PlaygroundView view,
-  }) {
-    switch (view) {
-      case PlaygroundView.standalone:
-        return {
-          kExampleParam: examplePath,
-        };
-      case PlaygroundView.embedded:
-        return {
-          kIsEditableParam: '1',
-          kExampleParam: examplePath,
-        };
-    }
-  }
-
-  static String examplePathToIframeCode({
-    required String examplePath,
-  }) {
-    return _iframe(
-      src: examplePathToPlaygroundUrl(
-        examplePath: examplePath,
-        view: PlaygroundView.embedded,
-      ),
-    );
-  }
-
-  static String _iframe({
+  /// The HTML of an <iframe> tag with the given [src] URL.
+  static String iframe({
     required Uri src,
   }) {
+    // Not URL-encoding because we expect only safe characters.
     return '<iframe'
-        ' src="${Uri.encodeComponent(src.toString())}"'
+        ' src="$src"'
         ' width="${_htmlEscape(_width)}"'
         ' height="${_htmlEscape(_height)}"'
         ' allow="clipboard-write" '

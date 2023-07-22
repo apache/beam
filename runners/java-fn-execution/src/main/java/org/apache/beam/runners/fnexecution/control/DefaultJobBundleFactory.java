@@ -34,6 +34,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.model.fnexecution.v1.ProvisionApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardEnvironments;
+import org.apache.beam.model.pipeline.v1.RunnerApi.StandardRunnerProtocols;
 import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
@@ -683,6 +684,8 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
     provisionInfo.setLoggingEndpoint(loggingServer.getApiServiceDescriptor());
     provisionInfo.setArtifactEndpoint(retrievalServer.getApiServiceDescriptor());
     provisionInfo.setControlEndpoint(controlServer.getApiServiceDescriptor());
+    provisionInfo.addRunnerCapabilities(
+        BeamUrns.getUrn(StandardRunnerProtocols.Enum.CONTROL_RESPONSE_ELEMENTS_EMBEDDING));
     GrpcFnServer<StaticGrpcProvisionService> provisioningServer =
         GrpcFnServer.allocatePortAndCreateFor(
             StaticGrpcProvisionService.create(

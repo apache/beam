@@ -71,6 +71,7 @@ class BigQueryResourceNaming {
     COPY,
     EXPORT,
     QUERY,
+    SCHEMA_UPDATE,
   }
 
   /**

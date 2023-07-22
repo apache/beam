@@ -40,6 +40,7 @@ from typing import Tuple
 from apache_beam.coders import TupleCoder
 from apache_beam.internal import util
 from apache_beam.options.value_provider import RuntimeValueProvider
+from apache_beam.portability import common_urns
 from apache_beam.pvalue import TaggedOutput
 from apache_beam.runners.sdf_utils import NoOpWatermarkEstimatorProvider
 from apache_beam.runners.sdf_utils import RestrictionTrackerView
@@ -65,6 +66,7 @@ from apache_beam.utils.windowed_value import WindowedBatch
 from apache_beam.utils.windowed_value import WindowedValue
 
 if TYPE_CHECKING:
+  from apache_beam.runners.worker.bundle_processor import ExecutionContext
   from apache_beam.transforms import sideinputs
   from apache_beam.transforms.core import TimerSpec
   from apache_beam.io.iobase import RestrictionProgress
@@ -1337,7 +1339,8 @@ class DoFnRunner:
                state=None,
                scoped_metrics_container=None,
                operation_name=None,
-               user_state_context=None  # type: Optional[userstate.UserStateContext]
+               transform_id=None,
+               user_state_context=None,  # type: Optional[userstate.UserStateContext]
               ):
     """Initializes a DoFnRunner.
 
@@ -1353,6 +1356,7 @@ class DoFnRunner:
       state: handle for accessing DoFn state
       scoped_metrics_container: DEPRECATED
       operation_name: The system name assigned by the runner for this operation.
+      transform_id: The PTransform Id in the pipeline proto for this DoFn.
       user_state_context: The UserStateContext instance for the current
                           Stateful DoFn.
     """
@@ -1360,8 +1364,10 @@ class DoFnRunner:
     side_inputs = list(side_inputs)
 
     self.step_name = step_name
+    self.transform_id = transform_id
     self.context = DoFnContext(step_name, state=state)
     self.bundle_finalizer_param = DoFn.BundleFinalizerParam()
+    self.execution_context = None  # type: Optional[ExecutionContext]
 
     do_fn_signature = DoFnSignature(fn)
 
@@ -1416,8 +1422,24 @@ class DoFnRunner:
     try:
       return self.do_fn_invoker.invoke_process(windowed_value)
     except BaseException as exn:
-      self._reraise_augmented(exn)
+      self._reraise_augmented(exn, windowed_value)
       return []
+
+  def _maybe_sample_exception(
+      self, exn: BaseException, windowed_value: WindowedValue) -> None:
+
+    if self.execution_context is None:
+      return
+
+    output_sampler = self.execution_context.output_sampler
+    if output_sampler is None:
+      return
+
+    output_sampler.sample_exception(
+        windowed_value,
+        exn,
+        self.transform_id,
+        self.execution_context.instruction_id)
 
   def process_batch(self, windowed_batch):
     # type: (WindowedBatch) -> None
@@ -1486,7 +1508,7 @@ class DoFnRunner:
     # type: () -> None
     self.bundle_finalizer_param.finalize_bundle()
 
-  def _reraise_augmented(self, exn):
+  def _reraise_augmented(self, exn, windowed_value=None):
     if getattr(exn, '_tagged_with_step', False) or not self.step_name:
       raise exn
     step_annotation = " [while running '%s']" % self.step_name
@@ -1503,8 +1525,12 @@ class DoFnRunner:
           traceback.format_exception_only(type(exn), exn)[-1].strip() +
           step_annotation)
       new_exn._tagged_with_step = True
-    _, _, tb = sys.exc_info()
-    raise new_exn.with_traceback(tb)
+    exc_info = sys.exc_info()
+    _, _, tb = exc_info
+
+    new_exn = new_exn.with_traceback(tb)
+    self._maybe_sample_exception(exc_info, windowed_value)
+    raise new_exn
 
 
 class OutputHandler(object):
@@ -1852,3 +1878,46 @@ def group_by_key_input_visitor(deterministic_key_coders=True):
               self.deterministic_key_coders and transform_node.full_label)
 
   return GroupByKeyInputVisitor(deterministic_key_coders)
+
+
+def validate_pipeline_graph(pipeline_proto):
+  """Ensures this is a correctly constructed Beam pipeline.
+  """
+  def get_coder(pcoll_id):
+    return pipeline_proto.components.coders[
+        pipeline_proto.components.pcollections[pcoll_id].coder_id]
+
+  def validate_transform(transform_id):
+    transform_proto = pipeline_proto.components.transforms[transform_id]
+
+    # Currently the only validation we perform is that GBK operations have
+    # their coders set properly.
+    if transform_proto.spec.urn == common_urns.primitives.GROUP_BY_KEY.urn:
+      if len(transform_proto.inputs) != 1:
+        raise ValueError("Unexpected number of inputs: %s" % transform_proto)
+      if len(transform_proto.outputs) != 1:
+        raise ValueError("Unexpected number of outputs: %s" % transform_proto)
+      input_coder = get_coder(next(iter(transform_proto.inputs.values())))
+      output_coder = get_coder(next(iter(transform_proto.outputs.values())))
+      if input_coder.spec.urn != common_urns.coders.KV.urn:
+        raise ValueError(
+            "Bad coder for input of %s: %s" % (transform_id, input_coder))
+      if output_coder.spec.urn != common_urns.coders.KV.urn:
+        raise ValueError(
+            "Bad coder for output of %s: %s" % (transform_id, output_coder))
+      output_values_coder = pipeline_proto.components.coders[
+          output_coder.component_coder_ids[1]]
+      if (input_coder.component_coder_ids[0] !=
+          output_coder.component_coder_ids[0] or
+          output_values_coder.spec.urn != common_urns.coders.ITERABLE.urn or
+          output_values_coder.component_coder_ids[0] !=
+          input_coder.component_coder_ids[1]):
+        raise ValueError(
+            "Incompatible input coder %s and output coder %s for transform %s" %
+            (transform_id, input_coder, output_coder))
+
+    for t in transform_proto.subtransforms:
+      validate_transform(t)
+
+  for t in pipeline_proto.root_transform_ids:
+    validate_transform(t)

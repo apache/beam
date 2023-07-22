@@ -89,6 +89,9 @@ func TestCoders(t *testing.T) {
 		}, {
 			coder: coder.NewN(coder.NewBytes()),
 			val:   &FullValue{Elm: []byte("myBytes")},
+		}, {
+			coder: coder.NewIntervalWindowCoder(),
+			val:   &FullValue{Elm: window.IntervalWindow{Start: 0, End: 100}},
 		},
 	} {
 		t.Run(fmt.Sprintf("%v", test.coder), func(t *testing.T) {

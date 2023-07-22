@@ -228,6 +228,8 @@ class PipelineContext(object):
         default_environment, label='default_environment')  # type: str
 
     self.use_fake_coders = use_fake_coders
+    self.deterministic_coder_map = {
+    }  # type: Mapping[coders.Coder, coders.Coder]
     self.iterable_state_read = iterable_state_read
     self.iterable_state_write = iterable_state_write
     self._requirements = set(requirements)
@@ -254,11 +256,17 @@ class PipelineContext(object):
       coder = coders.registry.get_coder(element_type)
       if requires_deterministic_key_coder:
         coder = coders.TupleCoder([
-            coder.key_coder().as_deterministic_coder(
-                requires_deterministic_key_coder),
+            self.deterministic_coder(
+                coder.key_coder(), requires_deterministic_key_coder),
             coder.value_coder()
         ])
       return self.coders.get_id(coder)
+
+  def deterministic_coder(self, coder, msg):
+    # type: (coders.Coder, str) -> coders.Coder
+    if coder not in self.deterministic_coder_map:
+      self.deterministic_coder_map[coder] = coder.as_deterministic_coder(msg)  # type: ignore
+    return self.deterministic_coder_map[coder]
 
   def element_type_from_coder_id(self, coder_id):
     # type: (str) -> Any
@@ -302,7 +310,15 @@ class PipelineContext(object):
       """Creates an environment that has necessary hints and returns its id."""
       template_env = self.environments.get_proto_from_id(template_env_id)
       cloned_env = beam_runner_api_pb2.Environment()
-      cloned_env.CopyFrom(template_env)
+      # (TODO https://github.com/apache/beam/issues/25615)
+      # Remove the suppress warning for type once mypy is updated to 0.941 or
+      # higher.
+      #  mypy 0.790 throws the warning below but 0.941 doesn't.
+      #  error: Argument 1 to "CopyFrom" of "Message" has incompatible type
+      #  "Message"; expected "Environment"  [arg-type]
+      # Here, Environment is a subclass of Message but mypy still
+      # throws an error.
+      cloned_env.CopyFrom(template_env)  # type: ignore[arg-type]
       cloned_env.resource_hints.clear()
       cloned_env.resource_hints.update(resource_hints)
 

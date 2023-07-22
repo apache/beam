@@ -54,6 +54,10 @@ def pull_from_url(file_name, url, dep, no_list):
         url = url.format(manual_license_path)
         logging.info('Replaced local file URL with {url} for {dep}'.format(url=url, dep=dep))
 
+    # Take into account opensource.org changes that cause 404 on licenses
+    if 'opensource.org' in url and url.endswith('-license.php'):
+        url = url.replace('-license.php', '')
+
     try:
         url_read = urlopen(Request(url, headers={
             'User-Agent': 'Apache Beam',

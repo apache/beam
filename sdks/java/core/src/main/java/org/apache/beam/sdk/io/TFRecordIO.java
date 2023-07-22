@@ -27,8 +27,6 @@ import java.nio.ByteOrder;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.NoSuchElementException;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.fs.MatchResult;
@@ -316,13 +314,11 @@ public class TFRecordIO {
      *
      * <p>For more information on filenames, see {@link DefaultFilenamePolicy}.
      */
-    @Experimental(Kind.FILESYSTEM)
     public Write to(ResourceId outputResource) {
       return toResource(StaticValueProvider.of(outputResource));
     }
 
     /** Like {@link #to(ResourceId)}. */
-    @Experimental(Kind.FILESYSTEM)
     public Write toResource(ValueProvider<ResourceId> outputResource) {
       return toBuilder().setOutputPrefix(outputResource).build();
     }

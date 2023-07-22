@@ -27,10 +27,10 @@
 //
 // Concepts:
 //
-//   1. Reading data from text files
-//   2. Specifying 'inline' transforms
-//   3. Counting items in a PCollection
-//   4. Writing data to text files
+//  1. Reading data from text files
+//  2. Specifying 'inline' transforms
+//  3. Counting items in a PCollection
+//  4. Writing data to text files
 //
 // No arguments are required to run this pipeline. It will be executed with
 // the direct runner. You can see the results in the output file named
@@ -43,7 +43,7 @@ package main
 //     by William Shakespeare.
 //   multifile: false
 //   default_example: true
-//   context_line: 69
+//   context_line: 74
 //   categories:
 //     - IO
 //     - Combiners

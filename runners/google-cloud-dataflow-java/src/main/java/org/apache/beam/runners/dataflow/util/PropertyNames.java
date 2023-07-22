@@ -46,11 +46,15 @@ public class PropertyNames {
   public static final String PARALLEL_INPUT = "parallel_input";
   public static final String PUBSUB_ID_ATTRIBUTE = "pubsub_id_label";
   public static final String PUBSUB_SERIALIZED_ATTRIBUTES_FN = "pubsub_serialized_attributes_fn";
+
   public static final String PUBSUB_SUBSCRIPTION = "pubsub_subscription";
   public static final String PUBSUB_SUBSCRIPTION_OVERRIDE = "pubsub_subscription_runtime_override";
   public static final String PUBSUB_TIMESTAMP_ATTRIBUTE = "pubsub_timestamp_label";
   public static final String PUBSUB_TOPIC = "pubsub_topic";
   public static final String PUBSUB_TOPIC_OVERRIDE = "pubsub_topic_runtime_override";
+
+  public static final String PUBSUB_DYNAMIC_DESTINATIONS = "pubsub_with_dynamic_destinations";
+
   public static final String SCALAR_FIELD_NAME = "value";
   public static final String SERIALIZED_FN = "serialized_fn";
   public static final String SERIALIZED_TEST_STREAM = "serialized_test_stream";

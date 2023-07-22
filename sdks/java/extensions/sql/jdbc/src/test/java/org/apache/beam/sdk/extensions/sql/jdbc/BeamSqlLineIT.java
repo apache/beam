@@ -201,7 +201,7 @@ public class BeamSqlLineIT implements Serializable {
   }
 
   /** Suppressing this due to https://github.com/typetools/checker-framework/issues/979. */
-  @SuppressWarnings("return.type.incompatible")
+  @SuppressWarnings("return")
   private Future<List<List<String>>> runQueryInBackground(String[] args) {
     return pool.submit(
         (Callable)

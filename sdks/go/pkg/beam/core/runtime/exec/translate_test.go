@@ -17,10 +17,13 @@ package exec
 
 import (
 	"fmt"
+	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
@@ -90,7 +93,100 @@ func TestUnmarshalReshuffleCoders(t *testing.T) {
 	}
 }
 
-func TestUnmarshallWindowFn(t *testing.T) {
+func TestMayFixDataSourceCoder(t *testing.T) {
+	knownStart := coder.NewW(
+		coder.NewKV([]*coder.Coder{coder.NewBytes(), coder.NewI(coder.NewString())}),
+		coder.NewGlobalWindow())
+	knownWant := coder.NewW(
+		coder.NewCoGBK([]*coder.Coder{coder.NewBytes(), coder.NewString()}),
+		coder.NewGlobalWindow())
+
+	makeParDo := func(t *testing.T, fn any) *ParDo {
+		t.Helper()
+		dfn, err := graph.NewDoFn(fn)
+		if err != nil {
+			t.Fatalf("couldn't construct ParDo with Sig: %T %v", fn, err)
+		}
+		return &ParDo{Fn: dfn}
+	}
+
+	tests := []struct {
+		name        string
+		start, want *coder.Coder
+		out         Node
+	}{
+		{
+			name:  "bytes",
+			start: coder.NewBytes(),
+		}, {
+			name:  "W<bytes>",
+			start: coder.NewW(coder.NewBytes(), coder.NewGlobalWindow()),
+		}, {
+			name: "W<KV<bytes,bool>",
+			start: coder.NewW(
+				coder.NewKV([]*coder.Coder{coder.NewBytes(), coder.NewBool()}),
+				coder.NewGlobalWindow()),
+		}, {
+			name:  "W<KV<bytes,Iterable<string>>_nil",
+			start: knownStart,
+		}, {
+			name:  "W<KV<bytes,Iterable<string>>_Expand",
+			out:   &Expand{},
+			start: knownStart,
+			want:  knownWant,
+		}, {
+			name:  "W<KV<bytes,Iterable<string>>_Combine",
+			out:   &Combine{},
+			start: knownStart,
+			want:  knownWant,
+		}, {
+			name:  "W<KV<bytes,Iterable<string>>_ReshuffleOutput",
+			out:   &ReshuffleOutput{},
+			start: knownStart,
+			want:  knownWant,
+		}, {
+			name:  "W<KV<bytes,Iterable<string>>_MergeAccumulators",
+			out:   &MergeAccumulators{},
+			start: knownStart,
+			want:  knownWant,
+		}, {
+			name:  "W<KV<bytes,Iterable<string>>_Multiplex_Expand",
+			out:   &Multiplex{Out: []Node{&Expand{}}},
+			start: knownStart,
+			want:  knownWant,
+		}, {
+			name:  "W<KV<bytes,Iterable<string>>_Multiplex_ParDo_KV",
+			out:   &Multiplex{Out: []Node{makeParDo(t, func([]byte, []string) {})}},
+			start: knownStart,
+		}, {
+			name:  "W<KV<bytes,Iterable<string>>_Multiplex_ParDo_GBK",
+			out:   &Multiplex{Out: []Node{makeParDo(t, func([]byte, func(*string) bool) {})}},
+			start: knownStart,
+			want:  knownWant,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			// If want is nil, we expect no changes.
+			if test.want == nil {
+				test.want = test.start
+			}
+
+			u := &DataSource{
+				Coder: test.start,
+				Out:   test.out,
+			}
+			mayFixDataSourceCoder(u)
+			if !test.want.Equals(u.Coder) {
+				t.Errorf("mayFixDataSourceCoder(Datasource[Coder: %v, Out: %T]), got %v, want %v", test.start, test.out, u.Coder, test.want)
+			}
+
+		})
+	}
+}
+
+func TestUnmarshalWindowFn(t *testing.T) {
 	tests := []struct {
 		name  string
 		winFn *window.Fn
@@ -223,4 +319,198 @@ func makeWindowMappingFn(w *window.Fn) (*pipepb.FunctionSpec, error) {
 		return nil, fmt.Errorf("unknown window fn type %v", w.Kind)
 	}
 	return wFn, nil
+}
+
+func TestInputIdToIndex(t *testing.T) {
+	tests := []struct {
+		in   string
+		want int
+	}{
+		{ // does not start with i
+			"90",
+			0,
+		},
+		{ // start with i
+			"i0",
+			0,
+		},
+		{
+			"i1",
+			1,
+		},
+		{
+			"i10",
+			10,
+		},
+	}
+
+	for _, test := range tests {
+		got, err := inputIdToIndex(test.in)
+		if !strings.HasPrefix(test.in, "i") {
+			if err == nil {
+				t.Errorf("should return err when string does not has a prefix of i, but didn't. inputIdToIndex(%v) = (%v, %v)", test.in, got, err)
+			}
+		} else {
+			if got != test.want {
+				t.Errorf("can not correctly convert inputId to index. inputIdToIndex(%v) = (%v, %v), want %v", test.in, got, err, test.want)
+			}
+		}
+	}
+}
+
+func TestIndexToInputId(t *testing.T) {
+	tests := []struct {
+		in   int
+		want string
+	}{
+		{
+			1,
+			"i1",
+		},
+		{
+			1000,
+			"i1000",
+		},
+	}
+
+	for _, test := range tests {
+		got := indexToInputId(test.in)
+		if got != test.want {
+			t.Errorf("can not correctly convert index to inputId. indexToInputId(%v) = (%v), want %v", test.in, got, test.want)
+		}
+	}
+}
+
+func TestUnmarshalPort(t *testing.T) {
+	var port fnpb.RemoteGrpcPort
+
+	tests := []struct {
+		inputData   []byte
+		outputPort  Port
+		outputStr   string
+		outputError error
+	}{
+		{
+			inputData:   []byte{},
+			outputPort:  Port{URL: port.GetApiServiceDescriptor().GetUrl()},
+			outputStr:   fnpb.RemoteGrpcPort{}.CoderId,
+			outputError: nil,
+		},
+	}
+
+	for _, test := range tests {
+		port, str, err := unmarshalPort(test.inputData)
+		if err != nil && test.outputError == nil {
+			t.Errorf("there is an error where should not be. unmarshalPort(%v) = (%v, %v, %v), want (%v, %v, %v)", test.inputData, port, str, err, test.outputPort, test.outputStr, test.outputError)
+		} else if err != nil && err != test.outputError {
+			t.Errorf("got an unexpected error: %v, want: %v", err, test.outputError)
+		} else if port != test.outputPort {
+			t.Errorf("the output port is not right. unmarshalPort(%v) = (%v, %v, %v), want (%v, %v, %v)", test.inputData, port, str, err, test.outputPort, test.outputStr, test.outputError)
+		} else if str != test.outputStr {
+			t.Errorf("the output string is not right. unmarshalPort(%v) = (%v, %v, %v), want (%v, %v, %v)", test.inputData, port, str, err, test.outputPort, test.outputStr, test.outputError)
+		}
+	}
+}
+
+func TestUnmarshalPlan(t *testing.T) {
+	transform := pipepb.PTransform{
+		Spec: &pipepb.FunctionSpec{
+			Urn: urnDataSource,
+		},
+		Outputs: map[string]string{},
+	}
+	tests := []struct {
+		name        string
+		inputDesc   *fnpb.ProcessBundleDescriptor
+		outputPlan  *Plan
+		outputError error
+	}{
+		{
+			name: "test_no_root_units",
+			inputDesc: &fnpb.ProcessBundleDescriptor{
+				Id:         "",
+				Transforms: map[string]*pipepb.PTransform{},
+			},
+			outputPlan:  nil,
+			outputError: errors.New("no root units"),
+		},
+		{
+			name: "test_zero_transform",
+			inputDesc: &fnpb.ProcessBundleDescriptor{
+				Id: "",
+				Transforms: map[string]*pipepb.PTransform{
+					"": {},
+				},
+			},
+			outputPlan:  nil,
+			outputError: errors.New("no root units"),
+		},
+		{
+			name: "test_transform_outputs_length_not_one",
+			inputDesc: &fnpb.ProcessBundleDescriptor{
+				Id: "",
+				Transforms: map[string]*pipepb.PTransform{
+					"": &transform,
+				},
+			},
+			outputPlan:  nil,
+			outputError: errors.Errorf("expected one output from DataSource, got %v", transform.GetOutputs()),
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			plan, err := UnmarshalPlan(test.inputDesc)
+			if err != nil && test.outputError == nil {
+				t.Errorf("there is an error where should not be. UnmarshalPlan(%v) = (%v, %v), want (%v, %v)", test.inputDesc, plan, err, test.outputPlan, test.outputError)
+			} else if err != nil && !reflect.DeepEqual(err, test.outputError) {
+				t.Errorf("got an unexpected error: %v, want: %v", err, test.outputError)
+			} else if !reflect.DeepEqual(plan, test.outputPlan) {
+				t.Errorf("the output builder is not right. UnmarshalPlan(%v) = (%v, %v), want (%v, %v)", test.inputDesc, plan, err, test.outputPlan, test.outputError)
+			}
+		})
+	}
+}
+
+func TestNewBuilder(t *testing.T) {
+	descriptor := fnpb.ProcessBundleDescriptor{
+		Id:         "",
+		Transforms: map[string]*pipepb.PTransform{},
+	}
+	tests := []struct {
+		name          string
+		inputDesc     *fnpb.ProcessBundleDescriptor
+		outputBuilder *builder
+		outputError   error
+	}{
+		{
+			name:      "test_1",
+			inputDesc: &descriptor,
+			outputBuilder: &builder{
+				desc:      &descriptor,
+				coders:    graphx.NewCoderUnmarshaller(descriptor.GetCoders()),
+				prev:      make(map[string]int),
+				succ:      make(map[string][]linkID),
+				windowing: make(map[string]*window.WindowingStrategy),
+				nodes:     make(map[string]*PCollection),
+				links:     make(map[linkID]Node),
+				units:     nil,
+				idgen:     &GenID{},
+			},
+			outputError: nil,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			b, err := newBuilder(test.inputDesc)
+			if err != nil && test.outputError == nil {
+				t.Errorf("There is an error where should not be. newBuilder(%v) = (%v, %v), want (%v, %v)", test.inputDesc, b, err, test.outputBuilder, test.outputError)
+			} else if err != nil && err != test.outputError {
+				t.Errorf("got an unexpected error: %v, want: %v", err, test.outputError)
+			} else if !reflect.DeepEqual(b, test.outputBuilder) {
+				t.Errorf("The output builder is not right. newBuilder(%v) = (%v, %v), want (%v, %v)", test.inputDesc, b, err, test.outputBuilder, test.outputError)
+			}
+		})
+	}
 }

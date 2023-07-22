@@ -20,8 +20,8 @@ package org.apache.beam.sdk.io.influxdb;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
+import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.influxdb.dto.Point;
 
 @DefaultCoder(AvroCoder.class)

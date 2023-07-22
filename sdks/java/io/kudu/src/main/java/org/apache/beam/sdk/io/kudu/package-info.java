@@ -21,8 +21,4 @@
  *
  * @see org.apache.beam.sdk.io.kudu.KuduIO
  */
-@Experimental(Kind.SOURCE_SINK)
 package org.apache.beam.sdk.io.kudu;
-
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;

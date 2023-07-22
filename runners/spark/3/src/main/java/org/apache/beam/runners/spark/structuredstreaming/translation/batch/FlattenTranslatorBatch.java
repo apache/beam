@@ -34,6 +34,10 @@ import org.apache.spark.sql.Encoder;
 class FlattenTranslatorBatch<T>
     extends TransformTranslator<PCollectionList<T>, PCollection<T>, Flatten.PCollections<T>> {
 
+  FlattenTranslatorBatch() {
+    super(0.1f);
+  }
+
   @Override
   public void translate(Flatten.PCollections<T> transform, Context cxt) {
     Collection<PCollection<?>> pCollections = cxt.getInputs().values();

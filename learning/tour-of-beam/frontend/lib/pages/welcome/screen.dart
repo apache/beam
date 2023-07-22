@@ -16,53 +16,61 @@
  * limitations under the License.
  */
 
+import 'dart:async';
+
+import 'package:app_state/app_state.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 
 import '../../assets/assets.gen.dart';
+import '../../auth/notifier.dart';
 import '../../components/builders/content_tree.dart';
 import '../../components/builders/sdks.dart';
+import '../../components/login/content.dart';
 import '../../components/scaffold.dart';
 import '../../constants/sizes.dart';
 import '../../models/module.dart';
+import '../../state.dart';
+import '../tour/page.dart';
 import 'state.dart';
 
 class WelcomeScreen extends StatelessWidget {
-  final WelcomeNotifier notifier;
+  final WelcomeNotifier welcomeNotifier;
 
-  const WelcomeScreen(this.notifier);
+  const WelcomeScreen(this.welcomeNotifier);
 
   @override
   Widget build(BuildContext context) {
     return TobScaffold(
       child: SingleChildScrollView(
         child: MediaQuery.of(context).size.width > ScreenBreakpoints.twoColumns
-            ? _WideWelcome(notifier)
-            : _NarrowWelcome(notifier),
+            ? _WideWelcome(welcomeNotifier)
+            : _NarrowWelcome(welcomeNotifier),
       ),
     );
   }
 }
 
 class _WideWelcome extends StatelessWidget {
-  final WelcomeNotifier notifier;
+  final WelcomeNotifier welcomeNotifier;
 
-  const _WideWelcome(this.notifier);
+  const _WideWelcome(this.welcomeNotifier);
 
   @override
   Widget build(BuildContext context) {
-    return IntrinsicHeight(
+    return const IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
-            child: _SdkSelection(notifier),
+            child: _SdkSelection(),
           ),
           Expanded(
-            child: _TourSummary(notifier),
+            child: _TourSummary(),
           ),
         ],
       ),
@@ -71,32 +79,32 @@ class _WideWelcome extends StatelessWidget {
 }
 
 class _NarrowWelcome extends StatelessWidget {
-  final WelcomeNotifier notifier;
+  final WelcomeNotifier welcomeNotifier;
 
-  const _NarrowWelcome(this.notifier);
+  const _NarrowWelcome(this.welcomeNotifier);
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return const Column(
       children: [
-        _SdkSelection(notifier),
-        _TourSummary(notifier),
+        _SdkSelection(),
+        _TourSummary(),
       ],
     );
   }
 }
 
 class _SdkSelection extends StatelessWidget {
-  final WelcomeNotifier notifier;
-
-  const _SdkSelection(this.notifier);
+  const _SdkSelection();
 
   static const double _minimalHeight = 900;
 
   @override
   Widget build(BuildContext context) {
+    final appNotifier = GetIt.instance.get<AppNotifier>();
     return Container(
       constraints: BoxConstraints(
+        // TODO(nausharipov): look for a better way to constrain the height
         minHeight: MediaQuery.of(context).size.height -
             BeamSizes.appBarHeight -
             TobSizes.footerHeight,
@@ -123,16 +131,18 @@ class _SdkSelection extends StatelessWidget {
                 SdksBuilder(
                   builder: (context, sdks, child) {
                     if (sdks.isEmpty) {
-                      return Container();
+                      return const Center(child: CircularProgressIndicator());
                     }
 
                     return AnimatedBuilder(
-                      animation: notifier,
-                      builder: (context, child) => _Buttons(
+                      animation: appNotifier,
+                      builder: (context, child) => _SdkButtons(
                         sdks: sdks,
-                        sdkId: notifier.sdkId,
-                        setSdkId: (v) => notifier.sdkId = v,
-                        onStartPressed: notifier.startTour,
+                        groupValue: appNotifier.sdk,
+                        onChanged: (v) => appNotifier.sdk = v,
+                        onStartPressed: () async {
+                          await _startTour(appNotifier.sdk);
+                        },
                       ),
                     );
                   },
@@ -144,22 +154,25 @@ class _SdkSelection extends StatelessWidget {
       ),
     );
   }
+
+  Future<void> _startTour(Sdk? sdk) async {
+    if (sdk == null) {
+      return;
+    }
+    await GetIt.instance.get<PageStack>().push(TourPage());
+  }
 }
 
 class _TourSummary extends StatelessWidget {
-  final WelcomeNotifier notifier;
-
-  const _TourSummary(this.notifier);
+  const _TourSummary();
 
   @override
   Widget build(BuildContext context) {
+    final appNotifier = GetIt.instance.get<AppNotifier>();
     return AnimatedBuilder(
-      animation: notifier,
+      animation: appNotifier,
       builder: (context, child) {
-        final sdkId = notifier.sdkId;
-        if (sdkId == null) {
-          return Container();
-        }
+        final sdk = appNotifier.sdk;
 
         return Padding(
           padding: const EdgeInsets.symmetric(
@@ -167,18 +180,18 @@ class _TourSummary extends StatelessWidget {
             horizontal: 27,
           ),
           child: ContentTreeBuilder(
-            sdkId: sdkId,
+            sdk: sdk,
             builder: (context, contentTree, child) {
               if (contentTree == null) {
-                return Container();
+                return const Center(child: CircularProgressIndicator());
               }
 
               return Column(
-                children: contentTree.modules
+                children: contentTree.nodes
                     .map(
                       (module) => _Module(
                         module: module,
-                        isLast: module == contentTree.modules.last,
+                        isLast: module == contentTree.nodes.last,
                       ),
                     )
                     .toList(growable: false),
@@ -211,13 +224,32 @@ class _IntroText extends StatelessWidget {
           color: BeamColors.grey2,
           constraints: const BoxConstraints(maxWidth: _dividerMaxWidth),
         ),
-        RichText(
-          text: TextSpan(
-            style: Theme.of(context).textTheme.bodyLarge,
-            children: [
+        const _IntroTextBody(),
+      ],
+    );
+  }
+}
+
+class _IntroTextBody extends StatelessWidget {
+  const _IntroTextBody();
+
+  @override
+  Widget build(BuildContext context) {
+    final authNotifier = GetIt.instance.get<AuthNotifier>();
+    return AnimatedBuilder(
+      animation: authNotifier,
+      builder: (context, child) => RichText(
+        text: TextSpan(
+          style: Theme.of(context).textTheme.bodyLarge,
+          children: [
+            TextSpan(
+              text: 'pages.welcome.ifSaveProgress'.tr(),
+            ),
+            if (authNotifier.isAuthenticated)
               TextSpan(
-                text: 'pages.welcome.ifSaveProgress'.tr(),
-              ),
+                text: 'pages.welcome.signIn'.tr(),
+              )
+            else
               TextSpan(
                 text: 'pages.welcome.signIn'.tr(),
                 style: Theme.of(context)
@@ -226,28 +258,40 @@ class _IntroText extends StatelessWidget {
                     .copyWith(color: Theme.of(context).primaryColor),
                 recognizer: TapGestureRecognizer()
                   ..onTap = () {
-                    // TODO(nausharipov): sign in
+                    unawaited(_openLoginDialog(context));
                   },
               ),
-              TextSpan(text: '\n\n${'pages.welcome.selectLanguage'.tr()}'),
-            ],
-          ),
+            TextSpan(text: '\n\n${'pages.welcome.selectLanguage'.tr()}'),
+          ],
         ),
-      ],
+      ),
+    );
+  }
+
+  Future<void> _openLoginDialog(BuildContext context) async {
+    await showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        child: LoginContent(
+          onLoggedIn: () {
+            Navigator.pop(context);
+          },
+        ),
+      ),
     );
   }
 }
 
-class _Buttons extends StatelessWidget {
+class _SdkButtons extends StatelessWidget {
   final List<Sdk> sdks;
-  final String? sdkId;
-  final ValueChanged<String> setSdkId;
+  final Sdk? groupValue;
+  final ValueChanged<Sdk> onChanged;
   final VoidCallback onStartPressed;
 
-  const _Buttons({
+  const _SdkButtons({
     required this.sdks,
-    required this.sdkId,
-    required this.setSdkId,
+    required this.groupValue,
+    required this.onChanged,
     required this.onStartPressed,
   });
 
@@ -260,15 +304,15 @@ class _Buttons extends StatelessWidget {
               .map(
                 (sdk) => _SdkButton(
                   title: sdk.title,
-                  value: sdk.id,
-                  groupValue: sdkId,
-                  onChanged: setSdkId,
+                  value: sdk,
+                  groupValue: groupValue,
+                  onChanged: onChanged,
                 ),
               )
               .toList(growable: false),
         ),
         ElevatedButton(
-          onPressed: sdkId == null ? null : onStartPressed,
+          onPressed: groupValue == null ? null : onStartPressed,
           child: const Text('pages.welcome.startTour').tr(),
         ),
       ],
@@ -278,9 +322,9 @@ class _Buttons extends StatelessWidget {
 
 class _SdkButton extends StatelessWidget {
   final String title;
-  final String value;
-  final String? groupValue;
-  final ValueChanged<String> onChanged;
+  final Sdk value;
+  final Sdk? groupValue;
+  final ValueChanged<Sdk> onChanged;
 
   const _SdkButton({
     required this.title,
@@ -322,7 +366,7 @@ class _Module extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        _ModuleHeader(title: module.title),
+        _ModuleHeader(module: module),
         if (isLast) const _LastModuleBody() else const _ModuleBody(),
       ],
     );
@@ -330,9 +374,9 @@ class _Module extends StatelessWidget {
 }
 
 class _ModuleHeader extends StatelessWidget {
-  final String title;
+  final ModuleModel module;
 
-  const _ModuleHeader({required this.title});
+  const _ModuleHeader({required this.module});
 
   @override
   Widget build(BuildContext context) {
@@ -346,13 +390,16 @@ class _ModuleHeader extends StatelessWidget {
                 padding: const EdgeInsets.all(BeamSizes.size4),
                 child: SvgPicture.asset(
                   Assets.svg.welcomeProgress0,
-                  color: BeamColors.grey4,
+                  colorFilter: const ColorFilter.mode(
+                    BeamColors.grey4,
+                    BlendMode.srcIn,
+                  ),
                 ),
               ),
               const SizedBox(width: BeamSizes.size16),
               Expanded(
                 child: Text(
-                  title,
+                  module.title,
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
               ),
@@ -362,11 +409,11 @@ class _ModuleHeader extends StatelessWidget {
         Row(
           children: [
             Text(
-              'complexity.medium',
+              'complexity.${module.complexity.name}',
               style: Theme.of(context).textTheme.headlineSmall,
             ).tr(),
             const SizedBox(width: BeamSizes.size6),
-            const ComplexityWidget(complexity: Complexity.medium),
+            ComplexityWidget(complexity: module.complexity),
           ],
         ),
       ],

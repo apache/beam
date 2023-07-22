@@ -92,7 +92,7 @@ double (<code>"</code>) quotation marks, or <em>triple-quoted</em> with groups o
 
 <div class="table-container-wrapper">
 {{< table >}}
-<table>
+<table class="table-wrapper--equal-p">
 <thead>
 <tr>
 <th>Literal</th>
@@ -347,7 +347,7 @@ TIMESTAMP '2014-09-27 12:30:00 America/Argentina/Buenos_Aires'</code></pre>
 
 <div class="table-container-wrapper">
 {{< table >}}
-<table>
+<table class="table-wrapper--equal-p">
 <thead>
 <tr>
 <th>Category</th>
@@ -422,7 +422,7 @@ language, and  have the following characteristics:</p>
 
 <div class="table-container-wrapper">
 {{< table >}}
-<table style="table-layout: fixed; width: 110%">
+<table style="width: 100%" class="table-wrapper--equal-p">
 <tbody>
 <tr>
 <td>

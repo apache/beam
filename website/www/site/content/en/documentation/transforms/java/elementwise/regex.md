@@ -18,7 +18,7 @@ limitations under the License.
 <table align="left">
     <a target="_blank" class="button"
         href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/transforms/Regex.html">
-      <img src="https://beam.apache.org/images/logos/sdks/java.png" width="20px" height="20px"
+      <img src="/images/logos/sdks/java.png" width="20px" height="20px"
            alt="Javadoc" />
      Javadoc
     </a>
@@ -28,7 +28,10 @@ limitations under the License.
 Provides a variety of functionality based on regular expressions.
 
 ## Examples
-See [BEAM-7702](https://issues.apache.org/jira/browse/BEAM-7702) for updates.
+
+{{< playground height="700px" >}}
+{{< playground_snippet language="java" path="SDK_JAVA_Regex" show="main_section" >}}
+{{< /playground >}}
 
 ## Related transforms
 * [MapElements](/documentation/transforms/java/elementwise/mapelements)

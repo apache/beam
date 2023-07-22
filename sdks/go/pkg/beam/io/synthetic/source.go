@@ -53,10 +53,10 @@ func init() {
 // The recommended way to create SourceConfigs is via the SourceConfigBuilder.
 // Usage example:
 //
-//    cfgs := beam.Create(s,
-//        synthetic.DefaultSourceConfig().NumElements(1000).Build(),
-//        synthetic.DefaultSourceConfig().NumElements(5000).InitialSplits(2).Build())
-//    src := synthetic.Source(s, cfgs)
+//	cfgs := beam.Create(s,
+//	    synthetic.DefaultSourceConfig().NumElements(1000).Build(),
+//	    synthetic.DefaultSourceConfig().NumElements(5000).InitialSplits(2).Build())
+//	src := synthetic.Source(s, cfgs)
 func Source(s beam.Scope, col beam.PCollection) beam.PCollection {
 	s = s.Scope("synthetic.Source")
 
@@ -73,8 +73,8 @@ func Source(s beam.Scope, col beam.PCollection) beam.PCollection {
 // The recommended way to create SourceConfigs are via the SourceConfigBuilder.
 // Usage example:
 //
-//    src := synthetic.SourceSingle(s,
-//        synthetic.DefaultSourceConfig().NumElements(5000).InitialSplits(2).Build())
+//	src := synthetic.SourceSingle(s,
+//	    synthetic.DefaultSourceConfig().NumElements(5000).InitialSplits(2).Build())
 func SourceSingle(s beam.Scope, cfg SourceConfig) beam.PCollection {
 	s = s.Scope("synthetic.Source")
 
@@ -161,7 +161,7 @@ func (fn *sourceFn) ProcessElement(rt *sdf.LockRTracker, config SourceConfig, em
 //
 // Usage example:
 //
-//    cfg := synthetic.DefaultSourceConfig().NumElements(5000).InitialSplits(2).Build()
+//	cfg := synthetic.DefaultSourceConfig().NumElements(5000).InitialSplits(2).Build()
 type SourceConfigBuilder struct {
 	cfg SourceConfig
 }
@@ -279,12 +279,13 @@ func (b *SourceConfigBuilder) Build() SourceConfig {
 // contains unknown object keys.
 //
 // An example of valid JSON object:
-// {
-// 	 "num_records": 5,
-// 	 "key_size": 5,
-// 	 "value_size": 5,
-//	 "num_hot_keys": 5,
-// }
+//
+//	{
+//		 "num_records": 5,
+//		 "key_size": 5,
+//		 "value_size": 5,
+//		 "num_hot_keys": 5,
+//	}
 func (b *SourceConfigBuilder) BuildFromJSON(jsonData []byte) SourceConfig {
 	decoder := json.NewDecoder(bytes.NewReader(jsonData))
 	decoder.DisallowUnknownFields()

@@ -19,11 +19,13 @@ import (
 	"context"
 	"io"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/artifact"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/grpcx"
@@ -41,23 +43,47 @@ func Stage(ctx context.Context, id, endpoint, binary, st string) (retrievalToken
 	}
 	defer cc.Close()
 
-	if err := StageViaPortableApi(ctx, cc, binary, st); err == nil {
+	if err := StageViaPortableAPI(ctx, cc, binary, st); err == nil {
 		return "", nil
 	}
+	log.Warnf(ctx, "unable to stage with PortableAPI: %v; falling back to legacy", err)
 
-	return StageViaLegacyApi(ctx, cc, binary, st)
+	return StageViaLegacyAPI(ctx, cc, binary, st)
 }
 
-func StageViaPortableApi(ctx context.Context, cc *grpc.ClientConn, binary, st string) error {
-	client := jobpb.NewArtifactStagingServiceClient(cc)
+// StageViaPortableApi is a beam internal function for uploading artifacts to the staging service
+// via the portable API.
+//
+// It will be unexported at a later time.
+func StageViaPortableAPI(ctx context.Context, cc *grpc.ClientConn, binary, st string) (retErr error) {
+	const attempts = 3
+	var failures []string
+	for {
+		err := stageFiles(ctx, cc, binary, st)
+		if err == nil {
+			return nil // success!
+		}
+		failures = append(failures, err.Error())
+		if len(failures) > attempts {
+			return errors.Errorf("failed to stage artifacts for token %v in %v attempts: %v", st, attempts, strings.Join(failures, ";\n"))
+		}
+	}
+}
 
-	stream, err := client.ReverseArtifactRetrievalService(context.Background())
+func stageFiles(ctx context.Context, cc *grpc.ClientConn, binary, st string) error {
+	client := jobpb.NewArtifactStagingServiceClient(cc)
+	stream, err := client.ReverseArtifactRetrievalService(ctx)
 	if err != nil {
 		return err
 	}
+	defer func() {
+		if err := stream.CloseSend(); err != nil {
+			log.Error(ctx, "StageViaPortableApi CloseSend error: ", err)
+		}
+	}()
 
 	if err := stream.Send(&jobpb.ArtifactResponseWrapper{StagingToken: st}); err != nil {
-		return err
+		return errors.Wrapf(err, "failed to send staging token")
 	}
 
 	for {
@@ -86,16 +112,23 @@ func StageViaPortableApi(ctx context.Context, cc *grpc.ClientConn, binary, st st
 			// TODO(https://github.com/apache/beam/issues/21459): Legacy Type URN. If requested, provide the binary.
 			// To be removed later in 2022, once thoroughly obsolete.
 			case graphx.URNArtifactGoWorker:
-				if err := StageFile(binary, stream); err != nil {
-					return errors.Wrap(err, "failed to stage Go worker binary")
+				if err := stageFile(binary, stream); err != nil {
+					if err == io.EOF {
+						continue // so we can get the real error from stream.Recv.
+					}
+					return errors.Wrapf(err, "failed to stage Go worker binary: %v", binary)
 				}
 			case graphx.URNArtifactFileType:
 				typePl := pipepb.ArtifactFilePayload{}
 				if err := proto.Unmarshal(request.GetArtifact.Artifact.TypePayload, &typePl); err != nil {
 					return errors.Wrap(err, "failed to parse artifact file payload")
 				}
-				if err := StageFile(typePl.GetPath(), stream); err != nil {
+				if err := stageFile(typePl.GetPath(), stream); err != nil {
+					if err == io.EOF {
+						continue // so we can get the real error from stream.Recv.
+					}
 					return errors.Wrapf(err, "failed to stage file %v", typePl.GetPath())
+
 				}
 			default:
 				return errors.Errorf("request has unexpected artifact type %s", typeUrn)
@@ -107,10 +140,10 @@ func StageViaPortableApi(ctx context.Context, cc *grpc.ClientConn, binary, st st
 	}
 }
 
-func StageFile(filename string, stream jobpb.ArtifactStagingService_ReverseArtifactRetrievalServiceClient) error {
+func stageFile(filename string, stream jobpb.ArtifactStagingService_ReverseArtifactRetrievalServiceClient) error {
 	fd, err := os.Open(filename)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "unable to open file %v", filename)
 	}
 	defer fd.Close()
 
@@ -124,9 +157,12 @@ func StageFile(filename string, stream jobpb.ArtifactStagingService_ReverseArtif
 						Data: data[:n],
 					},
 				}})
+			if sendErr == io.EOF {
+				return sendErr
+			}
 
 			if sendErr != nil {
-				return errors.Wrap(sendErr, "chunk send failed")
+				return errors.Wrap(sendErr, "StageFile chunk send failed")
 			}
 		}
 
@@ -145,10 +181,14 @@ func StageFile(filename string, stream jobpb.ArtifactStagingService_ReverseArtif
 	}
 }
 
-func StageViaLegacyApi(ctx context.Context, cc *grpc.ClientConn, binary, st string) (retrievalToken string, err error) {
+// StageViaLegacyApi is a beam internal function for uploading artifacts to the staging service
+// via the legacy API.
+//
+// It will be unexported at a later time.
+func StageViaLegacyAPI(ctx context.Context, cc *grpc.ClientConn, binary, st string) (retrievalToken string, err error) {
 	client := jobpb.NewLegacyArtifactStagingServiceClient(cc)
 
-	files := []artifact.KeyedFile{artifact.KeyedFile{Key: "worker", Filename: binary}}
+	files := []artifact.KeyedFile{{Key: "worker", Filename: binary}}
 
 	md, err := artifact.MultiStage(ctx, client, 10, files, st)
 	if err != nil {

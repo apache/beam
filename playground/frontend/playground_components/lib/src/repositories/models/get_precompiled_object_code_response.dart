@@ -16,10 +16,12 @@
  * limitations under the License.
  */
 
+import '../../models/snippet_file.dart';
+
 class GetPrecompiledObjectCodeResponse {
-  final String code;
+  final List<SnippetFile> files;
 
   const GetPrecompiledObjectCodeResponse({
-    required this.code,
+    required this.files,
   });
 }

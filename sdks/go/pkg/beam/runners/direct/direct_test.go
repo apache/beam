@@ -29,6 +29,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/filter"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -44,6 +45,7 @@ func init() {
 	beam.RegisterFunction(dofn2x1)
 	beam.RegisterFunction(dofn3x1)
 	beam.RegisterFunction(dofn2x2KV)
+	beam.RegisterFunction(dofnMultiMap)
 	beam.RegisterFunction(dofn2)
 	beam.RegisterFunction(dofnKV)
 	beam.RegisterFunction(dofnKV2)
@@ -118,6 +120,16 @@ func dofn2x2KV(imp []byte, iter func(*string, *int64) bool, emitK func(string), 
 		sum += v
 		emitK(k)
 	}
+	emitV(sum)
+}
+
+func dofnMultiMap(key string, lookup func(string) func(*int64) bool, emitK func(string), emitV func(int64)) {
+	var v, sum int64
+	iter := lookup(key)
+	for iter(&v) {
+		sum += v
+	}
+	emitK(key)
 	emitV(sum)
 }
 
@@ -441,6 +453,24 @@ func TestRunner_Pipelines(t *testing.T) {
 		beam.ParDo(s, &int64Check{
 			Name: "iterKV sideinput check V",
 			Want: []int{21},
+		}, sum)
+		if _, err := executeWithT(context.Background(), t, p); err != nil {
+			t.Fatal(err)
+		}
+	})
+	t.Run("sideinput_multimap", func(t *testing.T) {
+		p, s := beam.NewPipelineWithRoot()
+		imp := beam.Impulse(s)
+		col1 := beam.ParDo(s, dofnKV, imp)
+		keys := filter.Distinct(s, beam.DropValue(s, col1))
+		ks, sum := beam.ParDo2(s, dofnMultiMap, keys, beam.SideInput{Input: col1})
+		beam.ParDo(s, &stringCheck{
+			Name: "iterKV sideinput check K",
+			Want: []string{"a", "b"},
+		}, ks)
+		beam.ParDo(s, &int64Check{
+			Name: "iterKV sideinput check V",
+			Want: []int{9, 12},
 		}, sum)
 		if _, err := executeWithT(context.Background(), t, p); err != nil {
 			t.Fatal(err)

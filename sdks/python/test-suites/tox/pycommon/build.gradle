@@ -29,5 +29,3 @@ assemble.dependsOn docs
 
 task preCommitPyCommon() {
 }
-
-toxTask "dependency-check", "py3-dependency-check"

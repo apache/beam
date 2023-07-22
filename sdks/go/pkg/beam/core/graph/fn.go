@@ -22,6 +22,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/state"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/timers"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
@@ -34,7 +35,7 @@ type Fn struct {
 	Fn *funcx.Fn
 	// Recv hold the struct receiver, if present. If Recv is nil, Fn
 	// must be non-nil.
-	Recv interface{}
+	Recv any
 	// DynFn holds the function-generator, if dynamic. If not nil, Fn
 	// holds the generated function.
 	DynFn *DynFn
@@ -57,7 +58,7 @@ func (f *Fn) Name() string {
 
 // DynFn is a generator for dynamically-created functions:
 //
-//    gen: (name string, t reflect.Type, []byte) -> func : T
+//	gen: (name string, t reflect.Type, []byte) -> func : T
 //
 // where the generated function, fn : T, is re-created at runtime. This concept
 // allows serialization of dynamically-generated functions, which do not have a
@@ -78,7 +79,7 @@ type DynFn struct {
 
 // NewFn pre-processes a function, dynamic function or struct for graph
 // construction.
-func NewFn(fn interface{}) (*Fn, error) {
+func NewFn(fn any) (*Fn, error) {
 	if gen, ok := fn.(*DynFn); ok {
 		f, err := funcx.New(gen.Gen(gen.Name, gen.T, gen.Data))
 		if err != nil {
@@ -167,6 +168,8 @@ const (
 	initialWatermarkEstimatorStateName = "InitialWatermarkEstimatorState"
 	watermarkEstimatorStateName        = "WatermarkEstimatorState"
 
+	onTimerName = "OnTimer"
+
 	createAccumulatorName = "CreateAccumulator"
 	addInputName          = "AddInput"
 	mergeAccumulatorsName = "MergeAccumulators"
@@ -182,6 +185,7 @@ var doFnNames = []string{
 	processElementName,
 	finishBundleName,
 	teardownName,
+	onTimerName,
 	createInitialRestrictionName,
 	splitRestrictionName,
 	restrictionSizeName,
@@ -304,6 +308,35 @@ func (f *DoFn) PipelineState() []state.PipelineState {
 	return s
 }
 
+// OnTimerFn return the "OnTimer" function and a bool indicating whether the
+// function is defined or not for the DoFn.
+func (f *DoFn) OnTimerFn() (*funcx.Fn, bool) {
+	m, ok := f.methods[onTimerName]
+	return m, ok
+}
+
+// PipelineTimers returns the list of PipelineTimer objects defined for the DoFn.
+func (f *DoFn) PipelineTimers() ([]timers.PipelineTimer, []string) {
+	var t []timers.PipelineTimer
+	var fieldNames []string
+
+	if f.Recv == nil {
+		return t, fieldNames
+	}
+
+	v := reflect.Indirect(reflect.ValueOf(f.Recv))
+	for i := 0; i < v.NumField(); i++ {
+		f := v.Field(i)
+		if f.CanInterface() {
+			if pt, ok := f.Interface().(timers.PipelineTimer); ok {
+				t = append(t, pt)
+				fieldNames = append(fieldNames, v.Type().Field(i).Name)
+			}
+		}
+	}
+	return t, fieldNames
+}
+
 // SplittableDoFn represents a DoFn implementing SDF methods.
 type SplittableDoFn DoFn
 
@@ -415,7 +448,8 @@ func defaultConfig() *config {
 // validation. Valid inputs are the package constants of type mainInputs.
 //
 // Example usage:
-//   graph.NewDoFn(fn, graph.NumMainInputs(graph.MainKv))
+//
+//	graph.NewDoFn(fn, graph.NumMainInputs(graph.MainKv))
 func NumMainInputs(num mainInputs) func(*config) {
 	return func(cfg *config) {
 		cfg.numMainIn = num
@@ -427,8 +461,9 @@ func NumMainInputs(num mainInputs) func(*config) {
 // validation.
 //
 // Example usage:
-//   var col beam.PCollection
-//   graph.NewDoFn(fn, graph.CoGBKMainInput(len(col.Type().Components())))
+//
+//	var col beam.PCollection
+//	graph.NewDoFn(fn, graph.CoGBKMainInput(len(col.Type().Components())))
 func CoGBKMainInput(components int) func(*config) {
 	return func(cfg *config) {
 		cfg.numMainIn = mainInputs(components)
@@ -436,7 +471,7 @@ func CoGBKMainInput(components int) func(*config) {
 }
 
 // NewDoFn constructs a DoFn from the given value, if possible.
-func NewDoFn(fn interface{}, options ...func(*config)) (*DoFn, error) {
+func NewDoFn(fn any, options ...func(*config)) (*DoFn, error) {
 	ret, err := NewFn(fn)
 	if err != nil {
 		return nil, errors.WithContext(errors.Wrapf(err, "invalid DoFn"), "constructing DoFn")
@@ -601,6 +636,11 @@ func AsDoFn(fn *Fn, numMainIn mainInputs) (*DoFn, error) {
 	doFn := (*DoFn)(fn)
 
 	err = validateState(doFn, numMainIn)
+	if err != nil {
+		return nil, addContext(err, fn)
+	}
+
+	err = validateTimer(doFn, numMainIn)
 	if err != nil {
 		return nil, addContext(err, fn)
 	}
@@ -804,11 +844,12 @@ func validateSideInputsNumUnknown(processFnInputs []funcx.FnParam, method *funcx
 // requirements for either case.
 //
 // For a Fn to be an SDF it must:
-//   * Implement all the required (non-watermark related) SDF methods.
-//   * Include an RTracker parameter in ProcessElement.
+//   - Implement all the required (non-watermark related) SDF methods.
+//   - Include an RTracker parameter in ProcessElement.
+//
 // For a Fn to not be an SDF, it must:
-//   * Implement none of the SDF methods.
-//   * Not include an RTracker parameter in ProcessElement.
+//   - Implement none of the SDF methods.
+//   - Not include an RTracker parameter in ProcessElement.
 func validateIsSdf(fn *Fn) (bool, error) {
 	// Store missing method names so we can output them to the user if validation fails.
 	var missing []string
@@ -863,14 +904,15 @@ func validateSdfSignatures(fn *Fn, numMainIn mainInputs) error {
 	// CreateInitialRestriction.
 	if numMainIn == MainUnknown {
 		initialRestFn := fn.methods[createInitialRestrictionName]
-		paramNum := len(initialRestFn.Param)
+		paramNum := len(initialRestFn.Params(funcx.FnValue))
+
 		switch paramNum {
 		case int(MainSingle), int(MainKv):
 			num = paramNum
 		default: // Can't infer because method has invalid # of main inputs.
-			err := errors.Errorf("invalid number of params in method %v. got: %v, want: %v or %v",
+			err := errors.Errorf("invalid number of main input params in method %v. got: %v, want: %v or %v",
 				createInitialRestrictionName, paramNum, int(MainSingle), int(MainKv))
-			return errors.SetTopLevelMsgf(err, "Invalid number of parameters in method %v. "+
+			return errors.SetTopLevelMsgf(err, "Invalid number of main input parameters in method %v. "+
 				"Got: %v, Want: %v or %v. Check that the signature conforms to the expected signature for %v, "+
 				"and that elements in SDF method parameters match elements in %v.",
 				createInitialRestrictionName, paramNum, int(MainSingle), int(MainKv), createInitialRestrictionName, processElementName)
@@ -891,7 +933,7 @@ func validateSdfSignatures(fn *Fn, numMainIn mainInputs) error {
 // in each SDF method in the given Fn, and returns an error if a method has an
 // invalid/unexpected number.
 func validateSdfSigNumbers(fn *Fn, num int) error {
-	paramNums := map[string]int{
+	reqParamNums := map[string]int{
 		createInitialRestrictionName: num,
 		splitRestrictionName:         num + 1,
 		restrictionSizeName:          num + 1,
@@ -901,30 +943,50 @@ func validateSdfSigNumbers(fn *Fn, num int) error {
 	optionalSdfs := map[string]bool{
 		truncateRestrictionName: true,
 	}
-	returnNum := 1 // TODO(BEAM-3301): Enable optional error params in SDF methods.
+	reqReturnNum := 1
 
 	for _, name := range sdfNames {
 		method, ok := fn.methods[name]
 		if !ok && optionalSdfs[name] {
 			continue
 		}
-		if len(method.Param) != paramNums[name] {
-			err := errors.Errorf("unexpected number of params in method %v. got: %v, want: %v",
-				name, len(method.Param), paramNums[name])
+
+		reqParamNum := reqParamNums[name]
+		if !sdfHasValidParamNum(method.Param, reqParamNum) {
+			err := errors.Errorf("unexpected number of params in method %v. got: %v, want: %v or optionally %v "+
+				"if first param is of type context.Context", name, len(method.Param), reqParamNum, reqParamNum+1)
 			return errors.SetTopLevelMsgf(err, "Unexpected number of parameters in method %v. "+
-				"Got: %v, Want: %v. Check that the signature conforms to the expected signature for %v, "+
-				"and that elements in SDF method parameters match elements in %v.",
-				name, len(method.Param), paramNums[name], name, processElementName)
+				"Got: %v, Want: %v or optionally %v if first param is of type context.Context. "+
+				"Check that the signature conforms to the expected signature for %v, and that elements in SDF method "+
+				"parameters match elements in %v.", name, len(method.Param), reqParamNum, reqParamNum+1,
+				name, processElementName)
 		}
-		if len(method.Ret) != returnNum {
-			err := errors.Errorf("unexpected number of returns in method %v. got: %v, want: %v",
-				name, len(method.Ret), returnNum)
+		if !sdfHasValidReturnNum(method.Ret, reqReturnNum) {
+			err := errors.Errorf("unexpected number of returns in method %v. got: %v, want: %v or optionally %v "+
+				"if last value is of type error", name, len(method.Ret), reqReturnNum, reqReturnNum+1)
 			return errors.SetTopLevelMsgf(err, "Unexpected number of return values in method %v. "+
-				"Got: %v, Want: %v. Check that the signature conforms to the expected signature for %v.",
-				name, len(method.Ret), returnNum, name)
+				"Got: %v, Want: %v or optionally %v if last value is of type error. "+
+				"Check that the signature conforms to the expected signature for %v.",
+				name, len(method.Ret), reqReturnNum, reqReturnNum+1, name)
 		}
 	}
 	return nil
+}
+
+func sdfHasValidParamNum(params []funcx.FnParam, requiredNum int) bool {
+	if len(params) == requiredNum {
+		return true
+	}
+
+	return len(params) == requiredNum+1 && params[0].Kind == funcx.FnContext
+}
+
+func sdfHasValidReturnNum(returns []funcx.ReturnParam, requiredNum int) bool {
+	if len(returns) == requiredNum {
+		return true
+	}
+
+	return len(returns) == requiredNum+1 && returns[len(returns)-1].Kind == funcx.RetError
 }
 
 // validateSdfSigTypes validates the types of the parameters and return values
@@ -937,22 +999,25 @@ func validateSdfSigTypes(fn *Fn, num int) error {
 
 	for _, name := range requiredSdfNames {
 		method := fn.methods[name]
+		startIdx := sdfRequiredParamStartIndex(method)
+
 		switch name {
 		case createInitialRestrictionName:
-			if err := validateSdfElementT(fn, createInitialRestrictionName, method, num, 0); err != nil {
+			if err := validateSdfElementT(fn, createInitialRestrictionName, method, num, startIdx); err != nil {
 				return err
 			}
 		case splitRestrictionName:
-			if err := validateSdfElementT(fn, splitRestrictionName, method, num, 0); err != nil {
+			if err := validateSdfElementT(fn, splitRestrictionName, method, num, startIdx); err != nil {
 				return err
 			}
-			if method.Param[num].T != restrictionT {
+			idx := num + startIdx
+			if method.Param[idx].T != restrictionT {
 				err := errors.Errorf("mismatched restriction type in method %v, param %v. got: %v, want: %v",
-					splitRestrictionName, num, method.Param[num].T, restrictionT)
+					splitRestrictionName, idx, method.Param[idx].T, restrictionT)
 				return errors.SetTopLevelMsgf(err, "Mismatched restriction type in method %v, "+
 					"parameter at index %v. Got: %v, Want: %v (from method %v). "+
 					"Ensure that all restrictions in an SDF are the same type.",
-					splitRestrictionName, num, method.Param[num].T, restrictionT, createInitialRestrictionName)
+					splitRestrictionName, idx, method.Param[idx].T, restrictionT, createInitialRestrictionName)
 			}
 			if method.Ret[0].T.Kind() != reflect.Slice ||
 				method.Ret[0].T.Elem() != restrictionT {
@@ -964,16 +1029,17 @@ func validateSdfSigTypes(fn *Fn, num int) error {
 					splitRestrictionName, 0, method.Ret[0].T, reflect.SliceOf(restrictionT), createInitialRestrictionName, splitRestrictionName)
 			}
 		case restrictionSizeName:
-			if err := validateSdfElementT(fn, restrictionSizeName, method, num, 0); err != nil {
+			if err := validateSdfElementT(fn, restrictionSizeName, method, num, startIdx); err != nil {
 				return err
 			}
-			if method.Param[num].T != restrictionT {
+			idx := num + startIdx
+			if method.Param[idx].T != restrictionT {
 				err := errors.Errorf("mismatched restriction type in method %v, param %v. got: %v, want: %v",
-					restrictionSizeName, num, method.Param[num].T, restrictionT)
+					restrictionSizeName, idx, method.Param[idx].T, restrictionT)
 				return errors.SetTopLevelMsgf(err, "Mismatched restriction type in method %v, "+
 					"parameter at index %v. Got: %v, Want: %v (from method %v). "+
 					"Ensure that all restrictions in an SDF are the same type.",
-					restrictionSizeName, num, method.Param[num].T, restrictionT, createInitialRestrictionName)
+					restrictionSizeName, idx, method.Param[idx].T, restrictionT, createInitialRestrictionName)
 			}
 			if method.Ret[0].T != reflectx.Float64 {
 				err := errors.Errorf("invalid output type in method %v, return %v. got: %v, want: %v",
@@ -983,13 +1049,13 @@ func validateSdfSigTypes(fn *Fn, num int) error {
 					restrictionSizeName, 0, method.Ret[0].T, reflectx.Float64)
 			}
 		case createTrackerName:
-			if method.Param[0].T != restrictionT {
+			if method.Param[startIdx].T != restrictionT {
 				err := errors.Errorf("mismatched restriction type in method %v, param %v. got: %v, want: %v",
-					createTrackerName, 0, method.Param[0].T, restrictionT)
+					createTrackerName, startIdx, method.Param[startIdx].T, restrictionT)
 				return errors.SetTopLevelMsgf(err, "Mismatched restriction type in method %v, "+
 					"parameter at index %v. Got: %v, Want: %v (from method %v). "+
 					"Ensure that all restrictions in an SDF are the same type.",
-					createTrackerName, 0, method.Param[0].T, restrictionT, createInitialRestrictionName)
+					createTrackerName, startIdx, method.Param[startIdx].T, restrictionT, createInitialRestrictionName)
 			}
 			if !method.Ret[0].T.Implements(rTrackerT) {
 				err := errors.Errorf("invalid output type in method %v, return %v: %v does not implement sdf.RTracker",
@@ -1017,15 +1083,18 @@ func validateSdfSigTypes(fn *Fn, num int) error {
 		if !ok {
 			continue
 		}
+
+		startIdx := sdfRequiredParamStartIndex(method)
+
 		switch name {
 		case truncateRestrictionName:
-			if method.Param[0].T != rTrackerImplT {
+			if method.Param[startIdx].T != rTrackerImplT {
 				err := errors.Errorf("mismatched restriction tracker type in method %v, param %v. got: %v, want: %v",
-					truncateRestrictionName, 0, method.Param[0].T, rTrackerImplT)
+					truncateRestrictionName, startIdx, method.Param[startIdx].T, rTrackerImplT)
 				return errors.SetTopLevelMsgf(err, "Mismatched restriction tracker type in method %v, "+
 					"parameter at index %v. Got: %v, Want: %v (from method %v). "+
 					"Ensure that restriction tracker is the first parameter.",
-					truncateRestrictionName, 0, method.Param[0].T, rTrackerImplT, createTrackerName)
+					truncateRestrictionName, startIdx, method.Param[startIdx].T, rTrackerImplT, createTrackerName)
 			}
 			if method.Ret[0].T != restrictionT {
 				err := errors.Errorf("invalid output type in method %v, return %v. got: %v, want: %v",
@@ -1049,6 +1118,14 @@ func validateSdfSigTypes(fn *Fn, num int) error {
 	return nil
 }
 
+func sdfRequiredParamStartIndex(method *funcx.Fn) int {
+	if ctxIndex, ok := method.Context(); ok {
+		return ctxIndex + 1
+	}
+
+	return 0
+}
+
 // validateSdfElementT validates that element types in an SDF method are
 // consistent with the ProcessElement method. This method assumes that the
 // first 'num' parameters starting with startIndex are the elements.
@@ -1059,13 +1136,14 @@ func validateSdfElementT(fn *Fn, name string, method *funcx.Fn, num int, startIn
 	pos, _, _ := processFn.Inputs()
 
 	for i := 0; i < num; i++ {
-		if method.Param[i+startIndex].T != processFn.Param[pos+i].T {
+		idx := i + startIndex
+		if got, want := method.Param[i+startIndex].T, processFn.Param[pos+i].T; got != want {
 			err := errors.Errorf("mismatched element type in method %v, param %v. got: %v, want: %v",
-				name, i, method.Param[i].T, processFn.Param[pos+i].T)
+				name, idx, got, want)
 			return errors.SetTopLevelMsgf(err, "Mismatched element type in method %v, "+
 				"parameter at index %v. Got: %v, Want: %v (from method %v). "+
 				"Ensure that element parameters in SDF methods have consistent types with element parameters in %v.",
-				name, i, method.Param[i].T, processFn.Param[pos+i].T, processElementName, processElementName)
+				name, idx, got, want, processElementName, processElementName)
 		}
 	}
 	return nil
@@ -1175,7 +1253,8 @@ func validateStatefulWatermarkSig(fn *Fn, numMainIn int) error {
 	// CreateInitialRestriction.
 	if numMainIn == int(MainUnknown) {
 		initialRestFn := fn.methods[createInitialRestrictionName]
-		paramNum := len(initialRestFn.Param)
+		paramNum := len(initialRestFn.Params(funcx.FnValue))
+
 		switch paramNum {
 		case int(MainSingle), int(MainKv):
 			numMainIn = paramNum
@@ -1209,7 +1288,7 @@ func validateStatefulWatermarkSig(fn *Fn, numMainIn int) error {
 					"Ensure that all restrictions in an SDF are the same type.",
 					initialWatermarkEstimatorStateName, 1, method.Param[1].T, restT, createTrackerName)
 			}
-			if err := validateSdfElementT(fn, restrictionSizeName, method, numMainIn, 2); err != nil {
+			if err := validateSdfElementT(fn, initialWatermarkEstimatorStateName, method, numMainIn, 2); err != nil {
 				return err
 			}
 
@@ -1309,6 +1388,77 @@ func validateState(fn *DoFn, numIn mainInputs) error {
 	return nil
 }
 
+func validateOnTimerFn(fn *DoFn) error {
+	if _, ok := fn.methods[onTimerName]; !ok {
+		err := errors.Errorf("OnTimer function not defined for DoFn: %v", fn.Name())
+		return errors.SetTopLevelMsgf(err, "OnTimer function not defined for DoFn: %v. Ensure that OnTimer function is implemented for the DoFn.", fn.Name())
+	}
+
+	pipelineTimers, _ := fn.PipelineTimers()
+
+	if _, ok := fn.methods[onTimerName].TimerProvider(); !ok {
+		err := errors.Errorf("OnTimer function doesn't use a TimerProvider, but Timer field is attached to the DoFn(%v): %v", fn.Name(), pipelineTimers)
+		return errors.SetTopLevelMsgf(err, "OnTimer function doesn't use a TimerProvider, but Timer field is attached to the DoFn(%v): %v"+
+			", Ensure that you are using the TimerProvider to set and clear the timers.", fn.Name(), pipelineTimers)
+	}
+
+	_, otNum, otExists := fn.methods[onTimerName].Emits()
+	_, peNum, peExists := fn.methods[processElementName].Emits()
+
+	if otExists == peExists {
+		if otNum != peNum {
+			return fmt.Errorf("OnTimer and ProcessElement functions for DoFn should have exactly same emitters, no. of emitters used in OnTimer: %v, no. of emitters used in ProcessElement: %v", otNum, peNum)
+		}
+	} else {
+		return fmt.Errorf("OnTimer and ProcessElement functions for DoFn should have exactly same emitters, emitters used in OnTimer: %v, emitters used in ProcessElement: %v", otExists, peExists)
+	}
+
+	return nil
+}
+
+func validateTimer(fn *DoFn, numIn mainInputs) error {
+	pt, fieldNames := fn.PipelineTimers()
+
+	if _, ok := fn.methods[processElementName].TimerProvider(); ok {
+		if numIn == MainSingle {
+			err := errors.Errorf("ProcessElement uses a TimerProvider, but is not keyed")
+			return errors.SetTopLevelMsgf(err, "ProcessElement uses a TimerProvider, but is not keyed. "+
+				"All stateful DoFns must take a key/value pair as an input.")
+		}
+		if len(pt) == 0 {
+			err := errors.New("ProcessElement uses a TimerProvider, but no Timer fields are defined in the DoFn")
+			return errors.SetTopLevelMsgf(err, "ProcessElement uses a TimerProvider, but no timer fields are defined in the DoFn"+
+				", Ensure that your DoFn exports the Timer fields used to set and clear timers.")
+		}
+		timerKeys := make(map[string]string)
+		for i, t := range pt {
+			for timerFamilyID := range t.Timers() {
+				if timer, ok := timerKeys[timerFamilyID]; ok {
+					err := errors.Errorf("Duplicate timer key %v", timerFamilyID)
+					return errors.SetTopLevelMsgf(err, "Duplicate timer family ID %v used by struct fields %v and %v. Ensure that timer family IDs are unique per DoFn", timerFamilyID, timer, fieldNames[i])
+				}
+				timerKeys[timerFamilyID] = fieldNames[i]
+			}
+		}
+		if err := validateOnTimerFn(fn); err != nil {
+			return err
+		}
+	} else {
+		if len(pt) > 0 {
+			err := errors.Errorf("ProcessElement doesn't use a TimerProvider, but Timer field is attached to the DoFn: %v", pt)
+			return errors.SetTopLevelMsgf(err, "ProcessElement doesn't use a TimerProvider, but Timer field is attached to the DoFn: %v"+
+				", Ensure that you are using the TimerProvider to set and clear the timers.", pt)
+		}
+		if err := validateOnTimerFn(fn); err == nil {
+			actualErr := errors.New("OnTimer function is defined for the DoFn but no TimerProvider defined in ProcessElement")
+			return errors.SetTopLevelMsgf(actualErr, "OnTimer function is defined for the DoFn but no TimerProvider defined in ProcessElement."+
+				"Ensure that timers.Provider is defined in the ProcessElement and OnTimer methods of DoFn.")
+		}
+	}
+
+	return nil
+}
+
 // CombineFn represents a CombineFn.
 type CombineFn Fn
 
@@ -1354,7 +1504,7 @@ func (f *CombineFn) Name() string {
 }
 
 // NewCombineFn constructs a CombineFn from the given value, if possible.
-func NewCombineFn(fn interface{}) (*CombineFn, error) {
+func NewCombineFn(fn any) (*CombineFn, error) {
 	ret, err := NewFn(fn)
 	if err != nil {
 		return nil, errors.WithContext(errors.Wrapf(err, "invalid CombineFn"), "constructing CombineFn")

@@ -19,19 +19,6 @@
 
 # pytype: skip-file
 
-# beam-playground:
-#   name: WordCountMinimalTest
-#   description: Unit-test for the minimal WordCount example.
-#   multifile: false
-#   context_line: 43
-#   categories:
-#     - IO
-#     - Combiners
-#   complexity: MEDIUM
-#   tags:
-#     - count
-#     - test
-
 import collections
 import logging
 import re

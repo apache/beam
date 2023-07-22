@@ -16,10 +16,11 @@
 package preparers
 
 import (
-	pb "beam.apache.org/playground/backend/internal/api/v1"
-	"beam.apache.org/playground/backend/internal/validators"
 	"fmt"
 	"sync"
+
+	pb "beam.apache.org/playground/backend/internal/api/v1"
+	"beam.apache.org/playground/backend/internal/validators"
 )
 
 // Preparer is used to make preparations with file with code.
@@ -36,18 +37,19 @@ func (preparers *Preparers) GetPreparers() *[]Preparer {
 	return preparers.functions
 }
 
-//PreparersBuilder struct
+// PreparersBuilder struct
 type PreparersBuilder struct {
 	preparers *Preparers
 	filePath  string
+	params    map[string]string
 }
 
-//NewPreparersBuilder constructor for PreparersBuilder
-func NewPreparersBuilder(filePath string) *PreparersBuilder {
-	return &PreparersBuilder{preparers: &Preparers{functions: &[]Preparer{}}, filePath: filePath}
+// NewPreparersBuilder constructor for PreparersBuilder
+func NewPreparersBuilder(filePath string, params map[string]string) *PreparersBuilder {
+	return &PreparersBuilder{preparers: &Preparers{functions: &[]Preparer{}}, filePath: filePath, params: params}
 }
 
-//Build builds preparers from PreparersBuilder
+// Build builds preparers from PreparersBuilder
 func (builder *PreparersBuilder) Build() *Preparers {
 	return builder.preparers
 }
@@ -57,12 +59,12 @@ func (builder *PreparersBuilder) AddPreparer(newPreparer Preparer) {
 }
 
 // GetPreparers returns slice of preparers.Preparer according to sdk
-func GetPreparers(sdk pb.Sdk, filepath string, valResults *sync.Map) (*[]Preparer, error) {
+func GetPreparers(sdk pb.Sdk, filepath string, valResults *sync.Map, prepareParams map[string]string) (*[]Preparer, error) {
 	isUnitTest, ok := valResults.Load(validators.UnitTestValidatorName)
 	if !ok {
 		return nil, fmt.Errorf("GetPreparers:: No information about unit test validation result")
 	}
-	builder := NewPreparersBuilder(filepath)
+	builder := NewPreparersBuilder(filepath, prepareParams)
 	switch sdk {
 	case pb.Sdk_SDK_JAVA:
 		isKata, ok := valResults.Load(validators.KatasValidatorName)

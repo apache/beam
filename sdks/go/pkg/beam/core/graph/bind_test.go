@@ -28,7 +28,7 @@ import (
 func TestBind(t *testing.T) {
 	tests := []struct {
 		In  []typex.FullType // Incoming Node type
-		Fn  interface{}
+		Fn  any
 		Out []typex.FullType // Outgoing Node type; nil == cannot bind
 	}{
 		{ // Direct
@@ -173,7 +173,7 @@ func TestBindWithTypedefs(t *testing.T) {
 	tests := []struct {
 		In      []typex.FullType // Incoming Node type
 		Typedef map[string]reflect.Type
-		Fn      interface{}
+		Fn      any
 		Out     []typex.FullType // Outgoing Node type; nil == cannot bind
 	}{
 		{ // Typedefs are ignored, if not used

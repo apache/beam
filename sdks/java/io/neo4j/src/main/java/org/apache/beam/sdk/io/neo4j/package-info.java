@@ -17,8 +17,4 @@
  */
 
 /** Transforms for reading from and writing to from Neo4j. */
-@Experimental(Kind.SOURCE_SINK)
 package org.apache.beam.sdk.io.neo4j;
-
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;

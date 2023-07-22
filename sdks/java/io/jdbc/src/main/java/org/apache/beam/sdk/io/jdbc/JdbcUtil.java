@@ -17,6 +17,15 @@
  */
 package org.apache.beam.sdk.io.jdbc;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+
+import java.io.File;
+import java.io.IOException;
+import java.net.URL;
+import java.nio.channels.ReadableByteChannel;
+import java.nio.channels.WritableByteChannel;
+import java.nio.file.Paths;
 import java.sql.Date;
 import java.sql.JDBCType;
 import java.sql.PreparedStatement;
@@ -35,6 +44,8 @@ import java.util.TimeZone;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.jdbc.JdbcIO.PreparedStatementSetter;
 import org.apache.beam.sdk.io.jdbc.JdbcIO.ReadWithPartitions;
 import org.apache.beam.sdk.io.jdbc.JdbcIO.RowMapper;
@@ -42,11 +53,17 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedPrecisionNumeric;
 import org.apache.beam.sdk.schemas.logicaltypes.MicrosInstant;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.util.MimeTypes;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Files;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.joda.time.ReadableDateTime;
@@ -54,10 +71,43 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Provides utility functions for working with {@link JdbcIO}. */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 class JdbcUtil {
+
+  private static final Logger LOG = LoggerFactory.getLogger(JdbcUtil.class);
+
+  /** Utility method to save jar files locally in the worker. */
+  static URL[] saveFilesLocally(String driverJars) {
+    List<String> listOfJarPaths = Splitter.on(',').trimResults().splitToList(driverJars);
+
+    final String destRoot = Files.createTempDir().getAbsolutePath();
+    List<URL> driverJarUrls = new ArrayList<>();
+    listOfJarPaths.stream()
+        .forEach(
+            jarPath -> {
+              try {
+                ResourceId sourceResourceId = FileSystems.matchNewResource(jarPath, false);
+                @SuppressWarnings("nullness")
+                File destFile = Paths.get(destRoot, sourceResourceId.getFilename()).toFile();
+                ResourceId destResourceId =
+                    FileSystems.matchNewResource(destFile.getAbsolutePath(), false);
+                copy(sourceResourceId, destResourceId);
+                LOG.info("Localized jar: " + sourceResourceId + " to: " + destResourceId);
+                driverJarUrls.add(destFile.toURI().toURL());
+              } catch (IOException e) {
+                LOG.warn("Unable to copy " + jarPath, e);
+              }
+            });
+    return driverJarUrls.stream().toArray(URL[]::new);
+  }
+
+  /** utility method to copy binary (jar file) data from source to dest. */
+  private static void copy(ResourceId source, ResourceId dest) throws IOException {
+    try (ReadableByteChannel rbc = FileSystems.open(source)) {
+      try (WritableByteChannel wbc = FileSystems.create(dest, MimeTypes.BINARY)) {
+        ByteStreams.copy(rbc, wbc);
+      }
+    }
+  }
 
   /** Generates an insert statement based on {@link Schema.Field}. * */
   static String generateStatement(String tableName, List<Schema.Field> fields) {
@@ -83,7 +133,7 @@ class JdbcUtil {
                   (element, ps, i, fieldWithIndex) -> {
                     Byte value = element.getByte(fieldWithIndex.getIndex());
                     if (value == null) {
-                      setNullToPreparedStatement(ps, i);
+                      setNullToPreparedStatement(ps, i, JDBCType.TINYINT);
                     } else {
                       ps.setByte(i + 1, value);
                     }
@@ -93,7 +143,7 @@ class JdbcUtil {
                   (element, ps, i, fieldWithIndex) -> {
                     Short value = element.getInt16(fieldWithIndex.getIndex());
                     if (value == null) {
-                      setNullToPreparedStatement(ps, i);
+                      setNullToPreparedStatement(ps, i, JDBCType.SMALLINT);
                     } else {
                       ps.setInt(i + 1, value);
                     }
@@ -103,7 +153,7 @@ class JdbcUtil {
                   (element, ps, i, fieldWithIndex) -> {
                     Long value = element.getInt64(fieldWithIndex.getIndex());
                     if (value == null) {
-                      setNullToPreparedStatement(ps, i);
+                      setNullToPreparedStatement(ps, i, JDBCType.BIGINT);
                     } else {
                       ps.setLong(i + 1, value);
                     }
@@ -117,7 +167,7 @@ class JdbcUtil {
                   (element, ps, i, fieldWithIndex) -> {
                     Float value = element.getFloat(fieldWithIndex.getIndex());
                     if (value == null) {
-                      setNullToPreparedStatement(ps, i);
+                      setNullToPreparedStatement(ps, i, JDBCType.FLOAT);
                     } else {
                       ps.setFloat(i + 1, value);
                     }
@@ -127,7 +177,7 @@ class JdbcUtil {
                   (element, ps, i, fieldWithIndex) -> {
                     Double value = element.getDouble(fieldWithIndex.getIndex());
                     if (value == null) {
-                      setNullToPreparedStatement(ps, i);
+                      setNullToPreparedStatement(ps, i, JDBCType.DOUBLE);
                     } else {
                       ps.setDouble(i + 1, value);
                     }
@@ -143,7 +193,7 @@ class JdbcUtil {
                   (element, ps, i, fieldWithIndex) -> {
                     Boolean value = element.getBoolean(fieldWithIndex.getIndex());
                     if (value == null) {
-                      setNullToPreparedStatement(ps, i);
+                      setNullToPreparedStatement(ps, i, JDBCType.BOOLEAN);
                     } else {
                       ps.setBoolean(i + 1, value);
                     }
@@ -154,7 +204,7 @@ class JdbcUtil {
                   (element, ps, i, fieldWithIndex) -> {
                     Integer value = element.getInt32(fieldWithIndex.getIndex());
                     if (value == null) {
-                      setNullToPreparedStatement(ps, i);
+                      setNullToPreparedStatement(ps, i, JDBCType.INTEGER);
                     } else {
                       ps.setInt(i + 1, value);
                     }
@@ -171,26 +221,26 @@ class JdbcUtil {
         return (element, ps, i, fieldWithIndex) -> {
           Collection<Object> value = element.getArray(fieldWithIndex.getIndex());
           if (value == null) {
-            ps.setArray(i + 1, null);
+            setArrayNull(ps, i);
           } else {
+            Schema.FieldType collectionElementType =
+                Preconditions.checkArgumentNotNull(fieldType.getCollectionElementType());
             ps.setArray(
                 i + 1,
                 ps.getConnection()
-                    .createArrayOf(
-                        fieldType.getCollectionElementType().getTypeName().name(),
-                        value.toArray()));
+                    .createArrayOf(collectionElementType.getTypeName().name(), value.toArray()));
           }
         };
       case LOGICAL_TYPE:
         {
-          if (Objects.equals(
-              fieldType.getLogicalType(), LogicalTypes.JDBC_UUID_TYPE.getLogicalType())) {
+          Schema.LogicalType<?, ?> logicalType = checkArgumentNotNull(fieldType.getLogicalType());
+          if (Objects.equals(logicalType, LogicalTypes.JDBC_UUID_TYPE.getLogicalType())) {
             return (element, ps, i, fieldWithIndex) ->
                 ps.setObject(
                     i + 1, element.getLogicalTypeValue(fieldWithIndex.getIndex(), UUID.class));
           }
 
-          String logicalTypeName = fieldType.getLogicalType().getIdentifier();
+          String logicalTypeName = logicalType.getIdentifier();
 
           // Special case of Timestamp and Numeric which are logical types in Portable framework
           // but have their own fieldType in Java.
@@ -223,12 +273,7 @@ class JdbcUtil {
                   i + 1,
                   value == null
                       ? null
-                      : new Time(
-                          getDateOrTimeOnly(
-                                  element.getDateTime(fieldWithIndex.getIndex()).toDateTime(),
-                                  false)
-                              .getTime()
-                              .getTime()));
+                      : new Time(getDateOrTimeOnly(value.toDateTime(), false).getTime().getTime()));
             };
           } else if (logicalTypeName.equals("TIMESTAMP_WITH_TIMEZONE")) {
             return (element, ps, i, fieldWithIndex) -> {
@@ -246,24 +291,33 @@ class JdbcUtil {
                     i + 1, element.getValue(fieldWithIndex.getIndex()), java.sql.Types.OTHER);
           } else {
             // generic beam logic type (such as portable logical types)
-            return getPreparedStatementSetCaller(fieldType.getLogicalType().getBaseType());
+            return getPreparedStatementSetCaller(logicalType.getBaseType());
           }
         }
       default:
         {
-          if (typeNamePsSetCallerMap.containsKey(fieldType.getTypeName())) {
-            return typeNamePsSetCallerMap.get(fieldType.getTypeName());
+          JdbcIO.PreparedStatementSetCaller pssc =
+              typeNamePsSetCallerMap.get(fieldType.getTypeName());
+          if (pssc != null) {
+            return pssc;
           } else {
             throw new RuntimeException(
                 fieldType.getTypeName().name()
-                    + " in schema is not supported while writing. Please provide statement and preparedStatementSetter");
+                    + " in schema is not supported while writing. Please provide statement and"
+                    + " preparedStatementSetter");
           }
         }
     }
   }
 
-  static void setNullToPreparedStatement(PreparedStatement ps, int i) throws SQLException {
-    ps.setNull(i + 1, JDBCType.NULL.getVendorTypeNumber());
+  @SuppressWarnings("nullness") // ps.setArray not annotated to allow a null
+  private static void setArrayNull(PreparedStatement ps, int i) throws SQLException {
+    ps.setArray(i + 1, null);
+  }
+
+  static void setNullToPreparedStatement(PreparedStatement ps, int i, JDBCType type)
+      throws SQLException {
+    ps.setNull(i + 1, type.getVendorTypeNumber());
   }
 
   static class BeamRowPreparedStatementSetter implements JdbcIO.PreparedStatementSetter<Row> {
@@ -310,15 +364,21 @@ class JdbcUtil {
 
   private static void validateLogicalTypeLength(Schema.Field field, Integer length) {
     try {
-      if (field.getType().getTypeName().isLogicalType()
-          && field.getType().getLogicalType().getArgument() != null) {
-        int maxLimit = (Integer) field.getType().getLogicalType().getArgument();
-        if (length > maxLimit) {
-          throw new RuntimeException(
-              String.format(
-                  "Length of Schema.Field[%s] data exceeds database column capacity",
-                  field.getName()));
-        }
+      if (!field.getType().getTypeName().isLogicalType()) {
+        return;
+      }
+
+      Integer maxLimit =
+          (Integer) checkArgumentNotNull(field.getType().getLogicalType()).getArgument();
+      if (maxLimit == null) {
+        return;
+      }
+
+      if (length > maxLimit) {
+        throw new RuntimeException(
+            String.format(
+                "Length of Schema.Field[%s] data exceeds database column capacity",
+                field.getName()));
       }
     } catch (NumberFormatException e) {
       // if argument is not set or not integer then do nothing and proceed with the insertion
@@ -367,7 +427,8 @@ class JdbcUtil {
   interface JdbcReadWithPartitionsHelper<PartitionT>
       extends PreparedStatementSetter<KV<PartitionT, PartitionT>>,
           RowMapper<KV<Long, KV<PartitionT, PartitionT>>> {
-    static <T> JdbcReadWithPartitionsHelper<T> getPartitionsHelper(TypeDescriptor<T> type) {
+    static <T> @Nullable JdbcReadWithPartitionsHelper<T> getPartitionsHelper(
+        TypeDescriptor<T> type) {
       // This cast is unchecked, thus this is a small type-checking risk. We just need
       // to make sure that all preset helpers in `JdbcUtil.PRESET_HELPERS` are matched
       // in type from their Key and their Value.
@@ -398,7 +459,8 @@ class JdbcUtil {
       T lowerBound = c.element().getValue().getKey();
       T upperBound = c.element().getValue().getValue();
       JdbcReadWithPartitionsHelper<T> helper =
-          JdbcReadWithPartitionsHelper.getPartitionsHelper(partitioningColumnType);
+          checkStateNotNull(
+              JdbcReadWithPartitionsHelper.getPartitionsHelper(partitioningColumnType));
       List<KV<T, T>> ranges =
           Lists.newArrayList(helper.calculateRanges(lowerBound, upperBound, c.element().getKey()));
       LOG.warn("Total of {} ranges: {}", ranges.size(), ranges);
@@ -495,14 +557,14 @@ class JdbcUtil {
                 return KV.of(
                     resultSet.getLong(3),
                     KV.of(
-                        new DateTime(resultSet.getTimestamp(1)),
-                        new DateTime(resultSet.getTimestamp(2))));
+                        new DateTime(checkArgumentNotNull(resultSet.getTimestamp(1))),
+                        new DateTime(checkArgumentNotNull(resultSet.getTimestamp(2)))));
               } else {
                 return KV.of(
                     0L,
                     KV.of(
-                        new DateTime(resultSet.getTimestamp(1)),
-                        new DateTime(resultSet.getTimestamp(2))));
+                        new DateTime(checkArgumentNotNull(resultSet.getTimestamp(1))),
+                        new DateTime(checkArgumentNotNull(resultSet.getTimestamp(2)))));
               }
             }
           });

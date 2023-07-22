@@ -18,6 +18,7 @@
 package tob
 
 import (
+	"context"
 	"log"
 	"net/http"
 
@@ -30,6 +31,22 @@ const (
 	NOT_FOUND      = "NOT_FOUND"
 	UNAUTHORIZED   = "UNAUTHORIZED"
 )
+
+// this subtypes here to pass go-staticcheck
+type _ContextKeyTypeSdk string
+type _ContextKeyTypeUid string
+
+const (
+	CONTEXT_KEY_SDK _ContextKeyTypeSdk = "sdk"
+	CONTEXT_KEY_UID _ContextKeyTypeUid = "uid"
+)
+
+// helper to extract sdk from context
+// set by ParseSdkParam middleware
+// panics if key is not found
+func getContextSdk(r *http.Request) tob.Sdk {
+	return r.Context().Value(CONTEXT_KEY_SDK).(tob.Sdk)
+}
 
 // Middleware-maker for setting a header
 // We also make this less generic: it works with HandlerFunc's
@@ -94,11 +111,8 @@ func Common(method string) func(http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-// HandleFunc enriched with sdk.
-type HandlerFuncWithSdk func(w http.ResponseWriter, r *http.Request, sdk tob.Sdk)
-
 // middleware to parse sdk query param and pass it as additional handler param.
-func ParseSdkParam(next HandlerFuncWithSdk) http.HandlerFunc {
+func ParseSdkParam(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		sdkStr := r.URL.Query().Get("sdk")
 		sdk := tob.ParseSdk(sdkStr)
@@ -109,6 +123,7 @@ func ParseSdkParam(next HandlerFuncWithSdk) http.HandlerFunc {
 			return
 		}
 
-		next(w, r, sdk)
+		ctx := context.WithValue(r.Context(), CONTEXT_KEY_SDK, sdk)
+		next(w, r.WithContext(ctx))
 	}
 }

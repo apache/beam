@@ -47,8 +47,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
 import javax.annotation.concurrent.Immutable;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.gcp.firestore.FirestoreV1ReadFn.BatchGetDocumentsFn;
 import org.apache.beam.sdk.io.gcp.firestore.FirestoreV1ReadFn.ListCollectionIdsFn;
 import org.apache.beam.sdk.io.gcp.firestore.FirestoreV1ReadFn.ListDocumentsFn;
@@ -280,7 +278,6 @@ public final class FirestoreV1 {
    * @see FirestoreIO#v1()
    * @see #read()
    */
-  @Experimental(Kind.SOURCE_SINK)
   @Immutable
   public static final class Read {
     private static final Read INSTANCE = new Read();
@@ -503,7 +500,6 @@ public final class FirestoreV1 {
    * @see FirestoreIO#v1()
    * @see #write()
    */
-  @Experimental(Kind.SOURCE_SINK)
   @Immutable
   public static final class Write {
     private static final Write INSTANCE = new Write();

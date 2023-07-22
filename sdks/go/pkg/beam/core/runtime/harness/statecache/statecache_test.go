@@ -23,12 +23,12 @@ import (
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 )
 
-func makeTestReStream(value interface{}) exec.ReStream {
+func makeTestReStream(value any) exec.ReStream {
 	fv := exec.FullValue{Elm: value}
 	return &exec.FixedReStream{Buf: []exec.FullValue{fv}}
 }
 
-func getValue(rs exec.ReStream) interface{} {
+func getValue(rs exec.ReStream) any {
 	stream, _ := rs.Open()
 	fullVal, _ := stream.Read()
 	return fullVal.Elm

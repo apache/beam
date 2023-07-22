@@ -23,9 +23,15 @@ import '../../cache/example_cache.dart';
 import '../../models/example.dart';
 import '../../models/example_base.dart';
 import '../../models/example_loading_descriptors/http_example_loading_descriptor.dart';
+import '../../models/sdk.dart';
+import '../../models/snippet_file.dart';
 import 'example_loader.dart';
 
+/// The [ExampleLoader] for [HttpExampleLoadingDescriptor].
+///
+/// Loads an example from the text content at a URL.
 class HttpExampleLoader extends ExampleLoader {
+  @override
   final HttpExampleLoadingDescriptor descriptor;
 
   const HttpExampleLoader({
@@ -35,14 +41,23 @@ class HttpExampleLoader extends ExampleLoader {
   });
 
   @override
+  Sdk get sdk => descriptor.sdk;
+
+  @override
   Future<Example> get future async {
     final response = await http.get(descriptor.uri);
 
+    if (response.statusCode >= 400) {
+      throw Exception('Example not found: Error code ${response.statusCode}');
+    }
+
     return Example(
       name: descriptor.uri.path.split('/').lastOrNull ?? 'HTTP Example',
+      files: [
+        SnippetFile(content: response.body, isMain: true),
+      ],
       path: descriptor.uri.toString(),
       sdk: descriptor.sdk,
-      source: response.body,
       type: ExampleType.example,
       viewOptions: descriptor.viewOptions,
     );

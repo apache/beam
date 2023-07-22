@@ -32,28 +32,28 @@ import (
 // TODO(herohde) 7/10/2017: add hooks to verify counters, logs, etc.
 
 // Create creates a pipeline and a PCollection with the given values.
-func Create(values []interface{}) (*beam.Pipeline, beam.Scope, beam.PCollection) {
+func Create(values []any) (*beam.Pipeline, beam.Scope, beam.PCollection) {
 	p := beam.NewPipeline()
 	s := p.Root()
 	return p, s, beam.Create(s, values...)
 }
 
 // CreateList creates a pipeline and a PCollection with the given values.
-func CreateList(values interface{}) (*beam.Pipeline, beam.Scope, beam.PCollection) {
+func CreateList(values any) (*beam.Pipeline, beam.Scope, beam.PCollection) {
 	p := beam.NewPipeline()
 	s := p.Root()
 	return p, s, beam.CreateList(s, values)
 }
 
 // Create2 creates a pipeline and 2 PCollections with the given values.
-func Create2(a, b []interface{}) (*beam.Pipeline, beam.Scope, beam.PCollection, beam.PCollection) {
+func Create2(a, b []any) (*beam.Pipeline, beam.Scope, beam.PCollection, beam.PCollection) {
 	p := beam.NewPipeline()
 	s := p.Root()
 	return p, s, beam.Create(s, a...), beam.Create(s, b...)
 }
 
 // CreateList2 creates a pipeline and 2 PCollections with the given values.
-func CreateList2(a, b interface{}) (*beam.Pipeline, beam.Scope, beam.PCollection, beam.PCollection) {
+func CreateList2(a, b any) (*beam.Pipeline, beam.Scope, beam.PCollection, beam.PCollection) {
 	p := beam.NewPipeline()
 	s := p.Root()
 	return p, s, beam.CreateList(s, a), beam.CreateList(s, b)
@@ -103,11 +103,21 @@ func RunWithMetrics(p *beam.Pipeline) (beam.PipelineResult, error) {
 // RunAndValidate runs a pipeline for testing and validates the result, failing
 // the test if the pipeline fails.
 func RunAndValidate(t *testing.T, p *beam.Pipeline) beam.PipelineResult {
+	t.Helper()
 	pr, err := RunWithMetrics(p)
 	if err != nil {
 		t.Fatalf("Failed to execute job: %v", err)
 	}
 	return pr
+}
+
+// BuildAndRun calls the provided pipeline building function, and then executes
+// the resulting pipeline, failing the test if the pipeline fails.
+func BuildAndRun(t *testing.T, build func(s beam.Scope)) beam.PipelineResult {
+	t.Helper()
+	p, s := beam.NewPipelineWithRoot()
+	build(s)
+	return RunAndValidate(t, p)
 }
 
 // Main is an implementation of testing's TestMain to permit testing
@@ -121,7 +131,6 @@ func RunAndValidate(t *testing.T, p *beam.Pipeline) beam.PipelineResult {
 //	func TestMain(m *testing.M) {
 //		ptest.Main(m)
 //	}
-//
 func Main(m *testing.M) {
 	MainWithDefault(m, "direct")
 }

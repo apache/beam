@@ -87,7 +87,7 @@ closed.
 > it implicitly calls `pipeline.run()` which triggers the computation to happen.
 
 The pipeline is then sent to your
-[runner of choice](https://beam.apache.org/documentation/runners/capability-matrix/)
+[runner of choice](/documentation/runners/capability-matrix/)
 and it processes the data.
 
 > ℹ️ The pipeline can run locally with the _DirectRunner_,
@@ -119,7 +119,7 @@ Here's a comparison on how to get started both in PySpark and Beam.
 
 <div class="table-container-wrapper">
 {{< table >}}
-<table style="width:100%">
+<table style="width:100%" class="table-wrapper--equal-p">
 <tr>
     <th style="width:20%"></th>
     <th style="width:40%">PySpark</th>
@@ -183,7 +183,7 @@ Here are the equivalents of some common transforms in both PySpark and Beam.
 
 <div class="table-container-wrapper">
 {{< table >}}
-<table style="width:100%">
+<table style="width:100%" class="table-wrapper--equal-p">
 <tr>
     <th style="width:20%"></th>
     <th style="width:40%">PySpark</th>
@@ -312,11 +312,12 @@ with beam.Pipeline() as pipeline:
     min_value = values | beam.CombineGlobally(min)
     max_value = values | beam.CombineGlobally(max)
 
-    # To access `total`, we need to pass it as a side input.
+    # To access `min_value` and `max_value`, we need to pass them as a side input.
     scaled_values = values | beam.Map(
-        lambda x, min_value, max_value: x / lambda x: (x - min_value) / (max_value - min_value),
-        min_value =beam.pvalue.AsSingleton(min_value),
-        max_value =beam.pvalue.AsSingleton(max_value))
+        lambda x, minimum, maximum: (x - minimum) / (maximum - minimum),
+        minimum=beam.pvalue.AsSingleton(min_value),
+        maximum=beam.pvalue.AsSingleton(max_value),
+    )
 
     scaled_values | beam.Map(print)
 {{< /highlight >}}
@@ -332,7 +333,7 @@ with beam.Pipeline() as pipeline:
 * Learn how to read from and write to files in the [_Pipeline I/O_ section of the _Programming guide_](/documentation/programming-guide/#pipeline-io)
 * Walk through additional WordCount examples in the [WordCount Example Walkthrough](/get-started/wordcount-example).
 * Take a self-paced tour through our [Learning Resources](/documentation/resources/learning-resources).
-* Dive in to some of our favorite [Videos and Podcasts](/documentation/resources/videos-and-podcasts).
+* Dive in to some of our favorite [Videos and Podcasts](/get-started/resources/videos-and-podcasts).
 * Join the Beam [users@](/community/contact-us) mailing list.
 * If you're interested in contributing to the Apache Beam codebase, see the [Contribution Guide](/contribute).
 

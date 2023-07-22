@@ -109,6 +109,19 @@ public interface BigQueryOptions
 
   void setNumStorageWriteApiStreamAppendClients(Integer value);
 
+  @Description("The max number of messages inflight that we expect each connection will retain.")
+  @Default.Long(1000)
+  Long getStorageWriteMaxInflightRequests();
+
+  void setStorageWriteMaxInflightRequests(Long value);
+
+  @Description(
+      "The max size in bytes for inflight messages that we expect each connection will retain.")
+  @Default.Long(104857600)
+  Long getStorageWriteMaxInflightBytes();
+
+  void setStorageWriteMaxInflightBytes(Long value);
+
   @Default.Boolean(false)
   Boolean getUseStorageApiConnectionPool();
 
@@ -133,12 +146,6 @@ public interface BigQueryOptions
 
   void setBigQueryProject(String value);
 
-  @Description("Specify the number of schema update retries. For internal testing only.")
-  @Default.Integer(2)
-  Integer getSchemaUpdateRetries();
-
-  void setSchemaUpdateRetries(Integer value);
-
   @Description("Maximum (best effort) size of a single append to the storage API.")
   @Default.Integer(2 * 1024 * 1024)
   Integer getStorageApiAppendThresholdBytes();
@@ -156,4 +163,12 @@ public interface BigQueryOptions
   Long getStorageWriteApiMaxRequestSize();
 
   void setStorageWriteApiMaxRequestSize(Long value);
+
+  @Description(
+      "If set, BigQueryIO.Read will use the StreamBundle based"
+          + "implementation of the Read API Source")
+  @Default.Boolean(false)
+  Boolean getEnableBundling();
+
+  void setEnableBundling(Boolean value);
 }

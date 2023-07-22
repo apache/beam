@@ -26,6 +26,7 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/state"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/timers"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
@@ -33,7 +34,7 @@ import (
 func TestNewDoFn(t *testing.T) {
 	t.Run("valid", func(t *testing.T) {
 		tests := []struct {
-			dfn interface{}
+			dfn any
 			opt func(*config)
 		}{
 			{dfn: func(string) int { return 0 }, opt: NumMainInputs(MainSingle)},
@@ -53,8 +54,8 @@ func TestNewDoFn(t *testing.T) {
 			{dfn: &GoodDoFnCoGbk2{}, opt: CoGBKMainInput(3)},
 			{dfn: &GoodDoFnCoGbk7{}, opt: CoGBKMainInput(8)},
 			{dfn: &GoodDoFnCoGbk1wSide{}, opt: NumMainInputs(MainKv)},
-			{dfn: &GoodStatefulDoFn{}, opt: NumMainInputs(MainKv)},
-			{dfn: &GoodStatefulDoFn2{}, opt: NumMainInputs(MainKv)},
+			{dfn: &GoodStatefulDoFn{Timer1: timers.InProcessingTime("processingTimeTimer")}, opt: NumMainInputs(MainKv)},
+			{dfn: &GoodStatefulDoFn2{Timer1: timers.InEventTime("eventTimeTimer")}, opt: NumMainInputs(MainKv)},
 			{dfn: &GoodStatefulDoFn3{State1: state.MakeCombiningState[int, int, int]("state1", func(a, b int) int {
 				return a * b
 			})}, opt: NumMainInputs(MainKv)},
@@ -78,7 +79,7 @@ func TestNewDoFn(t *testing.T) {
 	})
 	t.Run("invalid", func(t *testing.T) {
 		tests := []struct {
-			dfn       interface{}
+			dfn       any
 			numInputs int
 		}{
 			// Validate main inputs.
@@ -103,9 +104,13 @@ func TestNewDoFn(t *testing.T) {
 			{dfn: &BadDoFnReturnValuesInFinishBundle{}},
 			{dfn: &BadDoFnReturnValuesInSetup{}},
 			{dfn: &BadDoFnReturnValuesInTeardown{}},
+			// Validate stateful DoFn
 			{dfn: &BadStatefulDoFnNoStateProvider{State1: state.Value[int](state.MakeValueState[int]("state1"))}},
 			{dfn: &BadStatefulDoFnNoStateFields{}},
-			{dfn: &BadStatefulDoFnNoKV{State1: state.Value[int](state.MakeValueState[int]("state1"))}, numInputs: 1},
+			{dfn: &BadStatefulDoFnNoKV{State1: state.Value[int](state.MakeValueState[int]("state1")), Timer1: timers.InEventTime("timer1")}, numInputs: 1},
+			{dfn: &BadStatefulDoFnNoTimerProvider{Timer1: timers.InEventTime("timer1")}, numInputs: 2},
+			{dfn: &BadStatefulDoFnNoTimerFields{}, numInputs: 2},
+			{dfn: &BadStatefulDoFnNoOnTimer{Timer1: timers.InEventTime("timer1")}, numInputs: 2},
 		}
 		for _, test := range tests {
 			t.Run(reflect.TypeOf(test.dfn).String(), func(t *testing.T) {
@@ -149,7 +154,7 @@ func TestNewDoFn(t *testing.T) {
 	// inputs is unknown, but fails when it's specified.
 	t.Run("invalidWithKnownKvs", func(t *testing.T) {
 		tests := []struct {
-			dfn  interface{}
+			dfn  any
 			main mainInputs
 		}{
 			{dfn: func(int) int { return 0 }, main: MainKv}, // Not enough inputs.
@@ -185,11 +190,14 @@ func TestNewDoFn(t *testing.T) {
 func TestNewDoFnSdf(t *testing.T) {
 	t.Run("valid", func(t *testing.T) {
 		tests := []struct {
-			dfn  interface{}
+			dfn  any
 			main mainInputs
 		}{
 			{dfn: &GoodSdf{}, main: MainSingle},
 			{dfn: &GoodSdfKv{}, main: MainKv},
+			{dfn: &GoodSdfWContext{}, main: MainSingle},
+			{dfn: &GoodSdfKvWContext{}, main: MainKv},
+			{dfn: &GoodSdfWErr{}, main: MainSingle},
 			{dfn: &GoodIgnoreOtherExportedMethods{}, main: MainSingle},
 		}
 
@@ -207,7 +215,7 @@ func TestNewDoFnSdf(t *testing.T) {
 	})
 	t.Run("invalid", func(t *testing.T) {
 		tests := []struct {
-			dfn interface{}
+			dfn any
 		}{
 			// Validate missing SDF methods cause errors.
 			{dfn: &BadSdfMissingMethods{}},
@@ -268,7 +276,7 @@ func TestNewDoFnSdf(t *testing.T) {
 func TestNewDoFnWatermarkEstimating(t *testing.T) {
 	t.Run("valid", func(t *testing.T) {
 		tests := []struct {
-			dfn  interface{}
+			dfn  any
 			main mainInputs
 		}{
 			{dfn: &GoodWatermarkEstimating{}, main: MainSingle},
@@ -292,7 +300,7 @@ func TestNewDoFnWatermarkEstimating(t *testing.T) {
 	})
 	t.Run("invalid", func(t *testing.T) {
 		tests := []struct {
-			dfn interface{}
+			dfn any
 		}{
 			{dfn: &BadWatermarkEstimatingNonSdf{}},
 			{dfn: &BadWatermarkEstimatingCreateWatermarkEstimatorReturnType{}},
@@ -338,7 +346,7 @@ func TestNewDoFnWatermarkEstimating(t *testing.T) {
 func TestNewCombineFn(t *testing.T) {
 	t.Run("valid", func(t *testing.T) {
 		tests := []struct {
-			cfn interface{}
+			cfn any
 		}{
 			{cfn: func(int, int) int { return 0 }},
 			{cfn: func(string, string) string { return "" }},
@@ -363,7 +371,7 @@ func TestNewCombineFn(t *testing.T) {
 	})
 	t.Run("invalid", func(t *testing.T) {
 		tests := []struct {
-			cfn interface{}
+			cfn any
 		}{
 			// Validate MergeAccumulator errors
 			{cfn: func() int { return 0 }},
@@ -409,7 +417,7 @@ func TestNewCombineFn(t *testing.T) {
 
 func TestNewFn_DoFn(t *testing.T) {
 	// Validate wrap fallthrough
-	reflectx.RegisterStructWrapper(reflect.TypeOf((*GoodDoFn)(nil)).Elem(), func(fn interface{}) map[string]reflectx.Func {
+	reflectx.RegisterStructWrapper(reflect.TypeOf((*GoodDoFn)(nil)).Elem(), func(fn any) map[string]reflectx.Func {
 		gdf := fn.(*GoodDoFn)
 		return map[string]reflectx.Func{
 			processElementName: reflectx.MakeFunc1x1(func(v int) int {
@@ -888,13 +896,13 @@ func (fn *BadDoFnAmbiguousSideInput) FinishBundle(bool) {
 type RestT struct{}
 type RTrackerT struct{}
 
-func (rt *RTrackerT) TryClaim(interface{}) bool {
+func (rt *RTrackerT) TryClaim(any) bool {
 	return true
 }
 func (rt *RTrackerT) GetError() error {
 	return nil
 }
-func (rt *RTrackerT) TrySplit(fraction float64) (interface{}, interface{}, error) {
+func (rt *RTrackerT) TrySplit(fraction float64) (any, any, error) {
 	return nil, nil, nil
 }
 func (rt *RTrackerT) GetProgress() (float64, float64) {
@@ -903,7 +911,7 @@ func (rt *RTrackerT) GetProgress() (float64, float64) {
 func (rt *RTrackerT) IsDone() bool {
 	return true
 }
-func (rt *RTrackerT) GetRestriction() interface{} {
+func (rt *RTrackerT) GetRestriction() any {
 	return nil
 }
 func (rt *RTrackerT) IsBounded() bool {
@@ -912,13 +920,13 @@ func (rt *RTrackerT) IsBounded() bool {
 
 type RTracker2T struct{}
 
-func (rt *RTracker2T) TryClaim(interface{}) bool {
+func (rt *RTracker2T) TryClaim(any) bool {
 	return false
 }
 func (rt *RTracker2T) GetError() error {
 	return nil
 }
-func (rt *RTracker2T) TrySplit(fraction float64) (interface{}, interface{}, error) {
+func (rt *RTracker2T) TrySplit(fraction float64) (any, any, error) {
 	return nil, nil, nil
 }
 func (rt *RTracker2T) GetProgress() (float64, float64) {
@@ -927,7 +935,7 @@ func (rt *RTracker2T) GetProgress() (float64, float64) {
 func (rt *RTracker2T) IsDone() bool {
 	return true
 }
-func (rt *RTracker2T) GetRestriction() interface{} {
+func (rt *RTracker2T) GetRestriction() any {
 	return nil
 }
 
@@ -985,6 +993,90 @@ func (fn *GoodSdfKv) ProcessElement(*RTrackerT, int, int) (int, sdf.ProcessConti
 
 func (fn *GoodSdfKv) TruncateRestriction(*RTrackerT, int, int) RestT {
 	return RestT{}
+}
+
+type GoodSdfWContext struct {
+	*GoodDoFn
+}
+
+func (fn *GoodSdfWContext) CreateInitialRestriction(context.Context, int) RestT {
+	return RestT{}
+}
+
+func (fn *GoodSdfWContext) SplitRestriction(context.Context, int, RestT) []RestT {
+	return []RestT{}
+}
+
+func (fn *GoodSdfWContext) RestrictionSize(context.Context, int, RestT) float64 {
+	return 0
+}
+
+func (fn *GoodSdfWContext) CreateTracker(context.Context, RestT) *RTrackerT {
+	return &RTrackerT{}
+}
+
+func (fn *GoodSdfWContext) ProcessElement(context.Context, *RTrackerT, int) (int, sdf.ProcessContinuation) {
+	return 0, sdf.StopProcessing()
+}
+
+func (fn *GoodSdfWContext) TruncateRestriction(context.Context, *RTrackerT, int) RestT {
+	return RestT{}
+}
+
+type GoodSdfKvWContext struct {
+	*GoodDoFnKv
+}
+
+func (fn *GoodSdfKvWContext) CreateInitialRestriction(context.Context, int, int) RestT {
+	return RestT{}
+}
+
+func (fn *GoodSdfKvWContext) SplitRestriction(context.Context, int, int, RestT) []RestT {
+	return []RestT{}
+}
+
+func (fn *GoodSdfKvWContext) RestrictionSize(context.Context, int, int, RestT) float64 {
+	return 0
+}
+
+func (fn *GoodSdfKvWContext) CreateTracker(context.Context, RestT) *RTrackerT {
+	return &RTrackerT{}
+}
+
+func (fn *GoodSdfKvWContext) ProcessElement(context.Context, *RTrackerT, int, int) (int, sdf.ProcessContinuation) {
+	return 0, sdf.StopProcessing()
+}
+
+func (fn *GoodSdfKvWContext) TruncateRestriction(context.Context, *RTrackerT, int, int) RestT {
+	return RestT{}
+}
+
+type GoodSdfWErr struct {
+	*GoodDoFn
+}
+
+func (fn *GoodSdfWErr) CreateInitialRestriction(int) (RestT, error) {
+	return RestT{}, nil
+}
+
+func (fn *GoodSdfWErr) SplitRestriction(int, RestT) ([]RestT, error) {
+	return []RestT{}, nil
+}
+
+func (fn *GoodSdfWErr) RestrictionSize(int, RestT) (float64, error) {
+	return 0, nil
+}
+
+func (fn *GoodSdfWErr) CreateTracker(RestT) (*RTrackerT, error) {
+	return &RTrackerT{}, nil
+}
+
+func (fn *GoodSdfWErr) ProcessElement(*RTrackerT, int) (int, sdf.ProcessContinuation, error) {
+	return 0, sdf.StopProcessing(), nil
+}
+
+func (fn *GoodSdfWErr) TruncateRestriction(*RTrackerT, int) (RestT, error) {
+	return RestT{}, nil
 }
 
 type GoodIgnoreOtherExportedMethods struct {
@@ -1087,17 +1179,27 @@ func (fn *GoodStatefulWatermarkEstimatingKv) WatermarkEstimatorState(estimator *
 
 type GoodStatefulDoFn struct {
 	State1 state.Value[int]
+	Timer1 timers.ProcessingTime
 }
 
-func (fn *GoodStatefulDoFn) ProcessElement(state.Provider, int, int) int {
+func (fn *GoodStatefulDoFn) ProcessElement(state.Provider, timers.Provider, int, int) int {
+	return 0
+}
+
+func (fn *GoodStatefulDoFn) OnTimer(state.Provider, timers.Provider, int) int {
 	return 0
 }
 
 type GoodStatefulDoFn2 struct {
 	State1 state.Bag[int]
+	Timer1 timers.EventTime
 }
 
-func (fn *GoodStatefulDoFn2) ProcessElement(state.Provider, int, int) int {
+func (fn *GoodStatefulDoFn2) ProcessElement(state.Provider, timers.Provider, int, int) int {
+	return 0
+}
+
+func (fn *GoodStatefulDoFn2) OnTimer(state.Provider, timers.Provider, int) int {
 	return 0
 }
 
@@ -1506,9 +1608,41 @@ func (fn *BadStatefulDoFnNoStateFields) ProcessElement(state.Provider, int) int 
 
 type BadStatefulDoFnNoKV struct {
 	State1 state.Value[int]
+	Timer1 timers.EventTime
 }
 
 func (fn *BadStatefulDoFnNoKV) ProcessElement(state.Provider, int, int) int {
+	return 0
+}
+
+type BadStatefulDoFnNoTimerProvider struct {
+	Timer1 timers.EventTime
+}
+
+func (fn *BadStatefulDoFnNoTimerProvider) ProcessElement(int, int) int {
+	return 0
+}
+
+func (fn *BadStatefulDoFnNoTimerProvider) OnTimer(timers.Provider, int) int {
+	return 0
+}
+
+type BadStatefulDoFnNoTimerFields struct {
+}
+
+func (fn *BadStatefulDoFnNoTimerFields) ProcessElement(timers.Provider, int, int) int {
+	return 0
+}
+
+func (fn *BadStatefulDoFnNoTimerFields) OnTimer(timers.Provider, int) int {
+	return 0
+}
+
+type BadStatefulDoFnNoOnTimer struct {
+	Timer1 timers.EventTime
+}
+
+func (fn *BadStatefulDoFnNoOnTimer) ProcessElement(timers.Provider, int, int) int {
 	return 0
 }
 

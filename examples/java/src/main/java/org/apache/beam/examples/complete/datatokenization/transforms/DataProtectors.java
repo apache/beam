@@ -48,9 +48,9 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.vendor.grpc.v1p48p1.com.google.gson.Gson;
-import org.apache.beam.vendor.grpc.v1p48p1.com.google.gson.JsonArray;
-import org.apache.beam.vendor.grpc.v1p48p1.com.google.gson.JsonObject;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.gson.Gson;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.gson.JsonArray;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.gson.JsonObject;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpEntity;
@@ -198,7 +198,7 @@ public class DataProtectors {
     }
 
     @ProcessElement
-    @SuppressWarnings("argument.type.incompatible")
+    @SuppressWarnings("argument")
     public void process(@Element KV<Integer, Iterable<Row>> element, ProcessContext context) {
       Iterable<Row> rows = element.getValue();
 
@@ -246,7 +246,7 @@ public class DataProtectors {
       return stringBuilder.toString();
     }
 
-    @SuppressWarnings("argument.type.incompatible")
+    @SuppressWarnings("argument")
     private ArrayList<Row> getTokenizedRow(Iterable<Row> inputRows) throws IOException {
       ArrayList<Row> outputRows = new ArrayList<>();
 

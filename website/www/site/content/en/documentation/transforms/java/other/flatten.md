@@ -18,7 +18,7 @@ limitations under the License.
 <table align="left">
     <a target="_blank" class="button"
         href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/transforms/Flatten.html">
-      <img src="https://beam.apache.org/images/logos/sdks/java.png" width="20px" height="20px"
+      <img src="/images/logos/sdks/java.png" width="20px" height="20px"
            alt="Javadoc" />
      Javadoc
     </a>
@@ -48,16 +48,10 @@ See more information in the [Beam Programming Guide](/documentation/programming-
 ## Examples
 **Example**: Apply a `Flatten` transform to merge multiple `PCollection` objects
 
-{{< highlight java >}}
-// Flatten takes a PCollectionList of PCollection objects of a given type.
-// Returns a single PCollection that contains all of the elements in the PCollection objects in that list.
-PCollection<String> pc1 = Create.of("Hello");
-PCollection<String> pc2 = Create.of("World", "Beam");
-PCollection<String> pc3 = Create.of("Is", "Fun");
-PCollectionList<String> collections = PCollectionList.of(pc1).and(pc2).and(pc3);
+{{< playground height="700px" >}}
+{{< playground_snippet language="java" path="PG_BEAMDOC_SDK_JAVA_Flatten" show="main_section" >}}
+{{< /playground >}}
 
-PCollection<String> merged = collections.apply(Flatten.<String>pCollections());
-{{< /highlight >}}
 The resulting collection now has all the elements: "Hello", "World",
 "Beam", "Is", and "Fun".
 

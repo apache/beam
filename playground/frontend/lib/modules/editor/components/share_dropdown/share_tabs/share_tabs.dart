@@ -17,18 +17,28 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/modules/editor/components/share_dropdown/share_tabs/example_share_tabs.dart';
-import 'package:playground/modules/editor/components/share_dropdown/share_tabs/snippet_save_and_share_tabs.dart';
 import 'package:playground_components/playground_components.dart';
 import 'package:provider/provider.dart';
 
-class ShareTabs extends StatelessWidget {
-  final TabController tabController;
+import 'example_share_tabs.dart';
+import 'snippet_save_and_share_tabs.dart';
 
+/// Checks if the playground code is saved yet and shows the specific
+/// content widget accordingly.
+// TODO(alexeyinkin): Refactor code sharing, https://github.com/apache/beam/issues/24637
+class ShareTabs extends StatelessWidget {
   const ShareTabs({
     super.key,
+    required this.eventSnippetContext,
+    required this.onError,
     required this.tabController,
   });
+
+  /// The [EventSnippetContext] at the time when the sharing button was clicked.
+  final EventSnippetContext eventSnippetContext;
+
+  final VoidCallback onError;
+  final TabController tabController;
 
   @override
   Widget build(BuildContext context) {
@@ -36,15 +46,23 @@ class ShareTabs extends StatelessWidget {
       color: Theme.of(context).backgroundColor,
       child: Consumer<PlaygroundController>(
         builder: (context, playgroundController, _) {
-          if (playgroundController.isExampleChanged) {
+          final controller =
+              playgroundController.requireSnippetEditingController();
+
+          if (controller.shouldSaveBeforeSharing()) {
             return SnippetSaveAndShareTabs(
+              eventSnippetContext: eventSnippetContext,
+              onError: onError,
               playgroundController: playgroundController,
+              sdk: controller.sdk,
               tabController: tabController,
             );
           }
 
           return ExampleShareTabs(
-            examplePath: playgroundController.selectedExample!.path,
+            descriptor: controller.descriptor!,
+            eventSnippetContext: eventSnippetContext,
+            sdk: controller.sdk,
             tabController: tabController,
           );
         },

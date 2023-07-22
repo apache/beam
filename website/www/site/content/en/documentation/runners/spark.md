@@ -67,8 +67,8 @@ the portable Runner. For more information on portability, please visit the
 
 ## Spark Runner prerequisites and setup
 
-The Spark runner currently supports Spark's 3.1.x branch.
-> **Note:** Support for Spark 2.4.x is deprecated and will be dropped with the release of Beam 2.44.0 (or soon after).
+The Spark runner currently supports Spark's 3.2.x branch.
+> **Note:** Support for Spark 2.4.x was dropped with Beam 2.46.0.
 
 {{< paragraph class="language-java" >}}
 You can add a dependency on the latest version of the Spark runner by adding to your pom.xml the following:

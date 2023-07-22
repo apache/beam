@@ -28,6 +28,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.aws2.common.ClientBuilderFactory;
 import org.apache.beam.sdk.io.aws2.common.ClientConfiguration;
 import org.apache.beam.sdk.io.aws2.options.AwsOptions;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,8 +36,10 @@ import software.amazon.awssdk.awscore.client.builder.AwsClientBuilder;
 
 /**
  * A mock {@link ClientBuilderFactory} to facilitate unit tests with mocked AWS clients. This
- * factory returns a mocked builder with a preconfigured client (using {@link #set(TestPipeline,
- * Class, Object)}), if available. Otherwise and empty mock is returned.
+ * factory returns a mocked builder with a preconfigured client which is tied to a specific instance
+ * of a pipeline or pipeline options respectively (using {@link #set(TestPipeline, Class, Object)}
+ * or {@link #set(PipelineOptions, Class, Object)}), if available. Otherwise and empty mock is
+ * returned.
  *
  * <p>Example usage:
  *
@@ -46,7 +49,7 @@ import software.amazon.awssdk.awscore.client.builder.AwsClientBuilder;
  *
  * @Before
  * public void configureClientBuilderFactory() {
- *  StaticClientBuilderFactory.prepare(pipeline, S3ClientBuilder.class, s3);
+ *  StaticClientBuilderFactory.set(pipeline, S3ClientBuilder.class, s3);
  * }
  * }</pre>
  */
@@ -55,19 +58,21 @@ public class MockClientBuilderFactory implements ClientBuilderFactory {
 
   @SuppressWarnings("rawtypes")
   private static final WeakHashMap<
-          TestPipeline, Map<Class<? extends AwsClientBuilder>, AwsClientBuilder>>
+          PipelineOptions, Map<Class<? extends AwsClientBuilder>, AwsClientBuilder>>
       CLIENTS = new WeakHashMap<>();
 
   public static <BuilderT extends AwsClientBuilder<BuilderT, ClientT>, ClientT> void set(
       TestPipeline pipeline, Class<BuilderT> builderClass, ClientT clientT) {
-    pipeline
-        .getOptions()
-        .as(AwsOptions.class)
-        .setClientBuilderFactory(MockClientBuilderFactory.class);
+    set(pipeline.getOptions(), builderClass, clientT);
+  }
+
+  public static <BuilderT extends AwsClientBuilder<BuilderT, ClientT>, ClientT> void set(
+      PipelineOptions options, Class<BuilderT> builderClass, ClientT clientT) {
+    options.as(AwsOptions.class).setClientBuilderFactory(MockClientBuilderFactory.class);
 
     BuilderT builder = mock(builderClass);
     when(builder.build()).thenReturn(clientT);
-    CLIENTS.computeIfAbsent(pipeline, ignore -> new HashMap<>()).put(builderClass, builder);
+    CLIENTS.computeIfAbsent(options, ignore -> new HashMap<>()).put(builderClass, builder);
   }
 
   @Override
@@ -77,7 +82,7 @@ public class MockClientBuilderFactory implements ClientBuilderFactory {
     // safe to cast: builder is instance of key (builder class) and value is mocked accordingly
     Optional<Map.Entry<Class<? extends AwsClientBuilder>, AwsClientBuilder>> mock =
         CLIENTS.entrySet().stream()
-            .filter(kv -> kv.getKey().getOptions().getOptionsId() == options.getOptionsId())
+            .filter(kv -> kv.getKey().getOptionsId() == options.getOptionsId())
             .flatMap(kv -> kv.getValue().entrySet().stream())
             .filter(b -> b.getKey().isInstance(builder))
             .findFirst();

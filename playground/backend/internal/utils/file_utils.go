@@ -34,6 +34,7 @@ const (
 	defaultPythonFileName = "main.py"
 	defaultScioFileName   = "main.scala"
 	javaExt               = ".java"
+	classExt              = ".class"
 	goExt                 = ".go"
 	pythonExt             = ".py"
 	scioExt               = ".scala"
@@ -123,14 +124,14 @@ func getExtBasedOnContent(content string) string {
 // getCorrectNameOrDefault returns the correct file name or default name.
 func getCorrectNameOrDefault(actualExt, correctExt, defaultFileName, name string) string {
 	if actualExt == "" {
-		logger.Error("The name of the file does not have extension. Will be used default value")
+		logger.Infof("The name of the file does not have extension. Default value (%s) will be used", correctExt)
 		if name == "" {
 			return defaultFileName
 		}
 		return name + correctExt
 	}
 	if actualExt != correctExt {
-		logger.Error("The name of the file has wrong extension. Will be used correct extension according to sdk")
+		logger.Infof("The name of the file has wrong extension. Correct extension (%s) will be used according to sdk", correctExt)
 		return name[0:len(name)-len(actualExt)] + correctExt
 	}
 	if filepath.Ext(name) == "" {
@@ -158,7 +159,7 @@ func IsFileMain(content string, sdk pb.Sdk) bool {
 // ToSDKFromExt returns SDK according to a specified extension.
 func ToSDKFromExt(ext string) pb.Sdk {
 	switch ext {
-	case javaExt:
+	case javaExt, classExt:
 		return pb.Sdk_SDK_JAVA
 	case goExt:
 		return pb.Sdk_SDK_GO
@@ -169,4 +170,8 @@ func ToSDKFromExt(ext string) pb.Sdk {
 	default:
 		return pb.Sdk_SDK_UNSPECIFIED
 	}
+}
+
+func TrimExtension(filename string) string {
+	return strings.TrimSuffix(filename, filepath.Ext(filename))
 }

@@ -1013,7 +1013,7 @@ class PipelineVisitor(object):
   """For internal use only; no backwards-compatibility guarantees.
 
   Visitor pattern class used to traverse a DAG of transforms
-  (used internally by Pipeline for bookeeping purposes).
+  (used internally by Pipeline for bookkeeping purposes).
   """
   def visit_value(self, value, producer_node):
     # type: (pvalue.PValue, AppliedPTransform) -> None

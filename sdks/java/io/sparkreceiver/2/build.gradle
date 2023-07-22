@@ -22,7 +22,6 @@ plugins {
 }
 
 applyJavaNature(
-        exportJavadoc: false,
         automaticModuleName: 'org.apache.beam.sdk.io.sparkreceiver',
 )
 provideIntegrationTestingDependencies()
@@ -37,6 +36,7 @@ configurations.all {
     exclude group: 'org.slf4j', module: 'slf4j-jdk14'
     exclude group: 'org.slf4j', module: 'slf4j-log4j12'
     exclude group: 'org.slf4j', module: 'slf4j-reload4j'
+    exclude group: "org.slf4j", module: "jul-to-slf4j"
 }
 
 dependencies {

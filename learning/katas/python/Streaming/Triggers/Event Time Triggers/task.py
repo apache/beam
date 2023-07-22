@@ -21,7 +21,9 @@
 #   name: EventTimeTriggers
 #   description: Task from katas to count events with event time triggers
 #   multifile: true
-#   context_line: 46
+#   files:
+#     - name: generate_event.py
+#   context_line: 54
 #   categories:
 #     - Streaming
 #   complexity: MEDIUM
@@ -41,15 +43,15 @@ from apache_beam.transforms.util import LogElements
 
 
 class CountEvents(beam.PTransform):
-    def expand(self, events):
-      return (events
-              | beam.WindowInto(FixedWindows(5),
-                                trigger=AfterWatermark(),
-                                accumulation_mode=AccumulationMode.DISCARDING,
-                                allowed_lateness=Duration(seconds=0))
-              | beam.CombineGlobally(beam.combiners.CountCombineFn()).without_defaults())
+  def expand(self, events):
+    return (events
+            | beam.WindowInto(FixedWindows(5),
+                              trigger=AfterWatermark(),
+                              accumulation_mode=AccumulationMode.DISCARDING,
+                              allowed_lateness=Duration(seconds=0))
+            | beam.CombineGlobally(beam.combiners.CountCombineFn()).without_defaults())
 
 with beam.Pipeline() as p:
-    (p | GenerateEvent.sample_data()
+  (p | GenerateEvent.sample_data()
      | CountEvents()
      | LogElements(with_window=True))

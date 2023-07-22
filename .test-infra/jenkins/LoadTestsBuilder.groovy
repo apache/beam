@@ -24,10 +24,10 @@ import InfluxDBCredentialsHelper
 import static PythonTestProperties.LOAD_TEST_PYTHON_VERSION
 
 class LoadTestsBuilder {
-  final static String DOCKER_CONTAINER_REGISTRY = 'gcr.io/apache-beam-testing/beam_portability'
-  final static String DOCKER_CONTAINER_REGISTRY_SNAPSHOTS = 'gcr.io/apache-beam-testing/beam-sdk'
-  final static String GO_SDK_CONTAINER = "${DOCKER_CONTAINER_REGISTRY_SNAPSHOTS}/beam_go_sdk:latest"
+  final static String DOCKER_CONTAINER_REGISTRY = 'gcr.io/apache-beam-testing/beam-sdk'
+  final static String GO_SDK_CONTAINER = "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest"
   final static String DOCKER_BEAM_SDK_IMAGE = "beam_python${LOAD_TEST_PYTHON_VERSION}_sdk:latest"
+  final static String DOCKER_BEAM_JOBSERVER = 'gcr.io/apache-beam-testing/beam_portability'
 
   static void loadTests(scope, CommonTestProperties.SDK sdk, List testConfigurations, String test, String mode,
       List<String> jobSpecificSwitches = null) {
@@ -43,7 +43,8 @@ class LoadTestsBuilder {
 
 
   static void loadTest(context, String title, Runner runner, SDK sdk, Map<String, ?> options,
-      String mainClass, List<String> jobSpecificSwitches = null, String requirementsTxtFile = null) {
+      String mainClass, List<String> jobSpecificSwitches = null, String requirementsTxtFile = null,
+      String pythonVersion = null) {
     options.put('runner', runner.option)
     InfluxDBCredentialsHelper.useCredentials(context)
 
@@ -52,7 +53,7 @@ class LoadTestsBuilder {
       gradle {
         rootBuildScriptDir(commonJobProperties.checkoutDir)
         setGradleTask(delegate, runner, sdk, options, mainClass,
-            jobSpecificSwitches, requirementsTxtFile)
+            jobSpecificSwitches, requirementsTxtFile, pythonVersion)
         commonJobProperties.setGradleSwitches(delegate)
       }
     }
@@ -92,7 +93,8 @@ class LoadTestsBuilder {
   }
 
   private static void setGradleTask(context, Runner runner, SDK sdk, Map<String, ?> options,
-      String mainClass, List<String> jobSpecificSwitches, String requirementsTxtFile = null) {
+      String mainClass, List<String> jobSpecificSwitches, String requirementsTxtFile = null,
+      String pythonVersion = null) {
     context.tasks(getGradleTaskName(sdk))
     context.switches("-PloadTest.mainClass=\"${mainClass}\"")
     context.switches("-Prunner=${runner.getDependencyBySDK(sdk)}")
@@ -107,7 +109,12 @@ class LoadTestsBuilder {
     }
 
     if (sdk == SDK.PYTHON) {
-      context.switches("-PpythonVersion=${LOAD_TEST_PYTHON_VERSION}")
+      if (pythonVersion == null) {
+        context.switches("-PpythonVersion=${LOAD_TEST_PYTHON_VERSION}")
+      }
+      else {
+        context.switches("-PpythonVersion=${pythonVersion}")
+      }
     }
   }
 

@@ -53,6 +53,16 @@ export class PipelineResult {
   }
 }
 
+/**
+ * Creates a `Runner` object with the given set of options.
+ *
+ * The exact type of runner to be created can be specified by the special
+ * `runner` option, e.g. `createRunner({runner: "direct"})` would create
+ * a direct runner.  If no runner option is specified, the "default" runner
+ * is used, which runs what pipelines it can on the direct runner, and
+ * otherwise falls back to the universal runner (e.g. if cross-language
+ * transforms, non-trivial windowing, etc. are used).
+ */
 export function createRunner(options: any = {}): Runner {
   let runnerConstructor: (any) => Runner;
   if (options.runner === undefined || options.runner === "default") {
@@ -73,7 +83,11 @@ export function createRunner(options: any = {}): Runner {
 
 /**
  * A Runner is the object that takes a pipeline definition and actually
- * executes, e.g. locally or on a distributed system.
+ * executes, e.g. locally or on a distributed system, by invoking its
+ * `run` or `runAsync` method.
+ *
+ * Runners are generally created using the `createRunner` method in this
+ * same module.
  */
 export abstract class Runner {
   /**

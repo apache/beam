@@ -32,12 +32,12 @@ The upgrading of the vendored dependencies should be performed in two steps:
 The [linkage tool](https://lists.apache.org/thread.html/eb5d95b9a33d7e32dc9bcd0f7d48ba8711d42bd7ed03b9cf0f1103f1%40%3Cdev.beam.apache.org%3E)
 is useful for the vendored dependency upgrades. It reports the linkage errors across multiple Apache Beam artifact ids.
 
-For example, when we upgrade the version of gRPC to 1.48.1 and the version of the vendored gRPC is 0.1-SNAPSHOT,
+For example, when we upgrade the version of gRPC to 1.54.0 and the version of the vendored gRPC is 0.1-SNAPSHOT,
 we could run the linkage tool as following:
 
 ```
-$ ./gradlew -p vendor/grpc-1_48_1 publishMavenJavaPublicationToMavenLocal -Ppublishing -PvendoredDependenciesOnly
-$ ./gradlew -PvendoredDependenciesOnly -Ppublishing -PjavaLinkageArtifactIds=beam-vendor-grpc-1_48_1:0.1-SNAPSHOT :checkJavaLinkage
+$ ./gradlew -p vendor/grpc-1_54_0 publishMavenJavaPublicationToMavenLocal -Ppublishing -PvendoredDependenciesOnly
+$ ./gradlew -PvendoredDependenciesOnly -Ppublishing -PjavaLinkageArtifactIds=beam-vendor-grpc-1_54_0:0.1-SNAPSHOT :checkJavaLinkage
 ```
 
 ### Known Linkage Errors in the Vendored gRPC Dependencies
@@ -86,12 +86,12 @@ Steps:
    copy to the `tempLib` folder in Beam:
 
 ```
-./gradlew -p vendor/grpc-1_48_1 publishMavenJavaPublicationToMavenLocal -Ppublishing -PvendoredDependenciesOnly
+./gradlew -p vendor/grpc-1_54_0 publishMavenJavaPublicationToMavenLocal -Ppublishing -PvendoredDependenciesOnly
 
 mkdir -p tempLib/org/apache/beam
 
 # Copy files (jar/poms/metadata) to your beam repository
-cp -R ~/.m2/repository/org/apache/beam/beam-vendor-grpc-1_48_1/ \
+cp -R ~/.m2/repository/org/apache/beam/beam-vendor-grpc-1_54_0/ \
       tempLib/org/apache/beam
 ```
 

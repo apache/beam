@@ -129,6 +129,9 @@ PRIMITIVE_TO_ATOMIC_TYPE.update({
 
 _LOGGER = logging.getLogger(__name__)
 
+# Serialized schema_pb2.Schema w/o id to id.
+_SCHEMA_ID_CACHE = {}
+
 
 def named_fields_to_schema(
     names_and_types: Union[Dict[str, type], Sequence[Tuple[str, type]]],
@@ -143,10 +146,7 @@ def named_fields_to_schema(
   if isinstance(names_and_types, dict):
     names_and_types = names_and_types.items()
 
-  if schema_id is None:
-    schema_id = schema_registry.generate_new_id()
-
-  return schema_pb2.Schema(
+  schema = schema_pb2.Schema(
       fields=[
           schema_pb2.Field(
               name=name,
@@ -159,8 +159,16 @@ def named_fields_to_schema(
       ],
       options=[
           option_to_runner_api(option_tuple) for option_tuple in schema_options
-      ],
-      id=schema_id)
+      ])
+
+  if schema_id is None:
+    key = schema.SerializeToString()
+    if key not in _SCHEMA_ID_CACHE:
+      _SCHEMA_ID_CACHE[key] = schema_registry.generate_new_id()
+    schema_id = _SCHEMA_ID_CACHE[key]
+
+  schema.id = schema_id
+  return schema
 
 
 def named_fields_from_schema(
@@ -283,7 +291,13 @@ class SchemaTranslation(object):
       result.nullable = True
       return result
 
-    elif _safe_issubclass(type_, Sequence):
+    elif type_ == range:
+      return schema_pb2.FieldType(
+          array_type=schema_pb2.ArrayType(
+              element_type=schema_pb2.FieldType(
+                  atomic_type=PRIMITIVE_TO_ATOMIC_TYPE[int])))
+
+    elif _safe_issubclass(type_, Sequence) and not _safe_issubclass(type_, str):
       element_type = self.typing_to_runner_api(_get_args(type_)[0])
       return schema_pb2.FieldType(
           array_type=schema_pb2.ArrayType(element_type=element_type))
@@ -522,6 +536,7 @@ class SchemaTranslation(object):
         user_type,
         '__reduce__',
         _named_tuple_reduce_method(schema.SerializeToString()))
+    setattr(user_type, row_type._BEAM_SCHEMA_ID, schema.id)
 
     self.schema_registry.add(user_type, schema)
     coders.registry.register_coder(user_type, coders.RowCoder)
@@ -558,8 +573,6 @@ def schema_from_element_type(element_type: type) -> schema_pb2.Schema:
 
   Returns schema as a list of (name, python_type) tuples"""
   if isinstance(element_type, row_type.RowTypeConstraint):
-    # TODO(BEAM-10722): Make sure beam.Row generated schemas are registered and
-    # de-duped
     return named_fields_to_schema(element_type._fields)
   elif match_is_named_tuple(element_type):
     return named_tuple_to_schema(element_type)

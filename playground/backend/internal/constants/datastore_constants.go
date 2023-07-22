@@ -15,7 +15,7 @@
 
 package constants
 
-//Cloud Datastore constants
+// Cloud Datastore constants
 const (
 	Namespace             = "Playground"
 	DatastoreNamespaceKey = "DATASTORE_NAMESPACE"
@@ -31,6 +31,7 @@ const (
 	FileKind     = "pg_files"
 	ExampleKind  = "pg_examples"
 	PCObjectKind = "pg_pc_objects"
+	DatasetKind  = "pg_datasets"
 
 	PCOutputType = "OUTPUT"
 	PCLogType    = "LOG"

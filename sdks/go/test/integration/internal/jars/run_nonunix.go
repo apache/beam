@@ -21,6 +21,7 @@ package jars
 
 import (
 	"fmt"
+	"os/exec"
 	"runtime"
 	"time"
 )
@@ -29,7 +30,7 @@ import (
 // non-unix version does not handle timeout durations.
 func getTimeoutRunner() runCallback {
 	// Wrap run with error handling for OS that does not support timeout duration.
-	return func(dur time.Duration, jar string, args ...string) (*Process, error) {
+	return func(dur time.Duration, jar string, args ...string) (Process, error) {
 		// Currently, we hard-fail here if a duration is provided but timeout is unsupported. If
 		// we ever decide to soft-fail instead, this is the code to change.
 		if dur != 0 {

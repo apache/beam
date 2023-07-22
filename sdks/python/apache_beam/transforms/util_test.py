@@ -44,6 +44,7 @@ from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.pvalue import AsList
 from apache_beam.pvalue import AsSingleton
 from apache_beam.runners import pipeline_context
+from apache_beam.testing.synthetic_pipeline import SyntheticSource
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import SortLists
@@ -288,7 +289,23 @@ class BatchElementsTest(unittest.TestCase):
     batch_estimator = util._BatchSizeEstimator(
         target_batch_overhead=None, target_batch_duration_secs=10, clock=clock)
     batch_duration = lambda batch_size: 1 + .7 * batch_size
-    # 1 + 12 * .7 is as close as we can get to 10 as possible.
+    # 14 * .7 is as close as we can get to 10 as possible.
+    expected_sizes = [1, 2, 4, 8, 14, 14, 14]
+    actual_sizes = []
+    for _ in range(len(expected_sizes)):
+      actual_sizes.append(batch_estimator.next_batch_size())
+      with batch_estimator.record_time(actual_sizes[-1]):
+        clock.sleep(batch_duration(actual_sizes[-1]))
+    self.assertEqual(expected_sizes, actual_sizes)
+
+  def test_target_duration_including_fixed_cost(self):
+    clock = FakeClock()
+    batch_estimator = util._BatchSizeEstimator(
+        target_batch_overhead=None,
+        target_batch_duration_secs_including_fixed_cost=10,
+        clock=clock)
+    batch_duration = lambda batch_size: 1 + .7 * batch_size
+    # 1 + 14 * .7 is as close as we can get to 10 as possible.
     expected_sizes = [1, 2, 4, 8, 12, 12, 12]
     actual_sizes = []
     for _ in range(len(expected_sizes)):
@@ -885,6 +902,19 @@ class GroupIntoBatchesTest(unittest.TestCase):
                       GroupIntoBatchesTest.NUM_ELEMENTS /
                       GroupIntoBatchesTest.BATCH_SIZE))
           ]))
+
+  def test_in_global_window_with_synthetic_source(self):
+    with beam.Pipeline() as pipeline:
+      collection = (
+          pipeline
+          | beam.io.Read(
+              SyntheticSource({
+                  "numRecords": 10, "keySizeBytes": 1, "valueSizeBytes": 1
+              }))
+          | "identical keys" >> beam.Map(lambda x: (None, x[1]))
+          | "Group key" >> beam.GroupIntoBatches(2)
+          | "count size" >> beam.Map(lambda x: len(x[1])))
+      assert_that(collection, equal_to([2, 2, 2, 2, 2]))
 
   def test_with_sharded_key_in_global_window(self):
     with TestPipeline() as pipeline:

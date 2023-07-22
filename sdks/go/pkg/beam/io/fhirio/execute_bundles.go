@@ -15,7 +15,6 @@
 
 // Package fhirio provides an API for reading and writing resources to Google
 // Cloud Healthcare Fhir stores.
-// Experimental.
 package fhirio
 
 import (
@@ -79,8 +78,8 @@ func (fn *executeBundleFn) ProcessElement(ctx context.Context, inputBundleBody s
 
 func (fn *executeBundleFn) processResponseBody(ctx context.Context, body string, emitSuccess, emitFailure func(string)) {
 	var bodyFields struct {
-		Type    string        `json:"type"`
-		Entries []interface{} `json:"entry"`
+		Type    string `json:"type"`
+		Entries []any  `json:"entry"`
 	}
 
 	err := json.NewDecoder(strings.NewReader(body)).Decode(&bodyFields)

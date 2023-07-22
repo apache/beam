@@ -59,6 +59,7 @@ env:
   PORT_GET_USER_PROGRESS: 8804
   PORT_POST_UNIT_COMPLETE: 8805
   PORT_POST_USER_CODE: 8806
+  PORT_POST_DELETE_PROGRESS: 8807
 
 
 jobs:
@@ -69,7 +70,7 @@ jobs:
         working-directory: ./learning/tour-of-beam/backend
     steps:
       - uses: actions/checkout@v3
-      - uses: actions/setup-go@v3
+      - uses: actions/setup-go@v4
         with:
           # pin to the biggest Go version supported by Cloud Functions runtime
           go-version: '1.16'
@@ -80,7 +81,7 @@ jobs:
             cache-read-only: false
 
       - name: Build Playground router image
-        run: ./gradlew playground:backend:containers:router:docker
+        run: ./gradlew -i playground:backend:containers:router:docker
         working-directory: ${{ env.GITHUB_WORKSPACE }}
 
       # 1. Start emulators
@@ -102,6 +103,8 @@ jobs:
         run: PORT=${{ env.PORT_POST_UNIT_COMPLETE }} FUNCTION_TARGET=postUnitComplete ./tob_function &
       - name: Run postUserCode in background
         run: PORT=${{ env.PORT_POST_USER_CODE }} FUNCTION_TARGET=postUserCode ./tob_function &
+      - name: Run postDeleteProgress in background
+        run: PORT=${{ env.PORT_POST_DELETE_PROGRESS }} FUNCTION_TARGET=postDeleteProgress ./tob_function &
 
       # 3. Load data in datastore: run CD step on samples/learning-content
       - name: Run CI/CD to populate datastore
@@ -110,7 +113,7 @@ jobs:
       # 4. run integration tests
       - name: Go integration tests
         run: go test -v --tags integration ./integration_tests/...
-      
+
       - name: Stop emulators
         if: always()
         run: docker-compose down

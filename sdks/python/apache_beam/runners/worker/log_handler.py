@@ -69,8 +69,6 @@ LOGENTRY_TO_LOG_LEVEL_MAP = {
     beam_fn_api_pb2.LogEntry.Severity.UNSPECIFIED: logging.NOTSET,
 }
 
-# This module is experimental. No backwards-compatibility guarantees.
-
 
 class FnApiLogRecordHandler(logging.Handler):
   """A handler that writes log records to the fn API."""
@@ -112,7 +110,7 @@ class FnApiLogRecordHandler(logging.Handler):
     return self._logging_stub.Logging(self._write_log_entries())
 
   def map_log_level(self, level):
-    # type: (int) -> beam_fn_api_pb2.LogEntry.Severity.Enum
+    # type: (int) -> beam_fn_api_pb2.LogEntry.Severity.Enum.ValueType
     try:
       return LOG_LEVEL_TO_LOGENTRY_MAP[level]
     except KeyError:
@@ -125,7 +123,13 @@ class FnApiLogRecordHandler(logging.Handler):
     # type: (logging.LogRecord) -> None
     log_entry = beam_fn_api_pb2.LogEntry()
     log_entry.severity = self.map_log_level(record.levelno)
-    log_entry.message = self.format(record)
+    try:
+      log_entry.message = self.format(record)
+    except Exception:
+      # record.msg could be an arbitrary object, convert it to a string first.
+      log_entry.message = (
+          "Failed to format '%s' with args '%s' during logging." %
+          (str(record.msg), record.args))
     log_entry.thread = record.threadName
     log_entry.log_location = '%s:%s' % (
         record.pathname or record.module, record.lineno or record.funcName)

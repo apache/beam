@@ -31,12 +31,18 @@ configurations {
 }
 
 dependencies {
-  implementation library.java.vendored_guava_26_0_jre
+  implementation project(path: ":model:job-management", configuration: "shadow")
+  implementation project(path: ":model:pipeline", configuration: "shadow")
   implementation project(":runners:java-fn-execution")
   implementation project(":runners:java-job-service")
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation project(path: ":sdks:java:harness", configuration: "shadow")
   implementation library.java.hamcrest
   permitUnusedDeclared library.java.hamcrest
+  implementation library.java.joda_time
+  implementation library.java.slf4j_api
+  implementation library.java.vendored_grpc_1_54_0
+  implementation library.java.vendored_guava_26_0_jre
 
   testImplementation project(path: ":runners:core-construction-java", configuration: "testRuntimeMigration")
   testImplementation library.java.hamcrest
@@ -148,10 +154,12 @@ def createUlrValidatesRunnerTask = { name, environmentType, dockerImageTask = ""
       excludeCategories 'org.apache.beam.sdk.testing.UsesGaugeMetrics'
       excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
       excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesMultimapState'
       excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
       excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
       excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
       excludeCategories 'org.apache.beam.sdk.testing.UsesTimersInParDo'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesTriggeredSideInputs'
     }
     filter {
       // There is not currently a category for excluding these _only_ in committed mode

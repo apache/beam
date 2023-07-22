@@ -23,6 +23,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
+import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
@@ -34,6 +35,7 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.ShardedKeyCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.SchemaUpdateOption;
@@ -74,6 +76,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -113,6 +116,10 @@ class BatchLoads<DestinationT, ElementT>
   // If user triggering is supplied, we will trigger the file write after this many records are
   // written.
   static final int FILE_TRIGGERING_RECORD_COUNT = 500000;
+  // If user triggering is supplied, we will trigger the file write after this many bytes are
+  // written.
+  static final int DEFAULT_FILE_TRIGGERING_BYTE_COUNT =
+      AsyncWriteChannelOptions.UPLOAD_CHUNK_SIZE_DEFAULT; // 64MiB as of now
 
   // If using auto-sharding for unbounded data, we batch the records before triggering file write
   // to avoid generating too many small files.
@@ -134,6 +141,14 @@ class BatchLoads<DestinationT, ElementT>
   // the table, even if there is no data in it.
   private final boolean singletonTable;
   private final DynamicDestinations<?, DestinationT> dynamicDestinations;
+
+  /**
+   * destinationsWithMatching wraps the dynamicDestinations redirects the schema, partitioning, etc
+   * to the final destination tables, if the final destination table exists already (and we're
+   * appending to it). It is used in writing to temp tables and updating final table schema.
+   */
+  private DynamicDestinations<?, DestinationT> destinationsWithMatching;
+
   private final Coder<DestinationT> destinationCoder;
   private int maxNumWritersPerBundle;
   private long maxFileSize;
@@ -172,6 +187,9 @@ class BatchLoads<DestinationT, ElementT>
     this.createDisposition = createDisposition;
     this.singletonTable = singletonTable;
     this.dynamicDestinations = dynamicDestinations;
+    this.destinationsWithMatching =
+        DynamicDestinationsHelpers.matchTableDynamicDestinations(
+            dynamicDestinations, bigQueryServices);
     this.destinationCoder = destinationCoder;
     this.maxNumWritersPerBundle = DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE;
     this.maxFileSize = DEFAULT_MAX_FILE_SIZE;
@@ -194,6 +212,15 @@ class BatchLoads<DestinationT, ElementT>
 
   void setSchemaUpdateOptions(Set<SchemaUpdateOption> schemaUpdateOptions) {
     this.schemaUpdateOptions = schemaUpdateOptions;
+    // In the case schemaUpdateOptions are specified by the user, do not wrap dynamicDestinations
+    // to respect those options.
+    if (schemaUpdateOptions != null && !schemaUpdateOptions.isEmpty()) {
+      this.destinationsWithMatching = dynamicDestinations;
+    } else {
+      this.destinationsWithMatching =
+          DynamicDestinationsHelpers.matchTableDynamicDestinations(
+              dynamicDestinations, bigQueryServices);
+    }
   }
 
   void setTestServices(BigQueryServices bigQueryServices) {
@@ -257,8 +284,8 @@ class BatchLoads<DestinationT, ElementT>
     }
     checkArgument(
         !Strings.isNullOrEmpty(tempLocation),
-        "BigQueryIO.Write needs a GCS temp location to store temp files."
-            + "This can be set by withCustomGcsTempLocation() in the Builder"
+        "BigQueryIO.Write needs a GCS temp location to store temp files. "
+            + "This can be set by withCustomGcsTempLocation() in the Builder "
             + "or through the fallback pipeline option --tempLocation.");
     if (bigQueryServices == null) {
       try {
@@ -280,6 +307,8 @@ class BatchLoads<DestinationT, ElementT>
     final PCollectionView<String> loadJobIdPrefixView = createJobIdPrefixView(p, JobType.LOAD);
     final PCollectionView<String> tempLoadJobIdPrefixView =
         createJobIdPrefixView(p, JobType.TEMP_TABLE_LOAD);
+    final PCollectionView<String> zeroLoadJobIdPrefixView =
+        createJobIdPrefixView(p, JobType.SCHEMA_UPDATE);
     final PCollectionView<String> copyJobIdPrefixView = createJobIdPrefixView(p, JobType.COPY);
     final PCollectionView<String> tempFilePrefixView =
         createTempFilePrefixView(p, loadJobIdPrefixView);
@@ -360,7 +389,7 @@ class BatchLoads<DestinationT, ElementT>
         writeTempTables(partitions.get(multiPartitionsTag), tempLoadJobIdPrefixView);
 
     List<PCollectionView<?>> sideInputsForUpdateSchema =
-        Lists.newArrayList(tempLoadJobIdPrefixView);
+        Lists.newArrayList(zeroLoadJobIdPrefixView);
     sideInputsForUpdateSchema.addAll(dynamicDestinations.getSideInputs());
 
     PCollection<TableDestination> successfulMultiPartitionWrites =
@@ -378,14 +407,14 @@ class BatchLoads<DestinationT, ElementT>
                 ParDo.of(
                         new UpdateSchemaDestination<DestinationT>(
                             bigQueryServices,
-                            tempLoadJobIdPrefixView,
+                            zeroLoadJobIdPrefixView,
                             loadJobProjectId,
                             WriteDisposition.WRITE_APPEND,
                             CreateDisposition.CREATE_NEVER,
                             maxRetryJobs,
                             kmsKey,
                             schemaUpdateOptions,
-                            dynamicDestinations))
+                            destinationsWithMatching))
                     .withSideInputs(sideInputsForUpdateSchema))
             .apply(
                 "WriteRenameTriggered",
@@ -419,6 +448,8 @@ class BatchLoads<DestinationT, ElementT>
     final PCollectionView<String> loadJobIdPrefixView = createJobIdPrefixView(p, JobType.LOAD);
     final PCollectionView<String> tempLoadJobIdPrefixView =
         createJobIdPrefixView(p, JobType.TEMP_TABLE_LOAD);
+    final PCollectionView<String> zeroLoadJobIdPrefixView =
+        createJobIdPrefixView(p, JobType.SCHEMA_UPDATE);
     final PCollectionView<String> copyJobIdPrefixView = createJobIdPrefixView(p, JobType.COPY);
     final PCollectionView<String> tempFilePrefixView =
         createTempFilePrefixView(p, loadJobIdPrefixView);
@@ -464,7 +495,7 @@ class BatchLoads<DestinationT, ElementT>
         writeSinglePartition(partitions.get(singlePartitionTag), loadJobIdPrefixView);
 
     List<PCollectionView<?>> sideInputsForUpdateSchema =
-        Lists.newArrayList(tempLoadJobIdPrefixView);
+        Lists.newArrayList(zeroLoadJobIdPrefixView);
     sideInputsForUpdateSchema.addAll(dynamicDestinations.getSideInputs());
 
     PCollection<TableDestination> successfulMultiPartitionWrites =
@@ -474,14 +505,14 @@ class BatchLoads<DestinationT, ElementT>
                 ParDo.of(
                         new UpdateSchemaDestination<DestinationT>(
                             bigQueryServices,
-                            tempLoadJobIdPrefixView,
+                            zeroLoadJobIdPrefixView,
                             loadJobProjectId,
                             WriteDisposition.WRITE_APPEND,
                             CreateDisposition.CREATE_NEVER,
                             maxRetryJobs,
                             kmsKey,
                             schemaUpdateOptions,
-                            dynamicDestinations))
+                            destinationsWithMatching))
                     .withSideInputs(sideInputsForUpdateSchema))
             .apply(
                 "WriteRenameUntriggered",
@@ -641,6 +672,10 @@ class BatchLoads<DestinationT, ElementT>
         options.getMaxBufferingDurationMilliSec() > 0
             ? Duration.millis(options.getMaxBufferingDurationMilliSec())
             : FILE_TRIGGERING_BATCHING_DURATION;
+    GcsOptions gcsOptions = input.getPipeline().getOptions().as(GcsOptions.class);
+    int byteSize =
+        MoreObjects.firstNonNull(
+            gcsOptions.getGcsUploadBufferSizeBytes(), DEFAULT_FILE_TRIGGERING_BYTE_COUNT);
     // In contrast to fixed sharding with user trigger, here we use a global window with default
     // trigger and rely on GroupIntoBatches transform to group, batch and at the same time
     // parallelize properly. We also ensure that the files are written if a threshold number of
@@ -649,6 +684,7 @@ class BatchLoads<DestinationT, ElementT>
     return input
         .apply(
             GroupIntoBatches.<DestinationT, ElementT>ofSize(FILE_TRIGGERING_RECORD_COUNT)
+                .withByteSize(byteSize)
                 .withMaxBufferingDuration(maxBufferingDuration)
                 .withShardedKey())
         .setCoder(
@@ -734,7 +770,7 @@ class BatchLoads<DestinationT, ElementT>
                 WriteDisposition.WRITE_EMPTY,
                 CreateDisposition.CREATE_IF_NEEDED,
                 sideInputs,
-                dynamicDestinations,
+                destinationsWithMatching,
                 loadJobProjectId,
                 maxRetryJobs,
                 ignoreUnknownValues,
@@ -828,6 +864,8 @@ class BatchLoads<DestinationT, ElementT>
         null,
         new TupleTag<>("successfulInserts"),
         successfulWrites,
+        null,
+        null,
         null,
         null);
   }

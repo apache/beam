@@ -38,6 +38,29 @@ spec:
            value: "remote"
          - name: CACHE_ADDRESS
            value: {{ .Values.redis_ip }}
+         - name: NUM_PARALLEL_JOBS
+           value: "6"
+         - name: DATASTORE_NAMESPACE
+           value: {{ .Values.datastore_name }}
+       livenessProbe:
+         httpGet:
+           path: /liveness
+           port: {{ .Values.healthcheck.port }}
+         initialDelaySeconds: {{ .Values.healthcheck.livInitialDelaySeconds }}
+         periodSeconds: {{ .Values.healthcheck.livPeriodSeconds }}
+       readinessProbe:
+         httpGet:
+           path: /readiness
+           port: {{ .Values.healthcheck.port }}
+         initialDelaySeconds: {{ .Values.healthcheck.readInitialDelaySeconds }}
+         periodSeconds: {{ .Values.healthcheck.readPeriodSeconds }}
+       resources:
+         requests:
+           memory: "6000Mi"
+           cpu: "1000m"
+         limits:
+           cpu: "8000m"
+           memory: "16000Mi"
   replicas: {{ .Values.replicaCount  }}
   selector:
     matchLabels:

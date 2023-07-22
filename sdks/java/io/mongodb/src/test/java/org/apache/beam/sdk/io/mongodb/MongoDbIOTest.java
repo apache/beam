@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.mongodb;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.greaterThan;
 import static org.junit.Assert.assertEquals;
 
 import com.mongodb.MongoClient;
@@ -33,6 +35,7 @@ import de.flapdoodle.embed.mongo.config.Storage;
 import de.flapdoodle.embed.mongo.distribution.Version;
 import de.flapdoodle.embed.process.runtime.Network;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.io.common.NetworkTestHelper;
 import org.apache.beam.sdk.testing.PAssert;
@@ -66,13 +69,15 @@ public class MongoDbIOTest {
   private static final Logger LOG = LoggerFactory.getLogger(MongoDbIOTest.class);
 
   @ClassRule public static final TemporaryFolder MONGODB_LOCATION = new TemporaryFolder();
-  private static final String DATABASE = "beam";
-  private static final String COLLECTION = "test";
+  private static final String DATABASE_NAME = "beam";
+  private static final String COLLECTION_NAME = "test";
+  private static final String VIEW_NAME = "test_view";
 
   private static final MongodStarter mongodStarter = MongodStarter.getDefaultInstance();
   private static MongodExecutable mongodExecutable;
   private static MongodProcess mongodProcess;
   private static MongoClient client;
+  private static MongoDatabase database;
 
   private static int port;
 
@@ -100,11 +105,14 @@ public class MongoDbIOTest {
     mongodExecutable = mongodStarter.prepare(mongodConfig);
     mongodProcess = mongodExecutable.start();
     client = new MongoClient("localhost", port);
+    database = client.getDatabase(DATABASE_NAME);
 
     LOG.info("Insert test data");
     List<Document> documents = createDocuments(1000, false);
-    MongoCollection<Document> collection = getCollection(COLLECTION);
+    MongoCollection<Document> collection = database.getCollection(COLLECTION_NAME);
     collection.insertMany(documents);
+
+    database.createView(VIEW_NAME, COLLECTION_NAME, Collections.emptyList());
   }
 
   @AfterClass
@@ -182,10 +190,10 @@ public class MongoDbIOTest {
     MongoDbIO.Read spec =
         MongoDbIO.read()
             .withUri("mongodb://localhost:" + port)
-            .withDatabase(DATABASE)
-            .withCollection(COLLECTION)
+            .withDatabase(DATABASE_NAME)
+            .withCollection(COLLECTION_NAME)
             .withQueryFn(AggregationQuery.create().withMongoDbPipeline(aggregates));
-    MongoDatabase database = client.getDatabase(DATABASE);
+
     List<Document> buckets = MongoDbIO.BoundedMongoDbSource.buildAutoBuckets(database, spec);
     assertEquals(10, buckets.size());
   }
@@ -196,8 +204,8 @@ public class MongoDbIOTest {
         pipeline.apply(
             MongoDbIO.read()
                 .withUri("mongodb://localhost:" + port)
-                .withDatabase(DATABASE)
-                .withCollection(COLLECTION));
+                .withDatabase(DATABASE_NAME)
+                .withCollection(COLLECTION_NAME));
 
     PAssert.thatSingleton(output.apply("Count All", Count.globally())).isEqualTo(1000L);
 
@@ -217,13 +225,37 @@ public class MongoDbIOTest {
   }
 
   @Test
+  public void testGetSizeCollection() {
+    MongoDbIO.BoundedMongoDbSource source =
+        new MongoDbIO.BoundedMongoDbSource(
+            MongoDbIO.read()
+                .withUri("mongodb://localhost:" + port)
+                .withDatabase(DATABASE_NAME)
+                .withCollection(COLLECTION_NAME));
+
+    assertThat(source.getEstimatedSizeBytes(pipeline.getOptions()), greaterThan(0L));
+  }
+
+  @Test
+  public void testGetSizeView() {
+    MongoDbIO.BoundedMongoDbSource source =
+        new MongoDbIO.BoundedMongoDbSource(
+            MongoDbIO.read()
+                .withUri("mongodb://localhost:" + port)
+                .withDatabase(DATABASE_NAME)
+                .withCollection(VIEW_NAME));
+
+    assertEquals(0, source.getEstimatedSizeBytes(pipeline.getOptions()));
+  }
+
+  @Test
   public void testReadWithCustomConnectionOptions() {
     MongoDbIO.Read read =
         MongoDbIO.read()
             .withUri("mongodb://localhost:" + port)
             .withMaxConnectionIdleTime(10)
-            .withDatabase(DATABASE)
-            .withCollection(COLLECTION);
+            .withDatabase(DATABASE_NAME)
+            .withCollection(COLLECTION_NAME);
     assertEquals(10, read.maxConnectionIdleTime());
 
     PCollection<Document> documents = pipeline.apply(read);
@@ -251,8 +283,8 @@ public class MongoDbIOTest {
         pipeline.apply(
             MongoDbIO.read()
                 .withUri("mongodb://localhost:" + port)
-                .withDatabase(DATABASE)
-                .withCollection(COLLECTION)
+                .withDatabase(DATABASE_NAME)
+                .withCollection(COLLECTION_NAME)
                 .withQueryFn(FindQuery.create().withFilters(Filters.eq("scientist", "Einstein"))));
 
     PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(100L);
@@ -266,8 +298,8 @@ public class MongoDbIOTest {
         pipeline.apply(
             MongoDbIO.read()
                 .withUri("mongodb://localhost:" + port)
-                .withDatabase(DATABASE)
-                .withCollection(COLLECTION)
+                .withDatabase(DATABASE_NAME)
+                .withCollection(COLLECTION_NAME)
                 .withNumSplits(10)
                 .withQueryFn(
                     FindQuery.create()
@@ -291,8 +323,8 @@ public class MongoDbIOTest {
         pipeline.apply(
             MongoDbIO.read()
                 .withUri("mongodb://localhost:" + port)
-                .withDatabase(DATABASE)
-                .withCollection(COLLECTION)
+                .withDatabase(DATABASE_NAME)
+                .withCollection(COLLECTION_NAME)
                 .withQueryFn(AggregationQuery.create().withMongoDbPipeline(aggregates)));
 
     PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(300L);
@@ -313,8 +345,8 @@ public class MongoDbIOTest {
         pipeline.apply(
             MongoDbIO.read()
                 .withUri("mongodb://localhost:" + port)
-                .withDatabase(DATABASE)
-                .withCollection(COLLECTION)
+                .withDatabase(DATABASE_NAME)
+                .withCollection(COLLECTION_NAME)
                 .withQueryFn(AggregationQuery.create().withMongoDbPipeline(aggregates)));
 
     PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(10L);
@@ -332,7 +364,7 @@ public class MongoDbIOTest {
         .apply(
             MongoDbIO.write()
                 .withUri("mongodb://localhost:" + port)
-                .withDatabase(DATABASE)
+                .withDatabase(DATABASE_NAME)
                 .withCollection(collectionName));
 
     pipeline.run();
@@ -352,7 +384,7 @@ public class MongoDbIOTest {
         .apply(
             MongoDbIO.write()
                 .withUri("mongodb://localhost:" + port)
-                .withDatabase(DATABASE)
+                .withDatabase(DATABASE_NAME)
                 .withOrdered(false)
                 .withCollection(collectionName));
     pipeline.run();
@@ -366,7 +398,7 @@ public class MongoDbIOTest {
     final int numElements = 100;
     Document doc = Document.parse("{\"id\":1,\"scientist\":\"Updated\",\"country\":\"India\"}");
 
-    getCollection(collectionName).insertMany(createDocuments(numElements, true));
+    database.getCollection(collectionName).insertMany(createDocuments(numElements, true));
     assertEquals(numElements, countElements(collectionName));
     List<Document> docs = new ArrayList<>();
     docs.add(doc);
@@ -375,7 +407,7 @@ public class MongoDbIOTest {
         .apply(
             MongoDbIO.write()
                 .withUri("mongodb://localhost:" + port)
-                .withDatabase(DATABASE)
+                .withDatabase(DATABASE_NAME)
                 .withCollection(collectionName)
                 .withUpdateConfiguration(
                     UpdateConfiguration.create()
@@ -385,7 +417,7 @@ public class MongoDbIOTest {
                             UpdateField.fieldUpdate("$set", "country", "country"))));
     pipeline.run();
 
-    Document out = getCollection(collectionName).find(new Document("_id", 1)).first();
+    Document out = database.getCollection(collectionName).find(new Document("_id", 1)).first();
     assertEquals("Updated", out.get("scientist"));
     assertEquals("India", out.get("country"));
   }
@@ -432,12 +464,7 @@ public class MongoDbIOTest {
   }
 
   private static int countElements(final String collectionName) {
-    return Iterators.size(getCollection(collectionName).find().iterator());
-  }
-
-  private static MongoCollection<Document> getCollection(final String collectionName) {
-    MongoDatabase database = client.getDatabase(DATABASE);
-    return database.getCollection(collectionName);
+    return Iterators.size(database.getCollection(collectionName).find().iterator());
   }
 
   static class DocumentToKVFn extends SimpleFunction<Document, KV<String, Void>> {

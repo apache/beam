@@ -48,10 +48,10 @@ import org.slf4j.LoggerFactory;
  */
 @SuppressWarnings({
   "initialization.fields.uninitialized",
-  "method.invocation.invalid",
+  "method.invocation",
   "dereference.of.nullable",
-  "argument.type.incompatible",
-  "return.type.incompatible"
+  "argument",
+  "return"
 })
 public class SchemasUtils {
 

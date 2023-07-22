@@ -54,7 +54,7 @@ export function directRunner(options: Object = {}): Runner {
   return new DirectRunner(options);
 }
 
-export class DirectRunner extends Runner {
+class DirectRunner extends Runner {
   // All the operators for a given pipeline should share the same state.
   // This global mapping allows operators to look up a shared state object for
   // a given pipeline on deserialization.

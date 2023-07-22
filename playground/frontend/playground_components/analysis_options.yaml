@@ -16,6 +16,3 @@
 #  under the License.
 
 include: package:total_lints/app.yaml
-
-# Additional information about this file can be found at
-# https://dart.dev/guides/language/analysis-options

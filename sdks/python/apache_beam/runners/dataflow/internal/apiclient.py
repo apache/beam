@@ -26,6 +26,7 @@ Dataflow client utility functions."""
 #  --outdir=apache_beam/runners/dataflow/internal/clients/cloudbuild \
 #  --root_package=. client
 
+import ast
 import codecs
 from functools import partial
 import getpass
@@ -61,9 +62,9 @@ from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import WorkerOptions
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
+from apache_beam.runners.common import validate_pipeline_graph
 from apache_beam.runners.dataflow.internal import names
 from apache_beam.runners.dataflow.internal.clients import dataflow
-from apache_beam.runners.dataflow.internal.names import PropertyNames
 from apache_beam.runners.internal import names as shared_names
 from apache_beam.runners.portability.stager import Stager
 from apache_beam.transforms import DataflowDistributionCounter
@@ -81,64 +82,7 @@ _FNAPI_ENVIRONMENT_MAJOR_VERSION = '8'
 
 _LOGGER = logging.getLogger(__name__)
 
-_PYTHON_VERSIONS_SUPPORTED_BY_DATAFLOW = ['3.6', '3.7', '3.8', '3.9', '3.10']
-
-
-class Step(object):
-  """Wrapper for a dataflow Step protobuf."""
-  def __init__(self, step_kind, step_name, additional_properties=None):
-    self.step_kind = step_kind
-    self.step_name = step_name
-    self.proto = dataflow.Step(kind=step_kind, name=step_name)
-    self.proto.properties = {}
-    self._additional_properties = []
-
-    if additional_properties is not None:
-      for (n, v, t) in additional_properties:
-        self.add_property(n, v, t)
-
-  def add_property(self, name, value, with_type=False):
-    self._additional_properties.append((name, value, with_type))
-    self.proto.properties.additionalProperties.append(
-        dataflow.Step.PropertiesValue.AdditionalProperty(
-            key=name, value=to_json_value(value, with_type=with_type)))
-
-  def _get_outputs(self):
-    """Returns a list of all output labels for a step."""
-    outputs = []
-    for p in self.proto.properties.additionalProperties:
-      if p.key == PropertyNames.OUTPUT_INFO:
-        for entry in p.value.array_value.entries:
-          for entry_prop in entry.object_value.properties:
-            if entry_prop.key == PropertyNames.OUTPUT_NAME:
-              outputs.append(entry_prop.value.string_value)
-    return outputs
-
-  def __reduce__(self):
-    """Reduce hook for pickling the Step class more easily."""
-    return (Step, (self.step_kind, self.step_name, self._additional_properties))
-
-  def get_output(self, tag=None):
-    """Returns name if it is one of the outputs or first output if name is None.
-
-    Args:
-      tag: tag of the output as a string or None if we want to get the
-        name of the first output.
-
-    Returns:
-      The name of the output associated with the tag or the first output
-      if tag was None.
-
-    Raises:
-      ValueError: if the tag does not exist within outputs.
-    """
-    outputs = self._get_outputs()
-    if tag is None or len(outputs) == 1:
-      return outputs[0]
-    else:
-      if tag not in outputs:
-        raise ValueError('Cannot find named output: %s in %s.' % (tag, outputs))
-      return tag
+_PYTHON_VERSIONS_SUPPORTED_BY_DATAFLOW = ['3.8', '3.9', '3.10', '3.11']
 
 
 class Environment(object):
@@ -189,10 +133,7 @@ class Environment(object):
     if self.standard_options.streaming:
       job_type = 'FNAPI_STREAMING'
     else:
-      if _use_fnapi(options):
-        job_type = 'FNAPI_BATCH'
-      else:
-        job_type = 'PYTHON_BATCH'
+      job_type = 'FNAPI_BATCH'
     self.proto.version.additionalProperties.extend([
         dataflow.Environment.VersionValue.AdditionalProperty(
             key='job_type', value=to_json_value(job_type)),
@@ -203,17 +144,6 @@ class Environment(object):
     if job_type.startswith('FNAPI_'):
       self.debug_options.experiments = self.debug_options.experiments or []
 
-      if self.debug_options.lookup_experiment(
-          'runner_harness_container_image') or _use_unified_worker(options):
-        # Default image is not used if user provides a runner harness image.
-        # Default runner harness image is selected by the service for unified
-        # worker.
-        pass
-      else:
-        runner_harness_override = (get_runner_harness_container_image())
-        if runner_harness_override:
-          self.debug_options.add_experiment(
-              'runner_harness_container_image=' + runner_harness_override)
       debug_options_experiments = self.debug_options.experiments
       # Add use_multiple_sdk_containers flag if it's not already present. Do not
       # add the flag if 'no_use_multiple_sdk_containers' is present.
@@ -305,7 +235,7 @@ class Environment(object):
         container_image.capabilities.append(capability)
       pool.sdkHarnessContainerImages.append(container_image)
 
-    if not _use_fnapi(options) or not pool.sdkHarnessContainerImages:
+    if not pool.sdkHarnessContainerImages:
       pool.workerHarnessContainerImage = (
           get_container_image_from_options(options))
     elif len(pool.sdkHarnessContainerImages) == 1:
@@ -454,6 +384,7 @@ class Job(object):
 
   def __init__(self, options, proto_pipeline):
     self.options = options
+    validate_pipeline_graph(proto_pipeline)
     self.proto_pipeline = proto_pipeline
     self.google_cloud_options = options.view_as(GoogleCloudOptions)
     if not self.google_cloud_options.job_name:
@@ -514,12 +445,20 @@ class Job(object):
     # Labels.
     if self.google_cloud_options.labels:
       self.proto.labels = dataflow.Job.LabelsValue()
-      for label in self.google_cloud_options.labels:
-        parts = label.split('=', 1)
-        key = parts[0]
-        value = parts[1] if len(parts) > 1 else ''
-        self.proto.labels.additionalProperties.append(
-            dataflow.Job.LabelsValue.AdditionalProperty(key=key, value=value))
+      labels = self.google_cloud_options.labels
+      for label in labels:
+        if '{' in label:
+          label = ast.literal_eval(label)
+          for key, value in label.items():
+            self.proto.labels.additionalProperties.append(
+                dataflow.Job.LabelsValue.AdditionalProperty(
+                    key=key, value=value))
+        else:
+          parts = label.split('=', 1)
+          key = parts[0]
+          value = parts[1] if len(parts) > 1 else ''
+          self.proto.labels.additionalProperties.append(
+              dataflow.Job.LabelsValue.AdditionalProperty(key=key, value=value))
 
     # Client Request ID
     self.proto.clientRequestId = '{}-{}'.format(
@@ -553,10 +492,7 @@ class DataflowApplicationClient(object):
     self._root_staging_location = (
         root_staging_location or self.google_cloud_options.staging_location)
 
-    if _use_fnapi(options):
-      self.environment_version = _FNAPI_ENVIRONMENT_MAJOR_VERSION
-    else:
-      self.environment_version = _LEGACY_ENVIRONMENT_MAJOR_VERSION
+    self.environment_version = _FNAPI_ENVIRONMENT_MAJOR_VERSION
 
     if self.google_cloud_options.no_auth:
       credentials = None
@@ -762,10 +698,6 @@ class DataflowApplicationClient(object):
         job.options.view_as(GoogleCloudOptions).template_location)
 
     if job.options.view_as(DebugOptions).lookup_experiment('upload_graph'):
-      # For Runner V2, also set portable job submission.
-      if _use_unified_worker(job.options):
-        job.options.view_as(DebugOptions).add_experiment(
-            'use_portable_job_submission')
       self.stage_file(
           job.options.view_as(GoogleCloudOptions).staging_location,
           "dataflow_graph.json",
@@ -1183,37 +1115,6 @@ def translate_value(value, metric_update_proto):
   metric_update_proto.integer = to_split_int(value)
 
 
-def _use_fnapi(pipeline_options):
-  standard_options = pipeline_options.view_as(StandardOptions)
-  debug_options = pipeline_options.view_as(DebugOptions)
-
-  return standard_options.streaming or (
-      debug_options.experiments and 'beam_fn_api' in debug_options.experiments)
-
-
-def _use_unified_worker(pipeline_options):
-  debug_options = pipeline_options.view_as(DebugOptions)
-  use_unified_worker_flag = 'use_unified_worker'
-  use_runner_v2_flag = 'use_runner_v2'
-  enable_prime_flag = 'enable_prime'
-
-  if (debug_options.lookup_experiment(use_runner_v2_flag) and
-      not debug_options.lookup_experiment(use_unified_worker_flag)):
-    debug_options.add_experiment(use_unified_worker_flag)
-
-  dataflow_service_options = pipeline_options.view_as(
-      GoogleCloudOptions).dataflow_service_options or []
-  if ((debug_options.lookup_experiment(enable_prime_flag) or
-       enable_prime_flag in dataflow_service_options) and
-      not any([debug_options.lookup_experiment('disable_prime_runner_v2'),
-               debug_options.lookup_experiment('disable_runner_v2')])):
-    debug_options.add_experiment(use_runner_v2_flag)
-    debug_options.add_experiment(use_unified_worker_flag)
-    debug_options.add_experiment(enable_prime_flag)
-
-  return debug_options.lookup_experiment(use_unified_worker_flag)
-
-
 def _get_container_image_tag():
   base_version = pkg_resources.parse_version(
       beam_version.__version__).base_version
@@ -1239,58 +1140,29 @@ def get_container_image_from_options(pipeline_options):
   if worker_options.sdk_container_image:
     return worker_options.sdk_container_image
 
-  use_fnapi = _use_fnapi(pipeline_options)
-  # TODO(tvalentyn): Use enumerated type instead of strings for job types.
-  if use_fnapi:
-    fnapi_suffix = '-fnapi'
-  else:
-    fnapi_suffix = ''
+  # Legacy and runner v2 exist in different repositories.
+  # Set to legacy format, override if runner v2
+  container_repo = names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY
+  image_name = '{repository}/beam_python{major}.{minor}_sdk'.format(
+      repository=container_repo,
+      major=sys.version_info[0],
+      minor=sys.version_info[1])
 
-  version_suffix = '%s%s' % (sys.version_info[0:2])
-  image_name = '{repository}/python{version_suffix}{fnapi_suffix}'.format(
-      repository=names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY,
-      version_suffix=version_suffix,
-      fnapi_suffix=fnapi_suffix)
-
-  image_tag = _get_required_container_version(use_fnapi)
+  image_tag = _get_required_container_version()
   return image_name + ':' + image_tag
 
 
-def _get_required_container_version(use_fnapi):
+def _get_required_container_version():
   """For internal use only; no backwards-compatibility guarantees.
-
-    Args:
-      use_fnapi (bool): True, if pipeline is using FnAPI, False otherwise.
 
     Returns:
       str: The tag of worker container images in GCR that corresponds to
         current version of the SDK.
     """
   if 'dev' in beam_version.__version__:
-    if use_fnapi:
-      return names.BEAM_FNAPI_CONTAINER_VERSION
-    else:
-      return names.BEAM_CONTAINER_VERSION
+    return names.BEAM_DEV_SDK_CONTAINER_TAG
   else:
     return _get_container_image_tag()
-
-
-def get_runner_harness_container_image():
-  """For internal use only; no backwards-compatibility guarantees.
-
-     Returns:
-       str: Runner harness container image that shall be used by default
-         for current SDK version or None if the runner harness container image
-         bundled with the service shall be used.
-    """
-  # Pin runner harness for released versions of the SDK.
-  if 'dev' not in beam_version.__version__:
-    return (
-        names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/' + 'harness' + ':' +
-        _get_container_image_tag())
-  # Don't pin runner harness for dev versions so that we can notice
-  # potential incompatibility between runner and sdk harnesses.
-  return None
 
 
 def get_response_encoding():

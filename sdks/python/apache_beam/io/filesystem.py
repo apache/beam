@@ -28,6 +28,7 @@ import abc
 import bz2
 import io
 import logging
+import lzma
 import os
 import posixpath
 import re
@@ -65,6 +66,10 @@ class CompressionTypes(object):
   #   .bz2 (implies BZIP2 as described below).
   #   .gz  (implies GZIP as described below)
   #   .deflate (implies DEFLATE as described below)
+  #   .zst (implies ZSTD as described below)
+  #   .zst (implies ZSTD as described below)
+  #   .xz (implies LZMA as described below)
+  #   .lzma (implies LZMA as described below)
   # Any non-recognized extension implies UNCOMPRESSED as described below.
   AUTO = 'auto'
 
@@ -80,6 +85,9 @@ class CompressionTypes(object):
   # GZIP compression (deflate with GZIP headers).
   GZIP = 'gzip'
 
+  # LZMA compression
+  LZMA = 'lzma'
+
   # Uncompressed (i.e., may be split).
   UNCOMPRESSED = 'uncompressed'
 
@@ -92,6 +100,7 @@ class CompressionTypes(object):
         CompressionTypes.DEFLATE,
         CompressionTypes.GZIP,
         CompressionTypes.ZSTD,
+        CompressionTypes.LZMA,
         CompressionTypes.UNCOMPRESSED
     ])
     return compression_type in types
@@ -103,6 +112,7 @@ class CompressionTypes(object):
         cls.DEFLATE: 'application/x-deflate',
         cls.GZIP: 'application/x-gzip',
         cls.ZSTD: 'application/zstd',
+        cls.LZMA: 'application/lzma'
     }
     return mime_types_by_compression_type.get(compression_type, default)
 
@@ -114,7 +124,9 @@ class CompressionTypes(object):
         '.deflate': cls.DEFLATE,
         '.gz': cls.GZIP,
         '.zst': cls.ZSTD,
-        '.zstd': cls.ZSTD
+        '.zstd': cls.ZSTD,
+        '.xz': cls.LZMA,
+        '.lzma': cls.LZMA
     }
     lowercased_path = file_path.lower()
     for suffix, compression_type in compression_types_by_suffix.items():
@@ -184,6 +196,8 @@ class CompressedFile(object):
       # https://github.com/indygreg/python-zstandard/issues/157
       self._decompressor = zstandard.ZstdDecompressor(
           max_window_size=2147483648).decompressobj()
+    elif self._compression_type == CompressionTypes.LZMA:
+      self._decompressor = lzma.LZMADecompressor()
     else:
       assert self._compression_type == CompressionTypes.GZIP
       self._decompressor = zlib.decompressobj(self._gzip_mask)
@@ -196,6 +210,8 @@ class CompressedFile(object):
           zlib.Z_DEFAULT_COMPRESSION, zlib.DEFLATED)
     elif self._compression_type == CompressionTypes.ZSTD:
       self._compressor = zstandard.ZstdCompressor().compressobj()
+    elif self._compression_type == CompressionTypes.LZMA:
+      self._compressor = lzma.LZMACompressor()
     else:
       assert self._compression_type == CompressionTypes.GZIP
       self._compressor = zlib.compressobj(
@@ -257,7 +273,8 @@ class CompressedFile(object):
         if (self._compression_type == CompressionTypes.BZIP2 or
             self._compression_type == CompressionTypes.DEFLATE or
             self._compression_type == CompressionTypes.ZSTD or
-            self._compression_type == CompressionTypes.GZIP):
+            self._compression_type == CompressionTypes.GZIP or
+            self._compression_type == CompressionTypes.LZMA):
           pass
         else:
           # Deflate, Gzip and bzip2 formats do not require flushing

@@ -18,13 +18,14 @@ package bigquery
 import (
 	"flag"
 	"fmt"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"log"
 	"math/rand"
 	"reflect"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/xlang/bigqueryio"
@@ -116,7 +117,7 @@ func (fn *CreateTestRowsFn) ProcessElement(_ []byte, emit func(TestRow)) {
 }
 
 // WritePipeline creates a pipeline that writes elements created by createFn into a BigQuery table.
-func WritePipeline(expansionAddr, table string, createFn interface{}) *beam.Pipeline {
+func WritePipeline(expansionAddr, table string, createFn any) *beam.Pipeline {
 	p := beam.NewPipeline()
 	s := p.Root()
 
@@ -131,7 +132,7 @@ func WritePipeline(expansionAddr, table string, createFn interface{}) *beam.Pipe
 
 // ReadPipeline creates a pipeline that reads elements directly from a BigQuery table and asserts
 // that they match elements created by createFn.
-func ReadPipeline(expansionAddr, table string, createFn interface{}) *beam.Pipeline {
+func ReadPipeline(expansionAddr, table string, createFn any) *beam.Pipeline {
 	p := beam.NewPipeline()
 	s := p.Root()
 
@@ -180,7 +181,7 @@ func castFn(elm TestRowPtrs) TestRow {
 
 // ReadPipeline creates a pipeline that reads elements from a BigQuery table via a SQL Query, and
 // asserts that they match elements created by createFn.
-func ReadFromQueryPipeline(expansionAddr, table string, createFn interface{}) *beam.Pipeline {
+func ReadFromQueryPipeline(expansionAddr, table string, createFn any) *beam.Pipeline {
 	p := beam.NewPipeline()
 	s := p.Root()
 

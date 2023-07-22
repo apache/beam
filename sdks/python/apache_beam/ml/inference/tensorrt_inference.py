@@ -32,9 +32,9 @@ from typing import Tuple
 import numpy as np
 
 from apache_beam.io.filesystems import FileSystems
+from apache_beam.ml.inference import utils
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import PredictionResult
-from apache_beam.utils.annotations import experimental
 
 LOGGER = logging.getLogger("TensorRTEngineHandlerNumPy")
 # This try/catch block allows users to submit jobs from a machine without
@@ -121,7 +121,16 @@ class TensorRTEngine:
     self.outputs = []
     self.gpu_allocations = []
     self.cpu_allocations = []
-    """Setup I/O bindings."""
+
+    # TODO(https://github.com/NVIDIA/TensorRT/issues/2557):
+    # Clean up when fixed upstream.
+    try:
+      _ = np.bool  # type: ignore
+    except AttributeError:
+      # numpy >= 1.24.0
+      np.bool = np.bool_  # type: ignore
+
+    # Setup I/O bindings.
     for i in range(self.engine.num_bindings):
       name = self.engine.get_binding_name(i)
       dtype = self.engine.get_binding_dtype(i)
@@ -204,14 +213,13 @@ def _default_tensorRT_inference_fn(
               stream))
     _assign_or_fail(cuda.cuStreamSynchronize(stream))
 
-    return [
-        PredictionResult(
-            x, [prediction[idx] for prediction in cpu_allocations]) for idx,
-        x in enumerate(batch)
-    ]
+    predictions = []
+    for idx in range(len(batch)):
+      predictions.append([prediction[idx] for prediction in cpu_allocations])
+
+    return utils._convert_to_result(batch, predictions)
 
 
-@experimental(extra_message="No backwards-compatibility guarantees.")
 class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
                                               PredictionResult,
                                               TensorRTEngine]):
@@ -221,6 +229,7 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
       max_batch_size: int,
       *,
       inference_fn: TensorRTInferenceFn = _default_tensorRT_inference_fn,
+      large_model: bool = False,
       **kwargs):
     """Implementation of the ModelHandler interface for TensorRT.
 
@@ -240,8 +249,13 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
       max_batch_size: maximum accepted batch size.
       inference_fn: the inference function to use on RunInference calls.
         default: _default_tensorRT_inference_fn
+      large_model: set to true if your model is large enough to run into
+        memory pressure if you load multiple copies. Given a model that
+        consumes N memory and a machine with W cores and M memory, you should
+        set this to True if N*W > M.
       kwargs: Additional arguments like 'engine_path' and 'onnx_path' are
-        currently supported.
+        currently supported. 'env_vars' can be used to set environment variables
+        before loading the model.
 
     See https://docs.nvidia.com/deeplearning/tensorrt/api/python_api/
     for details
@@ -253,6 +267,8 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
       self.engine_path = kwargs.get('engine_path')
     elif 'onnx_path' in kwargs:
       self.onnx_path = kwargs.get('onnx_path')
+    self._env_vars = kwargs.get('env_vars', {})
+    self._large_model = large_model
 
   def batch_elements_kwargs(self):
     """Sets min_batch_size and max_batch_size of a TensorRT engine."""
@@ -310,4 +326,7 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
     """
     Returns a namespace for metrics collected by the RunInference transform.
     """
-    return 'RunInferenceTensorRT'
+    return 'BeamML_TensorRT'
+
+  def share_model_across_processes(self) -> bool:
+    return self._large_model

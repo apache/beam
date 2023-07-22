@@ -20,25 +20,35 @@ import 'package:app_state/app_state.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:easy_localization_ext/easy_localization_ext.dart';
 import 'package:easy_localization_loader/easy_localization_loader.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 import 'package:provider/provider.dart';
 import 'package:url_strategy/url_strategy.dart';
 
+import 'firebase_options.dart';
 import 'locator.dart';
 import 'router/route_information_parser.dart';
 
-void main() async {
+Future<void> main() async {
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   setPathUrlStrategy();
   await EasyLocalization.ensureInitialized();
+  await PlaygroundComponents.ensureInitialized();
   await initializeServiceLocator();
   const englishLocale = Locale('en');
 
   final pageStack = GetIt.instance.get<PageStack>();
-  final routerDelegate = PageStackRouterDelegate(pageStack);
+  final routerDelegate = GetIt.instance.get<BeamRouterDelegate>();
   final routeInformationParser = TobRouteInformationParser();
   final backButtonDispatcher = PageStackBackButtonDispatcher(pageStack);
+
+  PlaygroundComponents.analyticsService.defaultEventParameters = {
+    EventParams.app: 'tob',
+  };
 
   runApp(
     EasyLocalization(
@@ -86,6 +96,7 @@ class TourOfBeamApp extends StatelessWidget {
             localizationsDelegates: context.localizationDelegates,
             supportedLocales: context.supportedLocales,
             locale: context.locale,
+            title: 'Tour of Beam',
           );
         },
       ),

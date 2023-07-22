@@ -18,7 +18,7 @@ limitations under the License.
 <table align="left">
     <a target="_blank" class="button"
         href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Sample.html">
-      <img src="https://beam.apache.org/images/logos/sdks/java.png" width="20px" height="20px"
+      <img src="/images/logos/sdks/java.png" width="20px" height="20px"
            alt="Javadoc" />
      Javadoc
     </a>
@@ -29,7 +29,10 @@ Transforms for taking samples of the elements in a collection, or
 samples of the values associated with each key in a collection of key-value pairs.
 
 ## Examples
-See [BEAM-7703](https://issues.apache.org/jira/browse/BEAM-7703) for updates.
+
+{{< playground height="700px" >}}
+{{< playground_snippet language="java" path="SDK_JAVA_Sample" show="main_section" >}}
+{{< /playground >}}
 
 ## Related transforms
 * [Top](/documentation/transforms/java/aggregation/top)

@@ -53,6 +53,7 @@ class ExerciseMetricsPipelineTest(unittest.TestCase):
 
   @pytest.mark.it_postcommit
   @pytest.mark.it_validatescontainer
+  @unittest.skip('https://github.com/apache/beam/issues/22605')
   def test_metrics_fnapi_it(self):
     result = self.run_pipeline(experiment='beam_fn_api')
     errors = metric_result_matchers.verify_all(

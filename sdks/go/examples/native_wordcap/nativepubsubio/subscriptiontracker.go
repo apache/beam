@@ -30,7 +30,7 @@ func NewSubscriptionRTracker(entry string) *SubscriptionRTracker {
 
 // TryClaim returns true iff the given position is a string and matches the underlying
 // subscription ID.
-func (s *SubscriptionRTracker) TryClaim(pos interface{}) bool {
+func (s *SubscriptionRTracker) TryClaim(pos any) bool {
 	posString, ok := pos.(string)
 	return ok && posString == s.Subscription
 }
@@ -38,7 +38,7 @@ func (s *SubscriptionRTracker) TryClaim(pos interface{}) bool {
 // TrySplit is a no-op for the StaticRTracker in the normal case and moves the subscription
 // to the residual in the checkpointing case, marking itself as done to keep the logical checks
 // around SDF data loss happy.
-func (s *SubscriptionRTracker) TrySplit(frac float64) (primary, residual interface{}, err error) {
+func (s *SubscriptionRTracker) TrySplit(frac float64) (primary, residual any, err error) {
 	if frac == 0.0 {
 		resid := s.Subscription
 		s.Subscription = ""
@@ -73,6 +73,6 @@ func (s *SubscriptionRTracker) IsBounded() bool {
 }
 
 // GetRestriction returns the name of the subscription.
-func (s *SubscriptionRTracker) GetRestriction() interface{} {
+func (s *SubscriptionRTracker) GetRestriction() any {
 	return s.Subscription
 }

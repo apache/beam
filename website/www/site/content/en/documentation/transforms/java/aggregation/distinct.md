@@ -18,7 +18,7 @@ limitations under the License.
 <table align="left">
     <a target="_blank" class="button"
         href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/transforms/Distinct.html">
-      <img src="https://beam.apache.org/images/logos/sdks/java.png" width="20px" height="20px"
+      <img src="/images/logos/sdks/java.png" width="20px" height="20px"
            alt="Javadoc" />
      Javadoc
     </a>
@@ -33,7 +33,7 @@ values for each key.
 
 ## Examples
 
-**Example 1** Find the distinct element from a `PCollection` of `String`.
+**Example 1**: Find the distinct element from a `PCollection` of `String`.
 
 {{< highlight java >}}
 
@@ -49,6 +49,12 @@ PCollection<String> input =
 PCollection<String> distinctWords = input.apply(Distinct.create());
 
 {{< /highlight >}}
+
+**Example 2**: Find the distinct element from a `PCollection` of `Integer`.
+
+{{< playground height="700px" >}}
+{{< playground_snippet language="java" path="SDK_JAVA_Distinct" show="main_section" >}}
+{{< /playground >}}
 
 ## Related transforms
 * [Count](/documentation/transforms/java/aggregation/count)

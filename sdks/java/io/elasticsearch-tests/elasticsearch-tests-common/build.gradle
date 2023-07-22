@@ -25,17 +25,7 @@ applyJavaNature(
 description = "Apache Beam :: SDKs :: Java :: IO :: Elasticsearch-Tests :: Common"
 ext.summary = "Common test classes for ElasticsearchIO"
 
-def log4j_version = "2.17.1"
 def elastic_search_version = "7.9.2"
-
-configurations.all {
-  resolutionStrategy {
-    // Make sure the log4j versions for api and core match instead of taking the default
-    // Gradle rule of using the latest.
-    force "org.apache.logging.log4j:log4j-core:$log4j_version"
-    force "org.apache.logging.log4j:log4j-api:$log4j_version"
-  }
-}
 
 dependencies {
   testImplementation library.java.jackson_databind
@@ -49,8 +39,8 @@ dependencies {
   testImplementation "org.elasticsearch.client:elasticsearch-rest-high-level-client:${elastic_search_version}"
   testImplementation library.java.testcontainers_elasticsearch
 
-  testRuntimeOnly "org.apache.logging.log4j:log4j-api:$log4j_version"
-  testRuntimeOnly "org.apache.logging.log4j:log4j-core:$log4j_version"
+  testRuntimeOnly library.java.log4j2_api
+  testRuntimeOnly library.java.log4j2_core
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

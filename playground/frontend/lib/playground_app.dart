@@ -20,16 +20,22 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:playground/config/locale.dart';
-import 'package:playground/l10n/l10n.dart';
-import 'package:playground/pages/playground/components/playground_page_providers.dart';
-import 'package:playground/pages/playground/playground_page.dart';
-import 'package:playground/pages/routes.dart';
 import 'package:playground_components/playground_components.dart';
 import 'package:provider/provider.dart';
 
+import 'config/locale.dart';
+import 'l10n/l10n.dart';
+
 class PlaygroundApp extends StatelessWidget {
-  const PlaygroundApp({Key? key}) : super(key: key);
+  final BackButtonDispatcher backButtonDispatcher;
+  final RouteInformationParser<Object> routeInformationParser;
+  final RouterDelegate<Object> routerDelegate;
+
+  const PlaygroundApp({
+    required this.backButtonDispatcher,
+    required this.routeInformationParser,
+    required this.routerDelegate,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -40,24 +46,23 @@ class PlaygroundApp extends StatelessWidget {
             create: (context) => LocaleProvider(),
             builder: (context, state) {
               final localeProvider = Provider.of<LocaleProvider>(context);
-              return PlaygroundPageProviders(
-                child: MaterialApp(
-                  title: 'Apache Beam Playground',
-                  themeMode: themeSwitchNotifier.themeMode,
-                  theme: kLightTheme,
-                  darkTheme: kDarkTheme,
-                  onGenerateRoute: Routes.generateRoute,
-                  home: const PlaygroundPage(),
-                  debugShowCheckedModeBanner: false,
-                  locale: localeProvider.locale,
-                  supportedLocales: L10n.locales,
-                  localizationsDelegates: [
-                    ...context.localizationDelegates,
-                    AppLocalizations.delegate,
-                    GlobalMaterialLocalizations.delegate,
-                    GlobalWidgetsLocalizations.delegate,
-                  ],
-                ),
+              return MaterialApp.router(
+                backButtonDispatcher: backButtonDispatcher,
+                routeInformationParser: routeInformationParser,
+                routerDelegate: routerDelegate,
+                title: 'Apache Beam Playground',
+                themeMode: themeSwitchNotifier.themeMode,
+                theme: kLightTheme,
+                darkTheme: kDarkTheme,
+                debugShowCheckedModeBanner: false,
+                locale: localeProvider.locale,
+                supportedLocales: L10n.locales,
+                localizationsDelegates: [
+                  ...context.localizationDelegates,
+                  AppLocalizations.delegate,
+                  GlobalMaterialLocalizations.delegate,
+                  GlobalWidgetsLocalizations.delegate,
+                ],
               );
             },
           );

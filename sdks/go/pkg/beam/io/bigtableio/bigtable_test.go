@@ -23,7 +23,12 @@ import (
 
 	"cloud.google.com/go/bigtable"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 )
+
+func TestMain(m *testing.M) {
+	ptest.Main(m)
+}
 
 func TestHashStringToInt(t *testing.T) {
 	equalVal := "equal"
@@ -86,7 +91,7 @@ func TestMustBeBigtableioMutation(t *testing.T) {
 }
 
 func TestMustNotBeBigtableioMutation(t *testing.T) {
-	failValues := []interface{}{
+	failValues := []any{
 		1,
 		1.0,
 		"strings must fail",

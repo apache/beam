@@ -43,12 +43,13 @@ import org.apache.beam.sdk.io.cdap.context.BatchSinkContextImpl;
 import org.apache.beam.sdk.io.cdap.context.BatchSourceContextImpl;
 import org.apache.beam.sdk.io.cdap.streaming.EmployeeReceiver;
 import org.apache.beam.sdk.io.cdap.streaming.EmployeeStreamingSource;
-import org.apache.beam.sdk.io.sparkreceiver.ReceiverBuilder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Values;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -66,6 +67,10 @@ import org.mockito.Mockito;
 /** Test class for {@link CdapIO}. */
 @RunWith(JUnit4.class)
 public class CdapIOTest {
+
+  private static final long PULL_FREQUENCY_SEC = 1L;
+  private static final long START_OFFSET = 0L;
+  private static final Duration WINDOW_DURATION = Duration.standardMinutes(1);
 
   @Rule public final transient TestPipeline p = TestPipeline.create();
   @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
@@ -98,7 +103,7 @@ public class CdapIOTest {
             .withKeyClass(String.class)
             .withValueClass(String.class);
 
-    Plugin cdapPlugin = read.getCdapPlugin();
+    Plugin<String, String> cdapPlugin = read.getCdapPlugin();
     assertNotNull(cdapPlugin);
     assertEquals(EmployeeBatchSource.class, cdapPlugin.getPluginClass());
     assertEquals(EmployeeInputFormat.class, cdapPlugin.getFormatClass());
@@ -135,6 +140,19 @@ public class CdapIOTest {
   public void testReadObjectCreationFailsIfValueClassIsNull() {
     assertThrows(
         IllegalArgumentException.class, () -> CdapIO.<String, String>read().withValueClass(null));
+  }
+
+  @Test
+  public void testReadObjectCreationFailsIfPullFrequencySecIsNull() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> CdapIO.<String, String>read().withPullFrequencySec(null));
+  }
+
+  @Test
+  public void testReadObjectCreationFailsIfStartOffsetIsNull() {
+    assertThrows(
+        IllegalArgumentException.class, () -> CdapIO.<String, String>read().withStartOffset(null));
   }
 
   @Test
@@ -184,17 +202,20 @@ public class CdapIOTest {
 
     EmployeeConfig pluginConfig =
         new ConfigWrapper<>(EmployeeConfig.class).withParams(TEST_EMPLOYEE_PARAMS_MAP).build();
-    MappingUtils.registerStreamingPlugin(
-        EmployeeStreamingSource.class,
-        Long::valueOf,
-        new ReceiverBuilder<>(EmployeeReceiver.class).withConstructorArgs(pluginConfig));
 
     CdapIO.Read<String, String> read =
         CdapIO.<String, String>read()
-            .withCdapPlugin(Plugin.createStreaming(EmployeeStreamingSource.class))
+            .withCdapPlugin(
+                Plugin.createStreaming(
+                    EmployeeStreamingSource.class,
+                    Long::valueOf,
+                    EmployeeReceiver.class,
+                    config -> new Object[] {config}))
             .withPluginConfig(pluginConfig)
             .withKeyClass(String.class)
-            .withValueClass(String.class);
+            .withValueClass(String.class)
+            .withPullFrequencySec(PULL_FREQUENCY_SEC)
+            .withStartOffset(START_OFFSET);
 
     List<String> storedRecords = EmployeeReceiver.getStoredRecords();
 
@@ -224,7 +245,7 @@ public class CdapIOTest {
             .withValueClass(String.class)
             .withLocksDirPath(tmpFolder.getRoot().getAbsolutePath());
 
-    Plugin cdapPlugin = write.getCdapPlugin();
+    Plugin<String, String> cdapPlugin = write.getCdapPlugin();
     assertNotNull(cdapPlugin);
     assertNotNull(write.getLocksDirPath());
     assertEquals(EmployeeBatchSink.class, cdapPlugin.getPluginClass());
@@ -295,6 +316,39 @@ public class CdapIOTest {
       data.add(KV.of(String.valueOf(i), EmployeeInputFormat.EMPLOYEE_NAME_PREFIX + i));
     }
     PCollection<KV<String, String>> input = p.apply(Create.of(data));
+
+    EmployeeConfig pluginConfig =
+        new ConfigWrapper<>(EmployeeConfig.class).withParams(TEST_EMPLOYEE_PARAMS_MAP).build();
+    input.apply(
+        "Write",
+        CdapIO.<String, String>write()
+            .withCdapPlugin(
+                Plugin.createBatch(
+                    EmployeeBatchSink.class,
+                    EmployeeOutputFormat.class,
+                    EmployeeOutputFormatProvider.class))
+            .withPluginConfig(pluginConfig)
+            .withKeyClass(String.class)
+            .withValueClass(String.class)
+            .withLocksDirPath(tmpFolder.getRoot().getAbsolutePath()));
+    p.run();
+
+    List<KV<String, String>> writtenOutput = EmployeeOutputFormat.getWrittenOutput();
+    assertEquals(data.size(), writtenOutput.size());
+    assertTrue(data.containsAll(writtenOutput));
+    assertTrue(writtenOutput.containsAll(data));
+
+    Mockito.verify(EmployeeOutputFormat.getOutputCommitter()).commitJob(Mockito.any());
+  }
+
+  @Test
+  public void testWindowedWriteCdapBatchSinkPlugin() throws IOException {
+    List<KV<String, String>> data = new ArrayList<>();
+    for (int i = 0; i < EmployeeInputFormat.NUM_OF_TEST_EMPLOYEE_RECORDS; i++) {
+      data.add(KV.of(String.valueOf(i), EmployeeInputFormat.EMPLOYEE_NAME_PREFIX + i));
+    }
+    PCollection<KV<String, String>> input =
+        p.apply(Create.of(data)).apply(Window.into(FixedWindows.of(WINDOW_DURATION)));
 
     EmployeeConfig pluginConfig =
         new ConfigWrapper<>(EmployeeConfig.class).withParams(TEST_EMPLOYEE_PARAMS_MAP).build();

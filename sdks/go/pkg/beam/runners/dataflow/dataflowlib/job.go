@@ -23,15 +23,16 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
-
-	// Importing to get the side effect of the remote execution hook. See init().
-	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/harness/init"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/pipelinex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"golang.org/x/oauth2/google"
 	df "google.golang.org/api/dataflow/v1b3"
+	"google.golang.org/protobuf/proto"
+
+	// Importing to get the side effect of the remote execution hook. See init().
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/harness/init"
 )
 
 // JobOptions capture the various options for submitting jobs
@@ -46,6 +47,7 @@ type JobOptions struct {
 	// Pipeline options
 	Options runtime.RawOptions
 
+	Streaming           bool
 	Project             string
 	Region              string
 	Zone                string
@@ -80,50 +82,59 @@ type JobOptions struct {
 
 	// Worker is the worker binary override.
 	Worker string
-	// WorkerJar is a custom worker jar.
-	WorkerJar string
 
 	// -- Internal use only. Not supported in public Dataflow. --
 
 	TeardownPolicy string
 }
 
+func containerImages(p *pipepb.Pipeline) ([]*df.SdkHarnessContainerImage, []string, error) {
+	envs := p.GetComponents().GetEnvironments()
+	ret := make([]*df.SdkHarnessContainerImage, 0, len(envs))
+	display := make([]string, 0, len(envs))
+	for id, env := range envs {
+		var payload pipepb.DockerPayload
+		if err := proto.Unmarshal(env.GetPayload(), &payload); err != nil {
+			return nil, nil, fmt.Errorf("bad payload for env %v: %v", id, err)
+		}
+		singleCore := true
+		for _, c := range env.GetCapabilities() {
+			if c == graphx.URNMultiCore {
+				singleCore = false
+			}
+		}
+		ret = append(ret, &df.SdkHarnessContainerImage{
+			ContainerImage:            payload.GetContainerImage(),
+			UseSingleCorePerContainer: singleCore,
+			Capabilities:              env.GetCapabilities(),
+			EnvironmentId:             id,
+		})
+		display = append(display, payload.GetContainerImage())
+	}
+	return ret, display, nil
+}
+
 // Translate translates a pipeline to a Dataflow job.
-func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, workerURL, jarURL, modelURL string) (*df.Job, error) {
+func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, workerURL, modelURL string) (*df.Job, error) {
 	// (1) Translate pipeline to v1b3 speak.
 
 	jobType := "JOB_TYPE_BATCH"
 	apiJobType := "FNAPI_BATCH"
 
-	streaming := !pipelinex.Bounded(p)
-	if streaming {
+	if opts.Streaming {
 		jobType = "JOB_TYPE_STREAMING"
 		apiJobType = "FNAPI_STREAMING"
 	}
 
-	images := pipelinex.ContainerImages(p)
-	dfImages := make([]*df.SdkHarnessContainerImage, 0, len(images))
-	for _, img := range images {
-		dfImages = append(dfImages, &df.SdkHarnessContainerImage{
-			ContainerImage:            img,
-			UseSingleCorePerContainer: false,
-		})
+	dfImages, images, err := containerImages(p)
+	if err != nil {
+		return nil, err
 	}
 
 	packages := []*df.Package{{
 		Name:     "worker",
 		Location: workerURL,
 	}}
-	experiments := append(opts.Experiments, "beam_fn_api")
-
-	if opts.WorkerJar != "" {
-		jar := &df.Package{
-			Name:     "dataflow-worker.jar",
-			Location: jarURL,
-		}
-		packages = append(packages, jar)
-		experiments = append(experiments, "use_staged_dataflow_worker_jar")
-	}
 
 	for _, url := range opts.ArtifactURLs {
 		name := url[strings.LastIndexAny(url, "/")+1:]
@@ -166,7 +177,7 @@ func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, worker
 				Options: dataflowOptions{
 					PipelineURL:  modelURL,
 					Region:       opts.Region,
-					Experiments:  experiments,
+					Experiments:  opts.Experiments,
 					TempLocation: opts.TempLocation,
 				},
 				GoOptions: opts.Options,
@@ -193,7 +204,7 @@ func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, worker
 			WorkerRegion:      opts.WorkerRegion,
 			WorkerZone:        opts.WorkerZone,
 			TempStoragePrefix: opts.TempLocation,
-			Experiments:       experiments,
+			Experiments:       opts.Experiments,
 		},
 		Labels:               opts.Labels,
 		TransformNameMapping: opts.TransformNameMapping,
@@ -216,10 +227,6 @@ func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, worker
 	}
 	if opts.TeardownPolicy != "" {
 		workerPool.TeardownPolicy = opts.TeardownPolicy
-	}
-	if streaming {
-		// Add separate data disk for streaming jobs
-		workerPool.DataDisks = []*df.Disk{{}}
 	}
 
 	return job, nil

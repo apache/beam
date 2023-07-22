@@ -43,7 +43,7 @@ jobs:
       - name: Install python
         uses: actions/setup-python@v4
         with:
-          python-version: 3.7
+          python-version: 3.8
       - name: Get build dependencies
         working-directory: ./sdks/python
         run: pip install pip setuptools --upgrade && pip install -r build-requirements.txt

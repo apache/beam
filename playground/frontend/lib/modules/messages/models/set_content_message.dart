@@ -16,15 +16,17 @@
  * limitations under the License.
  */
 
-import 'package:playground/modules/examples/models/example_loading_descriptors/examples_loading_descriptor_factory.dart';
-import 'package:playground/modules/messages/models/abstract_message.dart';
+import 'package:equatable/equatable.dart';
 import 'package:playground_components/playground_components.dart';
+
+import '../../examples/models/example_loading_descriptors/examples_loading_descriptor_factory.dart';
+import 'abstract_message.dart';
 
 /// A message that sets content for multiple snippets.
 ///
 /// Sent by the embedded playground to a newly opened window
 /// of a standalone playground.
-class SetContentMessage extends AbstractMessage {
+class SetContentMessage extends AbstractMessage with EquatableMixin {
   final ExamplesLoadingDescriptor descriptor;
 
   static const type = 'SetContent';
@@ -39,22 +41,11 @@ class SetContentMessage extends AbstractMessage {
     }
 
     return SetContentMessage(
-      descriptor: ExamplesLoadingDescriptorFactory.fromMap(map['descriptor']),
+      descriptor: ExamplesLoadingDescriptorFactory.fromMap(map['descriptor'])
+          .copyWithMissingLazy(
+        ExamplesLoadingDescriptorFactory.defaultLazyLoadDescriptors,
+      ),
     );
-  }
-
-  @override
-  int get hashCode {
-    return descriptor.hashCode;
-  }
-
-  @override
-  bool operator ==(Object other) {
-    if (identical(this, other)) {
-      return true;
-    }
-
-    return other is SetContentMessage && descriptor == other.descriptor;
   }
 
   @override
@@ -64,4 +55,9 @@ class SetContentMessage extends AbstractMessage {
       'descriptor': descriptor,
     };
   }
+
+  @override
+  List<Object?> get props => [
+        descriptor,
+      ];
 }

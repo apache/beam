@@ -122,7 +122,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
@@ -723,7 +723,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
     PCollectionTuple outputs =
         pipeline
-            .apply(Create.of(3))
+            .apply(Create.of(3, 4))
             .apply(
                 ParDo.of(
                         new DoFn<Integer, Integer>() {
@@ -775,7 +775,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     TupleTag<Integer> mainOutputTag = new TupleTag<Integer>() {};
 
     pipeline
-        .apply(Create.of(KV.of(1, 1)))
+        .apply(Create.of(KV.of(1, 1), KV.of(2, 3)))
         .apply(
             ParDo.of(
                     new DoFn<KV<Integer, Integer>, Integer>() {
@@ -917,7 +917,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     // No need to actually check the pipeline as the ValidatesRunner tests
     // ensure translation is correct. This is just a quick check to see that translation
     // does not crash.
-    assertEquals(24, steps.size());
+    assertEquals(25, steps.size());
   }
 
   /** Smoke test to fail fast if translation of a splittable ParDo in streaming breaks. */
@@ -1057,7 +1057,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     assertAllStepOutputsHaveUniqueIds(job);
 
     List<Step> steps = job.getSteps();
-    assertEquals(9, steps.size());
+    assertEquals(10, steps.size());
 
     @SuppressWarnings("unchecked")
     List<Map<String, Object>> toIsmRecordOutputs =

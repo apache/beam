@@ -32,7 +32,7 @@ type ReusableEmitter interface {
 	// Init resets the value. Can be called multiple times.
 	Init(ctx context.Context, ws []typex.Window, t typex.EventTime) error
 	// Value returns the side input value. Constant value.
-	Value() interface{}
+	Value() any
 }
 
 // ReusableTimestampObservingWatermarkEmitter is a resettable value needed to hold
@@ -91,7 +91,7 @@ func makeEmit(t reflect.Type, n ElementProcessor) ReusableEmitter {
 // emitValue is the reflection-based default emitter implementation.
 type emitValue struct {
 	n     ElementProcessor
-	fn    interface{}
+	fn    any
 	types []reflect.Type
 	est   *sdf.WatermarkEstimator
 
@@ -107,7 +107,7 @@ func (e *emitValue) Init(ctx context.Context, ws []typex.Window, et typex.EventT
 	return nil
 }
 
-func (e *emitValue) Value() interface{} {
+func (e *emitValue) Value() any {
 	return e.fn
 }
 

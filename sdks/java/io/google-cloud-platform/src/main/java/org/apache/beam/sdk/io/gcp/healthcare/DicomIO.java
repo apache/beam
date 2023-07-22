@@ -146,7 +146,7 @@ public class DicomIO {
     /**
      * DoFn to fetch the metadata of a study from a Dicom store based on it's location and study id.
      */
-    @SuppressWarnings({"nullness", "rawtypes"})
+    @SuppressWarnings({"nullness"})
     static class FetchStudyMetadataFn extends DoFn<String, String> {
 
       private HealthcareApiClient dicomStore;

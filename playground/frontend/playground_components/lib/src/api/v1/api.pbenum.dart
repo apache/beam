@@ -1,27 +1,9 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 ///
 //  Generated code. Do not modify.
 //  source: api/v1/api.proto
 //
 // @dart = 2.12
-// ignore_for_file: annotate_overrides,camel_case_types,unnecessary_const,non_constant_identifier_names,library_prefixes,unused_import,unused_shown_name,return_of_invalid_type,unnecessary_this,prefer_final_fields
+// ignore_for_file: annotate_overrides,camel_case_types,constant_identifier_names,directives_ordering,library_prefixes,non_constant_identifier_names,prefer_final_fields,return_of_invalid_type,unnecessary_const,unnecessary_import,unnecessary_this,unused_import,unused_shown_name
 
 // ignore_for_file: UNDEFINED_SHOWN_NAME
 import 'dart:core' as $core;
@@ -121,5 +103,20 @@ class Complexity extends $pb.ProtobufEnum {
   static Complexity? valueOf($core.int value) => _byValue[value];
 
   const Complexity._($core.int v, $core.String n) : super(v, n);
+}
+
+class EmulatorType extends $pb.ProtobufEnum {
+  static const EmulatorType EMULATOR_TYPE_UNSPECIFIED = EmulatorType._(0, const $core.bool.fromEnvironment('protobuf.omit_enum_names') ? '' : 'EMULATOR_TYPE_UNSPECIFIED');
+  static const EmulatorType EMULATOR_TYPE_KAFKA = EmulatorType._(1, const $core.bool.fromEnvironment('protobuf.omit_enum_names') ? '' : 'EMULATOR_TYPE_KAFKA');
+
+  static const $core.List<EmulatorType> values = <EmulatorType> [
+    EMULATOR_TYPE_UNSPECIFIED,
+    EMULATOR_TYPE_KAFKA,
+  ];
+
+  static final $core.Map<$core.int, EmulatorType> _byValue = $pb.ProtobufEnum.initByValue(values);
+  static EmulatorType? valueOf($core.int value) => _byValue[value];
+
+  const EmulatorType._($core.int v, $core.String n) : super(v, n);
 }
 

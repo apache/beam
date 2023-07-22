@@ -19,7 +19,9 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
@@ -44,6 +46,7 @@ const (
 	URNReshuffle     = "beam:transform:reshuffle:v1"
 	URNCombinePerKey = "beam:transform:combine_per_key:v1"
 	URNWindow        = "beam:transform:window_into:v1"
+	URNMapWindows    = "beam:transform:map_windows:v1"
 
 	URNIterableSideInput = "beam:side_input:iterable:v1"
 	URNMultimapSideInput = "beam:side_input:multimap:v1"
@@ -81,14 +84,18 @@ const (
 	URNArtifactURLType      = "beam:artifact:type:url:v1"
 	URNArtifactGoWorkerRole = "beam:artifact:role:go_worker_binary:v1"
 
-	// Environment Urns.
+	// Environment URNs.
 	URNEnvProcess  = "beam:env:process:v1"
 	URNEnvExternal = "beam:env:external:v1"
 	URNEnvDocker   = "beam:env:docker:v1"
 
-	// Userstate Urns.
+	// Userstate URNs.
 	URNBagUserState      = "beam:user_state:bag:v1"
 	URNMultiMapUserState = "beam:user_state:multimap:v1"
+
+	// Base version URNs are to allow runners to make distinctions between different releases
+	// in a way that won't change based on actual releases, in particular for FnAPI behaviors.
+	URNBaseVersionGo = "beam:version:sdk_base:go:" + core.DefaultDockerImage
 )
 
 func goCapabilities() []string {
@@ -98,8 +105,7 @@ func goCapabilities() []string {
 		URNTruncate,
 		URNWorkerStatus,
 		URNMonitoringInfoShortID,
-		// TOOD(https://github.com/apache/beam/issues/20287): Make this versioned.
-		"beam:version:sdk_base:go",
+		URNBaseVersionGo,
 	}
 	return append(capabilities, knownStandardCoders()...)
 }
@@ -572,6 +578,36 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 			}
 			payload.StateSpecs = stateSpecs
 		}
+		if _, ok := edge.Edge.DoFn.ProcessElementFn().TimerProvider(); ok {
+			m.requirements[URNRequiresStatefulProcessing] = true
+			timerSpecs := make(map[string]*pipepb.TimerFamilySpec)
+			pipelineTimers, _ := edge.Edge.DoFn.PipelineTimers()
+
+			// All timers for a single DoFn have the same key and window coders, that match the input PCollection.
+			mainInputID := inputs["i0"]
+			pCol := m.pcollections[mainInputID]
+			kvCoder := m.coders.coders[pCol.CoderId]
+			if kvCoder.GetSpec().GetUrn() != urnKVCoder {
+				return nil, errors.Errorf("timer using DoFn %v doesn't use a KV as PCollection input. Unable to extract key coder for timers, got %v", edge.Name, kvCoder.GetSpec().GetUrn())
+			}
+			keyCoderID := kvCoder.GetComponentCoderIds()[0]
+
+			wsID := pCol.GetWindowingStrategyId()
+			ws := m.windowing[wsID]
+			windowCoderID := ws.GetWindowCoderId()
+
+			timerCoderID := m.coders.internBuiltInCoder(urnTimerCoder, keyCoderID, windowCoderID)
+
+			for _, pt := range pipelineTimers {
+				for timerFamilyID, timeDomain := range pt.Timers() {
+					timerSpecs[timerFamilyID] = &pipepb.TimerFamilySpec{
+						TimeDomain:         pipepb.TimeDomain_Enum(timeDomain),
+						TimerFamilyCoderId: timerCoderID,
+					}
+				}
+			}
+			payload.TimerFamilySpecs = timerSpecs
+		}
 		spec = &pipepb.FunctionSpec{Urn: URNParDo, Payload: protox.MustEncode(payload)}
 		annotations = edge.Edge.DoFn.Annotations()
 
@@ -684,6 +720,20 @@ func (m *marshaller) expandCrossLanguage(namedEdge NamedEdge) (string, error) {
 		Spec:          spec,
 		Inputs:        inputs,
 		EnvironmentId: m.addDefaultEnv(),
+	}
+
+	// Add the coders for output in the marshaller even if expanded is nil
+	// for output coder field in expansion request.
+	// We need this specifically for Python External Transforms.
+	names := strings.Split(spec.Urn, ":")
+	if len(names) > 2 && names[2] == "python" {
+		for _, out := range edge.Output {
+			id, err := m.coders.Add(out.To.Coder)
+			if err != nil {
+				return "", errors.Wrapf(err, "failed to add output coder to coder registry: %v", m.coders)
+			}
+			out.To.Coder.ID = id
+		}
 	}
 
 	if edge.External.Expanded != nil {
@@ -920,11 +970,11 @@ func (m *marshaller) expandReshuffle(edge NamedEdge) (string, error) {
 		if err != nil {
 			return handleErr(err)
 		}
-		coderID, err := makeWindowCoder(wfn)
+		windowCoder, err := makeWindowCoder(wfn)
 		if err != nil {
 			return handleErr(err)
 		}
-		windowCoderID, err := m.coders.AddWindowCoder(coderID)
+		windowCoderID, err := m.coders.AddWindowCoder(windowCoder)
 		if err != nil {
 			return handleErr(err)
 		}

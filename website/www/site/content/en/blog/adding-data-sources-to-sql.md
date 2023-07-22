@@ -148,7 +148,7 @@ class GenerateSequenceTable extends BaseBeamTable implements Serializable {
 
 Now that we have implemented the two basic classes (a `BaseBeamTable`, and a
 `TableProvider`), we can start playing with them. After building the
-[SQL CLI](https://beam.apache.org/documentation/dsls/sql/shell/), we
+[SQL CLI](/documentation/dsls/sql/shell/), we
 can now perform selections on the table:
 
 ```

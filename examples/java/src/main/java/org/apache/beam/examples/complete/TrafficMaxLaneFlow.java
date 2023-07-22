@@ -23,7 +23,7 @@ package org.apache.beam.examples.complete;
 //     window, it finds the lane that had the highest flow recorded, for each sensor station.
 //     It writes those max values along with auxiliary info to a BigQuery table.
 //   multifile: true
-//   context_line: 92
+//   context_line: 402
 //   categories:
 //     - Combiners
 //     - Streaming
@@ -49,8 +49,8 @@ import org.apache.beam.examples.common.ExampleOptions;
 import org.apache.beam.examples.common.ExampleUtils;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
+import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.options.Default;

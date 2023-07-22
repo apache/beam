@@ -48,12 +48,12 @@ import org.apache.avro.Conversions;
 import org.apache.avro.LogicalTypes;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.util.Utf8;
+import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.ConversionOptions.TruncateTimestamps;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
-import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.DateTime;
@@ -401,6 +401,12 @@ public class BigQueryUtilsTest {
               Arrays.asList(
                   Collections.singletonMap("v", "123"), Collections.singletonMap("v", "124")));
 
+  // sometimes, a TableRow array will not be of format [{v: value1}, {v: value2}, ...]
+  // it will instead be of format [value1, value2, ...]
+  // this "inline row" covers the latter case
+  private static final TableRow BQ_INLINE_ARRAY_ROW =
+      new TableRow().set("ids", Arrays.asList("123", "124"));
+
   private static final Row ROW_ROW = Row.withSchema(ROW_TYPE).addValues(FLAT_ROW).build();
 
   private static final TableRow BQ_ROW_ROW = new TableRow().set("row", BQ_FLAT_ROW);
@@ -599,7 +605,7 @@ public class BigQueryUtilsTest {
 
     assertThat(row.size(), equalTo(22));
     assertThat(row, hasEntry("id", "123"));
-    assertThat(row, hasEntry("value", 123.456));
+    assertThat(row, hasEntry("value", "123.456"));
     assertThat(row, hasEntry("datetime", "2020-11-02T12:34:56.789876"));
     assertThat(row, hasEntry("datetime0ms", "2020-11-02T12:34:56"));
     assertThat(row, hasEntry("datetime0s_ns", "2020-11-02T12:34:00.789876"));
@@ -610,12 +616,12 @@ public class BigQueryUtilsTest {
     assertThat(row, hasEntry("time0s_ns", "12:34:00.789876"));
     assertThat(row, hasEntry("time0s_0ns", "12:34:00"));
     assertThat(row, hasEntry("name", "test"));
-    assertThat(row, hasEntry("valid", false));
+    assertThat(row, hasEntry("valid", "false"));
     assertThat(row, hasEntry("binary", "ABCD1234"));
     assertThat(row, hasEntry("numeric", "123.456"));
-    assertThat(row, hasEntry("boolean", true));
+    assertThat(row, hasEntry("boolean", "true"));
     assertThat(row, hasEntry("long", "123"));
-    assertThat(row, hasEntry("double", 123.456));
+    assertThat(row, hasEntry("double", "123.456"));
   }
 
   @Test
@@ -642,7 +648,7 @@ public class BigQueryUtilsTest {
     row = ((List<TableRow>) row.get("map")).get(0);
     assertThat(row.size(), equalTo(2));
     assertThat(row, hasEntry("key", "test"));
-    assertThat(row, hasEntry("value", 123.456));
+    assertThat(row, hasEntry("value", "123.456"));
   }
 
   @Test
@@ -653,7 +659,7 @@ public class BigQueryUtilsTest {
     row = (TableRow) row.get("row");
     assertThat(row.size(), equalTo(22));
     assertThat(row, hasEntry("id", "123"));
-    assertThat(row, hasEntry("value", 123.456));
+    assertThat(row, hasEntry("value", "123.456"));
     assertThat(row, hasEntry("datetime", "2020-11-02T12:34:56.789876"));
     assertThat(row, hasEntry("datetime0ms", "2020-11-02T12:34:56"));
     assertThat(row, hasEntry("datetime0s_ns", "2020-11-02T12:34:00.789876"));
@@ -664,12 +670,12 @@ public class BigQueryUtilsTest {
     assertThat(row, hasEntry("time0s_ns", "12:34:00.789876"));
     assertThat(row, hasEntry("time0s_0ns", "12:34:00"));
     assertThat(row, hasEntry("name", "test"));
-    assertThat(row, hasEntry("valid", false));
+    assertThat(row, hasEntry("valid", "false"));
     assertThat(row, hasEntry("binary", "ABCD1234"));
     assertThat(row, hasEntry("numeric", "123.456"));
-    assertThat(row, hasEntry("boolean", true));
+    assertThat(row, hasEntry("boolean", "true"));
     assertThat(row, hasEntry("long", "123"));
-    assertThat(row, hasEntry("double", 123.456));
+    assertThat(row, hasEntry("double", "123.456"));
   }
 
   @Test
@@ -680,7 +686,7 @@ public class BigQueryUtilsTest {
     row = ((List<TableRow>) row.get("rows")).get(0);
     assertThat(row.size(), equalTo(22));
     assertThat(row, hasEntry("id", "123"));
-    assertThat(row, hasEntry("value", 123.456));
+    assertThat(row, hasEntry("value", "123.456"));
     assertThat(row, hasEntry("datetime", "2020-11-02T12:34:56.789876"));
     assertThat(row, hasEntry("datetime0ms", "2020-11-02T12:34:56"));
     assertThat(row, hasEntry("datetime0s_ns", "2020-11-02T12:34:00.789876"));
@@ -691,12 +697,12 @@ public class BigQueryUtilsTest {
     assertThat(row, hasEntry("time0s_ns", "12:34:00.789876"));
     assertThat(row, hasEntry("time0s_0ns", "12:34:00"));
     assertThat(row, hasEntry("name", "test"));
-    assertThat(row, hasEntry("valid", false));
+    assertThat(row, hasEntry("valid", "false"));
     assertThat(row, hasEntry("binary", "ABCD1234"));
     assertThat(row, hasEntry("numeric", "123.456"));
-    assertThat(row, hasEntry("boolean", true));
+    assertThat(row, hasEntry("boolean", "true"));
     assertThat(row, hasEntry("long", "123"));
-    assertThat(row, hasEntry("double", 123.456));
+    assertThat(row, hasEntry("double", "123.456"));
   }
 
   @Test
@@ -875,6 +881,12 @@ public class BigQueryUtilsTest {
   @Test
   public void testToBeamRow_array() {
     Row beamRow = BigQueryUtils.toBeamRow(ARRAY_TYPE, BQ_ARRAY_ROW);
+    assertEquals(ARRAY_ROW, beamRow);
+  }
+
+  @Test
+  public void testToBeamRow_inlineArray() {
+    Row beamRow = BigQueryUtils.toBeamRow(ARRAY_TYPE, BQ_INLINE_ARRAY_ROW);
     assertEquals(ARRAY_ROW, beamRow);
   }
 

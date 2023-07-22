@@ -69,6 +69,10 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
     super().__init__(*args, **kwargs)
     self.environment_type = None
     self.environment_config = None
+    self.enable_commit = False
+
+  def setUp(self):
+    self.enable_commit = False
 
   @pytest.fixture(autouse=True)
   def parse_options(self, request):
@@ -197,6 +201,11 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
     options.view_as(PortableOptions).environment_type = self.environment_type
     options.view_as(
         PortableOptions).environment_options = self.environment_options
+    if self.enable_commit:
+      options.view_as(StandardOptions).streaming = True
+      options._all_options['checkpointing_interval'] = 3000
+      options._all_options['shutdown_sources_after_idle_ms'] = 60000
+      options._all_options['number_of_execution_retries'] = 1
 
     return options
 
@@ -224,6 +233,7 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
     # Nevertheless, we check that the transform is expanded by the
     # ExpansionService and that the pipeline fails during execution.
     with self.assertRaises(Exception) as ctx:
+      self.enable_commit = True
       with self.create_pipeline() as p:
         # pylint: disable=expression-not-assigned
         (
@@ -338,19 +348,9 @@ class FlinkRunnerTestOptimized(FlinkRunnerTest):
 
 
 class FlinkRunnerTestStreaming(FlinkRunnerTest):
-  def __init__(self, *args, **kwargs):
-    super().__init__(*args, **kwargs)
-    self.enable_commit = False
-
-  def setUp(self):
-    self.enable_commit = False
-
   def create_options(self):
     options = super().create_options()
     options.view_as(StandardOptions).streaming = True
-    if self.enable_commit:
-      options._all_options['checkpointing_interval'] = 3000
-      options._all_options['shutdown_sources_after_idle_ms'] = 60000
     return options
 
   def test_callbacks_with_exception(self):

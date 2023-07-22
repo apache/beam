@@ -26,7 +26,7 @@ import (
 
 func TestJSONCoder(t *testing.T) {
 	v := "teststring"
-	tests := []interface{}{
+	tests := []any{
 		43,
 		12431235,
 		-2,
@@ -70,7 +70,7 @@ func TestJSONCoder(t *testing.T) {
 
 func TestSchemaCoder(t *testing.T) {
 	v := "teststring"
-	tests := []interface{}{
+	tests := []any{
 		struct {
 			A int
 			B *string
@@ -126,7 +126,7 @@ func TestCoders(t *testing.T) {
 		A [4]int
 	}
 	schema.RegisterType(reflect.TypeOf((*regTestType)(nil)))
-	tests := []interface{}{
+	tests := []any{
 		43,
 		12431235,
 		-2,

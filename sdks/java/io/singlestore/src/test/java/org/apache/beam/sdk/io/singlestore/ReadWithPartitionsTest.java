@@ -149,66 +149,15 @@ public class ReadWithPartitionsTest {
   }
 
   @Test
-  public void testReadWithPartitionsWithInitialNumReaders() {
-    PCollection<TestRow> rows =
-        pipeline.apply(
-            SingleStoreIO.<TestRow>readWithPartitions()
-                .withDataSourceConfiguration(dataSourceConfiguration)
-                .withQuery("SELECT * FROM `t`")
-                .withRowMapper(new TestHelper.TestRowMapper())
-                .withInitialNumReaders(2));
-
-    PAssert.thatSingleton(rows.apply("Count All", Count.globally()))
-        .isEqualTo((long) EXPECTED_ROW_COUNT);
-
-    Iterable<TestRow> expectedValues = TestRow.getExpectedValues(0, EXPECTED_ROW_COUNT);
-    PAssert.that(rows).containsInAnyOrder(expectedValues);
-
-    pipeline.run();
-  }
-
-  @Test
-  public void testReadWithPartitionsZeroInitialNumReaders() {
-    assertThrows(
-        "withInitialNumReaders() should be greater or equal to 1",
-        IllegalArgumentException.class,
-        () -> {
-          pipelineForErrorChecks.apply(
-              SingleStoreIO.<TestRow>readWithPartitions()
-                  .withDataSourceConfiguration(dataSourceConfiguration)
-                  .withTable("t")
-                  .withInitialNumReaders(0)
-                  .withRowMapper(new TestHelper.TestRowMapper()));
-        });
-  }
-
-  @Test
-  public void testReadWithPartitionsTooBigInitialNumReaders() {
-    pipelineForErrorChecks.apply(
-        SingleStoreIO.<TestRow>readWithPartitions()
-            .withDataSourceConfiguration(dataSourceConfiguration)
-            .withTable("t")
-            .withInitialNumReaders(100)
-            .withRowMapper(new TestHelper.TestRowMapper()));
-
-    assertThrows(
-        "withInitialNumReaders() should not be greater then number of partitions in the database.\n"
-            + "InitialNumReaders is 100, number of partitions in the database is 2",
-        Pipeline.PipelineExecutionException.class,
-        () -> pipelineForErrorChecks.run().waitUntilFinish());
-  }
-
-  @Test
   public void testReadWithPartitionsNoTableAndQuery() {
     assertThrows(
         "One of withTable() or withQuery() is required",
         IllegalArgumentException.class,
-        () -> {
-          pipelineForErrorChecks.apply(
-              SingleStoreIO.<TestRow>readWithPartitions()
-                  .withDataSourceConfiguration(dataSourceConfiguration)
-                  .withRowMapper(new TestHelper.TestRowMapper()));
-        });
+        () ->
+            pipelineForErrorChecks.apply(
+                SingleStoreIO.<TestRow>readWithPartitions()
+                    .withDataSourceConfiguration(dataSourceConfiguration)
+                    .withRowMapper(new TestHelper.TestRowMapper())));
   }
 
   @Test
@@ -216,13 +165,12 @@ public class ReadWithPartitionsTest {
     assertThrows(
         "withTable() can not be used together with withQuery()",
         IllegalArgumentException.class,
-        () -> {
-          pipelineForErrorChecks.apply(
-              SingleStoreIO.<TestRow>readWithPartitions()
-                  .withDataSourceConfiguration(dataSourceConfiguration)
-                  .withTable("t")
-                  .withQuery("SELECT * FROM `t`")
-                  .withRowMapper(new TestHelper.TestRowMapper()));
-        });
+        () ->
+            pipelineForErrorChecks.apply(
+                SingleStoreIO.<TestRow>readWithPartitions()
+                    .withDataSourceConfiguration(dataSourceConfiguration)
+                    .withTable("t")
+                    .withQuery("SELECT * FROM `t`")
+                    .withRowMapper(new TestHelper.TestRowMapper())));
   }
 }

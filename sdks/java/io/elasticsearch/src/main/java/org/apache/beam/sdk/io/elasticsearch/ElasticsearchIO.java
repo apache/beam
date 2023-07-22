@@ -53,8 +53,6 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import javax.net.ssl.SSLContext;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.BooleanCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -137,7 +135,8 @@ import org.slf4j.LoggerFactory;
  * }</pre>
  *
  * <p>The connection configuration also accepts optional configuration: {@code withUsername()},
- * {@code withPassword()}, {@code withApiKey()} and {@code withBearerToken()}.
+ * {@code withPassword()}, {@code withApiKey()}, {@code withBearerToken()} and {@code
+ * withDefaultHeaders()}.
  *
  * <p>You can also specify a query on the {@code read()} using {@code withQuery()}.
  *
@@ -198,7 +197,6 @@ import org.slf4j.LoggerFactory;
  * <p>There are many more configuration options which can be found by looking at the with* methods
  * of {@link ElasticsearchIO.Write}
  */
-@Experimental(Kind.SOURCE_SINK)
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
@@ -326,6 +324,8 @@ public class ElasticsearchIO {
 
     public abstract @Nullable String getBearerToken();
 
+    public abstract @Nullable List<Header> getDefaultHeaders();
+
     public abstract @Nullable String getKeystorePath();
 
     public abstract @Nullable String getKeystorePassword();
@@ -353,6 +353,8 @@ public class ElasticsearchIO {
       abstract Builder setApiKey(String apiKey);
 
       abstract Builder setBearerToken(String bearerToken);
+
+      abstract Builder setDefaultHeaders(List<Header> defaultHeaders);
 
       abstract Builder setKeystorePath(String keystorePath);
 
@@ -501,7 +503,9 @@ public class ElasticsearchIO {
     }
 
     /**
-     * If Elasticsearch authentication is enabled, provide an API key.
+     * If Elasticsearch authentication is enabled, provide an API key. Be aware that you can only
+     * use one of {@Code withApiToken()}, {@code withBearerToken()} and {@code withDefaultHeaders}
+     * at the same time, as they (potentially) use the same header.
      *
      * @param apiKey the API key used to authenticate to Elasticsearch
      * @return a {@link ConnectionConfiguration} describes a connection configuration to
@@ -509,11 +513,15 @@ public class ElasticsearchIO {
      */
     public ConnectionConfiguration withApiKey(String apiKey) {
       checkArgument(!Strings.isNullOrEmpty(apiKey), "apiKey can not be null or empty");
+      checkArgument(getBearerToken() == null, "apiKey can not be combined with bearerToken");
+      checkArgument(getDefaultHeaders() == null, "apiKey can not be combined with defaultHeaders");
       return builder().setApiKey(apiKey).build();
     }
 
     /**
-     * If Elasticsearch authentication is enabled, provide a bearer token.
+     * If Elasticsearch authentication is enabled, provide a bearer token. Be aware that you can
+     * only use one of {@Code withApiToken()}, {@code withBearerToken()} and {@code
+     * withDefaultHeaders} at the same time, as they (potentially) use the same header.
      *
      * @param bearerToken the bearer token used to authenticate to Elasticsearch
      * @return a {@link ConnectionConfiguration} describes a connection configuration to
@@ -521,7 +529,48 @@ public class ElasticsearchIO {
      */
     public ConnectionConfiguration withBearerToken(String bearerToken) {
       checkArgument(!Strings.isNullOrEmpty(bearerToken), "bearerToken can not be null or empty");
+      checkArgument(getApiKey() == null, "bearerToken can not be combined with apiKey");
+      checkArgument(
+          getDefaultHeaders() == null, "bearerToken can not be combined with defaultHeaders");
       return builder().setBearerToken(bearerToken).build();
+    }
+
+    /**
+     * For authentication or custom requirements, provide a set if default headers for the client.
+     * Be aware that you can only use one of {@code withApiToken()}, {@code withBearerToken()} and
+     * {@code withDefaultHeaders} at the same time, as they (potentially) use the same header.
+     *
+     * <p>An example of where this could be useful is if the client needs to use short-lived
+     * credentials that need to be renewed on a certain interval. To implement that, a user could
+     * implement a custom header that tracks the renewal period, for example:
+     *
+     * <pre>
+     * {@code class OAuthTokenHeader extends BasicHeader {
+     *     OAuthToken accessToken;
+     *
+     *     ...
+     *
+     *     @Override
+     *     public String getValue() {
+     *         if (accessToken.isExpired()) {
+     *             accessToken.renew();
+     *         }
+     *         return String.format("Bearer %s", accessToken.getToken());
+     *     }
+     * }}
+     * </pre>
+     *
+     * @param defaultHeaders the headers to add to outgoing requests
+     * @return a {@link ConnectionConfiguration} describes a connection configuration to
+     *     Elasticsearch.
+     */
+    public ConnectionConfiguration withDefaultHeaders(Header[] defaultHeaders) {
+      checkArgument(defaultHeaders != null, "defaultHeaders can not be null");
+      checkArgument(defaultHeaders.length > 0, "defaultHeaders can not be empty");
+      checkArgument(getApiKey() == null, "defaultHeaders can not be combined with apiKey");
+      checkArgument(
+          getBearerToken() == null, "defaultHeaders can not be combined with bearerToken");
+      return builder().setDefaultHeaders(Arrays.asList(defaultHeaders)).build();
     }
 
     /**
@@ -639,6 +688,10 @@ public class ElasticsearchIO {
       if (getBearerToken() != null) {
         restClientBuilder.setDefaultHeaders(
             new Header[] {new BasicHeader("Authorization", "Bearer " + getBearerToken())});
+      }
+      if (getDefaultHeaders() != null) {
+        Header[] headerList = new Header[getDefaultHeaders().size()];
+        restClientBuilder.setDefaultHeaders(getDefaultHeaders().toArray(headerList));
       }
 
       restClientBuilder.setHttpClientConfigCallback(
@@ -2460,7 +2513,7 @@ public class ElasticsearchIO {
           return new ArrayList<>();
         }
 
-        LOG.info(
+        LOG.debug(
             "ElasticsearchIO batch size: {}, batch size bytes: {}",
             batch.size(),
             currentBatchSizeBytes);

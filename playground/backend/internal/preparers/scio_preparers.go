@@ -24,17 +24,17 @@ const (
 	emptyStr                   = ""
 )
 
-//ScioPreparersBuilder facet of PreparersBuilder
+// ScioPreparersBuilder facet of PreparersBuilder
 type ScioPreparersBuilder struct {
 	PreparersBuilder
 }
 
-//ScioPreparers chains to type *PreparersBuilder and returns a *ScioPreparersBuilder
+// ScioPreparers chains to type *PreparersBuilder and returns a *ScioPreparersBuilder
 func (builder *PreparersBuilder) ScioPreparers() *ScioPreparersBuilder {
 	return &ScioPreparersBuilder{*builder}
 }
 
-//WithFileNameChanger adds preparer to change source code file name
+// WithFileNameChanger adds preparer to change source code file name
 func (builder *ScioPreparersBuilder) WithFileNameChanger() *ScioPreparersBuilder {
 	changeNamePreparer := Preparer{
 		Prepare: utils.ChangeTestFileName,
@@ -44,7 +44,7 @@ func (builder *ScioPreparersBuilder) WithFileNameChanger() *ScioPreparersBuilder
 	return builder
 }
 
-//WithPackageRemover adds preparer to remove package from the code
+// WithPackageRemover adds preparer to remove package from the code
 func (builder *ScioPreparersBuilder) WithPackageRemover() *ScioPreparersBuilder {
 	removePackagePreparer := Preparer{
 		Prepare: replace,
@@ -54,7 +54,7 @@ func (builder *ScioPreparersBuilder) WithPackageRemover() *ScioPreparersBuilder 
 	return builder
 }
 
-//WithImportRemover adds preparer to remove examples import from the code
+// WithImportRemover adds preparer to remove examples import from the code
 func (builder *ScioPreparersBuilder) WithImportRemover() *ScioPreparersBuilder {
 	removeImportPreparer := Preparer{
 		Prepare: replace,

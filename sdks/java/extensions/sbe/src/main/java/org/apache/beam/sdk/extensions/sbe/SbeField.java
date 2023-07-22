@@ -19,12 +19,9 @@ package org.apache.beam.sdk.extensions.sbe;
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema.Field;
 
 /** Interface for SBE fields. */
-@Experimental(Kind.SCHEMAS)
 interface SbeField extends Serializable {
 
   /** Returns the name of the field. */

@@ -16,12 +16,11 @@
 package exec
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"reflect"
 	"strings"
-
-	"bytes"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
@@ -45,7 +44,7 @@ type ElementEncoder interface {
 
 // EncodeElement is a convenience function for encoding a single element into a
 // byte slice.
-func EncodeElement(c ElementEncoder, val interface{}) ([]byte, error) {
+func EncodeElement(c ElementEncoder, val any) ([]byte, error) {
 	var buf bytes.Buffer
 	if err := c.Encode(&FullValue{Elm: val}, &buf); err != nil {
 		return nil, err
@@ -117,6 +116,9 @@ func MakeElementEncoder(c *coder.Coder) ElementEncoder {
 			snd: MakeElementEncoder(c.Components[1]),
 		}
 
+	case coder.IW:
+		return &intervalWindowValueEncoder{}
+
 	case coder.Window:
 		return &wrappedWindowEncoder{
 			enc: MakeWindowEncoder(c.Window),
@@ -143,8 +145,9 @@ func MakeElementEncoder(c *coder.Coder) ElementEncoder {
 		}
 
 	case coder.Timer:
+		tc := coder.SkipW(c).Components[0]
 		return &timerEncoder{
-			elm: MakeElementEncoder(c.Components[0]),
+			elm: MakeElementEncoder(tc),
 			win: MakeWindowEncoder(c.Window),
 		}
 
@@ -229,6 +232,9 @@ func MakeElementDecoder(c *coder.Coder) ElementDecoder {
 			snd: MakeElementDecoder(c.Components[1]),
 		}
 
+	case coder.IW:
+		return &intervalWindowValueDecoder{}
+
 	// The following cases are not expected to be executed in the normal
 	// course of a pipeline, however including them here enables simpler
 	// end to end validation of standard coders against
@@ -261,8 +267,9 @@ func MakeElementDecoder(c *coder.Coder) ElementDecoder {
 		}
 
 	case coder.Timer:
+		tc := coder.SkipW(c).Components[0]
 		return &timerDecoder{
-			elm: MakeElementDecoder(c.Components[0]),
+			elm: MakeElementDecoder(tc),
 			win: MakeWindowDecoder(c.Window),
 		}
 
@@ -589,7 +596,8 @@ func (c *kvDecoder) DecodeTo(r io.Reader, fv *FullValue) error {
 // Elm will be the decoded type.
 //
 // Example:
-//   KV<int, KV<...>> decodes to *FullValue{Elm: int, Elm2: *FullValue{...}}
+//
+//	KV<int, KV<...>> decodes to *FullValue{Elm: int, Elm2: *FullValue{...}}
 func (c *kvDecoder) Decode(r io.Reader) (*FullValue, error) {
 	fv := &FullValue{}
 	if err := c.DecodeTo(r, fv); err != nil {
@@ -604,7 +612,7 @@ func (c *kvDecoder) Decode(r io.Reader) (*FullValue, error) {
 //
 // Technically drops window and timestamp info, so only use when those are
 // expected to be empty.
-func elideSingleElmFV(fv *FullValue) interface{} {
+func elideSingleElmFV(fv *FullValue) any {
 	if fv.Elm2 == nil {
 		return fv.Elm
 	}
@@ -613,7 +621,7 @@ func elideSingleElmFV(fv *FullValue) interface{} {
 
 // convertIfNeeded reuses Wrapped KVs if needed, but accepts pointer
 // to a pre-allocated non-nil *FullValue for overwriting and use.
-func convertIfNeeded(v interface{}, allocated *FullValue) *FullValue {
+func convertIfNeeded(v any, allocated *FullValue) *FullValue {
 	if fv, ok := v.(*FullValue); ok {
 		return fv
 	} else if _, ok := v.(FullValue); ok {
@@ -896,7 +904,7 @@ type timerEncoder struct {
 }
 
 func (e *timerEncoder) Encode(val *FullValue, w io.Writer) error {
-	return encodeTimer(e.elm, e.win, val.Elm.(typex.TimerMap), w)
+	return encodeTimer(e.elm, e.win, val.Elm.(TimerRecv), w)
 }
 
 type timerDecoder struct {
@@ -947,7 +955,7 @@ func (d *paneDecoder) Decode(r io.Reader) (*FullValue, error) {
 }
 
 type rowEncoder struct {
-	enc func(interface{}, io.Writer) error
+	enc func(any, io.Writer) error
 }
 
 func (e *rowEncoder) Encode(val *FullValue, w io.Writer) error {
@@ -955,7 +963,7 @@ func (e *rowEncoder) Encode(val *FullValue, w io.Writer) error {
 }
 
 type rowDecoder struct {
-	dec func(r io.Reader) (interface{}, error)
+	dec func(r io.Reader) (any, error)
 }
 
 func (d *rowDecoder) DecodeTo(r io.Reader, fv *FullValue) error {
@@ -1180,6 +1188,36 @@ func (*intervalWindowDecoder) DecodeSingle(r io.Reader) (typex.Window, error) {
 	return window.IntervalWindow{Start: mtime.FromMilliseconds(end.Milliseconds() - int64(duration)), End: end}, nil
 }
 
+type intervalWindowValueEncoder struct {
+	intervalWindowEncoder
+}
+
+func (e *intervalWindowValueEncoder) Encode(v *FullValue, w io.Writer) error {
+	return e.EncodeSingle(v.Elm.(window.IntervalWindow), w)
+}
+
+type intervalWindowValueDecoder struct {
+	intervalWindowDecoder
+}
+
+func (d *intervalWindowValueDecoder) Decode(r io.Reader) (*FullValue, error) {
+	fv := &FullValue{}
+	err := d.DecodeTo(r, fv)
+	if err != nil {
+		return nil, err
+	}
+	return fv, nil
+}
+
+func (d *intervalWindowValueDecoder) DecodeTo(r io.Reader, value *FullValue) error {
+	w, err := d.DecodeSingle(r)
+	if err != nil {
+		return err
+	}
+	value.Elm = w
+	return nil
+}
+
 // EncodeWindowedValueHeader serializes a windowed value header.
 func EncodeWindowedValueHeader(enc WindowEncoder, ws []typex.Window, t typex.EventTime, p typex.PaneInfo, w io.Writer) error {
 	// Encoding: Timestamp, Window, Pane (header) + Element
@@ -1190,8 +1228,7 @@ func EncodeWindowedValueHeader(enc WindowEncoder, ws []typex.Window, t typex.Eve
 	if err := enc.Encode(ws, w); err != nil {
 		return err
 	}
-	err := coder.EncodePane(p, w)
-	return err
+	return coder.EncodePane(p, w)
 }
 
 // DecodeWindowedValueHeader deserializes a windowed value header.
@@ -1218,48 +1255,62 @@ func DecodeWindowedValueHeader(dec WindowDecoder, r io.Reader) ([]typex.Window, 
 	return ws, t, pn, nil
 }
 
-// encodeTimer encodes a typex.TimerMap into a byte stream.
-func encodeTimer(elm ElementEncoder, win WindowEncoder, tm typex.TimerMap, w io.Writer) error {
+// encodeTimer encodes a TimerRecv into a byte stream.
+// Avoids partial writes to provided writer on encoding errors.
+func encodeTimer(elm ElementEncoder, win WindowEncoder, tm TimerRecv, w io.Writer) error {
 	var b bytes.Buffer
+	err := elm.Encode(tm.Key, &b)
+	if err != nil {
+		return errors.WithContext(err, "error encoding key")
+	}
 
-	elm.Encode(&FullValue{Elm: tm.Key}, &b)
+	if err := encodeTimerSuffix(win, tm, &b); err != nil {
+		return err
+	}
+	w.Write(b.Bytes())
 
-	if err := coder.EncodeStringUTF8(tm.Tag, &b); err != nil {
+	return nil
+}
+
+// encodeTimerSuffix enccodes the timer directly to the provided writer.
+func encodeTimerSuffix(win WindowEncoder, tm TimerRecv, w io.Writer) error {
+	if err := coder.EncodeStringUTF8(tm.Tag, w); err != nil {
 		return errors.WithContext(err, "error encoding tag")
 	}
 
-	if err := win.Encode(tm.Windows, &b); err != nil {
+	if err := win.Encode(tm.Windows, w); err != nil {
 		return errors.WithContext(err, "error encoding window")
 	}
-	if err := coder.EncodeBool(tm.Clear, &b); err != nil {
+
+	if err := coder.EncodeBool(tm.Clear, w); err != nil {
 		return errors.WithContext(err, "error encoding clear bit")
 	}
 
 	if !tm.Clear {
-		if err := coder.EncodeEventTime(tm.FireTimestamp, &b); err != nil {
+		if err := coder.EncodeEventTime(tm.FireTimestamp, w); err != nil {
 			return errors.WithContext(err, "error encoding fire timestamp")
 		}
-		if err := coder.EncodeEventTime(tm.HoldTimestamp, &b); err != nil {
+		if err := coder.EncodeEventTime(tm.HoldTimestamp, w); err != nil {
 			return errors.WithContext(err, "error encoding hold timestamp")
 		}
-		if err := coder.EncodePane(tm.Pane, &b); err != nil {
+		if err := coder.EncodePane(tm.Pane, w); err != nil {
 			return errors.WithContext(err, "error encoding paneinfo")
 		}
 	}
-
-	w.Write(b.Bytes())
 	return nil
 }
 
 // decodeTimer decodes timer byte encoded with standard timer coder spec.
-func decodeTimer(dec ElementDecoder, win WindowDecoder, r io.Reader) (typex.TimerMap, error) {
-	tm := typex.TimerMap{}
-
-	fv, err := dec.Decode(r)
+func decodeTimer(dec ElementDecoder, win WindowDecoder, r io.Reader) (TimerRecv, error) {
+	tm := TimerRecv{}
+	var keyBuf bytes.Buffer
+	tr := io.TeeReader(r, &keyBuf)
+	key, err := dec.Decode(tr)
 	if err != nil {
-		return tm, errors.WithContext(err, "error decoding timer key")
+		return tm, errors.WithContext(err, "error decoding key")
 	}
-	tm.Key = fv.Elm.(string)
+	tm.Key = key
+	tm.KeyString = keyBuf.String()
 
 	s, err := coder.DecodeStringUTF8(r)
 	if err != nil && err != io.EOF {

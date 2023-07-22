@@ -20,4 +20,8 @@ extension StringExtension on String {
   List<String> splitNotEmpty(Pattern pattern) {
     return split(pattern).where((s) => s.isNotEmpty).toList(growable: false);
   }
+
+  String tabsToSpaces(int spaceCount) {
+    return replaceAll('\t', ' ' * spaceCount);
+  }
 }

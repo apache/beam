@@ -39,8 +39,7 @@ def fromTemplate = { mode, name, id, datasetName, testSpecificOptions ->
       influx_measurement   : "python_${mode}_sideinput_${id}",
       num_workers          : 10,
       autoscaling_algorithm: 'NONE',
-      // TODO(https://github.com/apache/beam/issues/20806) remove shuffle_mode=appliance with runner v2 once issue is resolved.
-      experiments          : 'use_runner_v2,shuffle_mode=appliance',
+      experiments          : 'use_runner_v2',
     ] << testSpecificOptions
   ]
 }
@@ -53,7 +52,8 @@ def loadTestConfigurations = { mode, datasetName ->
         input_options    : '\'{' +
         '"num_records": 1000000,' +
         '"key_size": 100,' +
-        '"value_size": 900}\'',
+        '"value_size": 900,' +
+        '"algorithm": "lcg"}\'',
         side_input_type  : 'dict',
         access_percentage: 1,
       ]
@@ -64,7 +64,8 @@ def loadTestConfigurations = { mode, datasetName ->
         input_options    : '\'{' +
         '"num_records": 1000000,' +
         '"key_size": 100,' +
-        '"value_size": 900}\'',
+        '"value_size": 900,' +
+        '"algorithm": "lcg"}\'',
         side_input_type  : 'dict',
         access_percentage: 99,
       ]
@@ -75,7 +76,8 @@ def loadTestConfigurations = { mode, datasetName ->
         input_options    : '\'{' +
         '"num_records": 10000000,' +
         '"key_size": 100,' +
-        '"value_size": 900}\'',
+        '"value_size": 900,' +
+        '"algorithm": "lcg"}\'',
         side_input_type  : 'iter',
         access_percentage: 1,
       ]
@@ -86,7 +88,8 @@ def loadTestConfigurations = { mode, datasetName ->
         input_options    : '\'{' +
         '"num_records": 10000000,' +
         '"key_size": 100,' +
-        '"value_size": 900}\'',
+        '"value_size": 900,' +
+        '"algorithm": "lcg"}\'',
         side_input_type  : 'iter',
       ]
     ],
@@ -96,7 +99,8 @@ def loadTestConfigurations = { mode, datasetName ->
         input_options    : '\'{' +
         '"num_records": 1000000,' +
         '"key_size": 100,' +
-        '"value_size": 900}\'',
+        '"value_size": 900,' +
+        '"algorithm": "lcg"}\'',
         side_input_type  : 'list',
         access_percentage: 1,
       ]
@@ -107,7 +111,8 @@ def loadTestConfigurations = { mode, datasetName ->
         input_options    : '\'{' +
         '"num_records": 1000000,' +
         '"key_size": 100,' +
-        '"value_size": 900}\'',
+        '"value_size": 900,' +
+        '"algorithm": "lcg"}\'',
         side_input_type  : 'list',
       ]
     ],
@@ -117,7 +122,8 @@ def loadTestConfigurations = { mode, datasetName ->
         input_options    : '\'{' +
         '"num_records": 1000000,' +
         '"key_size": 100,' +
-        '"value_size": 900}\'',
+        '"value_size": 900,' +
+        '"algorithm": "lcg"}\'',
         side_input_type  : 'dict',
         access_percentage: 1,
         window_count     : 1000,
@@ -129,7 +135,8 @@ def loadTestConfigurations = { mode, datasetName ->
         input_options    : '\'{' +
         '"num_records": 1000000,' +
         '"key_size": 100,' +
-        '"value_size": 900}\'',
+        '"value_size": 900,' +
+        '"algorithm": "lcg"}\'',
         side_input_type  : 'dict',
         access_percentage: 99,
         window_count     : 1000,
@@ -141,7 +148,8 @@ def loadTestConfigurations = { mode, datasetName ->
         input_options    : '\'{' +
         '"num_records": 10000000,' +
         '"key_size": 100,' +
-        '"value_size": 900}\'',
+        '"value_size": 900,' +
+        '"algorithm": "lcg"}\'',
         side_input_type  : 'iter',
         access_percentage: 1,
         window_count     : 1000,
@@ -153,7 +161,8 @@ def loadTestConfigurations = { mode, datasetName ->
         input_options    : '\'{' +
         '"num_records": 10000000,' +
         '"key_size": 100,' +
-        '"value_size": 900}\'',
+        '"value_size": 900,' +
+        '"algorithm": "lcg"}\'',
         side_input_type  : 'iter',
         window_count     : 1000,
       ]
@@ -180,7 +189,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
       loadTestJob(delegate, CommonTestProperties.TriggeringContext.PR, 'batch')
     }
 
-CronJobBuilder.cronJob('beam_LoadTests_Python_SideInput_Dataflow_Batch', 'H 11 * * *', this) {
+CronJobBuilder.cronJob('beam_LoadTests_Python_SideInput_Dataflow_Batch', 'H H * * *', this) {
   additionalPipelineArgs = [
     influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
     influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,

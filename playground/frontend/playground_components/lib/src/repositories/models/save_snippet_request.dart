@@ -17,10 +17,10 @@
  */
 
 import '../../models/sdk.dart';
-import 'shared_file.dart';
+import '../../models/snippet_file.dart';
 
 class SaveSnippetRequest {
-  final List<SharedFile> files;
+  final List<SnippetFile> files;
   final Sdk sdk;
   final String pipelineOptions;
 

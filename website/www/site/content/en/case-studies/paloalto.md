@@ -105,7 +105,7 @@ for unified distributed processing, due to its portability and abstraction.
 
 Apache Beam provides a variety of runners, offering freedom of choice between different data processing engines. Palo
 Alto Networks’ data infrastructure is hosted entirely on [Google Cloud Platform](https://cloud.google.com/gcp/),
-and [with Apache Beam Dataflow runner](https://beam.apache.org/documentation/runners/capability-matrix/), we could
+and [with Apache Beam Dataflow runner](/documentation/runners/capability-matrix/), we could
 easily benefit from [Google Cloud Dataflow](https://cloud.google.com/dataflow)’s managed service and
 [autotuning](https://cloud.google.com/dataflow/docs/guides/deploying-a-pipeline#horizontal-autoscaling) capabilities.
 Apache Kafka was selected as the message broker for the backend, and all events were stored as binary data with a common
@@ -123,12 +123,12 @@ and customer tenant applications.
 
 The first data workflows that the Cortex Data Lake team implemented were simple: reading from Kafka, creating a batch
 job, and writing the results to sink. The release of
-the [Apache Beam version with SQL support](https://beam.apache.org/get-started/downloads/#releases) opened up new
-possibilities. [Beam Calcite SQL](https://beam.apache.org/documentation/dsls/sql/calcite/overview/) provides full
-support for [complex Apache Calcite data types](https://beam.apache.org/documentation/dsls/sql/calcite/data-types/),
+the [Apache Beam version with SQL support](/get-started/downloads/#releases) opened up new
+possibilities. [Beam Calcite SQL](/documentation/dsls/sql/calcite/overview/) provides full
+support for [complex Apache Calcite data types](/documentation/dsls/sql/calcite/data-types/),
 including nested rows, in SQL statements, so developers can use SQL queries in an Apache Beam pipeline for composite
 transforms. The Cortex Data Lake team decided to take advantage of the
-[Beam SQL](https://beam.apache.org/documentation/dsls/sql/overview/) to write Beam pipelines with standard SQL
+[Beam SQL](/documentation/dsls/sql/overview/) to write Beam pipelines with standard SQL
 statements.
 
 The main challenge of the common infrastructure was to support a variety of business logic customizations and
@@ -226,7 +226,7 @@ Lake to update the jobs and payloads automatically for all use cases.
 ## Handling Schema Changes In Beam SQL
 
 Another use case that Palo Alto Networks tackled is handling changes in data schemas for ongoing jobs. Apache Beam
-allows PCollections to have [schemas](https://beam.apache.org/documentation/programming-guide/#schemas) with named
+allows PCollections to have [schemas](/documentation/programming-guide/#schemas) with named
 fields, that are validated at pipeline construction step. When a job is submitted, an execution plan in the form of a
 Beam pipeline fragment is generated based on the latest schema. Beam SQL does not yet have built-in support for relaxed
 schema compatibility for running jobs. For optimized performance, Beam SQL’s
@@ -251,7 +251,7 @@ Depending on the amount of traffic per topic coming from a specific tenant, the 
 partitions or creates new topics with fewer partitions. The “Self Healing” service compares the Kafka states in the data
 store and then finds and updates all related streaming Apache Beam jobs on Cloud Dataflow automatically.
 
-With the [release of Apache Beam 2.28.0](https://beam.apache.org/blog/beam-2.28.0/) in early
+With the [release of Apache Beam 2.28.0](/blog/beam-2.28.0/) in early
 2021, [the pre-built Kafka I/O dynamic read feature](https://beam.apache.org/releases/javadoc/2.29.0/org/apache/beam/sdk/io/kafka/KafkaIO.html)
 provides an out-of-the-box solution for detecting Kafka partition changes to enable cost savings and increased
 performance. Kafka I/O uses WatchKafkaTopicPartitionDoFn to emit

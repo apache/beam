@@ -17,11 +17,10 @@
 
 # pytype: skip-file
 
-from google.protobuf import json_format
-
 from apache_beam.coders import typecoders
 from apache_beam.coders.coder_impl import LogicalTypeCoderImpl
 from apache_beam.coders.coder_impl import RowCoderImpl
+from apache_beam.coders.coders import BigEndianShortCoder
 from apache_beam.coders.coders import BooleanCoder
 from apache_beam.coders.coders import BytesCoder
 from apache_beam.coders.coders import Coder
@@ -90,13 +89,6 @@ class RowCoder(FastCoder):
   def to_type_hint(self):
     return self._type_hint
 
-  def as_cloud_object(self, coders_context=None):
-    value = super().as_cloud_object(coders_context)
-
-    value['schema'] = json_format.MessageToJson(self.schema).encode('utf-8')
-
-    return value
-
   def __hash__(self):
     return hash(self.schema.SerializeToString())
 
@@ -153,6 +145,8 @@ def _nonnull_coder_from_type(field_type):
   if type_info == "atomic_type":
     if field_type.atomic_type in (schema_pb2.INT32, schema_pb2.INT64):
       return VarIntCoder()
+    if field_type.atomic_type == schema_pb2.INT16:
+      return BigEndianShortCoder()
     elif field_type.atomic_type == schema_pb2.FLOAT:
       return SinglePrecisionFloatCoder()
     elif field_type.atomic_type == schema_pb2.DOUBLE:

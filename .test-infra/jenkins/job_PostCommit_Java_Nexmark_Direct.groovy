@@ -23,10 +23,6 @@ import CommonTestProperties.TriggeringContext
 import NexmarkBuilder as Nexmark
 import NoPhraseTriggeringPostCommitBuilder
 import PhraseTriggeringPostCommitBuilder
-import InfluxDBCredentialsHelper
-
-import static NexmarkDatabaseProperties.nexmarkBigQueryArgs
-import static NexmarkDatabaseProperties.nexmarkInfluxDBArgs
 
 NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_Direct',
     'Direct Runner Nexmark Tests', this) {

@@ -28,9 +28,8 @@ import (
 //
 // For example:
 //
-//    col := beam.Create(s, 1, 11, 7, 5, 10)
-//    min := stats.Min(s, col)   // PCollection<int> with 1 as the only element.
-//
+//	col := beam.Create(s, 1, 11, 7, 5, 10)
+//	min := stats.Min(s, col)   // PCollection<int> with 1 as the only element.
 func Min(s beam.Scope, col beam.PCollection) beam.PCollection {
 	s = s.Scope("stats.Min")
 	return combine(s, findMinFn, col)

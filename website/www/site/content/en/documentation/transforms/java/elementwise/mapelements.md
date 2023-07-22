@@ -18,7 +18,7 @@ limitations under the License.
 <table align="left">
     <a target="_blank" class="button"
         href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/transforms/MapElements.html">
-      <img src="https://beam.apache.org/images/logos/sdks/java.png" width="20px" height="20px"
+      <img src="/images/logos/sdks/java.png" width="20px" height="20px"
            alt="Javadoc" />
      Javadoc
     </a>
@@ -28,18 +28,12 @@ limitations under the License.
 Applies a simple 1-to-1 mapping function over each element in the collection.
 
 ## Examples
+
 **Example 1**: providing the mapping function using a `SimpleFunction`
 
-{{< highlight java >}}
-PCollection<String> lines = Create.of("Hello World", "Beam is fun");
-PCollection<Integer> lineLengths = lines.apply(MapElements.via(
-    new SimpleFunction<String, Integer>() {
-      @Override
-      public Integer apply(String line) {
-        return line.length();
-      }
-    });
-{{< /highlight >}}
+{{< playground height="700px" >}}
+{{< playground_snippet language="java" path="SDK_JAVA_MapElements" show="main_section" >}}
+{{< /playground >}}
 
 **Example 2**: providing the mapping function using a `SerializableFunction`,
 which allows the use of Java 8 lambdas. Due to type erasure, you need

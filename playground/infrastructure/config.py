@@ -26,6 +26,7 @@ from api.v1.api_pb2 import STATUS_VALIDATION_ERROR, STATUS_ERROR, \
     STATUS_PREPARATION_ERROR, STATUS_COMPILE_ERROR, \
     STATUS_RUN_TIMEOUT, STATUS_RUN_ERROR, SDK_JAVA, SDK_GO, SDK_PYTHON, \
     SDK_SCIO, Sdk
+from constants import SERVER_ADDRESS_ENV_VAR_KEY, SDK_CONFIG_ENV_VAR_KEY
 
 
 @dataclass(frozen=True)
@@ -33,7 +34,7 @@ class Config:
     """
     General configuration for CI/CD steps
     """
-    SERVER_ADDRESS = os.getenv("SERVER_ADDRESS", "localhost:8080")
+    SERVER_ADDRESS = os.getenv(SERVER_ADDRESS_ENV_VAR_KEY, "localhost:8080")
     EXTENSION_TO_SDK = {
         "java": SDK_JAVA, "go": SDK_GO, "py": SDK_PYTHON, "scala": SDK_SCIO
     }
@@ -55,13 +56,13 @@ class Config:
     ]
     BEAM_PLAYGROUND_TITLE = "beam-playground:\n"
     BEAM_PLAYGROUND = "beam-playground"
-    PAUSE_DELAY = 10
+    PAUSE_DELAY = 1
     CI_STEP_NAME = "CI"
     CD_STEP_NAME = "CD"
     CI_CD_LITERAL = Literal["CI", "CD"]
-    LINK_PREFIX = "https://github.com/apache/beam/blob/master"
-    GOOGLE_CLOUD_PROJECT = os.getenv("GOOGLE_CLOUD_PROJECT")
-    SDK_CONFIG = os.getenv("SDK_CONFIG", "../../playground/sdks.yaml")
+    URL_VCS_PREFIX = "https://github.com/apache/beam/blob/master"
+    SDK_CONFIG = os.getenv(SDK_CONFIG_ENV_VAR_KEY, "../../playground/sdks.yaml")
+    DEFAULT_NAMESPACE = "Playground"
 
 
 @dataclass(frozen=True)
@@ -72,9 +73,12 @@ class TagFields:
     categories: str = "categories"
     pipeline_options: str = "pipeline_options"
     default_example: str = "default_example"
-    context_line: int = "context_line"
+    context_line: str = "context_line"
     complexity: str = "complexity"
     tags: str = "tags"
+    emulators: str = "emulators"
+    datasets: str = "datasets"
+    url_notebook: str = "url_notebook"
 
 
 @dataclass(frozen=True)
@@ -94,12 +98,6 @@ class PrecompiledExampleType:
 
 
 @dataclass(frozen=True)
-class OptionalTagFields:
-    pipeline_options: str = "pipeline_options"
-    default_example: str = "default_example"
-
-
-@dataclass(frozen=True)
 class DatastoreProps:
     NAMESPACE = "Playground"
     KEY_NAME_DELIMITER = "_"
@@ -109,9 +107,17 @@ class DatastoreProps:
     PRECOMPILED_OBJECT_KIND = "pg_pc_objects"
     FILES_KIND = "pg_files"
     SDK_KIND = "pg_sdks"
+    DATASET_KIND = "pg_datasets"
+
+
+@dataclass(frozen=True)
+class RepoProps:
+    REPO_DATASETS_PATH = "../backend/datasets"
 
 class Origin(str, Enum):
     PG_EXAMPLES = 'PG_EXAMPLES'
     PG_USER = 'PG_USER'
+    PG_BEAMDOC = 'PG_BEAMDOC'
     TB_EXAMPLES = 'TB_EXAMPLES'
     TB_USER = 'TB_USER'
+

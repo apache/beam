@@ -54,7 +54,7 @@ func newClient(ctx context.Context, t *testing.T, url string) *s3.Client {
 		},
 	}
 	endpointResolverFn := aws.EndpointResolverWithOptionsFunc(
-		func(service string, region string, options ...interface{}) (aws.Endpoint, error) {
+		func(service string, region string, options ...any) (aws.Endpoint, error) {
 			return aws.Endpoint{URL: url}, nil
 		},
 	)

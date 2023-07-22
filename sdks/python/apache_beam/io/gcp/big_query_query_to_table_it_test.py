@@ -24,7 +24,7 @@ Integration test for Google Cloud BigQuery.
 import base64
 import datetime
 import logging
-import random
+import secrets
 import time
 import unittest
 
@@ -83,7 +83,7 @@ STANDARD_QUERY = (
 NEW_TYPES_QUERY = ('SELECT bytes, date, time FROM [%s.%s]')
 DIALECT_OUTPUT_SCHEMA = ('{"fields": [{"name": "fruit","type": "STRING"}]}')
 DIALECT_OUTPUT_VERIFY_QUERY = ('SELECT fruit from `%s`;')
-DIALECT_OUTPUT_EXPECTED = [(u'apple', ), (u'orange', )]
+DIALECT_OUTPUT_EXPECTED = [('apple', ), ('orange', )]
 
 
 class BigQueryQueryToTableIT(unittest.TestCase):
@@ -93,8 +93,8 @@ class BigQueryQueryToTableIT(unittest.TestCase):
     self.project = self.test_pipeline.get_option('project')
 
     self.bigquery_client = BigQueryWrapper()
-    self.dataset_id = '%s%s%d' % (
-        BIG_QUERY_DATASET_ID, str(int(time.time())), random.randint(0, 10000))
+    self.dataset_id = '%s%d%s' % (
+        BIG_QUERY_DATASET_ID, int(time.time()), secrets.token_hex(3))
     self.bigquery_client.get_or_create_dataset(self.project, self.dataset_id)
     self.output_table = "%s.output_table" % (self.dataset_id)
 

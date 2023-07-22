@@ -20,6 +20,7 @@ package org.apache.beam.runners.fnexecution.control;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
@@ -62,14 +63,14 @@ import org.apache.beam.runners.fnexecution.state.StateDelegator;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
-import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
+import org.apache.beam.sdk.fn.data.BeamFnDataOutboundAggregator;
 import org.apache.beam.sdk.fn.server.GrpcFnServer;
 import org.apache.beam.sdk.fn.server.ServerFactory;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
-import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Assert;
 import org.junit.Before;
@@ -123,7 +124,8 @@ public class DefaultJobBundleFactoryTest {
     when(dataServer.getApiServiceDescriptor())
         .thenReturn(ApiServiceDescriptor.getDefaultInstance());
     GrpcDataService dataService = mock(GrpcDataService.class);
-    when(dataService.send(any(), any())).thenReturn(mock(CloseableFnDataReceiver.class));
+    when(dataService.createOutboundAggregator(any(), anyBoolean()))
+        .thenReturn(mock(BeamFnDataOutboundAggregator.class));
     when(dataServer.getService()).thenReturn(dataService);
     when(stateServer.getApiServiceDescriptor())
         .thenReturn(ApiServiceDescriptor.getDefaultInstance());

@@ -24,7 +24,7 @@ applyJavaNature(
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: ZetaSketch"
 
-evaluationDependsOn(":runners:google-cloud-dataflow-java:worker:legacy-worker")
+evaluationDependsOn(":runners:google-cloud-dataflow-java:worker")
 
 def zetasketch_version = "0.1.0"
 
@@ -53,8 +53,8 @@ dependencies {
 task integrationTest(type: Test) {
     group = "Verification"
 
-    dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
-    def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
+    dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
+    def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
 
     def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
     def gcpRegion = project.findProperty('gcpRegion') ?: 'us-central1'

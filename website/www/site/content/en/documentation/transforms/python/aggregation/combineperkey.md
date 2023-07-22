@@ -38,49 +38,25 @@ We use the function
 [`sum`](https://docs.python.org/3/library/functions.html#sum)
 which takes an `iterable` of numbers and adds them together.
 
-{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey.py" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey.py" combineperkey_simple >}}
-{{< /highlight >}}
-
-{{< paragraph class="notebook-skip" >}}
-Output:
-{{< /paragraph >}}
-
-{{< highlight class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey_test.py" total >}}
-{{< /highlight >}}
+{{< playground height="700px" >}}
+{{< playground_snippet language="py" path="SDK_PYTHON_CombinePerKeySimple" show="combineperkey_simple" >}}
+{{< /playground >}}
 
 ### Example 2: Combining with a function
 
 We define a function `saturated_sum` which takes an `iterable` of numbers and adds them together, up to a predefined maximum number.
 
-{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey.py" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey.py" combineperkey_function >}}
-{{< /highlight >}}
-
-{{< paragraph class="notebook-skip" >}}
-Output:
-{{< /paragraph >}}
-
-{{< highlight class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey_test.py" saturated_total >}}
-{{< /highlight >}}
+{{< playground height="700px" >}}
+{{< playground_snippet language="py" path="SDK_PYTHON_CombinePerKeyFunction" show="combineperkey_function" >}}
+{{< /playground >}}
 
 ### Example 3: Combining with a lambda function
 
 We can also use lambda functions to simplify **Example 2**.
 
-{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey.py" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey.py" combineperkey_lambda >}}
-{{< /highlight >}}
-
-{{< paragraph class="notebook-skip" >}}
-Output:
-{{< /paragraph >}}
-
-{{< highlight class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey_test.py" saturated_total >}}
-{{< /highlight >}}
+{{< playground height="700px" >}}
+{{< playground_snippet language="py" path="SDK_PYTHON_CombinePerKeyLambda" show="combineperkey_lambda" >}}
+{{< /playground >}}
 
 ### Example 4: Combining with multiple arguments
 
@@ -89,17 +65,9 @@ They are passed as additional positional arguments or keyword arguments to the f
 
 In this example, the lambda function takes `values` and `max_value` as arguments.
 
-{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey.py" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey.py" combineperkey_multiple_arguments >}}
-{{< /highlight >}}
-
-{{< paragraph class="notebook-skip" >}}
-Output:
-{{< /paragraph >}}
-
-{{< highlight class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey_test.py" saturated_total >}}
-{{< /highlight >}}
+{{< playground height="700px" >}}
+{{< playground_snippet language="py" path="SDK_PYTHON_CombinePerKeyMultipleArguments" show="combineperkey_multiple_arguments" >}}
+{{< /playground >}}
 
 ### Example 5: Combining with a `CombineFn`
 
@@ -119,17 +87,9 @@ The more general way to combine elements, and the most flexible, is with a class
 * [`CombineFn.extract_output()`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.CombineFn.extract_output):
   It allows to do additional calculations before extracting a result.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey.py" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey.py" combineperkey_combinefn >}}
-{{< /highlight >}}
-
-{{< paragraph class="notebook-skip" >}}
-Output:
-{{< /paragraph >}}
-
-{{< highlight class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey_test.py" average >}}
-{{< /highlight >}}
+{{< playground height="700px" >}}
+{{< playground_snippet language="py" path="SDK_PYTHON_CombinePerKeyCombineFn" show="combineperkey_combinefn" >}}
+{{< /playground >}}
 
 ## Related transforms
 

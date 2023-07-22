@@ -72,7 +72,7 @@ public class PythonService {
         ImmutableList.<String>builder().addAll(this.extraPackages).addAll(extraPackages).build());
   }
 
-  @SuppressWarnings("argument.type.incompatible")
+  @SuppressWarnings("argument")
   public AutoCloseable start() throws IOException, InterruptedException {
     File bootstrapScript = File.createTempFile("bootstrap_beam_venv", ".py");
     bootstrapScript.deleteOnExit();

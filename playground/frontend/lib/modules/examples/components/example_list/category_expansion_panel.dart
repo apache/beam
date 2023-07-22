@@ -20,30 +20,30 @@ import 'dart:math' as math;
 
 import 'package:expansion_widget/expansion_widget.dart';
 import 'package:flutter/material.dart';
-import 'package:playground/constants/sizes.dart';
-import 'package:playground/modules/examples/components/example_list/expansion_panel_item.dart';
 import 'package:playground_components/playground_components.dart';
 
+import '../../../../constants/sizes.dart';
+import 'expansion_panel_item.dart';
+
+/// An expandable list of [examples] for the given [categoryName]
+/// to be shown in the example dropdown.
 class CategoryExpansionPanel extends StatelessWidget {
   final String categoryName;
   final List<ExampleBase> examples;
-  final ExampleBase selectedExample;
-  final AnimationController animationController;
-  final OverlayEntry? dropdown;
+  final VoidCallback onSelected;
+  final ExampleBase? selectedExample;
 
   const CategoryExpansionPanel({
-    Key? key,
     required this.categoryName,
     required this.examples,
+    required this.onSelected,
     required this.selectedExample,
-    required this.animationController,
-    required this.dropdown,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
     return ExpansionWidget(
-      initiallyExpanded: examples.any((e) => e.path == selectedExample.path),
+      initiallyExpanded: examples.any((e) => e.path == selectedExample?.path),
       maintainState: true,
       titleBuilder: (animationValue, _, isExpanded, toggleFunction) => InkWell(
         onTap: () => toggleFunction(animated: true),
@@ -80,9 +80,8 @@ class CategoryExpansionPanel extends StatelessWidget {
       items.add(
         ExpansionPanelItem(
           example: example,
+          onSelected: onSelected,
           selectedExample: selectedExample,
-          animationController: animationController,
-          dropdown: dropdown,
         ),
       );
     }

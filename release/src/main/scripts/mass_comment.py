@@ -17,122 +17,10 @@
 
 """Script for mass-commenting Jenkins test triggers on a Beam PR."""
 
-import itertools
 import os
-import socket
-import sys
-import time
-import traceback
-import re
 import requests
-from datetime import datetime
-
-# This list can be found by querying the Jenkins API, see BEAM-13951
-COMMENTS_TO_ADD = [
-    "Run CommunityMetrics PreCommit",
-    "Run Dataflow Runner Nexmark Tests",
-    "Run Dataflow Runner V2 Java 11 Nexmark Tests",
-    "Run Dataflow Runner V2 Java 17 Nexmark Tests",
-    "Run Dataflow Runner V2 Nexmark Tests",
-    "Run Dataflow Streaming ValidatesRunner",
-    "Run Dataflow ValidatesRunner Java 11",
-    "Run Dataflow ValidatesRunner Java 17",
-    "Run Dataflow ValidatesRunner",
-    "Run Direct Runner Nexmark Tests",
-    "Run Direct ValidatesRunner Java 11",
-    "Run Direct ValidatesRunner Java 17",
-    "Run Direct ValidatesRunner in Java 11",
-    "Run Direct ValidatesRunner",
-    "Run Flink Runner Nexmark Tests",
-    "Run Flink ValidatesRunner Java 11",
-    "Run Flink ValidatesRunner",
-    "Run Go Flink ValidatesRunner",
-    "Run Go PostCommit",
-    "Run Go PreCommit",
-    "Run Go Samza ValidatesRunner",
-    "Run Go Spark ValidatesRunner",
-    "Run GoPortable PreCommit",
-    "Run Java 11 Examples on Dataflow Runner V2",
-    "Run Java 17 Examples on Dataflow Runner V2",
-    "Run Java Dataflow V2 ValidatesRunner Streaming",
-    "Run Java Dataflow V2 ValidatesRunner",
-    "Run Java Examples on Dataflow Runner V2",
-    "Run Java Examples_Direct",
-    "Run Java Examples_Flink",
-    "Run Java Examples_Spark",
-    "Run Java Flink PortableValidatesRunner Streaming",
-    "Run Java PostCommit",
-    "Run Java PreCommit",
-    "Run Java Samza PortableValidatesRunner",
-    "Run Java Spark PortableValidatesRunner Batch",
-    "Run Java Spark v2 PortableValidatesRunner Streaming",
-    "Run Java Spark v3 PortableValidatesRunner Streaming",
-    "Run Java examples on Dataflow Java 11",
-    "Run Java examples on Dataflow Java 17",
-    "Run Java examples on Dataflow with Java 11",
-    "Run Java_Examples_Dataflow PreCommit",
-    "Run Java_Examples_Dataflow_Java11 PreCommit",
-    "Run Java_Examples_Dataflow_Java17 PreCommit",
-    "Run Java_PVR_Flink_Batch PreCommit",
-    "Run Java_PVR_Flink_Docker PreCommit",
-    "Run Javadoc PostCommit",
-    "Run Jpms Dataflow Java 11 PostCommit",
-    "Run Jpms Dataflow Java 17 PostCommit",
-    "Run Jpms Direct Java 11 PostCommit",
-    "Run Jpms Direct Java 17 PostCommit",
-    "Run Jpms Flink Java 11 PostCommit",
-    "Run Jpms Spark Java 11 PostCommit",
-    "Run PortableJar_Flink PostCommit",
-    "Run PortableJar_Spark PostCommit",
-    "Run Portable_Python PreCommit",
-    "Run PostCommit_Java_Dataflow",
-    "Run PostCommit_Java_DataflowV2",
-    "Run PostCommit_Java_Hadoop_Versions",
-    "Run Python 3.7 PostCommit",
-    "Run Python 3.8 PostCommit",
-    "Run Python 3.9 PostCommit",
-    "Run Python 3.10 PostCommit",
-    "Run Python Dataflow V2 ValidatesRunner",
-    "Run Python Dataflow ValidatesContainer",
-    "Run Python Dataflow ValidatesRunner",
-    "Run Python Examples_Dataflow",
-    "Run Python Examples_Direct",
-    "Run Python Examples_Flink",
-    "Run Python Examples_Spark",
-    "Run Python Flink ValidatesRunner",
-    "Run Python PreCommit",
-    "Run Python Samza ValidatesRunner",
-    "Run Python Spark ValidatesRunner",
-    "Run PythonDocker PreCommit",
-    "Run PythonDocs PreCommit",
-    "Run PythonFormatter PreCommit",
-    "Run PythonLint PreCommit",
-    "Run Python_PVR_Flink PreCommit",
-    "Run RAT PreCommit",
-    "Run Release Gradle Build",
-    "Run SQL PostCommit",
-    "Run SQL PreCommit",
-    "Run SQL_Java11 PreCommit",
-    "Run SQL_Java17 PreCommit",
-    "Run Samza ValidatesRunner",
-    "Run Spark Runner Nexmark Tests",
-    "Run Spark StructuredStreaming ValidatesRunner",
-    "Run Spark ValidatesRunner Java 11",
-    "Run Spark ValidatesRunner",
-    "Run Spotless PreCommit",
-    "Run Twister2 ValidatesRunner",
-    "Run Typescript PreCommit",
-    "Run ULR Loopback ValidatesRunner",
-    "Run Whitespace PreCommit",
-    "Run XVR_Direct PostCommit",
-    "Run XVR_Flink PostCommit",
-    "Run XVR_JavaUsingPython_Dataflow PostCommit",
-    "Run XVR_PythonUsingJavaSQL_Dataflow PostCommit",
-    "Run XVR_PythonUsingJava_Dataflow PostCommit",
-    "Run XVR_Samza PostCommit",
-    "Run XVR_Spark PostCommit",
-    "Run XVR_Spark3 PostCommit",
-]
+import socket
+import time
 
 
 def executeGHGraphqlQuery(accessToken, query):
@@ -157,8 +45,8 @@ query FindPullRequestID {
   return response['data']['repository']['pullRequest']['id']
 
 
-def fetchGHData(accessToken, subjectId, commentBody):
-  '''Fetches GitHub data required for reporting Beam metrics'''
+def addPrComment(accessToken, subjectId, commentBody):
+  '''Adds a pr comment to the PR defined by subjectId'''
   query = '''
 mutation AddPullRequestComment {
   addComment(input:{subjectId:"%s",body: "%s"}) {
@@ -176,15 +64,40 @@ mutation AddPullRequestComment {
 ''' % (subjectId, commentBody)
   return executeGHGraphqlQuery(accessToken, query)
 
+def getPrStatuses(accessToken, prNumber):
+  query = '''
+query GetPRChecks {
+  repository(name: "beam", owner: "apache") {
+    pullRequest(number: %s) {
+      commits(last: 1) {
+        nodes {
+          commit {
+            status {
+              contexts {
+                targetUrl
+                context
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+''' % (prNumber)
+  return executeGHGraphqlQuery(accessToken, query)
 
-def postComments(accessToken, subjectId):
+
+def postComments(accessToken, subjectId, commentsToAdd):
   '''
-  Main workhorse method. Fetches data from GitHub and puts it in metrics table.
+  Main workhorse method. Posts comments to GH.
   '''
 
-  for commentBody in COMMENTS_TO_ADD:
-    jsonData = fetchGHData(accessToken, subjectId, commentBody)
+  for comment in commentsToAdd:
+    jsonData = addPrComment(accessToken, subjectId, comment[0])
     print(jsonData)
+    # Space out comments 30 seconds apart to avoid overwhelming Jenkins
+    time.sleep(30)
 
 
 def probeGitHubIsUp():
@@ -195,6 +108,23 @@ def probeGitHubIsUp():
   result = sock.connect_ex(('github.com', 443))
   return True if result == 0 else False
 
+def getRemainingComments(accessToken, pr, initialComments):
+  '''
+  Filters out the comments that already have statuses associated with them from initial comments
+  '''
+  queryResult = getPrStatuses(accessToken, pr)
+  pull = queryResult["data"]["repository"]["pullRequest"]
+  commit = pull["commits"]["nodes"][0]["commit"]
+  check_urls = str(list(map(lambda c : c["targetUrl"], commit["status"]["contexts"])))
+  remainingComments = []
+  for comment in initialComments:
+    if f'/{comment[1]}_Phrase/' not in check_urls and f'/{comment[1]}_PR/' not in check_urls \
+        and f'/{comment[1]}_Commit/' not in check_urls and f'/{comment[1]}/' not in check_urls \
+        and 'Sickbay' not in comment[1]:
+      print(comment)
+      remainingComments.append(comment)
+  return remainingComments
+
 
 ################################################################################
 if __name__ == '__main__':
@@ -204,7 +134,15 @@ if __name__ == '__main__':
   wrap work code in module check.
   '''
   print("Started.")
-
+  comments = []
+  dirname = os.path.dirname(__file__)
+  with open(os.path.join(dirname, 'jenkins_jobs.txt')) as file:
+    comments = [line.strip() for line in file if len(line.strip()) > 0]
+  
+  for i in range(len(comments)):
+    parts = comments[i].split(',')
+    comments[i] = (parts[0], parts[1])
+  
   if not probeGitHubIsUp():
     print("GitHub is unavailable, skipping fetching data.")
     exit()
@@ -215,8 +153,24 @@ if __name__ == '__main__':
 
   pr = input("Enter the Beam PR number to test (e.g. 11403): ")
   subjectId = getSubjectId(accessToken, pr)
-
-  postComments(accessToken, subjectId)
-  print("Fetched data.")
+  
+  remainingComments = getRemainingComments(accessToken, pr, comments)
+  if len(remainingComments) == 0:
+    print('Jobs have been started for all comments. If you would like to retry all jobs, create a new commit before running this script.')
+  while len(remainingComments) > 0:
+    postComments(accessToken, subjectId, remainingComments)
+    # Sleep 60 seconds to allow checks to start to status
+    time.sleep(60)
+    remainingComments = getRemainingComments(accessToken, pr, remainingComments)
+    if len(remainingComments) > 0:
+      print(f'{len(remainingComments)} comments must be reposted because no check has been created for them: {str(remainingComments)}')
+      print('Sleeping for 1 hour to allow Jenkins to recover and to give it time to status.')
+      for i in range(60):
+        time.sleep(60)
+        print(f'{i} minutes elapsed, {60-i} minutes remaining')
+    remainingComments = getRemainingComments(accessToken, pr, remainingComments)
+    if len(remainingComments) == 0:
+      print(f'{len(remainingComments)} comments still must be reposted: {str(remainingComments)}')
+      print('Trying to repost comments.')
 
   print('Done.')

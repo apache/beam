@@ -18,6 +18,7 @@
 package org.apache.beam.runners.spark.structuredstreaming;
 
 import static java.util.stream.Collectors.toMap;
+import static org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop.fun1;
 
 import java.io.Serializable;
 import java.util.Arrays;
@@ -29,6 +30,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.KV;
 import org.apache.spark.sql.SparkSession;
 import org.junit.rules.ExternalResource;
+import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 
@@ -67,6 +69,24 @@ public class SparkSessionRule extends ExternalResource implements Serializable {
     opts.setRunner(SparkStructuredStreamingRunner.class);
     opts.setTestMode(true);
     return opts;
+  }
+
+  /** {@code true} if sessions contains cached Datasets or RDDs. */
+  public boolean hasCachedData() {
+    return !session.sharedState().cacheManager().isEmpty()
+        || !session.sparkContext().getPersistentRDDs().isEmpty();
+  }
+
+  public TestRule clearCache() {
+    return new ExternalResource() {
+      @Override
+      protected void after() {
+        // clear cached datasets
+        session.sharedState().cacheManager().clearCache();
+        // clear cached RDDs
+        session.sparkContext().getPersistentRDDs().foreach(fun1(t -> t._2.unpersist(true)));
+      }
+    };
   }
 
   @Override

@@ -17,20 +17,32 @@
  */
 
 import 'package:highlight/languages/go.dart';
+import 'package:highlight/languages/java.dart';
 import 'package:highlight/languages/python.dart';
+import 'package:highlight/languages/scala.dart';
 
 import '../../../assets/assets.gen.dart';
 import '../../../playground_components.dart';
 import 'yaml.dart';
 
+final _javaLoader = YamlSymbolsLoader(
+    path: Assets.symbols.javaG,
+    package: PlaygroundComponents.packageName,
+  );
+
 final symbolLoadersByMode = {
+  //
   go: YamlSymbolsLoader(
     path: Assets.symbols.goG,
     package: PlaygroundComponents.packageName,
   ),
 
+  java: _javaLoader,
+
   python: YamlSymbolsLoader(
     path: Assets.symbols.pythonG,
     package: PlaygroundComponents.packageName,
   ),
+
+  scala: _javaLoader,
 };

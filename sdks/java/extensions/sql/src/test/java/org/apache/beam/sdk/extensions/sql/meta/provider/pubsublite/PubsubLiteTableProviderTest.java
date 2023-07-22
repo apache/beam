@@ -197,7 +197,7 @@ public class PubsubLiteTableProviderTest {
   }
 
   @Test
-  @SuppressWarnings("argument.type.incompatible")
+  @SuppressWarnings("argument")
   public void topicTableCannotRead() {
     BeamSqlTable basic =
         makeTable(FULL_WRITE_SCHEMA, example(TopicPath.class).toString(), ImmutableMap.of());
@@ -230,7 +230,7 @@ public class PubsubLiteTableProviderTest {
   }
 
   @Test
-  @SuppressWarnings("argument.type.incompatible")
+  @SuppressWarnings("argument")
   public void subscriptionTableCannotWrite() {
     BeamSqlTable basic =
         makeTable(FULL_READ_SCHEMA, example(SubscriptionPath.class).toString(), ImmutableMap.of());

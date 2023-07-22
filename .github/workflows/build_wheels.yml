@@ -42,12 +42,17 @@ env:
 
 jobs:
 
-  check_gcp_variables:
+  check_env_variables:
     timeout-minutes: 5
-    name: "Check GCP variables"
+    name: "Check environment variables"
     runs-on: ubuntu-latest
+    env:
+      EVENT_NAME: ${{ github.event_name }}
+      PY_VERSIONS_FULL: "cp38-* cp39-* cp310-* cp311-*"
     outputs:
       gcp-variables-set: ${{ steps.check_gcp_variables.outputs.gcp-variables-set }}
+      py-versions-full: ${{ steps.set-py-versions.outputs.py-versions-full }}
+      py-versions-test: ${{ steps.set-py-versions.outputs.py-versions-test }}
     steps:
       - uses: actions/checkout@v3
       - name: "Check are GCP variables set"
@@ -60,6 +65,19 @@ jobs:
           GCP_PROJECT_ID: "not-needed-here"
           GCP_REGION: "not-needed-here"
           GCP_TESTING_BUCKET: "not-needed-here"
+      - name: Set Python Versions for different environments
+        id: set-py-versions
+        run: |
+          set -xeu
+          if [ $EVENT_NAME == "pull_request" ]; then
+            # run highest supported version on pull request.
+            echo "py-versions-test=${PY_VERSIONS_FULL##* }" >> $GITHUB_OUTPUT
+          else
+            # run full version for push and cron jobs.
+            echo "py-versions-test=$PY_VERSIONS_FULL" >> $GITHUB_OUTPUT
+          fi
+          # Output full set of versions so that we can test all languages on pull requests for certain platforms.
+          echo "py-versions-full=$PY_VERSIONS_FULL" >> $GITHUB_OUTPUT
 
   build_source:
     runs-on: ubuntu-latest
@@ -73,7 +91,7 @@ jobs:
       - name: Install python
         uses: actions/setup-python@v4
         with:
-          python-version: 3.7
+          python-version: 3.8
       - name: Get build dependencies
         working-directory: ./sdks/python
         run: python -m pip install -r build-requirements.txt
@@ -170,9 +188,9 @@ jobs:
     name: Prepare GCS
     needs:
       - build_source
-      - check_gcp_variables
+      - check_env_variables
     runs-on: ubuntu-latest
-    if: needs.check_gcp_variables.outputs.gcp-variables-set == 'true' && github.event_name != 'pull_request'
+    if: needs.check_env_variables.outputs.gcp-variables-set == 'true' && github.event_name != 'pull_request'
     steps:
       - name: Authenticate on GCP
         uses: google-github-actions/setup-gcloud@v0
@@ -186,9 +204,9 @@ jobs:
     name: Upload python source distribution to GCS bucket
     needs:
       - prepare_gcs
-      - check_gcp_variables
+      - check_env_variables
     runs-on: ubuntu-latest
-    if: needs.check_gcp_variables.outputs.gcp-variables-set == 'true'
+    if: needs.check_env_variables.outputs.gcp-variables-set == 'true'
     steps:
       - name: Download compressed sources from artifacts
         uses: actions/download-artifact@v3
@@ -205,20 +223,22 @@ jobs:
 
   build_wheels:
     name: Build python wheels on ${{matrix.arch}} for ${{ matrix.os_python.os }}
-    needs: build_source
+    needs:
+      - check_env_variables
+      - build_source
     env:
       CIBW_ARCHS_LINUX: ${{matrix.arch}}
     runs-on: ${{ matrix.os_python.os }}
     strategy:
       matrix:
         os_python: [
-          {"os": "ubuntu-latest", "python": "cp37-* cp38-* cp39-* cp310-*"},
-          {"os": "macos-latest", "python": "cp37-* cp38-* cp39-* cp310-*"},
-          {"os": "windows-latest", "python": "cp37-* cp38-* cp39-* cp310-*"},
+          {"os": "ubuntu-latest", "python": "${{ needs.check_env_variables.outputs.py-versions-full }}" },
+          {"os": "macos-latest", "python": "${{ needs.check_env_variables.outputs.py-versions-test }}" },
+          {"os": "windows-latest", "python": "${{ needs.check_env_variables.outputs.py-versions-test }}" },
         ]
         arch: [auto]
         include:
-          - os_python: {"os": "ubuntu-latest", "python": "cp37-* cp38-* cp39-* cp310-*"}
+          - os_python: {"os": "ubuntu-latest", "python": "${{ needs.check_env_variables.outputs.py-versions-test }}" }
             arch: aarch64
     steps:
     - name: Download python source distribution from artifacts
@@ -235,11 +255,12 @@ jobs:
     - name: Install Python
       uses: actions/setup-python@v4
       with:
-        python-version: 3.7
+        python-version: 3.8
     - uses: docker/setup-qemu-action@v1
       if: ${{matrix.arch == 'aarch64'}}
       name: Set up QEMU
     - name: Install cibuildwheel
+      # note: sync cibuildwheel version with gradle task sdks:python:bdistPy* steps
       run: pip install cibuildwheel==2.9.0
     - name: Build wheel
       working-directory: apache-beam-source
@@ -248,7 +269,7 @@ jobs:
         # TODO: https://github.com/apache/beam/issues/23048
         CIBW_SKIP: "*-musllinux_*"
         CIBW_ENVIRONMENT: "SETUPTOOLS_USE_DISTUTILS=stdlib"
-        CIBW_BEFORE_BUILD: pip install cython numpy && pip install --upgrade setuptools
+        CIBW_BEFORE_BUILD: pip install cython==0.29.36 numpy && pip install --upgrade setuptools
       run: cibuildwheel --print-build-identifiers && cibuildwheel --output-dir wheelhouse
       shell: bash
     - name: install sha512sum on MacOS
@@ -274,7 +295,7 @@ jobs:
         # TODO: https://github.com/apache/beam/issues/23048
         CIBW_SKIP: "*-musllinux_*"
         CIBW_ENVIRONMENT: "SETUPTOOLS_USE_DISTUTILS=stdlib"
-        CIBW_BEFORE_BUILD: pip install cython  numpy && pip install --upgrade setuptools
+        CIBW_BEFORE_BUILD: pip install cython==0.29.36 numpy && pip install --upgrade setuptools
       run: cibuildwheel --print-build-identifiers && cibuildwheel --output-dir wheelhouse
       shell: bash
     - name: Add RC checksums
@@ -296,9 +317,9 @@ jobs:
     name: Upload wheels to GCS bucket
     needs:
       - build_wheels
-      - check_gcp_variables
+      - check_env_variables
     runs-on: ubuntu-latest
-    if: needs.check_gcp_variables.outputs.gcp-variables-set == 'true' && github.event_name != 'pull_request'
+    if: needs.check_env_variables.outputs.gcp-variables-set == 'true' && github.event_name != 'pull_request'
     strategy:
       matrix:
         os : [ubuntu-latest, macos-latest, windows-latest]
@@ -340,9 +361,9 @@ jobs:
     name: List files on Google Cloud Storage Bucket
     needs:
      - upload_wheels_to_gcs
-     - check_gcp_variables
+     - check_env_variables
     runs-on: ubuntu-latest
-    if: needs.check_gcp_variables.outputs.gcp-variables-set == 'true' && github.event_name != 'pull_request'
+    if: needs.check_env_variables.outputs.gcp-variables-set == 'true' && github.event_name != 'pull_request'
     steps:
     - name: Authenticate on GCP
       uses: google-github-actions/setup-gcloud@v0

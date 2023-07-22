@@ -26,7 +26,7 @@ Apache Beam is an open source, unified model for defining both batch and streami
 
 ![A standalone beam pipeline](/images/standalone-beam-pipeline.svg)
 
-Defining a pipeline and the corresponding DAG does not mean that data starts flowing through the pipeline. To run the pipeline, you need to deploy it to one of the [supported Beam runners](https://beam.apache.org/documentation/runners/capability-matrix/). These distributed processing backends include Apache Flink, Apache Spark, and Google Cloud Dataflow. To run the pipeline locally on your machine for development and debugging purposes, a [Direct Runner](https://beam.apache.org/documentation/runners/direct/) is also provided. View the [runner capability matrix](https://beam.apache.org/documentation/runners/capability-matrix/) to verify that your chosen runner supports the data processing steps defined in your pipeline, especially when using the Direct Runner.
+Defining a pipeline and the corresponding DAG does not mean that data starts flowing through the pipeline. To run the pipeline, you need to deploy it to one of the [supported Beam runners](/documentation/runners/capability-matrix/). These distributed processing backends include Apache Flink, Apache Spark, and Google Cloud Dataflow. To run the pipeline locally on your machine for development and debugging purposes, a [Direct Runner](/documentation/runners/direct/) is also provided. View the [runner capability matrix](/documentation/runners/capability-matrix/) to verify that your chosen runner supports the data processing steps defined in your pipeline, especially when using the Direct Runner.
 
 ## Orchestrating frameworks
 
@@ -121,7 +121,7 @@ Because KFP provides the input and output arguments as command-line arguments, a
 {{< code_sample "sdks/python/apache_beam/examples/ml-orchestration/kfp/components/preprocessing/src/preprocess.py" preprocess_component_argparse >}}
 {{< /highlight >}}
 
-The implementation of the `preprocess_dataset` function contains the Apache Beam pipeline code and the Beam pipeline options that select the runner. The executed preprocessing involves downloading the image bytes from their URL, converting them to a Torch Tensor, and resizing to the desired size. The caption undergoes a series of string manipulations to ensure that our model receives uniform image descriptions. Tokenization is not done here, but could be included here if the vocabulary is known. Finally, each element is serialized and written to [Avro](https://avro.apache.org/docs/1.2.0/) files. You can use alternative files formats, such as TFRecords.
+The implementation of the `preprocess_dataset` function contains the Apache Beam pipeline code and the Beam pipeline options that select the runner. The executed preprocessing involves downloading the image bytes from their URL, converting them to a Torch Tensor, and resizing to the desired size. The caption undergoes a series of string manipulations to ensure that our model receives uniform image descriptions. Tokenization is not done here, but could be included here if the vocabulary is known. Finally, each element is serialized and written to [Avro](https://avro.apache.org/docs/) files. You can use alternative files formats, such as TFRecords.
 
 
 {{< highlight file="sdks/python/apache_beam/examples/ml-orchestration/kfp/components/preprocessing/src/preprocess.py" >}}

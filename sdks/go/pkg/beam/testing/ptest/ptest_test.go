@@ -22,7 +22,7 @@ import (
 )
 
 func TestCreate(t *testing.T) {
-	inputs := []interface{}{"a", "b", "c"}
+	inputs := []any{"a", "b", "c"}
 	p, s, col := Create(inputs)
 	passert.EqualsList(s, col, inputs)
 	if err := Run(p); err != nil {
@@ -40,8 +40,8 @@ func TestCreateList(t *testing.T) {
 }
 
 func TestCreate2(t *testing.T) {
-	inputOne := []interface{}{"a", "b", "c"}
-	inputTwo := []interface{}{"d", "e", "f", "g"}
+	inputOne := []any{"a", "b", "c"}
+	inputTwo := []any{"d", "e", "f", "g"}
 	p, s, colOne, colTwo := Create2(inputOne, inputTwo)
 	passert.EqualsList(s, colOne, inputOne)
 	passert.EqualsList(s, colTwo, inputTwo)

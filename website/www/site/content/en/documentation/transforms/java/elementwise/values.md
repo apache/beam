@@ -18,7 +18,7 @@ limitations under the License.
 <table align="left">
     <a target="_blank" class="button"
         href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/transforms/Values.html">
-      <img src="https://beam.apache.org/images/logos/sdks/java.png" width="20px" height="20px"
+      <img src="/images/logos/sdks/java.png" width="20px" height="20px"
            alt="Javadoc" />
      Javadoc
     </a>
@@ -29,12 +29,10 @@ The `Values` transform takes a collection of key-value pairs, and
 returns the value of each element.
 
 ## Examples
-**Example**
 
-{{< highlight java >}}
-PCollection<KV<String, Integer>> keyValuePairs = /* ... */;
-PCollection<Integer> values = keyValuePairs.apply(Values.create());
-{{< /highlight >}}
+{{< playground height="700px" >}}
+{{< playground_snippet language="java" path="SDK_JAVA_Values" show="main_section" >}}
+{{< /playground >}}
 
 ## Related transforms
 * [Keys](/documentation/transforms/java/elementwise/keys) for extracting the key of each component.

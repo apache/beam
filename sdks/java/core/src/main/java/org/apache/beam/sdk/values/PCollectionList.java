@@ -245,7 +245,7 @@ public class PCollectionList<T> implements PInput, POutput {
     if (!(other instanceof PCollectionList)) {
       return false;
     }
-    PCollectionList that = (PCollectionList) other;
+    PCollectionList<?> that = (PCollectionList<?>) other;
     return this.pipeline.equals(that.pipeline) && this.getAll().equals(that.getAll());
   }
 

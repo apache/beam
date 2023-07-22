@@ -82,16 +82,17 @@ class GCSFileSystemTest(unittest.TestCase):
     # Prepare mocks.
     gcsio_mock = mock.MagicMock()
     gcsfilesystem.gcsio.GcsIO = lambda pipeline_options=None: gcsio_mock
-    gcsio_mock.list_prefix.return_value = {
-        'gs://bucket/file1': (1, 99999.0), 'gs://bucket/file2': (2, 88888.0)
-    }
+    gcsio_mock.list_files.return_value = iter([
+        ('gs://bucket/file1', (1, 99999.0)),
+        ('gs://bucket/file2', (2, 88888.0))
+    ])
     expected_results = set([
         FileMetadata('gs://bucket/file1', 1, 99999.0),
         FileMetadata('gs://bucket/file2', 2, 88888.0)
     ])
     match_result = self.fs.match(['gs://bucket/'])[0]
     self.assertEqual(set(match_result.metadata_list), expected_results)
-    gcsio_mock.list_prefix.assert_called_once_with(
+    gcsio_mock.list_files.assert_called_once_with(
         'gs://bucket/', with_metadata=True)
 
   @mock.patch('apache_beam.io.gcp.gcsfilesystem.gcsio')
@@ -100,12 +101,14 @@ class GCSFileSystemTest(unittest.TestCase):
     gcsio_mock = mock.MagicMock()
     limit = 1
     gcsfilesystem.gcsio.GcsIO = lambda pipeline_options=None: gcsio_mock
-    gcsio_mock.list_prefix.return_value = {'gs://bucket/file1': (1, 99999.0)}
+    gcsio_mock.list_files.return_value = iter([
+        ('gs://bucket/file1', (1, 99999.0))
+    ])
     expected_results = set([FileMetadata('gs://bucket/file1', 1, 99999.0)])
     match_result = self.fs.match(['gs://bucket/'], [limit])[0]
     self.assertEqual(set(match_result.metadata_list), expected_results)
     self.assertEqual(len(match_result.metadata_list), limit)
-    gcsio_mock.list_prefix.assert_called_once_with(
+    gcsio_mock.list_files.assert_called_once_with(
         'gs://bucket/', with_metadata=True)
 
   @mock.patch('apache_beam.io.gcp.gcsfilesystem.gcsio')
@@ -114,14 +117,14 @@ class GCSFileSystemTest(unittest.TestCase):
     gcsio_mock = mock.MagicMock()
     gcsfilesystem.gcsio.GcsIO = lambda pipeline_options=None: gcsio_mock
     exception = IOError('Failed')
-    gcsio_mock.list_prefix.side_effect = exception
+    gcsio_mock.list_files.side_effect = exception
 
     with self.assertRaisesRegex(BeamIOError,
                                 r'^Match operation failed') as error:
       self.fs.match(['gs://bucket/'])
     self.assertRegex(
         str(error.exception.exception_details), r'gs://bucket/.*%s' % exception)
-    gcsio_mock.list_prefix.assert_called_once_with(
+    gcsio_mock.list_files.assert_called_once_with(
         'gs://bucket/', with_metadata=True)
 
   @mock.patch('apache_beam.io.gcp.gcsfilesystem.gcsio')
@@ -129,13 +132,9 @@ class GCSFileSystemTest(unittest.TestCase):
     # Prepare mocks.
     gcsio_mock = mock.MagicMock()
     gcsfilesystem.gcsio.GcsIO = lambda pipeline_options=None: gcsio_mock
-    gcsio_mock.list_prefix.side_effect = [
-        {
-            'gs://bucket/file1': (1, 99999.0)
-        },
-        {
-            'gs://bucket/file2': (2, 88888.0)
-        },
+    gcsio_mock.list_files.side_effect = [
+        iter([('gs://bucket/file1', (1, 99999.0))]),
+        iter([('gs://bucket/file2', (2, 88888.0))]),
     ]
     expected_results = [[FileMetadata('gs://bucket/file1', 1, 99999.0)],
                         [FileMetadata('gs://bucket/file2', 2, 88888.0)]]

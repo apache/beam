@@ -37,7 +37,7 @@ For more information on changes in 2.43.0, check out the [detailed release notes
 
 * Decreased TextSource CPU utilization by 2.3x (Java) ([#23193](https://github.com/apache/beam/issues/23193)).
 * Fixed bug when using SpannerIO with RuntimeValueProvider options (Java) ([#22146](https://github.com/apache/beam/issues/22146)).
-* Fixed issue for unicode rendering on WriteToBigQuery ([#10785](https://github.com/apache/beam/issues/10785))
+* Fixed issue for unicode rendering on WriteToBigQuery ([#22312](https://github.com/apache/beam/issues/22312))
 * Remove obsolete variants of BigQuery Read and Write, always using Beam-native variant
   ([#23564](https://github.com/apache/beam/issues/23564) and [#23559](https://github.com/apache/beam/issues/23559)).
 * Bumped google-cloud-spanner dependency version to 3.x for Python SDK ([#21198](https://github.com/apache/beam/issues/21198)).

@@ -22,8 +22,6 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.OffsetTime;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.LogicalType;
 import org.apache.beam.sdk.schemas.logicaltypes.PassThroughLogicalType;
@@ -38,7 +36,6 @@ import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
  * <p>Not all of SBE's semantic types are represented here, as some can be reasonably represented in
  * Beam schemas with just a primitive.
  */
-@Experimental(Kind.SCHEMAS)
 public final class SbeLogicalTypes {
   // Default argument type values
   private static final String DEFAULT_STRING_ARG = "";

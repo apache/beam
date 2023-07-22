@@ -40,8 +40,6 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -51,11 +49,13 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.bson.types.ObjectId;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -113,10 +113,6 @@ import org.joda.time.Instant;
  * used to write the data to the OutputStream. By default, it writes UTF-8 strings to the file
  * separated with line feeds.
  */
-@Experimental(Kind.SOURCE_SINK)
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class MongoDbGridFSIO {
 
   /** Callback for the parser to use to submit data. */
@@ -182,17 +178,21 @@ public class MongoDbGridFSIO {
   @AutoValue
   public abstract static class ConnectionConfiguration implements Serializable {
 
+    @Pure
     abstract @Nullable String uri();
 
+    @Pure
     abstract @Nullable String database();
 
+    @Pure
     abstract @Nullable String bucket();
 
     static ConnectionConfiguration create() {
       return new AutoValue_MongoDbGridFSIO_ConnectionConfiguration(null, null, null);
     }
 
-    static ConnectionConfiguration create(String uri, String database, String bucket) {
+    static ConnectionConfiguration create(
+        @Nullable String uri, @Nullable String database, @Nullable String bucket) {
       return new AutoValue_MongoDbGridFSIO_ConnectionConfiguration(uri, database, bucket);
     }
 
@@ -210,16 +210,22 @@ public class MongoDbGridFSIO {
   @AutoValue
   public abstract static class Read<T> extends PTransform<PBegin, PCollection<T>> {
 
+    @Pure
     abstract ConnectionConfiguration connectionConfiguration();
 
+    @Pure
     abstract @Nullable Parser<T> parser();
 
+    @Pure
     abstract @Nullable Coder<T> coder();
 
+    @Pure
     abstract @Nullable Duration skew();
 
+    @Pure
     abstract @Nullable String filter();
 
+    @Pure
     abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
@@ -228,7 +234,7 @@ public class MongoDbGridFSIO {
 
       abstract Builder<T> setParser(Parser<T> parser);
 
-      abstract Builder<T> setCoder(Coder<T> coder);
+      abstract Builder<T> setCoder(@Nullable Coder<T> coder);
 
       abstract Builder<T> setSkew(Duration skew);
 
@@ -238,7 +244,7 @@ public class MongoDbGridFSIO {
     }
 
     public Read<T> withUri(String uri) {
-      checkNotNull(uri);
+      Preconditions.checkArgumentNotNull(uri);
       ConnectionConfiguration config =
           ConnectionConfiguration.create(
               uri, connectionConfiguration().database(), connectionConfiguration().bucket());
@@ -246,7 +252,7 @@ public class MongoDbGridFSIO {
     }
 
     public Read<T> withDatabase(String database) {
-      checkNotNull(database);
+      Preconditions.checkArgumentNotNull(database);
       ConnectionConfiguration config =
           ConnectionConfiguration.create(
               connectionConfiguration().uri(), database, connectionConfiguration().bucket());
@@ -254,7 +260,7 @@ public class MongoDbGridFSIO {
     }
 
     public Read<T> withBucket(String bucket) {
-      checkNotNull(bucket);
+      Preconditions.checkArgumentNotNull(bucket);
       ConnectionConfiguration config =
           ConnectionConfiguration.create(
               connectionConfiguration().uri(), connectionConfiguration().database(), bucket);
@@ -262,7 +268,7 @@ public class MongoDbGridFSIO {
     }
 
     public <X> Read<X> withParser(Parser<X> parser) {
-      checkNotNull(parser);
+      Preconditions.checkArgumentNotNull(parser);
       Builder<X> builder = (Builder<X>) toBuilder();
       return builder.setParser(parser).setCoder(null).build();
     }
@@ -286,8 +292,10 @@ public class MongoDbGridFSIO {
       builder.addIfNotNull(DisplayData.item("uri", connectionConfiguration().uri()));
       builder.addIfNotNull(DisplayData.item("database", connectionConfiguration().database()));
       builder.addIfNotNull(DisplayData.item("bucket", connectionConfiguration().bucket()));
-      builder.addIfNotNull(DisplayData.item("parser", parser().getClass().getName()));
-      builder.addIfNotNull(DisplayData.item("coder", coder().getClass().getName()));
+      builder.addIfNotNull(
+          DisplayData.item("parser", parser() == null ? "null" : parser().getClass().getName()));
+      builder.addIfNotNull(
+          DisplayData.item("coder", coder() == null ? "null" : coder().getClass().getName()));
       builder.addIfNotNull(DisplayData.item("skew", skew()));
       builder.addIfNotNull(DisplayData.item("filter", filter()));
     }
@@ -304,8 +312,8 @@ public class MongoDbGridFSIO {
               .apply(
                   ParDo.of(
                       new DoFn<ObjectId, T>() {
-                        MongoClient mongo;
-                        GridFS gridfs;
+                        @Nullable MongoClient mongo;
+                        @Nullable GridFS gridfs;
 
                         @Setup
                         public void setup() {
@@ -315,33 +323,41 @@ public class MongoDbGridFSIO {
 
                         @Teardown
                         public void teardown() {
-                          mongo.close();
+                          if (mongo != null) {
+                            mongo.close();
+                            mongo = null;
+                          }
                         }
 
                         @ProcessElement
                         public void processElement(final ProcessContext c) throws IOException {
+                          Preconditions.checkStateNotNull(gridfs);
                           ObjectId oid = c.element();
                           GridFSDBFile file = gridfs.find(oid);
-                          parser()
-                              .parse(
-                                  file,
-                                  new ParserCallback<T>() {
-                                    @Override
-                                    public void output(T output, Instant timestamp) {
-                                      checkNotNull(timestamp);
-                                      c.outputWithTimestamp(output, timestamp);
-                                    }
+                          Parser<T> parser = Preconditions.checkStateNotNull(parser());
+                          parser.parse(
+                              file,
+                              new ParserCallback<T>() {
+                                @Override
+                                public void output(T output, Instant timestamp) {
+                                  Preconditions.checkArgumentNotNull(timestamp);
+                                  c.outputWithTimestamp(output, timestamp);
+                                }
 
-                                    @Override
-                                    public void output(T output) {
-                                      c.output(output);
-                                    }
-                                  });
+                                @Override
+                                public void output(T output) {
+                                  c.output(output);
+                                }
+                              });
                         }
 
                         @Override
                         public Duration getAllowedTimestampSkew() {
-                          return skew();
+                          if (skew() != null) {
+                            return skew();
+                          } else {
+                            return Duration.ZERO;
+                          }
                         }
                       }));
       if (coder() != null) {
@@ -357,7 +373,7 @@ public class MongoDbGridFSIO {
 
       private @Nullable List<ObjectId> objectIds;
 
-      BoundedGridFSSource(Read<?> spec, List<ObjectId> objectIds) {
+      BoundedGridFSSource(Read<?> spec, @Nullable List<ObjectId> objectIds) {
         this.spec = spec;
         this.objectIds = objectIds;
       }
@@ -439,12 +455,12 @@ public class MongoDbGridFSIO {
          */
         final @Nullable List<ObjectId> objects;
 
-        MongoClient mongo;
-        DBCursor cursor;
-        Iterator<ObjectId> iterator;
-        ObjectId current;
+        @Nullable MongoClient mongo;
+        @Nullable DBCursor cursor;
+        @Nullable Iterator<ObjectId> iterator;
+        @Nullable ObjectId current;
 
-        GridFSReader(BoundedGridFSSource source, List<ObjectId> objects) {
+        GridFSReader(BoundedGridFSSource source, @Nullable List<ObjectId> objects) {
           this.source = source;
           this.objects = objects;
         }
@@ -522,14 +538,19 @@ public class MongoDbGridFSIO {
   /** A {@link PTransform} to write data to MongoDB GridFS. */
   @AutoValue
   public abstract static class Write<T> extends PTransform<PCollection<T>, PDone> {
+    @Pure
     abstract ConnectionConfiguration connectionConfiguration();
 
+    @Pure
     abstract @Nullable Long chunkSize();
 
+    @Pure
     abstract WriteFn<T> writeFn();
 
+    @Pure
     abstract @Nullable String filename();
 
+    @Pure
     abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
@@ -546,7 +567,7 @@ public class MongoDbGridFSIO {
     }
 
     public Write<T> withUri(String uri) {
-      checkNotNull(uri);
+      Preconditions.checkArgumentNotNull(uri);
       ConnectionConfiguration config =
           ConnectionConfiguration.create(
               uri, connectionConfiguration().database(), connectionConfiguration().bucket());
@@ -554,7 +575,7 @@ public class MongoDbGridFSIO {
     }
 
     public Write<T> withDatabase(String database) {
-      checkNotNull(database);
+      Preconditions.checkArgumentNotNull(database);
       ConnectionConfiguration config =
           ConnectionConfiguration.create(
               connectionConfiguration().uri(), database, connectionConfiguration().bucket());
@@ -562,7 +583,7 @@ public class MongoDbGridFSIO {
     }
 
     public Write<T> withBucket(String bucket) {
-      checkNotNull(bucket);
+      Preconditions.checkArgumentNotNull(bucket);
       ConnectionConfiguration config =
           ConnectionConfiguration.create(
               connectionConfiguration().uri(), connectionConfiguration().database(), bucket);
@@ -570,19 +591,19 @@ public class MongoDbGridFSIO {
     }
 
     public Write<T> withFilename(String filename) {
-      checkNotNull(filename);
+      Preconditions.checkArgumentNotNull(filename);
       return toBuilder().setFilename(filename).build();
     }
 
     public Write<T> withChunkSize(Long chunkSize) {
-      checkNotNull(chunkSize);
+      Preconditions.checkArgumentNotNull(chunkSize);
       checkArgument(chunkSize > 1, "Chunk Size must be greater than 1", chunkSize);
       return toBuilder().setChunkSize(chunkSize).build();
     }
 
     public void validate(T input) {
-      checkNotNull(filename(), "filename");
-      checkNotNull(writeFn(), "writeFn");
+      Preconditions.checkArgumentNotNull(filename(), "filename");
+      Preconditions.checkArgumentNotNull(writeFn(), "writeFn");
     }
 
     @Override
@@ -606,11 +627,11 @@ public class MongoDbGridFSIO {
 
     private final Write<T> spec;
 
-    private transient MongoClient mongo;
-    private transient GridFS gridfs;
+    private transient @Nullable MongoClient mongo;
+    private transient @Nullable GridFS gridfs;
 
-    private transient GridFSInputFile gridFsFile;
-    private transient OutputStream outputStream;
+    private transient @Nullable GridFSInputFile gridFsFile;
+    private transient @Nullable OutputStream outputStream;
 
     public GridFsWriteFn(Write<T> spec) {
       this.spec = spec;
@@ -624,7 +645,9 @@ public class MongoDbGridFSIO {
 
     @StartBundle
     public void startBundle() {
-      gridFsFile = gridfs.createFile(spec.filename());
+      GridFS gridfs = Preconditions.checkStateNotNull(this.gridfs);
+      String filename = Preconditions.checkStateNotNull(spec.filename());
+      gridFsFile = gridfs.createFile(filename);
       if (spec.chunkSize() != null) {
         gridFsFile.setChunkSize(spec.chunkSize());
       }
@@ -633,16 +656,19 @@ public class MongoDbGridFSIO {
 
     @ProcessElement
     public void processElement(ProcessContext context) throws Exception {
+      Preconditions.checkStateNotNull(outputStream);
       T record = context.element();
       spec.writeFn().write(record, outputStream);
     }
 
     @FinishBundle
     public void finishBundle() throws Exception {
-      if (gridFsFile != null) {
+      if (outputStream != null) {
         outputStream.flush();
         outputStream.close();
         outputStream = null;
+      }
+      if (gridFsFile != null) {
         gridFsFile = null;
       }
     }
@@ -650,10 +676,12 @@ public class MongoDbGridFSIO {
     @Teardown
     public void teardown() throws Exception {
       try {
-        if (gridFsFile != null) {
+        if (outputStream != null) {
           outputStream.flush();
           outputStream.close();
           outputStream = null;
+        }
+        if (gridFsFile != null) {
           gridFsFile = null;
         }
       } finally {

@@ -43,7 +43,7 @@ func (fn *selfCheckpointingDoFn) CreateInitialRestriction(_ []byte) offsetrange.
 	}
 }
 
-// CreateTracker wraps the fiven restriction into a LockRTracker type.
+// CreateTracker wraps the given restriction into a LockRTracker type.
 func (fn *selfCheckpointingDoFn) CreateTracker(rest offsetrange.Restriction) *sdf.LockRTracker {
 	return sdf.NewLockRTracker(offsetrange.NewTracker(rest))
 }
@@ -97,8 +97,6 @@ func (fn *selfCheckpointingDoFn) ProcessElement(rt *sdf.LockRTracker, _ []byte, 
 
 // Checkpoints is a small test pipeline to establish the correctness of the simple test case.
 func Checkpoints(s beam.Scope) {
-	beam.Init()
-
 	s.Scope("checkpoint")
 	out := beam.ParDo(s, &selfCheckpointingDoFn{}, beam.Impulse(s))
 	passert.Count(s, out, "num ints", 10)

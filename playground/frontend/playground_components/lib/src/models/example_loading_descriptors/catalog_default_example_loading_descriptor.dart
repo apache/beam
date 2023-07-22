@@ -16,16 +16,54 @@
  * limitations under the License.
  */
 
+import '../example_view_options.dart';
 import '../sdk.dart';
 import 'example_loading_descriptor.dart';
 
+const _key = 'default';
+
+/// Describes a single loadable example that is default for its [sdk].
 class CatalogDefaultExampleLoadingDescriptor extends ExampleLoadingDescriptor {
+  @override
   final Sdk sdk;
 
   const CatalogDefaultExampleLoadingDescriptor({
     required this.sdk,
+    super.viewOptions,
   });
 
   @override
-  List<Object> get props => [sdk.id];
+  List<Object> get props => [
+        sdk.id,
+        viewOptions,
+      ];
+
+  @override
+  CatalogDefaultExampleLoadingDescriptor copyWithoutViewOptions() =>
+      CatalogDefaultExampleLoadingDescriptor(
+        sdk: sdk,
+      );
+
+  @override
+  Map<String, dynamic> toJson() => {
+        'sdk': sdk.id,
+        _key: true,
+        ...viewOptions.toShortMap(),
+      };
+
+  static CatalogDefaultExampleLoadingDescriptor? tryParse(
+    Map<String, dynamic> map,
+  ) {
+    if (map[_key] != true) {
+      return null;
+    }
+
+    return CatalogDefaultExampleLoadingDescriptor(
+      sdk: Sdk.parseOrCreate(map['sdk']),
+      viewOptions: ExampleViewOptions.fromShortMap(map),
+    );
+  }
+
+  @override
+  bool get isSerializableToUrl => true;
 }

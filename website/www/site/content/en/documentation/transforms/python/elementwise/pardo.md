@@ -41,18 +41,9 @@ which stores the `delimiter` as an object field.
 The `process` method is called once per element,
 and it can yield zero or more output elements.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/pardo" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py" pardo_dofn >}}
-{{</ highlight >}}
-
-{{< paragraph class="notebook-skip" >}}
-Output:
-{{< /paragraph >}}
-
-{{< highlight class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo_test.py" plants >}}
-{{< /highlight >}}
+{{< playground height="700px" >}}
+{{< playground_snippet language="py" path="SDK_PYTHON_ParDoDoFn" show="pardo_dofn" >}}
+{{< /playground >}}
 
 ### Example 2: ParDo with timestamp and window information
 
@@ -67,18 +58,9 @@ In this example, we add new parameters to the `process` method to bind parameter
   [`apache_beam.transforms.window.*Window`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.window.html)
   object.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/pardo" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py" pardo_dofn_params >}}
-{{</ highlight >}}
-
-{{< paragraph class="notebook-skip" >}}
-Output:
-{{< /paragraph >}}
-
-{{< highlight class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo_test.py" dofn_params >}}
-{{< /highlight >}}
+{{< playground height="700px" >}}
+{{< playground_snippet language="py" path="SDK_PYTHON_ParDoDoFnParams" show="pardo_dofn_params" >}}
+{{< /playground >}}
 
 ### Example 3: ParDo with DoFn methods
 
@@ -86,7 +68,7 @@ A [`DoFn`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms
 can be customized with a number of methods that can help create more complex behaviors.
 You can customize what a worker does when it starts and shuts down with `setup` and `teardown`.
 You can also customize what to do when a
-[*bundle of elements*](https://beam.apache.org/documentation/runtime/model/#bundling-and-persistence)
+[*bundle of elements*](/documentation/runtime/model/#bundling-and-persistence)
 starts and finishes with `start_bundle` and `finish_bundle`.
 
 * [`DoFn.setup()`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.setup):
@@ -126,18 +108,9 @@ starts and finishes with `start_bundle` and `finish_bundle`.
   Note that `teardown` is called as a *best effort* and is *not guaranteed*.
   For example, if the worker crashes, `teardown` might not be called.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/pardo" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py" pardo_dofn_methods >}}
-{{</ highlight >}}
-
-{{< paragraph class="notebook-skip" >}}
-Output:
-{{< /paragraph >}}
-
-{{< highlight class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo_test.py" results >}}
-{{< /highlight >}}
+{{< playground height="700px" >}}
+{{< playground_snippet language="py" path="SDK_PYTHON_ParDoDoFnMethods" show="pardo_dofn_methods" >}}
+{{< /playground >}}
 
 > *Known issues:*
 >

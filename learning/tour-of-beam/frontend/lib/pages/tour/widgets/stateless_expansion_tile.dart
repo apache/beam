@@ -44,7 +44,7 @@ class StatelessExpansionTile extends StatelessWidget {
         onExpansionChanged: onExpansionChanged,
         title: title,
         childrenPadding: const EdgeInsets.only(
-          left: BeamSizes.size24,
+          left: BeamSizes.size12,
         ),
         children: [child],
       ),

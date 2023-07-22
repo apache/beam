@@ -987,7 +987,7 @@ class FnApiRunnerTest(unittest.TestCase):
     self.run_sdf_initiated_checkpointing(is_drain=True)
 
   def test_sdf_default_truncate_when_bounded(self):
-    class SimleSDF(beam.DoFn):
+    class SimpleSDF(beam.DoFn):
       def process(
           self,
           element,
@@ -1000,11 +1000,11 @@ class FnApiRunnerTest(unittest.TestCase):
           cur += 1
 
     with self.create_pipeline(is_drain=True) as p:
-      actual = (p | beam.Create([10]) | beam.ParDo(SimleSDF()))
+      actual = (p | beam.Create([10]) | beam.ParDo(SimpleSDF()))
       assert_that(actual, equal_to(range(10)))
 
   def test_sdf_default_truncate_when_unbounded(self):
-    class SimleSDF(beam.DoFn):
+    class SimpleSDF(beam.DoFn):
       def process(
           self,
           element,
@@ -1017,11 +1017,11 @@ class FnApiRunnerTest(unittest.TestCase):
           cur += 1
 
     with self.create_pipeline(is_drain=True) as p:
-      actual = (p | beam.Create([10]) | beam.ParDo(SimleSDF()))
+      actual = (p | beam.Create([10]) | beam.ParDo(SimpleSDF()))
       assert_that(actual, equal_to([]))
 
   def test_sdf_with_truncate(self):
-    class SimleSDF(beam.DoFn):
+    class SimpleSDF(beam.DoFn):
       def process(
           self,
           element,
@@ -1034,7 +1034,7 @@ class FnApiRunnerTest(unittest.TestCase):
           cur += 1
 
     with self.create_pipeline(is_drain=True) as p:
-      actual = (p | beam.Create([10]) | beam.ParDo(SimleSDF()))
+      actual = (p | beam.Create([10]) | beam.ParDo(SimpleSDF()))
       assert_that(actual, equal_to(range(5)))
 
   def test_group_by_key(self):

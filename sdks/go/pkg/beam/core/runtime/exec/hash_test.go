@@ -36,7 +36,7 @@ func BenchmarkPrimitives(b *testing.B) {
 	wfn := window.NewGlobalWindows()
 	we := MakeWindowEncoder(wfn.Coder())
 	b.Run("int", func(b *testing.B) {
-		test := interface{}(int(42424242))
+		test := any(int(42424242))
 		b.Run("native", func(b *testing.B) {
 			m := make(map[int]FullValue)
 			for i := 0; i < b.N; i++ {
@@ -55,7 +55,7 @@ func BenchmarkPrimitives(b *testing.B) {
 		hashbench(b, test, encoded, dedicated)
 	})
 	b.Run("float32", func(b *testing.B) {
-		test := interface{}(float32(42424242.242424))
+		test := any(float32(42424242.242424))
 		b.Run("native", func(b *testing.B) {
 			m := make(map[float32]FullValue)
 			for i := 0; i < b.N; i++ {
@@ -75,7 +75,7 @@ func BenchmarkPrimitives(b *testing.B) {
 	})
 
 	b.Run("string", func(b *testing.B) {
-		tests := []interface{}{
+		tests := []any{
 			"I am the very model of a modern major string.",
 			"this is 10",
 			strings.Repeat("100 chars!", 10),   // 100
@@ -104,7 +104,7 @@ func BenchmarkPrimitives(b *testing.B) {
 		}
 	})
 	b.Run("struct", func(b *testing.B) {
-		tests := []interface{}{
+		tests := []any{
 			struct {
 				A      int
 				B      string
@@ -124,15 +124,15 @@ func BenchmarkPrimitives(b *testing.B) {
 
 type jsonEncoder struct{}
 
-func (*jsonEncoder) Encode(t reflect.Type, element interface{}) ([]byte, error) {
+func (*jsonEncoder) Encode(t reflect.Type, element any) ([]byte, error) {
 	return json.Marshal(element)
 }
 
-func hashbench(b *testing.B, test interface{}, encoded, dedicated elementHasher) {
+func hashbench(b *testing.B, test any, encoded, dedicated elementHasher) {
 	var value FullValue
 	gw := window.SingleGlobalWindow[0]
 	b.Run("interface", func(b *testing.B) {
-		m := make(map[interface{}]FullValue)
+		m := make(map[any]FullValue)
 		for i := 0; i < b.N; i++ {
 			k := test
 			value = m[k]

@@ -763,7 +763,7 @@ illustrate the behavior of different query clauses.</p>
 <p>Table Roster:</p>
 
 {{< table >}}
-<table>
+<table class="table-wrapper--equal-p">
 <thead>
 <tr>
 <th>LastName</th>
@@ -801,7 +801,7 @@ assigned to their school (SchoolID).</p>
 
 <div class="table-container-wrapper">
 {{< table >}}
-<table>
+<table class="table-wrapper--equal-p">
 <thead>
 <tr>
 <th>LastName</th>
@@ -888,7 +888,7 @@ ON Roster.SchoolID = TeamMascot.SchoolID;</code></pre>
 
 <div class="table-container-wrapper">
 {{< table >}}
-<table>
+<table class="table-wrapper--equal-p">
 <thead>
 <tr>
 <th>LastName</th>
@@ -934,7 +934,7 @@ ON Roster.SchoolID = TeamMascot.SchoolID;</code></pre>
 
 <div class="table-container-wrapper">
 {{< table >}}
-<table>
+<table class="table-wrapper--equal-p">
 <thead>
 <tr>
 <th>LastName</th>
@@ -993,7 +993,7 @@ ON Roster.SchoolID = TeamMascot.SchoolID;</code></pre>
 
 <div class="table-container-wrapper">
 {{< table >}}
-<table>
+<table class="table-wrapper--equal-p">
 <thead>
 <tr>
 <th>LastName</th>
@@ -1046,7 +1046,7 @@ ON Roster.SchoolID = TeamMascot.SchoolID;</code></pre>
 
 <div class="table-container-wrapper">
 {{< table >}}
-<table>
+<table class="table-wrapper--equal-p">
 <thead>
 <tr>
 <th>LastName</th>

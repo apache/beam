@@ -16,7 +16,7 @@
 // Package jdbcio contains cross-language functionality for reading and writing data to JDBC.
 // These transforms only work on runners that support cross-language transforms.
 //
-// Setup
+// # Setup
 //
 // Transforms specified here are cross-language transforms implemented in a
 // different SDK (listed below). During pipeline construction, the Go SDK will
@@ -34,11 +34,12 @@
 //
 // Current supported SDKs, including expansion service modules and reference
 // documentation:
-// * Java
-//    - Vendored Module: beam-sdks-java-extensions-schemaio-expansion-service
-//    - Run via Gradle: ./gradlew :sdks:java:extensions:schemaio-expansion-service:build
-// 						java -jar <location_of_jar_file_generated_from_above> <port>
-//    - Reference Class: org.apache.beam.sdk.io.jdbc.JdbcIO
+//
+// Java:
+//   - Vendored Module: beam-sdks-java-extensions-schemaio-expansion-service
+//   - Run via Gradle: ./gradlew :sdks:java:extensions:schemaio-expansion-service:build
+//     java -jar <location_of_jar_file_generated_from_above> <port>
+//   - Reference Class: org.apache.beam.sdk.io.jdbc.JdbcIO
 package jdbcio
 
 import (
@@ -100,7 +101,7 @@ type jdbcConfig struct {
 }
 
 // TODO(riteshghorse): update the IO to use wrapper created in BigQueryIO.
-func toRow(pl interface{}) []byte {
+func toRow(pl any) []byte {
 	rt := reflect.TypeOf(pl)
 
 	enc, err := coder.RowEncoderForStruct(rt)
@@ -126,15 +127,17 @@ func toRow(pl interface{}) []byte {
 //
 // The default write statement is: "INSERT INTO tableName(column1, ...) INTO VALUES(value1, ...)"
 // Example:
-//   tableName := "roles"
-//	 driverClassName := "org.postgresql.Driver"
-// 	 username := "root"
-// 	 password := "root123"
-// 	 jdbcUrl := "jdbc:postgresql://localhost:5432/dbname"
-//	 jdbcio.Write(s, tableName, driverClassName, jdbcurl, username, password, jdbcio.ExpansionAddrWrite("localhost:9000"))
+//
+//	  tableName := "roles"
+//		 driverClassName := "org.postgresql.Driver"
+//		 username := "root"
+//		 password := "root123"
+//		 jdbcUrl := "jdbc:postgresql://localhost:5432/dbname"
+//		 jdbcio.Write(s, tableName, driverClassName, jdbcurl, username, password, jdbcio.ExpansionAddrWrite("localhost:9000"))
 //
 // With Classpath paramater:
-//   jdbcio.Write(s, tableName, driverClassName, jdbcurl, username, password, jdbcio.ExpansionAddrWrite("localhost:9000"), jdbcio.WriteClasspaths([]string{"org.postgresql:postgresql:42.3.3"}))
+//
+//	jdbcio.Write(s, tableName, driverClassName, jdbcurl, username, password, jdbcio.ExpansionAddrWrite("localhost:9000"), jdbcio.WriteClasspaths([]string{"org.postgresql:postgresql:42.3.3"}))
 func Write(s beam.Scope, tableName, driverClassName, jdbcUrl, username, password string, col beam.PCollection, opts ...writeOption) {
 	s = s.Scope("jdbcio.Write")
 
@@ -219,11 +222,12 @@ func ExpansionAddrWrite(expansionAddr string) writeOption {
 //
 // The default write statement is: "INSERT INTO tableName(column1, ...) INTO VALUES(value1, ...)"
 // Example:
-//   tableName := "roles"
-// 	 username := "root"
-// 	 password := "root123"
-// 	 jdbcUrl := "jdbc:postgresql://localhost:5432/dbname"
-//	 jdbcio.WriteToPostgres(s, tableName, jdbcurl, username, password, jdbcio.ExpansionAddrWrite("localhost:9000"))
+//
+//	  tableName := "roles"
+//		 username := "root"
+//		 password := "root123"
+//		 jdbcUrl := "jdbc:postgresql://localhost:5432/dbname"
+//		 jdbcio.WriteToPostgres(s, tableName, jdbcurl, username, password, jdbcio.ExpansionAddrWrite("localhost:9000"))
 func WriteToPostgres(s beam.Scope, tableName, jdbcUrl, username, password string, col beam.PCollection, opts ...writeOption) {
 	driverClassName := "org.postgresql.Driver"
 	Write(s, tableName, driverClassName, jdbcUrl, username, password, col, opts...)
@@ -245,16 +249,18 @@ func WriteToPostgres(s beam.Scope, tableName, jdbcUrl, username, password string
 // an optional parameter, call the function within Read's function signature.
 //
 // Example:
-//   tableName := "roles"
-//   driverClassName := "org.postgresql.Driver"
-//   username := "root"
-//   password := "root123"
-//   jdbcUrl := "jdbc:postgresql://localhost:5432/dbname"
-//   outT := reflect.TypeOf((*JdbcTestRow)(nil)).Elem()
-//   jdbcio.Read(s, tableName, driverClassName, jdbcurl, username, password, outT, jdbcio.ExpansionAddrRead("localhost:9000"))
+//
+//	tableName := "roles"
+//	driverClassName := "org.postgresql.Driver"
+//	username := "root"
+//	password := "root123"
+//	jdbcUrl := "jdbc:postgresql://localhost:5432/dbname"
+//	outT := reflect.TypeOf((*JdbcTestRow)(nil)).Elem()
+//	jdbcio.Read(s, tableName, driverClassName, jdbcurl, username, password, outT, jdbcio.ExpansionAddrRead("localhost:9000"))
 //
 // With Classpath parameter:
-//   jdbcio.Read(s, tableName, driverClassName, jdbcurl, username, password, outT, jdbcio.ExpansionAddrRead("localhost:9000"), jdbcio.ReadClasspaths([]string{"org.postgresql:postgresql:42.3.3"})))
+//
+//	jdbcio.Read(s, tableName, driverClassName, jdbcurl, username, password, outT, jdbcio.ExpansionAddrRead("localhost:9000"), jdbcio.ReadClasspaths([]string{"org.postgresql:postgresql:42.3.3"})))
 func Read(s beam.Scope, tableName, driverClassName, jdbcUrl, username, password string, outT reflect.Type, opts ...readOption) beam.PCollection {
 	s = s.Scope("jdbcio.Read")
 
@@ -358,12 +364,13 @@ func ExpansionAddrRead(expansionAddr string) readOption {
 // with custom postgres driver then use the conventional jdbcio.Read() transform.
 //
 // Example:
-//   tableName := "roles"
-//   username := "root"
-//   password := "root123"
-//   jdbcUrl := "jdbc:postgresql://localhost:5432/dbname"
-//   outT := reflect.TypeOf((*JdbcTestRow)(nil)).Elem()
-//   jdbcio.Read(s, tableName, jdbcurl, username, password, outT, jdbcio.ExpansionAddrRead("localhost:9000"))
+//
+//	tableName := "roles"
+//	username := "root"
+//	password := "root123"
+//	jdbcUrl := "jdbc:postgresql://localhost:5432/dbname"
+//	outT := reflect.TypeOf((*JdbcTestRow)(nil)).Elem()
+//	jdbcio.Read(s, tableName, jdbcurl, username, password, outT, jdbcio.ExpansionAddrRead("localhost:9000"))
 func ReadFromPostgres(s beam.Scope, tableName, jdbcUrl, username, password string, outT reflect.Type, opts ...readOption) beam.PCollection {
 	driverClassName := "org.postgresql.Driver"
 	return Read(s, tableName, driverClassName, jdbcUrl, username, password, outT, opts...)

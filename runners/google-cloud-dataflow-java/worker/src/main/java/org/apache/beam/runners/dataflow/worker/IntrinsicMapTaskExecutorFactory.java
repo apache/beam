@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-
 import com.google.api.services.dataflow.model.InstructionOutput;
 import com.google.api.services.dataflow.model.MapTask;
 import com.google.api.services.dataflow.model.MultiOutputInfo;
@@ -33,10 +31,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.function.Function;
-import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.core.ElementByteSizeObservable;
-import org.apache.beam.runners.dataflow.DataflowRunner;
-import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.CloudObjects;
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory;
@@ -64,13 +59,9 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.ReadOperation;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Receiver;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Sink;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.WriteOperation;
-import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
-import org.apache.beam.runners.fnexecution.data.GrpcDataService;
-import org.apache.beam.runners.fnexecution.state.GrpcStateService;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.fn.IdGenerator;
-import org.apache.beam.sdk.fn.server.GrpcFnServer;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
@@ -101,10 +92,6 @@ public class IntrinsicMapTaskExecutorFactory implements DataflowMapTaskExecutorF
    */
   @Override
   public DataflowMapTaskExecutor create(
-      InstructionRequestHandler instructionRequestHandler,
-      GrpcFnServer<GrpcDataService> grpcDataFnServer,
-      Endpoints.ApiServiceDescriptor dataApiServiceDescriptor,
-      GrpcFnServer<GrpcStateService> grpcStateFnServer,
       MutableNetwork<Node, Edge> network,
       PipelineOptions options,
       String stageName,
@@ -113,12 +100,6 @@ public class IntrinsicMapTaskExecutorFactory implements DataflowMapTaskExecutorF
       DataflowExecutionContext<?> executionContext,
       CounterSet counterSet,
       IdGenerator idGenerator) {
-
-    // TODO: remove this once we trust the code paths
-    checkArgument(
-        !DataflowRunner.hasExperiment(
-            options.as(DataflowPipelineDebugOptions.class), "beam_fn_api"),
-        "experiment beam_fn_api turned on but non-Fn API MapTaskExecutorFactory invoked");
 
     // Swap out all the InstructionOutput nodes with OutputReceiver nodes
     Networks.replaceDirectedNetworkNodes(

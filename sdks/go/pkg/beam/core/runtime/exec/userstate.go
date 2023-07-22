@@ -36,10 +36,10 @@ type stateProvider struct {
 	window     []byte
 
 	transactionsByKey     map[string][]state.Transaction
-	initialValueByKey     map[string]interface{}
-	initialBagByKey       map[string][]interface{}
-	initialMapValuesByKey map[string]map[string]interface{}
-	initialMapKeysByKey   map[string][]interface{}
+	initialValueByKey     map[string]any
+	initialBagByKey       map[string][]any
+	initialMapValuesByKey map[string]map[string]any
+	initialMapKeysByKey   map[string][]any
 	readersByKey          map[string]io.ReadCloser
 	appendersByKey        map[string]io.Writer
 	clearersByKey         map[string]io.Writer
@@ -49,7 +49,7 @@ type stateProvider struct {
 }
 
 // ReadValueState reads a value state from the State API
-func (s *stateProvider) ReadValueState(userStateID string) (interface{}, []state.Transaction, error) {
+func (s *stateProvider) ReadValueState(userStateID string) (any, []state.Transaction, error) {
 	initialValue, ok := s.initialValueByKey[userStateID]
 	if !ok {
 		rw, err := s.getBagReader(userStateID)
@@ -123,10 +123,10 @@ func (s *stateProvider) ClearValueState(val state.Transaction) error {
 }
 
 // ReadBagState reads a bag state from the State API
-func (s *stateProvider) ReadBagState(userStateID string) ([]interface{}, []state.Transaction, error) {
+func (s *stateProvider) ReadBagState(userStateID string) ([]any, []state.Transaction, error) {
 	initialValue, ok := s.initialBagByKey[userStateID]
 	if !ok {
-		initialValue = []interface{}{}
+		initialValue = []any{}
 		rw, err := s.getBagReader(userStateID)
 		if err != nil {
 			return nil, nil, err
@@ -193,10 +193,10 @@ func (s *stateProvider) WriteBagState(val state.Transaction) error {
 }
 
 // ReadMapStateValue reads a value from the map state for a given key.
-func (s *stateProvider) ReadMapStateValue(userStateID string, key interface{}) (interface{}, []state.Transaction, error) {
+func (s *stateProvider) ReadMapStateValue(userStateID string, key any) (any, []state.Transaction, error) {
 	_, ok := s.initialMapValuesByKey[userStateID]
 	if !ok {
-		s.initialMapValuesByKey[userStateID] = make(map[string]interface{})
+		s.initialMapValuesByKey[userStateID] = make(map[string]any)
 	}
 	b, err := s.encodeKey(userStateID, key)
 	if err != nil {
@@ -229,10 +229,10 @@ func (s *stateProvider) ReadMapStateValue(userStateID string, key interface{}) (
 }
 
 // ReadMapStateKeys reads all the keys in a map state.
-func (s *stateProvider) ReadMapStateKeys(userStateID string) ([]interface{}, []state.Transaction, error) {
+func (s *stateProvider) ReadMapStateKeys(userStateID string) ([]any, []state.Transaction, error) {
 	initialValue, ok := s.initialMapKeysByKey[userStateID]
 	if !ok {
-		initialValue = []interface{}{}
+		initialValue = []any{}
 		rw, err := s.getMultiMapKeyReader(userStateID)
 		if err != nil {
 			return nil, nil, err
@@ -398,7 +398,7 @@ func (s *stateProvider) getBagClearer(userStateID string) (io.Writer, error) {
 	return s.clearersByKey[userStateID], nil
 }
 
-func (s *stateProvider) getMultiMapReader(userStateID string, key interface{}) (io.ReadCloser, error) {
+func (s *stateProvider) getMultiMapReader(userStateID string, key any) (io.ReadCloser, error) {
 	ek, err := s.encodeKey(userStateID, key)
 	if err != nil {
 		return nil, err
@@ -410,7 +410,7 @@ func (s *stateProvider) getMultiMapReader(userStateID string, key interface{}) (
 	return r, nil
 }
 
-func (s *stateProvider) getMultiMapAppender(userStateID string, key interface{}) (io.Writer, error) {
+func (s *stateProvider) getMultiMapAppender(userStateID string, key any) (io.Writer, error) {
 	ek, err := s.encodeKey(userStateID, key)
 	if err != nil {
 		return nil, err
@@ -422,7 +422,7 @@ func (s *stateProvider) getMultiMapAppender(userStateID string, key interface{})
 	return w, nil
 }
 
-func (s *stateProvider) getMultiMapKeyClearer(userStateID string, key interface{}) (io.Writer, error) {
+func (s *stateProvider) getMultiMapKeyClearer(userStateID string, key any) (io.Writer, error) {
 	ek, err := s.encodeKey(userStateID, key)
 	if err != nil {
 		return nil, err
@@ -454,7 +454,7 @@ func (s *stateProvider) getMultiMapKeyReader(userStateID string) (io.ReadCloser,
 	return s.readersByKey[userStateID], nil
 }
 
-func (s *stateProvider) encodeKey(userStateID string, key interface{}) ([]byte, error) {
+func (s *stateProvider) encodeKey(userStateID string, key any) ([]byte, error) {
 	fv := FullValue{Elm: key}
 	enc := MakeElementEncoder(coder.SkipW(s.keyCodersByID[userStateID]))
 	var b bytes.Buffer
@@ -467,7 +467,7 @@ func (s *stateProvider) encodeKey(userStateID string, key interface{}) ([]byte, 
 
 // UserStateAdapter provides a state provider to be used for user state.
 type UserStateAdapter interface {
-	NewStateProvider(ctx context.Context, reader StateReader, w typex.Window, element interface{}) (stateProvider, error)
+	NewStateProvider(ctx context.Context, reader StateReader, w typex.Window, element any) (stateProvider, error)
 }
 
 type userStateAdapter struct {
@@ -496,7 +496,7 @@ func NewUserStateAdapter(sid StreamID, c *coder.Coder, stateIDToCoder map[string
 }
 
 // NewStateProvider creates a stateProvider with the ability to talk to the state API.
-func (s *userStateAdapter) NewStateProvider(ctx context.Context, reader StateReader, w typex.Window, element interface{}) (stateProvider, error) {
+func (s *userStateAdapter) NewStateProvider(ctx context.Context, reader StateReader, w typex.Window, element any) (stateProvider, error) {
 	if s.kc == nil {
 		return stateProvider{}, fmt.Errorf("cannot make a state provider for an unkeyed input %v", element)
 	}
@@ -516,10 +516,10 @@ func (s *userStateAdapter) NewStateProvider(ctx context.Context, reader StateRea
 		elementKey:            elementKey,
 		window:                win,
 		transactionsByKey:     make(map[string][]state.Transaction),
-		initialValueByKey:     make(map[string]interface{}),
-		initialBagByKey:       make(map[string][]interface{}),
-		initialMapValuesByKey: make(map[string]map[string]interface{}),
-		initialMapKeysByKey:   make(map[string][]interface{}),
+		initialValueByKey:     make(map[string]any),
+		initialBagByKey:       make(map[string][]any),
+		initialMapValuesByKey: make(map[string]map[string]any),
+		initialMapKeysByKey:   make(map[string][]any),
 		readersByKey:          make(map[string]io.ReadCloser),
 		appendersByKey:        make(map[string]io.Writer),
 		clearersByKey:         make(map[string]io.Writer),

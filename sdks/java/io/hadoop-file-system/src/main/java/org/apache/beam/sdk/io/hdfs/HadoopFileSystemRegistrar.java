@@ -28,8 +28,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import javax.annotation.Nonnull;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.FileSystem;
 import org.apache.beam.sdk.io.FileSystemRegistrar;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -39,7 +37,6 @@ import org.apache.hadoop.conf.Configuration;
 
 /** {@link AutoService} registrar for the {@link HadoopFileSystem}. */
 @AutoService(FileSystemRegistrar.class)
-@Experimental(Kind.FILESYSTEM)
 public class HadoopFileSystemRegistrar implements FileSystemRegistrar {
 
   private static final List<String> HA_SCHEMES = Arrays.asList("hdfs", "webhdfs");

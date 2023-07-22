@@ -172,7 +172,7 @@ public class QueryChangeStreamAction {
       while (resultSet.next()) {
         final List<ChangeStreamRecord> records =
             changeStreamRecordMapper.toChangeStreamRecords(
-                updatedPartition, resultSet.getCurrentRowAsStruct(), resultSet.getMetadata());
+                updatedPartition, resultSet, resultSet.getMetadata());
 
         Optional<ProcessContinuation> maybeContinuation;
         for (final ChangeStreamRecord record : records) {
@@ -218,14 +218,23 @@ public class QueryChangeStreamAction {
       the partition.
       */
       if (isTimestampOutOfRange(e)) {
-        LOG.debug(
-            "[{}] query change stream is out of range for {} to {}, finishing stream",
+        LOG.info(
+            "[{}] query change stream is out of range for {} to {}, finishing stream.",
             token,
             startTimestamp,
-            endTimestamp);
+            endTimestamp,
+            e);
       } else {
         throw e;
       }
+    } catch (Exception e) {
+      LOG.error(
+          "[{}] query change stream had exception processing range {} to {}.",
+          token,
+          startTimestamp,
+          endTimestamp,
+          e);
+      throw e;
     }
 
     LOG.debug("[{}] change stream completed successfully", token);
@@ -233,7 +242,7 @@ public class QueryChangeStreamAction {
       LOG.debug("[{}] Finishing partition", token);
       partitionMetadataDao.updateToFinished(token);
       metrics.decActivePartitionReadCounter();
-      LOG.info("[{}] Partition finished", token);
+      LOG.info("[{}] After attempting to finish the partition", token);
     }
     return ProcessContinuation.stop();
   }

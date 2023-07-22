@@ -23,7 +23,7 @@ import (
 )
 
 func TestFloat(t *testing.T) {
-	tests := []interface{}{
+	tests := []any{
 		float32(0.0),
 		float32(94.5),
 		float64(-127.25),

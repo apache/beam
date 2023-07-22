@@ -352,8 +352,7 @@ class FileBasedSink(iobase.Sink):
         raise Exception(
             'Encountered exceptions in finalize_write: %s' % all_exceptions)
 
-      for final_name in dst_files:
-        yield final_name
+      yield from dst_files
 
       _LOGGER.info(
           'Renamed %d shards in %.2f seconds.',
@@ -368,8 +367,8 @@ class FileBasedSink(iobase.Sink):
     try:
       FileSystems.delete([init_result])
     except IOError:
-      # May have already been removed.
-      pass
+      # This error is not serious, we simply log it.
+      _LOGGER.info('Unable to delete file: %s', init_result)
 
   @staticmethod
   def _template_replace_num_shards(shard_name_template):

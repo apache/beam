@@ -30,199 +30,199 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
 
-func registerStartBundle0x0FuncAndMakeStructWrapper() func(interface{}) reflectx.Func {
-	reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), func(fn interface{}) reflectx.Func {
+func registerStartBundle0x0FuncAndMakeStructWrapper() func(any) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), func(fn any) reflectx.Func {
 		return &caller0x0{fn: fn.(func())}
 	})
 
-	return func(fn interface{}) reflectx.Func {
+	return func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func() {
 			fn.(startBundle0x0).StartBundle()
 		})
 	}
 }
 
-func registerStartBundle0x1FuncAndMakeStructWrapper[R0 any]() func(interface{}) reflectx.Func {
-	reflectx.RegisterFunc(reflect.TypeOf((*func() R0)(nil)).Elem(), func(fn interface{}) reflectx.Func {
+func registerStartBundle0x1FuncAndMakeStructWrapper[R0 any]() func(any) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func() R0)(nil)).Elem(), func(fn any) reflectx.Func {
 		return &caller0x1[R0]{fn: fn.(func() R0)}
 	})
 
-	return func(fn interface{}) reflectx.Func {
+	return func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func() R0 {
 			return fn.(startBundle0x1[R0]).StartBundle()
 		})
 	}
 }
 
-func registerStartBundle1x0FuncAndMakeStructWrapper[I0 any]() func(interface{}) reflectx.Func {
-	reflectx.RegisterFunc(reflect.TypeOf((*func(I0))(nil)).Elem(), func(fn interface{}) reflectx.Func {
+func registerStartBundle1x0FuncAndMakeStructWrapper[I0 any]() func(any) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func(I0))(nil)).Elem(), func(fn any) reflectx.Func {
 		return &caller1x0[I0]{fn: fn.(func(I0))}
 	})
 
-	return func(fn interface{}) reflectx.Func {
+	return func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0) {
 			fn.(startBundle1x0[I0]).StartBundle(a0)
 		})
 	}
 }
 
-func registerStartBundle1x1FuncAndMakeStructWrapper[I0, R0 any]() func(interface{}) reflectx.Func {
-	reflectx.RegisterFunc(reflect.TypeOf((*func(I0) R0)(nil)).Elem(), func(fn interface{}) reflectx.Func {
+func registerStartBundle1x1FuncAndMakeStructWrapper[I0, R0 any]() func(any) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func(I0) R0)(nil)).Elem(), func(fn any) reflectx.Func {
 		return &caller1x1[I0, R0]{fn: fn.(func(I0) R0)}
 	})
 
-	return func(fn interface{}) reflectx.Func {
+	return func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0) R0 {
 			return fn.(startBundle1x1[I0, R0]).StartBundle(a0)
 		})
 	}
 }
 
-func registerStartBundle2x0FuncAndMakeStructWrapper[I0, I1 any]() func(interface{}) reflectx.Func {
-	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1))(nil)).Elem(), func(fn interface{}) reflectx.Func {
+func registerStartBundle2x0FuncAndMakeStructWrapper[I0, I1 any]() func(any) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1))(nil)).Elem(), func(fn any) reflectx.Func {
 		return &caller2x0[I0, I1]{fn: fn.(func(I0, I1))}
 	})
 
-	return func(fn interface{}) reflectx.Func {
+	return func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1) {
 			fn.(startBundle2x0[I0, I1]).StartBundle(a0, a1)
 		})
 	}
 }
 
-func registerStartBundle2x1FuncAndMakeStructWrapper[I0, I1, R0 any]() func(interface{}) reflectx.Func {
-	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1) R0)(nil)).Elem(), func(fn interface{}) reflectx.Func {
+func registerStartBundle2x1FuncAndMakeStructWrapper[I0, I1, R0 any]() func(any) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1) R0)(nil)).Elem(), func(fn any) reflectx.Func {
 		return &caller2x1[I0, I1, R0]{fn: fn.(func(I0, I1) R0)}
 	})
 
-	return func(fn interface{}) reflectx.Func {
+	return func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1) R0 {
 			return fn.(startBundle2x1[I0, I1, R0]).StartBundle(a0, a1)
 		})
 	}
 }
 
-func registerStartBundle3x0FuncAndMakeStructWrapper[I0, I1, I2 any]() func(interface{}) reflectx.Func {
-	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2))(nil)).Elem(), func(fn interface{}) reflectx.Func {
+func registerStartBundle3x0FuncAndMakeStructWrapper[I0, I1, I2 any]() func(any) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2))(nil)).Elem(), func(fn any) reflectx.Func {
 		return &caller3x0[I0, I1, I2]{fn: fn.(func(I0, I1, I2))}
 	})
 
-	return func(fn interface{}) reflectx.Func {
+	return func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2) {
 			fn.(startBundle3x0[I0, I1, I2]).StartBundle(a0, a1, a2)
 		})
 	}
 }
 
-func registerStartBundle3x1FuncAndMakeStructWrapper[I0, I1, I2, R0 any]() func(interface{}) reflectx.Func {
-	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2) R0)(nil)).Elem(), func(fn interface{}) reflectx.Func {
+func registerStartBundle3x1FuncAndMakeStructWrapper[I0, I1, I2, R0 any]() func(any) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2) R0)(nil)).Elem(), func(fn any) reflectx.Func {
 		return &caller3x1[I0, I1, I2, R0]{fn: fn.(func(I0, I1, I2) R0)}
 	})
 
-	return func(fn interface{}) reflectx.Func {
+	return func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2) R0 {
 			return fn.(startBundle3x1[I0, I1, I2, R0]).StartBundle(a0, a1, a2)
 		})
 	}
 }
 
-func registerStartBundle4x0FuncAndMakeStructWrapper[I0, I1, I2, I3 any]() func(interface{}) reflectx.Func {
-	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3))(nil)).Elem(), func(fn interface{}) reflectx.Func {
+func registerStartBundle4x0FuncAndMakeStructWrapper[I0, I1, I2, I3 any]() func(any) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3))(nil)).Elem(), func(fn any) reflectx.Func {
 		return &caller4x0[I0, I1, I2, I3]{fn: fn.(func(I0, I1, I2, I3))}
 	})
 
-	return func(fn interface{}) reflectx.Func {
+	return func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3) {
 			fn.(startBundle4x0[I0, I1, I2, I3]).StartBundle(a0, a1, a2, a3)
 		})
 	}
 }
 
-func registerStartBundle4x1FuncAndMakeStructWrapper[I0, I1, I2, I3, R0 any]() func(interface{}) reflectx.Func {
-	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3) R0)(nil)).Elem(), func(fn interface{}) reflectx.Func {
+func registerStartBundle4x1FuncAndMakeStructWrapper[I0, I1, I2, I3, R0 any]() func(any) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3) R0)(nil)).Elem(), func(fn any) reflectx.Func {
 		return &caller4x1[I0, I1, I2, I3, R0]{fn: fn.(func(I0, I1, I2, I3) R0)}
 	})
 
-	return func(fn interface{}) reflectx.Func {
+	return func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3) R0 {
 			return fn.(startBundle4x1[I0, I1, I2, I3, R0]).StartBundle(a0, a1, a2, a3)
 		})
 	}
 }
 
-func registerStartBundle5x0FuncAndMakeStructWrapper[I0, I1, I2, I3, I4 any]() func(interface{}) reflectx.Func {
-	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4))(nil)).Elem(), func(fn interface{}) reflectx.Func {
+func registerStartBundle5x0FuncAndMakeStructWrapper[I0, I1, I2, I3, I4 any]() func(any) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4))(nil)).Elem(), func(fn any) reflectx.Func {
 		return &caller5x0[I0, I1, I2, I3, I4]{fn: fn.(func(I0, I1, I2, I3, I4))}
 	})
 
-	return func(fn interface{}) reflectx.Func {
+	return func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4) {
 			fn.(startBundle5x0[I0, I1, I2, I3, I4]).StartBundle(a0, a1, a2, a3, a4)
 		})
 	}
 }
 
-func registerStartBundle5x1FuncAndMakeStructWrapper[I0, I1, I2, I3, I4, R0 any]() func(interface{}) reflectx.Func {
-	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4) R0)(nil)).Elem(), func(fn interface{}) reflectx.Func {
+func registerStartBundle5x1FuncAndMakeStructWrapper[I0, I1, I2, I3, I4, R0 any]() func(any) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4) R0)(nil)).Elem(), func(fn any) reflectx.Func {
 		return &caller5x1[I0, I1, I2, I3, I4, R0]{fn: fn.(func(I0, I1, I2, I3, I4) R0)}
 	})
 
-	return func(fn interface{}) reflectx.Func {
+	return func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4) R0 {
 			return fn.(startBundle5x1[I0, I1, I2, I3, I4, R0]).StartBundle(a0, a1, a2, a3, a4)
 		})
 	}
 }
 
-func registerStartBundle6x0FuncAndMakeStructWrapper[I0, I1, I2, I3, I4, I5 any]() func(interface{}) reflectx.Func {
-	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5))(nil)).Elem(), func(fn interface{}) reflectx.Func {
+func registerStartBundle6x0FuncAndMakeStructWrapper[I0, I1, I2, I3, I4, I5 any]() func(any) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5))(nil)).Elem(), func(fn any) reflectx.Func {
 		return &caller6x0[I0, I1, I2, I3, I4, I5]{fn: fn.(func(I0, I1, I2, I3, I4, I5))}
 	})
 
-	return func(fn interface{}) reflectx.Func {
+	return func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5) {
 			fn.(startBundle6x0[I0, I1, I2, I3, I4, I5]).StartBundle(a0, a1, a2, a3, a4, a5)
 		})
 	}
 }
 
-func registerStartBundle6x1FuncAndMakeStructWrapper[I0, I1, I2, I3, I4, I5, R0 any]() func(interface{}) reflectx.Func {
-	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5) R0)(nil)).Elem(), func(fn interface{}) reflectx.Func {
+func registerStartBundle6x1FuncAndMakeStructWrapper[I0, I1, I2, I3, I4, I5, R0 any]() func(any) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5) R0)(nil)).Elem(), func(fn any) reflectx.Func {
 		return &caller6x1[I0, I1, I2, I3, I4, I5, R0]{fn: fn.(func(I0, I1, I2, I3, I4, I5) R0)}
 	})
 
-	return func(fn interface{}) reflectx.Func {
+	return func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5) R0 {
 			return fn.(startBundle6x1[I0, I1, I2, I3, I4, I5, R0]).StartBundle(a0, a1, a2, a3, a4, a5)
 		})
 	}
 }
 
-func registerStartBundle7x0FuncAndMakeStructWrapper[I0, I1, I2, I3, I4, I5, I6 any]() func(interface{}) reflectx.Func {
-	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5, I6))(nil)).Elem(), func(fn interface{}) reflectx.Func {
+func registerStartBundle7x0FuncAndMakeStructWrapper[I0, I1, I2, I3, I4, I5, I6 any]() func(any) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5, I6))(nil)).Elem(), func(fn any) reflectx.Func {
 		return &caller7x0[I0, I1, I2, I3, I4, I5, I6]{fn: fn.(func(I0, I1, I2, I3, I4, I5, I6))}
 	})
 
-	return func(fn interface{}) reflectx.Func {
+	return func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5, a6 I6) {
 			fn.(startBundle7x0[I0, I1, I2, I3, I4, I5, I6]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
 		})
 	}
 }
 
-func registerStartBundle7x1FuncAndMakeStructWrapper[I0, I1, I2, I3, I4, I5, I6, R0 any]() func(interface{}) reflectx.Func {
-	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5, I6) R0)(nil)).Elem(), func(fn interface{}) reflectx.Func {
+func registerStartBundle7x1FuncAndMakeStructWrapper[I0, I1, I2, I3, I4, I5, I6, R0 any]() func(any) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5, I6) R0)(nil)).Elem(), func(fn any) reflectx.Func {
 		return &caller7x1[I0, I1, I2, I3, I4, I5, I6, R0]{fn: fn.(func(I0, I1, I2, I3, I4, I5, I6) R0)}
 	})
 
-	return func(fn interface{}) reflectx.Func {
+	return func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5, a6 I6) R0 {
 			return fn.(startBundle7x1[I0, I1, I2, I3, I4, I5, I6, R0]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
 		})
 	}
 }
 
-func buildStartBundleWrapper[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9 any](doFn interface{}) func(interface{}) reflectx.Func {
+func buildStartBundleWrapper[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9 any](doFn any) func(any) reflectx.Func {
 	startBundleIn := -1
 	startBundleOut := -1
 	startBundleMethod := reflect.ValueOf(doFn).MethodByName("StartBundle")
@@ -1054,199 +1054,199 @@ func buildStartBundleWrapper[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9 any](doFn in
 	}
 }
 
-func registerFinishBundle0x0FuncAndMakeStructWrapper() func(interface{}) reflectx.Func {
-	reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), func(fn interface{}) reflectx.Func {
+func registerFinishBundle0x0FuncAndMakeStructWrapper() func(any) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), func(fn any) reflectx.Func {
 		return &caller0x0{fn: fn.(func())}
 	})
 
-	return func(fn interface{}) reflectx.Func {
+	return func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func() {
 			fn.(finishBundle0x0).FinishBundle()
 		})
 	}
 }
 
-func registerFinishBundle0x1FuncAndMakeStructWrapper[R0 any]() func(interface{}) reflectx.Func {
-	reflectx.RegisterFunc(reflect.TypeOf((*func() R0)(nil)).Elem(), func(fn interface{}) reflectx.Func {
+func registerFinishBundle0x1FuncAndMakeStructWrapper[R0 any]() func(any) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func() R0)(nil)).Elem(), func(fn any) reflectx.Func {
 		return &caller0x1[R0]{fn: fn.(func() R0)}
 	})
 
-	return func(fn interface{}) reflectx.Func {
+	return func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func() R0 {
 			return fn.(finishBundle0x1[R0]).FinishBundle()
 		})
 	}
 }
 
-func registerFinishBundle1x0FuncAndMakeStructWrapper[I0 any]() func(interface{}) reflectx.Func {
-	reflectx.RegisterFunc(reflect.TypeOf((*func(I0))(nil)).Elem(), func(fn interface{}) reflectx.Func {
+func registerFinishBundle1x0FuncAndMakeStructWrapper[I0 any]() func(any) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func(I0))(nil)).Elem(), func(fn any) reflectx.Func {
 		return &caller1x0[I0]{fn: fn.(func(I0))}
 	})
 
-	return func(fn interface{}) reflectx.Func {
+	return func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0) {
 			fn.(finishBundle1x0[I0]).FinishBundle(a0)
 		})
 	}
 }
 
-func registerFinishBundle1x1FuncAndMakeStructWrapper[I0, R0 any]() func(interface{}) reflectx.Func {
-	reflectx.RegisterFunc(reflect.TypeOf((*func(I0) R0)(nil)).Elem(), func(fn interface{}) reflectx.Func {
+func registerFinishBundle1x1FuncAndMakeStructWrapper[I0, R0 any]() func(any) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func(I0) R0)(nil)).Elem(), func(fn any) reflectx.Func {
 		return &caller1x1[I0, R0]{fn: fn.(func(I0) R0)}
 	})
 
-	return func(fn interface{}) reflectx.Func {
+	return func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0) R0 {
 			return fn.(finishBundle1x1[I0, R0]).FinishBundle(a0)
 		})
 	}
 }
 
-func registerFinishBundle2x0FuncAndMakeStructWrapper[I0, I1 any]() func(interface{}) reflectx.Func {
-	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1))(nil)).Elem(), func(fn interface{}) reflectx.Func {
+func registerFinishBundle2x0FuncAndMakeStructWrapper[I0, I1 any]() func(any) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1))(nil)).Elem(), func(fn any) reflectx.Func {
 		return &caller2x0[I0, I1]{fn: fn.(func(I0, I1))}
 	})
 
-	return func(fn interface{}) reflectx.Func {
+	return func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1) {
 			fn.(finishBundle2x0[I0, I1]).FinishBundle(a0, a1)
 		})
 	}
 }
 
-func registerFinishBundle2x1FuncAndMakeStructWrapper[I0, I1, R0 any]() func(interface{}) reflectx.Func {
-	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1) R0)(nil)).Elem(), func(fn interface{}) reflectx.Func {
+func registerFinishBundle2x1FuncAndMakeStructWrapper[I0, I1, R0 any]() func(any) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1) R0)(nil)).Elem(), func(fn any) reflectx.Func {
 		return &caller2x1[I0, I1, R0]{fn: fn.(func(I0, I1) R0)}
 	})
 
-	return func(fn interface{}) reflectx.Func {
+	return func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1) R0 {
 			return fn.(finishBundle2x1[I0, I1, R0]).FinishBundle(a0, a1)
 		})
 	}
 }
 
-func registerFinishBundle3x0FuncAndMakeStructWrapper[I0, I1, I2 any]() func(interface{}) reflectx.Func {
-	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2))(nil)).Elem(), func(fn interface{}) reflectx.Func {
+func registerFinishBundle3x0FuncAndMakeStructWrapper[I0, I1, I2 any]() func(any) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2))(nil)).Elem(), func(fn any) reflectx.Func {
 		return &caller3x0[I0, I1, I2]{fn: fn.(func(I0, I1, I2))}
 	})
 
-	return func(fn interface{}) reflectx.Func {
+	return func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2) {
 			fn.(finishBundle3x0[I0, I1, I2]).FinishBundle(a0, a1, a2)
 		})
 	}
 }
 
-func registerFinishBundle3x1FuncAndMakeStructWrapper[I0, I1, I2, R0 any]() func(interface{}) reflectx.Func {
-	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2) R0)(nil)).Elem(), func(fn interface{}) reflectx.Func {
+func registerFinishBundle3x1FuncAndMakeStructWrapper[I0, I1, I2, R0 any]() func(any) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2) R0)(nil)).Elem(), func(fn any) reflectx.Func {
 		return &caller3x1[I0, I1, I2, R0]{fn: fn.(func(I0, I1, I2) R0)}
 	})
 
-	return func(fn interface{}) reflectx.Func {
+	return func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2) R0 {
 			return fn.(finishBundle3x1[I0, I1, I2, R0]).FinishBundle(a0, a1, a2)
 		})
 	}
 }
 
-func registerFinishBundle4x0FuncAndMakeStructWrapper[I0, I1, I2, I3 any]() func(interface{}) reflectx.Func {
-	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3))(nil)).Elem(), func(fn interface{}) reflectx.Func {
+func registerFinishBundle4x0FuncAndMakeStructWrapper[I0, I1, I2, I3 any]() func(any) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3))(nil)).Elem(), func(fn any) reflectx.Func {
 		return &caller4x0[I0, I1, I2, I3]{fn: fn.(func(I0, I1, I2, I3))}
 	})
 
-	return func(fn interface{}) reflectx.Func {
+	return func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3) {
 			fn.(finishBundle4x0[I0, I1, I2, I3]).FinishBundle(a0, a1, a2, a3)
 		})
 	}
 }
 
-func registerFinishBundle4x1FuncAndMakeStructWrapper[I0, I1, I2, I3, R0 any]() func(interface{}) reflectx.Func {
-	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3) R0)(nil)).Elem(), func(fn interface{}) reflectx.Func {
+func registerFinishBundle4x1FuncAndMakeStructWrapper[I0, I1, I2, I3, R0 any]() func(any) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3) R0)(nil)).Elem(), func(fn any) reflectx.Func {
 		return &caller4x1[I0, I1, I2, I3, R0]{fn: fn.(func(I0, I1, I2, I3) R0)}
 	})
 
-	return func(fn interface{}) reflectx.Func {
+	return func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3) R0 {
 			return fn.(finishBundle4x1[I0, I1, I2, I3, R0]).FinishBundle(a0, a1, a2, a3)
 		})
 	}
 }
 
-func registerFinishBundle5x0FuncAndMakeStructWrapper[I0, I1, I2, I3, I4 any]() func(interface{}) reflectx.Func {
-	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4))(nil)).Elem(), func(fn interface{}) reflectx.Func {
+func registerFinishBundle5x0FuncAndMakeStructWrapper[I0, I1, I2, I3, I4 any]() func(any) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4))(nil)).Elem(), func(fn any) reflectx.Func {
 		return &caller5x0[I0, I1, I2, I3, I4]{fn: fn.(func(I0, I1, I2, I3, I4))}
 	})
 
-	return func(fn interface{}) reflectx.Func {
+	return func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4) {
 			fn.(finishBundle5x0[I0, I1, I2, I3, I4]).FinishBundle(a0, a1, a2, a3, a4)
 		})
 	}
 }
 
-func registerFinishBundle5x1FuncAndMakeStructWrapper[I0, I1, I2, I3, I4, R0 any]() func(interface{}) reflectx.Func {
-	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4) R0)(nil)).Elem(), func(fn interface{}) reflectx.Func {
+func registerFinishBundle5x1FuncAndMakeStructWrapper[I0, I1, I2, I3, I4, R0 any]() func(any) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4) R0)(nil)).Elem(), func(fn any) reflectx.Func {
 		return &caller5x1[I0, I1, I2, I3, I4, R0]{fn: fn.(func(I0, I1, I2, I3, I4) R0)}
 	})
 
-	return func(fn interface{}) reflectx.Func {
+	return func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4) R0 {
 			return fn.(finishBundle5x1[I0, I1, I2, I3, I4, R0]).FinishBundle(a0, a1, a2, a3, a4)
 		})
 	}
 }
 
-func registerFinishBundle6x0FuncAndMakeStructWrapper[I0, I1, I2, I3, I4, I5 any]() func(interface{}) reflectx.Func {
-	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5))(nil)).Elem(), func(fn interface{}) reflectx.Func {
+func registerFinishBundle6x0FuncAndMakeStructWrapper[I0, I1, I2, I3, I4, I5 any]() func(any) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5))(nil)).Elem(), func(fn any) reflectx.Func {
 		return &caller6x0[I0, I1, I2, I3, I4, I5]{fn: fn.(func(I0, I1, I2, I3, I4, I5))}
 	})
 
-	return func(fn interface{}) reflectx.Func {
+	return func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5) {
 			fn.(finishBundle6x0[I0, I1, I2, I3, I4, I5]).FinishBundle(a0, a1, a2, a3, a4, a5)
 		})
 	}
 }
 
-func registerFinishBundle6x1FuncAndMakeStructWrapper[I0, I1, I2, I3, I4, I5, R0 any]() func(interface{}) reflectx.Func {
-	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5) R0)(nil)).Elem(), func(fn interface{}) reflectx.Func {
+func registerFinishBundle6x1FuncAndMakeStructWrapper[I0, I1, I2, I3, I4, I5, R0 any]() func(any) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5) R0)(nil)).Elem(), func(fn any) reflectx.Func {
 		return &caller6x1[I0, I1, I2, I3, I4, I5, R0]{fn: fn.(func(I0, I1, I2, I3, I4, I5) R0)}
 	})
 
-	return func(fn interface{}) reflectx.Func {
+	return func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5) R0 {
 			return fn.(finishBundle6x1[I0, I1, I2, I3, I4, I5, R0]).FinishBundle(a0, a1, a2, a3, a4, a5)
 		})
 	}
 }
 
-func registerFinishBundle7x0FuncAndMakeStructWrapper[I0, I1, I2, I3, I4, I5, I6 any]() func(interface{}) reflectx.Func {
-	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5, I6))(nil)).Elem(), func(fn interface{}) reflectx.Func {
+func registerFinishBundle7x0FuncAndMakeStructWrapper[I0, I1, I2, I3, I4, I5, I6 any]() func(any) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5, I6))(nil)).Elem(), func(fn any) reflectx.Func {
 		return &caller7x0[I0, I1, I2, I3, I4, I5, I6]{fn: fn.(func(I0, I1, I2, I3, I4, I5, I6))}
 	})
 
-	return func(fn interface{}) reflectx.Func {
+	return func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5, a6 I6) {
 			fn.(finishBundle7x0[I0, I1, I2, I3, I4, I5, I6]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
 		})
 	}
 }
 
-func registerFinishBundle7x1FuncAndMakeStructWrapper[I0, I1, I2, I3, I4, I5, I6, R0 any]() func(interface{}) reflectx.Func {
-	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5, I6) R0)(nil)).Elem(), func(fn interface{}) reflectx.Func {
+func registerFinishBundle7x1FuncAndMakeStructWrapper[I0, I1, I2, I3, I4, I5, I6, R0 any]() func(any) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5, I6) R0)(nil)).Elem(), func(fn any) reflectx.Func {
 		return &caller7x1[I0, I1, I2, I3, I4, I5, I6, R0]{fn: fn.(func(I0, I1, I2, I3, I4, I5, I6) R0)}
 	})
 
-	return func(fn interface{}) reflectx.Func {
+	return func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5, a6 I6) R0 {
 			return fn.(finishBundle7x1[I0, I1, I2, I3, I4, I5, I6, R0]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
 		})
 	}
 }
 
-func buildFinishBundleWrapper[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9 any](doFn interface{}) func(interface{}) reflectx.Func {
+func buildFinishBundleWrapper[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9 any](doFn any) func(any) reflectx.Func {
 	finishBundleIn := -1
 	finishBundleOut := -1
 	finishBundleMethod := reflect.ValueOf(doFn).MethodByName("FinishBundle")
@@ -2078,51 +2078,51 @@ func buildFinishBundleWrapper[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9 any](doFn i
 	}
 }
 
-func buildSetupWrapper(doFn interface{}) func(interface{}) reflectx.Func {
+func buildSetupWrapper(doFn any) func(any) reflectx.Func {
 	if _, ok := doFn.(setup0x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
+		setupCaller := func(fn any) reflectx.Func {
 			f := fn.(func())
 			return &caller0x0{fn: f}
 		}
 		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), setupCaller)
 
-		return func(fn interface{}) reflectx.Func {
+		return func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func() {
 				fn.(setup0x0).Setup()
 			})
 		}
 	} else if _, ok := doFn.(setup1x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
+		setupCaller := func(fn any) reflectx.Func {
 			f := fn.(func(context.Context))
 			return &caller1x0[context.Context]{fn: f}
 		}
 		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), setupCaller)
 
-		return func(fn interface{}) reflectx.Func {
+		return func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func(a0 context.Context) {
 				fn.(setup1x0).Setup(a0)
 			})
 		}
 	} else if _, ok := doFn.(setup0x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
+		setupCaller := func(fn any) reflectx.Func {
 			f := fn.(func() error)
 			return &caller0x1[error]{fn: f}
 		}
 		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), setupCaller)
 
-		return func(fn interface{}) reflectx.Func {
+		return func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func() error {
 				return fn.(setup0x1).Setup()
 			})
 		}
 	} else if _, ok := doFn.(setup1x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
+		setupCaller := func(fn any) reflectx.Func {
 			f := fn.(func(context.Context) error)
 			return &caller1x1[context.Context, error]{fn: f}
 		}
 		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), setupCaller)
 
-		return func(fn interface{}) reflectx.Func {
+		return func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func(a0 context.Context) error {
 				return fn.(setup1x1).Setup(a0)
 			})
@@ -2132,51 +2132,51 @@ func buildSetupWrapper(doFn interface{}) func(interface{}) reflectx.Func {
 	return nil
 }
 
-func buildTeardownWrapper(doFn interface{}) func(interface{}) reflectx.Func {
+func buildTeardownWrapper(doFn any) func(any) reflectx.Func {
 	if _, ok := doFn.(teardown0x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
+		teardownCaller := func(fn any) reflectx.Func {
 			f := fn.(func())
 			return &caller0x0{fn: f}
 		}
 		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), teardownCaller)
 
-		return func(fn interface{}) reflectx.Func {
+		return func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func() {
 				fn.(teardown0x0).Teardown()
 			})
 		}
 	} else if _, ok := doFn.(teardown1x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
+		teardownCaller := func(fn any) reflectx.Func {
 			f := fn.(func(context.Context))
 			return &caller1x0[context.Context]{fn: f}
 		}
 		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), teardownCaller)
 
-		return func(fn interface{}) reflectx.Func {
+		return func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func(a0 context.Context) {
 				fn.(teardown1x0).Teardown(a0)
 			})
 		}
 	} else if _, ok := doFn.(teardown0x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
+		teardownCaller := func(fn any) reflectx.Func {
 			f := fn.(func() error)
 			return &caller0x1[error]{fn: f}
 		}
 		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), teardownCaller)
 
-		return func(fn interface{}) reflectx.Func {
+		return func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func() error {
 				return fn.(teardown0x1).Teardown()
 			})
 		}
 	} else if _, ok := doFn.(teardown1x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
+		teardownCaller := func(fn any) reflectx.Func {
 			f := fn.(func(context.Context) error)
 			return &caller1x1[context.Context, error]{fn: f}
 		}
 		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), teardownCaller)
 
-		return func(fn interface{}) reflectx.Func {
+		return func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func(a0 context.Context) error {
 				return fn.(teardown1x1).Teardown(a0)
 			})
@@ -2202,9 +2202,9 @@ func (c *caller0x0) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller0x0) Call(args []interface{}) []interface{} {
+func (c *caller0x0) Call(args []any) []any {
 	c.fn()
-	return []interface{}{}
+	return []any{}
 }
 
 func (c *caller0x0) Call0x0() {
@@ -2212,12 +2212,12 @@ func (c *caller0x0) Call0x0() {
 }
 
 func registerDoFn0x0StructWrappersAndFuncs(doFn genericDoFn0x0) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func())
 		return &caller0x0{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func() {
 			fn.(genericDoFn0x0).ProcessElement()
 		})
@@ -2227,7 +2227,7 @@ func registerDoFn0x0StructWrappersAndFuncs(doFn genericDoFn0x0) {
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -2260,7 +2260,7 @@ func DoFn0x0(doFn genericDoFn0x0) {
 func Function0x0(doFn func()) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func())
 		return &caller0x0{fn: f}
 	}
@@ -2283,22 +2283,22 @@ func (c *caller1x0[I0]) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller1x0[I0]) Call(args []interface{}) []interface{} {
+func (c *caller1x0[I0]) Call(args []any) []any {
 	c.fn(args[0].(I0))
-	return []interface{}{}
+	return []any{}
 }
 
-func (c *caller1x0[I0]) Call1x0(arg0 interface{}) {
+func (c *caller1x0[I0]) Call1x0(arg0 any) {
 	c.fn(arg0.(I0))
 }
 
 func registerDoFn1x0StructWrappersAndFuncs[I0 any](doFn genericDoFn1x0[I0]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func(I0))
 		return &caller1x0[I0]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0))(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0) {
 			fn.(genericDoFn1x0[I0]).ProcessElement(a0)
 		})
@@ -2308,7 +2308,7 @@ func registerDoFn1x0StructWrappersAndFuncs[I0 any](doFn genericDoFn1x0[I0]) {
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -2343,7 +2343,7 @@ func DoFn1x0[I0 any](doFn genericDoFn1x0[I0]) {
 func Function1x0[I0 any](doFn func(I0)) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func(I0))
 		return &caller1x0[I0]{fn: f}
 	}
@@ -2366,22 +2366,22 @@ func (c *caller2x0[I0, I1]) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller2x0[I0, I1]) Call(args []interface{}) []interface{} {
+func (c *caller2x0[I0, I1]) Call(args []any) []any {
 	c.fn(args[0].(I0), args[1].(I1))
-	return []interface{}{}
+	return []any{}
 }
 
-func (c *caller2x0[I0, I1]) Call2x0(arg0 interface{}, arg1 interface{}) {
+func (c *caller2x0[I0, I1]) Call2x0(arg0 any, arg1 any) {
 	c.fn(arg0.(I0), arg1.(I1))
 }
 
 func registerDoFn2x0StructWrappersAndFuncs[I0, I1 any](doFn genericDoFn2x0[I0, I1]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1))
 		return &caller2x0[I0, I1]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1))(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1) {
 			fn.(genericDoFn2x0[I0, I1]).ProcessElement(a0, a1)
 		})
@@ -2391,7 +2391,7 @@ func registerDoFn2x0StructWrappersAndFuncs[I0, I1 any](doFn genericDoFn2x0[I0, I
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -2426,7 +2426,7 @@ func DoFn2x0[I0, I1 any](doFn genericDoFn2x0[I0, I1]) {
 func Function2x0[I0, I1 any](doFn func(I0, I1)) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1))
 		return &caller2x0[I0, I1]{fn: f}
 	}
@@ -2449,22 +2449,22 @@ func (c *caller3x0[I0, I1, I2]) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller3x0[I0, I1, I2]) Call(args []interface{}) []interface{} {
+func (c *caller3x0[I0, I1, I2]) Call(args []any) []any {
 	c.fn(args[0].(I0), args[1].(I1), args[2].(I2))
-	return []interface{}{}
+	return []any{}
 }
 
-func (c *caller3x0[I0, I1, I2]) Call3x0(arg0 interface{}, arg1 interface{}, arg2 interface{}) {
+func (c *caller3x0[I0, I1, I2]) Call3x0(arg0 any, arg1 any, arg2 any) {
 	c.fn(arg0.(I0), arg1.(I1), arg2.(I2))
 }
 
 func registerDoFn3x0StructWrappersAndFuncs[I0, I1, I2 any](doFn genericDoFn3x0[I0, I1, I2]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2))
 		return &caller3x0[I0, I1, I2]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2))(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2) {
 			fn.(genericDoFn3x0[I0, I1, I2]).ProcessElement(a0, a1, a2)
 		})
@@ -2474,7 +2474,7 @@ func registerDoFn3x0StructWrappersAndFuncs[I0, I1, I2 any](doFn genericDoFn3x0[I
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -2509,7 +2509,7 @@ func DoFn3x0[I0, I1, I2 any](doFn genericDoFn3x0[I0, I1, I2]) {
 func Function3x0[I0, I1, I2 any](doFn func(I0, I1, I2)) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2))
 		return &caller3x0[I0, I1, I2]{fn: f}
 	}
@@ -2532,22 +2532,22 @@ func (c *caller4x0[I0, I1, I2, I3]) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller4x0[I0, I1, I2, I3]) Call(args []interface{}) []interface{} {
+func (c *caller4x0[I0, I1, I2, I3]) Call(args []any) []any {
 	c.fn(args[0].(I0), args[1].(I1), args[2].(I2), args[3].(I3))
-	return []interface{}{}
+	return []any{}
 }
 
-func (c *caller4x0[I0, I1, I2, I3]) Call4x0(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}) {
+func (c *caller4x0[I0, I1, I2, I3]) Call4x0(arg0 any, arg1 any, arg2 any, arg3 any) {
 	c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3))
 }
 
 func registerDoFn4x0StructWrappersAndFuncs[I0, I1, I2, I3 any](doFn genericDoFn4x0[I0, I1, I2, I3]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3))
 		return &caller4x0[I0, I1, I2, I3]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3))(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3) {
 			fn.(genericDoFn4x0[I0, I1, I2, I3]).ProcessElement(a0, a1, a2, a3)
 		})
@@ -2557,7 +2557,7 @@ func registerDoFn4x0StructWrappersAndFuncs[I0, I1, I2, I3 any](doFn genericDoFn4
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -2592,7 +2592,7 @@ func DoFn4x0[I0, I1, I2, I3 any](doFn genericDoFn4x0[I0, I1, I2, I3]) {
 func Function4x0[I0, I1, I2, I3 any](doFn func(I0, I1, I2, I3)) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3))
 		return &caller4x0[I0, I1, I2, I3]{fn: f}
 	}
@@ -2615,22 +2615,22 @@ func (c *caller5x0[I0, I1, I2, I3, I4]) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller5x0[I0, I1, I2, I3, I4]) Call(args []interface{}) []interface{} {
+func (c *caller5x0[I0, I1, I2, I3, I4]) Call(args []any) []any {
 	c.fn(args[0].(I0), args[1].(I1), args[2].(I2), args[3].(I3), args[4].(I4))
-	return []interface{}{}
+	return []any{}
 }
 
-func (c *caller5x0[I0, I1, I2, I3, I4]) Call5x0(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}) {
+func (c *caller5x0[I0, I1, I2, I3, I4]) Call5x0(arg0 any, arg1 any, arg2 any, arg3 any, arg4 any) {
 	c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4))
 }
 
 func registerDoFn5x0StructWrappersAndFuncs[I0, I1, I2, I3, I4 any](doFn genericDoFn5x0[I0, I1, I2, I3, I4]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4))
 		return &caller5x0[I0, I1, I2, I3, I4]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4))(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4) {
 			fn.(genericDoFn5x0[I0, I1, I2, I3, I4]).ProcessElement(a0, a1, a2, a3, a4)
 		})
@@ -2640,7 +2640,7 @@ func registerDoFn5x0StructWrappersAndFuncs[I0, I1, I2, I3, I4 any](doFn genericD
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -2675,7 +2675,7 @@ func DoFn5x0[I0, I1, I2, I3, I4 any](doFn genericDoFn5x0[I0, I1, I2, I3, I4]) {
 func Function5x0[I0, I1, I2, I3, I4 any](doFn func(I0, I1, I2, I3, I4)) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4))
 		return &caller5x0[I0, I1, I2, I3, I4]{fn: f}
 	}
@@ -2698,22 +2698,22 @@ func (c *caller6x0[I0, I1, I2, I3, I4, I5]) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller6x0[I0, I1, I2, I3, I4, I5]) Call(args []interface{}) []interface{} {
+func (c *caller6x0[I0, I1, I2, I3, I4, I5]) Call(args []any) []any {
 	c.fn(args[0].(I0), args[1].(I1), args[2].(I2), args[3].(I3), args[4].(I4), args[5].(I5))
-	return []interface{}{}
+	return []any{}
 }
 
-func (c *caller6x0[I0, I1, I2, I3, I4, I5]) Call6x0(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}, arg5 interface{}) {
+func (c *caller6x0[I0, I1, I2, I3, I4, I5]) Call6x0(arg0 any, arg1 any, arg2 any, arg3 any, arg4 any, arg5 any) {
 	c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4), arg5.(I5))
 }
 
 func registerDoFn6x0StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5 any](doFn genericDoFn6x0[I0, I1, I2, I3, I4, I5]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5))
 		return &caller6x0[I0, I1, I2, I3, I4, I5]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5))(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5) {
 			fn.(genericDoFn6x0[I0, I1, I2, I3, I4, I5]).ProcessElement(a0, a1, a2, a3, a4, a5)
 		})
@@ -2723,7 +2723,7 @@ func registerDoFn6x0StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5 any](doFn gene
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -2758,7 +2758,7 @@ func DoFn6x0[I0, I1, I2, I3, I4, I5 any](doFn genericDoFn6x0[I0, I1, I2, I3, I4,
 func Function6x0[I0, I1, I2, I3, I4, I5 any](doFn func(I0, I1, I2, I3, I4, I5)) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5))
 		return &caller6x0[I0, I1, I2, I3, I4, I5]{fn: f}
 	}
@@ -2781,22 +2781,22 @@ func (c *caller7x0[I0, I1, I2, I3, I4, I5, I6]) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller7x0[I0, I1, I2, I3, I4, I5, I6]) Call(args []interface{}) []interface{} {
+func (c *caller7x0[I0, I1, I2, I3, I4, I5, I6]) Call(args []any) []any {
 	c.fn(args[0].(I0), args[1].(I1), args[2].(I2), args[3].(I3), args[4].(I4), args[5].(I5), args[6].(I6))
-	return []interface{}{}
+	return []any{}
 }
 
-func (c *caller7x0[I0, I1, I2, I3, I4, I5, I6]) Call7x0(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}, arg5 interface{}, arg6 interface{}) {
+func (c *caller7x0[I0, I1, I2, I3, I4, I5, I6]) Call7x0(arg0 any, arg1 any, arg2 any, arg3 any, arg4 any, arg5 any, arg6 any) {
 	c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4), arg5.(I5), arg6.(I6))
 }
 
 func registerDoFn7x0StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6 any](doFn genericDoFn7x0[I0, I1, I2, I3, I4, I5, I6]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5, I6))
 		return &caller7x0[I0, I1, I2, I3, I4, I5, I6]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5, I6))(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5, a6 I6) {
 			fn.(genericDoFn7x0[I0, I1, I2, I3, I4, I5, I6]).ProcessElement(a0, a1, a2, a3, a4, a5, a6)
 		})
@@ -2806,7 +2806,7 @@ func registerDoFn7x0StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6 any](doFn 
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -2841,7 +2841,7 @@ func DoFn7x0[I0, I1, I2, I3, I4, I5, I6 any](doFn genericDoFn7x0[I0, I1, I2, I3,
 func Function7x0[I0, I1, I2, I3, I4, I5, I6 any](doFn func(I0, I1, I2, I3, I4, I5, I6)) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5, I6))
 		return &caller7x0[I0, I1, I2, I3, I4, I5, I6]{fn: f}
 	}
@@ -2864,22 +2864,22 @@ func (c *caller8x0[I0, I1, I2, I3, I4, I5, I6, I7]) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller8x0[I0, I1, I2, I3, I4, I5, I6, I7]) Call(args []interface{}) []interface{} {
+func (c *caller8x0[I0, I1, I2, I3, I4, I5, I6, I7]) Call(args []any) []any {
 	c.fn(args[0].(I0), args[1].(I1), args[2].(I2), args[3].(I3), args[4].(I4), args[5].(I5), args[6].(I6), args[7].(I7))
-	return []interface{}{}
+	return []any{}
 }
 
-func (c *caller8x0[I0, I1, I2, I3, I4, I5, I6, I7]) Call8x0(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}, arg5 interface{}, arg6 interface{}, arg7 interface{}) {
+func (c *caller8x0[I0, I1, I2, I3, I4, I5, I6, I7]) Call8x0(arg0 any, arg1 any, arg2 any, arg3 any, arg4 any, arg5 any, arg6 any, arg7 any) {
 	c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4), arg5.(I5), arg6.(I6), arg7.(I7))
 }
 
 func registerDoFn8x0StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7 any](doFn genericDoFn8x0[I0, I1, I2, I3, I4, I5, I6, I7]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5, I6, I7))
 		return &caller8x0[I0, I1, I2, I3, I4, I5, I6, I7]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5, I6, I7))(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5, a6 I6, a7 I7) {
 			fn.(genericDoFn8x0[I0, I1, I2, I3, I4, I5, I6, I7]).ProcessElement(a0, a1, a2, a3, a4, a5, a6, a7)
 		})
@@ -2889,7 +2889,7 @@ func registerDoFn8x0StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7 any](d
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -2924,7 +2924,7 @@ func DoFn8x0[I0, I1, I2, I3, I4, I5, I6, I7 any](doFn genericDoFn8x0[I0, I1, I2,
 func Function8x0[I0, I1, I2, I3, I4, I5, I6, I7 any](doFn func(I0, I1, I2, I3, I4, I5, I6, I7)) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5, I6, I7))
 		return &caller8x0[I0, I1, I2, I3, I4, I5, I6, I7]{fn: f}
 	}
@@ -2947,22 +2947,22 @@ func (c *caller9x0[I0, I1, I2, I3, I4, I5, I6, I7, I8]) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller9x0[I0, I1, I2, I3, I4, I5, I6, I7, I8]) Call(args []interface{}) []interface{} {
+func (c *caller9x0[I0, I1, I2, I3, I4, I5, I6, I7, I8]) Call(args []any) []any {
 	c.fn(args[0].(I0), args[1].(I1), args[2].(I2), args[3].(I3), args[4].(I4), args[5].(I5), args[6].(I6), args[7].(I7), args[8].(I8))
-	return []interface{}{}
+	return []any{}
 }
 
-func (c *caller9x0[I0, I1, I2, I3, I4, I5, I6, I7, I8]) Call9x0(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}, arg5 interface{}, arg6 interface{}, arg7 interface{}, arg8 interface{}) {
+func (c *caller9x0[I0, I1, I2, I3, I4, I5, I6, I7, I8]) Call9x0(arg0 any, arg1 any, arg2 any, arg3 any, arg4 any, arg5 any, arg6 any, arg7 any, arg8 any) {
 	c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4), arg5.(I5), arg6.(I6), arg7.(I7), arg8.(I8))
 }
 
 func registerDoFn9x0StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, I8 any](doFn genericDoFn9x0[I0, I1, I2, I3, I4, I5, I6, I7, I8]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5, I6, I7, I8))
 		return &caller9x0[I0, I1, I2, I3, I4, I5, I6, I7, I8]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5, I6, I7, I8))(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5, a6 I6, a7 I7, a8 I8) {
 			fn.(genericDoFn9x0[I0, I1, I2, I3, I4, I5, I6, I7, I8]).ProcessElement(a0, a1, a2, a3, a4, a5, a6, a7, a8)
 		})
@@ -2972,7 +2972,7 @@ func registerDoFn9x0StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, I8 an
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -3007,7 +3007,7 @@ func DoFn9x0[I0, I1, I2, I3, I4, I5, I6, I7, I8 any](doFn genericDoFn9x0[I0, I1,
 func Function9x0[I0, I1, I2, I3, I4, I5, I6, I7, I8 any](doFn func(I0, I1, I2, I3, I4, I5, I6, I7, I8)) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5, I6, I7, I8))
 		return &caller9x0[I0, I1, I2, I3, I4, I5, I6, I7, I8]{fn: f}
 	}
@@ -3030,22 +3030,22 @@ func (c *caller10x0[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9]) Type() reflect.Type
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller10x0[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9]) Call(args []interface{}) []interface{} {
+func (c *caller10x0[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9]) Call(args []any) []any {
 	c.fn(args[0].(I0), args[1].(I1), args[2].(I2), args[3].(I3), args[4].(I4), args[5].(I5), args[6].(I6), args[7].(I7), args[8].(I8), args[9].(I9))
-	return []interface{}{}
+	return []any{}
 }
 
-func (c *caller10x0[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9]) Call10x0(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}, arg5 interface{}, arg6 interface{}, arg7 interface{}, arg8 interface{}, arg9 interface{}) {
+func (c *caller10x0[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9]) Call10x0(arg0 any, arg1 any, arg2 any, arg3 any, arg4 any, arg5 any, arg6 any, arg7 any, arg8 any, arg9 any) {
 	c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4), arg5.(I5), arg6.(I6), arg7.(I7), arg8.(I8), arg9.(I9))
 }
 
 func registerDoFn10x0StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9 any](doFn genericDoFn10x0[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5, I6, I7, I8, I9))
 		return &caller10x0[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5, I6, I7, I8, I9))(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5, a6 I6, a7 I7, a8 I8, a9 I9) {
 			fn.(genericDoFn10x0[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9]).ProcessElement(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9)
 		})
@@ -3055,7 +3055,7 @@ func registerDoFn10x0StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, I8, 
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -3090,7 +3090,7 @@ func DoFn10x0[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9 any](doFn genericDoFn10x0[I
 func Function10x0[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9 any](doFn func(I0, I1, I2, I3, I4, I5, I6, I7, I8, I9)) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5, I6, I7, I8, I9))
 		return &caller10x0[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9]{fn: f}
 	}
@@ -3113,22 +3113,22 @@ func (c *caller0x1[R0]) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller0x1[R0]) Call(args []interface{}) []interface{} {
+func (c *caller0x1[R0]) Call(args []any) []any {
 	out0 := c.fn()
-	return []interface{}{out0}
+	return []any{out0}
 }
 
-func (c *caller0x1[R0]) Call0x1() interface{} {
+func (c *caller0x1[R0]) Call0x1() any {
 	return c.fn()
 }
 
 func registerDoFn0x1StructWrappersAndFuncs[R0 any](doFn genericDoFn0x1[R0]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func() R0)
 		return &caller0x1[R0]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func() R0)(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func() R0 {
 			return fn.(genericDoFn0x1[R0]).ProcessElement()
 		})
@@ -3138,7 +3138,7 @@ func registerDoFn0x1StructWrappersAndFuncs[R0 any](doFn genericDoFn0x1[R0]) {
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -3173,7 +3173,7 @@ func DoFn0x1[R0 any](doFn genericDoFn0x1[R0]) {
 func Function0x1[R0 any](doFn func() R0) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func() R0)
 		return &caller0x1[R0]{fn: f}
 	}
@@ -3196,22 +3196,22 @@ func (c *caller1x1[I0, R0]) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller1x1[I0, R0]) Call(args []interface{}) []interface{} {
+func (c *caller1x1[I0, R0]) Call(args []any) []any {
 	out0 := c.fn(args[0].(I0))
-	return []interface{}{out0}
+	return []any{out0}
 }
 
-func (c *caller1x1[I0, R0]) Call1x1(arg0 interface{}) interface{} {
+func (c *caller1x1[I0, R0]) Call1x1(arg0 any) any {
 	return c.fn(arg0.(I0))
 }
 
 func registerDoFn1x1StructWrappersAndFuncs[I0, R0 any](doFn genericDoFn1x1[I0, R0]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func(I0) R0)
 		return &caller1x1[I0, R0]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0) R0)(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0) R0 {
 			return fn.(genericDoFn1x1[I0, R0]).ProcessElement(a0)
 		})
@@ -3221,7 +3221,7 @@ func registerDoFn1x1StructWrappersAndFuncs[I0, R0 any](doFn genericDoFn1x1[I0, R
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -3256,7 +3256,7 @@ func DoFn1x1[I0, R0 any](doFn genericDoFn1x1[I0, R0]) {
 func Function1x1[I0, R0 any](doFn func(I0) R0) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func(I0) R0)
 		return &caller1x1[I0, R0]{fn: f}
 	}
@@ -3279,22 +3279,22 @@ func (c *caller2x1[I0, I1, R0]) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller2x1[I0, I1, R0]) Call(args []interface{}) []interface{} {
+func (c *caller2x1[I0, I1, R0]) Call(args []any) []any {
 	out0 := c.fn(args[0].(I0), args[1].(I1))
-	return []interface{}{out0}
+	return []any{out0}
 }
 
-func (c *caller2x1[I0, I1, R0]) Call2x1(arg0 interface{}, arg1 interface{}) interface{} {
+func (c *caller2x1[I0, I1, R0]) Call2x1(arg0 any, arg1 any) any {
 	return c.fn(arg0.(I0), arg1.(I1))
 }
 
 func registerDoFn2x1StructWrappersAndFuncs[I0, I1, R0 any](doFn genericDoFn2x1[I0, I1, R0]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1) R0)
 		return &caller2x1[I0, I1, R0]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1) R0)(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1) R0 {
 			return fn.(genericDoFn2x1[I0, I1, R0]).ProcessElement(a0, a1)
 		})
@@ -3304,7 +3304,7 @@ func registerDoFn2x1StructWrappersAndFuncs[I0, I1, R0 any](doFn genericDoFn2x1[I
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -3339,7 +3339,7 @@ func DoFn2x1[I0, I1, R0 any](doFn genericDoFn2x1[I0, I1, R0]) {
 func Function2x1[I0, I1, R0 any](doFn func(I0, I1) R0) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1) R0)
 		return &caller2x1[I0, I1, R0]{fn: f}
 	}
@@ -3362,22 +3362,22 @@ func (c *caller3x1[I0, I1, I2, R0]) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller3x1[I0, I1, I2, R0]) Call(args []interface{}) []interface{} {
+func (c *caller3x1[I0, I1, I2, R0]) Call(args []any) []any {
 	out0 := c.fn(args[0].(I0), args[1].(I1), args[2].(I2))
-	return []interface{}{out0}
+	return []any{out0}
 }
 
-func (c *caller3x1[I0, I1, I2, R0]) Call3x1(arg0 interface{}, arg1 interface{}, arg2 interface{}) interface{} {
+func (c *caller3x1[I0, I1, I2, R0]) Call3x1(arg0 any, arg1 any, arg2 any) any {
 	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2))
 }
 
 func registerDoFn3x1StructWrappersAndFuncs[I0, I1, I2, R0 any](doFn genericDoFn3x1[I0, I1, I2, R0]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2) R0)
 		return &caller3x1[I0, I1, I2, R0]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2) R0)(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2) R0 {
 			return fn.(genericDoFn3x1[I0, I1, I2, R0]).ProcessElement(a0, a1, a2)
 		})
@@ -3387,7 +3387,7 @@ func registerDoFn3x1StructWrappersAndFuncs[I0, I1, I2, R0 any](doFn genericDoFn3
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -3422,7 +3422,7 @@ func DoFn3x1[I0, I1, I2, R0 any](doFn genericDoFn3x1[I0, I1, I2, R0]) {
 func Function3x1[I0, I1, I2, R0 any](doFn func(I0, I1, I2) R0) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2) R0)
 		return &caller3x1[I0, I1, I2, R0]{fn: f}
 	}
@@ -3445,22 +3445,22 @@ func (c *caller4x1[I0, I1, I2, I3, R0]) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller4x1[I0, I1, I2, I3, R0]) Call(args []interface{}) []interface{} {
+func (c *caller4x1[I0, I1, I2, I3, R0]) Call(args []any) []any {
 	out0 := c.fn(args[0].(I0), args[1].(I1), args[2].(I2), args[3].(I3))
-	return []interface{}{out0}
+	return []any{out0}
 }
 
-func (c *caller4x1[I0, I1, I2, I3, R0]) Call4x1(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}) interface{} {
+func (c *caller4x1[I0, I1, I2, I3, R0]) Call4x1(arg0 any, arg1 any, arg2 any, arg3 any) any {
 	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3))
 }
 
 func registerDoFn4x1StructWrappersAndFuncs[I0, I1, I2, I3, R0 any](doFn genericDoFn4x1[I0, I1, I2, I3, R0]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3) R0)
 		return &caller4x1[I0, I1, I2, I3, R0]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3) R0)(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3) R0 {
 			return fn.(genericDoFn4x1[I0, I1, I2, I3, R0]).ProcessElement(a0, a1, a2, a3)
 		})
@@ -3470,7 +3470,7 @@ func registerDoFn4x1StructWrappersAndFuncs[I0, I1, I2, I3, R0 any](doFn genericD
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -3505,7 +3505,7 @@ func DoFn4x1[I0, I1, I2, I3, R0 any](doFn genericDoFn4x1[I0, I1, I2, I3, R0]) {
 func Function4x1[I0, I1, I2, I3, R0 any](doFn func(I0, I1, I2, I3) R0) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3) R0)
 		return &caller4x1[I0, I1, I2, I3, R0]{fn: f}
 	}
@@ -3528,22 +3528,22 @@ func (c *caller5x1[I0, I1, I2, I3, I4, R0]) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller5x1[I0, I1, I2, I3, I4, R0]) Call(args []interface{}) []interface{} {
+func (c *caller5x1[I0, I1, I2, I3, I4, R0]) Call(args []any) []any {
 	out0 := c.fn(args[0].(I0), args[1].(I1), args[2].(I2), args[3].(I3), args[4].(I4))
-	return []interface{}{out0}
+	return []any{out0}
 }
 
-func (c *caller5x1[I0, I1, I2, I3, I4, R0]) Call5x1(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}) interface{} {
+func (c *caller5x1[I0, I1, I2, I3, I4, R0]) Call5x1(arg0 any, arg1 any, arg2 any, arg3 any, arg4 any) any {
 	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4))
 }
 
 func registerDoFn5x1StructWrappersAndFuncs[I0, I1, I2, I3, I4, R0 any](doFn genericDoFn5x1[I0, I1, I2, I3, I4, R0]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4) R0)
 		return &caller5x1[I0, I1, I2, I3, I4, R0]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4) R0)(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4) R0 {
 			return fn.(genericDoFn5x1[I0, I1, I2, I3, I4, R0]).ProcessElement(a0, a1, a2, a3, a4)
 		})
@@ -3553,7 +3553,7 @@ func registerDoFn5x1StructWrappersAndFuncs[I0, I1, I2, I3, I4, R0 any](doFn gene
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -3588,7 +3588,7 @@ func DoFn5x1[I0, I1, I2, I3, I4, R0 any](doFn genericDoFn5x1[I0, I1, I2, I3, I4,
 func Function5x1[I0, I1, I2, I3, I4, R0 any](doFn func(I0, I1, I2, I3, I4) R0) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4) R0)
 		return &caller5x1[I0, I1, I2, I3, I4, R0]{fn: f}
 	}
@@ -3611,22 +3611,22 @@ func (c *caller6x1[I0, I1, I2, I3, I4, I5, R0]) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller6x1[I0, I1, I2, I3, I4, I5, R0]) Call(args []interface{}) []interface{} {
+func (c *caller6x1[I0, I1, I2, I3, I4, I5, R0]) Call(args []any) []any {
 	out0 := c.fn(args[0].(I0), args[1].(I1), args[2].(I2), args[3].(I3), args[4].(I4), args[5].(I5))
-	return []interface{}{out0}
+	return []any{out0}
 }
 
-func (c *caller6x1[I0, I1, I2, I3, I4, I5, R0]) Call6x1(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}, arg5 interface{}) interface{} {
+func (c *caller6x1[I0, I1, I2, I3, I4, I5, R0]) Call6x1(arg0 any, arg1 any, arg2 any, arg3 any, arg4 any, arg5 any) any {
 	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4), arg5.(I5))
 }
 
 func registerDoFn6x1StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, R0 any](doFn genericDoFn6x1[I0, I1, I2, I3, I4, I5, R0]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5) R0)
 		return &caller6x1[I0, I1, I2, I3, I4, I5, R0]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5) R0)(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5) R0 {
 			return fn.(genericDoFn6x1[I0, I1, I2, I3, I4, I5, R0]).ProcessElement(a0, a1, a2, a3, a4, a5)
 		})
@@ -3636,7 +3636,7 @@ func registerDoFn6x1StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, R0 any](doFn 
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -3671,7 +3671,7 @@ func DoFn6x1[I0, I1, I2, I3, I4, I5, R0 any](doFn genericDoFn6x1[I0, I1, I2, I3,
 func Function6x1[I0, I1, I2, I3, I4, I5, R0 any](doFn func(I0, I1, I2, I3, I4, I5) R0) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5) R0)
 		return &caller6x1[I0, I1, I2, I3, I4, I5, R0]{fn: f}
 	}
@@ -3694,22 +3694,22 @@ func (c *caller7x1[I0, I1, I2, I3, I4, I5, I6, R0]) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller7x1[I0, I1, I2, I3, I4, I5, I6, R0]) Call(args []interface{}) []interface{} {
+func (c *caller7x1[I0, I1, I2, I3, I4, I5, I6, R0]) Call(args []any) []any {
 	out0 := c.fn(args[0].(I0), args[1].(I1), args[2].(I2), args[3].(I3), args[4].(I4), args[5].(I5), args[6].(I6))
-	return []interface{}{out0}
+	return []any{out0}
 }
 
-func (c *caller7x1[I0, I1, I2, I3, I4, I5, I6, R0]) Call7x1(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}, arg5 interface{}, arg6 interface{}) interface{} {
+func (c *caller7x1[I0, I1, I2, I3, I4, I5, I6, R0]) Call7x1(arg0 any, arg1 any, arg2 any, arg3 any, arg4 any, arg5 any, arg6 any) any {
 	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4), arg5.(I5), arg6.(I6))
 }
 
 func registerDoFn7x1StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, R0 any](doFn genericDoFn7x1[I0, I1, I2, I3, I4, I5, I6, R0]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5, I6) R0)
 		return &caller7x1[I0, I1, I2, I3, I4, I5, I6, R0]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5, I6) R0)(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5, a6 I6) R0 {
 			return fn.(genericDoFn7x1[I0, I1, I2, I3, I4, I5, I6, R0]).ProcessElement(a0, a1, a2, a3, a4, a5, a6)
 		})
@@ -3719,7 +3719,7 @@ func registerDoFn7x1StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, R0 any](d
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -3754,7 +3754,7 @@ func DoFn7x1[I0, I1, I2, I3, I4, I5, I6, R0 any](doFn genericDoFn7x1[I0, I1, I2,
 func Function7x1[I0, I1, I2, I3, I4, I5, I6, R0 any](doFn func(I0, I1, I2, I3, I4, I5, I6) R0) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5, I6) R0)
 		return &caller7x1[I0, I1, I2, I3, I4, I5, I6, R0]{fn: f}
 	}
@@ -3777,22 +3777,22 @@ func (c *caller8x1[I0, I1, I2, I3, I4, I5, I6, I7, R0]) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller8x1[I0, I1, I2, I3, I4, I5, I6, I7, R0]) Call(args []interface{}) []interface{} {
+func (c *caller8x1[I0, I1, I2, I3, I4, I5, I6, I7, R0]) Call(args []any) []any {
 	out0 := c.fn(args[0].(I0), args[1].(I1), args[2].(I2), args[3].(I3), args[4].(I4), args[5].(I5), args[6].(I6), args[7].(I7))
-	return []interface{}{out0}
+	return []any{out0}
 }
 
-func (c *caller8x1[I0, I1, I2, I3, I4, I5, I6, I7, R0]) Call8x1(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}, arg5 interface{}, arg6 interface{}, arg7 interface{}) interface{} {
+func (c *caller8x1[I0, I1, I2, I3, I4, I5, I6, I7, R0]) Call8x1(arg0 any, arg1 any, arg2 any, arg3 any, arg4 any, arg5 any, arg6 any, arg7 any) any {
 	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4), arg5.(I5), arg6.(I6), arg7.(I7))
 }
 
 func registerDoFn8x1StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, R0 any](doFn genericDoFn8x1[I0, I1, I2, I3, I4, I5, I6, I7, R0]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5, I6, I7) R0)
 		return &caller8x1[I0, I1, I2, I3, I4, I5, I6, I7, R0]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5, I6, I7) R0)(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5, a6 I6, a7 I7) R0 {
 			return fn.(genericDoFn8x1[I0, I1, I2, I3, I4, I5, I6, I7, R0]).ProcessElement(a0, a1, a2, a3, a4, a5, a6, a7)
 		})
@@ -3802,7 +3802,7 @@ func registerDoFn8x1StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, R0 an
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -3837,7 +3837,7 @@ func DoFn8x1[I0, I1, I2, I3, I4, I5, I6, I7, R0 any](doFn genericDoFn8x1[I0, I1,
 func Function8x1[I0, I1, I2, I3, I4, I5, I6, I7, R0 any](doFn func(I0, I1, I2, I3, I4, I5, I6, I7) R0) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5, I6, I7) R0)
 		return &caller8x1[I0, I1, I2, I3, I4, I5, I6, I7, R0]{fn: f}
 	}
@@ -3860,22 +3860,22 @@ func (c *caller9x1[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0]) Type() reflect.Type 
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller9x1[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0]) Call(args []interface{}) []interface{} {
+func (c *caller9x1[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0]) Call(args []any) []any {
 	out0 := c.fn(args[0].(I0), args[1].(I1), args[2].(I2), args[3].(I3), args[4].(I4), args[5].(I5), args[6].(I6), args[7].(I7), args[8].(I8))
-	return []interface{}{out0}
+	return []any{out0}
 }
 
-func (c *caller9x1[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0]) Call9x1(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}, arg5 interface{}, arg6 interface{}, arg7 interface{}, arg8 interface{}) interface{} {
+func (c *caller9x1[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0]) Call9x1(arg0 any, arg1 any, arg2 any, arg3 any, arg4 any, arg5 any, arg6 any, arg7 any, arg8 any) any {
 	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4), arg5.(I5), arg6.(I6), arg7.(I7), arg8.(I8))
 }
 
 func registerDoFn9x1StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0 any](doFn genericDoFn9x1[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5, I6, I7, I8) R0)
 		return &caller9x1[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5, I6, I7, I8) R0)(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5, a6 I6, a7 I7, a8 I8) R0 {
 			return fn.(genericDoFn9x1[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0]).ProcessElement(a0, a1, a2, a3, a4, a5, a6, a7, a8)
 		})
@@ -3885,7 +3885,7 @@ func registerDoFn9x1StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, I8, R
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -3920,7 +3920,7 @@ func DoFn9x1[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0 any](doFn genericDoFn9x1[I0,
 func Function9x1[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0 any](doFn func(I0, I1, I2, I3, I4, I5, I6, I7, I8) R0) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5, I6, I7, I8) R0)
 		return &caller9x1[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0]{fn: f}
 	}
@@ -3943,22 +3943,22 @@ func (c *caller10x1[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0]) Type() reflect.
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller10x1[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0]) Call(args []interface{}) []interface{} {
+func (c *caller10x1[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0]) Call(args []any) []any {
 	out0 := c.fn(args[0].(I0), args[1].(I1), args[2].(I2), args[3].(I3), args[4].(I4), args[5].(I5), args[6].(I6), args[7].(I7), args[8].(I8), args[9].(I9))
-	return []interface{}{out0}
+	return []any{out0}
 }
 
-func (c *caller10x1[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0]) Call10x1(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}, arg5 interface{}, arg6 interface{}, arg7 interface{}, arg8 interface{}, arg9 interface{}) interface{} {
+func (c *caller10x1[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0]) Call10x1(arg0 any, arg1 any, arg2 any, arg3 any, arg4 any, arg5 any, arg6 any, arg7 any, arg8 any, arg9 any) any {
 	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4), arg5.(I5), arg6.(I6), arg7.(I7), arg8.(I8), arg9.(I9))
 }
 
 func registerDoFn10x1StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0 any](doFn genericDoFn10x1[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5, I6, I7, I8, I9) R0)
 		return &caller10x1[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5, I6, I7, I8, I9) R0)(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5, a6 I6, a7 I7, a8 I8, a9 I9) R0 {
 			return fn.(genericDoFn10x1[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0]).ProcessElement(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9)
 		})
@@ -3968,7 +3968,7 @@ func registerDoFn10x1StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, I8, 
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -4003,7 +4003,7 @@ func DoFn10x1[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0 any](doFn genericDoFn10
 func Function10x1[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0 any](doFn func(I0, I1, I2, I3, I4, I5, I6, I7, I8, I9) R0) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5, I6, I7, I8, I9) R0)
 		return &caller10x1[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0]{fn: f}
 	}
@@ -4026,22 +4026,22 @@ func (c *caller0x2[R0, R1]) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller0x2[R0, R1]) Call(args []interface{}) []interface{} {
+func (c *caller0x2[R0, R1]) Call(args []any) []any {
 	out0, out1 := c.fn()
-	return []interface{}{out0, out1}
+	return []any{out0, out1}
 }
 
-func (c *caller0x2[R0, R1]) Call0x2() (interface{}, interface{}) {
+func (c *caller0x2[R0, R1]) Call0x2() (any, any) {
 	return c.fn()
 }
 
 func registerDoFn0x2StructWrappersAndFuncs[R0, R1 any](doFn genericDoFn0x2[R0, R1]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func() (R0, R1))
 		return &caller0x2[R0, R1]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func() (R0, R1))(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func() (R0, R1) {
 			return fn.(genericDoFn0x2[R0, R1]).ProcessElement()
 		})
@@ -4051,7 +4051,7 @@ func registerDoFn0x2StructWrappersAndFuncs[R0, R1 any](doFn genericDoFn0x2[R0, R
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -4086,7 +4086,7 @@ func DoFn0x2[R0, R1 any](doFn genericDoFn0x2[R0, R1]) {
 func Function0x2[R0, R1 any](doFn func() (R0, R1)) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func() (R0, R1))
 		return &caller0x2[R0, R1]{fn: f}
 	}
@@ -4109,22 +4109,22 @@ func (c *caller1x2[I0, R0, R1]) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller1x2[I0, R0, R1]) Call(args []interface{}) []interface{} {
+func (c *caller1x2[I0, R0, R1]) Call(args []any) []any {
 	out0, out1 := c.fn(args[0].(I0))
-	return []interface{}{out0, out1}
+	return []any{out0, out1}
 }
 
-func (c *caller1x2[I0, R0, R1]) Call1x2(arg0 interface{}) (interface{}, interface{}) {
+func (c *caller1x2[I0, R0, R1]) Call1x2(arg0 any) (any, any) {
 	return c.fn(arg0.(I0))
 }
 
 func registerDoFn1x2StructWrappersAndFuncs[I0, R0, R1 any](doFn genericDoFn1x2[I0, R0, R1]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func(I0) (R0, R1))
 		return &caller1x2[I0, R0, R1]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0) (R0, R1))(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0) (R0, R1) {
 			return fn.(genericDoFn1x2[I0, R0, R1]).ProcessElement(a0)
 		})
@@ -4134,7 +4134,7 @@ func registerDoFn1x2StructWrappersAndFuncs[I0, R0, R1 any](doFn genericDoFn1x2[I
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -4169,7 +4169,7 @@ func DoFn1x2[I0, R0, R1 any](doFn genericDoFn1x2[I0, R0, R1]) {
 func Function1x2[I0, R0, R1 any](doFn func(I0) (R0, R1)) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func(I0) (R0, R1))
 		return &caller1x2[I0, R0, R1]{fn: f}
 	}
@@ -4192,22 +4192,22 @@ func (c *caller2x2[I0, I1, R0, R1]) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller2x2[I0, I1, R0, R1]) Call(args []interface{}) []interface{} {
+func (c *caller2x2[I0, I1, R0, R1]) Call(args []any) []any {
 	out0, out1 := c.fn(args[0].(I0), args[1].(I1))
-	return []interface{}{out0, out1}
+	return []any{out0, out1}
 }
 
-func (c *caller2x2[I0, I1, R0, R1]) Call2x2(arg0 interface{}, arg1 interface{}) (interface{}, interface{}) {
+func (c *caller2x2[I0, I1, R0, R1]) Call2x2(arg0 any, arg1 any) (any, any) {
 	return c.fn(arg0.(I0), arg1.(I1))
 }
 
 func registerDoFn2x2StructWrappersAndFuncs[I0, I1, R0, R1 any](doFn genericDoFn2x2[I0, I1, R0, R1]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1) (R0, R1))
 		return &caller2x2[I0, I1, R0, R1]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1) (R0, R1))(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1) (R0, R1) {
 			return fn.(genericDoFn2x2[I0, I1, R0, R1]).ProcessElement(a0, a1)
 		})
@@ -4217,7 +4217,7 @@ func registerDoFn2x2StructWrappersAndFuncs[I0, I1, R0, R1 any](doFn genericDoFn2
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -4252,7 +4252,7 @@ func DoFn2x2[I0, I1, R0, R1 any](doFn genericDoFn2x2[I0, I1, R0, R1]) {
 func Function2x2[I0, I1, R0, R1 any](doFn func(I0, I1) (R0, R1)) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1) (R0, R1))
 		return &caller2x2[I0, I1, R0, R1]{fn: f}
 	}
@@ -4275,22 +4275,22 @@ func (c *caller3x2[I0, I1, I2, R0, R1]) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller3x2[I0, I1, I2, R0, R1]) Call(args []interface{}) []interface{} {
+func (c *caller3x2[I0, I1, I2, R0, R1]) Call(args []any) []any {
 	out0, out1 := c.fn(args[0].(I0), args[1].(I1), args[2].(I2))
-	return []interface{}{out0, out1}
+	return []any{out0, out1}
 }
 
-func (c *caller3x2[I0, I1, I2, R0, R1]) Call3x2(arg0 interface{}, arg1 interface{}, arg2 interface{}) (interface{}, interface{}) {
+func (c *caller3x2[I0, I1, I2, R0, R1]) Call3x2(arg0 any, arg1 any, arg2 any) (any, any) {
 	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2))
 }
 
 func registerDoFn3x2StructWrappersAndFuncs[I0, I1, I2, R0, R1 any](doFn genericDoFn3x2[I0, I1, I2, R0, R1]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2) (R0, R1))
 		return &caller3x2[I0, I1, I2, R0, R1]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2) (R0, R1))(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2) (R0, R1) {
 			return fn.(genericDoFn3x2[I0, I1, I2, R0, R1]).ProcessElement(a0, a1, a2)
 		})
@@ -4300,7 +4300,7 @@ func registerDoFn3x2StructWrappersAndFuncs[I0, I1, I2, R0, R1 any](doFn genericD
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -4335,7 +4335,7 @@ func DoFn3x2[I0, I1, I2, R0, R1 any](doFn genericDoFn3x2[I0, I1, I2, R0, R1]) {
 func Function3x2[I0, I1, I2, R0, R1 any](doFn func(I0, I1, I2) (R0, R1)) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2) (R0, R1))
 		return &caller3x2[I0, I1, I2, R0, R1]{fn: f}
 	}
@@ -4358,22 +4358,22 @@ func (c *caller4x2[I0, I1, I2, I3, R0, R1]) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller4x2[I0, I1, I2, I3, R0, R1]) Call(args []interface{}) []interface{} {
+func (c *caller4x2[I0, I1, I2, I3, R0, R1]) Call(args []any) []any {
 	out0, out1 := c.fn(args[0].(I0), args[1].(I1), args[2].(I2), args[3].(I3))
-	return []interface{}{out0, out1}
+	return []any{out0, out1}
 }
 
-func (c *caller4x2[I0, I1, I2, I3, R0, R1]) Call4x2(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}) (interface{}, interface{}) {
+func (c *caller4x2[I0, I1, I2, I3, R0, R1]) Call4x2(arg0 any, arg1 any, arg2 any, arg3 any) (any, any) {
 	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3))
 }
 
 func registerDoFn4x2StructWrappersAndFuncs[I0, I1, I2, I3, R0, R1 any](doFn genericDoFn4x2[I0, I1, I2, I3, R0, R1]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3) (R0, R1))
 		return &caller4x2[I0, I1, I2, I3, R0, R1]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3) (R0, R1))(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3) (R0, R1) {
 			return fn.(genericDoFn4x2[I0, I1, I2, I3, R0, R1]).ProcessElement(a0, a1, a2, a3)
 		})
@@ -4383,7 +4383,7 @@ func registerDoFn4x2StructWrappersAndFuncs[I0, I1, I2, I3, R0, R1 any](doFn gene
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -4418,7 +4418,7 @@ func DoFn4x2[I0, I1, I2, I3, R0, R1 any](doFn genericDoFn4x2[I0, I1, I2, I3, R0,
 func Function4x2[I0, I1, I2, I3, R0, R1 any](doFn func(I0, I1, I2, I3) (R0, R1)) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3) (R0, R1))
 		return &caller4x2[I0, I1, I2, I3, R0, R1]{fn: f}
 	}
@@ -4441,22 +4441,22 @@ func (c *caller5x2[I0, I1, I2, I3, I4, R0, R1]) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller5x2[I0, I1, I2, I3, I4, R0, R1]) Call(args []interface{}) []interface{} {
+func (c *caller5x2[I0, I1, I2, I3, I4, R0, R1]) Call(args []any) []any {
 	out0, out1 := c.fn(args[0].(I0), args[1].(I1), args[2].(I2), args[3].(I3), args[4].(I4))
-	return []interface{}{out0, out1}
+	return []any{out0, out1}
 }
 
-func (c *caller5x2[I0, I1, I2, I3, I4, R0, R1]) Call5x2(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}) (interface{}, interface{}) {
+func (c *caller5x2[I0, I1, I2, I3, I4, R0, R1]) Call5x2(arg0 any, arg1 any, arg2 any, arg3 any, arg4 any) (any, any) {
 	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4))
 }
 
 func registerDoFn5x2StructWrappersAndFuncs[I0, I1, I2, I3, I4, R0, R1 any](doFn genericDoFn5x2[I0, I1, I2, I3, I4, R0, R1]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4) (R0, R1))
 		return &caller5x2[I0, I1, I2, I3, I4, R0, R1]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4) (R0, R1))(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4) (R0, R1) {
 			return fn.(genericDoFn5x2[I0, I1, I2, I3, I4, R0, R1]).ProcessElement(a0, a1, a2, a3, a4)
 		})
@@ -4466,7 +4466,7 @@ func registerDoFn5x2StructWrappersAndFuncs[I0, I1, I2, I3, I4, R0, R1 any](doFn 
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -4501,7 +4501,7 @@ func DoFn5x2[I0, I1, I2, I3, I4, R0, R1 any](doFn genericDoFn5x2[I0, I1, I2, I3,
 func Function5x2[I0, I1, I2, I3, I4, R0, R1 any](doFn func(I0, I1, I2, I3, I4) (R0, R1)) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4) (R0, R1))
 		return &caller5x2[I0, I1, I2, I3, I4, R0, R1]{fn: f}
 	}
@@ -4524,22 +4524,22 @@ func (c *caller6x2[I0, I1, I2, I3, I4, I5, R0, R1]) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller6x2[I0, I1, I2, I3, I4, I5, R0, R1]) Call(args []interface{}) []interface{} {
+func (c *caller6x2[I0, I1, I2, I3, I4, I5, R0, R1]) Call(args []any) []any {
 	out0, out1 := c.fn(args[0].(I0), args[1].(I1), args[2].(I2), args[3].(I3), args[4].(I4), args[5].(I5))
-	return []interface{}{out0, out1}
+	return []any{out0, out1}
 }
 
-func (c *caller6x2[I0, I1, I2, I3, I4, I5, R0, R1]) Call6x2(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}, arg5 interface{}) (interface{}, interface{}) {
+func (c *caller6x2[I0, I1, I2, I3, I4, I5, R0, R1]) Call6x2(arg0 any, arg1 any, arg2 any, arg3 any, arg4 any, arg5 any) (any, any) {
 	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4), arg5.(I5))
 }
 
 func registerDoFn6x2StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, R0, R1 any](doFn genericDoFn6x2[I0, I1, I2, I3, I4, I5, R0, R1]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5) (R0, R1))
 		return &caller6x2[I0, I1, I2, I3, I4, I5, R0, R1]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5) (R0, R1))(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5) (R0, R1) {
 			return fn.(genericDoFn6x2[I0, I1, I2, I3, I4, I5, R0, R1]).ProcessElement(a0, a1, a2, a3, a4, a5)
 		})
@@ -4549,7 +4549,7 @@ func registerDoFn6x2StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, R0, R1 any](d
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -4584,7 +4584,7 @@ func DoFn6x2[I0, I1, I2, I3, I4, I5, R0, R1 any](doFn genericDoFn6x2[I0, I1, I2,
 func Function6x2[I0, I1, I2, I3, I4, I5, R0, R1 any](doFn func(I0, I1, I2, I3, I4, I5) (R0, R1)) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5) (R0, R1))
 		return &caller6x2[I0, I1, I2, I3, I4, I5, R0, R1]{fn: f}
 	}
@@ -4607,22 +4607,22 @@ func (c *caller7x2[I0, I1, I2, I3, I4, I5, I6, R0, R1]) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller7x2[I0, I1, I2, I3, I4, I5, I6, R0, R1]) Call(args []interface{}) []interface{} {
+func (c *caller7x2[I0, I1, I2, I3, I4, I5, I6, R0, R1]) Call(args []any) []any {
 	out0, out1 := c.fn(args[0].(I0), args[1].(I1), args[2].(I2), args[3].(I3), args[4].(I4), args[5].(I5), args[6].(I6))
-	return []interface{}{out0, out1}
+	return []any{out0, out1}
 }
 
-func (c *caller7x2[I0, I1, I2, I3, I4, I5, I6, R0, R1]) Call7x2(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}, arg5 interface{}, arg6 interface{}) (interface{}, interface{}) {
+func (c *caller7x2[I0, I1, I2, I3, I4, I5, I6, R0, R1]) Call7x2(arg0 any, arg1 any, arg2 any, arg3 any, arg4 any, arg5 any, arg6 any) (any, any) {
 	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4), arg5.(I5), arg6.(I6))
 }
 
 func registerDoFn7x2StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, R0, R1 any](doFn genericDoFn7x2[I0, I1, I2, I3, I4, I5, I6, R0, R1]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5, I6) (R0, R1))
 		return &caller7x2[I0, I1, I2, I3, I4, I5, I6, R0, R1]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5, I6) (R0, R1))(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5, a6 I6) (R0, R1) {
 			return fn.(genericDoFn7x2[I0, I1, I2, I3, I4, I5, I6, R0, R1]).ProcessElement(a0, a1, a2, a3, a4, a5, a6)
 		})
@@ -4632,7 +4632,7 @@ func registerDoFn7x2StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, R0, R1 an
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -4667,7 +4667,7 @@ func DoFn7x2[I0, I1, I2, I3, I4, I5, I6, R0, R1 any](doFn genericDoFn7x2[I0, I1,
 func Function7x2[I0, I1, I2, I3, I4, I5, I6, R0, R1 any](doFn func(I0, I1, I2, I3, I4, I5, I6) (R0, R1)) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5, I6) (R0, R1))
 		return &caller7x2[I0, I1, I2, I3, I4, I5, I6, R0, R1]{fn: f}
 	}
@@ -4690,22 +4690,22 @@ func (c *caller8x2[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1]) Type() reflect.Type 
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller8x2[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1]) Call(args []interface{}) []interface{} {
+func (c *caller8x2[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1]) Call(args []any) []any {
 	out0, out1 := c.fn(args[0].(I0), args[1].(I1), args[2].(I2), args[3].(I3), args[4].(I4), args[5].(I5), args[6].(I6), args[7].(I7))
-	return []interface{}{out0, out1}
+	return []any{out0, out1}
 }
 
-func (c *caller8x2[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1]) Call8x2(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}, arg5 interface{}, arg6 interface{}, arg7 interface{}) (interface{}, interface{}) {
+func (c *caller8x2[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1]) Call8x2(arg0 any, arg1 any, arg2 any, arg3 any, arg4 any, arg5 any, arg6 any, arg7 any) (any, any) {
 	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4), arg5.(I5), arg6.(I6), arg7.(I7))
 }
 
 func registerDoFn8x2StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1 any](doFn genericDoFn8x2[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5, I6, I7) (R0, R1))
 		return &caller8x2[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5, I6, I7) (R0, R1))(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5, a6 I6, a7 I7) (R0, R1) {
 			return fn.(genericDoFn8x2[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1]).ProcessElement(a0, a1, a2, a3, a4, a5, a6, a7)
 		})
@@ -4715,7 +4715,7 @@ func registerDoFn8x2StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, R0, R
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -4750,7 +4750,7 @@ func DoFn8x2[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1 any](doFn genericDoFn8x2[I0,
 func Function8x2[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1 any](doFn func(I0, I1, I2, I3, I4, I5, I6, I7) (R0, R1)) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5, I6, I7) (R0, R1))
 		return &caller8x2[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1]{fn: f}
 	}
@@ -4773,22 +4773,22 @@ func (c *caller9x2[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1]) Type() reflect.T
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller9x2[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1]) Call(args []interface{}) []interface{} {
+func (c *caller9x2[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1]) Call(args []any) []any {
 	out0, out1 := c.fn(args[0].(I0), args[1].(I1), args[2].(I2), args[3].(I3), args[4].(I4), args[5].(I5), args[6].(I6), args[7].(I7), args[8].(I8))
-	return []interface{}{out0, out1}
+	return []any{out0, out1}
 }
 
-func (c *caller9x2[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1]) Call9x2(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}, arg5 interface{}, arg6 interface{}, arg7 interface{}, arg8 interface{}) (interface{}, interface{}) {
+func (c *caller9x2[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1]) Call9x2(arg0 any, arg1 any, arg2 any, arg3 any, arg4 any, arg5 any, arg6 any, arg7 any, arg8 any) (any, any) {
 	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4), arg5.(I5), arg6.(I6), arg7.(I7), arg8.(I8))
 }
 
 func registerDoFn9x2StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1 any](doFn genericDoFn9x2[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5, I6, I7, I8) (R0, R1))
 		return &caller9x2[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5, I6, I7, I8) (R0, R1))(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5, a6 I6, a7 I7, a8 I8) (R0, R1) {
 			return fn.(genericDoFn9x2[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1]).ProcessElement(a0, a1, a2, a3, a4, a5, a6, a7, a8)
 		})
@@ -4798,7 +4798,7 @@ func registerDoFn9x2StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, I8, R
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -4833,7 +4833,7 @@ func DoFn9x2[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1 any](doFn genericDoFn9x2
 func Function9x2[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1 any](doFn func(I0, I1, I2, I3, I4, I5, I6, I7, I8) (R0, R1)) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5, I6, I7, I8) (R0, R1))
 		return &caller9x2[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1]{fn: f}
 	}
@@ -4856,22 +4856,22 @@ func (c *caller10x2[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1]) Type() refl
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller10x2[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1]) Call(args []interface{}) []interface{} {
+func (c *caller10x2[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1]) Call(args []any) []any {
 	out0, out1 := c.fn(args[0].(I0), args[1].(I1), args[2].(I2), args[3].(I3), args[4].(I4), args[5].(I5), args[6].(I6), args[7].(I7), args[8].(I8), args[9].(I9))
-	return []interface{}{out0, out1}
+	return []any{out0, out1}
 }
 
-func (c *caller10x2[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1]) Call10x2(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}, arg5 interface{}, arg6 interface{}, arg7 interface{}, arg8 interface{}, arg9 interface{}) (interface{}, interface{}) {
+func (c *caller10x2[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1]) Call10x2(arg0 any, arg1 any, arg2 any, arg3 any, arg4 any, arg5 any, arg6 any, arg7 any, arg8 any, arg9 any) (any, any) {
 	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4), arg5.(I5), arg6.(I6), arg7.(I7), arg8.(I8), arg9.(I9))
 }
 
 func registerDoFn10x2StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1 any](doFn genericDoFn10x2[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5, I6, I7, I8, I9) (R0, R1))
 		return &caller10x2[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5, I6, I7, I8, I9) (R0, R1))(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5, a6 I6, a7 I7, a8 I8, a9 I9) (R0, R1) {
 			return fn.(genericDoFn10x2[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1]).ProcessElement(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9)
 		})
@@ -4881,7 +4881,7 @@ func registerDoFn10x2StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, I8, 
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -4916,7 +4916,7 @@ func DoFn10x2[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1 any](doFn genericDo
 func Function10x2[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1 any](doFn func(I0, I1, I2, I3, I4, I5, I6, I7, I8, I9) (R0, R1)) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5, I6, I7, I8, I9) (R0, R1))
 		return &caller10x2[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1]{fn: f}
 	}
@@ -4939,22 +4939,22 @@ func (c *caller0x3[R0, R1, R2]) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller0x3[R0, R1, R2]) Call(args []interface{}) []interface{} {
+func (c *caller0x3[R0, R1, R2]) Call(args []any) []any {
 	out0, out1, out2 := c.fn()
-	return []interface{}{out0, out1, out2}
+	return []any{out0, out1, out2}
 }
 
-func (c *caller0x3[R0, R1, R2]) Call0x3() (interface{}, interface{}, interface{}) {
+func (c *caller0x3[R0, R1, R2]) Call0x3() (any, any, any) {
 	return c.fn()
 }
 
 func registerDoFn0x3StructWrappersAndFuncs[R0, R1, R2 any](doFn genericDoFn0x3[R0, R1, R2]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func() (R0, R1, R2))
 		return &caller0x3[R0, R1, R2]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func() (R0, R1, R2))(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func() (R0, R1, R2) {
 			return fn.(genericDoFn0x3[R0, R1, R2]).ProcessElement()
 		})
@@ -4964,7 +4964,7 @@ func registerDoFn0x3StructWrappersAndFuncs[R0, R1, R2 any](doFn genericDoFn0x3[R
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -4999,7 +4999,7 @@ func DoFn0x3[R0, R1, R2 any](doFn genericDoFn0x3[R0, R1, R2]) {
 func Function0x3[R0, R1, R2 any](doFn func() (R0, R1, R2)) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func() (R0, R1, R2))
 		return &caller0x3[R0, R1, R2]{fn: f}
 	}
@@ -5022,22 +5022,22 @@ func (c *caller1x3[I0, R0, R1, R2]) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller1x3[I0, R0, R1, R2]) Call(args []interface{}) []interface{} {
+func (c *caller1x3[I0, R0, R1, R2]) Call(args []any) []any {
 	out0, out1, out2 := c.fn(args[0].(I0))
-	return []interface{}{out0, out1, out2}
+	return []any{out0, out1, out2}
 }
 
-func (c *caller1x3[I0, R0, R1, R2]) Call1x3(arg0 interface{}) (interface{}, interface{}, interface{}) {
+func (c *caller1x3[I0, R0, R1, R2]) Call1x3(arg0 any) (any, any, any) {
 	return c.fn(arg0.(I0))
 }
 
 func registerDoFn1x3StructWrappersAndFuncs[I0, R0, R1, R2 any](doFn genericDoFn1x3[I0, R0, R1, R2]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func(I0) (R0, R1, R2))
 		return &caller1x3[I0, R0, R1, R2]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0) (R0, R1, R2))(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0) (R0, R1, R2) {
 			return fn.(genericDoFn1x3[I0, R0, R1, R2]).ProcessElement(a0)
 		})
@@ -5047,7 +5047,7 @@ func registerDoFn1x3StructWrappersAndFuncs[I0, R0, R1, R2 any](doFn genericDoFn1
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -5082,7 +5082,7 @@ func DoFn1x3[I0, R0, R1, R2 any](doFn genericDoFn1x3[I0, R0, R1, R2]) {
 func Function1x3[I0, R0, R1, R2 any](doFn func(I0) (R0, R1, R2)) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func(I0) (R0, R1, R2))
 		return &caller1x3[I0, R0, R1, R2]{fn: f}
 	}
@@ -5105,22 +5105,22 @@ func (c *caller2x3[I0, I1, R0, R1, R2]) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller2x3[I0, I1, R0, R1, R2]) Call(args []interface{}) []interface{} {
+func (c *caller2x3[I0, I1, R0, R1, R2]) Call(args []any) []any {
 	out0, out1, out2 := c.fn(args[0].(I0), args[1].(I1))
-	return []interface{}{out0, out1, out2}
+	return []any{out0, out1, out2}
 }
 
-func (c *caller2x3[I0, I1, R0, R1, R2]) Call2x3(arg0 interface{}, arg1 interface{}) (interface{}, interface{}, interface{}) {
+func (c *caller2x3[I0, I1, R0, R1, R2]) Call2x3(arg0 any, arg1 any) (any, any, any) {
 	return c.fn(arg0.(I0), arg1.(I1))
 }
 
 func registerDoFn2x3StructWrappersAndFuncs[I0, I1, R0, R1, R2 any](doFn genericDoFn2x3[I0, I1, R0, R1, R2]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1) (R0, R1, R2))
 		return &caller2x3[I0, I1, R0, R1, R2]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1) (R0, R1, R2))(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1) (R0, R1, R2) {
 			return fn.(genericDoFn2x3[I0, I1, R0, R1, R2]).ProcessElement(a0, a1)
 		})
@@ -5130,7 +5130,7 @@ func registerDoFn2x3StructWrappersAndFuncs[I0, I1, R0, R1, R2 any](doFn genericD
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -5165,7 +5165,7 @@ func DoFn2x3[I0, I1, R0, R1, R2 any](doFn genericDoFn2x3[I0, I1, R0, R1, R2]) {
 func Function2x3[I0, I1, R0, R1, R2 any](doFn func(I0, I1) (R0, R1, R2)) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1) (R0, R1, R2))
 		return &caller2x3[I0, I1, R0, R1, R2]{fn: f}
 	}
@@ -5188,22 +5188,22 @@ func (c *caller3x3[I0, I1, I2, R0, R1, R2]) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller3x3[I0, I1, I2, R0, R1, R2]) Call(args []interface{}) []interface{} {
+func (c *caller3x3[I0, I1, I2, R0, R1, R2]) Call(args []any) []any {
 	out0, out1, out2 := c.fn(args[0].(I0), args[1].(I1), args[2].(I2))
-	return []interface{}{out0, out1, out2}
+	return []any{out0, out1, out2}
 }
 
-func (c *caller3x3[I0, I1, I2, R0, R1, R2]) Call3x3(arg0 interface{}, arg1 interface{}, arg2 interface{}) (interface{}, interface{}, interface{}) {
+func (c *caller3x3[I0, I1, I2, R0, R1, R2]) Call3x3(arg0 any, arg1 any, arg2 any) (any, any, any) {
 	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2))
 }
 
 func registerDoFn3x3StructWrappersAndFuncs[I0, I1, I2, R0, R1, R2 any](doFn genericDoFn3x3[I0, I1, I2, R0, R1, R2]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2) (R0, R1, R2))
 		return &caller3x3[I0, I1, I2, R0, R1, R2]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2) (R0, R1, R2))(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2) (R0, R1, R2) {
 			return fn.(genericDoFn3x3[I0, I1, I2, R0, R1, R2]).ProcessElement(a0, a1, a2)
 		})
@@ -5213,7 +5213,7 @@ func registerDoFn3x3StructWrappersAndFuncs[I0, I1, I2, R0, R1, R2 any](doFn gene
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -5248,7 +5248,7 @@ func DoFn3x3[I0, I1, I2, R0, R1, R2 any](doFn genericDoFn3x3[I0, I1, I2, R0, R1,
 func Function3x3[I0, I1, I2, R0, R1, R2 any](doFn func(I0, I1, I2) (R0, R1, R2)) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2) (R0, R1, R2))
 		return &caller3x3[I0, I1, I2, R0, R1, R2]{fn: f}
 	}
@@ -5271,22 +5271,22 @@ func (c *caller4x3[I0, I1, I2, I3, R0, R1, R2]) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller4x3[I0, I1, I2, I3, R0, R1, R2]) Call(args []interface{}) []interface{} {
+func (c *caller4x3[I0, I1, I2, I3, R0, R1, R2]) Call(args []any) []any {
 	out0, out1, out2 := c.fn(args[0].(I0), args[1].(I1), args[2].(I2), args[3].(I3))
-	return []interface{}{out0, out1, out2}
+	return []any{out0, out1, out2}
 }
 
-func (c *caller4x3[I0, I1, I2, I3, R0, R1, R2]) Call4x3(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}) (interface{}, interface{}, interface{}) {
+func (c *caller4x3[I0, I1, I2, I3, R0, R1, R2]) Call4x3(arg0 any, arg1 any, arg2 any, arg3 any) (any, any, any) {
 	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3))
 }
 
 func registerDoFn4x3StructWrappersAndFuncs[I0, I1, I2, I3, R0, R1, R2 any](doFn genericDoFn4x3[I0, I1, I2, I3, R0, R1, R2]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3) (R0, R1, R2))
 		return &caller4x3[I0, I1, I2, I3, R0, R1, R2]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3) (R0, R1, R2))(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3) (R0, R1, R2) {
 			return fn.(genericDoFn4x3[I0, I1, I2, I3, R0, R1, R2]).ProcessElement(a0, a1, a2, a3)
 		})
@@ -5296,7 +5296,7 @@ func registerDoFn4x3StructWrappersAndFuncs[I0, I1, I2, I3, R0, R1, R2 any](doFn 
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -5331,7 +5331,7 @@ func DoFn4x3[I0, I1, I2, I3, R0, R1, R2 any](doFn genericDoFn4x3[I0, I1, I2, I3,
 func Function4x3[I0, I1, I2, I3, R0, R1, R2 any](doFn func(I0, I1, I2, I3) (R0, R1, R2)) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3) (R0, R1, R2))
 		return &caller4x3[I0, I1, I2, I3, R0, R1, R2]{fn: f}
 	}
@@ -5354,22 +5354,22 @@ func (c *caller5x3[I0, I1, I2, I3, I4, R0, R1, R2]) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller5x3[I0, I1, I2, I3, I4, R0, R1, R2]) Call(args []interface{}) []interface{} {
+func (c *caller5x3[I0, I1, I2, I3, I4, R0, R1, R2]) Call(args []any) []any {
 	out0, out1, out2 := c.fn(args[0].(I0), args[1].(I1), args[2].(I2), args[3].(I3), args[4].(I4))
-	return []interface{}{out0, out1, out2}
+	return []any{out0, out1, out2}
 }
 
-func (c *caller5x3[I0, I1, I2, I3, I4, R0, R1, R2]) Call5x3(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}) (interface{}, interface{}, interface{}) {
+func (c *caller5x3[I0, I1, I2, I3, I4, R0, R1, R2]) Call5x3(arg0 any, arg1 any, arg2 any, arg3 any, arg4 any) (any, any, any) {
 	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4))
 }
 
 func registerDoFn5x3StructWrappersAndFuncs[I0, I1, I2, I3, I4, R0, R1, R2 any](doFn genericDoFn5x3[I0, I1, I2, I3, I4, R0, R1, R2]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4) (R0, R1, R2))
 		return &caller5x3[I0, I1, I2, I3, I4, R0, R1, R2]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4) (R0, R1, R2))(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4) (R0, R1, R2) {
 			return fn.(genericDoFn5x3[I0, I1, I2, I3, I4, R0, R1, R2]).ProcessElement(a0, a1, a2, a3, a4)
 		})
@@ -5379,7 +5379,7 @@ func registerDoFn5x3StructWrappersAndFuncs[I0, I1, I2, I3, I4, R0, R1, R2 any](d
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -5414,7 +5414,7 @@ func DoFn5x3[I0, I1, I2, I3, I4, R0, R1, R2 any](doFn genericDoFn5x3[I0, I1, I2,
 func Function5x3[I0, I1, I2, I3, I4, R0, R1, R2 any](doFn func(I0, I1, I2, I3, I4) (R0, R1, R2)) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4) (R0, R1, R2))
 		return &caller5x3[I0, I1, I2, I3, I4, R0, R1, R2]{fn: f}
 	}
@@ -5437,22 +5437,22 @@ func (c *caller6x3[I0, I1, I2, I3, I4, I5, R0, R1, R2]) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller6x3[I0, I1, I2, I3, I4, I5, R0, R1, R2]) Call(args []interface{}) []interface{} {
+func (c *caller6x3[I0, I1, I2, I3, I4, I5, R0, R1, R2]) Call(args []any) []any {
 	out0, out1, out2 := c.fn(args[0].(I0), args[1].(I1), args[2].(I2), args[3].(I3), args[4].(I4), args[5].(I5))
-	return []interface{}{out0, out1, out2}
+	return []any{out0, out1, out2}
 }
 
-func (c *caller6x3[I0, I1, I2, I3, I4, I5, R0, R1, R2]) Call6x3(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}, arg5 interface{}) (interface{}, interface{}, interface{}) {
+func (c *caller6x3[I0, I1, I2, I3, I4, I5, R0, R1, R2]) Call6x3(arg0 any, arg1 any, arg2 any, arg3 any, arg4 any, arg5 any) (any, any, any) {
 	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4), arg5.(I5))
 }
 
 func registerDoFn6x3StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, R0, R1, R2 any](doFn genericDoFn6x3[I0, I1, I2, I3, I4, I5, R0, R1, R2]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5) (R0, R1, R2))
 		return &caller6x3[I0, I1, I2, I3, I4, I5, R0, R1, R2]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5) (R0, R1, R2))(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5) (R0, R1, R2) {
 			return fn.(genericDoFn6x3[I0, I1, I2, I3, I4, I5, R0, R1, R2]).ProcessElement(a0, a1, a2, a3, a4, a5)
 		})
@@ -5462,7 +5462,7 @@ func registerDoFn6x3StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, R0, R1, R2 an
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -5497,7 +5497,7 @@ func DoFn6x3[I0, I1, I2, I3, I4, I5, R0, R1, R2 any](doFn genericDoFn6x3[I0, I1,
 func Function6x3[I0, I1, I2, I3, I4, I5, R0, R1, R2 any](doFn func(I0, I1, I2, I3, I4, I5) (R0, R1, R2)) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5) (R0, R1, R2))
 		return &caller6x3[I0, I1, I2, I3, I4, I5, R0, R1, R2]{fn: f}
 	}
@@ -5520,22 +5520,22 @@ func (c *caller7x3[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2]) Type() reflect.Type 
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller7x3[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2]) Call(args []interface{}) []interface{} {
+func (c *caller7x3[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2]) Call(args []any) []any {
 	out0, out1, out2 := c.fn(args[0].(I0), args[1].(I1), args[2].(I2), args[3].(I3), args[4].(I4), args[5].(I5), args[6].(I6))
-	return []interface{}{out0, out1, out2}
+	return []any{out0, out1, out2}
 }
 
-func (c *caller7x3[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2]) Call7x3(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}, arg5 interface{}, arg6 interface{}) (interface{}, interface{}, interface{}) {
+func (c *caller7x3[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2]) Call7x3(arg0 any, arg1 any, arg2 any, arg3 any, arg4 any, arg5 any, arg6 any) (any, any, any) {
 	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4), arg5.(I5), arg6.(I6))
 }
 
 func registerDoFn7x3StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2 any](doFn genericDoFn7x3[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5, I6) (R0, R1, R2))
 		return &caller7x3[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5, I6) (R0, R1, R2))(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5, a6 I6) (R0, R1, R2) {
 			return fn.(genericDoFn7x3[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2]).ProcessElement(a0, a1, a2, a3, a4, a5, a6)
 		})
@@ -5545,7 +5545,7 @@ func registerDoFn7x3StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, R0, R1, R
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -5580,7 +5580,7 @@ func DoFn7x3[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2 any](doFn genericDoFn7x3[I0,
 func Function7x3[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2 any](doFn func(I0, I1, I2, I3, I4, I5, I6) (R0, R1, R2)) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5, I6) (R0, R1, R2))
 		return &caller7x3[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2]{fn: f}
 	}
@@ -5603,22 +5603,22 @@ func (c *caller8x3[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2]) Type() reflect.T
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller8x3[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2]) Call(args []interface{}) []interface{} {
+func (c *caller8x3[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2]) Call(args []any) []any {
 	out0, out1, out2 := c.fn(args[0].(I0), args[1].(I1), args[2].(I2), args[3].(I3), args[4].(I4), args[5].(I5), args[6].(I6), args[7].(I7))
-	return []interface{}{out0, out1, out2}
+	return []any{out0, out1, out2}
 }
 
-func (c *caller8x3[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2]) Call8x3(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}, arg5 interface{}, arg6 interface{}, arg7 interface{}) (interface{}, interface{}, interface{}) {
+func (c *caller8x3[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2]) Call8x3(arg0 any, arg1 any, arg2 any, arg3 any, arg4 any, arg5 any, arg6 any, arg7 any) (any, any, any) {
 	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4), arg5.(I5), arg6.(I6), arg7.(I7))
 }
 
 func registerDoFn8x3StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2 any](doFn genericDoFn8x3[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5, I6, I7) (R0, R1, R2))
 		return &caller8x3[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5, I6, I7) (R0, R1, R2))(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5, a6 I6, a7 I7) (R0, R1, R2) {
 			return fn.(genericDoFn8x3[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2]).ProcessElement(a0, a1, a2, a3, a4, a5, a6, a7)
 		})
@@ -5628,7 +5628,7 @@ func registerDoFn8x3StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, R0, R
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -5663,7 +5663,7 @@ func DoFn8x3[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2 any](doFn genericDoFn8x3
 func Function8x3[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2 any](doFn func(I0, I1, I2, I3, I4, I5, I6, I7) (R0, R1, R2)) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5, I6, I7) (R0, R1, R2))
 		return &caller8x3[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2]{fn: f}
 	}
@@ -5686,22 +5686,22 @@ func (c *caller9x3[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2]) Type() refle
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller9x3[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2]) Call(args []interface{}) []interface{} {
+func (c *caller9x3[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2]) Call(args []any) []any {
 	out0, out1, out2 := c.fn(args[0].(I0), args[1].(I1), args[2].(I2), args[3].(I3), args[4].(I4), args[5].(I5), args[6].(I6), args[7].(I7), args[8].(I8))
-	return []interface{}{out0, out1, out2}
+	return []any{out0, out1, out2}
 }
 
-func (c *caller9x3[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2]) Call9x3(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}, arg5 interface{}, arg6 interface{}, arg7 interface{}, arg8 interface{}) (interface{}, interface{}, interface{}) {
+func (c *caller9x3[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2]) Call9x3(arg0 any, arg1 any, arg2 any, arg3 any, arg4 any, arg5 any, arg6 any, arg7 any, arg8 any) (any, any, any) {
 	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4), arg5.(I5), arg6.(I6), arg7.(I7), arg8.(I8))
 }
 
 func registerDoFn9x3StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2 any](doFn genericDoFn9x3[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5, I6, I7, I8) (R0, R1, R2))
 		return &caller9x3[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5, I6, I7, I8) (R0, R1, R2))(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5, a6 I6, a7 I7, a8 I8) (R0, R1, R2) {
 			return fn.(genericDoFn9x3[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2]).ProcessElement(a0, a1, a2, a3, a4, a5, a6, a7, a8)
 		})
@@ -5711,7 +5711,7 @@ func registerDoFn9x3StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, I8, R
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -5746,7 +5746,7 @@ func DoFn9x3[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2 any](doFn genericDoF
 func Function9x3[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2 any](doFn func(I0, I1, I2, I3, I4, I5, I6, I7, I8) (R0, R1, R2)) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5, I6, I7, I8) (R0, R1, R2))
 		return &caller9x3[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2]{fn: f}
 	}
@@ -5769,22 +5769,22 @@ func (c *caller10x3[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2]) Type() 
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller10x3[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2]) Call(args []interface{}) []interface{} {
+func (c *caller10x3[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2]) Call(args []any) []any {
 	out0, out1, out2 := c.fn(args[0].(I0), args[1].(I1), args[2].(I2), args[3].(I3), args[4].(I4), args[5].(I5), args[6].(I6), args[7].(I7), args[8].(I8), args[9].(I9))
-	return []interface{}{out0, out1, out2}
+	return []any{out0, out1, out2}
 }
 
-func (c *caller10x3[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2]) Call10x3(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}, arg5 interface{}, arg6 interface{}, arg7 interface{}, arg8 interface{}, arg9 interface{}) (interface{}, interface{}, interface{}) {
+func (c *caller10x3[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2]) Call10x3(arg0 any, arg1 any, arg2 any, arg3 any, arg4 any, arg5 any, arg6 any, arg7 any, arg8 any, arg9 any) (any, any, any) {
 	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4), arg5.(I5), arg6.(I6), arg7.(I7), arg8.(I8), arg9.(I9))
 }
 
 func registerDoFn10x3StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2 any](doFn genericDoFn10x3[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5, I6, I7, I8, I9) (R0, R1, R2))
 		return &caller10x3[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5, I6, I7, I8, I9) (R0, R1, R2))(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5, a6 I6, a7 I7, a8 I8, a9 I9) (R0, R1, R2) {
 			return fn.(genericDoFn10x3[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2]).ProcessElement(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9)
 		})
@@ -5794,7 +5794,7 @@ func registerDoFn10x3StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, I8, 
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -5829,7 +5829,7 @@ func DoFn10x3[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2 any](doFn gener
 func Function10x3[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2 any](doFn func(I0, I1, I2, I3, I4, I5, I6, I7, I8, I9) (R0, R1, R2)) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5, I6, I7, I8, I9) (R0, R1, R2))
 		return &caller10x3[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2]{fn: f}
 	}
@@ -5852,22 +5852,22 @@ func (c *caller0x4[R0, R1, R2, R3]) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller0x4[R0, R1, R2, R3]) Call(args []interface{}) []interface{} {
+func (c *caller0x4[R0, R1, R2, R3]) Call(args []any) []any {
 	out0, out1, out2, out3 := c.fn()
-	return []interface{}{out0, out1, out2, out3}
+	return []any{out0, out1, out2, out3}
 }
 
-func (c *caller0x4[R0, R1, R2, R3]) Call0x4() (interface{}, interface{}, interface{}, interface{}) {
+func (c *caller0x4[R0, R1, R2, R3]) Call0x4() (any, any, any, any) {
 	return c.fn()
 }
 
 func registerDoFn0x4StructWrappersAndFuncs[R0, R1, R2, R3 any](doFn genericDoFn0x4[R0, R1, R2, R3]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func() (R0, R1, R2, R3))
 		return &caller0x4[R0, R1, R2, R3]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func() (R0, R1, R2, R3))(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func() (R0, R1, R2, R3) {
 			return fn.(genericDoFn0x4[R0, R1, R2, R3]).ProcessElement()
 		})
@@ -5877,7 +5877,7 @@ func registerDoFn0x4StructWrappersAndFuncs[R0, R1, R2, R3 any](doFn genericDoFn0
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -5912,7 +5912,7 @@ func DoFn0x4[R0, R1, R2, R3 any](doFn genericDoFn0x4[R0, R1, R2, R3]) {
 func Function0x4[R0, R1, R2, R3 any](doFn func() (R0, R1, R2, R3)) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func() (R0, R1, R2, R3))
 		return &caller0x4[R0, R1, R2, R3]{fn: f}
 	}
@@ -5935,22 +5935,22 @@ func (c *caller1x4[I0, R0, R1, R2, R3]) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller1x4[I0, R0, R1, R2, R3]) Call(args []interface{}) []interface{} {
+func (c *caller1x4[I0, R0, R1, R2, R3]) Call(args []any) []any {
 	out0, out1, out2, out3 := c.fn(args[0].(I0))
-	return []interface{}{out0, out1, out2, out3}
+	return []any{out0, out1, out2, out3}
 }
 
-func (c *caller1x4[I0, R0, R1, R2, R3]) Call1x4(arg0 interface{}) (interface{}, interface{}, interface{}, interface{}) {
+func (c *caller1x4[I0, R0, R1, R2, R3]) Call1x4(arg0 any) (any, any, any, any) {
 	return c.fn(arg0.(I0))
 }
 
 func registerDoFn1x4StructWrappersAndFuncs[I0, R0, R1, R2, R3 any](doFn genericDoFn1x4[I0, R0, R1, R2, R3]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func(I0) (R0, R1, R2, R3))
 		return &caller1x4[I0, R0, R1, R2, R3]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0) (R0, R1, R2, R3))(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0) (R0, R1, R2, R3) {
 			return fn.(genericDoFn1x4[I0, R0, R1, R2, R3]).ProcessElement(a0)
 		})
@@ -5960,7 +5960,7 @@ func registerDoFn1x4StructWrappersAndFuncs[I0, R0, R1, R2, R3 any](doFn genericD
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -5995,7 +5995,7 @@ func DoFn1x4[I0, R0, R1, R2, R3 any](doFn genericDoFn1x4[I0, R0, R1, R2, R3]) {
 func Function1x4[I0, R0, R1, R2, R3 any](doFn func(I0) (R0, R1, R2, R3)) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func(I0) (R0, R1, R2, R3))
 		return &caller1x4[I0, R0, R1, R2, R3]{fn: f}
 	}
@@ -6018,22 +6018,22 @@ func (c *caller2x4[I0, I1, R0, R1, R2, R3]) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller2x4[I0, I1, R0, R1, R2, R3]) Call(args []interface{}) []interface{} {
+func (c *caller2x4[I0, I1, R0, R1, R2, R3]) Call(args []any) []any {
 	out0, out1, out2, out3 := c.fn(args[0].(I0), args[1].(I1))
-	return []interface{}{out0, out1, out2, out3}
+	return []any{out0, out1, out2, out3}
 }
 
-func (c *caller2x4[I0, I1, R0, R1, R2, R3]) Call2x4(arg0 interface{}, arg1 interface{}) (interface{}, interface{}, interface{}, interface{}) {
+func (c *caller2x4[I0, I1, R0, R1, R2, R3]) Call2x4(arg0 any, arg1 any) (any, any, any, any) {
 	return c.fn(arg0.(I0), arg1.(I1))
 }
 
 func registerDoFn2x4StructWrappersAndFuncs[I0, I1, R0, R1, R2, R3 any](doFn genericDoFn2x4[I0, I1, R0, R1, R2, R3]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1) (R0, R1, R2, R3))
 		return &caller2x4[I0, I1, R0, R1, R2, R3]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1) (R0, R1, R2, R3))(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1) (R0, R1, R2, R3) {
 			return fn.(genericDoFn2x4[I0, I1, R0, R1, R2, R3]).ProcessElement(a0, a1)
 		})
@@ -6043,7 +6043,7 @@ func registerDoFn2x4StructWrappersAndFuncs[I0, I1, R0, R1, R2, R3 any](doFn gene
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -6078,7 +6078,7 @@ func DoFn2x4[I0, I1, R0, R1, R2, R3 any](doFn genericDoFn2x4[I0, I1, R0, R1, R2,
 func Function2x4[I0, I1, R0, R1, R2, R3 any](doFn func(I0, I1) (R0, R1, R2, R3)) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1) (R0, R1, R2, R3))
 		return &caller2x4[I0, I1, R0, R1, R2, R3]{fn: f}
 	}
@@ -6101,22 +6101,22 @@ func (c *caller3x4[I0, I1, I2, R0, R1, R2, R3]) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller3x4[I0, I1, I2, R0, R1, R2, R3]) Call(args []interface{}) []interface{} {
+func (c *caller3x4[I0, I1, I2, R0, R1, R2, R3]) Call(args []any) []any {
 	out0, out1, out2, out3 := c.fn(args[0].(I0), args[1].(I1), args[2].(I2))
-	return []interface{}{out0, out1, out2, out3}
+	return []any{out0, out1, out2, out3}
 }
 
-func (c *caller3x4[I0, I1, I2, R0, R1, R2, R3]) Call3x4(arg0 interface{}, arg1 interface{}, arg2 interface{}) (interface{}, interface{}, interface{}, interface{}) {
+func (c *caller3x4[I0, I1, I2, R0, R1, R2, R3]) Call3x4(arg0 any, arg1 any, arg2 any) (any, any, any, any) {
 	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2))
 }
 
 func registerDoFn3x4StructWrappersAndFuncs[I0, I1, I2, R0, R1, R2, R3 any](doFn genericDoFn3x4[I0, I1, I2, R0, R1, R2, R3]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2) (R0, R1, R2, R3))
 		return &caller3x4[I0, I1, I2, R0, R1, R2, R3]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2) (R0, R1, R2, R3))(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2) (R0, R1, R2, R3) {
 			return fn.(genericDoFn3x4[I0, I1, I2, R0, R1, R2, R3]).ProcessElement(a0, a1, a2)
 		})
@@ -6126,7 +6126,7 @@ func registerDoFn3x4StructWrappersAndFuncs[I0, I1, I2, R0, R1, R2, R3 any](doFn 
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -6161,7 +6161,7 @@ func DoFn3x4[I0, I1, I2, R0, R1, R2, R3 any](doFn genericDoFn3x4[I0, I1, I2, R0,
 func Function3x4[I0, I1, I2, R0, R1, R2, R3 any](doFn func(I0, I1, I2) (R0, R1, R2, R3)) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2) (R0, R1, R2, R3))
 		return &caller3x4[I0, I1, I2, R0, R1, R2, R3]{fn: f}
 	}
@@ -6184,22 +6184,22 @@ func (c *caller4x4[I0, I1, I2, I3, R0, R1, R2, R3]) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller4x4[I0, I1, I2, I3, R0, R1, R2, R3]) Call(args []interface{}) []interface{} {
+func (c *caller4x4[I0, I1, I2, I3, R0, R1, R2, R3]) Call(args []any) []any {
 	out0, out1, out2, out3 := c.fn(args[0].(I0), args[1].(I1), args[2].(I2), args[3].(I3))
-	return []interface{}{out0, out1, out2, out3}
+	return []any{out0, out1, out2, out3}
 }
 
-func (c *caller4x4[I0, I1, I2, I3, R0, R1, R2, R3]) Call4x4(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}) (interface{}, interface{}, interface{}, interface{}) {
+func (c *caller4x4[I0, I1, I2, I3, R0, R1, R2, R3]) Call4x4(arg0 any, arg1 any, arg2 any, arg3 any) (any, any, any, any) {
 	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3))
 }
 
 func registerDoFn4x4StructWrappersAndFuncs[I0, I1, I2, I3, R0, R1, R2, R3 any](doFn genericDoFn4x4[I0, I1, I2, I3, R0, R1, R2, R3]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3) (R0, R1, R2, R3))
 		return &caller4x4[I0, I1, I2, I3, R0, R1, R2, R3]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3) (R0, R1, R2, R3))(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3) (R0, R1, R2, R3) {
 			return fn.(genericDoFn4x4[I0, I1, I2, I3, R0, R1, R2, R3]).ProcessElement(a0, a1, a2, a3)
 		})
@@ -6209,7 +6209,7 @@ func registerDoFn4x4StructWrappersAndFuncs[I0, I1, I2, I3, R0, R1, R2, R3 any](d
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -6244,7 +6244,7 @@ func DoFn4x4[I0, I1, I2, I3, R0, R1, R2, R3 any](doFn genericDoFn4x4[I0, I1, I2,
 func Function4x4[I0, I1, I2, I3, R0, R1, R2, R3 any](doFn func(I0, I1, I2, I3) (R0, R1, R2, R3)) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3) (R0, R1, R2, R3))
 		return &caller4x4[I0, I1, I2, I3, R0, R1, R2, R3]{fn: f}
 	}
@@ -6267,22 +6267,22 @@ func (c *caller5x4[I0, I1, I2, I3, I4, R0, R1, R2, R3]) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller5x4[I0, I1, I2, I3, I4, R0, R1, R2, R3]) Call(args []interface{}) []interface{} {
+func (c *caller5x4[I0, I1, I2, I3, I4, R0, R1, R2, R3]) Call(args []any) []any {
 	out0, out1, out2, out3 := c.fn(args[0].(I0), args[1].(I1), args[2].(I2), args[3].(I3), args[4].(I4))
-	return []interface{}{out0, out1, out2, out3}
+	return []any{out0, out1, out2, out3}
 }
 
-func (c *caller5x4[I0, I1, I2, I3, I4, R0, R1, R2, R3]) Call5x4(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}) (interface{}, interface{}, interface{}, interface{}) {
+func (c *caller5x4[I0, I1, I2, I3, I4, R0, R1, R2, R3]) Call5x4(arg0 any, arg1 any, arg2 any, arg3 any, arg4 any) (any, any, any, any) {
 	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4))
 }
 
 func registerDoFn5x4StructWrappersAndFuncs[I0, I1, I2, I3, I4, R0, R1, R2, R3 any](doFn genericDoFn5x4[I0, I1, I2, I3, I4, R0, R1, R2, R3]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4) (R0, R1, R2, R3))
 		return &caller5x4[I0, I1, I2, I3, I4, R0, R1, R2, R3]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4) (R0, R1, R2, R3))(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4) (R0, R1, R2, R3) {
 			return fn.(genericDoFn5x4[I0, I1, I2, I3, I4, R0, R1, R2, R3]).ProcessElement(a0, a1, a2, a3, a4)
 		})
@@ -6292,7 +6292,7 @@ func registerDoFn5x4StructWrappersAndFuncs[I0, I1, I2, I3, I4, R0, R1, R2, R3 an
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -6327,7 +6327,7 @@ func DoFn5x4[I0, I1, I2, I3, I4, R0, R1, R2, R3 any](doFn genericDoFn5x4[I0, I1,
 func Function5x4[I0, I1, I2, I3, I4, R0, R1, R2, R3 any](doFn func(I0, I1, I2, I3, I4) (R0, R1, R2, R3)) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4) (R0, R1, R2, R3))
 		return &caller5x4[I0, I1, I2, I3, I4, R0, R1, R2, R3]{fn: f}
 	}
@@ -6350,22 +6350,22 @@ func (c *caller6x4[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3]) Type() reflect.Type 
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller6x4[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3]) Call(args []interface{}) []interface{} {
+func (c *caller6x4[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3]) Call(args []any) []any {
 	out0, out1, out2, out3 := c.fn(args[0].(I0), args[1].(I1), args[2].(I2), args[3].(I3), args[4].(I4), args[5].(I5))
-	return []interface{}{out0, out1, out2, out3}
+	return []any{out0, out1, out2, out3}
 }
 
-func (c *caller6x4[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3]) Call6x4(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}, arg5 interface{}) (interface{}, interface{}, interface{}, interface{}) {
+func (c *caller6x4[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3]) Call6x4(arg0 any, arg1 any, arg2 any, arg3 any, arg4 any, arg5 any) (any, any, any, any) {
 	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4), arg5.(I5))
 }
 
 func registerDoFn6x4StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3 any](doFn genericDoFn6x4[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5) (R0, R1, R2, R3))
 		return &caller6x4[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5) (R0, R1, R2, R3))(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5) (R0, R1, R2, R3) {
 			return fn.(genericDoFn6x4[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3]).ProcessElement(a0, a1, a2, a3, a4, a5)
 		})
@@ -6375,7 +6375,7 @@ func registerDoFn6x4StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, R0, R1, R2, R
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -6410,7 +6410,7 @@ func DoFn6x4[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3 any](doFn genericDoFn6x4[I0,
 func Function6x4[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3 any](doFn func(I0, I1, I2, I3, I4, I5) (R0, R1, R2, R3)) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5) (R0, R1, R2, R3))
 		return &caller6x4[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3]{fn: f}
 	}
@@ -6433,22 +6433,22 @@ func (c *caller7x4[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3]) Type() reflect.T
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller7x4[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3]) Call(args []interface{}) []interface{} {
+func (c *caller7x4[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3]) Call(args []any) []any {
 	out0, out1, out2, out3 := c.fn(args[0].(I0), args[1].(I1), args[2].(I2), args[3].(I3), args[4].(I4), args[5].(I5), args[6].(I6))
-	return []interface{}{out0, out1, out2, out3}
+	return []any{out0, out1, out2, out3}
 }
 
-func (c *caller7x4[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3]) Call7x4(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}, arg5 interface{}, arg6 interface{}) (interface{}, interface{}, interface{}, interface{}) {
+func (c *caller7x4[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3]) Call7x4(arg0 any, arg1 any, arg2 any, arg3 any, arg4 any, arg5 any, arg6 any) (any, any, any, any) {
 	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4), arg5.(I5), arg6.(I6))
 }
 
 func registerDoFn7x4StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3 any](doFn genericDoFn7x4[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5, I6) (R0, R1, R2, R3))
 		return &caller7x4[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5, I6) (R0, R1, R2, R3))(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5, a6 I6) (R0, R1, R2, R3) {
 			return fn.(genericDoFn7x4[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3]).ProcessElement(a0, a1, a2, a3, a4, a5, a6)
 		})
@@ -6458,7 +6458,7 @@ func registerDoFn7x4StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, R0, R1, R
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -6493,7 +6493,7 @@ func DoFn7x4[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3 any](doFn genericDoFn7x4
 func Function7x4[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3 any](doFn func(I0, I1, I2, I3, I4, I5, I6) (R0, R1, R2, R3)) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5, I6) (R0, R1, R2, R3))
 		return &caller7x4[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3]{fn: f}
 	}
@@ -6516,22 +6516,22 @@ func (c *caller8x4[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3]) Type() refle
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller8x4[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3]) Call(args []interface{}) []interface{} {
+func (c *caller8x4[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3]) Call(args []any) []any {
 	out0, out1, out2, out3 := c.fn(args[0].(I0), args[1].(I1), args[2].(I2), args[3].(I3), args[4].(I4), args[5].(I5), args[6].(I6), args[7].(I7))
-	return []interface{}{out0, out1, out2, out3}
+	return []any{out0, out1, out2, out3}
 }
 
-func (c *caller8x4[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3]) Call8x4(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}, arg5 interface{}, arg6 interface{}, arg7 interface{}) (interface{}, interface{}, interface{}, interface{}) {
+func (c *caller8x4[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3]) Call8x4(arg0 any, arg1 any, arg2 any, arg3 any, arg4 any, arg5 any, arg6 any, arg7 any) (any, any, any, any) {
 	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4), arg5.(I5), arg6.(I6), arg7.(I7))
 }
 
 func registerDoFn8x4StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3 any](doFn genericDoFn8x4[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5, I6, I7) (R0, R1, R2, R3))
 		return &caller8x4[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5, I6, I7) (R0, R1, R2, R3))(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5, a6 I6, a7 I7) (R0, R1, R2, R3) {
 			return fn.(genericDoFn8x4[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3]).ProcessElement(a0, a1, a2, a3, a4, a5, a6, a7)
 		})
@@ -6541,7 +6541,7 @@ func registerDoFn8x4StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, R0, R
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -6576,7 +6576,7 @@ func DoFn8x4[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3 any](doFn genericDoF
 func Function8x4[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3 any](doFn func(I0, I1, I2, I3, I4, I5, I6, I7) (R0, R1, R2, R3)) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5, I6, I7) (R0, R1, R2, R3))
 		return &caller8x4[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3]{fn: f}
 	}
@@ -6599,22 +6599,22 @@ func (c *caller9x4[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2, R3]) Type() r
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller9x4[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2, R3]) Call(args []interface{}) []interface{} {
+func (c *caller9x4[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2, R3]) Call(args []any) []any {
 	out0, out1, out2, out3 := c.fn(args[0].(I0), args[1].(I1), args[2].(I2), args[3].(I3), args[4].(I4), args[5].(I5), args[6].(I6), args[7].(I7), args[8].(I8))
-	return []interface{}{out0, out1, out2, out3}
+	return []any{out0, out1, out2, out3}
 }
 
-func (c *caller9x4[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2, R3]) Call9x4(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}, arg5 interface{}, arg6 interface{}, arg7 interface{}, arg8 interface{}) (interface{}, interface{}, interface{}, interface{}) {
+func (c *caller9x4[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2, R3]) Call9x4(arg0 any, arg1 any, arg2 any, arg3 any, arg4 any, arg5 any, arg6 any, arg7 any, arg8 any) (any, any, any, any) {
 	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4), arg5.(I5), arg6.(I6), arg7.(I7), arg8.(I8))
 }
 
 func registerDoFn9x4StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2, R3 any](doFn genericDoFn9x4[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2, R3]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5, I6, I7, I8) (R0, R1, R2, R3))
 		return &caller9x4[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2, R3]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5, I6, I7, I8) (R0, R1, R2, R3))(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5, a6 I6, a7 I7, a8 I8) (R0, R1, R2, R3) {
 			return fn.(genericDoFn9x4[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2, R3]).ProcessElement(a0, a1, a2, a3, a4, a5, a6, a7, a8)
 		})
@@ -6624,7 +6624,7 @@ func registerDoFn9x4StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, I8, R
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -6659,7 +6659,7 @@ func DoFn9x4[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2, R3 any](doFn generi
 func Function9x4[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2, R3 any](doFn func(I0, I1, I2, I3, I4, I5, I6, I7, I8) (R0, R1, R2, R3)) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5, I6, I7, I8) (R0, R1, R2, R3))
 		return &caller9x4[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2, R3]{fn: f}
 	}
@@ -6682,22 +6682,22 @@ func (c *caller10x4[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2, R3]) Typ
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller10x4[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2, R3]) Call(args []interface{}) []interface{} {
+func (c *caller10x4[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2, R3]) Call(args []any) []any {
 	out0, out1, out2, out3 := c.fn(args[0].(I0), args[1].(I1), args[2].(I2), args[3].(I3), args[4].(I4), args[5].(I5), args[6].(I6), args[7].(I7), args[8].(I8), args[9].(I9))
-	return []interface{}{out0, out1, out2, out3}
+	return []any{out0, out1, out2, out3}
 }
 
-func (c *caller10x4[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2, R3]) Call10x4(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}, arg5 interface{}, arg6 interface{}, arg7 interface{}, arg8 interface{}, arg9 interface{}) (interface{}, interface{}, interface{}, interface{}) {
+func (c *caller10x4[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2, R3]) Call10x4(arg0 any, arg1 any, arg2 any, arg3 any, arg4 any, arg5 any, arg6 any, arg7 any, arg8 any, arg9 any) (any, any, any, any) {
 	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4), arg5.(I5), arg6.(I6), arg7.(I7), arg8.(I8), arg9.(I9))
 }
 
 func registerDoFn10x4StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2, R3 any](doFn genericDoFn10x4[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2, R3]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5, I6, I7, I8, I9) (R0, R1, R2, R3))
 		return &caller10x4[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2, R3]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5, I6, I7, I8, I9) (R0, R1, R2, R3))(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5, a6 I6, a7 I7, a8 I8, a9 I9) (R0, R1, R2, R3) {
 			return fn.(genericDoFn10x4[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2, R3]).ProcessElement(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9)
 		})
@@ -6707,7 +6707,7 @@ func registerDoFn10x4StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, I8, 
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -6742,7 +6742,7 @@ func DoFn10x4[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2, R3 any](doFn g
 func Function10x4[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2, R3 any](doFn func(I0, I1, I2, I3, I4, I5, I6, I7, I8, I9) (R0, R1, R2, R3)) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5, I6, I7, I8, I9) (R0, R1, R2, R3))
 		return &caller10x4[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2, R3]{fn: f}
 	}
@@ -6765,22 +6765,22 @@ func (c *caller0x5[R0, R1, R2, R3, R4]) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller0x5[R0, R1, R2, R3, R4]) Call(args []interface{}) []interface{} {
+func (c *caller0x5[R0, R1, R2, R3, R4]) Call(args []any) []any {
 	out0, out1, out2, out3, out4 := c.fn()
-	return []interface{}{out0, out1, out2, out3, out4}
+	return []any{out0, out1, out2, out3, out4}
 }
 
-func (c *caller0x5[R0, R1, R2, R3, R4]) Call0x5() (interface{}, interface{}, interface{}, interface{}, interface{}) {
+func (c *caller0x5[R0, R1, R2, R3, R4]) Call0x5() (any, any, any, any, any) {
 	return c.fn()
 }
 
 func registerDoFn0x5StructWrappersAndFuncs[R0, R1, R2, R3, R4 any](doFn genericDoFn0x5[R0, R1, R2, R3, R4]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func() (R0, R1, R2, R3, R4))
 		return &caller0x5[R0, R1, R2, R3, R4]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func() (R0, R1, R2, R3, R4))(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func() (R0, R1, R2, R3, R4) {
 			return fn.(genericDoFn0x5[R0, R1, R2, R3, R4]).ProcessElement()
 		})
@@ -6790,7 +6790,7 @@ func registerDoFn0x5StructWrappersAndFuncs[R0, R1, R2, R3, R4 any](doFn genericD
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -6825,7 +6825,7 @@ func DoFn0x5[R0, R1, R2, R3, R4 any](doFn genericDoFn0x5[R0, R1, R2, R3, R4]) {
 func Function0x5[R0, R1, R2, R3, R4 any](doFn func() (R0, R1, R2, R3, R4)) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func() (R0, R1, R2, R3, R4))
 		return &caller0x5[R0, R1, R2, R3, R4]{fn: f}
 	}
@@ -6848,22 +6848,22 @@ func (c *caller1x5[I0, R0, R1, R2, R3, R4]) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller1x5[I0, R0, R1, R2, R3, R4]) Call(args []interface{}) []interface{} {
+func (c *caller1x5[I0, R0, R1, R2, R3, R4]) Call(args []any) []any {
 	out0, out1, out2, out3, out4 := c.fn(args[0].(I0))
-	return []interface{}{out0, out1, out2, out3, out4}
+	return []any{out0, out1, out2, out3, out4}
 }
 
-func (c *caller1x5[I0, R0, R1, R2, R3, R4]) Call1x5(arg0 interface{}) (interface{}, interface{}, interface{}, interface{}, interface{}) {
+func (c *caller1x5[I0, R0, R1, R2, R3, R4]) Call1x5(arg0 any) (any, any, any, any, any) {
 	return c.fn(arg0.(I0))
 }
 
 func registerDoFn1x5StructWrappersAndFuncs[I0, R0, R1, R2, R3, R4 any](doFn genericDoFn1x5[I0, R0, R1, R2, R3, R4]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func(I0) (R0, R1, R2, R3, R4))
 		return &caller1x5[I0, R0, R1, R2, R3, R4]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0) (R0, R1, R2, R3, R4))(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0) (R0, R1, R2, R3, R4) {
 			return fn.(genericDoFn1x5[I0, R0, R1, R2, R3, R4]).ProcessElement(a0)
 		})
@@ -6873,7 +6873,7 @@ func registerDoFn1x5StructWrappersAndFuncs[I0, R0, R1, R2, R3, R4 any](doFn gene
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -6908,7 +6908,7 @@ func DoFn1x5[I0, R0, R1, R2, R3, R4 any](doFn genericDoFn1x5[I0, R0, R1, R2, R3,
 func Function1x5[I0, R0, R1, R2, R3, R4 any](doFn func(I0) (R0, R1, R2, R3, R4)) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func(I0) (R0, R1, R2, R3, R4))
 		return &caller1x5[I0, R0, R1, R2, R3, R4]{fn: f}
 	}
@@ -6931,22 +6931,22 @@ func (c *caller2x5[I0, I1, R0, R1, R2, R3, R4]) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller2x5[I0, I1, R0, R1, R2, R3, R4]) Call(args []interface{}) []interface{} {
+func (c *caller2x5[I0, I1, R0, R1, R2, R3, R4]) Call(args []any) []any {
 	out0, out1, out2, out3, out4 := c.fn(args[0].(I0), args[1].(I1))
-	return []interface{}{out0, out1, out2, out3, out4}
+	return []any{out0, out1, out2, out3, out4}
 }
 
-func (c *caller2x5[I0, I1, R0, R1, R2, R3, R4]) Call2x5(arg0 interface{}, arg1 interface{}) (interface{}, interface{}, interface{}, interface{}, interface{}) {
+func (c *caller2x5[I0, I1, R0, R1, R2, R3, R4]) Call2x5(arg0 any, arg1 any) (any, any, any, any, any) {
 	return c.fn(arg0.(I0), arg1.(I1))
 }
 
 func registerDoFn2x5StructWrappersAndFuncs[I0, I1, R0, R1, R2, R3, R4 any](doFn genericDoFn2x5[I0, I1, R0, R1, R2, R3, R4]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1) (R0, R1, R2, R3, R4))
 		return &caller2x5[I0, I1, R0, R1, R2, R3, R4]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1) (R0, R1, R2, R3, R4))(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1) (R0, R1, R2, R3, R4) {
 			return fn.(genericDoFn2x5[I0, I1, R0, R1, R2, R3, R4]).ProcessElement(a0, a1)
 		})
@@ -6956,7 +6956,7 @@ func registerDoFn2x5StructWrappersAndFuncs[I0, I1, R0, R1, R2, R3, R4 any](doFn 
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -6991,7 +6991,7 @@ func DoFn2x5[I0, I1, R0, R1, R2, R3, R4 any](doFn genericDoFn2x5[I0, I1, R0, R1,
 func Function2x5[I0, I1, R0, R1, R2, R3, R4 any](doFn func(I0, I1) (R0, R1, R2, R3, R4)) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1) (R0, R1, R2, R3, R4))
 		return &caller2x5[I0, I1, R0, R1, R2, R3, R4]{fn: f}
 	}
@@ -7014,22 +7014,22 @@ func (c *caller3x5[I0, I1, I2, R0, R1, R2, R3, R4]) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller3x5[I0, I1, I2, R0, R1, R2, R3, R4]) Call(args []interface{}) []interface{} {
+func (c *caller3x5[I0, I1, I2, R0, R1, R2, R3, R4]) Call(args []any) []any {
 	out0, out1, out2, out3, out4 := c.fn(args[0].(I0), args[1].(I1), args[2].(I2))
-	return []interface{}{out0, out1, out2, out3, out4}
+	return []any{out0, out1, out2, out3, out4}
 }
 
-func (c *caller3x5[I0, I1, I2, R0, R1, R2, R3, R4]) Call3x5(arg0 interface{}, arg1 interface{}, arg2 interface{}) (interface{}, interface{}, interface{}, interface{}, interface{}) {
+func (c *caller3x5[I0, I1, I2, R0, R1, R2, R3, R4]) Call3x5(arg0 any, arg1 any, arg2 any) (any, any, any, any, any) {
 	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2))
 }
 
 func registerDoFn3x5StructWrappersAndFuncs[I0, I1, I2, R0, R1, R2, R3, R4 any](doFn genericDoFn3x5[I0, I1, I2, R0, R1, R2, R3, R4]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2) (R0, R1, R2, R3, R4))
 		return &caller3x5[I0, I1, I2, R0, R1, R2, R3, R4]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2) (R0, R1, R2, R3, R4))(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2) (R0, R1, R2, R3, R4) {
 			return fn.(genericDoFn3x5[I0, I1, I2, R0, R1, R2, R3, R4]).ProcessElement(a0, a1, a2)
 		})
@@ -7039,7 +7039,7 @@ func registerDoFn3x5StructWrappersAndFuncs[I0, I1, I2, R0, R1, R2, R3, R4 any](d
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -7074,7 +7074,7 @@ func DoFn3x5[I0, I1, I2, R0, R1, R2, R3, R4 any](doFn genericDoFn3x5[I0, I1, I2,
 func Function3x5[I0, I1, I2, R0, R1, R2, R3, R4 any](doFn func(I0, I1, I2) (R0, R1, R2, R3, R4)) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2) (R0, R1, R2, R3, R4))
 		return &caller3x5[I0, I1, I2, R0, R1, R2, R3, R4]{fn: f}
 	}
@@ -7097,22 +7097,22 @@ func (c *caller4x5[I0, I1, I2, I3, R0, R1, R2, R3, R4]) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller4x5[I0, I1, I2, I3, R0, R1, R2, R3, R4]) Call(args []interface{}) []interface{} {
+func (c *caller4x5[I0, I1, I2, I3, R0, R1, R2, R3, R4]) Call(args []any) []any {
 	out0, out1, out2, out3, out4 := c.fn(args[0].(I0), args[1].(I1), args[2].(I2), args[3].(I3))
-	return []interface{}{out0, out1, out2, out3, out4}
+	return []any{out0, out1, out2, out3, out4}
 }
 
-func (c *caller4x5[I0, I1, I2, I3, R0, R1, R2, R3, R4]) Call4x5(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}) (interface{}, interface{}, interface{}, interface{}, interface{}) {
+func (c *caller4x5[I0, I1, I2, I3, R0, R1, R2, R3, R4]) Call4x5(arg0 any, arg1 any, arg2 any, arg3 any) (any, any, any, any, any) {
 	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3))
 }
 
 func registerDoFn4x5StructWrappersAndFuncs[I0, I1, I2, I3, R0, R1, R2, R3, R4 any](doFn genericDoFn4x5[I0, I1, I2, I3, R0, R1, R2, R3, R4]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3) (R0, R1, R2, R3, R4))
 		return &caller4x5[I0, I1, I2, I3, R0, R1, R2, R3, R4]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3) (R0, R1, R2, R3, R4))(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3) (R0, R1, R2, R3, R4) {
 			return fn.(genericDoFn4x5[I0, I1, I2, I3, R0, R1, R2, R3, R4]).ProcessElement(a0, a1, a2, a3)
 		})
@@ -7122,7 +7122,7 @@ func registerDoFn4x5StructWrappersAndFuncs[I0, I1, I2, I3, R0, R1, R2, R3, R4 an
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -7157,7 +7157,7 @@ func DoFn4x5[I0, I1, I2, I3, R0, R1, R2, R3, R4 any](doFn genericDoFn4x5[I0, I1,
 func Function4x5[I0, I1, I2, I3, R0, R1, R2, R3, R4 any](doFn func(I0, I1, I2, I3) (R0, R1, R2, R3, R4)) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3) (R0, R1, R2, R3, R4))
 		return &caller4x5[I0, I1, I2, I3, R0, R1, R2, R3, R4]{fn: f}
 	}
@@ -7180,22 +7180,22 @@ func (c *caller5x5[I0, I1, I2, I3, I4, R0, R1, R2, R3, R4]) Type() reflect.Type 
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller5x5[I0, I1, I2, I3, I4, R0, R1, R2, R3, R4]) Call(args []interface{}) []interface{} {
+func (c *caller5x5[I0, I1, I2, I3, I4, R0, R1, R2, R3, R4]) Call(args []any) []any {
 	out0, out1, out2, out3, out4 := c.fn(args[0].(I0), args[1].(I1), args[2].(I2), args[3].(I3), args[4].(I4))
-	return []interface{}{out0, out1, out2, out3, out4}
+	return []any{out0, out1, out2, out3, out4}
 }
 
-func (c *caller5x5[I0, I1, I2, I3, I4, R0, R1, R2, R3, R4]) Call5x5(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}) (interface{}, interface{}, interface{}, interface{}, interface{}) {
+func (c *caller5x5[I0, I1, I2, I3, I4, R0, R1, R2, R3, R4]) Call5x5(arg0 any, arg1 any, arg2 any, arg3 any, arg4 any) (any, any, any, any, any) {
 	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4))
 }
 
 func registerDoFn5x5StructWrappersAndFuncs[I0, I1, I2, I3, I4, R0, R1, R2, R3, R4 any](doFn genericDoFn5x5[I0, I1, I2, I3, I4, R0, R1, R2, R3, R4]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4) (R0, R1, R2, R3, R4))
 		return &caller5x5[I0, I1, I2, I3, I4, R0, R1, R2, R3, R4]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4) (R0, R1, R2, R3, R4))(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4) (R0, R1, R2, R3, R4) {
 			return fn.(genericDoFn5x5[I0, I1, I2, I3, I4, R0, R1, R2, R3, R4]).ProcessElement(a0, a1, a2, a3, a4)
 		})
@@ -7205,7 +7205,7 @@ func registerDoFn5x5StructWrappersAndFuncs[I0, I1, I2, I3, I4, R0, R1, R2, R3, R
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -7240,7 +7240,7 @@ func DoFn5x5[I0, I1, I2, I3, I4, R0, R1, R2, R3, R4 any](doFn genericDoFn5x5[I0,
 func Function5x5[I0, I1, I2, I3, I4, R0, R1, R2, R3, R4 any](doFn func(I0, I1, I2, I3, I4) (R0, R1, R2, R3, R4)) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4) (R0, R1, R2, R3, R4))
 		return &caller5x5[I0, I1, I2, I3, I4, R0, R1, R2, R3, R4]{fn: f}
 	}
@@ -7263,22 +7263,22 @@ func (c *caller6x5[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3, R4]) Type() reflect.T
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller6x5[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3, R4]) Call(args []interface{}) []interface{} {
+func (c *caller6x5[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3, R4]) Call(args []any) []any {
 	out0, out1, out2, out3, out4 := c.fn(args[0].(I0), args[1].(I1), args[2].(I2), args[3].(I3), args[4].(I4), args[5].(I5))
-	return []interface{}{out0, out1, out2, out3, out4}
+	return []any{out0, out1, out2, out3, out4}
 }
 
-func (c *caller6x5[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3, R4]) Call6x5(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}, arg5 interface{}) (interface{}, interface{}, interface{}, interface{}, interface{}) {
+func (c *caller6x5[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3, R4]) Call6x5(arg0 any, arg1 any, arg2 any, arg3 any, arg4 any, arg5 any) (any, any, any, any, any) {
 	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4), arg5.(I5))
 }
 
 func registerDoFn6x5StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3, R4 any](doFn genericDoFn6x5[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3, R4]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5) (R0, R1, R2, R3, R4))
 		return &caller6x5[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3, R4]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5) (R0, R1, R2, R3, R4))(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5) (R0, R1, R2, R3, R4) {
 			return fn.(genericDoFn6x5[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3, R4]).ProcessElement(a0, a1, a2, a3, a4, a5)
 		})
@@ -7288,7 +7288,7 @@ func registerDoFn6x5StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, R0, R1, R2, R
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -7323,7 +7323,7 @@ func DoFn6x5[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3, R4 any](doFn genericDoFn6x5
 func Function6x5[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3, R4 any](doFn func(I0, I1, I2, I3, I4, I5) (R0, R1, R2, R3, R4)) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5) (R0, R1, R2, R3, R4))
 		return &caller6x5[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3, R4]{fn: f}
 	}
@@ -7346,22 +7346,22 @@ func (c *caller7x5[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3, R4]) Type() refle
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller7x5[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3, R4]) Call(args []interface{}) []interface{} {
+func (c *caller7x5[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3, R4]) Call(args []any) []any {
 	out0, out1, out2, out3, out4 := c.fn(args[0].(I0), args[1].(I1), args[2].(I2), args[3].(I3), args[4].(I4), args[5].(I5), args[6].(I6))
-	return []interface{}{out0, out1, out2, out3, out4}
+	return []any{out0, out1, out2, out3, out4}
 }
 
-func (c *caller7x5[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3, R4]) Call7x5(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}, arg5 interface{}, arg6 interface{}) (interface{}, interface{}, interface{}, interface{}, interface{}) {
+func (c *caller7x5[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3, R4]) Call7x5(arg0 any, arg1 any, arg2 any, arg3 any, arg4 any, arg5 any, arg6 any) (any, any, any, any, any) {
 	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4), arg5.(I5), arg6.(I6))
 }
 
 func registerDoFn7x5StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3, R4 any](doFn genericDoFn7x5[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3, R4]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5, I6) (R0, R1, R2, R3, R4))
 		return &caller7x5[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3, R4]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5, I6) (R0, R1, R2, R3, R4))(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5, a6 I6) (R0, R1, R2, R3, R4) {
 			return fn.(genericDoFn7x5[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3, R4]).ProcessElement(a0, a1, a2, a3, a4, a5, a6)
 		})
@@ -7371,7 +7371,7 @@ func registerDoFn7x5StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, R0, R1, R
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -7406,7 +7406,7 @@ func DoFn7x5[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3, R4 any](doFn genericDoF
 func Function7x5[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3, R4 any](doFn func(I0, I1, I2, I3, I4, I5, I6) (R0, R1, R2, R3, R4)) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5, I6) (R0, R1, R2, R3, R4))
 		return &caller7x5[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3, R4]{fn: f}
 	}
@@ -7429,22 +7429,22 @@ func (c *caller8x5[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3, R4]) Type() r
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller8x5[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3, R4]) Call(args []interface{}) []interface{} {
+func (c *caller8x5[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3, R4]) Call(args []any) []any {
 	out0, out1, out2, out3, out4 := c.fn(args[0].(I0), args[1].(I1), args[2].(I2), args[3].(I3), args[4].(I4), args[5].(I5), args[6].(I6), args[7].(I7))
-	return []interface{}{out0, out1, out2, out3, out4}
+	return []any{out0, out1, out2, out3, out4}
 }
 
-func (c *caller8x5[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3, R4]) Call8x5(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}, arg5 interface{}, arg6 interface{}, arg7 interface{}) (interface{}, interface{}, interface{}, interface{}, interface{}) {
+func (c *caller8x5[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3, R4]) Call8x5(arg0 any, arg1 any, arg2 any, arg3 any, arg4 any, arg5 any, arg6 any, arg7 any) (any, any, any, any, any) {
 	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4), arg5.(I5), arg6.(I6), arg7.(I7))
 }
 
 func registerDoFn8x5StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3, R4 any](doFn genericDoFn8x5[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3, R4]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5, I6, I7) (R0, R1, R2, R3, R4))
 		return &caller8x5[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3, R4]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5, I6, I7) (R0, R1, R2, R3, R4))(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5, a6 I6, a7 I7) (R0, R1, R2, R3, R4) {
 			return fn.(genericDoFn8x5[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3, R4]).ProcessElement(a0, a1, a2, a3, a4, a5, a6, a7)
 		})
@@ -7454,7 +7454,7 @@ func registerDoFn8x5StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, R0, R
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -7489,7 +7489,7 @@ func DoFn8x5[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3, R4 any](doFn generi
 func Function8x5[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3, R4 any](doFn func(I0, I1, I2, I3, I4, I5, I6, I7) (R0, R1, R2, R3, R4)) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5, I6, I7) (R0, R1, R2, R3, R4))
 		return &caller8x5[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3, R4]{fn: f}
 	}
@@ -7512,22 +7512,22 @@ func (c *caller9x5[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2, R3, R4]) Type
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller9x5[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2, R3, R4]) Call(args []interface{}) []interface{} {
+func (c *caller9x5[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2, R3, R4]) Call(args []any) []any {
 	out0, out1, out2, out3, out4 := c.fn(args[0].(I0), args[1].(I1), args[2].(I2), args[3].(I3), args[4].(I4), args[5].(I5), args[6].(I6), args[7].(I7), args[8].(I8))
-	return []interface{}{out0, out1, out2, out3, out4}
+	return []any{out0, out1, out2, out3, out4}
 }
 
-func (c *caller9x5[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2, R3, R4]) Call9x5(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}, arg5 interface{}, arg6 interface{}, arg7 interface{}, arg8 interface{}) (interface{}, interface{}, interface{}, interface{}, interface{}) {
+func (c *caller9x5[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2, R3, R4]) Call9x5(arg0 any, arg1 any, arg2 any, arg3 any, arg4 any, arg5 any, arg6 any, arg7 any, arg8 any) (any, any, any, any, any) {
 	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4), arg5.(I5), arg6.(I6), arg7.(I7), arg8.(I8))
 }
 
 func registerDoFn9x5StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2, R3, R4 any](doFn genericDoFn9x5[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2, R3, R4]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5, I6, I7, I8) (R0, R1, R2, R3, R4))
 		return &caller9x5[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2, R3, R4]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5, I6, I7, I8) (R0, R1, R2, R3, R4))(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5, a6 I6, a7 I7, a8 I8) (R0, R1, R2, R3, R4) {
 			return fn.(genericDoFn9x5[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2, R3, R4]).ProcessElement(a0, a1, a2, a3, a4, a5, a6, a7, a8)
 		})
@@ -7537,7 +7537,7 @@ func registerDoFn9x5StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, I8, R
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -7572,7 +7572,7 @@ func DoFn9x5[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2, R3, R4 any](doFn ge
 func Function9x5[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2, R3, R4 any](doFn func(I0, I1, I2, I3, I4, I5, I6, I7, I8) (R0, R1, R2, R3, R4)) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5, I6, I7, I8) (R0, R1, R2, R3, R4))
 		return &caller9x5[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2, R3, R4]{fn: f}
 	}
@@ -7595,22 +7595,22 @@ func (c *caller10x5[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2, R3, R4])
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller10x5[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2, R3, R4]) Call(args []interface{}) []interface{} {
+func (c *caller10x5[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2, R3, R4]) Call(args []any) []any {
 	out0, out1, out2, out3, out4 := c.fn(args[0].(I0), args[1].(I1), args[2].(I2), args[3].(I3), args[4].(I4), args[5].(I5), args[6].(I6), args[7].(I7), args[8].(I8), args[9].(I9))
-	return []interface{}{out0, out1, out2, out3, out4}
+	return []any{out0, out1, out2, out3, out4}
 }
 
-func (c *caller10x5[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2, R3, R4]) Call10x5(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}, arg5 interface{}, arg6 interface{}, arg7 interface{}, arg8 interface{}, arg9 interface{}) (interface{}, interface{}, interface{}, interface{}, interface{}) {
+func (c *caller10x5[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2, R3, R4]) Call10x5(arg0 any, arg1 any, arg2 any, arg3 any, arg4 any, arg5 any, arg6 any, arg7 any, arg8 any, arg9 any) (any, any, any, any, any) {
 	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4), arg5.(I5), arg6.(I6), arg7.(I7), arg8.(I8), arg9.(I9))
 }
 
 func registerDoFn10x5StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2, R3, R4 any](doFn genericDoFn10x5[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2, R3, R4]) {
-	processElementCaller := func(fn interface{}) reflectx.Func {
+	processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5, I6, I7, I8, I9) (R0, R1, R2, R3, R4))
 		return &caller10x5[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2, R3, R4]{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5, I6, I7, I8, I9) (R0, R1, R2, R3, R4))(nil)).Elem(), processElementCaller)
-	processElementWrapper := func(fn interface{}) reflectx.Func {
+	processElementWrapper := func(fn any) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5, a6 I6, a7 I7, a8 I8, a9 I9) (R0, R1, R2, R3, R4) {
 			return fn.(genericDoFn10x5[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2, R3, R4]).ProcessElement(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9)
 		})
@@ -7620,7 +7620,7 @@ func registerDoFn10x5StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, I8, 
 	setupWrapper := buildSetupWrapper(doFn)
 	teardownWrapper := buildTeardownWrapper(doFn)
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
 			m["ProcessElement"] = processElementWrapper(fn)
@@ -7655,7 +7655,7 @@ func DoFn10x5[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2, R3, R4 any](do
 func Function10x5[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2, R3, R4 any](doFn func(I0, I1, I2, I3, I4, I5, I6, I7, I8, I9) (R0, R1, R2, R3, R4)) {
 	runtime.RegisterFunction(doFn)
 	registerMethodTypes(reflect.TypeOf(doFn))
-	caller := func(fn interface{}) reflectx.Func {
+	caller := func(fn any) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5, I6, I7, I8, I9) (R0, R1, R2, R3, R4))
 		return &caller10x5[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2, R3, R4]{fn: f}
 	}
@@ -7860,30 +7860,30 @@ type extractOutput1x2[T1, T2 any] interface {
 // Combiner1 should be used when your accumulator, input, and output are all of the same type.
 // It can be called with register.Combiner1[T](&CustomCombiner{})
 // where T is the type of the input/accumulator/output.
-func Combiner1[T0 any](accum interface{}) {
+func Combiner1[T0 any](accum any) {
 	registerCombinerTypes(accum)
 	accumVal := reflect.ValueOf(accum)
-	var mergeAccumulatorsWrapper func(fn interface{}) reflectx.Func
+	var mergeAccumulatorsWrapper func(fn any) reflectx.Func
 	if _, ok := accum.(mergeAccumulators2x2[T0]); ok {
-		caller := func(fn interface{}) reflectx.Func {
+		caller := func(fn any) reflectx.Func {
 			f := fn.(func(T0, T0) (T0, error))
 			return &caller2x2[T0, T0, T0, error]{fn: f}
 		}
 		reflectx.RegisterFunc(reflect.TypeOf((*func(T0, T0) (T0, error))(nil)).Elem(), caller)
 
-		mergeAccumulatorsWrapper = func(fn interface{}) reflectx.Func {
+		mergeAccumulatorsWrapper = func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func(a0 T0, a1 T0) (T0, error) {
 				return fn.(mergeAccumulators2x2[T0]).MergeAccumulators(a0, a1)
 			})
 		}
 	} else if _, ok := accum.(mergeAccumulators2x1[T0]); ok {
-		caller := func(fn interface{}) reflectx.Func {
+		caller := func(fn any) reflectx.Func {
 			f := fn.(func(T0, T0) T0)
 			return &caller2x1[T0, T0, T0]{fn: f}
 		}
 		reflectx.RegisterFunc(reflect.TypeOf((*func(T0, T0) T0)(nil)).Elem(), caller)
 
-		mergeAccumulatorsWrapper = func(fn interface{}) reflectx.Func {
+		mergeAccumulatorsWrapper = func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func(a0 T0, a1 T0) T0 {
 				return fn.(mergeAccumulators2x1[T0]).MergeAccumulators(a0, a1)
 			})
@@ -7894,27 +7894,27 @@ func Combiner1[T0 any](accum interface{}) {
 		panic(fmt.Sprintf("Failed to optimize MergeAccumulators for combiner %v. Failed to infer types", accum))
 	}
 
-	var createAccumulatorWrapper func(fn interface{}) reflectx.Func
+	var createAccumulatorWrapper func(fn any) reflectx.Func
 	if _, ok := accum.(createAccumulator0x2[T0]); ok {
-		caller := func(fn interface{}) reflectx.Func {
+		caller := func(fn any) reflectx.Func {
 			f := fn.(func() (T0, error))
 			return &caller0x2[T0, error]{fn: f}
 		}
 		reflectx.RegisterFunc(reflect.TypeOf((*func() (T0, error))(nil)).Elem(), caller)
 
-		createAccumulatorWrapper = func(fn interface{}) reflectx.Func {
+		createAccumulatorWrapper = func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func() (T0, error) {
 				return fn.(createAccumulator0x2[T0]).CreateAccumulator()
 			})
 		}
 	} else if _, ok := accum.(createAccumulator0x1[T0]); ok {
-		caller := func(fn interface{}) reflectx.Func {
+		caller := func(fn any) reflectx.Func {
 			f := fn.(func() T0)
 			return &caller0x1[T0]{fn: f}
 		}
 		reflectx.RegisterFunc(reflect.TypeOf((*func() T0)(nil)).Elem(), caller)
 
-		createAccumulatorWrapper = func(fn interface{}) reflectx.Func {
+		createAccumulatorWrapper = func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func() T0 {
 				return fn.(createAccumulator0x1[T0]).CreateAccumulator()
 			})
@@ -7924,27 +7924,27 @@ func Combiner1[T0 any](accum interface{}) {
 		panic(fmt.Sprintf("Failed to optimize CreateAccumulator for combiner %v. Failed to infer types", accum))
 	}
 
-	var addInputWrapper func(fn interface{}) reflectx.Func
+	var addInputWrapper func(fn any) reflectx.Func
 	if _, ok := accum.(addInput2x2[T0, T0]); ok {
-		caller := func(fn interface{}) reflectx.Func {
+		caller := func(fn any) reflectx.Func {
 			f := fn.(func(T0, T0) (T0, error))
 			return &caller2x2[T0, T0, T0, error]{fn: f}
 		}
 		reflectx.RegisterFunc(reflect.TypeOf((*func(T0, T0) (T0, error))(nil)).Elem(), caller)
 
-		addInputWrapper = func(fn interface{}) reflectx.Func {
+		addInputWrapper = func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func(a0 T0, a1 T0) (T0, error) {
 				return fn.(addInput2x2[T0, T0]).AddInput(a0, a1)
 			})
 		}
 	} else if _, ok := accum.(addInput2x1[T0, T0]); ok {
-		caller := func(fn interface{}) reflectx.Func {
+		caller := func(fn any) reflectx.Func {
 			f := fn.(func(T0, T0) T0)
 			return &caller2x1[T0, T0, T0]{fn: f}
 		}
 		reflectx.RegisterFunc(reflect.TypeOf((*func(T0, T0) T0)(nil)).Elem(), caller)
 
-		addInputWrapper = func(fn interface{}) reflectx.Func {
+		addInputWrapper = func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func(a0 T0, a1 T0) T0 {
 				return fn.(addInput2x1[T0, T0]).AddInput(a0, a1)
 			})
@@ -7955,27 +7955,27 @@ func Combiner1[T0 any](accum interface{}) {
 		panic(fmt.Sprintf("Failed to optimize AddInput for combiner %v. Failed to infer types", accum))
 	}
 
-	var extractOutputWrapper func(fn interface{}) reflectx.Func
+	var extractOutputWrapper func(fn any) reflectx.Func
 	if _, ok := accum.(extractOutput1x2[T0, T0]); ok {
-		caller := func(fn interface{}) reflectx.Func {
+		caller := func(fn any) reflectx.Func {
 			f := fn.(func(T0) (T0, error))
 			return &caller1x2[T0, T0, error]{fn: f}
 		}
 		reflectx.RegisterFunc(reflect.TypeOf((*func(T0) (T0, error))(nil)).Elem(), caller)
 
-		extractOutputWrapper = func(fn interface{}) reflectx.Func {
+		extractOutputWrapper = func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func(a0 T0) (T0, error) {
 				return fn.(extractOutput1x2[T0, T0]).ExtractOutput(a0)
 			})
 		}
 	} else if _, ok := accum.(extractOutput1x1[T0, T0]); ok {
-		caller := func(fn interface{}) reflectx.Func {
+		caller := func(fn any) reflectx.Func {
 			f := fn.(func(T0) T0)
 			return &caller1x1[T0, T0]{fn: f}
 		}
 		reflectx.RegisterFunc(reflect.TypeOf((*func(T0) T0)(nil)).Elem(), caller)
 
-		extractOutputWrapper = func(fn interface{}) reflectx.Func {
+		extractOutputWrapper = func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func(a0 T0) T0 {
 				return fn.(extractOutput1x1[T0, T0]).ExtractOutput(a0)
 			})
@@ -7986,7 +7986,7 @@ func Combiner1[T0 any](accum interface{}) {
 		panic(fmt.Sprintf("Failed to optimize ExtractOutput for combiner %v. Failed to infer types", accum))
 	}
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if mergeAccumulatorsWrapper != nil {
 			m["MergeAccumulators"] = mergeAccumulatorsWrapper(fn)
@@ -8012,30 +8012,30 @@ func Combiner1[T0 any](accum interface{}) {
 // Combiner2 should be used when your accumulator, input, and output are 2 distinct types.
 // It can be called with register.Combiner2[T1, T2](&CustomCombiner{})
 // where T1 is the type of the accumulator and T2 is the other type.
-func Combiner2[T0, T1 any](accum interface{}) {
+func Combiner2[T0, T1 any](accum any) {
 	registerCombinerTypes(accum)
 	accumVal := reflect.ValueOf(accum)
-	var mergeAccumulatorsWrapper func(fn interface{}) reflectx.Func
+	var mergeAccumulatorsWrapper func(fn any) reflectx.Func
 	if _, ok := accum.(mergeAccumulators2x2[T0]); ok {
-		caller := func(fn interface{}) reflectx.Func {
+		caller := func(fn any) reflectx.Func {
 			f := fn.(func(T0, T0) (T0, error))
 			return &caller2x2[T0, T0, T0, error]{fn: f}
 		}
 		reflectx.RegisterFunc(reflect.TypeOf((*func(T0, T0) (T0, error))(nil)).Elem(), caller)
 
-		mergeAccumulatorsWrapper = func(fn interface{}) reflectx.Func {
+		mergeAccumulatorsWrapper = func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func(a0 T0, a1 T0) (T0, error) {
 				return fn.(mergeAccumulators2x2[T0]).MergeAccumulators(a0, a1)
 			})
 		}
 	} else if _, ok := accum.(mergeAccumulators2x1[T0]); ok {
-		caller := func(fn interface{}) reflectx.Func {
+		caller := func(fn any) reflectx.Func {
 			f := fn.(func(T0, T0) T0)
 			return &caller2x1[T0, T0, T0]{fn: f}
 		}
 		reflectx.RegisterFunc(reflect.TypeOf((*func(T0, T0) T0)(nil)).Elem(), caller)
 
-		mergeAccumulatorsWrapper = func(fn interface{}) reflectx.Func {
+		mergeAccumulatorsWrapper = func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func(a0 T0, a1 T0) T0 {
 				return fn.(mergeAccumulators2x1[T0]).MergeAccumulators(a0, a1)
 			})
@@ -8046,27 +8046,27 @@ func Combiner2[T0, T1 any](accum interface{}) {
 		panic(fmt.Sprintf("Failed to optimize MergeAccumulators for combiner %v. Failed to infer types", accum))
 	}
 
-	var createAccumulatorWrapper func(fn interface{}) reflectx.Func
+	var createAccumulatorWrapper func(fn any) reflectx.Func
 	if _, ok := accum.(createAccumulator0x2[T0]); ok {
-		caller := func(fn interface{}) reflectx.Func {
+		caller := func(fn any) reflectx.Func {
 			f := fn.(func() (T0, error))
 			return &caller0x2[T0, error]{fn: f}
 		}
 		reflectx.RegisterFunc(reflect.TypeOf((*func() (T0, error))(nil)).Elem(), caller)
 
-		createAccumulatorWrapper = func(fn interface{}) reflectx.Func {
+		createAccumulatorWrapper = func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func() (T0, error) {
 				return fn.(createAccumulator0x2[T0]).CreateAccumulator()
 			})
 		}
 	} else if _, ok := accum.(createAccumulator0x1[T0]); ok {
-		caller := func(fn interface{}) reflectx.Func {
+		caller := func(fn any) reflectx.Func {
 			f := fn.(func() T0)
 			return &caller0x1[T0]{fn: f}
 		}
 		reflectx.RegisterFunc(reflect.TypeOf((*func() T0)(nil)).Elem(), caller)
 
-		createAccumulatorWrapper = func(fn interface{}) reflectx.Func {
+		createAccumulatorWrapper = func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func() T0 {
 				return fn.(createAccumulator0x1[T0]).CreateAccumulator()
 			})
@@ -8076,51 +8076,51 @@ func Combiner2[T0, T1 any](accum interface{}) {
 		panic(fmt.Sprintf("Failed to optimize CreateAccumulator for combiner %v. Failed to infer types", accum))
 	}
 
-	var addInputWrapper func(fn interface{}) reflectx.Func
+	var addInputWrapper func(fn any) reflectx.Func
 	if _, ok := accum.(addInput2x2[T0, T0]); ok {
-		caller := func(fn interface{}) reflectx.Func {
+		caller := func(fn any) reflectx.Func {
 			f := fn.(func(T0, T0) (T0, error))
 			return &caller2x2[T0, T0, T0, error]{fn: f}
 		}
 		reflectx.RegisterFunc(reflect.TypeOf((*func(T0, T0) (T0, error))(nil)).Elem(), caller)
 
-		addInputWrapper = func(fn interface{}) reflectx.Func {
+		addInputWrapper = func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func(a0 T0, a1 T0) (T0, error) {
 				return fn.(addInput2x2[T0, T0]).AddInput(a0, a1)
 			})
 		}
 	} else if _, ok := accum.(addInput2x1[T0, T0]); ok {
-		caller := func(fn interface{}) reflectx.Func {
+		caller := func(fn any) reflectx.Func {
 			f := fn.(func(T0, T0) T0)
 			return &caller2x1[T0, T0, T0]{fn: f}
 		}
 		reflectx.RegisterFunc(reflect.TypeOf((*func(T0, T0) T0)(nil)).Elem(), caller)
 
-		addInputWrapper = func(fn interface{}) reflectx.Func {
+		addInputWrapper = func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func(a0 T0, a1 T0) T0 {
 				return fn.(addInput2x1[T0, T0]).AddInput(a0, a1)
 			})
 		}
 	} else if _, ok := accum.(addInput2x2[T0, T1]); ok {
-		caller := func(fn interface{}) reflectx.Func {
+		caller := func(fn any) reflectx.Func {
 			f := fn.(func(T0, T1) (T0, error))
 			return &caller2x2[T0, T1, T0, error]{fn: f}
 		}
 		reflectx.RegisterFunc(reflect.TypeOf((*func(T0, T1) (T0, error))(nil)).Elem(), caller)
 
-		addInputWrapper = func(fn interface{}) reflectx.Func {
+		addInputWrapper = func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func(a0 T0, a1 T1) (T0, error) {
 				return fn.(addInput2x2[T0, T1]).AddInput(a0, a1)
 			})
 		}
 	} else if _, ok := accum.(addInput2x1[T0, T1]); ok {
-		caller := func(fn interface{}) reflectx.Func {
+		caller := func(fn any) reflectx.Func {
 			f := fn.(func(T0, T1) T0)
 			return &caller2x1[T0, T1, T0]{fn: f}
 		}
 		reflectx.RegisterFunc(reflect.TypeOf((*func(T0, T1) T0)(nil)).Elem(), caller)
 
-		addInputWrapper = func(fn interface{}) reflectx.Func {
+		addInputWrapper = func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func(a0 T0, a1 T1) T0 {
 				return fn.(addInput2x1[T0, T1]).AddInput(a0, a1)
 			})
@@ -8131,51 +8131,51 @@ func Combiner2[T0, T1 any](accum interface{}) {
 		panic(fmt.Sprintf("Failed to optimize AddInput for combiner %v. Failed to infer types", accum))
 	}
 
-	var extractOutputWrapper func(fn interface{}) reflectx.Func
+	var extractOutputWrapper func(fn any) reflectx.Func
 	if _, ok := accum.(extractOutput1x2[T0, T0]); ok {
-		caller := func(fn interface{}) reflectx.Func {
+		caller := func(fn any) reflectx.Func {
 			f := fn.(func(T0) (T0, error))
 			return &caller1x2[T0, T0, error]{fn: f}
 		}
 		reflectx.RegisterFunc(reflect.TypeOf((*func(T0) (T0, error))(nil)).Elem(), caller)
 
-		extractOutputWrapper = func(fn interface{}) reflectx.Func {
+		extractOutputWrapper = func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func(a0 T0) (T0, error) {
 				return fn.(extractOutput1x2[T0, T0]).ExtractOutput(a0)
 			})
 		}
 	} else if _, ok := accum.(extractOutput1x1[T0, T0]); ok {
-		caller := func(fn interface{}) reflectx.Func {
+		caller := func(fn any) reflectx.Func {
 			f := fn.(func(T0) T0)
 			return &caller1x1[T0, T0]{fn: f}
 		}
 		reflectx.RegisterFunc(reflect.TypeOf((*func(T0) T0)(nil)).Elem(), caller)
 
-		extractOutputWrapper = func(fn interface{}) reflectx.Func {
+		extractOutputWrapper = func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func(a0 T0) T0 {
 				return fn.(extractOutput1x1[T0, T0]).ExtractOutput(a0)
 			})
 		}
 	} else if _, ok := accum.(extractOutput1x2[T0, T1]); ok {
-		caller := func(fn interface{}) reflectx.Func {
+		caller := func(fn any) reflectx.Func {
 			f := fn.(func(T0) (T1, error))
 			return &caller1x2[T0, T1, error]{fn: f}
 		}
 		reflectx.RegisterFunc(reflect.TypeOf((*func(T0) (T1, error))(nil)).Elem(), caller)
 
-		extractOutputWrapper = func(fn interface{}) reflectx.Func {
+		extractOutputWrapper = func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func(a0 T0) (T1, error) {
 				return fn.(extractOutput1x2[T0, T1]).ExtractOutput(a0)
 			})
 		}
 	} else if _, ok := accum.(extractOutput1x1[T0, T1]); ok {
-		caller := func(fn interface{}) reflectx.Func {
+		caller := func(fn any) reflectx.Func {
 			f := fn.(func(T0) T1)
 			return &caller1x1[T0, T1]{fn: f}
 		}
 		reflectx.RegisterFunc(reflect.TypeOf((*func(T0) T1)(nil)).Elem(), caller)
 
-		extractOutputWrapper = func(fn interface{}) reflectx.Func {
+		extractOutputWrapper = func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func(a0 T0) T1 {
 				return fn.(extractOutput1x1[T0, T1]).ExtractOutput(a0)
 			})
@@ -8186,7 +8186,7 @@ func Combiner2[T0, T1 any](accum interface{}) {
 		panic(fmt.Sprintf("Failed to optimize ExtractOutput for combiner %v. Failed to infer types", accum))
 	}
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if mergeAccumulatorsWrapper != nil {
 			m["MergeAccumulators"] = mergeAccumulatorsWrapper(fn)
@@ -8212,30 +8212,30 @@ func Combiner2[T0, T1 any](accum interface{}) {
 // Combiner3 should be used when your accumulator, input, and output are 3 distinct types.
 // It can be called with register.Combiner3[T1, T2, T3](&CustomCombiner{})
 // where T1 is the type of the accumulator, T2 is the type of the input, and T3 is the type of the output.
-func Combiner3[T0, T1, T2 any](accum interface{}) {
+func Combiner3[T0, T1, T2 any](accum any) {
 	registerCombinerTypes(accum)
 	accumVal := reflect.ValueOf(accum)
-	var mergeAccumulatorsWrapper func(fn interface{}) reflectx.Func
+	var mergeAccumulatorsWrapper func(fn any) reflectx.Func
 	if _, ok := accum.(mergeAccumulators2x2[T0]); ok {
-		caller := func(fn interface{}) reflectx.Func {
+		caller := func(fn any) reflectx.Func {
 			f := fn.(func(T0, T0) (T0, error))
 			return &caller2x2[T0, T0, T0, error]{fn: f}
 		}
 		reflectx.RegisterFunc(reflect.TypeOf((*func(T0, T0) (T0, error))(nil)).Elem(), caller)
 
-		mergeAccumulatorsWrapper = func(fn interface{}) reflectx.Func {
+		mergeAccumulatorsWrapper = func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func(a0 T0, a1 T0) (T0, error) {
 				return fn.(mergeAccumulators2x2[T0]).MergeAccumulators(a0, a1)
 			})
 		}
 	} else if _, ok := accum.(mergeAccumulators2x1[T0]); ok {
-		caller := func(fn interface{}) reflectx.Func {
+		caller := func(fn any) reflectx.Func {
 			f := fn.(func(T0, T0) T0)
 			return &caller2x1[T0, T0, T0]{fn: f}
 		}
 		reflectx.RegisterFunc(reflect.TypeOf((*func(T0, T0) T0)(nil)).Elem(), caller)
 
-		mergeAccumulatorsWrapper = func(fn interface{}) reflectx.Func {
+		mergeAccumulatorsWrapper = func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func(a0 T0, a1 T0) T0 {
 				return fn.(mergeAccumulators2x1[T0]).MergeAccumulators(a0, a1)
 			})
@@ -8246,27 +8246,27 @@ func Combiner3[T0, T1, T2 any](accum interface{}) {
 		panic(fmt.Sprintf("Failed to optimize MergeAccumulators for combiner %v. Failed to infer types", accum))
 	}
 
-	var createAccumulatorWrapper func(fn interface{}) reflectx.Func
+	var createAccumulatorWrapper func(fn any) reflectx.Func
 	if _, ok := accum.(createAccumulator0x2[T0]); ok {
-		caller := func(fn interface{}) reflectx.Func {
+		caller := func(fn any) reflectx.Func {
 			f := fn.(func() (T0, error))
 			return &caller0x2[T0, error]{fn: f}
 		}
 		reflectx.RegisterFunc(reflect.TypeOf((*func() (T0, error))(nil)).Elem(), caller)
 
-		createAccumulatorWrapper = func(fn interface{}) reflectx.Func {
+		createAccumulatorWrapper = func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func() (T0, error) {
 				return fn.(createAccumulator0x2[T0]).CreateAccumulator()
 			})
 		}
 	} else if _, ok := accum.(createAccumulator0x1[T0]); ok {
-		caller := func(fn interface{}) reflectx.Func {
+		caller := func(fn any) reflectx.Func {
 			f := fn.(func() T0)
 			return &caller0x1[T0]{fn: f}
 		}
 		reflectx.RegisterFunc(reflect.TypeOf((*func() T0)(nil)).Elem(), caller)
 
-		createAccumulatorWrapper = func(fn interface{}) reflectx.Func {
+		createAccumulatorWrapper = func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func() T0 {
 				return fn.(createAccumulator0x1[T0]).CreateAccumulator()
 			})
@@ -8276,75 +8276,75 @@ func Combiner3[T0, T1, T2 any](accum interface{}) {
 		panic(fmt.Sprintf("Failed to optimize CreateAccumulator for combiner %v. Failed to infer types", accum))
 	}
 
-	var addInputWrapper func(fn interface{}) reflectx.Func
+	var addInputWrapper func(fn any) reflectx.Func
 	if _, ok := accum.(addInput2x2[T0, T0]); ok {
-		caller := func(fn interface{}) reflectx.Func {
+		caller := func(fn any) reflectx.Func {
 			f := fn.(func(T0, T0) (T0, error))
 			return &caller2x2[T0, T0, T0, error]{fn: f}
 		}
 		reflectx.RegisterFunc(reflect.TypeOf((*func(T0, T0) (T0, error))(nil)).Elem(), caller)
 
-		addInputWrapper = func(fn interface{}) reflectx.Func {
+		addInputWrapper = func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func(a0 T0, a1 T0) (T0, error) {
 				return fn.(addInput2x2[T0, T0]).AddInput(a0, a1)
 			})
 		}
 	} else if _, ok := accum.(addInput2x1[T0, T0]); ok {
-		caller := func(fn interface{}) reflectx.Func {
+		caller := func(fn any) reflectx.Func {
 			f := fn.(func(T0, T0) T0)
 			return &caller2x1[T0, T0, T0]{fn: f}
 		}
 		reflectx.RegisterFunc(reflect.TypeOf((*func(T0, T0) T0)(nil)).Elem(), caller)
 
-		addInputWrapper = func(fn interface{}) reflectx.Func {
+		addInputWrapper = func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func(a0 T0, a1 T0) T0 {
 				return fn.(addInput2x1[T0, T0]).AddInput(a0, a1)
 			})
 		}
 	} else if _, ok := accum.(addInput2x2[T0, T1]); ok {
-		caller := func(fn interface{}) reflectx.Func {
+		caller := func(fn any) reflectx.Func {
 			f := fn.(func(T0, T1) (T0, error))
 			return &caller2x2[T0, T1, T0, error]{fn: f}
 		}
 		reflectx.RegisterFunc(reflect.TypeOf((*func(T0, T1) (T0, error))(nil)).Elem(), caller)
 
-		addInputWrapper = func(fn interface{}) reflectx.Func {
+		addInputWrapper = func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func(a0 T0, a1 T1) (T0, error) {
 				return fn.(addInput2x2[T0, T1]).AddInput(a0, a1)
 			})
 		}
 	} else if _, ok := accum.(addInput2x1[T0, T1]); ok {
-		caller := func(fn interface{}) reflectx.Func {
+		caller := func(fn any) reflectx.Func {
 			f := fn.(func(T0, T1) T0)
 			return &caller2x1[T0, T1, T0]{fn: f}
 		}
 		reflectx.RegisterFunc(reflect.TypeOf((*func(T0, T1) T0)(nil)).Elem(), caller)
 
-		addInputWrapper = func(fn interface{}) reflectx.Func {
+		addInputWrapper = func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func(a0 T0, a1 T1) T0 {
 				return fn.(addInput2x1[T0, T1]).AddInput(a0, a1)
 			})
 		}
 	} else if _, ok := accum.(addInput2x2[T0, T2]); ok {
-		caller := func(fn interface{}) reflectx.Func {
+		caller := func(fn any) reflectx.Func {
 			f := fn.(func(T0, T2) (T0, error))
 			return &caller2x2[T0, T2, T0, error]{fn: f}
 		}
 		reflectx.RegisterFunc(reflect.TypeOf((*func(T0, T2) (T0, error))(nil)).Elem(), caller)
 
-		addInputWrapper = func(fn interface{}) reflectx.Func {
+		addInputWrapper = func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func(a0 T0, a1 T2) (T0, error) {
 				return fn.(addInput2x2[T0, T2]).AddInput(a0, a1)
 			})
 		}
 	} else if _, ok := accum.(addInput2x1[T0, T2]); ok {
-		caller := func(fn interface{}) reflectx.Func {
+		caller := func(fn any) reflectx.Func {
 			f := fn.(func(T0, T2) T0)
 			return &caller2x1[T0, T2, T0]{fn: f}
 		}
 		reflectx.RegisterFunc(reflect.TypeOf((*func(T0, T2) T0)(nil)).Elem(), caller)
 
-		addInputWrapper = func(fn interface{}) reflectx.Func {
+		addInputWrapper = func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func(a0 T0, a1 T2) T0 {
 				return fn.(addInput2x1[T0, T2]).AddInput(a0, a1)
 			})
@@ -8355,75 +8355,75 @@ func Combiner3[T0, T1, T2 any](accum interface{}) {
 		panic(fmt.Sprintf("Failed to optimize AddInput for combiner %v. Failed to infer types", accum))
 	}
 
-	var extractOutputWrapper func(fn interface{}) reflectx.Func
+	var extractOutputWrapper func(fn any) reflectx.Func
 	if _, ok := accum.(extractOutput1x2[T0, T0]); ok {
-		caller := func(fn interface{}) reflectx.Func {
+		caller := func(fn any) reflectx.Func {
 			f := fn.(func(T0) (T0, error))
 			return &caller1x2[T0, T0, error]{fn: f}
 		}
 		reflectx.RegisterFunc(reflect.TypeOf((*func(T0) (T0, error))(nil)).Elem(), caller)
 
-		extractOutputWrapper = func(fn interface{}) reflectx.Func {
+		extractOutputWrapper = func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func(a0 T0) (T0, error) {
 				return fn.(extractOutput1x2[T0, T0]).ExtractOutput(a0)
 			})
 		}
 	} else if _, ok := accum.(extractOutput1x1[T0, T0]); ok {
-		caller := func(fn interface{}) reflectx.Func {
+		caller := func(fn any) reflectx.Func {
 			f := fn.(func(T0) T0)
 			return &caller1x1[T0, T0]{fn: f}
 		}
 		reflectx.RegisterFunc(reflect.TypeOf((*func(T0) T0)(nil)).Elem(), caller)
 
-		extractOutputWrapper = func(fn interface{}) reflectx.Func {
+		extractOutputWrapper = func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func(a0 T0) T0 {
 				return fn.(extractOutput1x1[T0, T0]).ExtractOutput(a0)
 			})
 		}
 	} else if _, ok := accum.(extractOutput1x2[T0, T1]); ok {
-		caller := func(fn interface{}) reflectx.Func {
+		caller := func(fn any) reflectx.Func {
 			f := fn.(func(T0) (T1, error))
 			return &caller1x2[T0, T1, error]{fn: f}
 		}
 		reflectx.RegisterFunc(reflect.TypeOf((*func(T0) (T1, error))(nil)).Elem(), caller)
 
-		extractOutputWrapper = func(fn interface{}) reflectx.Func {
+		extractOutputWrapper = func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func(a0 T0) (T1, error) {
 				return fn.(extractOutput1x2[T0, T1]).ExtractOutput(a0)
 			})
 		}
 	} else if _, ok := accum.(extractOutput1x1[T0, T1]); ok {
-		caller := func(fn interface{}) reflectx.Func {
+		caller := func(fn any) reflectx.Func {
 			f := fn.(func(T0) T1)
 			return &caller1x1[T0, T1]{fn: f}
 		}
 		reflectx.RegisterFunc(reflect.TypeOf((*func(T0) T1)(nil)).Elem(), caller)
 
-		extractOutputWrapper = func(fn interface{}) reflectx.Func {
+		extractOutputWrapper = func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func(a0 T0) T1 {
 				return fn.(extractOutput1x1[T0, T1]).ExtractOutput(a0)
 			})
 		}
 	} else if _, ok := accum.(extractOutput1x2[T0, T2]); ok {
-		caller := func(fn interface{}) reflectx.Func {
+		caller := func(fn any) reflectx.Func {
 			f := fn.(func(T0) (T2, error))
 			return &caller1x2[T0, T2, error]{fn: f}
 		}
 		reflectx.RegisterFunc(reflect.TypeOf((*func(T0) (T2, error))(nil)).Elem(), caller)
 
-		extractOutputWrapper = func(fn interface{}) reflectx.Func {
+		extractOutputWrapper = func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func(a0 T0) (T2, error) {
 				return fn.(extractOutput1x2[T0, T2]).ExtractOutput(a0)
 			})
 		}
 	} else if _, ok := accum.(extractOutput1x1[T0, T2]); ok {
-		caller := func(fn interface{}) reflectx.Func {
+		caller := func(fn any) reflectx.Func {
 			f := fn.(func(T0) T2)
 			return &caller1x1[T0, T2]{fn: f}
 		}
 		reflectx.RegisterFunc(reflect.TypeOf((*func(T0) T2)(nil)).Elem(), caller)
 
-		extractOutputWrapper = func(fn interface{}) reflectx.Func {
+		extractOutputWrapper = func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func(a0 T0) T2 {
 				return fn.(extractOutput1x1[T0, T2]).ExtractOutput(a0)
 			})
@@ -8434,7 +8434,7 @@ func Combiner3[T0, T1, T2 any](accum interface{}) {
 		panic(fmt.Sprintf("Failed to optimize ExtractOutput for combiner %v. Failed to infer types", accum))
 	}
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if mergeAccumulatorsWrapper != nil {
 			m["MergeAccumulators"] = mergeAccumulatorsWrapper(fn)
@@ -8454,7 +8454,7 @@ func Combiner3[T0, T1, T2 any](accum interface{}) {
 	reflectx.RegisterStructWrapper(reflect.TypeOf(accum).Elem(), wrapperFn)
 }
 
-func registerCombinerTypes(accum interface{}) {
+func registerCombinerTypes(accum any) {
 	// Register the combiner
 	runtime.RegisterType(reflect.TypeOf(accum).Elem())
 	schema.RegisterType(reflect.TypeOf(accum).Elem())
@@ -8471,7 +8471,7 @@ func registerCombinerTypes(accum interface{}) {
 	}
 }
 
-func registerDoFnTypes(doFn interface{}) {
+func registerDoFnTypes(doFn any) {
 	// Register the doFn
 	runtime.RegisterType(reflect.TypeOf(doFn).Elem())
 	schema.RegisterType(reflect.TypeOf(doFn).Elem())

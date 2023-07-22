@@ -20,7 +20,6 @@
 labels:
   - name: Go
     reviewers:
-      - damccorm
       - lostluck
       - jrmccluskey
       - riteshghorse
@@ -29,17 +28,18 @@ labels:
   - name: Python
     reviewers:
       - AnandInguva
-      - ryanthompson591
+      - damccorm
+      - jrmccluskey
       - tvalentyn
-      - pabloem
+      - riteshghorse
+      - liferoad
     exclusionList: []
   - name: Java
     reviewers:
-      - lukecwik
+      - Abacn
       - kennknowles
       - robertwb
-      - kileys
-      - apilloud
+      - bvolpato
     exclusionList: []
   - name: IO
     reviewers:
@@ -48,10 +48,27 @@ labels:
       - pabloem
       - Abacn
       - ahmedabu98
+      - bvolpato
+      - manavgarg
+    exclusionList: []
+  - name: spanner
+    reviewers:
+      - nielm
     exclusionList: []
   - name: Build
     reviewers:
       - damccorm
       - Abacn
     exclusionList: []
-fallbackReviewers: []
+fallbackReviewers:
+  - Abacn
+  - AnandInguva
+  - chamikaramj
+  - damccorm
+  - johnjcasey
+  - jrmccluskey
+  - kennknowles
+  - lostluck
+  - riteshghorse
+  - robertwb
+  - tvalentyn

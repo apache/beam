@@ -84,6 +84,13 @@ func TestSaveGetProgress(t *testing.T) {
 	}
 	getUserProgressURL := "http://localhost:" + port
 
+	// postDeleteProgressURL
+	port = os.Getenv(PORT_POST_DELETE_PROGRESS)
+	if port == "" {
+		t.Fatal(PORT_POST_DELETE_PROGRESS, "env not set")
+	}
+	postDeleteProgressURL := "http://localhost:" + port
+
 	t.Run("save_complete_no_unit", func(t *testing.T) {
 		resp, err := PostUnitComplete(postUnitCompleteURL, "python", "unknown_unit_id_1", idToken)
 		checkBadHttpCode(t, err, http.StatusNotFound)
@@ -141,6 +148,25 @@ func TestSaveGetProgress(t *testing.T) {
 		// snippet_id is derived from random uid
 		exp.Units[1].UserSnippetId = resp.Units[1].UserSnippetId
 		assert.Equal(t, exp, resp)
+	})
+	t.Run("delete_progress", func(t *testing.T) {
+		_, err := PostDeleteProgress(postDeleteProgressURL, idToken)
+		if err != nil {
+			t.Fatal(err)
+		}
+	})
+	t.Run("delete_progress_retry", func(t *testing.T) {
+		_, err := PostDeleteProgress(postDeleteProgressURL, idToken)
+		if err != nil {
+			t.Fatal(err)
+		}
+	})
+	t.Run("get_deleted", func(t *testing.T) {
+		resp, err := GetUserProgress(getUserProgressURL, "python", idToken)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assert.Equal(t, 0, len(resp.Units))
 	})
 }
 

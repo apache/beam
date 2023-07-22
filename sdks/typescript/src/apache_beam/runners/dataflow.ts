@@ -32,13 +32,15 @@ export function dataflowRunner(runnerOptions: {
       pipeline: Pipeline,
       options: Object = {}
     ): Promise<PipelineResult> {
+      var augmentedOptions = { experiments: [] as string[], ...options };
+      augmentedOptions.experiments.push("use_sibling_sdk_workers");
       return new PortableRunner(
         runnerOptions as any,
         PythonService.forModule(
           "apache_beam.runners.dataflow.dataflow_job_service",
           ["--port", "{{PORT}}"]
         )
-      ).runPipeline(pipeline, options);
+      ).runPipeline(pipeline, augmentedOptions);
     }
   })();
 }

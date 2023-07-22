@@ -1,0 +1,151 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+$schema: 'http://json-schema.org/schema#'
+$id: https://github.com/apache/beam/tree/master/sdks/python/apache_beam/yaml/pipeline.schema.yaml
+
+$defs:
+
+  transformBase:
+    type: object
+    properties:
+      type: { type: string }
+      name: { type: string }
+      windowing:
+        $ref: '#/$defs/windowing'
+      input:
+        oneOf:
+          - type: string
+          - type: array
+            items: { type: string }
+          - type: object
+            properties: { __line__: {}}
+            additionalProperties:
+              type: string
+      output:
+        oneOf:
+          - type: string
+          - type: object
+            properties: { __line__: {}}
+            additionalProperties:
+              type: string
+    additionalProperties: true
+    required:
+      - type
+
+  nestedTransform:
+    allOf:
+      - type: object
+        properties:
+          type: {}
+          name: {}
+          input: {}
+          output: {}
+          windowing: {}
+          transforms:
+            type: array
+            items:
+              $ref: '#/$defs/transform'
+          source:
+            $ref: '#/$defs/transform'
+          sink:
+            $ref: '#/$defs/transform'
+          __line__: {}
+          __uuid__: {}
+        additionalProperties: false
+      - anyOf:
+        - required:
+          - transforms
+        - required:
+          - source
+          - sink
+
+  implicitInputOutputs:
+    properties:
+      transforms:
+        type: array
+        items:
+          properties:
+            # Must be implicit.
+            input: { not: {} }
+            output: { not: {} }
+      source:
+        properties:
+          # Must be implicit.
+          input: { not: {} }
+          output: { not: {} }
+      sink:
+        properties:
+          # Must be implicit.
+          input: { not: {} }
+          output: { not: {} }
+
+  transform:
+    allOf:
+      - $ref: '#/$defs/transformBase'
+      - if:
+          properties: { type: { const: composite }}
+        then:
+          $ref: '#/$defs/nestedTransform'
+      - if:
+          properties: { type: { const: chain }}
+        then:
+          allOf:
+            - $ref: '#/$defs/nestedTransform'
+            - $ref: '#/$defs/implicitInputOutputs'
+
+  windowing: {}  # TODO
+
+  provider:
+    # TODO(robertwb): Consider enumerating the provider types along with
+    # the arguments they accept/expect (possibly in a separate schema file).
+    type: object
+    properties:
+      type: { type: string }
+      transforms:
+        type: object
+        additionalProperties:
+          type: string
+    required:
+      - type
+      - transforms
+
+type: object
+properties:
+  pipeline:
+    anyOf:
+      - type: array
+        items:
+          $ref: '#/$defs/transform'
+      - $ref: '#/$defs/transform'
+      - type: object
+        properties:
+          transforms:
+            type: array
+            items:
+              $ref: '#/$defs/transform'
+          __line__: {}
+          __uuid__: {}
+        additionalProperties: false
+  providers:
+    type: array
+    items:
+      $ref: '#/$defs/provider'
+  options:
+    type: object
+required:
+  - pipeline

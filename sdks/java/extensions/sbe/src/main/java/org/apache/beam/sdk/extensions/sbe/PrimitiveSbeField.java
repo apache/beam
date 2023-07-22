@@ -18,15 +18,12 @@
 package org.apache.beam.sdk.extensions.sbe;
 
 import com.google.auto.value.AutoValue;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.extensions.sbe.UnsignedOptions.Behavior;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import uk.co.real_logic.sbe.PrimitiveType;
 
 /** Represents a primitive SBE field. */
-@Experimental(Kind.SCHEMAS)
 @AutoValue
 abstract class PrimitiveSbeField implements SbeField {
   private static final long serialVersionUID = 1L;

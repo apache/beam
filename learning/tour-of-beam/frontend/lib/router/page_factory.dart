@@ -29,6 +29,7 @@ class PageFactory {
     switch (factoryKey) {
       case TourPage.classFactoryKey:
         return TourPage.fromStateMap(state);
+
       case WelcomePage.classFactoryKey:
         return WelcomePage.fromStateMap(state);
     }

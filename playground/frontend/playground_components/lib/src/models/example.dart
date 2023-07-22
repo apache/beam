@@ -16,52 +16,109 @@
  * limitations under the License.
  */
 
+import 'package:json_annotation/json_annotation.dart';
+
+import '../enums/complexity.dart';
+import 'dataset.dart';
 import 'example_base.dart';
+import 'example_view_options.dart';
+import 'sdk.dart';
+import 'snippet_file.dart';
+
+part 'example.g.dart';
 
 /// A [ExampleBase] that also has all large fields fetched.
+@JsonSerializable()
 class Example extends ExampleBase {
+  final List<SnippetFile> files;
   final String? graph;
   final String? logs;
   final String? outputs;
-  final String source;
 
   const Example({
-    required this.source,
+    required this.files,
     required super.name,
     required super.sdk,
     required super.type,
     required super.path,
-    this.graph,
-    this.logs,
-    this.outputs,
+    super.alwaysRun,
     super.complexity,
     super.contextLine,
+    super.datasets,
     super.description,
+    this.graph,
     super.isMultiFile,
-    super.link,
+    this.logs,
+    this.outputs,
     super.pipelineOptions,
     super.tags,
+    super.urlNotebook,
+    super.urlVcs,
     super.viewOptions,
   });
 
+  factory Example.fromJson(Map<String, dynamic> json) =>
+      _$ExampleFromJson(json);
+
+  @override
+  Map<String, dynamic> toJson() => _$ExampleToJson(this);
+
   Example.fromBase(
     ExampleBase example, {
+    required this.files,
     required this.logs,
     required this.outputs,
-    required this.source,
     this.graph,
   }) : super(
+          alwaysRun: example.alwaysRun,
           complexity: example.complexity,
           contextLine: example.contextLine,
+          datasets: example.datasets,
           description: example.description,
           isMultiFile: example.isMultiFile,
-          link: example.link,
           name: example.name,
           path: example.path,
           pipelineOptions: example.pipelineOptions,
           sdk: example.sdk,
           tags: example.tags,
           type: example.type,
+          urlNotebook: example.urlNotebook,
+          urlVcs: example.urlVcs,
           viewOptions: example.viewOptions,
         );
+
+  Example.empty(Sdk sdk)
+      : this(
+          name: 'Untitled Example',
+          files: [SnippetFile.empty],
+          path: '',
+          sdk: sdk,
+          type: ExampleType.example,
+        );
+
+  Example copyWith({
+    ExampleViewOptions? viewOptions,
+  }) {
+    return Example(
+      alwaysRun: alwaysRun,
+      complexity: complexity,
+      contextLine: contextLine,
+      datasets: datasets,
+      description: description,
+      files: files,
+      graph: graph,
+      isMultiFile: isMultiFile,
+      logs: logs,
+      name: name,
+      outputs: outputs,
+      path: path,
+      pipelineOptions: pipelineOptions,
+      sdk: sdk,
+      tags: tags,
+      type: type,
+      urlNotebook: urlNotebook,
+      urlVcs: urlVcs,
+      viewOptions: viewOptions ?? this.viewOptions,
+    );
+  }
 }

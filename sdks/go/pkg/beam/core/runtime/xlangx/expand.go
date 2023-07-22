@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
@@ -28,11 +29,16 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/pipelinex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/xlangx/expansionx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/xlang"
 	"google.golang.org/grpc"
+	"gopkg.in/retry.v1"
 )
+
+// maxRetries is the maximum number of retries to attempt connecting to
+// an expansion service endpoint.
+const maxRetries = 5
 
 // Expand expands an unexpanded graph.ExternalTransform as a
 // graph.ExpandedTransform and assigns it to the ExternalTransform's Expanded
@@ -111,12 +117,30 @@ func expand(
 		ext.ExpansionAddr = config
 	}
 
+	// The external transforms that needs to specify the output coder
+	// in expansion request sends tagged output as xlang.SetOutputCoder.
+	outputCoderID := make(map[string]string)
+	newOutputMap := make(map[string]int)
+	for tag, id := range edge.External.OutputsMap {
+		if tag == xlang.SetOutputCoder {
+			newOutputMap[graph.UnnamedOutputTag] = id
+			outputCoderID[tag] = edge.Output[id].To.Coder.ID
+			// Since only one output coder request can be specified, we break here.
+			// This is because with graph.UnnamedOutputTag is used as a key in edge.External.OutputsMap.
+			break
+		}
+	}
+
+	if len(newOutputMap) > 0 {
+		edge.External.OutputsMap = newOutputMap
+	}
 	return h(ctx, &HandlerParams{
 		Config: config,
 		Req: &jobpb.ExpansionRequest{
-			Components: comps,
-			Transform:  transform,
-			Namespace:  ext.Namespace,
+			Components:          comps,
+			Transform:           transform,
+			Namespace:           ext.Namespace,
+			OutputCoderRequests: outputCoderID,
 		},
 		edge: edge,
 		ext:  ext,
@@ -145,16 +169,31 @@ func QueryExpansionService(ctx context.Context, p *HandlerParams) (*jobpb.Expans
 	client := jobpb.NewExpansionServiceClient(conn)
 
 	// Handling ExpansionResponse
-	res, err := client.Expand(ctx, req)
-	if err != nil {
-		err = errors.Wrapf(err, "expansion failed")
-		return nil, errors.WithContextf(err, "expanding transform with ExpansionRequest: %v", req)
+	strategy := retry.LimitCount(
+		maxRetries,
+		retry.Exponential{
+			Initial: time.Second,
+			Factor:  2,
+		},
+	)
+	var res *jobpb.ExpansionResponse
+	for attempt := retry.Start(strategy, nil); attempt.Next(); {
+		res, err = client.Expand(ctx, req)
+		if err == nil {
+			break
+		}
+
+		if attempt.Count() == maxRetries {
+			err = errors.Wrap(err, "expansion failed")
+			return nil, errors.WithContextf(err, "expanding transform with ExpansionRequest: %v", req)
+		}
 	}
 	if len(res.GetError()) != 0 { // ExpansionResponse includes an error.
 		err := errors.New(res.GetError())
-		err = errors.Wrapf(err, "expansion failed")
+		err = errors.Wrap(err, "expansion response error")
 		return nil, errors.WithContextf(err, "expanding transform with ExpansionRequest: %v", req)
 	}
+
 	return res, nil
 }
 
@@ -239,7 +278,6 @@ func startPythonExpansionService(service, extraPackage string) (stopFunc func() 
 	if err != nil {
 		return nil, "", err
 	}
-	log.Debugf(context.Background(), "path: %v", venvPython)
 
 	serviceRunner, err := expansionx.NewPyExpansionServiceRunner(venvPython, service, "")
 	if err != nil {

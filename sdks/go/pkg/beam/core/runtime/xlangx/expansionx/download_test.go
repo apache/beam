@@ -172,7 +172,7 @@ func TestJarExists_bad(t *testing.T) {
 }
 
 func getGeneratedNumberInFile(fileName, jarPrefix string) string {
-	tmpFileNameSplit := strings.Split(fileName, "/")
+	tmpFileNameSplit := strings.Split(fileName, string(filepath.Separator))
 	tmpFileName := tmpFileNameSplit[len(tmpFileNameSplit)-1]
 	numSuffix := strings.TrimPrefix(tmpFileName, jarPrefix)
 	return strings.TrimSuffix(numSuffix, ".jar")
