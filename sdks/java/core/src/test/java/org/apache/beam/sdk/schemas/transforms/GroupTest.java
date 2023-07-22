@@ -30,6 +30,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
@@ -50,6 +51,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sample;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.Top;
 import org.apache.beam.sdk.values.PCollection;
@@ -260,17 +262,30 @@ public class GroupTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testGlobalAggregation() {
+  public void testGlobalAggregationWithoutFanout() {
+    globalAggregationWithFanout(false);
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testGlobalAggregationWithFanout() {
+    globalAggregationWithFanout(true);
+  }
+
+  public void globalAggregationWithFanout(boolean withFanout) {
     Collection<Basic> elements =
         ImmutableList.of(
             Basic.of("key1", 1, "value1"),
             Basic.of("key1", 1, "value2"),
             Basic.of("key2", 2, "value3"),
             Basic.of("key2", 2, "value4"));
-    PCollection<Long> count =
-        pipeline
-            .apply(Create.of(elements))
-            .apply(Group.<Basic>globally().aggregate(Count.combineFn()));
+
+    Group.CombineGlobally<Basic, Long> transform =
+        Group.<Basic>globally().aggregate(Count.combineFn());
+    if (withFanout) {
+      transform = transform.withFanout(10);
+    }
+    PCollection<Long> count = pipeline.apply(Create.of(elements)).apply(transform);
     PAssert.that(count).containsInAnyOrder(4L);
 
     pipeline.run();
@@ -426,7 +441,17 @@ public class GroupTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testAggregateByMultipleFields() {
+  public void testAggregateByMultipleFieldsWithoutFanout() {
+    aggregateByMultipleFieldsWithFanout(false);
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testAggregateByMultipleFieldsWithFanout() {
+    aggregateByMultipleFieldsWithFanout(true);
+  }
+
+  public void aggregateByMultipleFieldsWithFanout(boolean withFanout) {
     Collection<Aggregate> elements =
         ImmutableList.of(
             Aggregate.of(1, 1, 2),
@@ -435,12 +460,14 @@ public class GroupTest implements Serializable {
             Aggregate.of(4, 2, 5));
 
     List<String> fieldNames = Lists.newArrayList("field1", "field2");
-    PCollection<Row> aggregate =
-        pipeline
-            .apply(Create.of(elements))
-            .apply(
-                Group.<Aggregate>globally()
-                    .aggregateFields(fieldNames, new MultipleFieldCombineFn(), "field1+field2"));
+
+    Group.CombineFieldsGlobally<Aggregate> transform =
+        Group.<Aggregate>globally()
+            .aggregateFields(fieldNames, new MultipleFieldCombineFn(), "field1+field2");
+    if (withFanout) {
+      transform = transform.withFanout(10);
+    }
+    PCollection<Row> aggregate = pipeline.apply(Create.of(elements)).apply(transform);
 
     Schema outputSchema = Schema.builder().addInt64Field("field1+field2").build();
     Row expectedRow = Row.withSchema(outputSchema).addValues(16L).build();
@@ -462,7 +489,25 @@ public class GroupTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testByKeyWithSchemaAggregateFnNestedFields() {
+  public void testByKeyWithSchemaAggregateFnNestedFieldsNoFanout() {
+    byKeyWithSchemaAggregateFnNestedFieldsWithFanout(null);
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testByKeyWithSchemaAggregateFnNestedFieldsWithNumberFanout() {
+    byKeyWithSchemaAggregateFnNestedFieldsWithFanout(Group.CombineFieldsByFields.Fanout.of(10));
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testByKeyWithSchemaAggregateFnNestedFieldsWithFunctionFanout() {
+    byKeyWithSchemaAggregateFnNestedFieldsWithFanout(
+        Group.CombineFieldsByFields.Fanout.of(SerializableFunctions.constant(10)));
+  }
+
+  public void byKeyWithSchemaAggregateFnNestedFieldsWithFanout(
+      @Nullable Group.CombineFieldsByFields.Fanout fanout) {
     Collection<OuterAggregate> elements =
         ImmutableList.of(
             OuterAggregate.of(Aggregate.of(1, 1, 2)),
@@ -470,14 +515,23 @@ public class GroupTest implements Serializable {
             OuterAggregate.of(Aggregate.of(3, 2, 4)),
             OuterAggregate.of(Aggregate.of(4, 2, 5)));
 
-    PCollection<Row> aggregations =
-        pipeline
-            .apply(Create.of(elements))
-            .apply(
-                Group.<OuterAggregate>byFieldNames("inner.field2")
-                    .aggregateField("inner.field1", Sum.ofLongs(), "field1_sum")
-                    .aggregateField("inner.field3", Sum.ofIntegers(), "field3_sum")
-                    .aggregateField("inner.field1", Top.largestLongsFn(1), "field1_top"));
+    Group.CombineFieldsByFields<OuterAggregate> transform =
+        Group.<OuterAggregate>byFieldNames("inner.field2")
+            .aggregateField("inner.field1", Sum.ofLongs(), "field1_sum")
+            .aggregateField("inner.field3", Sum.ofIntegers(), "field3_sum")
+            .aggregateField("inner.field1", Top.largestLongsFn(1), "field1_top");
+    if (fanout != null) {
+      switch (fanout.getKind()) {
+        case NUMBER:
+          transform = transform.withHotKeyFanout(fanout.getNumber());
+          break;
+        case FUNCTION:
+          transform = transform.withHotKeyFanout(fanout.getFunction());
+          break;
+      }
+    }
+
+    PCollection<Row> aggregations = pipeline.apply(Create.of(elements)).apply(transform);
 
     Schema keySchema = Schema.builder().addInt64Field("field2").build();
     Schema valueSchema =
