@@ -154,8 +154,7 @@ class DaskRunnerRunPipelineTest(unittest.TestCase):
           | beam.Map(double)
           | beam.WindowInto(window.FixedWindows(60))
           | beam.Map(add_timestamp)
-          | beam.GroupByKey()
-      )
+          | beam.GroupByKey())
       assert_that(pcoll, equal_to([(2, [1, 1]), (4, [2, 2]), (6, [3])]))
 
 

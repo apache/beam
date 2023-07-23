@@ -36,6 +36,7 @@ from apache_beam.runners.direct.direct_runner import BundleBasedDirectRunner
 from apache_beam.runners.runner import PipelineResult
 from apache_beam.runners.runner import PipelineState
 from apache_beam.utils.interactive_utils import is_in_notebook
+
 try:
   # Added to try to prevent threading related issues, see
   # https://github.com/pytest-dev/pytest/issues/3216#issuecomment-1502451456
