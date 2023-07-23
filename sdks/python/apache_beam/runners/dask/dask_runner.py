@@ -95,12 +95,12 @@ class DaskRunnerResult(PipelineResult):
     super().__init__(PipelineState.RUNNING)
 
   def wait_until_finish(self, duration=None) -> str:
+    from dask import distributed
     try:
       if duration is not None:
         # Convert milliseconds to seconds
         duration /= 1000
-      self.client.wait_for_workers(timeout=duration)
-      self.client.gather(self.futures, errors='raise')
+      distributed.wait(self.futures, timeout=duration)
       self._state = PipelineState.DONE
     except:  # pylint: disable=broad-except
       self._state = PipelineState.FAILED
