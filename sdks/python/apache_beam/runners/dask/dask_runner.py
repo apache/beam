@@ -36,6 +36,12 @@ from apache_beam.runners.direct.direct_runner import BundleBasedDirectRunner
 from apache_beam.runners.runner import PipelineResult
 from apache_beam.runners.runner import PipelineState
 from apache_beam.utils.interactive_utils import is_in_notebook
+try:
+  # Added to try to prevent threading related issues, see
+  # https://github.com/pytest-dev/pytest/issues/3216#issuecomment-1502451456
+  from dask import distributed
+except ImportError:
+  distributed = {}
 
 
 class DaskOptions(PipelineOptions):
@@ -86,8 +92,6 @@ class DaskOptions(PipelineOptions):
 
 @dataclasses.dataclass
 class DaskRunnerResult(PipelineResult):
-  from dask import distributed
-
   client: distributed.Client
   futures: t.Sequence[distributed.Future]
 
@@ -95,7 +99,6 @@ class DaskRunnerResult(PipelineResult):
     super().__init__(PipelineState.RUNNING)
 
   def wait_until_finish(self, duration=None) -> str:
-    from dask import distributed
     try:
       if duration is not None:
         # Convert milliseconds to seconds

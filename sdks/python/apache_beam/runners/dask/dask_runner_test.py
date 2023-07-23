@@ -14,9 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import datetime
 import inspect
 import unittest
-import datetime
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -143,9 +143,8 @@ class DaskRunnerRunPipelineTest(unittest.TestCase):
       return x * 2, x
 
     def add_timestamp(pair):
-      now = (
-          datetime.datetime.now() + datetime.timedelta(seconds=pair[1] * 60)
-      ).timestamp()
+      delta = datetime.timedelta(seconds=pair[1] * 60)
+      now = (datetime.datetime.now() + delta).timestamp()
       return window.TimestampedValue(pair, now)
 
     with self.pipeline as p:
