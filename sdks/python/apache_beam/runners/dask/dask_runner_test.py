@@ -16,12 +16,14 @@
 #
 import inspect
 import unittest
+import datetime
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.testing import test_pipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.transforms import window
 
 try:
   import dask
@@ -135,6 +137,27 @@ class DaskRunnerRunPipelineTest(unittest.TestCase):
     with self.pipeline as p:
       pcoll = p | beam.Create([1]) | beam.Map(mult_by, y=3)
       assert_that(pcoll, equal_to([3]))
+
+  def test_groupby_with_fixed_windows(self):
+    def double(x):
+      return x * 2, x
+
+    def add_timestamp(pair):
+      now = (
+          datetime.datetime.now() + datetime.timedelta(seconds=pair[1] * 60)
+      ).timestamp()
+      return window.TimestampedValue(pair, now)
+
+    with self.pipeline as p:
+      pcoll = (
+          p
+          | beam.Create([1, 2, 1, 2, 3])
+          | beam.Map(double)
+          | beam.WindowInto(window.FixedWindows(60))
+          | beam.Map(add_timestamp)
+          | beam.GroupByKey()
+      )
+      assert_that(pcoll, equal_to([(2, [1, 1]), (4, [2, 2]), (6, [3])]))
 
 
 if __name__ == '__main__':
