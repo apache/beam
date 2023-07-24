@@ -28,6 +28,7 @@ from typing import Sequence
 from typing import Union
 
 import pytest
+
 from apache_beam.ml.inference import utils
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.ml.inference.huggingface_inference import HuggingFacePipelineModelHandler

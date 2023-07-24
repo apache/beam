@@ -19,7 +19,6 @@
 
 import logging
 import sys
-
 from collections import defaultdict
 from typing import Any
 from typing import Callable
@@ -29,16 +28,16 @@ from typing import Optional
 from typing import Sequence
 from typing import Union
 
+import tensorflow as tf
+import torch
 from apache_beam.ml.inference import utils
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.ml.inference.pytorch_inference import _convert_to_device
-import tensorflow as tf
-import torch
 from transformers import AutoModel
 from transformers import Pipeline
-from transformers import pipeline
 from transformers import TFAutoModel
+from transformers import pipeline
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -541,9 +540,9 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
     **Note:** To specify which device to use (CPU/GPU),
     use the load_model_args with key-value as you would do in the usual
     Hugging Face pipeline.
-    eg: HuggingFacePipelineModelHandler(
-      task="fill-mask",
-      load_model_args={'device':0})
+    eg::
+      HuggingFacePipelineModelHandler(
+        task="fill-mask",load_model_args={'device':0})
 
     Example Usage model::
       pcoll | RunInference(HuggingFacePipelineModelHandler(
@@ -558,7 +557,7 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
         Default is _default_pipeline_inference_fn.
       load_model_args (Dict[str, Any]): keyword arguments to provide load
         options while loading models from Hugging Face Hub. Defaults to None.
-      inference_args [Dict[str, Any]]: Non-batchable arguments
+      inference_args (Dict[str, Any]): Non-batchable arguments
         required as inputs to the model's inference function.
         Defaults to None.
       min_batch_size: the minimum batch size to use when batching inputs.
