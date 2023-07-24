@@ -48,7 +48,6 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.DateTimeParseException;
-import java.time.temporal.ChronoUnit;
 import java.util.AbstractMap;
 import java.util.Collections;
 import java.util.List;
@@ -825,23 +824,23 @@ public class TableRowToStorageApiProto {
           try {
             // '2011-12-03T10:15:30Z', '2011-12-03 10:15:30+05:00'
             // '2011-12-03 10:15:30 UTC', '2011-12-03T10:15:30 America/New_York'
-            return ChronoUnit.MICROS.between(
-                Instant.EPOCH, Instant.from(TIMESTAMP_FORMATTER.parse((String) value)));
+            Instant timestamp = Instant.from(TIMESTAMP_FORMATTER.parse((String) value));
+            return toEpochMicros(timestamp);
           } catch (DateTimeException e) {
             try {
               // for backwards compatibility, default time zone is UTC for values with no time-zone
               // '2011-12-03T10:15:30'
-              return ChronoUnit.MICROS.between(
-                  Instant.EPOCH,
-                  Instant.from(TIMESTAMP_FORMATTER.withZone(ZoneOffset.UTC).parse((String) value)));
+              Instant timestamp =
+                  Instant.from(TIMESTAMP_FORMATTER.withZone(ZoneOffset.UTC).parse((String) value));
+              return toEpochMicros(timestamp);
             } catch (DateTimeParseException err) {
               // "12345667"
-              return ChronoUnit.MICROS.between(
-                  Instant.EPOCH, Instant.ofEpochMilli(Long.parseLong((String) value)));
+              Instant timestamp = Instant.ofEpochMilli(Long.parseLong((String) value));
+              return toEpochMicros(timestamp);
             }
           }
         } else if (value instanceof Instant) {
-          return ChronoUnit.MICROS.between(Instant.EPOCH, (Instant) value);
+          return toEpochMicros((Instant) value);
         } else if (value instanceof org.joda.time.Instant) {
           // joda instant precision is millisecond
           return ((org.joda.time.Instant) value).getMillis() * 1000L;
@@ -970,6 +969,11 @@ public class TableRowToStorageApiProto {
             + schemaInformation.getFullName()
             + ", type: "
             + schemaInformation.getType());
+  }
+
+  private static long toEpochMicros(Instant timestamp) {
+    // i.e 1970-01-01T00:01:01.000040Z: 61 * 1000_000L + 40000/1000 = 61000040
+    return timestamp.getEpochSecond() * 1000_000L + timestamp.getNano() / 1000;
   }
 
   @VisibleForTesting

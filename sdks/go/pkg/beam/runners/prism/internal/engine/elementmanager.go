@@ -706,8 +706,15 @@ func (ss *stageState) bundleReady(em *ElementManager) (mtime.Time, bool) {
 	}
 	ready := true
 	for _, side := range ss.sides {
-		pID := em.pcolParents[side]
-		parent := em.stages[pID]
+		pID, ok := em.pcolParents[side]
+		// These panics indicate pre-process/stage construction problems.
+		if !ok {
+			panic(fmt.Sprintf("stage[%v] no parent ID for side input %v", ss.ID, side))
+		}
+		parent, ok := em.stages[pID]
+		if !ok {
+			panic(fmt.Sprintf("stage[%v] no parent for side input %v, with parent ID %v", ss.ID, side, pID))
+		}
 		ow := parent.OutputWatermark()
 		if upstreamW > ow {
 			ready = false

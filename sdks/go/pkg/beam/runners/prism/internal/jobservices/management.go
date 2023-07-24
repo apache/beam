@@ -186,8 +186,19 @@ func (s *Server) GetMessageStream(req *jobpb.JobMessagesRequest, stream jobpb.Jo
 	for {
 		for (curMsg >= job.maxMsg || len(job.msgs) == 0) && curState > job.stateIdx {
 			switch state {
-			case jobpb.JobState_CANCELLED, jobpb.JobState_DONE, jobpb.JobState_DRAINED, jobpb.JobState_FAILED, jobpb.JobState_UPDATED:
+			case jobpb.JobState_CANCELLED, jobpb.JobState_DONE, jobpb.JobState_DRAINED, jobpb.JobState_UPDATED:
 				// Reached terminal state.
+				return nil
+			case jobpb.JobState_FAILED:
+				// Ensure we send an error message with the cause of the job failure.
+				stream.Send(&jobpb.JobMessagesResponse{
+					Response: &jobpb.JobMessagesResponse_MessageResponse{
+						MessageResponse: &jobpb.JobMessage{
+							MessageText: job.failureErr.Error(),
+							Importance:  jobpb.JobMessage_JOB_MESSAGE_ERROR,
+						},
+					},
+				})
 				return nil
 			}
 			job.streamCond.Wait()

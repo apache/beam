@@ -147,7 +147,7 @@ jobs:
             fi
           done
 
-          cat /tmp/result | sort | uniq | grep -i -E 'precommit|postcommit|validates|vr|example|test|gradle build' | grep -v -i -E 'load|perf|website' >> release/src/main/scripts/jenkins_jobs.txt
+          cat /tmp/result | sort | uniq | grep -i -E 'precommit|postcommit|validates|vr|example|test' | grep -v -i -E 'load|perf|website' >> release/src/main/scripts/jenkins_jobs.txt
         env:
           JENKINS_USERNAME: ${{ github.event.inputs.JENKINS_USERNAME }}
           JENKINS_TOKEN: ${{ github.event.inputs.JENKINS_TOKEN }}
@@ -175,6 +175,7 @@ jobs:
       REMOTE_NAME: remote_repo
       REMOTE_URL: ${{ github.server_url }}/${{ github.repository }}
       BRANCH_NAME: snapshot_build-${{ github.event.inputs.RELEASE_VERSION }}
+      RELEASE_BRANCH: release-${{ github.event.inputs.RELEASE_VERSION }}
     steps:
       - name: Install Hub
         run: |
@@ -192,7 +193,7 @@ jobs:
         run: |
           git remote add ${REMOTE_NAME} ${REMOTE_URL}
           git checkout -b ${BRANCH_NAME}
-          touch empty_file.txt
+          touch empty_file.json
           git add -A
           git commit -m "Add empty file in order to create PR"
           git push -f ${REMOTE_NAME}
@@ -200,7 +201,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          hub pull-request -F- <<<"[DO NOT MERGE]Start snapshot build for release process 
+          hub pull-request -b apache:${RELEASE_BRANCH} -F- <<<"[DO NOT MERGE]Start snapshot build for release process
           
           
           Run Gradle Publish"
