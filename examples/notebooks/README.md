@@ -68,7 +68,7 @@ community.
 
     Finally, your editor will open again. All the commit messages will be visible, delete and reword as necessary to leave only one uncommented commit message. After closing your editor all your commits should be squashed :)
 
-## Notebook Example Guidelines 
+## Notebook Example Guidelines
 
 1. Use [InteractiveRunner](https://cloud.google.com/dataflow/docs/guides/interactive-pipeline-development) and [DirectRunner](https://beam.apache.org/documentation/runners/direct/) as much as possible, to maintain Beam's vision of being runner-agnostic.
 2. If you must use another runner or external technologies, document all commands and instructions needed for authentication, etc.
