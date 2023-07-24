@@ -23,12 +23,14 @@ import importlib
 import logging
 from typing import TYPE_CHECKING
 from typing import Optional
+from typing import Iterable
 
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import TypeOptions
+from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.common import group_by_key_input_visitor
 from apache_beam.transforms import environments
@@ -208,6 +210,35 @@ class PipelineRunner(object):
     """Whether to enable the beam_fn_api experiment by default."""
     return True
 
+  def check_requirements(
+      self,
+      pipeline_proto: beam_runner_api_pb2.Pipeline,
+      supported_requirements: Iterable[str]):
+    # type: (beam_runner_api_pb2.Pipeline) -> None
+
+    """Check that this runner can satisfy all pipeline requirements."""
+
+    # Imported here to avoid circular dependencies.
+    # pylint: disable=wrong-import-order, wrong-import-position
+    from apache_beam.runners.portability.fn_api_runner import translations
+    supported_requirements = set(supported_requirements)
+    for requirement in pipeline_proto.requirements:
+      if requirement not in supported_requirements:
+        raise ValueError(
+            'Unable to run pipeline with requirement: %s' % requirement)
+    for transform in pipeline_proto.components.transforms.values():
+      if transform.spec.urn == common_urns.primitives.TEST_STREAM.urn:
+        if common_urns.primitives.TEST_STREAM.urn not in supported_requirements:
+          raise NotImplementedError(transform.spec.urn)
+      elif transform.spec.urn in translations.PAR_DO_URNS:
+        payload = beam_runner_api_pb2.ParDoPayload.FromString(
+            transform.spec.payload)
+        for timer in payload.timer_family_specs.values():
+          if timer.time_domain not in (
+              beam_runner_api_pb2.TimeDomain.EVENT_TIME,
+              beam_runner_api_pb2.TimeDomain.PROCESSING_TIME):
+            raise NotImplementedError(timer.time_domain)
+
 
 # FIXME: replace with PipelineState(str, enum.Enum)
 class PipelineState(object):
@@ -269,7 +300,8 @@ class PipelineResult(object):
     Returns:
       The final state of the pipeline, or :data:`None` on timeout.
     """
-    raise NotImplementedError
+    if not PipelineState.is_terminal(self._state):
+      raise NotImplementedError
 
   def cancel(self):
     """Cancels the pipeline execution.

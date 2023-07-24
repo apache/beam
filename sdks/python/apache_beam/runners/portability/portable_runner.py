@@ -327,40 +327,13 @@ class PortableRunner(runner.PipelineRunner):
         ]
         partial = True
       elif pre_optimize == 'all':
-        phases = [
-            translations.annotate_downstream_side_inputs,
-            translations.annotate_stateful_dofns_as_roots,
-            translations.fix_side_input_pcoll_coders,
-            translations.pack_combiners,
-            translations.lift_combiners,
-            translations.expand_sdf,
-            translations.fix_flatten_coders,
-            # translations.sink_flattens,
-            translations.greedily_fuse,
-            translations.read_to_impulse,
-            translations.extract_impulse_stages,
-            translations.remove_data_plane_ops,
-            translations.sort_stages
-        ]
+        phases = translations.standard_optimize_phases()
         partial = False
       elif pre_optimize == 'all_except_fusion':
         # TODO(https://github.com/apache/beam/issues/19422): Delete this branch
         # after PortableRunner supports beam:runner:executable_stage:v1.
-        phases = [
-            translations.annotate_downstream_side_inputs,
-            translations.annotate_stateful_dofns_as_roots,
-            translations.fix_side_input_pcoll_coders,
-            translations.pack_combiners,
-            translations.lift_combiners,
-            translations.expand_sdf,
-            translations.fix_flatten_coders,
-            # translations.sink_flattens,
-            # translations.greedily_fuse,
-            translations.read_to_impulse,
-            translations.extract_impulse_stages,
-            translations.remove_data_plane_ops,
-            translations.sort_stages
-        ]
+        phases = translations.standard_optimize_phases()
+        phases.remove(translations.greedily_fuse)
         partial = True
       else:
         phases = []

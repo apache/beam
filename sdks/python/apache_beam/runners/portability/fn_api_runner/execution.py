@@ -57,6 +57,7 @@ from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners import pipeline_context
+from apache_beam.runners.common import ENCODED_IMPULSE_VALUE
 from apache_beam.runners.direct.clock import RealClock
 from apache_beam.runners.direct.clock import TestClock
 from apache_beam.runners.portability.fn_api_runner import translations
@@ -89,12 +90,6 @@ if TYPE_CHECKING:
   from apache_beam.transforms.window import BoundedWindow
 
 _LOGGER = logging.getLogger(__name__)
-
-IMPULSE_VALUE_CODER_IMPL = WindowedValueCoder(
-    BytesCoder(), GlobalWindowCoder()).get_impl()
-
-ENCODED_IMPULSE_VALUE = IMPULSE_VALUE_CODER_IMPL.encode_nested(
-    GlobalWindows.windowed_value(b''))
 
 SAFE_WINDOW_FNS = set(
     window.WindowFn._known_urns.keys()) - {python_urns.PICKLED_WINDOWFN}
