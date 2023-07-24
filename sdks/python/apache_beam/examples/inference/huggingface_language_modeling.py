@@ -138,6 +138,7 @@ def run(
   model_handler = HuggingFaceModelHandlerKeyedTensor(
       model_uri=known_args.model_name,
       model_class=known_args.model_class,
+      framework='pt',
       max_batch_size=1)
   if not known_args.input:
     text = (
