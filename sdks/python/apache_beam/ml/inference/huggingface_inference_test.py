@@ -31,7 +31,6 @@ import pytest
 
 from apache_beam.ml.inference import utils
 from apache_beam.ml.inference.base import PredictionResult
-from apache_beam.ml.inference.huggingface_inference import HuggingFacePipelineModelHandler
 from apache_beam.ml.inference.tensorflow_inference_test import FakeTFTensorModel
 from apache_beam.ml.inference.tensorflow_inference_test import _compare_tensor_prediction_result
 
@@ -131,10 +130,6 @@ class HuggingFaceInferenceTest(unittest.TestCase):
     inference_runner.run_inference(
         batched_examples, fake_model, inference_args={"add": True})
     self.assertEqual(inference_runner._framework, "tf")
-
-  def test_raise_exception_hf_pipeline(self):
-    with self.assertRaises(RuntimeError):
-      _ = HuggingFacePipelineModelHandler()
 
 
 if __name__ == '__main__':

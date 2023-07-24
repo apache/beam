@@ -514,7 +514,8 @@ def _convert_to_result(
   ]
 
 
-def _default_pipeline_inference_fn(batch, model, inference_args):
+def _default_pipeline_inference_fn(
+    batch, model, inference_args) -> Iterable[PredictionResult]:
   predicitons = model(batch, **inference_args)
   return predicitons
 
@@ -535,14 +536,12 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
       max_batch_size: Optional[int] = None,
       large_model: bool = False,
       **kwargs):
-    """Implementation of the ModelHandler interface for Hugging Face Pipelines.
+    """
+    Implementation of the ModelHandler interface for Hugging Face Pipelines.
 
     **Note:** To specify which device to use (CPU/GPU),
     use the load_model_args with key-value as you would do in the usual
-    Hugging Face pipeline.
-    eg::
-      HuggingFacePipelineModelHandler(
-        task="fill-mask",load_model_args={'device':0})
+    Hugging Face pipeline. Ex: load_model_args={'device':0})
 
     Example Usage model::
       pcoll | RunInference(HuggingFacePipelineModelHandler(
@@ -614,7 +613,7 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
     return _convert_to_result(batch, predictions)
 
   def update_model_path(self, model_path: Optional[str] = None):
-    self._model_uri = model_path if model_path else self._model_uri
+    self._model = model_path if model_path else self._model
 
   def get_num_bytes(self, batch: Sequence[str]) -> int:
     return sum(sys.getsizeof(element) for element in batch)
