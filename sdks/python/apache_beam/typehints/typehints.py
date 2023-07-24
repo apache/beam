@@ -358,7 +358,7 @@ def is_typing_generic(type_param):
   Always returns false for Python versions below 3.7.
   """
   if hasattr(typing, '_GenericAlias'):
-    return isinstance(type_param, typing._GenericAlias)
+    return isinstance(type_param, (typing._GenericAlias, types.GenericAlias))
   return False
 
 
