@@ -97,9 +97,6 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: 3.11
-      - name: Upgrade Python setuptools
-        shell: bash
-        run: pip install --upgrade pip setuptools wheel
       - name: Install Java
         uses: actions/setup-java@v3.8.0
         with:
