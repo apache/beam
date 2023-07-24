@@ -89,6 +89,8 @@ jobs:
         with:
           distribution: 'zulu'
           java-version: '8'
+          cache: 'gradle'
+          check-latest: true
       - name: run sparkVersionsTest script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
