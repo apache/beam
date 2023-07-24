@@ -355,10 +355,13 @@ def is_typing_generic(type_param):
 
   Such objects are considered valid type parameters.
 
-  Always returns false for Python versions below 3.7.
+  Always returns false for Python versions below 3.7. For versions 3.9 and
+  above, also permits types.GenericAlias.
   """
-  if hasattr(typing, '_GenericAlias'):
+  if hasattr(typing, '_GenericAlias') and hasattr(types, "GenericAlias"):
     return isinstance(type_param, (typing._GenericAlias, types.GenericAlias))
+  elif hasattr(typing, '_GenericAlias'):
+    return isinstance(type_param, typing._GenericAlias)
   return False
 
 
