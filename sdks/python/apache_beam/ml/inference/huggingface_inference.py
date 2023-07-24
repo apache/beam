@@ -33,7 +33,6 @@ import torch
 from apache_beam.ml.inference import utils
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import PredictionResult
-from apache_beam.ml.inference.base import PredictionT
 from apache_beam.ml.inference.pytorch_inference import _convert_to_device
 from transformers import AutoModel
 from transformers import TFAutoModel
@@ -166,7 +165,7 @@ class HuggingFaceModelHandlerKeyedTensor(ModelHandler[Dict[str,
       framework: str,
       device: str = "CPU",
       *,
-      inference_fn: Optional[Callable[..., Iterable[PredictionT]]] = None,
+      inference_fn: Optional[Callable[..., Iterable[PredictionResult]]] = None,
       load_model_args: Optional[Dict[str, Any]] = None,
       inference_args: Optional[Dict[str, Any]] = None,
       min_batch_size: Optional[int] = None,
@@ -345,7 +344,7 @@ class HuggingFaceModelHandlerTensor(ModelHandler[Union[tf.Tensor, torch.Tensor],
       model_class: Union[AutoModel, TFAutoModel],
       device: str = "CPU",
       *,
-      inference_fn: Optional[Callable[..., Iterable[PredictionT]]] = None,
+      inference_fn: Optional[Callable[..., Iterable[PredictionResult]]] = None,
       load_model_args: Optional[Dict[str, Any]] = None,
       inference_args: Optional[Dict[str, Any]] = None,
       min_batch_size: Optional[int] = None,
