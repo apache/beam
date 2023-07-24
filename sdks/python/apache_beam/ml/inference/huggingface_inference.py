@@ -525,11 +525,10 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
                                                    Pipeline]):
   def __init__(
       self,
-      task: str = None,
+      task: str = "",
       model=None,
       *,
-      inference_fn: Optional[
-          PipelineInferenceFn] = _default_pipeline_inference_fn,
+      inference_fn: PipelineInferenceFn = _default_pipeline_inference_fn,
       load_model_args: Optional[Dict[str, Any]] = None,
       inference_args: Optional[Dict[str, Any]] = None,
       min_batch_size: Optional[int] = None,
