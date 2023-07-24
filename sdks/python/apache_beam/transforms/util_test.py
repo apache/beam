@@ -1046,9 +1046,18 @@ class GroupIntoBatchesTest(unittest.TestCase):
     options = PipelineOptions()
     options.view_as(TypeOptions).runtime_type_check = True
     with TestPipeline(options=options) as pipeline:
-      pipeline \
+      collection = pipeline \
         | beam.Create(GroupIntoBatchesTest._create_test_data()) \
         | util.GroupIntoBatches(GroupIntoBatchesTest.BATCH_SIZE)
+      num_batches = collection | beam.combiners.Count.Globally()
+      assert_that(
+          num_batches,
+          equal_to([
+              int(
+                  math.ceil(
+                      GroupIntoBatchesTest.NUM_ELEMENTS /
+                      GroupIntoBatchesTest.BATCH_SIZE))
+          ]))
 
   def _test_runner_api_round_trip(self, transform, urn):
     context = pipeline_context.PipelineContext()
