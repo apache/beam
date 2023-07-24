@@ -740,12 +740,22 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
 
 
 class _ModelManager:
-  """A class for efficiently managing copies of multiple models. TODO - add more detail"""
-  def __init__(self, mh_map: Dict[str, ModelHandler], max_models: Optional[int]=None):
+  """
+  A class for efficiently managing copies of multiple models. Will load a
+  single copy of each model into a multi_process_shared object and then
+  return a lookup key for that object. Optionally takes in a max_models
+  parameter, if that is set it will only hold that many models in memory at
+  once before evicting one (using LRU logic).
+  """
+  def __init__(
+      self, mh_map: Dict[str, ModelHandler], max_models: Optional[int] = None):
     """
     Args:
-      mh_map: A map from keys to model handlers which can be used to load a model.
-      max_models: The maximum number of models to load at any given time before evicting 1 from memory (using LRU logic). Leave as None to allow unlimited models.
+      mh_map: A map from keys to model handlers which can be used to load a
+        model.
+      max_models: The maximum number of models to load at any given time
+        before evicting 1 from memory (using LRU logic). Leave as None to
+        allow unlimited models.
     """
     self._max_models = max_models
     self._mh_map = mh_map
@@ -758,7 +768,7 @@ class _ModelManager:
     Args:
       key: the key associated with the model we'd like to load.
     Returns:
-      the tag we can use to load the model with a multi_process_shared.py handle.
+      the tag we can use to load the model using multi_process_shared.py
     """
     if key not in self._tag_map:
       self._tag_map[key] = uuid.uuid4().hex
@@ -770,46 +780,54 @@ class _ModelManager:
     Args:
       key: the key associated with the model we'd like to load.
     Returns:
-      the tag we can use to access the model with a multi_process_shared.py handle.
+      the tag we can use to access the model using multi_process_shared.py.
     """
     tag = self._get_tag(key)
     if key in self._loaded_keys:
       if self._max_models is not None:
         # move key to the back of the list
-        self._loaded_keys.append(self._loaded_keys.pop(self._loaded_keys.index(key)))
+        self._loaded_keys.append(
+            self._loaded_keys.pop(self._loaded_keys.index(key)))
       return tag
-    
+
     mh = self._mh_map[key]
-    if self._max_models is not None and self._max_models <= len(self._loaded_keys):
-      # If we're about to exceed our LRU size, remove the front model from the list from memory.
+    if self._max_models is not None and self._max_models <= len(
+        self._loaded_keys):
+      # If we're about to exceed our LRU size,
+      # remove the front model from the list from memory.
       key_to_remove = self._loaded_keys[0]
       tag_to_remove = self._get_tag(key_to_remove)
       shared_handle, model_to_remove = self._proxy_map[tag_to_remove]
       shared_handle.release(model_to_remove)
       del self._tag_map[key]
-    
+
     # Load the new model
-    shared_handle = multi_process_shared.MultiProcessShared(mh.load_model, tag=tag)
+    shared_handle = multi_process_shared.MultiProcessShared(
+        mh.load_model, tag=tag)
     model_reference = shared_handle.acquire()
     self._proxy_map[tag] = (shared_handle, model_reference)
     self._loaded_keys.append(key)
 
     return tag
-  
+
   def increment_max_models(self, increment: int):
     """
-    Increments the number of models that this instance of a _ModelManager is able to hold.
+    Increments the number of models that this instance of a _ModelManager is
+    able to hold.
     Args:
       increment: the amount by which we are incrementing the number of models.
     """
     if self._max_models is None:
-      raise ValueError("Cannot increment max_models if self._max_models is None (unlimited models mode).")
+      raise ValueError(
+          "Cannot increment max_models if self._max_models is None (unlimited" +
+          " models mode).")
     self._max_models += increment
-      
 
 
 class _MetricsCollector:
-  """A metrics collector that tracks ML related performance and memory usage."""
+  """
+  A metrics collector that tracks ML related performance and memory usage.
+  """
   def __init__(self, namespace: str, prefix: str = ''):
     """
     Args:

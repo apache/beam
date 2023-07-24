@@ -47,7 +47,8 @@ from apache_beam.utils import multi_process_shared
 class FakeModel:
   def predict(self, example: int) -> int:
     return example + 1
-  
+
+
 class FakeStatefulModel:
   def __init__(self, state: int):
     if state == 100:
@@ -56,7 +57,7 @@ class FakeStatefulModel:
 
   def predict(self, example: int) -> int:
     return self._state
-  
+
   def increment_state(self, amount: int):
     self._state += amount
 
@@ -983,21 +984,25 @@ class RunInferenceBaseTest(unittest.TestCase):
 
   def test_model_manager_loads_shared_model(self):
     mhs = {
-      'key1': FakeModelHandler(state=1),
-      'key2': FakeModelHandler(state=2),
-      'key3': FakeModelHandler(state=3)
+        'key1': FakeModelHandler(state=1),
+        'key2': FakeModelHandler(state=2),
+        'key3': FakeModelHandler(state=3)
     }
     mm = base._ModelManager(mh_map=mhs)
     tag1 = mm.load('key1')
-    # Use bad_mh's load function to make sure we're actually loading the version already stored
+    # Use bad_mh's load function to make sure we're actually loading the
+    # version already stored
     bad_mh = FakeModelHandler(state=100)
-    model1 = multi_process_shared.MultiProcessShared(bad_mh.load_model, tag=tag1).acquire()
+    model1 = multi_process_shared.MultiProcessShared(
+        bad_mh.load_model, tag=tag1).acquire()
     self.assertEqual(1, model1.predict(10))
 
     tag2 = mm.load('key2')
     tag3 = mm.load('key3')
-    model2 = multi_process_shared.MultiProcessShared(bad_mh.load_model, tag=tag2).acquire()
-    model3 = multi_process_shared.MultiProcessShared(bad_mh.load_model, tag=tag3).acquire()
+    model2 = multi_process_shared.MultiProcessShared(
+        bad_mh.load_model, tag=tag2).acquire()
+    model3 = multi_process_shared.MultiProcessShared(
+        bad_mh.load_model, tag=tag3).acquire()
     self.assertEqual(2, model2.predict(10))
     self.assertEqual(3, model3.predict(10))
 
@@ -1005,11 +1010,7 @@ class RunInferenceBaseTest(unittest.TestCase):
     mh1 = FakeModelHandler(state=1)
     mh2 = FakeModelHandler(state=2)
     mh3 = FakeModelHandler(state=3)
-    mhs = {
-      'key1': mh1,
-      'key2': mh2,
-      'key3': mh3
-    }
+    mhs = {'key1': mh1, 'key2': mh2, 'key3': mh3}
     mm = base._ModelManager(mh_map=mhs, max_models=2)
     tag1 = mm.load('key1')
     sh1 = multi_process_shared.MultiProcessShared(mh1.load_model, tag=tag1)
@@ -1033,24 +1034,24 @@ class RunInferenceBaseTest(unittest.TestCase):
     sh3.release(model3)
 
     # This should get recreated, so it shouldn't have the state updates
-    model1 = multi_process_shared.MultiProcessShared(mh1.load_model, tag=tag1).acquire()
+    model1 = multi_process_shared.MultiProcessShared(
+        mh1.load_model, tag=tag1).acquire()
     self.assertEqual(1, model1.predict(10))
 
     # These should not get recreated, so they should have the state updates
-    model2 = multi_process_shared.MultiProcessShared(mh2.load_model, tag=tag2).acquire()
+    model2 = multi_process_shared.MultiProcessShared(
+        mh2.load_model, tag=tag2).acquire()
     self.assertEqual(7, model2.predict(10))
-    model3 = multi_process_shared.MultiProcessShared(mh3.load_model, tag=tag3).acquire()
+    model3 = multi_process_shared.MultiProcessShared(
+        mh3.load_model, tag=tag3).acquire()
     self.assertEqual(8, model3.predict(10))
 
-  def test_model_manager_evicts_correct_amount_of_models_after_being_incremented(self):
+  def test_model_manager_evicts_correct_num_of_models_after_being_incremented(
+      self):
     mh1 = FakeModelHandler(state=1)
     mh2 = FakeModelHandler(state=2)
     mh3 = FakeModelHandler(state=3)
-    mhs = {
-      'key1': mh1,
-      'key2': mh2,
-      'key3': mh3
-    }
+    mhs = {'key1': mh1, 'key2': mh2, 'key3': mh3}
     mm = base._ModelManager(mh_map=mhs, max_models=1)
     mm.increment_max_models(1)
     tag1 = mm.load('key1')
@@ -1075,13 +1076,16 @@ class RunInferenceBaseTest(unittest.TestCase):
     sh3.release(model3)
 
     # This should get recreated, so it shouldn't have the state updates
-    model1 = multi_process_shared.MultiProcessShared(mh1.load_model, tag=tag1).acquire()
+    model1 = multi_process_shared.MultiProcessShared(
+        mh1.load_model, tag=tag1).acquire()
     self.assertEqual(1, model1.predict(10))
 
     # These should not get recreated, so they should have the state updates
-    model2 = multi_process_shared.MultiProcessShared(mh2.load_model, tag=tag2).acquire()
+    model2 = multi_process_shared.MultiProcessShared(
+        mh2.load_model, tag=tag2).acquire()
     self.assertEqual(7, model2.predict(10))
-    model3 = multi_process_shared.MultiProcessShared(mh3.load_model, tag=tag3).acquire()
+    model3 = multi_process_shared.MultiProcessShared(
+        mh3.load_model, tag=tag3).acquire()
     self.assertEqual(8, model3.predict(10))
 
   def test_model_manager_fails_if_no_default_initially(self):
