@@ -95,13 +95,15 @@ class CriteoTest(unittest.TestCase):
 
     extra_opts = {}
 
+    # beam pipeline options
     extra_opts['input'] = os.path.join(
         _INPUT_GCS_BUCKET_ROOT, constants.INPUT_CRITEO_SMALL)
+    extra_opts['artifact_location'] = os.path.join(
+        _OUTPUT_GCS_BUCKET_ROOT, 'tft_artifacts', uuid.uuid4().hex)
 
-    # beam pipeline options
     extra_opts['frequency_threshold'] = 0
-    extra_opts['output'] = os.path.join(
-        _OUTPUT_GCS_BUCKET_ROOT, uuid.uuid4().hex)
+    # extra_opts['output'] = os.path.join(
+    #     _OUTPUT_GCS_BUCKET_ROOT, uuid.uuid4().hex)
 
     # dataflow pipeliens options
     extra_opts['num_workers'] = 30
