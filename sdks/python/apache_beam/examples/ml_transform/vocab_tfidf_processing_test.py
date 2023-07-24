@@ -60,11 +60,11 @@ class LargeMovieReviewDatasetProcessTest(unittest.TestCase):
     artifact_location = os.path.join(
         'gs://temp-storage-for-end-to-end-tests/tft/artifacts',
         uuid.uuid4().hex)
-    output_data_dir = os.path.join(
+    output_dir = os.path.join(
         'gs://temp-storage-for-end-to-end-tests/tft/output', uuid.uuid4().hex)
     extra_opts = {
         'input_data_dir': input_data_dir,
-        'output_data_dir': output_data_dir,
+        'output_dir': output_dir,
         'artifact_location': artifact_location,
     }
 
