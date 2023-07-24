@@ -500,11 +500,11 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
     Hugging Face pipeline.
     eg: HuggingFacePipelineModelHandler(
       task="fill-mask",
-      device=0)
+      load_model_args={'device':0})
 
     Example Usage model::
-    pcoll | RunInference(HuggingFacePipelineModelHandler(
-      task="fill-mask"))
+      pcoll | RunInference(HuggingFacePipelineModelHandler(
+        task="fill-mask"))
 
     Args:
       task (str): task supported by HuggingFace Pipelines.
