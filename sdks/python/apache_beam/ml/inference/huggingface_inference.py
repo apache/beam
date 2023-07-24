@@ -67,6 +67,10 @@ KeyedTensorInferenceFn = Callable[[
 ],
                                   Iterable[PredictionResult]]
 
+PipelineInferenceFn = Callable[
+    [Sequence[str], Pipeline, Optional[Dict[str, Any]]],
+    Iterable[PredictionResult]]
+
 
 def _validate_constructor_args(model_uri, model_class):
   message = (
@@ -468,6 +472,11 @@ def _convert_to_result(
   ]
 
 
+def _default_pipeline_inference_fn(batch, model, inference_args):
+  predicitons = model(batch, **inference_args)
+  return predicitons
+
+
 class HuggingFacePipelineModelHandler(ModelHandler[str,
                                                    PredictionResult,
                                                    Pipeline]):
@@ -476,6 +485,8 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
       task: str = None,
       model=None,
       *,
+      inference_fn: Optional[
+          PipelineInferenceFn] = _default_pipeline_inference_fn,
       load_model_args: Optional[Dict[str, Any]] = None,
       inference_args: Optional[Dict[str, Any]] = None,
       min_batch_size: Optional[int] = None,
@@ -500,6 +511,8 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
       model : path to pretrained model on Hugging Face Models Hub to use custom
         model for the chosen task. If the model already defines the task then
         no need to specify the task parameter.
+      inference_fn: the inference function to use during RunInference.
+        Default is _default_pipeline_inference_fn.
       load_model_args (Dict[str, Any]): keyword arguments to provide load
         options while loading models from Hugging Face Hub. Defaults to None.
       inference_args [Dict[str, Any]]: Non-batchable arguments
@@ -519,6 +532,7 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
     """
     self._task = task
     self._model = model
+    self._inference_fn = inference_fn
     self._load_model_args = load_model_args if load_model_args else {}
     self._inference_args = inference_args if inference_args else {}
     self._batching_kwargs = {}
@@ -554,7 +568,7 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
       An Iterable of type PredictionResult.
     """
     inference_args = {} if not inference_args else inference_args
-    predictions = model(batch, **inference_args)
+    predictions = self._inference_fn(batch, model, inference_args)
     return _convert_to_result(batch, predictions)
 
   def get_num_bytes(self, batch: Sequence[str]) -> int:
