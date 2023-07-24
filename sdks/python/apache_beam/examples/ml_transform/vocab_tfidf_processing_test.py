@@ -57,7 +57,7 @@ def _publish_metrics(pipeline, metric_value, metrics_table, metric_name):
 class LargeMovieReviewDatasetProcessTest(unittest.TestCase):
   def test_process_large_movie_review_dataset(self):
     input_data_dir = 'gs://apache-beam-ml/datasets/aclImdb'
-    artifacts_location = os.path.join(
+    artifact_location = os.path.join(
         'gs://temp-storage-for-end-to-end-tests/tft/artifacts',
         uuid.uuid4().hex)
     output_data_dir = os.path.join(
@@ -65,7 +65,7 @@ class LargeMovieReviewDatasetProcessTest(unittest.TestCase):
     extra_opts = {
         'input_data_dir': input_data_dir,
         'output_data_dir': output_data_dir,
-        'artifacts_location': artifacts_location,
+        'artifact_location': artifact_location,
     }
 
     test_pipeline = TestPipeline(is_integration_test=True)
