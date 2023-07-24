@@ -2665,6 +2665,15 @@ class CombineGlobally(PTransform):
             "or CombineGlobally().as_singleton_view() to get the default "
             "output of the CombineFn if the input PCollection is empty.")
 
+      # log the error for this ill-defined streaming case now
+      if not pcoll.is_bounded and not pcoll.windowing.is_default():
+        _LOGGER.error(
+            "When combining elements in unbounded collections with "
+            "the non-default windowing strategy, you must explicitly "
+            "specify how to define the combined result of an empty window. "
+            "Please use CombineGlobally().without_defaults() to output "
+            "an empty PCollection if the input PCollection is empty.")
+
       def typed(transform):
         # TODO(robertwb): We should infer this.
         if combined.element_type:
@@ -2676,6 +2685,11 @@ class CombineGlobally(PTransform):
 
       def inject_default(_, combined):
         if combined:
+          if len(combined) > 1:
+            _LOGGER.error(
+                "Multiple combined values unexpectedly provided"
+                " for a global combine: %s",
+                combined)
           assert len(combined) == 1
           return combined[0]
         else:
@@ -3781,7 +3795,8 @@ def _strip_output_annotations(type_hint):
   contains_annotation = False
 
   def visitor(t, unused_args):
-    if t in annotations:
+    if t in annotations or (hasattr(t, '__name__') and
+                            t.__name__ == TimestampedValue.__name__):
       raise StopIteration
 
   try:

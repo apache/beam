@@ -23,6 +23,10 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 )
 
+func TestMain(m *testing.M) {
+	ptest.Main(m)
+}
+
 func TestHead(t *testing.T) {
 	p, s, sequence := ptest.CreateList([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})
 	headSequence := Head(s, sequence, 5)

@@ -19,19 +19,13 @@
 
 # pytype: skip-file
 
-import json
 import unittest
-from datetime import datetime
-from itertools import product
 
 import mock
-from parameterized import param
-from parameterized import parameterized
 
 import apache_beam as beam
 import apache_beam.transforms as ptransform
 from apache_beam.options.pipeline_options import DebugOptions
-from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.pipeline import AppliedPTransform
 from apache_beam.pipeline import Pipeline
@@ -45,18 +39,13 @@ from apache_beam.runners import common
 from apache_beam.runners import create_runner
 from apache_beam.runners.dataflow.dataflow_runner import DataflowPipelineResult
 from apache_beam.runners.dataflow.dataflow_runner import DataflowRuntimeException
-from apache_beam.runners.dataflow.dataflow_runner import PropertyNames
-from apache_beam.runners.dataflow.dataflow_runner import _is_runner_v2
-from apache_beam.runners.dataflow.dataflow_runner import _is_runner_v2_disabled
+from apache_beam.runners.dataflow.dataflow_runner import _check_and_add_missing_options
 from apache_beam.runners.dataflow.internal.clients import dataflow as dataflow_api
 from apache_beam.runners.runner import PipelineState
 from apache_beam.testing.extra_assertions import ExtraAssertionsMixin
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.transforms import combiners
 from apache_beam.transforms import environments
-from apache_beam.transforms import window
-from apache_beam.transforms.core import Windowing
-from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.typehints import typehints
 
 # Protect against environments where apitools library is not available.
@@ -262,49 +251,6 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
           | 'Do' >> ptransform.FlatMap(lambda x: [(x, x)])
           | ptransform.GroupByKey())
 
-  def test_remote_runner_display_data(self):
-    remote_runner = DataflowRunner()
-    p = Pipeline(
-        remote_runner, options=PipelineOptions(self.default_properties))
-
-    now = datetime.now()
-    # pylint: disable=expression-not-assigned
-    (
-        p | ptransform.Create([1, 2, 3, 4, 5])
-        | 'Do' >> SpecialParDo(SpecialDoFn(), now))
-
-    # TODO(https://github.com/apache/beam/issues/18012) Enable runner API on
-    # this test.
-    p.run(test_runner_api=False)
-    job_dict = json.loads(str(remote_runner.job))
-    steps = [
-        step for step in job_dict['steps']
-        if len(step['properties'].get('display_data', [])) > 0
-    ]
-    step = steps[1]
-    disp_data = step['properties']['display_data']
-    nspace = SpecialParDo.__module__ + '.'
-    expected_data = [{
-        'type': 'TIMESTAMP',
-        'namespace': nspace + 'SpecialParDo',
-        'value': DisplayDataItem._format_value(now, 'TIMESTAMP'),
-        'key': 'a_time'
-    },
-                     {
-                         'type': 'STRING',
-                         'namespace': nspace + 'SpecialParDo',
-                         'value': nspace + 'SpecialParDo',
-                         'key': 'a_class',
-                         'shortValue': 'SpecialParDo'
-                     },
-                     {
-                         'type': 'INTEGER',
-                         'namespace': nspace + 'SpecialDoFn',
-                         'value': 42,
-                         'key': 'dofn_value'
-                     }]
-    self.assertUnhashableCountEqual(disp_data, expected_data)
-
   def test_group_by_key_input_visitor_with_valid_inputs(self):
     p = TestPipeline()
     pcoll1 = PCollection(p)
@@ -391,15 +337,6 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     self.assertEqual(flat.element_type, none_str_pc.element_type)
     self.assertEqual(flat.element_type, none_int_pc.element_type)
 
-  def test_serialize_windowing_strategy(self):
-    # This just tests the basic path; more complete tests
-    # are in window_test.py.
-    strategy = Windowing(window.FixedWindows(10))
-    self.assertEqual(
-        strategy,
-        DataflowRunner.deserialize_windowing_strategy(
-            DataflowRunner.serialize_windowing_strategy(strategy, None)))
-
   def test_side_input_visitor(self):
     p = TestPipeline()
     pc = p | beam.Create([])
@@ -411,8 +348,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         beam.pvalue.AsSingleton(pc),
         beam.pvalue.AsMultiMap(pc))
     applied_transform = AppliedPTransform(None, transform, "label", {'pc': pc})
-    DataflowRunner.side_input_visitor(
-        is_runner_v2=True).visit_transform(applied_transform)
+    DataflowRunner.side_input_visitor().visit_transform(applied_transform)
     self.assertEqual(2, len(applied_transform.side_inputs))
     self.assertEqual(
         common_urns.side_inputs.ITERABLE.urn,
@@ -504,116 +440,6 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     result = runner.get_default_gcp_region()
     self.assertIsNone(result)
 
-  def test_combine_values_translation(self):
-    runner = DataflowRunner()
-
-    with beam.Pipeline(runner=runner,
-                       options=PipelineOptions(self.default_properties)) as p:
-      (  # pylint: disable=expression-not-assigned
-          p
-          | beam.Create([('a', [1, 2]), ('b', [3, 4])])
-          | beam.CombineValues(lambda v, _: sum(v)))
-
-    job_dict = json.loads(str(runner.job))
-    self.assertIn(
-        'CombineValues', set(step['kind'] for step in job_dict['steps']))
-
-  def _find_step(self, job, step_name):
-    job_dict = json.loads(str(job))
-    maybe_step = [
-        s for s in job_dict['steps']
-        if s['properties']['user_name'] == step_name
-    ]
-    self.assertTrue(maybe_step, 'Could not find step {}'.format(step_name))
-    return maybe_step[0]
-
-  def expect_correct_override(self, job, step_name, step_kind):
-    """Expects that a transform was correctly overriden."""
-
-    # If the typing information isn't being forwarded correctly, the component
-    # encodings here will be incorrect.
-    expected_output_info = [{
-        "encoding": {
-            "@type": "kind:windowed_value",
-            "component_encodings": [{
-                "@type": "kind:bytes"
-            }, {
-                "@type": "kind:global_window"
-            }],
-            "is_wrapper": True
-        },
-        "output_name": "out",
-        "user_name": step_name + ".out"
-    }]
-
-    step = self._find_step(job, step_name)
-    self.assertEqual(step['kind'], step_kind)
-
-    # The display data here is forwarded because the replace transform is
-    # subclassed from iobase.Read.
-    self.assertGreater(len(step['properties']['display_data']), 0)
-    self.assertEqual(step['properties']['output_info'], expected_output_info)
-
-  def test_read_create_translation(self):
-    runner = DataflowRunner()
-
-    with beam.Pipeline(runner=runner,
-                       options=PipelineOptions(self.default_properties)) as p:
-      # pylint: disable=expression-not-assigned
-      p | beam.Create([b'a', b'b', b'c'])
-
-    self.expect_correct_override(runner.job, 'Create/Read', 'ParallelRead')
-
-  def test_read_pubsub_translation(self):
-    runner = DataflowRunner()
-
-    self.default_properties.append("--streaming")
-
-    with beam.Pipeline(runner=runner,
-                       options=PipelineOptions(self.default_properties)) as p:
-      # pylint: disable=expression-not-assigned
-      p | beam.io.ReadFromPubSub(topic='projects/project/topics/topic')
-
-    self.expect_correct_override(
-        runner.job, 'ReadFromPubSub/Read', 'ParallelRead')
-
-  def test_gbk_translation(self):
-    runner = DataflowRunner()
-    with beam.Pipeline(runner=runner,
-                       options=PipelineOptions(self.default_properties)) as p:
-      # pylint: disable=expression-not-assigned
-      p | beam.Create([(1, 2)]) | beam.GroupByKey()
-
-    expected_output_info = [{
-        "encoding": {
-            "@type": "kind:windowed_value",
-            "component_encodings": [{
-                "@type": "kind:pair",
-                "component_encodings": [{
-                    "@type": "kind:varint"
-                },
-                {
-                    "@type": "kind:stream",
-                    "component_encodings": [{
-                        "@type": "kind:varint"
-                    }],
-                    "is_stream_like": True
-                }],
-                "is_pair_like": True
-            }, {
-                "@type": "kind:global_window"
-            }],
-            "is_wrapper": True
-        },
-        "output_name": "out",
-        "user_name": "GroupByKey.out"
-    }]  # yapf: disable
-
-    gbk_step = self._find_step(runner.job, 'GroupByKey')
-    self.assertEqual(gbk_step['kind'], 'GroupByKey')
-    self.assertEqual(
-        gbk_step['properties']['output_info'], expected_output_info)
-
   @unittest.skip(
       'https://github.com/apache/beam/issues/18716: enable once '
       'CombineFnVisitor is fixed')
@@ -646,43 +472,6 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     except ValueError:
       self.fail('ValueError raised unexpectedly')
 
-  def _run_group_into_batches_and_get_step_properties(
-      self, with_sharded_key, additional_properties):
-    self.default_properties.append('--streaming')
-    for property in additional_properties:
-      self.default_properties.append(property)
-
-    runner = DataflowRunner()
-    with beam.Pipeline(runner=runner,
-                       options=PipelineOptions(self.default_properties)) as p:
-      # pylint: disable=expression-not-assigned
-      input = p | beam.Create([('a', 1), ('a', 1), ('b', 3), ('b', 4)])
-      if with_sharded_key:
-        (
-            input | beam.GroupIntoBatches.WithShardedKey(2)
-            | beam.Map(lambda key_values: (key_values[0].key, key_values[1])))
-        step_name = (
-            'WithShardedKey/GroupIntoBatches/ParDo(_GroupIntoBatchesDoFn)')
-      else:
-        input | beam.GroupIntoBatches(2)
-        step_name = 'GroupIntoBatches/ParDo(_GroupIntoBatchesDoFn)'
-
-    return self._find_step(runner.job, step_name)['properties']
-
-  def test_group_into_batches_translation(self):
-    properties = self._run_group_into_batches_and_get_step_properties(
-        True, ['--enable_streaming_engine', '--experiments=use_runner_v2'])
-    self.assertEqual(properties[PropertyNames.USES_KEYED_STATE], 'true')
-    self.assertEqual(properties[PropertyNames.ALLOWS_SHARDABLE_STATE], 'true')
-    self.assertEqual(properties[PropertyNames.PRESERVES_KEYS], 'true')
-
-  def test_group_into_batches_translation_non_sharded(self):
-    properties = self._run_group_into_batches_and_get_step_properties(
-        False, ['--enable_streaming_engine', '--experiments=use_runner_v2'])
-    self.assertEqual(properties[PropertyNames.USES_KEYED_STATE], 'true')
-    self.assertNotIn(PropertyNames.ALLOWS_SHARDABLE_STATE, properties)
-    self.assertNotIn(PropertyNames.PRESERVES_KEYS, properties)
-
   def test_pack_combiners(self):
     class PackableCombines(beam.PTransform):
       def annotations(self):
@@ -711,141 +500,20 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     self.assertNotIn(unpacked_maximum_step_name, transform_names)
     self.assertIn(packed_step_name, transform_names)
 
-  @parameterized.expand([
-      param(memory_hint='min_ram'),
-      param(memory_hint='minRam'),
-  ])
-  def test_resource_hints_translation(self, memory_hint):
-    runner = DataflowRunner()
-    self.default_properties.append('--resource_hint=accelerator=some_gpu')
-    self.default_properties.append(f'--resource_hint={memory_hint}=20GB')
-    with beam.Pipeline(runner=runner,
-                       options=PipelineOptions(self.default_properties)) as p:
-      # pylint: disable=expression-not-assigned
-      (
-          p
-          | beam.Create([1])
-          | 'MapWithHints' >> beam.Map(lambda x: x + 1).with_resource_hints(
-              min_ram='10GB',
-              accelerator='type:nvidia-tesla-k80;count:1;install-nvidia-drivers'
-          ))
-
-    step = self._find_step(runner.job, 'MapWithHints')
-    self.assertEqual(
-        step['properties']['resource_hints'],
-        {
-            'beam:resources:min_ram_bytes:v1': '20000000000',
-            'beam:resources:accelerator:v1': \
-                'type%3Anvidia-tesla-k80%3Bcount%3A1%3Binstall-nvidia-drivers'
-        })
-
-  @parameterized.expand([
-      (
-          "%s_%s" % (enable_option, disable_option),
-          enable_option,
-          disable_option)
-      for (enable_option,
-           disable_option) in product([
-               False,
-               'enable_prime',
-               'beam_fn_api',
-               'use_unified_worker',
-               'use_runner_v2',
-               'use_portable_job_submission'
-           ],
-                                      [
-                                          False,
-                                          'disable_runner_v2',
-                                          'disable_runner_v2_until_2023',
-                                          'disable_prime_runner_v2'
-                                      ])
-  ])
-  def test_batch_is_runner_v2(self, name, enable_option, disable_option):
-    options = PipelineOptions(
-        (['--experiments=%s' % enable_option] if enable_option else []) +
-        (['--experiments=%s' % disable_option] if disable_option else []))
-    if (enable_option and disable_option):
-      with self.assertRaisesRegex(ValueError,
-                                  'Runner V2 both disabled and enabled'):
-        _is_runner_v2(options)
-    elif enable_option:
-      self.assertTrue(_is_runner_v2(options))
-      self.assertFalse(_is_runner_v2_disabled(options))
-      for expected in ['beam_fn_api',
-                       'use_unified_worker',
-                       'use_runner_v2',
-                       'use_portable_job_submission']:
-        self.assertTrue(
-            options.view_as(DebugOptions).lookup_experiment(expected, False))
-      if enable_option == 'enable_prime':
-        self.assertIn(
-            'enable_prime',
-            options.view_as(GoogleCloudOptions).dataflow_service_options)
-    elif disable_option:
-      self.assertFalse(_is_runner_v2(options))
-      self.assertTrue(_is_runner_v2_disabled(options))
-    else:
-      self.assertFalse(_is_runner_v2(options))
-
-  @parameterized.expand([
-      (
-          "%s_%s" % (enable_option, disable_option),
-          enable_option,
-          disable_option)
-      for (enable_option,
-           disable_option) in product([
-               False,
-               'enable_prime',
-               'beam_fn_api',
-               'use_unified_worker',
-               'use_runner_v2',
-               'use_portable_job_submission'
-           ],
-                                      [
-                                          False,
-                                          'disable_runner_v2',
-                                          'disable_runner_v2_until_2023',
-                                          'disable_prime_runner_v2'
-                                      ])
-  ])
-  def test_streaming_is_runner_v2(self, name, enable_option, disable_option):
-    options = PipelineOptions(
-        ['--streaming'] +
-        (['--experiments=%s' % enable_option] if enable_option else []) +
-        (['--experiments=%s' % disable_option] if disable_option else []))
-    if disable_option:
-      with self.assertRaisesRegex(
-          ValueError,
-          'Disabling Runner V2 no longer supported for streaming pipeline'):
-        _is_runner_v2(options)
-    else:
-      self.assertTrue(_is_runner_v2(options))
-      for expected in ['beam_fn_api',
-                       'use_unified_worker',
-                       'use_runner_v2',
-                       'use_portable_job_submission',
-                       'enable_windmill_service',
-                       'enable_streaming_engine']:
-        self.assertTrue(
-            options.view_as(DebugOptions).lookup_experiment(expected, False))
-      if enable_option == 'enable_prime':
-        self.assertIn(
-            'enable_prime',
-            options.view_as(GoogleCloudOptions).dataflow_service_options)
-
-  def test_dataflow_service_options_enable_prime_sets_runner_v2(self):
-    options = PipelineOptions(['--dataflow_service_options=enable_prime'])
-    self.assertTrue(_is_runner_v2(options))
+  def test_batch_is_runner_v2(self):
+    options = PipelineOptions()
+    _check_and_add_missing_options(options)
     for expected in ['beam_fn_api',
                      'use_unified_worker',
                      'use_runner_v2',
                      'use_portable_job_submission']:
       self.assertTrue(
-          options.view_as(DebugOptions).lookup_experiment(expected, False))
+          options.view_as(DebugOptions).lookup_experiment(expected, False),
+          expected)
 
-    options = PipelineOptions(
-        ['--streaming', '--dataflow_service_options=enable_prime'])
-    self.assertTrue(_is_runner_v2(options))
+  def test_streaming_is_runner_v2(self):
+    options = PipelineOptions(['--streaming'])
+    _check_and_add_missing_options(options)
     for expected in ['beam_fn_api',
                      'use_unified_worker',
                      'use_runner_v2',
@@ -853,7 +521,32 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
                      'enable_windmill_service',
                      'enable_streaming_engine']:
       self.assertTrue(
-          options.view_as(DebugOptions).lookup_experiment(expected, False))
+          options.view_as(DebugOptions).lookup_experiment(expected, False),
+          expected)
+
+  def test_dataflow_service_options_enable_prime_sets_runner_v2(self):
+    options = PipelineOptions(['--dataflow_service_options=enable_prime'])
+    _check_and_add_missing_options(options)
+    for expected in ['beam_fn_api',
+                     'use_unified_worker',
+                     'use_runner_v2',
+                     'use_portable_job_submission']:
+      self.assertTrue(
+          options.view_as(DebugOptions).lookup_experiment(expected, False),
+          expected)
+
+    options = PipelineOptions(
+        ['--streaming', '--dataflow_service_options=enable_prime'])
+    _check_and_add_missing_options(options)
+    for expected in ['beam_fn_api',
+                     'use_unified_worker',
+                     'use_runner_v2',
+                     'use_portable_job_submission',
+                     'enable_windmill_service',
+                     'enable_streaming_engine']:
+      self.assertTrue(
+          options.view_as(DebugOptions).lookup_experiment(expected, False),
+          expected)
 
 
 if __name__ == '__main__':

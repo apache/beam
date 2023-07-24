@@ -26,20 +26,27 @@ applyJavaNature(
 description = "Apache Beam :: SDKs :: Java :: IO :: Azure"
 ext.summary = "IO library to read and write Azure services from Beam."
 
+def excludeNetty = {
+  exclude group: "io.netty", module: "*" // exclude more recent Netty version
+}
+
 dependencies {
+  implementation platform(library.java.azure_sdk_bom)
   implementation library.java.commons_io
   permitUnusedDeclared library.java.commons_io // BEAM-11761
-  implementation library.java.slf4j_api
-  implementation library.java.vendored_guava_26_0_jre
-  implementation project(path: ":sdks:java:core", configuration: "shadow")
-  implementation "com.azure:azure-storage-blob:12.10.0"
-  implementation "com.azure:azure-identity:1.0.8"
-  implementation "com.microsoft.azure:azure-storage:8.6.5"
-  implementation "com.azure:azure-core:1.9.0"
-  implementation "com.azure:azure-storage-common:12.10.0"
   implementation library.java.jackson_annotations
   implementation library.java.jackson_core
   implementation library.java.jackson_databind
+  implementation library.java.slf4j_api
+  implementation library.java.vendored_guava_26_0_jre
+  implementation "com.azure:azure-core", excludeNetty
+  implementation "com.azure:azure-identity", excludeNetty
+  implementation "com.azure:azure-storage-blob", excludeNetty
+  implementation "com.azure:azure-storage-common", excludeNetty
+  implementation "com.microsoft.azure:azure-storage:8.6.5"
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  runtimeOnly library.java.netty_all // force version of netty used by Beam
+
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   testImplementation library.java.mockito_core
   testImplementation library.java.junit

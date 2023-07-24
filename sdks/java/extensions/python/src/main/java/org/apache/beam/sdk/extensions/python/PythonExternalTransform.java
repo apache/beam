@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.python;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.util.ArrayList;
@@ -67,6 +68,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Wrapper for invoking external Python transforms. */
 public class PythonExternalTransform<InputT extends PInput, OutputT extends POutput>
@@ -87,6 +90,8 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
   private @Nullable Row providedKwargsRow;
 
   Map<String, Coder<?>> outputCoders;
+
+  private static final Logger LOG = LoggerFactory.getLogger(PythonExternalTransform.class);
 
   private PythonExternalTransform(String fullyQualifiedName, String expansionService) {
     this.fullyQualifiedName = fullyQualifiedName;
@@ -438,6 +443,29 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
     }
   }
 
+  private boolean isPythonAvailable() {
+    for (String executable : ImmutableList.of("python3", "python")) {
+      try {
+        new ProcessBuilder(executable, "--version").start().waitFor();
+        return true;
+      } catch (IOException | InterruptedException exn) {
+        // Ignore.
+      }
+    }
+    return false;
+  }
+
+  private boolean isDockerAvailable() {
+    String executable = "docker";
+    try {
+      new ProcessBuilder(executable, "--version").start().waitFor();
+      return true;
+    } catch (IOException | InterruptedException exn) {
+      // Ignore.
+    }
+    return false;
+  }
+
   @Override
   public OutputT expand(InputT input) {
     try {
@@ -458,14 +486,34 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
         OutputT output = null;
         int port = PythonService.findAvailablePort();
         PipelineOptionsFactory.register(PythonExternalTransformOptions.class);
-        if (input
-            .getPipeline()
-            .getOptions()
-            .as(PythonExternalTransformOptions.class)
-            .getUseTransformService()) {
+        boolean useTransformService =
+            input
+                .getPipeline()
+                .getOptions()
+                .as(PythonExternalTransformOptions.class)
+                .getUseTransformService();
+        boolean pythonAvailable = isPythonAvailable();
+        boolean dockerAvailable = isDockerAvailable();
+
+        // We use the transform service if either of the following is true.
+        // * It was explicitly requested.
+        // * Python executable is not available in the system but Docker is available.
+        if (useTransformService || (!pythonAvailable && dockerAvailable)) {
           // A unique project name ensures that this expansion gets a dedicated instance of the
           // transform service.
           String projectName = UUID.randomUUID().toString();
+
+          String messageAppend =
+              useTransformService
+                  ? "it was explicitly requested"
+                  : "a Python executable is not available in the system";
+          LOG.info(
+              "Using the Docker Compose based transform service since {}. Service will have the "
+                  + "project name {} and will be made available at the port {}",
+              messageAppend,
+              projectName,
+              port);
+
           TransformServiceLauncher service = TransformServiceLauncher.forProject(projectName, port);
           service.setBeamVersion(ReleaseInfo.getReleaseInfo().getSdkVersion());
           // TODO(https://github.com/apache/beam/issues/26833): add support for installing extra

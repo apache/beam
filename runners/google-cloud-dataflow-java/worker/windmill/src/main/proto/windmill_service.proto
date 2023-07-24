@@ -33,6 +33,10 @@ service CloudWindmillServiceV1Alpha1 {
   rpc GetWorkStream(stream .windmill.StreamingGetWorkRequest)
     returns (stream .windmill.StreamingGetWorkResponseChunk);
 
+  // Gets worker metadata.  Response is a stream.
+  rpc GetWorkerMetadataStream(.windmill.WorkerMetadataRequest)
+      returns (stream .windmill.WorkerMetadataResponse);
+
   // Gets data from Windmill.
   rpc GetData(.windmill.GetDataRequest) returns(.windmill.GetDataResponse);
 

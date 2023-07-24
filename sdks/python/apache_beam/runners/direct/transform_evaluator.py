@@ -39,7 +39,6 @@ from apache_beam.internal import pickler
 from apache_beam.runners import common
 from apache_beam.runners.common import DoFnRunner
 from apache_beam.runners.common import DoFnState
-from apache_beam.runners.dataflow.native_io.iobase import _NativeWrite  # pylint: disable=protected-access
 from apache_beam.runners.direct.direct_runner import _DirectReadFromPubSub
 from apache_beam.runners.direct.direct_runner import _GroupByKeyOnly
 from apache_beam.runners.direct.direct_runner import _StreamingGroupAlsoByWindow
@@ -106,7 +105,6 @@ class TransformEvaluatorRegistry(object):
         _GroupByKeyOnly: _GroupByKeyOnlyEvaluator,
         _StreamingGroupByKeyOnly: _StreamingGroupByKeyOnlyEvaluator,
         _StreamingGroupAlsoByWindow: _StreamingGroupAlsoByWindowEvaluator,
-        _NativeWrite: _NativeWriteEvaluator,
         _TestStream: _TestStreamEvaluator,
         ProcessElements: _ProcessElementsEvaluator,
         _WatermarkController: _WatermarkControllerEvaluator,
@@ -172,11 +170,10 @@ class TransformEvaluatorRegistry(object):
     Returns:
       True if executor should execute applied_ptransform serially.
     """
-    if isinstance(applied_ptransform.transform,
-                  (_GroupByKeyOnly,
-                   _StreamingGroupByKeyOnly,
-                   _StreamingGroupAlsoByWindow,
-                   _NativeWrite)):
+    if isinstance(
+        applied_ptransform.transform,
+        (_GroupByKeyOnly, _StreamingGroupByKeyOnly,
+         _StreamingGroupAlsoByWindow)):
       return True
     elif (isinstance(applied_ptransform.transform, core.ParDo) and
           is_stateful_dofn(applied_ptransform.transform.dofn)):
@@ -1123,77 +1120,6 @@ class _StreamingGroupAlsoByWindowEvaluator(_TransformEvaluator):
       bundles.append(bundle)
 
     return TransformResult(self, bundles, [], None, self.keyed_holds)
-
-
-class _NativeWriteEvaluator(_TransformEvaluator):
-  """TransformEvaluator for _NativeWrite transform."""
-
-  ELEMENTS_TAG = _ListStateTag('elements')
-
-  def __init__(
-      self,
-      evaluation_context,
-      applied_ptransform,
-      input_committed_bundle,
-      side_inputs):
-    assert not side_inputs
-    super().__init__(
-        evaluation_context,
-        applied_ptransform,
-        input_committed_bundle,
-        side_inputs)
-
-    assert applied_ptransform.transform.sink
-    self._sink = applied_ptransform.transform.sink
-
-  @property
-  def _is_final_bundle(self):
-    return (
-        self._execution_context.watermarks.input_watermark ==
-        WatermarkManager.WATERMARK_POS_INF)
-
-  @property
-  def _has_already_produced_output(self):
-    return (
-        self._execution_context.watermarks.output_watermark ==
-        WatermarkManager.WATERMARK_POS_INF)
-
-  def start_bundle(self):
-    self.global_state = self._step_context.get_keyed_state(None)
-
-  def process_timer(self, timer_firing):
-    # We do not need to emit a KeyedWorkItem to process_element().
-    pass
-
-  def process_element(self, element):
-    self.global_state.add_state(
-        None, _NativeWriteEvaluator.ELEMENTS_TAG, element)
-
-  def finish_bundle(self):
-    # finish_bundle will append incoming bundles in memory until all the bundles
-    # carrying data is processed. This is done to produce only a single output
-    # shard (some tests depends on this behavior). It is possible to have
-    # incoming empty bundles after the output is produced, these bundles will be
-    # ignored and would not generate additional output files.
-    # TODO(altay): Do not wait until the last bundle to write in a single shard.
-    if self._is_final_bundle:
-      elements = self.global_state.get_state(
-          None, _NativeWriteEvaluator.ELEMENTS_TAG)
-      if self._has_already_produced_output:
-        # Ignore empty bundles that arrive after the output is produced.
-        assert elements == []
-      else:
-        self._sink.pipeline_options = self._evaluation_context.pipeline_options
-        with self._sink.writer() as writer:
-          for v in elements:
-            writer.Write(v.value)
-      hold = WatermarkManager.WATERMARK_POS_INF
-    else:
-      hold = WatermarkManager.WATERMARK_NEG_INF
-      self.global_state.set_timer(
-          None, '', TimeDomain.WATERMARK, WatermarkManager.WATERMARK_POS_INF)
-
-    return TransformResult(self, [], [], None, {None: hold})
 
 
 class _ProcessElementsEvaluator(_TransformEvaluator):
