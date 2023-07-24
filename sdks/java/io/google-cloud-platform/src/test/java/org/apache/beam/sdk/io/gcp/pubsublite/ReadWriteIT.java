@@ -203,8 +203,7 @@ public class ReadWriteIT {
                         .setLocation(ZONE.toString())
                         .setTopicName(topicPath.name().value())
                         .setProject(topicPath.project().name().value())
-                        .build())
-                .buildTransform());
+                        .build()));
   }
 
   public static void writeMessages(TopicPath topicPath, Pipeline pipeline) {
@@ -308,8 +307,7 @@ public class ReadWriteIT {
                                     + "}")
                             .setSubscriptionName(subscription.name().value())
                             .setLocation(subscription.location().toString())
-                            .build())
-                    .buildTransform())
+                            .build()))
             .get("output");
     PCollection<Integer> ids =
         messages.apply(
@@ -320,7 +318,7 @@ public class ReadWriteIT {
                       return Objects.requireNonNull(row.getInt64("numberInInt")).intValue();
                     }));
     ids.apply("PubsubSignalTest", signal.signalSuccessWhen(BigEndianIntegerCoder.of(), testIds()));
-    Supplier<Void> start = signal.waitForStart(Duration.standardMinutes(5));
+    Supplier<Void> start = signal.waitForStart(Duration.standardMinutes(8));
     pipeline.apply("start signal", signal.signalStart());
     PipelineResult job = pipeline.run();
     start.get();
@@ -365,7 +363,7 @@ public class ReadWriteIT {
     PCollection<SequencedMessage> messages = readMessages(subscription, pipeline);
     PCollection<Integer> ids = messages.apply(MapElements.via(extractIds()));
     ids.apply("PubsubSignalTest", signal.signalSuccessWhen(BigEndianIntegerCoder.of(), testIds()));
-    Supplier<Void> start = signal.waitForStart(Duration.standardMinutes(5));
+    Supplier<Void> start = signal.waitForStart(Duration.standardMinutes(8));
     pipeline.apply(signal.signalStart());
     PipelineResult job = pipeline.run();
     start.get();

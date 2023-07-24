@@ -19,18 +19,18 @@
 # {test_name}-{metric_name}
 
 pytorch_image_classification_benchmarks-resnet152-mean_inference_batch_latency_micro_secs:
-  test_description: 
+  test_description:
     Pytorch image classification on 50k images of size 224 x 224 with resnet 152.
     Test link - https://github.com/apache/beam/blob/42d0a6e3564d8b9c5d912428a6de18fb22a13ac1/.test-infra/jenkins/job_InferenceBenchmarkTests_Python.groovy#L63
     Test dashboard - http://104.154.241.245/d/ZpS8Uf44z/python-ml-runinference-benchmarks?orgId=1&viewPanel=2
-  test_target: 
+  test_target:
   metrics_dataset: beam_run_inference
   metrics_table: torch_inference_imagenet_results_resnet152
   project: apache-beam-testing
   metric_name: mean_inference_batch_latency_micro_secs
 
 pytorch_image_classification_benchmarks-resnet101-mean_load_model_latency_milli_secs:
-  test_description: 
+  test_description:
     Pytorch image classification on 50k images of size 224 x 224 with resnet 101.
     Test link - https://github.com/apache/beam/blob/42d0a6e3564d8b9c5d912428a6de18fb22a13ac1/.test-infra/jenkins/job_InferenceBenchmarkTests_Python.groovy#L34
     Test dashboard - http://104.154.241.245/d/ZpS8Uf44z/python-ml-runinference-benchmarks?orgId=1&viewPanel=7
@@ -41,7 +41,7 @@ pytorch_image_classification_benchmarks-resnet101-mean_load_model_latency_milli_
   metric_name: mean_load_model_latency_milli_secs
 
 pytorch_image_classification_benchmarks-resnet101-mean_inference_batch_latency_micro_secs:
-  test_description: 
+  test_description:
     Pytorch image classification on 50k images of size 224 x 224 with resnet 101.
     Test link - https://github.com/apache/beam/blob/42d0a6e3564d8b9c5d912428a6de18fb22a13ac1/.test-infra/jenkins/job_InferenceBenchmarkTests_Python.groovy#L34
     Test dashboard - http://104.154.241.245/d/ZpS8Uf44z/python-ml-runinference-benchmarks?orgId=1&viewPanel=2
@@ -52,7 +52,7 @@ pytorch_image_classification_benchmarks-resnet101-mean_inference_batch_latency_m
   metric_name: mean_inference_batch_latency_micro_secs
 
 pytorch_image_classification_benchmarks-resnet152-GPU-mean_inference_batch_latency_micro_secs:
-  test_description: 
+  test_description:
     Pytorch image classification on 50k images of size 224 x 224 with resnet 152 with Tesla T4 GPU.
     Test link - https://github.com/apache/beam/blob/42d0a6e3564d8b9c5d912428a6de18fb22a13ac1/.test-infra/jenkins/job_InferenceBenchmarkTests_Python.groovy#L151
     Test dashboard - http://104.154.241.245/d/ZpS8Uf44z/python-ml-runinference-benchmarks?orgId=1&viewPanel=7
@@ -63,8 +63,8 @@ pytorch_image_classification_benchmarks-resnet152-GPU-mean_inference_batch_laten
   metric_name: mean_inference_batch_latency_micro_secs
 
 pytorch_image_classification_benchmarks-resnet152-GPU-mean_load_model_latency_milli_secs:
-  test_description: 
-    Pytorch image classification on 50k images of size 224 x 224 with resnet 152 with Tesla T4 GPU. 
+  test_description:
+    Pytorch image classification on 50k images of size 224 x 224 with resnet 152 with Tesla T4 GPU.
     Test link - https://github.com/apache/beam/blob/42d0a6e3564d8b9c5d912428a6de18fb22a13ac1/.test-infra/jenkins/job_InferenceBenchmarkTests_Python.groovy#L151
     Test dashboard - http://104.154.241.245/d/ZpS8Uf44z/python-ml-runinference-benchmarks?orgId=1&viewPanel=7
   test_target: apache_beam.testing.benchmarks.inference.pytorch_image_classification_benchmarks
@@ -74,7 +74,7 @@ pytorch_image_classification_benchmarks-resnet152-GPU-mean_load_model_latency_mi
   metric_name: mean_load_model_latency_milli_secs
 
 pytorch_image_classification_benchmarks-resnet152-GPU-mean_inference_batch_latency_micro_secs:
-  test_description: 
+  test_description:
     Pytorch image classification on 50k images of size 224 x 224 with resnet 152 with Tesla T4 GPU.
     Test link - https://github.com/apache/beam/blob/42d0a6e3564d8b9c5d912428a6de18fb22a13ac1/.test-infra/jenkins/job_InferenceBenchmarkTests_Python.groovy#L151).
     Test dashboard - http://104.154.241.245/d/ZpS8Uf44z/python-ml-runinference-benchmarks?from=now-90d&to=now&viewPanel=2
@@ -85,8 +85,8 @@ pytorch_image_classification_benchmarks-resnet152-GPU-mean_inference_batch_laten
   metric_name: mean_inference_batch_latency_micro_secs
 
 test_cloudml_benchmark_cirteo_no_shuffle_10GB-runtime_sec:
-  test_description: 
-    TFT Criteo test on 10 GB data with no Reshuffle. 
+  test_description:
+    TFT Criteo test on 10 GB data with no Reshuffle.
     Test link - [Test link](https://github.com/apache/beam/blob/42d0a6e3564d8b9c5d912428a6de18fb22a13ac1/sdks/python/apache_beam/testing/benchmarks/cloudml/cloudml_benchmark_test.py#L82)
   metrics_dataset: beam_cloudml
   metrics_table: cloudml_benchmark_cirteo_no_shuffle_10GB
@@ -94,8 +94,8 @@ test_cloudml_benchmark_cirteo_no_shuffle_10GB-runtime_sec:
   metric_name: runtime_sec
 
 test_cloudml_benchmark_criteo_10GB-runtime_sec:
-  test_description: 
-    TFT Criteo test on 10 GB data. 
+  test_description:
+    TFT Criteo test on 10 GB data.
     Test link - https://github.com/apache/beam/blob/42d0a6e3564d8b9c5d912428a6de18fb22a13ac1/sdks/python/apache_beam/testing/benchmarks/cloudml/cloudml_benchmark_test.py#LL104C7-L104C41
   metrics_dataset: beam_cloudml
   metrics_table: cloudml_benchmark_criteo_10GB

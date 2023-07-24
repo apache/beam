@@ -1,0 +1,83 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Python PreCommit Docs
+
+on:
+  pull_request_target:
+    branches: [ "master", "release-*" ]
+    paths: ["sdks/python/**"]
+  issue_comment:
+    types: [created]
+  push:
+    tags: ['v*']
+    branches: ['master', 'release-*']
+    paths: ["sdks/python/**",".github/workflows/beam_PreCommit_PythonDocs.yml"]
+  schedule:
+    - cron: '* */6 * * *'
+#Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
+permissions:
+  actions: write
+  pull-requests: read
+  checks: read
+  contents: read
+  deployments: read
+  id-token: none
+  issues: read
+  discussions: read
+  packages: read
+  pages: read
+  repository-projects: read
+  security-events: read
+  statuses: read
+
+jobs:
+  beam_PreCommit_PythonDocs:
+    name: beam_PreCommit_PythonDocs
+    if: |
+      github.event_name == 'push' || 
+      github.event_name == 'pull_request_target' || 
+      github.event.comment.body == 'Run PythonDocs PreCommit' || 
+      github.event_name == 'schedule'
+    runs-on: [self-hosted, ubuntu-20.04, main]
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Rerun on comment
+        if: github.event.comment.body == 'Run PythonDocs PreCommit'
+        uses: ./.github/actions/rerun-job-action
+        with:
+          pull_request_url: ${{ github.event.issue.pull_request.url }}
+          github_repository: ${{ github.repository }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_job: ${{ github.job }}
+          github_current_run_id: ${{ github.run_id }}
+      - name: Install Java
+        uses: actions/setup-java@v3.8.0
+        with:
+          distribution: 'zulu'
+          java-version: '8'
+      - name: Install Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.8'
+      - name: Setup Gradle
+        uses: gradle/gradle-build-action@v2
+        with:
+          cache-read-only: false
+      - name: run PythonDocsPrecommit script
+        run: ./gradlew :pythonDocsPreCommit

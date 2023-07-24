@@ -18,9 +18,11 @@
 
 // beam-playground:
 //   name: read-query
-//   description: BigQuery read query example.
+//   description: BigQueryIO read query example.
 //   multifile: false
-//   context_line: 40
+//   context_line: 42
+//   never_run: true
+//   always_run: true
 //   categories:
 //     - Quickstart
 //   complexity: ADVANCED
@@ -29,47 +31,49 @@
 package main
 
 import (
-	_ "context"
-	_ "flag"
-	_ "github.com/apache/beam/sdks/v2/go/pkg/beam"
-	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/io/bigqueryio"
-	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/log"
-	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
-	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
+	"context"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/bigqueryio"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/top"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
+
+	"cloud.google.com/go/bigquery"
 	internal_log "log"
-	_ "reflect"
+	"reflect"
 )
 
-// Define the data model: The CommentRow struct is defined, which models one row of HackerNews comments.
-//The bigquery tag in the struct field is used to map the struct field to the BigQuery column.
-type CommentRow struct {
-	Text string `bigquery:"text"`
+type Game struct {
+	GameID     bigquery.NullString `bigquery:"gameId"`
+	GameNumber bigquery.NullInt64  `bigquery:"gameNumber"`
+	SeasonID   bigquery.NullString `bigquery:"seasonId"`
+	Year       bigquery.NullInt64  `bigquery:"year"`
+	Type       bigquery.NullString `bigquery:"type"`
+	DayNight   bigquery.NullString `bigquery:"dayNight"`
+	Duration   bigquery.NullString `bigquery:"duration"`
 }
-
-// Construct the BigQuery query: A constant query is defined that selects the text column
-// from the bigquery-public-data.hacker_news.comments table for a certain time range.
-const query = `SELECT text
-FROM ` + "`bigquery-public-data.hacker_news.comments`" + `
-WHERE time_ts BETWEEN '2013-01-01' AND '2014-01-01'
-LIMIT 1000
-`
 
 func main() {
 	internal_log.Println("Running Task")
-	/*
-		ctx := context.Background()
-		p := beam.NewPipeline()
-		s := p.Root()
-		project := "tess-372508"
 
-		// Build a PCollection<CommentRow> by querying BigQuery.
-		rows := bigqueryio.Query(s, project, query,
-			reflect.TypeOf(CommentRow{}), bigqueryio.UseStandardSQL())
+	ctx := context.Background()
+	p := beam.NewPipeline()
+	s := p.Root()
+	project := "apache-beam-testing"
 
-		debug.Print(s, rows)
+	// Build a PCollection<CommentRow> by querying BigQuery.
+	rows := bigqueryio.Query(s, project, "select * from `bigquery-public-data.baseball.schedules`",
+		reflect.TypeOf(Game{}), bigqueryio.UseStandardSQL())
 
-		// Now that the pipeline is fully constructed, we execute it.
-		if err := beamx.Run(ctx, p); err != nil {
-			log.Exitf(ctx, "Failed to execute job: %v", err)
-		}*/
+	fixedSizeLines := top.Largest(s, rows, 5, less)
+
+	debug.Print(s, fixedSizeLines)
+	// Now that the pipeline is fully constructed, we execute it.
+	if err := beamx.Run(ctx, p); err != nil {
+		log.Exitf(ctx, "Failed to execute job: %v", err)
+	}
+}
+func less(a, b Game) bool {
+	return true
 }

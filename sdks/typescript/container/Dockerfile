@@ -31,5 +31,5 @@ COPY target/apache-beam.tgz ./apache-beam.tgz
 # Install dependencies and compile
 RUN npm install apache-beam.tgz
 
-COPY target/launcher/${TARGETOS}_${TARGETARCH}/boot /opt/apache/beam
+COPY target/launcher/${TARGETOS}_${TARGETARCH}/boot /opt/apache/beam/
 ENTRYPOINT ["/opt/apache/beam/boot"]

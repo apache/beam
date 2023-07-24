@@ -214,7 +214,7 @@ if [[ $confirmation = "y" ]]; then
   rm -r "$RELEASE_DIR"
 
   echo "----Signing Source Release ${SOURCE_RELEASE_ZIP}-----"
-  gpg --local-user ${SIGNING_KEY} --armor --detach-sig "${SOURCE_RELEASE_ZIP}"
+  gpg --local-user ${SIGNING_KEY} --armor --batch --yes --detach-sig "${SOURCE_RELEASE_ZIP}"
 
   echo "----Creating Hash Value for ${SOURCE_RELEASE_ZIP}----"
   sha512sum ${SOURCE_RELEASE_ZIP} > ${SOURCE_RELEASE_ZIP}.sha512
@@ -281,7 +281,7 @@ if [[ $confirmation = "y" ]]; then
 
   for artifact in *.whl; do
     echo "------------------Signing ${artifact} wheel-------------------"
-    gpg --local-user "${SIGNING_KEY}" --armor --detach-sig "${artifact}"
+    gpg --local-user "${SIGNING_KEY}" --armor --batch --yes --detach-sig "${artifact}"
   done
 
   cd ..

@@ -34,8 +34,21 @@ public class ElementSample<T> {
   // The element sample to be serialized and later queried.
   public final WindowedValue<T> sample;
 
+  public static class ExceptionMetadata {
+    ExceptionMetadata(String message, String ptransformId) {
+      this.message = message;
+      this.ptransformId = ptransformId;
+    }
+
+    // The stringified exception that caused the bundle to fail.
+    public final String message;
+
+    // The PTransform of where the exception occurred first.
+    public final String ptransformId;
+  }
+
   // An optional exception to be given as metadata on the FnApi for the given sample.
-  @Nullable public Exception exception = null;
+  @Nullable public ExceptionMetadata exception = null;
 
   ElementSample(long id, WindowedValue<T> sample) {
     this.id = id;

@@ -27,7 +27,6 @@ import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
@@ -95,33 +94,13 @@ public class BigQueryExportReadSchemaTransformProvider
    * An implementation of {@link SchemaTransform} for BigQuery read jobs configured using {@link
    * BigQueryExportReadSchemaTransformConfiguration}.
    */
-  private static class BigQueryExportSchemaTransform implements SchemaTransform {
-    private final BigQueryExportReadSchemaTransformConfiguration configuration;
-
-    BigQueryExportSchemaTransform(BigQueryExportReadSchemaTransformConfiguration configuration) {
-      this.configuration = configuration;
-    }
-
-    /** Implements {@link SchemaTransform} buildTransform method. */
-    @Override
-    public PTransform<PCollectionRowTuple, PCollectionRowTuple> buildTransform() {
-      return new PCollectionRowTupleTransform(configuration);
-    }
-  }
-
-  /**
-   * An implementation of {@link PTransform} for BigQuery read jobs configured using {@link
-   * BigQueryExportReadSchemaTransformConfiguration}.
-   */
-  static class PCollectionRowTupleTransform
-      extends PTransform<PCollectionRowTuple, PCollectionRowTuple> {
-
-    private final BigQueryExportReadSchemaTransformConfiguration configuration;
-
+  protected static class BigQueryExportSchemaTransform extends SchemaTransform {
     /** An instance of {@link BigQueryServices} used for testing. */
     private BigQueryServices testBigQueryServices = null;
 
-    PCollectionRowTupleTransform(BigQueryExportReadSchemaTransformConfiguration configuration) {
+    private final BigQueryExportReadSchemaTransformConfiguration configuration;
+
+    BigQueryExportSchemaTransform(BigQueryExportReadSchemaTransformConfiguration configuration) {
       this.configuration = configuration;
     }
 
