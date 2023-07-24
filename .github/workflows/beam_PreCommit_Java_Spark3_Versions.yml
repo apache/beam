@@ -25,9 +25,9 @@ on:
       - 'runners/spark/**'
       - '.github/workflows/beam_PreCommit_Java_Spark3_Versions.yml'
   pull_request_target:
-   branches: ['master', 'release-*']
-   paths:
-     - 'runners/spark/**'
+    branches: ['master', 'release-*']
+    paths:
+      - 'runners/spark/**'
   issue_comment:
     types: [created]
   schedule:
