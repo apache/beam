@@ -27,7 +27,12 @@ import java.time.LocalDateTime
 
 // This job runs the suite of Python Arm tests against the
 // Dataflow runner.
-PostcommitJobBuilder.postCommitJob('beam_PostCommit_Py_Arm',
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_Py_Dataflow_Arm',
+    'Run Python Dataflow Arm', 'Google Cloud Dataflow Runner Python Arm Tests', this) {
+      description('Runs Python Arm suite on the Dataflow runner.')
+      // Set common parameters.
+      commonJobProperties.setTopLevelMainJobProperties(delegate)
+      publishers {
         archiveJunit('**/pytest*.xml')
       }
 
