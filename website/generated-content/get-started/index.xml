@@ -5064,7 +5064,7 @@ View on GitHub
 &lt;li>Join the Beam &lt;a href="/community/contact-us">users@&lt;/a> mailing list.&lt;/li>
 &lt;li>If you&amp;rsquo;re interested in contributing to the Apache Beam codebase, see the &lt;a href="/contribute">Contribution Guide&lt;/a>.&lt;/li>
 &lt;/ul>
-&lt;p>Please don&amp;rsquo;t hesitate to &lt;a href="/community/contact-us">reach out&lt;/a> if you encounter any issues!&lt;/p></description></item><item><title>Get-Started: Try Beam Playground (Beta)</title><link>/get-started/try-beam-playground/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/get-started/try-beam-playground/</guid><description>
+&lt;p>Please don&amp;rsquo;t hesitate to &lt;a href="/community/contact-us">reach out&lt;/a> if you encounter any issues!&lt;/p></description></item><item><title>Get-Started: Try Beam Playground</title><link>/get-started/try-beam-playground/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/get-started/try-beam-playground/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -5076,7 +5076,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-&lt;h1 id="try-beam-playground-beta">Try Beam Playground (Beta)&lt;/h1>
+&lt;h1 id="try-beam-playground">Try Beam Playground&lt;/h1>
 &lt;p>Beam Playground is an interactive environment to try out Beam transforms and examples
 without having to install Apache Beam in your environment.&lt;/p>
 &lt;p>You can try the available Apache Beam examples at
