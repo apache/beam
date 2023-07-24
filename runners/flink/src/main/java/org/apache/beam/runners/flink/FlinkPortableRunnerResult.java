@@ -17,10 +17,13 @@
  */
 package org.apache.beam.runners.flink;
 
+import java.io.IOException;
 import java.util.Map;
 import org.apache.beam.model.jobmanagement.v1.JobApi;
 import org.apache.beam.model.pipeline.v1.MetricsApi;
 import org.apache.beam.runners.jobsubmission.PortablePipelineResult;
+import org.apache.beam.sdk.metrics.MetricResults;
+import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,13 +47,43 @@ public class FlinkPortableRunnerResult extends FlinkRunnerResult implements Port
         .build();
   }
 
-  static class Detached extends FlinkDetachedRunnerResult implements PortablePipelineResult {
+  static class Detached implements PortablePipelineResult {
+
+    Detached() {
+      super();
+    }
 
     @Override
     public JobApi.MetricResults portableMetrics() throws UnsupportedOperationException {
       LOG.warn(
           "Collecting monitoring infos is not implemented yet in Flink portable runner (detached mode).");
       return JobApi.MetricResults.newBuilder().build();
+    }
+
+    @Override
+    public State getState() {
+      return State.UNKNOWN;
+    }
+
+    @Override
+    public State cancel() throws IOException {
+      throw new UnsupportedOperationException("Cancelling is not yet supported.");
+    }
+
+    @Override
+    public State waitUntilFinish(Duration duration) {
+      return State.UNKNOWN;
+    }
+
+    @Override
+    public State waitUntilFinish() {
+      return State.UNKNOWN;
+    }
+
+    @Override
+    public MetricResults metrics() {
+      throw new UnsupportedOperationException(
+          "The FlinkRunner does not currently support metrics.");
     }
   }
 }

@@ -150,7 +150,8 @@ class _PassThroughThenCleanupTempDatasets(PTransform):
 
     class CleanUpProjects(beam.DoFn):
       def process(self, unused_element, unused_signal, pipeline_details):
-        bq = bigquery_tools.BigQueryWrapper()
+        bq = bigquery_tools.BigQueryWrapper.from_pipeline_options(
+            input.pipeline.options)
         pipeline_details = pipeline_details[0]
         if 'temp_table_ref' in pipeline_details.keys():
           temp_table_ref = pipeline_details['temp_table_ref']
@@ -230,7 +231,8 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
   def process(self,
               element: 'ReadFromBigQueryRequest') -> Iterable[BoundedSource]:
     bq = bigquery_tools.BigQueryWrapper(
-        temp_dataset_id=self._get_temp_dataset().datasetId)
+        temp_dataset_id=self._get_temp_dataset().datasetId,
+        client=bigquery_tools.BigQueryWrapper._bigquery_client(self.options))
 
     if element.query is not None:
       self._setup_temporary_dataset(bq, element)

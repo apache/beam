@@ -15,8 +15,8 @@
 # limitations under the License.
 #
 
-""""A pipeline that uses RunInference to perform Language Modeling with
-model from Hugging Face.
+"""A pipeline that uses RunInference to perform Language Modeling with
+masked language model from Hugging Face.
 
 This pipeline takes sentences from a custom text file, converts the last word
 of the sentence into a <mask> token, and then uses the AutoModelForMaskedLM from
@@ -74,9 +74,7 @@ def filter_empty_lines(text: str) -> Iterator[str]:
 class PostProcessor(beam.DoFn):
   """Processes the PredictionResult to get the predicted word.
 
-  The logits are the output of the Model. After applying a softmax
-  activation function to the logits, we get probabilistic distributions for each
-  of the words in the model's vocabulary. We can get the word with the highest
+  The logits are the output of the Model. We can get the word with the highest
   probability of being a candidate replacement word by taking the argmax.
   """
   def __init__(self, tokenizer: AutoTokenizer):
@@ -124,8 +122,6 @@ def run(
   """
   Args:
     argv: Command line arguments defined for this example.
-    model_class: Reference to the class definition of the model.
-    model_name: Name of the pretrained model to be loaded.
     save_main_session: Used for internal testing.
     test_pipeline: Used for internal testing.
   """
@@ -142,6 +138,7 @@ def run(
   model_handler = HuggingFaceModelHandlerKeyedTensor(
       model_uri=known_args.model_name,
       model_class=known_args.model_class,
+      framework='pt',
       max_batch_size=1)
   if not known_args.input:
     text = (
