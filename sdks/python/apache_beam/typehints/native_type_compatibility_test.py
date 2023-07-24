@@ -49,7 +49,7 @@ class _TestGeneric(typing.Generic[T]):
   pass
 
 
-class _TestPair(typing.NamedTuple('DataPair', [('base', T), ('diff', T)]),
+class _TestPair(typing.NamedTuple('TestTuple', [('first', T), ('second', T)]),
                 typing.Generic[T]):
   pass
 
