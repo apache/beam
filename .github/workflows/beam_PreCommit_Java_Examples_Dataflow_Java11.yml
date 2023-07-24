@@ -30,14 +30,14 @@ on:
       - 'release/**'
       - '.github/workflows/beam_PreCommit_Java_Examples_Dataflow_Java11.yml'
   pull_request_target:
-   branches: ['master', 'release-*']
-   paths:
-     - 'model/**'
-     - 'sdks/java/**'
-     - 'runners/google-cloud-dataflow-java/**'
-     - 'examples/java/**'
-     - 'examples/kotlin/**'
-     - 'release/**'
+    branches: ['master', 'release-*']
+    paths:
+      - 'model/**'
+      - 'sdks/java/**'
+      - 'runners/google-cloud-dataflow-java/**'
+      - 'examples/java/**'
+      - 'examples/kotlin/**'
+      - 'release/**'
   issue_comment:
     types: [created]
   schedule:
