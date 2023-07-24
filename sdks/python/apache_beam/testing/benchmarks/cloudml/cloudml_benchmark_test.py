@@ -19,7 +19,7 @@ import time
 import unittest
 import uuid
 
-import pytest
+# import pytest
 
 try:
   import apache_beam.testing.benchmarks.cloudml.cloudml_benchmark_constants_lib as lib
@@ -56,7 +56,7 @@ def _publish_metrics(pipeline, metric_value, metrics_table, metric_name):
   )])
 
 
-@pytest.mark.uses_tft
+# @pytest.mark.uses_tft
 class CloudMLTFTBenchmarkTest(unittest.TestCase):
   def test_cloudml_benchmark_criteo_small(self):
     test_pipeline = TestPipeline(is_integration_test=True)
