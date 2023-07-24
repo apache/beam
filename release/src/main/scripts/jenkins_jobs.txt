@@ -114,6 +114,7 @@ Run Python 3.9 PostCommit,beam_PostCommit_Python39_PR
 Run Python Dataflow V2 ValidatesRunner,beam_PostCommit_Py_VR_Dataflow_V2_PR
 Run Python Dataflow ValidatesContainer,beam_PostCommit_Py_ValCont_PR
 Run Python Dataflow ValidatesRunner,beam_PostCommit_Py_VR_Dataflow_PR
+Run Python Dataflow Arm,beam_PostCommit_Py_Dataflow_Arm_PR
 Run Python Direct Runner Nexmark Tests,beam_PostCommit_Python_Nexmark_Direct_PR
 Run Python Examples_Dataflow,beam_PostCommit_Python_Examples_Dataflow_PR
 Run Python Examples_Direct,beam_PostCommit_Python_Examples_Direct_PR
