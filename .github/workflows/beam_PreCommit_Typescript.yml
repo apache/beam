@@ -48,7 +48,7 @@ permissions:
 jobs:
   beam_PreCommit_Typescript:
     name: beam_PreCommit_Typescript
-    runs-on: [self-hosted, ubuntu-20.04]
+    runs-on: [self-hosted, ubuntu-20.04, main]
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
