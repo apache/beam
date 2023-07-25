@@ -114,7 +114,8 @@ class CriteoTest(unittest.TestCase):
     start_time = time.time()
     _ = criteo.run(
         test_pipeline.get_full_options_as_args(
-            **extra_opts, save_main_session=False))
+            **extra_opts, save_main_session=False),
+        test_pipeline=test_pipeline)
     end_time = time.time()
     metrics_table = 'ml_transform_criteo_10GB_dataset_process_metrics'
     _publish_metrics(

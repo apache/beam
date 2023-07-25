@@ -138,7 +138,7 @@ def run(
 
   _ = transformed_lines | beam.Map(logging.info)
 
-  result = test_pipeline.run()
+  result = pipeline.run()
   result.wait_until_finish()
   return result
 
