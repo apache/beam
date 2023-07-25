@@ -50,6 +50,10 @@ type link struct {
 // should in principle be able to connect two SDK environments directly
 // instead of going through the runner at all, which would be a small
 // efficiency gain, in runner memory use.
+//
+// That would also warrant an execution mode where fusion is taken into
+// account, but all serialization boundaries remain since the pcollections
+// would continue to get serialized.
 type stage struct {
 	ID           string
 	transforms   []string
@@ -150,11 +154,11 @@ progress:
 			if previousIndex == index && !splitsDone {
 				sr, err := b.Split(wk, 0.5 /* fraction of remainder */, nil /* allowed splits */)
 				if err != nil {
-					slog.Debug("SDK Error from split, aborting splits", "bundle", rb, "error", err.Error())
+					slog.Warn("SDK Error from split, aborting splits", "bundle", rb, "error", err.Error())
 					break progress
 				}
 				if sr.GetChannelSplits() == nil {
-					slog.Warn("split failed", "bundle", rb)
+					slog.Debug("SDK returned no splits", "bundle", rb)
 					splitsDone = true
 					continue progress
 				}
@@ -377,6 +381,36 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W) error {
 
 	wk.Descriptors[stg.ID] = stg.desc
 	return nil
+}
+
+// handleSideInputs ensures appropriate coders are available to the bundle, and prepares a function to stage the data.
+func handleSideInputs(tid string, t *pipepb.PTransform, comps *pipepb.Components, coders map[string]*pipepb.Coder, wk *worker.W, replacements map[string]string) (func(b *worker.B, tid string, watermark mtime.Time), error) {
+	sis, err := getSideInputs(t)
+	if err != nil {
+		return nil, err
+	}
+	var prepSides []func(b *worker.B, watermark mtime.Time)
+
+	// Get WindowedValue Coders for the transform's input and output PCollections.
+	for local, global := range t.GetInputs() {
+		_, ok := sis[local]
+		if !ok {
+			continue // This is the main input.
+		}
+		if oldGlobal, ok := replacements[global]; ok {
+			global = oldGlobal
+		}
+		prepSide, err := handleSideInput(tid, local, global, comps, coders, wk)
+		if err != nil {
+			return nil, err
+		}
+		prepSides = append(prepSides, prepSide)
+	}
+	return func(b *worker.B, tid string, watermark mtime.Time) {
+		for _, prep := range prepSides {
+			prep(b, watermark)
+		}
+	}, nil 
 }
 
 // handleSideInput returns a closure that will look up the data for a side input appropriate for the given watermark.
