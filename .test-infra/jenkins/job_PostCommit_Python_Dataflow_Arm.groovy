@@ -48,7 +48,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Py_Dataflow_Arm',
           switches('-Ppush-containers')
           // Push multi-arch containers to the repository set in run_validatescontainer.sh
           switches('-Pdocker-repository-root=us.gcr.io/apache-beam-testing/jenkins')
-          switches('-Pdocker-tag=${unique_tag}')
+          switches("-Pdocker-tag=${unique_tag}")
           commonJobProperties.setGradleSwitches(delegate)
         }
       }
