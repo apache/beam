@@ -24,51 +24,39 @@ from apache_beam.ml.transforms.base import MLTransform
 from apache_beam.ml.transforms.tft import ComputeAndApplyVocabulary
 from apache_beam.ml.transforms.tft import Bucketize
 from apache_beam.options.pipeline_options import PipelineOptions
-from tensorflow_transform.tf_metadata import dataset_metadata
-from tensorflow_transform.tf_metadata import schema_utils
-import tensorflow as tf
 
 NUM_NUMERIC_FEATURES = 13
-max_vocab_size = 10_000_000
 # Number of buckets for integer columns.
 _NUM_BUCKETS = 10
+csv_delimiter = '\t'
 
 NUMERIC_FEATURE_KEYS = ["int_feature_%d" % x for x in range(1, 14)]
 CATEGORICAL_FEATURE_KEYS = ["categorical_feature_%d" % x for x in range(14, 40)]
 LABEL_KEY = "clicked"
 
-FEATURE_SPEC = dict([
-    (name, tf.io.FixedLenFeature([], dtype=tf.int64))  # hex-to-int already done
-    for name in CATEGORICAL_FEATURE_KEYS
-] + [(name, tf.io.FixedLenFeature([], dtype=tf.float32))
-     for name in NUMERIC_FEATURE_KEYS] +
-                    [(LABEL_KEY, tf.io.FixedLenFeature([], tf.float32))])
-INPUT_METADATA = dataset_metadata.DatasetMetadata(
-    schema_utils.schema_from_feature_spec(FEATURE_SPEC))
-
 
 class FillMissing(beam.DoFn):
   """Fills missing elements with zero string value."""
   def process(self, element):
-    elem_list = element.split('\t')
+    elem_list = element.split(csv_delimiter)
     out_list = []
     for val in elem_list:
       new_val = "0" if not val else val
       out_list.append(new_val)
-    yield ('\t').join(out_list)
+    yield (csv_delimiter).join(out_list)
 
 
 class NegsToZeroLog(beam.DoFn):
   """For int features, sets negative values to zero and takes log(x+1)."""
   def process(self, element):
-    elem_list = element.split('\t')
+    elem_list = element.split(csv_delimiter)
     out_list = []
     for i, val in enumerate(elem_list):
       if 0 < i <= NUM_NUMERIC_FEATURES:
         val = "0" if int(val) < 0 else val
         val = str(np.log(int(val) + 1))
       out_list.append(val)
-    yield ('\t').join(out_list)
+    yield (csv_delimiter).join(out_list)
 
 
 def convert_str_to_int(element):
@@ -84,10 +72,9 @@ def parse_known_args(argv):
       '--input',
       default='/usr/local/google/home/anandinguva/Downloads/train.txt')
   parser.add_argument(
-      "--csv_delimeter",
-      default="\t",
-      help="Delimeter string for input and output.")
-  parser.add_argument("--artifact_location", required=True)
+      "--artifact_location",
+      required=True,
+      help="Artifact location to store artifacts.")
   parser.add_argument(
       '--shuffle',
       action='store_true',
@@ -117,7 +104,7 @@ def run(
       | "FillMissing" >> beam.ParDo(FillMissing())
       # For numerical features, set negatives to zero. Then take log(x+1).
       | "NegsToZeroLog" >> beam.ParDo(NegsToZeroLog())
-      | beam.Map(lambda x: str(x).split('\t'))
+      | beam.Map(lambda x: str(x).split(csv_delimiter))
       | beam.Map(lambda x: {ordered_columns[i]: x[i]
                             for i in range(len(x))})
       | beam.Map(convert_str_to_int))
