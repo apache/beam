@@ -73,6 +73,7 @@ jobs:
       github.event_name == 'pull_request_target' ||
       github.event_name == 'schedule' ||
       github.event.comment.body == 'Run Java_Examples_Dataflow_Java11 PreCommit'
+    timeout-minutes: 60
     steps:
       - name: Check out repository code
         uses: actions/checkout@v3
