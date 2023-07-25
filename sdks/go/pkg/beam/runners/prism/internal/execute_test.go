@@ -320,6 +320,63 @@ func TestRunner_Pipelines(t *testing.T) {
 				}, sum)
 			},
 		}, {
+			name: "sideinput_sameAsMainInput",
+			pipeline: func(s beam.Scope) {
+				imp := beam.Impulse(s)
+				col0 := beam.ParDo(s, dofn1, imp)
+				//	col1 := beam.ParDo(s, dofn2, col0)
+				// Doesn't matter which of col1 or col2 is used.
+				sum := beam.ParDo(s, dofn3x1, col0, beam.SideInput{Input: col0}, beam.SideInput{Input: col0})
+				beam.ParDo(s, &int64Check{
+					Name: "sum sideinput check",
+					Want: []int{13, 14, 15},
+				}, sum)
+			},
+		}, {
+			name: "sideinput_sameAsMainInput+Derived",
+			pipeline: func(s beam.Scope) {
+				imp := beam.Impulse(s)
+				col0 := beam.ParDo(s, dofn1, imp)
+				col1 := beam.ParDo(s, dofn2, col0)
+				// Doesn't matter which of col1 or col2 is used.
+				sum := beam.ParDo(s, dofn3x1, col0, beam.SideInput{Input: col0}, beam.SideInput{Input: col1})
+				beam.ParDo(s, &int64Check{
+					Name: "sum sideinput check",
+					Want: []int{16, 17, 18},
+				}, sum)
+			},
+		}, {
+			// Main input is getting duplicated data, since it's being executed twice...
+			// But that doesn't make any sense
+			name: "sideinput_2iterable1Data2",
+			pipeline: func(s beam.Scope) {
+				imp := beam.Impulse(s)
+				col0 := beam.ParDo(s, dofn1, imp)
+				col1 := beam.ParDo(s, dofn2, col0)
+				col2 := beam.ParDo(s, dofn2, col0)
+				// Doesn't matter which of col1 or col2 is used.
+				sum := beam.ParDo(s, dofn3x1, col0, beam.SideInput{Input: col2}, beam.SideInput{Input: col1})
+				beam.ParDo(s, &int64Check{
+					Name: "iter sideinput check",
+					Want: []int{19, 20, 21},
+				}, sum)
+			},
+		}, {
+			// Re-use the same side inputs sequentially (the two consumers should be in the same stage.)
+			name: "sideinput_two_2iterable1Data",
+			pipeline: func(s beam.Scope) {
+				imp := beam.Impulse(s)
+				col0 := beam.ParDo(s, dofn1, imp)
+				sideIn1 := beam.ParDo(s, dofn1, imp)
+				sideIn2 := beam.ParDo(s, dofn1, imp)
+				col1 := beam.ParDo(s, dofn3x1, col0, beam.SideInput{Input: sideIn1}, beam.SideInput{Input: sideIn2})
+				sum := beam.ParDo(s, dofn3x1, col1, beam.SideInput{Input: sideIn1}, beam.SideInput{Input: sideIn2})
+				beam.ParDo(s, &int64Check{
+					Name: "check_sideinput_re-use",
+					Want: []int{25, 26, 27},
+				}, sum)
+			},
+		}, {
 			name: "combine_perkey",
 			pipeline: func(s beam.Scope) {
 				imp := beam.Impulse(s)

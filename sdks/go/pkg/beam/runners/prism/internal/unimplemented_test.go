@@ -43,10 +43,6 @@ func TestUnimplemented(t *testing.T) {
 	}{
 		// {pipeline: primitives.Drain}, // Can't test drain automatically yet.
 
-		// Can't do Expand/CoGBK
-		{pipeline: primitives.CoGBK},
-		{pipeline: primitives.ReshuffleKV},
-
 		{pipeline: primitives.TestStreamBoolSequence},
 		{pipeline: primitives.TestStreamByteSliceSequence},
 		{pipeline: primitives.TestStreamFloat64Sequence},
@@ -112,6 +108,9 @@ func TestImplemented(t *testing.T) {
 		{pipeline: primitives.Flatten},
 		{pipeline: primitives.FlattenDup},
 		{pipeline: primitives.Checkpoints},
+
+		{pipeline: primitives.CoGBK},
+		{pipeline: primitives.ReshuffleKV},
 	}
 
 	for _, test := range tests {
