@@ -25,6 +25,7 @@ on:
     types: [created]
   schedule:
     - cron: '* */6 * * *'
+
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
 permissions:
   actions: write
@@ -40,6 +41,11 @@ permissions:
   repository-projects: read
   security-events: read
   statuses: read
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}-${{ github.event.sender.login }}-${{ github.event.schedule }}'
+  cancel-in-progress: true
 
 jobs:
   beam_PreCommit_RAT:
