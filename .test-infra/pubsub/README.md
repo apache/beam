@@ -21,6 +21,7 @@
 
 This folder contains Python scripts to create a Pub/Sub topic under
 the GCP project `apache-beam-testing` and test the topic.
+The created topic is `projects/apache-beam-testing/topics/Imagenet_openimage_50k_benchmark`.
 
 # Create the topic `Imagenet_openimage_50k_benchmark`
 
@@ -33,4 +34,4 @@ the GCP project `apache-beam-testing` and test the topic.
 
 # Tes the topic by subscribing it
 
-- Run `test_image_looper.py` to check whether you could get any data
+- Run `test_image_looper.py` to check whether you could get any data.

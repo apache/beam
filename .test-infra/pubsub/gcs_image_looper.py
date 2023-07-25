@@ -47,7 +47,7 @@ class ImageLooper(object):
         next_image = ""
         while not next_image:
             image_id = random.randint(0, len(self.content) - 1)
-            next_image = self.content[image_id].strip('\n')
+            next_image = self.content[image_id]
         return next_image
 
     def _read_gcs_file(self, filename):
@@ -64,6 +64,6 @@ except AlreadyExists:
 
 looper = ImageLooper(image_file_path)
 while True:
-    word = looper.get_next_image()
-    publisher.publish(topic_path, data=word.encode("utf-8"))
+    image = looper.get_next_image()
+    publisher.publish(topic_path, data=image.encode("utf-8"))
     time.sleep(1 / num_images_per_second)
