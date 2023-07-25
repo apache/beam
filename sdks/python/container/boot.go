@@ -371,6 +371,17 @@ func installSetupPackages(files []string, workDir string, requirementsFiles []st
 		log.Printf("Failed to setup acceptable wheel specs, leave it as empty: %v", err)
 	}
 
+	isInstalled, err := isPackageInstalled(pkgName)
+	if err != nil {
+		return fmt.Errorf("failed to check if Apache Beam %s is installed: %v", pkgName, err)
+	}
+
+	if !isInstalled {
+		log.Printf("Apache Beam is not installed on the custom container."
+		"Please make sure Apache Beam is installed in the custom container. "
+		"Look at the docummentation https://beam.apache.org/documentation/runtime/environments/"
+		"on custom containers for more details.")
+
 	// Install the Dataflow Python SDK and worker packages.
 	// We install the extra requirements in case of using the beam sdk. These are ignored by pip
 	// if the user is using an SDK that does not provide these.
