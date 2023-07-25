@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: GoPortable PreCommit
+name: PreCommit GoPortable
 
 on:
   push:
@@ -27,7 +27,13 @@ on:
     types: [created]
   schedule:
     - cron: '* */6 * * *'
-#Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
+  cancel-in-progress: true
+
+  #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
 permissions:
   actions: write
   pull-requests: read
@@ -68,9 +74,9 @@ jobs:
       - name: Setup self-hosted
         uses: ./.github/actions/setup-self-hosted-action
         with:
-          requires-py-37: false
           requires-py-39: false
-          requires-java-8: false
           requires-go: false
       - name: run goPortablePreCommit script
-        run: ./gradlew :goPortablePreCommit -Pdocker-pull-licenses
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :goPortablePreCommit
