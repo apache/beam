@@ -536,7 +536,7 @@ class BeamModulePlugin implements Plugin<Project> {
     // Try to keep grpc_version consistent with gRPC version in google_cloud_platform_libraries_bom
     def grpc_version = "1.55.1"
     def guava_version = "32.0.1-jre"
-    def hadoop_version = "2.10.2"
+    def hadoop_version = "3.3.6"
     def hamcrest_version = "2.1"
     def influxdb_version = "2.19"
     def httpclient_version = "4.5.13"
@@ -560,7 +560,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def singlestore_jdbc_version = "1.1.4"
     def slf4j_version = "1.7.30"
     def spark2_version = "2.4.8"
-    def spark3_version = "3.2.2"
+    def spark3_version = "3.4.1"
     def spotbugs_version = "4.0.6"
     def testcontainers_version = "1.17.3"
     def arrow_version = "5.0.0"
