@@ -38,7 +38,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Py_Dataflow_Arm',
 
       // Generates a unique tag for the container as the current time.
       def now = LocalDateTime.now()
-      def unique_tag = '${now.date}${now.hour}${now.minute}${now.second}'
+      def unique_tag = "${now.date}${now.hour}${now.minute}${now.second}"
       // Execute shell command to test Python SDK.
       steps {
         gradle {
