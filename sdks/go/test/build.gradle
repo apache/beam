@@ -69,7 +69,6 @@ task dataflowValidatesRunnerARM64() {
   }
 }
 
-
 // ValidatesRunner tests for Flink. Runs tests in the integration directory
 // with Flink to validate that the runner behaves as expected.
 task flinkValidatesRunner {
