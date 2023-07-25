@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: SQL Java11 PreCommit 
+name: PreCommit SQL Java11
 
 on:
   push:
@@ -27,7 +27,13 @@ on:
     types: [created]
   schedule:
     - cron: '* */6 * * *'
-#Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
+  cancel-in-progress: true
+
+# Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
 permissions:
     actions: write
     pull-requests: read
@@ -45,6 +51,7 @@ permissions:
 
 jobs:
   beam_PreCommit_SQL_Java11:
+    timeout-minutes: 120
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
@@ -71,8 +78,6 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '11'
-      - name: Remove default github maven configuration
-        run: rm ~/.m2/settings.xml
       - name: Install Go
         uses: actions/setup-go@v3
         with:
@@ -87,13 +92,15 @@ jobs:
           flutter-version: '3.10.4'
           channel: 'stable'
       - name: Build and Test
-        run: ./gradlew :sqlPreCommit 
-          -PdisableSpotlessCheck=true 
-          -PdisableCheckStyle=true 
-          -PcompileAndRunTestsWithJava11 
-          -PskipCheckerFramework 
-          -Pjava11Home=$JAVA_HOME_11_X64 
-          -Pdocker-pull-licenses
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :sqlPreCommit
+          arguments: 
+            -PdisableSpotlessCheck=true \
+            -PdisableCheckStyle=true \
+            -PcompileAndRunTestsWithJava11 \
+            -PskipCheckerFramework \
+            -Pjava11Home=$JAVA_HOME_11_X64 \
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v3
         with:
