@@ -371,6 +371,7 @@ func installSetupPackages(files []string, workDir string, requirementsFiles []st
 		log.Printf("Failed to setup acceptable wheel specs, leave it as empty: %v", err)
 	}
 
+	pkgName := "apache-beam"
 	isSdkInstalled, err := isPackageInstalled(pkgName)
 	if err != nil {
 		return fmt.Errorf("failed to check if Apache Beam %s is installed: %v", pkgName, err)
