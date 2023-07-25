@@ -33,7 +33,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_Examples_Dataflow_V2',
 
       // Generates a unique tag for the container as the current time.
       def now = LocalDateTime.now()
-      def unique_tag = '${now.date}${now.hour}${now.minute}${now.second}'
+      def unique_tag = "${now.date}${now.hour}${now.minute}${now.second}"
       steps {
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
