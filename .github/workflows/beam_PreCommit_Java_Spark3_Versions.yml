@@ -63,6 +63,7 @@ jobs:
       github.event_name == 'pull_request_target' ||
       github.event_name == 'schedule' ||
       github.event.comment.body == 'Run Java_Spark3_Versions PreCommit'
+    timeout-minutes: 120
     steps:
       - name: Check out repository code
         uses: actions/checkout@v3
