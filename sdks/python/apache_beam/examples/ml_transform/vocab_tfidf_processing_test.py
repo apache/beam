@@ -109,7 +109,7 @@ class CriteoTest(unittest.TestCase):
     extra_opts['num_workers'] = 30
     extra_opts['disk_size_gb'] = 100
     extra_opts['machine_type'] = 'n1-standard-4'
-    # extra_opts['job_name'] = 'criteo-10GB-dataset-{}'.format(uuid.uuid4().hex)
+    extra_opts['job_name'] = 'criteo-dataset-{}-10'.format(uuid.uuid4().hex)
 
     start_time = time.time()
     _ = criteo.run(
