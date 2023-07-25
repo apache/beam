@@ -18,6 +18,20 @@
 
 package org.apache.beam.learning.katas.triggers.eventtimetriggers;
 
+// beam-playground:
+//   name: EventTimeTriggers
+//   description: Task from katas to count events with event time triggers
+//   multifile: true
+//   context_line: 49
+//   categories:
+//     - Streaming
+//   complexity: MEDIUM
+//   tags:
+//     - count
+//     - windowing
+//     - triggers
+//     - event
+
 import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;

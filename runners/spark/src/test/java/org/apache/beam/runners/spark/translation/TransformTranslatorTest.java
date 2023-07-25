@@ -32,13 +32,14 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
 import scala.Tuple2;
 
 /** Test suite for {@link TransformTranslator}. */
 @SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class TransformTranslatorTest {
 
@@ -67,9 +68,10 @@ public class TransformTranslatorTest {
                 new ByteArray(CoderHelpers.toByteArrayWithTs(1, coder, now)),
                 CoderHelpers.toByteArray(WindowedValue.of(1, now, window, paneInfo), wvCoder)),
             new Tuple2(
-                new ByteArray(CoderHelpers.toByteArrayWithTs(1, coder, now.plus(1))),
+                new ByteArray(
+                    CoderHelpers.toByteArrayWithTs(1, coder, now.plus(Duration.millis(1)))),
                 CoderHelpers.toByteArray(
-                    WindowedValue.of(2, now.plus(1), window, paneInfo), wvCoder)));
+                    WindowedValue.of(2, now.plus(Duration.millis(1)), window, paneInfo), wvCoder)));
 
     List<Tuple2<ByteArray, byte[]>> secondKey =
         Arrays.asList(
@@ -77,9 +79,10 @@ public class TransformTranslatorTest {
                 new ByteArray(CoderHelpers.toByteArrayWithTs(2, coder, now)),
                 CoderHelpers.toByteArray(WindowedValue.of(3, now, window, paneInfo), wvCoder)),
             new Tuple2(
-                new ByteArray(CoderHelpers.toByteArrayWithTs(2, coder, now.plus(2))),
+                new ByteArray(
+                    CoderHelpers.toByteArrayWithTs(2, coder, now.plus(Duration.millis(2)))),
                 CoderHelpers.toByteArray(
-                    WindowedValue.of(4, now.plus(2), window, paneInfo), wvCoder)));
+                    WindowedValue.of(4, now.plus(Duration.millis(2)), window, paneInfo), wvCoder)));
 
     Iterable<Tuple2<ByteArray, byte[]>> concat = Iterables.concat(firstKey, secondKey);
     Iterator<Iterator<WindowedValue<KV<Integer, Integer>>>> keySplit;
@@ -94,14 +97,14 @@ public class TransformTranslatorTest {
         assertEquals(
             Arrays.asList(
                 WindowedValue.of(KV.of(1, 1), now, window, paneInfo),
-                WindowedValue.of(KV.of(1, 2), now.plus(1), window, paneInfo)),
+                WindowedValue.of(KV.of(1, 2), now.plus(Duration.millis(1)), window, paneInfo)),
             list);
       } else {
         // second key
         assertEquals(
             Arrays.asList(
                 WindowedValue.of(KV.of(2, 3), now, window, paneInfo),
-                WindowedValue.of(KV.of(2, 4), now.plus(2), window, paneInfo)),
+                WindowedValue.of(KV.of(2, 4), now.plus(Duration.millis(2)), window, paneInfo)),
             list);
       }
     }

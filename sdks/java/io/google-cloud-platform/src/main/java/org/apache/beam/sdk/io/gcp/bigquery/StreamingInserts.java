@@ -24,14 +24,12 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * PTransform that performs streaming BigQuery write. To increase consistency, it leverages
  * BigQuery's best effort de-dup mechanism.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class StreamingInserts<DestinationT, ElementT>
     extends PTransform<PCollection<KV<DestinationT, ElementT>>, WriteResult> {
   private BigQueryServices bigQueryServices;
@@ -43,10 +41,12 @@ public class StreamingInserts<DestinationT, ElementT>
   private final boolean ignoreUnknownValues;
   private final boolean ignoreInsertIds;
   private final boolean autoSharding;
-  private final String kmsKey;
+  private final boolean propagateSuccessful;
+  private final @Nullable String kmsKey;
   private final Coder<ElementT> elementCoder;
   private final SerializableFunction<ElementT, TableRow> toTableRow;
   private final SerializableFunction<ElementT, TableRow> toFailsafeTableRow;
+  private final @Nullable SerializableFunction<ElementT, String> deterministicRecordIdFn;
 
   /** Constructor. */
   public StreamingInserts(
@@ -65,9 +65,11 @@ public class StreamingInserts<DestinationT, ElementT>
         false,
         false,
         false,
+        true,
         elementCoder,
         toTableRow,
         toFailsafeTableRow,
+        null,
         null);
   }
 
@@ -82,10 +84,12 @@ public class StreamingInserts<DestinationT, ElementT>
       boolean ignoreUnknownValues,
       boolean ignoreInsertIds,
       boolean autoSharding,
+      boolean propagateSuccessful,
       Coder<ElementT> elementCoder,
       SerializableFunction<ElementT, TableRow> toTableRow,
       SerializableFunction<ElementT, TableRow> toFailsafeTableRow,
-      String kmsKey) {
+      @Nullable SerializableFunction<ElementT, String> deterministicRecordIdFn,
+      @Nullable String kmsKey) {
     this.createDisposition = createDisposition;
     this.dynamicDestinations = dynamicDestinations;
     this.bigQueryServices = bigQueryServices;
@@ -95,9 +99,11 @@ public class StreamingInserts<DestinationT, ElementT>
     this.ignoreUnknownValues = ignoreUnknownValues;
     this.ignoreInsertIds = ignoreInsertIds;
     this.autoSharding = autoSharding;
+    this.propagateSuccessful = propagateSuccessful;
     this.elementCoder = elementCoder;
     this.toTableRow = toTableRow;
     this.toFailsafeTableRow = toFailsafeTableRow;
+    this.deterministicRecordIdFn = deterministicRecordIdFn;
     this.kmsKey = kmsKey;
   }
 
@@ -114,9 +120,11 @@ public class StreamingInserts<DestinationT, ElementT>
         ignoreUnknownValues,
         ignoreInsertIds,
         autoSharding,
+        propagateSuccessful,
         elementCoder,
         toTableRow,
         toFailsafeTableRow,
+        deterministicRecordIdFn,
         kmsKey);
   }
 
@@ -132,9 +140,11 @@ public class StreamingInserts<DestinationT, ElementT>
         ignoreUnknownValues,
         ignoreInsertIds,
         autoSharding,
+        propagateSuccessful,
         elementCoder,
         toTableRow,
         toFailsafeTableRow,
+        deterministicRecordIdFn,
         kmsKey);
   }
 
@@ -149,9 +159,11 @@ public class StreamingInserts<DestinationT, ElementT>
         ignoreUnknownValues,
         ignoreInsertIds,
         autoSharding,
+        propagateSuccessful,
         elementCoder,
         toTableRow,
         toFailsafeTableRow,
+        deterministicRecordIdFn,
         kmsKey);
   }
 
@@ -166,9 +178,11 @@ public class StreamingInserts<DestinationT, ElementT>
         ignoreUnknownValues,
         ignoreInsertIds,
         autoSharding,
+        propagateSuccessful,
         elementCoder,
         toTableRow,
         toFailsafeTableRow,
+        deterministicRecordIdFn,
         kmsKey);
   }
 
@@ -183,9 +197,11 @@ public class StreamingInserts<DestinationT, ElementT>
         ignoreUnknownValues,
         ignoreInsertIds,
         autoSharding,
+        propagateSuccessful,
         elementCoder,
         toTableRow,
         toFailsafeTableRow,
+        deterministicRecordIdFn,
         kmsKey);
   }
 
@@ -200,9 +216,51 @@ public class StreamingInserts<DestinationT, ElementT>
         ignoreUnknownValues,
         ignoreInsertIds,
         autoSharding,
+        propagateSuccessful,
         elementCoder,
         toTableRow,
         toFailsafeTableRow,
+        deterministicRecordIdFn,
+        kmsKey);
+  }
+
+  StreamingInserts<DestinationT, ElementT> withSuccessfulInsertsPropagation(
+      boolean propagateSuccessful) {
+    return new StreamingInserts<>(
+        createDisposition,
+        dynamicDestinations,
+        bigQueryServices,
+        retryPolicy,
+        extendedErrorInfo,
+        skipInvalidRows,
+        ignoreUnknownValues,
+        ignoreInsertIds,
+        autoSharding,
+        propagateSuccessful,
+        elementCoder,
+        toTableRow,
+        toFailsafeTableRow,
+        deterministicRecordIdFn,
+        kmsKey);
+  }
+
+  StreamingInserts<DestinationT, ElementT> withDeterministicRecordIdFn(
+      SerializableFunction<ElementT, String> deterministicRecordIdFn) {
+    return new StreamingInserts<>(
+        createDisposition,
+        dynamicDestinations,
+        bigQueryServices,
+        retryPolicy,
+        extendedErrorInfo,
+        skipInvalidRows,
+        ignoreUnknownValues,
+        ignoreInsertIds,
+        autoSharding,
+        propagateSuccessful,
+        elementCoder,
+        toTableRow,
+        toFailsafeTableRow,
+        deterministicRecordIdFn,
         kmsKey);
   }
 
@@ -217,9 +275,11 @@ public class StreamingInserts<DestinationT, ElementT>
         ignoreUnknownValues,
         ignoreInsertIds,
         autoSharding,
+        propagateSuccessful,
         elementCoder,
         toTableRow,
         toFailsafeTableRow,
+        deterministicRecordIdFn,
         kmsKey);
   }
 
@@ -234,9 +294,11 @@ public class StreamingInserts<DestinationT, ElementT>
         ignoreUnknownValues,
         ignoreInsertIds,
         autoSharding,
+        propagateSuccessful,
         elementCoder,
         toTableRow,
         toFailsafeTableRow,
+        deterministicRecordIdFn,
         kmsKey);
   }
 
@@ -258,8 +320,10 @@ public class StreamingInserts<DestinationT, ElementT>
             .withIgnoreUnknownValues(ignoreUnknownValues)
             .withIgnoreInsertIds(ignoreInsertIds)
             .withAutoSharding(autoSharding)
+            .withPropagateSuccessful(propagateSuccessful)
             .withElementCoder(elementCoder)
             .withToTableRow(toTableRow)
-            .withToFailsafeTableRow(toFailsafeTableRow));
+            .withToFailsafeTableRow(toFailsafeTableRow)
+            .withDeterministicRecordIdFn(deterministicRecordIdFn));
   }
 }

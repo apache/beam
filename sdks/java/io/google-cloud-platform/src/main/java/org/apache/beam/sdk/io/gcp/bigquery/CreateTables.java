@@ -20,15 +20,13 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.services.bigquery.model.TableSchema;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -36,30 +34,25 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Creates any tables needed before performing streaming writes to the tables. This is a side-effect
  * {@link DoFn}, and returns the original collection unchanged.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class CreateTables<DestinationT, ElementT>
     extends PTransform<
         PCollection<KV<DestinationT, ElementT>>, PCollection<KV<TableDestination, ElementT>>> {
   private final CreateDisposition createDisposition;
   private final BigQueryServices bqServices;
   private final DynamicDestinations<?, DestinationT> dynamicDestinations;
-  private final String kmsKey;
+  private final @Nullable String kmsKey;
 
   /**
    * The list of tables created so far, so we don't try the creation each time.
    *
    * <p>TODO: We should put a bound on memory usage of this. Use guava cache instead.
    */
-  private static Set<String> createdTables =
-      Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
-
   public CreateTables(
       CreateDisposition createDisposition,
       DynamicDestinations<?, DestinationT> dynamicDestinations) {
@@ -70,14 +63,14 @@ public class CreateTables<DestinationT, ElementT>
       CreateDisposition createDisposition,
       BigQueryServices bqServices,
       DynamicDestinations<?, DestinationT> dynamicDestinations,
-      String kmsKey) {
+      @Nullable String kmsKey) {
     this.createDisposition = createDisposition;
     this.bqServices = bqServices;
     this.dynamicDestinations = dynamicDestinations;
     this.kmsKey = kmsKey;
   }
 
-  CreateTables<DestinationT, ElementT> withKmsKey(String kmsKey) {
+  CreateTables<DestinationT, ElementT> withKmsKey(@Nullable String kmsKey) {
     return new CreateTables<>(createDisposition, bqServices, dynamicDestinations, kmsKey);
   }
 
@@ -96,7 +89,7 @@ public class CreateTables<DestinationT, ElementT>
 
   private class CreateTablesFn
       extends DoFn<KV<DestinationT, ElementT>, KV<TableDestination, ElementT>> {
-    private Map<DestinationT, TableDestination> destinations;
+    private @Nullable Map<DestinationT, TableDestination> destinations = null;
 
     @StartBundle
     public void startBundle() {
@@ -106,6 +99,7 @@ public class CreateTables<DestinationT, ElementT>
     @ProcessElement
     public void processElement(ProcessContext context) {
       dynamicDestinations.setSideInputAccessorFromProcessContext(context);
+      Preconditions.checkStateNotNull(destinations);
       TableDestination tableDestination =
           destinations.computeIfAbsent(
               context.element().getKey(),
@@ -117,9 +111,10 @@ public class CreateTables<DestinationT, ElementT>
                         + "but %s returned null for destination %s",
                     dynamicDestinations,
                     dest);
-                Supplier<TableSchema> schemaSupplier = () -> dynamicDestinations.getSchema(dest);
+                Supplier<@Nullable TableSchema> schemaSupplier =
+                    () -> dynamicDestinations.getSchema(dest);
                 return CreateTableHelpers.possiblyCreateTable(
-                    context,
+                    context.getPipelineOptions().as(BigQueryOptions.class),
                     tableDestination1,
                     schemaSupplier,
                     createDisposition,

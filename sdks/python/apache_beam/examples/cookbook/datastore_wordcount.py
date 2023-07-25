@@ -121,8 +121,8 @@ class EntityWrapper(object):
 
   def make_entity(self, content):
     ancestor_key = Key([self._kind, self._ancestor],
-                       self._namespace,
-                       self._project)
+                       namespace=self._namespace,
+                       project=self._project)
     # Namespace and project are inherited from parent key.
     key = Key([self._kind, str(uuid.uuid4())], parent=ancestor_key)
     entity = Entity(key)

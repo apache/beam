@@ -38,6 +38,7 @@ import com.google.cloud.pubsublite.proto.Topic.PartitionConfig.Capacity;
 import com.google.protobuf.ByteString;
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
@@ -49,6 +50,7 @@ import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.pubsub.TestPubsubSignal;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.Create;
@@ -58,6 +60,10 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionRowTuple;
+import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
 import org.joda.time.Duration;
 import org.junit.After;
 import org.junit.Rule;
@@ -72,6 +78,8 @@ public class ReadWriteIT {
   private static final Logger LOG = LoggerFactory.getLogger(ReadWriteIT.class);
   private static final CloudZone ZONE = CloudZone.parse("us-central1-b");
   private static final int MESSAGE_COUNT = 90;
+  private static final Schema SAMPLE_BEAM_SCHEMA =
+      Schema.builder().addStringField("numberInString").addInt32Field("numberInInt").build();
 
   @Rule public transient TestPubsubSignal signal = TestPubsubSignal.create();
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
@@ -111,6 +119,7 @@ public class ReadWriteIT {
             LOG.error("Failed to clean up topic.", t);
           }
         });
+    LOG.info("Creating topic named {}", toReturn);
     try (AdminClient client = newAdminClient()) {
       client.createTopic(topic.build()).get();
     }
@@ -137,6 +146,7 @@ public class ReadWriteIT {
             LOG.error("Failed to clean up subscription.", t);
           }
         });
+    LOG.info("Creating subscription named {} from topic {}", toReturn, topic);
     try (AdminClient client = newAdminClient()) {
       client.createSubscription(subscription.build(), BacklogLocation.BEGINNING).get();
     }
@@ -150,8 +160,8 @@ public class ReadWriteIT {
     }
   }
 
-  // Workaround for BEAM-12867
-  // TODO(BEAM-12867): Remove this.
+  // Workaround for https://github.com/apache/beam/issues/21257
+  // TODO(https://github.com/apache/beam/issues/21257): Remove this.
   private static class CustomCreate extends PTransform<PCollection<Void>, PCollection<Integer>> {
     @Override
     public PCollection<Integer> expand(PCollection<Void> input) {
@@ -165,6 +175,35 @@ public class ReadWriteIT {
                 }
               }));
     }
+  }
+
+  public static void writeJsonMessages(TopicPath topicPath, Pipeline pipeline) {
+    PCollectionRowTuple.of(
+            "input",
+            pipeline
+                .apply(Create.of((Void) null))
+                .apply("createIndexes", new CustomCreate())
+                .apply(
+                    "format to rows",
+                    MapElements.via(
+                        new SimpleFunction<Integer, Row>(
+                            index ->
+                                Row.withSchema(SAMPLE_BEAM_SCHEMA)
+                                    .addValue(Objects.requireNonNull(index).toString())
+                                    .addValue(index)
+                                    .build()) {}))
+                .setRowSchema(SAMPLE_BEAM_SCHEMA))
+        .apply(
+            "write to pslite",
+            new PubsubLiteWriteSchemaTransformProvider()
+                .from(
+                    PubsubLiteWriteSchemaTransformProvider
+                        .PubsubLiteWriteSchemaTransformConfiguration.builder()
+                        .setFormat("JSON")
+                        .setLocation(ZONE.toString())
+                        .setTopicName(topicPath.name().value())
+                        .setProject(topicPath.project().name().value())
+                        .build()));
   }
 
   public static void writeMessages(TopicPath topicPath, Pipeline pipeline) {
@@ -193,16 +232,12 @@ public class ReadWriteIT {
         pipeline.apply(
             "readMessages",
             PubsubLiteIO.read(
-                SubscriberOptions.newBuilder()
-                    .setSubscriptionPath(subscriptionPath)
-                    // setMinBundleTimeout INTENDED FOR TESTING ONLY
-                    // This sacrifices efficiency to make tests run faster. Do not use this in a
-                    // real pipeline!
-                    .setMinBundleTimeout(Duration.standardSeconds(5))
-                    .build()));
+                SubscriberOptions.newBuilder().setSubscriptionPath(subscriptionPath).build()));
+    return messages;
+    // TODO(https://github.com/apache/beam/issues/21157): Fix and re-enable
     // Deduplicate messages based on the uuids added in PubsubLiteIO.addUuids() when writing.
-    return messages.apply(
-        "dedupeMessages", PubsubLiteIO.deduplicate(UuidDeduplicationOptions.newBuilder().build()));
+    // return messages.apply(
+    //   "dedupeMessages", PubsubLiteIO.deduplicate(UuidDeduplicationOptions.newBuilder().build()));
   }
 
   public static SimpleFunction<SequencedMessage, Integer> extractIds() {
@@ -216,10 +251,85 @@ public class ReadWriteIT {
 
   public static SerializableFunction<Set<Integer>, Boolean> testIds() {
     return ids -> {
-      LOG.info("Ids are: {}", ids);
+      LOG.debug("Ids are: {}", ids);
       Set<Integer> target = IntStream.range(0, MESSAGE_COUNT).boxed().collect(Collectors.toSet());
       return target.equals(ids);
     };
+  }
+
+  @Test
+  public void testPubsubLiteWriteReadWithSchemaTransform() throws Exception {
+    pipeline.getOptions().as(StreamingOptions.class).setStreaming(true);
+    pipeline.getOptions().as(TestPipelineOptions.class).setBlockOnRun(false);
+
+    TopicPath topic = createTopic(getProject(pipeline.getOptions()));
+    SubscriptionPath subscription = null;
+    Exception lastException = null;
+    for (int i = 0; i < 30; ++i) {
+      // Sleep for topic creation to propagate.
+      Thread.sleep(1000);
+      try {
+        subscription = createSubscription(topic);
+        break;
+      } catch (Exception e) {
+        lastException = e;
+        LOG.info("Retrying exception on subscription creation.", e);
+      }
+    }
+    if (subscription == null) {
+      throw lastException;
+    }
+
+    // Publish some messages
+    writeJsonMessages(topic, pipeline);
+
+    // Read some messages. They should be deduplicated by the time we see them, so there should be
+    // exactly numMessages, one for every index in [0,MESSAGE_COUNT).
+    PCollection<Row> messages =
+        PCollectionRowTuple.empty(pipeline)
+            .apply(
+                "read from pslite",
+                new PubsubLiteReadSchemaTransformProvider()
+                    .from(
+                        PubsubLiteReadSchemaTransformProvider
+                            .PubsubLiteReadSchemaTransformConfiguration.builder()
+                            .setFormat("JSON")
+                            .setSchema(
+                                "{\n"
+                                    + "  \"properties\": {\n"
+                                    + "    \"numberInString\": {\n"
+                                    + "      \"type\": \"string\"\n"
+                                    + "    },\n"
+                                    + "    \"numberInInt\": {\n"
+                                    + "      \"type\": \"integer\"\n"
+                                    + "    }\n"
+                                    + "  }\n"
+                                    + "}")
+                            .setSubscriptionName(subscription.name().value())
+                            .setLocation(subscription.location().toString())
+                            .build()))
+            .get("output");
+    PCollection<Integer> ids =
+        messages.apply(
+            "get ints",
+            MapElements.into(TypeDescriptors.integers())
+                .via(
+                    row -> {
+                      return Objects.requireNonNull(row.getInt64("numberInInt")).intValue();
+                    }));
+    ids.apply("PubsubSignalTest", signal.signalSuccessWhen(BigEndianIntegerCoder.of(), testIds()));
+    Supplier<Void> start = signal.waitForStart(Duration.standardMinutes(8));
+    pipeline.apply("start signal", signal.signalStart());
+    PipelineResult job = pipeline.run();
+    start.get();
+    LOG.info("Running!");
+    signal.waitForSuccess(Duration.standardMinutes(5));
+    // A runner may not support cancel
+    try {
+      job.cancel();
+    } catch (UnsupportedOperationException exc) {
+      // noop
+    }
   }
 
   @Test
@@ -235,6 +345,7 @@ public class ReadWriteIT {
       Thread.sleep(1000);
       try {
         subscription = createSubscription(topic);
+        break;
       } catch (Exception e) {
         lastException = e;
         LOG.info("Retrying exception on subscription creation.", e);
@@ -252,8 +363,10 @@ public class ReadWriteIT {
     PCollection<SequencedMessage> messages = readMessages(subscription, pipeline);
     PCollection<Integer> ids = messages.apply(MapElements.via(extractIds()));
     ids.apply("PubsubSignalTest", signal.signalSuccessWhen(BigEndianIntegerCoder.of(), testIds()));
+    Supplier<Void> start = signal.waitForStart(Duration.standardMinutes(8));
     pipeline.apply(signal.signalStart());
     PipelineResult job = pipeline.run();
+    start.get();
     LOG.info("Running!");
     signal.waitForSuccess(Duration.standardMinutes(5));
     // A runner may not support cancel

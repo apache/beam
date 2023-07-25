@@ -17,15 +17,12 @@
  */
 package org.apache.beam.sdk.schemas.logicaltypes;
 
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.LogicalType;
 
 /** A base class for LogicalTypes that use the same Java type as the underlying base type. */
-@Experimental(Kind.SCHEMAS)
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public abstract class PassThroughLogicalType<T> implements LogicalType<T, T> {
   private final String identifier;

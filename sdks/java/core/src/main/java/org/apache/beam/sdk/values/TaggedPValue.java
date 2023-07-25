@@ -28,12 +28,12 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
  */
 @AutoValue
 @Internal
-@SuppressWarnings("keyfor")
 public abstract class TaggedPValue {
   public static TaggedPValue of(TupleTag<?> tag, PCollection<?> value) {
     return new AutoValue_TaggedPValue(tag, value);
   }
 
+  @SuppressWarnings({"keyfor", "nullness"})
   public static TaggedPValue ofExpandedValue(PCollection<?> value) {
     return of(Iterables.getOnlyElement(value.expand().keySet()), value);
   }

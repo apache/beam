@@ -18,31 +18,24 @@
 package org.apache.beam.sdk.io.aws2.sqs;
 
 import java.io.IOException;
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.sdk.io.aws2.options.AwsOptions;
 import org.apache.beam.sdk.io.aws2.sqs.SqsIO.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Suppliers;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import software.amazon.awssdk.services.sqs.SqsClient;
 
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class SqsUnboundedSource extends UnboundedSource<SqsMessage, SqsCheckpointMark> {
   private final Read read;
-  private final Supplier<SqsClient> sqs;
 
   public SqsUnboundedSource(Read read) {
     this.read = read;
-    sqs =
-        Suppliers.memoize(
-            (Supplier<SqsClient> & Serializable) () -> read.sqsClientProvider().getSqsClient());
   }
 
   @Override
@@ -58,7 +51,7 @@ class SqsUnboundedSource extends UnboundedSource<SqsMessage, SqsCheckpointMark> 
   public UnboundedReader<SqsMessage> createReader(
       PipelineOptions options, @Nullable SqsCheckpointMark checkpointMark) {
     try {
-      return new SqsUnboundedReader(this, checkpointMark);
+      return new SqsUnboundedReader(this, checkpointMark, options.as(AwsOptions.class));
     } catch (IOException e) {
       throw new RuntimeException("Unable to subscribe to " + read.queueUrl() + ": ", e);
     }
@@ -76,10 +69,6 @@ class SqsUnboundedSource extends UnboundedSource<SqsMessage, SqsCheckpointMark> 
 
   public Read getRead() {
     return read;
-  }
-
-  public SqsClient getSqs() {
-    return sqs.get();
   }
 
   @Override

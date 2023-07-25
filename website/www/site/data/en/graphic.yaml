@@ -10,13 +10,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-- title: Sources
+- title: Data Sourcing
   body: Beam reads your data from a diverse set of supported sources, no matter if it’s on-prem or in the cloud.
   icon: /images/model-sources-icon.svg
-- title: Processing
-  body: Beam executes your business logic for Batch and Streaming use cases.
+- title: Data Processing
+  body: Beam executes your business logic for both batch and streaming use cases.
   icon: /images/model-processing-icon.svg
-- title: Sinks
-  body: Beam writes the results of your data processing logic to the most popular data destinations in the industry.
+- title: Data Writing
+  body: Beam writes the results of your data processing logic to the most popular data sinks in the industry.
   icon: /images/model-sinks-icon.svg
 

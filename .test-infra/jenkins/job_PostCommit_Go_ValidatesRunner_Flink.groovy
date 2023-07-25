@@ -25,7 +25,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Go_VR_Flink',
       description('Runs Go integration tests on the Flink runner.')
 
       // Set common parameters.
-      commonJobProperties.setTopLevelMainJobProperties(delegate)
+      commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 100, true, 'beam', true, 40)
 
       // Gradle goals for this job.
       steps {

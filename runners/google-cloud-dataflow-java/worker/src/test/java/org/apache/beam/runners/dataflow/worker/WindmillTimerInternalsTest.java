@@ -32,6 +32,7 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -84,14 +85,25 @@ public class WindmillTimerInternalsTest {
               List<TimerData> anonymousTimers =
                   ImmutableList.of(
                       TimerData.of(namespace, timestamp, timestamp, timeDomain),
-                      TimerData.of(namespace, timestamp, timestamp.minus(1), timeDomain));
+                      TimerData.of(
+                          namespace, timestamp, timestamp.minus(Duration.millis(1)), timeDomain));
               for (TimerData timer : anonymousTimers) {
-                assertThat(
+                Instant expectedTimestamp =
+                    timer.getOutputTimestamp().isBefore(BoundedWindow.TIMESTAMP_MIN_VALUE)
+                        ? BoundedWindow.TIMESTAMP_MIN_VALUE
+                        : timer.getOutputTimestamp();
+                TimerData computed =
                     WindmillTimerInternals.windmillTimerToTimerData(
                         prefix,
                         WindmillTimerInternals.timerDataToWindmillTimer(stateFamily, prefix, timer),
-                        coder),
-                    equalTo(timer));
+                        coder);
+                // The function itself bounds output, so we dont expect the original input as the
+                // output, we expect it to be bounded
+                TimerData expected =
+                    TimerData.of(
+                        timer.getNamespace(), timestamp, expectedTimestamp, timer.getDomain());
+
+                assertThat(computed, equalTo(expected));
               }
 
               for (String timerId : TEST_TIMER_IDS) {
@@ -100,23 +112,41 @@ public class WindmillTimerInternalsTest {
                         TimerData.of(timerId, namespace, timestamp, timestamp, timeDomain),
                         TimerData.of(
                             timerId, "family", namespace, timestamp, timestamp, timeDomain),
-                        TimerData.of(timerId, namespace, timestamp, timestamp.minus(1), timeDomain),
+                        TimerData.of(
+                            timerId,
+                            namespace,
+                            timestamp,
+                            timestamp.minus(Duration.millis(1)),
+                            timeDomain),
                         TimerData.of(
                             timerId,
                             "family",
                             namespace,
                             timestamp,
-                            timestamp.minus(1),
+                            timestamp.minus(Duration.millis(1)),
                             timeDomain));
 
                 for (TimerData timer : timers) {
+                  Instant expectedTimestamp =
+                      timer.getOutputTimestamp().isBefore(BoundedWindow.TIMESTAMP_MIN_VALUE)
+                          ? BoundedWindow.TIMESTAMP_MIN_VALUE
+                          : timer.getOutputTimestamp();
+
+                  TimerData expected =
+                      TimerData.of(
+                          timer.getTimerId(),
+                          timer.getTimerFamilyId(),
+                          timer.getNamespace(),
+                          timer.getTimestamp(),
+                          expectedTimestamp,
+                          timer.getDomain());
                   assertThat(
                       WindmillTimerInternals.windmillTimerToTimerData(
                           prefix,
                           WindmillTimerInternals.timerDataToWindmillTimer(
                               stateFamily, prefix, timer),
                           coder),
-                      equalTo(timer));
+                      equalTo(expected));
                 }
               }
             }

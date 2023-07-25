@@ -18,6 +18,23 @@
 
 package org.apache.beam.learning.katas.coretransforms.composite;
 
+// beam-playground:
+//   name: CompositeTransform
+//   description: Task from katas to implement a composite transform "ExtractAndMultiplyNumbers"
+//     that extracts numbers from comma separated line and then multiplies each number by 10.
+//   multifile: false
+//   context_line: 54
+//   categories:
+//     - Combiners
+//     - Flatten
+//     - Core Transforms
+//   complexity: BASIC
+//   tags:
+//     - count
+//     - map
+//     - transforms
+//     - numbers
+
 import static org.apache.beam.sdk.values.TypeDescriptors.integers;
 
 import java.util.Arrays;

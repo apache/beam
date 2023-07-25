@@ -25,7 +25,7 @@ import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
+import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTableFilter;
 import org.apache.beam.sdk.extensions.sql.meta.ProjectSupport;
 import org.apache.beam.sdk.extensions.sql.meta.SchemaBaseBeamTable;
@@ -33,9 +33,7 @@ import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.parquet.ParquetIO;
 import org.apache.beam.sdk.io.parquet.ParquetIO.Read;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.transforms.Convert;
-import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
@@ -70,7 +68,7 @@ class ParquetTable extends SchemaBaseBeamTable implements Serializable {
     Read read = ParquetIO.read(schema).withBeamSchemas(true).from(table.getLocation() + "/*");
     if (!fieldNames.isEmpty()) {
       Schema projectionSchema = projectSchema(schema, fieldNames);
-      LOG.info("Projecting fields schema : " + projectionSchema.toString());
+      LOG.info("Projecting fields schema: {}", projectionSchema);
       read = read.withProjection(projectionSchema, projectionSchema);
     }
     return begin.apply("ParquetIORead", read).apply("ToRows", Convert.toRows());
@@ -118,11 +116,6 @@ class ParquetTable extends SchemaBaseBeamTable implements Serializable {
   @Override
   public IsBounded isBounded() {
     return PCollection.IsBounded.BOUNDED;
-  }
-
-  @Override
-  public BeamTableStatistics getTableStatistics(PipelineOptions options) {
-    return BeamTableStatistics.BOUNDED_UNKNOWN;
   }
 
   @Override

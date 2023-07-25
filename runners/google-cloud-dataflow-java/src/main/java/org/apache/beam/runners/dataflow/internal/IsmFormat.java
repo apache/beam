@@ -100,7 +100,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * IsmShardCoder} for further details as to its encoding scheme.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class IsmFormat {
   private static final int HASH_SEED = 1225801234;
@@ -412,9 +412,8 @@ public class IsmFormat {
         return false;
       }
       IsmRecordCoder<?> that = (IsmRecordCoder<?>) other;
-      return Objects.equals(this.numberOfShardKeyCoders, that.numberOfShardKeyCoders)
-          && Objects.equals(
-              this.numberOfMetadataShardKeyCoders, that.numberOfMetadataShardKeyCoders)
+      return this.numberOfShardKeyCoders == that.numberOfShardKeyCoders
+          && this.numberOfMetadataShardKeyCoders == that.numberOfMetadataShardKeyCoders
           && Objects.equals(this.keyComponentCoders, that.keyComponentCoders)
           && Objects.equals(this.valueCoder, that.valueCoder);
     }

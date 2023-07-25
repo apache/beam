@@ -18,9 +18,10 @@
 package org.apache.beam.runners.dataflow;
 
 import static org.apache.beam.runners.core.construction.PTransformTranslation.PAR_DO_TRANSFORM_URN;
+import static org.apache.beam.runners.core.construction.ParDoTranslation.registerCoderOrThrow;
+import static org.apache.beam.runners.core.construction.ParDoTranslation.translateTimeDomain;
 import static org.apache.beam.runners.core.construction.ParDoTranslation.translateTimerFamilySpec;
 import static org.apache.beam.sdk.transforms.reflect.DoFnSignatures.getStateSpecOrThrow;
-import static org.apache.beam.sdk.transforms.reflect.DoFnSignatures.getTimerFamilySpecOrThrow;
 import static org.apache.beam.sdk.transforms.reflect.DoFnSignatures.getTimerSpecOrThrow;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
@@ -37,14 +38,17 @@ import org.apache.beam.runners.core.construction.ForwardingPTransform;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
+import org.apache.beam.runners.core.construction.ParDoTranslation.ParDoLikeTimerFamilySpecs;
 import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
+import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.runners.core.construction.TransformPayloadTranslatorRegistrar;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
+import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -54,6 +58,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.TimerDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollection;
@@ -70,8 +75,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
  * that {@link DisplayData} appears on all {@link ParDo ParDos} in the {@link DataflowRunner}.
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class PrimitiveParDoSingleFactory<InputT, OutputT>
     extends SingleInputOutputOverrideFactory<
@@ -245,20 +250,11 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
             }
 
             @Override
-            public Map<String, RunnerApi.TimerFamilySpec> translateTimerFamilySpecs(
+            public ParDoLikeTimerFamilySpecs translateTimerFamilySpecs(
                 SdkComponents newComponents) {
               Map<String, RunnerApi.TimerFamilySpec> timerFamilySpecs = new HashMap<>();
-              for (Map.Entry<String, DoFnSignature.TimerFamilyDeclaration> timerFamily :
-                  signature.timerFamilyDeclarations().entrySet()) {
-                RunnerApi.TimerFamilySpec spec =
-                    translateTimerFamilySpec(
-                        getTimerFamilySpecOrThrow(timerFamily.getValue(), doFn),
-                        newComponents,
-                        keyCoder,
-                        windowCoder);
-                timerFamilySpecs.put(timerFamily.getKey(), spec);
-              }
-              for (Map.Entry<String, DoFnSignature.TimerDeclaration> timer :
+
+              for (Map.Entry<String, TimerDeclaration> timer :
                   signature.timerDeclarations().entrySet()) {
                 RunnerApi.TimerFamilySpec spec =
                     translateTimerFamilySpec(
@@ -268,14 +264,45 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
                         windowCoder);
                 timerFamilySpecs.put(timer.getKey(), spec);
               }
-              return timerFamilySpecs;
+
+              for (Map.Entry<String, DoFnSignature.TimerFamilyDeclaration> timerFamily :
+                  signature.timerFamilyDeclarations().entrySet()) {
+                RunnerApi.TimerFamilySpec spec =
+                    translateTimerFamilySpec(
+                        DoFnSignatures.getTimerFamilySpecOrThrow(timerFamily.getValue(), doFn),
+                        newComponents,
+                        keyCoder,
+                        windowCoder);
+                timerFamilySpecs.put(timerFamily.getKey(), spec);
+              }
+
+              String onWindowExpirationTimerFamilySpec = null;
+              if (signature.onWindowExpiration() != null) {
+                RunnerApi.TimerFamilySpec spec =
+                    RunnerApi.TimerFamilySpec.newBuilder()
+                        .setTimeDomain(translateTimeDomain(TimeDomain.EVENT_TIME))
+                        .setTimerFamilyCoderId(
+                            registerCoderOrThrow(components, Timer.Coder.of(keyCoder, windowCoder)))
+                        .build();
+                for (int i = 0; i < Integer.MAX_VALUE; ++i) {
+                  onWindowExpirationTimerFamilySpec = "onWindowExpiration" + i;
+                  if (!timerFamilySpecs.containsKey(onWindowExpirationTimerFamilySpec)) {
+                    break;
+                  }
+                }
+                timerFamilySpecs.put(onWindowExpirationTimerFamilySpec, spec);
+              }
+
+              return ParDoLikeTimerFamilySpecs.create(
+                  timerFamilySpecs, onWindowExpirationTimerFamilySpec);
             }
 
             @Override
             public boolean isStateful() {
               return !signature.stateDeclarations().isEmpty()
                   || !signature.timerDeclarations().isEmpty()
-                  || !signature.timerFamilyDeclarations().isEmpty();
+                  || !signature.timerFamilyDeclarations().isEmpty()
+                  || signature.onWindowExpiration() != null;
             }
 
             @Override

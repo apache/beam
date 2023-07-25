@@ -37,7 +37,7 @@ import org.joda.time.Instant;
  * Runs a {@link SplittableParDoViaKeyedWorkItems.ProcessFn} by constructing the appropriate
  * contexts and passing them in.
  */
-@SuppressWarnings({"nullness", "keyfor"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({"nullness", "keyfor"}) // TODO(https://github.com/apache/beam/issues/20497)
 public class ProcessFnRunner<InputT, OutputT, RestrictionT>
     implements PushbackSideInputDoFnRunner<
         KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> {
@@ -92,6 +92,11 @@ public class ProcessFnRunner<InputT, OutputT, RestrictionT>
       Instant outputTimestamp,
       TimeDomain timeDomain) {
     throw new UnsupportedOperationException("User timers unsupported in ProcessFn");
+  }
+
+  @Override
+  public <KeyT> void onWindowExpiration(BoundedWindow window, Instant outputTimestamp, KeyT key) {
+    throw new UnsupportedOperationException("OnWindowExpiration unsupported in ProcessFn");
   }
 
   private static <T> void checkTrivialOuterWindows(

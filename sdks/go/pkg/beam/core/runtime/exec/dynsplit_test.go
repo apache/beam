@@ -44,7 +44,7 @@ func TestDynamicSplit(t *testing.T) {
 		name string
 		// driver is a function determining how the processing and splitting
 		// threads are created and coordinated.
-		driver func(*Plan, DataContext, *splitTestSdf) (error, splitResult)
+		driver func(context.Context, *Plan, DataContext, *splitTestSdf) (splitResult, error)
 	}{
 		{
 			// Complete a split before beginning processing.
@@ -75,13 +75,13 @@ func TestDynamicSplit(t *testing.T) {
 			plan, out := createSdfPlan(t, t.Name(), dfn, cdr)
 
 			// Create thread to send element to pipeline.
-			pr, pw := io.Pipe()
+			cw := makeChanWriter()
 			elm := createElm()
-			go writeElm(elm, cdr, pw)
-			dc := DataContext{Data: &TestDataManager{R: pr}}
+			go writeElm(elm, cdr, cw)
+			dc := DataContext{Data: &TestDataManager{Ch: cw.Ch}}
 
 			// Call driver to coordinate processing & splitting threads.
-			procRes, splitRes := test.driver(plan, dc, sdf)
+			splitRes, procRes := test.driver(context.Background(), plan, dc, sdf)
 
 			// Validate we get a valid split result, aside from split elements.
 			if splitRes.err != nil {
@@ -92,7 +92,7 @@ func TestDynamicSplit(t *testing.T) {
 				RI:   1,
 				PS:   nil,
 				RS:   nil,
-				TId:  testTransformId,
+				TId:  testTransformID,
 				InId: indexToInputId(0),
 			}
 			if diff := cmp.Diff(splitRes.split, wantSplit, cmpopts.IgnoreFields(SplitResult{}, "PS", "RS")); diff != "" {
@@ -110,7 +110,7 @@ func TestDynamicSplit(t *testing.T) {
 
 			// Validate split elements are encoded correctly by decoding them
 			// with the input coder to the path.
-			// TODO(BEAM-10579) Switch to using splittable unit's input coder
+			// TODO(https://github.com/apache/beam/issues/20343) Switch to using splittable unit's input coder
 			// once that is implemented.
 			p, err := decodeDynSplitElm(splitRes.split.PS[0], cdr)
 			if err != nil {
@@ -125,7 +125,7 @@ func TestDynamicSplit(t *testing.T) {
 			if err := procRes; err != nil {
 				t.Fatal(err)
 			}
-			pRest := p.Elm.(*FullValue).Elm2.(offsetrange.Restriction)
+			pRest := p.Elm.(*FullValue).Elm2.(*FullValue).Elm.(offsetrange.Restriction)
 			if got, want := len(out.Elements), int(pRest.End-pRest.Start); got != want {
 				t.Errorf("Unexpected number of elements: got: %v, want: %v", got, want)
 			}
@@ -141,7 +141,7 @@ func TestDynamicSplit(t *testing.T) {
 
 // nonBlockingDriver performs a split before starting processing, so no thread
 // is forced to wait on a mutex.
-func nonBlockingDriver(plan *Plan, dc DataContext, sdf *splitTestSdf) (procRes error, splitRes splitResult) {
+func nonBlockingDriver(ctx context.Context, plan *Plan, dc DataContext, sdf *splitTestSdf) (splitRes splitResult, procRes error) {
 	// Begin processing pipeline.
 	procResCh := make(chan error)
 	go processPlan(plan, dc, procResCh)
@@ -149,7 +149,7 @@ func nonBlockingDriver(plan *Plan, dc DataContext, sdf *splitTestSdf) (procRes e
 
 	// Complete a split before unblocking processing.
 	splitResCh := make(chan splitResult)
-	go splitPlan(plan, splitResCh)
+	go splitPlan(ctx, plan, splitResCh)
 	<-rt.split
 	<-rt.blockSplit
 	splitRes = <-splitResCh
@@ -161,12 +161,12 @@ func nonBlockingDriver(plan *Plan, dc DataContext, sdf *splitTestSdf) (procRes e
 	<-rt.endClaim
 	procRes = <-procResCh
 
-	return procRes, splitRes
+	return splitRes, procRes
 }
 
 // splitBlockingDriver blocks on a split request so that the SDF attempts to
 // claim while the split is occurring.
-func splitBlockingDriver(plan *Plan, dc DataContext, sdf *splitTestSdf) (procRes error, splitRes splitResult) {
+func splitBlockingDriver(ctx context.Context, plan *Plan, dc DataContext, sdf *splitTestSdf) (splitRes splitResult, procRes error) {
 	// Begin processing pipeline.
 	procResCh := make(chan error)
 	go processPlan(plan, dc, procResCh)
@@ -174,7 +174,7 @@ func splitBlockingDriver(plan *Plan, dc DataContext, sdf *splitTestSdf) (procRes
 
 	// Start a split, but block on it so it holds the mutex.
 	splitResCh := make(chan splitResult)
-	go splitPlan(plan, splitResCh)
+	go splitPlan(ctx, plan, splitResCh)
 	<-rt.split
 
 	// Start processing and start a claim, that'll be waiting for the mutex.
@@ -190,12 +190,12 @@ func splitBlockingDriver(plan *Plan, dc DataContext, sdf *splitTestSdf) (procRes
 	<-rt.endClaim
 	procRes = <-procResCh
 
-	return procRes, splitRes
+	return splitRes, procRes
 }
 
 // claimBlockingDriver blocks on a claim request so that the SDF attempts to
 // split while the claim is occurring.
-func claimBlockingDriver(plan *Plan, dc DataContext, sdf *splitTestSdf) (procRes error, splitRes splitResult) {
+func claimBlockingDriver(ctx context.Context, plan *Plan, dc DataContext, sdf *splitTestSdf) (splitRes splitResult, procRes error) {
 	// Begin processing pipeline.
 	procResCh := make(chan error)
 	go processPlan(plan, dc, procResCh)
@@ -207,7 +207,7 @@ func claimBlockingDriver(plan *Plan, dc DataContext, sdf *splitTestSdf) (procRes
 
 	// Start a split that'll be waiting for the mutex.
 	splitResCh := make(chan splitResult)
-	go splitPlan(plan, splitResCh)
+	go splitPlan(ctx, plan, splitResCh)
 	<-rt.split
 
 	// Unblock the claim, freeing the mutex (but not finishing processing yet).
@@ -219,15 +219,18 @@ func claimBlockingDriver(plan *Plan, dc DataContext, sdf *splitTestSdf) (procRes
 	<-rt.endClaim // Delay the claim end so we don't process too much before splitting.
 	procRes = <-procResCh
 
-	return procRes, splitRes
+	return splitRes, procRes
 }
 
 // createElm creates the element for our test pipeline.
 func createElm() *FullValue {
 	return &FullValue{
 		Elm: &FullValue{
-			Elm:  20,
-			Elm2: offsetrange.Restriction{Start: 0, End: 20},
+			Elm: 20,
+			Elm2: &FullValue{
+				Elm:  offsetrange.Restriction{Start: 0, End: 20},
+				Elm2: false,
+			},
 		},
 		Elm2: float64(20),
 	}
@@ -244,7 +247,10 @@ func createSplitTestInCoder() *coder.Coder {
 		coder.NewKV([]*coder.Coder{
 			coder.NewKV([]*coder.Coder{
 				intCoder(reflectx.Int),
-				{Kind: coder.Custom, T: typex.New(restT), Custom: restCdr},
+				coder.NewKV([]*coder.Coder{
+					{Kind: coder.Custom, T: typex.New(restT), Custom: restCdr},
+					coder.NewBool(),
+				}),
 			}),
 			coder.NewDouble(),
 		}),
@@ -257,7 +263,7 @@ func createSplitTestInCoder() *coder.Coder {
 func createSdfPlan(t *testing.T, name string, fn *graph.DoFn, cdr *coder.Coder) (*Plan, *CaptureNode) {
 	out := &CaptureNode{UID: 0}
 	n := &ParDo{UID: 1, Fn: fn, Out: []Node{out}}
-	sdf := &ProcessSizedElementsAndRestrictions{PDo: n, TfId: testTransformId}
+	sdf := &ProcessSizedElementsAndRestrictions{PDo: n, TfId: testTransformID}
 	ds := &DataSource{
 		UID:   2,
 		SID:   StreamID{PtransformID: "DataSource"},
@@ -275,8 +281,8 @@ func createSdfPlan(t *testing.T, name string, fn *graph.DoFn, cdr *coder.Coder) 
 }
 
 // writeElm is meant to be the goroutine for feeding an element to the
-// DataSourc of the test pipeline.
-func writeElm(elm *FullValue, cdr *coder.Coder, pw *io.PipeWriter) {
+// DataSource of the test pipeline.
+func writeElm(elm *FullValue, cdr *coder.Coder, pw io.WriteCloser) {
 	wc := MakeWindowEncoder(cdr.Window)
 	ec := MakeElementEncoder(coder.SkipW(cdr))
 	if err := EncodeWindowedValueHeader(wc, window.SingleGlobalWindow, mtime.ZeroTimestamp, typex.NoFiringPane(), pw); err != nil {
@@ -327,8 +333,8 @@ type splitResult struct {
 
 // splitPlan is meant to be the goroutine representing the thread handling a
 // split request for the SDF.
-func splitPlan(plan *Plan, result chan splitResult) {
-	split, err := plan.Split(SplitPoints{Frac: 0.5, BufSize: 1})
+func splitPlan(ctx context.Context, plan *Plan, result chan splitResult) {
+	split, err := plan.Split(ctx, SplitPoints{Frac: 0.5, BufSize: 1})
 	result <- splitResult{split: split, err: err}
 }
 
@@ -364,7 +370,7 @@ func newSplitTestRTracker(rest offsetrange.Restriction) *splitTestRTracker {
 	}
 }
 
-func (rt *splitTestRTracker) TryClaim(pos interface{}) bool {
+func (rt *splitTestRTracker) TryClaim(pos any) bool {
 	i := pos.(int64)
 	if i == rt.blockInd {
 		rt.claim <- struct{}{}
@@ -389,7 +395,7 @@ func (rt *splitTestRTracker) GetError() error {
 	return rt.rt.GetError()
 }
 
-func (rt *splitTestRTracker) TrySplit(fraction float64) (interface{}, interface{}, error) {
+func (rt *splitTestRTracker) TrySplit(fraction float64) (any, any, error) {
 	rt.mu.Lock()
 	defer rt.mu.Unlock()
 	rt.blockSplit <- struct{}{}
@@ -412,7 +418,7 @@ func (rt *splitTestRTracker) IsDone() bool {
 	return rt.rt.IsDone()
 }
 
-func (rt *splitTestRTracker) GetRestriction() interface{} {
+func (rt *splitTestRTracker) GetRestriction() any {
 	rt.mu.Lock()
 	defer rt.mu.Unlock()
 	return rt.rt.GetRestriction()

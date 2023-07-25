@@ -28,37 +28,36 @@ applyJavaNature(
 description = 'Apache Beam :: SDKs :: Java :: Extensions :: ML'
 
 dependencies {
-    compile project(path: ":sdks:java:core", configuration: "shadow")
-    compile project(":sdks:java:expansion-service")
+    implementation project(path: ":sdks:java:core", configuration: "shadow")
+    implementation project(":sdks:java:expansion-service")
     permitUnusedDeclared project(":sdks:java:expansion-service") // BEAM-11761
-    compile library.java.google_http_client
-    compile 'com.google.cloud:google-cloud-recommendations-ai:0.3.7'
-    compile 'com.google.cloud:google-cloud-video-intelligence:1.2.0'
-    compile 'com.google.cloud:google-cloud-dlp:1.1.4'
-    compile 'com.google.cloud:google-cloud-language:1.99.4'
-    compile library.java.protobuf_java_util
-    compile group: 'org.json', name: 'json', version: '20201115'
-    compile 'com.google.api.grpc:proto-google-cloud-dlp-v2:1.1.4'
-    compile 'com.google.api.grpc:proto-google-cloud-language-v1:1.81.4'
-    compile 'com.google.api.grpc:proto-google-cloud-video-intelligence-v1:1.2.0'
-    compile 'com.google.api.grpc:proto-google-cloud-vision-v1:1.81.3'
-    compile 'com.google.api.grpc:proto-google-cloud-recommendations-ai-v1beta1:0.3.7'
-    compile library.java.joda_time
-    compile library.java.auto_value_annotations
-    compile library.java.gax
-    compile library.java.protobuf_java
-    compile library.java.slf4j_api
-    provided library.java.junit
-    testCompile project(path: ':sdks:java:core', configuration: 'shadowTest')
-    compile 'com.google.cloud:google-cloud-vision:1.99.3'
-    testCompile library.java.mockito_core
-    testCompile library.java.google_http_client
-    testCompile library.java.protobuf_java_util
-    testCompile group: 'org.json', name: 'json', version: '20201115'
-    testCompile 'com.google.cloud:google-cloud-recommendations-ai:0.3.7'
-    testCompile 'com.google.cloud:google-cloud-video-intelligence:1.2.0'
-    testCompile 'com.google.cloud:google-cloud-dlp:1.1.4'
-    testCompile project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntime")
+    implementation library.java.google_http_client
+    implementation 'com.google.cloud:google-cloud-recommendations-ai:0.3.7'
+    implementation 'com.google.cloud:google-cloud-video-intelligence:1.2.0'
+    implementation 'com.google.cloud:google-cloud-dlp:1.1.4'
+    implementation 'com.google.cloud:google-cloud-language:1.99.4'
+    implementation library.java.protobuf_java_util
+    implementation group: 'org.json', name: 'json', version: '20201115'
+    implementation 'com.google.api.grpc:proto-google-cloud-dlp-v2:1.1.4'
+    implementation 'com.google.api.grpc:proto-google-cloud-language-v1:1.81.4'
+    implementation 'com.google.api.grpc:proto-google-cloud-video-intelligence-v1:1.2.0'
+    implementation 'com.google.api.grpc:proto-google-cloud-vision-v1:1.81.3'
+    implementation 'com.google.api.grpc:proto-google-cloud-recommendations-ai-v1beta1:0.3.7'
+    implementation library.java.joda_time
+    implementation library.java.auto_value_annotations
+    implementation library.java.gax
+    implementation library.java.protobuf_java
+    implementation library.java.slf4j_api
+    testImplementation project(path: ':sdks:java:core', configuration: 'shadowTest')
+    implementation 'com.google.cloud:google-cloud-vision:1.99.3'
+    testImplementation library.java.mockito_core
+    testImplementation library.java.google_http_client
+    testImplementation library.java.protobuf_java_util
+    testImplementation group: 'org.json', name: 'json', version: '20201115'
+    testImplementation 'com.google.cloud:google-cloud-recommendations-ai:0.3.7'
+    testImplementation 'com.google.cloud:google-cloud-video-intelligence:1.2.0'
+    testImplementation 'com.google.cloud:google-cloud-dlp:1.1.4'
+    testImplementation project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntimeMigration")
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
     testRuntimeOnly project(":runners:google-cloud-dataflow-java")
 }

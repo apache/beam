@@ -166,14 +166,16 @@ class PCollection(PValue, Generic[T]):
     return _InvalidUnpickledPCollection, ()
 
   @staticmethod
-  def from_(pcoll):
-    # type: (PValue) -> PCollection
+  def from_(pcoll, is_bounded=None):
+    # type: (PValue, Optional[bool]) -> PCollection
 
     """Create a PCollection, using another PCollection as a starting point.
 
     Transfers relevant attributes.
     """
-    return PCollection(pcoll.pipeline, is_bounded=pcoll.is_bounded)
+    if is_bounded is None:
+      is_bounded = pcoll.is_bounded
+    return PCollection(pcoll.pipeline, is_bounded=is_bounded)
 
   def to_runner_api(self, context):
     # type: (PipelineContext) -> beam_runner_api_pb2.PCollection
@@ -682,8 +684,11 @@ class Row(object):
     return hash(self.__dict__.items())
 
   def __eq__(self, other):
-    return type(self) == type(other) and all(
-        s == o for s, o in zip(self.__dict__.items(), other.__dict__.items()))
+    return (
+        type(self) == type(other) and
+        len(self.__dict__) == len(other.__dict__) and all(
+            s == o for s,
+            o in zip(self.__dict__.items(), other.__dict__.items())))
 
   def __reduce__(self):
     return _make_Row, tuple(self.__dict__.items())

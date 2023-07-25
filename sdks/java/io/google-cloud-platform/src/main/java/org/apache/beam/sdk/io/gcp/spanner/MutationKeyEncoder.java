@@ -39,15 +39,13 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
 import org.joda.time.DateTime;
 import org.joda.time.Days;
 import org.joda.time.MutableDateTime;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Given the Schema, Encodes the table name and Key into a lexicographically sortable {@code
  * byte[]}.
  */
 class MutationKeyEncoder {
-  private static final Logger LOG = LoggerFactory.getLogger(MutationKeyEncoder.class);
+
   private static final int ROWS_PER_UNKNOWN_TABLE_LOG_MESSAGE = 10000;
   private static final DateTime MIN_DATE = new DateTime(1, 1, 1, 0, 0);
   private final SpannerSchema schema;
@@ -124,6 +122,7 @@ class MutationKeyEncoder {
             writeNumber(orderedCode, part, Double.doubleToLongBits(val.getFloat64()));
             break;
           case STRING:
+          case PG_NUMERIC:
             writeString(orderedCode, part, val.getString());
             break;
           case BYTES:
@@ -134,6 +133,12 @@ class MutationKeyEncoder {
             break;
           case DATE:
             writeNumber(orderedCode, part, encodeDate(val.getDate()));
+            break;
+          case NUMERIC:
+            writeString(orderedCode, part, val.getNumeric().toString());
+            break;
+          case JSON:
+            writeString(orderedCode, part, val.getJson());
             break;
           default:
             throw new IllegalArgumentException("Unknown type " + val.getType());

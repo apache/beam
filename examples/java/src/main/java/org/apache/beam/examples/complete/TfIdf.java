@@ -17,6 +17,23 @@
  */
 package org.apache.beam.examples.complete;
 
+// beam-playground:
+//   name: TfIdf
+//   description: An example that computes a basic TF-IDF search table for a directory or
+//     GCS prefix.
+//   multifile: true
+//   pipeline_options: --output output.txt
+//   context_line: 447
+//   categories:
+//     - Combiners
+//     - Options
+//     - Joins
+//   complexity: ADVANCED
+//   tags:
+//     - tfidf
+//     - count
+//     - strings
+
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;

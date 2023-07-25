@@ -24,6 +24,7 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -41,7 +42,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.Network;
 
 /** Static utility methods for {@link Network} instances that are directed. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class Networks {
   /**
@@ -184,7 +185,7 @@ public class Networks {
   public static <N, E> String toDot(Network<N, E> network) {
     StringBuilder builder = new StringBuilder();
     builder.append("digraph network {\n");
-    Map<N, String> nodeName = Maps.newIdentityHashMap();
+    IdentityHashMap<N, String> nodeName = Maps.newIdentityHashMap();
     network.nodes().forEach(node -> nodeName.put(node, "n" + nodeName.size()));
     for (Entry<N, String> nodeEntry : nodeName.entrySet()) {
       builder.append(

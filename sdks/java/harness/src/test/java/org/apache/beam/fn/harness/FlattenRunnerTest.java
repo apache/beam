@@ -96,8 +96,7 @@ public class FlattenRunnerTest {
     List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
     context.addPCollectionConsumer(
         "mainOutputTarget",
-        (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add,
-        StringUtf8Coder.of());
+        (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add);
 
     new FlattenRunner.Factory<>().createRunnerForPTransform(context);
 
@@ -157,8 +156,7 @@ public class FlattenRunnerTest {
     List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
     context.addPCollectionConsumer(
         "mainOutputTarget",
-        (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add,
-        StringUtf8Coder.of());
+        (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add);
 
     new FlattenRunner.Factory<>().createRunnerForPTransform(context);
 

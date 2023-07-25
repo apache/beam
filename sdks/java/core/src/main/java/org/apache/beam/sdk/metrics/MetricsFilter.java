@@ -19,12 +19,9 @@ package org.apache.beam.sdk.metrics;
 
 import com.google.auto.value.AutoValue;
 import java.util.Set;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 
 /** Simple POJO representing a filter for querying metrics. */
-@Experimental(Kind.METRICS)
 @AutoValue
 public abstract class MetricsFilter {
 
@@ -81,8 +78,8 @@ public abstract class MetricsFilter {
      * as "foo", "bar" or "foo/bar". However, each component of the step name must be completely
      * matched, so the filter "foo" will not match a step name such as "fool/bar/foot"
      *
-     * <p>TODO(BEAM-12154): Beam does not guarantee a specific format for step IDs hence we should
-     * not assume a "foo/bar/baz" format here.
+     * <p>TODO(https://github.com/apache/beam/issues/20919): Beam does not guarantee a specific
+     * format for step IDs hence we should not assume a "foo/bar/baz" format here.
      */
     public Builder addStep(String step) {
       immutableStepsBuilder().add(step);

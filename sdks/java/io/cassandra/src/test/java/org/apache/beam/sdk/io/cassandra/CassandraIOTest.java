@@ -89,16 +89,16 @@ import org.slf4j.LoggerFactory;
 /** Tests of {@link CassandraIO}. */
 @RunWith(JUnit4.class)
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class CassandraIOTest implements Serializable {
   private static final long NUM_ROWS = 22L;
   private static final String CASSANDRA_KEYSPACE = "beam_ks";
   private static final String CASSANDRA_HOST = "127.0.0.1";
   private static final String CASSANDRA_TABLE = "scientist";
+  private static final String CASSANDRA_TABLE_SIMPLEDATA = "simpledata";
   private static final Logger LOG = LoggerFactory.getLogger(CassandraIOTest.class);
   private static final String STORAGE_SERVICE_MBEAN = "org.apache.cassandra.db:type=StorageService";
-  private static final float ACCEPTABLE_EMPTY_SPLITS_PERCENTAGE = 0.5f;
   private static final int FLUSH_TIMEOUT = 30000;
   private static final int JMX_CONF_TIMEOUT = 1000;
   private static int jmxPort;
@@ -191,6 +191,10 @@ public class CassandraIOTest implements Serializable {
             "CREATE TABLE IF NOT EXISTS %s.%s(person_department text, person_id int, person_name text, PRIMARY KEY"
                 + "((person_department), person_id));",
             CASSANDRA_KEYSPACE, CASSANDRA_TABLE_WRITE));
+    session.execute(
+        String.format(
+            "CREATE TABLE IF NOT EXISTS %s.%s(id int, data text, PRIMARY KEY (id))",
+            CASSANDRA_KEYSPACE, CASSANDRA_TABLE_SIMPLEDATA));
 
     LOG.info("Insert records");
     String[][] scientists = {
@@ -222,6 +226,15 @@ public class CassandraIOTest implements Serializable {
               CASSANDRA_TABLE);
       session.execute(insertStr);
     }
+    for (int i = 0; i < 100; i++) {
+      String insertStr =
+          String.format(
+              "INSERT INTO %s.%s(id, data) VALUES(" + i + ",' data_" + i + "');",
+              CASSANDRA_KEYSPACE,
+              CASSANDRA_TABLE_SIMPLEDATA);
+      session.execute(insertStr);
+    }
+
     flushMemTablesAndRefreshSizeEstimates();
   }
 
@@ -272,6 +285,35 @@ public class CassandraIOTest implements Serializable {
     mBeanProxy.disableAutoCompaction(CASSANDRA_KEYSPACE, CASSANDRA_TABLE);
     jmxConnector.close();
     Thread.sleep(JMX_CONF_TIMEOUT);
+  }
+
+  /*
+   Since we have enough data we will be able to detect if any get put in the ring range that wraps around
+  */
+  @Test
+  public void testWrapAroundRingRanges() throws Exception {
+    PCollection<SimpleData> simpledataPCollection =
+        pipeline.apply(
+            CassandraIO.<SimpleData>read()
+                .withHosts(Collections.singletonList(CASSANDRA_HOST))
+                .withPort(cassandraPort)
+                .withKeyspace(CASSANDRA_KEYSPACE)
+                .withTable(CASSANDRA_TABLE_SIMPLEDATA)
+                .withMinNumberOfSplits(50)
+                .withCoder(SerializableCoder.of(SimpleData.class))
+                .withEntity(SimpleData.class));
+    PCollection<Long> countPCollection = simpledataPCollection.apply("counting", Count.globally());
+    PAssert.that(countPCollection)
+        .satisfies(
+            i -> {
+              long total = 0;
+              for (Long aLong : i) {
+                total = total + aLong;
+              }
+              assertEquals(100, total);
+              return null;
+            });
+    pipeline.run();
   }
 
   @Test
@@ -405,9 +447,9 @@ public class CassandraIOTest implements Serializable {
                 map.put(element.getKey(), element.getValue());
               }
               assertEquals(3, map.size()); // do we have all three departments
-              assertEquals(map.get("phys"), 10L, 0L);
-              assertEquals(map.get("math"), 4L, 0L);
-              assertEquals(map.get("logic"), 2L, 0L);
+              assertEquals(10L, (long) map.get("phys"));
+              assertEquals(4L, (long) map.get("math"));
+              assertEquals(2L, (long) map.get("logic"));
               return null;
             });
 
@@ -416,6 +458,11 @@ public class CassandraIOTest implements Serializable {
 
   @Test
   public void testReadWithQuery() throws Exception {
+    String query =
+        String.format(
+            "select person_id, writetime(person_name) from %s.%s where person_id=10 AND person_department='logic'",
+            CASSANDRA_KEYSPACE, CASSANDRA_TABLE);
+
     PCollection<Scientist> output =
         pipeline.apply(
             CassandraIO.<Scientist>read()
@@ -424,12 +471,44 @@ public class CassandraIOTest implements Serializable {
                 .withKeyspace(CASSANDRA_KEYSPACE)
                 .withTable(CASSANDRA_TABLE)
                 .withMinNumberOfSplits(20)
-                .withQuery(
-                    "select person_id, writetime(person_name) from beam_ks.scientist where person_id=10 AND person_department='logic'")
+                .withQuery(query)
                 .withCoder(SerializableCoder.of(Scientist.class))
                 .withEntity(Scientist.class));
 
     PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(1L);
+    PAssert.that(output)
+        .satisfies(
+            input -> {
+              for (Scientist sci : input) {
+                assertNull(sci.name);
+                assertTrue(sci.nameTs != null && sci.nameTs > 0);
+              }
+              return null;
+            });
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testReadWithUnfilteredQuery() throws Exception {
+    String query =
+        String.format(
+            "select person_id, writetime(person_name) from %s.%s",
+            CASSANDRA_KEYSPACE, CASSANDRA_TABLE);
+
+    PCollection<Scientist> output =
+        pipeline.apply(
+            CassandraIO.<Scientist>read()
+                .withHosts(Collections.singletonList(CASSANDRA_HOST))
+                .withPort(cassandraPort)
+                .withKeyspace(CASSANDRA_KEYSPACE)
+                .withTable(CASSANDRA_TABLE)
+                .withMinNumberOfSplits(20)
+                .withQuery(query)
+                .withCoder(SerializableCoder.of(Scientist.class))
+                .withEntity(Scientist.class));
+
+    PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(NUM_ROWS);
     PAssert.that(output)
         .satisfies(
             input -> {
@@ -652,6 +731,18 @@ public class CassandraIOTest implements Serializable {
     @Override
     public int hashCode() {
       return Objects.hashCode(name, id);
+    }
+  }
+
+  @Table(name = CASSANDRA_TABLE_SIMPLEDATA, keyspace = CASSANDRA_KEYSPACE)
+  static class SimpleData implements Serializable {
+    @PartitionKey int id;
+
+    @Column String data;
+
+    @Override
+    public String toString() {
+      return id + ", " + data;
     }
   }
 

@@ -49,6 +49,7 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
 from typing import Dict
+from typing import Generic
 from typing import List
 from typing import Mapping
 from typing import Optional
@@ -99,6 +100,8 @@ __all__ = [
 _LOGGER = logging.getLogger(__name__)
 
 T = TypeVar('T')
+InputT = TypeVar('InputT')
+OutputT = TypeVar('OutputT')
 PTransformT = TypeVar('PTransformT', bound='PTransform')
 ConstructorFn = Callable[
     ['beam_runner_api_pb2.PTransform', Optional[Any], 'PipelineContext'], Any]
@@ -209,7 +212,7 @@ class _MaterializedDoOutputsTuple(pvalue.DoOutputsTuple):
   def __getitem__(self, tag):
     if tag not in self._results_by_tag:
       raise KeyError(
-          'Tag %r is not a a defined output tag of %s.' % (tag, self._deferred))
+          'Tag %r is not a defined output tag of %s.' % (tag, self._deferred))
     return self._results_by_tag[tag].elements
 
 
@@ -328,7 +331,7 @@ class _ZipPValues(object):
         self.visit(p, sibling, pairs, context)
 
 
-class PTransform(WithTypeHints, HasDisplayData):
+class PTransform(WithTypeHints, HasDisplayData, Generic[InputT, OutputT]):
   """A transform object used to modify one or more PCollections.
 
   Subclasses must define an expand() method that will be used when the transform
@@ -436,7 +439,7 @@ class PTransform(WithTypeHints, HasDisplayData):
 
     Raises:
       ValueError: if provided hints are unknown to the SDK. See
-        :mod:~apache_beam.transforms.resources` for a list of known hints.
+        :mod:`apache_beam.transforms.resources` for a list of known hints.
 
     Returns:
       PTransform: A reference to the instance of this particular
@@ -498,9 +501,6 @@ class PTransform(WithTypeHints, HasDisplayData):
 
     """Returns the output coder to use for output of this transform.
 
-    Note: this API is experimental and is subject to change; please do not rely
-    on behavior induced by this method.
-
     The Coder returned here should not be wrapped in a WindowedValueCoder
     wrapper.
 
@@ -522,7 +522,7 @@ class PTransform(WithTypeHints, HasDisplayData):
     transform.label = new_label
     return transform
 
-  def expand(self, input_or_inputs):
+  def expand(self, input_or_inputs: InputT) -> OutputT:
     raise NotImplementedError
 
   def __str__(self):
@@ -741,7 +741,7 @@ class PTransform(WithTypeHints, HasDisplayData):
     # typing: only ParDo supports extra_kwargs
     urn, typed_param = self.to_runner_api_parameter(context, **extra_kwargs)  # type: ignore[call-arg]
     if urn == python_urns.GENERIC_COMPOSITE_TRANSFORM and not has_parts:
-      # TODO(BEAM-3812): Remove this fallback.
+      # TODO(https://github.com/apache/beam/issues/18713): Remove this fallback.
       urn, typed_param = self.to_runner_api_pickled(context)
     return beam_runner_api_pb2.FunctionSpec(
         urn=urn,
@@ -1003,6 +1003,8 @@ class _PTransformFnPTransform(PTransform):
 
 
 def ptransform_fn(fn):
+  # type: (Callable) -> Callable[..., _PTransformFnPTransform]
+
   """A decorator for a function-based PTransform.
 
   Args:

@@ -76,9 +76,7 @@ if [[ -z "$IS_SNAPSHOT_VERSION" ]] ; then
   sed -i -e "s/^__version__ = .*/__version__ = '${TARGET_VERSION}'/" sdks/python/apache_beam/version.py
   sed -i -e "s/sdk_version=.*/sdk_version=$TARGET_VERSION/" gradle.properties
   sed -i -e "s/SdkVersion = .*/SdkVersion = \"$TARGET_VERSION\"/" sdks/go/pkg/beam/core/core.go
-  # TODO: [BEAM-4767]
-  sed -i -e "s/'dataflow.fnapi_container_version' : .*/'dataflow.fnapi_container_version' : '${TARGET_VERSION}',/" runners/google-cloud-dataflow-java/build.gradle
-  sed -i -e "s/'dataflow.legacy_container_version' : .*/'dataflow.legacy_container_version' : 'beam-${TARGET_VERSION}',/" runners/google-cloud-dataflow-java/build.gradle
+  sed -i -e "s/\"version\": .*/\"version\": \"$TARGET_VERSION\",/" sdks/typescript/package.json
 else
   # For snapshot version:
   #   Java/gradle appends -SNAPSHOT
@@ -90,6 +88,7 @@ else
   sed -i -e "s/^__version__ = .*/__version__ = '${TARGET_VERSION}.dev'/" sdks/python/apache_beam/version.py
   sed -i -e "s/sdk_version=.*/sdk_version=$TARGET_VERSION.dev/" gradle.properties
   sed -i -e "s/SdkVersion = .*/SdkVersion = \"${TARGET_VERSION}.dev\"/" sdks/go/pkg/beam/core/core.go
+  sed -i -e "s/\"version\": .*/\"version\": \"$TARGET_VERSION-SNAPSHOT\",/" sdks/typescript/package.json
 fi
 
 if [[ "$GIT_ADD" == yes ]] ; then
@@ -98,4 +97,5 @@ if [[ "$GIT_ADD" == yes ]] ; then
   git add sdks/python/apache_beam/version.py
   git add sdks/go/pkg/beam/core/core.go
   git add runners/google-cloud-dataflow-java/build.gradle
+  git add sdks/typescript/package.json
 fi

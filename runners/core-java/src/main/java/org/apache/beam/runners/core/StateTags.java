@@ -21,10 +21,10 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.Objects;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.MapState;
+import org.apache.beam.sdk.state.MultimapState;
 import org.apache.beam.sdk.state.OrderedListState;
 import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.state.State;
@@ -43,11 +43,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Static utility methods for creating {@link StateTag} instances. */
 @SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class StateTags {
-
-  private static final CoderRegistry STANDARD_REGISTRY = CoderRegistry.createDefault();
 
   public static final Equivalence<StateTag> ID_EQUIVALENCE =
       new Equivalence<StateTag>() {
@@ -88,6 +86,15 @@ public class StateTags {
           Coder<KeyT> mapKeyCoder,
           Coder<ValueT> mapValueCoder) {
         return binder.bindMap(tagForSpec(id, spec), mapKeyCoder, mapValueCoder);
+      }
+
+      @Override
+      public <KeyT, ValueT> MultimapState<KeyT, ValueT> bindMultimap(
+          String id,
+          StateSpec<MultimapState<KeyT, ValueT>> spec,
+          Coder<KeyT> keyCoder,
+          Coder<ValueT> valueCoder) {
+        return binder.bindMultimap(tagForSpec(id, spec), keyCoder, valueCoder);
       }
 
       @Override
@@ -204,6 +211,11 @@ public class StateTags {
   public static <K, V> StateTag<MapState<K, V>> map(
       String id, Coder<K> keyCoder, Coder<V> valueCoder) {
     return new SimpleStateTag<>(new StructuredId(id), StateSpecs.map(keyCoder, valueCoder));
+  }
+
+  public static <K, V> StateTag<MultimapState<K, V>> multimap(
+      String id, Coder<K> keyCoder, Coder<V> valueCoder) {
+    return new SimpleStateTag<>(new StructuredId(id), StateSpecs.multimap(keyCoder, valueCoder));
   }
 
   public static <T> StateTag<OrderedListState<T>> orderedList(String id, Coder<T> elemCoder) {

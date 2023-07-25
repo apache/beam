@@ -17,11 +17,10 @@
 #
 
 # This script will create a Release Candidate, includes:
-# 1. Build and stage java artifacts
-# 2. Stage source release on dist.apache.org
-# 3. Stage python source distribution and wheels on dist.apache.org
-# 4. Stage SDK docker images
-# 5. Create a PR to update beam-site
+# 1. Stage source release on dist.apache.org
+# 2. Stage python source distribution and wheels on dist.apache.org
+# 3. Stage SDK docker images
+# 4. Create a PR to update beam-site
 
 set -e
 
@@ -43,6 +42,7 @@ LOCAL_PYTHON_STAGING_DIR=python_staging_dir
 LOCAL_PYTHON_VIRTUALENV=${LOCAL_PYTHON_STAGING_DIR}/venv
 LOCAL_WEBSITE_UPDATE_DIR=website_update_dir
 LOCAL_PYTHON_DOC=python_doc
+LOCAL_TYPESCRIPT_DOC=typescript_doc
 LOCAL_JAVA_DOC=java_doc
 LOCAL_WEBSITE_REPO=beam_website_repo
 
@@ -77,6 +77,7 @@ RC_NUM=
 SIGNING_KEY=
 USER_GITHUB_ID=
 DEBUG=
+JAVA11_HOME=
 
 while [[ $# -gt 0 ]] ; do
   arg="$1"
@@ -101,6 +102,10 @@ while [[ $# -gt 0 ]] ; do
 
       --github-user)
       shift; USER_GITHUB_ID=$1; shift
+      ;;
+
+      --java11-home)
+      shift; JAVA11_HOME=$1; shift
       ;;
 
       *)
@@ -135,6 +140,12 @@ if [[ -z "$USER_GITHUB_ID" ]] ; then
   exit 1
 fi
 
+if [[ -z "$JAVA11_HOME" ]] ; then
+  echo 'Please provide Java 11 home. Required to build sdks/java/container/agent for Java 11+ containers.'
+  usage
+  exit 1
+fi
+
 if [[ -z "$SIGNING_KEY" ]] ; then
   echo "=================Pre-requirements===================="
   echo "Please make sure you have configured and started your gpg-agent by running ./preparation_before_release.sh."
@@ -162,36 +173,6 @@ read confirmation
 if [[ $confirmation != "y" ]]; then
   echo "Please rerun this script and make sure you have the right inputs."
   exit
-fi
-
-echo "[Current Step]: Build and stage java artifacts"
-echo "Do you want to proceed? [y|N]"
-read confirmation
-if [[ $confirmation = "y" ]]; then
-  echo "============Building and Staging Java Artifacts============="
-  echo "--------Cloning Beam Repo and Checkout Release Tag-------"
-  cd ~
-  wipe_local_clone_dir
-  mkdir -p ${LOCAL_CLONE_DIR}
-  cd ${LOCAL_CLONE_DIR}
-  git clone --depth 1 --branch "${RC_TAG}" ${GIT_REPO_URL} "${BEAM_ROOT_DIR}"
-  cd ${BEAM_ROOT_DIR}
-
-  echo "-------------Building Java Artifacts with Gradle-------------"
-  git config credential.helper store
-
-  echo "-------------Staging Java Artifacts into Maven---------------"
-  # Cache the key/passphrase in gpg-agent by signing an arbitrary file.
-  gpg --local-user ${SIGNING_KEY} --output /dev/null --sign ~/.bashrc
-  # Too many workers can overload (?) gpg-agent, causing gpg to prompt for a
-  # passphrase, and gradle doesn't play nice with pinentry.
-  # https://github.com/gradle/gradle/issues/11706
-  # --max-workers=6 works, but parallelism also seems to cause
-  # multiple Nexus repos to be created, so parallelism is disabled.
-  # https://issues.apache.org/jira/browse/BEAM-11813
-  ./gradlew publish -Psigning.gnupg.keyName=${SIGNING_KEY} -PisRelease --no-daemon --no-parallel
-  echo "You need to close the staging repository manually on Apache Nexus. See the release guide for instructions."
-  wipe_local_clone_dir
 fi
 
 echo "[Current Step]: Stage source release on dist.apache.org"
@@ -233,7 +214,7 @@ if [[ $confirmation = "y" ]]; then
   rm -r "$RELEASE_DIR"
 
   echo "----Signing Source Release ${SOURCE_RELEASE_ZIP}-----"
-  gpg --local-user ${SIGNING_KEY} --armor --detach-sig "${SOURCE_RELEASE_ZIP}"
+  gpg --local-user ${SIGNING_KEY} --armor --batch --yes --detach-sig "${SOURCE_RELEASE_ZIP}"
 
   echo "----Creating Hash Value for ${SOURCE_RELEASE_ZIP}----"
   sha512sum ${SOURCE_RELEASE_ZIP} > ${SOURCE_RELEASE_ZIP}.sha512
@@ -271,7 +252,7 @@ if [[ $confirmation = "y" ]]; then
   echo '-------------------Creating Python Virtualenv-----------------'
   python3 -m venv "${LOCAL_PYTHON_VIRTUALENV}"
   source "${LOCAL_PYTHON_VIRTUALENV}/bin/activate"
-  pip install -U pip
+  pip install --upgrade pip setuptools wheel
   pip install requests python-dateutil
 
   echo '--------------Fetching GitHub Actions Artifacts--------------'
@@ -300,7 +281,7 @@ if [[ $confirmation = "y" ]]; then
 
   for artifact in *.whl; do
     echo "------------------Signing ${artifact} wheel-------------------"
-    gpg --local-user "${SIGNING_KEY}" --armor --detach-sig "${artifact}"
+    gpg --local-user "${SIGNING_KEY}" --armor --batch --yes --detach-sig "${artifact}"
   done
 
   cd ..
@@ -317,9 +298,11 @@ if [[ $confirmation = "y" ]]; then
 fi
 
 echo "[Current Step]: Stage docker images"
+echo "Note: this step will also prune your local docker image and container cache."
 echo "Do you want to proceed? [y|N]"
 read confirmation
 if [[ $confirmation = "y" ]]; then
+  docker system prune -a -f
   echo "============Staging SDK docker images on docker hub========="
   cd ~
   wipe_local_clone_dir
@@ -331,7 +314,7 @@ if [[ $confirmation = "y" ]]; then
   cd ${BEAM_ROOT_DIR}
   git checkout ${RC_TAG}
 
-  ./gradlew :pushAllDockerImages -Pdocker-pull-licenses -Pdocker-tag=${RELEASE}_rc${RC_NUM}
+  ./gradlew :pushAllDockerImages -PisRelease -Pdocker-pull-licenses -Pdocker-tag=${RELEASE}rc${RC_NUM} -Pjava11Home=${JAVA11_HOME} --no-daemon --no-parallel
 
   wipe_local_clone_dir
 fi
@@ -348,27 +331,37 @@ if [[ $confirmation = "y" ]]; then
   mkdir -p ${LOCAL_WEBSITE_UPDATE_DIR}
   cd ${LOCAL_WEBSITE_UPDATE_DIR}
   mkdir -p ${LOCAL_PYTHON_DOC}
+  mkdir -p ${LOCAL_TYPESCRIPT_DOC}
   mkdir -p ${LOCAL_JAVA_DOC}
   mkdir -p ${LOCAL_WEBSITE_REPO}
 
   echo "------------------Building Python Doc------------------------"
   python3 -m venv "${LOCAL_PYTHON_VIRTUALENV}"
   source "${LOCAL_PYTHON_VIRTUALENV}/bin/activate"
+  pip install --upgrade pip setuptools wheel
   cd ${LOCAL_PYTHON_DOC}
   pip install -U pip
   pip install tox
   git clone --branch "${RC_TAG}" --depth 1 ${GIT_REPO_URL}
   cd ${BEAM_ROOT_DIR}
   RELEASE_COMMIT=$(git rev-list -n 1 "tags/${RC_TAG}")
+  # TODO(https://github.com/apache/beam/issues/20209): Don't hardcode py version in this file.
   cd sdks/python && pip install -r build-requirements.txt && tox -e py38-docs
   GENERATED_PYDOC=~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_PYTHON_DOC}/${BEAM_ROOT_DIR}/sdks/python/target/docs/_build
   rm -rf ${GENERATED_PYDOC}/.doctrees
+
+  echo "------------------Building Typescript Doc------------------------"
+  cd ~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_TYPESCRIPT_DOC}
+  git clone --branch "${RC_TAG}" --depth 1 ${GIT_REPO_URL}
+  cd ${BEAM_ROOT_DIR}
+  cd sdks/typescript && npm ci && npm run docs
+  GENERATED_TYPEDOC=~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_TYPESCRIPT_DOC}/${BEAM_ROOT_DIR}/sdks/typescript/docs
 
   echo "----------------------Building Java Doc----------------------"
   cd ~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_JAVA_DOC}
   git clone --branch "${RC_TAG}" --depth 1 ${GIT_REPO_URL}
   cd ${BEAM_ROOT_DIR}
-  ./gradlew :sdks:java:javadoc:aggregateJavadoc
+  ./gradlew :sdks:java:javadoc:aggregateJavadoc -PisRelease --no-daemon --no-parallel
   GENERATE_JAVADOC=~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_JAVA_DOC}/${BEAM_ROOT_DIR}/sdks/java/javadoc/build/docs/javadoc/
 
   echo "------------------Updating Release Docs---------------------"
@@ -380,9 +373,22 @@ if [[ $confirmation = "y" ]]; then
 
   echo "..........Copying generated javadoc into beam-site.........."
   cp -r ${GENERATE_JAVADOC} javadoc/${RELEASE}
+  # Update current symlink to point to the latest release
+  unlink javadoc/current
+  ln -s ${RELEASE} javadoc/current
 
   echo "............Copying generated pydoc into beam-site.........."
   cp -r ${GENERATED_PYDOC} pydoc/${RELEASE}
+  # Update current symlink to point to the latest release
+  unlink pydoc/current
+  ln -s ${RELEASE} pydoc/current
+
+  echo "............Copying generated typedoc into beam-site.........."
+  mkdir -p typedoc
+  cp -r ${GENERATED_TYPEDOC} typedoc/${RELEASE}
+  # Update current symlink to point to the latest release
+  unlink typedoc/current | true
+  ln -s ${RELEASE} typedoc/current
 
   git add -A
   git commit -m "Update beam-site for release ${RELEASE}." -m "Content generated from commit ${RELEASE_COMMIT}."
@@ -412,4 +418,5 @@ if [[ $confirmation = "y" ]]; then
   echo "Finished v${RELEASE}-RC${RC_NUM} creation."
   rm -rf ~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_JAVA_DOC}
   rm -rf ~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_PYTHON_DOC}
+  rm -rf ~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_TYPESCRIPT_DOC}
 fi

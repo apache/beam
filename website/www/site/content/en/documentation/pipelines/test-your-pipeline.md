@@ -52,7 +52,7 @@ To test a transform you've created, you can use the following pattern:
 {{< paragraph class="language-py" >}}
 [TestPipeline](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/testing/test_pipeline.py) is a class included in the Beam Python SDK specifically for testing transforms.
 {{< /paragraph >}}
-For tests, use `TestPipeline` in place of `Pipeline` when you create the pipeline object. Unlike `Pipeline.create`, `TestPipeline.create` handles setting `PipelineOptions` interally.
+For tests, use `TestPipeline` in place of `Pipeline` when you create the pipeline object. Unlike `Pipeline.create`, `TestPipeline.create` handles setting `PipelineOptions` internally.
 
 You create a `TestPipeline` as follows:
 
@@ -157,26 +157,28 @@ public class CountTest {
 {{< /highlight >}}
 
 {{< highlight py >}}
+import unittest
+import apache_beam as beam
+from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
 class CountTest(unittest.TestCase):
 
-  # Our static input data, which will make up the initial PCollection.
-  WORDS = [
+  def test_count(self):
+    # Our static input data, which will make up the initial PCollection.
+    WORDS = [
       "hi", "there", "hi", "hi", "sue", "bob",
       "hi", "sue", "", "", "ZOW", "bob", ""
-  ]
-
-  def test_count(self):
+    ]
     # Create a test pipeline.
-    with beam.TestPipeline as p:
+    with TestPipeline() as p:
 
       # Create an input PCollection.
-      input = p | beam.Create(WORDS);
+      input = p | beam.Create(WORDS)
 
       # Apply the Count transform under test.
-      output = input | beam.combiners.Count.PerElement();
+      output = input | beam.combiners.Count.PerElement()
 
       # Assert on the results.
       assert_that(
@@ -187,7 +189,7 @@ class CountTest(unittest.TestCase):
             ("sue", 2),
             ("bob", 2),
             ("", 3),
-            ("ZOW", 1)])
+            ("ZOW", 1)]))
 
       # The pipeline will run and verify the results.
 {{< /highlight >}}
@@ -244,6 +246,16 @@ public class WordCountTest {
 {{< /highlight >}}
 
 {{< highlight py >}}
+import unittest
+import apache_beam as beam
+from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
+
+class CountWords(beam.PTransform):
+    # CountWords transform omitted for conciseness.
+    # Full transform can be found here - https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/wordcount_debugging.py
+
 class WordCountTest(unittest.TestCase):
 
   # Our input data, which will make up the initial PCollection.

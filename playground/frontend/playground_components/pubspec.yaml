@@ -1,0 +1,89 @@
+#  Licensed to the Apache Software Foundation (ASF) under one
+#  or more contributor license agreements.  See the NOTICE file
+#  distributed with this work for additional information
+#  regarding copyright ownership.  The ASF licenses this file
+#  to you under the Apache License, Version 2.0 (the
+#  "License"); you may not use this file except in compliance
+#  with the License.  You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing,
+#  software distributed under the License is distributed on an
+#  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+#  KIND, either express or implied.  See the License for the
+#  specific language governing permissions and limitations
+#  under the License.
+
+name: playground_components
+description: Reusable Playground components
+version: 0.0.1
+publish_to: none
+
+environment:
+  sdk: '>=3.0.2 <4.0.0'
+  flutter: '>=3.10.4'
+
+dependencies:
+  aligned_dialog: ^0.0.6
+  app_state: ^0.9.3
+  clock: ^1.1.1
+  collection: ^1.16.0
+  connectivity_plus: ^2.3.9
+  easy_localization: ^3.0.1
+  easy_localization_ext: ^0.1.1
+  easy_localization_loader: ^1.0.0
+  enum_map: ^0.2.1
+  equatable: ^2.0.5
+  flutter: { sdk: flutter }
+  flutter_code_editor: ^0.3.0
+
+  # TODO(nausharipov): return flutter_markdown when it is fixed, https://github.com/apache/beam/issues/26498
+  # The exact version is used because this non-official package can be poorly maintained.
+  # Same in Tour of Beam's file.
+  flutter_markdown_selectionarea: 0.6.14+3
+
+  flutter_svg: ^2.0.1
+  fluttertoast: ^8.1.1
+  get_it: ^7.2.0
+  google_fonts: ^4.0.3
+  grpc: ^3.0.2
+  highlight: ^0.7.0
+  hive: ^2.2.3
+  hive_test: ^1.0.1
+  http: ^0.13.5
+  json_annotation: ^4.7.0
+  keyed_collection_widgets: ^0.4.3
+  meta: ^1.7.0
+  os_detect: ^2.0.1
+  protobuf: ^2.1.0
+  provider: ^6.0.3
+  rxdart: ^0.27.7
+  shared_preferences: ^2.0.15
+  url_launcher: ^6.1.10
+  visibility_detector: ^0.4.0+2
+  yaml: ^3.1.1
+
+dev_dependencies:
+  build_runner: ^2.2.0
+  enum_map_gen: ^0.2.1
+  flutter_gen_runner: ^5.2.0
+  flutter_test: { sdk: flutter }
+  json_serializable: ^6.4.1
+  mockito: ^5.4.1
+  total_lints: ^2.17.4
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/buttons/
+    - assets/notification_icons/
+    - assets/png/
+    - assets/svg/
+    - assets/symbols/go.g.yaml
+    - assets/symbols/java.g.yaml
+    - assets/symbols/python.g.yaml
+    - assets/translations/en.yaml
+
+flutter_gen:
+  output: lib/src/assets/

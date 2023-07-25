@@ -26,7 +26,7 @@ import org.apache.beam.sdk.util.WindowedValue;
  * @param <T> type of the source
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class Twister2EmptySource<T> extends BaseSourceFunc<WindowedValue<T>> {
   @Override

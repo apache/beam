@@ -39,8 +39,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.util.TimeUtil;
-import org.apache.beam.sdk.extensions.gcp.util.FastNanoClockAndSleeper;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.util.FastNanoClockAndSleeper;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.hamcrest.Description;
@@ -84,11 +84,7 @@ public class BatchDataflowWorkerTest {
     final String workItemId = "14";
     BatchDataflowWorker worker =
         new BatchDataflowWorker(
-            null /* pipeline */,
-            SdkHarnessRegistries.emptySdkHarnessRegistry(),
-            mockWorkUnitClient,
-            IntrinsicMapTaskExecutorFactory.defaultFactory(),
-            options);
+            mockWorkUnitClient, IntrinsicMapTaskExecutorFactory.defaultFactory(), options);
 
     WorkItem workItem = new WorkItem();
     workItem.setId(Long.parseLong(workItemId));
@@ -126,11 +122,7 @@ public class BatchDataflowWorkerTest {
   public void testWhenProcessingWorkUnitFailsWeReportStatus() throws Exception {
     BatchDataflowWorker worker =
         new BatchDataflowWorker(
-            null /* pipeline */,
-            SdkHarnessRegistries.emptySdkHarnessRegistry(),
-            mockWorkUnitClient,
-            IntrinsicMapTaskExecutorFactory.defaultFactory(),
-            options);
+            mockWorkUnitClient, IntrinsicMapTaskExecutorFactory.defaultFactory(), options);
     // In practice this value is always 1, but for the sake of testing send a different value.
     long initialReportIndex = 4L;
     WorkItem workItem =
@@ -153,11 +145,7 @@ public class BatchDataflowWorkerTest {
   public void testStartAndStopProgressReport() throws Exception {
     BatchDataflowWorker worker =
         new BatchDataflowWorker(
-            null /* pipeline */,
-            SdkHarnessRegistries.emptySdkHarnessRegistry(),
-            mockWorkUnitClient,
-            IntrinsicMapTaskExecutorFactory.defaultFactory(),
-            options);
+            mockWorkUnitClient, IntrinsicMapTaskExecutorFactory.defaultFactory(), options);
     worker.executeWork(mockWorkExecutor, mockProgressUpdater);
     verify(mockProgressUpdater, times(1)).startReportingProgress();
     verify(mockProgressUpdater, times(1)).stopReportingProgress();
@@ -168,11 +156,7 @@ public class BatchDataflowWorkerTest {
     doThrow(new WorkerException()).when(mockWorkExecutor).execute();
     BatchDataflowWorker worker =
         new BatchDataflowWorker(
-            null /* pipeline */,
-            SdkHarnessRegistries.emptySdkHarnessRegistry(),
-            mockWorkUnitClient,
-            IntrinsicMapTaskExecutorFactory.defaultFactory(),
-            options);
+            mockWorkUnitClient, IntrinsicMapTaskExecutorFactory.defaultFactory(), options);
     try {
       worker.executeWork(mockWorkExecutor, mockProgressUpdater);
     } catch (WorkerException e) {

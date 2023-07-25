@@ -17,83 +17,85 @@
  */
 package org.apache.beam.fn.harness.state;
 
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+
 import java.io.IOException;
+import org.apache.beam.fn.harness.Cache;
+import org.apache.beam.fn.harness.Caches;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.Materializations.MultimapView;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
 
 /**
  * An implementation of a multimap side input that utilizes the Beam Fn State API to fetch values.
- *
- * <p>TODO: Support block level caching and prefetch.
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class MultimapSideInput<K, V> implements MultimapView<K, V> {
 
+  private final Cache<?, ?> cache;
   private final BeamFnStateClient beamFnStateClient;
-  private final String instructionId;
-  private final String ptransformId;
-  private final String sideInputId;
-  private final ByteString encodedWindow;
+  private final StateRequest keysRequest;
   private final Coder<K> keyCoder;
   private final Coder<V> valueCoder;
 
   public MultimapSideInput(
+      Cache<?, ?> cache,
       BeamFnStateClient beamFnStateClient,
       String instructionId,
-      String ptransformId,
-      String sideInputId,
-      ByteString encodedWindow,
+      StateKey stateKey,
       Coder<K> keyCoder,
       Coder<V> valueCoder) {
+    checkArgument(
+        stateKey.hasMultimapKeysSideInput(),
+        "Expected MultimapKeysSideInput StateKey but received %s.",
+        stateKey);
+    this.cache = cache;
     this.beamFnStateClient = beamFnStateClient;
-    this.instructionId = instructionId;
-    this.ptransformId = ptransformId;
-    this.sideInputId = sideInputId;
-    this.encodedWindow = encodedWindow;
+    this.keysRequest =
+        StateRequest.newBuilder().setInstructionId(instructionId).setStateKey(stateKey).build();
     this.keyCoder = keyCoder;
     this.valueCoder = valueCoder;
   }
 
   @Override
   public Iterable<K> get() {
-    StateRequest.Builder requestBuilder = StateRequest.newBuilder();
-    requestBuilder
-        .setInstructionId(instructionId)
-        .getStateKeyBuilder()
-        .getMultimapKeysSideInputBuilder()
-        .setTransformId(ptransformId)
-        .setSideInputId(sideInputId)
-        .setWindow(encodedWindow);
-
     return StateFetchingIterators.readAllAndDecodeStartingFrom(
-        beamFnStateClient, requestBuilder.build(), keyCoder);
+        cache, beamFnStateClient, keysRequest, keyCoder);
   }
 
   @Override
   public Iterable<V> get(K k) {
-    ByteString.Output output = ByteString.newOutput();
+    ByteStringOutputStream output = new ByteStringOutputStream();
     try {
       keyCoder.encode(k, output);
     } catch (IOException e) {
       throw new IllegalStateException(
-          String.format("Failed to encode key %s for side input id %s.", k, sideInputId), e);
+          String.format(
+              "Failed to encode key %s for side input id %s.",
+              k, keysRequest.getStateKey().getMultimapKeysSideInput().getSideInputId()),
+          e);
     }
-    StateRequest.Builder requestBuilder = StateRequest.newBuilder();
-    requestBuilder
-        .setInstructionId(instructionId)
-        .getStateKeyBuilder()
-        .getMultimapSideInputBuilder()
-        .setTransformId(ptransformId)
-        .setSideInputId(sideInputId)
-        .setWindow(encodedWindow)
-        .setKey(output.toByteString());
+    ByteString encodedKey = output.toByteString();
+    StateKey stateKey =
+        StateKey.newBuilder()
+            .setMultimapSideInput(
+                StateKey.MultimapSideInput.newBuilder()
+                    .setTransformId(
+                        keysRequest.getStateKey().getMultimapKeysSideInput().getTransformId())
+                    .setSideInputId(
+                        keysRequest.getStateKey().getMultimapKeysSideInput().getSideInputId())
+                    .setWindow(keysRequest.getStateKey().getMultimapKeysSideInput().getWindow())
+                    .setKey(encodedKey))
+            .build();
 
+    StateRequest request = keysRequest.toBuilder().setStateKey(stateKey).build();
     return StateFetchingIterators.readAllAndDecodeStartingFrom(
-        beamFnStateClient, requestBuilder.build(), valueCoder);
+        Caches.subCache(cache, "ValuesForKey", encodedKey), beamFnStateClient, request, valueCoder);
   }
 }

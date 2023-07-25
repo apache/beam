@@ -24,12 +24,15 @@ allow conditional (compiled/pure) implementations, which can be used to
 encode many elements with minimal overhead.
 
 This module may be optionally compiled with Cython, using the corresponding
-coder_impl.pxd file for type hints.
+coder_impl.pxd file for type hints.  In particular, because CoderImpls are
+never pickled and sent across the wire (unlike Coders themselves) the workers
+can use compiled Impls even if the main program does not (or vice versa).
 
 For internal use only; no backwards-compatibility guarantees.
 """
 # pytype: skip-file
 
+import decimal
 import enum
 import itertools
 import json
@@ -50,12 +53,14 @@ from typing import Tuple
 from typing import Type
 
 import dill
+import numpy as np
 from fastavro import parse_schema
 from fastavro import schemaless_reader
 from fastavro import schemaless_writer
 
 from apache_beam.coders import observable
 from apache_beam.coders.avro_record import AvroRecord
+from apache_beam.typehints.schemas import named_tuple_from_schema
 from apache_beam.utils import proto_utils
 from apache_beam.utils import windowed_value
 from apache_beam.utils.sharded_key import ShardedKey
@@ -69,6 +74,7 @@ except ImportError:
   dataclasses = None  # type: ignore
 
 if TYPE_CHECKING:
+  import proto
   from apache_beam.transforms import userstate
   from apache_beam.transforms.window import IntervalWindow
 
@@ -92,7 +98,7 @@ if TYPE_CHECKING or SLOW_STREAM:
     import cython
     is_compiled = cython.compiled
   except ImportError:
-    pass
+    globals()['cython'] = type('fake_cython', (), {'cast': lambda typ, x: x})
 
 else:
   # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
@@ -106,6 +112,7 @@ else:
   globals()['create_OutputStream'] = create_OutputStream
   globals()['ByteCountingOutputStream'] = ByteCountingOutputStream
   # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
+  is_compiled = True
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -310,6 +317,19 @@ class DeterministicProtoCoderImpl(ProtoCoderImpl):
     return value.SerializePartialToString(deterministic=True)
 
 
+class ProtoPlusCoderImpl(SimpleCoderImpl):
+  """For internal use only; no backwards-compatibility guarantees."""
+  def __init__(self, proto_plus_type):
+    # type: (Type[proto.Message]) -> None
+    self.proto_plus_type = proto_plus_type
+
+  def encode(self, value):
+    return value._pb.SerializePartialToString(deterministic=True)
+
+  def decode(self, value):
+    return self.proto_plus_type.deserialize(value)
+
+
 UNKNOWN_TYPE = 0xFF
 NONE_TYPE = 0
 INT_TYPE = 1
@@ -402,22 +422,41 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
     elif t in _ITERABLE_LIKE_TYPES:
       stream.write_byte(ITERABLE_LIKE_TYPE)
       self.iterable_coder_impl.encode_to_stream(value, stream, nested)
-    # All deterministic encodings should be above this clause,
-    # all non-deterministic ones below.
-    elif self.requires_deterministic_step_label is not None:
-      self.encode_special_deterministic(value, stream)
     elif t is dict:
       dict_value = value  # for typing
       stream.write_byte(DICT_TYPE)
       stream.write_var_int64(len(dict_value))
-      for k, v in dict_value.items():
-        self.encode_to_stream(k, stream, True)
-        self.encode_to_stream(v, stream, True)
+      if self.requires_deterministic_step_label is not None:
+        try:
+          ordered_kvs = sorted(dict_value.items())
+        except Exception as exn:
+          raise TypeError(
+              "Unable to deterministically order keys of dict for '%s'" %
+              self.requires_deterministic_step_label) from exn
+        for k, v in ordered_kvs:
+          self.encode_to_stream(k, stream, True)
+          self.encode_to_stream(v, stream, True)
+      else:
+        # Loop over dict.items() is optimized by Cython.
+        for k, v in dict_value.items():
+          self.encode_to_stream(k, stream, True)
+          self.encode_to_stream(v, stream, True)
     elif t is set:
       stream.write_byte(SET_TYPE)
       stream.write_var_int64(len(value))
+      if self.requires_deterministic_step_label is not None:
+        try:
+          value = sorted(value)
+        except Exception as exn:
+          raise TypeError(
+              "Unable to deterministically order element of set for '%s'" %
+              self.requires_deterministic_step_label) from exn
       for e in value:
         self.encode_to_stream(e, stream, True)
+    # All possibly deterministic encodings should be above this clause,
+    # all non-deterministic ones below.
+    elif self.requires_deterministic_step_label is not None:
+      self.encode_special_deterministic(value, stream)
     else:
       stream.write_byte(UNKNOWN_TYPE)
       self.fallback_coder_impl.encode_to_stream(value, stream, nested)
@@ -573,6 +612,12 @@ class BytesCoderImpl(CoderImpl):
   A coder for bytes/str objects."""
   def encode_to_stream(self, value, out, nested):
     # type: (bytes, create_OutputStream, bool) -> None
+
+    # value might be of type np.bytes if passed from encode_batch, and cython
+    # does not recognize it as bytes.
+    if is_compiled and isinstance(value, np.bytes_):
+      value = bytes(value)
+
     out.write(value, nested)
 
   def decode_from_stream(self, in_stream, nested):
@@ -633,18 +678,27 @@ class MapCoderImpl(StreamCoderImpl):
   def __init__(
       self,
       key_coder,  # type: CoderImpl
-      value_coder  # type: CoderImpl
+      value_coder,  # type: CoderImpl
+      is_deterministic = False
   ):
     self._key_coder = key_coder
     self._value_coder = value_coder
+    self._is_deterministic = is_deterministic
 
   def encode_to_stream(self, dict_value, out, nested):
     out.write_bigendian_int32(len(dict_value))
-    for key, value in dict_value.items():
-      # Note this implementation always uses nested context when encoding keys
-      # and values which differs from Java. See note in docstring.
-      self._key_coder.encode_to_stream(key, out, True)
-      self._value_coder.encode_to_stream(value, out, True)
+    # Note this implementation always uses nested context when encoding keys
+    # and values which differs from Java. See note in docstring.
+    if self._is_deterministic:
+      for key, value in sorted(dict_value.items()):
+        self._key_coder.encode_to_stream(key, out, True)
+        self._value_coder.encode_to_stream(value, out, True)
+    else:
+      # This loop is separate from the above so the loop over dict.items()
+      # will be optimized by Cython.
+      for key, value in dict_value.items():
+        self._key_coder.encode_to_stream(key, out, True)
+        self._value_coder.encode_to_stream(value, out, True)
 
   def decode_from_stream(self, in_stream, nested):
     size = in_stream.read_bigendian_int32()
@@ -702,6 +756,38 @@ class NullableCoderImpl(StreamCoderImpl):
     return 1 + (
         self._value_coder.estimate_size(unused_value)
         if unused_value is not None else 0)
+
+
+class BigEndianShortCoderImpl(StreamCoderImpl):
+  """For internal use only; no backwards-compatibility guarantees."""
+  def encode_to_stream(self, value, out, nested):
+    # type: (int, create_OutputStream, bool) -> None
+    out.write_bigendian_int16(value)
+
+  def decode_from_stream(self, in_stream, nested):
+    # type: (create_InputStream, bool) -> float
+    return in_stream.read_bigendian_int16()
+
+  def estimate_size(self, unused_value, nested=False):
+    # type: (Any, bool) -> int
+    # A short is encoded as 2 bytes, regardless of nesting.
+    return 2
+
+
+class SinglePrecisionFloatCoderImpl(StreamCoderImpl):
+  """For internal use only; no backwards-compatibility guarantees."""
+  def encode_to_stream(self, value, out, nested):
+    # type: (float, create_OutputStream, bool) -> None
+    out.write_bigendian_float(value)
+
+  def decode_from_stream(self, in_stream, nested):
+    # type: (create_InputStream, bool) -> float
+    return in_stream.read_bigendian_float()
+
+  def estimate_size(self, unused_value, nested=False):
+    # type: (Any, bool) -> int
+    # A float is encoded as 4 bytes, regardless of nesting.
+    return 4
 
 
 class FloatCoderImpl(StreamCoderImpl):
@@ -1176,11 +1262,12 @@ class SequenceCoderImpl(StreamCoderImpl):
               elem, nested=True))
       estimated_size += child_size
       observables += child_observables
-    # TODO: (BEAM-1537) Update to use an accurate count depending on size and
-    # count, currently we are underestimating the size by up to 10 bytes
-    # per block of data since we are not including the count prefix which
-    # occurs at most once per 64k of data and is upto 10 bytes long. The upper
-    # bound of the underestimate is 10 / 65536 ~= 0.0153% of the actual size.
+    # TODO: (https://github.com/apache/beam/issues/18169) Update to use an
+    # accurate count depending on size and count, currently we are
+    # underestimating the size by up to 10 bytes per block of data since we are
+    # not including the count prefix which occurs at most once per 64k of data
+    # and is upto 10 bytes long. The upper bound of the underestimate is
+    # 10 / 65536 ~= 0.0153% of the actual size.
     # TODO: More efficient size estimation in the case of state-backed
     # iterables.
     return estimated_size, observables
@@ -1219,13 +1306,26 @@ class _AbstractIterable(object):
 
 FastPrimitivesCoderImpl.register_iterable_like_type(_AbstractIterable)
 
+# TODO(https://github.com/apache/beam/issues/21167): Enable using abstract
+# iterables permanently
+_iterable_coder_uses_abstract_iterable_by_default = False
+
 
 class IterableCoderImpl(SequenceCoderImpl):
   """For internal use only; no backwards-compatibility guarantees.
 
   A coder for homogeneous iterable objects."""
+  def __init__(self, *args, use_abstract_iterable=None, **kwargs):
+    super().__init__(*args, **kwargs)
+    if use_abstract_iterable is None:
+      use_abstract_iterable = _iterable_coder_uses_abstract_iterable_by_default
+    self._use_abstract_iterable = use_abstract_iterable
+
   def _construct_from_sequence(self, components):
-    return _AbstractIterable(components)
+    if self._use_abstract_iterable:
+      return _AbstractIterable(components)
+    else:
+      return components
 
 
 class ListCoderImpl(SequenceCoderImpl):
@@ -1328,8 +1428,8 @@ class WindowedValueCoderImpl(StreamCoderImpl):
 
   # Ensure that lexicographic ordering of the bytes corresponds to
   # chronological order of timestamps.
-  # TODO(BEAM-1524): Clean this up once we have a BEAM wide consensus on
-  # byte representation of timestamps.
+  # TODO(https://github.com/apache/beam/issues/18190): Clean this up once we
+  # have a BEAM wide consensus on byte representation of timestamps.
   def _to_normal_time(self, value):
     """Convert "lexicographically ordered unsigned" to signed."""
     return value - _TIME_SHIFT
@@ -1354,8 +1454,8 @@ class WindowedValueCoderImpl(StreamCoderImpl):
         # Convert to postive number and divide, since python rounds off to the
         # lower negative number. For ex: -3 / 2 = -2, but we expect it to be -1,
         # to be consistent across SDKs.
-        # TODO(BEAM-1524): Clean this up once we have a BEAM wide consensus on
-        # precision of timestamps.
+        # TODO(https://github.com/apache/beam/issues/18190): Clean this up once
+        # we have a BEAM wide consensus on precision of timestamps.
         self._from_normal_time(
             restore_sign * (
                 abs(
@@ -1373,8 +1473,8 @@ class WindowedValueCoderImpl(StreamCoderImpl):
     # of precision while converting to millis.
     # Note: This is only a best effort here as there is no way to know if these
     # were indeed MIN/MAX timestamps.
-    # TODO(BEAM-1524): Clean this up once we have a BEAM wide consensus on
-    # precision of timestamps.
+    # TODO(https://github.com/apache/beam/issues/18190): Clean this up once we
+    # have a BEAM wide consensus on precision of timestamps.
     if timestamp <= -(abs(MIN_TIMESTAMP_micros) // 1000):
       timestamp = MIN_TIMESTAMP_micros
     elif timestamp >= MAX_TIMESTAMP_micros // 1000:
@@ -1545,3 +1645,291 @@ class TimestampPrefixingWindowCoderImpl(StreamCoderImpl):
     estimated_size += TimestampCoderImpl().estimate_size(value)
     estimated_size += self._window_coder_impl.estimate_size(value, nested)
     return estimated_size
+
+
+row_coders_registered = False
+
+
+class RowColumnEncoder:
+  ROW_ENCODERS = {1: 12345}
+
+  @classmethod
+  def register(cls, field_type, coder_impl):
+    cls.ROW_ENCODERS[field_type, coder_impl] = cls
+
+  @classmethod
+  def create(cls, field_type, coder_impl, column):
+    global row_coders_registered
+    if not row_coders_registered:
+      try:
+        # pylint: disable=unused-import
+        from apache_beam.coders import coder_impl_row_encoders
+      except ImportError:
+        pass
+      row_coders_registered = True
+    return cls.ROW_ENCODERS.get((field_type, column.dtype),
+                                GenericRowColumnEncoder)(coder_impl, column)
+
+  def null_flags(self):
+    raise NotImplementedError(type(self))
+
+  def encode_to_stream(self, index, out):
+    raise NotImplementedError(type(self))
+
+  def decode_from_stream(self, index, in_stream):
+    raise NotImplementedError(type(self))
+
+  def finalize_write(self):
+    raise NotImplementedError(type(self))
+
+
+class GenericRowColumnEncoder(RowColumnEncoder):
+  def __init__(self, coder_impl, column):
+    self.coder_impl = coder_impl
+    self.column = column
+
+  def null_flags(self):
+    # pylint: disable=singleton-comparison
+    return self.column == None  # This is an array.
+
+  def encode_to_stream(self, index, out):
+    self.coder_impl.encode_to_stream(self.column[index], out, True)
+
+  def decode_from_stream(self, index, in_stream):
+    self.column[index] = self.coder_impl.decode_from_stream(in_stream, True)
+
+  def finalize_write(self):
+    pass
+
+
+class RowCoderImpl(StreamCoderImpl):
+  """For internal use only; no backwards-compatibility guarantees."""
+  def __init__(self, schema, components):
+    self.schema = schema
+    self.num_fields = len(self.schema.fields)
+    self.field_names = [f.name for f in self.schema.fields]
+    self.field_nullable = [field.type.nullable for field in self.schema.fields]
+    self.constructor = named_tuple_from_schema(schema)
+    self.encoding_positions = list(range(len(self.schema.fields)))
+    if self.schema.encoding_positions_set:
+      # should never be duplicate encoding positions.
+      enc_posx = list(
+          set(field.encoding_position for field in self.schema.fields))
+      if len(enc_posx) != len(self.schema.fields):
+        raise ValueError(
+            f'''Schema with id {schema.id} has encoding_positions_set=True,
+            but not all fields have encoding_position set''')
+      self.encoding_positions = list(
+          field.encoding_position for field in self.schema.fields)
+    self.encoding_positions_argsort = list(np.argsort(self.encoding_positions))
+    self.encoding_positions_are_trivial = self.encoding_positions == list(
+        range(len(self.encoding_positions)))
+    self.components = list(
+        components[self.encoding_positions.index(i)].get_impl()
+        for i in self.encoding_positions)
+    self.has_nullable_fields = any(
+        field.type.nullable for field in self.schema.fields)
+
+  def encode_to_stream(self, value, out, nested):
+    out.write_var_int64(self.num_fields)
+    attrs = [getattr(value, name) for name in self.field_names]
+
+    if self.has_nullable_fields:
+      any_nulls = False
+      for attr in attrs:
+        if attr is None:
+          any_nulls = True
+          break
+      if any_nulls:
+        out.write_var_int64((self.num_fields + 7) // 8)
+        # Pack the bits, little-endian, in consecutive bytes.
+        running = 0
+        for i, attr in enumerate(attrs):
+          if i and i % 8 == 0:
+            out.write_byte(running)
+            running = 0
+          running |= (attr is None) << (i % 8)
+        out.write_byte(running)
+      else:
+        out.write_byte(0)
+    else:
+      out.write_byte(0)
+
+    for i in range(self.num_fields):
+      if not self.encoding_positions_are_trivial:
+        i = self.encoding_positions_argsort[i]
+      attr = attrs[i]
+      if attr is None:
+        if not self.field_nullable[i]:
+          raise ValueError(
+              "Attempted to encode null for non-nullable field \"{}\".".format(
+                  self.schema.fields[i].name))
+        continue
+      component_coder = self.components[i]  # for typing
+      component_coder.encode_to_stream(attr, out, True)
+
+  def _row_column_encoders(self, columns):
+    return [
+        RowColumnEncoder.create(
+            self.schema.fields[i].type.atomic_type,
+            self.components[i],
+            columns[name]) for i,
+        name in enumerate(self.field_names)
+    ]
+
+  def encode_batch_to_stream(self, columns: Dict[str, np.ndarray], out):
+    attrs = self._row_column_encoders(columns)
+    n = len(next(iter(columns.values())))
+    if self.has_nullable_fields:
+      null_flags_py = np.zeros((n, self.num_fields), dtype=np.uint8)
+      null_bits_len = (self.num_fields + 7) // 8
+      null_bits_py = np.zeros((n, null_bits_len), dtype=np.uint8)
+      for i, attr in enumerate(attrs):
+        attr_null_flags = attr.null_flags()
+        if attr_null_flags is not None and attr_null_flags.any():
+          null_flags_py[:, i] = attr_null_flags
+          null_bits_py[:, i // 8] |= attr_null_flags << np.uint8(i % 8)
+      has_null_bits = (null_bits_py.sum(axis=1) != 0).astype(np.uint8)
+      null_bits = null_bits_py
+      null_flags = null_flags_py
+    else:
+      has_null_bits = np.zeros((n, ), dtype=np.uint8)
+
+    for k in range(n):
+      out.write_var_int64(self.num_fields)
+      if has_null_bits[k]:
+        out.write_byte(null_bits_len)
+        for i in range(null_bits_len):
+          out.write_byte(null_bits[k, i])
+      else:
+        out.write_byte(0)
+      for i in range(self.num_fields):
+        if not self.encoding_positions_are_trivial:
+          i = self.encoding_positions_argsort[i]
+        if has_null_bits[k] and null_flags[k, i]:
+          if not self.field_nullable[i]:
+            raise ValueError(
+                "Attempted to encode null for non-nullable field \"{}\".".
+                format(self.schema.fields[i].name))
+        else:
+          cython.cast(RowColumnEncoder, attrs[i]).encode_to_stream(k, out)
+
+  def decode_from_stream(self, in_stream, nested):
+    nvals = in_stream.read_var_int64()
+    null_mask_len = in_stream.read_var_int64()
+    if null_mask_len:
+      # pylint: disable=unused-variable
+      null_mask_c = null_mask_py = in_stream.read(null_mask_len)
+
+    # Note that if this coder's schema has *fewer* attributes than the encoded
+    # value, we just need to ignore the additional values, which will occur
+    # here because we only decode as many values as we have coders for.
+
+    sorted_components = []
+    for i in range(min(self.num_fields, nvals)):
+      if not self.encoding_positions_are_trivial:
+        i = self.encoding_positions_argsort[i]
+      if (null_mask_len and i >> 3 < null_mask_len and
+          null_mask_c[i >> 3] & (0x01 << (i & 0x07))):
+        item = None
+      else:
+        component_coder = self.components[i]  # for typing
+        item = component_coder.decode_from_stream(in_stream, True)
+      sorted_components.append(item)
+
+    # If this coder's schema has more attributes than the encoded value, then
+    # the schema must have changed. Populate the unencoded fields with nulls.
+    while len(sorted_components) < self.num_fields:
+      sorted_components.append(None)
+
+    return self.constructor(
+        *(
+            sorted_components if self.encoding_positions_are_trivial else
+            [sorted_components[i] for i in self.encoding_positions]))
+
+  def decode_batch_from_stream(self, dest: Dict[str, np.ndarray], in_stream):
+    attrs = self._row_column_encoders(dest)
+    n = len(next(iter(dest.values())))
+    for k in range(n):
+      if in_stream.size() == 0:
+        break
+      nvals = in_stream.read_var_int64()
+      null_mask_len = in_stream.read_var_int64()
+      if null_mask_len:
+        # pylint: disable=unused-variable
+        null_mask_c = null_mask = in_stream.read(null_mask_len)
+
+      for i in range(min(self.num_fields, nvals)):
+        if not self.encoding_positions_are_trivial:
+          i = self.encoding_positions_argsort[i]
+        if (null_mask_len and i >> 3 < null_mask_len and
+            null_mask_c[i >> 3] & (0x01 << (i & 0x07))):
+          continue
+        else:
+          cython.cast(RowColumnEncoder,
+                      attrs[i]).decode_from_stream(k, in_stream)
+    else:
+      # Loop variable will be n-1 on normal exit.
+      k = n
+
+    for attr in attrs:
+      attr.finalize_write()
+    return k
+
+
+class LogicalTypeCoderImpl(StreamCoderImpl):
+  def __init__(self, logical_type, representation_coder):
+    self.logical_type = logical_type
+    self.representation_coder = representation_coder.get_impl()
+
+  def encode_to_stream(self, value, out, nested):
+    return self.representation_coder.encode_to_stream(
+        self.logical_type.to_representation_type(value), out, nested)
+
+  def decode_from_stream(self, in_stream, nested):
+    return self.logical_type.to_language_type(
+        self.representation_coder.decode_from_stream(in_stream, nested))
+
+
+class BigIntegerCoderImpl(StreamCoderImpl):
+  """For internal use only; no backwards-compatibility guarantees.
+
+  For interoperability with Java SDK, encoding needs to match that of the Java
+  SDK BigIntegerCoder."""
+  def encode_to_stream(self, value, out, nested):
+    # type: (int, create_OutputStream, bool) -> None
+    if value < 0:
+      byte_length = ((value + 1).bit_length() + 8) // 8
+    else:
+      byte_length = (value.bit_length() + 8) // 8
+    encoded_value = value.to_bytes(
+        length=byte_length, byteorder='big', signed=True)
+    out.write(encoded_value, nested)
+
+  def decode_from_stream(self, in_stream, nested):
+    # type: (create_InputStream, bool) -> int
+    encoded_value = in_stream.read_all(nested)
+    return int.from_bytes(encoded_value, byteorder='big', signed=True)
+
+
+class DecimalCoderImpl(StreamCoderImpl):
+  """For internal use only; no backwards-compatibility guarantees.
+
+  For interoperability with Java SDK, encoding needs to match that of the Java
+  SDK BigDecimalCoder."""
+
+  BIG_INT_CODER_IMPL = BigIntegerCoderImpl()
+
+  def encode_to_stream(self, value, out, nested):
+    # type: (decimal.Decimal, create_OutputStream, bool) -> None
+    scale = -value.as_tuple().exponent
+    int_value = int(value.scaleb(scale))
+    out.write_var_int64(scale)
+    self.BIG_INT_CODER_IMPL.encode_to_stream(int_value, out, nested)
+
+  def decode_from_stream(self, in_stream, nested):
+    # type: (create_InputStream, bool) -> decimal.Decimal
+    scale = in_stream.read_var_int64()
+    int_value = self.BIG_INT_CODER_IMPL.decode_from_stream(in_stream, nested)
+    value = decimal.Decimal(int_value).scaleb(-scale)
+    return value

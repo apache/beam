@@ -27,9 +27,11 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.joda.time.Instant;
 
 /**
@@ -37,10 +39,7 @@ import org.joda.time.Instant;
  * which tables each element is written to, and format the element into a {@link TableRow} using the
  * user-supplied format function.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
-public class PrepareWrite<InputT, DestinationT, OutputT>
+public class PrepareWrite<InputT, DestinationT extends @NonNull Object, OutputT>
     extends PTransform<PCollection<InputT>, PCollection<KV<DestinationT, OutputT>>> {
   private DynamicDestinations<InputT, DestinationT> dynamicDestinations;
   private SerializableFunction<InputT, OutputT> formatFunction;
@@ -77,8 +76,8 @@ public class PrepareWrite<InputT, DestinationT, OutputT>
                         dynamicDestinations,
                         element);
                     OutputT outputValue = formatFunction.apply(element);
-                    checkArgument(
-                        outputValue != null,
+                    Preconditions.checkArgumentNotNull(
+                        outputValue,
                         "formatFunction may not return null, but %s returned null on element %s",
                         formatFunction,
                         element);

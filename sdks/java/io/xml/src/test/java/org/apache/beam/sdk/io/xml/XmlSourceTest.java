@@ -540,10 +540,8 @@ public class XmlSourceTest {
     exception.expectMessage("MyCustomValidationEventHandler failure mesage");
     try (Reader<WrongTrainType> reader = source.createReader(null)) {
 
-      List<WrongTrainType> results = new ArrayList<>();
       for (boolean available = reader.start(); available; available = reader.advance()) {
-        WrongTrainType train = reader.getCurrent();
-        results.add(train);
+        reader.getCurrent();
       }
     }
   }

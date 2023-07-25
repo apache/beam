@@ -27,6 +27,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/bigqueryio"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/gcpopts"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 )
 
@@ -39,7 +40,10 @@ var (
 )
 
 func init() {
-	beam.RegisterType(reflect.TypeOf((*extractFn)(nil)).Elem())
+	register.Function2x1(concatFn)
+	register.Function2x1(formatFn)
+	register.DoFn3x0[context.Context, WordRow, func(string, string)](&extractFn{})
+	register.Emitter2[string, string]()
 }
 
 type WordRow struct {

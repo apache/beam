@@ -16,8 +16,4 @@
  * limitations under the License.
  */
 /** Defines IO connectors for Microsoft Azure Blobstore. */
-@Experimental(Kind.FILESYSTEM)
 package org.apache.beam.sdk.io.azure.options;
-
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;

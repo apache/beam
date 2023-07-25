@@ -31,7 +31,9 @@ job('beam_sonarqube_report') {
     }
   }
 
-  commonJobProperties.setAutoJob delegate
+
+  // TODO(https://github.com/apache/beam/issues/24768) remove or fix this job.
+  // commonJobProperties.setAutoJob delegate
 
   publishers {
     archiveJunit('**/build/test-results/**/*.xml')
@@ -45,7 +47,7 @@ job('beam_sonarqube_report') {
       tasks("sonarqube")
       switches("--continue")
       switches("-PdisableSpotlessCheck=true")
-
+      switches("-PdisableCheckStyle=true")
       // disable parallelization to avoid output collisions
       switches("--no-parallel")
     }

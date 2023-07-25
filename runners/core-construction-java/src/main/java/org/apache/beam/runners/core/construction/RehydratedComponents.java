@@ -43,7 +43,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * {@link PCollection} and nice-to-have for other objects.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class RehydratedComponents {
   private final Components components;

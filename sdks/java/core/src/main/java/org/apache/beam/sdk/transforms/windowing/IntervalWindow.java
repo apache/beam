@@ -69,7 +69,7 @@ public class IntervalWindow extends BoundedWindow implements Comparable<Interval
   @Override
   public Instant maxTimestamp() {
     // end not inclusive
-    return end.minus(1);
+    return end.minus(Duration.millis(1));
   }
 
   /** Returns whether this window contains the given window. */

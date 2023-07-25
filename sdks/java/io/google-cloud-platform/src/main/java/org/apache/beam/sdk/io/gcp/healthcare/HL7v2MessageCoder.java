@@ -57,6 +57,7 @@ public class HL7v2MessageCoder extends CustomCoder<HL7v2Message> {
   }
 
   @Override
+  @SuppressWarnings("nullness") // Message is not annotated to allow nulls, but it does everywhere
   public HL7v2Message decode(InputStream inStream) throws CoderException, IOException {
     Message msg = new Message();
     msg.setName(STRING_CODER.decode(inStream));

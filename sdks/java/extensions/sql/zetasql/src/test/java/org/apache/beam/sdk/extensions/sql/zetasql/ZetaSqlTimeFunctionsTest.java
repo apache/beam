@@ -137,7 +137,8 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
-  // TODO[BEAM-9166]: Add a test for CURRENT_DATE function ("SELECT CURRENT_DATE()")
+  // TODO[https://github.com/apache/beam/issues/19980]: Add a test for CURRENT_DATE function
+  // ("SELECT CURRENT_DATE()")
 
   @Test
   public void testExtractFromDate() {
@@ -150,7 +151,8 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
             + "  EXTRACT(ISOYEAR FROM date) AS isoyear,\n"
             + "  EXTRACT(YEAR FROM date) AS year,\n"
             + "  EXTRACT(ISOWEEK FROM date) AS isoweek,\n"
-            // TODO[BEAM-10606]: Add tests for DATE_TRUNC and EXTRACT with "week with weekday" date
+            // TODO[https://github.com/apache/beam/issues/20338]: Add tests for DATE_TRUNC and
+            // EXTRACT with "week with weekday" date
             //  parts once they are supported
             // + "  EXTRACT(WEEK FROM date) AS week,\n"
             + "  EXTRACT(MONTH FROM date) AS month,\n"
@@ -537,7 +539,8 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
-  // TODO[BEAM-9166]: Add a test for CURRENT_TIME function ("SELECT CURRENT_TIME()")
+  // TODO[https://github.com/apache/beam/issues/19980]: Add a test for CURRENT_TIME function
+  // ("SELECT CURRENT_TIME()")
 
   @Test
   public void testExtractFromTime() {
@@ -867,7 +870,8 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
-  // TODO[BEAM-9166]: Add a test for CURRENT_DATETIME function ("SELECT CURRENT_DATETIME()")
+  // TODO[https://github.com/apache/beam/issues/19980]: Add a test for CURRENT_DATETIME function
+  // ("SELECT CURRENT_DATETIME()")
 
   @Test
   public void testExtractFromDateTime() {
@@ -876,7 +880,8 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
             + "EXTRACT(YEAR FROM DATETIME '2008-12-25 15:30:00') as year, "
             + "EXTRACT(QUARTER FROM DATETIME '2008-12-25 15:30:00') as quarter, "
             + "EXTRACT(MONTH FROM DATETIME '2008-12-25 15:30:00') as month, "
-            // TODO[BEAM-10606]: Add tests for DATETIME_TRUNC and EXTRACT with "week with weekday"
+            // TODO[https://github.com/apache/beam/issues/20338]: Add tests for DATETIME_TRUNC and
+            // EXTRACT with "week with weekday"
             //  date parts once they are supported
             // + "EXTRACT(WEEK FROM DATETIME '2008-12-25 15:30:00') as week, "
             + "EXTRACT(DAY FROM DATETIME '2008-12-25 15:30:00') as day, "
@@ -1274,7 +1279,8 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
-  // TODO[BEAM-9166]: Add a test for CURRENT_TIMESTAMP function ("SELECT CURRENT_TIMESTAMP()")
+  // TODO[https://github.com/apache/beam/issues/19980]: Add a test for CURRENT_TIMESTAMP function
+  // ("SELECT CURRENT_TIMESTAMP()")
 
   @Test
   public void testExtractFromTimestamp() {
@@ -1287,7 +1293,8 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
             + "  EXTRACT(ISOYEAR FROM timestamp) AS isoyear,\n"
             + "  EXTRACT(YEAR FROM timestamp) AS year,\n"
             + "  EXTRACT(ISOWEEK FROM timestamp) AS isoweek,\n"
-            // TODO[BEAM-10606]: Add tests for TIMESTAMP_TRUNC and EXTRACT with "week with weekday"
+            // TODO[https://github.com/apache/beam/issues/20338]: Add tests for TIMESTAMP_TRUNC and
+            // EXTRACT with "week with weekday"
             //  date parts once they are supported
             // + "  EXTRACT(WEEK FROM timestamp) AS week,\n"
             + "  EXTRACT(MONTH FROM timestamp) AS month,\n"

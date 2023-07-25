@@ -155,7 +155,7 @@ function verify_streaming_wordcount_direct() {
 
   # verify result
   run_pubsub_publish
-  verify_steaming_result "DirectRunner" $pid
+  verify_streaming_result "DirectRunner" $pid
 
   kill -9 $pid
   sleep 10
@@ -194,7 +194,7 @@ function verify_streaming_wordcount_dataflow() {
   # verify result
   run_pubsub_publish
   sleep 420
-  verify_steaming_result "DataflowRunner" $pid $running_job
+  verify_streaming_result "DataflowRunner" $pid $running_job
 
   kill -9 $pid
   gcloud dataflow jobs cancel $running_job

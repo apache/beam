@@ -67,7 +67,7 @@ import org.slf4j.LoggerFactory;
 
 /** Helper routines for packages. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class PackageUtil implements Closeable {
 
@@ -149,11 +149,6 @@ public class PackageUtil implements Closeable {
     String sourceDescription = attributes.getSourceDescription();
     String target = attributes.getDestination().getLocation();
 
-    if (alreadyStaged(attributes)) {
-      LOG.debug("Skipping file already staged: {} at {}", sourceDescription, target);
-      return StagingResult.cached(attributes);
-    }
-
     try {
       return tryStagePackageWithRetry(attributes, retrySleeper, createOptions);
     } catch (Exception miscException) {
@@ -170,6 +165,11 @@ public class PackageUtil implements Closeable {
     BackOff backoff = BackOffAdapter.toGcpBackOff(BACKOFF_FACTORY.backoff());
 
     while (true) {
+      if (alreadyStaged(attributes)) {
+        LOG.debug("Skipping file already staged: {} at {}", sourceDescription, target);
+        return StagingResult.cached(attributes);
+      }
+
       try {
         return tryStagePackage(attributes, createOptions);
       } catch (IOException ioException) {

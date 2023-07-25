@@ -34,10 +34,10 @@ public abstract class PublisherOptions implements Serializable {
     return new AutoValue_PublisherOptions.Builder();
   }
 
-  @CanIgnoreReturnValue
   @AutoValue.Builder
   public abstract static class Builder {
     // Required parameters.
+    @CanIgnoreReturnValue
     public abstract Builder setTopicPath(TopicPath path);
 
     public abstract PublisherOptions build();

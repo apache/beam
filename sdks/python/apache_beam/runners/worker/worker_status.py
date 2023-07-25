@@ -30,6 +30,7 @@ import grpc
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
+from apache_beam.runners.worker.statecache import StateCache
 from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
 from apache_beam.utils.sentinel import Sentinel
 
@@ -95,6 +96,18 @@ def heap_dump():
   return banner + heap + ending
 
 
+def _state_cache_stats(state_cache):
+  # type: (StateCache) -> str
+
+  """Gather state cache statistics."""
+  cache_stats = ['=' * 10 + ' CACHE STATS ' + '=' * 10]
+  if not state_cache.is_cache_enabled():
+    cache_stats.append("Cache disabled")
+  else:
+    cache_stats.append(state_cache.describe_stats())
+  return '\n'.join(cache_stats)
+
+
 def _active_processing_bundles_state(bundle_process_cache):
   """Gather information about the currently in-processing active bundles.
 
@@ -138,6 +151,7 @@ class FnApiWorkerStatusHandler(object):
       self,
       status_address,
       bundle_process_cache=None,
+      state_cache=None,
       enable_heap_dump=False,
       log_lull_timeout_ns=DEFAULT_LOG_LULL_TIMEOUT_NS):
     """Initialize FnApiWorkerStatusHandler.
@@ -145,9 +159,11 @@ class FnApiWorkerStatusHandler(object):
     Args:
       status_address: The URL Runner uses to host the WorkerStatus server.
       bundle_process_cache: The BundleProcessor cache dict from sdk worker.
+      state_cache: The StateCache form sdk worker.
     """
     self._alive = True
     self._bundle_process_cache = bundle_process_cache
+    self._state_cache = state_cache
     ch = GRPCChannelFactory.insecure_channel(status_address)
     grpc.channel_ready_future(ch).result(timeout=60)
     self._status_channel = grpc.intercept_channel(ch, WorkerIdInterceptor())
@@ -193,9 +209,14 @@ class FnApiWorkerStatusHandler(object):
                   "status page: %s" % traceback_string))
 
   def generate_status_response(self):
-    all_status_sections = [
-        _active_processing_bundles_state(self._bundle_process_cache)
-    ] if self._bundle_process_cache else []
+    all_status_sections = []
+
+    if self._state_cache:
+      all_status_sections.append(_state_cache_stats(self._state_cache))
+
+    if self._bundle_process_cache:
+      all_status_sections.append(
+          _active_processing_bundles_state(self._bundle_process_cache))
 
     all_status_sections.append(thread_dump())
     if self._enable_heap_dump:
@@ -209,40 +230,50 @@ class FnApiWorkerStatusHandler(object):
   def _log_lull_in_bundle_processor(self, bundle_process_cache):
     while True:
       time.sleep(2 * 60)
-      if bundle_process_cache.active_bundle_processors:
+      if bundle_process_cache and bundle_process_cache.active_bundle_processors:
         for instruction in list(
             bundle_process_cache.active_bundle_processors.keys()):
           processor = bundle_process_cache.lookup(instruction)
           if processor:
             info = processor.state_sampler.get_info()
-            self._log_lull_sampler_info(info)
+            self._log_lull_sampler_info(info, instruction)
 
-  def _log_lull_sampler_info(self, sampler_info):
+  def _log_lull_sampler_info(self, sampler_info, instruction):
     if not self._passed_lull_timeout_since_last_log():
       return
     if (sampler_info and sampler_info.time_since_transition and
         sampler_info.time_since_transition > self.log_lull_timeout_ns):
+      lull_seconds = sampler_info.time_since_transition / 1e9
+
       step_name = sampler_info.state_name.step_name
       state_name = sampler_info.state_name.name
-      lull_seconds = sampler_info.time_since_transition / 1e9
-      state_lull_log = (
-          'Operation ongoing for over %.2f seconds in state %s' %
-          (lull_seconds, state_name))
-      step_name_log = (' in step %s ' % step_name) if step_name else ''
-
-      exec_thread = getattr(sampler_info, 'tracked_thread', None)
-      if exec_thread is not None:
-        thread_frame = sys._current_frames().get(exec_thread.ident)  # pylint: disable=protected-access
-        stack_trace = '\n'.join(
-            traceback.format_stack(thread_frame)) if thread_frame else ''
+      if step_name and state_name:
+        step_name_log = (
+            ' for PTransform{name=%s, state=%s}' % (step_name, state_name))
       else:
-        stack_trace = '-NOT AVAILABLE-'
+        step_name_log = ''
+
+      stack_trace = self._get_stack_trace(sampler_info)
 
       _LOGGER.warning(
-          '%s%s without returning. Current Traceback:\n%s',
-          state_lull_log,
+          (
+              'Operation ongoing in bundle %s%s for at least %.2f seconds'
+              ' without outputting or completing.\n'
+              'Current Traceback:\n%s'),
+          instruction,
           step_name_log,
-          stack_trace)
+          lull_seconds,
+          stack_trace,
+      )
+
+  def _get_stack_trace(self, sampler_info):
+    exec_thread = getattr(sampler_info, 'tracked_thread', None)
+    if exec_thread is not None:
+      thread_frame = sys._current_frames().get(exec_thread.ident)  # pylint: disable=protected-access
+      return '\n'.join(
+          traceback.format_stack(thread_frame)) if thread_frame else ''
+    else:
+      return '-NOT AVAILABLE-'
 
   def _passed_lull_timeout_since_last_log(self) -> bool:
     if (time.time() - self._last_lull_logged_secs >

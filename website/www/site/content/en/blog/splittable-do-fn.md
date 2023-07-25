@@ -187,7 +187,7 @@ runner with information such as its estimated size (or its generalization,
 uses this information to tune the execution and control the breakdown of the
 `Source` into bundles. For example, a slowly progressing large bundle of a file
 may be [dynamically
-split](https://cloud.google.com/blog/big-data/2016/05/no-shard-left-behind-dynamic-work-rebalancing-in-google-cloud-dataflow)
+split](https://cloud.google.com/blog/products/gcp/no-shard-left-behind-dynamic-work-rebalancing-in-google-cloud-dataflow)
 by a batch-focused runner before it becomes a straggler, and a latency-focused
 streaming runner may control how many elements it reads from a source in each
 bundle to optimize for latency vs. per-bundle overhead.
@@ -251,7 +251,7 @@ a `@ProcessElement` call is going to take too long and become a straggler, it
 can split the restriction in some proportion so that the primary is short enough
 to not be a straggler, and can schedule the residual in parallel on another
 worker. For details, see [No Shard Left
-Behind](https://cloud.google.com/blog/big-data/2016/05/no-shard-left-behind-dynamic-work-rebalancing-in-google-cloud-dataflow).
+Behind](https://cloud.google.com/blog/products/gcp/no-shard-left-behind-dynamic-work-rebalancing-in-google-cloud-dataflow).
 
 Logically, the execution of an SDF on an element works according to the
 following diagram, where "magic" stands for the runner-specific ability to split

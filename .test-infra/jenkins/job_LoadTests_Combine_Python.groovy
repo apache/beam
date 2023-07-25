@@ -41,7 +41,8 @@ def loadTestConfigurations = { datasetName, mode ->
         input_options        : '\'{' +
         '"num_records": 200000000,' +
         '"key_size": 1,' +
-        '"value_size": 9}\'',
+        '"value_size": 9,' +
+        '"algorithm": "lcg"}\'',
         num_workers          : 5,
         autoscaling_algorithm: "NONE",
         top_count            : 20,
@@ -63,7 +64,8 @@ def loadTestConfigurations = { datasetName, mode ->
         input_options        : '\'{' +
         '"num_records": 5000000,' +
         '"key_size": 10,' +
-        '"value_size": 90}\'',
+        '"value_size": 90,' +
+        '"algorithm": "lcg"}\'',
         num_workers          : 16,
         autoscaling_algorithm: "NONE",
         fanout               : 4,
@@ -86,7 +88,8 @@ def loadTestConfigurations = { datasetName, mode ->
         input_options        : '\'{' +
         '"num_records": 2500000,' +
         '"key_size": 10,' +
-        '"value_size": 90}\'',
+        '"value_size": 90,' +
+        '"algorithm": "lcg"}\'',
         num_workers          : 16,
         autoscaling_algorithm: "NONE",
         fanout               : 8,
@@ -100,14 +103,13 @@ def loadTestConfigurations = { datasetName, mode ->
 
 def addStreamingOptions(test){
   test.pipelineOptions << [streaming: null,
-    // TODO(BEAM-11779) remove shuffle_mode=appliance with runner v2 once issue is resolved.
-    experiments: "use_runner_v2, shuffle_mode=appliance"
+    experiments: "use_runner_v2"
   ]
 }
 
 def loadTestJob = { scope, triggeringContext, jobType ->
   scope.description("Runs Python Combine load tests on Dataflow runner in ${jobType} mode")
-  commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 120)
+  commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 720)
 
   def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
   for (testConfiguration in loadTestConfigurations(datasetName, jobType)) {
@@ -125,7 +127,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
       loadTestJob(delegate, CommonTestProperties.TriggeringContext.PR, "batch")
     }
 
-CronJobBuilder.cronJob('beam_LoadTests_Python_Combine_Dataflow_Batch', 'H 15 * * *', this) {
+CronJobBuilder.cronJob('beam_LoadTests_Python_Combine_Dataflow_Batch', 'H H * * *', this) {
   additionalPipelineArgs = [
     influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
     influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,
@@ -143,7 +145,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
       loadTestJob(delegate, CommonTestProperties.TriggeringContext.PR, "streaming")
     }
 
-CronJobBuilder.cronJob('beam_LoadTests_Python_Combine_Dataflow_Streaming', 'H 15 * * *', this) {
+CronJobBuilder.cronJob('beam_LoadTests_Python_Combine_Dataflow_Streaming', 'H H * * *', this) {
   additionalPipelineArgs = [
     influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
     influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,

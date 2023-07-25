@@ -16,58 +16,65 @@
 package fs_tool
 
 import (
-	pb "beam.apache.org/playground/backend/internal/api/v1"
-	"errors"
+	"context"
 	"fmt"
 	"github.com/google/uuid"
 	"io/fs"
 	"os"
-	"path/filepath"
-	"strings"
+
+	pb "beam.apache.org/playground/backend/internal/api/v1"
+	"beam.apache.org/playground/backend/internal/db/entity"
+	"beam.apache.org/playground/backend/internal/emulators"
+	"beam.apache.org/playground/backend/internal/logger"
 )
 
 const (
-	fileMode = 0600
+	fileMode    = 0600
+	logFileName = "logs.log"
 )
 
-// Folder contains names of folders with executable and compiled files.
-// For each SDK these values should be set depending on folders that need for the SDK (/src and /bin for java SDK).
-type Folder struct {
-	BaseFolder       string
-	ExecutableFolder string
-	CompiledFolder   string
+// LifeCyclePaths contains all files/folders paths
+type LifeCyclePaths struct {
+	SourceFileName                   string // {pipelineId}.{sourceFileExtension}
+	AbsoluteSourceFileFolderPath     string // /path/to/workingDir/pipelinesFolder/{pipelineId}/src
+	AbsoluteSourceFilePath           string // /path/to/workingDir/pipelinesFolder/{pipelineId}/src/{pipelineId}.{sourceFileExtension}
+	ExecutableFileName               string // {pipelineId}.{executableFileExtension}
+	AbsoluteExecutableFileFolderPath string // /path/to/workingDir/pipelinesFolder/{pipelineId}/bin
+	AbsoluteExecutableFilePath       string // /path/to/workingDir/pipelinesFolder/{pipelineId}/bin/{pipelineId}.{executableFileExtension}
+	AbsoluteBaseFolderPath           string // /path/to/workingDir/pipelinesFolder/{pipelineId}
+	AbsoluteLogFilePath              string // /path/to/workingDir/pipelinesFolder/{pipelineId}/logs.log
+	AbsoluteGraphFilePath            string // /path/to/workingDir/pipelinesFolder/{pipelineId}/src/graph.dot
+	ProjectDir                       string // /path/to/workingDir/
+	FindExecutableName               func(context.Context, string) (string, error)
+	FindTestExecutableName           func(context.Context, string) (string, error)
 }
 
-// Extension contains executable and compiled files' extensions.
-// For each SDK these values should be set depending on SDK's extensions (.java and .class for java SDK).
-type Extension struct {
-	ExecutableExtension string
-	CompiledExtension   string
-}
-
-// LifeCycle is used for preparing folders and files to process code for one request.
-// For each SDK folders (Folder) and extensions (Extension) should be set correctly.
+// LifeCycle is used for preparing folders and files to process code for one code processing request.
 type LifeCycle struct {
-	folderGlobs []string //folders that should be created to process code
-	Folder      Folder
-	Extension   Extension
-	pipelineId  uuid.UUID
+	folderGlobs         []string // folders that should be created to process code
+	Paths               LifeCyclePaths
+	emulatorMockCluster emulators.EmulatorMockCluster
 }
 
 // NewLifeCycle returns a corresponding LifeCycle depending on the given SDK.
-// workingDir should be existed and be prepared to create/delete/modify folders into him.
-func NewLifeCycle(sdk pb.Sdk, pipelineId uuid.UUID, workingDir string) (*LifeCycle, error) {
+func NewLifeCycle(sdk pb.Sdk, pipelineId uuid.UUID, pipelinesFolder string) (*LifeCycle, error) {
 	switch sdk {
 	case pb.Sdk_SDK_JAVA:
-		return newJavaLifeCycle(pipelineId, workingDir), nil
+		return newJavaLifeCycle(pipelineId, pipelinesFolder), nil
+	case pb.Sdk_SDK_GO:
+		return newGoLifeCycle(pipelineId, pipelinesFolder), nil
+	case pb.Sdk_SDK_PYTHON:
+		return newPythonLifeCycle(pipelineId, pipelinesFolder), nil
+	case pb.Sdk_SDK_SCIO:
+		return newScioLifeCycle(pipelineId, pipelinesFolder), nil
 	default:
 		return nil, fmt.Errorf("%s isn't supported now", sdk)
 	}
 }
 
 // CreateFolders creates all folders which will be used for code execution.
-func (l *LifeCycle) CreateFolders() error {
-	for _, folder := range l.folderGlobs {
+func (lc *LifeCycle) CreateFolders() error {
+	for _, folder := range lc.folderGlobs {
 		err := os.MkdirAll(folder, fs.ModePerm)
 		if err != nil {
 			return err
@@ -77,8 +84,8 @@ func (l *LifeCycle) CreateFolders() error {
 }
 
 // DeleteFolders deletes all previously provisioned folders.
-func (l *LifeCycle) DeleteFolders() error {
-	for _, folder := range l.folderGlobs {
+func (lc *LifeCycle) DeleteFolders() error {
+	for _, folder := range lc.folderGlobs {
 		err := os.RemoveAll(folder)
 		if err != nil {
 			return err
@@ -87,48 +94,44 @@ func (l *LifeCycle) DeleteFolders() error {
 	return nil
 }
 
-// CreateExecutableFile creates an executable file (i.e. file.java for the Java SDK).
-func (l *LifeCycle) CreateExecutableFile(code string) (string, error) {
-	if _, err := os.Stat(l.Folder.ExecutableFolder); os.IsNotExist(err) {
-		return "", err
+// CreateSourceCodeFiles creates an executable file (i.e. file.{sourceFileExtension}).
+func (lc *LifeCycle) CreateSourceCodeFiles(sources []entity.FileEntity) error {
+	if _, err := os.Stat(lc.Paths.AbsoluteSourceFileFolderPath); os.IsNotExist(err) {
+		return err
 	}
 
-	fileName := getFileName(l.pipelineId, l.Extension.ExecutableExtension)
-	filePath := filepath.Join(l.Folder.ExecutableFolder, fileName)
-	err := os.WriteFile(filePath, []byte(code), fileMode)
+	for _, src := range sources {
+		filePath := lc.Paths.AbsoluteSourceFilePath
+		if !src.IsMain {
+			filePath = lc.Paths.AbsoluteSourceFileFolderPath + "/" + src.Name
+		}
+		err := os.WriteFile(filePath, []byte(src.Content), fileMode)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (lc *LifeCycle) GetPreparerParameters() map[string]string {
+	if lc.emulatorMockCluster == nil {
+		return map[string]string{}
+	}
+	return lc.emulatorMockCluster.GetPreparerParameters()
+}
+
+func (lc *LifeCycle) StartEmulators(configuration emulators.EmulatorConfiguration) error {
+	kafkaMockClusters, err := emulators.PrepareMockClusters(configuration)
 	if err != nil {
-		return "", err
+		logger.Errorf("Failed to start mock emulator: %v", err)
+		return err
 	}
-	return fileName, nil
+	lc.emulatorMockCluster = kafkaMockClusters[0]
+	return nil
 }
 
-// GetAbsoluteExecutableFilePath returns absolute filepath to executable file (/path/to/workingDir/executable_files/{pipelineId}/src/{pipelineId}.java for java SDK).
-func (l *LifeCycle) GetAbsoluteExecutableFilePath() string {
-	fileName := getFileName(l.pipelineId, l.Extension.ExecutableExtension)
-	filePath := filepath.Join(l.Folder.ExecutableFolder, fileName)
-	absoluteFilePath, _ := filepath.Abs(filePath)
-	return absoluteFilePath
-}
-
-// GetAbsoluteExecutableFilesFolderPath returns absolute path to executable folder (/path/to/workingDir/executable_files/{pipelineId}).
-func (l *LifeCycle) GetAbsoluteExecutableFilesFolderPath() string {
-	absoluteFilePath, _ := filepath.Abs(l.Folder.BaseFolder)
-	return absoluteFilePath
-}
-
-// GetExecutableName returns name that should be executed (HelloWorld for HelloWorld.class for java SDK)
-func (l *LifeCycle) GetExecutableName() (string, error) {
-	dirEntries, err := os.ReadDir(l.Folder.CompiledFolder)
-	if err != nil {
-		return "", err
+func (lc *LifeCycle) StopEmulators() {
+	if lc.emulatorMockCluster != nil {
+		lc.emulatorMockCluster.Stop()
 	}
-	if len(dirEntries) != 1 {
-		return "", errors.New("number of executable files should be equal to one")
-	}
-	return strings.Split(dirEntries[0].Name(), ".")[0], nil
-}
-
-// getFileName returns fileName by pipelineId and fileType ({pipelineId}.java for java SDK).
-func getFileName(pipelineId uuid.UUID, fileType string) string {
-	return fmt.Sprintf("%s.%s", pipelineId, fileType)
 }

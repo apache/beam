@@ -21,8 +21,14 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window/trigger"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/jobopts"
 )
 
@@ -113,8 +119,8 @@ func TestAnnotations(t *testing.T) {
 				if strings.Compare(name, "privacy_property") != 0 {
 					t.Errorf("Annotation name: got %v, want %v", name, "privacy_property")
 				}
-				if bytes.Compare(annotation, []byte("differential_privacy")) != 0 {
-					t.Errorf("Annotation value: got %v, want %v", annotation, []byte("differential_privacy"))
+				if got, want := annotation, []byte("differential_privacy"); !bytes.Equal(got, want) {
+					t.Errorf("Annotation value: got %v, want %v", got, want)
 				}
 			}
 		}
@@ -131,4 +137,46 @@ type AnnotationsFn struct {
 
 func (fn *AnnotationsFn) ProcessElement(v int) int {
 	return v
+}
+
+func doNothing(_ []byte, _ int) {}
+func TestParDoSideInputValidation(t *testing.T) {
+	var tests = []struct {
+		name      string
+		wFn       *window.Fn
+		isBounded bool
+	}{
+		// TODO(https://github.com/apache/beam/issues/21596): Re-enable this test case once proper streaming testing support is finished.
+		// {
+		// 	"global window unbounded",
+		// 	window.NewGlobalWindows(),
+		// 	false,
+		// },
+		{
+			"side input session windowed",
+			window.NewSessions(1 * time.Minute),
+			true,
+		},
+		{
+			"global main, interval side",
+			window.NewFixedWindows(10 * time.Second),
+			true,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			p := NewPipeline()
+			s := p.Root()
+
+			strat := &window.WindowingStrategy{Fn: test.wFn, Trigger: trigger.Default(), AccumulationMode: window.Discarding, AllowedLateness: 0}
+			sideCol := PCollection{n: graph.New().NewNode(typex.New(reflectx.Int), strat, test.isBounded)}
+			outCol, err := TryParDo(s, doNothing, Impulse(s), SideInput{Input: sideCol})
+			if outCol != nil {
+				t.Errorf("TryParDo() produced an output PCollection when it should have failed, got %v", outCol)
+			}
+			if err == nil {
+				t.Errorf("TryParDo() did not return an error when it should have")
+			}
+		})
+	}
 }

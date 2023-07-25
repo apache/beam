@@ -18,6 +18,18 @@
 
 package org.apache.beam.learning.katas.commontransforms.aggregation.min;
 
+// beam-playground:
+//   name: AggregationMin
+//   description: Task from katas to compute the minimum of elements.
+//   multifile: false
+//   context_line: 43
+//   categories:
+//     - Combiners
+//   complexity: BASIC
+//   tags:
+//     - count
+//     - numbers
+
 import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;

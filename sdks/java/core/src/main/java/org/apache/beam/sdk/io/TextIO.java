@@ -34,8 +34,6 @@ import java.nio.channels.WritableByteChannel;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.DefaultFilenamePolicy.Params;
 import org.apache.beam.sdk.io.FileBasedSink.DynamicDestinations;
@@ -180,7 +178,7 @@ import org.joda.time.Duration;
  * DynamicDestinations} interface for advanced features via {@link Write#to(DynamicDestinations)}.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class TextIO {
   private static final long DEFAULT_BUNDLE_SIZE_BYTES = 64 * 1024 * 1024L;
@@ -269,6 +267,7 @@ public class TextIO {
         .setWritableByteChannelFactory(FileBasedSink.CompressionType.UNCOMPRESSED)
         .setWindowedWrites(false)
         .setNoSpilling(false)
+        .setSkipIfEmpty(false)
         .build();
   }
 
@@ -349,15 +348,27 @@ public class TextIO {
     }
 
     /**
-     * See {@link MatchConfiguration#continuously}.
+     * See {@link MatchConfiguration#continuously(Duration, TerminationCondition, boolean)}.
      *
      * <p>This works only in runners supporting splittable {@link
      * org.apache.beam.sdk.transforms.DoFn}.
      */
     public Read watchForNewFiles(
-        Duration pollInterval, TerminationCondition<String, ?> terminationCondition) {
+        Duration pollInterval,
+        TerminationCondition<String, ?> terminationCondition,
+        boolean matchUpdatedFiles) {
       return withMatchConfiguration(
-          getMatchConfiguration().continuously(pollInterval, terminationCondition));
+          getMatchConfiguration()
+              .continuously(pollInterval, terminationCondition, matchUpdatedFiles));
+    }
+
+    /**
+     * Same as {@link Read#watchForNewFiles(Duration, TerminationCondition, boolean)} with {@code
+     * matchUpdatedFiles=false}.
+     */
+    public Read watchForNewFiles(
+        Duration pollInterval, TerminationCondition<String, ?> terminationCondition) {
+      return watchForNewFiles(pollInterval, terminationCondition, false);
     }
 
     /**
@@ -495,11 +506,20 @@ public class TextIO {
       return withMatchConfiguration(getMatchConfiguration().withEmptyMatchTreatment(treatment));
     }
 
+    /** Same as {@link Read#watchForNewFiles(Duration, TerminationCondition, boolean)}. */
+    public ReadAll watchForNewFiles(
+        Duration pollInterval,
+        TerminationCondition<String, ?> terminationCondition,
+        boolean matchUpdatedFiles) {
+      return withMatchConfiguration(
+          getMatchConfiguration()
+              .continuously(pollInterval, terminationCondition, matchUpdatedFiles));
+    }
+
     /** Same as {@link Read#watchForNewFiles(Duration, TerminationCondition)}. */
     public ReadAll watchForNewFiles(
         Duration pollInterval, TerminationCondition<String, ?> terminationCondition) {
-      return withMatchConfiguration(
-          getMatchConfiguration().continuously(pollInterval, terminationCondition));
+      return watchForNewFiles(pollInterval, terminationCondition, false);
     }
 
     ReadAll withDelimiter(byte[] delimiter) {
@@ -648,6 +668,9 @@ public class TextIO {
     /** Whether to skip the spilling of data caused by having maxNumWritersPerBundle. */
     abstract boolean getNoSpilling();
 
+    /** Whether to skip writing any output files if the PCollection is empty. */
+    abstract boolean getSkipIfEmpty();
+
     /**
      * The {@link WritableByteChannelFactory} to be used by the {@link FileBasedSink}. Default is
      * {@link FileBasedSink.CompressionType#UNCOMPRESSED}.
@@ -695,6 +718,8 @@ public class TextIO {
 
       abstract Builder<UserT, DestinationT> setNoSpilling(boolean noSpilling);
 
+      abstract Builder<UserT, DestinationT> setSkipIfEmpty(boolean noSpilling);
+
       abstract Builder<UserT, DestinationT> setWritableByteChannelFactory(
           WritableByteChannelFactory writableByteChannelFactory);
 
@@ -723,7 +748,6 @@ public class TextIO {
     }
 
     /** Like {@link #to(String)}. */
-    @Experimental(Kind.FILESYSTEM)
     public TypedWrite<UserT, DestinationT> to(ResourceId filenamePrefix) {
       return toResource(StaticValueProvider.of(filenamePrefix));
     }
@@ -778,7 +802,6 @@ public class TextIO {
     }
 
     /** Like {@link #to(ResourceId)}. */
-    @Experimental(Kind.FILESYSTEM)
     public TypedWrite<UserT, DestinationT> toResource(ValueProvider<ResourceId> filenamePrefix) {
       return toBuilder().setFilenamePrefix(filenamePrefix).build();
     }
@@ -798,14 +821,12 @@ public class TextIO {
     }
 
     /** Set the base directory used to generate temporary files. */
-    @Experimental(Kind.FILESYSTEM)
     public TypedWrite<UserT, DestinationT> withTempDirectory(
         ValueProvider<ResourceId> tempDirectory) {
       return toBuilder().setTempDirectory(tempDirectory).build();
     }
 
     /** Set the base directory used to generate temporary files. */
-    @Experimental(Kind.FILESYSTEM)
     public TypedWrite<UserT, DestinationT> withTempDirectory(ResourceId tempDirectory) {
       return withTempDirectory(StaticValueProvider.of(tempDirectory));
     }
@@ -846,7 +867,14 @@ public class TextIO {
      */
     public TypedWrite<UserT, DestinationT> withNumShards(int numShards) {
       checkArgument(numShards >= 0);
-      return withNumShards(StaticValueProvider.of(numShards));
+      if (numShards == 0) {
+        // If 0 shards are passed, then the user wants runner-determined
+        // sharding to kick in, thus we pass a null StaticValueProvider
+        // so that the runner-determined-sharding path will be activated.
+        return withNumShards(null);
+      } else {
+        return withNumShards(StaticValueProvider.of(numShards));
+      }
     }
 
     /**
@@ -934,6 +962,11 @@ public class TextIO {
       return toBuilder().setNoSpilling(true).build();
     }
 
+    /** Don't write any output files if the PCollection is empty. */
+    public TypedWrite<UserT, DestinationT> skipIfEmpty() {
+      return toBuilder().setSkipIfEmpty(true).build();
+    }
+
     private DynamicDestinations<UserT, DestinationT, String> resolveDynamicDestinations() {
       DynamicDestinations<UserT, DestinationT, String> dynamicDestinations =
           getDynamicDestinations();
@@ -1019,6 +1052,9 @@ public class TextIO {
       if (getNoSpilling()) {
         write = write.withNoSpilling();
       }
+      if (getSkipIfEmpty()) {
+        write = write.withSkipIfEmpty();
+      }
       return input.apply("WriteFiles", write);
     }
 
@@ -1066,7 +1102,6 @@ public class TextIO {
     }
 
     /** See {@link TypedWrite#to(ResourceId)}. */
-    @Experimental(Kind.FILESYSTEM)
     public Write to(ResourceId filenamePrefix) {
       return new Write(
           inner.to(filenamePrefix).withFormatFunction(SerializableFunctions.identity()));
@@ -1078,14 +1113,12 @@ public class TextIO {
     }
 
     /** See {@link TypedWrite#toResource(ValueProvider)}. */
-    @Experimental(Kind.FILESYSTEM)
     public Write toResource(ValueProvider<ResourceId> filenamePrefix) {
       return new Write(
           inner.toResource(filenamePrefix).withFormatFunction(SerializableFunctions.identity()));
     }
 
     /** See {@link TypedWrite#to(FilenamePolicy)}. */
-    @Experimental(Kind.FILESYSTEM)
     public Write to(FilenamePolicy filenamePolicy) {
       return new Write(
           inner.to(filenamePolicy).withFormatFunction(SerializableFunctions.identity()));
@@ -1097,7 +1130,6 @@ public class TextIO {
      * @deprecated Use {@link FileIO#write()} or {@link FileIO#writeDynamic()} ()} with {@link
      *     #sink()} instead.
      */
-    @Experimental(Kind.FILESYSTEM)
     @Deprecated
     public Write to(DynamicDestinations<String, ?, String> dynamicDestinations) {
       return new Write(
@@ -1110,7 +1142,6 @@ public class TextIO {
      * @deprecated Use {@link FileIO#write()} or {@link FileIO#writeDynamic()} ()} with {@link
      *     #sink()} instead.
      */
-    @Experimental(Kind.FILESYSTEM)
     @Deprecated
     public Write to(
         SerializableFunction<String, Params> destinationFunction, Params emptyDestination) {
@@ -1121,13 +1152,11 @@ public class TextIO {
     }
 
     /** See {@link TypedWrite#withTempDirectory(ValueProvider)}. */
-    @Experimental(Kind.FILESYSTEM)
     public Write withTempDirectory(ValueProvider<ResourceId> tempDirectory) {
       return new Write(inner.withTempDirectory(tempDirectory));
     }
 
     /** See {@link TypedWrite#withTempDirectory(ResourceId)}. */
-    @Experimental(Kind.FILESYSTEM)
     public Write withTempDirectory(ResourceId tempDirectory) {
       return new Write(inner.withTempDirectory(tempDirectory));
     }

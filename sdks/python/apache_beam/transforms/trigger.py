@@ -28,6 +28,7 @@ import logging
 import numbers
 from abc import ABCMeta
 from abc import abstractmethod
+from collections import abc as collections_abc  # ambiguty with direct abc
 from enum import Flag
 from enum import auto
 from itertools import zip_longest
@@ -47,8 +48,6 @@ from apache_beam.utils import windowed_value
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.timestamp import TIME_GRANULARITY
-
-# AfterCount is experimental. No backwards compatibility guarantees.
 
 __all__ = [
     'AccumulationMode',
@@ -372,10 +371,10 @@ class DefaultTrigger(TriggerFn):
 
 
 class AfterProcessingTime(TriggerFn):
-  """Fire exactly once after a specified delay from processing time.
+  """Fire exactly once after a specified delay from processing time."""
 
-  AfterProcessingTime is experimental. No backwards compatibility guarantees.
-  """
+  STATE_TAG = _SetStateTag('has_timer')
+
   def __init__(self, delay=0):
     """Initialize a processing time trigger with a delay in seconds."""
     self.delay = delay
@@ -384,8 +383,10 @@ class AfterProcessingTime(TriggerFn):
     return 'AfterProcessingTime(delay=%d)' % self.delay
 
   def on_element(self, element, window, context):
-    context.set_timer(
-        '', TimeDomain.REAL_TIME, context.get_current_time() + self.delay)
+    if not context.get_state(self.STATE_TAG):
+      context.set_timer(
+          '', TimeDomain.REAL_TIME, context.get_current_time() + self.delay)
+    context.add_state(self.STATE_TAG, True)
 
   def on_merge(self, to_be_merged, merge_result, context):
     # timers will be kept through merging
@@ -399,7 +400,7 @@ class AfterProcessingTime(TriggerFn):
     return True
 
   def reset(self, window, context):
-    pass
+    context.clear_state(self.STATE_TAG)
 
   def may_lose_data(self, unused_windowing):
     """AfterProcessingTime may finish."""
@@ -644,10 +645,7 @@ class AfterWatermark(TriggerFn):
 
 
 class AfterCount(TriggerFn):
-  """Fire when there are at least count elements in this window pane.
-
-  AfterCount is experimental. No backwards compatibility guarantees.
-  """
+  """Fire when there are at least count elements in this window pane."""
 
   COUNT_TAG = _CombiningValueStateTag('count', combiners.CountCombineFn())
 
@@ -1174,8 +1172,8 @@ def create_trigger_driver(
     windowing, is_batch=False, phased_combine_fn=None, clock=None):
   """Create the TriggerDriver for the given windowing and options."""
 
-  # TODO(BEAM-10149): Respect closing and on-time behaviors.
-  # For batch, we should always fire once, no matter what.
+  # TODO(https://github.com/apache/beam/issues/20165): Respect closing and
+  # on-time behaviors. For batch, we should always fire once, no matter what.
   if is_batch and windowing.triggerfn == _Never():
     windowing = copy.copy(windowing)
     windowing.triggerfn = Always()
@@ -1258,7 +1256,7 @@ class _UnwindowedValues(observable.ObservableMixin):
     return list, (list(self), )
 
   def __eq__(self, other):
-    if isinstance(other, collections.Iterable):
+    if isinstance(other, collections_abc.Iterable):
       return all(
           a == b for a, b in zip_longest(self, other, fillvalue=object()))
     else:
@@ -1635,11 +1633,11 @@ class InMemoryUnmergedState(UnmergedState):
   def get_earliest_hold(self):
     earliest_hold = MAX_TIMESTAMP
     for unused_window, tagged_states in self.state.items():
-      # TODO(BEAM-2519): currently, this assumes that the watermark hold tag is
-      # named "watermark".  This is currently only true because the only place
-      # watermark holds are set is in the GeneralTriggerDriver, where we use
-      # this name.  We should fix this by allowing enumeration of the tag types
-      # used in adding state.
+      # TODO(https://github.com/apache/beam/issues/18441): currently, this
+      # assumes that the watermark hold tag is named "watermark".  This is
+      # currently only true because the only place watermark holds are set is
+      # in the GeneralTriggerDriver, where we use this name.  We should fix
+      # this by allowing enumeration of the tag types used in adding state.
       if 'watermark' in tagged_states and tagged_states['watermark']:
         hold = min(tagged_states['watermark']) - TIME_GRANULARITY
         earliest_hold = min(earliest_hold, hold)

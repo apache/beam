@@ -30,7 +30,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.kafka.common.TopicPartition;
 
 /** The {@link Coder} for encoding and decoding {@link TopicPartition} in Beam. */
-@SuppressWarnings({"nullness"})
 public class TopicPartitionCoder extends StructuredCoder<TopicPartition> {
 
   @Override

@@ -33,6 +33,8 @@ from typing import Tuple
 from typing import TypeVar
 from typing import Union
 
+import numpy as np
+
 from apache_beam import typehints
 from apache_beam.transforms import core
 from apache_beam.transforms import cy_combiners
@@ -45,7 +47,22 @@ from apache_beam.utils.timestamp import Duration
 from apache_beam.utils.timestamp import Timestamp
 
 __all__ = [
-    'Count', 'Mean', 'Sample', 'Top', 'ToDict', 'ToList', 'ToSet', 'Latest'
+    'Count',
+    'Mean',
+    'Sample',
+    'Top',
+    'ToDict',
+    'ToList',
+    'ToSet',
+    'Latest',
+    'CountCombineFn',
+    'MeanCombineFn',
+    'SampleCombineFn',
+    'TopCombineFn',
+    'ToDictCombineFn',
+    'ToListCombineFn',
+    'ToSetCombineFn',
+    'LatestCombineFn',
 ]
 
 # Type variables
@@ -88,7 +105,7 @@ class Mean(object):
 
 # TODO(laolu): This type signature is overly restrictive. This should be
 # more general.
-@with_input_types(Union[float, int])
+@with_input_types(Union[float, int, np.int64, np.float64])
 @with_output_types(float)
 class MeanCombineFn(core.CombineFn):
   """CombineFn for computing an arithmetic mean."""
@@ -119,6 +136,8 @@ class MeanCombineFn(core.CombineFn):
 
 class Count(object):
   """Combiners for counting elements."""
+  @with_input_types(T)
+  @with_output_types(int)
   class Globally(CombinerWithoutDefaults):
     """combiners.Count.Globally counts the total number of elements."""
     def expand(self, pcoll):
@@ -127,11 +146,15 @@ class Count(object):
       else:
         return pcoll | core.CombineGlobally(CountCombineFn()).without_defaults()
 
+  @with_input_types(Tuple[K, V])
+  @with_output_types(Tuple[K, int])
   class PerKey(ptransform.PTransform):
     """combiners.Count.PerKey counts how many elements each unique key has."""
     def expand(self, pcoll):
       return pcoll | core.CombinePerKey(CountCombineFn())
 
+  @with_input_types(T)
+  @with_output_types(Tuple[T, int])
   class PerElement(ptransform.PTransform):
     """combiners.Count.PerElement counts how many times each element occurs."""
     def expand(self, pcoll):
@@ -172,11 +195,11 @@ class Top(object):
   @with_input_types(T)
   @with_output_types(List[T])
   class Of(CombinerWithoutDefaults):
-    """Obtain a list of the compare-most N elements in a PCollection.
+    """Returns the n greatest elements in the PCollection.
 
     This transform will retrieve the n greatest elements in the PCollection
-    to which it is applied, where "greatest" is determined by the comparator
-    function supplied as the compare argument.
+    to which it is applied, where "greatest" is determined by a
+    function supplied as the `key` or `reverse` arguments.
     """
     def __init__(self, n, key=None, reverse=False):
       """Creates a global Top operation.
@@ -226,12 +249,12 @@ class Top(object):
   @with_input_types(Tuple[K, V])
   @with_output_types(Tuple[K, List[V]])
   class PerKey(ptransform.PTransform):
-    """Identifies the compare-most N elements associated with each key.
+    """Identifies the N greatest elements associated with each key.
 
     This transform will produce a PCollection mapping unique keys in the input
     PCollection to the n greatest elements with which they are associated, where
-    "greatest" is determined by the comparator function supplied as the compare
-    argument in the initializer.
+    "greatest" is determined by a function supplied as the `key` or
+    `reverse` arguments.
     """
     def __init__(self, n, key=None, reverse=False):
       """Creates a per-key Top operation.
@@ -270,33 +293,33 @@ class Top(object):
 
   @staticmethod
   @ptransform.ptransform_fn
-  def Largest(pcoll, n, has_defaults=True):
+  def Largest(pcoll, n, has_defaults=True, key=None):
     """Obtain a list of the greatest N elements in a PCollection."""
     if has_defaults:
-      return pcoll | Top.Of(n)
+      return pcoll | Top.Of(n, key)
     else:
-      return pcoll | Top.Of(n).without_defaults()
+      return pcoll | Top.Of(n, key).without_defaults()
 
   @staticmethod
   @ptransform.ptransform_fn
-  def Smallest(pcoll, n, has_defaults=True):
+  def Smallest(pcoll, n, has_defaults=True, key=None):
     """Obtain a list of the least N elements in a PCollection."""
     if has_defaults:
-      return pcoll | Top.Of(n, reverse=True)
+      return pcoll | Top.Of(n, key, reverse=True)
     else:
-      return pcoll | Top.Of(n, reverse=True).without_defaults()
+      return pcoll | Top.Of(n, key, reverse=True).without_defaults()
 
   @staticmethod
   @ptransform.ptransform_fn
-  def LargestPerKey(pcoll, n):
+  def LargestPerKey(pcoll, n, key=None):
     """Identifies the N greatest elements associated with each key."""
-    return pcoll | Top.PerKey(n)
+    return pcoll | Top.PerKey(n, key)
 
   @staticmethod
   @ptransform.ptransform_fn
-  def SmallestPerKey(pcoll, n, reverse=True):
+  def SmallestPerKey(pcoll, n, *, key=None, reverse=None):
     """Identifies the N least elements associated with each key."""
-    return pcoll | Top.PerKey(n, reverse=True)
+    return pcoll | Top.PerKey(n, key, reverse=True)
 
 
 @with_input_types(T)
@@ -365,6 +388,11 @@ class _MergeTopPerBundle(core.DoFn):
               for element in bundle
           ]
           continue
+        # TODO(https://github.com/apache/beam/issues/21205): Remove this
+        # workaround once legacy dataflow correctly handles coders with
+        # combiner packing and/or is deprecated.
+        if not isinstance(bundle, list):
+          bundle = list(bundle)
         for element in reversed(bundle):
           if push(heapc,
                   cy_combiners.ComparableValue(element,
@@ -377,6 +405,11 @@ class _MergeTopPerBundle(core.DoFn):
     else:
       heap = []
       for bundle in bundles:
+        # TODO(https://github.com/apache/beam/issues/21205): Remove this
+        # workaround once legacy dataflow correctly handles coders with
+        # combiner packing and/or is deprecated.
+        if not isinstance(bundle, list):
+          bundle = list(bundle)
         if not heap:
           heap = bundle
           continue
@@ -392,7 +425,7 @@ class _MergeTopPerBundle(core.DoFn):
 class TopCombineFn(core.CombineFn):
   """CombineFn doing the combining for all of the Top transforms.
 
-  This CombineFn uses a key or comparison operator to rank the elements.
+  This CombineFn uses a `key` or `reverse` operator to rank the elements.
 
   Args:
     key: (optional) a mapping of elements to a comparable key, similar to

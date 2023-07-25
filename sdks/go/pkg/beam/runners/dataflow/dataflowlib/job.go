@@ -23,14 +23,16 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
-	// Importing to get the side effect of the remote execution hook. See init().
-	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/harness/init"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/pipelinex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"golang.org/x/oauth2/google"
 	df "google.golang.org/api/dataflow/v1b3"
+	"google.golang.org/protobuf/proto"
+
+	// Importing to get the side effect of the remote execution hook. See init().
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/harness/init"
 )
 
 // JobOptions capture the various options for submitting jobs
@@ -40,17 +42,22 @@ type JobOptions struct {
 	Name string
 	// Experiments are additional experiments.
 	Experiments []string
+	// DataflowServiceOptions are additional job modes and configurations for Dataflow
+	DataflowServiceOptions []string
 	// Pipeline options
 	Options runtime.RawOptions
 
+	Streaming           bool
 	Project             string
 	Region              string
 	Zone                string
+	KmsKey              string
 	Network             string
 	Subnetwork          string
 	NoUsePublicIPs      bool
 	NumWorkers          int64
 	DiskSizeGb          int64
+	DiskType            string
 	MachineType         string
 	Labels              map[string]string
 	ServiceAccountEmail string
@@ -58,77 +65,76 @@ type JobOptions struct {
 	WorkerZone          string
 	ContainerImage      string
 	ArtifactURLs        []string // Additional packages for workers.
+	FlexRSGoal          string
+	EnableHotKeyLogging bool
+
+	// Streaming update settings
+	Update               bool
+	TransformNameMapping map[string]string
 
 	// Autoscaling settings
-	Algorithm     string
-	MaxNumWorkers int64
+	Algorithm            string
+	MaxNumWorkers        int64
+	WorkerHarnessThreads int64
 
-	TempLocation string
+	TempLocation     string
+	TemplateLocation string
 
 	// Worker is the worker binary override.
 	Worker string
-	// WorkerJar is a custom worker jar.
-	WorkerJar string
 
 	// -- Internal use only. Not supported in public Dataflow. --
 
 	TeardownPolicy string
 }
 
+func containerImages(p *pipepb.Pipeline) ([]*df.SdkHarnessContainerImage, []string, error) {
+	envs := p.GetComponents().GetEnvironments()
+	ret := make([]*df.SdkHarnessContainerImage, 0, len(envs))
+	display := make([]string, 0, len(envs))
+	for id, env := range envs {
+		var payload pipepb.DockerPayload
+		if err := proto.Unmarshal(env.GetPayload(), &payload); err != nil {
+			return nil, nil, fmt.Errorf("bad payload for env %v: %v", id, err)
+		}
+		singleCore := true
+		for _, c := range env.GetCapabilities() {
+			if c == graphx.URNMultiCore {
+				singleCore = false
+			}
+		}
+		ret = append(ret, &df.SdkHarnessContainerImage{
+			ContainerImage:            payload.GetContainerImage(),
+			UseSingleCorePerContainer: singleCore,
+			Capabilities:              env.GetCapabilities(),
+			EnvironmentId:             id,
+		})
+		display = append(display, payload.GetContainerImage())
+	}
+	return ret, display, nil
+}
+
 // Translate translates a pipeline to a Dataflow job.
-func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, workerURL, jarURL, modelURL string) (*df.Job, error) {
+func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, workerURL, modelURL string) (*df.Job, error) {
 	// (1) Translate pipeline to v1b3 speak.
-
-	isPortableJob := false
-	for _, exp := range opts.Experiments {
-		if exp == "use_portable_job_submission" {
-			isPortableJob = true
-		}
-	}
-
-	var steps []*df.Step
-	if isPortableJob { // Portable jobs do not need to provide dataflow steps.
-		steps = make([]*df.Step, 0)
-	} else {
-		var err error
-		steps, err = translate(p)
-		if err != nil {
-			return nil, err
-		}
-	}
 
 	jobType := "JOB_TYPE_BATCH"
 	apiJobType := "FNAPI_BATCH"
 
-	streaming := !pipelinex.Bounded(p)
-	if streaming {
+	if opts.Streaming {
 		jobType = "JOB_TYPE_STREAMING"
 		apiJobType = "FNAPI_STREAMING"
 	}
 
-	images := pipelinex.ContainerImages(p)
-	dfImages := make([]*df.SdkHarnessContainerImage, 0, len(images))
-	for _, img := range images {
-		dfImages = append(dfImages, &df.SdkHarnessContainerImage{
-			ContainerImage:            img,
-			UseSingleCorePerContainer: false,
-		})
+	dfImages, images, err := containerImages(p)
+	if err != nil {
+		return nil, err
 	}
 
 	packages := []*df.Package{{
 		Name:     "worker",
 		Location: workerURL,
 	}}
-	experiments := append(opts.Experiments, "beam_fn_api")
-
-	if opts.WorkerJar != "" {
-		jar := &df.Package{
-			Name:     "dataflow-worker.jar",
-			Location: jarURL,
-		}
-		packages = append(packages, jar)
-		experiments = append(experiments, "use_staged_dataflow_worker_jar")
-	}
 
 	for _, url := range opts.ArtifactURLs {
 		name := url[strings.LastIndexAny(url, "/")+1:]
@@ -153,7 +159,11 @@ func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, worker
 		Name:      opts.Name,
 		Type:      jobType,
 		Environment: &df.Environment{
-			ServiceAccountEmail: opts.ServiceAccountEmail,
+			DebugOptions: &df.DebugOptions{
+				EnableHotKeyLogging: opts.EnableHotKeyLogging,
+			},
+			FlexResourceSchedulingGoal: opts.FlexRSGoal,
+			ServiceAccountEmail:        opts.ServiceAccountEmail,
 			UserAgent: newMsg(userAgent{
 				Name:    core.SdkName,
 				Version: core.SdkVersion,
@@ -165,17 +175,21 @@ func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, worker
 			SdkPipelineOptions: newMsg(pipelineOptions{
 				DisplayData: printOptions(opts, images),
 				Options: dataflowOptions{
-					PipelineURL: modelURL,
-					Region:      opts.Region,
-					Experiments: experiments,
+					PipelineURL:  modelURL,
+					Region:       opts.Region,
+					Experiments:  opts.Experiments,
+					TempLocation: opts.TempLocation,
 				},
 				GoOptions: opts.Options,
 			}),
+			ServiceOptions:    opts.DataflowServiceOptions,
+			ServiceKmsKeyName: opts.KmsKey,
 			WorkerPools: []*df.WorkerPool{{
 				AutoscalingSettings: &df.AutoscalingSettings{
 					MaxNumWorkers: opts.MaxNumWorkers,
 				},
 				DiskSizeGb:                  opts.DiskSizeGb,
+				DiskType:                    opts.DiskType,
 				IpConfiguration:             ipConfiguration,
 				Kind:                        "harness",
 				Packages:                    packages,
@@ -190,16 +204,20 @@ func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, worker
 			WorkerRegion:      opts.WorkerRegion,
 			WorkerZone:        opts.WorkerZone,
 			TempStoragePrefix: opts.TempLocation,
-			Experiments:       experiments,
+			Experiments:       opts.Experiments,
 		},
-		Labels: opts.Labels,
-		Steps:  steps,
+		Labels:               opts.Labels,
+		TransformNameMapping: opts.TransformNameMapping,
+		Steps:                make([]*df.Step, 0),
 	}
 
 	workerPool := job.Environment.WorkerPools[0]
 
 	if opts.NumWorkers > 0 {
 		workerPool.NumWorkers = opts.NumWorkers
+	}
+	if opts.WorkerHarnessThreads > 0 {
+		workerPool.NumThreadsPerWorker = opts.WorkerHarnessThreads
 	}
 	if opts.Algorithm != "" {
 		workerPool.AutoscalingSettings.Algorithm = map[string]string{
@@ -210,17 +228,24 @@ func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, worker
 	if opts.TeardownPolicy != "" {
 		workerPool.TeardownPolicy = opts.TeardownPolicy
 	}
-	if streaming {
-		// Add separate data disk for streaming jobs
-		workerPool.DataDisks = []*df.Disk{{}}
-	}
 
 	return job, nil
 }
 
 // Submit submits a prepared job to Cloud Dataflow.
-func Submit(ctx context.Context, client *df.Service, project, region string, job *df.Job) (*df.Job, error) {
-	return client.Projects.Locations.Jobs.Create(project, region, job).Do()
+func Submit(ctx context.Context, client *df.Service, project, region string, job *df.Job, updateJob bool) (*df.Job, error) {
+	if updateJob {
+		runningJob, err := GetRunningJobByName(client, project, region, job.Name)
+		if err != nil {
+			return nil, err
+		}
+		job.ReplaceJobId = runningJob.Id
+	}
+	upd, err := client.Projects.Locations.Jobs.Create(project, region, job).Do()
+	if err == nil {
+		log.Infof(ctx, "Submitted job: %v", upd.Id)
+	}
+	return upd, err
 }
 
 // WaitForCompletion monitors the given job until completion. It logs any messages
@@ -232,26 +257,43 @@ func WaitForCompletion(ctx context.Context, client *df.Service, project, region,
 			return errors.Wrap(err, "failed to get job")
 		}
 
-		switch j.CurrentState {
-		case "JOB_STATE_DONE":
-			log.Info(ctx, "Job succeeded!")
+		terminal, msg, err := currentStateMessage(j.CurrentState, jobID)
+		if err != nil {
+			return err
+		}
+		log.Infof(ctx, msg)
+		if terminal {
 			return nil
-
-		case "JOB_STATE_CANCELLED":
-			log.Info(ctx, "Job cancelled")
-			return nil
-
-		case "JOB_STATE_FAILED":
-			return errors.Errorf("job %s failed", jobID)
-
-		case "JOB_STATE_RUNNING":
-			log.Info(ctx, "Job still running ...")
-
-		default:
-			log.Infof(ctx, "Job state: %v ...", j.CurrentState)
 		}
 
 		time.Sleep(30 * time.Second)
+	}
+}
+
+// currentStateMessage indicates if the state is terminal, and provides a message to log, or an error.
+// Errors are always terminal.
+func currentStateMessage(currentState, jobID string) (bool, string, error) {
+	switch currentState {
+	// Add all Terminal Success stats here.
+	case "JOB_STATE_DONE", "JOB_STATE_CANCELLED", "JOB_STATE_DRAINED", "JOB_STATE_UPDATED":
+		var state string
+		switch currentState {
+		case "JOB_STATE_DONE":
+			state = "succeeded!"
+		case "JOB_STATE_CANCELLED":
+			state = "cancelled"
+		case "JOB_STATE_DRAINED":
+			state = "drained"
+		case "JOB_STATE_UPDATED":
+			state = "updated"
+		}
+		return true, fmt.Sprintf("Job %v %v", jobID, state), nil
+	case "JOB_STATE_FAILED":
+		return true, "", errors.Errorf("Job %s failed", jobID)
+	case "JOB_STATE_RUNNING":
+		return false, "Job still running ...", nil
+	default:
+		return false, fmt.Sprintf("Job state: %v ...", currentState), nil
 	}
 }
 
@@ -273,16 +315,42 @@ func NewClient(ctx context.Context, endpoint string) (*df.Service, error) {
 	return client, nil
 }
 
+// GetRunningJobByName gets a Dataflow job running by its name and returns an
+// error if none match.
+func GetRunningJobByName(client *df.Service, project, region string, name string) (*df.Job, error) {
+	jobsListCall := client.Projects.Locations.Jobs.List(project, region)
+	jobsListCall.Filter("ACTIVE")
+	jobsResponse, err := jobsListCall.Do()
+	for len(jobsResponse.Jobs) > 0 {
+		if err != nil {
+			return nil, err
+		}
+		for _, job := range jobsResponse.Jobs {
+			if job.Name == name {
+				return job, nil
+			}
+		}
+
+		jobsListCall.PageToken(jobsResponse.NextPageToken)
+		jobsResponse, err = jobsListCall.Do()
+	}
+	return nil, errors.New(fmt.Sprintf("Unable to find running job with name %s", name))
+}
+
 // GetMetrics returns a collection of metrics describing the progress of a
 // job by making a call to Cloud Monitoring service.
 func GetMetrics(ctx context.Context, client *df.Service, project, region, jobID string) (*df.JobMetrics, error) {
 	return client.Projects.Locations.Jobs.GetMetrics(project, region, jobID).Do()
 }
 
+// dataflowOptions provides Dataflow with non Go-specific pipeline options. These are the only
+// pipeline options that are communicated to cross-language SDK harnesses, so any pipeline options
+// needed for cross-language transforms in Dataflow must be declared here.
 type dataflowOptions struct {
-	Experiments []string `json:"experiments,omitempty"`
-	PipelineURL string   `json:"pipelineUrl"`
-	Region      string   `json:"region"`
+	Experiments  []string `json:"experiments,omitempty"`
+	PipelineURL  string   `json:"pipelineUrl"`
+	Region       string   `json:"region"`
+	TempLocation string   `json:"tempLocation"`
 }
 
 func printOptions(opts *JobOptions, images []string) []*displayData {

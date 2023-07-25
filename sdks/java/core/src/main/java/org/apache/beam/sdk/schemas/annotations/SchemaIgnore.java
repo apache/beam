@@ -22,8 +22,6 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 
 /**
  * When used on a POJO field or a JavaBean getter, that field or getter is ignored from the inferred
@@ -49,7 +47,6 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.FIELD, ElementType.METHOD})
 @SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
-@Experimental(Kind.SCHEMAS)
 public @interface SchemaIgnore {}

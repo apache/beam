@@ -59,27 +59,24 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
       DockerCommand docker,
       GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
       ControlClientPool.Source clientSource,
-      IdGenerator idGenerator,
       PipelineOptions pipelineOptions) {
     return new DockerEnvironmentFactory(
-        docker, provisioningServiceServer, idGenerator, clientSource, pipelineOptions);
+        docker, provisioningServiceServer, clientSource, pipelineOptions);
   }
 
   private final DockerCommand docker;
   private final GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer;
-  private final IdGenerator idGenerator;
+
   private final ControlClientPool.Source clientSource;
   private final PipelineOptions pipelineOptions;
 
   private DockerEnvironmentFactory(
       DockerCommand docker,
       GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
-      IdGenerator idGenerator,
       ControlClientPool.Source clientSource,
       PipelineOptions pipelineOptions) {
     this.docker = docker;
     this.provisioningServiceServer = provisioningServiceServer;
-    this.idGenerator = idGenerator;
     this.clientSource = clientSource;
     this.pipelineOptions = pipelineOptions;
   }
@@ -98,7 +95,7 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
 
     // Prepare docker invocation.
     String containerImage = dockerPayload.getContainerImage();
-    // TODO: https://issues.apache.org/jira/browse/BEAM-4148 The default service address will not
+    // TODO: https://github.com/apache/beam/issues/18929 The default service address will not
     // work for Docker for Mac.
     String provisionEndpoint = provisioningServiceServer.getApiServiceDescriptor().getUrl();
 
@@ -182,7 +179,7 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
         firstNonNull(
             System.getenv("CLOUDSDK_CONFIG"),
             Paths.get(System.getProperty("user.home"), ".config", "gcloud").toString());
-    // TODO(BEAM-4729): Allow this to be disabled manually.
+    // TODO(https://github.com/apache/beam/issues/19061): Allow this to be disabled manually.
     if (Files.exists(Paths.get(localGcloudConfig))) {
       return ImmutableList.of(
           "--mount",
@@ -251,7 +248,6 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
           DockerCommand.getDefault(),
           provisioningServiceServer,
           clientPool.getSource(),
-          idGenerator,
           pipelineOptions);
     }
 

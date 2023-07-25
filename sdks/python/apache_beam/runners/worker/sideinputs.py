@@ -19,19 +19,17 @@
 
 # pytype: skip-file
 
-import collections
 import logging
 import queue
 import threading
 import traceback
+from collections import abc
 
 from apache_beam.coders import observable
 from apache_beam.io import iobase
 from apache_beam.runners.worker import opcounters
 from apache_beam.transforms import window
 from apache_beam.utils.sentinel import Sentinel
-
-# This module is experimental. No backwards-compatibility guarantees.
 
 # Maximum number of reader threads for reading side input sources, per side
 # input.
@@ -207,7 +205,7 @@ def get_iterator_fn_for_sources(
   return _inner
 
 
-class EmulatedIterable(collections.Iterable):
+class EmulatedIterable(abc.Iterable):
   """Emulates an iterable for a side input."""
   def __init__(self, iterator_fn):
     self.iterator_fn = iterator_fn

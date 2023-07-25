@@ -14,13 +14,22 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-import apache_beam as beam
+# beam-playground:
+#   name: AggregationMean
+#   description: Task from katas to count mean value of the given pipeline with numbers.
+#   multifile: false
+#   context_line: 31
+#   categories:
+#     - Combiners
+#   complexity: BASIC
+#   tags:
+#     - count
+#     - numbers
 
-from log_elements import LogElements
+import apache_beam as beam
 
 with beam.Pipeline() as p:
 
   (p | beam.Create(range(1, 11))
      | beam.combiners.Mean.Globally()
-     | LogElements())
-
+     | beam.LogElements())

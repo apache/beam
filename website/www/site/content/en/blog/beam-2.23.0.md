@@ -3,6 +3,7 @@ title:  "Apache Beam 2.23.0"
 date:   2020-07-29 00:00:01 -0800
 categories:
   - blog
+  - release
 authors:
   - tvalentyn
 ---

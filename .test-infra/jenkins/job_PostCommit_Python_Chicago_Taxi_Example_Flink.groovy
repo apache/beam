@@ -22,6 +22,7 @@ import Flink
 import LoadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
 
+import static LoadTestsBuilder.DOCKER_BEAM_JOBSERVER
 import static LoadTestsBuilder.DOCKER_CONTAINER_REGISTRY
 import static PythonTestProperties.CHICAGO_TAXI_EXAMPLE_FLINK_PYTHON_VERSION
 
@@ -38,7 +39,7 @@ def chicagoTaxiJob = { scope ->
         "${DOCKER_CONTAINER_REGISTRY}/${beamSdkDockerImage}"
       ],
       numberOfWorkers,
-      "${DOCKER_CONTAINER_REGISTRY}/beam_flink1.12_job_server:latest")
+      "${DOCKER_BEAM_JOBSERVER}/beam_flink${CommonTestProperties.getFlinkVersion()}_job_server:latest")
 
   def pipelineOptions = [
     parallelism             : numberOfWorkers,
@@ -67,12 +68,12 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
       chicagoTaxiJob(delegate)
     }
 
-// TODO(BEAM-9154): Chicago Taxi Example doesn't work in Python 3.
+// TODO(https://github.com/apache/beam/issues/19973): Chicago Taxi Example doesn't work in Python 3.
 // Uncomment below once it is fixed.
 //
 // CronJobBuilder.cronJob(
 //     'beam_PostCommit_Python_Chicago_Taxi_Flink',
-//     'H 14 * * *',
+//     'H H * * *',
 //     this
 //     ) {
 //       chicagoTaxiJob(delegate)

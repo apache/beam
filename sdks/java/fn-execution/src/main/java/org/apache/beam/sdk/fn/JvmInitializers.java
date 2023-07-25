@@ -46,7 +46,7 @@ public class JvmInitializers {
    * @param options The pipeline options passed to the worker.
    */
   public static void runBeforeProcessing(PipelineOptions options) {
-    // We load the logger in the the method to minimize the amount of class loading that happens
+    // We load the logger in the method to minimize the amount of class loading that happens
     // during class initialization.
     Logger logger = LoggerFactory.getLogger(JvmInitializers.class);
     for (JvmInitializer initializer : ReflectHelpers.loadServicesOrdered(JvmInitializer.class)) {

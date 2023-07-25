@@ -26,6 +26,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/bigqueryio"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/gcpopts"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 )
@@ -34,6 +35,11 @@ var (
 	input  = flag.String("input", "clouddataflow-readonly:samples.weather_stations", "Weather data BQ table.")
 	output = flag.String("output", "", "Output BQ table.")
 )
+
+func init() {
+	register.Function2x1(formatFn)
+	register.Function1x2(extractFn)
+}
 
 type WeatherDataRow struct {
 	Month    int     `bigquery:"month"`

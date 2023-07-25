@@ -18,7 +18,7 @@ package exec
 import (
 	"encoding/json"
 	"fmt"
-	"hash/fnv"
+	"hash/maphash"
 	"reflect"
 	"strings"
 	"testing"
@@ -32,9 +32,11 @@ import (
 
 func BenchmarkPrimitives(b *testing.B) {
 	var value FullValue
-	myHash := fnv.New64a()
+	myHash := &maphash.Hash{}
+	wfn := window.NewGlobalWindows()
+	we := MakeWindowEncoder(wfn.Coder())
 	b.Run("int", func(b *testing.B) {
-		test := interface{}(int(42424242))
+		test := any(int(42424242))
 		b.Run("native", func(b *testing.B) {
 			m := make(map[int]FullValue)
 			for i := 0; i < b.N; i++ {
@@ -47,12 +49,13 @@ func BenchmarkPrimitives(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		encoded := &customEncodedHasher{hash: myHash, coder: makeEncoder(cc.Enc.Fn)}
-		dedicated := &numberHasher{}
+		encoded := &customEncodedHasher{hash: myHash, coder: makeEncoder(cc.Enc.Fn), we: we}
+		// Route through constructor to init cache.
+		dedicated := newNumberHasher(myHash, we)
 		hashbench(b, test, encoded, dedicated)
 	})
 	b.Run("float32", func(b *testing.B) {
-		test := interface{}(float32(42424242.242424))
+		test := any(float32(42424242.242424))
 		b.Run("native", func(b *testing.B) {
 			m := make(map[float32]FullValue)
 			for i := 0; i < b.N; i++ {
@@ -65,13 +68,14 @@ func BenchmarkPrimitives(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		encoded := &customEncodedHasher{hash: myHash, coder: makeEncoder(cc.Enc.Fn)}
-		dedicated := &numberHasher{}
+		encoded := &customEncodedHasher{hash: myHash, coder: makeEncoder(cc.Enc.Fn), we: we}
+		// Route through constructor to init cache.
+		dedicated := newNumberHasher(myHash, we)
 		hashbench(b, test, encoded, dedicated)
 	})
 
 	b.Run("string", func(b *testing.B) {
-		tests := []interface{}{
+		tests := []any{
 			"I am the very model of a modern major string.",
 			"this is 10",
 			strings.Repeat("100 chars!", 10),   // 100
@@ -93,14 +97,14 @@ func BenchmarkPrimitives(b *testing.B) {
 				if err != nil {
 					b.Fatal(err)
 				}
-				encoded := &customEncodedHasher{hash: myHash, coder: makeEncoder(cc.Enc.Fn)}
-				dedicated := &stringHasher{hash: myHash}
+				encoded := &customEncodedHasher{hash: myHash, coder: makeEncoder(cc.Enc.Fn), we: we}
+				dedicated := &stringHasher{hash: myHash, we: we}
 				hashbench(b, test, encoded, dedicated)
 			})
 		}
 	})
 	b.Run("struct", func(b *testing.B) {
-		tests := []interface{}{
+		tests := []any{
 			struct {
 				A      int
 				B      string
@@ -110,8 +114,8 @@ func BenchmarkPrimitives(b *testing.B) {
 		for _, test := range tests {
 			typ := reflect.TypeOf(test)
 			b.Run(fmt.Sprint(typ.String()), func(b *testing.B) {
-				encoded := &customEncodedHasher{hash: myHash, coder: &jsonEncoder{}}
-				dedicated := &rowHasher{hash: myHash, coder: MakeElementEncoder(coder.NewR(typex.New(typ)))}
+				encoded := &customEncodedHasher{hash: myHash, coder: &jsonEncoder{}, we: we}
+				dedicated := &rowHasher{hash: myHash, coder: MakeElementEncoder(coder.NewR(typex.New(typ))), we: we}
 				hashbench(b, test, encoded, dedicated)
 			})
 		}
@@ -120,15 +124,15 @@ func BenchmarkPrimitives(b *testing.B) {
 
 type jsonEncoder struct{}
 
-func (*jsonEncoder) Encode(t reflect.Type, element interface{}) ([]byte, error) {
+func (*jsonEncoder) Encode(t reflect.Type, element any) ([]byte, error) {
 	return json.Marshal(element)
 }
 
-func hashbench(b *testing.B, test interface{}, encoded, dedicated elementHasher) {
+func hashbench(b *testing.B, test any, encoded, dedicated elementHasher) {
 	var value FullValue
 	gw := window.SingleGlobalWindow[0]
 	b.Run("interface", func(b *testing.B) {
-		m := make(map[interface{}]FullValue)
+		m := make(map[any]FullValue)
 		for i := 0; i < b.N; i++ {
 			k := test
 			value = m[k]

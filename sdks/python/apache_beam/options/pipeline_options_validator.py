@@ -112,6 +112,9 @@ class PipelineOptionsValidator(object):
       'Option %s is required for environment type %s.')
   ERR_NUM_WORKERS_TOO_HIGH = (
       'num_workers (%s) cannot exceed max_num_workers (%s)')
+  ERR_REPEATABLE_OPTIONS_NOT_SET_AS_LIST = (
+      '(%s) is a string. Programmatically set PipelineOptions like (%s) '
+      'options need to be specified as a list.')
 
   # GCS path specific patterns.
   GCS_URI = '(?P<SCHEME>[^:]+)://(?P<BUCKET>[^/]+)(/(?P<OBJECT>.*))?'
@@ -252,6 +255,18 @@ class PipelineOptionsValidator(object):
 
     return errors
 
+  def validate_container_prebuilding_options(self, view):
+    errors = []
+    custom_image = self.options.view_as(WorkerOptions).sdk_container_image
+    if (view.prebuild_sdk_container_base_image is not None and
+        custom_image != view.prebuild_sdk_container_base_image):
+      errors.extend(
+          self._validate_error(
+              'Don\'t use the deprecated option '
+              '--prebuild_sdk_container_base_image. Use --sdk_container_image '
+              'instead.'))
+    return errors
+
   def validate_num_workers(self, view):
     """Validates that Dataflow worker number is valid."""
     errors = self.validate_optional_argument_positive(view, 'num_workers')
@@ -365,3 +380,16 @@ class PipelineOptionsValidator(object):
           self._validate_error(
               self.ERR_INVALID_ENVIRONMENT, 'environment_config', 'LOOPBACK'))
     return errors
+
+  def validate_repeatable_argument_passed_as_list(self, view, arg_name):
+    """Validates that repeatable PipelineOptions like dataflow_service_options
+    or experiments are specified as a list when set programmatically. This
+    way, users do not inadvertently specify it as a string, mirroring the way
+    they are set via the command lineRepeatable options, which are as passed a
+    list.
+    """
+    arg = getattr(view, arg_name, None)
+    if not isinstance(arg, list):
+      return self._validate_error(
+          self.ERR_REPEATABLE_OPTIONS_NOT_SET_AS_LIST, arg, arg_name)
+    return []

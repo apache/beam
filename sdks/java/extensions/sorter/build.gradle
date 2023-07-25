@@ -19,28 +19,28 @@
 import java.util.stream.Collectors
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(
-  automaticModuleName: 'org.apache.beam.sdk.extensions.sorter')
+applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.extensions.sorter')
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: Sorter"
 
 def hadoopVersions = [
     "285": "2.8.5",
     "292": "2.9.2",
-    "2101": "2.10.1",
-    "321": "3.2.1",
+    "2102": "2.10.2",
+    "324": "3.2.4",
 ]
 
 hadoopVersions.each {kv -> configurations.create("hadoopVersion$kv.key")}
 
 dependencies {
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile library.java.vendored_guava_26_0_jre
-  compile library.java.slf4j_api
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.slf4j_api
   provided library.java.hadoop_mapreduce_client_core
   provided library.java.hadoop_common
-  testCompile library.java.mockito_core
-  testCompile library.java.junit
+  testImplementation library.java.mockito_core
+  testImplementation library.java.junit
+  testImplementation library.java.hamcrest
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
   hadoopVersions.each{kv ->
     "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-common:$kv.value"

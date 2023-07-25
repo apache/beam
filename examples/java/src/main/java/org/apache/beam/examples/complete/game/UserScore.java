@@ -23,8 +23,8 @@ import java.util.Objects;
 import org.apache.avro.reflect.Nullable;
 import org.apache.beam.examples.complete.game.utils.WriteToText;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
+import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -71,7 +71,7 @@ import org.slf4j.LoggerFactory;
  * data.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class UserScore {
 

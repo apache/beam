@@ -19,9 +19,10 @@ package org.apache.beam.fn.harness.data;
 
 import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doAnswer;
@@ -29,67 +30,114 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.withSettings;
-import static org.powermock.api.mockito.PowerMockito.mockStatic;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.fn.harness.HandlesSplits;
+import org.apache.beam.fn.harness.control.BundleProgressReporter;
+import org.apache.beam.fn.harness.control.ExecutionStateSampler;
+import org.apache.beam.fn.harness.control.ExecutionStateSampler.ExecutionStateTracker;
+import org.apache.beam.fn.harness.debug.DataSampler;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
+import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
+import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.core.metrics.DistributionData;
-import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
-import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Labels;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Urns;
-import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
+import org.apache.beam.runners.core.metrics.ShortIdMap;
 import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.common.ElementByteSizeObservableIterable;
 import org.apache.beam.sdk.util.common.ElementByteSizeObservableIterator;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 import org.mockito.stubbing.Answer;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 /** Tests for {@link PCollectionConsumerRegistryTest}. */
-@RunWith(PowerMockRunner.class)
-@PrepareForTest(MetricsEnvironment.class)
+@RunWith(JUnit4.class)
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class PCollectionConsumerRegistryTest {
+  private static final Counter TEST_USER_COUNTER = Metrics.counter("foo", "bar");
 
   @Rule public ExpectedException expectedException = ExpectedException.none();
 
+  private static final String P_COLLECTION_A = "pCollectionA";
+  private static final String P_COLLECTION_B = "pCollectionB";
+  private static final ProcessBundleDescriptor TEST_DESCRIPTOR;
+
+  static {
+    SdkComponents sdkComponents = SdkComponents.create();
+    try {
+      String utf8CoderId = sdkComponents.registerCoder(StringUtf8Coder.of());
+      String iterableUtf8CoderId =
+          sdkComponents.registerCoder(IterableCoder.of(StringUtf8Coder.of()));
+
+      TEST_DESCRIPTOR =
+          ProcessBundleDescriptor.newBuilder()
+              .putPcollections(
+                  P_COLLECTION_A, PCollection.newBuilder().setCoderId(utf8CoderId).build())
+              .putPcollections(
+                  P_COLLECTION_B, PCollection.newBuilder().setCoderId(iterableUtf8CoderId).build())
+              .putAllCoders(sdkComponents.toComponents().getCodersMap())
+              .build();
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  private ExecutionStateSampler sampler;
+
+  @Before
+  public void setUp() throws Exception {
+    sampler = new ExecutionStateSampler(PipelineOptionsFactory.create(), System::currentTimeMillis);
+  }
+
+  @After
+  public void tearDown() throws Exception {
+    MetricsEnvironment.setCurrentContainer(null);
+    sampler.stop();
+  }
+
   @Test
   public void singleConsumer() throws Exception {
-    final String pCollectionA = "pCollectionA";
     final String pTransformIdA = "pTransformIdA";
 
-    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+    ShortIdMap shortIds = new ShortIdMap();
+    BundleProgressReporter.InMemory reporterAndRegistrar = new BundleProgressReporter.InMemory();
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
-            metricsContainerRegistry, mock(ExecutionStateTracker.class));
+            sampler.create(), shortIds, reporterAndRegistrar, TEST_DESCRIPTOR);
     FnDataReceiver<WindowedValue<String>> consumerA1 = mock(FnDataReceiver.class);
 
-    consumers.register(pCollectionA, pTransformIdA, consumerA1, StringUtf8Coder.of());
+    consumers.register(P_COLLECTION_A, pTransformIdA, pTransformIdA + "Name", consumerA1);
 
     FnDataReceiver<WindowedValue<String>> wrapperConsumer =
         (FnDataReceiver<WindowedValue<String>>)
-            (FnDataReceiver) consumers.getMultiplexingConsumer(pCollectionA);
+            (FnDataReceiver) consumers.getMultiplexingConsumer(P_COLLECTION_A);
     String elementValue = "elem";
     WindowedValue<String> element = valueInGlobalWindow(elementValue);
     int numElements = 10;
@@ -99,28 +147,31 @@ public class PCollectionConsumerRegistryTest {
 
     // Check that the underlying consumers are each invoked per element.
     verify(consumerA1, times(numElements)).accept(element);
-    assertThat(consumers.keySet(), contains(pCollectionA));
 
     List<MonitoringInfo> expected = new ArrayList<>();
 
     SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
     builder.setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT);
-    builder.setLabel(MonitoringInfoConstants.Labels.PCOLLECTION, pCollectionA);
+    builder.setLabel(MonitoringInfoConstants.Labels.PCOLLECTION, P_COLLECTION_A);
     builder.setInt64SumValue(numElements);
     expected.add(builder.build());
 
     long elementByteSize = StringUtf8Coder.of().getEncodedElementByteSize(elementValue);
     builder = new SimpleMonitoringInfoBuilder();
     builder.setUrn(Urns.SAMPLED_BYTE_SIZE);
-    builder.setLabel(MonitoringInfoConstants.Labels.PCOLLECTION, pCollectionA);
+    builder.setLabel(MonitoringInfoConstants.Labels.PCOLLECTION, P_COLLECTION_A);
     builder.setInt64DistributionValue(
         DistributionData.create(
             numElements * elementByteSize, numElements, elementByteSize, elementByteSize));
     expected.add(builder.build());
+
+    Map<String, ByteString> actualData = new HashMap<>();
+    reporterAndRegistrar.updateFinalMonitoringData(actualData);
+
     // Clear the timestamp before comparison.
     Iterable<MonitoringInfo> result =
         Iterables.filter(
-            metricsContainerRegistry.getMonitoringInfos(),
+            shortIds.toMonitoringInfo(actualData),
             monitoringInfo -> monitoringInfo.containsLabels(Labels.PCOLLECTION));
 
     assertThat(result, containsInAnyOrder(expected.toArray()));
@@ -128,26 +179,74 @@ public class PCollectionConsumerRegistryTest {
 
   @Test
   public void singleConsumerException() throws Exception {
-    final String pCollectionA = "pCollectionA";
     final String pTransformId = "pTransformId";
     final String message = "testException";
 
-    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+    ShortIdMap shortIds = new ShortIdMap();
+    BundleProgressReporter.InMemory reporterAndRegistrar = new BundleProgressReporter.InMemory();
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
-            metricsContainerRegistry, mock(ExecutionStateTracker.class));
+            sampler.create(), shortIds, reporterAndRegistrar, TEST_DESCRIPTOR);
     FnDataReceiver<WindowedValue<String>> consumer = mock(FnDataReceiver.class);
 
-    consumers.register(pCollectionA, pTransformId, consumer, StringUtf8Coder.of());
+    consumers.register(P_COLLECTION_A, pTransformId, pTransformId + "Name", consumer);
 
     FnDataReceiver<WindowedValue<String>> wrapperConsumer =
         (FnDataReceiver<WindowedValue<String>>)
-            (FnDataReceiver) consumers.getMultiplexingConsumer(pCollectionA);
+            (FnDataReceiver) consumers.getMultiplexingConsumer(P_COLLECTION_A);
     doThrow(new Exception(message)).when(consumer).accept(any());
 
     expectedException.expectMessage(message);
     expectedException.expect(Exception.class);
     wrapperConsumer.accept(valueInGlobalWindow("elem"));
+  }
+
+  /** Test that the counter increments even when there are no consumers of the PCollection. */
+  @Test
+  public void noConsumers() throws Exception {
+    ShortIdMap shortIds = new ShortIdMap();
+    BundleProgressReporter.InMemory reporterAndRegistrar = new BundleProgressReporter.InMemory();
+    PCollectionConsumerRegistry consumers =
+        new PCollectionConsumerRegistry(
+            sampler.create(), shortIds, reporterAndRegistrar, TEST_DESCRIPTOR);
+
+    FnDataReceiver<WindowedValue<String>> wrapperConsumer =
+        (FnDataReceiver<WindowedValue<String>>)
+            (FnDataReceiver) consumers.getMultiplexingConsumer(P_COLLECTION_A);
+    String elementValue = "elem";
+    WindowedValue<String> element = valueInGlobalWindow(elementValue);
+    int numElements = 10;
+    for (int i = 0; i < numElements; i++) {
+      wrapperConsumer.accept(element);
+    }
+
+    List<MonitoringInfo> expected = new ArrayList<>();
+
+    SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
+    builder.setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT);
+    builder.setLabel(MonitoringInfoConstants.Labels.PCOLLECTION, P_COLLECTION_A);
+    builder.setInt64SumValue(numElements);
+    expected.add(builder.build());
+
+    long elementByteSize = StringUtf8Coder.of().getEncodedElementByteSize(elementValue);
+    builder = new SimpleMonitoringInfoBuilder();
+    builder.setUrn(Urns.SAMPLED_BYTE_SIZE);
+    builder.setLabel(MonitoringInfoConstants.Labels.PCOLLECTION, P_COLLECTION_A);
+    builder.setInt64DistributionValue(
+        DistributionData.create(
+            numElements * elementByteSize, numElements, elementByteSize, elementByteSize));
+    expected.add(builder.build());
+
+    Map<String, ByteString> actualData = new HashMap<>();
+    reporterAndRegistrar.updateFinalMonitoringData(actualData);
+
+    // Clear the timestamp before comparison.
+    Iterable<MonitoringInfo> result =
+        Iterables.filter(
+            shortIds.toMonitoringInfo(actualData),
+            monitoringInfo -> monitoringInfo.containsLabels(Labels.PCOLLECTION));
+
+    assertThat(result, containsInAnyOrder(expected.toArray()));
   }
 
   /**
@@ -156,26 +255,27 @@ public class PCollectionConsumerRegistryTest {
    */
   @Test
   public void multipleConsumersSamePCollection() throws Exception {
-    final String pCollectionA = "pCollectionA";
     final String pTransformIdA = "pTransformIdA";
     final String pTransformIdB = "pTransformIdB";
 
-    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+    ShortIdMap shortIds = new ShortIdMap();
+    BundleProgressReporter.InMemory reporterAndRegistrar = new BundleProgressReporter.InMemory();
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
-            metricsContainerRegistry, mock(ExecutionStateTracker.class));
+            sampler.create(), shortIds, reporterAndRegistrar, TEST_DESCRIPTOR);
     FnDataReceiver<WindowedValue<String>> consumerA1 = mock(FnDataReceiver.class);
     FnDataReceiver<WindowedValue<String>> consumerA2 = mock(FnDataReceiver.class);
 
-    consumers.register(pCollectionA, pTransformIdA, consumerA1, StringUtf8Coder.of());
-    consumers.register(pCollectionA, pTransformIdB, consumerA2, StringUtf8Coder.of());
+    consumers.register(P_COLLECTION_A, pTransformIdA, pTransformIdA + "Name", consumerA1);
+    consumers.register(P_COLLECTION_A, pTransformIdB, pTransformIdB + "Name", consumerA2);
 
     FnDataReceiver<WindowedValue<String>> wrapperConsumer =
         (FnDataReceiver<WindowedValue<String>>)
-            (FnDataReceiver) consumers.getMultiplexingConsumer(pCollectionA);
+            (FnDataReceiver) consumers.getMultiplexingConsumer(P_COLLECTION_A);
 
-    WindowedValue<String> element = valueInGlobalWindow("elem");
-    int numElements = 20;
+    String elementValue = "elem";
+    WindowedValue<String> element = valueInGlobalWindow(elementValue);
+    int numElements = 10;
     for (int i = 0; i < numElements; i++) {
       wrapperConsumer.accept(element);
     }
@@ -183,41 +283,54 @@ public class PCollectionConsumerRegistryTest {
     // Check that the underlying consumers are each invoked per element.
     verify(consumerA1, times(numElements)).accept(element);
     verify(consumerA2, times(numElements)).accept(element);
-    assertThat(consumers.keySet(), contains(pCollectionA));
+
+    ArrayList<MonitoringInfo> expected = new ArrayList<>();
 
     SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
     builder.setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT);
-    builder.setLabel(MonitoringInfoConstants.Labels.PCOLLECTION, pCollectionA);
+    builder.setLabel(MonitoringInfoConstants.Labels.PCOLLECTION, P_COLLECTION_A);
     builder.setInt64SumValue(numElements);
-    MonitoringInfo expected = builder.build();
+    expected.add(builder.build());
+
+    long elementByteSize = StringUtf8Coder.of().getEncodedElementByteSize(elementValue);
+    builder = new SimpleMonitoringInfoBuilder();
+    builder.setUrn(Urns.SAMPLED_BYTE_SIZE);
+    builder.setLabel(MonitoringInfoConstants.Labels.PCOLLECTION, P_COLLECTION_A);
+    builder.setInt64DistributionValue(
+        DistributionData.create(
+            numElements * elementByteSize, numElements, elementByteSize, elementByteSize));
+    expected.add(builder.build());
+
+    Map<String, ByteString> actualData = new HashMap<>();
+    reporterAndRegistrar.updateFinalMonitoringData(actualData);
 
     // Clear the timestamp before comparison.
-    MonitoringInfo result =
-        Iterables.find(
-            metricsContainerRegistry.getMonitoringInfos(),
+    Iterable<MonitoringInfo> result =
+        Iterables.filter(
+            shortIds.toMonitoringInfo(actualData),
             monitoringInfo -> monitoringInfo.containsLabels(Labels.PCOLLECTION));
-    assertEquals(expected, result);
+    assertThat(result, containsInAnyOrder(expected.toArray()));
   }
 
   @Test
   public void multipleConsumersSamePCollectionException() throws Exception {
-    final String pCollectionA = "pCollectionA";
     final String pTransformId = "pTransformId";
     final String message = "testException";
 
-    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+    ShortIdMap shortIds = new ShortIdMap();
+    BundleProgressReporter.InMemory reporterAndRegistrar = new BundleProgressReporter.InMemory();
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
-            metricsContainerRegistry, mock(ExecutionStateTracker.class));
+            sampler.create(), shortIds, reporterAndRegistrar, TEST_DESCRIPTOR);
     FnDataReceiver<WindowedValue<String>> consumerA1 = mock(FnDataReceiver.class);
     FnDataReceiver<WindowedValue<String>> consumerA2 = mock(FnDataReceiver.class);
 
-    consumers.register(pCollectionA, pTransformId, consumerA1, StringUtf8Coder.of());
-    consumers.register(pCollectionA, pTransformId, consumerA2, StringUtf8Coder.of());
+    consumers.register(P_COLLECTION_A, pTransformId, pTransformId + "Name", consumerA1);
+    consumers.register(P_COLLECTION_A, pTransformId, pTransformId + "Name", consumerA2);
 
     FnDataReceiver<WindowedValue<String>> wrapperConsumer =
         (FnDataReceiver<WindowedValue<String>>)
-            (FnDataReceiver) consumers.getMultiplexingConsumer(pCollectionA);
+            (FnDataReceiver) consumers.getMultiplexingConsumer(P_COLLECTION_A);
     doThrow(new Exception(message)).when(consumerA2).accept(any());
 
     expectedException.expectMessage(message);
@@ -227,105 +340,92 @@ public class PCollectionConsumerRegistryTest {
 
   @Test
   public void throwsOnRegisteringAfterMultiplexingConsumerWasInitialized() throws Exception {
-    final String pCollectionA = "pCollectionA";
     final String pTransformId = "pTransformId";
 
-    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+    ShortIdMap shortIds = new ShortIdMap();
+    BundleProgressReporter.InMemory reporterAndRegistrar = new BundleProgressReporter.InMemory();
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
-            metricsContainerRegistry, mock(ExecutionStateTracker.class));
+            sampler.create(), shortIds, reporterAndRegistrar, TEST_DESCRIPTOR);
     FnDataReceiver<WindowedValue<String>> consumerA1 = mock(FnDataReceiver.class);
     FnDataReceiver<WindowedValue<String>> consumerA2 = mock(FnDataReceiver.class);
 
-    consumers.register(pCollectionA, pTransformId, consumerA1, StringUtf8Coder.of());
-    consumers.getMultiplexingConsumer(pCollectionA);
+    consumers.register(P_COLLECTION_A, pTransformId, pTransformId + "Name", consumerA1);
+    consumers.getMultiplexingConsumer(P_COLLECTION_A);
 
     expectedException.expect(RuntimeException.class);
     expectedException.expectMessage("cannot be register()-d after");
-    consumers.register(pCollectionA, pTransformId, consumerA2, StringUtf8Coder.of());
+    consumers.register(P_COLLECTION_A, pTransformId, pTransformId + "Name", consumerA2);
   }
 
   @Test
-  public void testScopedMetricContainerInvokedUponAcceptingElement() throws Exception {
-    mockStatic(MetricsEnvironment.class);
-    final String pCollectionA = "pCollectionA";
-
-    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+  public void testMetricContainerUpdatedUponAcceptingElement() throws Exception {
+    ExecutionStateTracker executionStateTracker = sampler.create();
+    MetricsEnvironment.setCurrentContainer(executionStateTracker.getMetricsContainer());
+    ShortIdMap shortIds = new ShortIdMap();
+    BundleProgressReporter.InMemory reporterAndRegistrar = new BundleProgressReporter.InMemory();
+    executionStateTracker.start("testBundle");
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
-            metricsContainerRegistry, mock(ExecutionStateTracker.class));
-    FnDataReceiver<WindowedValue<String>> consumerA1 = mock(FnDataReceiver.class);
-    FnDataReceiver<WindowedValue<String>> consumerA2 = mock(FnDataReceiver.class);
+            executionStateTracker, shortIds, reporterAndRegistrar, TEST_DESCRIPTOR);
 
-    consumers.register("pCollectionA", "pTransformA", consumerA1, StringUtf8Coder.of());
-    consumers.register("pCollectionA", "pTransformB", consumerA2, StringUtf8Coder.of());
+    consumers.register(
+        P_COLLECTION_A, "pTransformA", "pTransformAName", (unused) -> TEST_USER_COUNTER.inc());
+    consumers.register(
+        P_COLLECTION_A, "pTransformB", "pTransformBName", (unused) -> TEST_USER_COUNTER.inc(2));
 
     FnDataReceiver<WindowedValue<String>> wrapperConsumer =
         (FnDataReceiver<WindowedValue<String>>)
-            (FnDataReceiver) consumers.getMultiplexingConsumer(pCollectionA);
+            (FnDataReceiver) consumers.getMultiplexingConsumer(P_COLLECTION_A);
 
     WindowedValue<String> element = valueInGlobalWindow("elem");
     wrapperConsumer.accept(element);
+    TEST_USER_COUNTER.inc(3);
 
-    // Verify that static scopedMetricsContainer is called with pTransformA's container.
-    PowerMockito.verifyStatic(MetricsEnvironment.class, times(1));
-    MetricsEnvironment.scopedMetricsContainer(metricsContainerRegistry.getContainer("pTransformA"));
-
-    // Verify that static scopedMetricsContainer is called with pTransformB's container.
-    PowerMockito.verifyStatic(MetricsEnvironment.class, times(1));
-    MetricsEnvironment.scopedMetricsContainer(metricsContainerRegistry.getContainer("pTransformB"));
-  }
-
-  @Test
-  public void testUnboundedCountersUponAccept() throws Exception {
-    mockStatic(MetricsEnvironment.class, withSettings().verboseLogging());
-    final String pCollectionA = "pCollectionA";
-    final String pTransformIdA = "pTransformIdA";
-
-    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
-    PCollectionConsumerRegistry consumers =
-        new PCollectionConsumerRegistry(
-            metricsContainerRegistry, mock(ExecutionStateTracker.class));
-    FnDataReceiver<WindowedValue<String>> consumer =
-        mock(FnDataReceiver.class, withSettings().verboseLogging());
-
-    consumers.register(pCollectionA, pTransformIdA, consumer, StringUtf8Coder.of());
-
-    FnDataReceiver<WindowedValue<String>> wrapperConsumer =
-        (FnDataReceiver<WindowedValue<String>>)
-            (FnDataReceiver) consumers.getMultiplexingConsumer(pCollectionA);
-
-    WindowedValue<String> element = WindowedValue.valueInGlobalWindow("elem");
-    wrapperConsumer.accept(element);
-
-    verify(consumer, times(1)).accept(element);
-
-    HashMap<String, String> labels = new HashMap<String, String>();
-    labels.put(Labels.PCOLLECTION, "pCollectionA");
-    MonitoringInfoMetricName counterName =
-        MonitoringInfoMetricName.named(MonitoringInfoConstants.Urns.ELEMENT_COUNT, labels);
+    // Verify that metrics environment state is updated with pTransform's counters including the
+    // unbound container when outside the scope of the function
     assertEquals(
         1L,
         (long)
-            metricsContainerRegistry.getUnboundContainer().getCounter(counterName).getCumulative());
+            executionStateTracker
+                .getMetricsContainerRegistry()
+                .getContainer("pTransformA")
+                .getCounter(TEST_USER_COUNTER.getName())
+                .getCumulative());
+    assertEquals(
+        2L,
+        (long)
+            executionStateTracker
+                .getMetricsContainerRegistry()
+                .getContainer("pTransformB")
+                .getCounter(TEST_USER_COUNTER.getName())
+                .getCumulative());
+    assertEquals(
+        3L,
+        (long)
+            executionStateTracker
+                .getMetricsContainerRegistry()
+                .getUnboundContainer()
+                .getCounter(TEST_USER_COUNTER.getName())
+                .getCumulative());
   }
 
   @Test
   public void testHandlesSplitsPassedToOriginalConsumer() throws Exception {
-    final String pCollectionA = "pCollectionA";
     final String pTransformIdA = "pTransformIdA";
 
-    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+    ShortIdMap shortIds = new ShortIdMap();
+    BundleProgressReporter.InMemory reporterAndRegistrar = new BundleProgressReporter.InMemory();
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
-            metricsContainerRegistry, mock(ExecutionStateTracker.class));
+            sampler.create(), shortIds, reporterAndRegistrar, TEST_DESCRIPTOR);
     SplittingReceiver consumerA1 = mock(SplittingReceiver.class);
 
-    consumers.register(pCollectionA, pTransformIdA, consumerA1, StringUtf8Coder.of());
+    consumers.register(P_COLLECTION_A, pTransformIdA, pTransformIdA + "Name", consumerA1);
 
     FnDataReceiver<WindowedValue<String>> wrapperConsumer =
         (FnDataReceiver<WindowedValue<String>>)
-            (FnDataReceiver) consumers.getMultiplexingConsumer(pCollectionA);
+            (FnDataReceiver) consumers.getMultiplexingConsumer(P_COLLECTION_A);
 
     assertTrue(wrapperConsumer instanceof HandlesSplits);
 
@@ -338,21 +438,20 @@ public class PCollectionConsumerRegistryTest {
 
   @Test
   public void testLazyByteSizeEstimation() throws Exception {
-    final String pCollectionA = "pCollectionA";
     final String pTransformIdA = "pTransformIdA";
 
-    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+    ShortIdMap shortIds = new ShortIdMap();
+    BundleProgressReporter.InMemory reporterAndRegistrar = new BundleProgressReporter.InMemory();
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
-            metricsContainerRegistry, mock(ExecutionStateTracker.class));
+            sampler.create(), shortIds, reporterAndRegistrar, TEST_DESCRIPTOR);
     FnDataReceiver<WindowedValue<Iterable<String>>> consumerA1 = mock(FnDataReceiver.class);
 
-    consumers.register(
-        pCollectionA, pTransformIdA, consumerA1, IterableCoder.of(StringUtf8Coder.of()));
+    consumers.register(P_COLLECTION_B, pTransformIdA, pTransformIdA + "Name", consumerA1);
 
     FnDataReceiver<WindowedValue<Iterable<String>>> wrapperConsumer =
         (FnDataReceiver<WindowedValue<Iterable<String>>>)
-            (FnDataReceiver) consumers.getMultiplexingConsumer(pCollectionA);
+            (FnDataReceiver) consumers.getMultiplexingConsumer(P_COLLECTION_B);
     String elementValue = "elem";
     long elementByteSize = StringUtf8Coder.of().getEncodedElementByteSize(elementValue);
     WindowedValue<Iterable<String>> element =
@@ -381,19 +480,18 @@ public class PCollectionConsumerRegistryTest {
 
     // Check that the underlying consumers are each invoked per element.
     verify(consumerA1, times(numElements)).accept(element);
-    assertThat(consumers.keySet(), contains(pCollectionA));
 
     List<MonitoringInfo> expected = new ArrayList<>();
 
     SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
     builder.setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT);
-    builder.setLabel(MonitoringInfoConstants.Labels.PCOLLECTION, pCollectionA);
+    builder.setLabel(MonitoringInfoConstants.Labels.PCOLLECTION, P_COLLECTION_B);
     builder.setInt64SumValue(numElements);
     expected.add(builder.build());
 
     builder = new SimpleMonitoringInfoBuilder();
     builder.setUrn(Urns.SAMPLED_BYTE_SIZE);
-    builder.setLabel(MonitoringInfoConstants.Labels.PCOLLECTION, pCollectionA);
+    builder.setLabel(MonitoringInfoConstants.Labels.PCOLLECTION, P_COLLECTION_B);
     long expectedBytes =
         (elementByteSize + 1) * 2
             + 5; // Additional 5 bytes are due to size and hasNext = false (1 byte).
@@ -401,16 +499,75 @@ public class PCollectionConsumerRegistryTest {
         DistributionData.create(
             numElements * expectedBytes, numElements, expectedBytes, expectedBytes));
     expected.add(builder.build());
+
+    Map<String, ByteString> actualData = new HashMap<>();
+    reporterAndRegistrar.updateFinalMonitoringData(actualData);
+
     // Clear the timestamp before comparison.
     Iterable<MonitoringInfo> result =
         Iterables.filter(
-            metricsContainerRegistry.getMonitoringInfos(),
+            shortIds.toMonitoringInfo(actualData),
             monitoringInfo -> monitoringInfo.containsLabels(Labels.PCOLLECTION));
 
     assertThat(result, containsInAnyOrder(expected.toArray()));
   }
 
-  private class TestElementByteSizeObservableIterable<T>
+  /**
+   * Test that element samples are taken when a DataSampler is present.
+   *
+   * @throws Exception
+   */
+  @Test
+  public void dataSampling() throws Exception {
+    final String pTransformIdA = "pTransformIdA";
+
+    ShortIdMap shortIds = new ShortIdMap();
+    BundleProgressReporter.InMemory reporterAndRegistrar = new BundleProgressReporter.InMemory();
+    DataSampler dataSampler = new DataSampler();
+    PCollectionConsumerRegistry consumers =
+        new PCollectionConsumerRegistry(
+            sampler.create(), shortIds, reporterAndRegistrar, TEST_DESCRIPTOR, dataSampler);
+    FnDataReceiver<WindowedValue<String>> consumerA1 = mock(FnDataReceiver.class);
+
+    consumers.register(P_COLLECTION_A, pTransformIdA, pTransformIdA + "Name", consumerA1);
+
+    FnDataReceiver<WindowedValue<String>> wrapperConsumer =
+        (FnDataReceiver<WindowedValue<String>>)
+            (FnDataReceiver) consumers.getMultiplexingConsumer(P_COLLECTION_A);
+    String elementValue = "elem";
+    WindowedValue<String> element = valueInGlobalWindow(elementValue);
+    int numElements = 10;
+    for (int i = 0; i < numElements; i++) {
+      wrapperConsumer.accept(element);
+    }
+
+    BeamFnApi.InstructionRequest request =
+        BeamFnApi.InstructionRequest.newBuilder()
+            .setSampleData(BeamFnApi.SampleDataRequest.newBuilder())
+            .build();
+    BeamFnApi.InstructionResponse response = dataSampler.handleDataSampleRequest(request).build();
+
+    Map<String, BeamFnApi.SampleDataResponse.ElementList> elementSamplesMap =
+        response.getSampleData().getElementSamplesMap();
+
+    assertFalse(elementSamplesMap.isEmpty());
+
+    BeamFnApi.SampleDataResponse.ElementList elementList = elementSamplesMap.get(P_COLLECTION_A);
+    assertNotNull(elementList);
+
+    List<BeamFnApi.SampledElement> expectedSamples = new ArrayList<>();
+    StringUtf8Coder coder = StringUtf8Coder.of();
+    for (int i = 0; i < numElements; i++) {
+      ByteStringOutputStream stream = new ByteStringOutputStream();
+      coder.encode(elementValue, stream);
+      expectedSamples.add(
+          BeamFnApi.SampledElement.newBuilder().setElement(stream.toByteStringAndReset()).build());
+    }
+
+    assertTrue(elementList.getElementsList().containsAll(expectedSamples));
+  }
+
+  private static class TestElementByteSizeObservableIterable<T>
       extends ElementByteSizeObservableIterable<T, ElementByteSizeObservableIterator<T>> {
     private List<T> elements;
     private long elementByteSize;

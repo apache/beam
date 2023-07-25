@@ -17,23 +17,26 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
-import com.google.protobuf.Descriptors.Descriptor;
-import com.google.protobuf.Message;
 import java.util.List;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Base dynamicDestinations class used by the Storage API sink. */
 abstract class StorageApiDynamicDestinations<T, DestinationT>
     extends DynamicDestinations<T, DestinationT> {
   public interface MessageConverter<T> {
-    Descriptor getSchemaDescriptor();
+    com.google.cloud.bigquery.storage.v1.TableSchema getTableSchema();
 
-    Message toMessage(T element);
+    StorageApiWritePayload toMessage(
+        T element, @Nullable RowMutationInformation rowMutationInformation) throws Exception;
+
+    TableRow toTableRow(T element);
   }
 
   private DynamicDestinations<T, DestinationT> inner;
@@ -42,11 +45,11 @@ abstract class StorageApiDynamicDestinations<T, DestinationT>
     this.inner = inner;
   }
 
-  public abstract MessageConverter<T> getMessageConverter(DestinationT destination)
-      throws Exception;
+  public abstract MessageConverter<T> getMessageConverter(
+      DestinationT destination, DatasetService datasetService) throws Exception;
 
   @Override
-  public DestinationT getDestination(ValueInSingleWindow<T> element) {
+  public DestinationT getDestination(@Nullable ValueInSingleWindow<T> element) {
     return inner.getDestination(element);
   }
 
@@ -61,7 +64,7 @@ abstract class StorageApiDynamicDestinations<T, DestinationT>
   }
 
   @Override
-  public TableSchema getSchema(DestinationT destination) {
+  public @Nullable TableSchema getSchema(DestinationT destination) {
     return inner.getSchema(destination);
   }
 

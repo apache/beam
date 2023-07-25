@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.io.jdbc;
 
-import static java.sql.JDBCType.NUMERIC;
 import static org.apache.beam.sdk.io.common.DatabaseTestHelper.assertRowCount;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.closeTo;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
@@ -37,7 +37,9 @@ import static org.mockito.Mockito.when;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.sql.Array;
 import java.sql.Connection;
 import java.sql.Date;
@@ -53,9 +55,12 @@ import java.util.Calendar;
 import java.util.Collections;
 import java.util.List;
 import java.util.TimeZone;
+import java.util.UUID;
 import java.util.logging.LogRecord;
 import javax.sql.DataSource;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -64,27 +69,33 @@ import org.apache.beam.sdk.io.common.DatabaseTestHelper;
 import org.apache.beam.sdk.io.common.TestRow;
 import org.apache.beam.sdk.io.jdbc.JdbcIO.DataSourceConfiguration;
 import org.apache.beam.sdk.io.jdbc.JdbcIO.PoolableDataSourceProvider;
-import org.apache.beam.sdk.io.jdbc.LogicalTypes.FixedPrecisionNumeric;
+import org.apache.beam.sdk.io.jdbc.JdbcUtil.PartitioningFn;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.logicaltypes.FixedPrecisionNumeric;
 import org.apache.beam.sdk.schemas.transforms.Select;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Wait;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.commons.dbcp2.PoolingDataSource;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeMatcher;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.joda.time.LocalDate;
 import org.joda.time.chrono.ISOChronology;
 import org.junit.BeforeClass;
@@ -93,13 +104,11 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Test on the JdbcIO. */
 @RunWith(JUnit4.class)
 public class JdbcIOTest implements Serializable {
-  private static final Logger LOG = LoggerFactory.getLogger(JdbcIOTest.class);
+
   private static final DataSourceConfiguration DATA_SOURCE_CONFIGURATION =
       DataSourceConfiguration.create(
           "org.apache.derby.jdbc.EmbeddedDriver", "jdbc:derby:memory:testDB;create=true");
@@ -108,6 +117,8 @@ public class JdbcIOTest implements Serializable {
   private static final String READ_TABLE_NAME = DatabaseTestHelper.getTestTableName("UT_READ");
 
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
+
+  @Rule public final transient TestPipeline secondPipeline = TestPipeline.create();
 
   @Rule public final transient ExpectedLogs expectedLogs = ExpectedLogs.none(JdbcIO.class);
 
@@ -251,6 +262,25 @@ public class JdbcIOTest implements Serializable {
   }
 
   @Test
+  public void testReadWithCoderInference() {
+    PCollection<TestRow> rows =
+        pipeline.apply(
+            JdbcIO.<TestRow>read()
+                .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
+                .withQuery(String.format("select name,id from %s where name = ?", READ_TABLE_NAME))
+                .withStatementPreparator(
+                    preparedStatement -> preparedStatement.setString(1, TestRow.getNameForSeed(1)))
+                .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId()));
+
+    PAssert.thatSingleton(rows.apply("Count All", Count.globally())).isEqualTo(1L);
+
+    Iterable<TestRow> expectedValues = Collections.singletonList(TestRow.fromSeed(1));
+    PAssert.that(rows).containsInAnyOrder(expectedValues);
+
+    pipeline.run();
+  }
+
+  @Test
   public void testReadRowsWithDataSourceConfiguration() {
     PCollection<Row> rows =
         pipeline.apply(
@@ -294,9 +324,7 @@ public class JdbcIOTest implements Serializable {
     Schema expectedSchema =
         Schema.of(
             Schema.Field.of(
-                "T1",
-                FieldType.logicalType(FixedPrecisionNumeric.of(NUMERIC.getName(), 1, 0))
-                    .withNullable(false)));
+                "T1", FieldType.logicalType(FixedPrecisionNumeric.of(1, 0)).withNullable(false)));
 
     assertEquals(expectedSchema, rows.getSchema());
 
@@ -305,6 +333,61 @@ public class JdbcIOTest implements Serializable {
         .containsInAnyOrder(
             ImmutableList.of(
                 Row.withSchema(expectedSchema).addValues(BigDecimal.valueOf(1)).build()));
+
+    pipeline.run();
+  }
+
+  @Test
+  @SuppressWarnings({"UnusedVariable", "AssertThrowsMultipleStatements"})
+  public void testReadRowsFailedToGetSchema() {
+    Exception exc =
+        assertThrows(
+            BeamSchemaInferenceException.class,
+            () -> {
+              // Using a new pipeline object to avoid the various checks made by TestPipeline in
+              // this pipeline which is
+              // expected to throw an exception.
+              Pipeline pipeline = Pipeline.create();
+              pipeline.apply(
+                  JdbcIO.readRows()
+                      .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
+                      .withQuery(
+                          String.format(
+                              "SELECT CAST(1 AS NUMERIC(1, 0)) AS T1 FROM %s", "unknown_table")));
+              pipeline.run();
+            });
+
+    assertThat(exc.getMessage(), containsString("Failed to infer Beam schema"));
+  }
+
+  @Test
+  public void testReadRowsWithNumericFieldsWithExcessPrecision() {
+    PCollection<Row> rows =
+        pipeline.apply(
+            JdbcIO.readRows()
+                .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
+                .withQuery(
+                    String.format(
+                        "SELECT CAST(1 AS NUMERIC(10, 2)) AS T1 FROM %s WHERE name = ?",
+                        READ_TABLE_NAME))
+                .withStatementPreparator(
+                    preparedStatement ->
+                        preparedStatement.setString(1, TestRow.getNameForSeed(1))));
+
+    Schema expectedSchema =
+        Schema.of(
+            Schema.Field.of(
+                "T1", FieldType.logicalType(FixedPrecisionNumeric.of(10, 2)).withNullable(false)));
+
+    assertEquals(expectedSchema, rows.getSchema());
+
+    PCollection<Row> output = rows.apply(Select.fieldNames("T1"));
+    PAssert.that(output)
+        .containsInAnyOrder(
+            ImmutableList.of(
+                Row.withSchema(expectedSchema)
+                    .addValues(BigDecimal.valueOf(1).setScale(2, RoundingMode.HALF_UP))
+                    .build()));
 
     pipeline.run();
   }
@@ -377,12 +460,11 @@ public class JdbcIOTest implements Serializable {
             JdbcIO.<TestRow>readWithPartitions()
                 .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
                 .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId())
-                .withCoder(SerializableCoder.of(TestRow.class))
                 .withTable(READ_TABLE_NAME)
                 .withNumPartitions(1)
                 .withPartitionColumn("id")
-                .withLowerBound(0)
-                .withUpperBound(1000));
+                .withLowerBound(0L)
+                .withUpperBound(1000L));
     PAssert.thatSingleton(rows.apply("Count All", Count.globally())).isEqualTo(1000L);
     pipeline.run();
   }
@@ -394,12 +476,11 @@ public class JdbcIOTest implements Serializable {
             JdbcIO.<TestRow>readWithPartitions()
                 .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
                 .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId())
-                .withCoder(SerializableCoder.of(TestRow.class))
                 .withTable(String.format("(select * from %s) as subq", READ_TABLE_NAME))
                 .withNumPartitions(10)
                 .withPartitionColumn("id")
-                .withLowerBound(0)
-                .withUpperBound(1000));
+                .withLowerBound(0L)
+                .withUpperBound(1000L));
     PAssert.thatSingleton(rows.apply("Count All", Count.globally())).isEqualTo(1000L);
     pipeline.run();
   }
@@ -408,35 +489,15 @@ public class JdbcIOTest implements Serializable {
   public void testIfNumPartitionsIsZero() {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("numPartitions can not be less than 1");
-    PCollection<TestRow> rows =
-        pipeline.apply(
-            JdbcIO.<TestRow>readWithPartitions()
-                .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
-                .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId())
-                .withCoder(SerializableCoder.of(TestRow.class))
-                .withTable(READ_TABLE_NAME)
-                .withNumPartitions(0)
-                .withPartitionColumn("id")
-                .withLowerBound(0)
-                .withUpperBound(1000));
-    pipeline.run();
-  }
-
-  @Test
-  public void testNumPartitionsMoreThanTotalRows() {
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(
-        "The specified number of partitions is more than the difference between upper bound and lower bound");
     pipeline.apply(
         JdbcIO.<TestRow>readWithPartitions()
             .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
             .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId())
-            .withCoder(SerializableCoder.of(TestRow.class))
             .withTable(READ_TABLE_NAME)
-            .withNumPartitions(200)
+            .withNumPartitions(0)
             .withPartitionColumn("id")
-            .withLowerBound(0)
-            .withUpperBound(100));
+            .withLowerBound(0L)
+            .withUpperBound(1000L));
     pipeline.run();
   }
 
@@ -449,12 +510,11 @@ public class JdbcIOTest implements Serializable {
         JdbcIO.<TestRow>readWithPartitions()
             .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
             .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId())
-            .withCoder(SerializableCoder.of(TestRow.class))
             .withTable(READ_TABLE_NAME)
             .withNumPartitions(5)
             .withPartitionColumn("id")
-            .withLowerBound(100)
-            .withUpperBound(100));
+            .withLowerBound(100L)
+            .withUpperBound(100L));
     pipeline.run();
   }
 
@@ -467,6 +527,31 @@ public class JdbcIOTest implements Serializable {
       pipeline.apply(Create.of(data)).apply(getJdbcWrite(tableName));
 
       pipeline.run();
+
+      assertRowCount(DATA_SOURCE, tableName, EXPECTED_ROW_COUNT);
+    } finally {
+      DatabaseTestHelper.deleteTable(DATA_SOURCE, tableName);
+    }
+  }
+
+  @Test
+  public void testWriteWithAutosharding() throws Exception {
+    String tableName = DatabaseTestHelper.getTestTableName("UT_WRITE");
+    DatabaseTestHelper.createTable(DATA_SOURCE, tableName);
+    TestStream.Builder<KV<Integer, String>> ts =
+        TestStream.create(KvCoder.of(VarIntCoder.of(), StringUtf8Coder.of()))
+            .advanceWatermarkTo(Instant.now());
+
+    try {
+      List<KV<Integer, String>> data = getDataToWrite(EXPECTED_ROW_COUNT);
+      for (KV<Integer, String> elm : data) {
+        ts = ts.addElements(elm);
+      }
+      pipeline
+          .apply(ts.advanceWatermarkToInfinity())
+          .apply(getJdbcWrite(tableName).withAutoSharding());
+
+      pipeline.run().waitUntilFinish();
 
       assertRowCount(DATA_SOURCE, tableName, EXPECTED_ROW_COUNT);
     } finally {
@@ -493,6 +578,9 @@ public class JdbcIOTest implements Serializable {
                         return new JdbcTestHelper.TestDto(JdbcTestHelper.TestDto.EMPTY_RESULT);
                       }));
       resultSetCollection.setCoder(JdbcTestHelper.TEST_DTO_CODER);
+
+      PAssert.thatSingleton(resultSetCollection.apply(Count.globally()))
+          .isEqualTo((long) EXPECTED_ROW_COUNT);
 
       List<JdbcTestHelper.TestDto> expectedResult = new ArrayList<>();
       for (int i = 0; i < EXPECTED_ROW_COUNT; i++) {
@@ -566,7 +654,7 @@ public class JdbcIOTest implements Serializable {
     DatabaseTestHelper.createTable(DATA_SOURCE, tableName);
 
     // lock table
-    Connection connection = DATA_SOURCE.getConnection();
+    final Connection connection = DATA_SOURCE.getConnection();
     Statement lockStatement = connection.createStatement();
     lockStatement.execute("ALTER TABLE " + tableName + " LOCKSIZE TABLE");
     lockStatement.execute("LOCK TABLE " + tableName + " IN EXCLUSIVE MODE");
@@ -599,19 +687,29 @@ public class JdbcIOTest implements Serializable {
                     }));
 
     // starting a thread to perform the commit later, while the pipeline is running into the backoff
-    Thread commitThread =
+    final Thread commitThread =
         new Thread(
             () -> {
+              while (true) {
+                try {
+                  Thread.sleep(500);
+                  expectedLogs.verifyWarn("Deadlock detected, retrying");
+                  break;
+                } catch (AssertionError | java.lang.InterruptedException e) {
+                  // nothing to do
+                }
+              }
               try {
-                Thread.sleep(10000);
                 connection.commit();
               } catch (Exception e) {
-                // nothing to do
+                // nothing to do.
               }
             });
+
     commitThread.start();
-    pipeline.run();
+    PipelineResult result = pipeline.run();
     commitThread.join();
+    result.waitUntilFinish();
 
     // we verify that the backoff has been called thanks to the log message
     expectedLogs.verifyWarn("Deadlock detected, retrying");
@@ -637,7 +735,16 @@ public class JdbcIOTest implements Serializable {
         Schema.Field.of("column_timestamptz", LogicalTypes.JDBC_TIMESTAMP_WITH_TIMEZONE_TYPE));
     schemaBuilder.addField(Schema.Field.of("column_timestamp", Schema.FieldType.DATETIME));
     schemaBuilder.addField(Schema.Field.of("column_short", Schema.FieldType.INT16));
+    schemaBuilder.addField(Schema.Field.of("column_blob", FieldType.BYTES));
+    schemaBuilder.addField(Schema.Field.of("column_clob", FieldType.STRING));
+    schemaBuilder.addField(Schema.Field.of("column_uuid", LogicalTypes.JDBC_UUID_TYPE));
     Schema schema = schemaBuilder.build();
+
+    try (Connection connection = DATA_SOURCE.getConnection()) {
+      try (Statement statement = connection.createStatement()) {
+        statement.execute("CREATE TYPE UUID EXTERNAL NAME 'java.util.UUID' LANGUAGE JAVA");
+      }
+    }
 
     String tableName = DatabaseTestHelper.getTestTableName("UT_WRITE_PS");
     StringBuilder stmt = new StringBuilder("CREATE TABLE ");
@@ -654,7 +761,10 @@ public class JdbcIOTest implements Serializable {
     stmt.append("column_time          TIME,"); // Time
     stmt.append("column_timestamptz   TIMESTAMP,"); // Timestamp
     stmt.append("column_timestamp     TIMESTAMP,"); // Timestamp
-    stmt.append("column_short         SMALLINT"); // short
+    stmt.append("column_short         SMALLINT,"); // short
+    stmt.append("column_blob          BLOB,"); // blob
+    stmt.append("column_clob          CLOB,"); // clob
+    stmt.append("column_uuid          UUID"); // uuid
     stmt.append(" )");
     DatabaseTestHelper.createTableWithStatement(DATA_SOURCE, stmt.toString());
     try {
@@ -687,7 +797,7 @@ public class JdbcIOTest implements Serializable {
                         preparedStatement.setString(1, TestRow.getNameForSeed(1))));
 
     String writeTableName = DatabaseTestHelper.getTestTableName("UT_WRITE_PS_WITH_READ_ROWS");
-    DatabaseTestHelper.createTableForRowWithSchema(DATA_SOURCE, writeTableName);
+    DatabaseTestHelper.createTable(DATA_SOURCE, writeTableName);
     try {
       rows.apply(
           JdbcIO.<Row>write()
@@ -731,6 +841,7 @@ public class JdbcIOTest implements Serializable {
     } finally {
       DatabaseTestHelper.deleteTable(DATA_SOURCE, tableName);
       thrown.expect(RuntimeException.class);
+      thrown.expectMessage("Non nullable fields are not allowed without a matching schema.");
     }
   }
 
@@ -739,7 +850,7 @@ public class JdbcIOTest implements Serializable {
     final int rowsToAdd = 10;
 
     String tableName = DatabaseTestHelper.getTestTableName("UT_WRITE_PS_NON_ROW");
-    DatabaseTestHelper.createTableForRowWithSchema(DATA_SOURCE, tableName);
+    DatabaseTestHelper.createTable(DATA_SOURCE, tableName);
     try {
       List<RowWithSchema> data = getRowsWithSchemaToWrite(rowsToAdd);
 
@@ -830,12 +941,85 @@ public class JdbcIOTest implements Serializable {
   }
 
   @Test
+  public void testGetPreparedStatementSetNullsCaller() throws Exception {
+
+    Schema schema =
+        Schema.builder()
+            // primitive
+            .addField("bigint_col", Schema.FieldType.INT64.withNullable(true))
+            .addField("bit_col", Schema.FieldType.BOOLEAN.withNullable(true))
+            .addField("double_col", Schema.FieldType.DOUBLE.withNullable(true))
+            .addField("float_col", Schema.FieldType.FLOAT.withNullable(true))
+            .addField("integer_col", Schema.FieldType.INT32.withNullable(true))
+            .addField("int16_col", Schema.FieldType.INT16.withNullable(true))
+            .addField("byte_col", Schema.FieldType.BYTE.withNullable(true))
+            // reference
+            .addField("binary_col", Schema.FieldType.BYTES.withNullable(true))
+            .addField("char_col", Schema.FieldType.STRING.withNullable(true))
+            .addField("decimal_col", Schema.FieldType.DECIMAL.withNullable(true))
+            .addField("datetime_col", Schema.FieldType.DATETIME.withNullable(true))
+            .build();
+    Row row =
+        Row.withSchema(schema)
+            .addValues(null, null, null, null, null, null, null, null, null, null, null)
+            .build();
+
+    PreparedStatement psMocked = mock(PreparedStatement.class);
+
+    // primitive
+    JdbcUtil.getPreparedStatementSetCaller(Schema.FieldType.INT64)
+        .set(row, psMocked, 0, SchemaUtil.FieldWithIndex.of(schema.getField(0), 0));
+    JdbcUtil.getPreparedStatementSetCaller(Schema.FieldType.BOOLEAN)
+        .set(row, psMocked, 1, SchemaUtil.FieldWithIndex.of(schema.getField(2), 2));
+    JdbcUtil.getPreparedStatementSetCaller(Schema.FieldType.DOUBLE)
+        .set(row, psMocked, 2, SchemaUtil.FieldWithIndex.of(schema.getField(5), 5));
+    JdbcUtil.getPreparedStatementSetCaller(Schema.FieldType.FLOAT)
+        .set(row, psMocked, 3, SchemaUtil.FieldWithIndex.of(schema.getField(6), 6));
+    JdbcUtil.getPreparedStatementSetCaller(Schema.FieldType.INT32)
+        .set(row, psMocked, 4, SchemaUtil.FieldWithIndex.of(schema.getField(7), 7));
+    JdbcUtil.getPreparedStatementSetCaller(Schema.FieldType.INT16)
+        .set(row, psMocked, 5, SchemaUtil.FieldWithIndex.of(schema.getField(9), 9));
+    JdbcUtil.getPreparedStatementSetCaller(Schema.FieldType.BYTE)
+        .set(row, psMocked, 6, SchemaUtil.FieldWithIndex.of(schema.getField(10), 10));
+    // reference
+    JdbcUtil.getPreparedStatementSetCaller(Schema.FieldType.BYTES)
+        .set(row, psMocked, 7, SchemaUtil.FieldWithIndex.of(schema.getField(1), 1));
+    JdbcUtil.getPreparedStatementSetCaller(Schema.FieldType.STRING)
+        .set(row, psMocked, 8, SchemaUtil.FieldWithIndex.of(schema.getField(3), 3));
+    JdbcUtil.getPreparedStatementSetCaller(Schema.FieldType.DECIMAL)
+        .set(row, psMocked, 9, SchemaUtil.FieldWithIndex.of(schema.getField(4), 4));
+    JdbcUtil.getPreparedStatementSetCaller(Schema.FieldType.DATETIME)
+        .set(row, psMocked, 10, SchemaUtil.FieldWithIndex.of(schema.getField(8), 8));
+
+    // primitive
+    verify(psMocked, times(1)).setNull(1, JDBCType.BIGINT.getVendorTypeNumber());
+    verify(psMocked, times(1)).setNull(2, JDBCType.BOOLEAN.getVendorTypeNumber());
+    verify(psMocked, times(1)).setNull(3, JDBCType.DOUBLE.getVendorTypeNumber());
+    verify(psMocked, times(1)).setNull(4, JDBCType.FLOAT.getVendorTypeNumber());
+    verify(psMocked, times(1)).setNull(5, JDBCType.INTEGER.getVendorTypeNumber());
+    verify(psMocked, times(1)).setNull(6, JDBCType.SMALLINT.getVendorTypeNumber());
+    verify(psMocked, times(1)).setNull(7, JDBCType.TINYINT.getVendorTypeNumber());
+    // reference
+    verify(psMocked, times(1)).setBytes(8, null);
+    verify(psMocked, times(1)).setString(9, null);
+    verify(psMocked, times(1)).setBigDecimal(10, null);
+    verify(psMocked, times(1)).setTimestamp(11, null);
+  }
+
+  @Test
   public void testGetPreparedStatementSetCallerForLogicalTypes() throws Exception {
+    FieldType fixedLengthStringType = LogicalTypes.fixedLengthString(JDBCType.VARCHAR, 4);
     Schema schema =
         Schema.builder()
             .addField("logical_date_col", LogicalTypes.JDBC_DATE_TYPE)
             .addField("logical_time_col", LogicalTypes.JDBC_TIME_TYPE)
             .addField("logical_time_with_tz_col", LogicalTypes.JDBC_TIMESTAMP_WITH_TIMEZONE_TYPE)
+            .addField("logical_fixed_length_string_col", fixedLengthStringType)
+            .addField(
+                "logical_fixed_length_string_nullable_col",
+                fixedLengthStringType.withNullable(true))
+            .addField("logical_uuid_col", LogicalTypes.JDBC_UUID_TYPE)
+            .addField("logical_other_col", LogicalTypes.OTHER_AS_STRING_TYPE)
             .build();
 
     long epochMilli = 1558719710000L;
@@ -846,7 +1030,16 @@ public class JdbcIOTest implements Serializable {
             ISOChronology.getInstanceUTC());
 
     Row row =
-        Row.withSchema(schema).addValues(dateTime.withTimeAtStartOfDay(), time, dateTime).build();
+        Row.withSchema(schema)
+            .addValues(
+                dateTime.withTimeAtStartOfDay(),
+                time,
+                dateTime,
+                "Test",
+                null,
+                UUID.randomUUID(),
+                "{}")
+            .build();
 
     PreparedStatement psMocked = mock(PreparedStatement.class);
 
@@ -856,6 +1049,14 @@ public class JdbcIOTest implements Serializable {
         .set(row, psMocked, 1, SchemaUtil.FieldWithIndex.of(schema.getField(1), 1));
     JdbcUtil.getPreparedStatementSetCaller(LogicalTypes.JDBC_TIMESTAMP_WITH_TIMEZONE_TYPE)
         .set(row, psMocked, 2, SchemaUtil.FieldWithIndex.of(schema.getField(2), 2));
+    JdbcUtil.getPreparedStatementSetCaller(fixedLengthStringType)
+        .set(row, psMocked, 3, SchemaUtil.FieldWithIndex.of(schema.getField(3), 3));
+    JdbcUtil.getPreparedStatementSetCaller(fixedLengthStringType.withNullable(true))
+        .set(row, psMocked, 4, SchemaUtil.FieldWithIndex.of(schema.getField(4), 4));
+    JdbcUtil.getPreparedStatementSetCaller(LogicalTypes.JDBC_UUID_TYPE)
+        .set(row, psMocked, 5, SchemaUtil.FieldWithIndex.of(schema.getField(5), 5));
+    JdbcUtil.getPreparedStatementSetCaller(LogicalTypes.OTHER_AS_STRING_TYPE)
+        .set(row, psMocked, 6, SchemaUtil.FieldWithIndex.of(schema.getField(6), 6));
 
     verify(psMocked, times(1)).setDate(1, new Date(row.getDateTime(0).getMillis()));
     verify(psMocked, times(1)).setTime(2, new Time(row.getDateTime(1).getMillis()));
@@ -864,6 +1065,10 @@ public class JdbcIOTest implements Serializable {
     cal.setTimeInMillis(epochMilli);
 
     verify(psMocked, times(1)).setTimestamp(3, new Timestamp(cal.getTime().getTime()), cal);
+    verify(psMocked, times(1)).setString(4, row.getString(3));
+    verify(psMocked, times(1)).setString(5, row.getString(4));
+    verify(psMocked, times(1)).setObject(6, row.getLogicalTypeValue(5, UUID.class));
+    verify(psMocked, times(1)).setObject(7, row.getString(6), java.sql.Types.OTHER);
   }
 
   @Test
@@ -891,19 +1096,30 @@ public class JdbcIOTest implements Serializable {
     verify(psMocked, times(1)).setArray(1, arrayMocked);
   }
 
-  private static ArrayList<Row> getRowsToWrite(long rowsToAdd, Schema schema) {
+  private static ArrayList<Row> getRowsToWrite(long rowsToAdd, Schema schema, boolean hasNulls) {
 
     ArrayList<Row> data = new ArrayList<>();
+    int numFields = schema.getFields().size();
     for (int i = 0; i < rowsToAdd; i++) {
-      List<Object> fields = new ArrayList<>();
-
-      Row row =
-          schema.getFields().stream()
-              .map(field -> dummyFieldValue(field.getType()))
-              .collect(Row.toRow(schema));
-      data.add(row);
+      Row.Builder builder = Row.withSchema(schema);
+      for (int j = 0; j < numFields; j++) {
+        if (hasNulls && i % numFields == j && schema.getField(j).getType().getNullable()) {
+          builder.addValue(null);
+        } else {
+          builder.addValue(dummyFieldValue(schema.getField(j).getType()));
+        }
+      }
+      data.add(builder.build());
     }
     return data;
+  }
+
+  private static ArrayList<Row> getRowsToWrite(long rowsToAdd, Schema schema) {
+    return getRowsToWrite(rowsToAdd, schema, false);
+  }
+
+  private static ArrayList<Row> getNullableRowsToWrite(long rowsToAdd, Schema schema) {
+    return getRowsToWrite(rowsToAdd, schema, true);
   }
 
   private static ArrayList<RowWithSchema> getRowsWithSchemaToWrite(long rowsToAdd) {
@@ -915,7 +1131,8 @@ public class JdbcIOTest implements Serializable {
     return data;
   }
 
-  private static Object dummyFieldValue(Schema.FieldType fieldType) {
+  private static Object dummyFieldValue(Schema.FieldType maybeNullableType) {
+    Schema.FieldType fieldType = maybeNullableType.withNullable(false);
     long epochMilli = 1558719710000L;
     if (fieldType.equals(Schema.FieldType.STRING)) {
       return "string value";
@@ -931,7 +1148,12 @@ public class JdbcIOTest implements Serializable {
       return Long.MAX_VALUE;
     } else if (fieldType.equals(Schema.FieldType.FLOAT)) {
       return 15.5F;
-    } else if (fieldType.equals(Schema.FieldType.DECIMAL)) {
+    } else if (fieldType.equals(Schema.FieldType.DECIMAL)
+        || (fieldType.getLogicalType() != null
+            && fieldType
+                .getLogicalType()
+                .getIdentifier()
+                .equals(FixedPrecisionNumeric.IDENTIFIER))) {
       return BigDecimal.ONE;
     } else if (fieldType.equals(LogicalTypes.JDBC_DATE_TYPE)) {
       return new DateTime(epochMilli, ISOChronology.getInstanceUTC()).withTimeAtStartOfDay();
@@ -941,6 +1163,10 @@ public class JdbcIOTest implements Serializable {
       return new DateTime(epochMilli, ISOChronology.getInstanceUTC());
     } else if (fieldType.equals(Schema.FieldType.DATETIME)) {
       return new DateTime(epochMilli, ISOChronology.getInstanceUTC());
+    } else if (fieldType.equals(FieldType.BYTES)) {
+      return "bytes".getBytes(StandardCharsets.UTF_8);
+    } else if (fieldType.equals(LogicalTypes.JDBC_UUID_TYPE)) {
+      return UUID.randomUUID();
     } else {
       return null;
     }
@@ -1093,5 +1319,97 @@ public class JdbcIOTest implements Serializable {
       DatabaseTestHelper.deleteTable(DATA_SOURCE, firstTableName);
       DatabaseTestHelper.deleteTable(DATA_SOURCE, secondTableName);
     }
+  }
+
+  @Test
+  public void testPartitioningDateTime() {
+    PCollection<KV<DateTime, DateTime>> ranges =
+        pipeline
+            .apply(Create.of(KV.of(10L, KV.of(new DateTime(0), DateTime.now()))))
+            .apply(ParDo.of(new PartitioningFn<>(TypeDescriptor.of(DateTime.class))));
+
+    PAssert.that(ranges.apply(Count.globally()))
+        .satisfies(
+            new SerializableFunction<Iterable<Long>, Void>() {
+              @Override
+              public Void apply(Iterable<Long> input) {
+                // We must have exactly least one element
+                Long count = input.iterator().next();
+                // The implementation for range partitioning relies on millis from epoch.
+                // We allow off-by-one differences because we can have slight differences
+                // in integers when computing strides, and advancing through timestamps.
+                assertThat(Double.valueOf(count), closeTo(10, 1));
+                return null;
+              }
+            });
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testWriteReadNullableTypes() throws SQLException {
+    // first setup data
+    Schema.Builder schemaBuilder = Schema.builder();
+    schemaBuilder.addField("column_id", FieldType.INT32.withNullable(false));
+    schemaBuilder.addField("column_bigint", Schema.FieldType.INT64.withNullable(true));
+    schemaBuilder.addField("column_boolean", FieldType.BOOLEAN.withNullable(true));
+    schemaBuilder.addField("column_float", Schema.FieldType.FLOAT.withNullable(true));
+    schemaBuilder.addField("column_double", Schema.FieldType.DOUBLE.withNullable(true));
+    schemaBuilder.addField(
+        "column_decimal",
+        FieldType.logicalType(FixedPrecisionNumeric.of(13, 0)).withNullable(true));
+    Schema schema = schemaBuilder.build();
+
+    // some types not supported in derby (e.g. tinyint) are not tested here
+    String tableName = DatabaseTestHelper.getTestTableName("UT_READ_NULLABLE_LG");
+    StringBuilder stmt = new StringBuilder("CREATE TABLE ");
+    stmt.append(tableName);
+    stmt.append(" (");
+    stmt.append("column_id      INTEGER NOT NULL,"); // Integer
+    stmt.append("column_bigint  BIGINT,"); // int64
+    stmt.append("column_boolean BOOLEAN,"); // boolean
+    stmt.append("column_float  REAL,"); // float
+    stmt.append("column_double  DOUBLE PRECISION,"); // double
+    stmt.append("column_decimal    DECIMAL(13,0)"); // BigDecimal
+    stmt.append(" )");
+    DatabaseTestHelper.createTableWithStatement(DATA_SOURCE, stmt.toString());
+    final int rowsToAdd = 10;
+    try {
+      // run write pipeline
+      ArrayList<Row> data = getNullableRowsToWrite(rowsToAdd, schema);
+      pipeline
+          .apply(Create.of(data))
+          .setRowSchema(schema)
+          .apply(
+              JdbcIO.<Row>write()
+                  .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
+                  .withBatchSize(10L)
+                  .withTable(tableName));
+      pipeline.run();
+      assertRowCount(DATA_SOURCE, tableName, rowsToAdd);
+
+      // run read pipeline
+      PCollection<Row> rows =
+          secondPipeline.apply(
+              JdbcIO.readRows()
+                  .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
+                  .withQuery("SELECT * FROM " + tableName));
+      PAssert.thatSingleton(rows.apply("Count All", Count.globally())).isEqualTo((long) rowsToAdd);
+      PAssert.that(rows).containsInAnyOrder(data);
+
+      secondPipeline.run();
+    } finally {
+      DatabaseTestHelper.deleteTable(DATA_SOURCE, tableName);
+    }
+  }
+
+  @Test
+  public void testPartitioningLongs() {
+    PCollection<KV<Long, Long>> ranges =
+        pipeline
+            .apply(Create.of(KV.of(10L, KV.of(0L, 12346789L))))
+            .apply(ParDo.of(new PartitioningFn<>(TypeDescriptors.longs())));
+
+    PAssert.that(ranges.apply(Count.globally())).containsInAnyOrder(10L);
+    pipeline.run().waitUntilFinish();
   }
 }

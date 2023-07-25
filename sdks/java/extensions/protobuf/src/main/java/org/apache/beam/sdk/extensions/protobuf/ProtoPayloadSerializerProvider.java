@@ -24,8 +24,6 @@ import com.google.auto.service.AutoService;
 import com.google.protobuf.Message;
 import java.util.Map;
 import javax.annotation.Nonnull;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializer;
@@ -35,7 +33,6 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 @Internal
-@Experimental(Kind.SCHEMAS)
 @AutoService(PayloadSerializerProvider.class)
 public class ProtoPayloadSerializerProvider implements PayloadSerializerProvider {
   @Override

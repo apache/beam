@@ -49,7 +49,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.hamcrest.Matchers;
@@ -79,7 +79,7 @@ public class StreamingSideInputFetcherTest {
   // to become a contravariant ?, it is not possible to cast state to an appropriate type
   // without rawtypes.
   @SuppressWarnings({
-    "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+    "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
     "unchecked"
   })
   @Before

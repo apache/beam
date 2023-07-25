@@ -21,7 +21,7 @@ import (
 	"bytes"
 	"context"
 	"flag"
-	"io/ioutil"
+	"os"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	dotlib "github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/dot"
@@ -51,5 +51,5 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 	if err := dotlib.Render(edges, nodes, &buf); err != nil {
 		return nil, err
 	}
-	return nil, ioutil.WriteFile(*dotFile, buf.Bytes(), 0644)
+	return nil, os.WriteFile(*dotFile, buf.Bytes(), 0644)
 }

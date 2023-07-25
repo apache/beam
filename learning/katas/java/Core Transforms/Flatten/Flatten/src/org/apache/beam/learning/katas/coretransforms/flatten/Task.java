@@ -18,6 +18,21 @@
 
 package org.apache.beam.learning.katas.coretransforms.flatten;
 
+// beam-playground:
+//   name: Flatten
+//   description: Task from katas that merges two PCollections of words into a single PCollection.
+//   multifile: false
+//   context_line: 47
+//   categories:
+//     - Combiners
+//     - Flatten
+//     - Core Transforms
+//   complexity: BASIC
+//   tags:
+//     - transforms
+//     - join
+//     - strings
+
 import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;

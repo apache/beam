@@ -18,7 +18,7 @@
 
 # A Cron Job that makes a full InfluxDB backup every day and sends it to
 # GCS bucket.
-apiVersion: batch/v1beta1
+apiVersion: batch/v1
 kind: CronJob
 metadata:
   labels:

@@ -14,9 +14,19 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-import apache_beam as beam
+# beam-playground:
+#   name: Flatten
+#   description: Task from katas that merges two PCollections of words into a single PCollection.
+#   multifile: false
+#   context_line: 31
+#   categories:
+#     - Flatten
+#   complexity: BASIC
+#   tags:
+#     - merge
+#     - strings
 
-from log_elements import LogElements
+import apache_beam as beam
 
 with beam.Pipeline() as p:
 
@@ -28,5 +38,4 @@ with beam.Pipeline() as p:
 
   ((wordsStartingWithA, wordsStartingWithB)
       | beam.Flatten()
-      | LogElements())
-
+      | beam.LogElements())

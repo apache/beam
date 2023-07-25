@@ -27,9 +27,11 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import org.apache.beam.runners.core.SystemReduceFn;
+import org.apache.beam.runners.core.construction.PTransformMatchers;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.SplittableParDo;
+import org.apache.beam.runners.core.construction.SplittableParDoNaiveBounded;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.io.SourceRDD;
@@ -37,12 +39,13 @@ import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.metrics.MetricsContainerStepMapAccumulator;
 import org.apache.beam.runners.spark.util.ByteArray;
 import org.apache.beam.runners.spark.util.SideInputBroadcast;
-import org.apache.beam.runners.spark.util.SparkCompat;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.options.ExperimentalOptions;
+import org.apache.beam.sdk.runners.PTransformMatcher;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -78,6 +81,7 @@ import org.apache.spark.Partitioner;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.PairFlatMapFunction;
 import org.apache.spark.storage.StorageLevel;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -85,8 +89,8 @@ import scala.Tuple2;
 
 /** Supports translation between a Beam transform, and Spark's operations on RDDs. */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public final class TransformTranslator {
 
@@ -143,9 +147,10 @@ public final class TransformTranslator {
         Partitioner partitioner = getPartitioner(context);
         // As this is batch, we can ignore triggering and allowed lateness parameters.
         if (windowingStrategy.getWindowFn().equals(new GlobalWindows())
-                && windowingStrategy.getTimestampCombiner().equals(TimestampCombiner.END_OF_WINDOW)) {
+            && windowingStrategy.getTimestampCombiner().equals(TimestampCombiner.END_OF_WINDOW)) {
           // we can drop the windows and recover them later
-          groupedByKey = GroupNonMergingWindowsFunctions.groupByKeyInGlobalWindow(
+          groupedByKey =
+              GroupNonMergingWindowsFunctions.groupByKeyInGlobalWindow(
                   inRDD, keyCoder, coder.getValueCoder(), partitioner);
         } else if (GroupNonMergingWindowsFunctions.isEligibleForGroupByWindow(windowingStrategy)) {
           // we can have a memory sensitive translation for non-merging windows
@@ -338,8 +343,15 @@ public final class TransformTranslator {
                 vaCoder,
                 windowingStrategy);
 
+        FlatMapFunction<
+                SparkCombineFn.WindowedAccumulator<KV<K, InputT>, InputT, AccumT, ?>,
+                WindowedValue<OutputT>>
+            flatMapFunction =
+                windowedAccumulator ->
+                    sparkCombineFn.extractOutputStream(windowedAccumulator).iterator();
+
         JavaPairRDD<K, WindowedValue<OutputT>> kwvs =
-            SparkCompat.extractOutput(accumulatePerKey, sparkCombineFn);
+            accumulatePerKey.flatMapValues(flatMapFunction);
         JavaRDD<WindowedValue<KV<K, OutputT>>> outRdd =
             kwvs.map(new TranslationUtils.FromPairFunction())
                 .map(new TranslationUtils.ToKVByWindowInValueFunction<>());
@@ -356,16 +368,34 @@ public final class TransformTranslator {
 
   private static <InputT, OutputT> TransformEvaluator<ParDo.MultiOutput<InputT, OutputT>> parDo() {
     return new TransformEvaluator<ParDo.MultiOutput<InputT, OutputT>>() {
+
+      private final PTransformMatcher splitDoFnMatcher =
+          PTransformMatchers.parDoWithFnType(SplittableParDoNaiveBounded.NaiveProcessFn.class);
+
       @Override
       @SuppressWarnings("unchecked")
       public void evaluate(
           ParDo.MultiOutput<InputT, OutputT> transform, EvaluationContext context) {
+
+        boolean useBoundedConcurrentOutput =
+            ExperimentalOptions.hasExperiment(
+                    context.getOptions(), "use_bounded_concurrent_output_for_sdf")
+                && splitDoFnMatcher.matches(context.getCurrentTransform());
         String stepName = context.getCurrentTransform().getFullName();
         DoFn<InputT, OutputT> doFn = transform.getFn();
+        DoFnSignature signature = DoFnSignatures.signatureForDoFn(doFn);
+
         checkState(
-            !DoFnSignatures.signatureForDoFn(doFn).processElement().isSplittable(),
+            !signature.processElement().isSplittable(),
             "Not expected to directly translate splittable DoFn, should have been overridden: %s",
             doFn);
+
+        // https://github.com/apache/beam/issues/22524
+        checkState(
+            signature.onWindowExpiration() == null,
+            "onWindowExpiration is not supported: %s",
+            doFn);
+
         JavaRDD<WindowedValue<InputT>> inRDD =
             ((BoundedDataset<InputT>) context.borrowDataset(transform)).getRDD();
         WindowingStrategy<?, ?> windowingStrategy =
@@ -375,7 +405,6 @@ public final class TransformTranslator {
         Map<TupleTag<?>, Coder<?>> outputCoders = context.getOutputCoders();
         JavaPairRDD<TupleTag<?>, WindowedValue<?>> all;
 
-        DoFnSignature signature = DoFnSignatures.getSignature(transform.getFn().getClass());
         boolean stateful =
             signature.stateDeclarations().size() > 0 || signature.timerDeclarations().size() > 0;
 
@@ -400,7 +429,8 @@ public final class TransformTranslator {
                 windowingStrategy,
                 stateful,
                 doFnSchemaInformation,
-                sideInputMapping);
+                sideInputMapping,
+                useBoundedConcurrentOutput);
 
         if (stateful) {
           // Based on the fact that the signature is stateful, DoFnSignatures ensures

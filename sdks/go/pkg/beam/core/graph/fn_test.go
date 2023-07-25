@@ -13,20 +13,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//lint:file-ignore U1000 unused functions/types are for tests
+
 package graph
 
 import (
 	"context"
 	"reflect"
+	"strings"
 	"testing"
+	"time"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/state"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/timers"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
 
 func TestNewDoFn(t *testing.T) {
 	t.Run("valid", func(t *testing.T) {
 		tests := []struct {
-			dfn interface{}
+			dfn any
 			opt func(*config)
 		}{
 			{dfn: func(string) int { return 0 }, opt: NumMainInputs(MainSingle)},
@@ -46,6 +54,13 @@ func TestNewDoFn(t *testing.T) {
 			{dfn: &GoodDoFnCoGbk2{}, opt: CoGBKMainInput(3)},
 			{dfn: &GoodDoFnCoGbk7{}, opt: CoGBKMainInput(8)},
 			{dfn: &GoodDoFnCoGbk1wSide{}, opt: NumMainInputs(MainKv)},
+			{dfn: &GoodStatefulDoFn{Timer1: timers.InProcessingTime("processingTimeTimer")}, opt: NumMainInputs(MainKv)},
+			{dfn: &GoodStatefulDoFn2{Timer1: timers.InEventTime("eventTimeTimer")}, opt: NumMainInputs(MainKv)},
+			{dfn: &GoodStatefulDoFn3{State1: state.MakeCombiningState[int, int, int]("state1", func(a, b int) int {
+				return a * b
+			})}, opt: NumMainInputs(MainKv)},
+			{dfn: &GoodStatefulDoFn4{State1: state.MakeMapState[string, int]("state1")}, opt: NumMainInputs(MainKv)},
+			{dfn: &GoodStatefulDoFn5{State1: state.MakeSetState[string]("state1")}, opt: NumMainInputs(MainKv)},
 		}
 
 		for _, test := range tests {
@@ -64,7 +79,8 @@ func TestNewDoFn(t *testing.T) {
 	})
 	t.Run("invalid", func(t *testing.T) {
 		tests := []struct {
-			dfn interface{}
+			dfn       any
+			numInputs int
 		}{
 			// Validate main inputs.
 			{dfn: func() int { return 0 }}, // No inputs.
@@ -88,26 +104,48 @@ func TestNewDoFn(t *testing.T) {
 			{dfn: &BadDoFnReturnValuesInFinishBundle{}},
 			{dfn: &BadDoFnReturnValuesInSetup{}},
 			{dfn: &BadDoFnReturnValuesInTeardown{}},
+			// Validate stateful DoFn
+			{dfn: &BadStatefulDoFnNoStateProvider{State1: state.Value[int](state.MakeValueState[int]("state1"))}},
+			{dfn: &BadStatefulDoFnNoStateFields{}},
+			{dfn: &BadStatefulDoFnNoKV{State1: state.Value[int](state.MakeValueState[int]("state1")), Timer1: timers.InEventTime("timer1")}, numInputs: 1},
+			{dfn: &BadStatefulDoFnNoTimerProvider{Timer1: timers.InEventTime("timer1")}, numInputs: 2},
+			{dfn: &BadStatefulDoFnNoTimerFields{}, numInputs: 2},
+			{dfn: &BadStatefulDoFnNoOnTimer{Timer1: timers.InEventTime("timer1")}, numInputs: 2},
 		}
 		for _, test := range tests {
 			t.Run(reflect.TypeOf(test.dfn).String(), func(t *testing.T) {
-				if cfn, err := NewDoFn(test.dfn); err != nil {
-					t.Logf("NewDoFn failed as expected:\n%v", err)
-				} else {
-					t.Errorf("NewDoFn(%v) = %v, want failure", cfn.Name(), cfn)
-				}
-				// If validation fails with unknown main inputs, then it should
-				// always fail for any known number of main inputs, so test them
-				// all. Error messages won't necessarily match.
-				if cfn, err := NewDoFn(test.dfn, NumMainInputs(MainSingle)); err != nil {
-					t.Logf("NewDoFn failed as expected:\n%v", err)
-				} else {
-					t.Errorf("NewDoFn(%v, NumMainInputs(MainSingle)) = %v, want failure", cfn.Name(), cfn)
-				}
-				if cfn, err := NewDoFn(test.dfn, NumMainInputs(MainKv)); err != nil {
-					t.Logf("NewDoFn failed as expected:\n%v", err)
-				} else {
-					t.Errorf("NewDoFn(%v, NumMainInputs(MainKv)) = %v, want failure", cfn.Name(), cfn)
+				switch test.numInputs {
+				case 1:
+					if cfn, err := NewDoFn(test.dfn, NumMainInputs(MainSingle)); err != nil {
+						t.Logf("NewDoFn failed as expected:\n%v", err)
+					} else {
+						t.Errorf("NewDoFn(%v, NumMainInputs(MainSingle)) = %v, want failure", cfn.Name(), cfn)
+					}
+				case 2:
+					if cfn, err := NewDoFn(test.dfn, NumMainInputs(MainKv)); err != nil {
+						t.Logf("NewDoFn failed as expected:\n%v", err)
+					} else {
+						t.Errorf("NewDoFn(%v, NumMainInputs(MainSingle)) = %v, want failure", cfn.Name(), cfn)
+					}
+				default:
+					if cfn, err := NewDoFn(test.dfn); err != nil {
+						t.Logf("NewDoFn failed as expected:\n%v", err)
+					} else {
+						t.Errorf("NewDoFn(%v) = %v, want failure", cfn.Name(), cfn)
+					}
+					// If validation fails with unknown main inputs, then it should
+					// always fail for any known number of main inputs, so test them
+					// all. Error messages won't necessarily match.
+					if cfn, err := NewDoFn(test.dfn, NumMainInputs(MainSingle)); err != nil {
+						t.Logf("NewDoFn failed as expected:\n%v", err)
+					} else {
+						t.Errorf("NewDoFn(%v, NumMainInputs(MainSingle)) = %v, want failure", cfn.Name(), cfn)
+					}
+					if cfn, err := NewDoFn(test.dfn, NumMainInputs(MainKv)); err != nil {
+						t.Logf("NewDoFn failed as expected:\n%v", err)
+					} else {
+						t.Errorf("NewDoFn(%v, NumMainInputs(MainKv)) = %v, want failure", cfn.Name(), cfn)
+					}
 				}
 			})
 		}
@@ -116,7 +154,7 @@ func TestNewDoFn(t *testing.T) {
 	// inputs is unknown, but fails when it's specified.
 	t.Run("invalidWithKnownKvs", func(t *testing.T) {
 		tests := []struct {
-			dfn  interface{}
+			dfn  any
 			main mainInputs
 		}{
 			{dfn: func(int) int { return 0 }, main: MainKv}, // Not enough inputs.
@@ -152,11 +190,15 @@ func TestNewDoFn(t *testing.T) {
 func TestNewDoFnSdf(t *testing.T) {
 	t.Run("valid", func(t *testing.T) {
 		tests := []struct {
-			dfn  interface{}
+			dfn  any
 			main mainInputs
 		}{
 			{dfn: &GoodSdf{}, main: MainSingle},
 			{dfn: &GoodSdfKv{}, main: MainKv},
+			{dfn: &GoodSdfWContext{}, main: MainSingle},
+			{dfn: &GoodSdfKvWContext{}, main: MainKv},
+			{dfn: &GoodSdfWErr{}, main: MainSingle},
+			{dfn: &GoodIgnoreOtherExportedMethods{}, main: MainSingle},
 		}
 
 		for _, test := range tests {
@@ -173,7 +215,7 @@ func TestNewDoFnSdf(t *testing.T) {
 	})
 	t.Run("invalid", func(t *testing.T) {
 		tests := []struct {
-			dfn interface{}
+			dfn any
 		}{
 			// Validate missing SDF methods cause errors.
 			{dfn: &BadSdfMissingMethods{}},
@@ -182,11 +224,14 @@ func TestNewDoFnSdf(t *testing.T) {
 			{dfn: &BadSdfParamsSplitRest{}},
 			{dfn: &BadSdfParamsRestSize{}},
 			{dfn: &BadSdfParamsCreateTracker{}},
+			{dfn: &BadSdfParamsTruncateRestriction{}},
 			// Validate return numbers.
 			{dfn: &BadSdfReturnsCreateRest{}},
 			{dfn: &BadSdfReturnsSplitRest{}},
 			{dfn: &BadSdfReturnsRestSize{}},
 			{dfn: &BadSdfReturnsCreateTracker{}},
+			{dfn: &BadSdfReturnsTruncateRestriction{}},
+			{dfn: &BadSdfReturnsProcessElement{}},
 			// Validate element types consistent with ProcessElement.
 			{dfn: &BadSdfElementTCreateRest{}},
 			{dfn: &BadSdfElementTSplitRest{}},
@@ -196,11 +241,82 @@ func TestNewDoFnSdf(t *testing.T) {
 			{dfn: &BadSdfRestTSplitRestReturn{}},
 			{dfn: &BadSdfRestTRestSize{}},
 			{dfn: &BadSdfRestTCreateTracker{}},
+			{dfn: &BadSdfRestTTruncateRestriction{}},
 			// Validate other types
-			{dfn: &BadSdfRestSizeReturn{}},
 			{dfn: &BadSdfCreateTrackerReturn{}},
 			{dfn: &BadSdfMismatchedRTracker{}},
 			{dfn: &BadSdfMissingRTracker{}},
+			{dfn: &BadSdfMismatchRTrackerTruncateRestriction{}},
+		}
+		for _, test := range tests {
+			t.Run(reflect.TypeOf(test.dfn).String(), func(t *testing.T) {
+				if cfn, err := NewDoFn(test.dfn); err != nil {
+					t.Logf("NewDoFn with SDF failed as expected:\n%v", err)
+				} else {
+					t.Errorf("NewDoFn(%v) = %v, want failure", cfn.Name(), cfn)
+				}
+				// If validation fails with unknown main inputs, then it should
+				// always fail for any known number of main inputs, so test them
+				// all. Error messages won't necessarily match.
+				if cfn, err := NewDoFn(test.dfn, NumMainInputs(MainSingle)); err != nil {
+					t.Logf("NewDoFn(NumMainInputs(MainSingle)) with SDF failed as expected:\n%v", err)
+				} else {
+					t.Errorf("NewDoFn(%v, NumMainInputs(MainSingle)) = %v, want failure", cfn.Name(), cfn)
+				}
+				if cfn, err := NewDoFn(test.dfn, NumMainInputs(MainKv)); err != nil {
+					t.Logf("NewDoFn(NumMainInputs(MainKv)) with SDF failed as expected:\n%v", err)
+				} else {
+					t.Errorf("NewDoFn(%v, NumMainInputs(MainKv)) = %v, want failure", cfn.Name(), cfn)
+				}
+			})
+		}
+	})
+}
+
+func TestNewDoFnWatermarkEstimating(t *testing.T) {
+	t.Run("valid", func(t *testing.T) {
+		tests := []struct {
+			dfn  any
+			main mainInputs
+		}{
+			{dfn: &GoodWatermarkEstimating{}, main: MainSingle},
+			{dfn: &GoodWatermarkEstimatingKv{}, main: MainKv},
+			{dfn: &GoodStatefulWatermarkEstimating{}, main: MainSingle},
+			{dfn: &GoodStatefulWatermarkEstimatingKv{}, main: MainKv},
+			{dfn: &GoodManualWatermarkEstimator{}, main: MainSingle},
+		}
+
+		for _, test := range tests {
+			t.Run(reflect.TypeOf(test.dfn).String(), func(t *testing.T) {
+				// Valid DoFns should pass validation with and without KV info.
+				if _, err := NewDoFn(test.dfn); err != nil {
+					t.Fatalf("NewDoFn with Watermark Estimation failed: %v", err)
+				}
+				if _, err := NewDoFn(test.dfn, NumMainInputs(test.main)); err != nil {
+					t.Fatalf("NewDoFn(NumMainInputs(%v)) with Watermark Estimation failed: %v", test.main, err)
+				}
+			})
+		}
+	})
+	t.Run("invalid", func(t *testing.T) {
+		tests := []struct {
+			dfn any
+		}{
+			{dfn: &BadWatermarkEstimatingNonSdf{}},
+			{dfn: &BadWatermarkEstimatingCreateWatermarkEstimatorReturnType{}},
+			{dfn: &BadStatefulWatermarkEstimatingInconsistentState{}},
+			{dfn: &BadStatefulWatermarkEstimatingInconsistentEstimator{}},
+			{dfn: &BadStatefulWatermarkEstimatingExtraWatermarkEstimatorStateParams{}},
+			{dfn: &BadStatefulWatermarkEstimatingExtraWatermarkEstimatorStateNoParams{}},
+			{dfn: &BadStatefulWatermarkEstimatingExtraWatermarkEstimatorStateReturns{}},
+			{dfn: &BadStatefulWatermarkEstimatingExtraWatermarkEstimatorStateNoReturns{}},
+			{dfn: &BadStatefulWatermarkEstimatingWrongPositionalParameter0{}},
+			{dfn: &BadStatefulWatermarkEstimatingWrongPositionalParameter1{}},
+			{dfn: &BadStatefulWatermarkEstimatingWrongPositionalParameter2{}},
+			{dfn: &BadStatefulKvWatermarkEstimatingWrongPositionalParameter2{}},
+			{dfn: &BadStatefulWatermarkEstimatingWrongReturn{}},
+			{dfn: &BadManualWatermarkEstimatorNonEstimating{}},
+			{dfn: &BadManualWatermarkEstimatorMismatched{}},
 		}
 		for _, test := range tests {
 			t.Run(reflect.TypeOf(test.dfn).String(), func(t *testing.T) {
@@ -230,7 +346,7 @@ func TestNewDoFnSdf(t *testing.T) {
 func TestNewCombineFn(t *testing.T) {
 	t.Run("valid", func(t *testing.T) {
 		tests := []struct {
-			cfn interface{}
+			cfn any
 		}{
 			{cfn: func(int, int) int { return 0 }},
 			{cfn: func(string, string) string { return "" }},
@@ -242,6 +358,7 @@ func TestNewCombineFn(t *testing.T) {
 			{cfn: &GoodWErrorCombineFn{}},
 			{cfn: &GoodWContextCombineFn{}},
 			{cfn: &GoodCombineFnUnexportedExtraMethod{}},
+			{cfn: &GoodCombineFnExtraExportedMethod{}},
 		}
 
 		for _, test := range tests {
@@ -254,7 +371,7 @@ func TestNewCombineFn(t *testing.T) {
 	})
 	t.Run("invalid", func(t *testing.T) {
 		tests := []struct {
-			cfn interface{}
+			cfn any
 		}{
 			// Validate MergeAccumulator errors
 			{cfn: func() int { return 0 }},
@@ -284,7 +401,6 @@ func TestNewCombineFn(t *testing.T) {
 			{cfn: &BadCombineFnInvalidExtractOutput1{}},
 			{cfn: &BadCombineFnInvalidExtractOutput2{}},
 			{cfn: &BadCombineFnInvalidExtractOutput3{}},
-			{cfn: &BadCombineFnExtraExportedMethod{}},
 		}
 		for _, test := range tests {
 			t.Run(reflect.TypeOf(test.cfn).String(), func(t *testing.T) {
@@ -297,6 +413,166 @@ func TestNewCombineFn(t *testing.T) {
 			})
 		}
 	})
+}
+
+func TestNewFn_DoFn(t *testing.T) {
+	// Validate wrap fallthrough
+	reflectx.RegisterStructWrapper(reflect.TypeOf((*GoodDoFn)(nil)).Elem(), func(fn any) map[string]reflectx.Func {
+		gdf := fn.(*GoodDoFn)
+		return map[string]reflectx.Func{
+			processElementName: reflectx.MakeFunc1x1(func(v int) int {
+				return gdf.ProcessElement(v)
+			}),
+		}
+	})
+
+	userFn := &GoodDoFn{}
+	fn, err := NewFn(userFn)
+	if err != nil {
+		t.Errorf("NewFn(%T) failed:\n%v", userFn, err)
+	}
+	dofn, err := AsDoFn(fn, MainSingle)
+	if err != nil {
+		t.Errorf("AsDoFn(%v, MainSingle) failed:\n%v", fn.Name(), err)
+	}
+	// Check that we get expected values for all the methods.
+	if got, want := dofn.Name(), "GoodDoFn"; !strings.HasSuffix(got, want) {
+		t.Errorf("(%v).Name() = %q, want suffix %q", dofn.Name(), got, want)
+	}
+	if dofn.SetupFn() == nil {
+		t.Errorf("(%v).SetupFn() == nil, want value", dofn.Name())
+	}
+	if dofn.StartBundleFn() == nil {
+		t.Errorf("(%v).StartBundleFn() == nil, want value", dofn.Name())
+	}
+	if dofn.ProcessElementFn() == nil {
+		t.Errorf("(%v).ProcessElementFn() == nil, want value", dofn.Name())
+	}
+	if dofn.FinishBundleFn() == nil {
+		t.Errorf("(%v).FinishBundleFn() == nil, want value", dofn.Name())
+	}
+	if dofn.TeardownFn() == nil {
+		t.Errorf("(%v).TeardownFn() == nil, want value", dofn.Name())
+	}
+	if dofn.IsSplittable() {
+		t.Errorf("(%v).IsSplittable() = true, want false", dofn.Name())
+	}
+}
+
+func TestNewFn_SplittableDoFn(t *testing.T) {
+	userFn := &GoodStatefulWatermarkEstimating{}
+	fn, err := NewFn(userFn)
+	if err != nil {
+		t.Errorf("NewFn(%T) failed:\n%v", userFn, err)
+	}
+	dofn, err := AsDoFn(fn, MainSingle)
+	if err != nil {
+		t.Errorf("AsDoFn(%v, MainKv) failed:\n%v", fn.Name(), err)
+	}
+	// Check that we get expected values for all the methods.
+	if dofn.SetupFn() == nil {
+		t.Errorf("(%v).SetupFn() == nil, want value", dofn.Name())
+	}
+	if dofn.StartBundleFn() == nil {
+		t.Errorf("(%v).StartBundleFn() == nil, want value", dofn.Name())
+	}
+	if dofn.ProcessElementFn() == nil {
+		t.Errorf("(%v).ProcessElementFn() == nil, want value", dofn.Name())
+	}
+	if dofn.FinishBundleFn() == nil {
+		t.Errorf("(%v).FinishBundleFn() == nil, want value", dofn.Name())
+	}
+	if dofn.TeardownFn() == nil {
+		t.Errorf("(%v).TeardownFn() == nil, want value", dofn.Name())
+	}
+
+	if !dofn.IsSplittable() {
+		t.Fatalf("(%v).IsSplittable() = false, want true", dofn.Name())
+	}
+	sdofn := (*SplittableDoFn)(dofn)
+
+	if got, want := sdofn.Name(), "GoodStatefulWatermarkEstimating"; !strings.HasSuffix(got, want) {
+		t.Errorf("(%v).Name() = %q, want suffix %q", sdofn.Name(), got, want)
+	}
+	if sdofn.CreateInitialRestrictionFn() == nil {
+		t.Errorf("(%v).CreateInitialRestrictionFn() == nil, want value", sdofn.Name())
+	}
+	if sdofn.CreateTrackerFn() == nil {
+		t.Errorf("(%v).CreateTrackerFn() == nil, want value", sdofn.Name())
+	}
+	if sdofn.RestrictionSizeFn() == nil {
+		t.Errorf("(%v).RestrictionSizeFn() == nil, want value", sdofn.Name())
+	}
+	if got, want := sdofn.RestrictionT(), reflect.TypeOf(RestT{}); got != want {
+		t.Errorf("(%v).RestrictionT() == %v, want %v", sdofn.Name(), got, want)
+	}
+	if sdofn.SplitRestrictionFn() == nil {
+		t.Errorf("(%v).SplitRestrictionFn() == nil, want value", sdofn.Name())
+	}
+	if !sdofn.HasTruncateRestriction() {
+		t.Fatalf("(%v).HasTruncateRestriction() = false, want true", dofn.Name())
+	}
+	if sdofn.TruncateRestrictionFn() == nil {
+		t.Errorf("(%v).TruncateRestrictionFn() == nil, want value", sdofn.Name())
+	}
+	if !sdofn.IsWatermarkEstimating() {
+		t.Fatalf("(%v).IsWatermarkEstimating() = false, want true", dofn.Name())
+	}
+	if sdofn.CreateWatermarkEstimatorFn() == nil {
+		t.Errorf("(%v).CreateWatermarkEstimatorFn() == nil, want value", sdofn.Name())
+	}
+	if !sdofn.IsStatefulWatermarkEstimating() {
+		t.Fatalf("(%v).IsStatefulWatermarkEstimating() = false, want true", dofn.Name())
+	}
+	if sdofn.InitialWatermarkEstimatorStateFn() == nil {
+		t.Errorf("(%v).InitialWatermarkEstimatorStateFn() == nil, want value", sdofn.Name())
+	}
+	if sdofn.WatermarkEstimatorStateFn() == nil {
+		t.Errorf("(%v).WatermarkEstimatorStateFn() == nil, want value", sdofn.Name())
+	}
+	if got, want := sdofn.WatermarkEstimatorT(), reflect.TypeOf(&WatermarkEstimatorT{}); got != want {
+		t.Errorf("(%v).WatermarkEstimatorT() == %v, want %v", sdofn.Name(), got, want)
+	}
+	if got, want := sdofn.WatermarkEstimatorStateT(), reflectx.Int; got != want {
+		t.Errorf("(%v).WatermarkEstimatorT() == %v, want %v", sdofn.Name(), got, want)
+	}
+}
+
+func TestNewFn_CombineFn(t *testing.T) {
+	userFn := &GoodCombineFn{}
+	fn, err := NewFn(userFn)
+	if err != nil {
+		t.Errorf("NewFn(%T) failed:\n%v", userFn, err)
+	}
+	cfn, err := AsCombineFn(fn)
+	if err != nil {
+		t.Errorf("AsCombineFn(%v) failed:\n%v", fn.Name(), err)
+	}
+	// Check that we get expected values for all the methods.
+	if got, want := cfn.Name(), "GoodCombineFn"; !strings.HasSuffix(got, want) {
+		t.Errorf("(%v).Name() = %q, want suffix %q", cfn.Name(), got, want)
+	}
+	if cfn.SetupFn() == nil {
+		t.Errorf("(%v).SetupFn() == nil, want value", cfn.Name())
+	}
+	if cfn.CreateAccumulatorFn() == nil {
+		t.Errorf("(%v).CreateAccumulatorFn() == nil, want value", cfn.Name())
+	}
+	if cfn.AddInputFn() == nil {
+		t.Errorf("(%v).AddInputFn() == nil, want value", cfn.Name())
+	}
+	if cfn.MergeAccumulatorsFn() == nil {
+		t.Errorf("(%v).MergeAccumulatorsFn() == nil, want value", cfn.Name())
+	}
+	if cfn.ExtractOutputFn() == nil {
+		t.Errorf("(%v).ExtractOutputFn() == nil, want value", cfn.Name())
+	}
+	if cfn.CompactFn() == nil {
+		t.Errorf("(%v).CompactFn() == nil, want value", cfn.Name())
+	}
+	if cfn.TeardownFn() == nil {
+		t.Errorf("(%v).TeardownFn() == nil, want value", cfn.Name())
+	}
 }
 
 // Do not copy. The following types are for testing signatures only.
@@ -620,13 +896,13 @@ func (fn *BadDoFnAmbiguousSideInput) FinishBundle(bool) {
 type RestT struct{}
 type RTrackerT struct{}
 
-func (rt *RTrackerT) TryClaim(interface{}) bool {
+func (rt *RTrackerT) TryClaim(any) bool {
 	return true
 }
 func (rt *RTrackerT) GetError() error {
 	return nil
 }
-func (rt *RTrackerT) TrySplit(fraction float64) (interface{}, interface{}, error) {
+func (rt *RTrackerT) TrySplit(fraction float64) (any, any, error) {
 	return nil, nil, nil
 }
 func (rt *RTrackerT) GetProgress() (float64, float64) {
@@ -635,7 +911,31 @@ func (rt *RTrackerT) GetProgress() (float64, float64) {
 func (rt *RTrackerT) IsDone() bool {
 	return true
 }
-func (rt *RTrackerT) GetRestriction() interface{} {
+func (rt *RTrackerT) GetRestriction() any {
+	return nil
+}
+func (rt *RTrackerT) IsBounded() bool {
+	return true
+}
+
+type RTracker2T struct{}
+
+func (rt *RTracker2T) TryClaim(any) bool {
+	return false
+}
+func (rt *RTracker2T) GetError() error {
+	return nil
+}
+func (rt *RTracker2T) TrySplit(fraction float64) (any, any, error) {
+	return nil, nil, nil
+}
+func (rt *RTracker2T) GetProgress() (float64, float64) {
+	return 0, 0
+}
+func (rt *RTracker2T) IsDone() bool {
+	return true
+}
+func (rt *RTracker2T) GetRestriction() any {
 	return nil
 }
 
@@ -659,8 +959,12 @@ func (fn *GoodSdf) CreateTracker(RestT) *RTrackerT {
 	return &RTrackerT{}
 }
 
-func (fn *GoodSdf) ProcessElement(*RTrackerT, int) int {
-	return 0
+func (fn *GoodSdf) ProcessElement(*RTrackerT, int) (int, sdf.ProcessContinuation) {
+	return 0, sdf.StopProcessing()
+}
+
+func (fn *GoodSdf) TruncateRestriction(*RTrackerT, int) RestT {
+	return RestT{}
 }
 
 type GoodSdfKv struct {
@@ -683,7 +987,243 @@ func (fn *GoodSdfKv) CreateTracker(RestT) *RTrackerT {
 	return &RTrackerT{}
 }
 
-func (fn *GoodSdfKv) ProcessElement(*RTrackerT, int, int) int {
+func (fn *GoodSdfKv) ProcessElement(*RTrackerT, int, int) (int, sdf.ProcessContinuation) {
+	return 0, sdf.StopProcessing()
+}
+
+func (fn *GoodSdfKv) TruncateRestriction(*RTrackerT, int, int) RestT {
+	return RestT{}
+}
+
+type GoodSdfWContext struct {
+	*GoodDoFn
+}
+
+func (fn *GoodSdfWContext) CreateInitialRestriction(context.Context, int) RestT {
+	return RestT{}
+}
+
+func (fn *GoodSdfWContext) SplitRestriction(context.Context, int, RestT) []RestT {
+	return []RestT{}
+}
+
+func (fn *GoodSdfWContext) RestrictionSize(context.Context, int, RestT) float64 {
+	return 0
+}
+
+func (fn *GoodSdfWContext) CreateTracker(context.Context, RestT) *RTrackerT {
+	return &RTrackerT{}
+}
+
+func (fn *GoodSdfWContext) ProcessElement(context.Context, *RTrackerT, int) (int, sdf.ProcessContinuation) {
+	return 0, sdf.StopProcessing()
+}
+
+func (fn *GoodSdfWContext) TruncateRestriction(context.Context, *RTrackerT, int) RestT {
+	return RestT{}
+}
+
+type GoodSdfKvWContext struct {
+	*GoodDoFnKv
+}
+
+func (fn *GoodSdfKvWContext) CreateInitialRestriction(context.Context, int, int) RestT {
+	return RestT{}
+}
+
+func (fn *GoodSdfKvWContext) SplitRestriction(context.Context, int, int, RestT) []RestT {
+	return []RestT{}
+}
+
+func (fn *GoodSdfKvWContext) RestrictionSize(context.Context, int, int, RestT) float64 {
+	return 0
+}
+
+func (fn *GoodSdfKvWContext) CreateTracker(context.Context, RestT) *RTrackerT {
+	return &RTrackerT{}
+}
+
+func (fn *GoodSdfKvWContext) ProcessElement(context.Context, *RTrackerT, int, int) (int, sdf.ProcessContinuation) {
+	return 0, sdf.StopProcessing()
+}
+
+func (fn *GoodSdfKvWContext) TruncateRestriction(context.Context, *RTrackerT, int, int) RestT {
+	return RestT{}
+}
+
+type GoodSdfWErr struct {
+	*GoodDoFn
+}
+
+func (fn *GoodSdfWErr) CreateInitialRestriction(int) (RestT, error) {
+	return RestT{}, nil
+}
+
+func (fn *GoodSdfWErr) SplitRestriction(int, RestT) ([]RestT, error) {
+	return []RestT{}, nil
+}
+
+func (fn *GoodSdfWErr) RestrictionSize(int, RestT) (float64, error) {
+	return 0, nil
+}
+
+func (fn *GoodSdfWErr) CreateTracker(RestT) (*RTrackerT, error) {
+	return &RTrackerT{}, nil
+}
+
+func (fn *GoodSdfWErr) ProcessElement(*RTrackerT, int) (int, sdf.ProcessContinuation, error) {
+	return 0, sdf.StopProcessing(), nil
+}
+
+func (fn *GoodSdfWErr) TruncateRestriction(*RTrackerT, int) (RestT, error) {
+	return RestT{}, nil
+}
+
+type GoodIgnoreOtherExportedMethods struct {
+	*GoodSdf
+}
+
+func (fn *GoodIgnoreOtherExportedMethods) IgnoreOtherExportedMethods(int, RestT) int {
+	return 0
+}
+
+type WatermarkEstimatorT struct{}
+
+func (e *WatermarkEstimatorT) CurrentWatermark() time.Time {
+	return time.Now()
+}
+
+type WatermarkEstimator2T struct{}
+
+func (e *WatermarkEstimator2T) CurrentWatermark() time.Time {
+	return time.Now()
+}
+
+func (e *WatermarkEstimator2T) CurrentWatermark2() time.Time {
+	return time.Now()
+}
+
+type GoodWatermarkEstimating struct {
+	*GoodSdf
+}
+
+func (fn *GoodWatermarkEstimating) CreateWatermarkEstimator() *WatermarkEstimatorT {
+	return &WatermarkEstimatorT{}
+}
+
+type GoodManualWatermarkEstimator struct{}
+
+func (fn *GoodManualWatermarkEstimator) ProcessElement(*WatermarkEstimatorT, *RTrackerT, int) int {
+	return 0
+}
+
+func (fn *GoodManualWatermarkEstimator) CreateInitialRestriction(int) RestT {
+	return RestT{}
+}
+
+func (fn *GoodManualWatermarkEstimator) SplitRestriction(int, RestT) []RestT {
+	return []RestT{}
+}
+
+func (fn *GoodManualWatermarkEstimator) RestrictionSize(int, RestT) float64 {
+	return 0
+}
+
+func (fn *GoodManualWatermarkEstimator) CreateTracker(RestT) *RTrackerT {
+	return &RTrackerT{}
+}
+
+func (fn *GoodManualWatermarkEstimator) CreateWatermarkEstimator() *WatermarkEstimatorT {
+	return &WatermarkEstimatorT{}
+}
+
+type GoodWatermarkEstimatingKv struct {
+	*GoodSdfKv
+}
+
+func (fn *GoodWatermarkEstimatingKv) CreateWatermarkEstimator() *WatermarkEstimatorT {
+	return &WatermarkEstimatorT{}
+}
+
+type GoodStatefulWatermarkEstimating struct {
+	*GoodSdf
+}
+
+func (fn *GoodStatefulWatermarkEstimating) InitialWatermarkEstimatorState(ts typex.EventTime, rt RestT, element int) int {
+	return 0
+}
+
+func (fn *GoodStatefulWatermarkEstimating) CreateWatermarkEstimator(state int) *WatermarkEstimatorT {
+	return &WatermarkEstimatorT{}
+}
+
+func (fn *GoodStatefulWatermarkEstimating) WatermarkEstimatorState(estimator *WatermarkEstimatorT) int {
+	return 0
+}
+
+type GoodStatefulWatermarkEstimatingKv struct {
+	*GoodSdfKv
+}
+
+func (fn *GoodStatefulWatermarkEstimatingKv) InitialWatermarkEstimatorState(ts typex.EventTime, rt RestT, k int, v int) int {
+	return 0
+}
+
+func (fn *GoodStatefulWatermarkEstimatingKv) CreateWatermarkEstimator(state int) *WatermarkEstimatorT {
+	return &WatermarkEstimatorT{}
+}
+
+func (fn *GoodStatefulWatermarkEstimatingKv) WatermarkEstimatorState(estimator *WatermarkEstimatorT) int {
+	return 0
+}
+
+type GoodStatefulDoFn struct {
+	State1 state.Value[int]
+	Timer1 timers.ProcessingTime
+}
+
+func (fn *GoodStatefulDoFn) ProcessElement(state.Provider, timers.Provider, int, int) int {
+	return 0
+}
+
+func (fn *GoodStatefulDoFn) OnTimer(state.Provider, timers.Provider, int) int {
+	return 0
+}
+
+type GoodStatefulDoFn2 struct {
+	State1 state.Bag[int]
+	Timer1 timers.EventTime
+}
+
+func (fn *GoodStatefulDoFn2) ProcessElement(state.Provider, timers.Provider, int, int) int {
+	return 0
+}
+
+func (fn *GoodStatefulDoFn2) OnTimer(state.Provider, timers.Provider, int) int {
+	return 0
+}
+
+type GoodStatefulDoFn3 struct {
+	State1 state.Combining[int, int, int]
+}
+
+func (fn *GoodStatefulDoFn3) ProcessElement(state.Provider, int, int) int {
+	return 0
+}
+
+type GoodStatefulDoFn4 struct {
+	State1 state.Map[string, int]
+}
+
+func (fn *GoodStatefulDoFn4) ProcessElement(state.Provider, int, int) int {
+	return 0
+}
+
+type GoodStatefulDoFn5 struct {
+	State1 state.Set[string]
+}
+
+func (fn *GoodStatefulDoFn5) ProcessElement(state.Provider, int, int) int {
 	return 0
 }
 
@@ -732,6 +1272,14 @@ func (fn *BadSdfParamsCreateTracker) CreateTracker(int, RestT) *RTrackerT {
 	return &RTrackerT{}
 }
 
+type BadSdfParamsTruncateRestriction struct {
+	*GoodSdf
+}
+
+func (fn *BadSdfParamsTruncateRestriction) TruncateRestriction(*RTrackerT, int, int) RestT {
+	return RestT{}
+}
+
 // Examples with invalid numbers of return values.
 
 type BadSdfReturnsCreateRest struct {
@@ -764,6 +1312,22 @@ type BadSdfReturnsCreateTracker struct {
 
 func (fn *BadSdfReturnsCreateTracker) CreateTracker(RestT) (*RTrackerT, int) {
 	return &RTrackerT{}, 0
+}
+
+type BadSdfReturnsTruncateRestriction struct {
+	*GoodSdf
+}
+
+func (fn *BadSdfReturnsTruncateRestriction) TruncateRestriction(*RTrackerT, int) (RestT, int) {
+	return RestT{}, 0
+}
+
+type BadSdfReturnsProcessElement struct {
+	*GoodSdf
+}
+
+func (fn *BadSdfReturnsProcessElement) ProcessElement(*RTrackerT, int) int {
+	return 0
 }
 
 // Examples with element types inconsistent with ProcessElement.
@@ -828,15 +1392,23 @@ func (fn *BadSdfRestTCreateTracker) CreateTracker(BadRestT) *RTrackerT {
 	return &RTrackerT{}
 }
 
-// Examples of other type validation that needs to be done.
-
-type BadSdfRestSizeReturn struct {
+type BadSdfRestTTruncateRestriction struct {
 	*GoodSdf
 }
 
-func (fn *BadSdfRestSizeReturn) BadSdfRestSizeReturn(int, RestT) int {
-	return 0
+func (fn *BadSdfRestTTruncateRestriction) TruncateRestriction(*RTrackerT, int) BadRestT {
+	return BadRestT{}
 }
+
+type BadWatermarkEstimatingNonSdf struct {
+	*GoodDoFn
+}
+
+func (fn *BadWatermarkEstimatingNonSdf) CreateWatermarkEstimator() *WatermarkEstimatorT {
+	return &WatermarkEstimatorT{}
+}
+
+// Examples of other type validation that needs to be done.
 
 type BadRTrackerT struct{} // Fails to implement RTracker interface.
 
@@ -868,11 +1440,219 @@ func (fn *BadSdfMismatchedRTracker) ProcessElement(*OtherRTrackerT, int) int {
 	return 0
 }
 
+type BadSdfMismatchRTrackerTruncateRestriction struct {
+	*GoodSdf
+}
+
+func (fn *BadSdfMismatchRTrackerTruncateRestriction) TruncateRestriction(*OtherRTrackerT, int) RestT {
+	return RestT{}
+}
+
+type BadWatermarkEstimatingCreateWatermarkEstimatorReturnType struct {
+	*GoodWatermarkEstimating
+}
+
+func (fn *BadWatermarkEstimatingCreateWatermarkEstimatorReturnType) CreateWatermarkEstimator() int {
+	return 5
+}
+
+type BadStatefulWatermarkEstimatingInconsistentState struct {
+	*GoodStatefulWatermarkEstimating
+}
+
+func (fn *BadStatefulWatermarkEstimatingInconsistentState) WatermarkEstimatorState(estimator *WatermarkEstimatorT) string {
+	return ""
+}
+
+type BadStatefulWatermarkEstimatingInconsistentEstimator struct {
+	*GoodStatefulWatermarkEstimating
+}
+
+func (fn *BadStatefulWatermarkEstimatingInconsistentEstimator) WatermarkEstimatorState(estimator WatermarkEstimator2T) int {
+	return 0
+}
+
+type BadStatefulWatermarkEstimatingExtraWatermarkEstimatorStateParams struct {
+	*GoodStatefulWatermarkEstimating
+}
+
+func (fn *BadStatefulWatermarkEstimatingExtraWatermarkEstimatorStateParams) WatermarkEstimatorState(estimator *WatermarkEstimatorT, element int) int {
+	return 0
+}
+
+type BadStatefulWatermarkEstimatingExtraWatermarkEstimatorStateNoParams struct {
+	*GoodStatefulWatermarkEstimating
+}
+
+func (fn *BadStatefulWatermarkEstimatingExtraWatermarkEstimatorStateNoParams) WatermarkEstimatorState() int {
+	return 0
+}
+
+type BadStatefulWatermarkEstimatingExtraWatermarkEstimatorStateReturns struct {
+	*GoodStatefulWatermarkEstimating
+}
+
+func (fn *BadStatefulWatermarkEstimatingExtraWatermarkEstimatorStateReturns) WatermarkEstimatorState(estimator *WatermarkEstimatorT) (int, error) {
+	return 0, nil
+}
+
+type BadStatefulWatermarkEstimatingExtraWatermarkEstimatorStateNoReturns struct {
+	*GoodStatefulWatermarkEstimating
+}
+
+func (fn *BadStatefulWatermarkEstimatingExtraWatermarkEstimatorStateNoReturns) WatermarkEstimatorState(estimator *WatermarkEstimatorT) {
+}
+
+type BadStatefulWatermarkEstimatingWrongPositionalParameter0 struct {
+	*GoodStatefulWatermarkEstimating
+}
+
+func (fn *BadStatefulWatermarkEstimatingWrongPositionalParameter0) InitialWatermarkEstimatorState(a int, rt *RTrackerT, element int) int {
+	return 0
+}
+
+type BadStatefulWatermarkEstimatingWrongPositionalParameter1 struct {
+	*GoodStatefulWatermarkEstimating
+}
+
+func (fn *BadStatefulWatermarkEstimatingWrongPositionalParameter1) InitialWatermarkEstimatorState(ts typex.EventTime, rt *RTracker2T, element int) int {
+	return 0
+}
+
+type BadStatefulWatermarkEstimatingWrongPositionalParameter2 struct {
+	*GoodStatefulWatermarkEstimating
+}
+
+func (fn *BadStatefulWatermarkEstimatingWrongPositionalParameter2) InitialWatermarkEstimatorState(ts typex.EventTime, rt *RTrackerT, element string) int {
+	return 0
+}
+
+type BadStatefulKvWatermarkEstimatingWrongPositionalParameter2 struct {
+	*GoodStatefulWatermarkEstimatingKv
+}
+
+func (fn *BadStatefulKvWatermarkEstimatingWrongPositionalParameter2) InitialWatermarkEstimatorState(ts typex.EventTime, rt *RTrackerT, element int) int {
+	return 0
+}
+
+type BadStatefulWatermarkEstimatingWrongReturn struct {
+	*GoodStatefulWatermarkEstimating
+}
+
+func (fn *BadStatefulWatermarkEstimatingWrongReturn) InitialWatermarkEstimatorState(ts typex.EventTime, rt *RTrackerT, element int) string {
+	return ""
+}
+
+type BadManualWatermarkEstimatorNonEstimating struct{}
+
+func (fn *BadManualWatermarkEstimatorNonEstimating) ProcessElement(*WatermarkEstimatorT, *RTrackerT, int) int {
+	return 0
+}
+
+func (fn *BadManualWatermarkEstimatorNonEstimating) CreateInitialRestriction(int) RestT {
+	return RestT{}
+}
+
+func (fn *BadManualWatermarkEstimatorNonEstimating) SplitRestriction(int, RestT) []RestT {
+	return []RestT{}
+}
+
+func (fn *BadManualWatermarkEstimatorNonEstimating) RestrictionSize(int, RestT) float64 {
+	return 0
+}
+
+func (fn *BadManualWatermarkEstimatorNonEstimating) CreateTracker(RestT) *RTrackerT {
+	return &RTrackerT{}
+}
+
+type BadManualWatermarkEstimatorMismatched struct{}
+
+func (fn *BadManualWatermarkEstimatorMismatched) ProcessElement(*WatermarkEstimator2T, *RTrackerT, int) int {
+	return 0
+}
+
+func (fn *BadManualWatermarkEstimatorMismatched) CreateInitialRestriction(int) RestT {
+	return RestT{}
+}
+
+func (fn *BadManualWatermarkEstimatorMismatched) SplitRestriction(int, RestT) []RestT {
+	return []RestT{}
+}
+
+func (fn *BadManualWatermarkEstimatorMismatched) RestrictionSize(int, RestT) float64 {
+	return 0
+}
+
+func (fn *BadManualWatermarkEstimatorMismatched) CreateTracker(RestT) *RTrackerT {
+	return &RTrackerT{}
+}
+
+func (fn *BadManualWatermarkEstimatorMismatched) CreateWatermarkEstimator() *WatermarkEstimatorT {
+	return &WatermarkEstimatorT{}
+}
+
+type BadStatefulDoFnNoStateProvider struct {
+	State1 state.Value[int]
+}
+
+func (fn *BadStatefulDoFnNoStateProvider) ProcessElement(int, int) int {
+	return 0
+}
+
+type BadStatefulDoFnNoStateFields struct {
+}
+
+func (fn *BadStatefulDoFnNoStateFields) ProcessElement(state.Provider, int) int {
+	return 0
+}
+
+type BadStatefulDoFnNoKV struct {
+	State1 state.Value[int]
+	Timer1 timers.EventTime
+}
+
+func (fn *BadStatefulDoFnNoKV) ProcessElement(state.Provider, int, int) int {
+	return 0
+}
+
+type BadStatefulDoFnNoTimerProvider struct {
+	Timer1 timers.EventTime
+}
+
+func (fn *BadStatefulDoFnNoTimerProvider) ProcessElement(int, int) int {
+	return 0
+}
+
+func (fn *BadStatefulDoFnNoTimerProvider) OnTimer(timers.Provider, int) int {
+	return 0
+}
+
+type BadStatefulDoFnNoTimerFields struct {
+}
+
+func (fn *BadStatefulDoFnNoTimerFields) ProcessElement(timers.Provider, int, int) int {
+	return 0
+}
+
+func (fn *BadStatefulDoFnNoTimerFields) OnTimer(timers.Provider, int) int {
+	return 0
+}
+
+type BadStatefulDoFnNoOnTimer struct {
+	Timer1 timers.EventTime
+}
+
+func (fn *BadStatefulDoFnNoOnTimer) ProcessElement(timers.Provider, int, int) int {
+	return 0
+}
+
 // Examples of correct CombineFn signatures
 
 type MyAccum struct{}
 
 type GoodCombineFn struct{}
+
+func (fn *GoodCombineFn) Setup() {}
 
 func (fn *GoodCombineFn) MergeAccumulators(MyAccum, MyAccum) MyAccum {
 	return MyAccum{}
@@ -889,6 +1669,12 @@ func (fn *GoodCombineFn) AddInput(MyAccum, int) MyAccum {
 func (fn *GoodCombineFn) ExtractOutput(MyAccum) int64 {
 	return 0
 }
+
+func (fn *GoodCombineFn) Compact(MyAccum) MyAccum {
+	return MyAccum{}
+}
+
+func (fn *GoodCombineFn) Teardown() {}
 
 type GoodWErrorCombineFn struct{}
 
@@ -920,6 +1706,14 @@ type GoodCombineFnUnexportedExtraMethod struct {
 
 func (fn *GoodCombineFnUnexportedExtraMethod) unexportedExtraMethod(context.Context, string) string {
 	return ""
+}
+
+type GoodCombineFnExtraExportedMethod struct {
+	*GoodCombineFn
+}
+
+func (fn *GoodCombineFnExtraExportedMethod) ExtraMethod(string) int {
+	return 0
 }
 
 // Examples of incorrect CombineFn signatures.
@@ -1069,15 +1863,5 @@ type BadCombineFnInvalidExtractOutput3 struct {
 }
 
 func (fn *BadCombineFnInvalidExtractOutput3) ExtractOutput(context.Context, MyAccum, int) int {
-	return 0
-}
-
-// Other CombineFn Errors
-
-type BadCombineFnExtraExportedMethod struct {
-	*GoodCombineFn
-}
-
-func (fn *BadCombineFnExtraExportedMethod) ExtraMethod(string) int {
 	return 0
 }

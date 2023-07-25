@@ -49,6 +49,10 @@ public class GcpApiSurfaceTest {
             .pruningPattern("org[.]apache[.]beam[.].*Test.*")
             .pruningPattern("org[.]apache[.]beam[.].*IT")
             .pruningPattern("org[.]checkerframework[.].*[.]qual[.].*")
+            // Quick check packages, exposed only in testing
+            .pruningPattern("com[.]pholser[.]junit[.]quickcheck[.].*")
+            .pruningPattern("org[.]javaruntype[.]type[.].*")
+            // ------
             .pruningPattern("java[.]lang.*")
             .pruningPattern("java[.]util.*");
 
@@ -62,29 +66,32 @@ public class GcpApiSurfaceTest {
             classesInPackage("com.google.api.client.util"),
             classesInPackage("com.google.api.gax.retrying"),
             classesInPackage("com.google.api.gax.longrunning"),
+            classesInPackage("com.google.api.gax.rpc"),
+            classesInPackage("com.google.api.gax.grpc"),
+            classesInPackage("com.google.api.gax.tracing"),
+            classesInPackage("com.google.api.gax.core"),
+            classesInPackage("com.google.api.gax.batching"),
+            classesInPackage("com.google.api.gax.paging"),
             classesInPackage("com.google.api.services.bigquery.model"),
             classesInPackage("com.google.api.services.healthcare"),
             classesInPackage("com.google.auth"),
             classesInPackage("com.google.bigtable.v2"),
+            classesInPackage("com.google.bigtable.admin.v2"),
             classesInPackage("com.google.cloud"),
             classesInPackage("com.google.common.collect"),
             classesInPackage("com.google.cloud.bigquery.storage.v1"),
-            classesInPackage("com.google.cloud.bigquery.storage.v1beta2"),
             classesInPackage("com.google.cloud.bigtable.config"),
             classesInPackage("com.google.iam.v1"),
             classesInPackage("com.google.spanner.v1"),
             classesInPackage("com.google.pubsub.v1"),
             classesInPackage("com.google.cloud.pubsublite"),
             Matchers.equalTo(com.google.api.gax.rpc.ApiException.class),
-            Matchers.equalTo(com.google.api.gax.paging.Page.class),
             Matchers.<Class<?>>equalTo(com.google.api.gax.rpc.StatusCode.class),
+            Matchers.<Class<?>>equalTo(com.google.api.resourcenames.ResourceName.class),
             Matchers.<Class<?>>equalTo(com.google.common.base.Function.class),
             Matchers.<Class<?>>equalTo(com.google.common.base.Optional.class),
             Matchers.<Class<?>>equalTo(com.google.common.base.Supplier.class),
             Matchers.<Class<?>>equalTo(com.google.api.gax.rpc.StatusCode.Code.class),
-            Matchers.<Class<?>>equalTo(com.google.cloud.bigtable.grpc.BigtableClusterName.class),
-            Matchers.<Class<?>>equalTo(com.google.cloud.bigtable.grpc.BigtableInstanceName.class),
-            Matchers.<Class<?>>equalTo(com.google.cloud.bigtable.grpc.BigtableTableName.class),
             Matchers.<Class<?>>equalTo(com.google.cloud.BaseServiceException.class),
             Matchers.<Class<?>>equalTo(com.google.cloud.BaseServiceException.Error.class),
             Matchers.<Class<?>>equalTo(com.google.cloud.BaseServiceException.ExceptionData.class),
@@ -117,12 +124,9 @@ public class GcpApiSurfaceTest {
             classesInPackage("javax"),
             classesInPackage("org.apache.avro"),
             classesInPackage("org.apache.beam"),
-            classesInPackage("org.apache.commons.logging"),
             classesInPackage("org.codehaus.jackson"),
             classesInPackage("org.joda.time"),
-            Matchers.<Class<?>>equalTo(org.threeten.bp.Duration.class),
-            Matchers.<Class<?>>equalTo(org.threeten.bp.format.ResolverStyle.class),
-            classesInPackage("org.threeten.bp.temporal"),
+            classesInPackage("org.threeten.bp"),
             classesInPackage("com.google.gson"));
 
     assertThat(apiSurface, containsOnlyClassesMatching(allowedClasses));

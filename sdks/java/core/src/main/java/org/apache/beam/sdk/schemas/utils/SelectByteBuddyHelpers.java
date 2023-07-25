@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.schemas.utils;
 
+import static org.apache.beam.sdk.util.ByteBuddyUtils.getClassLoadingStrategy;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
@@ -28,6 +29,36 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import net.bytebuddy.ByteBuddy;
+import net.bytebuddy.asm.AsmVisitorWrapper;
+import net.bytebuddy.description.method.MethodDescription;
+import net.bytebuddy.description.modifier.FieldManifestation;
+import net.bytebuddy.description.modifier.Visibility;
+import net.bytebuddy.description.type.TypeDescription.ForLoadedType;
+import net.bytebuddy.description.type.TypeDescription.Generic;
+import net.bytebuddy.dynamic.DynamicType;
+import net.bytebuddy.dynamic.scaffold.InstrumentedType;
+import net.bytebuddy.implementation.Implementation;
+import net.bytebuddy.implementation.Implementation.Context;
+import net.bytebuddy.implementation.bytecode.ByteCodeAppender;
+import net.bytebuddy.implementation.bytecode.ByteCodeAppender.Size;
+import net.bytebuddy.implementation.bytecode.Duplication;
+import net.bytebuddy.implementation.bytecode.Removal;
+import net.bytebuddy.implementation.bytecode.StackManipulation;
+import net.bytebuddy.implementation.bytecode.StackSize;
+import net.bytebuddy.implementation.bytecode.assign.TypeCasting;
+import net.bytebuddy.implementation.bytecode.collection.ArrayAccess;
+import net.bytebuddy.implementation.bytecode.constant.IntegerConstant;
+import net.bytebuddy.implementation.bytecode.constant.NullConstant;
+import net.bytebuddy.implementation.bytecode.member.FieldAccess;
+import net.bytebuddy.implementation.bytecode.member.MethodInvocation;
+import net.bytebuddy.implementation.bytecode.member.MethodReturn;
+import net.bytebuddy.implementation.bytecode.member.MethodVariableAccess;
+import net.bytebuddy.jar.asm.ClassWriter;
+import net.bytebuddy.jar.asm.Label;
+import net.bytebuddy.jar.asm.MethodVisitor;
+import net.bytebuddy.jar.asm.Opcodes;
+import net.bytebuddy.matcher.ElementMatchers;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor.FieldDescriptor;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor.FieldDescriptor.Qualifier;
@@ -35,44 +66,14 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.IfNullElse;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ShortCircuitReturnNull;
+import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.ByteBuddy;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.asm.AsmVisitorWrapper;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.description.method.MethodDescription;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.description.modifier.FieldManifestation;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.description.modifier.Visibility;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.description.type.TypeDescription.ForLoadedType;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.description.type.TypeDescription.Generic;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.dynamic.DynamicType;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.dynamic.scaffold.InstrumentedType;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.Implementation;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.Implementation.Context;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.ByteCodeAppender;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.ByteCodeAppender.Size;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.Duplication;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.Removal;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.StackManipulation;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.StackSize;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.assign.TypeCasting;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.collection.ArrayAccess;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.constant.IntegerConstant;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.constant.NullConstant;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.member.FieldAccess;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.member.MethodInvocation;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.member.MethodReturn;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.member.MethodVariableAccess;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.jar.asm.ClassWriter;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.jar.asm.Label;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.jar.asm.MethodVisitor;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.jar.asm.Opcodes;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.matcher.ElementMatchers;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class SelectByteBuddyHelpers {
   private static final ByteBuddy BYTE_BUDDY = new ByteBuddy();
@@ -177,7 +178,9 @@ class SelectByteBuddyHelpers {
       return builder
           .visit(new AsmVisitorWrapper.ForDeclaredMethods().writerFlags(ClassWriter.COMPUTE_FRAMES))
           .make()
-          .load(Row.class.getClassLoader(), ClassLoadingStrategy.Default.INJECTION)
+          .load(
+              ReflectHelpers.findClassLoader(Row.class.getClassLoader()),
+              getClassLoadingStrategy(RowSelector.class))
           .getLoaded()
           .getDeclaredConstructor(Schema.class)
           .newInstance(outputSchema);
@@ -220,7 +223,7 @@ class SelectByteBuddyHelpers {
                     .write(),
                 MethodReturn.VOID);
         StackManipulation.Size size = stackManipulation.apply(methodVisitor, implementationContext);
-        return new Size(size.getMaximalSize(), numLocals);
+        return new ByteCodeAppender.Size(size.getMaximalSize(), numLocals);
       };
     }
   }
@@ -250,7 +253,8 @@ class SelectByteBuddyHelpers {
 
         @Override
         public Size apply(MethodVisitor methodVisitor, Context context) {
-          Size size = IntegerConstant.forValue(arraySize).apply(methodVisitor, context);
+          StackManipulation.Size size =
+              IntegerConstant.forValue(arraySize).apply(methodVisitor, context);
           methodVisitor.visitTypeInsn(
               Opcodes.ANEWARRAY, Generic.OBJECT.asErasure().getInternalName());
           size = size.aggregate(StackSize.ZERO.toDecreasingSize());
@@ -276,7 +280,7 @@ class SelectByteBuddyHelpers {
         }
 
         @Override
-        public Size apply(MethodVisitor methodVisitor, Context context) {
+        public StackManipulation.Size apply(MethodVisitor methodVisitor, Context context) {
           StackManipulation stackManipulation =
               new StackManipulation.Compound(
                   Duplication.SINGLE, // Duplicate the array reference
@@ -373,7 +377,8 @@ class SelectByteBuddyHelpers {
                         .getOnly()),
                 MethodReturn.REFERENCE);
         size = size.aggregate(attachToRow.apply(methodVisitor, implementationContext));
-        return new Size(size.getMaximalSize(), localVariables.getTotalNumVariables());
+        return new ByteCodeAppender.Size(
+            size.getMaximalSize(), localVariables.getTotalNumVariables());
       };
     }
 

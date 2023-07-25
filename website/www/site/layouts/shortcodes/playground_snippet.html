@@ -1,0 +1,59 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License. See accompanying LICENSE file.
+*/}}
+{{/*
+
+Creates an embedded Playground tab with a given example. Must be used within 'playground' shortcode
+because here only a div is created and not an iframe. It is 'playground' that actually creates
+an iframe.
+
+Required parameters:
+- language - the string to be passed as SDK to playground. 'py' translates to 'python'.
+- any of the following:
+    - path - the example in the catalog.
+    - shared - the snippet ID shared by a user.
+    - url - the URL of the example code.
+
+Optional parameters:
+- readonly - comma-separated section names to make read-only.
+- show - section name, hides everything except it, makes the entire code read-only.
+- unfold - comma-separated section names, folds all blocks not overlapping with them.
+
+*/}}
+
+{{ $sdk := .Get "language" }}
+{{ if eq $sdk "py" }}
+    {{ $sdk = "python" }}
+{{ end }}
+<div
+    class="language-{{ .Get "language" }} playground-snippet"
+    data-sdk="{{ $sdk }}"
+
+    {{ if .Get "path" }}
+        data-path="{{ .Get "path" }}"
+    {{ end }}
+    {{ if .Get "shared" }}
+        data-shared="{{ .Get "shared" }}"
+    {{ end }}
+    {{ if .Get "url" }}
+        data-url="{{ .Get "url" }}"
+    {{ end }}
+
+    {{ if .Get "readonly" }}
+        data-readonly="{{ .Get "readonly" }}"
+    {{ end }}
+    {{ if .Get "show" }}
+        data-show="{{ .Get "show" }}"
+    {{ end }}
+    {{ if .Get "unfold" }}
+        data-unfold="{{ .Get "unfold" }}"
+    {{ end }}
+></div>

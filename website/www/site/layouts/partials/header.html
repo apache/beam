@@ -16,7 +16,7 @@
       <img alt="Brand" style="height: 46px; width: 43px;" src="/images/beam_logo_navbar_mobile.png">
     </a>
 
-     <a class="navbar-link" href={{ "/get-started/beam-overview/" | relLangURL }}>{{ T "nav-get-started" }}</a>
+     <a class="navbar-link" href={{ "/get-started/" | relLangURL }}>{{ T "nav-get-started" }}</a>
      <a class="navbar-link" href={{ "/documentation/" | relLangURL }}>{{ T "nav-documentation" }}</a>
 
     <button type="button" class="navbar-toggle menu-open" aria-expanded="false" aria-controls="navbar" onclick="openMenu()">
@@ -54,7 +54,10 @@
            </div>
          </li>
         <li>
-         <a class="navbar-link" href={{ "/get-started/beam-overview/" | relLangURL }}>{{ T "nav-get-started" }}</a>
+          <a class="navbar-link" href={{ "/about" | relLangURL }}>{{ T "nav-about" }}</a>
+        </li>
+        <li>
+         <a class="navbar-link" href={{ "/get-started/" | relLangURL }}>{{ T "nav-get-started" }}</a>
         </li>
         <li>
           <span class="navbar-link">Documentation</span>
@@ -62,6 +65,7 @@
            <li><a href={{ "/documentation/" | relLangURL }}>{{ T "nav-documentation-general" }}</a></li>
            <li><a href={{ "/documentation/sdks/java/" | relLangURL }}>{{ T "nav-languages" }}</a></li>
            <li><a href={{ "/documentation/runners/capability-matrix/" | relLangURL }}>{{ T "nav-runners" }}</a></li>
+           <li><a href={{ "/documentation/io/connectors/" | relLangURL }}>{{ T "nav-connectors" }}</a></li>
          </ul>
         </li>
         <li>
@@ -75,7 +79,7 @@
        </li>
        <li><a class="navbar-link" href={{ "/blog/" | relLangURL }}>{{ T "nav-blog" }}</a></li>
        <li>
-         <a class="navbar-link" href={{ "/powered-by/" | relLangURL }}>{{ T "nav-powered-by" }}</a>
+         <a class="navbar-link" href={{ "/case-studies/" | relLangURL }}>{{ T "nav-case-studies" }}</a>
        </li>
       </ul>
       <ul class="nav navbar-nav navbar-right">
@@ -102,11 +106,11 @@
              </span>
           </a>
           <ul class="dropdown-menu dropdown-menu-right">
-            <li><a target="_blank" href="http://www.apache.org/">{{ T "nav-asf-homepage" }}</a></li>
-            <li><a target="_blank" href="http://www.apache.org/licenses/">{{ T "nav-license" }}</a></li>
-            <li><a target="_blank" href="http://www.apache.org/security/">{{ T "nav-security" }}</a></li>
-            <li><a target="_blank" href="http://www.apache.org/foundation/thanks.html">{{ T "nav-thanks" }}</a></li>
-            <li><a target="_blank" href="http://www.apache.org/foundation/sponsorship.html">{{ T "nav-sponsorship" }}</a></li>
+            <li><a target="_blank" href="https://www.apache.org/">{{ T "nav-asf-homepage" }}</a></li>
+            <li><a target="_blank" href="https://www.apache.org/licenses/">{{ T "nav-license" }}</a></li>
+            <li><a target="_blank" href="https://www.apache.org/security/">{{ T "nav-security" }}</a></li>
+            <li><a target="_blank" href="https://www.apache.org/foundation/thanks.html">{{ T "nav-thanks" }}</a></li>
+            <li><a target="_blank" href="https://www.apache.org/foundation/sponsorship.html">{{ T "nav-sponsorship" }}</a></li>
             <li><a target="_blank" href="https://www.apache.org/foundation/policies/conduct">{{ T "nav-code-of-conduct" }}</a></li>
           </ul>
         </li>
@@ -120,7 +124,8 @@
   </a>
   <div class="navbar-bar-left">
    <div class="navbar-links">
-     <a class="navbar-link" href={{ "/get-started/beam-overview/" | relLangURL }}>{{ T "nav-get-started" }}</a>
+     <a class="navbar-link" href={{ "/about" | relLangURL }}>{{ T "nav-about" }}</a>
+     <a class="navbar-link" href={{ "/get-started/" | relLangURL }}>{{ T "nav-get-started" }}</a>
      <li class="dropdown navbar-dropdown navbar-dropdown-documentation">
        <a href="#" class="dropdown-toggle navbar-link" role="button" aria-haspopup="true" aria-expanded="false">
          Documentation
@@ -134,13 +139,14 @@
          <li><a class="navbar-dropdown-menu-link" href={{ "/documentation/" | relLangURL }}>{{ T "nav-documentation-general" }}</a></li>
          <li><a class="navbar-dropdown-menu-link" href={{ "/documentation/sdks/java/" | relLangURL }}>{{ T "nav-languages" }}</a></li>
          <li><a class="navbar-dropdown-menu-link" href={{ "/documentation/runners/capability-matrix/" | relLangURL }}>{{ T "nav-runners" }}</a></li>
+         <li><a class="navbar-dropdown-menu-link" href={{ "/documentation/io/connectors/" | relLangURL }}>{{ T "nav-connectors" }}</a></li>
        </ul>
      </li>
      <a class="navbar-link" href={{ "/roadmap/" | relLangURL }}>{{ T "nav-roadmap" }}</a>
      <a class="navbar-link" href={{ "/community/" | relLangURL }}>{{ T "nav-community" }}</a>
      <a class="navbar-link" href={{ "/contribute/" | relLangURL }}>{{ T "nav-contribute" }}</a>
      <a class="navbar-link" href={{ "/blog/" | relLangURL }}>{{ T "nav-blog" }}</a>
-     <a class="navbar-link" href={{ "/powered-by/" | relLangURL }}>{{ T "nav-powered-by" }}</a>
+     <a class="navbar-link" href={{ "/case-studies/" | relLangURL }}>{{ T "nav-case-studies" }}</a>
    </div>
   <div id="iconsBar">
     <a type="button" onclick="showSearch()">
@@ -166,11 +172,11 @@
       </span>
     </a>
     <ul class="dropdown-menu">
-      <li><a class="navbar-dropdown-menu-link" target="_blank" href="http://www.apache.org/">{{ T "nav-asf-homepage" }}</a></li>
-      <li><a class="navbar-dropdown-menu-link" target="_blank" href="http://www.apache.org/licenses/">{{ T "nav-license" }}</a></li>
-      <li><a class="navbar-dropdown-menu-link" target="_blank" href="http://www.apache.org/security/">{{ T "nav-security" }}</a></li>
-      <li><a class="navbar-dropdown-menu-link" target="_blank" href="http://www.apache.org/foundation/thanks.html">{{ T "nav-thanks" }}</a></li>
-      <li><a class="navbar-dropdown-menu-link" target="_blank" href="http://www.apache.org/foundation/sponsorship.html">{{ T "nav-sponsorship" }}</a></li>
+      <li><a class="navbar-dropdown-menu-link" target="_blank" href="https://www.apache.org/">{{ T "nav-asf-homepage" }}</a></li>
+      <li><a class="navbar-dropdown-menu-link" target="_blank" href="https://www.apache.org/licenses/">{{ T "nav-license" }}</a></li>
+      <li><a class="navbar-dropdown-menu-link" target="_blank" href="https://www.apache.org/security/">{{ T "nav-security" }}</a></li>
+      <li><a class="navbar-dropdown-menu-link" target="_blank" href="https://www.apache.org/foundation/thanks.html">{{ T "nav-thanks" }}</a></li>
+      <li><a class="navbar-dropdown-menu-link" target="_blank" href="https://www.apache.org/foundation/sponsorship.html">{{ T "nav-sponsorship" }}</a></li>
       <li><a class="navbar-dropdown-menu-link" target="_blank" href="https://www.apache.org/foundation/policies/conduct">{{ T "nav-code-of-conduct" }}</a></li>
     </ul>
   </li>
@@ -196,6 +202,37 @@
 </div>
 </div>
 </nav>
+
+<div class="header-push"></div>
+
+<div class="top-banners swiper">
+  <div class="swiper-wrapper">
+    <div class="swiper-slide">
+      <a href="https://beamsummit.org/tickets/social/">
+        <img class="banner-img-desktop" src="/images/banner_desktop.png" alt="banner-desktop">
+        <img class="banner-img-mobile" src="/images/banner_mobile.png" alt="banner-mobile">
+      </a>
+    </div>
+    <div class="swiper-slide">
+      <a href="https://tour.beam.apache.org">
+        <img class="banner-img-desktop" src="/images/banners/tour-of-beam/tour-of-beam-desktop.png" alt="Start Tour of Beam">
+        <img class="banner-img-mobile" src="/images/banners/tour-of-beam/tour-of-beam-mobile.png" alt="Start Tour of Beam">
+      </a>
+    </div>
+    <div class="swiper-slide">
+      <a href="https://beam.apache.org/documentation/ml/overview/">
+        <img class="banner-img-desktop" src="/images/banners/machine-learning/machine-learning-desktop.jpg" alt="Machine Learning">
+        <img class="banner-img-mobile" src="/images/banners/machine-learning/machine-learning-mobile.jpg" alt="Machine Learning">
+      </a>
+    </div>
+  </div>
+  <div class="swiper-pagination"></div>
+</div>
+{{ $swiperSlider := resources.Get "js/swiper-bundle.min.js" | minify | fingerprint }}
+<script src="{{ $swiperSlider.RelPermalink }}"></script>
+{{ $topBannersSlider := resources.Get "js/sliders/top-banners.js" | minify | fingerprint }}
+<script src="{{ $topBannersSlider.RelPermalink }}"></script>
+
 <script>
  function showSearch() {
    addPlaceholder();

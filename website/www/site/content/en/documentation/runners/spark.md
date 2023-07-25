@@ -59,15 +59,16 @@ the portable Runner. For more information on portability, please visit the
 <nav class="language-switcher">
   <strong>Adapt for:</strong>
   <ul>
-    <li data-type="language-java">Non portable (Java)</li>
-    <li data-type="language-py">Portable (Java/Python/Go)</li>
+    <li data-value="java">Non portable (Java)</li>
+    <li data-value="py">Portable (Java/Python/Go)</li>
   </ul>
 </nav>
 
 
 ## Spark Runner prerequisites and setup
 
-The Spark runner currently supports Spark's 2.x branch, and more specifically any version greater than 2.4.0.
+The Spark runner currently supports Spark's 3.2.x branch.
+> **Note:** Support for Spark 2.4.x was dropped with Beam 2.46.0.
 
 {{< paragraph class="language-java" >}}
 You can add a dependency on the latest version of the Spark runner by adding to your pom.xml the following:
@@ -76,7 +77,7 @@ You can add a dependency on the latest version of the Spark runner by adding to 
 {{< highlight java >}}
 <dependency>
   <groupId>org.apache.beam</groupId>
-  <artifactId>beam-runners-spark</artifactId>
+  <artifactId>beam-runners-spark-3</artifactId>
   <version>{{< param release_latest >}}</version>
 </dependency>
 {{< /highlight >}}
@@ -90,13 +91,13 @@ In some cases, such as running in local mode/Standalone, your (self-contained) a
 {{< highlight java >}}
 <dependency>
   <groupId>org.apache.spark</groupId>
-  <artifactId>spark-core_2.11</artifactId>
+  <artifactId>spark-core_2.12</artifactId>
   <version>${spark.version}</version>
 </dependency>
 
 <dependency>
   <groupId>org.apache.spark</groupId>
-  <artifactId>spark-streaming_2.11</artifactId>
+  <artifactId>spark-streaming_2.12</artifactId>
   <version>${spark.version}</version>
 </dependency>
 {{< /highlight >}}
@@ -193,7 +194,7 @@ download it on the [Downloads page](/get-started/downloads/).
 {{< paragraph class="language-py" >}}
 1. Start the JobService endpoint:
     * with Docker (preferred): `docker run --net=host apache/beam_spark_job_server:latest`
-    * or from Beam source code: `./gradlew :runners:spark:2:job-server:runShadow`
+    * or from Beam source code: `./gradlew :runners:spark:3:job-server:runShadow`
 {{< /paragraph >}}
 
 {{< paragraph class="language-py" >}}
@@ -228,7 +229,7 @@ For more details on the different deployment modes see: [Standalone](https://spa
 {{< paragraph class="language-py" >}}
 2. Start JobService that will connect with the Spark master:
     * with Docker (preferred): `docker run --net=host apache/beam_spark_job_server:latest --spark-master-url=spark://localhost:7077`
-    * or from Beam source code: `./gradlew :runners:spark:2:job-server:runShadow -PsparkMasterUrl=spark://localhost:7077`
+    * or from Beam source code: `./gradlew :runners:spark:3:job-server:runShadow -PsparkMasterUrl=spark://localhost:7077`
 {{< /paragraph >}}
 
 {{< paragraph class="language-py" >}}3. Submit the pipeline as above.
@@ -240,6 +241,82 @@ See [here](/roadmap/portability/#sdk-harness-config) for details.{{< /paragraph 
 See [here](/roadmap/portability/#sdk-harness-config) for details.)
 {{< /paragraph >}}
 
+###  Running on Dataproc cluster (YARN backed)
+
+To run Beam jobs written in Python, Go, and other supported languages, you can use the `SparkRunner` and `PortableRunner` as described on the Beam's [Spark Runner](https://beam.apache.org/documentation/runners/spark/) page (also see [Portability Framework Roadmap](https://beam.apache.org/roadmap/portability/)).
+
+The following example runs a portable Beam job in Python from the Dataproc cluster's master node with Yarn backed.
+
+> Note: This example executes successfully with Dataproc 2.0, Spark 3.1.2 and Beam 2.37.0.
+
+1. Create a Dataproc cluster with [Docker](https://cloud.google.com/dataproc/docs/concepts/components/docker) component enabled.
+
+<pre>
+gcloud dataproc clusters create <b><i>CLUSTER_NAME</i></b> \
+    --optional-components=DOCKER \
+    --image-version=<b><i>DATAPROC_IMAGE_VERSION</i></b> \
+    --region=<b><i>REGION</i></b> \
+    --enable-component-gateway \
+    --scopes=https://www.googleapis.com/auth/cloud-platform \
+    --properties spark:spark.master.rest.enabled=true
+</pre>
+
+- `--optional-components`: Docker.
+- `--image-version`: the [cluster's image version](https://cloud.google.com/dataproc/docs/concepts/versioning/dataproc-versions#supported_cloud_dataproc_versions), which determines the Spark version installed on the cluster (for example, see the Apache Spark component versions listed for the latest and previous four [2.0.x image release versions](https://cloud.google.com/dataproc/docs/concepts/versioning/dataproc-release-2.0)).
+- `--region`: a supported Dataproc [region](https://cloud.google.com/dataproc/docs/concepts/regional-endpoints#regional_endpoint_semantics).
+- `--enable-component-gateway`: enable access to [web interfaces](https://cloud.google.com/dataproc/docs/concepts/accessing/dataproc-gateways).
+- `--scopes`: enable API access to GCP services in the same project.
+- `--properties`: add specific configuration for some component, here spark.master.rest is enabled to use job submit to the cluster.
+
+2. Create a Cloud Storage bucket.
+
+<pre>
+gsutil mb <b><i>BUCKET_NAME</i></b>
+</pre>
+
+3. Install the necessary Python libraries for the job in your local environment.
+
+<pre>
+python -m pip install apache-beam[gcp]==<b><i>BEAM_VERSION</i></b>
+</pre>
+
+4. Bundle the word count example pipeline along with all dependencies, artifacts, etc. required to run the pipeline into a jar that can be executed later.
+
+<pre>
+python -m apache_beam.examples.wordcount \
+    --runner=SparkRunner \
+    --output_executable_path=<b><i>OUTPUT_JAR_PATH</b></i> \
+    --output=gs://<b><i>BUCKET_NAME</i></b>/python-wordcount-out \
+    --spark_version=3
+</pre>
+
+- `--runner`(required): `SparkRunner`.
+- `--output_executable_path`(required): path for the bundle jar to be created.
+- `--output`(required): where output shall be written.
+- `--spark_version`(optional): select spark version 3 (default) or 2 (deprecated!).
+
+5. Submit spark job to Dataproc cluster's master node.
+
+<pre>
+gcloud dataproc jobs submit spark \
+        --cluster=<b><i>CLUSTER_NAME</i></b> \
+        --region=<b><i>REGION</i></b> \
+        --class=org.apache.beam.runners.spark.SparkPipelineRunner \
+        --jars=<b><i>OUTPUT_JAR_PATH</b></i>
+</pre>
+
+- `--cluster`: name of created Dataproc cluster.
+- `--region`: a supported Dataproc [region](https://cloud.google.com/dataproc/docs/concepts/regional-endpoints#regional_endpoint_semantics).
+- `--class`: the entry point for your application.
+- `--jars`: path to the bundled jar including your application and all dependencies.
+
+6. Check that the results were written to your bucket.
+
+<pre>
+gsutil cat gs://<b><i>BUCKET_NAME</b></i>/python-wordcount-out-<b><i>SHARD_ID</b></i>
+</pre>
+
+
 ## Pipeline options for the Spark Runner
 
 When executing your pipeline with the Spark Runner, you should consider the following pipeline options.
@@ -248,6 +325,7 @@ When executing your pipeline with the Spark Runner, you should consider the foll
 <br><b>For RDD/DStream based runner:</b><br>
 {{< /paragraph >}}
 
+<div class="table-container-wrapper">
 <table class="language-java table table-bordered">
 <tr>
   <th>Field</th>
@@ -285,11 +363,13 @@ When executing your pipeline with the Spark Runner, you should consider the foll
   <td>false</td>
 </tr>
 </table>
+</div>
 
 {{< paragraph class="language-java" >}}
 <br><b>For Structured Streaming based runner:</b><br>
 {{< /paragraph >}}
 
+<div class="table-container-wrapper">
 <table class="language-java table table-bordered">
 <tr>
   <th>Field</th>
@@ -332,7 +412,9 @@ When executing your pipeline with the Spark Runner, you should consider the foll
   <td>true</td>
 </tr>
 </table>
+</div>
 
+<div class="table-container-wrapper">
 <table class="language-py table table-bordered">
 <tr>
   <th>Field</th>
@@ -350,6 +432,7 @@ When executing your pipeline with the Spark Runner, you should consider the foll
   <td>Set to match your job service endpoint (localhost:8099 by default)</td>
 </tr>
 </table>
+</div>
 
 ## Additional notes
 
@@ -366,7 +449,11 @@ You can monitor a running Spark job using the Spark [Web Interfaces](https://spa
 Spark also has a history server to [view after the fact](https://spark.apache.org/docs/latest/monitoring.html#viewing-after-the-fact).
 {{< paragraph class="language-java" >}}
 Metrics are also available via [REST API](https://spark.apache.org/docs/latest/monitoring.html#rest-api).
-Spark provides a [metrics system](https://spark.apache.org/docs/latest/monitoring.html#metrics) that allows reporting Spark metrics to a variety of Sinks. The Spark runner reports user-defined Beam Aggregators using this same metrics system and currently supports <code>GraphiteSink</code> and <code>CSVSink</code>, and providing support for additional Sinks supported by Spark is easy and straight-forward.
+Spark provides a [metrics system](https://spark.apache.org/docs/latest/monitoring.html#metrics) that allows reporting Spark metrics to a variety of Sinks.
+The Spark runner reports user-defined Beam Aggregators using this same metrics system and currently supports
+[GraphiteSink](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/org/apache/beam/runners/spark/metrics/sink/GraphiteSink.html)
+and [CSVSink](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/org/apache/beam/runners/spark/metrics/sink/CsvSink.html).
+Providing support for additional Sinks supported by Spark is easy and straight-forward.
 {{< /paragraph >}}
 {{< paragraph class="language-py" >}}Spark metrics are not yet supported on the portable runner.{{< /paragraph >}}
 

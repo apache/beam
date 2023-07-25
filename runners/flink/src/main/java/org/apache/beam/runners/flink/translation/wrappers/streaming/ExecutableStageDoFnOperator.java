@@ -18,6 +18,7 @@
 package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
 import static org.apache.beam.runners.core.StatefulDoFnRunner.TimeInternalsCleanupTimer.GC_TIMER_ID;
+import static org.apache.beam.runners.flink.translation.utils.FlinkPortableRunnerUtils.requiresStableInput;
 import static org.apache.beam.runners.flink.translation.utils.FlinkPortableRunnerUtils.requiresTimeSortedInput;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -64,6 +65,8 @@ import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.UserStateReference;
 import org.apache.beam.runners.flink.translation.functions.FlinkExecutableStageContextFactory;
 import org.apache.beam.runners.flink.translation.types.CoderTypeSerializer;
+import org.apache.beam.runners.flink.translation.utils.Locker;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.stableinput.BufferingDoFnRunner;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.state.FlinkStateInternals;
 import org.apache.beam.runners.fnexecution.control.BundleCheckpointHandler;
 import org.apache.beam.runners.fnexecution.control.BundleCheckpointHandlers;
@@ -103,8 +106,8 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.StatusRuntimeException;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.StatusRuntimeException;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -115,8 +118,8 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -132,8 +135,8 @@ import org.slf4j.LoggerFactory;
 // We use Flink's lifecycle methods to initialize transient fields
 @SuppressFBWarnings("SE_TRANSIENT_FIELD_NOT_RESTORED")
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<InputT, OutputT> {
 
@@ -171,7 +174,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   private transient long minEventTimeTimerTimestampInCurrentBundle;
 
   /** The input watermark before the current bundle started. */
-  private transient long inputWatermarkBeforeBundleStart;
+  private long inputWatermarkBeforeBundleStart = BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis();
 
   /** Flag indicating whether the operator has been closed. */
   private transient boolean closed;
@@ -196,7 +199,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
       Coder keyCoder,
       KeySelector<WindowedValue<InputT>, ?> keySelector) {
     super(
-        new NoOpDoFn(),
+        requiresStableInput(payload) ? new StableNoOpDoFn() : new NoOpDoFn(),
         stepName,
         windowedInputCoder,
         outputCoders,
@@ -226,6 +229,13 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         !windowedInputCoder.getCoderArguments().isEmpty(),
         "Empty arguments for WindowedValue Coder %s",
         windowedInputCoder);
+  }
+
+  @Override
+  <K> @Nullable KeyedStateBackend<K> getBufferingKeyedStateBackend() {
+    // do not use keyed backend for buffering if we do not process stateful DoFn
+    // ExecutableStage uses keyed backend by default
+    return isStateful ? super.getKeyedStateBackend() : null;
   }
 
   @Override
@@ -280,8 +290,8 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
 
   @Override
   public final void notifyCheckpointComplete(long checkpointId) throws Exception {
-    finalizationHandler.finalizeAllOutstandingBundles();
     super.notifyCheckpointComplete(checkpointId);
+    finalizationHandler.finalizeAllOutstandingBundles();
   }
 
   private BundleCheckpointHandler getBundleCheckpointHandler(boolean hasSDF) {
@@ -697,9 +707,9 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   }
 
   @Override
-  public void close() throws Exception {
+  public void flushData() throws Exception {
     closed = true;
-    // We might still holding back the watermark and Flink does not trigger the timer
+    // We might still hold back the watermark and Flink does not trigger the timer
     // callback for watermark advancement anymore.
     processWatermark1(Watermark.MAX_WATERMARK);
     while (getCurrentOutputWatermark() < Watermark.MAX_WATERMARK.getTimestamp()) {
@@ -708,19 +718,19 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         // Manually drain processing time timers since Flink will ignore pending
         // processing-time timers when upstream operators have shut down and will also
         // shut down this operator with pending processing-time timers.
-        // TODO(BEAM-11210, FLINK-18647): It doesn't work efficiently when the watermark of upstream
-        // advances
-        // to MAX_TIMESTAMP immediately.
+        // TODO(https://github.com/apache/beam/issues/20600, FLINK-18647): It doesn't work
+        // efficiently when the watermark of upstream advances to MAX_TIMESTAMP
+        // immediately.
         if (numProcessingTimeTimers() > 0) {
           timerInternals.processPendingProcessingTimeTimers();
         }
       }
     }
-    super.close();
+    super.flushData();
   }
 
   @Override
-  public void dispose() throws Exception {
+  public void cleanUp() throws Exception {
     // may be called multiple times when an exception is thrown
     if (stageContext != null) {
       // Remove the reference to stageContext and make stageContext available for garbage
@@ -729,7 +739,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
           AutoCloseable closable = stageContext) {
         // DoFnOperator generates another "bundle" for the final watermark
         // https://issues.apache.org/jira/browse/BEAM-5816
-        super.dispose();
+        super.cleanUp();
       } finally {
         stageContext = null;
       }
@@ -743,6 +753,32 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         (WindowedValue<KV<Void, Iterable<?>>>) streamRecord.getValue().getValue();
     PCollectionView<?> sideInput = sideInputTagMapping.get(streamRecord.getValue().getUnionTag());
     sideInputHandler.addSideInputValue(sideInput, value.withValue(value.getValue().getValue()));
+  }
+
+  @Override
+  DoFnRunner<InputT, OutputT> createBufferingDoFnRunnerIfNeeded(
+      DoFnRunner<InputT, OutputT> wrappedRunner) throws Exception {
+
+    if (requiresStableInput) {
+      // put this in front of the root FnRunner before any additional wrappers
+      KeyedStateBackend<Object> keyedBufferingBackend = getBufferingKeyedStateBackend();
+      return this.bufferingDoFnRunner =
+          BufferingDoFnRunner.create(
+              wrappedRunner,
+              "stable-input-buffer",
+              windowedInputCoder,
+              windowingStrategy.getWindowFn().windowCoder(),
+              getOperatorStateBackend(),
+              keyedBufferingBackend,
+              numConcurrentCheckpoints,
+              serializedOptions,
+              keyedBufferingBackend != null ? () -> Locker.locked(stateBackendLock) : null,
+              keyedBufferingBackend != null
+                  ? input -> FlinkKeyUtils.encodeKey(((KV) input).getKey(), (Coder) keyCoder)
+                  : null,
+              sdkHarnessRunner::emitResults);
+    }
+    return wrappedRunner;
   }
 
   @Override
@@ -814,6 +850,8 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     // gives better throughput due to the bundle not getting cut on
     // every watermark. So we have implemented 2) below.
     //
+    potentialOutputWatermark =
+        super.applyOutputWatermarkHold(currentOutputWatermark, potentialOutputWatermark);
     if (sdkHarnessRunner.isBundleInProgress()) {
       if (minEventTimeTimerTimestampInLastBundle < Long.MAX_VALUE) {
         // We can safely advance the watermark to before the last bundle's minimum event timer
@@ -834,7 +872,6 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     inputWatermarkBeforeBundleStart = getEffectiveInputWatermark();
   }
 
-  @SuppressWarnings("FutureReturnValueIgnored")
   private void finishBundleCallback() {
     minEventTimeTimerTimestampInLastBundle = minEventTimeTimerTimestampInCurrentBundle;
     minEventTimeTimerTimestampInCurrentBundle = Long.MAX_VALUE;
@@ -842,12 +879,8 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
       if (!closed
           && minEventTimeTimerTimestampInLastBundle < Long.MAX_VALUE
           && minEventTimeTimerTimestampInLastBundle <= getEffectiveInputWatermark()) {
-        ProcessingTimeService processingTimeService = getProcessingTimeService();
-        // We are scheduling a timer for advancing the watermark, to not delay finishing the bundle
-        // and temporarily release the checkpoint lock. Otherwise, we could potentially loop when a
-        // timer keeps scheduling a timer for the same timestamp.
-        processingTimeService.registerTimer(
-            processingTimeService.getCurrentProcessingTime(),
+
+        scheduleForCurrentProcessingTime(
             ts -> processWatermark1(new Watermark(getEffectiveInputWatermark())));
       } else {
         processWatermark1(new Watermark(getEffectiveInputWatermark()));
@@ -1060,7 +1093,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   }
 
   private DoFnRunner<InputT, OutputT> ensureStateDoFnRunner(
-      SdkHarnessDoFnRunner<InputT, OutputT> sdkHarnessRunner,
+      DoFnRunner<InputT, OutputT> sdkHarnessRunner,
       RunnerApi.ExecutableStagePayload payload,
       StepContext stepContext) {
 
@@ -1101,17 +1134,6 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         cleanupTimer,
         stateCleaner,
         requiresTimeSortedInput(payload, true)) {
-
-      @Override
-      public void processElement(WindowedValue<InputT> input) {
-        try (Locker locker = Locker.locked(stateBackendLock)) {
-          @SuppressWarnings({"unchecked", "rawtypes"})
-          final ByteBuffer key =
-              FlinkKeyUtils.encodeKey(((KV) input.getValue()).getKey(), (Coder) keyCoder);
-          getKeyedStateBackend().setCurrentKey(key);
-          super.processElement(input);
-        }
-      }
 
       @Override
       public void finishBundle() {
@@ -1174,7 +1196,8 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
 
     void setCleanupTimer(BoundedWindow window) {
       // make sure this fires after any window.maxTimestamp() timers
-      Instant gcTime = LateDataUtils.garbageCollectionTime(window, windowingStrategy).plus(1);
+      Instant gcTime =
+          LateDataUtils.garbageCollectionTime(window, windowingStrategy).plus(Duration.millis(1));
       timerInternals.setTimer(
           StateNamespaces.window(windowCoder, window),
           GC_TIMER_ID,
@@ -1188,7 +1211,8 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     public boolean isForWindow(
         String timerId, BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {
       boolean isEventTimer = timeDomain.equals(TimeDomain.EVENT_TIME);
-      Instant gcTime = LateDataUtils.garbageCollectionTime(window, windowingStrategy).plus(1);
+      Instant gcTime =
+          LateDataUtils.garbageCollectionTime(window, windowingStrategy).plus(Duration.millis(1));
       return isEventTimer && GC_TIMER_ID.equals(timerId) && gcTime.equals(timestamp);
     }
   }
@@ -1278,23 +1302,9 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     public void doNothing(ProcessContext context) {}
   }
 
-  private static class Locker implements AutoCloseable {
-
-    public static Locker locked(Lock lock) {
-      Locker locker = new Locker(lock);
-      lock.lock();
-      return locker;
-    }
-
-    private final Lock lock;
-
-    Locker(Lock lock) {
-      this.lock = lock;
-    }
-
-    @Override
-    public void close() {
-      lock.unlock();
-    }
+  private static class StableNoOpDoFn<InputT, OutputT> extends DoFn<InputT, OutputT> {
+    @RequiresStableInput
+    @ProcessElement
+    public void doNothing(ProcessContext context) {}
   }
 }

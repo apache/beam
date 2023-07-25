@@ -65,6 +65,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 	if err != nil {
 		return nil, errors.Wrap(err, "translation failed")
 	}
+	beam.PipelineOptions.LoadOptionsFromFlags(nil)
 	log.Info(ctx, plan)
 
 	if err = plan.Execute(ctx, "", exec.DataContext{}); err != nil {
@@ -331,6 +332,9 @@ func (b *builder) makeLink(id linkID) (exec.Node, error) {
 
 	case graph.WindowInto:
 		u = &exec.WindowInto{UID: b.idgen.New(), Fn: edge.WindowFn, Out: out[0]}
+
+	case graph.External:
+		return nil, errors.Errorf("external transforms like %v are not supported in the Go direct runner, please execute your pipeline on a different runner", edge)
 
 	default:
 		return nil, errors.Errorf("unexpected edge: %v", edge)

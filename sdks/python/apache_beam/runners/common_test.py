@@ -50,6 +50,25 @@ class DoFnSignatureTest(unittest.TestCase):
     with self.assertRaises(ValueError):
       DoFnSignature(MyDoFn())
 
+  def test_dofn_get_defaults(self):
+    class MyDoFn(DoFn):
+      def process(self, element, w=DoFn.WindowParam):
+        pass
+
+    signature = DoFnSignature(MyDoFn())
+
+    self.assertEqual(signature.process_method.defaults, [DoFn.WindowParam])
+
+  @unittest.skip('BEAM-5878')
+  def test_dofn_get_defaults_kwonly(self):
+    class MyDoFn(DoFn):
+      def process(self, element, *, w=DoFn.WindowParam):
+        pass
+
+    signature = DoFnSignature(MyDoFn())
+
+    self.assertEqual(signature.process_method.defaults, [DoFn.WindowParam])
+
   def test_dofn_validate_start_bundle_error(self):
     class MyDoFn(DoFn):
       def process(self, element):
@@ -134,6 +153,24 @@ class DoFnProcessTest(unittest.TestCase):
          TestPipeline(options=pipeline_options) as p:
       test_stream = (TestStream().advance_watermark_to(10).add_elements([1, 2]))
       (p | test_stream | beam.ParDo(DoFnProcessWithKeyparam()))
+
+  def test_pardo_with_unbounded_per_element_dofn(self):
+    class UnboundedDoFn(beam.DoFn):
+      @beam.DoFn.unbounded_per_element()
+      def process(self, element):
+        pass
+
+    class BoundedDoFn(beam.DoFn):
+      def process(self, element):
+        pass
+
+    with TestPipeline() as p:
+      source = p | beam.Impulse()
+      unbounded_pcoll = source | beam.ParDo(UnboundedDoFn())
+      bounded_pcoll = source | beam.ParDo(BoundedDoFn())
+
+      self.assertEqual(unbounded_pcoll.is_bounded, False)
+      self.assertEqual(bounded_pcoll.is_bounded, True)
 
 
 class TestOffsetRestrictionProvider(RestrictionProvider):

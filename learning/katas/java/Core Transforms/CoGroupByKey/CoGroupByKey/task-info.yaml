@@ -22,7 +22,7 @@ files:
 - name: src/org/apache/beam/learning/katas/coretransforms/cogroupbykey/Task.java
   visible: true
   placeholders:
-  - offset: 2418
+  - offset: 2629
     length: 1198
     placeholder_text: TODO()
 - name: src/org/apache/beam/learning/katas/coretransforms/cogroupbykey/WordsAlphabet.java

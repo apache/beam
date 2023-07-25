@@ -36,7 +36,7 @@ If your pipeline uses public packages from the [Python Package Index](https://py
 
     This command creates a `requirements.txt` file that lists all packages that are installed on your machine, regardless of where they were installed from.
 
-2. Edit the `requirements.txt` file and leave only the packages that were installed from PyPI and are used in the workflow source. Delete all packages that are not relevant to your code.
+2. Edit the `requirements.txt` file and delete all packages that are not relevant to your code.
 
 3. Run your pipeline with the following command-line option:
 
@@ -44,7 +44,17 @@ If your pipeline uses public packages from the [Python Package Index](https://py
 
     The runner will use the `requirements.txt` file to install your additional dependencies onto the remote workers.
 
-**Important:** Remote workers will install all packages listed in the `requirements.txt` file. Because of this, it's very important that you delete non-PyPI packages from the `requirements.txt` file, as stated in step 2. If you don't remove non-PyPI packages, the remote workers will fail when attempting to install packages from sources that are unknown to them.
+> **NOTE**: An alternative to `pip freeze` is to use a library like [pip-tools](https://github.com/jazzband/pip-tools) to compile all the dependencies required for the pipeline from a `--requirements_file`, where only top-level dependencies are mentioned.
+
+## Custom Containers {#custom-containers}
+
+You can pass a [container](https://hub.docker.com/search?q=apache%2Fbeam&type=image) image with all the dependencies that are needed for the pipeline instead of `requirements.txt`. [Follow the instructions on how to run pipeline with Custom Container images](/documentation/runtime/environments/#running-pipelines).
+
+1. If you are using a custom container image, we recommend that you install the dependencies from the `--requirements_file` directly into your image at build time. In this case, you do not need to pass `--requirements_file` option at runtime, which will reduce the pipeline startup time.
+
+       # Add these lines with the path to the requirements.txt to the Dockerfile
+       COPY <path to requirements.txt> /tmp/requirements.txt
+       RUN python -m pip install -r /tmp/requirements.txt
 
 
 ## Local or non-PyPI Dependencies {#local-or-nonpypi}
@@ -53,7 +63,7 @@ If your pipeline uses packages that are not available publicly (e.g. packages th
 
 1. Identify which packages are installed on your machine and are not public. Run the following command:
 
-        pip freeze
+      pip freeze
 
     This command lists all packages that are installed on your machine, regardless of where they were installed from.
 
@@ -66,7 +76,7 @@ If your pipeline uses packages that are not available publicly (e.g. packages th
 
         python setup.py sdist
 
-   See the [sdist documentation](https://docs.python.org/2/distutils/sourcedist.html) for more details on this command.
+   See the [sdist documentation](https://docs.python.org/3/distutils/sourcedist.html) for more details on this command.
 
 ## Multiple File Dependencies
 
@@ -123,3 +133,30 @@ If your pipeline uses non-Python packages (e.g. packages that require installati
         --setup_file /path/to/setup.py
 
 **Note:** Because custom commands execute after the dependencies for your workflow are installed (by `pip`), you should omit the PyPI package dependency from the pipeline's `requirements.txt` file and from the `install_requires` parameter in the `setuptools.setup()` call of your `setup.py` file.
+
+## Pre-building SDK Container Image
+
+In pipeline execution modes where a Beam runner launches SDK workers in Docker containers, the additional pipeline dependencies (specified via `--requirements_file` and other runtime options) are installed into the containers at runtime. This can increase the worker startup time.
+However, it may be possible to pre-build the SDK containers and perform the dependency installation once before the workers start with `--prebuild_sdk_container_engine`. For instructions of how to use pre-building with Google Cloud
+Dataflow, see [Pre-building the python SDK custom container image with extra dependencies](https://cloud.google.com/dataflow/docs/guides/using-custom-containers#prebuild).
+
+**NOTE**: This feature is available only for the `Dataflow Runner v2`.
+
+## Pickling and Managing the Main Session
+
+When the Python SDK submits the pipeline for execution to a remote runner, the pipeline contents, such as transform user code, is serialized (or pickled) into a bytecode using
+libraries that perform the serialization (also called picklers).  The default pickler library used by Beam is `dill`.
+To use the `cloudpickle` pickler, supply the `--pickle_library=cloudpickle` pipeline option. The `cloudpickle` support is currently [experimental](https://github.com/apache/beam/issues/21298).
+
+By default, global imports, functions, and variables defined in the main pipeline module are not saved during the serialization of a Beam job.
+Thus, one might encounter an unexpected `NameError` when running a `DoFn` on any remote runner. To resolve this, supply the main session content with the pipeline by
+setting the `--save_main_session` pipeline option. This will load the pickled state of the global namespace onto the Dataflow workers (if using `DataflowRunner`).
+For example, see [Handling NameErrors](https://cloud.google.com/dataflow/docs/guides/common-errors#how-do-i-handle-nameerrors) to set the main session on the `DataflowRunner`.
+
+Managing the main session in Python SDK is only necessary when using `dill` pickler on any remote runner. Therefore, this issue will
+not occur in `DirectRunner`.
+
+Since serialization of the pipeline happens on the job submission, and deserialization happens at runtime, it is imperative that the same version of pickling library is used at job submission and at runtime.
+To ensure this, Beam typically sets a very narrow supported version range for pickling libraries. If for whatever reason, users cannot use the version of `dill` or `cloudpickle` required by Beam, and choose to
+install a custom version, they must also ensure that they use the same custom version at runtime (e.g. in their custom container,
+or by specifying a pipeline dependency requirement).

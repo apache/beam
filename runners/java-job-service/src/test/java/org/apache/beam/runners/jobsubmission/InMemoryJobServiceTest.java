@@ -37,9 +37,9 @@ import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactStagingService;
 import org.apache.beam.sdk.fn.server.GrpcFnServer;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.Struct;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.StatusException;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.StatusException;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Before;
 import org.junit.Test;
@@ -67,8 +67,6 @@ public class InMemoryJobServiceTest {
           .setJobName(TEST_JOB_NAME)
           .setPipelineOptions(TEST_OPTIONS)
           .build();
-
-  private final int maxInvocationHistory = 3;
 
   Endpoints.ApiServiceDescriptor stagingServiceDescriptor;
   @Mock JobInvoker invoker;

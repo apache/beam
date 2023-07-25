@@ -62,7 +62,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
 import org.junit.Test;
@@ -74,7 +74,7 @@ import org.junit.runners.Parameterized.Parameters;
 /** Tests for {@link PipelineTranslation}. */
 @RunWith(Parameterized.class)
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class PipelineTranslationTest {
   @Parameter(0)
@@ -113,10 +113,9 @@ public class PipelineTranslationTest {
                         .withLateFirings(AfterPane.elementCountAtLeast(19)))
                 .accumulatingFiredPanes()
                 .withAllowedLateness(Duration.standardMinutes(3L)));
-    final WindowingStrategy<?, ?> windowedStrategy = windowed.getWindowingStrategy();
+    windowed.getWindowingStrategy();
     PCollection<KV<String, Long>> keyed = windowed.apply(WithKeys.of("foo"));
-    PCollection<KV<String, Iterable<Long>>> grouped = keyed.apply(GroupByKey.create());
-
+    keyed.apply(GroupByKey.create());
     return ImmutableList.of(trivialPipeline, sideInputPipeline, complexPipeline);
   }
 
@@ -212,7 +211,6 @@ public class PipelineTranslationTest {
               "Unexpected type of ParDo " + node.getTransform().getClass());
         }
         final DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
-        final String restrictionCoderId;
         if (signature.processElement().isSplittable()) {
           DoFnInvoker<?, ?> doFnInvoker = DoFnInvokers.invokerFor(doFn);
           final Coder<?> restrictionAndWatermarkStateCoder =

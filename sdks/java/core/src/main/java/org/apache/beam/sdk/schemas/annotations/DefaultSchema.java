@@ -29,8 +29,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.CheckForNull;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaProvider;
 import org.apache.beam.sdk.schemas.SchemaProviderRegistrar;
@@ -60,10 +58,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-@Experimental(Kind.SCHEMAS)
 public @interface DefaultSchema {
 
   /** The schema provider implementation that knows how to vend schemas for the annotated class. */

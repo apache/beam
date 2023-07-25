@@ -17,6 +17,26 @@
  */
 package org.apache.beam.examples.complete;
 
+// beam-playground:
+//   name: TrafficRoutes
+//   description: An example that analyzes traffic sensor data using SlidingWindows.
+//     For each window, it calculates the average speed over the window for some small set
+//     of predefined 'routes', and looks for 'slowdowns' in those routes. It writes its
+//     results to a BigQuery table.
+//   multifile: true
+//   context_line: 399
+//   categories:
+//     - Combiners
+//     - Streaming
+//     - Options
+//     - Windowing
+//   complexity: ADVANCED
+//   tags:
+//     - windowing
+//     - timestamp
+//     - batch
+//     - streaming
+
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
@@ -35,8 +55,8 @@ import org.apache.beam.examples.common.ExampleOptions;
 import org.apache.beam.examples.common.ExampleUtils;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
+import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.options.Default;
@@ -78,7 +98,7 @@ import org.joda.time.format.DateTimeFormatter;
  * and then exits.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class TrafficRoutes {
 
@@ -379,8 +399,6 @@ public class TrafficRoutes {
   public static void main(String[] args) throws IOException {
     TrafficRoutesOptions options =
         PipelineOptionsFactory.fromArgs(args).withValidation().as(TrafficRoutesOptions.class);
-
-    options.setBigQuerySchema(FormatStatsFn.getSchema());
 
     runTrafficRoutes(options);
   }

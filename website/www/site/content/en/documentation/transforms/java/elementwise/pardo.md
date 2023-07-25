@@ -18,7 +18,7 @@ limitations under the License.
 <table align="left">
     <a target="_blank" class="button"
         href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/transforms/ParDo.html">
-      <img src="https://beam.apache.org/images/logos/sdks/java.png" width="20px" height="20px"
+      <img src="/images/logos/sdks/java.png" width="20px" height="20px"
            alt="Javadoc" />
      Javadoc
     </a>
@@ -33,6 +33,7 @@ an output PCollection.
 See more information in the [Beam Programming Guide](/documentation/programming-guide/#pardo).
 
 ## Examples
+
 **Example 1**: Passing side inputs
 
 {{< highlight java >}}
@@ -78,7 +79,7 @@ See more information in the [Beam Programming Guide](/documentation/programming-
   PCollection<String> words = ...;
 
   // The ParDo will filter words whose length is below a cutoff and add them to
-  // the main ouput PCollection<String>.
+  // the main output PCollection<String>.
   // If a word is above the cutoff, the ParDo will add the word length to an
   // output PCollection<Integer>.
   // If a word starts with the string "MARKER", the ParDo will add that word to an
@@ -142,6 +143,11 @@ See more information in the [Beam Programming Guide](/documentation/programming-
      }}));
 {{< /highlight >}}
 
+**Example 4**: Apply a simple custom function
+
+{{< playground height="700px" >}}
+{{< playground_snippet language="java" path="SDK_JAVA_FilterParDo" >}}
+{{< /playground >}}
 
 ## Related transforms
 * [MapElements](/documentation/transforms/java/elementwise/mapelements)

@@ -33,14 +33,14 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexCall;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexInputRef;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexNode;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.util.Pair;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexCall;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexInputRef;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.Pair;
 
 /** Collections of {@code PTransform} and {@code DoFn} used to perform JOIN operation. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class BeamJoinTransforms {
 

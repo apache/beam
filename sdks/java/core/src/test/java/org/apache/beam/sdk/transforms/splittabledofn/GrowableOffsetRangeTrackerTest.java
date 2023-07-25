@@ -36,7 +36,7 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link GrowableOffsetRangeTracker}. */
 @RunWith(JUnit4.class)
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class GrowableOffsetRangeTrackerTest {
   private static class SimpleEstimator implements GrowableOffsetRangeTracker.RangeEndEstimator {
@@ -57,7 +57,7 @@ public class GrowableOffsetRangeTrackerTest {
   @Test
   public void testIllegalInitialization() throws Exception {
     expected.expect(NullPointerException.class);
-    GrowableOffsetRangeTracker tracker = new GrowableOffsetRangeTracker(0L, null);
+    new GrowableOffsetRangeTracker(0L, null);
   }
 
   @Test
@@ -183,7 +183,7 @@ public class GrowableOffsetRangeTrackerTest {
     tracker.checkDone();
     simpleEstimator.setEstimateRangeEnd(0L);
     Progress currentProgress = tracker.getProgress();
-    assertEquals(Long.MAX_VALUE - 10L, currentProgress.getWorkCompleted(), 0.001);
+    assertEquals(Long.MAX_VALUE - 10L, currentProgress.getWorkCompleted(), 0);
     assertEquals(0, currentProgress.getWorkRemaining(), 0.001);
   }
 

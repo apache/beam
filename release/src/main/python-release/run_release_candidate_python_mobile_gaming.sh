@@ -100,12 +100,15 @@ function verify_userscore_dataflow() {
 #######################################
 function verify_hourlyteamscore_direct() {
   print_separator "Running HourlyTeamScore example with DirectRunner"
+  # Clean up old bq tables
+  cleanup_hourly_team_score "direct"
+
   python -m apache_beam.examples.complete.game.hourly_team_score \
     --project=$PROJECT_ID \
     --dataset=$DATASET \
     --input=$GAME_INPUT_DATA \
     --temp_location=gs://$BUCKET_NAME/temp/ \
-    --table="hourly_team_score_python_direct"
+    --table="${HOURLY_TEAM_SCORE_TABLE_PREFIX}_direct"
 
   verify_hourly_team_score "direct"
 }
@@ -121,6 +124,9 @@ function verify_hourlyteamscore_direct() {
 #######################################
 function verify_hourlyteamscore_dataflow() {
   print_separator "Running HourlyTeamScore example with DataflowRunner"
+  # Clean up old bq tables
+  cleanup_hourly_team_score "dataflow"
+
   python -m apache_beam.examples.complete.game.hourly_team_score \
     --project=$PROJECT_ID \
     --region=$REGION_ID \
@@ -129,7 +135,7 @@ function verify_hourlyteamscore_dataflow() {
     --temp_location=gs://$BUCKET_NAME/temp/ \
     --sdk_location $BEAM_PYTHON_SDK \
     --input=$GAME_INPUT_DATA \
-    --table="hourly_team_score_python_dataflow"
+    --table="${HOURLY_TEAM_SCORE_TABLE_PREFIX}_dataflow"
 
   verify_hourly_team_score "dataflow"
 }

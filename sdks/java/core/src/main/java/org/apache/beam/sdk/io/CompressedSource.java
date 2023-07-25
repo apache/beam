@@ -26,8 +26,6 @@ import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
 import java.util.NoSuchElementException;
 import javax.annotation.concurrent.GuardedBy;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -64,9 +62,8 @@ import org.joda.time.Instant;
  *
  * @param <T> The type to read from the compressed file.
  */
-@Experimental(Kind.SOURCE_SINK)
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class CompressedSource<T> extends FileBasedSource<T> {
   /**
@@ -266,8 +263,8 @@ public class CompressedSource<T> extends FileBasedSource<T> {
 
   /**
    * Determines whether a single file represented by this source is splittable. Returns true if we
-   * are using the default decompression factory and and it determines from the requested file name
-   * that the file is not compressed.
+   * are using the default decompression factory and it determines from the requested file name that
+   * the file is not compressed.
    */
   @Override
   protected final boolean isSplittable() {

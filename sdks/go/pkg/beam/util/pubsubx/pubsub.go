@@ -75,6 +75,11 @@ func CleanupTopic(ctx context.Context, project, topic string) {
 	if err != nil {
 		log.Errorf(ctx, "Failed to delete topic %v: %v", topic, err)
 	}
+	defer client.Close()
+	cleanupTopic(ctx, client, topic)
+}
+
+func cleanupTopic(ctx context.Context, client *pubsub.Client, topic string) {
 	if err := client.Topic(topic).Delete(ctx); err != nil {
 		log.Errorf(ctx, "Failed to delete topic %v: %v", topic, err)
 	}
@@ -87,6 +92,11 @@ func Publish(ctx context.Context, project, topic string, messages ...string) (*p
 	if err != nil {
 		return nil, err
 	}
+	defer client.Close()
+	return publish(ctx, client, topic, messages...)
+}
+
+func publish(ctx context.Context, client *pubsub.Client, topic string, messages ...string) (*pubsub.Subscription, error) {
 	t, err := EnsureTopic(ctx, client, topic)
 	if err != nil {
 		return nil, err
@@ -99,7 +109,6 @@ func Publish(ctx context.Context, project, topic string, messages ...string) (*p
 	for _, msg := range messages {
 		m := &pubsub.Message{
 			Data: ([]byte)(msg),
-			// Attributes: ??
 		}
 		id, err := t.Publish(ctx, m).Get(ctx)
 		if err != nil {

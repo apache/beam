@@ -31,16 +31,42 @@ import pytest
 import apache_beam as beam
 from apache_beam import coders
 from apache_beam.dataframe.convert import to_dataframe
-from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.interactive import interactive_beam as ib
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import utils
 from apache_beam.runners.interactive.caching.cacheable import Cacheable
+from apache_beam.runners.interactive.interactive_runner import InteractiveRunner
 from apache_beam.runners.interactive.testing.mock_ipython import mock_get_ipython
 from apache_beam.runners.interactive.testing.test_cache_manager import InMemoryCache
+from apache_beam.runners.portability.flink_runner import FlinkRunner
 from apache_beam.testing.test_stream import WindowedValueHolder
 from apache_beam.utils.timestamp import Timestamp
 from apache_beam.utils.windowed_value import WindowedValue
+
+# Protect against environments where apitools library is not available.
+try:
+  from apitools.base.py.exceptions import HttpError
+  from apitools.base.py.exceptions import HttpNotFoundError
+except ImportError:
+  _http_error_imported = False
+  HttpError = ValueError
+  HttpNotFoundError = ValueError
+else:
+  _http_error_imported = True
+
+
+class MockBuckets():
+  def Get(self, path):
+    if path == 'test-bucket-not-found':
+      raise HttpNotFoundError({'status': 404}, {}, '')
+    elif path == 'test-bucket-not-verified':
+      raise HttpError({'status': 400}, {}, '')
+
+
+class MockStorageClient():
+  def __init__(self, buckets=MockBuckets()):
+    self.buckets = buckets
 
 
 class Record(NamedTuple):
@@ -134,14 +160,14 @@ class ToElementListTest(unittest.TestCase):
 
     def reader():
       element_payload = [
-          TestStreamPayload.TimestampedElement(
+          beam_runner_api_pb2.TestStreamPayload.TimestampedElement(
               encoded_element=coder.encode(
                   WindowedValueHolder(WindowedValue(e, 0, []))),
               timestamp=Timestamp.of(0).micros) for e in range(10)
       ]
 
-      event = TestStreamPayload.Event(
-          element_event=TestStreamPayload.Event.AddElements(
+      event = beam_runner_api_pb2.TestStreamPayload.Event(
+          element_event=beam_runner_api_pb2.TestStreamPayload.Event.AddElements(
               elements=element_payload))
       yield event
 
@@ -184,7 +210,7 @@ class IPythonLogHandlerTest(unittest.TestCase):
     # loggings from child loggers will be propagated to the interactive "root"
     # logger which is set to INFO level that gets handled by the sole log
     # handler IPythonLogHandler which is set to NOTSET. The effect will be
-    # everything >= info level will be logged through IPython.core.display to
+    # everything >= info level will be logged through IPython.display to
     # all frontends connected to current kernel.
     dummy_logger = logging.getLogger('apache_beam.runners.interactive.dummy1')
     dummy_logger.info('info')
@@ -233,11 +259,11 @@ class ProgressIndicatorTest(unittest.TestCase):
       self, mocked_is_in_notebook, unused):
     mocked_is_in_notebook.return_value = False
 
-    with patch('IPython.core.display.display') as mocked_display:
+    with patch('IPython.display.display') as mocked_display:
 
       @utils.progress_indicated
       def progress_indicated_dummy():
-        mocked_display.assert_any_call('Processing...')
+        mocked_display.assert_any_call('Processing... progress_indicated_dummy')
 
       progress_indicated_dummy()
       mocked_display.assert_any_call('Done.')
@@ -251,8 +277,8 @@ class ProgressIndicatorTest(unittest.TestCase):
       self, mocked_is_in_notebook, unused):
     mocked_is_in_notebook.return_value = True
 
-    with patch('IPython.core.display.HTML') as mocked_html,\
-      patch('IPython.core.display.Javascript') as mocked_js:
+    with patch('IPython.display.HTML') as mocked_html,\
+      patch('IPython.display.Javascript') as mocked_js:
       with utils.ProgressIndicator('enter', 'exit'):
         mocked_html.assert_called()
       mocked_js.assert_called()
@@ -325,6 +351,50 @@ class GeneralUtilTest(unittest.TestCase):
     _ = utils.create_var_in_main(name, value)
     main_session = importlib.import_module('__main__')
     self.assertIs(getattr(main_session, name, None), value)
+
+
+@patch(
+    'apache_beam.io.gcp.internal.clients.storage.StorageV1',
+    return_value=MockStorageClient())
+@unittest.skipIf(not _http_error_imported, 'http errors are not imported.')
+class GCSUtilsTest(unittest.TestCase):
+  @patch(
+      'apache_beam.io.gcp.internal.clients.storage.StorageBucketsGetRequest',
+      return_value='test-bucket-not-found')
+  def test_assert_bucket_exists_not_found(self, mock_response, mock_client):
+    with self.assertRaises(ValueError):
+      utils.assert_bucket_exists('')
+
+  @patch(
+      'apache_beam.io.gcp.internal.clients.storage.StorageBucketsGetRequest',
+      return_value='test-bucket-not-verified')
+  def test_assert_bucket_exists_not_verified(self, mock_response, mock_client):
+    from apache_beam.runners.interactive.utils import _LOGGER
+    with self.assertLogs(_LOGGER, level='WARNING'):
+      utils.assert_bucket_exists('')
+
+  @patch(
+      'apache_beam.io.gcp.internal.clients.storage.StorageBucketsGetRequest',
+      return_value='test-bucket-found')
+  def test_assert_bucket_exists_found(self, mock_response, mock_client):
+    utils.assert_bucket_exists('')
+
+
+class PipelineUtilTest(unittest.TestCase):
+  def test_detect_pipeline_underlying_runner(self):
+    p = beam.Pipeline(InteractiveRunner(underlying_runner=FlinkRunner()))
+    pipeline_runner = utils.detect_pipeline_runner(p)
+    self.assertTrue(isinstance(pipeline_runner, FlinkRunner))
+
+  def test_detect_pipeline_no_underlying_runner(self):
+    p = beam.Pipeline(InteractiveRunner())
+    pipeline_runner = utils.detect_pipeline_runner(p)
+    from apache_beam.runners.direct.direct_runner import DirectRunner
+    self.assertTrue(isinstance(pipeline_runner, DirectRunner))
+
+  def test_detect_pipeline_no_runner(self):
+    pipeline_runner = utils.detect_pipeline_runner(None)
+    self.assertEqual(pipeline_runner, None)
 
 
 if __name__ == '__main__':

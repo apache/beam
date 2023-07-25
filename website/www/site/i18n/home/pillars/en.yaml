@@ -11,6 +11,7 @@
 # limitations under the License.
 
 - id: home-pillars-title
-  translation: "All about Apache Beam"
+  translation: "Apache Beam Features"
+
 - id: home-pillars-social-text
   translation: "Check out our social media to learn more about the community!"

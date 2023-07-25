@@ -17,10 +17,11 @@
  */
 package org.apache.beam.sdk.tpcds;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import org.junit.Test;
@@ -142,8 +143,10 @@ public class TableSchemaJSONLoaderTest {
   public void testGetAllTableNames() throws IOException {
     List<String> tableNames = TableSchemaJSONLoader.getAllTableNames();
     Collections.sort(tableNames);
-    List<String> expectedTableNames =
-        Arrays.asList(
+
+    assertThat(
+        tableNames,
+        containsInAnyOrder(
             "call_center",
             "catalog_page",
             "catalog_returns",
@@ -167,12 +170,6 @@ public class TableSchemaJSONLoaderTest {
             "web_page",
             "web_returns",
             "web_sales",
-            "web_site");
-
-    assertEquals(expectedTableNames.size(), tableNames.size());
-
-    for (int i = 0; i < tableNames.size(); i++) {
-      assertEquals(expectedTableNames.get(i), tableNames.get(i));
-    }
+            "web_site"));
   }
 }

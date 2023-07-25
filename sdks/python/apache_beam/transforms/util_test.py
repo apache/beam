@@ -26,14 +26,17 @@ import re
 import time
 import unittest
 import warnings
+from datetime import datetime
 
 import pytest
+import pytz
 
 import apache_beam as beam
 from apache_beam import GroupByKey
 from apache_beam import Map
 from apache_beam import WindowInto
 from apache_beam.coders import coders
+from apache_beam.metrics import MetricsFilter
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.portability import common_urns
@@ -41,6 +44,7 @@ from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.pvalue import AsList
 from apache_beam.pvalue import AsSingleton
 from apache_beam.runners import pipeline_context
+from apache_beam.testing.synthetic_pipeline import SyntheticSource
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import SortLists
@@ -187,13 +191,33 @@ class FakeClock(object):
 class BatchElementsTest(unittest.TestCase):
   def test_constant_batch(self):
     # Assumes a single bundle...
-    with TestPipeline() as p:
-      res = (
-          p
-          | beam.Create(range(35))
-          | util.BatchElements(min_batch_size=10, max_batch_size=10)
-          | beam.Map(len))
-      assert_that(res, equal_to([10, 10, 10, 5]))
+    p = TestPipeline()
+    output = (
+        p
+        | beam.Create(range(35))
+        | util.BatchElements(min_batch_size=10, max_batch_size=10)
+        | beam.Map(len))
+    assert_that(output, equal_to([10, 10, 10, 5]))
+    res = p.run()
+    res.wait_until_finish()
+    metrics = res.metrics()
+    results = metrics.query(MetricsFilter().with_name("batch_size"))
+    self.assertEqual(len(results["distributions"]), 1)
+
+  def test_constant_batch_no_metrics(self):
+    p = TestPipeline()
+    output = (
+        p
+        | beam.Create(range(35))
+        | util.BatchElements(
+            min_batch_size=10, max_batch_size=10, record_metrics=False)
+        | beam.Map(len))
+    assert_that(output, equal_to([10, 10, 10, 5]))
+    res = p.run()
+    res.wait_until_finish()
+    metrics = res.metrics()
+    results = metrics.query(MetricsFilter().with_name("batch_size"))
+    self.assertEqual(len(results["distributions"]), 0)
 
   def test_grows_to_max_batch(self):
     # Assumes a single bundle...
@@ -228,12 +252,60 @@ class BatchElementsTest(unittest.TestCase):
               7,  # elements in [30, 47)
           ]))
 
+  def test_global_batch_timestamps(self):
+    # Assumes a single bundle
+    with TestPipeline() as p:
+      res = (
+          p
+          | beam.Create(range(3), reshuffle=False)
+          | util.BatchElements(min_batch_size=2, max_batch_size=2)
+          | beam.Map(
+              lambda batch,
+              timestamp=beam.DoFn.TimestampParam: (len(batch), timestamp)))
+      assert_that(
+          res,
+          equal_to([
+              (2, GlobalWindow().max_timestamp()),
+              (1, GlobalWindow().max_timestamp()),
+          ]))
+
+  def test_sized_batches(self):
+    with TestPipeline() as p:
+      res = (
+          p
+          | beam.Create([
+              'a', 'a', 'aaaaaaaaaa',  # First batch.
+              'aaaaaa', 'aaaaa',       # Second batch.
+              'a', 'aaaaaaa', 'a', 'a' # Third batch.
+              ], reshuffle=False)
+          | util.BatchElements(
+              min_batch_size=10, max_batch_size=10, element_size_fn=len)
+          | beam.Map(lambda batch: ''.join(batch))
+          | beam.Map(len))
+      assert_that(res, equal_to([12, 11, 10]))
+
   def test_target_duration(self):
     clock = FakeClock()
     batch_estimator = util._BatchSizeEstimator(
         target_batch_overhead=None, target_batch_duration_secs=10, clock=clock)
     batch_duration = lambda batch_size: 1 + .7 * batch_size
-    # 1 + 12 * .7 is as close as we can get to 10 as possible.
+    # 14 * .7 is as close as we can get to 10 as possible.
+    expected_sizes = [1, 2, 4, 8, 14, 14, 14]
+    actual_sizes = []
+    for _ in range(len(expected_sizes)):
+      actual_sizes.append(batch_estimator.next_batch_size())
+      with batch_estimator.record_time(actual_sizes[-1]):
+        clock.sleep(batch_duration(actual_sizes[-1]))
+    self.assertEqual(expected_sizes, actual_sizes)
+
+  def test_target_duration_including_fixed_cost(self):
+    clock = FakeClock()
+    batch_estimator = util._BatchSizeEstimator(
+        target_batch_overhead=None,
+        target_batch_duration_secs_including_fixed_cost=10,
+        clock=clock)
+    batch_duration = lambda batch_size: 1 + .7 * batch_size
+    # 1 + 14 * .7 is as close as we can get to 10 as possible.
     expected_sizes = [1, 2, 4, 8, 12, 12, 12]
     actual_sizes = []
     for _ in range(len(expected_sizes)):
@@ -473,6 +545,22 @@ class ReshuffleTest(unittest.TestCase):
       result = (pipeline | beam.Create(data) | beam.Reshuffle())
       assert_that(result, equal_to(data))
 
+  def test_reshuffle_contents_unchanged_with_buckets(self):
+    with TestPipeline() as pipeline:
+      data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 3)]
+      buckets = 2
+      result = (pipeline | beam.Create(data) | beam.Reshuffle(buckets))
+      assert_that(result, equal_to(data))
+
+  def test_reshuffle_contents_unchanged_with_wrong_buckets(self):
+    wrong_buckets = [0, -1, "wrong", 2.5]
+    for wrong_bucket in wrong_buckets:
+      with self.assertRaisesRegex(ValueError,
+                                  'If `num_buckets` is set, it has to be an '
+                                  'integer greater than 0, got %s' %
+                                  wrong_bucket):
+        beam.Reshuffle(wrong_bucket)
+
   def test_reshuffle_after_gbk_contents_unchanged(self):
     with TestPipeline() as pipeline:
       data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 3)]
@@ -646,6 +734,25 @@ class ReshuffleTest(unittest.TestCase):
       assert_that(
           after_reshuffle, equal_to(expected_data), label='after reshuffle')
 
+  def test_reshuffle_streaming_global_window_with_buckets(self):
+    options = PipelineOptions()
+    options.view_as(StandardOptions).streaming = True
+    with TestPipeline(options=options) as pipeline:
+      data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 4)]
+      expected_data = [(1, [1, 2, 4]), (2, [1, 2]), (3, [1])]
+      buckets = 2
+      before_reshuffle = (
+          pipeline
+          | beam.Create(data)
+          | beam.WindowInto(GlobalWindows())
+          | beam.GroupByKey()
+          | beam.MapTuple(lambda k, vs: (k, sorted(vs))))
+      assert_that(
+          before_reshuffle, equal_to(expected_data), label='before_reshuffle')
+      after_reshuffle = before_reshuffle | beam.Reshuffle(buckets)
+      assert_that(
+          after_reshuffle, equal_to(expected_data), label='after reshuffle')
+
   @pytest.mark.it_validatesrunner
   def test_reshuffle_preserves_timestamps(self):
     with TestPipeline() as pipeline:
@@ -795,6 +902,19 @@ class GroupIntoBatchesTest(unittest.TestCase):
                       GroupIntoBatchesTest.NUM_ELEMENTS /
                       GroupIntoBatchesTest.BATCH_SIZE))
           ]))
+
+  def test_in_global_window_with_synthetic_source(self):
+    with beam.Pipeline() as pipeline:
+      collection = (
+          pipeline
+          | beam.io.Read(
+              SyntheticSource({
+                  "numRecords": 10, "keySizeBytes": 1, "valueSizeBytes": 1
+              }))
+          | "identical keys" >> beam.Map(lambda x: (None, x[1]))
+          | "Group key" >> beam.GroupIntoBatches(2)
+          | "count size" >> beam.Map(lambda x: len(x[1])))
+      assert_that(collection, equal_to([2, 2, 2, 2, 2]))
 
   def test_with_sharded_key_in_global_window(self):
     with TestPipeline() as pipeline:
@@ -994,6 +1114,46 @@ class ToStringTest(unittest.TestCase):
       result = (
           p | beam.Create([("one", 1), ("two", 2)]) | util.ToString.Kvs(""))
       assert_that(result, equal_to(["one1", "two2"]))
+
+
+class LogElementsTest(unittest.TestCase):
+  @pytest.fixture(scope="function")
+  def _capture_stdout_log(request, capsys):
+    with TestPipeline() as p:
+      result = (
+          p | beam.Create([
+              TimestampedValue(
+                  "event",
+                  datetime(2022, 10, 1, 0, 0, 0, 0,
+                           tzinfo=pytz.UTC).timestamp()),
+              TimestampedValue(
+                  "event",
+                  datetime(2022, 10, 2, 0, 0, 0, 0,
+                           tzinfo=pytz.UTC).timestamp()),
+          ])
+          | beam.WindowInto(FixedWindows(60))
+          | util.LogElements(
+              prefix='prefix_', with_window=True, with_timestamp=True))
+
+    request.captured_stdout = capsys.readouterr().out
+    return result
+
+  @pytest.mark.usefixtures("_capture_stdout_log")
+  def test_stdout_logs(self):
+    assert self.captured_stdout == \
+      ("prefix_event, timestamp='2022-10-01T00:00:00Z', "
+       "window(start=2022-10-01T00:00:00Z, end=2022-10-01T00:01:00Z)\n"
+       "prefix_event, timestamp='2022-10-02T00:00:00Z', "
+       "window(start=2022-10-02T00:00:00Z, end=2022-10-02T00:01:00Z)\n"), \
+      f'Received from stdout: {self.captured_stdout}'
+
+  def test_ptransform_output(self):
+    with TestPipeline() as p:
+      result = (
+          p
+          | beam.Create(['a', 'b', 'c'])
+          | util.LogElements(prefix='prefix_'))
+      assert_that(result, equal_to(['a', 'b', 'c']))
 
 
 class ReifyTest(unittest.TestCase):

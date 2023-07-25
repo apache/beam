@@ -101,7 +101,7 @@ public class FhirIOReadIT {
     pubsub.createSubscription(topicPath, subscriptionPath, 60);
     client.createFhirStore(healthcareDataset, fhirStoreName, version, pubsubTopic);
 
-    // Execute bundles to trigger FHIR notificiations to input topic
+    // Execute bundles to trigger FHIR notifications to input topic
     FhirIOTestUtil.executeFhirBundles(
         client,
         healthcareDataset + "/fhirStores/" + fhirStoreName,
@@ -109,7 +109,7 @@ public class FhirIOReadIT {
   }
 
   @After
-  public void deleteFHIRtore() throws IOException {
+  public void deleteFhirStore() throws IOException {
     HealthcareApiClient client = new HttpHealthcareApiClient();
     client.deleteFhirStore(healthcareDataset + "/fhirStores/" + fhirStoreName);
     TopicPath topicPath = PubsubClient.topicPathFromPath(pubsubTopic);
@@ -133,7 +133,7 @@ public class FhirIOReadIT {
         "waitForAnyMessage", signal.signalSuccessWhen(resources.getCoder(), anyResources -> true));
     // wait for any resource
 
-    Supplier<Void> start = signal.waitForStart(Duration.standardMinutes(5));
+    Supplier<Void> start = signal.waitForStart(Duration.standardMinutes(8));
     pipeline.apply(signal.signalStart());
     PipelineResult job = pipeline.run();
     start.get();

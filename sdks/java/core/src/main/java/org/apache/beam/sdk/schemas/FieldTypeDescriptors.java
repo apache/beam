@@ -22,8 +22,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import java.lang.reflect.ParameterizedType;
 import java.util.Collection;
 import java.util.Map;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.values.Row;
@@ -37,9 +35,8 @@ import org.joda.time.Instant;
  * Utilities for converting between {@link Schema} field types and {@link TypeDescriptor}s that
  * define Java objects which can represent these field types.
  */
-@Experimental(Kind.SCHEMAS)
 @SuppressWarnings({
-  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes"
 })
 public class FieldTypeDescriptors {

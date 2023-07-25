@@ -113,6 +113,7 @@ class MutationSizeEstimator {
       case TIMESTAMP:
         return 12;
       case STRING:
+      case PG_NUMERIC:
         return v.isNull() ? 0 : v.getString().length();
       case BYTES:
         return v.isNull() ? 0 : v.getBytes().length();
@@ -123,6 +124,8 @@ class MutationSizeEstimator {
         // are also stored in the Spanner database as String, so this gives an approximation for
         // mutation value size.
         return v.isNull() ? 0 : v.getNumeric().toString().length();
+      case JSON:
+        return v.isNull() ? 0 : v.getJson().length();
       default:
         throw new IllegalArgumentException("Unsupported type " + v.getType());
     }
@@ -140,6 +143,7 @@ class MutationSizeEstimator {
       case FLOAT64:
         return 8L * v.getFloat64Array().size();
       case STRING:
+      case PG_NUMERIC:
         long totalLength = 0;
         for (String s : v.getStringArray()) {
           if (s == null) {
@@ -175,7 +179,15 @@ class MutationSizeEstimator {
           totalLength += n.toString().length();
         }
         return totalLength;
-
+      case JSON:
+        totalLength = 0;
+        for (String s : v.getJsonArray()) {
+          if (s == null) {
+            continue;
+          }
+          totalLength += s.length();
+        }
+        return totalLength;
       default:
         throw new IllegalArgumentException("Unsupported type " + v.getType());
     }

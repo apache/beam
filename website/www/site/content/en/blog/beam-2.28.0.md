@@ -3,6 +3,7 @@ title:  "Apache Beam 2.28.0"
 date:   2021-02-22 12:00:00 -0800
 categories:
   - blog
+  - release
 authors:
   - chamikara
 ---
@@ -18,7 +19,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 We are happy to present the new 2.28.0 release of Apache Beam. This release includes both improvements and new functionality.
-See the [download page](/get-started/downloads/#2280-2021-02-13) for this release.
+See the [download page](/get-started/downloads/#2280-2021-02-22) for this release.
 For more information on changes in 2.28.0, check out the
 [detailed release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12349499).
 

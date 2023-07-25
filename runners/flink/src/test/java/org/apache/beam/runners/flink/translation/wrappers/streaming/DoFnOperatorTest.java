@@ -28,6 +28,7 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 
 import com.fasterxml.jackson.databind.type.TypeFactory;
 import com.fasterxml.jackson.databind.util.LRUMap;
@@ -114,7 +115,12 @@ import org.powermock.reflect.Whitebox;
 
 /** Tests for {@link DoFnOperator}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({"keyfor"})
+@SuppressWarnings({
+  "keyfor",
+  // TODO(https://github.com/apache/beam/issues/21230): Remove when new version of
+  // errorprone is released (2.11.0)
+  "unused"
+})
 public class DoFnOperatorTest {
 
   // views and windows for testing side inputs
@@ -270,7 +276,7 @@ public class DoFnOperatorTest {
   public void testWatermarkContract() throws Exception {
 
     final Instant timerTimestamp = new Instant(1000);
-    final Instant timerOutputTimestamp = timerTimestamp.minus(1);
+    final Instant timerOutputTimestamp = timerTimestamp.minus(Duration.millis(1));
     final String eventTimeMessage = "Event timer fired: ";
     final String processingTimeMessage = "Processing timer fired";
 
@@ -302,7 +308,10 @@ public class DoFnOperatorTest {
             eventTimerWithOutputTimestamp
                 .withOutputTimestamp(timerOutputTimestamp)
                 .set(timerTimestamp);
-            processingTimer.offset(Duration.millis(timerTimestamp.getMillis())).setRelative();
+            processingTimer
+                .withOutputTimestamp(new Instant(10))
+                .offset(Duration.millis(timerTimestamp.getMillis()))
+                .setRelative();
           }
 
           @OnTimer(eventTimerId)
@@ -323,12 +332,10 @@ public class DoFnOperatorTest {
 
           @OnTimer(processingTimerId)
           public void onProcessingTime(OnTimerContext context) {
-            assertEquals(
-                // Timestamps in processing timer context are defined to be the input watermark
-                // See SimpleDoFnRunner#onTimer
-                "Timer timestamp must match current input watermark",
-                timerTimestamp.plus(1),
-                context.timestamp());
+            assertTrue(
+                // Timestamps in processing timer context are defined to be the output watermark
+                "Timer timestamp must be at most current input watermark",
+                !timerTimestamp.plus(Duration.millis(1)).isBefore(context.timestamp()));
             context.outputWithTimestamp(processingTimeMessage, context.timestamp());
           }
         };
@@ -380,7 +387,7 @@ public class DoFnOperatorTest {
 
     testHarness.open();
 
-    testHarness.processWatermark(0);
+    testHarness.processWatermark(499);
     testHarness.setProcessingTime(0);
 
     IntervalWindow window1 = new IntervalWindow(new Instant(0), Duration.millis(10_000));
@@ -396,6 +403,11 @@ public class DoFnOperatorTest {
     testHarness.setProcessingTime(timerTimestamp.getMillis());
 
     assertThat(stripStreamRecordFromWindowedValue(testHarness.getOutput()), emptyIterable());
+    assertThat(doFnOperator.keyedStateInternals.minWatermarkHoldMs(), is(10L));
+
+    // this must fire the processing timer
+    testHarness.setProcessingTime(timerTimestamp.getMillis() + 1);
+
     assertThat(
         doFnOperator.keyedStateInternals.minWatermarkHoldMs(),
         is(timerOutputTimestamp.getMillis()));
@@ -410,22 +422,10 @@ public class DoFnOperatorTest {
                 eventTimeMessage + eventTimerId, timerTimestamp, window1, PaneInfo.NO_FIRING),
             WindowedValue.of(
                 eventTimeMessage + eventTimerId2,
-                timerTimestamp.minus(1),
+                timerTimestamp.minus(Duration.millis(1)),
                 window1,
-                PaneInfo.NO_FIRING)));
-
-    testHarness.getOutput().clear();
-
-    // this must fire the processing timer
-    testHarness.setProcessingTime(timerTimestamp.getMillis() + 1);
-
-    assertThat(
-        stripStreamRecordFromWindowedValue(testHarness.getOutput()),
-        contains(
-            WindowedValue.of(
-                // Timestamps in processing timer context are defined to be the input watermark
-                // See SimpleDoFnRunner#onTimer
-                processingTimeMessage, timerTimestamp.plus(1), window1, PaneInfo.NO_FIRING)));
+                PaneInfo.NO_FIRING),
+            WindowedValue.of(processingTimeMessage, new Instant(10), window1, PaneInfo.NO_FIRING)));
 
     testHarness.close();
   }
@@ -487,8 +487,8 @@ public class DoFnOperatorTest {
                     namespace,
                     "timer",
                     "family",
-                    elem.getTimestamp().plus(1),
-                    elem.getTimestamp().plus(1),
+                    elem.getTimestamp().plus(Duration.millis(1)),
+                    elem.getTimestamp().plus(Duration.millis(1)),
                     TimeDomain.EVENT_TIME);
                 timerInternals.setTimer(
                     namespace,
@@ -571,13 +571,15 @@ public class DoFnOperatorTest {
     // process second element, verify we emitted changed hold
     testHarness.processElement(
         new StreamRecord<>(
-            WindowedValue.timestampedValueInGlobalWindow(KV.of("Key", "Hello"), now.plus(2))));
+            WindowedValue.timestampedValueInGlobalWindow(
+                KV.of("Key", "Hello"), now.plus(Duration.millis(2)))));
 
     assertThat(
         emittedWatermarkHolds,
         is(equalTo(Arrays.asList(now.getMillis(), now.getMillis() + 1, now.getMillis() + 2))));
 
-    testHarness.processWatermark(GlobalWindow.INSTANCE.maxTimestamp().plus(1).getMillis());
+    testHarness.processWatermark(
+        GlobalWindow.INSTANCE.maxTimestamp().plus(Duration.millis(1)).getMillis());
     testHarness.processWatermark(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis());
 
     testHarness.close();
@@ -736,7 +738,7 @@ public class DoFnOperatorTest {
         window1
                 .maxTimestamp()
                 .plus(windowingStrategy.getAllowedLateness())
-                .plus(StatefulDoFnRunner.TimeInternalsCleanupTimer.GC_DELAY_MS)
+                .plus(Duration.millis(StatefulDoFnRunner.TimeInternalsCleanupTimer.GC_DELAY_MS))
                 .getMillis()
             + 1);
 
@@ -786,13 +788,20 @@ public class DoFnOperatorTest {
     assertThat(testHarness.numEventTimeTimers(), is(0));
     assertThat(testHarness.numKeyedStateEntries(), is(2));
 
+    // enforce closing of bundle
+    testHarness.setProcessingTime(
+        testHarness.getProcessingTime()
+            + 2 * FlinkPipelineOptions.defaults().getMaxBundleTimeMills());
+
     // Should not trigger garbage collection yet
-    testHarness.processWatermark(GlobalWindow.INSTANCE.maxTimestamp().plus(1).getMillis());
+    testHarness.processWatermark(
+        GlobalWindow.INSTANCE.maxTimestamp().plus(Duration.millis(1)).getMillis());
     assertThat(testHarness.numEventTimeTimers(), is(0));
     assertThat(testHarness.numKeyedStateEntries(), is(2));
 
     // Cleanup due to end of global window
-    testHarness.processWatermark(GlobalWindow.INSTANCE.maxTimestamp().plus(2).getMillis());
+    testHarness.processWatermark(
+        GlobalWindow.INSTANCE.maxTimestamp().plus(Duration.millis(2)).getMillis());
     assertThat(testHarness.numEventTimeTimers(), is(0));
     assertThat(testHarness.numKeyedStateEntries(), is(0));
 
@@ -1646,7 +1655,7 @@ public class DoFnOperatorTest {
 
     // close() will also call dispose(), but call again to verify no new bundle
     // is created afterwards
-    newDoFnOperator.dispose();
+    newDoFnOperator.cleanUp();
 
     assertThat(
         stripStreamRecordFromWindowedValue(newHarness.getOutput()),
@@ -2087,7 +2096,10 @@ public class DoFnOperatorTest {
     testHarness.processElement(
         new StreamRecord<>(WindowedValue.valueInGlobalWindow(KV.of("key2", "d"))));
 
-    assertThat(Iterables.size(testHarness.getOutput()), is(0));
+    assertThat(
+        testHarness.getOutput() + " should be empty",
+        Iterables.size(testHarness.getOutput()),
+        is(0));
 
     OperatorSubtaskState backup = testHarness.snapshot(0, 0);
     doFnOperator.notifyCheckpointComplete(0L);
@@ -2258,7 +2270,7 @@ public class DoFnOperatorTest {
     // Closes and disposes the operator
     testHarness.close();
     // Ensure that dispose has the metrics code
-    doFnOperator.dispose();
+    doFnOperator.cleanUp();
     Mockito.verify(monitoredContainer, Mockito.times(2)).registerMetricsForPipelineResult();
   }
 

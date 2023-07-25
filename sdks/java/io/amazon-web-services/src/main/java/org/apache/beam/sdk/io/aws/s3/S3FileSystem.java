@@ -86,9 +86,13 @@ import org.slf4j.LoggerFactory;
  * {@link FileSystem} implementation for storage systems that use the S3 protocol.
  *
  * @see S3FileSystemSchemeRegistrar
+ * @deprecated Module <code>beam-sdks-java-io-amazon-web-services</code> is deprecated and will be
+ *     eventually removed. Please migrate to module <code>beam-sdks-java-io-amazon-web-services2
+ *     </code>.
  */
+@Deprecated
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class S3FileSystem extends FileSystem<S3ResourceId> {
 
@@ -120,6 +124,10 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
         MoreExecutors.listeningDecorator(
             Executors.newFixedThreadPool(
                 config.getS3ThreadPoolSize(), new ThreadFactoryBuilder().setDaemon(true).build()));
+
+    LOG.warn(
+        "You are using a deprecated file system for S3. Please migrate to module "
+            + "'org.apache.beam:beam-sdks-java-io-amazon-web-services2'.");
   }
 
   S3FileSystem(S3Options options) {
@@ -227,7 +235,8 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
             exception = pathWithEncoding.getException();
             break;
           } else {
-            // TODO(BEAM-11821): Support file checksum in this method.
+            // TODO(https://github.com/apache/beam/issues/20755): Support file checksum in this
+            // method.
             metadatas.add(
                 createBeamMetadata(
                     pathWithEncoding.getPath(), pathWithEncoding.getContentEncoding(), null));
@@ -484,8 +493,8 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
     InitiateMultipartUploadRequest initiateUploadRequest =
         new InitiateMultipartUploadRequest(destinationPath.getBucket(), destinationPath.getKey())
             .withStorageClass(config.getS3StorageClass())
-            .withObjectMetadata(sourceObjectMetadata);
-    initiateUploadRequest.setSSECustomerKey(config.getSSECustomerKey());
+            .withObjectMetadata(sourceObjectMetadata)
+            .withSSECustomerKey(config.getSSECustomerKey());
 
     InitiateMultipartUploadResult initiateUploadResult =
         amazonS3.get().initiateMultipartUpload(initiateUploadRequest);
@@ -512,7 +521,6 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
       eTags.add(copyPartResult.getPartETag());
     } else {
       long bytePosition = 0;
-      Integer uploadBufferSizeBytes = config.getS3UploadBufferSizeBytes();
       // Amazon parts are 1-indexed, not zero-indexed.
       for (int partNumber = 1; bytePosition < objectSize; partNumber++) {
         final CopyPartRequest copyPartRequest =
@@ -524,14 +532,15 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
                 .withUploadId(uploadId)
                 .withPartNumber(partNumber)
                 .withFirstByte(bytePosition)
-                .withLastByte(Math.min(objectSize - 1, bytePosition + uploadBufferSizeBytes - 1));
+                .withLastByte(
+                    Math.min(objectSize - 1, bytePosition + MAX_COPY_OBJECT_SIZE_BYTES - 1));
         copyPartRequest.setSourceSSECustomerKey(config.getSSECustomerKey());
         copyPartRequest.setDestinationSSECustomerKey(config.getSSECustomerKey());
 
         CopyPartResult copyPartResult = amazonS3.get().copyPart(copyPartRequest);
         eTags.add(copyPartResult.getPartETag());
 
-        bytePosition += uploadBufferSizeBytes;
+        bytePosition += MAX_COPY_OBJECT_SIZE_BYTES;
       }
     }
 
@@ -591,7 +600,8 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
         keys.size());
     List<KeyVersion> deleteKeyVersions =
         keys.stream().map(KeyVersion::new).collect(Collectors.toList());
-    DeleteObjectsRequest request = new DeleteObjectsRequest(bucket).withKeys(deleteKeyVersions);
+    DeleteObjectsRequest request =
+        new DeleteObjectsRequest(bucket).withKeys(deleteKeyVersions).withQuiet(true);
     try {
       amazonS3.get().deleteObjects(request);
     } catch (AmazonClientException e) {

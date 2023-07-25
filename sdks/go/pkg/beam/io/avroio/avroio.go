@@ -25,13 +25,16 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
-	"github.com/linkedin/goavro"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
+	"github.com/linkedin/goavro/v2"
 )
 
 func init() {
-	beam.RegisterFunction(expandFn)
-	beam.RegisterType(reflect.TypeOf((*avroReadFn)(nil)).Elem())
-	beam.RegisterType(reflect.TypeOf((*writeAvroFn)(nil)).Elem())
+	register.Function3x1(expandFn)
+	register.DoFn3x1[context.Context, string, func(beam.X), error]((*avroReadFn)(nil))
+	register.DoFn3x1[context.Context, int, func(*string) bool, error]((*writeAvroFn)(nil))
+	register.Emitter1[beam.X]()
+	register.Iter1[string]()
 }
 
 // Read reads a set of files and returns lines as a PCollection<elem>
@@ -101,9 +104,9 @@ func (f *avroReadFn) ProcessElement(ctx context.Context, filename string, emit f
 		return
 	}
 
-	val := reflect.New(f.Type.T).Interface()
 	for ar.Scan() {
-		var i interface{}
+		val := reflect.New(f.Type.T).Interface()
+		var i any
 		i, err = ar.Read()
 		if err != nil {
 			log.Errorf(ctx, "error reading avro row: %v", err)
@@ -191,7 +194,7 @@ func (w *writeAvroFn) ProcessElement(ctx context.Context, _ int, lines func(*str
 			return err
 		}
 
-		if err := ocfw.Append([]interface{}{native}); err != nil {
+		if err := ocfw.Append([]any{native}); err != nil {
 			log.Errorf(ctx, "error writing avro: %v", err)
 			return err
 		}

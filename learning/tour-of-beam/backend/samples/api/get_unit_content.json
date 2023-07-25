@@ -1,0 +1,11 @@
+{
+    "id": "challenge1",
+    "title": "Challenge Name",
+    "description": "## Challenge description\n\nawesome description\n",
+    "hints" : [
+        "## Hint 1\n\nhint 1 python",
+        "## Hint 2\n\nhint 2"
+     ],
+     "taskSnippetId": "TB_EXAMPLES_SDK_PYTHON_ChallengeTask",
+     "solutionSnippetId": "TB_EXAMPLES_SDK_PYTHON_ChallengeSolution"
+}

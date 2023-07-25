@@ -14,9 +14,19 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-import apache_beam as beam
+# beam-playground:
+#   name: FilterParDo
+#   description: Task from katas to implement a filter function that filters out the even numbers.
+#   multifile: false
+#   context_line: 39
+#   categories:
+#     - Filtering
+#   complexity: BASIC
+#   tags:
+#     - filter
+#     - numbers
 
-from log_elements import LogElements
+import apache_beam as beam
 
 
 class FilterOutEvenNumber(beam.DoFn):
@@ -29,5 +39,4 @@ class FilterOutEvenNumber(beam.DoFn):
 with beam.Pipeline() as p:
   (p | beam.Create(range(1, 11))
      | beam.ParDo(FilterOutEvenNumber())
-     | LogElements())
-
+     | beam.LogElements())

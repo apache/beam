@@ -20,7 +20,7 @@ package org.apache.beam.runners.dataflow.worker.status;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.api.client.json.JsonFactory;
-import com.google.api.client.json.jackson2.JacksonFactory;
+import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.client.util.Key;
 import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.model.GetDebugConfigRequest;
@@ -46,11 +46,11 @@ import org.slf4j.LoggerFactory;
  * It is dynamically configured by the service.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class DebugCapture {
   private static final Logger LOG = LoggerFactory.getLogger(DebugCapture.class);
-  private static final JsonFactory JSON_FACTORY = new JacksonFactory();
+  private static final JsonFactory JSON_FACTORY = new GsonFactory();
   private static final String COMPONENT = "JavaHarness";
   // How often to refresh debug capture config.
   private static final long UPDATE_CONFIG_PERIOD_SEC = 60;

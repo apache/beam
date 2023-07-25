@@ -28,8 +28,10 @@ import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.hasProperty;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
+import static org.hamcrest.Matchers.matchesRegex;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -43,6 +45,8 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyListOf;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Matchers.isA;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mockStatic;
@@ -60,6 +64,8 @@ import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.google.api.services.bigquery.model.TableRow;
+import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.model.DataflowPackage;
 import com.google.api.services.dataflow.model.Job;
@@ -72,6 +78,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.channels.FileChannel;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
@@ -83,11 +90,18 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import org.apache.beam.model.expansion.v1.ExpansionApi;
+import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.runners.core.construction.Environments;
+import org.apache.beam.runners.core.construction.ExpansionServiceClient;
+import org.apache.beam.runners.core.construction.ExpansionServiceClientFactory;
+import org.apache.beam.runners.core.construction.External;
+import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.SdkComponents;
+import org.apache.beam.runners.core.construction.TransformPayloadTranslatorRegistrar;
 import org.apache.beam.runners.dataflow.DataflowRunner.StreamingShardedWriteFactory;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
@@ -111,6 +125,10 @@ import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.WriteFiles;
 import org.apache.beam.sdk.io.WriteFilesResult;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
+import org.apache.beam.sdk.io.gcp.bigquery.WriteResult;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions.CheckEnabled;
@@ -150,11 +168,16 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValues;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.initialization.qual.Initialized;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 import org.hamcrest.Description;
 import org.hamcrest.Matchers;
 import org.hamcrest.TypeSafeMatcher;
@@ -180,6 +203,9 @@ import org.powermock.modules.junit4.PowerMockRunner;
  * <p>Implements {@link Serializable} because it is caught in closures.
  */
 @RunWith(JUnit4.class)
+// TODO(https://github.com/apache/beam/issues/21230): Remove when new version of errorprone is
+// released (2.11.0)
+@SuppressWarnings("unused")
 public class DataflowRunnerTest implements Serializable {
 
   private static final String VALID_BUCKET = "valid-bucket";
@@ -285,12 +311,15 @@ public class DataflowRunnerTest implements Serializable {
 
     when(mockGcsUtil.expand(any(GcsPath.class)))
         .then(invocation -> ImmutableList.of((GcsPath) invocation.getArguments()[0]));
-    when(mockGcsUtil.bucketAccessible(GcsPath.fromUri(VALID_STAGING_BUCKET))).thenReturn(true);
-    when(mockGcsUtil.bucketAccessible(GcsPath.fromUri(VALID_TEMP_BUCKET))).thenReturn(true);
-    when(mockGcsUtil.bucketAccessible(GcsPath.fromUri(VALID_TEMP_BUCKET + "/staging/")))
-        .thenReturn(true);
-    when(mockGcsUtil.bucketAccessible(GcsPath.fromUri(VALID_PROFILE_BUCKET))).thenReturn(true);
-    when(mockGcsUtil.bucketAccessible(GcsPath.fromUri(NON_EXISTENT_BUCKET))).thenReturn(false);
+    doNothing().when(mockGcsUtil).verifyBucketAccessible(GcsPath.fromUri(VALID_STAGING_BUCKET));
+    doNothing().when(mockGcsUtil).verifyBucketAccessible(GcsPath.fromUri(VALID_TEMP_BUCKET));
+    doNothing()
+        .when(mockGcsUtil)
+        .verifyBucketAccessible(GcsPath.fromUri(VALID_TEMP_BUCKET + "/staging"));
+    doNothing().when(mockGcsUtil).verifyBucketAccessible(GcsPath.fromUri(VALID_PROFILE_BUCKET));
+    doThrow(new FileNotFoundException())
+        .when(mockGcsUtil)
+        .verifyBucketAccessible(GcsPath.fromUri(NON_EXISTENT_BUCKET));
 
     // Let every valid path be matched
     when(mockGcsUtil.getObjects(anyListOf(GcsPath.class)))
@@ -312,7 +341,7 @@ public class DataflowRunnerTest implements Serializable {
             });
 
     // The dataflow pipeline attempts to output to this location.
-    when(mockGcsUtil.bucketAccessible(GcsPath.fromUri("gs://bucket/object"))).thenReturn(true);
+    doNothing().when(mockGcsUtil).verifyBucketAccessible(GcsPath.fromUri("gs://bucket/object"));
 
     return mockGcsUtil;
   }
@@ -782,7 +811,7 @@ public class DataflowRunnerTest implements Serializable {
     DataflowPipelineOptions options = buildPipelineOptions();
     options.setExperiments(Arrays.asList("upload_graph"));
     Pipeline p = buildDataflowPipeline(options);
-    DataflowPipelineJob job = (DataflowPipelineJob) p.run();
+    p.run();
 
     ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
     Mockito.verify(mockJobs).create(eq(PROJECT_ID), eq(REGION_ID), jobCaptor.capture());
@@ -958,8 +987,7 @@ public class DataflowRunnerTest implements Serializable {
                     StandardOpenOption.DELETE_ON_CLOSE));
 
     Pipeline p = buildDataflowPipeline(options);
-
-    DataflowPipelineJob job = (DataflowPipelineJob) p.run();
+    p.run();
   }
 
   @Test
@@ -1055,7 +1083,8 @@ public class DataflowRunnerTest implements Serializable {
     DataflowPipelineOptions options = buildPipelineOptions();
     options.setGcpTempLocation(NON_EXISTENT_BUCKET);
 
-    thrown.expect(IllegalArgumentException.class);
+    thrown.expect(RuntimeException.class);
+    thrown.expectCause(instanceOf(FileNotFoundException.class));
     thrown.expectMessage(
         containsString("Output path does not exist or is not writeable: " + NON_EXISTENT_BUCKET));
     DataflowRunner.fromOptions(options);
@@ -1070,7 +1099,8 @@ public class DataflowRunnerTest implements Serializable {
     DataflowPipelineOptions options = buildPipelineOptions();
     options.setStagingLocation(NON_EXISTENT_BUCKET);
 
-    thrown.expect(IllegalArgumentException.class);
+    thrown.expect(RuntimeException.class);
+    thrown.expectCause(instanceOf(FileNotFoundException.class));
     thrown.expectMessage(
         containsString("Output path does not exist or is not writeable: " + NON_EXISTENT_BUCKET));
     DataflowRunner.fromOptions(options);
@@ -1085,7 +1115,8 @@ public class DataflowRunnerTest implements Serializable {
     DataflowPipelineOptions options = buildPipelineOptions();
     options.setSaveProfilesToGcs(NON_EXISTENT_BUCKET);
 
-    thrown.expect(IllegalArgumentException.class);
+    thrown.expect(RuntimeException.class);
+    thrown.expectCause(instanceOf(FileNotFoundException.class));
     thrown.expectMessage(
         containsString("Output path does not exist or is not writeable: " + NON_EXISTENT_BUCKET));
     DataflowRunner.fromOptions(options);
@@ -1174,6 +1205,212 @@ public class DataflowRunnerTest implements Serializable {
         "DataflowRunner requires gcpTempLocation, "
             + "but failed to retrieve a value from PipelineOption");
     DataflowRunner.fromOptions(options);
+  }
+
+  @Test
+  public void testApplySdkEnvironmentOverrides() throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    String dockerHubPythonContainerUrl = "apache/beam_python3.8_sdk:latest";
+    String gcrPythonContainerUrl = "gcr.io/apache-beam-testing/beam-sdk/beam_python3.8_sdk:latest";
+    options.setSdkHarnessContainerImageOverrides(".*python.*," + gcrPythonContainerUrl);
+    DataflowRunner runner = DataflowRunner.fromOptions(options);
+    RunnerApi.Pipeline pipeline =
+        RunnerApi.Pipeline.newBuilder()
+            .setComponents(
+                RunnerApi.Components.newBuilder()
+                    .putEnvironments(
+                        "env",
+                        RunnerApi.Environment.newBuilder()
+                            .setUrn(
+                                BeamUrns.getUrn(RunnerApi.StandardEnvironments.Environments.DOCKER))
+                            .setPayload(
+                                RunnerApi.DockerPayload.newBuilder()
+                                    .setContainerImage(dockerHubPythonContainerUrl)
+                                    .build()
+                                    .toByteString())
+                            .build()))
+            .build();
+    RunnerApi.Pipeline expectedPipeline =
+        RunnerApi.Pipeline.newBuilder()
+            .setComponents(
+                RunnerApi.Components.newBuilder()
+                    .putEnvironments(
+                        "env",
+                        RunnerApi.Environment.newBuilder()
+                            .setUrn(
+                                BeamUrns.getUrn(RunnerApi.StandardEnvironments.Environments.DOCKER))
+                            .setPayload(
+                                RunnerApi.DockerPayload.newBuilder()
+                                    .setContainerImage(gcrPythonContainerUrl)
+                                    .build()
+                                    .toByteString())
+                            .build()))
+            .build();
+    assertThat(runner.applySdkEnvironmentOverrides(pipeline, options), equalTo(expectedPipeline));
+  }
+
+  @Test
+  public void testApplySdkEnvironmentOverridesByDefault() throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    String dockerHubPythonContainerUrl = "apache/beam_python3.8_sdk:latest";
+    String gcrPythonContainerUrl = "gcr.io/cloud-dataflow/v1beta3/beam_python3.8_sdk:latest";
+    DataflowRunner runner = DataflowRunner.fromOptions(options);
+    RunnerApi.Pipeline pipeline =
+        RunnerApi.Pipeline.newBuilder()
+            .setComponents(
+                RunnerApi.Components.newBuilder()
+                    .putEnvironments(
+                        "env",
+                        RunnerApi.Environment.newBuilder()
+                            .setUrn(
+                                BeamUrns.getUrn(RunnerApi.StandardEnvironments.Environments.DOCKER))
+                            .setPayload(
+                                RunnerApi.DockerPayload.newBuilder()
+                                    .setContainerImage(dockerHubPythonContainerUrl)
+                                    .build()
+                                    .toByteString())
+                            .build()))
+            .build();
+    RunnerApi.Pipeline expectedPipeline =
+        RunnerApi.Pipeline.newBuilder()
+            .setComponents(
+                RunnerApi.Components.newBuilder()
+                    .putEnvironments(
+                        "env",
+                        RunnerApi.Environment.newBuilder()
+                            .setUrn(
+                                BeamUrns.getUrn(RunnerApi.StandardEnvironments.Environments.DOCKER))
+                            .setPayload(
+                                RunnerApi.DockerPayload.newBuilder()
+                                    .setContainerImage(gcrPythonContainerUrl)
+                                    .build()
+                                    .toByteString())
+                            .build()))
+            .build();
+    assertThat(runner.applySdkEnvironmentOverrides(pipeline, options), equalTo(expectedPipeline));
+  }
+
+  @Test
+  public void testStageArtifactWithoutStagedName() throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    DataflowRunner runner = DataflowRunner.fromOptions(options);
+
+    File temp1 = File.createTempFile("artifact1-", ".txt");
+    temp1.deleteOnExit();
+    File temp2 = File.createTempFile("artifact2-", ".txt");
+    temp2.deleteOnExit();
+
+    RunnerApi.ArtifactInformation fooLocalArtifact =
+        RunnerApi.ArtifactInformation.newBuilder()
+            .setTypeUrn(BeamUrns.getUrn(RunnerApi.StandardArtifacts.Types.FILE))
+            .setTypePayload(
+                RunnerApi.ArtifactFilePayload.newBuilder()
+                    .setPath(temp1.getAbsolutePath())
+                    .build()
+                    .toByteString())
+            .build();
+    RunnerApi.ArtifactInformation barLocalArtifact =
+        RunnerApi.ArtifactInformation.newBuilder()
+            .setTypeUrn(BeamUrns.getUrn(RunnerApi.StandardArtifacts.Types.FILE))
+            .setTypePayload(
+                RunnerApi.ArtifactFilePayload.newBuilder()
+                    .setPath(temp2.getAbsolutePath())
+                    .build()
+                    .toByteString())
+            .build();
+    RunnerApi.Pipeline pipeline =
+        RunnerApi.Pipeline.newBuilder()
+            .setComponents(
+                RunnerApi.Components.newBuilder()
+                    .putEnvironments(
+                        "env",
+                        RunnerApi.Environment.newBuilder()
+                            .addAllDependencies(
+                                ImmutableList.of(fooLocalArtifact, barLocalArtifact))
+                            .build()))
+            .build();
+    List<DataflowPackage> packages = runner.stageArtifacts(pipeline);
+    for (DataflowPackage pkg : packages) {
+      assertThat(pkg.getName(), matchesRegex("artifact[1,2]-.+\\.txt"));
+    }
+  }
+
+  @Test
+  public void testStageDuplicatedArtifacts() throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    DataflowRunner runner = DataflowRunner.fromOptions(options);
+
+    File foo = File.createTempFile("foo-", ".txt");
+    foo.deleteOnExit();
+    File bar = File.createTempFile("bar-", ".txt");
+    bar.deleteOnExit();
+
+    RunnerApi.ArtifactInformation foo1LocalArtifact =
+        RunnerApi.ArtifactInformation.newBuilder()
+            .setTypeUrn(BeamUrns.getUrn(RunnerApi.StandardArtifacts.Types.FILE))
+            .setTypePayload(
+                RunnerApi.ArtifactFilePayload.newBuilder()
+                    .setPath(foo.getAbsolutePath())
+                    .build()
+                    .toByteString())
+            .setRoleUrn(BeamUrns.getUrn(RunnerApi.StandardArtifacts.Roles.STAGING_TO))
+            .setRolePayload(
+                RunnerApi.ArtifactStagingToRolePayload.newBuilder()
+                    .setStagedName("foo_staged1.jar")
+                    .build()
+                    .toByteString())
+            .build();
+    RunnerApi.ArtifactInformation foo2LocalArtifact =
+        RunnerApi.ArtifactInformation.newBuilder()
+            .setTypeUrn(BeamUrns.getUrn(RunnerApi.StandardArtifacts.Types.FILE))
+            .setTypePayload(
+                RunnerApi.ArtifactFilePayload.newBuilder()
+                    .setPath(foo.getAbsolutePath())
+                    .build()
+                    .toByteString())
+            .setRoleUrn(BeamUrns.getUrn(RunnerApi.StandardArtifacts.Roles.STAGING_TO))
+            .setRolePayload(
+                RunnerApi.ArtifactStagingToRolePayload.newBuilder()
+                    .setStagedName("foo_staged2.jar")
+                    .build()
+                    .toByteString())
+            .build();
+    RunnerApi.ArtifactInformation barLocalArtifact =
+        RunnerApi.ArtifactInformation.newBuilder()
+            .setTypeUrn(BeamUrns.getUrn(RunnerApi.StandardArtifacts.Types.FILE))
+            .setTypePayload(
+                RunnerApi.ArtifactFilePayload.newBuilder()
+                    .setPath(bar.getAbsolutePath())
+                    .build()
+                    .toByteString())
+            .setRoleUrn(BeamUrns.getUrn(RunnerApi.StandardArtifacts.Roles.STAGING_TO))
+            .setRolePayload(
+                RunnerApi.ArtifactStagingToRolePayload.newBuilder()
+                    .setStagedName("bar_staged.jar")
+                    .build()
+                    .toByteString())
+            .build();
+    RunnerApi.Environment env1 =
+        RunnerApi.Environment.newBuilder()
+            .addAllDependencies(ImmutableList.of(foo1LocalArtifact, barLocalArtifact))
+            .build();
+    RunnerApi.Environment env2 =
+        RunnerApi.Environment.newBuilder()
+            .addAllDependencies(ImmutableList.of(foo2LocalArtifact, barLocalArtifact))
+            .build();
+    RunnerApi.Pipeline pipeline =
+        RunnerApi.Pipeline.newBuilder()
+            .setComponents(
+                RunnerApi.Components.newBuilder()
+                    .putEnvironments("env1", env1)
+                    .putEnvironments("env2", env2))
+            .build();
+    List<DataflowPackage> packages = runner.stageArtifacts(pipeline);
+    List<String> packageNames =
+        packages.stream().map(DataflowPackage::getName).collect(Collectors.toList());
+    assertThat(packageNames.size(), equalTo(3));
+    assertThat(
+        packageNames, containsInAnyOrder("foo_staged1.jar", "foo_staged2.jar", "bar_staged.jar"));
   }
 
   @Test
@@ -1392,6 +1629,33 @@ public class DataflowRunnerTest implements Serializable {
     }
   }
 
+  private static class TestTransformTranslator
+      implements TransformPayloadTranslator<TestTransform> {
+    @Override
+    public String getUrn(TestTransform transform) {
+      return "test_transform";
+    }
+
+    @Override
+    public RunnerApi.FunctionSpec translate(
+        AppliedPTransform<?, ?, TestTransform> application, SdkComponents components)
+        throws IOException {
+      return RunnerApi.FunctionSpec.newBuilder().setUrn(getUrn(application.getTransform())).build();
+    }
+  }
+
+  @SuppressWarnings({
+    "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+  })
+  @AutoService(TransformPayloadTranslatorRegistrar.class)
+  public static class DataflowTransformTranslator implements TransformPayloadTranslatorRegistrar {
+    @Override
+    public Map<? extends Class<? extends PTransform>, ? extends TransformPayloadTranslator>
+        getTransformPayloadTranslators() {
+      return ImmutableMap.of(TestTransform.class, new TestTransformTranslator());
+    }
+  }
+
   @Test
   public void testTransformTranslatorMissing() throws IOException {
     DataflowPipelineOptions options = buildPipelineOptions();
@@ -1451,10 +1715,7 @@ public class DataflowRunnerTest implements Serializable {
     assertTrue(transform.translated);
   }
 
-  @Test
-  public void testSdkHarnessConfiguration() throws IOException {
-    DataflowPipelineOptions options = buildPipelineOptions();
-    ExperimentalOptions.addExperiment(options, "use_runner_v2");
+  private void verifySdkHarnessConfiguration(DataflowPipelineOptions options) throws IOException {
     Pipeline p = Pipeline.create(options);
 
     p.apply(Create.of(Arrays.asList(1, 2, 3)));
@@ -1463,7 +1724,9 @@ public class DataflowRunnerTest implements Serializable {
     SdkComponents sdkComponents = SdkComponents.create();
     RunnerApi.Environment defaultEnvironmentForDataflow =
         Environments.createDockerEnvironment(defaultSdkContainerImage);
-    sdkComponents.registerEnvironment(defaultEnvironmentForDataflow.toBuilder().build());
+    RunnerApi.Environment.Builder envBuilder =
+        defaultEnvironmentForDataflow.toBuilder().addCapabilities("my_dummy_capability");
+    sdkComponents.registerEnvironment(envBuilder.build());
 
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p, sdkComponents, true);
 
@@ -1509,6 +1772,78 @@ public class DataflowRunnerTest implements Serializable {
                 Collectors.toMap(
                     SdkHarnessContainerImage::getEnvironmentId,
                     SdkHarnessContainerImage::getContainerImage)));
+    assertTrue(sdks.get(0).getCapabilities().contains("my_dummy_capability"));
+  }
+
+  @Test
+  public void testSdkHarnessConfigurationRunnerV2() throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    ExperimentalOptions.addExperiment(options, "use_runner_v2");
+    this.verifySdkHarnessConfiguration(options);
+  }
+
+  @Test
+  public void testSdkHarnessConfigurationPrime() throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.setDataflowServiceOptions(ImmutableList.of("enable_prime"));
+    this.verifySdkHarnessConfiguration(options);
+  }
+
+  @Test
+  public void testSettingAnyFnApiExperimentEnablesUnifiedWorker() throws Exception {
+    for (String experiment :
+        ImmutableList.of(
+            "beam_fn_api", "use_runner_v2", "use_unified_worker", "use_portable_job_submission")) {
+      DataflowPipelineOptions options = buildPipelineOptions();
+      ExperimentalOptions.addExperiment(options, experiment);
+      Pipeline p = Pipeline.create(options);
+      p.apply(Create.of("A"));
+      p.run();
+      assertFalse(options.isEnableStreamingEngine());
+      assertThat(
+          options.getExperiments(),
+          containsInAnyOrder(
+              "beam_fn_api", "use_runner_v2", "use_unified_worker", "use_portable_job_submission"));
+    }
+
+    for (String experiment :
+        ImmutableList.of(
+            "beam_fn_api", "use_runner_v2", "use_unified_worker", "use_portable_job_submission")) {
+      DataflowPipelineOptions options = buildPipelineOptions();
+      options.setStreaming(true);
+      ExperimentalOptions.addExperiment(options, experiment);
+      Pipeline p = Pipeline.create(options);
+      p.apply(Create.of("A"));
+      p.run();
+      assertTrue(options.isEnableStreamingEngine());
+      assertThat(
+          options.getExperiments(),
+          containsInAnyOrder(
+              "beam_fn_api",
+              "use_runner_v2",
+              "use_unified_worker",
+              "use_portable_job_submission",
+              "enable_windmill_service",
+              "enable_streaming_engine"));
+    }
+  }
+
+  @Test
+  public void testSettingConflictingEnableAndDisableExperimentsThrowsException() throws Exception {
+    for (String experiment :
+        ImmutableList.of(
+            "beam_fn_api", "use_runner_v2", "use_unified_worker", "use_portable_job_submission")) {
+      for (String disabledExperiment :
+          ImmutableList.of(
+              "disable_runner_v2", "disable_runner_v2_until_2023", "disable_prime_runner_v2")) {
+        DataflowPipelineOptions options = buildPipelineOptions();
+        ExperimentalOptions.addExperiment(options, experiment);
+        ExperimentalOptions.addExperiment(options, disabledExperiment);
+        Pipeline p = Pipeline.create(options);
+        p.apply(Create.of("A"));
+        assertThrows("Runner V2 both disabled and enabled", IllegalArgumentException.class, p::run);
+      }
+    }
   }
 
   private void verifyMapStateUnsupported(PipelineOptions options) throws Exception {
@@ -1517,6 +1852,7 @@ public class DataflowRunnerTest implements Serializable {
         .apply(
             ParDo.of(
                 new DoFn<KV<Integer, Integer>, Void>() {
+
                   @StateId("fizzle")
                   private final StateSpec<MapState<Void, Void>> voidState = StateSpecs.map();
 
@@ -1554,6 +1890,7 @@ public class DataflowRunnerTest implements Serializable {
         .apply(
             ParDo.of(
                 new DoFn<KV<Integer, Integer>, Void>() {
+
                   @StateId("fizzle")
                   private final StateSpec<SetState<Void>> voidState = StateSpecs.set();
 
@@ -1788,6 +2125,7 @@ public class DataflowRunnerTest implements Serializable {
         .apply(
             ParDo.of(
                 new DoFn<KV<Integer, Integer>, Void>() {
+
                   @StateId("fizzle")
                   private final StateSpec<ValueState<Void>> voidState = StateSpecs.value();
 
@@ -2042,6 +2380,220 @@ public class DataflowRunnerTest implements Serializable {
     dataflowOptions.setStreaming(true);
     Pipeline p = Pipeline.create(options);
     verifyGroupIntoBatchesOverrideBytes(p, true, true);
+  }
+
+  @Test
+  public void testPubsubSinkOverride() throws IOException {
+    PipelineOptions options = buildPipelineOptions();
+    List<String> experiments =
+        new ArrayList<>(
+            ImmutableList.of(
+                GcpOptions.STREAMING_ENGINE_EXPERIMENT,
+                GcpOptions.WINDMILL_SERVICE_EXPERIMENT,
+                "use_runner_v2"));
+    DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
+    dataflowOptions.setExperiments(experiments);
+    dataflowOptions.setStreaming(true);
+    Pipeline p = Pipeline.create(options);
+
+    List<PubsubMessage> testValues =
+        Arrays.asList(
+            new PubsubMessage("foo".getBytes(StandardCharsets.UTF_8), Collections.emptyMap()));
+    PCollection<PubsubMessage> input =
+        p.apply("CreateValuesBytes", Create.of(testValues))
+            .setIsBoundedInternal(PCollection.IsBounded.UNBOUNDED);
+    input.apply(PubsubIO.writeMessages().to("projects/project/topics/topic"));
+    p.run();
+
+    AtomicBoolean sawPubsubOverride = new AtomicBoolean(false);
+    p.traverseTopologically(
+        new PipelineVisitor.Defaults() {
+          @Override
+          public void visitPrimitiveTransform(@UnknownKeyFor @NonNull @Initialized Node node) {
+            if (node.getTransform() instanceof DataflowRunner.StreamingPubsubIOWrite) {
+              sawPubsubOverride.set(true);
+            }
+          }
+        });
+    assertTrue(sawPubsubOverride.get());
+  }
+
+  @Test
+  public void testBigQueryDLQWarningStreamingInsertsConsumed() throws Exception {
+    testBigQueryDLQWarning(BigQueryIO.Write.Method.STREAMING_INSERTS, true);
+  }
+
+  @Test
+  public void testBigQueryDLQWarningStreamingInsertsNotConsumed() throws Exception {
+    testBigQueryDLQWarning(BigQueryIO.Write.Method.STREAMING_INSERTS, false);
+  }
+
+  @Test
+  public void testBigQueryDLQWarningStorageApiConsumed() throws Exception {
+    testBigQueryDLQWarning(BigQueryIO.Write.Method.STORAGE_WRITE_API, true);
+  }
+
+  @Test
+  public void testBigQueryDLQWarningStorageApiNotConsumed() throws Exception {
+    testBigQueryDLQWarning(BigQueryIO.Write.Method.STORAGE_WRITE_API, false);
+  }
+
+  @Test
+  public void testBigQueryDLQWarningStorageApiALOConsumed() throws Exception {
+    testBigQueryDLQWarning(BigQueryIO.Write.Method.STORAGE_API_AT_LEAST_ONCE, true);
+  }
+
+  @Test
+  public void testBigQueryDLQWarningStorageApiALONotConsumed() throws Exception {
+    testBigQueryDLQWarning(BigQueryIO.Write.Method.STORAGE_API_AT_LEAST_ONCE, false);
+  }
+
+  public void testBigQueryDLQWarning(BigQueryIO.Write.Method method, boolean processFailures)
+      throws IOException {
+    PipelineOptions options = buildPipelineOptions();
+    List<String> experiments =
+        new ArrayList<>(ImmutableList.of(GcpOptions.STREAMING_ENGINE_EXPERIMENT));
+    DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
+    dataflowOptions.setExperiments(experiments);
+    dataflowOptions.setStreaming(true);
+    Pipeline p = Pipeline.create(options);
+
+    List<TableRow> testValues = Arrays.asList(new TableRow(), new TableRow());
+    PCollection<TableRow> input =
+        p.apply("CreateValuesBytes", Create.of(testValues))
+            .setIsBoundedInternal(PCollection.IsBounded.UNBOUNDED);
+
+    BigQueryIO.Write<TableRow> write =
+        BigQueryIO.writeTableRows()
+            .to("project:dataset.table")
+            .withSchema(new TableSchema())
+            .withMethod(method)
+            .withoutValidation();
+    if (method == BigQueryIO.Write.Method.STORAGE_WRITE_API) {
+      write = write.withAutoSharding().withTriggeringFrequency(Duration.standardSeconds(1));
+    }
+    WriteResult result = input.apply("BQWrite", write);
+    if (processFailures) {
+      if (method == BigQueryIO.Write.Method.STREAMING_INSERTS) {
+        result
+            .getFailedInserts()
+            .apply(
+                MapElements.into(TypeDescriptors.voids())
+                    .via(SerializableFunctions.constant((Void) null)));
+      } else {
+        result
+            .getFailedStorageApiInserts()
+            .apply(
+                MapElements.into(TypeDescriptors.voids())
+                    .via(SerializableFunctions.constant((Void) null)));
+      }
+    }
+    p.run();
+
+    final String expectedWarning =
+        "No transform processes the failed-inserts output from BigQuery sink: BQWrite!"
+            + " Not processing failed inserts means that those rows will be lost.";
+    if (processFailures) {
+      expectedLogs.verifyNotLogged(expectedWarning);
+    } else {
+      expectedLogs.verifyWarn(expectedWarning);
+    }
+  }
+
+  @Test
+  public void testPubsubSinkDynamicOverride() throws IOException {
+    PipelineOptions options = buildPipelineOptions();
+    DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
+    dataflowOptions.setStreaming(true);
+    Pipeline p = Pipeline.create(options);
+
+    List<PubsubMessage> testValues =
+        Arrays.asList(
+            new PubsubMessage("foo".getBytes(StandardCharsets.UTF_8), Collections.emptyMap())
+                .withTopic(""));
+    PCollection<PubsubMessage> input =
+        p.apply("CreateValuesBytes", Create.of(testValues))
+            .setIsBoundedInternal(PCollection.IsBounded.UNBOUNDED);
+    input.apply(PubsubIO.writeMessagesDynamic());
+    p.run();
+
+    AtomicBoolean sawPubsubOverride = new AtomicBoolean(false);
+    p.traverseTopologically(
+        new PipelineVisitor.Defaults() {
+
+          @Override
+          public void visitPrimitiveTransform(@UnknownKeyFor @NonNull @Initialized Node node) {
+            if (node.getTransform() instanceof DataflowRunner.StreamingPubsubIOWrite) {
+              sawPubsubOverride.set(true);
+            }
+          }
+        });
+    assertTrue(sawPubsubOverride.get());
+  }
+
+  static class TestExpansionServiceClientFactory implements ExpansionServiceClientFactory {
+    ExpansionApi.ExpansionResponse response;
+
+    @Override
+    public ExpansionServiceClient getExpansionServiceClient(
+        Endpoints.ApiServiceDescriptor endpoint) {
+      return new ExpansionServiceClient() {
+        @Override
+        public ExpansionApi.ExpansionResponse expand(ExpansionApi.ExpansionRequest request) {
+          Pipeline p = TestPipeline.create();
+          p.apply(Create.of(1, 2, 3));
+          SdkComponents sdkComponents =
+              SdkComponents.create(p.getOptions()).withNewIdPrefix(request.getNamespace());
+          RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p, sdkComponents);
+          String transformId = Iterables.getOnlyElement(pipelineProto.getRootTransformIdsList());
+          RunnerApi.Components components = pipelineProto.getComponents();
+          ImmutableList.Builder<String> requirementsBuilder = ImmutableList.builder();
+          requirementsBuilder.addAll(pipelineProto.getRequirementsList());
+          requirementsBuilder.add("ExternalTranslationTest_Requirement_URN");
+          response =
+              ExpansionApi.ExpansionResponse.newBuilder()
+                  .setComponents(components)
+                  .setTransform(
+                      components
+                          .getTransformsOrThrow(transformId)
+                          .toBuilder()
+                          .setUniqueName(transformId))
+                  .addAllRequirements(requirementsBuilder.build())
+                  .build();
+          return response;
+        }
+
+        @Override
+        public ExpansionApi.DiscoverSchemaTransformResponse discover(
+            ExpansionApi.DiscoverSchemaTransformRequest request) {
+          return null;
+        }
+
+        @Override
+        public void close() throws Exception {
+          // do nothing
+        }
+      };
+    }
+
+    @Override
+    public void close() throws Exception {
+      // do nothing
+    }
+  }
+
+  @Test
+  public void testIsMultiLanguage() throws IOException {
+    PipelineOptions options = buildPipelineOptions();
+    Pipeline pipeline = Pipeline.create(options);
+    PCollection<String> col =
+        pipeline
+            .apply(Create.of("1", "2", "3"))
+            .apply(
+                External.of(
+                    "dummy_urn", new byte[] {}, "", new TestExpansionServiceClientFactory()));
+
+    assertTrue(DataflowRunner.isMultiLanguagePipeline(pipeline));
   }
 
   private void testStreamingWriteOverride(PipelineOptions options, int expectedNumShards) {

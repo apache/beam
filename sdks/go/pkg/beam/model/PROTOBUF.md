@@ -30,19 +30,15 @@ First, follow this one-time setup:
 1. Download [the protobuf compiler](https://github.com/google/protobuf/releases).
    The simplest approach is to download one of the prebuilt binaries (named
    `protoc`) and extract it somewhere in your machine's `$PATH`.
-1. Add `$GOBIN` to your `$PATH`. (Note: If `$GOBIN` is not set, add `$GOPATH/bin`
-   instead.)
 
 To generate the code:
 
 1. Navigate to this directory (`pkg/beam/model`).
-1. Check [go.mod](https://github.com/apache/beam/blob/master/sdks/go.mod) and
+2. Check [go.mod](https://github.com/apache/beam/blob/master/sdks/go.mod) and
    make note of which versions of [google.golang.org/protobuf](https://github.com/protocolbuffers/protobuf-go)
    and [google.golang.org/grpc](https://github.com/grpc/grpc-go) are required.
-1. Install the compiler executables at the corresponding versions.
-    1. `go install google.golang.org/protobuf/cmd/protoc-gen-go@<protobuf_version>`
-    1. `go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@<grpc_version>`
-1. `go generate`
+3. Verify the versions in ../../../scripts/genproto.sh are correct
+4. `go generate`
 
 ## Generated Go code fails to build
 

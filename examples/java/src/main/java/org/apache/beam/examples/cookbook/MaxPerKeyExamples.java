@@ -136,6 +136,10 @@ public class MaxPerKeyExamples {
   public static void main(String[] args) throws Exception {
 
     Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
+    runMaxPerKeyExamples(options);
+  }
+
+  static void runMaxPerKeyExamples(Options options) {
     Pipeline p = Pipeline.create(options);
 
     // Build the table schema for the output table.

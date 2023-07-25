@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.coders;
 
-import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
@@ -51,7 +50,7 @@ public class DoubleCoder extends AtomicCoder<Double> {
   @Override
   public Double decode(InputStream inStream) throws IOException, CoderException {
     try {
-      return new DataInputStream(inStream).readDouble();
+      return Double.longBitsToDouble(BitConverters.readBigEndianLong(inStream));
     } catch (EOFException | UTFDataFormatException exn) {
       // These exceptions correspond to decoding problems, so change
       // what kind of exception they're branded as.

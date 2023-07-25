@@ -1,0 +1,44 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+replicaCount: 1
+image:
+   java_image: beam_playground-backend-java
+   go_image: beam_playground-backend-go
+   router_image: beam_playground-backend-router
+   scio_image: beam_playground-backend-scio
+   python_image: beam_playground-backend-python
+   frontend_image: beam_playground-frontend
+   pullPolicy: Always
+service:
+   type: NodePort
+   targetPort: 8080
+   port: 443
+healthcheck:
+   port: 8080
+   livInitialDelaySeconds: 30
+   livPeriodSeconds: 30
+   readInitialDelaySeconds: 30
+   readPeriodSeconds: 30
+autoscaling:
+   runners:
+     maxReplicas: 4
+     minReplicas: 2
+   rest:
+     maxReplicas: 4
+     minReplicas: 1
+   utilization:
+     memoryUtilization: 80
+     cpuUtilization: 95
+     

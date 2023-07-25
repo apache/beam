@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import static org.apache.beam.vendor.calcite.v1_26_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.IOException;
 import java.time.LocalDate;
@@ -37,7 +37,6 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineResult.State;
-import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.CharType;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
@@ -50,6 +49,8 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.LogicalType;
+import org.apache.beam.sdk.schemas.logicaltypes.PassThroughLogicalType;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -57,24 +58,24 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.adapter.enumerable.EnumerableRel;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.adapter.enumerable.EnumerableRelImplementor;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.adapter.enumerable.PhysType;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.adapter.enumerable.PhysTypeImpl;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.linq4j.Enumerable;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.linq4j.Linq4j;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.linq4j.tree.BlockBuilder;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.linq4j.tree.Expression;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.linq4j.tree.Expressions;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.ConventionTraitDef;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelOptCluster;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelOptCost;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelOptPlanner;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelTraitSet;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelNode;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.convert.ConverterImpl;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.type.RelDataType;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.adapter.enumerable.EnumerableRel;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.adapter.enumerable.EnumerableRelImplementor;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.adapter.enumerable.PhysType;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.adapter.enumerable.PhysTypeImpl;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.linq4j.Enumerable;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.linq4j.Linq4j;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.linq4j.tree.BlockBuilder;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.linq4j.tree.Expression;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.linq4j.tree.Expressions;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.ConventionTraitDef;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptCluster;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptCost;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptPlanner;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelTraitSet;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.convert.ConverterImpl;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.type.RelDataType;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.ReadableInstant;
@@ -83,7 +84,7 @@ import org.slf4j.LoggerFactory;
 
 /** BeamRelNode to replace a {@code Enumerable} node. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class BeamEnumerableConverter extends ConverterImpl implements EnumerableRel {
   private static final Logger LOG = LoggerFactory.getLogger(BeamEnumerableConverter.class);
@@ -318,7 +319,9 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
 
     switch (type.getTypeName()) {
       case LOGICAL_TYPE:
-        String logicalId = type.getLogicalType().getIdentifier();
+        LogicalType<?, ?> logicalType = type.getLogicalType();
+        assert logicalType != null;
+        String logicalId = logicalType.getIdentifier();
         if (SqlTypes.TIME.getIdentifier().equals(logicalId)) {
           if (beamValue instanceof Long) { // base type
             return (Long) beamValue;
@@ -331,7 +334,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
           } else { // input type
             return (int) ((LocalDate) beamValue).toEpochDay();
           }
-        } else if (CharType.IDENTIFIER.equals(logicalId)) {
+        } else if (logicalType instanceof PassThroughLogicalType) {
           return beamValue;
         } else {
           throw new UnsupportedOperationException("Unknown DateTime type " + logicalId);

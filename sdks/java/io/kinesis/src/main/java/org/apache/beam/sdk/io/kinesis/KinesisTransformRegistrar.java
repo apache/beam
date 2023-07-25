@@ -22,8 +22,6 @@ import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionIn
 import com.google.auto.service.AutoService;
 import java.util.Map;
 import java.util.Properties;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
 import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -39,10 +37,9 @@ import org.joda.time.Instant;
  * Exposes {@link KinesisIO.Write} and {@link KinesisIO.Read} as an external transform for
  * cross-language usage.
  */
-@Experimental(Kind.PORTABILITY)
 @AutoService(ExternalTransformRegistrar.class)
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
   public static final String WRITE_URN = "beam:transform:org.apache.beam:kinesis_write:v1";

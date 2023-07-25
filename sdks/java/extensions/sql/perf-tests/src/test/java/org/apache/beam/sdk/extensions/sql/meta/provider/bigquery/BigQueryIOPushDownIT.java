@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.meta.provider.bigquery;
 
 import static org.apache.beam.sdk.extensions.sql.impl.planner.BeamRuleSets.getRuleSets;
+import static org.junit.Assert.assertNotEquals;
 
 import com.google.cloud.Timestamp;
 import java.util.ArrayList;
@@ -26,7 +27,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
@@ -38,20 +38,20 @@ import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testutils.NamedTestResult;
 import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
 import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelOptRule;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.tools.RuleSet;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.tools.RuleSets;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptRule;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.tools.RuleSet;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.tools.RuleSets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -93,15 +93,9 @@ public class BigQueryIOPushDownIT {
   private static SQLBigQueryPerfTestOptions options;
 
   @SuppressWarnings("initialization.static.fields.uninitialized")
-  private static String metricsBigQueryDataset;
-
-  @SuppressWarnings("initialization.static.fields.uninitialized")
-  private static String metricsBigQueryTable;
-
-  @SuppressWarnings("initialization.static.fields.uninitialized")
   private static InfluxDBSettings settings;
 
-  private Pipeline pipeline = Pipeline.create(options);
+  @Rule public TestPipeline pipeline = TestPipeline.create();
 
   @SuppressWarnings("initialization.fields.uninitialized")
   private BeamSqlEnv sqlEnv;
@@ -109,8 +103,6 @@ public class BigQueryIOPushDownIT {
   @BeforeClass
   public static void setUp() {
     options = IOITHelper.readIOTestPipelineOptions(SQLBigQueryPerfTestOptions.class);
-    metricsBigQueryDataset = options.getMetricsBigQueryDataset();
-    metricsBigQueryTable = options.getMetricsBigQueryTable();
     settings =
         InfluxDBSettings.builder()
             .withHost(options.getInfluxHost())
@@ -126,16 +118,17 @@ public class BigQueryIOPushDownIT {
 
   @Test
   public void readUsingDirectReadMethodPushDown() {
-    sqlEnv.executeDdl(String.format(CREATE_TABLE_STATEMENT, Method.DIRECT_READ.toString()));
+    sqlEnv.executeDdl(String.format(CREATE_TABLE_STATEMENT, Method.DIRECT_READ));
 
     BeamRelNode beamRelNode = sqlEnv.parseQuery(SELECT_STATEMENT);
-    PCollection<Row> output =
-        BeamSqlRelUtils.toPCollection(pipeline, beamRelNode)
-            .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC)));
+    BeamSqlRelUtils.toPCollection(pipeline, beamRelNode)
+        .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC)));
 
     PipelineResult result = pipeline.run();
-    result.waitUntilFinish();
+    PipelineResult.State pipelineState = result.waitUntilFinish();
     collectAndPublishMetrics(result, "_directread_pushdown");
+    // Fail the test if pipeline failed.
+    assertNotEquals(pipelineState, PipelineResult.State.FAILED);
   }
 
   @Test
@@ -155,30 +148,32 @@ public class BigQueryIOPushDownIT {
             .setPipelineOptions(PipelineOptionsFactory.create())
             .setRuleSets(ImmutableList.of(RuleSets.ofList(ruleList)))
             .build();
-    sqlEnv.executeDdl(String.format(CREATE_TABLE_STATEMENT, Method.DIRECT_READ.toString()));
+    sqlEnv.executeDdl(String.format(CREATE_TABLE_STATEMENT, Method.DIRECT_READ));
 
     BeamRelNode beamRelNode = sqlEnv.parseQuery(SELECT_STATEMENT);
-    PCollection<Row> output =
-        BeamSqlRelUtils.toPCollection(pipeline, beamRelNode)
-            .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC)));
+    BeamSqlRelUtils.toPCollection(pipeline, beamRelNode)
+        .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC)));
 
     PipelineResult result = pipeline.run();
-    result.waitUntilFinish();
+    PipelineResult.State pipelineState = result.waitUntilFinish();
     collectAndPublishMetrics(result, "_directread");
+    // Fail the test if pipeline failed.
+    assertNotEquals(pipelineState, PipelineResult.State.FAILED);
   }
 
   @Test
   public void readUsingDefaultMethod() {
-    sqlEnv.executeDdl(String.format(CREATE_TABLE_STATEMENT, Method.DEFAULT.toString()));
+    sqlEnv.executeDdl(String.format(CREATE_TABLE_STATEMENT, Method.DEFAULT));
 
     BeamRelNode beamRelNode = sqlEnv.parseQuery(SELECT_STATEMENT);
-    PCollection<Row> output =
-        BeamSqlRelUtils.toPCollection(pipeline, beamRelNode)
-            .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC)));
+    BeamSqlRelUtils.toPCollection(pipeline, beamRelNode)
+        .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC)));
 
     PipelineResult result = pipeline.run();
-    result.waitUntilFinish();
+    PipelineResult.State pipelineState = result.waitUntilFinish();
     collectAndPublishMetrics(result, "_default");
+    // Fail the test if pipeline failed.
+    assertNotEquals(pipelineState, PipelineResult.State.FAILED);
   }
 
   private void collectAndPublishMetrics(PipelineResult readResult, String postfix) {
@@ -188,7 +183,6 @@ public class BigQueryIOPushDownIT {
     Set<Function<MetricsReader, NamedTestResult>> readSuppliers = getReadSuppliers(uuid, timestamp);
     IOITMetrics readMetrics =
         new IOITMetrics(readSuppliers, readResult, NAMESPACE, uuid, timestamp);
-    readMetrics.publish(metricsBigQueryDataset, metricsBigQueryTable + postfix);
     readMetrics.publishToInflux(settings.copyWithMeasurement(settings.measurement + postfix));
   }
 

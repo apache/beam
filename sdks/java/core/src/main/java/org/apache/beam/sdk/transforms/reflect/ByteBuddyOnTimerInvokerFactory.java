@@ -17,31 +17,31 @@
  */
 package org.apache.beam.sdk.transforms.reflect;
 
+import static org.apache.beam.sdk.util.ByteBuddyUtils.getClassLoadingStrategy;
 import static org.apache.beam.sdk.util.common.ReflectHelpers.findClassLoader;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.concurrent.ExecutionException;
+import net.bytebuddy.ByteBuddy;
+import net.bytebuddy.description.modifier.FieldManifestation;
+import net.bytebuddy.description.modifier.Visibility;
+import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.dynamic.DynamicType;
+import net.bytebuddy.dynamic.scaffold.InstrumentedType;
+import net.bytebuddy.dynamic.scaffold.subclass.ConstructorStrategy;
+import net.bytebuddy.implementation.Implementation;
+import net.bytebuddy.implementation.bytecode.ByteCodeAppender;
+import net.bytebuddy.implementation.bytecode.StackManipulation;
+import net.bytebuddy.implementation.bytecode.member.FieldAccess;
+import net.bytebuddy.implementation.bytecode.member.MethodInvocation;
+import net.bytebuddy.implementation.bytecode.member.MethodReturn;
+import net.bytebuddy.implementation.bytecode.member.MethodVariableAccess;
+import net.bytebuddy.matcher.ElementMatchers;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.OnTimer;
 import org.apache.beam.sdk.transforms.DoFn.TimerId;
 import org.apache.beam.sdk.transforms.reflect.ByteBuddyDoFnInvokerFactory.DoFnMethodWithExtraParametersDelegation;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.ByteBuddy;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.description.modifier.FieldManifestation;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.description.modifier.Visibility;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.description.type.TypeDescription;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.dynamic.DynamicType;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.dynamic.scaffold.InstrumentedType;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.dynamic.scaffold.subclass.ConstructorStrategy;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.Implementation;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.ByteCodeAppender;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.StackManipulation;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.member.FieldAccess;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.member.MethodInvocation;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.member.MethodReturn;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.member.MethodVariableAccess;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.matcher.ElementMatchers;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.CharMatcher;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
@@ -54,7 +54,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.BaseEncoding;
  * on a particular {@link DoFn}.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class ByteBuddyOnTimerInvokerFactory implements OnTimerInvokerFactory {
 
@@ -225,9 +225,7 @@ class ByteBuddyOnTimerInvokerFactory implements OnTimerInvokerFactory {
     Class<? extends OnTimerInvoker<?, ?>> res =
         (Class<? extends OnTimerInvoker<?, ?>>)
             unloaded
-                .load(
-                    findClassLoader(fnClass.getClassLoader()),
-                    ClassLoadingStrategy.Default.INJECTION)
+                .load(findClassLoader(fnClass.getClassLoader()), getClassLoadingStrategy(fnClass))
                 .getLoaded();
     return res;
   }
@@ -277,9 +275,7 @@ class ByteBuddyOnTimerInvokerFactory implements OnTimerInvokerFactory {
     Class<? extends OnTimerInvoker<?, ?>> res =
         (Class<? extends OnTimerInvoker<?, ?>>)
             unloaded
-                .load(
-                    findClassLoader(fnClass.getClassLoader()),
-                    ClassLoadingStrategy.Default.INJECTION)
+                .load(findClassLoader(fnClass.getClassLoader()), getClassLoadingStrategy(fnClass))
                 .getLoaded();
     return res;
   }
@@ -291,12 +287,9 @@ class ByteBuddyOnTimerInvokerFactory implements OnTimerInvokerFactory {
   private static class InvokeOnTimerFamilyDelegation
       extends DoFnMethodWithExtraParametersDelegation {
 
-    private final DoFnSignature.OnTimerFamilyMethod signature;
-
     public InvokeOnTimerFamilyDelegation(
         TypeDescription clazzDescription, DoFnSignature.OnTimerFamilyMethod signature) {
       super(clazzDescription, signature);
-      this.signature = signature;
     }
 
     @Override
@@ -321,12 +314,9 @@ class ByteBuddyOnTimerInvokerFactory implements OnTimerInvokerFactory {
    */
   private static class InvokeOnTimerDelegation extends DoFnMethodWithExtraParametersDelegation {
 
-    private final DoFnSignature.OnTimerMethod signature;
-
     public InvokeOnTimerDelegation(
         TypeDescription clazzDescription, DoFnSignature.OnTimerMethod signature) {
       super(clazzDescription, signature);
-      this.signature = signature;
     }
 
     @Override

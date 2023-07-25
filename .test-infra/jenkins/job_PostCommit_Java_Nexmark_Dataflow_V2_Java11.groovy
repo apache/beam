@@ -23,37 +23,16 @@ import CommonTestProperties.TriggeringContext
 import NexmarkBuilder as Nexmark
 import NoPhraseTriggeringPostCommitBuilder
 import PhraseTriggeringPostCommitBuilder
-import InfluxDBCredentialsHelper
-
-import static NexmarkDatabaseProperties.nexmarkBigQueryArgs
-import static NexmarkDatabaseProperties.nexmarkInfluxDBArgs
-
-def final JOB_SPECIFIC_OPTIONS = [
-  'influxTags' : '{\\\"runnerVersion\\\":\\\"V2\\\",\\\"javaVersion\\\":\\\"11\\\"}',
-  'exportSummaryToBigQuery' : false,
-  'region' : 'us-central1',
-  'suite' : 'STRESS',
-  'numWorkers' : 4,
-  'maxNumWorkers' : 4,
-  'autoscalingAlgorithm' : 'NONE',
-  'nexmarkParallel' : 16,
-  'enforceEncodability' : true,
-  'enforceImmutability' : true
-]
-
-def final JOB_SPECIFIC_SWITCHES = [
-  '-Pnexmark.runner.version="V2"'
-]
 
 // This job runs the suite of Nexmark tests against the Dataflow runner V2.
 NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_Dataflow_V2_Java11',
     'Dataflow Runner V2 Java 11 Nexmark Tests', this) {
+
       description('Runs the Nexmark suite on the Dataflow runner V2 on Java 11.')
 
-      // Set common parameters.
       commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
 
-      Nexmark.nonQueryLanguageJobs(delegate, Runner.DATAFLOW, SDK.JAVA, JOB_SPECIFIC_OPTIONS, TriggeringContext.POST_COMMIT, JOB_SPECIFIC_SWITCHES, Nexmark.JAVA_11_RUNTIME_VERSION)
+      commonJob(delegate, TriggeringContext.POST_COMMIT)
     }
 
 PhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_DataflowV2_Java11',
@@ -63,5 +42,26 @@ PhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_Da
 
       commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
 
-      Nexmark.nonQueryLanguageJobs(delegate, Runner.DATAFLOW, SDK.JAVA, JOB_SPECIFIC_OPTIONS, TriggeringContext.PR, JOB_SPECIFIC_SWITCHES, Nexmark.JAVA_11_RUNTIME_VERSION)
+      commonJob(delegate, TriggeringContext.PR)
     }
+
+private void commonJob(delegate, TriggeringContext triggeringContext) {
+  def final JOB_SPECIFIC_OPTIONS = [
+    'influxTags' : '{\\\"runnerVersion\\\":\\\"V2\\\",\\\"javaVersion\\\":\\\"11\\\"}',
+    'exportSummaryToBigQuery' : false,
+    'region' : 'us-central1',
+    'suite' : 'STRESS',
+    'numWorkers' : 4,
+    'maxNumWorkers' : 4,
+    'autoscalingAlgorithm' : 'NONE',
+    'nexmarkParallel' : 16,
+    'enforceEncodability' : true,
+    'enforceImmutability' : true
+  ]
+
+  def final JOB_SPECIFIC_SWITCHES = [
+    '-Pnexmark.runner.version="V2"'
+  ]
+
+  Nexmark.nonQueryLanguageJobs(delegate, Runner.DATAFLOW, SDK.JAVA, JOB_SPECIFIC_OPTIONS, triggeringContext, JOB_SPECIFIC_SWITCHES, Nexmark.JAVA_11_RUNTIME_VERSION)
+}

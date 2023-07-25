@@ -20,13 +20,18 @@ package org.apache.beam.fn.harness;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Supplier;
+import org.apache.beam.fn.harness.control.BundleProgressReporter;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
-import org.apache.beam.fn.harness.data.BeamFnTimerClient;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
-import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest;
+import org.apache.beam.model.pipeline.v1.Endpoints;
+import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.construction.Timer;
+import org.apache.beam.runners.core.metrics.ShortIdMap;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.function.ThrowingRunnable;
@@ -36,7 +41,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 
 /** A factory able to instantiate an appropriate handler for a given PTransform. */
 @SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public interface PTransformRunnerFactory<T> {
 
@@ -45,14 +50,14 @@ public interface PTransformRunnerFactory<T> {
     /** Pipeline options. */
     PipelineOptions getPipelineOptions();
 
+    /** A way to get or create monitoring short ids. */
+    ShortIdMap getShortIdMap();
+
     /** A client for handling inbound and outbound data streams. */
     BeamFnDataClient getBeamFnDataClient();
 
     /** A client for handling state requests. */
     BeamFnStateClient getBeamFnStateClient();
-
-    /** A client for handling inbound and outbound timer streams. */
-    BeamFnTimerClient getBeamFnTimerClient();
 
     /** The id of the PTransform. */
     String getPTransformId();
@@ -63,6 +68,15 @@ public interface PTransformRunnerFactory<T> {
     /** A supplier containing the active process bundle instruction id. */
     Supplier<String> getProcessBundleInstructionIdSupplier();
 
+    /** A supplier containing the active cache tokens for this bundle. */
+    Supplier<List<ProcessBundleRequest.CacheToken>> getCacheTokensSupplier();
+
+    /** A cache that is used for each bundle and cleared when the bundle completes. */
+    Supplier<Cache<?, ?>> getBundleCacheSupplier();
+
+    /** A cache that is process wide and persists across bundle boundaries. */
+    Cache<?, ?> getProcessWideCache();
+
     /** An immutable mapping from PCollection id to PCollection definition. */
     Map<String, RunnerApi.PCollection> getPCollections();
 
@@ -72,12 +86,29 @@ public interface PTransformRunnerFactory<T> {
     /** An immutable mapping from windowing strategy id to windowing strategy definition. */
     Map<String, RunnerApi.WindowingStrategy> getWindowingStrategies();
 
+    /** An immutable set of runner capability urns. */
+    Set<String> getRunnerCapabilities();
+
     /** Register as a consumer for a given PCollection id. */
     <T> void addPCollectionConsumer(
-        String pCollectionId, FnDataReceiver<WindowedValue<T>> consumer, Coder<T> valueCoder);
+        String pCollectionId, FnDataReceiver<WindowedValue<T>> consumer);
 
     /** Returns a {@link FnDataReceiver} to send output to for the specified PCollection id. */
     <T> FnDataReceiver<T> getPCollectionConsumer(String pCollectionId);
+
+    /**
+     * Registers the outbound data endpoint with given {@link Endpoints.ApiServiceDescriptor} and
+     * {@link Coder}, returns the {@link FnDataReceiver} responsible for sending the outbound data.
+     */
+    <T> FnDataReceiver<T> addOutgoingDataEndpoint(
+        ApiServiceDescriptor apiServiceDescriptor, Coder<T> coder);
+
+    /**
+     * Registers the outbound timers endpoint with given timer family id and {@link Coder}, returns
+     * the {@link FnDataReceiver} responsible for sending the outbound timers.
+     */
+    <T> FnDataReceiver<Timer<T>> addOutgoingTimersEndpoint(
+        String timerFamilyId, Coder<Timer<T>> coder);
 
     /** Register any {@link DoFn.StartBundle} methods. */
     void addStartBundleFunction(ThrowingRunnable startBundleFunction);
@@ -85,11 +116,19 @@ public interface PTransformRunnerFactory<T> {
     /** Register any {@link DoFn.FinishBundle} methods. */
     void addFinishBundleFunction(ThrowingRunnable finishBundleFunction);
 
+    <T> void addIncomingDataEndpoint(
+        Endpoints.ApiServiceDescriptor apiServiceDescriptor,
+        Coder<T> coder,
+        FnDataReceiver<T> receiver);
+
+    <T> void addIncomingTimerEndpoint(
+        String timerFamilyId, Coder<Timer<T>> coder, FnDataReceiver<Timer<T>> receiver);
+
     /**
      * Register any reset methods. This should not invoke any user code which should be done instead
      * using the {@link #addFinishBundleFunction}. The reset method is guaranteed to be invoked
      * after the bundle completes successfully and after {@code T} becomes ineligible to receive
-     * method calls registered with {@link #addProgressRequestCallback} or {@link
+     * requests for monitoring data related to {@link #addBundleProgressReporter} or {@link
      * #getSplitListener}.
      */
     void addResetFunction(ThrowingRunnable resetFunction);
@@ -101,11 +140,16 @@ public interface PTransformRunnerFactory<T> {
     void addTearDownFunction(ThrowingRunnable tearDownFunction);
 
     /**
-     * Register a callback whenever progress is being requested. This method will be called
-     * concurrently to any methods registered with {@code pCollectionConsumerRegistry}, {@code
-     * startFunctionRegistry}, and {@code finishFunctionRegistry}.
+     * Register a callback whenever progress is being requested.
+     *
+     * <p>{@link BundleProgressReporter#updateIntermediateMonitoringData} will be called by a single
+     * arbitrary thread at a time and will be invoked concurrently to the main bundle processing
+     * thread. {@link BundleProgressReporter#updateFinalMonitoringData} will be invoked exclusively
+     * by the main bundle processing thread and {@link
+     * BundleProgressReporter#updateIntermediateMonitoringData} will not be invoked until a new
+     * bundle starts processing. See {@link BundleProgressReporter} for additional details.
      */
-    void addProgressRequestCallback(ProgressRequestCallback progressRequestCallback);
+    void addBundleProgressReporter(BundleProgressReporter bundleProgressReporter);
 
     /**
      * A listener to be invoked when the PTransform splits itself. This method will be called
@@ -139,14 +183,5 @@ public interface PTransformRunnerFactory<T> {
      * instantiating an appropriate handler.
      */
     Map<String, PTransformRunnerFactory> getPTransformRunnerFactories();
-  }
-
-  /**
-   * A marker interface used to register providing additional monitoring information whenever
-   * progress is being requested.
-   */
-  @FunctionalInterface
-  interface ProgressRequestCallback {
-    List<MonitoringInfo> getMonitoringInfos() throws Exception;
   }
 }

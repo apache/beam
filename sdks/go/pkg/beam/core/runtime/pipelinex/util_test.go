@@ -164,21 +164,6 @@ func ptImpulse(output string) *pipepb.PTransform {
 	}
 }
 
-func pt(inputs []string, outputs ...string) *pipepb.PTransform {
-	ins := make(map[string]string)
-	for i, in := range inputs {
-		ins[fmt.Sprintf("i%d", i)] = in
-	}
-	outs := make(map[string]string)
-	for i, out := range outputs {
-		outs[fmt.Sprintf("i%d", i)] = out
-	}
-	return &pipepb.PTransform{
-		Inputs:  ins,
-		Outputs: outs,
-	}
-}
-
 func ptNoSide(input string, outputs ...string) *pipepb.PTransform {
 	outs := make(map[string]string)
 	for i, o := range outputs {

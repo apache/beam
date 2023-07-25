@@ -28,7 +28,7 @@ import org.apache.beam.runners.jobsubmission.JobInvoker;
 import org.apache.beam.runners.jobsubmission.PortablePipelineJarCreator;
 import org.apache.beam.runners.jobsubmission.PortablePipelineRunner;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListeningExecutorService;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -37,7 +37,7 @@ import org.slf4j.LoggerFactory;
 
 /** Job Invoker for the {@link FlinkRunner}. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class FlinkJobInvoker extends JobInvoker {
   private static final Logger LOG = LoggerFactory.getLogger(FlinkJobInvoker.class);

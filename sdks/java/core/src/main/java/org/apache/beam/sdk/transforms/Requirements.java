@@ -22,15 +22,12 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Set;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 
 /** Describes the run-time requirements of a {@link Contextful}, such as access to side inputs. */
-@Experimental(Kind.CONTEXTFUL)
 @SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public final class Requirements implements Serializable {
   private final Collection<PCollectionView<?>> sideInputs;

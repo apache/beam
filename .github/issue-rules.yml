@@ -1,0 +1,64 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+rules:
+- valueFor: 'Priority'
+  contains: '0'
+  addLabels: ['P0']
+- valueFor: 'Priority'
+  contains: '1'
+  addLabels: ['P1']
+- valueFor: 'Priority'
+  contains: '2'
+  addLabels: ['P2']
+- valueFor: 'Priority'
+  contains: '3'
+  addLabels: ['P3']
+- contains: '[x] Component: Java SDK'
+  addLabels: ['java']
+- contains: '[x] Component: Python SDK'
+  addLabels: ['python']
+- contains: '[x] Component: Go SDK'
+  addLabels: ['go']
+- contains: '[x] Component: Typescript SDK'
+  addLabels: ['typescript']
+- contains: '[x] Component: IO'
+  addLabels: ['io']
+- contains: '[x] Component: Beam examples'
+  addLabels: ['examples']
+- contains: '[x] Component: Beam playground'
+  addLabels: ['playground']
+- contains: '[x] Component: katas'
+  addLabels: ['katas']
+- contains: '[x] Component: Website'
+  addLabels: ['website']
+- contains: '[x] Component: Spark'
+  addLabels: ['spark']
+- contains: '[x] Component: Flink'
+  addLabels: ['flink']
+- contains: '[x] Component: Samza'
+  addLabels: ['samza']
+- contains: '[x] Component: Twister2'
+  addLabels: ['twister2']
+- contains: '[x] Component: Hazelcast'
+  addLabels: ['jet']
+- contains: '[x] Component: Google Cloud Dataflow Runner'
+  addLabels: ['dataflow']
+- valueFor: 'Failure'
+  contains: 'Test is flaky'
+  addLabels: ['flake', 'tests']
+- valueFor: 'Failure'
+  contains: 'Test is continually failing'
+  addLabels: ['permared', 'failing test', 'tests']

@@ -66,7 +66,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *     Path Operations</a>
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class GcsPath implements Path, Serializable {
 
@@ -80,7 +80,7 @@ public class GcsPath implements Path, Serializable {
    */
   public static GcsPath fromUri(URI uri) {
     checkArgument(uri.getScheme().equalsIgnoreCase(SCHEME), "URI: %s is not a GCS URI", uri);
-    checkArgument(uri.getPort() == -1, "GCS URI may not specify port: %s (%i)", uri, uri.getPort());
+    checkArgument(uri.getPort() == -1, "GCS URI may not specify port: %s (%s)", uri, uri.getPort());
     checkArgument(
         isNullOrEmpty(uri.getUserInfo()),
         "GCS URI may not specify userInfo: %s (%s)",
@@ -125,6 +125,9 @@ public class GcsPath implements Path, Serializable {
   /** Pattern that is used to parse a GCS resource name. */
   private static final Pattern GCS_RESOURCE_NAME =
       Pattern.compile("storage.googleapis.com/(?<BUCKET>[^/]+)(/(?<OBJECT>.*))?");
+
+  /** Pattern that is used to validate a GCS bucket name. */
+  private static final Pattern GCS_BUCKET_NAME = Pattern.compile("[a-z0-9][-_a-z0-9.]+[a-z0-9]");
 
   /** Creates a GcsPath from a OnePlatform resource name in string form. */
   public static GcsPath fromResourceName(String name) {
@@ -186,7 +189,7 @@ public class GcsPath implements Path, Serializable {
     }
     checkArgument(!bucket.contains("/"), "GCS bucket may not contain a slash");
     checkArgument(
-        bucket.isEmpty() || bucket.matches("[a-z0-9][-_a-z0-9.]+[a-z0-9]"),
+        bucket.isEmpty() || GCS_BUCKET_NAME.matcher(bucket).matches(),
         "GCS bucket names must contain only lowercase letters, numbers, "
             + "dashes (-), underscores (_), and dots (.). Bucket names "
             + "must start and end with a number or letter. "

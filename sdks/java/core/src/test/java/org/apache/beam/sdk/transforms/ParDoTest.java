@@ -32,6 +32,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.not;
@@ -47,6 +48,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -65,6 +67,7 @@ import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.coders.AtomicCoder;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ListCoder;
@@ -76,10 +79,14 @@ import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.StreamingOptions;
+import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.GroupingState;
 import org.apache.beam.sdk.state.MapState;
+import org.apache.beam.sdk.state.MultimapState;
 import org.apache.beam.sdk.state.OrderedListState;
 import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.SetState;
@@ -99,8 +106,11 @@ import org.apache.beam.sdk.testing.UsesBundleFinalizer;
 import org.apache.beam.sdk.testing.UsesKeyInParDo;
 import org.apache.beam.sdk.testing.UsesLoopingTimer;
 import org.apache.beam.sdk.testing.UsesMapState;
+import org.apache.beam.sdk.testing.UsesMultimapState;
 import org.apache.beam.sdk.testing.UsesOnWindowExpiration;
 import org.apache.beam.sdk.testing.UsesOrderedListState;
+import org.apache.beam.sdk.testing.UsesParDoLifecycle;
+import org.apache.beam.sdk.testing.UsesProcessingTimeTimers;
 import org.apache.beam.sdk.testing.UsesRequiresTimeSortedInput;
 import org.apache.beam.sdk.testing.UsesSetState;
 import org.apache.beam.sdk.testing.UsesSideInputs;
@@ -112,14 +122,17 @@ import org.apache.beam.sdk.testing.UsesTestStreamWithOutputTimestamp;
 import org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime;
 import org.apache.beam.sdk.testing.UsesTimerMap;
 import org.apache.beam.sdk.testing.UsesTimersInParDo;
+import org.apache.beam.sdk.testing.UsesTriggeredSideInputs;
 import org.apache.beam.sdk.testing.UsesUnboundedPCollections;
 import org.apache.beam.sdk.testing.ValidatesRunner;
+import org.apache.beam.sdk.transforms.Create.TimestampedValues;
 import org.apache.beam.sdk.transforms.DoFn.OnTimer;
 import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.Mean.CountSum;
 import org.apache.beam.sdk.transforms.ParDo.SingleOutput;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataMatchers;
+import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -135,6 +148,7 @@ import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
@@ -153,17 +167,22 @@ import org.joda.time.DateTimeUtils;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.MutableDateTime;
+import org.joda.time.format.PeriodFormat;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** Tests for ParDo. */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  // TODO(https://github.com/apache/beam/issues/21230): Remove when new version of
+  // errorprone is released (2.11.0)
+  "unused"
 })
 public class ParDoTest implements Serializable {
   // This test is Serializable, just so that it's easy to have
@@ -174,6 +193,8 @@ public class ParDoTest implements Serializable {
     @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
     @Rule public transient ExpectedException thrown = ExpectedException.none();
+
+    @Rule public transient Timeout globalTimeout = Timeout.seconds(1200);
   }
 
   private static class PrintingDoFn extends DoFn<String, String> {
@@ -589,6 +610,7 @@ public class ParDoTest implements Serializable {
           .apply(
               ParDo.of(
                   new DoFn<Integer, Integer>() {
+
                     @TimerId(timerId)
                     private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
@@ -625,7 +647,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category(ValidatesRunner.class)
+    @Category({ValidatesRunner.class, UsesParDoLifecycle.class})
     public void testSetupParameter() {
       PCollection<String> results =
           pipeline
@@ -892,8 +914,7 @@ public class ParDoTest implements Serializable {
           };
 
       thrown.expect(IllegalArgumentException.class);
-      PCollection<List<Integer>> output =
-          pipeline.apply("Create main input", Create.of(2)).apply(ParDo.of(fn));
+      pipeline.apply("Create main input", Create.of(2)).apply(ParDo.of(fn));
       pipeline.run();
     }
 
@@ -916,10 +937,9 @@ public class ParDoTest implements Serializable {
           };
 
       thrown.expect(IllegalArgumentException.class);
-      PCollection<List<Integer>> output =
-          pipeline
-              .apply("Create main input", Create.of(2))
-              .apply(ParDo.of(fn).withSideInput(sideInputTag1, sideInput1));
+      pipeline
+          .apply("Create main input", Create.of(2))
+          .apply(ParDo.of(fn).withSideInput(sideInputTag1, sideInput1));
       pipeline.run();
     }
 
@@ -942,10 +962,9 @@ public class ParDoTest implements Serializable {
           };
 
       thrown.expect(IllegalArgumentException.class);
-      PCollection<List<Integer>> output =
-          pipeline
-              .apply("Create main input", Create.of(2))
-              .apply(ParDo.of(fn).withSideInput(sideInputTag1, sideInput1));
+      pipeline
+          .apply("Create main input", Create.of(2))
+          .apply(ParDo.of(fn).withSideInput(sideInputTag1, sideInput1));
       pipeline.run();
     }
 
@@ -968,10 +987,9 @@ public class ParDoTest implements Serializable {
           };
 
       thrown.expect(IllegalArgumentException.class);
-      PCollection<List<Integer>> output =
-          pipeline
-              .apply("Create main input", Create.of(2))
-              .apply(ParDo.of(fn).withSideInput(sideInputTag1, sideInput1));
+      pipeline
+          .apply("Create main input", Create.of(2))
+          .apply(ParDo.of(fn).withSideInput(sideInputTag1, sideInput1));
       pipeline.run();
     }
 
@@ -994,10 +1012,9 @@ public class ParDoTest implements Serializable {
           };
 
       thrown.expect(IllegalArgumentException.class);
-      PCollection<List<Integer>> output =
-          pipeline
-              .apply("Create main input", Create.of(2))
-              .apply(ParDo.of(fn).withSideInput(sideInputTag1, sideInput1));
+      pipeline
+          .apply("Create main input", Create.of(2))
+          .apply(ParDo.of(fn).withSideInput(sideInputTag1, sideInput1));
       pipeline.run();
     }
 
@@ -1020,10 +1037,9 @@ public class ParDoTest implements Serializable {
           };
 
       thrown.expect(IllegalArgumentException.class);
-      PCollection<List<Integer>> output =
-          pipeline
-              .apply("Create main input", Create.of(2))
-              .apply(ParDo.of(fn).withSideInput(sideInputTag1, sideInput1));
+      pipeline
+          .apply("Create main input", Create.of(2))
+          .apply(ParDo.of(fn).withSideInput(sideInputTag1, sideInput1));
       pipeline.run();
     }
 
@@ -1769,14 +1785,12 @@ public class ParDoTest implements Serializable {
                             @Timestamp Instant timestamp,
                             OutputReceiver<String> r) {
                           r.output(element);
-                          System.out.println("Process: " + element + ":" + timestamp.getMillis());
                         }
 
                         @FinishBundle
                         public void finishBundle(FinishBundleContext c) {
                           Instant ts = new Instant(3);
                           c.output("finish", ts, windowFn.assignWindow(ts));
-                          System.out.println("Finish: 3");
                         }
                       }))
               .apply(ParDo.of(new PrintingDoFn()));
@@ -1790,6 +1804,176 @@ public class ParDoTest implements Serializable {
   /** Tests to validate output timestamps. */
   @RunWith(JUnit4.class)
   public static class TimestampTests extends SharedTestBase implements Serializable {
+
+    static final String TIMER_ELEMENT = "timer";
+    static final String OUTPUT_ELEMENT = "output";
+
+    /**
+     * Checks that the given message is correct and includes the element timestamp, allowed skew,
+     * and output timestamp.
+     */
+    static boolean hasExpectedError(
+        IllegalArgumentException e,
+        Duration allowedSkew,
+        Instant elementTimestamp,
+        Instant outputTimestamp) {
+      return e.getMessage().contains("timestamp of the ")
+          && e.getMessage().contains(elementTimestamp.toString())
+          && e.getMessage().contains("timestamp " + outputTimestamp)
+          && e.getMessage()
+              .contains(
+                  "allowed skew ("
+                      + (allowedSkew.getMillis() >= Integer.MAX_VALUE
+                          ? allowedSkew
+                          : PeriodFormat.getDefault().print(allowedSkew.toPeriod())))
+          && e.getMessage().contains("getAllowedTimestampSkew");
+    }
+
+    /**
+     * A {@link DoFn} that outputs an element at and creates/sets a timer with an output timestamp
+     * equal to the input timestamp minus the input element's value. Keys are ignored but required
+     * for timers.
+     */
+    private static class ProcessElementTimestampSkewingDoFn
+        extends DoFn<KV<String, Duration>, String> {
+
+      static final String TIMER_ID = "testTimerId";
+      private final Duration allowedSkew;
+
+      @TimerId(TIMER_ID)
+      private static final TimerSpec timer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
+
+      private ProcessElementTimestampSkewingDoFn(Duration allowedSkew) {
+        this.allowedSkew = allowedSkew;
+      }
+
+      @ProcessElement
+      public void processElement(ProcessContext context, @TimerId(TIMER_ID) Timer timer) {
+        Instant outputTimestamp = context.timestamp().minus(context.element().getValue());
+        try {
+          context.outputWithTimestamp(OUTPUT_ELEMENT, outputTimestamp);
+        } catch (IllegalArgumentException e) {
+          if (hasExpectedError(e, allowedSkew, context.timestamp(), outputTimestamp)) {
+            context.output(OUTPUT_ELEMENT + outputTimestamp);
+          }
+        }
+        try {
+          timer.withOutputTimestamp(outputTimestamp).set(new Instant(0));
+          context.output(TIMER_ELEMENT);
+        } catch (IllegalArgumentException e) {
+          if (hasExpectedError(e, allowedSkew, context.timestamp(), outputTimestamp)) {
+            context.output(TIMER_ELEMENT + outputTimestamp);
+          }
+        }
+      }
+
+      @OnTimer(TIMER_ID)
+      public void onTimer(OnTimerContext context) {}
+
+      @Override
+      public Duration getAllowedTimestampSkew() {
+        return allowedSkew;
+      }
+    }
+
+    /**
+     * A {@link DoFn} that sets a timer that outputs an element and sets a second timer with an
+     * output timestamp equal to the input timestamp minus the input element's value. Keys are
+     * ignored but required for timers.
+     */
+    private static class OnTimerTimestampSkewingDoFn extends DoFn<KV<String, String>, String> {
+
+      static final String FIRST_TIMER_ID = "firstTestTimerId";
+      static final String SECOND_TIMER_ID = "secondTestTimerId";
+      private final Duration allowedSkew;
+      private final Duration outputTimestampSkew;
+
+      @TimerId(FIRST_TIMER_ID)
+      private static final TimerSpec firstTimer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+      @TimerId(SECOND_TIMER_ID)
+      private static final TimerSpec secondTimer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+      private OnTimerTimestampSkewingDoFn(Duration allowedSkew, Duration outputTimestampSkew) {
+        this.allowedSkew = allowedSkew;
+        this.outputTimestampSkew = outputTimestampSkew;
+      }
+
+      @ProcessElement
+      public void processElement(ProcessContext context, @TimerId(FIRST_TIMER_ID) Timer timer) {
+        timer.set(context.timestamp());
+      }
+
+      @OnTimer(SECOND_TIMER_ID)
+      public void onSecondTimer(OnTimerContext context) {}
+
+      @OnTimer(FIRST_TIMER_ID)
+      public void onFirstTimer(OnTimerContext context, @TimerId(SECOND_TIMER_ID) Timer timer) {
+        Instant outputTimestamp = context.timestamp().minus(outputTimestampSkew);
+        try {
+          context.outputWithTimestamp(OUTPUT_ELEMENT, outputTimestamp);
+        } catch (IllegalArgumentException e) {
+          if (hasExpectedError(e, allowedSkew, context.timestamp(), outputTimestamp)) {
+            context.output(OUTPUT_ELEMENT + outputTimestamp);
+          }
+        }
+        try {
+          timer.withOutputTimestamp(outputTimestamp).set(context.timestamp());
+          context.output(TIMER_ELEMENT);
+        } catch (IllegalArgumentException e) {
+          if (hasExpectedError(e, allowedSkew, context.timestamp(), outputTimestamp)) {
+            context.output(TIMER_ELEMENT + outputTimestamp);
+          }
+        }
+      }
+
+      @Override
+      public Duration getAllowedTimestampSkew() {
+        return allowedSkew;
+      }
+    }
+
+    /**
+     * A {@link DoFn} that on window expiration outputs an element with an output timestamp equal to
+     * the input timestamp minus the input element's value. Keys are ignored but required by timers.
+     */
+    private static class OnWindowExpirationTimestampSkewingDoFn
+        extends DoFn<KV<String, String>, String> {
+
+      private final Duration allowedSkew;
+      private final Duration outputTimestampSkew;
+
+      // Using state is required because of BEAM-13213.
+      @StateId("ignored")
+      private final StateSpec<ValueState<String>> ignoredState = StateSpecs.value();
+
+      private OnWindowExpirationTimestampSkewingDoFn(
+          Duration allowedSkew, Duration outputTimestampSkew) {
+        this.allowedSkew = allowedSkew;
+        this.outputTimestampSkew = outputTimestampSkew;
+      }
+
+      @ProcessElement
+      public void processElement(ProcessContext context) {}
+
+      @OnWindowExpiration
+      public void onWindowExpiration(@Timestamp Instant timestamp, OutputReceiver<String> output) {
+        Instant outputTimestamp = timestamp.minus(outputTimestampSkew);
+        try {
+          output.outputWithTimestamp(OUTPUT_ELEMENT, outputTimestamp);
+        } catch (IllegalArgumentException e) {
+          if (hasExpectedError(e, allowedSkew, timestamp, outputTimestamp)) {
+            output.output(OUTPUT_ELEMENT + outputTimestamp);
+          }
+        }
+      }
+
+      @Override
+      public Duration getAllowedTimestampSkew() {
+        return allowedSkew;
+      }
+    }
+
     @Test
     @Category(ValidatesRunner.class)
     public void testParDoOutputWithTimestamp() {
@@ -1887,7 +2071,7 @@ public class ParDoTest implements Serializable {
       thrown.expectMessage("Cannot output with timestamp");
       thrown.expectMessage(
           "Output timestamps must be no earlier than the timestamp of the current input");
-      thrown.expectMessage("minus the allowed skew (1 second).");
+      thrown.expectMessage("minus the allowed skew (1 second)");
       pipeline.run();
     }
 
@@ -1904,7 +2088,7 @@ public class ParDoTest implements Serializable {
       thrown.expectMessage("Cannot output with timestamp");
       thrown.expectMessage(
           "Output timestamps must be no earlier than the timestamp of the current input");
-      thrown.expectMessage("minus the allowed skew (0 milliseconds).");
+      thrown.expectMessage("minus the allowed skew (0 milliseconds)");
       pipeline.run();
     }
 
@@ -1955,6 +2139,121 @@ public class ParDoTest implements Serializable {
                 return null;
               });
 
+      pipeline.run();
+    }
+
+    @Test
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class, UsesProcessingTimeTimers.class})
+    public void testProcessElementSkew() {
+      TimestampedValues<KV<String, Duration>> input =
+          Create.timestamped(Arrays.asList(KV.of("2", Duration.millis(1L))), Arrays.asList(1L));
+
+      PCollection<String> noSkew =
+          pipeline
+              .apply("createNoSkew", input)
+              .apply("noSkew", ParDo.of(new ProcessElementTimestampSkewingDoFn(Duration.ZERO)));
+      PAssert.that(noSkew)
+          .containsInAnyOrder(TIMER_ELEMENT + new Instant(0L), OUTPUT_ELEMENT + new Instant(0L));
+
+      PCollection<String> skew =
+          pipeline
+              .apply("createSkew", input)
+              .apply("skew", ParDo.of(new ProcessElementTimestampSkewingDoFn(Duration.millis(2L))));
+      PAssert.that(skew).containsInAnyOrder(TIMER_ELEMENT, OUTPUT_ELEMENT);
+
+      // Check that we properly print out large allowed skews: pick allowed skew large enough to
+      // trigger failure on PeriodFormat, but small enough to trigger the error.
+      Duration allowedSkew = Duration.millis(Long.valueOf(Integer.MAX_VALUE) * 10000000);
+      Duration offset = allowedSkew.plus(Duration.millis(2L));
+      TimestampedValues<KV<String, Duration>> largeValues =
+          Create.timestamped(Arrays.asList(KV.of("2", offset)), Arrays.asList(0L));
+
+      PCollection<String> largeSkew =
+          pipeline
+              .apply("createLargeSkew", largeValues)
+              .apply("largeSkew", ParDo.of(new ProcessElementTimestampSkewingDoFn(allowedSkew)));
+      PAssert.that(largeSkew)
+          .containsInAnyOrder(
+              TIMER_ELEMENT + new Instant(0L).minus(offset),
+              OUTPUT_ELEMENT + new Instant(0L).minus(offset));
+
+      pipeline.run();
+    }
+
+    @Test
+    @Category({UsesTimersInParDo.class, ValidatesRunner.class})
+    public void testOnTimerTimestampSkew() {
+      TimestampedValues<KV<String, String>> input =
+          Create.timestamped(Arrays.asList(KV.of("0", "0")), Arrays.asList(0L));
+      PCollection<String> noSkew =
+          pipeline
+              .apply("createNoSkew", input)
+              .apply(
+                  "noskew",
+                  ParDo.of(
+                      new OnTimerTimestampSkewingDoFn(Duration.millis(0L), Duration.millis(3L))));
+      PAssert.that(noSkew)
+          .containsInAnyOrder(OUTPUT_ELEMENT + new Instant(-3L), TIMER_ELEMENT + new Instant(-3L));
+      PCollection<String> skew =
+          pipeline
+              .apply("createSkew", input)
+              .apply(
+                  "skew",
+                  ParDo.of(
+                      new OnTimerTimestampSkewingDoFn(Duration.millis(3L), Duration.millis(2L))));
+      PAssert.that(skew).containsInAnyOrder(OUTPUT_ELEMENT, TIMER_ELEMENT);
+
+      // Check that we properly print out large allowed skews: pick allowed skew large enough to
+      // trigger failure on PeriodFormat, but small enough to trigger the error.
+      Duration allowedSkew = Duration.millis(Long.valueOf(Integer.MAX_VALUE) * 10000000);
+      Duration offset = allowedSkew.plus(Duration.millis(2L));
+      PCollection<String> largeSkew =
+          pipeline
+              .apply("createLargeSkew", input)
+              .apply("largeSkew", ParDo.of(new OnTimerTimestampSkewingDoFn(allowedSkew, offset)));
+      PAssert.that(largeSkew)
+          .containsInAnyOrder(
+              TIMER_ELEMENT + new Instant(0L).minus(offset),
+              OUTPUT_ELEMENT + new Instant(0L).minus(offset));
+
+      pipeline.run();
+    }
+
+    @Test
+    @Category({UsesOnWindowExpiration.class, UsesTimersInParDo.class, ValidatesRunner.class})
+    public void testOnWindowTimestampSkew() {
+      Duration windowDuration = Duration.millis(10L);
+      TimestampedValues<KV<String, String>> input =
+          Create.timestamped(Arrays.asList(KV.of("key", "0")), Arrays.asList(0L));
+
+      PCollection<String> noSkew =
+          pipeline
+              .apply("createNoSkew", input)
+              .apply("noSkewWindow", Window.into(FixedWindows.of(windowDuration)))
+              .apply(
+                  "noskew",
+                  ParDo.of(
+                      new OnWindowExpirationTimestampSkewingDoFn(
+                          Duration.millis(0L), Duration.millis(3L))));
+      PAssert.that(noSkew)
+          .containsInAnyOrder(
+              OUTPUT_ELEMENT
+                  + new Instant(
+                      windowDuration
+                          .minus(Duration.millis(3L))
+                          .minus(Duration.millis(1L))
+                          .getMillis()));
+
+      PCollection<String> skew =
+          pipeline
+              .apply("createSkew", input)
+              .apply("skewWindow", Window.into(FixedWindows.of(windowDuration)))
+              .apply(
+                  "skew",
+                  ParDo.of(
+                      new OnWindowExpirationTimestampSkewingDoFn(
+                          Duration.millis(4L), Duration.millis(3L))));
+      PAssert.that(skew).containsInAnyOrder(OUTPUT_ELEMENT);
       pipeline.run();
     }
   }
@@ -2497,6 +2796,406 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesMultimapState.class})
+    public void testMultimapStatePut() {
+      final String stateId = "foo:";
+      final String countStateId = "count";
+      DoFn<KV<String, KV<String, Integer>>, KV<String, Integer>> fn =
+          new DoFn<KV<String, KV<String, Integer>>, KV<String, Integer>>() {
+
+            @StateId(stateId)
+            private final StateSpec<MultimapState<String, Integer>> multimapState =
+                StateSpecs.multimap(StringUtf8Coder.of(), VarIntCoder.of());
+
+            @StateId(countStateId)
+            private final StateSpec<CombiningState<Integer, int[], Integer>> countState =
+                StateSpecs.combiningFromInputInternal(VarIntCoder.of(), Sum.ofIntegers());
+
+            @ProcessElement
+            public void processElement(
+                ProcessContext c,
+                @Element KV<String, KV<String, Integer>> element,
+                @StateId(stateId) MultimapState<String, Integer> state,
+                @StateId(countStateId) CombiningState<Integer, int[], Integer> count,
+                OutputReceiver<KV<String, Integer>> r) {
+              ReadableState<Boolean> isEmptyView = state.isEmpty();
+              boolean isEmpty = state.isEmpty().read();
+
+              KV<String, Integer> value = element.getValue();
+              state.put(value.getKey(), value.getValue());
+              count.add(1);
+
+              if (count.read() == 1) {
+                // isEmpty before and after put:
+                assertTrue(isEmpty);
+                assertFalse(isEmptyView.read());
+                assertFalse(state.isEmpty().read());
+              }
+
+              if (count.read() >= 4) {
+                // those should be evaluated only when ReadableState.read is called.
+                ReadableState<Iterable<Entry<String, Integer>>> entriesView = state.entries();
+                ReadableState<Iterable<String>> keysView = state.keys();
+                ReadableState<Boolean> containsBadView = state.containsKey("BadKey");
+                ReadableState<Iterable<Integer>> getAView = state.get("a");
+
+                // those are evaluated immediately.
+                Iterable<Entry<String, Integer>> entries = state.entries().read();
+                Iterable<String> keys = state.keys().read();
+                boolean containsBad = state.containsKey("BadKey").read();
+                Iterable<Integer> getA = state.get("a").read();
+
+                state.put("BadKey", -1);
+                state.put("a", 2);
+
+                // entries before and after put:
+                assertEquals(4, Iterables.size(entries));
+                assertEquals(6, Iterables.size(entriesView.read()));
+                assertEquals(6, Iterables.size(state.entries().read()));
+
+                // keys before and after put:
+                assertThat(keys, containsInAnyOrder("a", "b"));
+                assertThat(keysView.read(), containsInAnyOrder("a", "b", "BadKey"));
+                assertThat(state.keys().read(), containsInAnyOrder("a", "b", "BadKey"));
+
+                // containsKey before and after put:
+                assertFalse(containsBad);
+                assertTrue(containsBadView.read());
+                assertTrue(state.containsKey("BadKey").read());
+
+                // get before and after put:
+                assertThat(getA, containsInAnyOrder(97, 97, 98));
+                assertThat(getAView.read(), containsInAnyOrder(97, 97, 98, 2));
+                assertThat(state.get("a").read(), containsInAnyOrder(97, 97, 98, 2));
+
+                // Should not output changes in side this if statement.
+                for (Entry<String, Integer> entry : entries) {
+                  r.output(KV.of(entry.getKey(), entry.getValue()));
+                }
+              }
+            }
+          };
+      PCollection<KV<String, Integer>> output =
+          pipeline
+              .apply(
+                  Create.of(
+                      KV.of("hello", KV.of("a", 97)), KV.of("hello", KV.of("a", 97)),
+                      KV.of("hello", KV.of("a", 98)), KV.of("hello", KV.of("b", 33))))
+              .apply(ParDo.of(fn));
+      PAssert.that(output)
+          .containsInAnyOrder(
+              KV.of("a", 97), KV.of("a", 97),
+              KV.of("a", 98), KV.of("b", 33));
+      pipeline.run();
+    }
+
+    @Test
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesMultimapState.class})
+    public void testMultimapStateRemove() {
+      final String stateId = "foo:";
+      final String countStateId = "count";
+      DoFn<KV<String, KV<String, Integer>>, KV<String, Integer>> fn =
+          new DoFn<KV<String, KV<String, Integer>>, KV<String, Integer>>() {
+
+            @StateId(stateId)
+            private final StateSpec<MultimapState<String, Integer>> multimapState =
+                StateSpecs.multimap(StringUtf8Coder.of(), VarIntCoder.of());
+
+            @StateId(countStateId)
+            private final StateSpec<CombiningState<Integer, int[], Integer>> countState =
+                StateSpecs.combiningFromInputInternal(VarIntCoder.of(), Sum.ofIntegers());
+
+            @ProcessElement
+            public void processElement(
+                ProcessContext c,
+                @Element KV<String, KV<String, Integer>> element,
+                @StateId(stateId) MultimapState<String, Integer> state,
+                @StateId(countStateId) CombiningState<Integer, int[], Integer> count,
+                OutputReceiver<KV<String, Integer>> r) {
+              KV<String, Integer> value = element.getValue();
+              state.put(value.getKey(), value.getValue());
+              count.add(1);
+
+              if (count.read() >= 4) {
+                // those should be evaluated only when ReadableState.read is called.
+                ReadableState<Iterable<Entry<String, Integer>>> entriesView = state.entries();
+                ReadableState<Iterable<String>> keysView = state.keys();
+                ReadableState<Boolean> containsBView = state.containsKey("b");
+                ReadableState<Iterable<Integer>> getBView = state.get("b");
+
+                // those are evaluated immediately.
+                Iterable<Entry<String, Integer>> entries = state.entries().read();
+                Iterable<String> keys = state.keys().read();
+                boolean containsB = state.containsKey("b").read();
+                Iterable<Integer> getB = state.get("b").read();
+
+                state.remove("b");
+
+                // entries before and after remove:
+                assertEquals(4, Iterables.size(entries));
+                assertEquals(3, Iterables.size(entriesView.read()));
+                assertEquals(3, Iterables.size(state.entries().read()));
+
+                // keys before and after remove:
+                assertThat(keys, containsInAnyOrder("a", "b"));
+                assertThat(keysView.read(), containsInAnyOrder("a"));
+                assertThat(state.keys().read(), containsInAnyOrder("a"));
+
+                // containsKey before and after remove:
+                assertTrue(containsB);
+                assertFalse(containsBView.read());
+                assertFalse(state.containsKey("b").read());
+
+                // get before and after remove:
+                assertThat(getB, containsInAnyOrder(33));
+                assertThat(getBView.read(), emptyIterable());
+                assertThat(state.get("b").read(), emptyIterable());
+
+                for (Entry<String, Integer> entry : entriesView.read()) {
+                  r.output(KV.of(entry.getKey(), entry.getValue()));
+                }
+              }
+            }
+          };
+      PCollection<KV<String, Integer>> output =
+          pipeline
+              .apply(
+                  Create.of(
+                      KV.of("hello", KV.of("a", 97)), KV.of("hello", KV.of("a", 97)),
+                      KV.of("hello", KV.of("a", 98)), KV.of("hello", KV.of("b", 33))))
+              .apply(ParDo.of(fn));
+      PAssert.that(output).containsInAnyOrder(KV.of("a", 97), KV.of("a", 97), KV.of("a", 98));
+      pipeline.run();
+    }
+
+    @Test
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesMultimapState.class})
+    public void testMultimapStateIsEmptyAfterRemove() {
+      final String stateId = "foo:";
+      final String countStateId = "count";
+      DoFn<KV<String, KV<String, Integer>>, KV<String, Integer>> fn =
+          new DoFn<KV<String, KV<String, Integer>>, KV<String, Integer>>() {
+
+            @StateId(stateId)
+            private final StateSpec<MultimapState<String, Integer>> multimapState =
+                StateSpecs.multimap(StringUtf8Coder.of(), VarIntCoder.of());
+
+            @StateId(countStateId)
+            private final StateSpec<CombiningState<Integer, int[], Integer>> countState =
+                StateSpecs.combiningFromInputInternal(VarIntCoder.of(), Sum.ofIntegers());
+
+            @ProcessElement
+            public void processElement(
+                ProcessContext c,
+                @Element KV<String, KV<String, Integer>> element,
+                @StateId(stateId) MultimapState<String, Integer> state,
+                @StateId(countStateId) CombiningState<Integer, int[], Integer> count,
+                OutputReceiver<KV<String, Integer>> r) {
+              KV<String, Integer> value = element.getValue();
+              state.put(value.getKey(), value.getValue());
+              count.add(1);
+
+              if (count.read() >= 4) {
+                ReadableState<Boolean> isEmptyView = state.isEmpty();
+                boolean isEmpty = state.isEmpty().read();
+
+                state.remove("a");
+
+                assertFalse(isEmpty);
+                assertFalse(isEmptyView.read());
+                assertFalse(state.isEmpty().read());
+
+                isEmptyView = state.isEmpty();
+                isEmpty = state.isEmpty().read();
+
+                // isEmpty after removing the only multimap key.
+                state.remove("b");
+
+                assertFalse(isEmpty);
+                assertTrue(isEmptyView.read());
+                assertTrue(state.isEmpty().read());
+              }
+            }
+          };
+      PCollection<KV<String, Integer>> output =
+          pipeline
+              .apply(
+                  Create.of(
+                      KV.of("hello", KV.of("a", 97)), KV.of("hello", KV.of("a", 97)),
+                      KV.of("hello", KV.of("a", 98)), KV.of("hello", KV.of("b", 33))))
+              .apply(ParDo.of(fn));
+      PAssert.that(output).empty();
+      pipeline.run();
+    }
+
+    @Test
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesMultimapState.class})
+    public void testMultimapStateClear() {
+      final String stateId = "foo:";
+      final String countStateId = "count";
+      DoFn<KV<String, KV<String, Integer>>, KV<String, Integer>> fn =
+          new DoFn<KV<String, KV<String, Integer>>, KV<String, Integer>>() {
+
+            @StateId(stateId)
+            private final StateSpec<MultimapState<String, Integer>> multimapState =
+                StateSpecs.multimap(StringUtf8Coder.of(), VarIntCoder.of());
+
+            @StateId(countStateId)
+            private final StateSpec<CombiningState<Integer, int[], Integer>> countState =
+                StateSpecs.combiningFromInputInternal(VarIntCoder.of(), Sum.ofIntegers());
+
+            @ProcessElement
+            public void processElement(
+                ProcessContext c,
+                @Element KV<String, KV<String, Integer>> element,
+                @StateId(stateId) MultimapState<String, Integer> state,
+                @StateId(countStateId) CombiningState<Integer, int[], Integer> count,
+                OutputReceiver<KV<String, Integer>> r) {
+              KV<String, Integer> value = element.getValue();
+              state.put(value.getKey(), value.getValue());
+              count.add(1);
+
+              if (count.read() >= 4) {
+                // those should be evaluated only when ReadableState.read is called.
+                ReadableState<Iterable<Entry<String, Integer>>> entriesView = state.entries();
+                ReadableState<Iterable<String>> keysView = state.keys();
+                ReadableState<Boolean> containsBView = state.containsKey("b");
+                ReadableState<Iterable<Integer>> getBView = state.get("b");
+                ReadableState<Boolean> isEmptyView = state.isEmpty();
+
+                // those are evaluated immediately.
+                Iterable<Entry<String, Integer>> entries = state.entries().read();
+                Iterable<String> keys = state.keys().read();
+                boolean containsB = state.containsKey("b").read();
+                Iterable<Integer> getB = state.get("b").read();
+                boolean isEmpty = state.isEmpty().read();
+
+                state.clear();
+
+                // entries before and after clear:
+                assertEquals(4, Iterables.size(entries));
+                assertThat(entriesView.read(), emptyIterable());
+                assertThat(state.entries().read(), emptyIterable());
+
+                // keys before and after clear:
+                assertThat(keys, containsInAnyOrder("a", "b"));
+                assertThat(keysView.read(), emptyIterable());
+                assertThat(state.keys().read(), emptyIterable());
+
+                // containsKey before and after clear:
+                assertTrue(containsB);
+                assertFalse(containsBView.read());
+                assertFalse(state.containsKey("b").read());
+
+                // get before and after clear:
+                assertThat(getB, containsInAnyOrder(33));
+                assertThat(getBView.read(), emptyIterable());
+                assertThat(state.get("b").read(), emptyIterable());
+
+                // isEmpty before and after clear:
+                assertFalse(isEmpty);
+                assertTrue(isEmptyView.read());
+                assertTrue(state.isEmpty().read());
+
+                for (Entry<String, Integer> entry : entriesView.read()) {
+                  r.output(KV.of(entry.getKey(), entry.getValue()));
+                }
+              }
+            }
+          };
+      PCollection<KV<String, Integer>> output =
+          pipeline
+              .apply(
+                  Create.of(
+                      KV.of("hello", KV.of("a", 97)), KV.of("hello", KV.of("a", 97)),
+                      KV.of("hello", KV.of("a", 98)), KV.of("hello", KV.of("b", 33))))
+              .apply(ParDo.of(fn));
+      PAssert.that(output).empty();
+      pipeline.run();
+    }
+
+    // Use byte[] as the key type of Multimap to test that Multimap should treat different keys with
+    // equivalent structural values as the same key.
+    @Test
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesMultimapState.class})
+    public void testMultimapStateStructuralValue() {
+      final String stateId = "foo:";
+      final String countStateId = "count";
+      final byte[] badKey = "BadKey".getBytes(StandardCharsets.UTF_8);
+      DoFn<KV<String, KV<String, Integer>>, KV<String, Integer>> fn =
+          new DoFn<KV<String, KV<String, Integer>>, KV<String, Integer>>() {
+
+            @StateId(stateId)
+            private final StateSpec<MultimapState<byte[], Integer>> multimapState =
+                StateSpecs.multimap(ByteArrayCoder.of(), VarIntCoder.of());
+
+            @StateId(countStateId)
+            private final StateSpec<CombiningState<Integer, int[], Integer>> countState =
+                StateSpecs.combiningFromInputInternal(VarIntCoder.of(), Sum.ofIntegers());
+
+            @ProcessElement
+            public void processElement(
+                ProcessContext c,
+                @Element KV<String, KV<String, Integer>> element,
+                @StateId(stateId) MultimapState<byte[], Integer> state,
+                @StateId(countStateId) CombiningState<Integer, int[], Integer> count,
+                OutputReceiver<KV<String, Integer>> r) {
+              KV<String, Integer> value = element.getValue();
+              ReadableState<Iterable<Entry<byte[], Integer>>> entriesView = state.entries();
+              state.put(value.getKey().getBytes(StandardCharsets.UTF_8), value.getValue());
+              count.add(1);
+              if (count.read() >= 4) {
+                // those should be evaluated only when ReadableState.read is called.
+                ReadableState<Iterable<byte[]>> keysView = state.keys();
+                ReadableState<Boolean> containsBadKeyView = state.containsKey(badKey);
+                ReadableState<Iterable<Integer>> getBadKeyView = state.get(badKey);
+
+                // those are evaluated immediately.
+                Iterable<Entry<byte[], Integer>> entries = state.entries().read();
+                boolean containsBadKey = state.containsKey(badKey).read();
+                Iterable<Integer> getBadKey = state.get(badKey).read();
+
+                // use a different object than badKey with the same structural value to put into the
+                // multimap.
+                state.put("BadKey".getBytes(StandardCharsets.UTF_8), -1);
+
+                // entries
+                assertEquals(4, Iterables.size(entries));
+                assertEquals(5, Iterables.size(entriesView.read()));
+                assertEquals(5, Iterables.size(state.entries().read()));
+
+                // get
+                assertThat(getBadKey, emptyIterable());
+                assertThat(getBadKeyView.read(), containsInAnyOrder(-1));
+                assertThat(state.get(badKey).read(), containsInAnyOrder(-1));
+
+                // containsKey
+                assertFalse(containsBadKey);
+                assertTrue(containsBadKeyView.read());
+                assertTrue(state.containsKey(badKey).read());
+
+                for (Entry<byte[], Integer> entry : entries) {
+                  r.output(
+                      KV.of(new String(entry.getKey(), StandardCharsets.UTF_8), entry.getValue()));
+                }
+              }
+            }
+          };
+      PCollection<KV<String, Integer>> output =
+          pipeline
+              .apply(
+                  Create.of(
+                      KV.of("hello", KV.of("a", 97)), KV.of("hello", KV.of("a", 97)),
+                      KV.of("hello", KV.of("a", 98)), KV.of("hello", KV.of("b", 33))))
+              .apply(ParDo.of(fn));
+      PAssert.that(output)
+          .containsInAnyOrder(
+              KV.of("a", 97), KV.of("a", 97),
+              KV.of("a", 98), KV.of("b", 33));
+      pipeline.run();
+    }
+
+    @Test
     @Category({
       ValidatesRunner.class,
       UsesStatefulParDo.class,
@@ -2546,13 +3245,23 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesOrderedListState.class})
+    @Category({
+      ValidatesRunner.class,
+      UsesStatefulParDo.class,
+      UsesOrderedListState.class,
+      UsesOnWindowExpiration.class
+    })
     public void testOrderedListStateBounded() {
       testOrderedListStateImpl(false);
     }
 
     @Test
-    @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesOrderedListState.class})
+    @Category({
+      ValidatesRunner.class,
+      UsesStatefulParDo.class,
+      UsesOrderedListState.class,
+      UsesOnWindowExpiration.class
+    })
     public void testOrderedListStateUnbounded() {
       testOrderedListStateImpl(true);
     }
@@ -2583,6 +3292,10 @@ public class ParDoTest implements Serializable {
             }
           };
 
+      if (unbounded) {
+        pipeline.getOptions().as(StreamingOptions.class).setStreaming(true);
+      }
+
       PCollection<Iterable<TimestampedValue<String>>> output =
           pipeline
               .apply(
@@ -2591,7 +3304,6 @@ public class ParDoTest implements Serializable {
                       KV.of("hello", TimestampedValue.of("b", Instant.ofEpochMilli(42))),
                       KV.of("hello", TimestampedValue.of("b", Instant.ofEpochMilli(52))),
                       KV.of("hello", TimestampedValue.of("c", Instant.ofEpochMilli(12)))))
-              .setIsBoundedInternal(unbounded ? IsBounded.UNBOUNDED : IsBounded.BOUNDED)
               .apply(ParDo.of(fn));
 
       List<TimestampedValue<String>> expected =
@@ -2645,6 +3357,10 @@ public class ParDoTest implements Serializable {
             }
           };
 
+      if (unbounded) {
+        pipeline.getOptions().as(StreamingOptions.class).setStreaming(true);
+      }
+
       PCollection<Iterable<TimestampedValue<String>>> output =
           pipeline
               .apply(
@@ -2653,7 +3369,6 @@ public class ParDoTest implements Serializable {
                       KV.of("hello", TimestampedValue.of("b", Instant.ofEpochMilli(42))),
                       KV.of("hello", TimestampedValue.of("b", Instant.ofEpochMilli(52))),
                       KV.of("hello", TimestampedValue.of("c", Instant.ofEpochMilli(12)))))
-              .setIsBoundedInternal(unbounded ? IsBounded.UNBOUNDED : IsBounded.BOUNDED)
               .apply(ParDo.of(fn));
 
       List<TimestampedValue<String>> expected1 = Lists.newArrayList();
@@ -2711,7 +3426,7 @@ public class ParDoTest implements Serializable {
             @OnTimer("timer")
             public void processTimer(
                 @StateId(stateId) OrderedListState<String> state, @Timestamp Instant ts) {
-              state.clearRange(Instant.EPOCH, ts.plus(1));
+              state.clearRange(Instant.EPOCH, ts.plus(Duration.millis(1)));
             }
 
             @OnWindowExpiration
@@ -2722,6 +3437,9 @@ public class ParDoTest implements Serializable {
             }
           };
 
+      if (unbounded) {
+        pipeline.getOptions().as(StreamingOptions.class).setStreaming(true);
+      }
       PCollection<Iterable<TimestampedValue<String>>> output =
           pipeline
               .apply(
@@ -2730,7 +3448,6 @@ public class ParDoTest implements Serializable {
                       KV.of("hello", TimestampedValue.of("b", Instant.ofEpochMilli(42))),
                       KV.of("hello", TimestampedValue.of("b", Instant.ofEpochMilli(52))),
                       KV.of("hello", TimestampedValue.of("c", Instant.ofEpochMilli(12)))))
-              .setIsBoundedInternal(unbounded ? IsBounded.UNBOUNDED : IsBounded.BOUNDED)
               .apply(ParDo.of(fn));
 
       List<TimestampedValue<String>> expected =
@@ -2867,7 +3584,12 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesSideInputs.class})
+    @Category({
+      ValidatesRunner.class,
+      UsesStatefulParDo.class,
+      UsesSideInputs.class,
+      UsesTriggeredSideInputs.class
+    })
     public void testStateSideInput() {
 
       // SideInput tag id
@@ -2892,7 +3614,6 @@ public class ParDoTest implements Serializable {
 
       // SideInput tag id
       final String sideInputTag1 = "tag1";
-      private final PCollectionView<Integer> view;
 
       final String stateId = "foo";
       Coder<MyInteger> myIntegerCoder = MyIntegerCoder.of();
@@ -2900,9 +3621,7 @@ public class ParDoTest implements Serializable {
       @StateId(stateId)
       private final StateSpec<BagState<MyInteger>> bufferState = StateSpecs.bag();
 
-      private TestSimpleStatefulDoFn(PCollectionView<Integer> view) {
-        this.view = view;
-      }
+      private TestSimpleStatefulDoFn(PCollectionView<Integer> view) {}
 
       @ProcessElement
       public void processElem(
@@ -3435,6 +4154,116 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesMultimapState.class})
+    public void testMultimapStateCoderInference() {
+      final String stateId = "foo:";
+      final String countStateId = "count";
+      Coder<MyInteger> myIntegerCoder = MyIntegerCoder.of();
+      pipeline.getCoderRegistry().registerCoderForClass(MyInteger.class, myIntegerCoder);
+
+      DoFn<KV<String, KV<String, Integer>>, KV<String, MyInteger>> fn =
+          new DoFn<KV<String, KV<String, Integer>>, KV<String, MyInteger>>() {
+
+            @StateId(stateId)
+            private final StateSpec<MultimapState<String, MyInteger>> multimapState =
+                StateSpecs.multimap();
+
+            @StateId(countStateId)
+            private final StateSpec<CombiningState<Integer, int[], Integer>> countState =
+                StateSpecs.combiningFromInputInternal(VarIntCoder.of(), Sum.ofIntegers());
+
+            @ProcessElement
+            public void processElement(
+                ProcessContext c,
+                @Element KV<String, KV<String, Integer>> element,
+                @StateId(stateId) MultimapState<String, MyInteger> state,
+                @StateId(countStateId) CombiningState<Integer, int[], Integer> count,
+                OutputReceiver<KV<String, MyInteger>> r) {
+              KV<String, Integer> value = element.getValue();
+              ReadableState<Iterable<Entry<String, MyInteger>>> entriesView = state.entries();
+              state.put(value.getKey(), new MyInteger(value.getValue()));
+              count.add(1);
+              if (count.read() >= 4) {
+                Iterable<Entry<String, MyInteger>> iterate = state.entries().read();
+                state.put("BadKey", new MyInteger(-1));
+                assertEquals(4, Iterables.size(iterate));
+                assertEquals(5, Iterables.size(entriesView.read()));
+                assertEquals(5, Iterables.size(state.entries().read()));
+
+                for (Entry<String, MyInteger> entry : iterate) {
+                  r.output(KV.of(entry.getKey(), entry.getValue()));
+                }
+              }
+            }
+          };
+      PCollection<KV<String, MyInteger>> output =
+          pipeline
+              .apply(
+                  Create.of(
+                      KV.of("hello", KV.of("a", 97)), KV.of("hello", KV.of("a", 97)),
+                      KV.of("hello", KV.of("a", 98)), KV.of("hello", KV.of("b", 33))))
+              .apply(ParDo.of(fn))
+              .setCoder(KvCoder.of(StringUtf8Coder.of(), myIntegerCoder));
+      PAssert.that(output)
+          .containsInAnyOrder(
+              KV.of("a", new MyInteger(97)), KV.of("a", new MyInteger(97)),
+              KV.of("a", new MyInteger(98)), KV.of("b", new MyInteger(33)));
+      pipeline.run();
+    }
+
+    @Test
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesMultimapState.class})
+    public void testMultimapStateCoderInferenceFailure() throws Exception {
+      final String stateId = "foo:";
+      final String countStateId = "count";
+      Coder<MyInteger> myIntegerCoder = MyIntegerCoder.of();
+
+      DoFn<KV<String, KV<String, Integer>>, KV<String, MyInteger>> fn =
+          new DoFn<KV<String, KV<String, Integer>>, KV<String, MyInteger>>() {
+
+            @StateId(stateId)
+            private final StateSpec<MultimapState<String, MyInteger>> multimapState =
+                StateSpecs.multimap();
+
+            @StateId(countStateId)
+            private final StateSpec<CombiningState<Integer, int[], Integer>> countState =
+                StateSpecs.combiningFromInputInternal(VarIntCoder.of(), Sum.ofIntegers());
+
+            @ProcessElement
+            public void processElement(
+                ProcessContext c,
+                @Element KV<String, KV<String, Integer>> element,
+                @StateId(stateId) MultimapState<String, MyInteger> state,
+                @StateId(countStateId) CombiningState<Integer, int[], Integer> count,
+                OutputReceiver<KV<String, MyInteger>> r) {
+              KV<String, Integer> value = element.getValue();
+              ReadableState<Iterable<Entry<String, MyInteger>>> entriesView = state.entries();
+              state.put(value.getKey(), new MyInteger(value.getValue()));
+              count.add(1);
+              if (count.read() >= 4) {
+                Iterable<Entry<String, MyInteger>> iterate = state.entries().read();
+                for (Entry<String, MyInteger> entry : iterate) {
+                  r.output(KV.of(entry.getKey(), entry.getValue()));
+                }
+              }
+            }
+          };
+
+      thrown.expect(RuntimeException.class);
+      thrown.expectMessage("Unable to infer a coder for MultimapState and no Coder was specified.");
+
+      PCollection<KV<String, MyInteger>> output =
+          pipeline
+              .apply(
+                  Create.of(
+                      KV.of("hello", KV.of("a", 97)), KV.of("hello", KV.of("a", 97)),
+                      KV.of("hello", KV.of("a", 98)), KV.of("hello", KV.of("b", 33))))
+              .apply(ParDo.of(fn))
+              .setCoder(KvCoder.of(StringUtf8Coder.of(), myIntegerCoder));
+      pipeline.run();
+    }
+
+    @Test
     @Category({ValidatesRunner.class, UsesStatefulParDo.class})
     public void testCombiningStateCoderInference() {
       pipeline.getCoderRegistry().registerCoderForClass(MyInteger.class, MyIntegerCoder.of());
@@ -3731,7 +4560,7 @@ public class ParDoTest implements Serializable {
       PAssert.that(output)
           .containsInAnyOrder(
               KV.of(3L, BoundedWindow.TIMESTAMP_MIN_VALUE),
-              KV.of(42L, BoundedWindow.TIMESTAMP_MIN_VALUE.plus(1774)));
+              KV.of(42L, BoundedWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(1774))));
       pipeline.run();
     }
 
@@ -3819,15 +4648,16 @@ public class ParDoTest implements Serializable {
       ValidatesRunner.class,
       UsesStatefulParDo.class,
       UsesTimersInParDo.class,
-      UsesLoopingTimer.class
+      UsesLoopingTimer.class,
+      UsesStrictTimerOrdering.class
     })
     public void testEventTimeTimerLoop() {
       final String stateId = "count";
       final String timerId = "timer";
       final int loopCount = 5;
 
-      DoFn<KV<String, Integer>, Integer> fn =
-          new DoFn<KV<String, Integer>, Integer>() {
+      DoFn<KV<String, Integer>, KV<String, Integer>> fn =
+          new DoFn<KV<String, Integer>, KV<String, Integer>>() {
 
             @TimerId(timerId)
             private final TimerSpec loopSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
@@ -3839,27 +4669,47 @@ public class ParDoTest implements Serializable {
             public void processElement(
                 @StateId(stateId) ValueState<Integer> countState,
                 @TimerId(timerId) Timer loopTimer) {
+              countState.write(0);
               loopTimer.offset(Duration.millis(1)).setRelative();
             }
 
             @OnTimer(timerId)
             public void onLoopTimer(
+                @Key String key,
                 @StateId(stateId) ValueState<Integer> countState,
                 @TimerId(timerId) Timer loopTimer,
-                OutputReceiver<Integer> r) {
-              int count = MoreObjects.firstNonNull(countState.read(), 0);
+                OutputReceiver<KV<String, Integer>> r) {
+              int count = Preconditions.checkNotNull(countState.read());
               if (count < loopCount) {
-                r.output(count);
+                r.output(KV.of(key, count));
                 countState.write(count + 1);
                 loopTimer.offset(Duration.millis(1)).setRelative();
               }
             }
           };
 
-      PCollection<Integer> output =
-          pipeline.apply(Create.of(KV.of("hello", 42))).apply(ParDo.of(fn));
+      PCollection<KV<String, Integer>> output =
+          pipeline
+              .apply(Create.of(KV.of("hello1", 42), KV.of("hello2", 42), KV.of("hello3", 42)))
+              .apply(ParDo.of(fn));
 
-      PAssert.that(output).containsInAnyOrder(0, 1, 2, 3, 4);
+      PAssert.that(output)
+          .containsInAnyOrder(
+              KV.of("hello1", 0),
+              KV.of("hello1", 1),
+              KV.of("hello1", 2),
+              KV.of("hello1", 3),
+              KV.of("hello1", 4),
+              KV.of("hello2", 0),
+              KV.of("hello2", 1),
+              KV.of("hello2", 2),
+              KV.of("hello2", 3),
+              KV.of("hello2", 4),
+              KV.of("hello3", 0),
+              KV.of("hello3", 1),
+              KV.of("hello3", 2),
+              KV.of("hello3", 3),
+              KV.of("hello3", 4));
       pipeline.run();
     }
 
@@ -3943,7 +4793,7 @@ public class ParDoTest implements Serializable {
             public void processElement(
                 ProcessContext context, BoundedWindow window, @TimerId(timerId) Timer timer) {
               try {
-                timer.set(window.maxTimestamp().plus(1L));
+                timer.set(window.maxTimestamp().plus(Duration.millis(1L)));
                 fail("Should have failed due to out-of-bounds timer.");
               } catch (RuntimeException e) {
                 String message = e.getMessage();
@@ -4014,6 +4864,56 @@ public class ParDoTest implements Serializable {
 
     @Test
     @Category({ValidatesRunner.class, UsesTimersInParDo.class})
+    public void testNoOutputTimestampDefaultBounded() throws Exception {
+      runTestNoOutputTimestampDefault(false);
+    }
+
+    @Test
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class})
+    public void testNoOutputTimestampDefaultStreaming() throws Exception {
+      runTestNoOutputTimestampDefault(false);
+    }
+
+    public void runTestNoOutputTimestampDefault(boolean useStreaming) throws Exception {
+      final String timerId = "foo";
+      DoFn<KV<String, Long>, Long> fn1 =
+          new DoFn<KV<String, Long>, Long>() {
+
+            @TimerId(timerId)
+            private final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+            @ProcessElement
+            public void processElement(
+                @TimerId(timerId) Timer timer, @Timestamp Instant timestamp) {
+              timer.withNoOutputTimestamp().set(timestamp.plus(Duration.millis(10)));
+            }
+
+            @OnTimer(timerId)
+            public void onTimer(@Timestamp Instant timestamp, OutputReceiver<Long> o) {
+              try {
+                o.output(timestamp.getMillis());
+                fail("Should have failed due to outputting when noOutputTimestamp was set.");
+              } catch (IllegalArgumentException e) {
+                System.err.println("EXCEPTION " + e.getMessage() + " stack ");
+                e.printStackTrace();
+                Preconditions.checkState(e.getMessage().contains("Cannot output with timestamp"));
+              }
+            }
+          };
+
+      if (useStreaming) {
+        pipeline.getOptions().as(StreamingOptions.class).setStreaming(true);
+      }
+      PCollection<Long> output =
+          pipeline
+              .apply(Create.timestamped(TimestampedValue.of(KV.of("hello", 1L), new Instant(3))))
+              .apply("first", ParDo.of(fn1));
+
+      pipeline.run();
+    }
+
+    @Test
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class})
     public void testOutOfBoundsEventTimeTimerHold() throws Exception {
       final String timerId = "foo";
 
@@ -4028,7 +4928,7 @@ public class ParDoTest implements Serializable {
                 ProcessContext context, BoundedWindow window, @TimerId(timerId) Timer timer) {
               try {
                 timer
-                    .withOutputTimestamp(window.maxTimestamp().plus(1L))
+                    .withOutputTimestamp(window.maxTimestamp().plus(Duration.millis(1L)))
                     .set(window.maxTimestamp());
                 fail("Should have failed due to out-of-bounds timer.");
               } catch (RuntimeException e) {
@@ -4055,7 +4955,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class, UsesTimersInParDo.class})
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class, UsesProcessingTimeTimers.class})
     public void testOutOfBoundsProcessingTimeTimerHold() throws Exception {
       final String timerId = "foo";
 
@@ -4070,7 +4970,7 @@ public class ParDoTest implements Serializable {
                 ProcessContext context, BoundedWindow window, @TimerId(timerId) Timer timer) {
               try {
                 timer
-                    .withOutputTimestamp(window.maxTimestamp().plus(1L))
+                    .withOutputTimestamp(window.maxTimestamp().plus(Duration.millis(1L)))
                     .offset(Duration.standardSeconds(1))
                     .setRelative();
                 fail("Should have failed due to processing time with absolute timer.");
@@ -4101,6 +5001,7 @@ public class ParDoTest implements Serializable {
     @Category({
       ValidatesRunner.class,
       UsesTimersInParDo.class,
+      UsesProcessingTimeTimers.class,
       UsesTestStream.class,
       UsesTestStreamWithProcessingTime.class
     })
@@ -4225,6 +5126,54 @@ public class ParDoTest implements Serializable {
 
     @Test
     @Category({ValidatesRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
+    public void testEventTimeTimerSetWithinAllowedLateness() throws Exception {
+      final String timerId = "foo";
+
+      DoFn<KV<String, Long>, KV<Long, Instant>> fn =
+          new DoFn<KV<String, Long>, KV<Long, Instant>>() {
+
+            @TimerId(timerId)
+            private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+            @ProcessElement
+            public void processElement(
+                @TimerId(timerId) Timer timer,
+                @Timestamp Instant timestamp,
+                OutputReceiver<KV<Long, Instant>> r) {
+              timer.set(timestamp.plus(Duration.standardSeconds(10)));
+              r.output(KV.of(3L, timestamp));
+            }
+
+            @OnTimer(timerId)
+            public void onTimer(@Timestamp Instant timestamp, OutputReceiver<KV<Long, Instant>> r) {
+              r.output(KV.of(42L, timestamp));
+            }
+          };
+
+      TestStream<KV<String, Long>> stream =
+          TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarLongCoder.of()))
+              .advanceWatermarkTo(new Instant(0).plus(Duration.standardSeconds(5)))
+              .addElements(KV.of("hello", 37L))
+              .advanceWatermarkTo(new Instant(0).plus(Duration.standardMinutes(1)))
+              .advanceWatermarkToInfinity();
+
+      PCollection<KV<Long, Instant>> output =
+          pipeline
+              .apply(stream)
+              .apply(
+                  Window.<KV<String, Long>>into(FixedWindows.of(Duration.standardSeconds(10)))
+                      .discardingFiredPanes()
+                      .withAllowedLateness(Duration.standardSeconds(10)))
+              .apply(ParDo.of(fn));
+      PAssert.that(output)
+          .containsInAnyOrder(
+              KV.of(3L, new Instant(0).plus(Duration.standardSeconds(5))),
+              KV.of(42L, new Instant(0).plus(Duration.standardSeconds(15))));
+      pipeline.run();
+    }
+
+    @Test
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
     public void testEventTimeTimerAlignAfterGcTimeUnbounded() throws Exception {
       final String timerId = "foo";
 
@@ -4271,6 +5220,7 @@ public class ParDoTest implements Serializable {
     @Category({
       ValidatesRunner.class,
       UsesTimersInParDo.class,
+      UsesProcessingTimeTimers.class,
       UsesTestStream.class,
       UsesTestStreamWithProcessingTime.class
     })
@@ -4371,9 +5321,10 @@ public class ParDoTest implements Serializable {
 
       for (int i = 0; i < numTestElements; i++) {
         builder =
-            builder.addElements(TimestampedValue.of(KV.of("dummy", "" + i), now.plus(i * 1000)));
+            builder.addElements(
+                TimestampedValue.of(KV.of("dummy", "" + i), now.plus(Duration.millis(i * 1000))));
         if ((i + 1) % 10 == 0) {
-          builder = builder.advanceWatermarkTo(now.plus((i + 1) * 1000));
+          builder = builder.advanceWatermarkTo(now.plus(Duration.millis((i + 1) * 1000)));
         }
       }
 
@@ -4395,7 +5346,8 @@ public class ParDoTest implements Serializable {
 
       List<TimestampedValue<KV<String, String>>> elements = new ArrayList<>();
       for (int i = 0; i < numTestElements; i++) {
-        elements.add(TimestampedValue.of(KV.of("dummy", "" + i), now.plus(i * 1000)));
+        elements.add(
+            TimestampedValue.of(KV.of("dummy", "" + i), now.plus(Duration.millis(i * 1000))));
       }
 
       testEventTimeTimerOrderingWithInputPTransform(
@@ -4411,7 +5363,7 @@ public class ParDoTest implements Serializable {
       final String timerIdGc = "gc";
       final String bag = "bag";
       final String minTimestamp = "minTs";
-      final Instant gcTimerStamp = now.plus((numTestElements + 1) * 1000);
+      final Instant gcTimerStamp = now.plus(Duration.millis((numTestElements + 1) * 1000));
 
       DoFn<KV<String, String>, String> fn =
           new DoFn<KV<String, String>, String>() {
@@ -4464,7 +5416,7 @@ public class ParDoTest implements Serializable {
               flush.sort(Comparator.comparing(TimestampedValue::getTimestamp));
               context.output(
                   Joiner.on(":").join(flush.stream().map(TimestampedValue::getValue).iterator()));
-              Instant newMinStamp = flushTime.plus(1000);
+              Instant newMinStamp = flushTime.plus(Duration.millis(1000));
               if (flush.size() < numTestElements) {
                 timer.set(newMinStamp);
               }
@@ -4516,6 +5468,7 @@ public class ParDoTest implements Serializable {
               .apply(
                   ParDo.of(
                       new DoFn<KV<Long, Long>, String>() {
+
                         @TimerId(timerId)
                         private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
@@ -4576,7 +5529,7 @@ public class ParDoTest implements Serializable {
 
     private void testTwoTimersSettingEachOther(IsBounded isBounded) {
       Instant now = new Instant(1500000000000L);
-      Instant end = now.plus(100);
+      Instant end = now.plus(Duration.millis(100));
       TestStream<KV<String, String>> input =
           TestStream.create(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
               .addElements(KV.of("", ""))
@@ -4604,7 +5557,7 @@ public class ParDoTest implements Serializable {
 
     private void testTwoTimersSettingEachOtherWithCreateAsInput(IsBounded isBounded) {
       Instant now = new Instant(0L);
-      Instant end = now.plus(100);
+      Instant end = now.plus(Duration.millis(100));
       pipeline.apply(TwoTimerTest.of(now, end, Create.of(KV.of("", "")), isBounded));
       pipeline.run();
     }
@@ -4696,6 +5649,7 @@ public class ParDoTest implements Serializable {
       ValidatesRunner.class,
       UsesStatefulParDo.class,
       UsesTimersInParDo.class,
+      UsesProcessingTimeTimers.class,
       UsesTestStream.class,
       UsesTestStreamWithProcessingTime.class,
       UsesTestStreamWithOutputTimestamp.class
@@ -4907,7 +5861,7 @@ public class ParDoTest implements Serializable {
                             t1.set(start);
                             // set the t2 timer after end, so that we test that
                             // timers are correctly ordered in this case
-                            t2.set(end.plus(1));
+                            t2.set(end.plus(Duration.millis(1)));
                           }
 
                           @OnTimer(timerName1)
@@ -4922,7 +5876,9 @@ public class ParDoTest implements Serializable {
                                 "t1:"
                                     + current
                                     + ":"
-                                    + timestamp.minus(start.getMillis()).getMillis());
+                                    + timestamp
+                                        .minus(Duration.millis(start.getMillis()))
+                                        .getMillis());
                           }
 
                           @OnTimer(timerName2)
@@ -4934,7 +5890,7 @@ public class ParDoTest implements Serializable {
                             Integer current = state.read();
                             if (timestamp.isBefore(end)) {
                               state.write(current + 1);
-                              t1.set(timestamp.plus(1));
+                              t1.set(timestamp.plus(Duration.millis(1)));
                             } else {
                               state.write(-1);
                             }
@@ -4942,7 +5898,9 @@ public class ParDoTest implements Serializable {
                                 "t2:"
                                     + current
                                     + ":"
-                                    + timestamp.minus(start.getMillis()).getMillis());
+                                    + timestamp
+                                        .minus(Duration.millis(start.getMillis()))
+                                        .getMillis());
                           }
                         }));
 
@@ -4961,6 +5919,7 @@ public class ParDoTest implements Serializable {
     @Category({
       NeedsRunner.class,
       UsesTimersInParDo.class,
+      UsesProcessingTimeTimers.class,
       UsesTestStream.class,
       UsesTestStreamWithProcessingTime.class
     })
@@ -5041,6 +6000,7 @@ public class ParDoTest implements Serializable {
     @Category({
       NeedsRunner.class,
       UsesTimersInParDo.class,
+      UsesProcessingTimeTimers.class,
       UsesTestStream.class,
       UsesTestStreamWithProcessingTime.class
     })
@@ -5118,6 +6078,7 @@ public class ParDoTest implements Serializable {
     @Category({
       NeedsRunner.class,
       UsesTimersInParDo.class,
+      UsesProcessingTimeTimers.class,
       UsesTestStream.class,
       UsesTestStreamWithProcessingTime.class
     })
@@ -5231,6 +6192,7 @@ public class ParDoTest implements Serializable {
     @Category({
       NeedsRunner.class,
       UsesTimersInParDo.class,
+      UsesProcessingTimeTimers.class,
       UsesTestStream.class,
       UsesTestStreamWithProcessingTime.class
     })
@@ -5666,6 +6628,7 @@ public class ParDoTest implements Serializable {
   }
 
   private static class TwoTimerDoFn extends DoFn<KV<String, String>, String> {
+
     @TimerId("timer")
     private final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
@@ -5725,8 +6688,6 @@ public class ParDoTest implements Serializable {
                 @Timestamp Instant ts,
                 @TimerFamily(timerFamilyId) TimerMap timerMap,
                 OutputReceiver<String> r) {
-              System.out.println("timer Id : " + timerId);
-              System.out.println("timerMap : " + timerMap.toString());
               r.output(timerId);
             }
           };
@@ -5867,6 +6828,7 @@ public class ParDoTest implements Serializable {
     @Category({
       ValidatesRunner.class,
       UsesTimersInParDo.class,
+      UsesProcessingTimeTimers.class,
       UsesTestStream.class,
       UsesTestStreamWithProcessingTime.class,
       UsesTimerMap.class
@@ -6054,7 +7016,18 @@ public class ParDoTest implements Serializable {
       UsesOnWindowExpiration.class
     })
     public void testOnWindowExpirationSimpleBounded() {
-      runOnWindowExpirationSimple(false);
+      runOnWindowExpirationSimple(false, false);
+    }
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesStatefulParDo.class,
+      UsesTimersInParDo.class,
+      UsesOnWindowExpiration.class
+    })
+    public void testOnWindowExpirationSimpleBoundedGlobal() {
+      runOnWindowExpirationSimple(false, true);
     }
 
     @Test
@@ -6066,10 +7039,22 @@ public class ParDoTest implements Serializable {
       UsesUnboundedPCollections.class
     })
     public void testOnWindowExpirationSimpleUnbounded() {
-      runOnWindowExpirationSimple(true);
+      runOnWindowExpirationSimple(true, false);
     }
 
-    public void runOnWindowExpirationSimple(boolean useStreaming) {
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesStatefulParDo.class,
+      UsesTimersInParDo.class,
+      UsesOnWindowExpiration.class,
+      UsesUnboundedPCollections.class
+    })
+    public void testOnWindowExpirationSimpleUnboundedGlobal() {
+      runOnWindowExpirationSimple(true, true);
+    }
+
+    public void runOnWindowExpirationSimple(boolean useStreaming, boolean globalWindow) {
       final String stateId = "foo";
       final String timerId = "bar";
       IntervalWindow firstWindow = new IntervalWindow(new Instant(0), new Instant(10));
@@ -6112,26 +7097,212 @@ public class ParDoTest implements Serializable {
             }
           };
 
-      PCollection<Integer> output =
+      if (useStreaming) {
+        pipeline.getOptions().as(StreamingOptions.class).setStreaming(true);
+      }
+
+      PCollection<KV<String, Integer>> intermediate =
+          pipeline.apply(
+              Create.timestamped(
+                  // first window
+                  TimestampedValue.of(KV.of("hello", 7), new Instant(3)),
+                  // second window
+                  TimestampedValue.of(KV.of("hi", 35), new Instant(13))));
+      if (!globalWindow) {
+        intermediate = intermediate.apply(Window.into(FixedWindows.of(Duration.millis(10))));
+      }
+      PCollection<Integer> output = intermediate.apply(ParDo.of(fn));
+
+      if (!globalWindow) {
+        PAssert.that(output)
+            .inWindow(firstWindow)
+            // verify output
+            .containsInAnyOrder(1)
+            .inWindow(secondWindow)
+            // verify output
+            .containsInAnyOrder(1);
+      } else {
+        PAssert.that(output).inWindow(GlobalWindow.INSTANCE).containsInAnyOrder(1, 1);
+      }
+      pipeline.run();
+    }
+  }
+
+  /** Tests to validate SchemaInformation. */
+  @RunWith(JUnit4.class)
+  public static class SchemaInformationTests extends SharedTestBase implements Serializable {
+
+    private static final Schema TEST_SCHEMA =
+        Schema.builder().addInt32Field("f_int").addStringField("f_string").build();
+    private static final Row TEST_ROW = Row.withSchema(TEST_SCHEMA).addValues(10, "ten").build();
+
+    @Test
+    public void testUnboxFieldAccess() throws Exception {
+
+      DoFn<Row, Integer> fn =
+          new DoFn<Row, Integer>() {
+            @ProcessElement
+            public void processElement(
+                @FieldAccess("f_int") Integer value, OutputReceiver<Integer> r) {
+              r.output(value);
+            }
+          };
+      PCollection<Row> input = pipeline.apply(Create.of(TEST_ROW).withRowSchema(TEST_SCHEMA));
+
+      DoFnSchemaInformation info = ParDo.getDoFnSchemaInformation(fn, input);
+      assertEquals(info.getElementConverters().toString(), 1, info.getElementConverters().size());
+
+      FieldAccessDescriptor fieldAccessDescriptor = info.getFieldAccessDescriptor();
+      assertEquals(
+          fieldAccessDescriptor.toString(), 1, fieldAccessDescriptor.getFieldsAccessed().size());
+      assertEquals(
+          "f_int",
+          Iterables.getOnlyElement(fieldAccessDescriptor.getFieldsAccessed()).getFieldName());
+      assertFalse(fieldAccessDescriptor.toString(), fieldAccessDescriptor.getAllFields());
+    }
+
+    @Test
+    public void testSingleFieldAccess() throws Exception {
+
+      DoFn<Row, Integer> fn =
+          new DoFn<Row, Integer>() {
+            @FieldAccess("foo")
+            final FieldAccessDescriptor fieldAccess = FieldAccessDescriptor.withFieldNames("f_int");
+
+            @ProcessElement
+            public void processElement(@FieldAccess("foo") Row row, OutputReceiver<Integer> r) {
+              r.output(row.getInt32("f_int"));
+            }
+          };
+      PCollection<Row> input = pipeline.apply(Create.of(TEST_ROW).withRowSchema(TEST_SCHEMA));
+
+      DoFnSchemaInformation info = ParDo.getDoFnSchemaInformation(fn, input);
+      assertEquals(info.getElementConverters().toString(), 1, info.getElementConverters().size());
+
+      FieldAccessDescriptor fieldAccessDescriptor = info.getFieldAccessDescriptor();
+      assertEquals(
+          fieldAccessDescriptor.toString(), 1, fieldAccessDescriptor.getFieldsAccessed().size());
+      assertEquals(
+          "f_int",
+          Iterables.getOnlyElement(fieldAccessDescriptor.getFieldsAccessed()).getFieldName());
+      assertFalse(fieldAccessDescriptor.toString(), fieldAccessDescriptor.getAllFields());
+    }
+
+    @Test
+    public void testImplicitElement() throws Exception {
+
+      DoFn<Row, Integer> fn =
+          new DoFn<Row, Integer>() {
+            @ProcessElement
+            public void processElement(@Element Row row, OutputReceiver<Integer> r) {
+              r.output(row.getInt32("f_int"));
+            }
+          };
+      PCollection<Row> input = pipeline.apply(Create.of(TEST_ROW).withRowSchema(TEST_SCHEMA));
+
+      DoFnSchemaInformation info = ParDo.getDoFnSchemaInformation(fn, input);
+      assertEquals(info.getElementConverters().toString(), 0, info.getElementConverters().size());
+
+      FieldAccessDescriptor fieldAccessDescriptor = info.getFieldAccessDescriptor();
+      assertTrue(fieldAccessDescriptor.toString(), fieldAccessDescriptor.getAllFields());
+    }
+
+    @Test
+    public void testImplicitProcessContext() throws Exception {
+
+      DoFn<Row, Integer> fn =
+          new DoFn<Row, Integer>() {
+            @ProcessElement
+            public void processElement(ProcessContext c) {
+              c.output(c.element().getInt32("f_int"));
+            }
+          };
+      PCollection<Row> input = pipeline.apply(Create.of(TEST_ROW).withRowSchema(TEST_SCHEMA));
+
+      DoFnSchemaInformation info = ParDo.getDoFnSchemaInformation(fn, input);
+      assertEquals(info.getElementConverters().toString(), 0, info.getElementConverters().size());
+
+      FieldAccessDescriptor fieldAccessDescriptor = info.getFieldAccessDescriptor();
+      assertTrue(fieldAccessDescriptor.toString(), fieldAccessDescriptor.getAllFields());
+    }
+
+    @Test
+    public void testNoAccess() throws Exception {
+
+      DoFn<Row, Integer> fn =
+          new DoFn<Row, Integer>() {
+            @ProcessElement
+            public void processElement(OutputReceiver<Integer> r) {
+              r.output(1);
+            }
+          };
+      PCollection<Row> input = pipeline.apply(Create.of(TEST_ROW).withRowSchema(TEST_SCHEMA));
+
+      DoFnSchemaInformation info = ParDo.getDoFnSchemaInformation(fn, input);
+      assertEquals(info.getElementConverters().toString(), 0, info.getElementConverters().size());
+
+      FieldAccessDescriptor fieldAccessDescriptor = info.getFieldAccessDescriptor();
+      assertFalse(fieldAccessDescriptor.toString(), fieldAccessDescriptor.getAllFields());
+      assertTrue(
+          fieldAccessDescriptor.toString(), fieldAccessDescriptor.getFieldsAccessed().isEmpty());
+      assertTrue(
+          fieldAccessDescriptor.toString(),
+          fieldAccessDescriptor.getNestedFieldsAccessed().isEmpty());
+    }
+  }
+
+  @RunWith(JUnit4.class)
+  public static class BundleInvariantsTests extends SharedTestBase implements Serializable {
+
+    @Test
+    @Category({ValidatesRunner.class, UsesUnboundedPCollections.class, UsesTestStream.class})
+    public void testWatermarkUpdateMidBundle() {
+      DoFn<String, String> bufferDoFn =
+          new DoFn<String, String>() {
+            private final Set<KV<String, Instant>> buffer = new HashSet<>();
+
+            @ProcessElement
+            public void process(@Element String in, @Timestamp Instant ts) {
+              buffer.add(KV.of(in, ts));
+            }
+
+            @FinishBundle
+            public void finish(FinishBundleContext context) {
+              buffer.forEach(k -> context.output(k.getKey(), k.getValue(), GlobalWindow.INSTANCE));
+              buffer.clear();
+            }
+          };
+      int numBundles = 200;
+      TestStream.Builder<String> builder =
+          TestStream.create(StringUtf8Coder.of()).advanceWatermarkTo(new Instant(0));
+      List<List<TimestampedValue<String>>> bundles =
+          IntStream.range(0, numBundles)
+              .mapToObj(
+                  r ->
+                      IntStream.range(0, r + 1)
+                          .mapToObj(v -> TimestampedValue.of(String.valueOf(v), new Instant(r)))
+                          .collect(Collectors.toList()))
+              .collect(Collectors.toList());
+      for (List<TimestampedValue<String>> b : bundles) {
+        builder =
+            builder
+                .addElements(b.get(0), b.subList(1, b.size()).toArray(new TimestampedValue[] {}))
+                .advanceWatermarkTo(new Instant(b.size()));
+      }
+      PCollection<Long> result =
           pipeline
+              .apply(builder.advanceWatermarkToInfinity())
+              .apply(ParDo.of(bufferDoFn))
+              .apply("milliWindow", Window.into(FixedWindows.of(Duration.millis(1))))
+              .apply("count", Combine.globally(Count.<String>combineFn()).withoutDefaults())
               .apply(
-                  Create.timestamped(
-                      // first window
-                      TimestampedValue.of(KV.of("hello", 7), new Instant(3)),
-
-                      // second window
-                      TimestampedValue.of(KV.of("hi", 35), new Instant(13))))
-              .apply(Window.into(FixedWindows.of(Duration.millis(10))))
-              .setIsBoundedInternal(useStreaming ? IsBounded.UNBOUNDED : IsBounded.BOUNDED)
-              .apply(ParDo.of(fn));
-
-      PAssert.that(output)
-          .inWindow(firstWindow)
-          // verify output
-          .containsInAnyOrder(1)
-          .inWindow(secondWindow)
-          // verify output
-          .containsInAnyOrder(1);
+                  "globalWindow",
+                  Window.<Long>into(new GlobalWindows())
+                      .triggering(AfterWatermark.pastEndOfWindow())
+                      .withAllowedLateness(Duration.ZERO)
+                      .discardingFiredPanes())
+              .apply("sum", Sum.longsGlobally());
+      PAssert.that(result).containsInAnyOrder((numBundles * numBundles + numBundles) / 2L);
       pipeline.run();
     }
   }

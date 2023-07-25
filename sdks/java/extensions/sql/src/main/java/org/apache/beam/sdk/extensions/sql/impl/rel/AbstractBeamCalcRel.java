@@ -19,21 +19,22 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelMetadataQuery;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelOptCluster;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelOptPlanner;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelTraitSet;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelNode;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.core.Calc;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexLocalRef;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexNode;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexProgram;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptCluster;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptPlanner;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelTraitSet;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.core.Calc;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexLocalRef;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexProgram;
 
 /** BeamRelNode to replace {@code Project} and {@code Filter} node. */
 @Internal
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public abstract class AbstractBeamCalcRel extends Calc implements BeamRelNode {
 
@@ -55,7 +56,17 @@ public abstract class AbstractBeamCalcRel extends Calc implements BeamRelNode {
   }
 
   @Override
-  public NodeStats estimateNodeStats(RelMetadataQuery mq) {
+  public boolean deepEquals(Object obj) {
+    if (!super.deepEquals(obj) || !(obj instanceof AbstractBeamCalcRel)) {
+      return false;
+    }
+    // Beam cares about output field names
+    final AbstractBeamCalcRel other = (AbstractBeamCalcRel) obj;
+    return this.getRowType().getFieldNames().equals(other.getRowType().getFieldNames());
+  }
+
+  @Override
+  public NodeStats estimateNodeStats(BeamRelMetadataQuery mq) {
     NodeStats inputStat = BeamSqlRelUtils.getNodeStats(input, mq);
     double selectivity = estimateFilterSelectivity(getInput(), program, mq);
 
@@ -78,7 +89,7 @@ public abstract class AbstractBeamCalcRel extends Calc implements BeamRelNode {
   }
 
   @Override
-  public BeamCostModel beamComputeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
+  public BeamCostModel beamComputeSelfCost(RelOptPlanner planner, BeamRelMetadataQuery mq) {
     NodeStats inputStat = BeamSqlRelUtils.getNodeStats(this.input, mq);
     return BeamCostModel.FACTORY.makeCost(inputStat.getRowCount(), inputStat.getRate());
   }

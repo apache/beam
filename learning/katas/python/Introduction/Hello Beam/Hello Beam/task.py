@@ -14,12 +14,21 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-import apache_beam as beam
+# beam-playground:
+#   name: HelloBeam
+#   description: Task from katas to create a simple pipeline that takes a hardcoded input element "Hello Beam".
+#   multifile: false
+#   context_line: 30
+#   categories:
+#     - Quickstart
+#   complexity: BASIC
+#   tags:
+#     - pipeline
 
-from log_elements import LogElements
+import apache_beam as beam
 
 with beam.Pipeline() as p:
 
   (p | beam.Create(['Hello Beam'])
-     | LogElements())
+     | beam.LogElements())
 

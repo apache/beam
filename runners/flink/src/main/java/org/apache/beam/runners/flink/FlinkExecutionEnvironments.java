@@ -19,18 +19,31 @@ package org.apache.beam.runners.flink;
 
 import static org.apache.flink.streaming.api.environment.StreamExecutionEnvironment.getDefaultLocalParallelism;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Streams;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.net.HostAndPort;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.api.java.CollectionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.LocalEnvironment;
+import org.apache.flink.api.java.RemoteEnvironment;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
@@ -51,19 +64,23 @@ import org.slf4j.LoggerFactory;
 
 /** Utilities for Flink execution environments. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class FlinkExecutionEnvironments {
 
   private static final Logger LOG = LoggerFactory.getLogger(FlinkExecutionEnvironments.class);
 
+  private static final ObjectMapper mapper = new ObjectMapper();
+
   /**
    * If the submitted job is a batch processing job, this method creates the adequate Flink {@link
    * org.apache.flink.api.java.ExecutionEnvironment} depending on the user-specified options.
    */
-  public static ExecutionEnvironment createBatchExecutionEnvironment(
-      FlinkPipelineOptions options, List<String> filesToStage) {
-    return createBatchExecutionEnvironment(options, filesToStage, null);
+  public static ExecutionEnvironment createBatchExecutionEnvironment(FlinkPipelineOptions options) {
+    return createBatchExecutionEnvironment(
+        options,
+        MoreObjects.firstNonNull(options.getFilesToStage(), Collections.emptyList()),
+        options.getFlinkConfDir());
   }
 
   static ExecutionEnvironment createBatchExecutionEnvironment(
@@ -113,6 +130,17 @@ public class FlinkExecutionEnvironments {
     if (options.getParallelism() != -1 && !(flinkBatchEnv instanceof CollectionEnvironment)) {
       flinkBatchEnv.setParallelism(options.getParallelism());
     }
+
+    // Only RemoteEnvironment support detached mode, other batch environment enforce to use attached
+    // mode
+    if (!options.getAttachedMode()) {
+      if (flinkBatchEnv instanceof RemoteEnvironment) {
+        flinkBatchEnv.getConfiguration().set(DeploymentOptions.ATTACHED, options.getAttachedMode());
+      } else {
+        LOG.warn("Detached mode is only supported in RemoteEnvironment for batch");
+      }
+    }
+
     // Set the correct parallelism, required by UnboundedSourceWrapper to generate consistent
     // splits.
     final int parallelism;
@@ -136,7 +164,17 @@ public class FlinkExecutionEnvironments {
 
     applyLatencyTrackingInterval(flinkBatchEnv.getConfig(), options);
 
+    configureWebUIOptions(flinkBatchEnv.getConfig(), options.as(PipelineOptions.class));
+
     return flinkBatchEnv;
+  }
+
+  @VisibleForTesting
+  static StreamExecutionEnvironment createStreamExecutionEnvironment(FlinkPipelineOptions options) {
+    return createStreamExecutionEnvironment(
+        options,
+        MoreObjects.firstNonNull(options.getFilesToStage(), Collections.emptyList()),
+        options.getFlinkConfDir());
   }
 
   /**
@@ -145,12 +183,6 @@ public class FlinkExecutionEnvironments {
    * user-specified options.
    */
   public static StreamExecutionEnvironment createStreamExecutionEnvironment(
-      FlinkPipelineOptions options, List<String> filesToStage) {
-    return createStreamExecutionEnvironment(options, filesToStage, null);
-  }
-
-  @VisibleForTesting
-  static StreamExecutionEnvironment createStreamExecutionEnvironment(
       FlinkPipelineOptions options, List<String> filesToStage, @Nullable String confDir) {
 
     LOG.info("Creating a Streaming Environment.");
@@ -215,6 +247,22 @@ public class FlinkExecutionEnvironments {
       flinkStreamEnv.getConfig().disableObjectReuse();
     }
 
+    if (!options.getOperatorChaining()) {
+      flinkStreamEnv.disableOperatorChaining();
+    }
+
+    // Only RemoteStreamEnvironment support detached mode, other stream environment enforce to use
+    // attached mode.
+    if (!options.getAttachedMode()) {
+      if (flinkStreamEnv instanceof RemoteStreamEnvironment) {
+        ((RemoteStreamEnvironment) flinkStreamEnv)
+            .getClientConfiguration()
+            .set(DeploymentOptions.ATTACHED, options.getAttachedMode());
+      } else {
+        LOG.warn("Detached mode is only supported in RemoteStreamEnvironment for streaming");
+      }
+    }
+
     // default to event time
     flinkStreamEnv.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
@@ -239,7 +287,57 @@ public class FlinkExecutionEnvironments {
 
     configureStateBackend(options, flinkStreamEnv);
 
+    configureWebUIOptions(flinkStreamEnv.getConfig(), options.as(PipelineOptions.class));
+
     return flinkStreamEnv;
+  }
+
+  private static void configureWebUIOptions(
+      ExecutionConfig config, org.apache.beam.sdk.options.PipelineOptions options) {
+    SerializablePipelineOptions serializablePipelineOptions =
+        new SerializablePipelineOptions(options);
+    String optionsAsString = serializablePipelineOptions.toString();
+
+    try {
+      JsonNode node = mapper.readTree(optionsAsString);
+      JsonNode optionsNode = node.get("options");
+      Map<String, String> output =
+          Streams.stream(optionsNode.fields())
+              .filter(entry -> !entry.getValue().isNull())
+              .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue().asText()));
+
+      config.setGlobalJobParameters(new GlobalJobParametersImpl(output));
+    } catch (Exception e) {
+      LOG.warn("Unable to configure web ui options", e);
+    }
+  }
+
+  private static class GlobalJobParametersImpl extends ExecutionConfig.GlobalJobParameters {
+    private final Map<String, String> jobOptions;
+
+    private GlobalJobParametersImpl(Map<String, String> jobOptions) {
+      this.jobOptions = jobOptions;
+    }
+
+    @Override
+    public Map<String, String> toMap() {
+      return jobOptions;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (obj == null || this.getClass() != obj.getClass()) {
+        return false;
+      }
+
+      ExecutionConfig.GlobalJobParameters jobParams = (ExecutionConfig.GlobalJobParameters) obj;
+      return Maps.difference(jobParams.toMap(), this.jobOptions).areEqual();
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hashCode(jobOptions);
+    }
   }
 
   private static void configureCheckpointing(
@@ -371,7 +469,7 @@ public class FlinkExecutionEnvironments {
   }
 
   private static Configuration getFlinkConfiguration(@Nullable String flinkConfDir) {
-    return flinkConfDir == null
+    return flinkConfDir == null || flinkConfDir.isEmpty()
         ? GlobalConfiguration.loadConfiguration()
         : GlobalConfiguration.loadConfiguration(flinkConfDir);
   }
@@ -393,7 +491,7 @@ public class FlinkExecutionEnvironments {
 
   /**
    * Disables classloader.check-leaked-classloader unless set by the user. See
-   * https://issues.apache.org/jira/browse/BEAM-11570.
+   * https://github.com/apache/beam/issues/20783.
    */
   private static void disableClassLoaderLeakCheck(final Configuration config) {
     if (!config.containsKey("classloader.check-leaked-classloader")) {

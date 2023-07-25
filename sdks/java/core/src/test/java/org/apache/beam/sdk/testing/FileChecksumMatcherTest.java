@@ -68,7 +68,7 @@ public class FileChecksumMatcherTest {
 
   @Test
   public void testMatcherThatVerifiesMultipleFiles() throws IOException {
-    // TODO: Java core test failing on windows, https://issues.apache.org/jira/browse/BEAM-10747
+    // TODO: Java core test failing on windows, https://github.com/apache/beam/issues/20468
     assumeFalse(SystemUtils.IS_OS_WINDOWS);
     File tmpFile1 = tmpFolder.newFile("result-000-of-002");
     File tmpFile2 = tmpFolder.newFile("result-001-of-002");
@@ -84,7 +84,7 @@ public class FileChecksumMatcherTest {
 
   @Test
   public void testMatcherThatVerifiesFileWithEmptyContent() throws IOException {
-    // TODO: Java core test failing on windows, https://issues.apache.org/jira/browse/BEAM-10748
+    // TODO: Java core test failing on windows, https://github.com/apache/beam/issues/20483
     assumeFalse(SystemUtils.IS_OS_WINDOWS);
     File emptyFile = tmpFolder.newFile("result-000-of-001");
     Files.write("", emptyFile, StandardCharsets.UTF_8);
@@ -97,7 +97,7 @@ public class FileChecksumMatcherTest {
   @Test
   public void testMatcherThatUsesCustomizedTemplate() throws Exception {
     // Customized template: resultSSS-totalNNN
-    // TODO: Java core test failing on windows, https://issues.apache.org/jira/browse/BEAM-10749
+    // TODO: Java core test failing on windows, https://github.com/apache/beam/issues/20462
     assumeFalse(SystemUtils.IS_OS_WINDOWS);
     File tmpFile1 = tmpFolder.newFile("result0-total2");
     File tmpFile2 = tmpFolder.newFile("result1-total2");

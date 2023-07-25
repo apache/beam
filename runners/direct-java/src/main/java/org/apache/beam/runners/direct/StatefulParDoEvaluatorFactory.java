@@ -17,14 +17,10 @@
  */
 package org.apache.beam.runners.direct;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
-
 import com.google.auto.value.AutoValue;
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
-import java.util.PriorityQueue;
+import java.util.NavigableSet;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItems;
 import org.apache.beam.runners.core.StateNamespaces.WindowNamespace;
@@ -47,13 +43,12 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheLoader;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Ordering;
 import org.joda.time.Instant;
 
 /** A {@link TransformEvaluatorFactory} for stateful {@link ParDo}. */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements TransformEvaluatorFactory {
 
@@ -155,7 +150,6 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
       implements TransformEvaluator<KeyedWorkItem<K, KV<K, InputT>>> {
 
     private final DoFnLifecycleManagerRemovingTransformEvaluator<KV<K, InputT>> delegateEvaluator;
-    private final List<TimerData> pushedBackTimers = new ArrayList<>();
     private final DirectTimerInternals timerInternals;
 
     DirectStepContext stepContext;
@@ -174,45 +168,46 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
       for (WindowedValue<KV<K, InputT>> windowedValue : gbkResult.getValue().elementsIterable()) {
         delegateEvaluator.processElement(windowedValue);
       }
-      PriorityQueue<TimerData> toBeFiredTimers =
-          new PriorityQueue<>(Comparator.comparing(TimerData::getTimestamp));
 
-      Instant maxWatermarkTime = BoundedWindow.TIMESTAMP_MIN_VALUE;
-      Instant maxProcessingTime = BoundedWindow.TIMESTAMP_MIN_VALUE;
-      Instant maxSynchronizedProcessingTime = BoundedWindow.TIMESTAMP_MIN_VALUE;
       for (TimerData timerData : gbkResult.getValue().timersIterable()) {
-        toBeFiredTimers.add(timerData);
-        switch (timerData.getDomain()) {
-          case EVENT_TIME:
-            maxWatermarkTime = Ordering.natural().max(maxWatermarkTime, timerData.getTimestamp());
-            break;
-          case PROCESSING_TIME:
-            maxProcessingTime = Ordering.natural().max(maxProcessingTime, timerData.getTimestamp());
-            break;
-          case SYNCHRONIZED_PROCESSING_TIME:
-            maxSynchronizedProcessingTime =
-                Ordering.natural().max(maxSynchronizedProcessingTime, timerData.getTimestamp());
+        // Get any new or modified timers that are earlier than the current one. In order to
+        // maintain timer ordering,
+        // we need to fire these timers first.
+        NavigableSet<TimerData> earlierTimers =
+            timerInternals.getModifiedTimersOrdered(timerData.getDomain()).headSet(timerData, true);
+        while (!earlierTimers.isEmpty()) {
+          TimerData insertedTimer = earlierTimers.pollFirst();
+          if (timerModified(insertedTimer)) {
+            continue;
+          }
+          // Make sure to register this timer as deleted. This could be a timer that was originally
+          // set for the future
+          // and not in the bundle but was reset to an earlier time in this bundle. If we don't
+          // explicity delete the
+          // future timer, then it will still fire.
+          timerInternals.deleteTimer(insertedTimer);
+          processTimer(insertedTimer, gbkResult.getValue().key());
+        }
+
+        // As long as the timer hasn't been modified or deleted earlier in the bundle, fire it.
+        if (!timerModified(timerData)) {
+          processTimer(timerData, gbkResult.getValue().key());
         }
       }
+    }
 
-      while (!timerInternals.containsUpdateForTimeBefore(
-              maxWatermarkTime, maxProcessingTime, maxSynchronizedProcessingTime)
-          && !toBeFiredTimers.isEmpty()) {
+    // Check to see if a timer has been modified inside this bundle.
+    private boolean timerModified(TimerData timerData) {
+      @Nullable
+      TimerData modifiedTimer = timerInternals.getModifiedTimerIds().get(timerData.stringKey());
+      return modifiedTimer != null && !modifiedTimer.equals(timerData);
+    }
 
-        TimerData timer = toBeFiredTimers.poll();
-        checkState(
-            timer.getNamespace() instanceof WindowNamespace,
-            "Expected Timer %s to be in a %s, but got %s",
-            timer,
-            WindowNamespace.class.getSimpleName(),
-            timer.getNamespace().getClass().getName());
-        WindowNamespace<?> windowNamespace = (WindowNamespace) timer.getNamespace();
-        BoundedWindow timerWindow = windowNamespace.getWindow();
-
-        delegateEvaluator.onTimer(timer, gbkResult.getValue().key(), timerWindow);
-        clearWatermarkHold(timer);
-      }
-      pushedBackTimers.addAll(toBeFiredTimers);
+    private void processTimer(TimerData timerData, K key) throws Exception {
+      WindowNamespace<?> windowNamespace = (WindowNamespace) timerData.getNamespace();
+      BoundedWindow timerWindow = windowNamespace.getWindow();
+      delegateEvaluator.onTimer(timerData, key, timerWindow);
+      clearWatermarkHold(timerData);
     }
 
     private void clearWatermarkHold(TimerData timer) {
@@ -256,9 +251,7 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
         watermarkHold = delegateResult.getWatermarkHold();
       }
 
-      TimerUpdate timerUpdate =
-          delegateResult.getTimerUpdate().withPushedBackTimers(pushedBackTimers);
-      pushedBackTimers.clear();
+      TimerUpdate timerUpdate = delegateResult.getTimerUpdate();
       StepTransformResult.Builder<KeyedWorkItem<K, KV<K, InputT>>> regroupedResult =
           StepTransformResult.<KeyedWorkItem<K, KV<K, InputT>>>withHold(
                   delegateResult.getTransform(), watermarkHold)

@@ -93,7 +93,10 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.junit.runners.model.Statement;
 
-/** Tests for {@link BigQueryIO#readTableRows()} using {@link Method#DIRECT_READ}. */
+/**
+ * Tests for {@link BigQueryIO#read(SerializableFunction)} using {@link Method#DIRECT_READ} and
+ * {@link BigQueryIO.TypedRead#fromQuery(String)}.
+ */
 @RunWith(JUnit4.class)
 public class BigQueryIOStorageQueryTest {
 

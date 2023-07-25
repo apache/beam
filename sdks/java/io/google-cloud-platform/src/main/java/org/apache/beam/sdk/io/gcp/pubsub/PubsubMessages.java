@@ -32,7 +32,7 @@ public final class PubsubMessages {
     com.google.pubsub.v1.PubsubMessage.Builder message =
         com.google.pubsub.v1.PubsubMessage.newBuilder()
             .setData(ByteString.copyFrom(input.getPayload()));
-    // TODO(BEAM-8085) this should not be null
+    // TODO(https://github.com/apache/beam/issues/19787) this should not be null
     if (attributes != null) {
       message.putAllAttributes(attributes);
     }
@@ -40,12 +40,20 @@ public final class PubsubMessages {
     if (messageId != null) {
       message.setMessageId(messageId);
     }
+
+    String orderingKey = input.getOrderingKey();
+    if (orderingKey != null) {
+      message.setOrderingKey(orderingKey);
+    }
     return message.build();
   }
 
   public static PubsubMessage fromProto(com.google.pubsub.v1.PubsubMessage input) {
     return new PubsubMessage(
-        input.getData().toByteArray(), input.getAttributesMap(), input.getMessageId());
+        input.getData().toByteArray(),
+        input.getAttributesMap(),
+        input.getMessageId(),
+        input.getOrderingKey());
   }
 
   // Convert the PubsubMessage to a PubsubMessage proto, then return its serialized representation.

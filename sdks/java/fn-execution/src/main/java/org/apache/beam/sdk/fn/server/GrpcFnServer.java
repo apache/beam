@@ -23,7 +23,7 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.Server;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 
@@ -32,10 +32,10 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
  * service is bound to the {@link GrpcFnServer}.
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "nullness",
   "keyfor"
-}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+}) // TODO(https://github.com/apache/beam/issues/20497)
 public class GrpcFnServer<ServiceT extends FnService> implements AutoCloseable {
   /**
    * Create a {@link GrpcFnServer} for the provided {@link FnService} running on an arbitrary port.

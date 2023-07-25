@@ -21,6 +21,7 @@ import os
 import tensorflow as tf
 import tensorflow_model_analysis as tfma
 import tensorflow_transform as tft
+from tensorflow import estimator as tf_estimator
 from trainer import model
 from trainer import taxi
 
@@ -54,20 +55,20 @@ def train_and_maybe_evaluate(hparams):
   eval_input = lambda: model.input_fn(
       hparams.eval_files, tf_transform_output, batch_size=EVAL_BATCH_SIZE)
 
-  train_spec = tf.estimator.TrainSpec(
+  train_spec = tf_estimator.TrainSpec(
       train_input, max_steps=hparams.train_steps)
 
   serving_receiver_fn = lambda: model.example_serving_receiver_fn(
       tf_transform_output, schema)
 
-  exporter = tf.estimator.FinalExporter('chicago-taxi', serving_receiver_fn)
-  eval_spec = tf.estimator.EvalSpec(
+  exporter = tf_estimator.FinalExporter('chicago-taxi', serving_receiver_fn)
+  eval_spec = tf_estimator.EvalSpec(
       eval_input,
       steps=hparams.eval_steps,
       exporters=[exporter],
       name='chicago-taxi-eval')
 
-  run_config = tf.estimator.RunConfig(
+  run_config = tf_estimator.RunConfig(
       save_checkpoints_steps=999, keep_checkpoint_max=1)
 
   serving_model_dir = os.path.join(hparams.output_dir, SERVING_MODEL_DIR)
@@ -83,7 +84,7 @@ def train_and_maybe_evaluate(hparams):
       ],
       config=run_config)
 
-  tf.estimator.train_and_evaluate(estimator, train_spec, eval_spec)
+  tf_estimator.train_and_evaluate(estimator, train_spec, eval_spec)
 
   return estimator
 

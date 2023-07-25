@@ -33,13 +33,13 @@ import org.apache.beam.model.jobmanagement.v1.JobApi.JobStateEvent;
 import org.apache.beam.model.jobmanagement.v1.JobServiceGrpc.JobServiceBlockingStub;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricResults;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@SuppressWarnings({"keyfor", "nullness"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({"keyfor", "nullness"}) // TODO(https://github.com/apache/beam/issues/20497)
 class JobServicePipelineResult implements PipelineResult, AutoCloseable {
 
   private static final long POLL_INTERVAL_MS = 3_000;
@@ -88,7 +88,7 @@ class JobServicePipelineResult implements PipelineResult, AutoCloseable {
   @Nullable
   @Override
   public State waitUntilFinish(Duration duration) {
-    if (duration.compareTo(Duration.millis(1)) < 1) {
+    if (duration.compareTo(Duration.millis(1)) <= 0) {
       // Equivalent to infinite timeout.
       return waitUntilFinish();
     } else {

@@ -24,10 +24,6 @@ import static java.util.UUID.randomUUID
 
 def now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
-def final JOB_SPECIFIC_SWITCHES = [
-  '-PwithDataflowWorkerJar="true"'
-]
-
 def psio_test = [
   title          : 'PubsubIO Write Performance Test Python 2GB',
   test           : 'apache_beam.io.gcp.pubsub_io_perf_test',
@@ -46,11 +42,12 @@ def psio_test = [
     input_options             : '\'{' +
     '"num_records": 2097152,' +
     '"key_size": 1,' +
-    '"value_size": 1024}\'',
+    '"value_size": 1024,' +
+    '"algorithm": "lcg"}\'',
     num_workers               : 5,
     autoscaling_algorithm     : 'NONE',  // Disable autoscale the worker pool.
     pubsub_namespace_prefix   : 'pubsub_io_performance_',
-    wait_until_finish_duration: 1000 * 60 * 10, // in milliseconds
+    wait_until_finish_duration: 1000 * 60 * 12, // in milliseconds
   ]
 ]
 
@@ -58,7 +55,7 @@ def executeJob = { scope, testConfig ->
   commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
 
   loadTestsBuilder.loadTest(scope, testConfig.title, testConfig.runner,
-      CommonTestProperties.SDK.PYTHON, testConfig.pipelineOptions, testConfig.test, JOB_SPECIFIC_SWITCHES)
+      CommonTestProperties.SDK.PYTHON, testConfig.pipelineOptions, testConfig.test)
 }
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(
@@ -70,6 +67,6 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
       executeJob(delegate, psio_test)
     }
 
-CronJobBuilder.cronJob('beam_PerformanceTests_PubsubIOIT_Python_Streaming', 'H 15 * * *', this) {
+CronJobBuilder.cronJob('beam_PerformanceTests_PubsubIOIT_Python_Streaming', 'H H * * *', this) {
   executeJob(delegate, psio_test)
 }

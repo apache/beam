@@ -43,7 +43,8 @@ import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.metrics.MetricsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.Struct;
+import org.apache.beam.sdk.options.SdkHarnessOptions;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -55,7 +56,7 @@ import org.slf4j.LoggerFactory;
 
 /** Runs a Pipeline on Flink via {@link FlinkRunner}. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class FlinkPipelineRunner implements PortablePipelineRunner {
   private static final Logger LOG = LoggerFactory.getLogger(FlinkPipelineRunner.class);
@@ -64,16 +65,29 @@ public class FlinkPipelineRunner implements PortablePipelineRunner {
   private final String confDir;
   private final List<String> filesToStage;
 
+  /**
+   * Setup a flink pipeline runner.
+   *
+   * @param pipelineOptions pipeline options configuring the flink pipeline runner.
+   * @param confDir flink configuration directory. Note that pipeline option's flinkConfDir, If not
+   *     null, takes precedence against this parameter.
+   * @param filesToStage a list of file names to stage.
+   */
   public FlinkPipelineRunner(
       FlinkPipelineOptions pipelineOptions, @Nullable String confDir, List<String> filesToStage) {
     this.pipelineOptions = pipelineOptions;
-    this.confDir = confDir;
+    // pipelineOptions.getFlinkConfDir takes precedence than confDir
+    this.confDir =
+        pipelineOptions.getFlinkConfDir() != null ? pipelineOptions.getFlinkConfDir() : confDir;
     this.filesToStage = filesToStage;
   }
 
   @Override
   public PortablePipelineResult run(final Pipeline pipeline, JobInfo jobInfo) throws Exception {
     MetricsEnvironment.setMetricsSupported(false);
+
+    // Apply log levels settings at the beginning of pipeline run
+    SdkHarnessOptions.getConfiguredLoggerFromOptions(pipelineOptions.as(SdkHarnessOptions.class));
 
     FlinkPortablePipelineTranslator<?> translator;
     if (!pipelineOptions.isStreaming() && !hasUnboundedPCollections(pipeline)) {

@@ -24,11 +24,12 @@ import Flink
 import InfluxDBCredentialsHelper
 
 import static LoadTestsBuilder.DOCKER_CONTAINER_REGISTRY
+import static LoadTestsBuilder.DOCKER_BEAM_JOBSERVER
 import static LoadTestsBuilder.DOCKER_BEAM_SDK_IMAGE
 
 String now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
-// TODO(BEAM-10852): Skipping some cases because they are too slow.
+// TODO(https://github.com/apache/beam/issues/20402): Skipping some cases because they are too slow.
 def TESTS_TO_SKIP = [
   'load-tests-python-flink-streaming-combine-1',
 ]
@@ -49,7 +50,8 @@ def loadTestConfigurations = { mode, datasetName ->
         input_options       : '\'{' +
         '"num_records": 200000000,' +
         '"key_size": 1,' +
-        '"value_size": 9}\'',
+        '"value_size": 9,' +
+        '"algorithm": "lcg"}\'',
         parallelism         : 5,
         job_endpoint        : 'localhost:8099',
         environment_type    : 'DOCKER',
@@ -71,7 +73,8 @@ def loadTestConfigurations = { mode, datasetName ->
         input_options       : '\'{' +
         '"num_records": 5000000,' +
         '"key_size": 10,' +
-        '"value_size": 90}\'',
+        '"value_size": 90,' +
+        '"algorithm": "lcg"}\'',
         parallelism         : 16,
         job_endpoint        : 'localhost:8099',
         environment_type    : 'DOCKER',
@@ -94,7 +97,8 @@ def loadTestConfigurations = { mode, datasetName ->
         input_options       : '\'{' +
         '"num_records": 2500000,' +
         '"key_size": 10,' +
-        '"value_size": 90}\'',
+        '"value_size": 90,' +
+        '"algorithm": "lcg"}\'',
         parallelism         : 16,
         job_endpoint        : 'localhost:8099',
         environment_type    : 'DOCKER',
@@ -132,7 +136,7 @@ def loadTestJob = { scope, triggeringContext, mode ->
         "${DOCKER_CONTAINER_REGISTRY}/${DOCKER_BEAM_SDK_IMAGE}"
       ],
       initialParallelism,
-      "${DOCKER_CONTAINER_REGISTRY}/beam_flink1.12_job_server:latest")
+      "${DOCKER_BEAM_JOBSERVER}/beam_flink${CommonTestProperties.getFlinkVersion()}_job_server:latest")
 
   // Execute all scenarios connected with initial parallelism.
   loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.PYTHON, initialScenarios, 'Combine', mode)
@@ -154,7 +158,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
       loadTestJob(delegate, CommonTestProperties.TriggeringContext.PR, 'batch')
     }
 
-CronJobBuilder.cronJob('beam_LoadTests_Python_Combine_Flink_Batch', 'H 15 * * *', this) {
+CronJobBuilder.cronJob('beam_LoadTests_Python_Combine_Flink_Batch', 'H H * * *', this) {
   additionalPipelineArgs = [
     influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
     influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,
@@ -172,11 +176,11 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
       loadTestJob(delegate, CommonTestProperties.TriggeringContext.PR, 'streaming')
     }
 
-CronJobBuilder.cronJob('beam_LoadTests_Python_Combine_Flink_Streaming', 'H 18 * * *', this) {
+CronJobBuilder.cronJob('beam_LoadTests_Python_Combine_Flink_Streaming', 'H H * * *', this) {
   additionalPipelineArgs = [
     influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
     influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,
   ]
-  // TODO(BEAM-12898): Re-enable this test once fixed.
-  // loadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT, 'streaming')
+  // TODO(BEAM): Fix this test.
+  loadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT, 'streaming')
 }

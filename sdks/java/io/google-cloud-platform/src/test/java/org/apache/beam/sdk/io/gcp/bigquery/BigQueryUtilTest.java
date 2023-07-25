@@ -125,6 +125,7 @@ public class BigQueryUtilTest {
     when(mockClient.tables()).thenReturn(mockTables);
     when(mockTables.get(anyString(), anyString(), anyString())).thenReturn(mockTablesGet);
     when(mockTablesGet.setPrettyPrint(false)).thenReturn(mockTablesGet);
+    when(mockTablesGet.set(anyString(), anyString())).thenReturn(mockTablesGet);
     when(mockTablesGet.execute()).thenReturn(table);
   }
 
@@ -132,6 +133,7 @@ public class BigQueryUtilTest {
     verify(mockClient).tables();
     verify(mockTables).get("project", "dataset", "table");
     verify(mockTablesGet, atLeastOnce()).setPrettyPrint(false);
+    verify(mockTablesGet, atLeastOnce()).set(anyString(), anyString());
     verify(mockTablesGet, atLeastOnce()).execute();
   }
 

@@ -30,7 +30,7 @@ import org.slf4j.LoggerFactory;
 
 /** An executor for a map task, defined by a list of Operations. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class MapTaskExecutor implements WorkExecutor {
   private static final Logger LOG = LoggerFactory.getLogger(MapTaskExecutor.class);
@@ -39,9 +39,6 @@ public class MapTaskExecutor implements WorkExecutor {
   public final List<Operation> operations;
 
   private final ExecutionStateTracker executionStateTracker;
-
-  // Current thread that execute() is running on; null when not running.
-  private @Nullable Thread currentExecutorThread = null;
 
   private final CounterSet counters;
 
@@ -69,12 +66,6 @@ public class MapTaskExecutor implements WorkExecutor {
   @Override
   public void execute() throws Exception {
     LOG.debug("Executing map task");
-    // Save the current thread that is executing so that abort() can interrupt it, we save it before
-    // starting the progress reporter thread, therefore ensuring thread safety through implicit
-    // serialization of events.
-    synchronized (this) {
-      this.currentExecutorThread = Thread.currentThread();
-    }
 
     try (Closeable stateCloser = executionStateTracker.activate()) {
       try {
@@ -115,10 +106,6 @@ public class MapTaskExecutor implements WorkExecutor {
           }
         }
         throw exn;
-      }
-    } finally {
-      synchronized (this) {
-        this.currentExecutorThread = null;
       }
     }
 

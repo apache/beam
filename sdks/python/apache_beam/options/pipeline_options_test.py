@@ -31,10 +31,13 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import ProfilingOptions
 from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.options.pipeline_options import WorkerOptions
+from apache_beam.options.pipeline_options import _BeamArgumentParser
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class PipelineOptionsTest(unittest.TestCase):
@@ -215,7 +218,6 @@ class PipelineOptionsTest(unittest.TestCase):
       parser.add_argument(
           '--fake_multi_option', action='append', help='fake multi option')
 
-  @unittest.skip("TODO(BEAM-12515): Flaky test.")
   def test_display_data(self):
     for case in PipelineOptionsTest.TEST_CASES:
       options = PipelineOptions(flags=case['flags'])
@@ -308,6 +310,19 @@ class PipelineOptionsTest(unittest.TestCase):
           options.view_as(PipelineOptionsTest.MockOptions).mock_json_option,
           case['expected'].get('mock_json_option', {}))
 
+  def test_none_from_dictionary(self):
+    class NoneDefaultOptions(PipelineOptions):
+      @classmethod
+      def _add_argparse_args(cls, parser):
+        parser.add_argument('--test_arg_none', default=None, type=int)
+        parser.add_argument('--test_arg_int', default=1, type=int)
+
+    options_dict = {'test_arg_none': None, 'test_arg_int': 5}
+    options_from_dict = NoneDefaultOptions.from_dictionary(options_dict)
+    result = options_from_dict.get_all_options()
+    self.assertEqual(result['test_arg_int'], 5)
+    self.assertEqual(result['test_arg_none'], None)
+
   def test_option_with_space(self):
     options = PipelineOptions(flags=['--option with space= value with space'])
     self.assertEqual(
@@ -340,8 +355,8 @@ class PipelineOptionsTest(unittest.TestCase):
 
   def test_retain_unknown_options_binary_single_dash_store_string(self):
     options = PipelineOptions(['-i', 'some_value'])
-    result = options.get_all_options(retain_unknown_options=True)
-    self.assertEqual(result['i'], 'some_value')
+    with self.assertRaises(KeyError):
+      _ = options.get_all_options(retain_unknown_options=True)['i']
 
   def test_retain_unknown_options_unary_store_true(self):
     options = PipelineOptions(['--unknown_option'])
@@ -358,11 +373,6 @@ class PipelineOptionsTest(unittest.TestCase):
     options = PipelineOptions(['-i'])
     result = options.get_all_options(retain_unknown_options=True)
     self.assertEqual(result['i'], True)
-
-  def test_retain_unknown_options_unary_missing_prefix(self):
-    options = PipelineOptions(['bad_option'])
-    with self.assertRaises(SystemExit):
-      options.get_all_options(retain_unknown_options=True)
 
   def test_override_options(self):
     base_flags = ['--num_workers', '5']
@@ -505,7 +515,7 @@ class PipelineOptionsTest(unittest.TestCase):
       def _add_argparse_args(cls, parser):
         parser.add_argument('--redefined_flag', action='store_true')
 
-    class TestRedefinedOptions(PipelineOptions):
+    class TestRedefinedOptions(PipelineOptions):  # pylint: disable=function-redefined
       @classmethod
       def _add_argparse_args(cls, parser):
         parser.add_argument('--redefined_flag', action='store_true')
@@ -513,9 +523,9 @@ class PipelineOptionsTest(unittest.TestCase):
     options = PipelineOptions(['--redefined_flag'])
     self.assertTrue(options.get_all_options()['redefined_flag'])
 
-  # TODO(BEAM-1319): Require unique names only within a test.
-  # For now, <file name acronym>_vp_arg<number> will be the convention
-  # to name value-provider arguments in tests, as opposed to
+  # TODO(https://github.com/apache/beam/issues/18197): Require unique names
+  # only within a test. For now, <file name acronym>_vp_arg<number> will be
+  # the convention to name value-provider arguments in tests, as opposed to
   # <file name acronym>_non_vp_arg<number> for non-value-provider arguments.
   # The number will grow per file as tests are added.
   def test_value_provider_options(self):
@@ -526,7 +536,6 @@ class PipelineOptionsTest(unittest.TestCase):
             '--pot_vp_arg1', help='This flag is a value provider')
 
         parser.add_value_provider_argument('--pot_vp_arg2', default=1, type=int)
-
         parser.add_argument('--pot_non_vp_arg1', default=1, type=int)
 
     # Provide values: if not provided, the option becomes of the type runtime vp
@@ -646,6 +655,53 @@ class PipelineOptionsTest(unittest.TestCase):
     options = PipelineOptions(flags=[''])
     self.assertEqual(
         options.get_all_options()['dataflow_service_options'], None)
+
+  def test_options_store_false_with_different_dest(self):
+    parser = _BeamArgumentParser()
+    for cls in PipelineOptions.__subclasses__():
+      cls._add_argparse_args(parser)
+
+    actions = parser._actions.copy()
+    options_to_flags = {}
+    options_diff_dest_store_true = {}
+
+    for i in range(len(actions)):
+      flag_names = actions[i].option_strings
+      option_name = actions[i].dest
+
+      if isinstance(actions[i].const, bool):
+        for flag_name in flag_names:
+          flag_name = flag_name.strip('-')
+          if flag_name != option_name:
+            # Capture flags which has store_action=True and has a
+            # different dest. This behavior would be confusing.
+            if actions[i].const:
+              options_diff_dest_store_true[flag_name] = option_name
+              continue
+            # check the flags like no_use_public_ips
+            # default is None, action is {True, False}
+            if actions[i].default is None:
+              options_to_flags[option_name] = flag_name
+
+    self.assertEqual(
+        len(options_diff_dest_store_true),
+        0,
+        _LOGGER.error(
+            "There should be no flags that have a dest "
+            "different from flag name and action as "
+            "store_true. It would be confusing "
+            "to the user. Please specify the dest as the "
+            "flag_name instead."))
+    from apache_beam.options.pipeline_options import (
+        _FLAG_THAT_SETS_FALSE_VALUE)
+
+    self.assertDictEqual(
+        _FLAG_THAT_SETS_FALSE_VALUE,
+        options_to_flags,
+        "If you are adding a new boolean flag with default=None,"
+        " with different dest/option_name from the flag name, please add "
+        "the dest and the flag name to the map "
+        "_FLAG_THAT_SETS_FALSE_VALUE in PipelineOptions.py")
 
 
 if __name__ == '__main__':

@@ -88,7 +88,7 @@ final class MutationUtils {
     return builder.build();
   }
 
-  private static Mutation createMutationFromBeamRows(
+  public static Mutation createMutationFromBeamRows(
       Mutation.WriteBuilder mutationBuilder, Row row) {
     Schema schema = row.getSchema();
     List<String> columns = schema.getFieldNames();

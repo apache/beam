@@ -27,7 +27,6 @@ import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.Collection;
 import java.util.List;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MoveOptions;
@@ -39,7 +38,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A read-only {@link FileSystem} implementation looking up resources using a ClassLoader. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class ClassLoaderFileSystem extends FileSystem<ClassLoaderFileSystem.ClassLoaderResourceId> {
 
@@ -156,7 +155,6 @@ public class ClassLoaderFileSystem extends FileSystem<ClassLoaderFileSystem.Clas
 
   /** {@link AutoService} registrar for the {@link ClassLoaderFileSystem}. */
   @AutoService(FileSystemRegistrar.class)
-  @Experimental(Experimental.Kind.FILESYSTEM)
   public static class ClassLoaderFileSystemRegistrar implements FileSystemRegistrar {
     @Override
     public Iterable<FileSystem<?>> fromOptions(@Nullable PipelineOptions options) {

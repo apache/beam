@@ -1,5 +1,5 @@
 ---
-title: "Beam Quickstart for Python"
+title: "WordCount Quickstart for Python"
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,7 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Apache Beam Python SDK Quickstart
+# WordCount quickstart for Python
 
 This guide shows you how to set up your Python development environment, get the Apache Beam SDK for Python, and run an example pipeline.
 
@@ -23,77 +23,25 @@ If you're interested in contributing to the Apache Beam Python codebase, see the
 
 {{< toc >}}
 
-The Python SDK supports Python 3.6, 3.7, and 3.8. Beam 2.24.0 was the last release with support for Python 2.7 and 3.5.
+The Python SDK supports Python 3.8, 3.9, 3.10 and 3.11. Beam 2.48.0 was the last release with support for Python 3.7.
 
 ## Set up your environment
 
-### Check your Python version
-
-The Beam SDK requires Python users to use Python version 3.6 or higher. Check your version by running:
-
-{{< highlight >}}
-python --version
-{{< /highlight >}}
-
-### Install pip
-
-Install [pip](https://pip.pypa.io/en/stable/installing/), Python's package manager. Check that you have version 7.0.0 or newer by running:
-
-{{< highlight >}}
-pip --version
-{{< /highlight >}}
-
-If you do not have `pip` version 7.0.0 or newer, run the following command to
-install it. This command might require administrative privileges.
-
-{{< shell unix >}}
-pip install --upgrade pip
-{{< /shell >}}
-
-{{< shell powerShell >}}
-PS> python -m pip install --upgrade pip
-{{< /shell >}}
-
-
-### Install Python virtual environment
-
-It is recommended that you install a [Python virtual environment](https://docs.python-guide.org/en/latest/dev/virtualenvs/)
-for initial experiments. If you do not have `virtualenv` version 13.1.0 or
-newer, run the following command to install it. This command might require
-administrative privileges.
-
-{{< shell unix >}}
-pip install --upgrade virtualenv
-{{< /shell >}}
-
-{{< shell powerShell >}}
-PS> python -m pip install --upgrade virtualenv
-{{< /shell >}}
-
-If you do not want to use a Python virtual environment (not recommended), ensure
-`setuptools` is installed on your machine. If you do not have `setuptools`
-version 17.1 or newer, run the following command to install it.
-
-{{< shell unix >}}
-pip install --upgrade setuptools
-{{< /shell >}}
-
-{{< shell powerShell >}}
-PS> python -m pip install --upgrade setuptools
-{{< /shell >}}
+For details, see
+[Set up your development environment](/get-started/quickstart/python#set-up-your-development-environment).
 
 ## Get Apache Beam
 
 ### Create and activate a virtual environment
 
-A virtual environment is a directory tree containing its own Python distribution. To create a virtual environment, create a directory and run:
+A virtual environment is a directory tree containing its own Python distribution. To create a virtual environment, run:
 
 {{< shell unix >}}
-virtualenv /path/to/directory
+python -m venv /path/to/directory
 {{< /shell >}}
 
 {{< shell powerShell >}}
-PS> virtualenv C:\path\to\directory
+PS> python -m venv C:\path\to\directory
 {{< /shell >}}
 
 A virtual environment needs to be activated for each shell that is to use it.
@@ -112,7 +60,7 @@ PS> C:\path\to\directory\Scripts\activate.ps1
 
 That is, execute the `activate` script under the virtual environment directory you created.
 
-For instructions using other shells, see the [virtualenv documentation](https://virtualenv.pypa.io/en/stable/userguide/#activate-script).
+For instructions using other shells, see the [venv documentation](https://docs.python.org/3/library/venv.html).
 
 ### Download and install
 
@@ -128,23 +76,23 @@ PS> python -m pip install apache-beam
 
 #### Extra requirements
 
-The above installation will not install all the extra dependencies for using features like the Google Cloud Dataflow runner. Information on what extra packages are required for different features are highlighted below. It is possible to install multiple extra requirements using something like `pip install apache-beam[feature1,feature2]`.
+The above installation will not install all the extra dependencies for using features like the Google Cloud Dataflow runner. Information on what extra packages are required for different features are highlighted below. It is possible to install multiple extra requirements using something like `pip install 'apache-beam[feature1,feature2]'`.
 
 - **Google Cloud Platform**
-  - Installation Command: `pip install apache-beam[gcp]`
+  - Installation Command: `pip install 'apache-beam[gcp]'`
   - Required for:
     - Google Cloud Dataflow Runner
     - GCS IO
     - Datastore IO
     - BigQuery IO
 - **Amazon Web Services**
-  - Installation Command: `pip install apache-beam[aws]`
+  - Installation Command: `pip install 'apache-beam[aws]'`
   - Required for I/O connectors interfacing with AWS
 - **Tests**
-  - Installation Command: `pip install apache-beam[test]`
+  - Installation Command: `pip install 'apache-beam[test]'`
   - Required for developing on beam and running unittests
 - **Docs**
-  - Installation Command: `pip install apache-beam[docs]`
+  - Installation Command: `pip install 'apache-beam[docs]'`
   - Generating API documentation using Sphinx
 
 ## Execute a pipeline
@@ -194,9 +142,10 @@ sequentially in the format `counts-0000-of-0001`.
 
 * Learn more about the [Beam SDK for Python](/documentation/sdks/python/)
   and look through the [Python SDK API reference](https://beam.apache.org/releases/pydoc).
+* Get [An Interactive Overview of Beam](/get-started/an-interactive-overview-of-beam)
 * Walk through these WordCount examples in the [WordCount Example Walkthrough](/get-started/wordcount-example).
 * Take a self-paced tour through our [Learning Resources](/documentation/resources/learning-resources).
-* Dive in to some of our favorite [Videos and Podcasts](/documentation/resources/videos-and-podcasts).
+* Dive in to some of our favorite [Videos and Podcasts](/get-started/resources/videos-and-podcasts).
 * Join the Beam [users@](/community/contact-us) mailing list.
 
 Please don't hesitate to [reach out](/community/contact-us) if you encounter any issues!

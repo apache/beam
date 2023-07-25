@@ -22,6 +22,7 @@
 import io
 import logging
 import posixpath
+import time
 import unittest
 
 from parameterized import parameterized_class
@@ -36,17 +37,16 @@ class FakeFile(io.BytesIO):
   """File object for FakeHdfs"""
   __hash__ = None  # type: ignore[assignment]
 
-  def __init__(self, path, mode='', type='FILE'):
+  def __init__(self, path, mode='', type='FILE', time_ms=None):
     io.BytesIO.__init__(self)
-
-    self.stat = {
-        'path': path,
-        'mode': mode,
-        'type': type,
-    }
+    if time_ms is None:
+      time_ms = int(time.time() * 1000)
+    self.time_ms = time_ms
+    self.stat = {'path': path, 'mode': mode, 'type': type}
     self.saved_data = None
 
   def __eq__(self, other):
+    """Equality of two files. Timestamp not included in comparison"""
     return self.stat == other.stat and self.getvalue() == self.getvalue()
 
   def close(self):
@@ -73,6 +73,7 @@ class FakeFile(io.BytesIO):
         hdfs._FILE_STATUS_PATH_SUFFIX: posixpath.basename(self.stat['path']),
         hdfs._FILE_STATUS_LENGTH: self.size,
         hdfs._FILE_STATUS_TYPE: self.stat['type'],
+        hdfs._FILE_STATUS_UPDATED: self.time_ms
     }
 
   def get_file_checksum(self):
@@ -113,8 +114,11 @@ class FakeHdfs(object):
     # old_file is closed and can't be operated upon. Return a copy instead.
     new_file = FakeFile(path, 'rb')
     if old_file.saved_data:
-      new_file.write(old_file.saved_data)
-      new_file.seek(0)
+      if length is None:
+        new_file.write(old_file.saved_data)
+      else:
+        new_file.write(old_file.saved_data[:offset + length])
+      new_file.seek(offset)
     return new_file
 
   def list(self, path, status=False):
@@ -385,6 +389,24 @@ class HadoopFileSystemTest(unittest.TestCase):
     self.assertEqual(data, read_data)
     handle.close()
 
+  def test_random_read_large_file(self):
+    # this tests HdfsDownloader.get_range() works properly with
+    # filesystemio.readinto when reading a file of size larger than the buffer.
+    url = self.fs.join(self.tmpdir, 'read_length')
+    handle = self.fs.create(url)
+    data = b'test' * 10_000_000
+    handle.write(data)
+    handle.close()
+
+    handle = self.fs.open(url)
+    handle.seek(100)
+    # read 3 bytes
+    read_data = handle.read(3)
+    self.assertEqual(data[100:103], read_data)
+    # read 4 bytes
+    read_data = handle.read(4)
+    self.assertEqual(data[103:107], read_data)
+
   def test_open(self):
     url = self.fs.join(self.tmpdir, 'old_file1')
     handle = self.fs.open(url)
@@ -537,6 +559,16 @@ class HadoopFileSystemTest(unittest.TestCase):
       f.write(b'Hello')
     self.assertEqual(
         'fake_algo-5-checksum_byte_sequence', self.fs.checksum(url))
+
+  def test_last_updated(self):
+    url = self.fs.join(self.tmpdir, 'f1')
+    with self.fs.create(url) as f:
+      f.write(b'Hello')
+    # The time difference should be tiny for the mock hdfs.
+    # A loose tolerance is for the consideration of real web hdfs.
+    tolerance = 5 * 60  # 5 mins
+    result = self.fs.last_updated(url)
+    self.assertAlmostEqual(result, time.time(), delta=tolerance)
 
   def test_delete_file(self):
     url = self.fs.join(self.tmpdir, 'old_file1')

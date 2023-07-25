@@ -36,8 +36,6 @@ import java.util.UUID;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
 import javax.annotation.concurrent.Immutable;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.BiMap;
@@ -51,17 +49,12 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** {@link Schema} describes the fields in {@link Row}. */
-@Experimental(Kind.SCHEMAS)
 @SuppressWarnings({
   "keyfor",
-  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes"
 })
 public class Schema implements Serializable {
-  // This is the metadata field used to store the logical type identifier.
-  private static final String LOGICAL_TYPE_IDENTIFIER = "SchemaLogicalTypeId";
-
-  private static final String LOGICAL_TYPE_ARGUMENT = "SchemaLogicalTypeArg";
 
   // Helper class that adds proper equality checks to byte arrays.
   static class ByteArrayWrapper implements Serializable {
@@ -146,9 +139,17 @@ public class Schema implements Serializable {
       return this;
     }
 
+    public Builder addNullableByteField(String name) {
+      return addNullableField(name, FieldType.BYTE);
+    }
+
     public Builder addByteArrayField(String name) {
       fields.add(Field.of(name, FieldType.BYTES));
       return this;
+    }
+
+    public Builder addNullableByteArrayField(String name) {
+      return addNullableField(name, FieldType.BYTES);
     }
 
     public Builder addInt16Field(String name) {
@@ -156,9 +157,17 @@ public class Schema implements Serializable {
       return this;
     }
 
+    public Builder addNullableInt16Field(String name) {
+      return addNullableField(name, FieldType.INT16);
+    }
+
     public Builder addInt32Field(String name) {
       fields.add(Field.of(name, FieldType.INT32));
       return this;
+    }
+
+    public Builder addNullableInt32Field(String name) {
+      return addNullableField(name, FieldType.INT32);
     }
 
     public Builder addInt64Field(String name) {
@@ -166,9 +175,17 @@ public class Schema implements Serializable {
       return this;
     }
 
+    public Builder addNullableInt64Field(String name) {
+      return addNullableField(name, FieldType.INT64);
+    }
+
     public Builder addDecimalField(String name) {
       fields.add(Field.of(name, FieldType.DECIMAL));
       return this;
+    }
+
+    public Builder addNullableDecimalField(String name) {
+      return addNullableField(name, FieldType.DECIMAL);
     }
 
     public Builder addFloatField(String name) {
@@ -176,9 +193,17 @@ public class Schema implements Serializable {
       return this;
     }
 
+    public Builder addNullableFloatField(String name) {
+      return addNullableField(name, FieldType.FLOAT);
+    }
+
     public Builder addDoubleField(String name) {
       fields.add(Field.of(name, FieldType.DOUBLE));
       return this;
+    }
+
+    public Builder addNullableDoubleField(String name) {
+      return addNullableField(name, FieldType.DOUBLE);
     }
 
     public Builder addStringField(String name) {
@@ -186,14 +211,26 @@ public class Schema implements Serializable {
       return this;
     }
 
+    public Builder addNullableStringField(String name) {
+      return addNullableField(name, FieldType.STRING);
+    }
+
     public Builder addDateTimeField(String name) {
       fields.add(Field.of(name, FieldType.DATETIME));
       return this;
     }
 
+    public Builder addNullableDateTimeField(String name) {
+      return addNullableField(name, FieldType.DATETIME);
+    }
+
     public Builder addBooleanField(String name) {
       fields.add(Field.of(name, FieldType.BOOLEAN));
       return this;
+    }
+
+    public Builder addNullableBooleanField(String name) {
+      return addNullableField(name, FieldType.BOOLEAN);
     }
 
     public <InputT, BaseT> Builder addLogicalTypeField(
@@ -202,9 +239,18 @@ public class Schema implements Serializable {
       return this;
     }
 
+    public <InputT, BaseT> Builder addNullableLogicalTypeField(
+        String name, LogicalType<InputT, BaseT> logicalType) {
+      return addNullableField(name, FieldType.logicalType(logicalType));
+    }
+
     public Builder addArrayField(String name, FieldType collectionElementType) {
       fields.add(Field.of(name, FieldType.array(collectionElementType)));
       return this;
+    }
+
+    public Builder addNullableArrayField(String name, FieldType collectionElementType) {
+      return addNullableField(name, FieldType.array(collectionElementType));
     }
 
     public Builder addIterableField(String name, FieldType collectionElementType) {
@@ -212,14 +258,26 @@ public class Schema implements Serializable {
       return this;
     }
 
+    public Builder addNullableIterableField(String name, FieldType collectionElementType) {
+      return addNullableField(name, FieldType.iterable(collectionElementType));
+    }
+
     public Builder addRowField(String name, Schema fieldSchema) {
       fields.add(Field.of(name, FieldType.row(fieldSchema)));
       return this;
     }
 
+    public Builder addNullableRowField(String name, Schema fieldSchema) {
+      return addNullableField(name, FieldType.row(fieldSchema));
+    }
+
     public Builder addMapField(String name, FieldType keyType, FieldType valueType) {
       fields.add(Field.of(name, FieldType.map(keyType, valueType)));
       return this;
+    }
+
+    public Builder addNullableMapField(String name, FieldType keyType, FieldType valueType) {
+      return addNullableField(name, FieldType.map(keyType, valueType));
     }
 
     /** Returns a copy of the Field with isNullable set. */
@@ -266,6 +324,23 @@ public class Schema implements Serializable {
 
   public static Schema of(Field... fields) {
     return Schema.builder().addFields(fields).build();
+  }
+
+  /** Returns an identical Schema with sorted fields. */
+  public Schema sorted() {
+    // Create a new schema and copy over the appropriate Schema object attributes:
+    // {fields, uuid, options}
+    // Note: encoding positions are not copied over because generally they should align with the
+    // ordering of field indices. Otherwise, problems may occur when encoding/decoding Rows of
+    // this schema.
+    Schema sortedSchema =
+        this.fields.stream()
+            .sorted(Comparator.comparing(Field::getName))
+            .collect(Schema.toSchema())
+            .withOptions(getOptions());
+    sortedSchema.setUUID(getUUID());
+
+    return sortedSchema;
   }
 
   /** Returns a copy of the Schema with the options set. */
@@ -600,7 +675,7 @@ public class Schema implements Serializable {
 
     // For logical types, return the implementing class.
 
-    public abstract @Nullable LogicalType getLogicalType();
+    public abstract @Nullable LogicalType<?, ?> getLogicalType();
 
     // For container types (e.g. ARRAY or ITERABLE), returns the type of the contained element.
 
@@ -635,8 +710,8 @@ public class Schema implements Serializable {
     }
 
     /** Helper function for retrieving the concrete logical type subclass. */
-    public <LogicalTypeT extends LogicalType> LogicalTypeT getLogicalType(
-        Class<LogicalTypeT> logicalTypeClass) {
+    public <InputT, BaseT, LogicalTypeT extends LogicalType<InputT, BaseT>>
+        LogicalTypeT getLogicalType(Class<LogicalTypeT> logicalTypeClass) {
       return logicalTypeClass.cast(getLogicalType());
     }
 
@@ -651,7 +726,7 @@ public class Schema implements Serializable {
     abstract static class Builder {
       abstract Builder setTypeName(TypeName typeName);
 
-      abstract Builder setLogicalType(LogicalType logicalType);
+      abstract Builder setLogicalType(LogicalType<?, ?> logicalType);
 
       abstract Builder setCollectionElementType(@Nullable FieldType collectionElementType);
 
@@ -986,6 +1061,13 @@ public class Schema implements Serializable {
           builder.append(getMapKeyType().toString());
           builder.append(", ");
           builder.append(getMapValueType().toString());
+          builder.append(">");
+          break;
+        case LOGICAL_TYPE:
+          builder.append("LOGICAL_TYPE<");
+          if (getLogicalType() != null) {
+            builder.append(getLogicalType().getIdentifier());
+          }
           builder.append(">");
           break;
         default:

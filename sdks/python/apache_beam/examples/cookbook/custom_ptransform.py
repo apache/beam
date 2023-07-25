@@ -118,11 +118,12 @@ def get_args(argv):
 
 def run(argv=None):
   known_args, pipeline_args = get_args(argv)
-  options = PipelineOptions(pipeline_args)
 
-  run_count1(known_args, options)
-  run_count2(known_args, options)
-  run_count3(known_args, options)
+  # pipeline initialization may modify PipelineOptions object.
+  # Create instances for each.
+  run_count1(known_args, PipelineOptions(pipeline_args))
+  run_count2(known_args, PipelineOptions(pipeline_args))
+  run_count3(known_args, PipelineOptions(pipeline_args))
 
 
 if __name__ == '__main__':

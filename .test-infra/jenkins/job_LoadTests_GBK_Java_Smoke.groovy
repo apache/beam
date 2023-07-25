@@ -20,16 +20,13 @@ import CommonTestProperties
 import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
 
-def smokeTestConfigurations = { datasetName ->
+def smokeTestConfigurations = {
   [
     [
       title          : 'GroupByKey load test Direct',
       test           : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
       runner         : CommonTestProperties.Runner.DIRECT,
       pipelineOptions: [
-        publishToBigQuery: true,
-        bigQueryDataset  : datasetName,
-        bigQueryTable    : 'direct_gbk',
         sourceOptions    : '{"numRecords":100000,"splitPointFrequencyRecords":1}',
         stepOptions      : '{"outputRecordsPerInputRecord":1,"preservesInputKeyDistribution":true}',
         fanout           : 10,
@@ -44,9 +41,6 @@ def smokeTestConfigurations = { datasetName ->
         project          : 'apache-beam-testing',
         region           : 'us-central1',
         tempLocation     : 'gs://temp-storage-for-perf-tests/smoketests',
-        publishToBigQuery: true,
-        bigQueryDataset  : datasetName,
-        bigQueryTable    : 'dataflow_gbk',
         sourceOptions    : '{"numRecords":100000,"splitPointFrequencyRecords":1}',
         stepOptions      : '{"outputRecordsPerInputRecord":1,"preservesInputKeyDistribution":true}',
         fanout           : 10,
@@ -58,9 +52,6 @@ def smokeTestConfigurations = { datasetName ->
       test           : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
       runner         : CommonTestProperties.Runner.FLINK,
       pipelineOptions: [
-        publishToBigQuery: true,
-        bigQueryDataset  : datasetName,
-        bigQueryTable    : 'flink_gbk',
         sourceOptions    : '{"numRecords":100000,"splitPointFrequencyRecords":1}',
         stepOptions      : '{"outputRecordsPerInputRecord":1,"preservesInputKeyDistribution":true}',
         fanout           : 10,
@@ -73,9 +64,6 @@ def smokeTestConfigurations = { datasetName ->
       runner         : CommonTestProperties.Runner.SPARK,
       pipelineOptions: [
         sparkMaster      : 'local[4]',
-        publishToBigQuery: true,
-        bigQueryDataset  : datasetName,
-        bigQueryTable    : 'spark_gbk',
         sourceOptions    : '{"numRecords":100000,"splitPointFrequencyRecords":1}',
         stepOptions      : '{"outputRecordsPerInputRecord":1,"preservesInputKeyDistribution":true}',
         fanout           : 10,
@@ -93,6 +81,5 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
     'Java Load Tests GBK Smoke',
     this
     ) {
-      def datasetName = loadTestsBuilder.getBigQueryDataset('load_test_SMOKE', CommonTestProperties.TriggeringContext.PR)
-      loadTestsBuilder.loadTests(delegate, CommonTestProperties.SDK.JAVA, smokeTestConfigurations(datasetName), "GBK", "smoke")
+      loadTestsBuilder.loadTests(delegate, CommonTestProperties.SDK.JAVA, smokeTestConfigurations(), "GBK", "smoke")
     }

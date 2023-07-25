@@ -16,23 +16,46 @@
  * limitations under the License.
  */
 
-import 'package:playground/constants/assets.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+
+import '../../../src/assets/assets.gen.dart';
 
 enum OutputPlacement {
-  bottom,
-  left,
   right,
+  left,
+  bottom,
+  ;
+
+  Axis get graphDirection {
+    return this == OutputPlacement.bottom ? Axis.horizontal : Axis.vertical;
+  }
 }
 
 extension OutputPlacementToIcon on OutputPlacement {
   String get icon {
     switch (this) {
       case OutputPlacement.bottom:
-        return kOutputBottomIconAsset;
+        return Assets.outputBottom;
       case OutputPlacement.right:
-        return kOutputRightIconAsset;
+        return Assets.outputRight;
       case OutputPlacement.left:
-        return kOutputLeftIconAsset;
+        return Assets.outputLeft;
+    }
+  }
+}
+
+extension OutputPlacementName on OutputPlacement {
+  String name(BuildContext context) {
+    AppLocalizations appLocale = AppLocalizations.of(context)!;
+
+    switch (this) {
+      case OutputPlacement.bottom:
+        return appLocale.bottom;
+      case OutputPlacement.right:
+        return appLocale.right;
+      case OutputPlacement.left:
+        return appLocale.left;
     }
   }
 }

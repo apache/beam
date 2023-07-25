@@ -49,6 +49,8 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.FieldAccessDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.MethodWithExtraParameters;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.OnTimerMethod;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.ElementParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.ProcessContextParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SchemaElementParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SideInputParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
@@ -386,7 +388,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *     documentation for ParDo</a>
  */
 @SuppressWarnings({
-  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes"
 })
 public class ParDo {
@@ -430,7 +432,7 @@ public class ParDo {
     }
   }
 
-  private static void validateStateApplicableForInput(DoFn<?, ?> fn, PCollection<?> input) {
+  private static void validateStateApplicableForInput(PCollection<?> input) {
     Coder<?> inputCoder = input.getCoder();
     checkArgument(
         inputCoder instanceof KvCoder,
@@ -444,8 +446,8 @@ public class ParDo {
     } catch (Coder.NonDeterministicException exc) {
       throw new IllegalArgumentException(
           String.format(
-              "%s requires a deterministic key coder in order to use state and timers",
-              ParDo.class.getSimpleName()));
+              "%s requires a deterministic key coder in order to use state and timers, the reason is:%n %s",
+              ParDo.class.getSimpleName(), exc.getMessage()));
     }
   }
 
@@ -637,6 +639,7 @@ public class ParDo {
               fn.getClass().getName()));
     }
   }
+
   /**
    * Extract information on how the DoFn uses schemas. In particular, if the schema of an element
    * parameter does not match the input PCollection's schema, convert.
@@ -662,6 +665,7 @@ public class ParDo {
               input.getSchema(),
               signature.fieldAccessDeclarations(),
               fn);
+      doFnSchemaInformation = doFnSchemaInformation.withFieldAccessDescriptor(accessDescriptor);
       Schema selectedSchema = SelectHelpers.getOutputSchema(input.getSchema(), accessDescriptor);
       ConvertHelpers.ConvertedSchemaInformation converted =
           ConvertHelpers.getConvertedSchemaInformation(selectedSchema, elementT, schemaRegistry);
@@ -681,6 +685,13 @@ public class ParDo {
         doFnSchemaInformation =
             doFnSchemaInformation.withUnboxPrimitiveParameter(
                 (SchemaCoder<?>) input.getCoder(), accessDescriptor, selectedSchema, elementT);
+      }
+    }
+    for (DoFnSignature.Parameter p : processElementMethod.extraParameters()) {
+      if (p instanceof ProcessContextParameter || p instanceof ElementParameter) {
+        doFnSchemaInformation =
+            doFnSchemaInformation.withFieldAccessDescriptor(FieldAccessDescriptor.withAllFields());
+        break;
       }
     }
 
@@ -939,7 +950,7 @@ public class ParDo {
 
       DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
       if (signature.usesState() || signature.usesTimers()) {
-        validateStateApplicableForInput(fn, input);
+        validateStateApplicableForInput(input);
       }
 
       validateSideInputTypes(sideInputs, fn);
@@ -1052,6 +1063,11 @@ public class ParDo {
           @Override
           public String dispatchSet(Coder<?> elementCoder) {
             return "SetState<" + elementCoder + ">";
+          }
+
+          @Override
+          public String dispatchMultimap(Coder<?> keyCoder, Coder<?> valueCoder) {
+            return "MultimapState<" + keyCoder + ", " + valueCoder + ">";
           }
         });
   }

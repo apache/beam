@@ -55,7 +55,7 @@ func TestEvaluate(t *testing.T) {
 				t.Errorf("e.AllExported() = %v, want %v", e.AllExported(), test.exp)
 			}
 			if e.RequiresRegistrations() != test.reg {
-				t.Errorf("e.RequiresRegistrations() = %v, want %v\n%v", e.RequiresRegistrations(), test.reg, string(e.d.Bytes()))
+				t.Errorf("e.RequiresRegistrations() = %v, want %v\n%v", e.RequiresRegistrations(), test.reg, e.d.String())
 			}
 			if e.UsesDefaultReflectionShims() != test.ref {
 				t.Errorf("e.UsesDefaultReflectionShims() = %v, want %v", e.UsesDefaultReflectionShims(), test.ref)

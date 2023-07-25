@@ -286,8 +286,9 @@ class DistributionResult(object):
 
   def __repr__(self):
     # type: () -> str
-    return 'DistributionResult(sum={}, count={}, min={}, max={})'.format(
-        self.sum, self.count, self.min, self.max)
+    return (
+        'DistributionResult(sum={}, count={}, min={}, max={}, '
+        'mean={})'.format(self.sum, self.count, self.min, self.max, self.mean))
 
   @property
   def max(self):

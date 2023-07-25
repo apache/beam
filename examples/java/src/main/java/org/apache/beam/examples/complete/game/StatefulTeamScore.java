@@ -77,7 +77,10 @@ import org.joda.time.Instant;
  * the same topic to which the Injector is publishing.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
+  // TODO(https://github.com/apache/beam/issues/21230): Remove when new version of
+  // errorprone is released (2.11.0)
+  "unused"
 })
 public class StatefulTeamScore extends LeaderBoard {
 

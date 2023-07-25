@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.gcp.pubsublite;
 
 import com.google.cloud.pubsublite.proto.PubSubMessage;
 import com.google.cloud.pubsublite.proto.SequencedMessage;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.io.gcp.pubsublite.internal.AddUuidsTransform;
 import org.apache.beam.sdk.io.gcp.pubsublite.internal.PubsubLiteSink;
 import org.apache.beam.sdk.io.gcp.pubsublite.internal.SubscribeTransform;
@@ -35,8 +34,14 @@ import org.apache.beam.sdk.values.PDone;
  *
  * <p>For the differences between this and Google Pub/Sub, please refer to the <a
  * href="https://cloud.google.com/pubsub/docs/choosing-pubsub-or-lite">product documentation</a>.
+ *
+ * <h3>Updates to the I/O connector code</h3>
+ *
+ * For any significant updates to this I/O connector, please consider involving corresponding code
+ * reviewers mentioned <a
+ * href="https://github.com/apache/beam/blob/master/sdks/java/io/google-cloud-platform/OWNERS">
+ * here</a>.
  */
-@Experimental
 public final class PubsubLiteIO {
   private PubsubLiteIO() {}
 
@@ -44,6 +49,9 @@ public final class PubsubLiteIO {
    * Read messages from Pub/Sub Lite. These messages may contain duplicates if the publisher
    * retried, which the PubsubLiteIO write method will do. Use the dedupe transform to remove these
    * duplicates.
+   *
+   * <p>Note that this will not pick up newly added partitions. To pick up new partitions, drain and
+   * restart the pipeline.
    *
    * <pre>{@code
    * Pipeline p = ...;

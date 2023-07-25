@@ -17,13 +17,17 @@
  */
 package org.apache.beam.sdk.extensions.protobuf;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -31,7 +35,7 @@ import org.junit.runners.JUnit4;
 /** Collection of standard tests for Protobuf Schema support. */
 @RunWith(JUnit4.class)
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class ProtoSchemaTranslatorTest {
   @Test
@@ -84,6 +88,20 @@ public class ProtoSchemaTranslatorTest {
   }
 
   @Test
+  public void testReversedOneOfSchema() {
+    assertEquals(
+        TestProtoSchemas.REVERSED_ONEOF_SCHEMA,
+        ProtoSchemaTranslator.getSchema(Proto3SchemaMessages.ReversedOneOf.class));
+  }
+
+  @Test
+  public void testNonContiguousOneOfSchema() {
+    assertEquals(
+        TestProtoSchemas.NONCONTIGUOUS_ONEOF_SCHEMA,
+        ProtoSchemaTranslator.getSchema(Proto3SchemaMessages.NonContiguousOneOf.class));
+  }
+
+  @Test
   public void testNestedOneOfSchema() {
     assertEquals(
         TestProtoSchemas.OUTER_ONEOF_SCHEMA,
@@ -95,6 +113,53 @@ public class ProtoSchemaTranslatorTest {
     assertEquals(
         TestProtoSchemas.WKT_MESSAGE_SCHEMA,
         ProtoSchemaTranslator.getSchema(Proto3SchemaMessages.WktMessage.class));
+  }
+
+  @Test
+  public void testEmptySchema() {
+    assertEquals(
+        TestProtoSchemas.EMPTY_SCHEMA,
+        ProtoSchemaTranslator.getSchema(Proto3SchemaMessages.Empty.class));
+  }
+
+  @Test
+  public void testSelfNestedProtoThrows() {
+    IllegalArgumentException thrown =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> {
+              new ProtoMessageSchema()
+                  .schemaFor(TypeDescriptor.of(Proto3SchemaMessages.SelfNested.class));
+            });
+
+    assertThat(
+        "Message should suggest not using a circular schema reference.",
+        thrown.getMessage(),
+        containsString("circular reference"));
+    assertThat(
+        "Message should suggest which class has circular schema reference.",
+        thrown.getMessage(),
+        containsString("proto3_schema_messages.SelfNested"));
+  }
+
+  @Test
+  public void testCircularNestedProtoThrows() {
+    IllegalArgumentException thrown =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> {
+              new ProtoMessageSchema()
+                  .schemaFor(TypeDescriptor.of(Proto3SchemaMessages.FirstCircularNested.class));
+            });
+
+    assertThat(
+        "Message should suggest not using a circular schema reference.",
+        thrown.getMessage(),
+        containsString("circular reference"));
+    assertThat(
+        "Message should suggest which class has circular schema reference.",
+        thrown.getMessage(),
+        containsString("proto3_schema_messages.FirstCircularNested"));
   }
 
   @Test

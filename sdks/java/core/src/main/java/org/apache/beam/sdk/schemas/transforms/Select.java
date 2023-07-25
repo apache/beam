@@ -25,8 +25,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
@@ -85,9 +83,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *                              .apply(Convert.to(Location.class));
  * }</pre>
  */
-@Experimental(Kind.SCHEMAS)
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class Select {
   public static <T> Fields<T> create() {
@@ -116,7 +113,7 @@ public class Select {
   }
 
   /**
-   * Selects every leaf-level field. This results in a a nested schema being flattened into a single
+   * Selects every leaf-level field. This results in a nested schema being flattened into a single
    * top-level schema. By default nested field names will be concatenated with _ characters, though
    * this can be overridden using {@link Flattened#keepMostNestedFieldName()} and {@link
    * Flattened#withFieldNameAs}.
@@ -129,22 +126,16 @@ public class Select {
   }
 
   private static class SelectDoFn<T> extends DoFn<T, Row> {
-    private final FieldAccessDescriptor fieldAccessDescriptor;
-    private final Schema inputSchema;
-    private final Schema outputSchema;
     RowSelector rowSelector;
 
     // TODO: This should be the same as resolved so that Beam knows which fields
     // are being accessed. Currently Beam only supports wildcard descriptors.
-    // Once BEAM-4457 is fixed, fix this.
+    // Once https://github.com/apache/beam/issues/18903 is fixed, fix this.
     @FieldAccess("selectFields")
     final FieldAccessDescriptor fieldAccess = FieldAccessDescriptor.withAllFields();
 
     public SelectDoFn(
         FieldAccessDescriptor fieldAccessDescriptor, Schema inputSchema, Schema outputSchema) {
-      this.fieldAccessDescriptor = fieldAccessDescriptor;
-      this.inputSchema = inputSchema;
-      this.outputSchema = outputSchema;
       this.rowSelector = new RowSelectorContainer(inputSchema, fieldAccessDescriptor, true);
     }
 
@@ -232,12 +223,16 @@ public class Select {
             .withNullable(fieldType.getNullable())
             .withMetadata(fieldType.getAllMetadata());
       case ARRAY:
-        return FieldType.array(uniquifyNames(fieldType.getCollectionElementType()));
+        return FieldType.array(uniquifyNames(fieldType.getCollectionElementType()))
+            .withNullable(fieldType.getNullable());
       case ITERABLE:
-        return FieldType.iterable(uniquifyNames(fieldType.getCollectionElementType()));
+        return FieldType.iterable(uniquifyNames(fieldType.getCollectionElementType()))
+            .withNullable(fieldType.getNullable());
       case MAP:
         return FieldType.map(
-            uniquifyNames(fieldType.getMapKeyType()), uniquifyNames(fieldType.getMapValueType()));
+                uniquifyNames(fieldType.getMapKeyType()),
+                uniquifyNames(fieldType.getMapValueType()))
+            .withNullable(fieldType.getNullable());
       default:
         return fieldType;
     }

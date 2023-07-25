@@ -21,7 +21,7 @@ import java.io.Serializable;
 import org.apache.beam.sdk.io.snowflake.data.SnowflakeDataType;
 
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class SnowflakeVarchar implements SnowflakeDataType, Serializable {
   public static final Long MAX_LENGTH = 16777216L;

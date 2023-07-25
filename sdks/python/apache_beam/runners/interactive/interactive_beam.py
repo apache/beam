@@ -25,6 +25,9 @@ bounded dataset. In the meantime, it hides the interactivity implementation
 from users so that users can focus on developing Beam pipeline without worrying
 about how hidden states in the interactive session are managed.
 
+A convention to import this module:
+  from apache_beam.runners.interactive import interactive_beam as ib
+
 Note: If you want backward-compatibility, only invoke interfaces provided by
 this module in your notebook or application code.
 """
@@ -32,13 +35,22 @@ this module in your notebook or application code.
 # pytype: skip-file
 
 import logging
+import warnings
 from datetime import timedelta
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Union
 
 import pandas as pd
 
 import apache_beam as beam
 from apache_beam.dataframe.frame_base import DeferredBase
+from apache_beam.options.pipeline_options import FlinkRunnerOptions
 from apache_beam.runners.interactive import interactive_environment as ie
+from apache_beam.runners.interactive.dataproc.dataproc_cluster_manager import DataprocClusterManager
+from apache_beam.runners.interactive.dataproc.types import ClusterIdentifier
+from apache_beam.runners.interactive.dataproc.types import ClusterMetadata
 from apache_beam.runners.interactive.display import pipeline_graph
 from apache_beam.runners.interactive.display.pcoll_visualization import visualize
 from apache_beam.runners.interactive.display.pcoll_visualization import visualize_computed_pcoll
@@ -220,6 +232,36 @@ class Options(interactive_options.InteractiveOptions):
     """
     self._display_timezone = value
 
+  @property
+  def cache_root(self):
+    """The cache directory specified by the user.
+
+    Defaults to None.
+    """
+    return self._cache_root
+
+  @cache_root.setter
+  def cache_root(self, value):
+    """Sets the cache directory.
+
+    Defaults to None.
+
+    Example of local directory usage::
+      interactive_beam.options.cache_root = '/Users/username/my/cache/dir'
+
+    Example of GCS directory usage::
+      interactive_beam.options.cache_root = 'gs://my-gcs-bucket/cache/dir'
+    """
+    _LOGGER.warning(
+        'Interactive Beam has detected a set value for the cache_root '
+        'option. Please note: existing cache managers will not have '
+        'their current cache directory changed. The option must be '
+        'set in Interactive Beam prior to the initialization of new '
+        'pipelines to take effect. To apply changes to new pipelines, '
+        'the kernel must be restarted or the pipeline creation codes '
+        'must be re-executed. ')
+    self._cache_root = value
+
 
 class Recordings():
   """An introspection interface for recordings for pipelines.
@@ -230,7 +272,7 @@ class Recordings():
   following methods allow for introspection into that background recording job.
   """
   def describe(self, pipeline=None):
-    # type: (Optional[beam.Pipeline]) -> dict[str, Any]
+    # type: (Optional[beam.Pipeline]) -> dict[str, Any] # noqa: F821
 
     """Returns a description of all the recordings for the given pipeline.
 
@@ -299,9 +341,283 @@ class Recordings():
     return recording_manager.record_pipeline()
 
 
+class Clusters:
+  """An interface to control clusters implicitly created and managed by
+  the current interactive environment. This class is not needed and
+  should not be used otherwise.
+
+  Do not use it for clusters a user explicitly manages: e.g., if you have
+  a Flink cluster running somewhere and provides the flink master when
+  running a pipeline with the FlinkRunner, the cluster will not be tracked
+  or managed by Beam.
+  To reuse the same cluster for your pipelines, use the same pipeline
+  options: e.g., a pipeline option with the same flink master if you are
+  using FlinkRunner.
+
+  This module is experimental. No backwards-compatibility guarantees.
+
+  Interactive Beam automatically creates/reuses existing worker clusters to
+  execute pipelines when it detects the need from configurations.
+  Currently, the only supported cluster implementation is Flink running on
+  Cloud Dataproc.
+
+  To configure a pipeline to run on Cloud Dataproc with Flink, set the
+  underlying runner of the InteractiveRunner to FlinkRunner and the pipeline
+  options to indicate where on Cloud the FlinkRunner should be deployed to.
+
+    An example to enable automatic Dataproc cluster creation/reuse::
+
+      options = PipelineOptions([
+          '--project=my-project',
+          '--region=my-region',
+          '--environment_type=DOCKER'])
+      pipeline = beam.Pipeline(InteractiveRunner(
+          underlying_runner=FlinkRunner()), options=options)
+
+  Reuse a pipeline options in another pipeline would configure Interactive Beam
+  to reuse the same Dataproc cluster implicitly managed by the current
+  interactive environment.
+  If a flink_master is identified as a known cluster, the corresponding cluster
+  is also resued.
+  Furthermore, if a cluster is explicitly created by using a pipeline as an
+  identifier to a known cluster, the cluster is reused.
+
+    An example::
+
+      # If pipeline runs on a known cluster, below code reuses the cluster
+      # manager without creating a new one.
+      dcm = ib.clusters.create(pipeline)
+
+  To provision the cluster, use WorkerOptions. Supported configurations are::
+
+    1. subnetwork
+    2. num_workers
+    3. machine_type
+
+  To configure a pipeline to run on an existing FlinkRunner deployed elsewhere,
+  set the flink_master explicitly so no cluster will be created/reused.
+
+    An example pipeline options to skip automatic Dataproc cluster usage::
+
+      options = PipelineOptions([
+          '--flink_master=some.self.hosted.flink:port',
+          '--environment_type=DOCKER'])
+
+  To configure a pipeline to run on a local FlinkRunner, explicitly set the
+  default cluster metadata to None: ib.clusters.set_default_cluster(None).
+  """
+  # Explicitly set the Flink version here to ensure compatibility with 2.0
+  # Dataproc images:
+  # https://cloud.google.com/dataproc/docs/concepts/versioning/dataproc-release-2.0
+  DATAPROC_FLINK_VERSION = '1.12'
+
+  # The minimum worker number to create a Dataproc cluster.
+  DATAPROC_MINIMUM_WORKER_NUM = 2
+
+  # TODO(https://github.com/apache/beam/issues/21527): Fix the Dataproc image
+  # version after a released image contains all missing dependencies for Flink
+  # to run.
+  # DATAPROC_IMAGE_VERSION = '2.0.XX-debian10'
+
+  def __init__(self) -> None:
+    self.dataproc_cluster_managers: Dict[ClusterMetadata,
+                                         DataprocClusterManager] = {}
+    self.master_urls: Dict[str, ClusterMetadata] = {}
+    self.pipelines: Dict[beam.Pipeline, DataprocClusterManager] = {}
+    self.default_cluster_metadata: Optional[ClusterMetadata] = None
+
+  def create(
+      self, cluster_identifier: ClusterIdentifier) -> DataprocClusterManager:
+    """Creates a Dataproc cluster manager provisioned for the cluster
+    identified. If the cluster is known, returns an existing cluster manager.
+    """
+    # Try to get some not-None cluster metadata.
+    cluster_metadata = self.cluster_metadata(cluster_identifier)
+    if not cluster_metadata:
+      raise ValueError(
+          'Unknown cluster identifier: %s. Cannot create or reuse'
+          'a Dataproc cluster.')
+    if not cluster_metadata.region:
+      _LOGGER.info(
+          'No region information was detected, defaulting Dataproc cluster '
+          'region to: us-central1.')
+      cluster_metadata.region = 'us-central1'
+    elif cluster_metadata.region == 'global':
+      # The global region is unsupported as it will be eventually deprecated.
+      raise ValueError('Clusters in the global region are not supported.')
+    # else use the provided region.
+    if (cluster_metadata.num_workers and
+        cluster_metadata.num_workers < self.DATAPROC_MINIMUM_WORKER_NUM):
+      _LOGGER.info(
+          'At least %s workers are required for a cluster, defaulting to %s.',
+          self.DATAPROC_MINIMUM_WORKER_NUM,
+          self.DATAPROC_MINIMUM_WORKER_NUM)
+      cluster_metadata.num_workers = self.DATAPROC_MINIMUM_WORKER_NUM
+    known_dcm = self.dataproc_cluster_managers.get(cluster_metadata, None)
+    if known_dcm:
+      return known_dcm
+    dcm = DataprocClusterManager(cluster_metadata)
+    dcm.create_flink_cluster()
+    # ClusterMetadata with derivative fields populated by the dcm.
+    derived_meta = dcm.cluster_metadata
+    self.dataproc_cluster_managers[derived_meta] = dcm
+    self.master_urls[derived_meta.master_url] = derived_meta
+    # Update the default cluster metadata to the one just created.
+    self.set_default_cluster(derived_meta)
+    return dcm
+
+  def cleanup(
+      self,
+      cluster_identifier: Optional[ClusterIdentifier] = None,
+      force: bool = False) -> None:
+    """Cleans up the cluster associated with the given cluster_identifier.
+
+    When None cluster_identifier is provided: if force is True, cleans up for
+    all clusters; otherwise, do a dry run and NOOP.
+    If a beam.Pipeline is given as the ClusterIdentifier while multiple
+    pipelines share the same cluster, it only cleans up the association between
+    the pipeline and the cluster identified.
+    If the cluster_identifier is unknown, NOOP.
+    """
+    if not cluster_identifier:
+      dcm_to_cleanup = set(self.dataproc_cluster_managers.values())
+      if force:
+        for dcm in dcm_to_cleanup:
+          self._cleanup(dcm)
+        self.default_cluster_metadata = None
+      else:
+        _LOGGER.warning(
+            'No cluster_identifier provided. If you intend to '
+            'clean up all clusters, invoke ib.clusters.cleanup(force=True). '
+            'Current clusters are %s.',
+            self.describe())
+    elif isinstance(cluster_identifier, beam.Pipeline):
+      p = cluster_identifier
+      dcm = self.pipelines.pop(p, None)
+      if dcm:
+        dcm.pipelines.remove(p)
+        warnings.filterwarnings(
+            'ignore',
+            'options is deprecated since First stable release. References to '
+            '<pipeline>.options will not be supported',
+            category=DeprecationWarning)
+        p_flink_options = p.options.view_as(FlinkRunnerOptions)
+        p_flink_options.flink_master = '[auto]'
+        p_flink_options.flink_version = None
+        # Only cleans up when there is no pipeline using the cluster.
+        if not dcm.pipelines:
+          self._cleanup(dcm)
+    else:
+      if isinstance(cluster_identifier, str):
+        meta = self.master_urls.get(cluster_identifier, None)
+      else:
+        meta = cluster_identifier
+      dcm = self.dataproc_cluster_managers.get(meta, None)
+      if dcm:
+        self._cleanup(dcm)
+
+  def describe(
+      self,
+      cluster_identifier: Optional[ClusterIdentifier] = None
+  ) -> Union[ClusterMetadata, List[ClusterMetadata]]:
+    """Describes the ClusterMetadata by a ClusterIdentifier.
+
+    If no cluster_identifier is given or if the cluster_identifier is unknown,
+    it returns descriptions for all known clusters.
+
+    Example usage:
+    # Describe the cluster executing work for a pipeline.
+    ib.clusters.describe(pipeline)
+    # Describe the cluster with the flink master url.
+    ib.clusters.describe(master_url)
+    # Describe all existing clusters.
+    ib.clusters.describe()
+    """
+    if cluster_identifier:
+      meta = self._cluster_metadata(cluster_identifier)
+      if meta in self.dataproc_cluster_managers:
+        return meta
+    return list(self.dataproc_cluster_managers.keys())
+
+  def set_default_cluster(
+      self, cluster_identifier: Optional[ClusterIdentifier] = None) -> None:
+    """Temporarily sets the default metadata for creating or reusing a
+    DataprocClusterManager. It is always updated to the most recently created
+    cluster.
+
+    If no known ClusterMetadata can be identified by the ClusterIdentifer, NOOP.
+    If None is set, next time when Flink is in use, if no cluster is explicitly
+    configured by a pipeline, the job runs locally.
+    """
+    if cluster_identifier:
+      self.default_cluster_metadata = self.cluster_metadata(cluster_identifier)
+    else:
+      self.default_cluster_metadata = None
+
+  def cluster_metadata(
+      self,
+      cluster_identifier: Optional[ClusterIdentifier] = None
+  ) -> Optional[ClusterMetadata]:
+    """Fetches the ClusterMetadata by a ClusterIdentifier that could be a
+    URL in string, a Beam pipeline, or an equivalent to a known ClusterMetadata;
+
+    If the given cluster_identifier is an URL or a pipeline that is unknown to
+    the current environment, the default cluster metadata (could be None) is
+    returned.
+    If the given cluster_identifier is a ClusterMetadata but unknown to the
+    current environment, passes it through (NOOP).
+    """
+    meta = self._cluster_metadata(cluster_identifier)
+    return meta if meta else self.default_cluster_metadata
+
+  def _cluster_metadata(
+      self,
+      cluster_identifier: Optional[ClusterIdentifier] = None
+  ) -> Optional[ClusterMetadata]:
+    meta = None
+    if cluster_identifier:
+      if isinstance(cluster_identifier, str):
+        meta = self.master_urls.get(cluster_identifier, None)
+      elif isinstance(cluster_identifier, beam.Pipeline):
+        dcm = self.pipelines.get(cluster_identifier, None)
+        if dcm:
+          meta = dcm.cluster_metadata
+      elif isinstance(cluster_identifier, ClusterMetadata):
+        meta = cluster_identifier
+        if meta in self.dataproc_cluster_managers:
+          meta = self.dataproc_cluster_managers[meta].cluster_metadata
+        elif (meta and self.default_cluster_metadata and
+              meta.cluster_name == self.default_cluster_metadata.cluster_name):
+          _LOGGER.warning(
+              'Cannot change the configuration of the running cluster %s. '
+              'Existing is %s, desired is %s.',
+              self.default_cluster_metadata.cluster_name,
+              self.default_cluster_metadata,
+              meta)
+          meta.reset_name()
+          _LOGGER.warning(
+              'To avoid conflict, issuing a new cluster name %s '
+              'for a new cluster.',
+              meta.cluster_name)
+      else:
+        raise TypeError(
+            'A cluster_identifier should be Optional[Union[str, '
+            'beam.Pipeline, ClusterMetadata], instead %s was given.',
+            type(cluster_identifier))
+    return meta
+
+  def _cleanup(self, dcm: DataprocClusterManager) -> None:
+    dcm.cleanup()
+    self.dataproc_cluster_managers.pop(dcm.cluster_metadata, None)
+    self.master_urls.pop(dcm.cluster_metadata.master_url, None)
+    for p in dcm.pipelines:
+      self.pipelines.pop(p, None)
+    if dcm.cluster_metadata == self.default_cluster_metadata:
+      self.default_cluster_metadata = None
+
+
 # Users can set options to guide how Interactive Beam works.
 # Examples:
-# from apache_beam.runners.interactive import interactive_beam as ib
 # ib.options.enable_recording_replay = False/True
 # ib.options.recording_duration = '1m'
 # ib.options.recordable_sources.add(SourceClass)
@@ -315,6 +631,12 @@ options = Options()
 # ib.show(elems)
 # ib.recordings.describe(p)
 recordings = Recordings()
+
+# Users can interact with the clusters used by their environment.
+# Examples:
+# ib.clusters.describe(p)
+# Check the docstrings for detailed usages.
+clusters = Clusters()
 
 
 def watch(watchable):
@@ -370,7 +692,7 @@ def show(
     visualize_data=False,
     n='inf',
     duration='inf'):
-  # type: (*Union[Dict[Any, PCollection], Iterable[PCollection], PCollection], bool, bool, Union[int, str], Union[int, str]) -> None
+  # type: (*Union[Dict[Any, PCollection], Iterable[PCollection], PCollection], bool, bool, Union[int, str], Union[int, str]) -> None # noqa: F821
 
   """Shows given PCollections in an interactive exploratory way if used within
   a notebook, or prints a heading sampled data if used within an ipython shell.

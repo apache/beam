@@ -24,7 +24,7 @@ import com.google.auto.value.AutoValue;
 
 /** Container class for different types of graph edges. All edges only have reference equality. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class Edges {
   /** Base class for graph edges. All edges only have reference equality. */

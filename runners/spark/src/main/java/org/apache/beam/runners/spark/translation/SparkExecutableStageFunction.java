@@ -67,8 +67,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
 import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.broadcast.Broadcast;
 import org.joda.time.Instant;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import scala.Tuple2;
 
 /**
@@ -81,13 +79,11 @@ import scala.Tuple2;
  * SparkExecutableStageExtractionFunction}.
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class SparkExecutableStageFunction<InputT, SideInputT>
     implements FlatMapFunction<Iterator<WindowedValue<InputT>>, RawUnionValue> {
-
-  private static final Logger LOG = LoggerFactory.getLogger(SparkExecutableStageFunction.class);
 
   // Pipeline options for initializing the FileSystems
   private final SerializablePipelineOptions pipelineOptions;
@@ -150,13 +146,7 @@ class SparkExecutableStageFunction<InputT, SideInputT>
                 executableStage, stageBundleFactory.getProcessBundleDescriptor());
         if (executableStage.getTimers().size() == 0) {
           ReceiverFactory receiverFactory = new ReceiverFactory(collector, outputMap);
-          processElements(
-              executableStage,
-              stateRequestHandler,
-              receiverFactory,
-              null,
-              stageBundleFactory,
-              inputs);
+          processElements(stateRequestHandler, receiverFactory, null, stageBundleFactory, inputs);
           return collector.iterator();
         }
         // Used with Batch, we know that all the data is available for this key. We can't use the
@@ -183,12 +173,7 @@ class SparkExecutableStageFunction<InputT, SideInputT>
 
         // Process inputs.
         processElements(
-            executableStage,
-            stateRequestHandler,
-            receiverFactory,
-            timerReceiverFactory,
-            stageBundleFactory,
-            inputs);
+            stateRequestHandler, receiverFactory, timerReceiverFactory, stageBundleFactory, inputs);
 
         // Finish any pending windows by advancing the input watermark to infinity.
         timerInternals.advanceInputWatermark(BoundedWindow.TIMESTAMP_MAX_VALUE);
@@ -218,7 +203,6 @@ class SparkExecutableStageFunction<InputT, SideInputT>
   // Processes the inputs of the executable stage. Output is returned via side effects on the
   // receiver.
   private void processElements(
-      ExecutableStage executableStage,
       StateRequestHandler stateRequestHandler,
       ReceiverFactory receiverFactory,
       TimerReceiverFactory timerReceiverFactory,

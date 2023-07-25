@@ -26,6 +26,7 @@ import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.util.Preconditions;
 
 /**
  * FhirSearchParameterCoder is the coder for {@link FhirSearchParameter}, which takes a coder for
@@ -53,7 +54,7 @@ public class FhirSearchParameterCoder<T> extends CustomCoder<FhirSearchParameter
 
   @Override
   public FhirSearchParameter<T> decode(InputStream inStream) throws IOException {
-    String resourceType = STRING_CODER.decode(inStream);
+    String resourceType = Preconditions.checkArgumentNotNull(STRING_CODER.decode(inStream));
     String key = STRING_CODER.decode(inStream);
     Map<String, T> queries = originalCoder.decode(inStream);
     return FhirSearchParameter.of(resourceType, key, queries);

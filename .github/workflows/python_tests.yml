@@ -35,6 +35,10 @@ on:
         description: 'Type "true" if you want to run Dataflow tests (GCP variables must be configured, check CI.md)'
         default: false
 
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
+  cancel-in-progress: true
 
 jobs:
 
@@ -45,7 +49,7 @@ jobs:
     outputs:
       gcp-variables-set: ${{ steps.check_gcp_variables.outputs.gcp-variables-set }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: "Check are GCP variables set"
         run: "./scripts/ci/ci_check_are_gcp_variables_set.sh"
         id: check_gcp_variables
@@ -69,11 +73,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Install python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
-          python-version: 3.7
+          python-version: 3.8
       - name: Get build dependencies
         working-directory: ./sdks/python
         run: pip install pip setuptools --upgrade && pip install -r build-requirements.txt
@@ -84,7 +88,7 @@ jobs:
         working-directory: ./sdks/python/dist
         run: mv $(ls | grep "apache-beam.*tar\.gz") apache-beam-source.tar.gz
       - name: Upload compressed sources as artifacts
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: python_sdk_source
           path: sdks/python/dist/apache-beam-source.tar.gz
@@ -97,37 +101,33 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         params: [
-          {"py_ver": "3.6", "tox_env": "py36"},
-          {"py_ver": "3.7", "tox_env": "py37"},
           {"py_ver": "3.8", "tox_env": "py38"},
+          {"py_ver": "3.9", "tox_env": "py39"},
+          {"py_ver": "3.10", "tox_env": "py310" },
+          { "py_ver": "3.11", "tox_env": "py311" },
         ]
-        exclude:
-          # TODO remove exclusion after issue with protobuf is solved
-          # https://github.com/protocolbuffers/protobuf/issues/7765
-          - os: windows-latest
-            params: {"py_ver": "3.8", "tox_env": "py38"}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Install python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.params.py_ver }}
       - name: Get build dependencies
         working-directory: ./sdks/python
-        run: pip install -r build-requirements.txt
+        run: pip install -r build-requirements.txt --use-pep517
       - name: Install tox
         run: pip install tox
       - name: Run tests basic unix
         if: startsWith(matrix.os, 'ubuntu') || startsWith(matrix.os, 'macos')
         working-directory: ./sdks/python
-        run: tox -c tox.ini -e ${{ matrix.params.tox_env }}
+        run: tox -c tox.ini run -e ${{ matrix.params.tox_env }}
       - name: Run tests basic windows
         if: startsWith(matrix.os, 'windows')
         working-directory: ./sdks/python
-        run: tox -c tox.ini -e ${{ matrix.params.tox_env }}-win
+        run: tox -c tox.ini run -e ${{ matrix.params.tox_env }}-win
       - name: Upload test logs
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: always()
         with:
           name: pytest-${{matrix.os}}-${{matrix.params.py_ver}}
@@ -140,17 +140,12 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        python: [3.6, 3.7, 3.8]
-        exclude:
-          # TODO remove exclusion after issue with protobuf is solved
-          # https://github.com/protocolbuffers/protobuf/issues/7765
-          - os: windows-latest
-            python: 3.8
+        python: ["3.8", "3.9", "3.10", "3.11"]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Install python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python }}
       - name: Get build dependencies
@@ -173,26 +168,25 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        python: [3.6, 3.7, 3.8]
-        exclude:
-          # TODO remove exclusion after issue with protobuf is solved
-          # https://github.com/protocolbuffers/protobuf/issues/7765
-          - os: windows-latest
-            python: 3.8
+        python: ["3.8", "3.9", "3.10", "3.11"]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Install python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python }}
+      - name: Install go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.20'
       - name: Download source from artifacts
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: python_sdk_source
           path: apache-beam-source
       - name: Authenticate on GCP
-        uses: google-github-actions/setup-gcloud@master
+        uses: google-github-actions/setup-gcloud@v0
         with:
           service_account_email: ${{ secrets.GCP_SA_EMAIL }}
           service_account_key: ${{ secrets.GCP_SA_KEY }}

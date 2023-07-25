@@ -16,12 +16,6 @@
  * Syntax highlighting styles
  */
 .highlight {
-  //background: #fff;
-
-  .chroma {
-    background: #eef;
-  }
-
   .c {
     color: #998;
     font-style: italic;
@@ -239,7 +233,6 @@ pre {
   ul {
     li {
       margin-bottom:0 !important;
-      padding-left: 0 !important;
       &:hover {
         cursor: pointer;
       }

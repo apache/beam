@@ -46,7 +46,28 @@ from apache_beam.utils.sentinel import Sentinel
 if TYPE_CHECKING:
   from apache_beam.portability.api import endpoints_pb2
 
-# This module is experimental. No backwards-compatibility guarantees.
+# Mapping from logging levels to LogEntry levels.
+LOG_LEVEL_TO_LOGENTRY_MAP = {
+    logging.FATAL: beam_fn_api_pb2.LogEntry.Severity.CRITICAL,
+    logging.ERROR: beam_fn_api_pb2.LogEntry.Severity.ERROR,
+    logging.WARNING: beam_fn_api_pb2.LogEntry.Severity.WARN,
+    logging.INFO: beam_fn_api_pb2.LogEntry.Severity.INFO,
+    logging.DEBUG: beam_fn_api_pb2.LogEntry.Severity.DEBUG,
+    logging.NOTSET: beam_fn_api_pb2.LogEntry.Severity.UNSPECIFIED,
+    -float('inf'): beam_fn_api_pb2.LogEntry.Severity.DEBUG,
+}
+
+# Mapping from LogEntry levels to logging levels
+LOGENTRY_TO_LOG_LEVEL_MAP = {
+    beam_fn_api_pb2.LogEntry.Severity.CRITICAL: logging.CRITICAL,
+    beam_fn_api_pb2.LogEntry.Severity.ERROR: logging.ERROR,
+    beam_fn_api_pb2.LogEntry.Severity.WARN: logging.WARNING,
+    beam_fn_api_pb2.LogEntry.Severity.NOTICE: logging.INFO + 1,
+    beam_fn_api_pb2.LogEntry.Severity.INFO: logging.INFO,
+    beam_fn_api_pb2.LogEntry.Severity.DEBUG: logging.DEBUG,
+    beam_fn_api_pb2.LogEntry.Severity.TRACE: logging.DEBUG - 1,
+    beam_fn_api_pb2.LogEntry.Severity.UNSPECIFIED: logging.NOTSET,
+}
 
 
 class FnApiLogRecordHandler(logging.Handler):
@@ -59,16 +80,6 @@ class FnApiLogRecordHandler(logging.Handler):
   # Size of the queue used to buffer messages. Once full, messages will be
   # dropped. If the average log size is 1KB this may use up to 10MB of memory.
   _QUEUE_SIZE = 10000
-
-  # Mapping from logging levels to LogEntry levels.
-  LOG_LEVEL_MAP = {
-      logging.FATAL: beam_fn_api_pb2.LogEntry.Severity.CRITICAL,
-      logging.ERROR: beam_fn_api_pb2.LogEntry.Severity.ERROR,
-      logging.WARNING: beam_fn_api_pb2.LogEntry.Severity.WARN,
-      logging.INFO: beam_fn_api_pb2.LogEntry.Severity.INFO,
-      logging.DEBUG: beam_fn_api_pb2.LogEntry.Severity.DEBUG,
-      -float('inf'): beam_fn_api_pb2.LogEntry.Severity.DEBUG,
-  }
 
   def __init__(self, log_service_descriptor):
     # type: (endpoints_pb2.ApiServiceDescriptor) -> None
@@ -99,19 +110,26 @@ class FnApiLogRecordHandler(logging.Handler):
     return self._logging_stub.Logging(self._write_log_entries())
 
   def map_log_level(self, level):
-    # type: (int) -> beam_fn_api_pb2.LogEntry.Severity.Enum
+    # type: (int) -> beam_fn_api_pb2.LogEntry.Severity.Enum.ValueType
     try:
-      return self.LOG_LEVEL_MAP[level]
+      return LOG_LEVEL_TO_LOGENTRY_MAP[level]
     except KeyError:
       return max(
           beam_level for python_level,
-          beam_level in self.LOG_LEVEL_MAP.items() if python_level <= level)
+          beam_level in LOG_LEVEL_TO_LOGENTRY_MAP.items()
+          if python_level <= level)
 
   def emit(self, record):
     # type: (logging.LogRecord) -> None
     log_entry = beam_fn_api_pb2.LogEntry()
     log_entry.severity = self.map_log_level(record.levelno)
-    log_entry.message = self.format(record)
+    try:
+      log_entry.message = self.format(record)
+    except Exception:
+      # record.msg could be an arbitrary object, convert it to a string first.
+      log_entry.message = (
+          "Failed to format '%s' with args '%s' during logging." %
+          (str(record.msg), record.args))
     log_entry.thread = record.threadName
     log_entry.log_location = '%s:%s' % (
         record.pathname or record.module, record.lineno or record.funcName)

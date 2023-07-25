@@ -45,6 +45,8 @@ def mock_get_ipython():
   class MockedGetIpython(object):
     def __init__(self):
       self._execution_count = 0
+      # Mock as if the kernel is connected to a notebook frontend.
+      self.config = {'IPKernelApp': 'mock'}
 
     def __call__(self):
       return self

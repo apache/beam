@@ -27,7 +27,6 @@ import java.util.logging.Logger;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.SdkComponents;
-import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.construction.WindowingStrategyTranslation;
 import org.apache.beam.runners.twister2.utils.Twister2AssignContext;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -35,11 +34,11 @@ import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.InvalidProtocolBufferException;
 
 /** Assign Windows function. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class AssignWindowsFunction<T>
     implements ComputeCollectorFunc<WindowedValue<T>, Iterator<WindowedValue<T>>> {
@@ -48,20 +47,10 @@ public class AssignWindowsFunction<T>
   private transient boolean isInitialized = false;
   private transient WindowFn<T, BoundedWindow> windowFn;
   private byte[] windowFnBytes;
-  private transient PipelineOptions options;
-  private String serializedOptions;
-
-  public AssignWindowsFunction() {
-    // non arg constructor needed for kryo
-    this.isInitialized = false;
-    this.options = null;
-  }
 
   public AssignWindowsFunction(WindowFn<T, BoundedWindow> windowFn, PipelineOptions options) {
     this.windowFn = windowFn;
     SdkComponents components = SdkComponents.create();
-    this.options = options;
-    this.serializedOptions = new SerializablePipelineOptions(options).toString();
     components.registerEnvironment(
         Environments.createOrGetDefaultEnvironment(options.as(PortablePipelineOptions.class)));
     RunnerApi.FunctionSpec windowFnProto =
@@ -102,7 +91,6 @@ public class AssignWindowsFunction<T>
     if (isInitialized) {
       return;
     }
-    options = new SerializablePipelineOptions(serializedOptions).get();
 
     try {
       RunnerApi.FunctionSpec windowFnProto = RunnerApi.FunctionSpec.parseFrom(windowFnBytes);

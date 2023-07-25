@@ -16,8 +16,16 @@
 package provision
 
 import (
+	"context"
+	"fmt"
+	"log"
+	"net"
 	"reflect"
+	"sync"
 	"testing"
+
+	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
+	"google.golang.org/grpc"
 )
 
 type s struct {
@@ -50,5 +58,53 @@ func TestConversions(t *testing.T) {
 		if !reflect.DeepEqual(test, ret) {
 			t.Errorf("Unmarshal(Marshal(%v)) = %v, want %v", test, ret, test)
 		}
+	}
+}
+
+type ProvisionServiceServicer struct {
+	fnpb.UnimplementedProvisionServiceServer
+}
+
+func (p ProvisionServiceServicer) GetProvisionInfo(ctx context.Context, req *fnpb.GetProvisionInfoRequest) (*fnpb.GetProvisionInfoResponse, error) {
+	return &fnpb.GetProvisionInfoResponse{Info: &fnpb.ProvisionInfo{RetrievalToken: "token"}}, nil
+}
+
+func setup(addr *string, wg *sync.WaitGroup) {
+	l, err := net.Listen("tcp", ":0")
+	if err != nil {
+		log.Fatalf("failed to find an open port: %v", err)
+	}
+	defer l.Close()
+	port := l.Addr().(*net.TCPAddr).Port
+	*addr = fmt.Sprintf(":%d", port)
+
+	server := grpc.NewServer()
+	defer server.Stop()
+
+	prs := &ProvisionServiceServicer{}
+	fnpb.RegisterProvisionServiceServer(server, prs)
+
+	wg.Done()
+
+	if err := server.Serve(l); err != nil {
+		log.Fatalf("cannot serve the server: %v", err)
+	}
+}
+
+func TestProvisionInfo(t *testing.T) {
+
+	endpoint := ""
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go setup(&endpoint, &wg)
+	wg.Wait()
+
+	got, err := Info(context.Background(), endpoint)
+	if err != nil {
+		t.Errorf("error in response: %v", err)
+	}
+	want := &fnpb.ProvisionInfo{RetrievalToken: "token"}
+	if got.GetRetrievalToken() != want.GetRetrievalToken() {
+		t.Errorf("provision.Info() = %v, want %v", got, want)
 	}
 }

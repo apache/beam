@@ -47,8 +47,9 @@ import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.util.ZipFiles;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -63,9 +64,10 @@ import org.slf4j.LoggerFactory;
 
 /** Utilities for interacting with portability {@link Environment environments}. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class Environments {
+
   private static final Logger LOG = LoggerFactory.getLogger(Environments.class);
 
   private static final ObjectMapper MAPPER =
@@ -90,9 +92,9 @@ public class Environments {
           .build();
 
   public enum JavaVersion {
-    java8("java", "1.8"),
-    java11("java11", "11"),
-    java17("java17", "17");
+    java8("java", "1.8", 8),
+    java11("java11", "11", 11),
+    java17("java17", "17", 17);
 
     // Legacy name, as used in container image
     private final String legacyName;
@@ -100,9 +102,13 @@ public class Environments {
     // Specification version (e.g. System java.specification.version)
     private final String specification;
 
-    JavaVersion(final String legacyName, final String specification) {
+    // an integer representation of the specification, used for finding the nearest
+    private final int specificationInt;
+
+    JavaVersion(final String legacyName, final String specification, final int specificationInt) {
       this.legacyName = legacyName;
       this.specification = specification;
+      this.specificationInt = specificationInt;
     }
 
     public String legacyName() {
@@ -114,6 +120,30 @@ public class Environments {
     }
 
     public static JavaVersion forSpecification(String specification) {
+      for (JavaVersion ver : JavaVersion.values()) {
+        if (ver.specification.equals(specification)) {
+          return ver;
+        }
+      }
+
+      JavaVersion fallback = null;
+      int specificationInt = Integer.parseInt(specification);
+      int minDistance = Integer.MAX_VALUE;
+      for (JavaVersion candidate : JavaVersion.values()) {
+        int distance = Math.abs(candidate.specificationInt - specificationInt);
+        if (distance <= minDistance) {
+          fallback = candidate;
+          minDistance = distance;
+        }
+      }
+      LOG.warn(
+          "unsupported Java version: {}, falling back to: {}",
+          specification,
+          fallback.specification);
+      return fallback;
+    }
+
+    public static JavaVersion forSpecificationStrict(String specification) {
       for (JavaVersion ver : JavaVersion.values()) {
         if (ver.specification.equals(specification)) {
           return ver;
@@ -132,8 +162,9 @@ public class Environments {
    * container.
    */
 
-  private static final String JAVA_SDK_HARNESS_CONTAINER_URL =
-      getDefaultJavaSdkHarnessContainerUrl();
+  @VisibleForTesting
+  static final String JAVA_SDK_HARNESS_CONTAINER_URL = getDefaultJavaSdkHarnessContainerUrl();
+
   public static final Environment JAVA_SDK_HARNESS_ENVIRONMENT =
       createDockerEnvironment(JAVA_SDK_HARNESS_CONTAINER_URL);
 
@@ -387,9 +418,12 @@ public class Environments {
     capabilities.add(BeamUrns.getUrn(StandardProtocols.Enum.MULTI_CORE_BUNDLE_PROCESSING));
     capabilities.add(BeamUrns.getUrn(StandardProtocols.Enum.PROGRESS_REPORTING));
     capabilities.add(BeamUrns.getUrn(StandardProtocols.Enum.HARNESS_MONITORING_INFOS));
+    capabilities.add(BeamUrns.getUrn(StandardProtocols.Enum.CONTROL_REQUEST_ELEMENTS_EMBEDDING));
+    capabilities.add(BeamUrns.getUrn(StandardProtocols.Enum.STATE_CACHING));
     capabilities.add("beam:version:sdk_base:" + JAVA_SDK_HARNESS_CONTAINER_URL);
     capabilities.add(BeamUrns.getUrn(SplittableParDoComponents.TRUNCATE_SIZED_RESTRICTION));
     capabilities.add(BeamUrns.getUrn(Primitives.TO_STRING));
+    capabilities.add(BeamUrns.getUrn(StandardProtocols.Enum.DATA_SAMPLING));
     return capabilities.build();
   }
 

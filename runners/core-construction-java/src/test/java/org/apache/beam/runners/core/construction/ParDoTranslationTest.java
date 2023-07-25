@@ -24,9 +24,11 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput;
 import org.apache.beam.runners.core.construction.CoderTranslation.TranslationContext;
@@ -80,7 +82,7 @@ import org.junit.runners.Parameterized.Parameters;
 /** Tests for {@link ParDoTranslation}. */
 @RunWith(Enclosed.class)
 @SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class ParDoTranslationTest {
 
@@ -150,6 +152,12 @@ public class ParDoTranslationTest {
       assertEquals(
           parDo.getFn() instanceof StateTimerDropElementsFn,
           components.requirements().contains(ParDoTranslation.REQUIRES_STATEFUL_PROCESSING_URN));
+      assertEquals(
+          parDo.getFn() instanceof StateTimerDropElementsFn,
+          components.requirements().contains(ParDoTranslation.REQUIRES_ON_WINDOW_EXPIRATION_URN));
+      assertEquals(
+          parDo.getFn() instanceof StateTimerDropElementsFn ? "onWindowExpiration0" : "",
+          payload.getOnWindowExpirationTimerFamilySpec());
     }
 
     @Test
@@ -219,15 +227,32 @@ public class ParDoTranslationTest {
   public static class TestStateAndTimerTranslation {
 
     @Parameters(name = "{index}: {0}")
-    public static Iterable<StateSpec<?>> stateSpecs() {
-      return ImmutableList.of(
-          StateSpecs.value(VarIntCoder.of()),
-          StateSpecs.bag(VarIntCoder.of()),
-          StateSpecs.set(VarIntCoder.of()),
-          StateSpecs.map(StringUtf8Coder.of(), VarIntCoder.of()));
+    public static Iterable<Object[]> stateSpecs() {
+      return Arrays.asList(
+          new Object[][] {
+            {
+              StateSpecs.value(VarIntCoder.of()),
+              FunctionSpec.newBuilder().setUrn(ParDoTranslation.BAG_USER_STATE).build()
+            },
+            {
+              StateSpecs.bag(VarIntCoder.of()),
+              FunctionSpec.newBuilder().setUrn(ParDoTranslation.BAG_USER_STATE).build()
+            },
+            {
+              StateSpecs.set(VarIntCoder.of()),
+              FunctionSpec.newBuilder().setUrn(ParDoTranslation.MULTIMAP_USER_STATE).build()
+            },
+            {
+              StateSpecs.map(StringUtf8Coder.of(), VarIntCoder.of()),
+              FunctionSpec.newBuilder().setUrn(ParDoTranslation.MULTIMAP_USER_STATE).build()
+            }
+          });
     }
 
     @Parameter public StateSpec<?> stateSpec;
+
+    @Parameter(1)
+    public FunctionSpec protocol;
 
     @Test
     public void testStateSpecToFromProto() throws Exception {
@@ -236,6 +261,8 @@ public class ParDoTranslationTest {
       sdkComponents.registerEnvironment(Environments.createDockerEnvironment("java"));
       RunnerApi.StateSpec stateSpecProto =
           ParDoTranslation.translateStateSpec(stateSpec, sdkComponents);
+
+      assertEquals(stateSpecProto.getProtocol(), protocol);
 
       // Decode
       RehydratedComponents rehydratedComponents =
@@ -338,6 +365,9 @@ public class ParDoTranslationTest {
 
     @OnTimer(PROCESSING_TIMER_ID)
     public void onProcessingTime(OnTimerContext context) {}
+
+    @OnWindowExpiration
+    public void onWindowExpiration() {}
 
     @Override
     public boolean equals(@Nullable Object other) {

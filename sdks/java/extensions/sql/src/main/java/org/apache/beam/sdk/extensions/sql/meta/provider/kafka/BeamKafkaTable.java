@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 
-import static org.apache.beam.vendor.calcite.v1_26_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.Collection;
 import java.util.HashMap;
@@ -56,7 +56,7 @@ import org.slf4j.LoggerFactory;
  * between {@code BeamSqlRow} and {@code KV<byte[], byte[]>}.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public abstract class BeamKafkaTable extends SchemaBaseBeamTable {
   private String bootstrapServers;

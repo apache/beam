@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.pubsub;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.client.util.DateTime;
@@ -30,16 +31,25 @@ import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
+import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** An (abstract) helper class for talking to Pubsub via an underlying transport. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public abstract class PubsubClient implements Closeable {
+  private static final Map<String, SerializableFunction<String, Schema>>
+      schemaTypeToConversionFnMap =
+          ImmutableMap.of(
+              com.google.pubsub.v1.Schema.Type.AVRO.name(), new PubsubAvroDefinitionToSchemaFn());
+
   /** Factory for creating clients. */
   public interface PubsubClientFactory extends Serializable {
     /**
@@ -49,6 +59,13 @@ public abstract class PubsubClient implements Closeable {
      * {@code timestampAttribute} and {@code idAttribute} to store custom timestamps/ids within
      * message metadata.
      */
+    PubsubClient newClient(
+        @Nullable String timestampAttribute,
+        @Nullable String idAttribute,
+        PubsubOptions options,
+        @Nullable String rootUrlOverride)
+        throws IOException;
+
     PubsubClient newClient(
         @Nullable String timestampAttribute, @Nullable String idAttribute, PubsubOptions options)
         throws IOException;
@@ -161,6 +178,53 @@ public abstract class PubsubClient implements Closeable {
 
   public static ProjectPath projectPathFromId(String projectId) {
     return new ProjectPath(String.format("projects/%s", projectId));
+  }
+
+  /** Path representing a Pubsub schema. */
+  public static class SchemaPath implements Serializable {
+    static final String DELETED_SCHEMA_PATH = "_deleted-schema_";
+    static final SchemaPath DELETED_SCHEMA = new SchemaPath("", DELETED_SCHEMA_PATH);
+    private final String projectId;
+    private final String schemaId;
+
+    SchemaPath(String projectId, String schemaId) {
+      this.projectId = projectId;
+      this.schemaId = schemaId;
+    }
+
+    SchemaPath(String path) {
+      List<String> splits = Splitter.on('/').splitToList(path);
+      checkState(
+          splits.size() == 4 && "projects".equals(splits.get(0)) && "schemas".equals(splits.get(2)),
+          "Malformed schema path %s: "
+              + "must be of the form \"projects/\" + <project id> + \"schemas\"",
+          path);
+      this.projectId = splits.get(1);
+      this.schemaId = splits.get(3);
+    }
+
+    public String getPath() {
+      if (schemaId.equals(DELETED_SCHEMA_PATH)) {
+        return DELETED_SCHEMA_PATH;
+      }
+      return String.format("projects/%s/schemas/%s", projectId, schemaId);
+    }
+
+    public String getId() {
+      return schemaId;
+    }
+
+    public String getProjectId() {
+      return projectId;
+    }
+  }
+
+  public static SchemaPath schemaPathFromPath(String path) {
+    return new SchemaPath(path);
+  }
+
+  public static SchemaPath schemaPathFromId(String projectId, String schemaId) {
+    return new SchemaPath(projectId, schemaId);
   }
 
   /** Path representing a Pubsub subscription. */
@@ -293,10 +357,10 @@ public abstract class PubsubClient implements Closeable {
   public abstract static class OutgoingMessage implements Serializable {
 
     /** Underlying Message. May not have publish timestamp set. */
-    public abstract PubsubMessage message();
+    public abstract PubsubMessage getMessage();
 
     /** Timestamp for element (ms since epoch). */
-    public abstract long timestampMsSinceEpoch();
+    public abstract long getTimestampMsSinceEpoch();
 
     /**
      * If using an id attribute, the record id to associate with this record's metadata so the
@@ -304,21 +368,31 @@ public abstract class PubsubClient implements Closeable {
      */
     public abstract @Nullable String recordId();
 
+    public abstract @Nullable String topic();
+
     public static OutgoingMessage of(
-        PubsubMessage message, long timestampMsSinceEpoch, @Nullable String recordId) {
-      return new AutoValue_PubsubClient_OutgoingMessage(message, timestampMsSinceEpoch, recordId);
+        PubsubMessage message,
+        long timestampMsSinceEpoch,
+        @Nullable String recordId,
+        @Nullable String topic) {
+      return new AutoValue_PubsubClient_OutgoingMessage(
+          message, timestampMsSinceEpoch, recordId, topic);
     }
 
     public static OutgoingMessage of(
         org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage message,
         long timestampMsSinceEpoch,
-        @Nullable String recordId) {
+        @Nullable String recordId,
+        @Nullable String topic) {
       PubsubMessage.Builder builder =
           PubsubMessage.newBuilder().setData(ByteString.copyFrom(message.getPayload()));
       if (message.getAttributeMap() != null) {
         builder.putAllAttributes(message.getAttributeMap());
       }
-      return of(builder.build(), timestampMsSinceEpoch, recordId);
+      if (message.getOrderingKey() != null) {
+        builder.setOrderingKey(message.getOrderingKey());
+      }
+      return of(builder.build(), timestampMsSinceEpoch, recordId, topic);
     }
   }
 
@@ -329,7 +403,7 @@ public abstract class PubsubClient implements Closeable {
    * serialization is never used for non-test clients.
    */
   @AutoValue
-  abstract static class IncomingMessage implements Serializable {
+  public abstract static class IncomingMessage implements Serializable {
 
     /** Underlying Message. */
     public abstract PubsubMessage message();
@@ -393,6 +467,9 @@ public abstract class PubsubClient implements Closeable {
   /** Create {@code topic}. */
   public abstract void createTopic(TopicPath topic) throws IOException;
 
+  /** Create {link TopicPath} with {@link SchemaPath}. */
+  public abstract void createTopic(TopicPath topic, SchemaPath schema) throws IOException;
+
   /*
    * Delete {@code topic}.
    */
@@ -435,4 +512,51 @@ public abstract class PubsubClient implements Closeable {
    * messages have been pulled and the test may complete.
    */
   public abstract boolean isEOF();
+
+  /** Create {@link com.google.api.services.pubsub.model.Schema} from Schema definition content. */
+  public abstract void createSchema(
+      SchemaPath schemaPath, String schemaContent, com.google.pubsub.v1.Schema.Type type)
+      throws IOException;
+
+  /** Delete {@link SchemaPath}. */
+  public abstract void deleteSchema(SchemaPath schemaPath) throws IOException;
+
+  /** Return {@link SchemaPath} from {@link TopicPath} if exists. */
+  public abstract SchemaPath getSchemaPath(TopicPath topicPath) throws IOException;
+
+  /** Return a Beam {@link Schema} from the Pub/Sub schema resource, if exists. */
+  public abstract Schema getSchema(SchemaPath schemaPath) throws IOException;
+
+  /** Convert a {@link com.google.api.services.pubsub.model.Schema} to a Beam {@link Schema}. */
+  static Schema fromPubsubSchema(com.google.api.services.pubsub.model.Schema pubsubSchema) {
+    if (!schemaTypeToConversionFnMap.containsKey(pubsubSchema.getType())) {
+      throw new IllegalArgumentException(
+          String.format(
+              "Pub/Sub schema type %s is not supported at this time", pubsubSchema.getType()));
+    }
+    SerializableFunction<String, Schema> definitionToSchemaFn =
+        schemaTypeToConversionFnMap.get(pubsubSchema.getType());
+    return definitionToSchemaFn.apply(pubsubSchema.getDefinition());
+  }
+
+  /** Convert a {@link com.google.pubsub.v1.Schema} to a Beam {@link Schema}. */
+  static Schema fromPubsubSchema(com.google.pubsub.v1.Schema pubsubSchema) {
+    String typeName = pubsubSchema.getType().name();
+    if (!schemaTypeToConversionFnMap.containsKey(typeName)) {
+      throw new IllegalArgumentException(
+          String.format("Pub/Sub schema type %s is not supported at this time", typeName));
+    }
+    SerializableFunction<String, Schema> definitionToSchemaFn =
+        schemaTypeToConversionFnMap.get(typeName);
+    return definitionToSchemaFn.apply(pubsubSchema.getDefinition());
+  }
+
+  static class PubsubAvroDefinitionToSchemaFn implements SerializableFunction<String, Schema> {
+    @Override
+    public Schema apply(String definition) {
+      checkNotNull(definition, "Pub/Sub schema definition is null");
+      org.apache.avro.Schema avroSchema = new org.apache.avro.Schema.Parser().parse(definition);
+      return AvroUtils.toBeamSchema(avroSchema);
+    }
+  }
 }

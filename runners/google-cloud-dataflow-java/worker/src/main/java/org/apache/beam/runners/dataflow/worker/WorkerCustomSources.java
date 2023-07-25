@@ -61,7 +61,7 @@ import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.ValueWithRecordId;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -79,8 +79,8 @@ import org.slf4j.LoggerFactory;
  * CloudSource} class.
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class WorkerCustomSources {
   private static final String SERIALIZED_SOURCE = "serialized_source";
@@ -247,18 +247,37 @@ public class WorkerCustomSources {
           serializedSize);
     }
 
+    List<BoundedSource<T>> bundlesBeforeCoalesce = bundles;
     int numBundlesBeforeRebundling = bundles.size();
     // To further reduce size of the response and service-side memory usage, coalesce
     // the sources into numBundlesLimit compressed serialized bundles.
-    if (bundles.size() > numBundlesLimit) {
+    while (serializedSize > apiByteLimit || bundles.size() > numBundlesLimit) {
+      // bundle size constrained by API limit, adds 5% allowance
+      int targetBundleSizeApiLimit = (int) (bundles.size() * apiByteLimit / serializedSize * 0.95);
+      // bundle size constrained by numBundlesLimit
+      int targetBundleSizeBundleLimit = Math.min(numBundlesLimit, bundles.size() - 1);
+      int targetBundleSize = Math.min(targetBundleSizeApiLimit, targetBundleSizeBundleLimit);
+
+      if (targetBundleSize <= 1) {
+        String message =
+            String.format(
+                "Unable to coalesce the sources into compressed serialized bundles to satisfy the "
+                    + "allowable limit when splitting %s. With %d bundles, total serialized size "
+                    + "of %d bytes is still larger than the limit %d. For more information, please "
+                    + "check the corresponding FAQ entry at "
+                    + "https://cloud.google.com/dataflow/docs/guides/common-errors#boundedsource-objects-splitintobundles",
+                source, bundles.size(), serializedSize, apiByteLimit);
+        throw new IllegalArgumentException(message);
+      }
+
+      bundles = limitNumberOfBundles(bundlesBeforeCoalesce, targetBundleSize);
+      serializedSize =
+          DataflowApiUtils.computeSerializedSizeBytes(wrapIntoSourceSplitResponse(bundles));
       LOG.warn(
-          "Splitting source {} into bundles of estimated size {} bytes produced {} bundles. "
-              + "Rebundling into {} bundles.",
+          "Re-bundle source {} into bundles of estimated size {} bytes produced {} bundles.",
           source,
-          desiredBundleSizeBytes,
-          bundles.size(),
-          numBundlesLimit);
-      bundles = limitNumberOfBundles(bundles, numBundlesLimit);
+          serializedSize,
+          bundles.size());
     }
 
     SourceOperationResponse response =
@@ -277,7 +296,7 @@ public class WorkerCustomSources {
                   + "it generated %d BoundedSource objects with total serialized size of %d bytes "
                   + "which is larger than the limit %d. "
                   + "For more information, please check the corresponding FAQ entry at "
-                  + "https://cloud.google.com/dataflow/pipelines/troubleshooting-your-pipeline",
+                  + "https://cloud.google.com/dataflow/docs/guides/common-errors#boundedsource-objects-splitintobundles",
               source,
               desiredBundleSizeBytes,
               numBundlesBeforeRebundling,

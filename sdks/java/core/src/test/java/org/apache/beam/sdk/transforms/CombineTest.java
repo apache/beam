@@ -92,6 +92,7 @@ import org.junit.Assume;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -103,6 +104,8 @@ public class CombineTest implements Serializable {
   /** Base class to share setup/teardown and helpers. */
   public abstract static class SharedTestBase {
     @Rule public final transient TestPipeline pipeline = TestPipeline.create();
+
+    @Rule public transient Timeout globalTimeout = Timeout.seconds(1200);
 
     protected void runTestSimpleCombine(
         List<KV<String, Integer>> table, int globalSum, List<KV<String, String>> perKeyCombines) {
@@ -653,7 +656,7 @@ public class CombineTest implements Serializable {
     @Test
     @Category({ValidatesRunner.class, UsesSideInputs.class})
     @SuppressWarnings({
-      "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+      "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
       "unchecked"
     })
     public void testSimpleCombine() {
@@ -988,7 +991,7 @@ public class CombineTest implements Serializable {
     @Test
     @Category({ValidatesRunner.class, UsesSideInputs.class})
     @SuppressWarnings({
-      "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+      "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
       "unchecked"
     })
     public void testSimpleCombineWithContext() {

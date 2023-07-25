@@ -17,6 +17,10 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsublite.internal;
 
+import com.google.cloud.pubsublite.MessageMetadata;
+import com.google.cloud.pubsublite.internal.Publisher;
+import org.apache.beam.sdk.io.gcp.pubsublite.PublisherOptions;
+
 /**
  * A shared cache per-worker instance of Pub/Sub Lite publishers.
  *
@@ -26,7 +30,8 @@ package org.apache.beam.sdk.io.gcp.pubsublite.internal;
 final class PerServerPublisherCache {
   private PerServerPublisherCache() {}
 
-  static final PublisherCache PUBLISHER_CACHE = new PublisherCache();
+  static final ServiceCache<PublisherOptions, Publisher<MessageMetadata>> PUBLISHER_CACHE =
+      new ServiceCache<>();
 
   static {
     Runtime.getRuntime().addShutdownHook(new Thread(PUBLISHER_CACHE::close));

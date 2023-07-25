@@ -17,20 +17,25 @@
  */
 package org.apache.beam.sdk.fn.stream;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.collection.IsCollectionWithSize.hasSize;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.fn.test.TestExecutors;
 import org.apache.beam.sdk.fn.test.TestExecutors.TestExecutorService;
 import org.apache.beam.sdk.fn.test.TestStreams;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ArrayListMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.junit.Rule;
@@ -77,7 +82,7 @@ public class DirectStreamObserverTest {
     executor.invokeAll(tasks);
     streamObserver.onCompleted();
 
-    // Check that order was maintained.
+    // Check that order was maintained per writer.
     int[] prefixesIndex = new int[prefixes.size()];
     assertEquals(50, onNextValues.size());
     for (String onNextValue : onNextValues) {
@@ -167,5 +172,51 @@ public class DirectStreamObserverTest {
       result.get();
     }
     streamObserver.onCompleted();
+  }
+
+  @Test
+  public void testMessageCheckInterval() throws Exception {
+    final AtomicInteger index = new AtomicInteger();
+    ArrayListMultimap<Integer, String> values = ArrayListMultimap.create();
+    final DirectStreamObserver<String> streamObserver =
+        new DirectStreamObserver<>(
+            new AdvancingPhaser(1),
+            TestStreams.withOnNext((String t) -> assertTrue(values.put(index.get(), t)))
+                .withIsReady(
+                    () -> {
+                      index.incrementAndGet();
+                      return true;
+                    })
+                .build(),
+            10);
+
+    List<String> prefixes = ImmutableList.of("0", "1", "2", "3", "4");
+    List<Future<String>> results = new ArrayList<>();
+    for (final String prefix : prefixes) {
+      results.add(
+          executor.submit(
+              () -> {
+                for (int i = 0; i < 10; i++) {
+                  streamObserver.onNext(prefix + i);
+                }
+                return prefix;
+              }));
+    }
+    for (Future<?> result : results) {
+      result.get();
+    }
+    assertEquals(50, values.size());
+    for (Collection<String> valuesPerMessageCheck : values.asMap().values()) {
+      assertThat(valuesPerMessageCheck, hasSize(10));
+    }
+
+    // Check that order was maintained per writer.
+    int[] prefixesIndex = new int[prefixes.size()];
+    for (String onNextValue : values.values()) {
+      int prefix = Integer.parseInt(onNextValue.substring(0, 1));
+      int suffix = Integer.parseInt(onNextValue.substring(1, 2));
+      assertEquals(prefixesIndex[prefix], suffix);
+      prefixesIndex[prefix] += 1;
+    }
   }
 }

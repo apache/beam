@@ -22,6 +22,8 @@ import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
 import InfluxDBCredentialsHelper
 
+import static LoadTestsBuilder.GO_SDK_CONTAINER
+
 String now = new Date().format('MMddHHmmss', TimeZone.getTimeZone('UTC'))
 
 def batchScenarios = {
@@ -46,6 +48,8 @@ def batchScenarios = {
         fanout               : 1,
         num_workers          : 5,
         autoscaling_algorithm: 'NONE',
+        environment_type     : 'DOCKER',
+        environment_config   : GO_SDK_CONTAINER,
       ]
     ],
     [
@@ -68,6 +72,8 @@ def batchScenarios = {
         fanout               : 1,
         num_workers          : 5,
         autoscaling_algorithm: 'NONE',
+        environment_type     : 'DOCKER',
+        environment_config   : GO_SDK_CONTAINER,
       ]
     ],
     [
@@ -90,6 +96,8 @@ def batchScenarios = {
         fanout               : 1,
         num_workers          : 5,
         autoscaling_algorithm: 'NONE',
+        environment_type     : 'DOCKER',
+        environment_config   : GO_SDK_CONTAINER,
       ]
     ],
     [
@@ -112,6 +120,8 @@ def batchScenarios = {
         fanout               : 4,
         num_workers          : 16,
         autoscaling_algorithm: 'NONE',
+        environment_type     : 'DOCKER',
+        environment_config   : GO_SDK_CONTAINER,
       ]
     ],
     [
@@ -134,6 +144,8 @@ def batchScenarios = {
         fanout               : 8,
         num_workers          : 16,
         autoscaling_algorithm: 'NONE',
+        environment_type     : 'DOCKER',
+        environment_config   : GO_SDK_CONTAINER,
       ]
     ],
     [
@@ -158,6 +170,8 @@ def batchScenarios = {
         fanout               : 1,
         num_workers          : 5,
         autoscaling_algorithm: 'NONE',
+        environment_type     : 'DOCKER',
+        environment_config   : GO_SDK_CONTAINER,
       ]
     ],
     [
@@ -182,6 +196,8 @@ def batchScenarios = {
         fanout               : 1,
         num_workers          : 5,
         autoscaling_algorithm: 'NONE',
+        environment_type     : 'DOCKER',
+        environment_config   : GO_SDK_CONTAINER,
       ]
     ],
   ]
@@ -202,7 +218,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
       loadTestJob(delegate, CommonTestProperties.TriggeringContext.PR, 'batch')
     }
 
-CronJobBuilder.cronJob('beam_LoadTests_Go_GBK_Dataflow_Batch', 'H 10 * * *', this) {
+CronJobBuilder.cronJob('beam_LoadTests_Go_GBK_Dataflow_Batch', 'H H * * *', this) {
   additionalPipelineArgs = [
     influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
     influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,

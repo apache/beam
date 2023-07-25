@@ -101,6 +101,9 @@ class SourceBase(HasDisplayData, urns.RunnerApiFn):
   """
   urns.RunnerApiFn.register_pickle_urn(python_urns.PICKLED_SOURCE)
 
+  def default_output_coder(self):
+    raise NotImplementedError
+
   def is_bounded(self):
     # type: () -> bool
     raise NotImplementedError
@@ -750,6 +753,9 @@ class Sink(HasDisplayData):
   documentation at
   ``https://beam.apache.org/documentation/sdks/python-custom-io#creating-sinks``
   """
+  # Whether Beam should skip writing any shards if all are empty.
+  skip_if_empty = False
+
   def initialize_write(self):
     """Initializes the sink before writing begins.
 
@@ -846,7 +852,8 @@ class Writer(object):
   writing to a sink.
   """
   def write(self, value):
-    """Writes a value to the sink using the current writer."""
+    """Writes a value to the sink using the current writer.
+    """
     raise NotImplementedError
 
   def close(self):
@@ -859,6 +866,12 @@ class Writer(object):
       writer.
     """
     raise NotImplementedError
+
+  def at_capacity(self) -> bool:
+    """Returns whether this writer should be considered at capacity
+    and a new one should be created.
+    """
+    return False
 
 
 class Read(ptransform.PTransform):
@@ -913,11 +926,8 @@ class Read(ptransform.PTransform):
 
   def _infer_output_coder(self, input_type=None, input_coder=None):
     # type: (...) -> Optional[coders.Coder]
-    from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
-    if isinstance(self.source, BoundedSource):
+    if isinstance(self.source, SourceBase):
       return self.source.default_output_coder()
-    elif isinstance(self.source, dataflow_io.NativeSource):
-      return self.source.coder
     else:
       return None
 
@@ -931,18 +941,17 @@ class Read(ptransform.PTransform):
       self,
       context: PipelineContext,
   ) -> Tuple[str, Any]:
-    from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
-    if isinstance(self.source, (BoundedSource, dataflow_io.NativeSource)):
-      from apache_beam.io.gcp.pubsub import _PubSubSource
-      if isinstance(self.source, _PubSubSource):
-        return (
-            common_urns.composites.PUBSUB_READ.urn,
-            beam_runner_api_pb2.PubSubReadPayload(
-                topic=self.source.full_topic,
-                subscription=self.source.full_subscription,
-                timestamp_attribute=self.source.timestamp_attribute,
-                with_attributes=self.source.with_attributes,
-                id_attribute=self.source.id_label))
+    from apache_beam.io.gcp.pubsub import _PubSubSource
+    if isinstance(self.source, _PubSubSource):
+      return (
+          common_urns.composites.PUBSUB_READ.urn,
+          beam_runner_api_pb2.PubSubReadPayload(
+              topic=self.source.full_topic,
+              subscription=self.source.full_subscription,
+              timestamp_attribute=self.source.timestamp_attribute,
+              with_attributes=self.source.with_attributes,
+              id_attribute=self.source.id_label))
+    if isinstance(self.source, BoundedSource):
       return (
           common_urns.deprecated_primitives.READ.urn,
           beam_runner_api_pb2.ReadPayload(
@@ -966,6 +975,7 @@ class Read(ptransform.PTransform):
     if transform.spec.urn == common_urns.composites.PUBSUB_READ.urn:
       assert isinstance(payload, beam_runner_api_pb2.PubSubReadPayload)
       # Importing locally to prevent circular dependencies.
+      # TODO(BEAM-27443): Remove the need for this.
       from apache_beam.io.gcp.pubsub import _PubSubSource
       source = _PubSubSource(
           topic=payload.topic or None,
@@ -1005,6 +1015,7 @@ ptransform.PTransform.register_urn(
     Read._from_runner_api_parameter_read,
 )
 
+# TODO(BEAM-27443): Remove.
 ptransform.PTransform.register_urn(
     common_urns.composites.PUBSUB_READ.urn,
     beam_runner_api_pb2.PubSubReadPayload,
@@ -1055,10 +1066,11 @@ class Write(ptransform.PTransform):
     return {'sink': self.sink.__class__, 'sink_dd': self.sink}
 
   def expand(self, pcoll):
-    from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
-    if isinstance(self.sink, dataflow_io.NativeSink):
-      # A native sink
-      return pcoll | 'NativeWrite' >> dataflow_io._NativeWrite(self.sink)
+    # Importing locally to prevent circular dependencies.
+    from apache_beam.io.gcp.pubsub import _PubSubSink
+    if isinstance(self.sink, _PubSubSink):
+      # TODO(BEAM-27443): Remove the need for special casing here.
+      return pvalue.PDone(pcoll.pipeline)
     elif isinstance(self.sink, Sink):
       # A custom sink
       return pcoll | WriteImpl(self.sink)
@@ -1074,6 +1086,7 @@ class Write(ptransform.PTransform):
       self,
       context: PipelineContext,
   ) -> Tuple[str, Any]:
+    # TODO(BEAM-27443): Remove the need for special casing here.
     # Importing locally to prevent circular dependencies.
     from apache_beam.io.gcp.pubsub import _PubSubSink
     if isinstance(self.sink, _PubSubSink):
@@ -1148,18 +1161,20 @@ class WriteImpl(ptransform.PTransform):
           | 'Extract' >> core.FlatMap(lambda x: x[1]))
     # PreFinalize should run before FinalizeWrite, and the two should not be
     # fused.
-    pre_finalize_coll = do_once | 'PreFinalize' >> core.FlatMap(
-        _pre_finalize,
-        self.sink,
-        AsSingleton(init_result_coll),
-        AsIter(write_result_coll))
+    pre_finalize_coll = (
+        do_once
+        | 'PreFinalize' >> core.FlatMap(
+            _pre_finalize,
+            self.sink,
+            AsSingleton(init_result_coll),
+            AsIter(write_result_coll)))
     return do_once | 'FinalizeWrite' >> core.FlatMap(
         _finalize_write,
         self.sink,
         AsSingleton(init_result_coll),
         AsIter(write_result_coll),
         min_shards,
-        AsSingleton(pre_finalize_coll))
+        AsSingleton(pre_finalize_coll)).with_output_types(str)
 
 
 class _WriteBundleDoFn(core.DoFn):
@@ -1180,6 +1195,9 @@ class _WriteBundleDoFn(core.DoFn):
       # We ignore UUID collisions here since they are extremely rare.
       self.writer = self.sink.open_writer(init_result, str(uuid.uuid4()))
     self.writer.write(element)
+    if self.writer.at_capacity():
+      yield self.writer.close()
+      self.writer = None
 
   def finish_bundle(self):
     if self.writer is not None:
@@ -1217,11 +1235,12 @@ def _finalize_write(
   write_results = list(write_results)
   extra_shards = []
   if len(write_results) < min_shards:
-    _LOGGER.debug(
-        'Creating %s empty shard(s).', min_shards - len(write_results))
-    for _ in range(min_shards - len(write_results)):
-      writer = sink.open_writer(init_result, str(uuid.uuid4()))
-      extra_shards.append(writer.close())
+    if write_results or not sink.skip_if_empty:
+      _LOGGER.debug(
+          'Creating %s empty shard(s).', min_shards - len(write_results))
+      for _ in range(min_shards - len(write_results)):
+        writer = sink.open_writer(init_result, str(uuid.uuid4()))
+        extra_shards.append(writer.close())
   outputs = sink.finalize_write(
       init_result, write_results + extra_shards, pre_finalize_results)
   if outputs:
@@ -1665,9 +1684,8 @@ class SDFBoundedSourceReader(PTransform):
         current_restriction = restriction_tracker.current_restriction()
         assert isinstance(current_restriction, _SDFBoundedSourceRestriction)
 
-        result = current_restriction.source().read(
+        return current_restriction.source().read(
             current_restriction.range_tracker())
-        return result
 
     return SDFBoundedSourceDoFn(self._data_to_display)
 

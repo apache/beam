@@ -64,7 +64,8 @@ def load(events, metadata=None, pipeline_options=None):
       # average for each category
       | beam.CombinePerKey(beam.combiners.MeanCombineFn())
       # TODO(leiyiz): fanout with sliding window produces duplicated results,
-      #   uncomment after it is fixed [BEAM-10617]
+      #   uncomment after it is fixed
+      #   [https://github.com/apache/beam/issues/20528]
       # .with_hot_key_fanout(metadata.get('fanout'))
       # produce output
       | beam.ParDo(ProjectToCategoryPriceFn()))

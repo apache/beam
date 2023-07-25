@@ -40,11 +40,13 @@ from apache_beam.typehints import typehints
 from apache_beam.typehints.trivial_inference import BoundMethod
 from apache_beam.typehints.trivial_inference import Const
 from apache_beam.typehints.trivial_inference import element_type
+from apache_beam.typehints.trivial_inference import key_value_types
 from apache_beam.typehints.trivial_inference import union
 from apache_beam.typehints.typehints import Any
 from apache_beam.typehints.typehints import Dict
 from apache_beam.typehints.typehints import Iterable
 from apache_beam.typehints.typehints import List
+from apache_beam.typehints.typehints import Set
 from apache_beam.typehints.typehints import Tuple
 from apache_beam.typehints.typehints import Union
 
@@ -176,7 +178,9 @@ binary_lshift = inplace_lshift = binary_rshift = inplace_rshift = pop_top
 
 binary_and = inplace_and = symmetric_binary_op
 binary_xor = inplace_xor = symmetric_binary_op
-binary_or = inpalce_or = symmetric_binary_op
+binary_or = inplace_or = symmetric_binary_op
+
+binary_op = symmetric_binary_op
 
 
 def store_subscr(unused_state, unused_args):
@@ -190,8 +194,14 @@ print_newline = nop
 
 def list_append(state, arg):
   new_element_type = Const.unwrap(state.stack.pop())
-  state.stack[-arg] = List[Union[element_type(state.stack[-arg]),
-                                 new_element_type]]
+  state.stack[-arg] = List[union(
+      element_type(state.stack[-arg]), new_element_type)]
+
+
+def set_add(state, arg):
+  new_element_type = Const.unwrap(state.stack.pop())
+  state.stack[-arg] = Set[union(
+      element_type(state.stack[-arg]), new_element_type)]
 
 
 def map_add(state, arg):
@@ -233,8 +243,8 @@ def dup_topx(state, arg):
   state.stack += state[-arg:]
 
 
-store_attr = pop_top
-delete_attr = nop
+store_attr = pop_two
+delete_attr = pop_top
 store_global = pop_top
 delete_global = nop
 
@@ -260,6 +270,13 @@ def build_list(state, arg):
     state.stack[-arg:] = [List[reduce(union, state.stack[-arg:], Union[()])]]
 
 
+def build_set(state, arg):
+  if arg == 0:
+    state.stack.append(Set[Union[()]])
+  else:
+    state.stack[-arg:] = [Set[reduce(union, state.stack[-arg:], Union[()])]]
+
+
 # A Dict[Union[], Union[]] is the type of an empty dict.
 def build_map(state, arg):
   if arg == 0:
@@ -283,6 +300,44 @@ def build_const_key_map(state, arg):
       Dict[reduce(union, key_types, Union[()]),
            reduce(union, state.stack[-arg:], Union[()])]
   ]
+
+
+def list_to_tuple(state, arg):
+  base = state.stack.pop()
+  state.stack.append(Tuple[element_type(base), ...])
+
+
+def list_extend(state, arg):
+  tail = state.stack.pop()
+  base = state.stack[-arg]
+  state.stack[-arg] = List[union(element_type(base), element_type(tail))]
+
+
+def set_update(state, arg):
+  other = state.stack.pop()
+  base = state.stack[-arg]
+  state.stack[-arg] = Set[union(element_type(base), element_type(other))]
+
+
+def dict_update(state, arg):
+  other = state.stack.pop()
+  base = state.stack[-arg]
+  if isinstance(base, typehints.Dict.DictConstraint):
+    base_key_type = base.key_type
+    base_value_type = base.value_type
+  else:
+    base_key_type = Any
+    base_value_type = Any
+  if isinstance(other, typehints.Dict.DictConstraint):
+    other_key_type = other.key_type
+    other_value_type = other.value_type
+  else:
+    other_key_type, other_value_type = key_value_types(element_type(other))
+  state.stack[-arg] = Dict[union(base_key_type, other_key_type),
+                           union(base_value_type, other_value_type)]
+
+
+dict_merge = dict_update
 
 
 def load_attr(state, arg):
@@ -338,6 +393,10 @@ def compare_op(state, unused_arg):
   state.stack[-2:] = [bool]
 
 
+is_op = compare_op
+contains_op = compare_op
+
+
 def import_name(state, unused_arg):
   state.stack[-2:] = [Any]
 
@@ -346,6 +405,8 @@ import_from = push_value(Any)
 
 
 def load_global(state, arg):
+  if (sys.version_info.major, sys.version_info.minor) >= (3, 11):
+    arg = arg >> 1
   state.stack.append(state.get_global(arg))
 
 
@@ -364,11 +425,25 @@ def delete_fast(state, arg):
   state.vars[arg] = Any  # really an error
 
 
+# bpo-43683 Adds GEN_START in Python 3.10, but removed in Python 3.11
+# https://github.com/python/cpython/pull/25138
+def gen_start(state, arg):
+  assert len(state.stack) == 0
+
+
 def load_closure(state, arg):
+  # The arg is no longer offset by len(covar_names) as of 3.11
+  # See https://docs.python.org/3/library/dis.html#opcode-LOAD_CLOSURE
+  if (sys.version_info.major, sys.version_info.minor) >= (3, 11):
+    arg -= len(state.co.co_varnames)
   state.stack.append(state.get_closure(arg))
 
 
 def load_deref(state, arg):
+  # The arg is no longer offset by len(covar_names) as of 3.11
+  # See https://docs.python.org/3/library/dis.html#opcode-LOAD_DEREF
+  if (sys.version_info.major, sys.version_info.minor) >= (3, 11):
+    arg -= len(state.co.co_varnames)
   state.stack.append(state.closure_type(arg))
 
 
@@ -377,9 +452,19 @@ def make_function(state, arg):
   """
   # TODO(luke-zhu): Handle default argument types
   globals = state.f.__globals__  # Inherits globals from the current frame
-  func_name = state.stack[-1].value
-  func_code = state.stack[-2].value
-  pop_count = 2
+  tos = state.stack[-1].value
+  # In Python 3.11 lambdas no longer have fully qualified names on the stack,
+  # so we check for this case (AKA the code is top of stack.)
+  if isinstance(tos, types.CodeType):
+    func_name = None
+    func_code = tos
+    pop_count = 1
+    is_lambda = True
+  else:
+    func_name = tos
+    func_code = state.stack[-2].value
+    pop_count = 2
+    is_lambda = False
   closure = None
   # arg contains flags, with corresponding stack values if positive.
   # https://docs.python.org/3.6/library/dis.html#opcode-MAKE_FUNCTION
@@ -387,8 +472,12 @@ def make_function(state, arg):
   if arg & 0x08:
     # Convert types in Tuple constraint to a tuple of CPython cells.
     # https://stackoverflow.com/a/44670295
+    if is_lambda:
+      closureTuplePos = -2
+    else:
+      closureTuplePos = -3
     closure = tuple((lambda _: lambda: _)(t).__closure__[0]
-                    for t in state.stack[-3].tuple_types)
+                    for t in state.stack[closureTuplePos].tuple_types)
 
   func = types.FunctionType(func_code, globals, name=func_name, closure=closure)
 
@@ -416,6 +505,8 @@ def _unpack_lists(state, arg):
     type_constraint = state.stack[-i]
     if isinstance(type_constraint, typehints.IndexableTypeConstraint):
       types.extend(type_constraint._inner_types())
+    elif type_constraint == Union[()]:
+      continue
     else:
       logging.debug('Unhandled type_constraint: %r', type_constraint)
       types.append(typehints.Any)
@@ -428,12 +519,33 @@ def build_list_unpack(state, arg):
   state.stack.append(List[Union[_unpack_lists(state, arg)]])
 
 
+def build_set_unpack(state, arg):
+  """Joins arg count iterables from the stack into a single set."""
+  state.stack.append(Set[Union[_unpack_lists(state, arg)]])
+
+
 def build_tuple_unpack(state, arg):
   """Joins arg count iterables from the stack into a single tuple."""
-  state.stack.append(Tuple[_unpack_lists(state, arg)])
+  state.stack.append(Tuple[Union[_unpack_lists(state, arg)], ...])
 
 
 def build_tuple_unpack_with_call(state, arg):
   """Same as build_tuple_unpack, with an extra fn argument at the bottom of the
   stack, which remains untouched."""
   build_tuple_unpack(state, arg)
+
+
+def build_map_unpack(state, arg):
+  """Joins arg count maps from the stack into a single dict."""
+  key_types = []
+  value_types = []
+  for _ in range(arg):
+    type_constraint = state.stack.pop()
+    if isinstance(type_constraint, typehints.Dict.DictConstraint):
+      key_types.append(type_constraint.key_type)
+      value_types.append(type_constraint.value_type)
+    else:
+      key_type, value_type = key_value_types(element_type(type_constraint))
+      key_types.append(key_type)
+      value_types.append(value_type)
+  state.stack.append(Dict[Union[key_types], Union[value_types]])

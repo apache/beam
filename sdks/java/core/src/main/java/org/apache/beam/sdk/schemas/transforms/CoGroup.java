@@ -27,8 +27,6 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
@@ -205,9 +203,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * <p>Do note that cross-product joins while simpler and easier to program, can cause performance problems.
  */
-@Experimental(Kind.SCHEMAS)
 @SuppressWarnings({
-  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes"
 })
 public class CoGroup {
@@ -379,7 +376,6 @@ public class CoGroup {
       Schema keySchema = null;
       for (Map.Entry<TupleTag<?>, PCollection<?>> entry : input.getAll().entrySet()) {
         String tag = entry.getKey().getId();
-        int tagIndex = sortedTags.indexOf(tag);
         PCollection<?> pc = entry.getValue();
         Schema schema = pc.getSchema();
         componentSchemas.put(tag, schema);
@@ -398,6 +394,15 @@ public class CoGroup {
         } else {
           keySchema = SchemaUtils.mergeWideningNullable(keySchema, currentKeySchema);
         }
+      }
+      // Second loop so we can widen the keySchema with every input before using it
+      for (Map.Entry<TupleTag<?>, PCollection<?>> entry : input.getAll().entrySet()) {
+        String tag = entry.getKey().getId();
+        int tagIndex = sortedTags.indexOf(tag);
+        PCollection<?> pc = entry.getValue();
+        Schema schema = pc.getSchema();
+        FieldAccessDescriptor fieldAccessDescriptor = getFieldAccessDescriptor.apply(tag);
+        FieldAccessDescriptor resolved = fieldAccessDescriptor.resolve(schema);
 
         // Create a new tag for the output.
         TupleTag randomTag = new TupleTag<>();

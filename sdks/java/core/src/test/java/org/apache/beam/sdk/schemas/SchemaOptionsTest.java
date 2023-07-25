@@ -176,7 +176,7 @@ public class SchemaOptionsTest {
 
   @Test(expected = IllegalArgumentException.class)
   public void testNotNullableOptionSetNull() {
-    Schema.Options options = Schema.Options.setOption(OPTION_NAME, FieldType.STRING, null).build();
+    Schema.Options.setOption(OPTION_NAME, FieldType.STRING, null).build();
   }
 
   @Test

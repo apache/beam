@@ -31,13 +31,19 @@ import (
 	"github.com/golang/protobuf/proto"
 )
 
+type writeTypeEnum int32
+
+const (
+	writeTypeAppend writeTypeEnum = 0
+	writeTypeClear  writeTypeEnum = 1
+)
+
 // ScopedStateReader scopes the global gRPC state manager to a single instruction
 // for side input use. The indirection makes it easier to control access.
 type ScopedStateReader struct {
 	mgr    *StateChannelManager
 	instID instructionID
 
-	opened []io.Closer // track open readers to force close all
 	closed bool
 	mu     sync.Mutex
 
@@ -54,8 +60,15 @@ func NewScopedStateReaderWithCache(mgr *StateChannelManager, instID instructionI
 	return &ScopedStateReader{mgr: mgr, instID: instID, cache: cache}
 }
 
-// OpenSideInput opens a byte stream for reading iterable side input.
-func (s *ScopedStateReader) OpenSideInput(ctx context.Context, id exec.StreamID, sideInputID string, key, w []byte) (io.ReadCloser, error) {
+// OpenIterableSideInput opens a byte stream for reading iterable side input
+func (s *ScopedStateReader) OpenIterableSideInput(ctx context.Context, id exec.StreamID, sideInputID string, w []byte) (io.ReadCloser, error) {
+	return s.openReader(ctx, id, func(ch *StateChannel) *stateKeyReader {
+		return newIterableSideInputReader(ch, id, sideInputID, s.instID, w)
+	})
+}
+
+// OpenMultiMapSideInput opens a byte stream for reading multimap side input.
+func (s *ScopedStateReader) OpenMultiMapSideInput(ctx context.Context, id exec.StreamID, sideInputID string, key, w []byte) (io.ReadCloser, error) {
 	return s.openReader(ctx, id, func(ch *StateChannel) *stateKeyReader {
 		return newSideInputReader(ch, id, sideInputID, s.instID, key, w)
 	})
@@ -66,6 +79,70 @@ func (s *ScopedStateReader) OpenIterable(ctx context.Context, id exec.StreamID, 
 	return s.openReader(ctx, id, func(ch *StateChannel) *stateKeyReader {
 		return newRunnerReader(ch, s.instID, key)
 	})
+}
+
+// OpenBagUserStateReader opens a byte stream for reading user bag state.
+func (s *ScopedStateReader) OpenBagUserStateReader(ctx context.Context, id exec.StreamID, userStateID string, key []byte, w []byte) (io.ReadCloser, error) {
+	rw, err := s.openReader(ctx, id, func(ch *StateChannel) *stateKeyReader {
+		return newBagUserStateReader(ch, id, s.instID, userStateID, key, w)
+	})
+	return rw, err
+}
+
+// OpenBagUserStateAppender opens a byte stream for appending user bag state.
+func (s *ScopedStateReader) OpenBagUserStateAppender(ctx context.Context, id exec.StreamID, userStateID string, key []byte, w []byte) (io.Writer, error) {
+	wr, err := s.openWriter(ctx, id, func(ch *StateChannel) *stateKeyWriter {
+		return newBagUserStateWriter(ch, id, s.instID, userStateID, key, w, writeTypeAppend)
+	})
+	return wr, err
+}
+
+// OpenBagUserStateClearer opens a byte stream for clearing user bag state.
+func (s *ScopedStateReader) OpenBagUserStateClearer(ctx context.Context, id exec.StreamID, userStateID string, key []byte, w []byte) (io.Writer, error) {
+	wr, err := s.openWriter(ctx, id, func(ch *StateChannel) *stateKeyWriter {
+		return newBagUserStateWriter(ch, id, s.instID, userStateID, key, w, writeTypeClear)
+	})
+	return wr, err
+}
+
+// OpenMultimapUserStateReader opens a byte stream for reading user multimap state.
+func (s *ScopedStateReader) OpenMultimapUserStateReader(ctx context.Context, id exec.StreamID, userStateID string, key []byte, w []byte, mk []byte) (io.ReadCloser, error) {
+	rw, err := s.openReader(ctx, id, func(ch *StateChannel) *stateKeyReader {
+		return newMultimapUserStateReader(ch, id, s.instID, userStateID, key, w, mk)
+	})
+	return rw, err
+}
+
+// OpenMultimapUserStateAppender opens a byte stream for appending user multimap state.
+func (s *ScopedStateReader) OpenMultimapUserStateAppender(ctx context.Context, id exec.StreamID, userStateID string, key []byte, w []byte, mk []byte) (io.Writer, error) {
+	wr, err := s.openWriter(ctx, id, func(ch *StateChannel) *stateKeyWriter {
+		return newMultimapUserStateWriter(ch, id, s.instID, userStateID, key, w, mk, writeTypeAppend)
+	})
+	return wr, err
+}
+
+// OpenMultimapUserStateClearer opens a byte stream for clearing user multimap state by key.
+func (s *ScopedStateReader) OpenMultimapUserStateClearer(ctx context.Context, id exec.StreamID, userStateID string, key []byte, w []byte, mk []byte) (io.Writer, error) {
+	wr, err := s.openWriter(ctx, id, func(ch *StateChannel) *stateKeyWriter {
+		return newMultimapUserStateWriter(ch, id, s.instID, userStateID, key, w, mk, writeTypeClear)
+	})
+	return wr, err
+}
+
+// OpenMultimapKeysUserStateReader opens a byte stream for reading the keys of user multimap state.
+func (s *ScopedStateReader) OpenMultimapKeysUserStateReader(ctx context.Context, id exec.StreamID, userStateID string, key []byte, w []byte) (io.ReadCloser, error) {
+	rw, err := s.openReader(ctx, id, func(ch *StateChannel) *stateKeyReader {
+		return newMultimapKeysUserStateReader(ch, id, s.instID, userStateID, key, w)
+	})
+	return rw, err
+}
+
+// OpenMultimapKeysUserStateClearer opens a byte stream for clearing all keys of user multimap state.
+func (s *ScopedStateReader) OpenMultimapKeysUserStateClearer(ctx context.Context, id exec.StreamID, userStateID string, key []byte, w []byte) (io.Writer, error) {
+	wr, err := s.openWriter(ctx, id, func(ch *StateChannel) *stateKeyWriter {
+		return newMultimapKeysUserStateWriter(ch, id, s.instID, userStateID, key, w, writeTypeClear)
+	})
+	return wr, err
 }
 
 // GetSideInputCache returns a pointer to the SideInputCache being used by the SDK harness.
@@ -85,7 +162,22 @@ func (s *ScopedStateReader) openReader(ctx context.Context, id exec.StreamID, re
 		return nil, errors.Errorf("instruction %v no longer processing", s.instID)
 	}
 	ret := readerFn(ch)
-	s.opened = append(s.opened, ret)
+	s.mu.Unlock()
+	return ret, nil
+}
+
+func (s *ScopedStateReader) openWriter(ctx context.Context, id exec.StreamID, writerFn func(*StateChannel) *stateKeyWriter) (*stateKeyWriter, error) {
+	ch, err := s.open(ctx, id.Port)
+	if err != nil {
+		return nil, err
+	}
+
+	s.mu.Lock()
+	if s.closed {
+		s.mu.Unlock()
+		return nil, errors.Errorf("instruction %v no longer processing", s.instID)
+	}
+	ret := writerFn(ch)
 	s.mu.Unlock()
 	return ret, nil
 }
@@ -107,10 +199,6 @@ func (s *ScopedStateReader) Close() error {
 	s.mu.Lock()
 	s.closed = true
 	s.mgr = nil
-	for _, r := range s.opened {
-		r.Close() // force close all opened readers
-	}
-	s.opened = nil
 	s.mu.Unlock()
 	return nil
 }
@@ -126,6 +214,15 @@ type stateKeyReader struct {
 	ch     *StateChannel
 	closed bool
 	mu     sync.Mutex
+}
+
+type stateKeyWriter struct {
+	instID    instructionID
+	key       *fnpb.StateKey
+	writeType writeTypeEnum
+
+	ch *StateChannel
+	mu sync.Mutex
 }
 
 func newSideInputReader(ch *StateChannel, id exec.StreamID, sideInputID string, instID instructionID, k, w []byte) *stateKeyReader {
@@ -146,6 +243,24 @@ func newSideInputReader(ch *StateChannel, id exec.StreamID, sideInputID string, 
 	}
 }
 
+func newIterableSideInputReader(ch *StateChannel, id exec.StreamID, sideInputID string, instID instructionID, w []byte) *stateKeyReader {
+	key := &fnpb.StateKey{
+		Type: &fnpb.StateKey_IterableSideInput_{
+			IterableSideInput: &fnpb.StateKey_IterableSideInput{
+				TransformId: id.PtransformID,
+				SideInputId: sideInputID,
+				Window:      w,
+			},
+		},
+	}
+
+	return &stateKeyReader{
+		instID: instID,
+		key:    key,
+		ch:     ch,
+	}
+}
+
 func newRunnerReader(ch *StateChannel, instID instructionID, k []byte) *stateKeyReader {
 	key := &fnpb.StateKey{
 		Type: &fnpb.StateKey_Runner_{
@@ -158,6 +273,119 @@ func newRunnerReader(ch *StateChannel, instID instructionID, k []byte) *stateKey
 		instID: instID,
 		key:    key,
 		ch:     ch,
+	}
+}
+
+func newBagUserStateReader(ch *StateChannel, id exec.StreamID, instID instructionID, userStateID string, k []byte, w []byte) *stateKeyReader {
+	key := &fnpb.StateKey{
+		Type: &fnpb.StateKey_BagUserState_{
+			BagUserState: &fnpb.StateKey_BagUserState{
+				TransformId: id.PtransformID,
+				UserStateId: userStateID,
+				Window:      w,
+				Key:         k,
+			},
+		},
+	}
+	return &stateKeyReader{
+		instID: instID,
+		key:    key,
+		ch:     ch,
+	}
+}
+
+func newBagUserStateWriter(ch *StateChannel, id exec.StreamID, instID instructionID, userStateID string, k []byte, w []byte, wt writeTypeEnum) *stateKeyWriter {
+	key := &fnpb.StateKey{
+		Type: &fnpb.StateKey_BagUserState_{
+			BagUserState: &fnpb.StateKey_BagUserState{
+				TransformId: id.PtransformID,
+				UserStateId: userStateID,
+				Window:      w,
+				Key:         k,
+			},
+		},
+	}
+	return &stateKeyWriter{
+		instID:    instID,
+		key:       key,
+		ch:        ch,
+		writeType: wt,
+	}
+}
+
+func newMultimapUserStateReader(ch *StateChannel, id exec.StreamID, instID instructionID, userStateID string, k []byte, w []byte, mk []byte) *stateKeyReader {
+	key := &fnpb.StateKey{
+		Type: &fnpb.StateKey_MultimapUserState_{
+			MultimapUserState: &fnpb.StateKey_MultimapUserState{
+				TransformId: id.PtransformID,
+				UserStateId: userStateID,
+				Window:      w,
+				Key:         k,
+				MapKey:      mk,
+			},
+		},
+	}
+	return &stateKeyReader{
+		instID: instID,
+		key:    key,
+		ch:     ch,
+	}
+}
+
+func newMultimapUserStateWriter(ch *StateChannel, id exec.StreamID, instID instructionID, userStateID string, k []byte, w []byte, mk []byte, wt writeTypeEnum) *stateKeyWriter {
+	key := &fnpb.StateKey{
+		Type: &fnpb.StateKey_MultimapUserState_{
+			MultimapUserState: &fnpb.StateKey_MultimapUserState{
+				TransformId: id.PtransformID,
+				UserStateId: userStateID,
+				Window:      w,
+				Key:         k,
+				MapKey:      mk,
+			},
+		},
+	}
+	return &stateKeyWriter{
+		instID:    instID,
+		key:       key,
+		ch:        ch,
+		writeType: wt,
+	}
+}
+
+func newMultimapKeysUserStateReader(ch *StateChannel, id exec.StreamID, instID instructionID, userStateID string, k []byte, w []byte) *stateKeyReader {
+	key := &fnpb.StateKey{
+		Type: &fnpb.StateKey_MultimapKeysUserState_{
+			MultimapKeysUserState: &fnpb.StateKey_MultimapKeysUserState{
+				TransformId: id.PtransformID,
+				UserStateId: userStateID,
+				Window:      w,
+				Key:         k,
+			},
+		},
+	}
+	return &stateKeyReader{
+		instID: instID,
+		key:    key,
+		ch:     ch,
+	}
+}
+
+func newMultimapKeysUserStateWriter(ch *StateChannel, id exec.StreamID, instID instructionID, userStateID string, k []byte, w []byte, wt writeTypeEnum) *stateKeyWriter {
+	key := &fnpb.StateKey{
+		Type: &fnpb.StateKey_MultimapKeysUserState_{
+			MultimapKeysUserState: &fnpb.StateKey_MultimapKeysUserState{
+				TransformId: id.PtransformID,
+				UserStateId: userStateID,
+				Window:      w,
+				Key:         k,
+			},
+		},
+	}
+	return &stateKeyWriter{
+		instID:    instID,
+		key:       key,
+		ch:        ch,
+		writeType: wt,
 	}
 }
 
@@ -189,11 +417,15 @@ func (r *stateKeyReader) Read(buf []byte) (int, error) {
 		}
 		resp, err := localChannel.Send(req)
 		if err != nil {
+			r.Close()
 			return 0, err
 		}
 		get := resp.GetGet()
 		if get == nil { // no data associated with this segment.
 			r.eof = true
+			if err := r.Close(); err != nil {
+				return 0, err
+			}
 			return 0, io.EOF
 		}
 		r.token = get.GetContinuationToken()
@@ -211,6 +443,9 @@ func (r *stateKeyReader) Read(buf []byte) (int, error) {
 		// If no data was copied, and this is the last segment anyway, return EOF now.
 		// This prevent spurious zero elements.
 		r.buf = nil
+		if err := r.Close(); err != nil {
+			return 0, err
+		}
 		return 0, io.EOF
 	case len(r.buf) == n:
 		r.buf = nil
@@ -226,6 +461,44 @@ func (r *stateKeyReader) Close() error {
 	r.ch = nil // StateChannels might be re-used if they're ok, so don't close them here.
 	r.mu.Unlock()
 	return nil
+}
+
+func (r *stateKeyWriter) Write(buf []byte) (int, error) {
+	r.mu.Lock()
+	localChannel := r.ch
+	r.mu.Unlock()
+
+	var req *fnpb.StateRequest
+	switch r.writeType {
+	case writeTypeAppend:
+		req = &fnpb.StateRequest{
+			// Id: set by StateChannel
+			InstructionId: string(r.instID),
+			StateKey:      r.key,
+			Request: &fnpb.StateRequest_Append{
+				Append: &fnpb.StateAppendRequest{
+					Data: buf,
+				},
+			},
+		}
+	case writeTypeClear:
+		req = &fnpb.StateRequest{
+			// ID: set by StateChannel
+			InstructionId: string(r.instID),
+			StateKey:      r.key,
+			Request: &fnpb.StateRequest_Clear{
+				Clear: &fnpb.StateClearRequest{},
+			},
+		}
+	default:
+		return 0, errors.Errorf("Unknown write type %v", r.writeType)
+	}
+
+	_, err := localChannel.Send(req)
+	if err != nil {
+		return 0, err
+	}
+	return len(buf), nil
 }
 
 // StateChannelManager manages data channels over the State API. A fixed number of channels
@@ -300,7 +573,7 @@ func (c *StateChannel) terminateStreamOnError(err error) {
 
 func newStateChannel(ctx context.Context, port exec.Port) (*StateChannel, error) {
 	ctx, cancelFn := context.WithCancel(ctx)
-	cc, err := dial(ctx, port.URL, 15*time.Second)
+	cc, err := dial(ctx, port.URL, "state", 15*time.Second)
 	if err != nil {
 		cancelFn()
 		return nil, errors.Wrapf(err, "failed to connect to state service %v", port.URL)
@@ -311,10 +584,13 @@ func newStateChannel(ctx context.Context, port exec.Port) (*StateChannel, error)
 		cancelFn()
 		return nil, errors.Wrapf(err, "failed to create state client %v", port.URL)
 	}
-	return makeStateChannel(ctx, cancelFn, port.URL, client), nil
+	return makeStateChannel(ctx, port.URL, client, func() {
+		cc.Close()
+		cancelFn()
+	}), nil
 }
 
-func makeStateChannel(ctx context.Context, cancelFn context.CancelFunc, id string, client stateClient) *StateChannel {
+func makeStateChannel(ctx context.Context, id string, client stateClient, cancelFn context.CancelFunc) *StateChannel {
 	ret := &StateChannel{
 		id:        id,
 		client:    client,
@@ -386,7 +662,7 @@ func (c *StateChannel) write(ctx context.Context) {
 		for err == nil {
 			// Per GRPC stream documentation, if there's an EOF, we must call Recv
 			// until a non-nil error is returned, to ensure resources are cleaned up.
-			// https://godoc.org/google.golang.org/grpc#ClientConn.NewStream
+			// https://pkg.go.dev/google.golang.org/grpc#ClientConn.NewStream
 			_, err = c.client.Recv()
 		}
 	}

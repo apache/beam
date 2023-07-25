@@ -30,8 +30,6 @@ import java.util.List;
 import java.util.Objects;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.DurationCoder;
@@ -67,7 +65,7 @@ import org.joda.time.Instant;
  * the {@link Pipeline} before advancing the state of the {@link TestStream}.
  */
 @SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public final class TestStream<T> extends PTransform<PBegin, PCollection<T>> {
   private final List<Event<T>> events;
@@ -81,12 +79,10 @@ public final class TestStream<T> extends PTransform<PBegin, PCollection<T>> {
     return new Builder<>(coder);
   }
 
-  @Experimental(Kind.SCHEMAS)
   public static Builder<Row> create(Schema schema) {
     return create(SchemaCoder.of(schema));
   }
 
-  @Experimental(Kind.SCHEMAS)
   public static <T> Builder<T> create(
       Schema schema,
       TypeDescriptor<T> typeDescriptor,
@@ -199,7 +195,7 @@ public final class TestStream<T> extends PTransform<PBegin, PCollection<T>> {
     public Builder<T> advanceProcessingTime(Duration amount) {
       checkArgument(
           amount.getMillis() > 0,
-          "Must advance the processing time by a positive amount. Got: ",
+          "Must advance the processing time by a positive amount. Got: %s",
           amount);
       ImmutableList<Event<T>> newEvents =
           ImmutableList.<Event<T>>builder()

@@ -28,3 +28,44 @@ task("generateProto") {
     }
   }
 }
+// lint proto files
+task("lintProto") {
+  group = "build"
+  doLast {
+    exec {
+      executable("buf")
+      args("lint", "--path", "api/")
+    }
+  }
+}
+
+task("dockerComposeLocalUp") {
+    dependsOn(":playground:backend:containers:router:docker")
+    dependsOn(":playground:backend:containers:go:docker")
+    dependsOn(":playground:backend:containers:java:docker")
+    dependsOn(":playground:backend:containers:python:docker")
+    dependsOn(":playground:backend:containers:scio:docker")
+    dependsOn(":playground:frontend:docker")
+
+    group = "build"
+    description = "Start Playground backend and frontend locally"
+
+    doLast {
+        exec {
+            executable("docker-compose")
+            args("-f", "docker-compose.local.yaml", "up", "-d")
+        }
+    }
+}
+
+task("dockerComposeLocalDown") {
+    group = "build"
+    description = "Stop Playground backend and frontend locally"
+
+    doLast {
+        exec {
+            executable("docker-compose")
+            args("-f", "docker-compose.local.yaml", "down")
+        }
+    }
+}

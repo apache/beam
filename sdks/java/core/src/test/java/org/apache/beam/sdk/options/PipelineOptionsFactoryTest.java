@@ -39,6 +39,8 @@ import static org.junit.Assume.assumeFalse;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -60,7 +62,6 @@ import java.io.PrintStream;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import org.apache.beam.model.jobmanagement.v1.JobApi.PipelineOptionDescriptor;
 import org.apache.beam.model.jobmanagement.v1.JobApi.PipelineOptionType;
@@ -91,7 +92,7 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link PipelineOptionsFactory}. */
 @RunWith(JUnit4.class)
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class PipelineOptionsFactoryTest {
   private static final String DEFAULT_RUNNER_NAME = "DirectRunner";
@@ -1070,6 +1071,53 @@ public class PipelineOptionsFactoryTest {
     assertEquals("value2", options.getObjectValue().get().value2);
   }
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME)
+  @JsonSubTypes({
+    @JsonSubTypes.Type(value = PolymorphicTypeOne.class, name = "one"),
+    @JsonSubTypes.Type(value = PolymorphicTypeTwo.class, name = "two")
+  })
+  public abstract static class PolymorphicType {
+    String key;
+
+    @JsonProperty("key")
+    public String getKey() {
+      return key;
+    }
+
+    public void setKey(String key) {
+      this.key = key;
+    }
+  }
+
+  public static class PolymorphicTypeOne extends PolymorphicType {}
+
+  public static class PolymorphicTypeTwo extends PolymorphicType {}
+
+  public interface PolymorphicTypes extends PipelineOptions {
+    PolymorphicType getObject();
+
+    void setObject(PolymorphicType value);
+
+    ValueProvider<PolymorphicType> getObjectValue();
+
+    void setObjectValue(ValueProvider<PolymorphicType> value);
+  }
+
+  @Test
+  public void testPolymorphicType() {
+    String[] args =
+        new String[] {
+          "--object={\"key\":\"value\",\"@type\":\"one\"}",
+          "--objectValue={\"key\":\"value\",\"@type\":\"two\"}"
+        };
+    PolymorphicTypes options = PipelineOptionsFactory.fromArgs(args).as(PolymorphicTypes.class);
+    assertEquals("value", options.getObject().key);
+    assertEquals(PolymorphicTypeOne.class, options.getObject().getClass());
+
+    assertEquals("value", options.getObjectValue().get().key);
+    assertEquals(PolymorphicTypeTwo.class, options.getObjectValue().get().getClass());
+  }
+
   @Test
   public void testMissingArgument() {
     String[] args = new String[] {};
@@ -1867,7 +1915,7 @@ public class PipelineOptionsFactoryTest {
 
   @Test
   public void testAllFromPipelineOptions() {
-    // TODO: Java core test failing on windows, https://issues.apache.org/jira/browse/BEAM-10724
+    // TODO: Java core test failing on windows, https://github.com/apache/beam/issues/20466
     assumeFalse(SystemUtils.IS_OS_WINDOWS);
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(

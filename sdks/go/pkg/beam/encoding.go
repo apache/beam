@@ -82,8 +82,8 @@ func (w *EncodedType) UnmarshalJSON(buf []byte) error {
 	return nil
 }
 
-func encodedTypeEnc(reflect.Type) (func(interface{}, io.Writer) error, error) {
-	return func(iface interface{}, w io.Writer) error {
+func encodedTypeEnc(reflect.Type) (func(any, io.Writer) error, error) {
+	return func(iface any, w io.Writer) error {
 			if err := coder.WriteSimpleRowHeader(1, w); err != nil {
 				return err
 			}
@@ -100,8 +100,8 @@ func encodedTypeEnc(reflect.Type) (func(interface{}, io.Writer) error, error) {
 		nil
 }
 
-func encodedTypeDec(reflect.Type) (func(io.Reader) (interface{}, error), error) {
-	return func(r io.Reader) (interface{}, error) {
+func encodedTypeDec(reflect.Type) (func(io.Reader) (any, error), error) {
+	return func(r io.Reader) (any, error) {
 			if err := coder.ReadSimpleRowHeader(1, r); err != nil {
 				return nil, err
 			}
@@ -149,8 +149,8 @@ func (w *EncodedFunc) UnmarshalJSON(buf []byte) error {
 	return nil
 }
 
-func encodedFuncEnc(reflect.Type) (func(interface{}, io.Writer) error, error) {
-	return func(iface interface{}, w io.Writer) error {
+func encodedFuncEnc(reflect.Type) (func(any, io.Writer) error, error) {
+	return func(iface any, w io.Writer) error {
 			if err := coder.WriteSimpleRowHeader(1, w); err != nil {
 				return err
 			}
@@ -167,8 +167,8 @@ func encodedFuncEnc(reflect.Type) (func(interface{}, io.Writer) error, error) {
 		nil
 }
 
-func encodedFuncDec(reflect.Type) (func(io.Reader) (interface{}, error), error) {
-	return func(r io.Reader) (interface{}, error) {
+func encodedFuncDec(reflect.Type) (func(io.Reader) (any, error), error) {
+	return func(r io.Reader) (any, error) {
 			if err := coder.ReadSimpleRowHeader(1, r); err != nil {
 				return nil, err
 			}
@@ -226,8 +226,8 @@ func (w *EncodedCoder) UnmarshalJSON(buf []byte) error {
 	return nil
 }
 
-func encodedCoderEnc(reflect.Type) (func(interface{}, io.Writer) error, error) {
-	return func(iface interface{}, w io.Writer) error {
+func encodedCoderEnc(reflect.Type) (func(any, io.Writer) error, error) {
+	return func(iface any, w io.Writer) error {
 			if err := coder.WriteSimpleRowHeader(1, w); err != nil {
 				return err
 			}
@@ -244,8 +244,8 @@ func encodedCoderEnc(reflect.Type) (func(interface{}, io.Writer) error, error) {
 		nil
 }
 
-func encodedCoderDec(reflect.Type) (func(io.Reader) (interface{}, error), error) {
-	return func(r io.Reader) (interface{}, error) {
+func encodedCoderDec(reflect.Type) (func(io.Reader) (any, error), error) {
+	return func(r io.Reader) (any, error) {
 			if err := coder.ReadSimpleRowHeader(1, r); err != nil {
 				return nil, err
 			}
@@ -262,8 +262,8 @@ func encodedCoderDec(reflect.Type) (func(io.Reader) (interface{}, error), error)
 		nil
 }
 
-func timeEnc(reflect.Type) (func(interface{}, io.Writer) error, error) {
-	return func(iface interface{}, w io.Writer) error {
+func timeEnc(reflect.Type) (func(any, io.Writer) error, error) {
+	return func(iface any, w io.Writer) error {
 		if err := coder.WriteSimpleRowHeader(1, w); err != nil {
 			return errors.Wrap(err, "encoding time.Time schema override")
 		}
@@ -282,8 +282,8 @@ func timeEnc(reflect.Type) (func(interface{}, io.Writer) error, error) {
 	}, nil
 }
 
-func timeDec(reflect.Type) (func(io.Reader) (interface{}, error), error) {
-	return func(r io.Reader) (interface{}, error) {
+func timeDec(reflect.Type) (func(io.Reader) (any, error), error) {
+	return func(r io.Reader) (any, error) {
 		if err := coder.ReadSimpleRowHeader(1, r); err != nil {
 			return nil, errors.Wrap(err, "decoding time.Time schema override")
 		}

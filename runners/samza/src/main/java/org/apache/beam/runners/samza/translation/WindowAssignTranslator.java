@@ -28,7 +28,7 @@ import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.samza.operators.MessageStream;
 
 /**
@@ -47,7 +47,7 @@ class WindowAssignTranslator<T> implements TransformTranslator<Window.Assign<T>>
     final MessageStream<OpMessage<T>> inputStream = ctx.getMessageStream(ctx.getInput(transform));
 
     final MessageStream<OpMessage<T>> outputStream =
-        inputStream.flatMapAsync(OpAdapter.adapt(new WindowAssignOp<>(windowFn)));
+        inputStream.flatMapAsync(OpAdapter.adapt(new WindowAssignOp<>(windowFn), ctx));
 
     ctx.registerMessageStream(output, outputStream);
   }
@@ -73,7 +73,7 @@ class WindowAssignTranslator<T> implements TransformTranslator<Window.Assign<T>>
     final MessageStream<OpMessage<T>> inputStream = ctx.getOneInputMessageStream(transform);
 
     final MessageStream<OpMessage<T>> outputStream =
-        inputStream.flatMapAsync(OpAdapter.adapt(new WindowAssignOp<>(windowFn)));
+        inputStream.flatMapAsync(OpAdapter.adapt(new WindowAssignOp<>(windowFn), ctx));
 
     ctx.registerMessageStream(ctx.getOutputId(transform), outputStream);
   }

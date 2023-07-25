@@ -45,6 +45,7 @@ public class Base64Serializer {
     }
   }
 
+  @SuppressWarnings("unused") // used to deserialize on the correct casts
   private static <T> T deserialize(String serialized, Class<T> klass)
       throws IOException, ClassNotFoundException {
     final byte[] bytes = Base64.getDecoder().decode(serialized);

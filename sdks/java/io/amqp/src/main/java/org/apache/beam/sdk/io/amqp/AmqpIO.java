@@ -25,8 +25,6 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
@@ -90,9 +88,8 @@ import org.joda.time.Instant;
  *
  * }</pre>
  */
-@Experimental(Kind.SOURCE_SINK)
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class AmqpIO {
 
@@ -327,19 +324,15 @@ public class AmqpIO {
 
     @Override
     public PDone expand(PCollection<Message> input) {
-      input.apply(ParDo.of(new WriteFn(this)));
+      input.apply(ParDo.of(new WriteFn()));
       return PDone.in(input.getPipeline());
     }
 
     private static class WriteFn extends DoFn<Message, Void> {
 
-      private final Write spec;
-
       private transient Messenger messenger;
 
-      public WriteFn(Write spec) {
-        this.spec = spec;
-      }
+      public WriteFn() {}
 
       @Setup
       public void setup() throws Exception {

@@ -29,21 +29,21 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.fn.channel.SocketAddressFactory;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.BindableService;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.ServerBuilder;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.ServerInterceptors;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.netty.NettyServerBuilder;
-import org.apache.beam.vendor.grpc.v1p36p0.io.netty.channel.epoll.EpollEventLoopGroup;
-import org.apache.beam.vendor.grpc.v1p36p0.io.netty.channel.epoll.EpollServerDomainSocketChannel;
-import org.apache.beam.vendor.grpc.v1p36p0.io.netty.channel.epoll.EpollServerSocketChannel;
-import org.apache.beam.vendor.grpc.v1p36p0.io.netty.channel.unix.DomainSocketAddress;
-import org.apache.beam.vendor.grpc.v1p36p0.io.netty.util.internal.ThreadLocalRandom;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.BindableService;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ServerBuilder;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ServerInterceptors;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.netty.NettyServerBuilder;
+import org.apache.beam.vendor.grpc.v1p54p0.io.netty.channel.epoll.EpollEventLoopGroup;
+import org.apache.beam.vendor.grpc.v1p54p0.io.netty.channel.epoll.EpollServerDomainSocketChannel;
+import org.apache.beam.vendor.grpc.v1p54p0.io.netty.channel.epoll.EpollServerSocketChannel;
+import org.apache.beam.vendor.grpc.v1p54p0.io.netty.channel.unix.DomainSocketAddress;
+import org.apache.beam.vendor.grpc.v1p54p0.io.netty.util.internal.ThreadLocalRandom;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.net.HostAndPort;
 
 /** A {@link Server gRPC server} factory. */
 @SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public abstract class ServerFactory {
 
@@ -151,7 +151,7 @@ public abstract class ServerFactory {
           NettyServerBuilder.forPort(socket.getPort())
               // Set the message size to max value here. The actual size is governed by the
               // buffer size in the layers above.
-              .maxMessageSize(Integer.MAX_VALUE)
+              .maxInboundMessageSize(Integer.MAX_VALUE)
               .permitKeepAliveTime(KEEP_ALIVE_TIME_SEC, TimeUnit.SECONDS);
       services.stream()
           .forEach(
@@ -207,7 +207,7 @@ public abstract class ServerFactory {
               .channelType(EpollServerDomainSocketChannel.class)
               .workerEventLoopGroup(new EpollEventLoopGroup())
               .bossEventLoopGroup(new EpollEventLoopGroup())
-              .maxMessageSize(Integer.MAX_VALUE)
+              .maxInboundMessageSize(Integer.MAX_VALUE)
               .permitKeepAliveTime(KEEP_ALIVE_TIME_SEC, TimeUnit.SECONDS);
       for (BindableService service : services) {
         // Wrap the service to extract headers
@@ -257,7 +257,7 @@ public abstract class ServerFactory {
               .channelType(EpollServerSocketChannel.class)
               .workerEventLoopGroup(new EpollEventLoopGroup())
               .bossEventLoopGroup(new EpollEventLoopGroup())
-              .maxMessageSize(Integer.MAX_VALUE)
+              .maxInboundMessageSize(Integer.MAX_VALUE)
               .permitKeepAliveTime(KEEP_ALIVE_TIME_SEC, TimeUnit.SECONDS);
       for (BindableService service : services) {
         // Wrap the service to extract headers

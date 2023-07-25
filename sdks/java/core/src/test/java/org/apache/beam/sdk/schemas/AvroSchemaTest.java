@@ -51,7 +51,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Days;
-import org.joda.time.Instant;
 import org.joda.time.LocalDate;
 import org.junit.Rule;
 import org.junit.Test;
@@ -454,8 +453,6 @@ public class AvroSchemaTest {
 
   @Test
   public void testRowToPojo() {
-
-    LocalDate test = new LocalDate(((Instant) ROW_FOR_POJO.getValue(8)).getMillis());
     SerializableFunction<Row, AvroPojo> fromRow =
         new AvroRecordSchema().fromRowFunction(TypeDescriptor.of(AvroPojo.class));
     assertEquals(AVRO_POJO, fromRow.apply(ROW_FOR_POJO));

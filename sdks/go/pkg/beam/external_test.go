@@ -70,7 +70,7 @@ func TestExternalTagged(t *testing.T) {
 			continue
 		}
 		foundExternalTagged = true
-		if bytes.Compare(spec.GetPayload(), payload) != 0 {
+		if !bytes.Equal(spec.GetPayload(), payload) {
 			t.Errorf("Payload value: got %v, want %v", spec.GetPayload(), payload)
 		}
 		if got, want := len(transform.GetInputs()), 1; got != want {

@@ -20,7 +20,6 @@ package org.apache.beam.runners.dataflow.worker;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -116,10 +115,8 @@ public class TestShuffleReaderTest {
       ShuffleEntry entry = iter.next();
       actual.add(
           KV.of(
-              new String(entry.getKey(), StandardCharsets.UTF_8),
-              KV.of(
-                  new String(entry.getSecondaryKey(), StandardCharsets.UTF_8),
-                  new String(entry.getValue(), StandardCharsets.UTF_8))));
+              (entry.getKey().toStringUtf8()),
+              KV.of((entry.getSecondaryKey().toStringUtf8()), (entry.getValue().toStringUtf8()))));
     }
     return actual;
   }

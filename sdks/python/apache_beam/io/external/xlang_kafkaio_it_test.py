@@ -64,9 +64,11 @@ class CollectingFn(beam.DoFn):
 
 
 class CrossLanguageKafkaIO(object):
-  def __init__(self, bootstrap_servers, topic, expansion_service=None):
+  def __init__(
+      self, bootstrap_servers, topic, null_key, expansion_service=None):
     self.bootstrap_servers = bootstrap_servers
     self.topic = topic
+    self.null_key = null_key
     self.expansion_service = expansion_service
     self.sum_counter = Metrics.counter('source', 'elements_sum')
 
@@ -74,9 +76,9 @@ class CrossLanguageKafkaIO(object):
     _ = (
         pipeline
         | 'Generate' >> beam.Create(range(NUM_RECORDS))  # pylint: disable=bad-option-value
-        | 'MakeKV' >> beam.Map(lambda x:
-                               (b'', str(x).encode())).with_output_types(
-                                   typing.Tuple[bytes, bytes])
+        | 'MakeKV' >> beam.Map(
+            lambda x: (None if self.null_key else b'key', str(x).encode())).
+        with_output_types(typing.Tuple[typing.Optional[bytes], bytes])
         | 'WriteToKafka' >> WriteToKafka(
             producer_config={'bootstrap.servers': self.bootstrap_servers},
             topic=self.topic,
@@ -112,29 +114,43 @@ class CrossLanguageKafkaIO(object):
     os.environ.get('LOCAL_KAFKA_JAR'),
     "LOCAL_KAFKA_JAR environment var is not provided.")
 class CrossLanguageKafkaIOTest(unittest.TestCase):
-  def test_kafkaio(self):
-    kafka_topic = 'xlang_kafkaio_test_{}'.format(uuid.uuid4())
+  def test_kafkaio_populated_key(self):
+    kafka_topic = 'xlang_kafkaio_test_populated_key_{}'.format(uuid.uuid4())
     local_kafka_jar = os.environ.get('LOCAL_KAFKA_JAR')
     with self.local_kafka_service(local_kafka_jar) as kafka_port:
       bootstrap_servers = '{}:{}'.format(
           self.get_platform_localhost(), kafka_port)
-      pipeline_creator = CrossLanguageKafkaIO(bootstrap_servers, kafka_topic)
+      pipeline_creator = CrossLanguageKafkaIO(
+          bootstrap_servers, kafka_topic, False)
 
       self.run_kafka_write(pipeline_creator)
-      self.run_kafka_read(pipeline_creator)
+      self.run_kafka_read(pipeline_creator, b'key')
+
+  def test_kafkaio_null_key(self):
+    kafka_topic = 'xlang_kafkaio_test_null_key_{}'.format(uuid.uuid4())
+    local_kafka_jar = os.environ.get('LOCAL_KAFKA_JAR')
+    with self.local_kafka_service(local_kafka_jar) as kafka_port:
+      bootstrap_servers = '{}:{}'.format(
+          self.get_platform_localhost(), kafka_port)
+      pipeline_creator = CrossLanguageKafkaIO(
+          bootstrap_servers, kafka_topic, True)
+
+      self.run_kafka_write(pipeline_creator)
+      self.run_kafka_read(pipeline_creator, None)
 
   def run_kafka_write(self, pipeline_creator):
     with TestPipeline() as pipeline:
       pipeline.not_use_test_runner_api = True
       pipeline_creator.build_write_pipeline(pipeline)
 
-  def run_kafka_read(self, pipeline_creator):
+  def run_kafka_read(self, pipeline_creator, expected_key):
     with TestPipeline() as pipeline:
       pipeline.not_use_test_runner_api = True
       result = pipeline_creator.build_read_pipeline(pipeline, NUM_RECORDS)
       assert_that(
           result,
-          equal_to([(b'', str(i).encode()) for i in range(NUM_RECORDS)]))
+          equal_to([(expected_key, str(i).encode())
+                    for i in range(NUM_RECORDS)]))
 
   def get_platform_localhost(self):
     if sys.platform == 'darwin':

@@ -20,8 +20,6 @@ package org.apache.beam.sdk.io.snowflake.crosslanguage;
 import java.io.IOException;
 import java.util.List;
 import net.snowflake.client.jdbc.internal.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.snowflake.SnowflakeIO;
 import org.apache.beam.sdk.io.snowflake.data.SnowflakeTableSchema;
 import org.apache.beam.sdk.io.snowflake.enums.CreateDisposition;
@@ -31,12 +29,12 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 
-@Experimental(Kind.PORTABILITY)
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class WriteBuilder
-    implements ExternalTransformBuilder<WriteBuilder.Configuration, PCollection<byte[]>, PDone> {
+    implements ExternalTransformBuilder<
+        WriteBuilder.Configuration, PCollection<List<byte[]>>, PDone> {
 
   /** Parameters class to expose the transform to an external SDK. */
   public static class Configuration extends CrossLanguageConfiguration {
@@ -76,8 +74,8 @@ public class WriteBuilder
   }
 
   @Override
-  public PTransform<PCollection<byte[]>, PDone> buildExternal(Configuration c) {
-    return SnowflakeIO.<byte[]>write()
+  public PTransform<PCollection<List<byte[]>>, PDone> buildExternal(Configuration c) {
+    return SnowflakeIO.<List<byte[]>>write()
         .withDataSourceConfiguration(c.getDataSourceConfiguration())
         .withStorageIntegrationName(c.getStorageIntegrationName())
         .withStagingBucketName(c.getStagingBucketName())
@@ -90,7 +88,6 @@ public class WriteBuilder
   }
 
   private static SnowflakeIO.UserDataMapper<List<byte[]>> getStringCsvMapper() {
-    return (SnowflakeIO.UserDataMapper<List<byte[]>>)
-        recordLine -> recordLine.stream().map(String::new).toArray();
+    return recordLine -> recordLine.stream().map(String::new).toArray();
   }
 }

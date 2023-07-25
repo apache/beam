@@ -90,9 +90,11 @@ parameter can be anything, as long as elements can be grouped by it.
 
 import collections
 import logging
+import os
 import random
 import uuid
 from collections import namedtuple
+from functools import partial
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import BinaryIO  # pylint: disable=unused-import
@@ -114,9 +116,9 @@ from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.options.value_provider import ValueProvider
 from apache_beam.transforms.periodicsequence import PeriodicImpulse
 from apache_beam.transforms.userstate import CombiningValueStateSpec
+from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import IntervalWindow
-from apache_beam.utils.annotations import experimental
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import Timestamp
 
@@ -129,7 +131,8 @@ __all__ = [
     'MatchAll',
     'MatchContinuously',
     'ReadableFile',
-    'ReadMatches'
+    'ReadMatches',
+    'WriteToFiles'
 ]
 
 _LOGGER = logging.getLogger(__name__)
@@ -255,12 +258,14 @@ class _ReadMatchesFn(beam.DoFn):
     yield ReadableFile(metadata, self._compression)
 
 
-@experimental()
 class MatchContinuously(beam.PTransform):
   """Checks for new files for a given pattern every interval.
 
   This ``PTransform`` returns a ``PCollection`` of matching files in the form
   of ``FileMetadata`` objects.
+
+  MatchContinuously is experimental.  No backwards-compatibility
+  guarantees.
   """
   def __init__(
       self,
@@ -268,7 +273,10 @@ class MatchContinuously(beam.PTransform):
       interval=360.0,
       has_deduplication=True,
       start_timestamp=Timestamp.now(),
-      stop_timestamp=MAX_TIMESTAMP):
+      stop_timestamp=MAX_TIMESTAMP,
+      match_updated_files=False,
+      apply_windowing=False,
+      empty_match_treatment=EmptyMatchTreatment.ALLOW):
     """Initializes a MatchContinuously transform.
 
     Args:
@@ -277,6 +285,10 @@ class MatchContinuously(beam.PTransform):
       has_deduplication: Whether files already read are discarded or not.
       start_timestamp: Timestamp for start file checking.
       stop_timestamp: Timestamp after which no more files will be checked.
+      match_updated_files: (When has_deduplication is set to True) whether match
+        file with timestamp changes.
+      apply_windowing: Whether each element should be assigned to
+        individual window. If false, all elements will reside in global window.
     """
 
     self.file_pattern = file_pattern
@@ -284,24 +296,38 @@ class MatchContinuously(beam.PTransform):
     self.has_deduplication = has_deduplication
     self.start_ts = start_timestamp
     self.stop_ts = stop_timestamp
+    self.match_upd = match_updated_files
+    self.apply_windowing = apply_windowing
+    self.empty_match_treatment = empty_match_treatment
 
-  def expand(self, pcoll):
-    impulse = pcoll | PeriodicImpulse(
+  def expand(self, pbegin) -> beam.PCollection[filesystem.FileMetadata]:
+    # invoke periodic impulse
+    impulse = pbegin | PeriodicImpulse(
         start_timestamp=self.start_ts,
         stop_timestamp=self.stop_ts,
         fire_interval=self.interval)
 
+    # match file pattern periodically
     match_files = (
         impulse
         | 'GetFilePattern' >> beam.Map(lambda x: self.file_pattern)
-        | MatchAll())
+        | MatchAll(self.empty_match_treatment))
 
+    # apply deduplication strategy if required
     if self.has_deduplication:
-      match_files = (
-          match_files
-          # Making a Key Value so each file has its own state.
-          | 'ToKV' >> beam.Map(lambda x: (x.path, x))
-          | 'RemoveAlreadyRead' >> beam.ParDo(_RemoveDuplicates()))
+      # Making a Key Value so each file has its own state.
+      match_files = match_files | 'ToKV' >> beam.Map(lambda x: (x.path, x))
+      if self.match_upd:
+        match_files = match_files | 'RemoveOldAlreadyRead' >> beam.ParDo(
+            _RemoveOldDuplicates())
+      else:
+        match_files = match_files | 'RemoveAlreadyRead' >> beam.ParDo(
+            _RemoveDuplicates())
+
+    # apply windowing if required. Apply at last because deduplication relies on
+    # the global window.
+    if self.apply_windowing:
+      match_files = match_files | beam.WindowInto(FixedWindows(self.interval))
 
     return match_files
 
@@ -404,7 +430,7 @@ def _format_shard(
     kwargs['start'] = window.start.to_utc_datetime().isoformat()
     kwargs['end'] = window.end.to_utc_datetime().isoformat()
 
-  # TODO(BEAM-3759): Add support for PaneInfo
+  # TODO(https://github.com/apache/beam/issues/18721): Add support for PaneInfo
   # If the PANE is the ONLY firing in the window, we don't add it.
   #if pane and not (pane.is_first and pane.is_last):
   #  kwargs['pane'] = pane.index
@@ -428,7 +454,10 @@ def _format_shard(
   return format.format(**kwargs)
 
 
-def destination_prefix_naming(suffix=None):
+FileNaming = Callable[[Any, Any, int, int, Any, str, str], str]
+
+
+def destination_prefix_naming(suffix=None) -> FileNaming:
   def _inner(window, pane, shard_index, total_shards, compression, destination):
     prefix = str(destination)
     return _format_shard(
@@ -437,10 +466,19 @@ def destination_prefix_naming(suffix=None):
   return _inner
 
 
-def default_file_naming(prefix, suffix=None):
+def default_file_naming(prefix, suffix=None) -> FileNaming:
   def _inner(window, pane, shard_index, total_shards, compression, destination):
     return _format_shard(
         window, pane, shard_index, total_shards, compression, prefix, suffix)
+
+  return _inner
+
+
+def single_file_naming(prefix, suffix=None) -> FileNaming:
+  def _inner(window, pane, shard_index, total_shards, compression, destination):
+    assert shard_index in (0, None), shard_index
+    assert total_shards in (1, None), total_shards
+    return _format_shard(window, pane, None, None, compression, prefix, suffix)
 
   return _inner
 
@@ -462,15 +500,16 @@ class FileResult(_FileResult):
   pass
 
 
-@experimental()
 class WriteToFiles(beam.PTransform):
-  """Write the incoming PCollection to a set of output files.
+  r"""Write the incoming PCollection to a set of output files.
 
   The incoming ``PCollection`` may be bounded or unbounded.
 
-  **Note:** For unbounded ``PCollection``s, this transform does not support
+  **Note:** For unbounded ``PCollection``\s, this transform does not support
   multiple firings per Window (due to the fact that files are named only by
   their destination, and window, at the moment).
+
+  WriteToFiles is experimental.  No backwards-compatibility guarantees.
   """
 
   # We allow up to 20 different destinations to be written in a single bundle.
@@ -502,10 +541,11 @@ class WriteToFiles(beam.PTransform):
         directory that is meant to be temporary as well. Once the whole output
         has been written, the files are moved into their final destination, and
         given their final names. By default, the temporary directory will be
-         within the temp_location of your pipeline.
-      sink (callable, FileSink): The sink to use to write into a file. It should
-        implement the methods of a ``FileSink``. If none is provided, a
-        ``TextSink`` is used.
+        within the temp_location of your pipeline.
+      sink (callable, ~apache_beam.io.fileio.FileSink): The sink to use to write
+        into a file. It should implement the methods of a ``FileSink``. Pass a
+        class signature or an instance of FileSink to this parameter. If none is
+        provided, a ``TextSink`` is used.
       shards (int): The number of shards per destination and trigger firing.
       max_writers_per_bundle (int): The number of writers that can be open
         concurrently in a single worker that's processing one bundle.
@@ -525,8 +565,11 @@ class WriteToFiles(beam.PTransform):
   @staticmethod
   def _get_sink_fn(input_sink):
     # type: (...) -> Callable[[Any], FileSink]
-    if isinstance(input_sink, FileSink):
-      return lambda x: input_sink
+    if isinstance(input_sink, type) and issubclass(input_sink, FileSink):
+      return lambda x: input_sink()
+    elif isinstance(input_sink, FileSink):
+      kls = input_sink.__class__
+      return lambda x: kls()
     elif callable(input_sink):
       return input_sink
     else:
@@ -627,40 +670,49 @@ class _MoveTempFilesIntoFinalDestinationFn(beam.DoFn):
 
   def process(self, element, w=beam.DoFn.WindowParam):
     destination = element[0]
-    file_results = list(element[1])
+    # list of FileResult objects for temp files
+    temp_file_results = list(element[1])
+    # list of FileResult objects for final files
+    final_file_results = []
 
-    for i, r in enumerate(file_results):
+    for i, r in enumerate(temp_file_results):
       # TODO(pabloem): Handle compression for files.
       final_file_name = self.file_naming_fn(
-          r.window, r.pane, i, len(file_results), '', destination)
+          r.window, r.pane, i, len(temp_file_results), '', destination)
 
-      _LOGGER.info(
-          'Moving temporary file %s to dir: %s as %s. Res: %s',
-          r.file_name,
-          self.path.get(),
-          final_file_name,
-          r)
+      final_file_results.append(
+          FileResult(
+              final_file_name,
+              i,
+              len(temp_file_results),
+              r.window,
+              r.pane,
+              destination))
 
-      final_full_path = filesystems.FileSystems.join(
-          self.path.get(), final_file_name)
-
-      # TODO(pabloem): Batch rename requests?
-      try:
-        filesystems.FileSystems.rename([r.file_name], [final_full_path])
-      except BeamIOError:
-        # This error is not serious, because it may happen on a retry of the
-        # bundle. We simply log it.
-        _LOGGER.debug(
-            'File %s failed to be copied. This may be due to a bundle'
-            ' being retried.',
-            r.file_name)
-
-      yield FileResult(
-          final_file_name, i, len(file_results), r.window, r.pane, destination)
-
+    move_from = [f.file_name for f in temp_file_results]
+    move_to = [f.file_name for f in final_file_results]
     _LOGGER.info(
-        'Checking orphaned temporary files for'
-        ' destination %s and window %s',
+        'Moving temporary files %s to dir: %s as %s',
+        map(os.path.basename, move_from),
+        self.path.get(),
+        move_to)
+
+    try:
+      filesystems.FileSystems.rename(
+          move_from,
+          [filesystems.FileSystems.join(self.path.get(), f) for f in move_to])
+    except BeamIOError:
+      # This error is not serious, because it may happen on a retry of the
+      # bundle. We simply log it.
+      _LOGGER.debug(
+          'Exception occurred during moving files: %s. This may be due to a'
+          ' bundle being retried.',
+          move_from)
+
+    yield from final_file_results
+
+    _LOGGER.debug(
+        'Checking orphaned temporary files for destination %s and window %s',
         destination,
         w)
     writer_key = (destination, w)
@@ -673,9 +725,10 @@ class _MoveTempFilesIntoFinalDestinationFn(beam.DoFn):
       match_result = filesystems.FileSystems.match(['%s*' % prefix])
       orphaned_files = [m.path for m in match_result[0].metadata_list]
 
-      _LOGGER.info(
-          'Some files may be left orphaned in the temporary folder: %s',
-          orphaned_files)
+      if len(orphaned_files) > 0:
+        _LOGGER.info(
+            'Some files may be left orphaned in the temporary folder: %s',
+            orphaned_files)
     except BeamIOError as e:
       _LOGGER.info('Exceptions when checking orphaned files: %s', e)
 
@@ -791,7 +844,6 @@ class _WriteUnshardedRecordsFn(beam.DoFn):
   def _get_or_create_writer_and_sink(self, destination, window):
     """Returns a tuple of writer, sink."""
     writer_key = (destination, window)
-
     if writer_key in self._writers_and_sinks:
       return self._writers_and_sinks.get(writer_key)
     elif len(self._writers_and_sinks) >= self.max_num_writers_per_bundle:
@@ -807,7 +859,6 @@ class _WriteUnshardedRecordsFn(beam.DoFn):
           create_metadata_fn=sink.create_metadata)
 
       sink.open(writer)
-
       self._writers_and_sinks[writer_key] = (writer, sink)
       self._file_names[writer_key] = full_file_name
       return self._writers_and_sinks[writer_key]
@@ -835,10 +886,15 @@ class _WriteUnshardedRecordsFn(beam.DoFn):
 
 
 class _RemoveDuplicates(beam.DoFn):
-
+  """Internal DoFn that filters out filenames already seen (even though the file
+  has updated)."""
   COUNT_STATE = CombiningValueStateSpec('count', combine_fn=sum)
 
-  def process(self, element, count_state=beam.DoFn.StateParam(COUNT_STATE)):
+  def process(
+      self,
+      element: Tuple[str, filesystem.FileMetadata],
+      count_state=beam.DoFn.StateParam(COUNT_STATE)
+  ) -> Iterable[filesystem.FileMetadata]:
 
     path = element[0]
     file_metadata = element[1]
@@ -850,3 +906,27 @@ class _RemoveDuplicates(beam.DoFn):
       yield file_metadata
     else:
       _LOGGER.debug('File %s was already read, seen %d times', path, counter)
+
+
+class _RemoveOldDuplicates(beam.DoFn):
+  """Internal DoFn that filters out filenames already seen and timestamp
+  unchanged."""
+  TIME_STATE = CombiningValueStateSpec(
+      'count', combine_fn=partial(max, default=0.0))
+
+  def process(
+      self,
+      element: Tuple[str, filesystem.FileMetadata],
+      time_state=beam.DoFn.StateParam(TIME_STATE)
+  ) -> Iterable[filesystem.FileMetadata]:
+    path = element[0]
+    file_metadata = element[1]
+    new_ts = file_metadata.last_updated_in_seconds
+    old_ts = time_state.read()
+
+    if old_ts < new_ts:
+      time_state.add(new_ts)
+      _LOGGER.debug('Generated entry for file %s', path)
+      yield file_metadata
+    else:
+      _LOGGER.debug('File %s was already read', path)

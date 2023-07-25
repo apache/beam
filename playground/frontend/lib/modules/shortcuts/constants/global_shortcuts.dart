@@ -18,86 +18,44 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:playground/modules/shortcuts/models/shortcut.dart';
-import 'package:playground/pages/playground/states/playground_state.dart';
+import 'package:playground_components/playground_components.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-const kRunText = 'Run';
-const kResetText = 'Reset';
-const kClearOutputText = 'Clear Output';
-const kNewExampleText = 'New Example';
-
-class ResetIntent extends Intent {
-  const ResetIntent();
+class ClearOutputIntent extends BeamIntent {
+  const ClearOutputIntent() : super(slug: 'intents.playground.clearOutput');
 }
 
-class RunIntent extends Intent {
-  const RunIntent();
+class NewExampleIntent extends BeamIntent {
+  const NewExampleIntent() : super(slug: 'intents.playground.newExample');
 }
 
-class ClearOutputIntent extends Intent {
-  const ClearOutputIntent();
-}
+final kClearOutputShortcut = BeamShortcut(
+  keys: [
+    LogicalKeyboardKeyExtension.metaOrControl,
+    LogicalKeyboardKey.keyB,
+  ],
+  actionIntent: const ClearOutputIntent(),
+  createAction: (BuildContext context) => CallbackAction(
+    onInvoke: (_) => Provider.of<PlaygroundController>(
+      context,
+      listen: false,
+    ).codeRunner.clearResult(),
+  ),
+);
 
-class NewExampleIntent extends Intent {
-  const NewExampleIntent();
-}
+final kNewExampleShortcut = BeamShortcut(
+  keys: [
+    LogicalKeyboardKeyExtension.metaOrControl,
+    LogicalKeyboardKey.keyM,
+  ],
+  actionIntent: const NewExampleIntent(),
+  createAction: (_) => CallbackAction(
+    onInvoke: (_) => launchUrl(Uri.parse(BeamLinks.newExample)),
+  ),
+);
 
-final List<Shortcut> globalShortcuts = [
-  Shortcut(
-    shortcuts: LogicalKeySet(
-      LogicalKeyboardKey.meta,
-      LogicalKeyboardKey.enter,
-    ),
-    actionIntent: const RunIntent(),
-    name: kRunText,
-    createAction: (BuildContext context) => CallbackAction(
-      onInvoke: (_) => Provider.of<PlaygroundState>(
-        context,
-        listen: false,
-      ).runCode(),
-    ),
-  ),
-  Shortcut(
-    shortcuts: LogicalKeySet(
-      LogicalKeyboardKey.meta,
-      LogicalKeyboardKey.shift,
-      LogicalKeyboardKey.keyR,
-    ),
-    actionIntent: const ResetIntent(),
-    name: kResetText,
-    createAction: (BuildContext context) => CallbackAction(
-      onInvoke: (_) => Provider.of<PlaygroundState>(
-        context,
-        listen: false,
-      ).reset(),
-    ),
-  ),
-  Shortcut(
-    shortcuts: LogicalKeySet(
-      LogicalKeyboardKey.meta,
-      LogicalKeyboardKey.shift,
-      LogicalKeyboardKey.keyC,
-    ),
-    actionIntent: const ClearOutputIntent(),
-    name: kClearOutputText,
-    createAction: (BuildContext context) => CallbackAction(
-      onInvoke: (_) => Provider.of<PlaygroundState>(
-        context,
-        listen: false,
-      ).clearOutput(),
-    ),
-  ),
-  Shortcut(
-    shortcuts: LogicalKeySet(
-      LogicalKeyboardKey.meta,
-      LogicalKeyboardKey.keyM,
-    ),
-    actionIntent: const NewExampleIntent(),
-    name: kNewExampleText,
-    createAction: (_) => CallbackAction(
-      onInvoke: (_) => launch('/'),
-    ),
-  ),
+final List<BeamShortcut> globalShortcuts = [
+  kClearOutputShortcut,
+  kNewExampleShortcut,
 ];

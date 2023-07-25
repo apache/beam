@@ -18,7 +18,7 @@ limitations under the License.
 <table align="left">
     <a target="_blank" class="button"
         href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/transforms/Max.html">
-      <img src="https://beam.apache.org/images/logos/sdks/java.png" width="20px" height="20px"
+      <img src="/images/logos/sdks/java.png" width="20px" height="20px"
            alt="Javadoc" />
      Javadoc
     </a>
@@ -29,6 +29,7 @@ Provides a variety of different transforms for computing the maximum
 values in a collection, either globally or for each key.
 
 ## Examples
+
 **Example 1**: get the maximum of a `PCollection` of `Doubles`.
 
 {{< highlight java >}}
@@ -44,6 +45,18 @@ PCollection<KV<String, Integer>> input = ...;
 PCollection<KV<String, Integer>> maxPerKey = input
      .apply(Max.integersPerKey());
 {{< /highlight >}}
+
+**Example 3**:
+
+{{< playground height="700px" >}}
+{{< playground_snippet language="java" path="SDK_JAVA_Max" show="main_section" >}}
+{{< /playground >}}
+
+**Example 4**:
+
+{{< playground height="700px" >}}
+{{< playground_snippet language="java" path="SDK_JAVA_MaxPerKey" show="main_section" >}}
+{{< /playground >}}
 
 ## Related transforms
 * [Min](/documentation/transforms/java/aggregation/min)

@@ -199,7 +199,7 @@ class ReadDataFromKinesis(ExternalTransform):
 
     Experimental; no backwards compatibility guarantees.
   """
-  URN = 'beam:transform:org.apache.beam:kinesis_read:v1'
+  URN = 'beam:transform:org.apache.beam:kinesis_read_data:v1'
 
   def __init__(
       self,

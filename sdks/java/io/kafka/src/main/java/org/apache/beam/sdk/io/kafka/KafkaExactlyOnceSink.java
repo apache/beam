@@ -49,10 +49,12 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
@@ -78,6 +80,7 @@ import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTimeUtils;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
@@ -89,15 +92,16 @@ import org.slf4j.LoggerFactory;
  * example usage.
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  // TODO(https://github.com/apache/beam/issues/21230): Remove when new version of
+  // errorprone is released (2.11.0)
+  "unused"
 })
 class KafkaExactlyOnceSink<K, V>
     extends PTransform<PCollection<ProducerRecord<K, V>>, PCollection<Void>> {
 
   // Dataflow ensures at-least once processing for side effects like sinks. In order to provide
   // exactly-once semantics, a sink needs to be idempotent or it should avoid writing records
-  // that have already been written. This snk does the latter. All the the records are ordered
+  // that have already been written. This snk does the latter. All the records are ordered
   // across a fixed number of shards and records in each shard are written in order. It drops
   // any records that are already written and buffers those arriving out of order.
   //
@@ -153,11 +157,12 @@ class KafkaExactlyOnceSink<K, V>
 
   @Override
   public PCollection<Void> expand(PCollection<ProducerRecord<K, V>> input) {
+    String topic = Preconditions.checkStateNotNull(spec.getTopic());
 
     int numShards = spec.getNumShards();
     if (numShards <= 0) {
       try (Consumer<?, ?> consumer = openConsumer(spec)) {
-        numShards = consumer.partitionsFor(spec.getTopic()).size();
+        numShards = consumer.partitionsFor(topic).size();
         LOG.info(
             "Using {} shards for exactly-once writer, matching number of partitions "
                 + "for topic '{}'",
@@ -253,6 +258,7 @@ class KafkaExactlyOnceSink<K, V>
     // started with same groupId used for storing state on Kafka side, including the case where
     // a job is restarted with same groupId, but the metadata from previous run was not cleared.
     // Better to be safe and error out with a clear message.
+
     @StateId(WRITER_ID)
     private final StateSpec<ValueState<String>> writerIdSpec = StateSpecs.value();
 
@@ -295,8 +301,9 @@ class KafkaExactlyOnceSink<K, V>
       long nextId = MoreObjects.firstNonNull(nextIdState.read(), 0L);
       long minBufferedId = MoreObjects.firstNonNull(minBufferedIdState.read(), Long.MAX_VALUE);
 
+      String sinkGroupId = Preconditions.checkStateNotNull(spec.getSinkGroupId());
       ShardWriterCache<K, V> cache =
-          (ShardWriterCache<K, V>) CACHE_BY_GROUP_ID.getUnchecked(spec.getSinkGroupId());
+          (ShardWriterCache<K, V>) CACHE_BY_GROUP_ID.getUnchecked(sinkGroupId);
       ShardWriter<K, V> writer = cache.removeIfPresent(shard);
       if (writer == null) {
         writer = initShardWriter(shard, writerIdState, nextId);
@@ -429,7 +436,7 @@ class KafkaExactlyOnceSink<K, V>
       public final long sequenceId;
 
       @JsonProperty("id")
-      public final String writerId;
+      public final @Nullable String writerId;
 
       private ShardMetadata() { // for json deserializer
         sequenceId = -1;
@@ -473,6 +480,7 @@ class KafkaExactlyOnceSink<K, V>
 
       Future<RecordMetadata> sendRecord(
           TimestampedValue<ProducerRecord<K, V>> record, Counter sendCounter) {
+        String topic = Preconditions.checkStateNotNull(spec.getTopic());
         try {
           Long timestampMillis =
               spec.getPublishTimestampFunction() != null
@@ -481,10 +489,11 @@ class KafkaExactlyOnceSink<K, V>
                       .getMillis()
                   : null;
 
+          @SuppressWarnings("nullness") // Kafka library not annotated
           Future<RecordMetadata> result =
               producer.send(
                   new ProducerRecord<>(
-                      spec.getTopic(),
+                      topic,
                       null,
                       timestampMillis,
                       record.getValue().key(),
@@ -498,6 +507,7 @@ class KafkaExactlyOnceSink<K, V>
       }
 
       void commitTxn(long lastRecordId, Counter numTransactions) throws IOException {
+        String topic = Preconditions.checkStateNotNull(spec.getTopic());
         try {
           // Store id in consumer group metadata for the partition.
           // NOTE: Kafka keeps this metadata for 24 hours since the last update. This limits
@@ -506,7 +516,7 @@ class KafkaExactlyOnceSink<K, V>
           ProducerSpEL.sendOffsetsToTransaction(
               producer,
               ImmutableMap.of(
-                  new TopicPartition(spec.getTopic(), shard),
+                  new TopicPartition(topic, shard),
                   new OffsetAndMetadata(
                       0L,
                       JSON_MAPPER.writeValueAsString(new ShardMetadata(lastRecordId, writerId)))),
@@ -529,6 +539,7 @@ class KafkaExactlyOnceSink<K, V>
 
       String producerName = String.format("producer_%d_for_%s", shard, spec.getSinkGroupId());
       Producer<K, V> producer = initializeExactlyOnceProducer(spec, producerName);
+      String topic = Preconditions.checkStateNotNull(spec.getTopic());
 
       // Fetch latest committed metadata for the partition (if any). Checks committed sequence ids.
       try {
@@ -538,7 +549,7 @@ class KafkaExactlyOnceSink<K, V>
         OffsetAndMetadata committed;
 
         try (Consumer<?, ?> consumer = openConsumer(spec)) {
-          committed = consumer.committed(new TopicPartition(spec.getTopic(), shard));
+          committed = consumer.committed(new TopicPartition(topic, shard));
         }
 
         long committedSeqId = -1;
@@ -643,7 +654,7 @@ class KafkaExactlyOnceSink<K, V>
                 .<Integer, ShardWriter<K, V>>removalListener(
                     notification -> {
                       if (notification.getCause() != RemovalCause.EXPLICIT) {
-                        ShardWriter writer = notification.getValue();
+                        ShardWriter<K, V> writer = notification.getValue();
                         LOG.info(
                             "{} : Closing idle shard writer {} after 1 minute of idle time.",
                             writer.shard,
@@ -661,6 +672,7 @@ class KafkaExactlyOnceSink<K, V>
             TimeUnit.MILLISECONDS);
       }
 
+      @Nullable
       ShardWriter<K, V> removeIfPresent(int shard) {
         return cache.asMap().remove(shard);
       }
@@ -689,33 +701,35 @@ class KafkaExactlyOnceSink<K, V>
    * partitions for a topic rather than for fetching messages.
    */
   private static Consumer<?, ?> openConsumer(WriteRecords<?, ?> spec) {
-    return spec.getConsumerFactoryFn()
-        .apply(
-            ImmutableMap.of(
-                ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,
-                spec.getProducerConfig().get(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG),
-                ConsumerConfig.GROUP_ID_CONFIG,
-                spec.getSinkGroupId(),
-                ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
-                ByteArrayDeserializer.class,
-                ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
-                ByteArrayDeserializer.class));
+    SerializableFunction<Map<String, Object>, ? extends Consumer<?, ?>> consumerFactoryFn =
+        Preconditions.checkArgumentNotNull(spec.getConsumerFactoryFn());
+
+    Map<String, Object> consumerConfig = new HashMap<>();
+    consumerConfig.put(
+        ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,
+        Preconditions.checkArgumentNotNull(
+            spec.getProducerConfig().get(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG)));
+    if (spec.getSinkGroupId() != null) {
+      consumerConfig.put(ConsumerConfig.GROUP_ID_CONFIG, spec.getSinkGroupId());
+    }
+    consumerConfig.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class);
+    consumerConfig.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class);
+
+    return consumerFactoryFn.apply(consumerConfig);
   }
 
   private static <K, V> Producer<K, V> initializeExactlyOnceProducer(
       WriteRecords<K, V> spec, String producerName) {
 
     Map<String, Object> producerConfig = new HashMap<>(spec.getProducerConfig());
-    producerConfig.putAll(
-        ImmutableMap.of(
-            ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
-            spec.getKeySerializer(),
-            ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
-            spec.getValueSerializer(),
-            ProducerSpEL.ENABLE_IDEMPOTENCE_CONFIG,
-            true,
-            ProducerSpEL.TRANSACTIONAL_ID_CONFIG,
-            producerName));
+    if (spec.getKeySerializer() != null) {
+      producerConfig.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, spec.getKeySerializer());
+    }
+    if (spec.getValueSerializer() != null) {
+      producerConfig.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, spec.getValueSerializer());
+    }
+    producerConfig.put(ProducerSpEL.ENABLE_IDEMPOTENCE_CONFIG, true);
+    producerConfig.put(ProducerSpEL.TRANSACTIONAL_ID_CONFIG, producerName);
 
     Producer<K, V> producer =
         spec.getProducerFactoryFn() != null

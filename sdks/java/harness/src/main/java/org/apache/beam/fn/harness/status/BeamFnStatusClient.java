@@ -28,6 +28,8 @@ import java.util.StringJoiner;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import org.apache.beam.fn.harness.Cache;
+import org.apache.beam.fn.harness.control.ExecutionStateSampler.ExecutionStateTrackerStatus;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler.BundleProcessor;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler.BundleProcessorCache;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
@@ -35,12 +37,12 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.WorkerStatusRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.WorkerStatusResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnWorkerStatusGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
-import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.ManagedChannel;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.DateTimeUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,17 +54,20 @@ public class BeamFnStatusClient implements AutoCloseable {
   private final CompletableFuture<Object> inboundObserverCompletion;
   private static final Logger LOG = LoggerFactory.getLogger(BeamFnStatusClient.class);
   private final MemoryMonitor memoryMonitor;
+  private final Cache<?, ?> cache;
 
   public BeamFnStatusClient(
       ApiServiceDescriptor apiServiceDescriptor,
       Function<ApiServiceDescriptor, ManagedChannel> channelFactory,
       BundleProcessorCache processBundleCache,
-      PipelineOptions options) {
+      PipelineOptions options,
+      Cache<?, ?> cache) {
     this.channel = channelFactory.apply(apiServiceDescriptor);
     this.outboundObserver =
         BeamFnWorkerStatusGrpc.newStub(channel).workerStatus(new InboundObserver());
     this.processBundleCache = processBundleCache;
     this.memoryMonitor = MemoryMonitor.fromOptions(options);
+    this.cache = cache;
     this.inboundObserverCompletion = new CompletableFuture<>();
     Thread thread = new Thread(memoryMonitor);
     thread.setDaemon(true);
@@ -157,6 +162,15 @@ public class BeamFnStatusClient implements AutoCloseable {
     memory.add(memoryMonitor.describeMemory());
     return memory.toString();
   }
+
+  @VisibleForTesting
+  String getCacheStats() {
+    StringJoiner cacheStats = new StringJoiner("\n");
+    cacheStats.add("========== CACHE STATS ==========");
+    cacheStats.add(cache.describeStats());
+    return cacheStats.toString();
+  }
+
   /** Class representing the execution state of a bundle. */
   static class BundleState {
     final String instruction;
@@ -190,20 +204,19 @@ public class BeamFnStatusClient implements AutoCloseable {
       activeBundlesState.add("No active processing bundles.");
     } else {
       List<BundleState> bundleStates = new ArrayList<>();
-      processBundleCache.getActiveBundleProcessors().keySet().stream()
+      processBundleCache.getActiveBundleProcessors().entrySet().stream()
           .forEach(
-              instruction -> {
-                BundleProcessor bundleProcessor = processBundleCache.find(instruction);
-                if (bundleProcessor != null) {
-                  ExecutionStateTracker executionStateTracker = bundleProcessor.getStateTracker();
-                  Thread trackedTread = executionStateTracker.getTrackedThread();
-                  if (trackedTread != null) {
-                    bundleStates.add(
-                        new BundleState(
-                            instruction,
-                            trackedTread.getName(),
-                            executionStateTracker.getMillisSinceLastTransition()));
-                  }
+              instructionAndBundleProcessor -> {
+                BundleProcessor bundleProcessor = instructionAndBundleProcessor.getValue();
+                ExecutionStateTrackerStatus executionStateTrackerStatus =
+                    bundleProcessor.getStateTracker().getStatus();
+                if (executionStateTrackerStatus != null) {
+                  bundleStates.add(
+                      new BundleState(
+                          instructionAndBundleProcessor.getKey(),
+                          executionStateTrackerStatus.getTrackedThread().getName(),
+                          DateTimeUtils.currentTimeMillis()
+                              - executionStateTrackerStatus.getLastTransitionTimeMillis()));
                 }
               });
       bundleStates.stream()
@@ -230,6 +243,8 @@ public class BeamFnStatusClient implements AutoCloseable {
     public void onNext(WorkerStatusRequest workerStatusRequest) {
       StringJoiner status = new StringJoiner("\n");
       status.add(getMemoryUsage());
+      status.add("\n");
+      status.add(getCacheStats());
       status.add("\n");
       status.add(getActiveProcessBundleState());
       status.add("\n");

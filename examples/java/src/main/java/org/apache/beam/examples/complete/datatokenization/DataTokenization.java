@@ -91,7 +91,7 @@ import org.slf4j.LoggerFactory;
  * to execute the pipeline:
  *   {@code
  *   task execute (type:JavaExec) {
- *      main = System.getProperty("mainClass")
+ *      mainClass = System.getProperty("mainClass")
  *      classpath = sourceSets.main.runtimeClasspath
  *      systemProperties System.getProperties()
  *      args System.getProperty("exec.args", "").split()
@@ -215,7 +215,7 @@ public class DataTokenization {
    * @param options The execution options.
    * @return The pipeline result.
    */
-  @SuppressWarnings({"dereference.of.nullable", "argument.type.incompatible"})
+  @SuppressWarnings({"dereference.of.nullable", "argument"})
   public static PipelineResult run(DataTokenizationOptions options) {
     SchemasUtils schema = null;
     try {

@@ -18,7 +18,6 @@
 package org.apache.beam.runners.spark;
 
 import static org.apache.beam.runners.spark.SparkCommonPipelineOptions.prepareFilesToStage;
-import static org.apache.beam.runners.spark.util.SparkCommon.startEventLoggingListener;
 
 import java.util.Collection;
 import java.util.HashMap;
@@ -29,10 +28,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.core.construction.TransformInputs;
+import org.apache.beam.runners.core.construction.graph.ProjectionPushdownOptimizer;
 import org.apache.beam.runners.core.metrics.MetricsPusher;
-import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
-import org.apache.beam.runners.spark.metrics.AggregatorMetricSource;
-import org.apache.beam.runners.spark.metrics.CompositeSource;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.metrics.SparkBeamMetricSource;
 import org.apache.beam.runners.spark.translation.EvaluationContext;
@@ -43,7 +40,6 @@ import org.apache.beam.runners.spark.translation.TransformTranslator;
 import org.apache.beam.runners.spark.translation.streaming.Checkpoint.CheckpointDir;
 import org.apache.beam.runners.spark.translation.streaming.SparkRunnerStreamingContextFactory;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder.WatermarkAdvancingStreamingListener;
-import org.apache.beam.runners.spark.util.SparkCompat;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
@@ -68,12 +64,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
 import org.apache.spark.SparkEnv$;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.metrics.MetricsSystem;
-import org.apache.spark.scheduler.EventLoggingListener;
-import org.apache.spark.scheduler.SparkListenerApplicationEnd;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
 import org.apache.spark.streaming.api.java.JavaStreamingListener;
 import org.apache.spark.streaming.api.java.JavaStreamingListenerWrapper;
-import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -94,7 +87,7 @@ import org.slf4j.LoggerFactory;
  * SparkPipelineResult result = (SparkPipelineResult) p.run(); }
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
 
@@ -157,21 +150,23 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
     MetricsEnvironment.setMetricsSupported(true);
 
     // visit the pipeline to determine the translation mode
-    detectTranslationMode(pipeline);
+    detectTranslationMode(pipeline, pipelineOptions);
 
     // Default to using the primitive versions of Read.Bounded and Read.Unbounded.
-    // TODO(BEAM-10670): Use SDF read as default when we address performance issue.
+    // TODO(https://github.com/apache/beam/issues/20530): Use SDF read as default when we address
+    // performance issue.
     if (!ExperimentalOptions.hasExperiment(pipeline.getOptions(), "beam_fn_api")) {
       SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReadsIfNecessary(pipeline);
+    }
+
+    if (!ExperimentalOptions.hasExperiment(pipelineOptions, "disable_projection_pushdown")) {
+      ProjectionPushdownOptimizer.optimize(pipeline);
     }
 
     pipeline.replaceAll(SparkTransformOverrides.getDefaultOverrides(pipelineOptions.isStreaming()));
 
     prepareFilesToStage(pipelineOptions);
 
-    final long startTime = Instant.now().getMillis();
-    EventLoggingListener eventLoggingListener = null;
-    JavaSparkContext jsc = null;
     if (pipelineOptions.isStreaming()) {
       CheckpointDir checkpointDir = new CheckpointDir(pipelineOptions.getCheckpointDir());
       SparkRunnerStreamingContextFactory streamingContextFactory =
@@ -179,13 +174,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       final JavaStreamingContext jssc =
           JavaStreamingContext.getOrCreate(
               checkpointDir.getSparkCheckpointDir().toString(), streamingContextFactory);
-      jsc = jssc.sparkContext();
-      eventLoggingListener = startEventLoggingListener(jsc, pipelineOptions, startTime);
-
       // Checkpoint aggregator/metrics values
-      jssc.addStreamingListener(
-          new JavaStreamingListenerWrapper(
-              new AggregatorsAccumulator.AccumulatorCheckpointingSparkListener()));
       jssc.addStreamingListener(
           new JavaStreamingListenerWrapper(
               new MetricsAccumulator.AccumulatorCheckpointingSparkListener()));
@@ -193,7 +182,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       // register user-defined listeners.
       for (JavaStreamingListener listener :
           pipelineOptions.as(SparkContextOptions.class).getListeners()) {
-        LOG.info("Registered listener {}." + listener.getClass().getSimpleName());
+        LOG.info("Registered listener {}.", listener.getClass().getSimpleName());
         jssc.addStreamingListener(new JavaStreamingListenerWrapper(listener));
       }
 
@@ -217,8 +206,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
 
       result = new SparkPipelineResult.StreamingMode(startPipeline, jssc);
     } else {
-      jsc = SparkContextFactory.getSparkContext(pipelineOptions);
-      eventLoggingListener = startEventLoggingListener(jsc, pipelineOptions, startTime);
+      JavaSparkContext jsc = SparkContextFactory.getSparkContext(pipelineOptions);
       final EvaluationContext evaluationContext =
           new EvaluationContext(jsc, pipeline, pipelineOptions);
       translator = new TransformTranslator.Translator();
@@ -253,46 +241,30 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
             result);
     metricsPusher.start();
 
-    if (eventLoggingListener != null && jsc != null) {
-      eventLoggingListener.onApplicationStart(
-          SparkCompat.buildSparkListenerApplicationStart(jsc, pipelineOptions, startTime, result));
-      eventLoggingListener.onApplicationEnd(
-          new SparkListenerApplicationEnd(Instant.now().getMillis()));
-      eventLoggingListener.stop();
-    }
-
     return result;
   }
 
   private void registerMetricsSource(String appName) {
     final MetricsSystem metricsSystem = SparkEnv$.MODULE$.get().metricsSystem();
-    final AggregatorMetricSource aggregatorMetricSource =
-        new AggregatorMetricSource(null, AggregatorsAccumulator.getInstance().value());
-    final SparkBeamMetricSource metricsSource = new SparkBeamMetricSource(null);
-    final CompositeSource compositeSource =
-        new CompositeSource(
-            appName + ".Beam",
-            metricsSource.metricRegistry(),
-            aggregatorMetricSource.metricRegistry());
+    final SparkBeamMetricSource metricsSource = new SparkBeamMetricSource(appName + ".Beam");
     // re-register the metrics in case of context re-use
-    metricsSystem.removeSource(compositeSource);
-    metricsSystem.registerSource(compositeSource);
+    metricsSystem.removeSource(metricsSource);
+    metricsSystem.registerSource(metricsSource);
   }
 
   /** Init Metrics/Aggregators accumulators. This method is idempotent. */
   public static void initAccumulators(SparkPipelineOptions opts, JavaSparkContext jsc) {
     // Init metrics accumulators
     MetricsAccumulator.init(opts, jsc);
-    AggregatorsAccumulator.init(opts, jsc);
   }
 
   /** Visit the pipeline to determine the translation mode (batch/streaming). */
-  private void detectTranslationMode(Pipeline pipeline) {
+  static void detectTranslationMode(Pipeline pipeline, SparkPipelineOptions pipelineOptions) {
     TranslationModeDetector detector = new TranslationModeDetector();
     pipeline.traverseTopologically(detector);
     if (detector.getTranslationMode().equals(TranslationMode.STREAMING)) {
       // set streaming mode if it's a streaming pipeline
-      this.pipelineOptions.setStreaming(true);
+      pipelineOptions.setStreaming(true);
     }
   }
 

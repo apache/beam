@@ -31,6 +31,7 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 )
 
 func init() {
@@ -44,6 +45,9 @@ func init() {
 	beam.RegisterType(reflect.TypeOf((*shardElementsFn)(nil)).Elem())
 	beam.RegisterCoder(compactorsType, encodeCompactors, decodeCompactors)
 	beam.RegisterCoder(weightedElementType, encodeWeightedElement, decodeWeightedElement)
+
+	register.Function1x2(fixedKey)
+	register.Function2x1(makeWeightedElement)
 }
 
 // Opts contains settings used to configure how approximate quantiles are computed.
@@ -69,11 +73,11 @@ type sortListHeap struct {
 	less reflectx.Func2x1
 }
 
-func (s sortListHeap) Len() int            { return len(s.data) }
-func (s sortListHeap) Less(i, j int) bool  { return s.less.Call2x1(s.data[i][0], s.data[j][0]).(bool) }
-func (s sortListHeap) Swap(i, j int)       { s.data[i], s.data[j] = s.data[j], s.data[i] }
-func (s *sortListHeap) Push(x interface{}) { s.data = append(s.data, x.([]beam.T)) }
-func (s *sortListHeap) Pop() interface{} {
+func (s sortListHeap) Len() int           { return len(s.data) }
+func (s sortListHeap) Less(i, j int) bool { return s.less.Call2x1(s.data[i][0], s.data[j][0]).(bool) }
+func (s sortListHeap) Swap(i, j int)      { s.data[i], s.data[j] = s.data[j], s.data[i] }
+func (s *sortListHeap) Push(x any)        { s.data = append(s.data, x.([]beam.T)) }
+func (s *sortListHeap) Pop() any {
 	var x beam.T
 	x, s.data = s.data[len(s.data)-1], s.data[:len(s.data)-1]
 	return x
@@ -252,7 +256,7 @@ func (c *compactor) sort(less reflectx.Func2x1) []beam.T {
 			heap.Push(&h, s[1:])
 		}
 	}
-	c.sorted = [][]beam.T{mergeSorted(sorted, c.unsorted, func(a, b interface{}) bool { return less.Call2x1(a, b).(bool) })}
+	c.sorted = [][]beam.T{mergeSorted(sorted, c.unsorted, func(a, b any) bool { return less.Call2x1(a, b).(bool) })}
 	c.unsorted = nil
 	if len(c.sorted[0]) == 0 {
 		c.sorted = nil
@@ -388,7 +392,7 @@ func decodeCompactors(data []byte) (*compactors, error) {
 }
 
 // mergeSorted takes two slices which are already sorted and returns a new slice containing all elements sorted together.
-func mergeSorted(a, b []beam.T, less func(interface{}, interface{}) bool) []beam.T {
+func mergeSorted(a, b []beam.T, less func(any, any) bool) []beam.T {
 	output := make([]beam.T, 0, len(a)+len(b))
 	for len(a) > 0 && len(b) > 0 {
 		if less(a[0], b[0]) {
@@ -408,7 +412,7 @@ func mergeSorted(a, b []beam.T, less func(interface{}, interface{}) bool) []beam
 }
 
 // mergeSortedWeighted takes two slices which are already sorted and returns a new slice containing all elements sorted together.
-func mergeSortedWeighted(a, b []weightedElement, less func(interface{}, interface{}) bool) []weightedElement {
+func mergeSortedWeighted(a, b []weightedElement, less func(any, any) bool) []weightedElement {
 	output := make([]weightedElement, 0, len(a)+len(b))
 	for len(a) > 0 && len(b) > 0 {
 		if less(a[0], b[0]) {
@@ -558,7 +562,7 @@ func toWeightedSlice(compactor compactor, less reflectx.Func2x1, weight int) []w
 func (f *approximateQuantilesOutputFn) ExtractOutput(ctx context.Context, compactors *compactors) []beam.T {
 	sorted := toWeightedSlice(compactors.Compactors[0], f.State.less, 1)
 	for level, compactor := range compactors.Compactors[1:] {
-		sorted = mergeSortedWeighted(sorted, toWeightedSlice(compactor, f.State.less, 1<<uint(level)), func(a, b interface{}) bool {
+		sorted = mergeSortedWeighted(sorted, toWeightedSlice(compactor, f.State.less, 1<<uint(level)), func(a, b any) bool {
 			return f.State.less.Call2x1(a.(weightedElement).element, b.(weightedElement).element).(bool)
 		})
 	}
@@ -663,12 +667,14 @@ func makeWeightedElement(weight int, element beam.T) weightedElement {
 	return weightedElement{weight: weight, element: element}
 }
 
+func fixedKey(e beam.T) (int, beam.T) { return 1, e }
+
 // ApproximateQuantiles computes approximate quantiles for the input PCollection<T>.
 //
 // The output PCollection contains a single element: a list of numQuantiles - 1 elements approximately splitting up the input collection into numQuantiles separate quantiles.
 // For example, if numQuantiles = 2, the returned list would contain a single element such that approximately half of the input would be less than that element and half would be greater.
-func ApproximateQuantiles(s beam.Scope, pc beam.PCollection, less interface{}, opts Opts) beam.PCollection {
-	return ApproximateWeightedQuantiles(s, beam.ParDo(s, func(e beam.T) (int, beam.T) { return 1, e }, pc), less, opts)
+func ApproximateQuantiles(s beam.Scope, pc beam.PCollection, less any, opts Opts) beam.PCollection {
+	return ApproximateWeightedQuantiles(s, beam.ParDo(s, fixedKey, pc), less, opts)
 }
 
 // reduce takes a PCollection<weightedElementWrapper> and returns a PCollection<*compactors>. The output PCollection may have at most shardSizes[len(shardSizes) - 1] compactors.
@@ -693,7 +699,7 @@ func reduce(s beam.Scope, weightedElements beam.PCollection, state approximateQu
 //
 // The output PCollection contains a single element: a list of numQuantiles - 1 elements approximately splitting up the input collection into numQuantiles separate quantiles.
 // For example, if numQuantiles = 2, the returned list would contain a single element such that approximately half of the input would be less than that element and half would be greater or equal.
-func ApproximateWeightedQuantiles(s beam.Scope, pc beam.PCollection, less interface{}, opts Opts) beam.PCollection {
+func ApproximateWeightedQuantiles(s beam.Scope, pc beam.PCollection, less any, opts Opts) beam.PCollection {
 	_, t := beam.ValidateKVType(pc)
 	state := approximateQuantilesCombineFnState{
 		K:            opts.K,

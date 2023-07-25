@@ -124,7 +124,7 @@ import org.slf4j.LoggerFactory;
  * href="https://beam.apache.org/documentation/runners/capability-matrix/">capability matrix</a>.
  */
 @SuppressWarnings({
-  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes"
 })
 public class Watch {
@@ -845,8 +845,6 @@ public class Watch {
       extends DoFn<InputT, KV<InputT, List<TimestampedValue<OutputT>>>> {
     private final Watch.Growth<InputT, OutputT, KeyT> spec;
     private final Coder<OutputT> outputCoder;
-    private final SerializableFunction<OutputT, KeyT> outputKeyFn;
-    private final Coder<KeyT> outputKeyCoder;
     private final Funnel<OutputT> coderFunnel;
 
     WatchGrowthFn(
@@ -856,8 +854,6 @@ public class Watch {
         Coder<KeyT> outputKeyCoder) {
       this.spec = spec;
       this.outputCoder = outputCoder;
-      this.outputKeyFn = outputKeyFn;
-      this.outputKeyCoder = outputKeyCoder;
       this.coderFunnel =
           (from, into) -> {
             try {
@@ -991,7 +987,7 @@ public class Watch {
         if (state.getCompleted().containsKey(hash) || newPending.containsKey(hash)) {
           continue;
         }
-        // TODO (https://issues.apache.org/jira/browse/BEAM-2680):
+        // TODO (https://github.com/apache/beam/issues/18459):
         // Consider adding only at most N pending elements and ignoring others,
         // instead relying on future poll rounds to provide them, in order to avoid
         // blowing up the state. Combined with garbage collection of PollingGrowthState.completed,
@@ -1116,8 +1112,8 @@ public class Watch {
 
     @Override
     public SplitResult<GrowthState> trySplit(double fractionOfRemainder) {
-      // TODO(BEAM-8873): Add support for splitting off a fixed amount of work for this restriction
-      // instead of only supporting checkpointing.
+      // TODO(https://github.com/apache/beam/issues/19908): Add support for splitting off a fixed
+      // amount of work for this restriction instead of only supporting checkpointing.
 
       // residual should contain exactly the work *not* claimed in the current ProcessElement call -
       // unclaimed pending outputs or future polling output

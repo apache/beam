@@ -19,8 +19,10 @@ package org.apache.beam.sdk.schemas;
 
 import static org.apache.beam.sdk.schemas.utils.SchemaTestUtils.equivalentTo;
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.ALL_NULLABLE_BEAN_SCHEMA;
+import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.ANNOTATED_SIMPLE_BEAN_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.ARRAY_OF_BYTE_ARRAY_BEAM_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.CASE_FORMAT_BEAM_SCHEMA;
+import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.FIELD_WITH_DESCRIPTION_BEAN_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.ITERABLE_BEAM_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.NESTED_ARRAYS_BEAM_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.NESTED_ARRAY_BEAN_SCHEMA;
@@ -32,6 +34,7 @@ import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.RENAMED_FIELDS_AND
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.SIMPLE_BEAN_SCHEMA;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
@@ -47,6 +50,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.schemas.utils.SchemaTestUtils;
+import org.apache.beam.sdk.schemas.utils.TestJavaBeans;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.AllNullableBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.ArrayOfByteArray;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.BeanWithCaseFormat;
@@ -464,14 +468,16 @@ public class JavaBeanSchemaTest {
   public void testAnnotations() throws NoSuchSchemaException {
     SchemaRegistry registry = SchemaRegistry.createDefault();
     Schema schema = registry.getSchema(SimpleBeanWithAnnotations.class);
-    SchemaTestUtils.assertSchemaEquivalent(SIMPLE_BEAN_SCHEMA, schema);
+    SchemaTestUtils.assertSchemaEquivalent(ANNOTATED_SIMPLE_BEAN_SCHEMA, schema);
 
     SimpleBeanWithAnnotations pojo = createAnnotated("string");
     Row row = registry.getToRowFunction(SimpleBeanWithAnnotations.class).apply(pojo);
     assertEquals(12, row.getFieldCount());
     assertEquals("string", row.getString("str"));
     assertEquals((byte) 1, (Object) row.getByte("aByte"));
+    assertEquals(row.getValue(2), (Object) row.getByte("aByte"));
     assertEquals((short) 2, (Object) row.getInt16("aShort"));
+    assertEquals(row.getValue(1), (Object) row.getInt16("aShort"));
     assertEquals((int) 3, (Object) row.getInt32("anInt"));
     assertEquals((long) 4, (Object) row.getInt64("aLong"));
     assertTrue(row.getBoolean("aBoolean"));
@@ -495,7 +501,7 @@ public class JavaBeanSchemaTest {
   public void testMismatchingNullable() throws NoSuchSchemaException {
     SchemaRegistry registry = SchemaRegistry.createDefault();
     thrown.expect(RuntimeException.class);
-    Schema schema = registry.getSchema(MismatchingNullableBean.class);
+    registry.getSchema(MismatchingNullableBean.class);
   }
 
   @Test
@@ -588,6 +594,14 @@ public class JavaBeanSchemaTest {
         "Message should suggest alternative of using @SchemaCreate to avoid need for setters.",
         thrown.getMessage(),
         containsString("@SchemaCreate"));
+  }
+
+  @Test
+  public void testFieldWithDescription() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Schema schema = registry.getSchema(TestJavaBeans.FieldWithDescriptionBean.class);
+
+    assertThat(schema, equalTo(FIELD_WITH_DESCRIPTION_BEAN_SCHEMA));
   }
 
   @Test

@@ -23,7 +23,6 @@ import static org.apache.beam.sdk.transforms.Requirements.requiresSideInputs;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Never;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -74,9 +73,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *       lateness.
  * </ul>
  */
-@Experimental
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class Wait {
   /** Waits on the given signal collections. */

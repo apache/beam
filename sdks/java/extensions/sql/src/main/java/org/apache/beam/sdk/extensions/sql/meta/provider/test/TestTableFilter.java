@@ -17,21 +17,21 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.test;
 
-import static org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlKind.COMPARISON;
-import static org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlKind.IN;
+import static org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlKind.COMPARISON;
+import static org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlKind.IN;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTableFilter;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexCall;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexInputRef;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexLiteral;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexNode;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexCall;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexInputRef;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexLiteral;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.type.SqlTypeName;
 
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class TestTableFilter implements BeamSqlTableFilter {
   private List<RexNode> supported;

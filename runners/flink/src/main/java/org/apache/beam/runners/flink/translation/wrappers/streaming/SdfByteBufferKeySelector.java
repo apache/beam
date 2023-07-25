@@ -56,6 +56,6 @@ public class SdfByteBufferKeySelector<K, V>
 
   @Override
   public TypeInformation<ByteBuffer> getProducedType() {
-    return new CoderTypeInformation<>(FlinkKeyUtils.ByteBufferCoder.of(), pipelineOptions.get());
+    return new CoderTypeInformation<>(FlinkKeyUtils.ByteBufferCoder.of(), pipelineOptions);
   }
 }

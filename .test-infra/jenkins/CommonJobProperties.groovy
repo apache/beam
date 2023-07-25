@@ -22,12 +22,15 @@
 //  http://groovy-lang.org/style-guide.html
 
 import Committers as committers
+import PythonTestProperties as pythonTestProperties
 
 class CommonJobProperties {
 
   static String checkoutDir = 'src'
   final static String JAVA_8_HOME = '/usr/lib/jvm/java-8-openjdk-amd64'
   final static String JAVA_11_HOME = '/usr/lib/jvm/java-11-openjdk-amd64'
+  final static String JAVA_17_HOME = '/usr/lib/jvm/java-17-openjdk-amd64'
+  final static String PYTHON = pythonTestProperties.DEFAULT_INTERPRETER
 
   // Sets common top-level job properties for main repository jobs.
   static void setTopLevelMainJobProperties(def context,
@@ -35,7 +38,8 @@ class CommonJobProperties {
       int defaultTimeout = 100,
       boolean allowRemotePoll = true,
       String jenkinsExecutorLabel = 'beam',
-      boolean cleanWorkspace = true) {
+      boolean cleanWorkspace = true,
+      int numBuildsToRetain = -1) {
     // GitHub project.
     context.properties {
       githubProjectUrl('https://github.com/apache/beam/')
@@ -50,6 +54,7 @@ class CommonJobProperties {
     // Discard old builds. Build records are only kept up to this number of days.
     context.logRotator {
       daysToKeep(30)
+      numToKeep(numBuildsToRetain)
     }
 
     // Source code management.
@@ -66,6 +71,10 @@ class CommonJobProperties {
         extensions {
           wipeOutWorkspace()
           relativeTargetDirectory(checkoutDir)
+          cloneOptions {
+            shallow()
+            noTags()
+          }
           if (!allowRemotePoll) {
             disableRemotePoll()
           }
@@ -99,6 +108,7 @@ class CommonJobProperties {
       credentialsBinding {
         string("CODECOV_TOKEN", "beam-codecov-token")
         string("COVERALLS_REPO_TOKEN", "beam-coveralls-token")
+        usernamePassword("GRADLE_ENTERPRISE_CACHE_USERNAME", "GRADLE_ENTERPRISE_CACHE_PASSWORD", "beam_cache_node_credentials")
       }
       timestamps()
       colorizeOutput()
@@ -166,7 +176,7 @@ class CommonJobProperties {
   }
 
   // Default maxWorkers is 12 to avoid jvm oom as in [BEAM-4847].
-  static void setGradleSwitches(context, maxWorkers = 12) {
+  static void setGradleSwitches(context, maxWorkers = 8) {
     def defaultSwitches = [
       // Continue the build even if there is a failure to show as many potential failures as possible.
       '--continue',
@@ -179,9 +189,10 @@ class CommonJobProperties {
 
     // Ensure that parallel workers don't exceed total available memory.
 
-    // For [BEAM-4847], hardcode Xms and Xmx to reasonable values (2g/4g).
+    // Workers are n1-highmem-16 with 104GB
+    // 2 Jenkins executors * 8 Gradle workers * 6GB = 96GB
     context.switches("-Dorg.gradle.jvmargs=-Xms2g")
-    context.switches("-Dorg.gradle.jvmargs=-Xmx4g")
+    context.switches("-Dorg.gradle.jvmargs=-Xmx6g")
 
     // Disable file system watching for CI builds
     // Builds are performed on a clean clone and files aren't modified, so
@@ -216,22 +227,15 @@ class CommonJobProperties {
 
   // Sets common config for jobs which run on a schedule; optionally on push
   static void setAutoJob(context,
-      String buildSchedule = '0 */6 * * *',
+      String buildSchedule = 'H H/6 * * *',
       notifyAddress = 'builds@beam.apache.org',
-      triggerOnCommit = false,
       emailIndividuals = false) {
 
     // Set build triggers
     context.triggers {
       // By default runs every 6 hours.
       cron(buildSchedule)
-
-      if (triggerOnCommit){
-        githubPush()
-      }
     }
-
-
 
     context.publishers {
       // Notify an email address for each failed build (defaults to builds@).

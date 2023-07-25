@@ -16,36 +16,45 @@
  * limitations under the License.
  */
 
-import 'package:flutter/material.dart';
-import 'package:playground/modules/shortcuts/models/shortcut.dart';
+import 'package:flutter/widgets.dart';
+import 'package:playground_components/playground_components.dart';
 
-class ShortcutsManager extends StatelessWidget {
-  final Widget child;
-  final List<Shortcut> shortcuts;
+import '../constants/global_shortcuts.dart';
 
-  const ShortcutsManager({
-    Key? key,
+class PlaygroundShortcutsManager extends StatelessWidget {
+  const PlaygroundShortcutsManager({
     required this.child,
-    required this.shortcuts,
-  }) : super(key: key);
+    required this.playgroundController,
+  });
+
+  final Widget child;
+  final PlaygroundController playgroundController;
 
   @override
   Widget build(BuildContext context) {
-    return FocusableActionDetector(
-      autofocus: true,
-      shortcuts: _shortcutsMap,
-      actions: _getActions(context),
+    return ShortcutsManager(
+      shortcuts: [
+        ...playgroundController.shortcuts,
+        BeamMainRunShortcut(onInvoke: _onRun),
+        BeamNumpadRunShortcut(onInvoke: _onRun),
+        ...globalShortcuts,
+      ],
       child: child,
     );
   }
 
-  Map<LogicalKeySet, Intent> get _shortcutsMap => {
-        for (var shortcut in shortcuts)
-          shortcut.shortcuts: shortcut.actionIntent
-      };
+  void _onRun() {
+    final codeRunner = playgroundController.codeRunner;
 
-  Map<Type, Action<Intent>> _getActions(BuildContext context) => {
-        for (var shortcut in shortcuts)
-          shortcut.actionIntent.runtimeType: shortcut.createAction(context)
-      };
+    if (codeRunner.canRun) {
+      codeRunner.runCode();
+
+      PlaygroundComponents.analyticsService.sendUnawaited(
+        RunStartedAnalyticsEvent(
+          snippetContext: codeRunner.eventSnippetContext!,
+          trigger: EventTrigger.shortcut,
+        ),
+      );
+    }
+  }
 }

@@ -316,7 +316,7 @@ final class RpcQosImpl implements RpcQos {
     }
 
     final long durationMs(Instant end) {
-      return end.minus(start.getMillis()).getMillis();
+      return end.minus(Duration.millis(start.getMillis())).getMillis();
     }
 
     private Optional<Integer> getStatusCodeNumber(ApiException apiException) {
@@ -808,7 +808,7 @@ final class RpcQosImpl implements RpcQos {
       nextBackoffMillis = Math.min(nextBackoffMillis, remainingCumulative.getMillis());
 
       // Update state and return backoff.
-      cumulativeBackoff = cumulativeBackoff.plus(nextBackoffMillis);
+      cumulativeBackoff = cumulativeBackoff.plus(Duration.millis(nextBackoffMillis));
       attempt += 1;
       return new BackoffDuration(Duration.millis(nextBackoffMillis));
     }

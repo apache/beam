@@ -45,13 +45,12 @@ class WriteOneFilePerWindow(private val filenamePrefix: String, private val numS
 
     override fun expand(input: PCollection<String>): PDone {
         val resource = FileBasedSink.convertToFileResourceIfPossible(filenamePrefix)
-        var write = TextIO.write()
+        val write = TextIO.write()
                 .to(PerWindowFiles(resource))
                 .withTempDirectory(resource.currentDirectory)
                 .withWindowedWrites()
 
-        write = numShards?.let { write.withNumShards(it) } ?: write
-        return input.apply(write)
+        return input.apply(numShards?.let { write.withNumShards(it) } ?: write)
     }
 
     /**

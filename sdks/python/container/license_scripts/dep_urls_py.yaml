@@ -41,6 +41,9 @@ pip_dependencies:
     notice: "https://raw.githubusercontent.com/apache/avro/master/NOTICE.txt"
   backports.weakref:
     license: "https://raw.githubusercontent.com/PiDelport/backports.weakref/master/LICENSE"
+  beautifulsoup4:
+    # copied from source tar files.
+    license: "file:///tmp/license_scripts/manual_licenses/beautifulsoup4/LICENSE"
   bs4:
     # bs4 is a dummy PyPI package setup for beautifulsoup4.
     license: "skip"
@@ -62,7 +65,7 @@ pip_dependencies:
     license: "https://raw.githubusercontent.com/fastavro/fastavro/master/LICENSE"
     notice: "https://raw.githubusercontent.com/fastavro/fastavro/master/NOTICE.txt"
   flatbuffers:
-    license: "https://raw.githubusercontent.com/google/flatbuffers/master/LICENSE.txt"
+    license: "https://raw.githubusercontent.com/google/flatbuffers/master/LICENSE"
   funcsigs:
     license: "https://raw.githubusercontent.com/aliles/funcsigs/master/LICENSE"
   futures:
@@ -78,6 +81,9 @@ pip_dependencies:
     notice: "https://raw.githubusercontent.com/grpc/grpc/master/NOTICE.txt"
   grpcio-gcp:
     license: "https://raw.githubusercontent.com/GoogleCloudPlatform/grpc-gcp-python/master/LICENSE"
+  grpcio-status:
+    license: "https://raw.githubusercontent.com/grpc/grpc/master/LICENSE"
+    notice: "https://raw.githubusercontent.com/grpc/grpc/master/NOTICE.txt"
   guppy:
     license: "https://raw.githubusercontent.com/joshwcomeau/guppy/master/LICENSE.md"
   guppy3:
@@ -88,6 +94,8 @@ pip_dependencies:
     license: "https://raw.githubusercontent.com/mtth/hdfs/master/LICENSE"
   httplib2:
     license: "https://raw.githubusercontent.com/httplib2/httplib2/master/LICENSE"
+  keras:
+    license: "https://raw.githubusercontent.com/keras-team/keras/master/LICENSE"
   keras-nightly:
     license: "https://raw.githubusercontent.com/keras-team/keras/master/LICENSE"
   mmh3:
@@ -131,11 +139,15 @@ pip_dependencies:
     license: "file:///tmp/license_scripts/manual_licenses/singledispatch/LICENSE"
   scipy:
     license: "https://raw.githubusercontent.com/scipy/scipy/master/LICENSE.txt"
+  soupsieve:
+    license: "https://raw.githubusercontent.com/facelessuser/soupsieve/main/LICENSE.md"
   termcolor:
     license: "file:///tmp/license_scripts/manual_licenses/termcolor/LICENSE"
   tensorflow:
     license: "https://raw.githubusercontent.com/tensorflow/tensorflow/master/LICENSE"
   tensorflow-estimator:
+    license: "https://raw.githubusercontent.com/tensorflow/estimator/master/LICENSE"
+  tf-estimator-nightly:
     license: "https://raw.githubusercontent.com/tensorflow/estimator/master/LICENSE"
   tensorboard-data-server:
     license: "https://raw.githubusercontent.com/tensorflow/tensorboard/master/LICENSE"
@@ -143,5 +155,7 @@ pip_dependencies:
     license: "https://raw.githubusercontent.com/PAIR-code/what-if-tool/master/LICENSE"
   timeloop:
     license: "https://raw.githubusercontent.com/sankalpjonn/timeloop/master/LICENSE"
+  torch:
+    license: "https://raw.githubusercontent.com/pytorch/pytorch/master/LICENSE"
   wget:
     license: "https://raw.githubusercontent.com/mirror/wget/master/COPYING"

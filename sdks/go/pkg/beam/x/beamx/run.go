@@ -18,13 +18,15 @@ package beamx
 
 import (
 	"context"
-	"flag"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners" // common runner flag.
+
 	// Import the reflection-optimized runtime.
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec/optimized"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/gcs"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/local"
+
 	// The imports here are for the side effect of runner registration.
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/dataflow"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/direct"
@@ -35,13 +37,24 @@ import (
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/universal"
 )
 
-var runner = flag.String("runner", "direct", "Pipeline runner.")
+var (
+	runner        = runners.Runner
+	defaultRunner = "direct"
+)
+
+func getRunner() string {
+	r := *runner
+	if r == "" {
+		r = defaultRunner
+	}
+	return r
+}
 
 // Run invokes beam.Run with the runner supplied by the flag "runner". It
 // defaults to the direct runner, but all beam-distributed runners and textio
 // filesystems are implicitly registered.
 func Run(ctx context.Context, p *beam.Pipeline) error {
-	_, err := beam.Run(ctx, *runner, p)
+	_, err := beam.Run(ctx, getRunner(), p)
 	return err
 }
 
@@ -49,5 +62,5 @@ func Run(ctx context.Context, p *beam.Pipeline) error {
 // flag "runner". Returns a beam.PipelineResult objects, which can be
 // accessed to query the pipeline's metrics.
 func RunWithMetrics(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error) {
-	return beam.Run(ctx, *runner, p)
+	return beam.Run(ctx, getRunner(), p)
 }

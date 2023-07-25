@@ -1,0 +1,69 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+name: Feature Request
+description: File a feature request
+title: "[Feature Request]: "
+labels: ["new feature", "awaiting triage"]
+assignees:
+  - octocat
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this feature request! Once you've created an issue, you can self-assign by commenting `.take-issue` and you can close by commenting `.close-issue`.
+        Anyone can reopen a closed issue by commenting `.reopen-issue`.
+        You can also add/remove labels by commenting `.add-labels label1,label2,'label 3 with spaces'` or `.remove-labels label1,label2,'label 3 with spaces'`,
+        or with `.set-labels label1,label2,'label 3 with spaces'` (which removes any labels not in that set).
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What would you like to happen?
+      description: Please describe your issue
+    validations:
+      required: true
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Issue Priority
+      description: What priority is this feature? See https://beam.apache.org/contribute/issue-priorities for the meaning and expectations around issue priorities.
+      options:
+        - "Priority: 3 (nice-to-have improvement)"
+        - "Priority: 2 (default / most feature requests should be filed as P2)"
+    validations:
+      required: true
+  - type: checkboxes
+    id: component
+    attributes:
+      label: Issue Components
+      description: Which languages, SDKs, or features are related to your report? (check all that apply)
+      options:
+       - label: "Component: Python SDK"
+       - label: "Component: Java SDK"
+       - label: "Component: Go SDK"
+       - label: "Component: Typescript SDK"
+       - label: "Component: IO connector"
+       - label: "Component: Beam examples"
+       - label: "Component: Beam playground"
+       - label: "Component: Beam katas"
+       - label: "Component: Website"
+       - label: "Component: Spark Runner"
+       - label: "Component: Flink Runner"
+       - label: "Component: Samza Runner"
+       - label: "Component: Twister2 Runner"
+       - label: "Component: Hazelcast Jet Runner"
+       - label: "Component: Google Cloud Dataflow Runner"

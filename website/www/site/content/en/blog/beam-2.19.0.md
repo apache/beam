@@ -3,6 +3,7 @@ title:  "Apache Beam 2.19.0"
 date:   2020-02-04 00:00:01 -0800
 categories:
   - blog
+  - release
 aliases:
   - /blog/2020/02/04/beam-2.19.0.html
 authors:

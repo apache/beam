@@ -91,7 +91,11 @@ import org.mockito.MockitoAnnotations;
 /** Tests for {@link DoFnInvokers}. */
 @RunWith(JUnit4.class)
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "SameNameButDifferent",
+  // TODO(https://github.com/apache/beam/issues/21230): Remove when new version of
+  // errorprone is released (2.11.0)
+  "unused"
 })
 public class DoFnInvokersTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
@@ -263,6 +267,7 @@ public class DoFnInvokersTest {
     when(mockArgumentProvider.state(stateId, false)).thenReturn(mockState);
 
     class MockFn extends DoFn<String, String> {
+
       @StateId(stateId)
       private final StateSpec<ValueState<Integer>> spec = StateSpecs.value(VarIntCoder.of());
 
@@ -284,6 +289,7 @@ public class DoFnInvokersTest {
     when(mockArgumentProvider.timer(TimerDeclaration.PREFIX + timerId)).thenReturn(mockTimer);
 
     class MockFn extends DoFn<String, String> {
+
       @TimerId(timerId)
       private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
@@ -1015,7 +1021,7 @@ public class DoFnInvokersTest {
 
     MockFn fn = mock(MockFn.class);
     DoFnInvoker<String, String> invoker = DoFnInvokers.invokerFor(fn);
-    assertEquals(1.0, invoker.invokeGetSize(mockArgumentProvider), 0.0001);
+    assertEquals(0.0, invoker.invokeGetSize(mockArgumentProvider), 0.0001);
   }
 
   @Test

@@ -17,28 +17,32 @@
  */
 package org.apache.beam.sdk.io.aws2.dynamodb;
 
+import static java.util.stream.Collectors.groupingBy;
+import static java.util.stream.Collectors.mapping;
+import static java.util.stream.Collectors.toList;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
-import java.io.Serializable;
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Predicate;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.io.aws2.common.ClientBuilderFactory;
+import org.apache.beam.sdk.io.aws2.common.ClientConfiguration;
+import org.apache.beam.sdk.io.aws2.options.AwsOptions;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -53,25 +57,21 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
-import org.apache.http.HttpStatus;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.BatchWriteItemRequest;
-import software.amazon.awssdk.services.dynamodb.model.DynamoDbException;
 import software.amazon.awssdk.services.dynamodb.model.ScanRequest;
 import software.amazon.awssdk.services.dynamodb.model.ScanResponse;
 import software.amazon.awssdk.services.dynamodb.model.WriteRequest;
 
 /**
- * {@link PTransform}s to read/write from/to <a href="https://aws.amazon.com/dynamodb/">Amazon
- * DynamoDB</a>.
+ * IO to read from and write to <a href="https://aws.amazon.com/dynamodb/">DynamoDB</a> tables.
  *
  * <h3>Reading from DynamoDB</h3>
  *
@@ -79,25 +79,21 @@ import software.amazon.awssdk.services.dynamodb.model.WriteRequest;
  *
  * <pre>{@code
  * PCollection<List<Map<String, AttributeValue>>> output =
- *     pipeline.apply(
- *             DynamoDBIO.<List<Map<String, AttributeValue>>>read()
- *                 .withDynamoDbClientProvider(new BasicDynamoDbClientProvider(dynamoDbClientProvider, region))
- *                 .withScanRequestFn(
- *                     (SerializableFunction<Void, ScanRequest>)
- *                         input -> new ScanRequest(tableName).withTotalSegments(1))
- *                 .items());
+ *   pipeline.apply(
+ *     DynamoDBIO.<List<Map<String, AttributeValue>>>read()
+ *       .withScanRequestFn(in -> ScanRequest.builder().tableName(tableName).totalSegments(1).build())
+ *       .items()); // ScanResponse items mapper
  * }</pre>
  *
- * <p>As a client, you need to provide at least the following things:
+ * <p>At a minimum you have to provide:
  *
  * <ul>
- *   <li>Specify DynamoDbClientProvider. You can pass on the default one BasicDynamoDbClientProvider
- *   <li>ScanRequestFn, which you build a ScanRequest object with at least table name and total
- *       number of segment. Note This number should base on the number of your workers
+ *   <li>a {@code scanRequestFn} providing the {@link ScanRequest} instance; {@code table name} and
+ *       {@code total segments} are required. Note: Choose {@code total segments} according to the
+ *       number of workers used.
+ *   <li>a {@code scanResponseMapperFn} to map the {@link ScanResponse} to the expected output type,
+ *       such as {@link Read#items()}.
  * </ul>
- *
- * {@link PTransform}s to read/write from/to <a
- * href="https://aws.amazon.com/dynamodb/">DynamoDB</a>.
  *
  * <h3>Writing to DynamoDB</h3>
  *
@@ -105,53 +101,70 @@ import software.amazon.awssdk.services.dynamodb.model.WriteRequest;
  *
  * <pre>{@code
  * PCollection<T> data = ...;
+ * SerializableFunction<T, WriteRequest> requestBuilder = ...;
  * data.apply(
- *           DynamoDBIO.<WriteRequest>write()
- *               .withWriteRequestMapperFn(
- *                   (SerializableFunction<T, KV<String, WriteRequest>>)
- *                       //Transforming your T data into KV<String, WriteRequest>
- *                       t -> KV.of(tableName, writeRequest))
- *               .withRetryConfiguration(
- *                     DynamoDBIO.RetryConfiguration.builder()
- *                         .setMaxAttempts(5)
- *                         .setMaxDuration(Duration.standardMinutes(1))
- *                         .build())
- *               .withDynamoDbClientProvider(new BasicDynamoDbClientProvider(dynamoDbClientProvider, region));
+ *   DynamoDBIO.<WriteRequest>write()
+ *     .withWriteRequestMapperFn(t -> KV.of(tableName, requestBuilder.apply(t))));
  * }</pre>
  *
- * <p>As a client, you need to provide at least the following things:
+ * <p>At a minimum you have to provide a {@code writeRequestMapperFn} to map each element into a
+ * {@link KV} of {@code table name} and {@link WriteRequest}.
  *
- * <ul>
- *   <li>Retry configuration
- *   <li>Specify DynamoDbClientProvider. You can pass on the default one BasicDynamoDbClientProvider
- *   <li>Mapper function with a table name to map or transform your object into KV<tableName,
- *       writeRequest>
- * </ul>
+ * <p><b>Note:</b> AWS does not allow writing duplicate keys within a single batch operation. If
+ * primary keys possibly repeat in your stream (i.e. an upsert stream), you may encounter a
+ * `ValidationError`. To address this you have to provide the key names corresponding to your
+ * primary key using {@link Write#withDeduplicateKeys(List)}. Based on these keys only the last
+ * observed element is kept. Nevertheless, if no deduplication keys are provided, identical elements
+ * are still deduplicated.
  *
- * If primary keys could repeat in your stream (i.e. an upsert stream), you could encounter a
- * ValidationError, as AWS does not allow writing duplicate keys within a single batch operation.
- * For such use cases, you can explicitly set the key names corresponding to the primary key to be
- * deduplicated using the withDeduplicateKeys method
+ * <h3>Configuration of AWS clients</h3>
+ *
+ * <p>AWS clients for all AWS IOs can be configured using {@link AwsOptions}, e.g. {@code
+ * --awsRegion=us-west-1}. {@link AwsOptions} contain reasonable defaults based on default providers
+ * for {@link Region} and {@link AwsCredentialsProvider}.
+ *
+ * <p>If you require more advanced configuration, you may change the {@link ClientBuilderFactory}
+ * using {@link AwsOptions#setClientBuilderFactory(Class)}.
+ *
+ * <p>Configuration for a specific IO can be overwritten using {@code withClientConfiguration()},
+ * which also allows to configure the retry behavior for the respective IO.
+ *
+ * <h4>Retries</h4>
+ *
+ * <p>Retries for failed requests can be configured using {@link
+ * ClientConfiguration.Builder#retry(Consumer)} and are handled by the AWS SDK unless there's a
+ * partial success (batch requests). The SDK uses a backoff strategy with equal jitter for computing
+ * the delay before the next retry.
+ *
+ * <p><b>Note:</b> Once retries are exhausted the error is surfaced to the runner which <em>may</em>
+ * then opt to retry the current partition in entirety or abort if the max number of retries of the
+ * runner is reached.
  */
-@Experimental(Kind.SOURCE_SINK)
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public final class DynamoDBIO {
   public static <T> Read<T> read() {
-    return new AutoValue_DynamoDBIO_Read.Builder().build();
+    return new AutoValue_DynamoDBIO_Read.Builder<T>()
+        .setClientConfiguration(ClientConfiguration.builder().build())
+        .build();
   }
 
   public static <T> Write<T> write() {
-    return new AutoValue_DynamoDBIO_Write.Builder().setDeduplicateKeys(new ArrayList<>()).build();
+    return new AutoValue_DynamoDBIO_Write.Builder<T>()
+        .setClientConfiguration(ClientConfiguration.builder().build())
+        .setDeduplicateKeys(new ArrayList<>())
+        .build();
   }
 
-  /** Read data from DynamoDB and return ScanResult. */
+  /**
+   * Read data from DynamoDB using {@link #getScanRequestFn()} and emit an element of type {@link T}
+   * for each {@link ScanResponse} using the mapping function {@link #getScanResponseMapperFn()}.
+   */
   @AutoValue
   public abstract static class Read<T> extends PTransform<PBegin, PCollection<T>> {
 
-    abstract @Nullable DynamoDbClientProvider getDynamoDbClientProvider();
+    abstract ClientConfiguration getClientConfiguration();
 
     abstract @Nullable SerializableFunction<Void, ScanRequest> getScanRequestFn();
 
@@ -166,33 +179,23 @@ public final class DynamoDBIO {
     @AutoValue.Builder
     abstract static class Builder<T> {
 
-      abstract Builder<T> setDynamoDbClientProvider(DynamoDbClientProvider dynamoDbClientProvider);
+      abstract Builder<T> setClientConfiguration(ClientConfiguration config);
 
       abstract Builder<T> setScanRequestFn(SerializableFunction<Void, ScanRequest> fn);
 
       abstract Builder<T> setSegmentId(Integer segmentId);
 
-      abstract Builder<T> setScanResponseMapperFn(
-          SerializableFunction<ScanResponse, T> scanResponseMapperFn);
+      abstract Builder<T> setScanResponseMapperFn(SerializableFunction<ScanResponse, T> fn);
 
       abstract Builder<T> setCoder(Coder<T> coder);
 
       abstract Read<T> build();
     }
 
-    public Read<T> withDynamoDbClientProvider(DynamoDbClientProvider dynamoDbClientProvider) {
-      return toBuilder().setDynamoDbClientProvider(dynamoDbClientProvider).build();
-    }
-
-    public Read<T> withDynamoDbClientProvider(
-        AwsCredentialsProvider credentialsProvider, String region, URI serviceEndpoint) {
-      return withDynamoDbClientProvider(
-          new BasicDynamoDbClientProvider(credentialsProvider, region, serviceEndpoint));
-    }
-
-    public Read<T> withDynamoDbClientProvider(
-        AwsCredentialsProvider credentialsProvider, String region) {
-      return withDynamoDbClientProvider(credentialsProvider, region, null);
+    /** Configuration of DynamoDB client. */
+    public Read<T> withClientConfiguration(ClientConfiguration config) {
+      checkArgument(config != null, "ClientConfiguration cannot be null");
+      return toBuilder().setClientConfiguration(config).build();
     }
 
     /**
@@ -215,7 +218,9 @@ public final class DynamoDBIO {
     }
 
     public Read<List<Map<String, AttributeValue>>> items() {
-      return withScanResponseMapperFn(new ItemsMapper())
+      // safe cast as both mapper and coder are updated accordingly
+      Read<List<Map<String, AttributeValue>>> self = (Read<List<Map<String, AttributeValue>>>) this;
+      return self.withScanResponseMapperFn(new ItemsMapper())
           .withCoder(ListCoder.of(MapCoder.of(StringUtf8Coder.of(), AttributeValueCoder.of())));
     }
 
@@ -226,24 +231,24 @@ public final class DynamoDBIO {
 
     @Override
     public PCollection<T> expand(PBegin input) {
-      checkArgument((getScanRequestFn() != null), "withScanRequestFn() is required");
-      checkArgument(
-          (getDynamoDbClientProvider() != null), "withDynamoDbClientProvider() is required");
+      checkArgument(getScanResponseMapperFn() != null, "withScanResponseMapperFn() is required");
+      checkArgument(getScanRequestFn() != null, "withScanRequestFn() is required");
       ScanRequest scanRequest = getScanRequestFn().apply(null);
       checkArgument(
           (scanRequest.totalSegments() != null && scanRequest.totalSegments() > 0),
           "TotalSegments is required with withScanRequestFn() and greater zero");
 
+      AwsOptions awsOptions = input.getPipeline().getOptions().as(AwsOptions.class);
+      ClientBuilderFactory.validate(awsOptions, getClientConfiguration());
+
       PCollection<Read<T>> splits =
-          (PCollection<Read<T>>)
-              input.apply("Create", Create.of(this)).apply("Split", ParDo.of(new SplitFn()));
+          input.apply("Create", Create.of(this)).apply("Split", ParDo.of(new SplitFn<>()));
       splits.setCoder(SerializableCoder.of(new TypeDescriptor<Read<T>>() {}));
 
       PCollection<T> output =
-          (PCollection<T>)
-              splits
-                  .apply("Reshuffle", Reshuffle.viaRandomKey())
-                  .apply("Read", ParDo.of(new ReadFn()));
+          splits
+              .apply("Reshuffle", Reshuffle.viaRandomKey())
+              .apply("Read", ParDo.of(new ReadFn<>()));
       output.setCoder(getCoder());
       return output;
     }
@@ -261,29 +266,36 @@ public final class DynamoDBIO {
 
     /** A {@link DoFn} executing the ScanRequest to read from DynamoDb. */
     private static class ReadFn<T> extends DoFn<Read<T>, T> {
+      private DynamoDbClient buildClient(Read<T> spec, AwsOptions opts) {
+        return ClientBuilderFactory.buildClient(
+            opts, DynamoDbClient.builder(), spec.getClientConfiguration());
+      }
+
       @ProcessElement
-      public void processElement(@Element Read<T> spec, OutputReceiver<T> out) {
-        DynamoDbClient client = spec.getDynamoDbClientProvider().getDynamoDbClient();
-        Map<String, AttributeValue> lastEvaluatedKey = null;
+      public void processElement(
+          @Element Read<T> spec, OutputReceiver<T> out, PipelineOptions opts) {
+        try (DynamoDbClient client = buildClient(spec, opts.as(AwsOptions.class))) {
+          Map<String, AttributeValue> lastEvaluatedKey = null;
 
-        do {
-          ScanRequest scanRequest = spec.getScanRequestFn().apply(null);
-          ScanRequest scanRequestWithSegment =
-              scanRequest
-                  .toBuilder()
-                  .segment(spec.getSegmentId())
-                  .exclusiveStartKey(lastEvaluatedKey)
-                  .build();
+          do {
+            ScanRequest scanRequest = spec.getScanRequestFn().apply(null);
+            ScanRequest scanRequestWithSegment =
+                scanRequest
+                    .toBuilder()
+                    .segment(spec.getSegmentId())
+                    .exclusiveStartKey(lastEvaluatedKey)
+                    .build();
 
-          ScanResponse scanResponse = client.scan(scanRequestWithSegment);
-          out.output(spec.getScanResponseMapperFn().apply(scanResponse));
-          lastEvaluatedKey = scanResponse.lastEvaluatedKey();
-        } while (lastEvaluatedKey != null
-            && !lastEvaluatedKey.isEmpty()); // iterate until all records are fetched
+            ScanResponse scanResponse = client.scan(scanRequestWithSegment);
+            out.output(spec.getScanResponseMapperFn().apply(scanResponse));
+            lastEvaluatedKey = scanResponse.lastEvaluatedKey();
+          } while (lastEvaluatedKey != null
+              && !lastEvaluatedKey.isEmpty()); // iterate until all records are fetched
+        }
       }
     }
 
-    static final class ItemsMapper<T>
+    static final class ItemsMapper
         implements SerializableFunction<ScanResponse, List<Map<String, AttributeValue>>> {
       @Override
       public List<Map<String, AttributeValue>> apply(@Nullable ScanResponse scanResponse) {
@@ -295,83 +307,11 @@ public final class DynamoDBIO {
     }
   }
 
-  /**
-   * A POJO encapsulating a configuration for retry behavior when issuing requests to DynamoDB. A
-   * retry will be attempted until the maxAttempts or maxDuration is exceeded, whichever comes
-   * first, for any of the following exceptions:
-   *
-   * <ul>
-   *   <li>{@link IOException}
-   * </ul>
-   */
-  @AutoValue
-  public abstract static class RetryConfiguration implements Serializable {
-    @VisibleForTesting
-    static final RetryPredicate DEFAULT_RETRY_PREDICATE = new DefaultRetryPredicate();
-
-    abstract int getMaxAttempts();
-
-    abstract Duration getMaxDuration();
-
-    abstract RetryPredicate getRetryPredicate();
-
-    abstract Builder toBuilder();
-
-    public static Builder builder() {
-      return new AutoValue_DynamoDBIO_RetryConfiguration.Builder()
-          .setRetryPredicate(DEFAULT_RETRY_PREDICATE);
-    }
-
-    @AutoValue.Builder
-    public abstract static class Builder {
-      public abstract Builder setMaxAttempts(int maxAttempts);
-
-      public abstract Builder setMaxDuration(Duration maxDuration);
-
-      abstract Builder setRetryPredicate(RetryPredicate retryPredicate);
-
-      abstract RetryConfiguration autoBuild();
-
-      public RetryConfiguration build() {
-        RetryConfiguration configuration = autoBuild();
-        checkArgument(configuration.getMaxAttempts() > 0, "maxAttempts should be greater than 0");
-        checkArgument(
-            configuration.getMaxDuration() != null
-                && configuration.getMaxDuration().isLongerThan(Duration.ZERO),
-            "maxDuration should be greater than 0");
-        return configuration;
-      }
-    }
-
-    /**
-     * An interface used to control if we retry the BatchWriteItemRequest call when a {@link
-     * Throwable} occurs. If {@link RetryPredicate#test(Object)} returns true, {@link Write} tries
-     * to resend the requests to the DynamoDB server if the {@link RetryConfiguration} permits it.
-     */
-    @FunctionalInterface
-    interface RetryPredicate extends Predicate<Throwable>, Serializable {}
-
-    private static class DefaultRetryPredicate implements RetryPredicate {
-      private static final ImmutableSet<Integer> ELIGIBLE_CODES =
-          ImmutableSet.of(HttpStatus.SC_SERVICE_UNAVAILABLE);
-
-      @Override
-      public boolean test(Throwable throwable) {
-        return (throwable instanceof IOException
-            || (throwable instanceof DynamoDbException)
-            || (throwable instanceof DynamoDbException
-                && ELIGIBLE_CODES.contains(((DynamoDbException) throwable).statusCode())));
-      }
-    }
-  }
-
   /** Write a PCollection<T> data into DynamoDB. */
   @AutoValue
   public abstract static class Write<T> extends PTransform<PCollection<T>, PCollection<Void>> {
 
-    abstract @Nullable DynamoDbClientProvider getDynamoDbClientProvider();
-
-    abstract @Nullable RetryConfiguration getRetryConfiguration();
+    abstract ClientConfiguration getClientConfiguration();
 
     abstract @Nullable SerializableFunction<T, KV<String, WriteRequest>> getWriteItemMapperFn();
 
@@ -381,10 +321,7 @@ public final class DynamoDBIO {
 
     @AutoValue.Builder
     abstract static class Builder<T> {
-
-      abstract Builder<T> setDynamoDbClientProvider(DynamoDbClientProvider dynamoDbClientProvider);
-
-      abstract Builder<T> setRetryConfiguration(RetryConfiguration retryConfiguration);
+      abstract Builder<T> setClientConfiguration(ClientConfiguration config);
 
       abstract Builder<T> setWriteItemMapperFn(
           SerializableFunction<T, KV<String, WriteRequest>> writeItemMapperFn);
@@ -394,48 +331,10 @@ public final class DynamoDBIO {
       abstract Write<T> build();
     }
 
-    public Write<T> withDynamoDbClientProvider(DynamoDbClientProvider dynamoDbClientProvider) {
-      return toBuilder().setDynamoDbClientProvider(dynamoDbClientProvider).build();
-    }
-
-    public Write<T> withDynamoDbClientProvider(
-        AwsCredentialsProvider credentialsProvider, String region, URI serviceEndpoint) {
-      return withDynamoDbClientProvider(
-          new BasicDynamoDbClientProvider(credentialsProvider, region, serviceEndpoint));
-    }
-
-    public Write<T> withDynamoDbClientProvider(
-        AwsCredentialsProvider credentialsProvider, String region) {
-      return withDynamoDbClientProvider(credentialsProvider, region, null);
-    }
-
-    /**
-     * Provides configuration to retry a failed request to publish a set of records to DynamoDb.
-     * Users should consider that retrying might compound the underlying problem which caused the
-     * initial failure. Users should also be aware that once retrying is exhausted the error is
-     * surfaced to the runner which <em>may</em> then opt to retry the current partition in entirety
-     * or abort if the max number of retries of the runner is completed. Retrying uses an
-     * exponential backoff algorithm, with minimum backoff of 5 seconds and then surfacing the error
-     * once the maximum number of retries or maximum configuration duration is exceeded.
-     *
-     * <p>Example use:
-     *
-     * <pre>{@code
-     * DynamoDBIO.write()
-     *  .withRetryConfiguration(
-     *      DynamoDBIO.RetryConfiguration.builder()
-     *          .setMaxAttempts(4)
-     *          .setMaxDuration(Duration.standardMinutes(1))
-     *          .build())
-     *   ...
-     * }</pre>
-     *
-     * @param retryConfiguration the rules which govern the retry behavior
-     * @return the {@link Write} with retrying configured
-     */
-    public Write<T> withRetryConfiguration(RetryConfiguration retryConfiguration) {
-      checkArgument(retryConfiguration != null, "retryConfiguration is required");
-      return toBuilder().setRetryConfiguration(retryConfiguration).build();
+    /** Configuration of DynamoDB client. */
+    public Write<T> withClientConfiguration(ClientConfiguration config) {
+      checkArgument(config != null, "ClientConfiguration cannot be null");
+      return toBuilder().setClientConfiguration(config).build();
     }
 
     public Write<T> withWriteRequestMapperFn(
@@ -449,40 +348,52 @@ public final class DynamoDBIO {
 
     @Override
     public PCollection<Void> expand(PCollection<T> input) {
+      checkNotNull(getClientConfiguration(), "clientConfiguration cannot be null");
+      AwsOptions awsOptions = input.getPipeline().getOptions().as(AwsOptions.class);
+      ClientBuilderFactory.validate(awsOptions, getClientConfiguration());
+
       return input.apply(ParDo.of(new WriteFn<>(this)));
     }
 
     static class WriteFn<T> extends DoFn<T, Void> {
-      @VisibleForTesting
-      static final String RETRY_ATTEMPT_LOG = "Error writing to DynamoDB. Retry attempt[%d]";
+      private static final String RESUME_ERROR_LOG =
+          "Error writing remaining unprocessed items to DynamoDB: {}";
 
-      private static final Duration RETRY_INITIAL_BACKOFF = Duration.standardSeconds(5);
-      private transient FluentBackoff retryBackoff; // defaults to no retries
+      private static final String ERROR_UNPROCESSED_ITEMS =
+          "Error writing to DynamoDB. Unprocessed items remaining";
+
+      private transient FluentBackoff resumeBackoff; // resume from partial failures
+
       private static final Logger LOG = LoggerFactory.getLogger(WriteFn.class);
       private static final Counter DYNAMO_DB_WRITE_FAILURES =
           Metrics.counter(WriteFn.class, "DynamoDB_Write_Failures");
 
       private static final int BATCH_SIZE = 25;
       private transient DynamoDbClient client;
-      private final Write spec;
+      private final Write<T> spec;
       private Map<KV<String, Map<String, AttributeValue>>, KV<String, WriteRequest>> batch;
 
-      WriteFn(Write spec) {
+      WriteFn(Write<T> spec) {
         this.spec = spec;
       }
 
       @Setup
-      public void setup() {
-        client = spec.getDynamoDbClientProvider().getDynamoDbClient();
-        retryBackoff =
-            FluentBackoff.DEFAULT
-                .withMaxRetries(0) // default to no retrying
-                .withInitialBackoff(RETRY_INITIAL_BACKOFF);
-        if (spec.getRetryConfiguration() != null) {
-          retryBackoff =
-              retryBackoff
-                  .withMaxRetries(spec.getRetryConfiguration().getMaxAttempts() - 1)
-                  .withMaxCumulativeBackoff(spec.getRetryConfiguration().getMaxDuration());
+      public void setup(PipelineOptions options) {
+        ClientConfiguration clientConfig = spec.getClientConfiguration();
+        AwsOptions awsOpts = options.as(AwsOptions.class);
+        client = ClientBuilderFactory.buildClient(awsOpts, DynamoDbClient.builder(), clientConfig);
+
+        // resume from partial failures
+        resumeBackoff = FluentBackoff.DEFAULT.withMaxRetries(BATCH_SIZE);
+        if (clientConfig != null && clientConfig.retry() != null) {
+          Duration baseBackoff = clientConfig.retry().throttledBaseBackoff();
+          Duration maxBackoff = clientConfig.retry().maxBackoff();
+          if (baseBackoff != null) {
+            resumeBackoff = resumeBackoff.withInitialBackoff(baseBackoff);
+          }
+          if (maxBackoff != null) {
+            resumeBackoff = resumeBackoff.withMaxBackoff(maxBackoff);
+          }
         }
       }
 
@@ -494,7 +405,7 @@ public final class DynamoDBIO {
       @ProcessElement
       public void processElement(ProcessContext context) throws Exception {
         final KV<String, WriteRequest> writeRequest =
-            (KV<String, WriteRequest>) spec.getWriteItemMapperFn().apply(context.element());
+            spec.getWriteItemMapperFn().apply(context.element());
         batch.put(
             KV.of(writeRequest.getKey(), extractDeduplicateKeyValues(writeRequest.getValue())),
             writeRequest);
@@ -504,21 +415,26 @@ public final class DynamoDBIO {
       }
 
       private Map<String, AttributeValue> extractDeduplicateKeyValues(WriteRequest request) {
+        List<String> deduplicationKeys = spec.getDeduplicateKeys();
+        Map<String, AttributeValue> attributes = Collections.emptyMap();
+
         if (request.putRequest() != null) {
-          return request.putRequest().item().entrySet().stream()
-              .filter(entry -> spec.getDeduplicateKeys().contains(entry.getKey()))
-              .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+          attributes = request.putRequest().item();
         } else if (request.deleteRequest() != null) {
-          return request.deleteRequest().key().entrySet().stream()
-              .filter(entry -> spec.getDeduplicateKeys().contains(entry.getKey()))
-              .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-        } else {
-          return Collections.emptyMap();
+          attributes = request.deleteRequest().key();
         }
+
+        if (attributes.isEmpty() || deduplicationKeys.isEmpty()) {
+          return attributes;
+        }
+
+        return attributes.entrySet().stream()
+            .filter(entry -> deduplicationKeys.contains(entry.getKey()))
+            .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
       }
 
       @FinishBundle
-      public void finishBundle(FinishBundleContext context) throws Exception {
+      public void finishBundle() throws Exception {
         flushBatch();
       }
 
@@ -526,48 +442,26 @@ public final class DynamoDBIO {
         if (batch.isEmpty()) {
           return;
         }
-
         try {
-          // Since each element is a KV<tableName, writeRequest> in the batch, we need to group them
-          // by tableName
-          Map<String, List<WriteRequest>> mapTableRequest =
+          // Group values KV<tableName, writeRequest> by tableName
+          // Note: The original order of arrival is lost reading the map entries.
+          Map<String, List<WriteRequest>> writesPerTable =
               batch.values().stream()
-                  .collect(
-                      Collectors.groupingBy(
-                          KV::getKey, Collectors.mapping(KV::getValue, Collectors.toList())));
+                  .collect(groupingBy(KV::getKey, mapping(KV::getValue, toList())));
 
-          BatchWriteItemRequest batchRequest =
-              BatchWriteItemRequest.builder().requestItems(mapTableRequest).build();
+          // Backoff used to resume from partial failures
+          BackOff resume = resumeBackoff.backoff();
+          do {
+            BatchWriteItemRequest batchRequest =
+                BatchWriteItemRequest.builder().requestItems(writesPerTable).build();
+            // If unprocessed items remain, we have to resume the operation (with backoff)
+            writesPerTable = client.batchWriteItem(batchRequest).unprocessedItems();
+          } while (!writesPerTable.isEmpty() && BackOffUtils.next(Sleeper.DEFAULT, resume));
 
-          Sleeper sleeper = Sleeper.DEFAULT;
-          BackOff backoff = retryBackoff.backoff();
-          int attempt = 0;
-          while (true) {
-            attempt++;
-            try {
-              client.batchWriteItem(batchRequest);
-              break;
-            } catch (Exception ex) {
-              // Fail right away if there is no retry configuration
-              if (spec.getRetryConfiguration() == null
-                  || !spec.getRetryConfiguration().getRetryPredicate().test(ex)) {
-                DYNAMO_DB_WRITE_FAILURES.inc();
-                LOG.info(
-                    "Unable to write batch items {}.", batchRequest.requestItems().entrySet(), ex);
-                throw new IOException("Error writing to DynamoDB (no attempt made to retry)", ex);
-              }
-
-              if (!BackOffUtils.next(sleeper, backoff)) {
-                throw new IOException(
-                    String.format(
-                        "Error writing to DynamoDB after %d attempt(s). No more attempts allowed",
-                        attempt),
-                    ex);
-              } else {
-                // Note: this used in test cases to verify behavior
-                LOG.warn(String.format(RETRY_ATTEMPT_LOG, attempt), ex);
-              }
-            }
+          if (!writesPerTable.isEmpty()) {
+            DYNAMO_DB_WRITE_FAILURES.inc();
+            LOG.error(RESUME_ERROR_LOG, writesPerTable);
+            throw new IOException(ERROR_UNPROCESSED_ITEMS);
           }
         } finally {
           batch.clear();

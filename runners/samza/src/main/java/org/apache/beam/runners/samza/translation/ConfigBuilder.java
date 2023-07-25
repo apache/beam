@@ -18,6 +18,8 @@
 package org.apache.beam.runners.samza.translation;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.samza.config.JobConfig.JOB_AUTOSIZING_CONTAINER_THREAD_POOL_SIZE;
+import static org.apache.samza.config.JobConfig.JOB_CONTAINER_THREAD_POOL_SIZE;
 import static org.apache.samza.config.JobConfig.JOB_ID;
 import static org.apache.samza.config.JobConfig.JOB_NAME;
 import static org.apache.samza.config.TaskConfig.COMMIT_MS;
@@ -37,6 +39,8 @@ import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.container.BeamContainerRunner;
 import org.apache.beam.runners.samza.container.BeamJobCoordinatorRunner;
 import org.apache.beam.runners.samza.runtime.SamzaStoreStateInternals;
+import org.apache.beam.runners.samza.util.ConfigUtils;
+import org.apache.beam.runners.samza.util.PortableConfigUtils;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.samza.config.ApplicationConfig;
@@ -51,13 +55,14 @@ import org.apache.samza.job.yarn.YarnJobFactory;
 import org.apache.samza.runtime.LocalApplicationRunner;
 import org.apache.samza.runtime.RemoteApplicationRunner;
 import org.apache.samza.standalone.PassthroughJobCoordinatorFactory;
+import org.apache.samza.storage.kv.RocksDbKeyValueStorageEngineFactory;
 import org.apache.samza.zk.ZkJobCoordinatorFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Builder class to generate configs for BEAM samza runner during runtime. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class ConfigBuilder {
   private static final Logger LOG = LoggerFactory.getLogger(ConfigBuilder.class);
@@ -95,7 +100,14 @@ public class ConfigBuilder {
       config.put(ApplicationConfig.APP_ID, options.getJobInstance());
       config.put(JOB_NAME, options.getJobName());
       config.put(JOB_ID, options.getJobInstance());
-      config.put(MAX_CONCURRENCY, String.valueOf(options.getMaxBundleSize()));
+
+      // bundle-related configs
+      if (!PortableConfigUtils.isPortable(options)) {
+        config.putAll(createBundleConfig(options, config));
+        LOG.info("Set bundle-related configs for classic mode");
+      } else {
+        LOG.info("Skipped bundle-related configs for portable mode");
+      }
 
       // remove config overrides before serialization (LISAMZA-15259)
       options.setConfigOverride(new HashMap<>());
@@ -109,6 +121,32 @@ public class ConfigBuilder {
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
+  }
+
+  @VisibleForTesting
+  static Map<String, String> createBundleConfig(
+      SamzaPipelineOptions options, Map<String, String> config) {
+    final ImmutableMap.Builder<String, String> builder = ImmutableMap.builder();
+    builder.put(MAX_CONCURRENCY, String.valueOf(options.getMaxBundleSize()));
+
+    if (options.getMaxBundleSize() > 1) {
+      final int threadPoolSize = ConfigUtils.asJobConfig(config).getThreadPoolSize();
+      // Since Samza doesn't allow mixing bundle > 1 with multithreading tasks right now,
+      // we disable the task thread pool in both user and autosizing configs.
+      LOG.info("Remove threadPoolSize configs when maxBundleSize > 1");
+      builder.put(JOB_CONTAINER_THREAD_POOL_SIZE, "0");
+      builder.put(JOB_AUTOSIZING_CONTAINER_THREAD_POOL_SIZE, "0");
+
+      if (threadPoolSize > 1 && options.getNumThreadsForProcessElement() <= 1) {
+        // In case the user sets the thread pool through samza config instead options,
+        // set the bundle thread pool size based on container thread pool config
+        // this allows Samza auto-sizing to tune the threads
+        LOG.info("Convert threadPoolSize {} to numThreadsForProcessElement", threadPoolSize);
+        // NumThreadsForProcessElement in option is the source of truth
+        options.setNumThreadsForProcessElement(threadPoolSize);
+      }
+    }
+    return builder.build();
   }
 
   private static Map<String, String> createUserConfig(SamzaPipelineOptions options)
@@ -287,9 +325,7 @@ public class ConfigBuilder {
   static Map<String, String> createRocksDBStoreConfig(SamzaPipelineOptions options) {
     final ImmutableMap.Builder<String, String> configBuilder =
         ImmutableMap.<String, String>builder()
-            .put(
-                BEAM_STORE_FACTORY,
-                "org.apache.samza.storage.kv.RocksDbKeyValueStorageEngineFactory")
+            .put(BEAM_STORE_FACTORY, RocksDbKeyValueStorageEngineFactory.class.getName())
             .put("stores.beamStore.rocksdb.compression", "lz4");
 
     if (options.getStateDurable()) {

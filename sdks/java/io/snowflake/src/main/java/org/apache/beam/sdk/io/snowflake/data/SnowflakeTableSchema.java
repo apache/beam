@@ -22,16 +22,15 @@ import java.util.ArrayList;
 import java.util.List;
 import net.snowflake.client.jdbc.internal.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.beam.sdk.io.snowflake.SnowflakeIO;
+import org.apache.beam.sdk.io.snowflake.enums.CreateDisposition;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
 
 /**
- * POJO representing schema of Table in Snowflake. Used by {@link SnowflakeIO.Write} when {
- *
- * @link org.apache.beam.sdk.io.snowflake.SnowflakeIO.Write.CreateDisposition#CREATE_IF_NEEDED}
- *     disposition is used.
+ * POJO representing schema of Table in Snowflake. Used by {@link SnowflakeIO.Write} when {@link
+ * CreateDisposition#CREATE_IF_NEEDED} disposition is used.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class SnowflakeTableSchema implements Serializable {
 

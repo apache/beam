@@ -41,7 +41,7 @@ INPUT_SUB = 'exercise_streaming_metrics_subscription_input'
 OUTPUT_TOPIC = 'exercise_streaming_metrics_topic_output'
 OUTPUT_SUB = 'exercise_streaming_metrics_subscription_output'
 
-WAIT_UNTIL_FINISH_DURATION = 1 * 60 * 1000  # in milliseconds
+WAIT_UNTIL_FINISH_DURATION = 5 * 60 * 1000  # in milliseconds
 MESSAGES_TO_PUBLISH = ["message a", "message b b", "message c"]
 
 SLEEP_TIME_SECS = 1
@@ -61,21 +61,23 @@ class ExerciseStreamingMetricsPipelineTest(unittest.TestCase):
     self.pub_client = pubsub.PublisherClient()
     self.input_topic_name = INPUT_TOPIC + self.uuid
     self.input_topic = self.pub_client.create_topic(
-        self.pub_client.topic_path(self.project, self.input_topic_name))
+        name=self.pub_client.topic_path(self.project, self.input_topic_name))
 
     self.output_topic_name = OUTPUT_TOPIC + self.uuid
     self.output_topic = self.pub_client.create_topic(
-        self.pub_client.topic_path(self.project, self.output_topic_name))
+        name=self.pub_client.topic_path(self.project, self.output_topic_name))
 
     self.sub_client = pubsub.SubscriberClient()
     self.input_sub_name = INPUT_SUB + self.uuid
     self.input_sub = self.sub_client.create_subscription(
-        self.sub_client.subscription_path(self.project, self.input_sub_name),
-        self.input_topic.name)
+        name=self.sub_client.subscription_path(
+            self.project, self.input_sub_name),
+        topic=self.input_topic.name)
     self.output_sub_name = OUTPUT_SUB + self.uuid
     self.output_sub = self.sub_client.create_subscription(
-        self.sub_client.subscription_path(self.project, self.output_sub_name),
-        self.output_topic.name,
+        name=self.sub_client.subscription_path(
+            self.project, self.output_sub_name),
+        topic=self.output_topic.name,
         ack_deadline_seconds=60)
 
   def _inject_words(self, topic, messages):

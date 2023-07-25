@@ -88,15 +88,13 @@ class SparkJarJobServer(job_server.JavaJarJobServer):
               'Unable to parse jar URL "%s". If using a full URL, make sure '
               'the scheme is specified. If using a local file path, make sure '
               'the file exists; you may have to first build the job server '
-              'using `./gradlew runners:spark:2:job-server:shadowJar`.' %
+              'using `./gradlew runners:spark:3:job-server:shadowJar`.' %
               self._jar)
       return self._jar
     else:
-      if self._spark_version == '3':
-        return self.path_to_beam_jar(':runners:spark:3:job-server:shadowJar')
-      return self.path_to_beam_jar(
-          ':runners:spark:2:job-server:shadowJar',
-          artifact_id='beam-runners-spark-job-server')
+      if self._spark_version == '2':
+        raise ValueError('Support for Spark 2 was dropped.')
+      return self.path_to_beam_jar(':runners:spark:3:job-server:shadowJar')
 
   def java_arguments(
       self, job_port, artifact_port, expansion_port, artifacts_dir):

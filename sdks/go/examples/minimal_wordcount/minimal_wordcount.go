@@ -13,7 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// minimal_wordcount is an example that counts words in Shakespeare.
+// minimal_wordcount is an example that counts words in King Lear,
+// by William Shakespeare.
 //
 // This example is the first in a series of four successively more detailed
 // 'word count' examples. Here, for simplicity, we don't show any
@@ -26,15 +27,33 @@
 //
 // Concepts:
 //
-//   1. Reading data from text files
-//   2. Specifying 'inline' transforms
-//   3. Counting items in a PCollection
-//   4. Writing data to text files
+//  1. Reading data from text files
+//  2. Specifying 'inline' transforms
+//  3. Counting items in a PCollection
+//  4. Writing data to text files
 //
 // No arguments are required to run this pipeline. It will be executed with
 // the direct runner. You can see the results in the output file named
 // "wordcounts.txt" in your current working directory.
 package main
+
+// beam-playground:
+//   name: MinimalWordCount
+//   description: An example that counts words in King Lear,
+//     by William Shakespeare.
+//   multifile: false
+//   default_example: true
+//   context_line: 74
+//   categories:
+//     - IO
+//     - Combiners
+//     - Core Transforms
+//     - Quickstart
+//   complexity: BASIC
+//   tags:
+//     - count
+//     - io
+//     - strings
 
 import (
 	"context"
@@ -65,11 +84,11 @@ func main() {
 	// Concept #1: Invoke a root transform with the pipeline; in this case,
 	// textio.Read to read a set of input text file. textio.Read returns a
 	// PCollection where each element is one line from the input text
-	// (one of of Shakespeare's texts).
+	// (one of Shakespeare's texts).
 
-	// This example reads a public data set consisting of the complete works
-	// of Shakespeare.
-	lines := textio.Read(s, "gs://apache-beam-samples/shakespeare/*")
+	// This example reads from a public dataset containing the text
+	// of King Lear.
+	lines := textio.Read(s, "gs://apache-beam-samples/shakespeare/kinglear.txt")
 
 	// Concept #2: Invoke a ParDo transform on our PCollection of text lines.
 	// This ParDo invokes a DoFn (defined in-line) on each element that

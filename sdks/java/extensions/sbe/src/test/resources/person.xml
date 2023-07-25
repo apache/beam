@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Licensed to the Apache Software Foundation (ASF) under one or more
+    contributor license agreements.  See the NOTICE file distributed with
+    this work for additional information regarding copyright ownership.
+    The ASF licenses this file to You under the Apache License, Version 2.0
+    (the "License"); you may not use this file except in compliance with
+    the License.  You may obtain a copy of the License at
+       http://www.apache.org/licenses/LICENSE-2.0
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+-->
+<sbe:messageSchema xmlns:sbe="http://fixprotocol.io/2016/sbe"
+    xmlns:xi="http://www.w3.org/2001/XInclude"
+    package="baseline"
+    id="1"
+    version="0"
+    semanticVersion="5.2"
+    description="Schema representing a person."
+    byteOrder="littleEndian">
+  <types>
+    <!-- Message header copied from standard at https://www.fixtrading.org/standards/sbe-online/ -->
+    <composite name="messageHeader" description="Template ID and length of message root">
+      <type name="blockLength" primitiveType="uint16"/>
+      <type name="templateId" primitiveType="uint16"/>
+      <type name="schemaId" primitiveType="uint16"/>
+      <type name="version" primitiveType="uint16"/>
+      <type name="numGroups" primitiveType="uint16" />
+      <type name="numVarDataFields" primitiveType="uint16" />
+    </composite>
+    <composite name="varStringEncoding" description="UTF-8 variable length string">
+      <type name="length" primitiveType="uint8" />
+      <type name="data" primitiveType="uint8" length="0" />
+    </composite>
+    <type name="Age" primitiveType="uint8" maxValue="150" />
+    <composite name="Address">
+      <ref name="streetAddress" type="varStringEncoding" />
+      <ref name="city" type="varStringEncoding" />
+      <type name="state" primitiveType="char" length="2" />
+      <type name="zipCode" primitiveType="char" length="5" />
+    </composite>
+  </types>
+  <sbe:message name="Person" id="1" description="Info about a person">
+    <field name="name" id="1" type="varStringEncoding" />
+    <field name="age" id="2" type="Age" />
+    <field name="address" id="3" type="Address" />
+  </sbe:message>
+</sbe:messageSchema>

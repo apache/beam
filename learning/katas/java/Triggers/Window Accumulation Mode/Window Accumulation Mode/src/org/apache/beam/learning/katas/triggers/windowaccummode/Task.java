@@ -18,6 +18,21 @@
 
 package org.apache.beam.learning.katas.triggers.windowaccummode;
 
+// beam-playground:
+//   name: WindowAccumulationMode
+//   description: Task from katas to count events using ACCUMULATING as accumulation mode
+//   multifile: true
+//   context_line: 51
+//   categories:
+//     - Streaming
+//   complexity: MEDIUM
+//   tags:
+//     - count
+//     - windowing
+//     - triggers
+//     - accumulation
+//     - event
+
 import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;

@@ -33,9 +33,8 @@ from google.protobuf.message import DecodeError
 
 import apache_beam as beam
 from apache_beam import coders
-from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileHeader
-from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileRecord
-from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
+from apache_beam.portability.api import beam_interactive_api_pb2
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.interactive.cache_manager import CacheManager
 from apache_beam.runners.interactive.cache_manager import SafeFastPrimitivesCoder
 from apache_beam.runners.interactive.caching.cacheable import CacheKey
@@ -59,9 +58,9 @@ class StreamingCacheSink(beam.PTransform):
   transforms are writing to the same file. This PTransform is assumed to only
   run correctly with the DirectRunner.
 
-  TODO(BEAM-9447): Generalize this to more source/sink types aside from file
-  based. Also, generalize to cases where there might be multiple workers
-  writing to the same sink.
+  TODO(https://github.com/apache/beam/issues/20002): Generalize this to more
+  source/sink types aside from file based. Also, generalize to cases where
+  there might be multiple workers writing to the same sink.
   """
   def __init__(
       self,
@@ -201,7 +200,10 @@ class StreamingCacheSource:
         # The first line at pos = 0 is always the header. Read the line without
         # the new line.
         to_decode = line[:-1]
-        proto_cls = TestStreamFileHeader if pos == 0 else TestStreamFileRecord
+        if pos == 0:
+          proto_cls = beam_interactive_api_pb2.TestStreamFileHeader
+        else:
+          proto_cls = beam_interactive_api_pb2.TestStreamFileRecord
         msg = self._try_parse_as(proto_cls, to_decode)
         if msg:
           yield msg
@@ -235,6 +237,7 @@ class StreamingCacheSource:
         yield e
 
 
+# TODO(victorhc): Add support for cache_dir locations that are on GCS
 class StreamingCache(CacheManager):
   """Abstraction that holds the logic for reading and writing to cache.
   """
@@ -289,8 +292,10 @@ class StreamingCache(CacheManager):
     return self._capture_keys
 
   def exists(self, *labels):
-    path = os.path.join(self._cache_dir, *labels)
-    return os.path.exists(path)
+    if labels and any(labels):
+      path = os.path.join(self._cache_dir, *labels)
+      return os.path.exists(path)
+    return False
 
   # TODO(srohde): Modify this to return the correct version.
   def read(self, *labels, **args):
@@ -340,7 +345,9 @@ class StreamingCache(CacheManager):
       os.makedirs(directory)
     with open(filepath, 'ab') as f:
       for v in values:
-        if isinstance(v, (TestStreamFileHeader, TestStreamFileRecord)):
+        if isinstance(v,
+                      (beam_interactive_api_pb2.TestStreamFileHeader,
+                       beam_interactive_api_pb2.TestStreamFileRecord)):
           val = v.SerializeToString()
         else:
           raise TypeError(
@@ -528,8 +535,8 @@ class StreamingCache(CacheManager):
       """Advances the internal clock and returns an AdvanceProcessingTime event.
       """
       advancy_by = new_timestamp.micros - self._monotonic_clock.micros
-      e = TestStreamPayload.Event(
-          processing_time_event=TestStreamPayload.Event.AdvanceProcessingTime(
-              advance_duration=advancy_by))
+      e = beam_runner_api_pb2.TestStreamPayload.Event(
+          processing_time_event=beam_runner_api_pb2.TestStreamPayload.Event.
+          AdvanceProcessingTime(advance_duration=advancy_by))
       self._monotonic_clock = new_timestamp
       return e

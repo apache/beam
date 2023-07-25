@@ -29,7 +29,7 @@ import org.apache.beam.sdk.options.PipelineOptionsValidator;
  * the configuration. This is used for testing the Twister2 runner
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class Twister2TestRunner extends PipelineRunner<PipelineResult> {
 

@@ -54,10 +54,10 @@ import org.slf4j.LoggerFactory;
  * at large scale).
  *
  * <p>See also <a href="https://issues.apache.org/jira/browse/BEAM-2671">BEAM-2671</a>, <a
- * href="https://issues.apache.org/jira/browse/BEAM-2789">BEAM-2789</a>.
+ * href="https://github.com/apache/beam/issues/18426">Issue #18426</a>.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class WatermarkSyncedDStream<T> extends InputDStream<WindowedValue<T>> {
 
@@ -114,8 +114,7 @@ class WatermarkSyncedDStream<T> extends InputDStream<WindowedValue<T>> {
     final long batchTime = validTime.milliseconds();
 
     LOG.trace(
-        "BEFORE waiting for watermark sync, "
-            + "LastWatermarkedBatchTime: {}, current batch time: {}",
+        "BEFORE waiting for watermark sync, LastWatermarkedBatchTime: {}, current batch time: {}",
         GlobalWatermarkHolder.getLastWatermarkedBatchTime(),
         batchTime);
 
@@ -133,8 +132,7 @@ class WatermarkSyncedDStream<T> extends InputDStream<WindowedValue<T>> {
     LOG.info("Watermarks are now: {}", GlobalWatermarkHolder.get(batchDuration));
 
     LOG.trace(
-        "AFTER waiting for watermark sync, "
-            + "LastWatermarkedBatchTime: {}, current batch time: {}",
+        "AFTER waiting for watermark sync, LastWatermarkedBatchTime: {}, current batch time: {}",
         GlobalWatermarkHolder.getLastWatermarkedBatchTime(),
         batchTime);
 

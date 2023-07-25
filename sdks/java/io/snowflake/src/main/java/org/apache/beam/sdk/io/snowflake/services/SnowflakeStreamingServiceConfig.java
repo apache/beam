@@ -21,7 +21,7 @@ import java.util.List;
 import net.snowflake.ingest.SimpleIngestManager;
 
 /** Class for preparing configuration for streaming write. */
-public class SnowflakeStreamingServiceConfig extends ServiceConfig {
+public class SnowflakeStreamingServiceConfig {
   private final SimpleIngestManager ingestManager;
   private final List<String> filesList;
   private final String stagingBucketDir;

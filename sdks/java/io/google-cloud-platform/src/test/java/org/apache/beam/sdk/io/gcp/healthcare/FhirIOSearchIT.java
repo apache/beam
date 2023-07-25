@@ -29,8 +29,8 @@ import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -95,16 +95,22 @@ public class FhirIOSearchIT {
 
     JsonArray fhirResources =
         JsonParser.parseString(bundles.get(0)).getAsJsonObject().getAsJsonArray("entry");
-    HashMap<String, String> searchParameters = new HashMap<>();
-    searchParameters.put("_count", Integer.toString(50));
-    HashMap<String, List<Integer>> genericSearchParameters = new HashMap<>();
-    genericSearchParameters.put("_count", Arrays.asList(50));
+    Map<String, String> searchParameters = ImmutableMap.of("_count", "50");
+    Map<String, List<Integer>> genericSearchParameters =
+        ImmutableMap.of("_count", Arrays.asList(50));
+
+    // Include a non-resource type search.
+    input.add(FhirSearchParameter.of("", KEY, searchParameters));
+    genericParametersInput.add(FhirSearchParameter.of("", genericSearchParameters));
+
     int searches = 0;
     for (JsonElement resource : fhirResources) {
       String resourceType =
           resource.getAsJsonObject().getAsJsonObject("resource").get("resourceType").getAsString();
+
       input.add(FhirSearchParameter.of(resourceType, KEY, searchParameters));
       genericParametersInput.add(FhirSearchParameter.of(resourceType, genericSearchParameters));
+
       searches++;
       if (searches > MAX_NUM_OF_SEARCHES) {
         break;

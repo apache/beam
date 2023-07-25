@@ -36,7 +36,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -94,8 +93,6 @@ public class WithFailuresTest implements Serializable {
 
     PAssert.that(output).containsInAnyOrder(1);
 
-    Map<String, String> expectedFailureInfo =
-        ImmutableMap.of("className", "java.lang.ArithmeticException");
     PAssert.thatSingleton(PCollectionList.of(errorCollections).apply(Flatten.pCollections()))
         .satisfies(
             kv -> {

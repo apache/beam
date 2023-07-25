@@ -62,6 +62,7 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.ByteArrayShuff
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutorTestUtils;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ShuffleEntry;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.ShufflePosition;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ShuffleReadCounter;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ShuffleReadCounterFactory;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Sink;
@@ -79,8 +80,10 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.common.Reiterable;
 import org.apache.beam.sdk.util.common.Reiterator;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.After;
 import org.junit.Before;
@@ -91,7 +94,7 @@ import org.junit.runners.JUnit4;
 /** Tests for GroupingShuffleReader. */
 @RunWith(JUnit4.class)
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class GroupingShuffleReaderTest {
   private static final byte[] EMPTY_BYTE_ARRAY = new byte[0];
@@ -99,7 +102,8 @@ public class GroupingShuffleReaderTest {
       Collections.emptyList();
 
   private static final Instant timestamp = new Instant(123000);
-  private static final IntervalWindow window = new IntervalWindow(timestamp, timestamp.plus(1000));
+  private static final IntervalWindow window =
+      new IntervalWindow(timestamp, timestamp.plus(Duration.millis(1000)));
 
   private final ExecutionStateSampler sampler = ExecutionStateSampler.newForTest();
   private final ExecutionStateTracker tracker = new ExecutionStateTracker(sampler);
@@ -210,6 +214,7 @@ public class GroupingShuffleReaderTest {
     return records;
   }
 
+  @SuppressWarnings("ReturnValueIgnored")
   private List<KV<Integer, List<KV<Integer, Integer>>>> runIterationOverGroupingShuffleReader(
       BatchModeExecutionContext context,
       TestShuffleReader shuffleReader,
@@ -235,7 +240,7 @@ public class GroupingShuffleReaderTest {
 
         // safe co-variant cast from Reiterable to Iterable
         @SuppressWarnings({
-          "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+          "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
           "unchecked"
         })
         WindowedValue<KV<Integer, Iterable<KV<Integer, Integer>>>> windowedValue =
@@ -586,6 +591,15 @@ public class GroupingShuffleReaderTest {
     return fabricatePosition(shard, key == null ? null : Arrays.hashCode(key));
   }
 
+  static ShuffleEntry newShuffleEntry(
+      ShufflePosition position, byte[] key, byte[] secondaryKey, byte[] value) {
+    return new ShuffleEntry(
+        position,
+        key == null ? null : ByteString.copyFrom(key),
+        secondaryKey == null ? null : ByteString.copyFrom(secondaryKey),
+        value == null ? null : ByteString.copyFrom(value));
+  }
+
   static ByteArrayShufflePosition fabricatePosition(int shard, @Nullable Integer keyHash)
       throws Exception {
     ByteArrayOutputStream os = new ByteArrayOutputStream();
@@ -608,13 +622,14 @@ public class GroupingShuffleReaderTest {
     for (int i = 0; i < kNumRecords; ++i) {
       byte[] key = CoderUtils.encodeToByteArray(BigEndianIntegerCoder.of(), i);
       shuffleReader.addEntry(
-          new ShuffleEntry(fabricatePosition(kFirstShard, key), key, EMPTY_BYTE_ARRAY, key));
+          newShuffleEntry(fabricatePosition(kFirstShard, key), key, EMPTY_BYTE_ARRAY, key));
     }
 
     // Note that TestShuffleReader start/end positions are in the
     // space of keys not the positions (TODO: should probably always
     // use positions instead).
-    String stop = encodeBase64URLSafeString(fabricatePosition(kNumRecords).getPosition());
+    String stop =
+        encodeBase64URLSafeString(fabricatePosition(kNumRecords).getPosition().toByteArray());
     TestOperationContext operationContext = TestOperationContext.create();
     GroupingShuffleReader<Integer, Integer> groupingShuffleReader =
         new GroupingShuffleReader<>(
@@ -675,7 +690,7 @@ public class GroupingShuffleReaderTest {
     for (int i = 0; i < kNumRecords; ++i) {
       byte[] key = CoderUtils.encodeToByteArray(BigEndianIntegerCoder.of(), i);
       ShuffleEntry entry =
-          new ShuffleEntry(fabricatePosition(kFirstShard, i), key, EMPTY_BYTE_ARRAY, key);
+          newShuffleEntry(fabricatePosition(kFirstShard, i), key, EMPTY_BYTE_ARRAY, key);
       shuffleReader.addEntry(entry);
     }
 
@@ -739,11 +754,12 @@ public class GroupingShuffleReaderTest {
 
   private Position makeShufflePosition(int shard, byte[] key) throws Exception {
     return new Position()
-        .setShufflePosition(encodeBase64URLSafeString(fabricatePosition(shard, key).getPosition()));
+        .setShufflePosition(
+            encodeBase64URLSafeString(fabricatePosition(shard, key).getPosition().toByteArray()));
   }
 
-  private Position makeShufflePosition(byte[] position) throws Exception {
-    return new Position().setShufflePosition(encodeBase64URLSafeString(position));
+  private Position makeShufflePosition(ByteString position) throws Exception {
+    return new Position().setShufflePosition(encodeBase64URLSafeString(position.toByteArray()));
   }
 
   @Test
@@ -781,7 +797,7 @@ public class GroupingShuffleReaderTest {
     for (int i = 0; i < kNumRecords; ++i) {
       byte[] keyByte = CoderUtils.encodeToByteArray(BigEndianIntegerCoder.of(), i);
       ShuffleEntry entry =
-          new ShuffleEntry(
+          newShuffleEntry(
               fabricatePosition(kFirstShard, keyByte), keyByte, EMPTY_BYTE_ARRAY, keyByte);
       shuffleReader.addEntry(entry);
     }
@@ -790,7 +806,7 @@ public class GroupingShuffleReaderTest {
       byte[] keyByte = CoderUtils.encodeToByteArray(BigEndianIntegerCoder.of(), i);
 
       ShuffleEntry entry =
-          new ShuffleEntry(
+          newShuffleEntry(
               fabricatePosition(kSecondShard, keyByte), keyByte, EMPTY_BYTE_ARRAY, keyByte);
       shuffleReader.addEntry(entry);
     }
@@ -810,7 +826,7 @@ public class GroupingShuffleReaderTest {
           iter.requestDynamicSplit(splitRequestAtPosition(makeShufflePosition(kSecondShard, null)));
       assertNotNull(dynamicSplitResult);
       assertEquals(
-          encodeBase64URLSafeString(fabricatePosition(kSecondShard).getPosition()),
+          encodeBase64URLSafeString(fabricatePosition(kSecondShard).getPosition().toByteArray()),
           positionFromSplitResult(dynamicSplitResult).getShufflePosition());
 
       for (; iter.advance(); ++i) {
@@ -879,7 +895,7 @@ public class GroupingShuffleReaderTest {
       ByteArrayShufflePosition position = fabricatePosition(i);
       byte[] keyByte = CoderUtils.encodeToByteArray(BigEndianIntegerCoder.of(), i);
       positionsList.add(position);
-      ShuffleEntry entry = new ShuffleEntry(position, keyByte, EMPTY_BYTE_ARRAY, keyByte);
+      ShuffleEntry entry = newShuffleEntry(position, keyByte, EMPTY_BYTE_ARRAY, keyByte);
       shuffleReader.addEntry(entry);
     }
 
@@ -903,7 +919,7 @@ public class GroupingShuffleReaderTest {
 
       // Cannot split since all input was consumed.
       Position proposedSplitPosition = new Position();
-      String stop = encodeBase64URLSafeString(fabricatePosition(0).getPosition());
+      String stop = encodeBase64URLSafeString(fabricatePosition(0).getPosition().toByteArray());
       proposedSplitPosition.setShufflePosition(stop);
       assertNull(
           iter.requestDynamicSplit(
@@ -926,14 +942,15 @@ public class GroupingShuffleReaderTest {
     for (int i = 0; i < kNumRecords; ++i) {
       byte[] key = CoderUtils.encodeToByteArray(BigEndianIntegerCoder.of(), i);
       shuffleReader.addEntry(
-          new ShuffleEntry(fabricatePosition(kFirstShard, key), key, EMPTY_BYTE_ARRAY, key));
+          newShuffleEntry(fabricatePosition(kFirstShard, key), key, EMPTY_BYTE_ARRAY, key));
     }
 
     TestShuffleReadCounterFactory shuffleReadCounterFactory = new TestShuffleReadCounterFactory();
     // Note that TestShuffleReader start/end positions are in the
     // space of keys not the positions (TODO: should probably always
     // use positions instead).
-    String stop = encodeBase64URLSafeString(fabricatePosition(kNumRecords).getPosition());
+    String stop =
+        encodeBase64URLSafeString(fabricatePosition(kNumRecords).getPosition().toByteArray());
     TestOperationContext operationContext = TestOperationContext.create();
     GroupingShuffleReader<Integer, Integer> groupingShuffleReader =
         new GroupingShuffleReader<>(

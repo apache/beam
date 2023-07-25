@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.options;
 
 import java.util.List;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -27,10 +26,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * executing against a managed service, please contact the service owners before enabling any
  * experiments.
  */
-@Experimental
-@Hidden
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public interface ExperimentalOptions extends PipelineOptions {
 
@@ -39,7 +36,7 @@ public interface ExperimentalOptions extends PipelineOptions {
   String STATE_SAMPLING_PERIOD_MILLIS = "state_sampling_period_millis";
 
   @Description(
-      "[Experimental] Apache Beam provides a number of experimental features that can "
+      "Apache Beam provides a number of experimental features that can "
           + "be enabled with this flag. If executing against a managed service, please contact the "
           + "service owners before enabling any experiments.")
   @Nullable

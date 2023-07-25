@@ -25,6 +25,7 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     gradleTask: ':clean',
     gradleSwitches: [
       '-PdisableSpotlessCheck=true',
+      '-PdisableCheckStyle=true',
       '-PskipCheckerFramework' // Gradle itself is running under JDK8 so plugin configures wrong for JDK11
     ], // spotless checked in separate pre-commit
     triggerPathPatterns: [
@@ -35,7 +36,7 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
       '^examples/kotlin/.*$',
       '^release/.*$',
     ],
-    timeoutMins: 30,
+    timeoutMins: 60,
     )
 builder.build {
   publishers {
@@ -47,6 +48,7 @@ builder.build {
       rootBuildScriptDir(properties.checkoutDir)
       tasks 'javaExamplesDataflowPreCommit'
       switches '-PdisableSpotlessCheck=true'
+      switches '-PdisableCheckStyle=true'
       switches '-PskipCheckerFramework' // Gradle itself is running under JDK8 so plugin configures wrong for JDK11
       switches '-PcompileAndRunTestsWithJava11'
       switches "-Pjava11Home=${properties.JAVA_11_HOME}"

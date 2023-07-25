@@ -36,7 +36,7 @@ import (
 // and registers those types for you.
 //
 // Panics if not passed a dofn.
-func RegisterDoFn(dofn interface{}) {
+func RegisterDoFn(dofn any) {
 	f, ts, err := registerDoFn(dofn)
 	if err != nil {
 		panic(err)
@@ -54,7 +54,7 @@ func RegisterDoFn(dofn interface{}) {
 // register with runtime.RegisterFunction.
 // The second return is all types to register with runtime.RegisterType.
 // Returns an error if the passed in values are not DoFns.
-func registerDoFn(dofn interface{}) (interface{}, []reflect.Type, error) {
+func registerDoFn(dofn any) (any, []reflect.Type, error) {
 	if rt, ok := dofn.(reflect.Type); ok {
 		if rt.Kind() == reflect.Ptr {
 			rt = rt.Elem()
@@ -81,7 +81,7 @@ func registerDoFn(dofn interface{}) (interface{}, []reflect.Type, error) {
 		return nil, nil, err
 	}
 
-	var retFunc interface{}
+	var retFunc any
 	rt := reflect.TypeOf(dofn)
 	switch rt.Kind() {
 	case reflect.Func:
@@ -103,6 +103,9 @@ func handleDoFn(fn *graph.DoFn, c cache) {
 	c.pullMethod(fn.ProcessElementFn())
 	c.pullMethod(fn.FinishBundleFn())
 	c.pullMethod(fn.TeardownFn())
+	if timerFn, ok := fn.OnTimerFn(); ok {
+		c.pullMethod(timerFn)
+	}
 	if !fn.IsSplittable() {
 		return
 	}
@@ -112,6 +115,22 @@ func handleDoFn(fn *graph.DoFn, c cache) {
 	c.pullMethod(sdf.RestrictionSizeFn())
 	c.pullMethod(sdf.SplitRestrictionFn())
 	c.regType(sdf.RestrictionT())
+
+	if sdf.HasTruncateRestriction() {
+		c.pullMethod(sdf.TruncateRestrictionFn())
+	}
+
+	if !sdf.IsWatermarkEstimating() {
+		return
+	}
+	c.pullMethod(sdf.CreateWatermarkEstimatorFn())
+	c.regType(sdf.WatermarkEstimatorT())
+	if !sdf.IsStatefulWatermarkEstimating() {
+		return
+	}
+	c.pullMethod(sdf.InitialWatermarkEstimatorStateFn())
+	c.pullMethod(sdf.WatermarkEstimatorStateFn())
+	c.regType(sdf.WatermarkEstimatorStateT())
 }
 
 func handleCombineFn(fn *graph.CombineFn, c cache) {

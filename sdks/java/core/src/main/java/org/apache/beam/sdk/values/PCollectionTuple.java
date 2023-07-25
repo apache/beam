@@ -70,9 +70,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * Map<TupleTag<?>, PCollection<?>> allPcs = pcs.getAll();
  * }</pre>
  */
-@SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-})
 public class PCollectionTuple implements PInput, POutput {
   /**
    * Returns an empty {@link PCollectionTuple} that is part of the given {@link Pipeline}.
@@ -221,7 +218,8 @@ public class PCollectionTuple implements PInput, POutput {
     @SuppressWarnings("unchecked")
     PCollection<T> pcollection = (PCollection<T>) pcollectionMap.get(tag);
     if (pcollection == null) {
-      throw new IllegalArgumentException("TupleTag not found in this PCollectionTuple tuple");
+      throw new IllegalArgumentException(
+          String.format("TupleTag %s not found in this PCollectionTuple tuple", tag));
     }
     return pcollection;
   }
@@ -308,7 +306,7 @@ public class PCollectionTuple implements PInput, POutput {
       // erasure as the correct type. When a transform adds
       // elements to `outputCollection` they will be of type T.
       @SuppressWarnings("unchecked")
-      PCollection outputCollection =
+      PCollection<?> outputCollection =
           PCollection.createPrimitiveOutputInternal(
                   pipeline, windowingStrategy, isBounded, (Coder) coders.get(outputTag))
               .setTypeDescriptor(outputTag.getTypeDescriptor());

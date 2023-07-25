@@ -19,14 +19,14 @@ package org.apache.beam.runners.core.construction;
 
 import com.google.auto.service.AutoService;
 import java.util.Map;
-import org.apache.beam.sdk.coders.AvroGenericCoder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.extensions.avro.coders.AvroGenericCoder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /** Coder registrar for AvroGenericCoder. */
 @AutoService(CoderTranslatorRegistrar.class)
 @SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class AvroGenericCoderRegistrar implements CoderTranslatorRegistrar {
   public static final String AVRO_CODER_URN = "beam:coder:avro:generic:v1";

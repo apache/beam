@@ -26,7 +26,15 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.Arrays;
+import java.util.Base64;
+import java.util.Date;
 import java.util.List;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.aws2.options.S3Options;
@@ -37,11 +45,12 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import software.amazon.awssdk.regions.Region;
 
 /** Tests {@link S3ResourceId}. */
 @RunWith(JUnit4.class)
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class S3ResourceIdTest {
 
@@ -74,6 +83,65 @@ public class S3ResourceIdTest {
           new TestCase("s3://bucket", "path/to/object", RESOLVE_FILE, "s3://bucket/path/to/object"),
           new TestCase(
               "s3://bucket/path/to/dir/", "..", RESOLVE_DIRECTORY, "s3://bucket/path/to/"));
+
+  private S3ResourceId deserializeFromB64(String base64) throws Exception {
+    ByteArrayInputStream b = new ByteArrayInputStream(Base64.getDecoder().decode(base64));
+    try (ObjectInputStream s = new ObjectInputStream(b)) {
+      return (S3ResourceId) s.readObject();
+    }
+  }
+
+  private String serializeToB64(S3ResourceId r) throws Exception {
+    ByteArrayOutputStream b = new ByteArrayOutputStream();
+    try (ObjectOutputStream s = new ObjectOutputStream(b)) {
+      s.writeObject(r);
+    }
+    return Base64.getEncoder().encodeToString(b.toByteArray());
+  }
+
+  @Test
+  public void testSerialization() throws Exception {
+    String r1Serialized =
+        "rO0ABXNyACtvcmcuYXBhY2hlLmJlYW0uc2RrLmlvLmF3czIuczMuUzNSZXNvdXJjZUlkC+xJufQ6MnwCAAVMAAZidWNrZXR0ABJMamF2YS9sYW5nL1N0cmluZztMAANrZXlxAH4AAUwADGxhc3RNb2RpZmllZHQAEExqYXZhL3V0aWwvRGF0ZTtMAAZzY2hlbWVxAH4AAUwABHNpemV0ABBMamF2YS9sYW5nL0xvbmc7eHB0AAZidWNrZXR0AAYvYS9iL2NwdAACczNw";
+    String r2Serialized =
+        "rO0ABXNyACtvcmcuYXBhY2hlLmJlYW0uc2RrLmlvLmF3czIuczMuUzNSZXNvdXJjZUlkC+xJufQ6MnwCAAVMAAZidWNrZXR0ABJMamF2YS9sYW5nL1N0cmluZztMAANrZXlxAH4AAUwADGxhc3RNb2RpZmllZHQAEExqYXZhL3V0aWwvRGF0ZTtMAAZzY2hlbWVxAH4AAUwABHNpemV0ABBMamF2YS9sYW5nL0xvbmc7eHB0AAxvdGhlci1idWNrZXR0AAYveC95L3pwdAACczNw";
+    String r3Serialized =
+        "rO0ABXNyACtvcmcuYXBhY2hlLmJlYW0uc2RrLmlvLmF3czIuczMuUzNSZXNvdXJjZUlkC+xJufQ6MnwCAAVMAAZidWNrZXR0ABJMamF2YS9sYW5nL1N0cmluZztMAANrZXlxAH4AAUwADGxhc3RNb2RpZmllZHQAEExqYXZhL3V0aWwvRGF0ZTtMAAZzY2hlbWVxAH4AAUwABHNpemV0ABBMamF2YS9sYW5nL0xvbmc7eHB0AAx0aGlyZC1idWNrZXR0AAkvZm9vL2Jhci9wdAACczNw";
+    String r4Serialized =
+        "rO0ABXNyACtvcmcuYXBhY2hlLmJlYW0uc2RrLmlvLmF3czIuczMuUzNSZXNvdXJjZUlkC+xJufQ6MnwCAAVMAAZidWNrZXR0ABJMamF2YS9sYW5nL1N0cmluZztMAANrZXlxAH4AAUwADGxhc3RNb2RpZmllZHQAEExqYXZhL3V0aWwvRGF0ZTtMAAZzY2hlbWVxAH4AAUwABHNpemV0ABBMamF2YS9sYW5nL0xvbmc7eHB0AApiYXotYnVja2V0dAAGL2EvYi9jcHQAAnMzcA==";
+
+    S3ResourceId r1 = S3ResourceId.fromComponents("s3", "bucket", "a/b/c");
+    S3ResourceId r2 = S3ResourceId.fromComponents("s3", "other-bucket", "x/y/z").withSize(123);
+    S3ResourceId r3 =
+        S3ResourceId.fromComponents("s3", "third-bucket", "foo/bar/")
+            .withLastModified(
+                Date.from(LocalDate.of(2021, 6, 3).atStartOfDay(ZoneOffset.UTC).toInstant()));
+    S3ResourceId r4 =
+        S3ResourceId.fromComponents("s3", "baz-bucket", "a/b/c")
+            .withSize(42)
+            .withLastModified(
+                Date.from(LocalDate.of(2016, 6, 15).atStartOfDay(ZoneOffset.UTC).toInstant()));
+    S3ResourceId r5 = S3ResourceId.fromComponents("other-scheme", "bucket", "a/b/c");
+    S3ResourceId r6 =
+        S3ResourceId.fromComponents("other-scheme", "baz-bucket", "foo/bar/")
+            .withSize(42)
+            .withLastModified(
+                Date.from(LocalDate.of(2016, 6, 5).atStartOfDay(ZoneOffset.UTC).toInstant()));
+
+    // S3ResourceIds serialized by previous versions should still deserialize.
+    assertEquals(r1, deserializeFromB64(r1Serialized));
+    assertEquals(r2, deserializeFromB64(r2Serialized));
+    assertEquals(r3, deserializeFromB64(r3Serialized));
+    assertEquals(r4, deserializeFromB64(r4Serialized));
+
+    // Current resource IDs should round-trip properly through serialization.
+    assertEquals(r1, deserializeFromB64(serializeToB64(r1)));
+    assertEquals(r2, deserializeFromB64(serializeToB64(r2)));
+    assertEquals(r3, deserializeFromB64(serializeToB64(r3)));
+    assertEquals(r4, deserializeFromB64(serializeToB64(r4)));
+    assertEquals(r5, deserializeFromB64(serializeToB64(r5)));
+    assertEquals(r6, deserializeFromB64(serializeToB64(r6)));
+  }
 
   @Test
   public void testResolve() {
@@ -255,35 +323,38 @@ public class S3ResourceIdTest {
 
   @Test
   public void testEquals() {
-    S3ResourceId a = S3ResourceId.fromComponents("bucket", "a/b/c");
-    S3ResourceId b = S3ResourceId.fromComponents("bucket", "a/b/c");
+    S3ResourceId a = S3ResourceId.fromComponents("s3", "bucket", "a/b/c");
+    S3ResourceId b = S3ResourceId.fromComponents("s3", "bucket", "a/b/c");
     assertEquals(a, b);
+    assertEquals(b, a);
 
-    b = S3ResourceId.fromComponents(a.getBucket(), "a/b/c/");
+    b = S3ResourceId.fromComponents("s3", a.getBucket(), "a/b/c/");
     assertNotEquals(a, b);
+    assertNotEquals(b, a);
 
-    b = S3ResourceId.fromComponents(a.getBucket(), "x/y/z");
+    b = S3ResourceId.fromComponents("s3", a.getBucket(), "x/y/z");
     assertNotEquals(a, b);
+    assertNotEquals(b, a);
 
-    b = S3ResourceId.fromComponents("other-bucket", a.getKey());
+    b = S3ResourceId.fromComponents("s3", "other-bucket", a.getKey());
     assertNotEquals(a, b);
-  }
+    assertNotEquals(b, a);
 
-  @Test
-  public void testInvalidS3ResourceId() {
-    assertThrows(
-        IllegalArgumentException.class, () -> S3ResourceId.fromUri("file://invalid/s3/path"));
+    b = S3ResourceId.fromComponents("other", "bucket", "a/b/c");
+    assertNotEquals(a, b);
+    assertNotEquals(b, a);
   }
 
   @Test
   public void testInvalidBucket() {
-    assertThrows(IllegalArgumentException.class, () -> S3ResourceId.fromComponents("invalid/", ""));
+    assertThrows(
+        IllegalArgumentException.class, () -> S3ResourceId.fromComponents("s3", "invalid/", ""));
   }
 
   @Test
   public void testResourceIdTester() {
     S3Options options = PipelineOptionsFactory.create().as(S3Options.class);
-    options.setAwsRegion("us-west-1");
+    options.setAwsRegion(Region.US_WEST_1);
     FileSystems.setDefaultPipelineOptions(options);
     ResourceIdTester.runResourceIdBattery(S3ResourceId.fromUri("s3://bucket/foo/"));
   }

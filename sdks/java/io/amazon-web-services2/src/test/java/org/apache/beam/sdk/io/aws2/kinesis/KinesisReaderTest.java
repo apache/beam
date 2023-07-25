@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.io.aws2.kinesis;
 
 import static java.util.Arrays.asList;
+import static org.apache.beam.sdk.io.aws2.kinesis.RateLimitPolicyFactory.withoutLimiter;
+import static org.apache.beam.sdk.io.aws2.kinesis.WatermarkPolicyFactory.withArrivalTimePolicy;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -27,6 +29,7 @@ import static org.mockito.Mockito.when;
 import java.io.IOException;
 import java.util.NoSuchElementException;
 import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -41,7 +44,7 @@ import org.mockito.junit.MockitoJUnitRunner;
 public class KinesisReaderTest {
 
   @Mock private SimplifiedKinesisClient kinesis;
-  @Mock private CheckpointGenerator generator;
+  @Mock private KinesisIO.Read read;
   @Mock private ShardCheckpoint firstCheckpoint, secondCheckpoint;
   @Mock private KinesisRecord a, b, c, d;
   @Mock private KinesisSource kinesisSource;
@@ -50,9 +53,7 @@ public class KinesisReaderTest {
   private KinesisReader reader;
 
   @Before
-  public void setUp() throws TransientKinesisException {
-    when(generator.generate(kinesis))
-        .thenReturn(new KinesisReaderCheckpoint(asList(firstCheckpoint, secondCheckpoint)));
+  public void setUp() {
     when(shardReadersPool.nextRecord()).thenReturn(CustomOptional.absent());
     when(a.getApproximateArrivalTimestamp()).thenReturn(Instant.now());
     when(b.getApproximateArrivalTimestamp()).thenReturn(Instant.now());
@@ -63,15 +64,15 @@ public class KinesisReaderTest {
   }
 
   private KinesisReader createReader(Duration backlogBytesCheckThreshold) {
-    return new KinesisReader(
-        kinesis,
-        generator,
-        kinesisSource,
-        WatermarkPolicyFactory.withArrivalTimePolicy(),
-        RateLimitPolicyFactory.withoutLimiter(),
-        Duration.ZERO,
-        backlogBytesCheckThreshold,
-        ShardReadersPool.DEFAULT_CAPACITY_PER_SHARD) {
+    when(read.getWatermarkPolicyFactory()).thenReturn(withArrivalTimePolicy());
+    when(read.getRateLimitPolicyFactory()).thenReturn(withoutLimiter());
+    when(read.getUpToDateThreshold()).thenReturn(Duration.ZERO);
+    when(read.getMaxCapacityPerShard()).thenReturn(ShardReadersPool.DEFAULT_CAPACITY_PER_SHARD);
+    when(read.getStreamName()).thenReturn("stream1");
+
+    KinesisReaderCheckpoint checkpoint =
+        new KinesisReaderCheckpoint(asList(firstCheckpoint, secondCheckpoint));
+    return new KinesisReader(read, kinesis, checkpoint, kinesisSource, backlogBytesCheckThreshold) {
       @Override
       ShardReadersPool createShardReadersPool() {
         return shardReadersPool;
@@ -138,7 +139,6 @@ public class KinesisReaderTest {
   public void getSplitBacklogBytesShouldReturnLastSeenValueWhenKinesisExceptionsOccur()
       throws TransientKinesisException, IOException {
     reader.start();
-    when(kinesisSource.getStreamName()).thenReturn("stream1");
     when(shardReadersPool.getLatestRecordTimestamp())
         .thenReturn(Instant.now().minus(Duration.standardMinutes(1)));
     when(kinesis.getBacklogBytes(eq("stream1"), any(Instant.class)))
@@ -152,13 +152,17 @@ public class KinesisReaderTest {
   }
 
   @Test
+  public void getSplitBacklogBytesShouldReturnUnknownIfNotStarted() {
+    assertThat(reader.getSplitBacklogBytes()).isEqualTo(UnboundedReader.BACKLOG_UNKNOWN);
+  }
+
+  @Test
   public void getSplitBacklogBytesShouldReturnLastSeenValueWhenCalledFrequently()
       throws TransientKinesisException, IOException {
     KinesisReader backlogCachingReader = spy(createReader(Duration.standardSeconds(30)));
     backlogCachingReader.start();
     when(shardReadersPool.getLatestRecordTimestamp())
         .thenReturn(Instant.now().minus(Duration.standardMinutes(1)));
-    when(kinesisSource.getStreamName()).thenReturn("stream1");
     when(kinesis.getBacklogBytes(eq("stream1"), any(Instant.class)))
         .thenReturn(10L)
         .thenReturn(20L);
@@ -171,7 +175,6 @@ public class KinesisReaderTest {
   public void getSplitBacklogBytesShouldReturnBacklogUnknown()
       throws IOException, TransientKinesisException {
     reader.start();
-    when(kinesisSource.getStreamName()).thenReturn("stream1");
     when(shardReadersPool.getLatestRecordTimestamp())
         .thenReturn(BoundedWindow.TIMESTAMP_MIN_VALUE)
         .thenReturn(Instant.now().minus(Duration.standardMinutes(1)));

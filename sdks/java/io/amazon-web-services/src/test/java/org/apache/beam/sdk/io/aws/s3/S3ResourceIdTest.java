@@ -31,6 +31,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import org.apache.beam.sdk.io.FileSystems;
@@ -111,16 +112,16 @@ public class S3ResourceIdTest {
     S3ResourceId r2 = S3ResourceId.fromComponents("s3", "other-bucket", "x/y/z").withSize(123);
     S3ResourceId r3 =
         S3ResourceId.fromComponents("s3", "third-bucket", "foo/bar/")
-            .withLastModified(new Date(2021, 6, 3));
+            .withLastModified(new Date(121, Calendar.JULY, 3));
     S3ResourceId r4 =
         S3ResourceId.fromComponents("s3", "baz-bucket", "a/b/c")
             .withSize(42)
-            .withLastModified(new Date(2016, 6, 15));
+            .withLastModified(new Date(116, Calendar.JULY, 15));
     S3ResourceId r5 = S3ResourceId.fromComponents("other-scheme", "bucket", "a/b/c");
     S3ResourceId r6 =
         S3ResourceId.fromComponents("other-scheme", "baz-bucket", "foo/bar/")
             .withSize(42)
-            .withLastModified(new Date(2016, 6, 5));
+            .withLastModified(new Date(116, Calendar.JULY, 5));
 
     // S3ResourceIds serialized by previous versions should still deserialize.
     assertEquals(r1, deserializeFromB64(r1Serialized));

@@ -27,8 +27,6 @@ import com.google.cloud.spanner.TimestampBound;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.model.pipeline.v1.SchemaApi;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaTranslation;
@@ -38,7 +36,7 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -48,7 +46,6 @@ import org.joda.time.Duration;
  * Exposes {@link SpannerIO.WriteRows} and {@link SpannerIO.ReadRows} as an external transform for
  * cross-language usage.
  */
-@Experimental(Kind.PORTABILITY)
 @AutoService(ExternalTransformRegistrar.class)
 public class SpannerTransformRegistrar implements ExternalTransformRegistrar {
   public static final String INSERT_URN = "beam:transform:org.apache.beam:spanner_insert:v1";
@@ -112,12 +109,12 @@ public class SpannerTransformRegistrar implements ExternalTransformRegistrar {
     }
   }
 
-  @Experimental(Kind.PORTABILITY)
   public static class ReadBuilder
       implements ExternalTransformBuilder<ReadBuilder.Configuration, PBegin, PCollection<Row>> {
 
     public static class Configuration extends CrossLanguageConfiguration {
-      // TODO: BEAM-10851 Come up with something to determine schema without this explicit parameter
+      // TODO: https://github.com/apache/beam/issues/20415 Come up with something to determine
+      // schema without this explicit parameter
       private Schema schema = Schema.builder().build();
       private @Nullable String sql;
       private @Nullable String table;
@@ -215,7 +212,8 @@ public class SpannerTransformRegistrar implements ExternalTransformRegistrar {
 
     @Override
     @NonNull
-    public PTransform<PBegin, PCollection<Row>> buildExternal(Configuration configuration) {
+    public PTransform<PBegin, PCollection<Row>> buildExternal(
+        ReadBuilder.Configuration configuration) {
       configuration.checkMandatoryFields();
 
       SpannerIO.Read readTransform =
@@ -243,42 +241,36 @@ public class SpannerTransformRegistrar implements ExternalTransformRegistrar {
     }
   }
 
-  @Experimental(Kind.PORTABILITY)
   public static class InsertBuilder extends WriteBuilder {
     public InsertBuilder() {
       super(Mutation.Op.INSERT);
     }
   }
 
-  @Experimental(Kind.PORTABILITY)
   public static class UpdateBuilder extends WriteBuilder {
     public UpdateBuilder() {
       super(Mutation.Op.UPDATE);
     }
   }
 
-  @Experimental(Kind.PORTABILITY)
   public static class InsertOrUpdateBuilder extends WriteBuilder {
     public InsertOrUpdateBuilder() {
       super(Mutation.Op.INSERT_OR_UPDATE);
     }
   }
 
-  @Experimental(Kind.PORTABILITY)
   public static class ReplaceBuilder extends WriteBuilder {
     public ReplaceBuilder() {
       super(Mutation.Op.REPLACE);
     }
   }
 
-  @Experimental(Kind.PORTABILITY)
   public static class DeleteBuilder extends WriteBuilder {
     public DeleteBuilder() {
       super(Mutation.Op.DELETE);
     }
   }
 
-  @Experimental(Kind.PORTABILITY)
   private abstract static class WriteBuilder
       implements ExternalTransformBuilder<WriteBuilder.Configuration, PCollection<Row>, PDone> {
 
@@ -334,7 +326,8 @@ public class SpannerTransformRegistrar implements ExternalTransformRegistrar {
 
     @Override
     @NonNull
-    public PTransform<PCollection<Row>, PDone> buildExternal(Configuration configuration) {
+    public PTransform<PCollection<Row>, PDone> buildExternal(
+        WriteBuilder.Configuration configuration) {
       configuration.checkMandatoryFields();
 
       SpannerIO.Write writeTransform =

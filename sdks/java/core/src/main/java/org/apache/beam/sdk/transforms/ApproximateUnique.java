@@ -225,7 +225,7 @@ public class ApproximateUnique {
      */
     private final long sampleSize;
 
-    /** The the desired maximum estimation error or null if not specified. */
+    /** The desired maximum estimation error or null if not specified. */
     private final @Nullable Double maximumEstimationError;
 
     /** @see ApproximateUnique#perKey(int) */

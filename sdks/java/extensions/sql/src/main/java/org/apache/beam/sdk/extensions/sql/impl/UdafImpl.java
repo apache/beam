@@ -24,23 +24,21 @@ import java.lang.reflect.TypeVariable;
 import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.adapter.enumerable.AggImplementor;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.type.RelDataType;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.type.RelDataTypeFactory;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.schema.AggregateFunction;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.schema.FunctionParameter;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.schema.ImplementableAggFunction;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.adapter.enumerable.AggImplementor;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.type.RelDataType;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.AggregateFunction;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.FunctionParameter;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.ImplementableAggFunction;
 
 /** Implement {@link AggregateFunction} to take a {@link CombineFn} as UDAF. */
-@Experimental
 @Internal
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class UdafImpl<InputT, AccumT, OutputT>
     implements AggregateFunction, ImplementableAggFunction, Serializable {

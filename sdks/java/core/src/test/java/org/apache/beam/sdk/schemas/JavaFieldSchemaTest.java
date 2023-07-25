@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.schemas;
 
 import static org.apache.beam.sdk.schemas.utils.SchemaTestUtils.equivalentTo;
+import static org.apache.beam.sdk.schemas.utils.TestPOJOs.ANNOTATED_SIMPLE_POJO_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.CASE_FORMAT_POJO_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.ENUMERATION;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.NESTED_ARRAYS_POJO_SCHEMA;
@@ -32,6 +33,7 @@ import static org.apache.beam.sdk.schemas.utils.TestPOJOs.POJO_WITH_ITERABLE;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.POJO_WITH_NESTED_ARRAY_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.PRIMITIVE_ARRAY_POJO_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.SIMPLE_POJO_SCHEMA;
+import static org.apache.beam.sdk.schemas.utils.TestPOJOs.SIMPLE_POJO_WITH_DESCRIPTION_SCHEMA;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertArrayEquals;
@@ -51,7 +53,9 @@ import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.utils.SchemaTestUtils;
+import org.apache.beam.sdk.schemas.utils.TestPOJOs;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.AnnotatedSimplePojo;
+import org.apache.beam.sdk.schemas.utils.TestPOJOs.FirstCircularNestedPOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.NestedArrayPOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.NestedArraysPOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.NestedMapPOJO;
@@ -66,6 +70,7 @@ import org.apache.beam.sdk.schemas.utils.TestPOJOs.PojoWithEnum.Color;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.PojoWithIterable;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.PojoWithNestedArray;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.PrimitiveArrayPOJO;
+import org.apache.beam.sdk.schemas.utils.TestPOJOs.SelfNestedPOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.SimplePOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.StaticCreationSimplePojo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -145,6 +150,24 @@ public class JavaFieldSchemaTest {
             name,
             (byte) 1,
             (short) 2,
+            3,
+            4L,
+            true,
+            DATE,
+            INSTANT,
+            BYTE_ARRAY,
+            BYTE_BUFFER.array(),
+            BigDecimal.ONE,
+            new StringBuilder(name).append("builder").toString())
+        .build();
+  }
+
+  private Row createAnnotatedRow(String name) {
+    return Row.withSchema(ANNOTATED_SIMPLE_POJO_SCHEMA)
+        .addValues(
+            name,
+            (short) 2,
+            (byte) 1,
             3,
             4L,
             true,
@@ -512,9 +535,9 @@ public class JavaFieldSchemaTest {
   public void testAnnotations() throws NoSuchSchemaException {
     SchemaRegistry registry = SchemaRegistry.createDefault();
     Schema schema = registry.getSchema(AnnotatedSimplePojo.class);
-    SchemaTestUtils.assertSchemaEquivalent(SIMPLE_POJO_SCHEMA, schema);
+    SchemaTestUtils.assertSchemaEquivalent(ANNOTATED_SIMPLE_POJO_SCHEMA, schema);
 
-    Row simpleRow = createSimpleRow("string");
+    Row simpleRow = createAnnotatedRow("string");
     AnnotatedSimplePojo pojo = createAnnotated("string");
     assertEquals(simpleRow, registry.getToRowFunction(AnnotatedSimplePojo.class).apply(pojo));
 
@@ -595,6 +618,13 @@ public class JavaFieldSchemaTest {
     // Make sure that the captured Iterable is backed by the previous one.
     list.add("three");
     assertEquals(list, Lists.newArrayList(converted.strings));
+  }
+
+  @Test
+  public void testFieldWithDescriptionAnnotation() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Schema schema = registry.getSchema(TestPOJOs.SimplePOJOWithDescription.class);
+    assertEquals(SIMPLE_POJO_WITH_DESCRIPTION_SCHEMA, schema);
   }
 
   @Test
@@ -708,5 +738,47 @@ public class JavaFieldSchemaTest {
         "Message should suggest using zero-argument constructor.",
         thrown.getMessage(),
         containsString("zero-argument constructor"));
+  }
+
+  @Test
+  public void testSelfNestedPOJOThrows() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+
+    IllegalArgumentException thrown =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> {
+              registry.getSchema(SelfNestedPOJO.class);
+            });
+
+    assertThat(
+        "Message should suggest not using a circular schema reference.",
+        thrown.getMessage(),
+        containsString("circular reference"));
+    assertThat(
+        "Message should suggest which class has circular schema reference.",
+        thrown.getMessage(),
+        containsString("TestPOJOs$SelfNestedPOJO"));
+  }
+
+  @Test
+  public void testCircularNestedPOJOThrows() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+
+    IllegalArgumentException thrown =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> {
+              registry.getSchema(FirstCircularNestedPOJO.class);
+            });
+
+    assertThat(
+        "Message should suggest not using a circular schema reference.",
+        thrown.getMessage(),
+        containsString("circular reference"));
+    assertThat(
+        "Message should suggest which class has circular schema reference.",
+        thrown.getMessage(),
+        containsString("TestPOJOs$FirstCircularNestedPOJO"));
   }
 }

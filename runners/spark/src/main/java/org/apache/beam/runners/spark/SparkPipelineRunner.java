@@ -19,7 +19,6 @@ package org.apache.beam.runners.spark;
 
 import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.hasUnboundedPCollections;
 import static org.apache.beam.runners.spark.SparkCommonPipelineOptions.prepareFilesToStage;
-import static org.apache.beam.runners.spark.util.SparkCommon.startEventLoggingListener;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 import java.util.UUID;
@@ -41,7 +40,6 @@ import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.jobsubmission.PortablePipelineJarUtils;
 import org.apache.beam.runners.jobsubmission.PortablePipelineResult;
 import org.apache.beam.runners.jobsubmission.PortablePipelineRunner;
-import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.translation.SparkBatchPortablePipelineTranslator;
 import org.apache.beam.runners.spark.translation.SparkContextFactory;
@@ -50,20 +48,17 @@ import org.apache.beam.runners.spark.translation.SparkStreamingPortablePipelineT
 import org.apache.beam.runners.spark.translation.SparkStreamingTranslationContext;
 import org.apache.beam.runners.spark.translation.SparkTranslationContext;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
-import org.apache.beam.runners.spark.util.SparkCompat;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.metrics.MetricsOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.scheduler.EventLoggingListener;
-import org.apache.spark.scheduler.SparkListenerApplicationEnd;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
 import org.apache.spark.streaming.api.java.JavaStreamingListener;
 import org.apache.spark.streaming.api.java.JavaStreamingListenerWrapper;
-import org.joda.time.Instant;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
@@ -72,7 +67,7 @@ import org.slf4j.LoggerFactory;
 
 /** Runs a portable pipeline on Apache Spark. */
 @SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class SparkPipelineRunner implements PortablePipelineRunner {
   private static final Logger LOG = LoggerFactory.getLogger(SparkPipelineRunner.class);
@@ -117,28 +112,25 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
     PortablePipelineResult result;
     final JavaSparkContext jsc = SparkContextFactory.getSparkContext(pipelineOptions);
 
-    final long startTime = Instant.now().getMillis();
-    EventLoggingListener eventLoggingListener =
-        startEventLoggingListener(jsc, pipelineOptions, startTime);
-
     // Initialize accumulators.
-    AggregatorsAccumulator.init(pipelineOptions, jsc);
     MetricsEnvironment.setMetricsSupported(true);
     MetricsAccumulator.init(pipelineOptions, jsc);
 
     final SparkTranslationContext context =
         translator.createTranslationContext(jsc, pipelineOptions, jobInfo);
-    final ExecutorService executorService = Executors.newSingleThreadExecutor();
+    final ExecutorService executorService =
+        Executors.newSingleThreadExecutor(
+            new ThreadFactoryBuilder()
+                .setDaemon(true)
+                .setNameFormat("DefaultSparkRunner-thread")
+                .build());
 
-    LOG.info(String.format("Running job %s on Spark master %s", jobInfo.jobId(), jsc.master()));
+    LOG.info("Running job {} on Spark master {}", jobInfo.jobId(), jsc.master());
 
     if (isStreaming) {
       final JavaStreamingContext jssc =
           ((SparkStreamingTranslationContext) context).getStreamingContext();
 
-      jssc.addStreamingListener(
-          new JavaStreamingListenerWrapper(
-              new AggregatorsAccumulator.AccumulatorCheckpointingSparkListener()));
       jssc.addStreamingListener(
           new JavaStreamingListenerWrapper(
               new MetricsAccumulator.AccumulatorCheckpointingSparkListener()));
@@ -166,9 +158,7 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
               () -> {
                 translator.translate(fusedPipeline, context);
                 LOG.info(
-                    String.format(
-                        "Job %s: Pipeline translated successfully. Computing outputs",
-                        jobInfo.jobId()));
+                    "Job {}: Pipeline translated successfully. Computing outputs", jobInfo.jobId());
                 context.computeOutputs();
 
                 jssc.start();
@@ -178,7 +168,7 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
                   LOG.warn("Streaming context interrupted, shutting down.", e);
                 }
                 jssc.stop();
-                LOG.info(String.format("Job %s finished.", jobInfo.jobId()));
+                LOG.info("Job {} finished.", jobInfo.jobId());
               });
       result = new SparkPipelineResult.PortableStreamingMode(submissionFuture, jssc);
     } else {
@@ -187,11 +177,9 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
               () -> {
                 translator.translate(fusedPipeline, context);
                 LOG.info(
-                    String.format(
-                        "Job %s: Pipeline translated successfully. Computing outputs",
-                        jobInfo.jobId()));
+                    "Job {}: Pipeline translated successfully. Computing outputs", jobInfo.jobId());
                 context.computeOutputs();
-                LOG.info(String.format("Job %s finished.", jobInfo.jobId()));
+                LOG.info("Job {} finished.", jobInfo.jobId());
               });
       result = new SparkPipelineResult.PortableBatchMode(submissionFuture, jsc);
     }
@@ -204,14 +192,6 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
             pipelineOptions.as(MetricsOptions.class),
             result);
     metricsPusher.start();
-
-    if (eventLoggingListener != null) {
-      eventLoggingListener.onApplicationStart(
-          SparkCompat.buildSparkListenerApplicationStart(jsc, pipelineOptions, startTime, result));
-      eventLoggingListener.onApplicationEnd(
-          new SparkListenerApplicationEnd(Instant.now().getMillis()));
-      eventLoggingListener.stop();
-    }
 
     return result;
   }

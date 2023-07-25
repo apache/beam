@@ -17,13 +17,17 @@
  */
 package org.apache.beam.sdk.tpcds;
 
+import java.util.Map;
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlPipelineOptions;
+import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.Validation;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Options used to configure TPC-DS test. */
-public interface TpcdsOptions extends BeamSqlPipelineOptions {
+public interface TpcdsOptions extends ApplicationNameOptions, GcpOptions, BeamSqlPipelineOptions {
   @Description(
       "The size of TPC-DS data to run query on, user input should contain the unit, such as '1G', '10G'")
   @Validation.Required
@@ -61,4 +65,66 @@ public interface TpcdsOptions extends BeamSqlPipelineOptions {
   TpcdsUtils.SourceType getSourceType();
 
   void setSourceType(TpcdsUtils.SourceType sourceType);
+
+  @Description("How to derive names of resources.")
+  @Default.Enum("QUERY_AND_SALT")
+  TpcdsUtils.ResourceNameMode getResourceNameMode();
+
+  void setResourceNameMode(TpcdsUtils.ResourceNameMode mode);
+
+  @Description("Shall we export the summary to BigQuery.")
+  @Default.Boolean(false)
+  Boolean getExportSummaryToBigQuery();
+
+  void setExportSummaryToBigQuery(Boolean exportSummaryToBigQuery);
+
+  @Description("Base name of BigQuery table name if using BigQuery output.")
+  @Default.String("nexmark")
+  @Nullable
+  String getBigQueryTable();
+
+  void setBigQueryTable(String bigQueryTable);
+
+  @Description("BigQuery dataset")
+  @Default.String("nexmark")
+  String getBigQueryDataset();
+
+  void setBigQueryDataset(String bigQueryDataset);
+
+  @Description("InfluxDB host.")
+  @Nullable
+  String getInfluxHost();
+
+  void setInfluxHost(@Nullable String host);
+
+  @Description("InfluxDB database.")
+  @Nullable
+  String getInfluxDatabase();
+
+  void setInfluxDatabase(@Nullable String database);
+
+  @Description("Shall we export the summary to InfluxDB.")
+  @Default.Boolean(false)
+  boolean getExportSummaryToInfluxDB();
+
+  void setExportSummaryToInfluxDB(boolean exportSummaryToInfluxDB);
+
+  @Description("Base name of measurement name if using InfluxDB output.")
+  @Default.String("tpcds")
+  @Nullable
+  String getBaseInfluxMeasurement();
+
+  void setBaseInfluxMeasurement(String influxDBMeasurement);
+
+  @Description("Name of retention policy for Influx data.")
+  @Nullable
+  String getInfluxRetentionPolicy();
+
+  void setInfluxRetentionPolicy(String influxRetentionPolicy);
+
+  @Description("Additional tags for Influx data")
+  @Nullable
+  Map<String, String> getInfluxTags();
+
+  void setInfluxTags(Map<String, String> influxTags);
 }

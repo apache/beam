@@ -116,7 +116,7 @@ import org.mockito.MockitoAnnotations;
 /** Tests for {@link IntrinsicMapTaskExecutorFactory}. */
 @RunWith(JUnit4.class)
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class IntrinsicMapTaskExecutorFactoryTest {
   private static final String STAGE = "test";
@@ -179,10 +179,6 @@ public class IntrinsicMapTaskExecutorFactoryTest {
 
     try (DataflowMapTaskExecutor executor =
         mapTaskExecutorFactory.create(
-            null /* beamFnControlClientHandler */,
-            null /* GrpcFnServer<GrpcDataService> */,
-            null /* ApiServiceDescriptor */,
-            null, /* GrpcFnServer<GrpcStateService> */
             mapTaskToNetwork.apply(mapTask),
             options,
             STAGE,
@@ -193,7 +189,7 @@ public class IntrinsicMapTaskExecutorFactoryTest {
             idGenerator)) {
       // Safe covariant cast not expressible without rawtypes.
       @SuppressWarnings({
-        "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+        "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
         "unchecked"
       })
       List<Object> operations = (List) executor.operations;
@@ -273,10 +269,6 @@ public class IntrinsicMapTaskExecutorFactoryTest {
 
     try (DataflowMapTaskExecutor executor =
         mapTaskExecutorFactory.create(
-            null /* beamFnControlClientHandler */,
-            null /* beamFnDataService */,
-            null /* beamFnStateService */,
-            null,
             mapTaskToNetwork.apply(mapTask),
             options,
             STAGE,

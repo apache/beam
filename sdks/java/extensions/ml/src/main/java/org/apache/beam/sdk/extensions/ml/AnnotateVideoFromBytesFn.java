@@ -24,16 +24,14 @@ import com.google.protobuf.ByteString;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.values.PCollectionView;
 
 /**
  * Implementation of AnnotateVideoFn accepting ByteStrings as contents of input PCollection. Videos
  * decoded from the ByteStrings are annotated.
  */
-@Experimental
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class AnnotateVideoFromBytesFn extends AnnotateVideoFn<ByteString> {
 

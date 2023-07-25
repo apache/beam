@@ -19,12 +19,13 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import static java.util.stream.Collectors.toList;
 import static org.apache.beam.sdk.values.PCollection.IsBounded.BOUNDED;
-import static org.apache.beam.vendor.calcite.v1_26_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.Serializable;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlPipelineOptions;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelMetadataQuery;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.transform.agg.AggregationCombineFnAdapter;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
@@ -51,23 +52,22 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelOptCluster;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelOptPlanner;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelTraitSet;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelNode;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelWriter;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.core.Aggregate;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.core.AggregateCall;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.util.ImmutableBitSet;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptCluster;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptPlanner;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelTraitSet;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelWriter;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.core.Aggregate;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.core.AggregateCall;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.ImmutableBitSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
 /** {@link BeamRelNode} to replace a {@link Aggregate} node. */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class BeamAggregationRel extends Aggregate implements BeamRelNode {
   private @Nullable WindowFn<Row, IntervalWindow> windowFn;
@@ -91,7 +91,7 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
   }
 
   @Override
-  public BeamCostModel beamComputeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
+  public BeamCostModel beamComputeSelfCost(RelOptPlanner planner, BeamRelMetadataQuery mq) {
 
     NodeStats inputStat = BeamSqlRelUtils.getNodeStats(this.input, mq);
     inputStat = computeWindowingCostEffect(inputStat);
@@ -111,13 +111,12 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
   }
 
   @Override
-  public NodeStats estimateNodeStats(RelMetadataQuery mq) {
+  public NodeStats estimateNodeStats(BeamRelMetadataQuery mq) {
 
     NodeStats inputEstimate = BeamSqlRelUtils.getNodeStats(this.input, mq);
 
     inputEstimate = computeWindowingCostEffect(inputEstimate);
 
-    NodeStats estimate;
     // groupCount shows how many columns do we have in group by. One of them might be the windowing.
     int groupCount = groupSet.cardinality() - (windowFn == null ? 0 : 1);
     // This is similar to what Calcite does.If groupCount is zero then then we have only one value
@@ -265,7 +264,8 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
             .setRowSchema(outputSchema);
       }
       org.apache.beam.sdk.schemas.transforms.Group.AggregateCombiner<Row> globally =
-          org.apache.beam.sdk.schemas.transforms.Group.CombineFieldsGlobally.create();
+          (org.apache.beam.sdk.schemas.transforms.Group.AggregateCombiner<Row>)
+              org.apache.beam.sdk.schemas.transforms.Group.CombineFieldsGlobally.create();
       PTransform<PCollection<Row>, PCollection<Row>> combiner = createCombiner(globally);
       return windowedStream.apply(combiner).setRowSchema(outputSchema);
     }

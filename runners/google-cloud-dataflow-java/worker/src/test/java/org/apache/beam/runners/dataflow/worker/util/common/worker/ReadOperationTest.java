@@ -74,7 +74,6 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class ReadOperationTest {
 
-  private static final String COUNTER_PREFIX = "test-";
   private final CounterSet counterSet = new CounterSet();
   private OperationContext context =
       TestOperationContext.create(

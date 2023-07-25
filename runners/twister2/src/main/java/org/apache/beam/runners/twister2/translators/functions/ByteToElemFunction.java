@@ -20,7 +20,6 @@ package org.apache.beam.runners.twister2.translators.functions;
 import edu.iu.dsc.tws.api.tset.TSetContext;
 import edu.iu.dsc.tws.api.tset.fn.MapFunc;
 import java.io.ObjectStreamException;
-import java.util.logging.Logger;
 import org.apache.beam.runners.twister2.utils.TranslationUtils;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -28,11 +27,10 @@ import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 
 /** ByteToWindow function. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class ByteToElemFunction<V> implements MapFunc<WindowedValue<V>, byte[]> {
   private transient WindowedValueCoder<V> wvCoder;
-  private static final Logger LOG = Logger.getLogger(ByteToElemFunction.class.getName());
 
   private transient boolean isInitialized = false;
   private byte[] wvCoderBytes;

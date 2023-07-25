@@ -55,6 +55,7 @@ current_minor_version=`echo ${python_version} | sed -E "s/Python 3.([0-9])\..*/\
 excluded_patterns=(
     'apache_beam/coders/coder_impl.*'
     'apache_beam/coders/stream.*'
+    'apache_beam/coders/coder_impl_row_encoders.*'
     'apache_beam/examples/'
     'apache_beam/io/gcp/tests/'
     'apache_beam/metrics/execution.*'
@@ -63,8 +64,14 @@ excluded_patterns=(
     'apache_beam/runners/portability/'
     'apache_beam/runners/test/'
     'apache_beam/runners/worker/'
-    'apache_beam/testing/'
     'apache_beam/testing/benchmarks/chicago_taxi/'
+    'apache_beam/testing/benchmarks/cloudml/'
+    'apache_beam/testing/benchmarks/inference/'
+    'apache_beam/testing/benchmarks/data/'
+    'apache_beam/testing/benchmarks/load_tests/'
+    'apache_beam/testing/analyzers'
+    'apache_beam/testing/.*test.py'
+    'apache_beam/testing/fast_test_utils.*'
     'apache_beam/tools/'
     'apache_beam/tools/map_fn_microbenchmark.*'
     'apache_beam/transforms/cy_combiners.*'
@@ -93,6 +100,7 @@ echo "    :inherited-members:" >> target/docs/source/apache_beam.dataframe.frame
 cat > target/docs/source/conf.py <<'EOF'
 import os
 import sys
+from apache_beam import version as beam_version
 
 import sphinx_rtd_theme
 
@@ -117,10 +125,13 @@ master_doc = 'index'
 html_theme = 'sphinx_rtd_theme'
 html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 project = 'Apache Beam'
+version = beam_version.__version__
+release = version
 
 autoclass_content = 'both'
 autodoc_inherit_docstrings = False
 autodoc_member_order = 'bysource'
+autodoc_mock_imports = ["tensorrt", "cuda", "torch", "onnxruntime", "onnx", "tensorflow", "tensorflow_hub", "tensorflow_transform", "tensorflow_metadata"]
 
 # Allow a special section for documenting DataFrame API
 napoleon_custom_sections = ['Differences from pandas']
@@ -132,8 +143,7 @@ import apache_beam as beam
 intersphinx_mapping = {
   'python': ('https://docs.python.org/{}'.format(sys.version_info.major), None),
   'hamcrest': ('https://pyhamcrest.readthedocs.io/en/stable/', None),
-  'google-cloud-datastore': ('https://googleapis.dev/python/datastore/latest/', None),
-  'numpy': ('http://docs.scipy.org/doc/numpy', None),
+  'numpy': ('https://numpy.org/doc/stable', None),
   'pandas': ('http://pandas.pydata.org/pandas-docs/dev', None),
 }
 
@@ -154,14 +164,12 @@ ignore_identifiers = [
   # Ignore broken built-in type references
   'tuple',
 
-  # Ignore future.builtin type references
-  'future.types.newobject.newobject',
-
   # Ignore private classes
   'apache_beam.coders.coders._PickleCoderBase',
   'apache_beam.coders.coders.FastCoder',
   'apache_beam.coders.coders.ListLikeCoder',
   'apache_beam.io._AvroSource',
+  'apache_beam.io.fileio.FileSink',
   'apache_beam.io.gcp.bigquery.RowAsDictJsonCoder',
   'apache_beam.io.gcp.datastore.v1new.datastoreio._Mutate',
   'apache_beam.io.gcp.datastore.v1new.datastoreio.DatastoreMutateFn',
@@ -179,6 +187,7 @@ ignore_identifiers = [
   'apache_beam.pvalue.DoOutputsTuple',
   'apache_beam.pvalue.PValue',
   'apache_beam.runners.direct.executor.CallableTask',
+  'apache_beam.runners.portability.local_job_service.BeamJob',
   'apache_beam.testing.synthetic_pipeline._Random',
   'apache_beam.transforms.combiners.CombinerWithoutDefaults',
   'apache_beam.transforms.core.CallableWrapperCombineFn',
@@ -234,17 +243,6 @@ nitpick_ignore = []
 nitpick_ignore += [('py:class', iden) for iden in ignore_identifiers]
 nitpick_ignore += [('py:obj', iden) for iden in ignore_identifiers]
 nitpick_ignore += [('py:exc', iden) for iden in ignore_references]
-
-# Monkey patch functools.wraps to retain original function argument signature
-# for documentation.
-# https://github.com/sphinx-doc/sphinx/issues/1711
-import functools
-def fake_wraps(wrapped):
-  def wrapper(decorator):
-    return wrapped
-  return wrapper
-
-functools.wraps = fake_wraps
 EOF
 
 #=== index.rst ===#
@@ -255,24 +253,30 @@ EOF
 
 # Build the documentation using sphinx
 # Reference: http://www.sphinx-doc.org/en/stable/man/sphinx-build.html
+# Note we cut out warnings from apache_beam.dataframe, this package uses pandas
+# documentation verbatim, as do some of the textio transforms.
 python $(type -p sphinx-build) -v -a -E -q target/docs/source \
   target/docs/_build -c target/docs/source \
-  -w "target/docs/sphinx-build.warnings.log"
+  2>&1 | grep -E -v 'apache_beam\.dataframe.*WARNING:' \
+  2>&1 | grep -E -v 'apache_beam\.io\.textio\.(ReadFrom|WriteTo)(Csv|Json).*WARNING:' \
+  2>&1 | tee "target/docs/sphinx-build.log"
 
 # Fail if there are errors or warnings in docs
-! grep -q "ERROR:" target/docs/sphinx-build.warnings.log || exit 1
-(! grep -v 'apache_beam.dataframe' target/docs/sphinx-build.warnings.log | grep -q "WARNING:") || exit 1
+! grep -q "ERROR:" target/docs/sphinx-build.log || exit 1
+! grep -q "WARNING:" target/docs/sphinx-build.log || exit 1
 
 # Run tests for code samples, these can be:
 # - Code blocks using '.. testsetup::', '.. testcode::' and '.. testoutput::'
 # - Interactive code starting with '>>>'
 python -msphinx -M doctest target/docs/source \
   target/docs/_build -c target/docs/source \
-  -w "target/docs/sphinx-doctest.warnings.log"
+  2>&1 | grep -E -v 'apache_beam\.dataframe.*WARNING:' \
+  2>&1 | grep -E -v 'apache_beam\.io\.textio\.(ReadFrom|WriteTo)(Csv|Json).*WARNING:' \
+  2>&1 | tee "target/docs/sphinx-doctest.log"
 
 # Fail if there are errors or warnings in docs
-! grep -q "ERROR:" target/docs/sphinx-doctest.warnings.log || exit 1
-(! grep -v 'apache_beam.dataframe' target/docs/sphinx-doctest.warnings.log | grep -q "WARNING:") || exit 1
+! grep -q "ERROR:" target/docs/sphinx-doctest.log || exit 1
+! grep -q "WARNING:" target/docs/sphinx-doctest.log || exit 1
 
 # Message is useful only when this script is run locally.  In a remote
 # test environment, this path will be removed when the test completes.

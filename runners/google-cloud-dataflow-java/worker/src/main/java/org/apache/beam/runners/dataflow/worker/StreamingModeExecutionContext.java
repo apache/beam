@@ -54,9 +54,10 @@ import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
@@ -76,7 +77,7 @@ import org.slf4j.LoggerFactory;
 
 /** {@link DataflowExecutionContext} for use in streaming mode. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class StreamingModeExecutionContext extends DataflowExecutionContext<StepContext> {
 
@@ -146,6 +147,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     private final AtomicLong totalMillisInState = new AtomicLong();
 
     // The worker that created this state.  Used to report lulls back to the worker.
+    @SuppressWarnings("unused") // Affects a public api
     private final StreamingDataflowWorker worker;
 
     public StreamingModeExecutionState(
@@ -428,7 +430,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
           ((UnboundedSource<?, UnboundedSource.CheckpointMark>) activeReader.getCurrentSource())
               .getCheckpointMarkCoder();
       if (checkpointCoder != null) {
-        ByteString.Output stream = ByteString.newOutput();
+        ByteStringOutputStream stream = new ByteStringOutputStream();
         try {
           checkpointCoder.encode(checkpointMark, stream, Coder.Context.OUTER);
         } catch (IOException e) {
@@ -480,6 +482,25 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     return nameContext.userName() == null ? null : stateNameMap.get(nameContext.userName());
   }
 
+  private static class ScopedReadStateSupplier implements Supplier<Closeable> {
+    private final ExecutionState readState;
+    private final @Nullable ExecutionStateTracker stateTracker;
+
+    ScopedReadStateSupplier(
+        DataflowOperationContext operationContext, ExecutionStateTracker stateTracker) {
+      this.readState = operationContext.newExecutionState("windmill-read");
+      this.stateTracker = stateTracker;
+    }
+
+    @Override
+    public Closeable get() {
+      if (stateTracker == null) {
+        return null;
+      }
+      return stateTracker.enterState(readState);
+    }
+  }
+
   class StepContext extends DataflowExecutionContext.DataflowStepContext
       implements StreamingModeStepContext {
 
@@ -492,23 +513,10 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
 
     public StepContext(DataflowOperationContext operationContext) {
       super(operationContext.nameContext());
-      this.stateFamily =
-          StreamingModeExecutionContext.this.getStateFamily(operationContext.nameContext());
+      this.stateFamily = getStateFamily(operationContext.nameContext());
 
       this.scopedReadStateSupplier =
-          new Supplier<Closeable>() {
-            private ExecutionState readState = operationContext.newExecutionState("windmill-read");
-
-            @Override
-            public Closeable get() {
-              ExecutionStateTracker tracker =
-                  StreamingModeExecutionContext.this.getExecutionStateTracker();
-              if (tracker == null) {
-                return null;
-              }
-              return tracker.enterState(readState);
-            }
-          };
+          new ScopedReadStateSupplier(operationContext, getExecutionStateTracker());
     }
 
     /** Update the {@code stateReader} used by this {@code StepContext}. */
@@ -713,6 +721,12 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       return StreamingModeExecutionContext.this.getSideInputNotifications();
     }
 
+    private void ensureStateful(String errorPrefix) {
+      if (stateFamily == null) {
+        throw new IllegalStateException(errorPrefix + " for stateless step: " + getNameContext());
+      }
+    }
+
     @Override
     public <T, W extends BoundedWindow> void writePCollectionViewData(
         TupleTag<?> tag,
@@ -725,16 +739,13 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
         throw new IllegalStateException("writePCollectionViewData must follow a Combine.globally");
       }
 
-      ByteString.Output dataStream = ByteString.newOutput();
+      ByteStringOutputStream dataStream = new ByteStringOutputStream();
       dataCoder.encode(data, dataStream, Coder.Context.OUTER);
 
-      ByteString.Output windowStream = ByteString.newOutput();
+      ByteStringOutputStream windowStream = new ByteStringOutputStream();
       windowCoder.encode(window, windowStream, Coder.Context.OUTER);
 
-      if (stateFamily == null) {
-        throw new IllegalStateException(
-            "Tried to write view data for stateless step: " + getNameContext());
-      }
+      ensureStateful("Tried to write view data");
 
       Windmill.GlobalData.Builder builder =
           Windmill.GlobalData.newBuilder()
@@ -761,9 +772,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     /** Note that there is data on the current key that is blocked on the given side input. */
     @Override
     public void addBlockingSideInput(Windmill.GlobalDataRequest sideInput) {
-      checkState(
-          stateFamily != null,
-          "Tried to set global data request for stateless step: " + getNameContext());
+      ensureStateful("Tried to set global data request");
       sideInput =
           Windmill.GlobalDataRequest.newBuilder(sideInput).setStateFamily(stateFamily).build();
       outputBuilder.addGlobalDataRequests(sideInput);
@@ -780,22 +789,18 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
 
     @Override
     public StateInternals stateInternals() {
-      checkState(
-          stateFamily != null, "Tried to access state for stateless step: " + getNameContext());
+      ensureStateful("Tried to access state");
       return checkNotNull(stateInternals);
     }
 
     @Override
     public TimerInternals timerInternals() {
-      checkState(
-          stateFamily != null, "Tried to access timers for stateless step: " + getNameContext());
+      ensureStateful("Tried to access timers");
       return checkNotNull(systemTimerInternals);
     }
 
     public TimerInternals userTimerInternals() {
-      checkState(
-          stateFamily != null,
-          "Tried to access user timers for stateless step: " + getNameContext());
+      ensureStateful("Tried to access user timers");
       return checkNotNull(userTimerInternals);
     }
   }

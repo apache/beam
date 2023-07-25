@@ -22,19 +22,19 @@ import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedLimitOffsetScan;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedOrderByScan;
 import java.util.Collections;
 import java.util.List;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelCollation;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelCollations;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelNode;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.logical.LogicalSort;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexDynamicParam;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexLiteral;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelCollation;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelCollations;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.logical.LogicalSort;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexDynamicParam;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexLiteral;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /** Converts LIMIT without ORDER BY. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class LimitOffsetScanToLimitConverter extends RelConverter<ResolvedLimitOffsetScan> {
 

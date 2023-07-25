@@ -53,12 +53,12 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
       chicagoTaxiJob(delegate)
     }
 
-// TODO(BEAM-9154): Chicago Taxi Example doesn't work in Python 3.
+// TODO(https://github.com/apache/beam/issues/19973): Chicago Taxi Example doesn't work in Python 3.
 // Uncomment below once it is fixed.
 //
 // CronJobBuilder.cronJob(
 //     'beam_PostCommit_Python_Chicago_Taxi_Dataflow',
-//     'H 14 * * *',
+//     'H H * * *',
 //     this
 //     ) {
 //       chicagoTaxiJob(delegate)

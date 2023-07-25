@@ -24,7 +24,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.function.IntFunction;
 import java.util.stream.Collectors;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTableFilter;
 import org.apache.beam.sdk.extensions.sql.meta.DefaultTableFilter;
@@ -48,13 +47,13 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.rel2sql.SqlImplementor;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexNode;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlIdentifier;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlNode;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.fun.SqlStdOperatorTable;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.rel2sql.SqlImplementor;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlIdentifier;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.fun.SqlStdOperatorTable;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,10 +62,9 @@ import org.slf4j.LoggerFactory;
  * {@code BigQueryTable} represent a BigQuery table as a target. This provider does not currently
  * support being a source.
  */
-@Experimental
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class BigQueryTable extends SchemaBaseBeamTable implements Serializable {
   @VisibleForTesting static final String METHOD_PROPERTY = "method";
@@ -105,7 +103,7 @@ class BigQueryTable extends SchemaBaseBeamTable implements Serializable {
       method = Method.DIRECT_READ;
     }
 
-    LOG.info("BigQuery method is set to: " + method.toString());
+    LOG.info("BigQuery method is set to: {}", method);
 
     if (table.getProperties().containsKey(WRITE_DISPOSITION_PROPERTY)) {
       List<String> validWriteDispositions =
@@ -130,7 +128,7 @@ class BigQueryTable extends SchemaBaseBeamTable implements Serializable {
       writeDisposition = WriteDisposition.WRITE_EMPTY;
     }
 
-    LOG.info("BigQuery writeDisposition is set to: " + writeDisposition.toString());
+    LOG.info("BigQuery writeDisposition is set to: {}", writeDisposition);
   }
 
   @Override
@@ -172,7 +170,7 @@ class BigQueryTable extends SchemaBaseBeamTable implements Serializable {
       if (!bigQueryFilter.getSupported().isEmpty()) {
         String rowRestriction = generateRowRestrictions(getSchema(), bigQueryFilter.getSupported());
         if (!rowRestriction.isEmpty()) {
-          LOG.info("Pushing down the following filter: " + rowRestriction);
+          LOG.info("Pushing down the following filter: {}", rowRestriction);
           typedRead = typedRead.withRowRestriction(rowRestriction);
         }
       }

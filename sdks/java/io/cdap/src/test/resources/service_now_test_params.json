@@ -1,0 +1,11 @@
+{
+  "clientId": "clientId",
+  "clientSecret": "clientSecret",
+  "restApiEndpoint": "https://www.google.com",
+  "queryMode": "Table",
+  "user": "user",
+  "password": "password",
+  "tableName": "tableName",
+  "valueType": "Actual",
+  "referenceName": "oldReference"
+}

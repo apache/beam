@@ -16,7 +16,6 @@
 package symtab
 
 import (
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -37,7 +36,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/symtab"
 )
 
-func die(format string, a ...interface{}) {
+func die(format string, a ...any) {
 	fmt.Fprintf(os.Stderr, format, a...)
 	os.Exit(1)
 }
@@ -70,7 +69,7 @@ func fnaddr() uintptr {
 `
 
 func TestSym2Addr(t *testing.T) {
-	f, err := ioutil.TempFile("", "TestSym2Addr*.go")
+	f, err := os.CreateTemp("", "TestSym2Addr*.go")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,6 +85,9 @@ func TestSym2Addr(t *testing.T) {
 	}
 
 	bin := strings.TrimSuffix(fname, ".go")
+	if runtime.GOOS == "windows" {
+		bin += ".exe"
+	}
 	defer os.Remove(bin)
 
 	gotool := filepath.Join(runtime.GOROOT(), "bin", "go")

@@ -318,6 +318,11 @@ class MetricsContainer(object):
 
   def reset(self):
     # type: () -> None
+
+    """Reset all metrics in the MetricsContainer. This does not delete added
+    metrics.
+    """
+
     for metric in self.metrics.values():
       metric.reset()
 

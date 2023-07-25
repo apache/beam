@@ -110,11 +110,11 @@ public class SparkCombineFnTest {
 
     Instant now = Instant.ofEpochMilli(0);
     WindowedValue<KV<String, Integer>> first =
-        input("key", 1, now.plus(5000), strategy.getWindowFn());
+        input("key", 1, now.plus(Duration.millis(5000)), strategy.getWindowFn());
     WindowedValue<KV<String, Integer>> second =
-        input("key", 2, now.plus(1000), strategy.getWindowFn());
+        input("key", 2, now.plus(Duration.millis(1000)), strategy.getWindowFn());
     WindowedValue<KV<String, Integer>> third =
-        input("key", 3, now.plus(500), strategy.getWindowFn());
+        input("key", 3, now.plus(Duration.millis(500)), strategy.getWindowFn());
     SparkCombineFn.WindowedAccumulator<KV<String, Integer>, Integer, Long, ?> c1 =
         sparkCombineFn.createCombiner(first);
     SparkCombineFn.WindowedAccumulator<KV<String, Integer>, Integer, Long, ?> c2 =
@@ -146,11 +146,11 @@ public class SparkCombineFnTest {
 
     Instant now = Instant.ofEpochMilli(0);
     WindowedValue<KV<String, Integer>> first =
-        input("key", 1, now.plus(5000), strategy.getWindowFn());
+        input("key", 1, now.plus(Duration.millis(5000)), strategy.getWindowFn());
     WindowedValue<KV<String, Integer>> second =
-        input("key", 2, now.plus(1500), strategy.getWindowFn());
+        input("key", 2, now.plus(Duration.millis(1500)), strategy.getWindowFn());
     WindowedValue<KV<String, Integer>> third =
-        input("key", 3, now.plus(500), strategy.getWindowFn());
+        input("key", 3, now.plus(Duration.millis(500)), strategy.getWindowFn());
     SparkCombineFn.WindowedAccumulator<KV<String, Integer>, Integer, Long, ?> c1 =
         sparkCombineFn.createCombiner(first);
     SparkCombineFn.WindowedAccumulator<KV<String, Integer>, Integer, Long, ?> c2 =
@@ -184,11 +184,11 @@ public class SparkCombineFnTest {
 
     Instant now = Instant.ofEpochMilli(0);
     WindowedValue<KV<String, Integer>> first =
-        input("key", 1, now.plus(5000), strategy.getWindowFn());
+        input("key", 1, now.plus(Duration.millis(5000)), strategy.getWindowFn());
     WindowedValue<KV<String, Integer>> second =
-        input("key", 2, now.plus(1500), strategy.getWindowFn());
+        input("key", 2, now.plus(Duration.millis(1500)), strategy.getWindowFn());
     WindowedValue<KV<String, Integer>> third =
-        input("key", 3, now.plus(500), strategy.getWindowFn());
+        input("key", 3, now.plus(Duration.millis(500)), strategy.getWindowFn());
 
     Map<KV<String, BoundedWindow>, List<WindowedValue<KV<String, Integer>>>> groupByKeyAndWindow;
     groupByKeyAndWindow =

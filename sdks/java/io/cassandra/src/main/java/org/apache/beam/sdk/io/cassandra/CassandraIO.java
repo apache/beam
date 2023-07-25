@@ -40,8 +40,6 @@ import java.util.concurrent.Future;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -122,10 +120,9 @@ import org.slf4j.LoggerFactory;
  *     .withCoder(SerializableCoder.of(Person.class))
  * }</pre>
  */
-@Experimental(Kind.SOURCE_SINK)
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class CassandraIO {
 
@@ -411,7 +408,6 @@ public class CassandraIO {
           @Element CassandraIO.Read<T> read, OutputReceiver<Read<T>> outputReceiver) {
         Set<RingRange> ringRanges = getRingRanges(read);
         for (RingRange rr : ringRanges) {
-          Set<RingRange> subset = ImmutableSet.<RingRange>of(rr);
           outputReceiver.output(read.withRingRanges(ImmutableSet.of(rr)));
         }
       }
@@ -954,8 +950,8 @@ public class CassandraIO {
     }
 
     /**
-     * Mutate the entity to the Cassandra instance, using {@link Mapper} obtained with the the
-     * Mapper factory, the DefaultObjectMapperFactory uses {@link
+     * Mutate the entity to the Cassandra instance, using {@link Mapper} obtained with the Mapper
+     * factory, the DefaultObjectMapperFactory uses {@link
      * com.datastax.driver.mapping.MappingManager}. This method uses {@link
      * Mapper#saveAsync(Object)} method, which is asynchronous. Beam will wait for all futures to
      * complete, to guarantee all writes have succeeded.

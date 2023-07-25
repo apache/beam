@@ -106,7 +106,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * @param <T> the Protocol Buffers {@link Message} handled by this {@link Coder}.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class ProtoCoder<T extends Message> extends CustomCoder<T> {
 
@@ -247,17 +247,21 @@ public class ProtoCoder<T extends Message> extends CustomCoder<T> {
    */
   public ExtensionRegistry getExtensionRegistry() {
     if (memoizedExtensionRegistry == null) {
-      ExtensionRegistry registry = ExtensionRegistry.newInstance();
-      for (Class<?> extensionHost : extensionHostClasses) {
-        try {
-          extensionHost
-              .getDeclaredMethod("registerAllExtensions", ExtensionRegistry.class)
-              .invoke(null, registry);
-        } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
-          throw new IllegalStateException(e);
+      synchronized (this) {
+        if (memoizedExtensionRegistry == null) {
+          ExtensionRegistry registry = ExtensionRegistry.newInstance();
+          for (Class<?> extensionHost : extensionHostClasses) {
+            try {
+              extensionHost
+                  .getDeclaredMethod("registerAllExtensions", ExtensionRegistry.class)
+                  .invoke(null, registry);
+            } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
+              throw new IllegalStateException(e);
+            }
+          }
+          memoizedExtensionRegistry = registry.getUnmodifiable();
         }
       }
-      memoizedExtensionRegistry = registry.getUnmodifiable();
     }
     return memoizedExtensionRegistry;
   }
@@ -274,12 +278,8 @@ public class ProtoCoder<T extends Message> extends CustomCoder<T> {
    */
   final Set<Class<?>> extensionHostClasses;
 
-  // Constants used to serialize and deserialize
-  private static final String PROTO_MESSAGE_CLASS = "proto_message_class";
-  private static final String PROTO_EXTENSION_HOSTS = "proto_extension_hosts";
-
   // Transient fields that are lazy initialized and then memoized.
-  private transient ExtensionRegistry memoizedExtensionRegistry;
+  private transient volatile ExtensionRegistry memoizedExtensionRegistry;
   transient Parser<T> memoizedParser;
 
   /** Private constructor. */

@@ -27,6 +27,8 @@ import json
 import logging
 import random
 import threading
+from dataclasses import dataclass
+from dataclasses import field
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
@@ -62,17 +64,20 @@ from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners import common
 from apache_beam.runners import pipeline_context
+from apache_beam.runners.worker import data_sampler
 from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import operations
 from apache_beam.runners.worker import statesampler
 from apache_beam.transforms import TimeDomain
 from apache_beam.transforms import core
+from apache_beam.transforms import environments
 from apache_beam.transforms import sideinputs
 from apache_beam.transforms import userstate
 from apache_beam.transforms import window
 from apache_beam.utils import counters
 from apache_beam.utils import proto_utils
 from apache_beam.utils import timestamp
+from apache_beam.utils.windowed_value import WindowedValue
 
 if TYPE_CHECKING:
   from google.protobuf import message  # pylint: disable=ungrouped-imports
@@ -86,7 +91,6 @@ if TYPE_CHECKING:
   from apache_beam.transforms.window import BoundedWindow
   from apache_beam.utils import windowed_value
 
-# This module is experimental. No backwards-compatibility guarantees.
 T = TypeVar('T')
 ConstructorFn = Callable[[
     'BeamTransformFactory',
@@ -104,6 +108,7 @@ FnApiUserRuntimeStateTypes = Union['ReadModifyWriteRuntimeState',
 
 DATA_INPUT_URN = 'beam:runner:source:v1'
 DATA_OUTPUT_URN = 'beam:runner:sink:v1'
+SYNTHETIC_DATA_SAMPLING_URN = 'beam:internal:sampling:v1'
 IDENTITY_DOFN_URN = 'beam:dofn:identity:0.1'
 # TODO(vikasrk): Fix this once runner sends appropriate common_urns.
 OLD_DATAFLOW_RUNNER_HARNESS_PARDO_URN = 'beam:dofn:javasdk:0.1'
@@ -156,8 +161,8 @@ class DataOutputOperation(RunnerIOOperation):
 
   def finish(self):
     # type: () -> None
-    self.output_stream.close()
     super().finish()
+    self.output_stream.close()
 
 
 class DataInputOperation(RunnerIOOperation):
@@ -183,20 +188,26 @@ class DataInputOperation(RunnerIOOperation):
         windowed_coder,
         transform_id=transform_id,
         data_channel=data_channel)
-    # We must do this manually as we don't have a spec or spec.output_coders.
-    self.receivers = [
-        operations.ConsumerSet.create(
-            self.counter_factory,
-            self.name_context.step_name,
-            0,
-            next(iter(consumers.values())),
-            self.windowed_coder,
-            self._get_runtime_performance_hints())
-    ]
+
+    self.consumer = next(iter(consumers.values()))
     self.splitting_lock = threading.Lock()
     self.index = -1
     self.stop = float('inf')
     self.started = False
+
+  def setup(self, data_sampler=None):
+    super().setup(data_sampler)
+    # We must do this manually as we don't have a spec or spec.output_coders.
+    self.receivers = [
+        operations.ConsumerSet.create(
+            counter_factory=self.counter_factory,
+            step_name=self.name_context.step_name,
+            output_index=0,
+            consumers=self.consumer,
+            coder=self.windowed_coder,
+            producer_type_hints=self._get_runtime_performance_hints(),
+            producer_batch_converter=self.get_output_batch_converter())
+    ]
 
   def start(self):
     # type: () -> None
@@ -232,7 +243,8 @@ class DataInputOperation(RunnerIOOperation):
         read_progress_info)] = read_progress_info
     return all_monitoring_infos
 
-  # TODO(BEAM-7746): typing not compatible with super type
+  # TODO(https://github.com/apache/beam/issues/19737): typing not compatible
+  # with super type
   def try_split(  # type: ignore[override]
       self, fraction_of_remainder, total_buffer_size, allowed_split_points):
     # type: (...) -> Optional[Tuple[int, Iterable[operations.SdfSplitResultsPrimary], Iterable[operations.SdfSplitResultsResidual], int]]
@@ -320,6 +332,7 @@ class DataInputOperation(RunnerIOOperation):
 
   def finish(self):
     # type: () -> None
+    super().finish()
     with self.splitting_lock:
       self.index += 1
       self.started = False
@@ -815,13 +828,35 @@ def only_element(iterable):
   return element
 
 
+def _verify_descriptor_created_in_a_compatible_env(process_bundle_descriptor):
+  # type: (beam_fn_api_pb2.ProcessBundleDescriptor) -> None
+
+  runtime_sdk = environments.sdk_base_version_capability()
+  for t in process_bundle_descriptor.transforms.values():
+    env = process_bundle_descriptor.environments[t.environment_id]
+    for c in env.capabilities:
+      if (c.startswith(environments.SDK_VERSION_CAPABILITY_PREFIX) and
+          c != runtime_sdk):
+        raise RuntimeError(
+            "Pipeline construction environment and pipeline runtime "
+            "environment are not compatible. If you use a custom "
+            "container image, check that the Python interpreter minor version "
+            "and the Apache Beam version in your image match the versions "
+            "used at pipeline construction time. "
+            f"Submission environment: {c}. "
+            f"Runtime environment: {runtime_sdk}.")
+
+  # TODO: Consider warning on mismatches in versions of installed packages.
+
+
 class BundleProcessor(object):
   """ A class for processing bundles of elements. """
 
   def __init__(self,
                process_bundle_descriptor,  # type: beam_fn_api_pb2.ProcessBundleDescriptor
                state_handler,  # type: sdk_worker.CachingStateHandler
-               data_channel_factory  # type: data_plane.DataChannelFactory
+               data_channel_factory,  # type: data_plane.DataChannelFactory
+               data_sampler=None,  # type: Optional[data_sampler.DataSampler]
               ):
     # type: (...) -> None
 
@@ -836,8 +871,10 @@ class BundleProcessor(object):
     self.process_bundle_descriptor = process_bundle_descriptor
     self.state_handler = state_handler
     self.data_channel_factory = data_channel_factory
+    self.data_sampler = data_sampler
     self.current_instruction_id = None  # type: Optional[str]
 
+    _verify_descriptor_created_in_a_compatible_env(process_bundle_descriptor)
     # There is no guarantee that the runner only set
     # timer_api_service_descriptor when having timers. So this field cannot be
     # used as an indicator of timers.
@@ -860,9 +897,10 @@ class BundleProcessor(object):
     self.state_sampler = statesampler.StateSampler(
         'fnapi-step-%s' % self.process_bundle_descriptor.id,
         self.counter_factory)
+
     self.ops = self.create_execution_tree(self.process_bundle_descriptor)
-    for op in self.ops.values():
-      op.setup()
+    for op in reversed(self.ops.values()):
+      op.setup(self.data_sampler)
     self.splitting_lock = threading.Lock()
 
   def create_execution_tree(
@@ -875,7 +913,8 @@ class BundleProcessor(object):
         self.data_channel_factory,
         self.counter_factory,
         self.state_sampler,
-        self.state_handler)
+        self.state_handler,
+        self.data_sampler)
 
     self.timers_info = transform_factory.extract_timers_info()
 
@@ -900,6 +939,12 @@ class BundleProcessor(object):
           for tag,
           pcoll_id in descriptor.transforms[transform_id].outputs.items()
       }
+
+      # Initialize transform-specific state in the Data Sampler.
+      if self.data_sampler:
+        self.data_sampler.initialize_samplers(
+            transform_id, descriptor, transform_factory.get_coder)
+
       return transform_factory.create_operation(
           transform_id, transform_consumers)
 
@@ -943,7 +988,7 @@ class BundleProcessor(object):
         expected_input_ops.append(op)
 
     try:
-      execution_context = ExecutionContext()
+      execution_context = ExecutionContext(instruction_id=instruction_id)
       self.current_instruction_id = instruction_id
       self.state_sampler.start()
       # Start all operations.
@@ -1138,10 +1183,18 @@ class BundleProcessor(object):
       op.teardown()
 
 
-class ExecutionContext(object):
-  def __init__(self):
-    self.delayed_applications = [
-    ]  # type: List[Tuple[operations.DoOperation, common.SplitResultResidual]]
+@dataclass
+class ExecutionContext:
+  # Any splits to be processed later.
+  delayed_applications: List[Tuple[operations.DoOperation,
+                                   common.SplitResultResidual]] = field(
+                                       default_factory=list)
+
+  # The exception sampler for the currently executing PTransform.
+  output_sampler: Optional[data_sampler.OutputSampler] = None
+
+  # The current instruction being executed.
+  instruction_id: Optional[str] = None
 
 
 class BeamTransformFactory(object):
@@ -1151,7 +1204,8 @@ class BeamTransformFactory(object):
                data_channel_factory,  # type: data_plane.DataChannelFactory
                counter_factory,  # type: counters.CounterFactory
                state_sampler,  # type: statesampler.StateSampler
-               state_handler  # type: sdk_worker.CachingStateHandler
+               state_handler,  # type: sdk_worker.CachingStateHandler
+               data_sampler,  # type: Optional[data_sampler.DataSampler]
               ):
     self.descriptor = descriptor
     self.data_channel_factory = data_channel_factory
@@ -1166,6 +1220,7 @@ class BeamTransformFactory(object):
             beam_fn_api_pb2.StateKey(
                 runner=beam_fn_api_pb2.StateKey.Runner(key=token)),
             element_coder_impl))
+    self.data_sampler = data_sampler
 
   _known_urns = {
   }  # type: Dict[str, Tuple[ConstructorFn, Union[Type[message.Message], Type[bytes], None]]]
@@ -1689,7 +1744,7 @@ def create_assign_windows(
       yield WindowedValue(element, timestamp, new_windows)
 
   from apache_beam.transforms.core import Windowing
-  from apache_beam.transforms.window import WindowFn, WindowedValue
+  from apache_beam.transforms.window import WindowFn
   windowing = Windowing.from_runner_api(parameter, factory.context)
   return _create_simple_pardo_operation(
       factory,
@@ -1881,7 +1936,7 @@ def create_merge_windows(
       original_windows = set(windows)  # type: Set[window.BoundedWindow]
       merged_windows = collections.defaultdict(
           set
-      )  # type: MutableMapping[window.BoundedWindow, Set[window.BoundedWindow]]
+      )  # type: MutableMapping[window.BoundedWindow, Set[window.BoundedWindow]] # noqa: F821
 
       class RecordingMergeContext(window.WindowFn.MergeContext):
         def merge(

@@ -52,12 +52,17 @@ public class GcpResourceIdentifiers {
         "//bigtable.googleapis.com/projects/%s/namespaces/%s", projectId, namespace);
   }
 
-  public static String spannerTable(String projectId, String databaseId, String tableId) {
+  public static String spannerTable(
+      String projectId, String instanceId, String databaseId, String tableId) {
     return String.format(
-        "//spanner.googleapis.com/projects/%s/topics/%s/tables/%s", projectId, databaseId, tableId);
+        "//spanner.googleapis.com/projects/%s/instances/%s/databases/%s/tables/%s",
+        projectId, instanceId, databaseId, tableId);
   }
 
-  public static String spannerQuery(String projectId, String queryName) {
-    return String.format("//spanner.googleapis.com/projects/%s/queries/%s", projectId, queryName);
+  public static String spannerQuery(
+      String projectId, String instanceId, String databaseId, String queryName) {
+    return String.format(
+        "//spanner.googleapis.com/projects/%s/instances/%s/databases/%s/queries/%s",
+        projectId, instanceId, databaseId, queryName);
   }
 }

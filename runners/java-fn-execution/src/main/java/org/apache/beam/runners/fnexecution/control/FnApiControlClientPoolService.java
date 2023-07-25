@@ -28,9 +28,9 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnControlGrpc;
 import org.apache.beam.sdk.fn.server.FnService;
 import org.apache.beam.sdk.fn.server.HeaderAccessor;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.Status;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.StatusException;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.Status;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.StatusException;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -93,7 +93,7 @@ public class FnApiControlClientPoolService extends BeamFnControlGrpc.BeamFnContr
       synchronized (lock) {
         checkState(
             !closed, "%s already closed", FnApiControlClientPoolService.class.getSimpleName());
-        // TODO: https://issues.apache.org/jira/browse/BEAM-4151: Prevent stale client references
+        // TODO: https://github.com/apache/beam/issues/18790: Prevent stale client references
         // from leaking.
         vendedClients.put(workerId, newClient);
       }

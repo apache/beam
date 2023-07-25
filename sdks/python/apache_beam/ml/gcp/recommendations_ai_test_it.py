@@ -21,6 +21,7 @@ from __future__ import absolute_import
 
 import random
 import unittest
+from datetime import datetime
 
 import pytest
 
@@ -40,6 +41,17 @@ except ImportError:
 
 GCP_TEST_PROJECT = 'apache-beam-testing'
 
+CATALOG_ITEM = {
+    "id": f"aitest-{int(datetime.now().timestamp())}-"
+    f"{int(random.randint(1,10000))}",
+    "title": "Sample laptop",
+    "description": "Indisputably the most fantastic laptop ever created.",
+    "language_code": "en",
+    "category_hierarchies": [{
+        "categories": ["Electronic", "Computers"]
+    }]
+}
+
 
 def extract_id(response):
   yield response["id"]
@@ -57,19 +69,8 @@ def extract_prediction(response):
 @unittest.skipIf(
     recommendationengine is None,
     "Recommendations AI dependencies not installed.")
-@unittest.skip('https://issues.apache.org/jira/browse/BEAM-12683')
 class RecommendationAIIT(unittest.TestCase):
   def test_create_catalog_item(self):
-
-    CATALOG_ITEM = {
-        "id": str(int(random.randrange(100000))),
-        "title": "Sample laptop",
-        "description": "Indisputably the most fantastic laptop ever created.",
-        "language_code": "en",
-        "category_hierarchies": [{
-            "categories": ["Electronic", "Computers"]
-        }]
-    }
 
     with TestPipeline(is_integration_test=True) as p:
       output = (
@@ -103,7 +104,17 @@ class RecommendationAIIT(unittest.TestCase):
 
       assert_that(output, is_not_empty())
 
+  @classmethod
+  def tearDownClass(cls):
+    client = recommendationengine.CatalogServiceClient()
+    parent = (
+        f'projects/{GCP_TEST_PROJECT}/locations/'
+        'global/catalogs/default_catalog')
+    for item in list(client.list_catalog_items(parent=parent)):
+      client.delete_catalog_item(
+          name=f"projects/{GCP_TEST_PROJECT}/locations/global/catalogs/"
+          f"default_catalog/catalogItems/{item.id}")
+
 
 if __name__ == '__main__':
-  print(recommendationengine.CatalogItem.__module__)
   unittest.main()

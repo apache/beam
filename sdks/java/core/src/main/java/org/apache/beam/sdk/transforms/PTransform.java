@@ -23,7 +23,6 @@ import java.io.Serializable;
 import java.util.Collections;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -160,6 +159,19 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
    * <p>By default, does nothing.
    */
   public void validate(@Nullable PipelineOptions options) {}
+
+  /**
+   * Called before running the Pipeline to verify this transform, its inputs, and outputs are fully
+   * and correctly specified.
+   *
+   * <p>By default, delegates to {@link #validate(PipelineOptions)}.
+   */
+  public void validate(
+      @Nullable PipelineOptions options,
+      Map<TupleTag<?>, PCollection<?>> inputs,
+      Map<TupleTag<?>, PCollection<?>> outputs) {
+    validate(options);
+  }
 
   /**
    * Returns all {@link PValue PValues} that are consumed as inputs to this {@link PTransform} that
@@ -337,7 +349,6 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
    *   });
    * }</pre>
    */
-  @Experimental
   public static <InputT extends PInput, OutputT extends POutput>
       PTransform<InputT, OutputT> compose(SerializableFunction<InputT, OutputT> fn) {
     return new PTransform<InputT, OutputT>() {
@@ -349,7 +360,6 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
   }
 
   /** Like {@link #compose(SerializableFunction)}, but with a custom name. */
-  @Experimental
   public static <InputT extends PInput, OutputT extends POutput>
       PTransform<InputT, OutputT> compose(String name, SerializableFunction<InputT, OutputT> fn) {
     return new PTransform<InputT, OutputT>(name) {

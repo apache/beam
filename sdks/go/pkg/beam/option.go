@@ -30,8 +30,8 @@ type Option interface {
 type SideInput struct {
 	Input PCollection
 
-	// WindowFn interface{}
-	// ViewFn   interface{}
+	// WindowFn any
+	// ViewFn   any
 }
 
 func (s SideInput) private() {}

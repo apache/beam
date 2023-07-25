@@ -29,6 +29,7 @@ import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeParameter;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * The {@link FailsafeElementCoder} encodes and decodes {@link FailsafeElement} objects.
@@ -84,8 +85,8 @@ public class FailsafeElementCoder<OriginalT, CurrentT>
 
     OriginalT originalPayload = originalPayloadCoder.decode(inStream);
     CurrentT currentPayload = currentPayloadCoder.decode(inStream);
-    String errorMessage = STRING_CODER.decode(inStream);
-    String stacktrace = STRING_CODER.decode(inStream);
+    @Nullable String errorMessage = STRING_CODER.decode(inStream);
+    @Nullable String stacktrace = STRING_CODER.decode(inStream);
 
     return FailsafeElement.of(originalPayload, currentPayload)
         .setErrorMessage(errorMessage)

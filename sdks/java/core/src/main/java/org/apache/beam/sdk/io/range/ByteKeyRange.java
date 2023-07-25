@@ -362,7 +362,7 @@ public final class ByteKeyRange
   private static BigInteger paddedPositiveInt(byte[] bytes, int length) {
     int bytePaddingNeeded = length - bytes.length;
     checkArgument(
-        bytePaddingNeeded >= 0, "Required bytes.length {} < length {}", bytes.length, length);
+        bytePaddingNeeded >= 0, "Required bytes.length %s < length %s", bytes.length, length);
     BigInteger ret = new BigInteger(1, bytes);
     return (bytePaddingNeeded == 0) ? ret : ret.shiftLeft(8 * bytePaddingNeeded);
   }

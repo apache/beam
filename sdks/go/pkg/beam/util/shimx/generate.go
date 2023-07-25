@@ -39,6 +39,9 @@ import (
 	"sort"
 	"strings"
 	"text/template"
+
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 // Beam imports that the generated code requires.
@@ -48,6 +51,7 @@ var (
 	ReflectxImport = "github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 	RuntimeImport  = "github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
 	SchemaImport   = "github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/schema"
+	SdfImport      = "github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 )
 
 func validateBeamImports() {
@@ -56,6 +60,7 @@ func validateBeamImports() {
 	checkImportSuffix(ReflectxImport, "reflectx")
 	checkImportSuffix(RuntimeImport, "runtime")
 	checkImportSuffix(SchemaImport, "schema")
+	checkImportSuffix(SdfImport, "sdf")
 }
 
 func checkImportSuffix(path, suffix string) {
@@ -109,6 +114,8 @@ func (t Top) processImports() *Top {
 	var filtered []string
 	if len(t.Emitters) > 0 {
 		pred["context"] = true
+		filtered = append(filtered, SdfImport)
+		pred[SdfImport] = true
 	}
 	if len(t.Inputs) > 0 {
 		pred["fmt"] = true
@@ -211,7 +218,7 @@ func Name(t string) string {
 
 	t = strings.Replace(t, "beam.", "typex.", -1)
 	t = strings.Replace(t, ".", "۰", -1) // For packages
-	return strings.Title(t)
+	return cases.Title(language.Und, cases.NoLower).String(t)
 }
 
 // FuncName returns a compilable Go identifier for a function, given valid
@@ -276,7 +283,7 @@ func init() {
 }
 
 {{range $x := .Wraps -}}
-func wrapMaker{{$x.Name}}(fn interface{}) map[string]reflectx.Func {
+func wrapMaker{{$x.Name}}(fn any) map[string]reflectx.Func {
 	dfn := fn.(*{{$x.Type}})
 	return map[string]reflectx.Func{
 	{{- range $y := .Methods}}
@@ -291,7 +298,7 @@ type caller{{$x.Name}} struct {
 	fn {{$x.Type}}
 }
 
-func funcMaker{{$x.Name}}(fn interface{}) reflectx.Func {
+func funcMaker{{$x.Name}}(fn any) reflectx.Func {
 	f := fn.({{$x.Type}})
 	return &caller{{$x.Name}}{fn: f}
 }
@@ -304,12 +311,12 @@ func (c *caller{{$x.Name}}) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller{{$x.Name}}) Call(args []interface{}) []interface{} {
+func (c *caller{{$x.Name}}) Call(args []any) []any {
 	{{mktuplef (len $x.Out) "out%d"}}{{- if len $x.Out}} := {{end -}}c.fn({{mkparams "args[%d].(%v)" $x.In}})
-	return []interface{}{ {{- mktuplef (len $x.Out) "out%d" -}} }
+	return []any{ {{- mktuplef (len $x.Out) "out%d" -}} }
 }
 
-func (c *caller{{$x.Name}}) Call{{len $x.In}}x{{len $x.Out}}({{mkargs (len $x.In) "arg%v" "interface{}"}}) ({{- mktuple (len $x.Out) "interface{}"}}) {
+func (c *caller{{$x.Name}}) Call{{len $x.In}}x{{len $x.Out}}({{mkargs (len $x.In) "arg%v" "any"}}) ({{- mktuple (len $x.Out) "any"}}) {
 	{{if len $x.Out}}return {{end}}c.fn({{mkparams "arg%d.(%v)" $x.In}})
 }
 
@@ -317,7 +324,8 @@ func (c *caller{{$x.Name}}) Call{{len $x.In}}x{{len $x.Out}}({{mkargs (len $x.In
 {{- if .Emitters -}}
 type emitNative struct {
 	n     exec.ElementProcessor
-	fn    interface{}
+	fn    any
+	est   *sdf.WatermarkEstimator
 
 	ctx context.Context
 	ws  []typex.Window
@@ -332,8 +340,12 @@ func (e *emitNative) Init(ctx context.Context, ws []typex.Window, et typex.Event
 	return nil
 }
 
-func (e *emitNative) Value() interface{} {
+func (e *emitNative) Value() any {
 	return e.fn
+}
+
+func (e *emitNative) AttachEstimator(est *sdf.WatermarkEstimator) {
+	e.est = est
 }
 
 {{end}}
@@ -346,6 +358,9 @@ func emitMaker{{$x.Name}}(n exec.ElementProcessor) exec.ReusableEmitter {
 
 func (e *emitNative) invoke{{$x.Name}}({{if $x.Time -}} t typex.EventTime, {{end}}{{if $x.Key}}key {{$x.Key}}, {{end}}val {{$x.Val}}) {
 	e.value = exec.FullValue{Windows: e.ws, Timestamp: {{- if $x.Time}} t{{else}} e.et{{end}}, {{- if $x.Key}} Elm: key, Elm2: val {{else}} Elm: val{{end -}} }
+	if e.est != nil {
+		(*e.est).(sdf.TimestampObservingEstimator).ObserveTimestamp({{- if $x.Time}} t.ToTime(){{else}} e.et.ToTime(){{end}})
+	}
 	if err := e.n.ProcessElement(e.ctx, &e.value); err != nil {
 		panic(err)
 	}
@@ -355,7 +370,7 @@ func (e *emitNative) invoke{{$x.Name}}({{if $x.Time -}} t typex.EventTime, {{end
 {{- if .Inputs -}}
 type iterNative struct {
 	s     exec.ReStream
-	fn    interface{}
+	fn    any
 
 	// cur is the "current" stream, if any.
 	cur exec.Stream
@@ -370,7 +385,7 @@ func (v *iterNative) Init() error {
 	return nil
 }
 
-func (v *iterNative) Value() interface{} {
+func (v *iterNative) Value() any {
 	return v.fn
 }
 
@@ -414,7 +429,7 @@ func (v *iterNative) read{{$x.Name}}({{if $x.Time -}} et *typex.EventTime, {{end
 `))
 
 // funcMap contains useful functions for use in the template.
-var funcMap template.FuncMap = map[string]interface{}{
+var funcMap template.FuncMap = map[string]any{
 	"mkargs":   mkargs,
 	"mkparams": mkparams,
 	"mkrets":   mkrets,

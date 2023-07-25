@@ -133,7 +133,6 @@ public class MapTaskExecutorTest {
 
   @Test
   public void testExecuteMapTaskExecutor() throws Exception {
-    List<String> log = new ArrayList<>();
 
     Operation o1 = Mockito.mock(Operation.class);
     Operation o2 = Mockito.mock(Operation.class);

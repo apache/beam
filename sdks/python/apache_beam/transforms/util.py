@@ -22,6 +22,7 @@
 
 import collections
 import contextlib
+import logging
 import random
 import re
 import threading
@@ -44,6 +45,7 @@ from apache_beam.pvalue import AsSideInput
 from apache_beam.transforms import window
 from apache_beam.transforms.combiners import CountCombineFn
 from apache_beam.transforms.core import CombinePerKey
+from apache_beam.transforms.core import Create
 from apache_beam.transforms.core import DoFn
 from apache_beam.transforms.core import FlatMap
 from apache_beam.transforms.core import Flatten
@@ -64,11 +66,11 @@ from apache_beam.transforms.userstate import on_timer
 from apache_beam.transforms.window import NonMergingWindowFn
 from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import TimestampedValue
+from apache_beam.typehints import trivial_inference
 from apache_beam.typehints.decorators import get_signature
 from apache_beam.typehints.sharded_key_type import ShardedKeyType
 from apache_beam.utils import windowed_value
 from apache_beam.utils.annotations import deprecated
-from apache_beam.utils.annotations import experimental
 from apache_beam.utils.sharded_key import ShardedKey
 
 if TYPE_CHECKING:
@@ -81,6 +83,7 @@ __all__ = [
     'Distinct',
     'Keys',
     'KvSwap',
+    'LogElements',
     'Regex',
     'Reify',
     'RemoveDuplicates',
@@ -111,24 +114,28 @@ class CoGroupByKey(PTransform):
                     'tag2': ... ,
                     ... })
 
+  where `[]` refers to an iterable, not a list.
+
   For example, given::
 
       {'tag1': pc1, 'tag2': pc2, 333: pc3}
 
   where::
 
-      pc1 = [(k1, v1)]
-      pc2 = []
-      pc3 = [(k1, v31), (k1, v32), (k2, v33)]
+      pc1 = beam.Create([(k1, v1)]))
+      pc2 = beam.Create([])
+      pc3 = beam.Create([(k1, v31), (k1, v32), (k2, v33)])
 
-  The output PCollection would be::
+  The output PCollection would consist of items::
 
       [(k1, {'tag1': [v1], 'tag2': [], 333: [v31, v32]}),
        (k2, {'tag1': [], 'tag2': [], 333: [v33]})]
 
+  where `[]` refers to an iterable, not a list.
+
   CoGroupByKey also works for tuples, lists, or other flat iterables of
   PCollections, in which case the values of the resulting PCollections
-  will be tuples whose nth value is the list of values from the nth
+  will be tuples whose nth value is the iterable of values from the nth
   PCollection---conceptually, the "tags" are the indices into the input.
   Thus, for this input::
 
@@ -138,6 +145,8 @@ class CoGroupByKey(PTransform):
 
       [(k1, ([v1], [], [v31, v32]),
        (k2, ([], [], [v33]))]
+
+  where, again, `[]` refers to an iterable, not a list.
 
   Attributes:
     **kwargs: Accepts a single named argument "pipeline", which specifies the
@@ -159,8 +168,11 @@ class CoGroupByKey(PTransform):
       return pcolls, pcolls
 
   def expand(self, pcolls):
+    if not pcolls:
+      pcolls = (self.pipeline | Create([]), )
     if isinstance(pcolls, dict):
-      if all(isinstance(tag, str) and len(tag) < 10 for tag in pcolls.keys()):
+      tags = list(pcolls.keys())
+      if all(isinstance(tag, str) and len(tag) < 10 for tag in tags):
         # Small, string tags. Pass them as data.
         pcolls_dict = pcolls
         restore_tags = None
@@ -174,17 +186,42 @@ class CoGroupByKey(PTransform):
         }
     else:
       # Tags are tuple indices.
-      num_tags = len(pcolls)
-      pcolls_dict = {str(ix): pcolls[ix] for ix in range(num_tags)}
-      restore_tags = lambda vs: tuple(vs[str(ix)] for ix in range(num_tags))
+      tags = [str(ix) for ix in range(len(pcolls))]
+      pcolls_dict = dict(zip(tags, pcolls))
+      restore_tags = lambda vs: tuple(vs[tag] for tag in tags)
 
+    input_key_types = []
+    input_value_types = []
+    for pcoll in pcolls_dict.values():
+      key_type, value_type = typehints.trivial_inference.key_value_types(
+          pcoll.element_type)
+      input_key_types.append(key_type)
+      input_value_types.append(value_type)
+    output_key_type = typehints.Union[tuple(input_key_types)]
+    iterable_input_value_types = tuple(
+        typehints.Iterable[t] for t in input_value_types)
+
+    output_value_type = typehints.Dict[
+        str, typehints.Union[iterable_input_value_types or [typehints.Any]]]
     result = (
-        pcolls_dict | 'CoGroupByKeyImpl' >> _CoGBKImpl(pipeline=self.pipeline))
+        pcolls_dict
+        | 'CoGroupByKeyImpl' >>
+        _CoGBKImpl(pipeline=self.pipeline).with_output_types(
+            typehints.Tuple[output_key_type, output_value_type]))
+
     if restore_tags:
-      return result | 'RestoreTags' >> MapTuple(
-          lambda k, vs: (k, restore_tags(vs)))
-    else:
-      return result
+      if isinstance(pcolls, dict):
+        dict_key_type = typehints.Union[tuple(
+            trivial_inference.instance_to_type(tag) for tag in tags)]
+        output_value_type = typehints.Dict[
+            dict_key_type, typehints.Union[iterable_input_value_types]]
+      else:
+        output_value_type = typehints.Tuple[iterable_input_value_types]
+      result |= 'RestoreTags' >> MapTuple(
+          lambda k, vs: (k, restore_tags(vs))).with_output_types(
+              typehints.Tuple[output_key_type, output_value_type])
+
+    return result
 
 
 class _CoGBKImpl(PTransform):
@@ -197,7 +234,8 @@ class _CoGBKImpl(PTransform):
     for pcoll in pcolls.values():
       self._check_pcollection(pcoll)
       if self.pipeline:
-        assert pcoll.pipeline == self.pipeline
+        assert pcoll.pipeline == self.pipeline, (
+            'All input PCollections must belong to the same pipeline.')
 
     tags = list(pcolls.keys())
 
@@ -277,10 +315,12 @@ class _BatchSizeEstimator(object):
       min_batch_size=1,
       max_batch_size=10000,
       target_batch_overhead=.05,
-      target_batch_duration_secs=1,
+      target_batch_duration_secs=10,
+      target_batch_duration_secs_including_fixed_cost=None,
       variance=0.25,
       clock=time.time,
-      ignore_first_n_seen_per_batch_size=0):
+      ignore_first_n_seen_per_batch_size=0,
+      record_metrics=True):
     if min_batch_size > max_batch_size:
       raise ValueError(
           "Minimum (%s) must not be greater than maximum (%s)" %
@@ -293,10 +333,18 @@ class _BatchSizeEstimator(object):
       raise ValueError(
           "target_batch_duration_secs (%s) must be positive" %
           (target_batch_duration_secs))
-    if not (target_batch_overhead or target_batch_duration_secs):
+    if (target_batch_duration_secs_including_fixed_cost and
+        target_batch_duration_secs_including_fixed_cost <= 0):
+      raise ValueError(
+          "target_batch_duration_secs_including_fixed_cost "
+          "(%s) must be positive" %
+          (target_batch_duration_secs_including_fixed_cost))
+    if not (target_batch_overhead or target_batch_duration_secs or
+            target_batch_duration_secs_including_fixed_cost):
       raise ValueError(
           "At least one of target_batch_overhead or "
-          "target_batch_duration_secs must be positive.")
+          "target_batch_duration_secs or "
+          "target_batch_duration_secs_including_fixed_cost must be positive.")
     if ignore_first_n_seen_per_batch_size < 0:
       raise ValueError(
           'ignore_first_n_seen_per_batch_size (%s) must be non '
@@ -305,6 +353,8 @@ class _BatchSizeEstimator(object):
     self._max_batch_size = max_batch_size
     self._target_batch_overhead = target_batch_overhead
     self._target_batch_duration_secs = target_batch_duration_secs
+    self._target_batch_duration_secs_including_fixed_cost = (
+        target_batch_duration_secs_including_fixed_cost)
     self._variance = variance
     self._clock = clock
     self._data = []
@@ -313,11 +363,17 @@ class _BatchSizeEstimator(object):
         ignore_first_n_seen_per_batch_size)
     self._batch_size_num_seen = {}
     self._replay_last_batch_size = None
+    self._record_metrics = record_metrics
+    self._element_count = 0
+    self._batch_count = 0
 
-    self._size_distribution = Metrics.distribution(
-        'BatchElements', 'batch_size')
-    self._time_distribution = Metrics.distribution(
-        'BatchElements', 'msec_per_batch')
+    if record_metrics:
+      self._size_distribution = Metrics.distribution(
+          'BatchElements', 'batch_size')
+      self._time_distribution = Metrics.distribution(
+          'BatchElements', 'msec_per_batch')
+    else:
+      self._size_distribution = self._time_distribution = None
     # Beam distributions only accept integer values, so we use this to
     # accumulate under-reported values until they add up to whole milliseconds.
     # (Milliseconds are chosen because that's conventionally used elsewhere in
@@ -338,14 +394,17 @@ class _BatchSizeEstimator(object):
     yield
     elapsed = self._clock() - start
     elapsed_msec = 1e3 * elapsed + self._remainder_msecs
-    self._size_distribution.update(batch_size)
-    self._time_distribution.update(int(elapsed_msec))
+    if self._record_metrics:
+      self._size_distribution.update(batch_size)
+      self._time_distribution.update(int(elapsed_msec))
+    self._element_count += batch_size
+    self._batch_count += 1
     self._remainder_msecs = elapsed_msec - int(elapsed_msec)
     # If we ignore the next timing, replay the batch size to get accurate
     # timing.
     if self._ignore_next_timing:
       self._ignore_next_timing = False
-      self._replay_last_batch_size = batch_size
+      self._replay_last_batch_size = min(batch_size, self._max_batch_size)
     else:
       self._data.append((batch_size, elapsed))
       if len(self._data) >= self._MAX_DATA_POINTS:
@@ -452,9 +511,19 @@ class _BatchSizeEstimator(object):
 
     target = self._max_batch_size
 
+    if self._target_batch_duration_secs_including_fixed_cost:
+      # Solution to
+      # a + b*x = self._target_batch_duration_secs_including_fixed_cost.
+      target = min(
+          target,
+          (self._target_batch_duration_secs_including_fixed_cost - a) / b)
+
     if self._target_batch_duration_secs:
-      # Solution to a + b*x = self._target_batch_duration_secs.
-      target = min(target, (self._target_batch_duration_secs - a) / b)
+      # Solution to b*x = self._target_batch_duration_secs.
+      # We ignore the fixed cost in this computation as it has negligeabel
+      # impact when it is small and unhelpfully forces the minimum batch size
+      # when it is large.
+      target = min(target, self._target_batch_duration_secs / b)
 
     if self._target_batch_overhead:
       # Solution to a / (a + b*x) = self._target_batch_overhead.
@@ -486,73 +555,95 @@ class _BatchSizeEstimator(object):
     self._batch_size_num_seen[result] = seen_count
     return result
 
+  def stats(self):
+    return "element_count=%s batch_count=%s next_batch_size=%s timings=%s" % (
+        self._element_count,
+        self._batch_count,
+        self._calculate_next_batch_size(),
+        self._data)
+
 
 class _GlobalWindowsBatchingDoFn(DoFn):
-  def __init__(self, batch_size_estimator):
+  def __init__(self, batch_size_estimator, element_size_fn):
     self._batch_size_estimator = batch_size_estimator
+    self._element_size_fn = element_size_fn
 
   def start_bundle(self):
     self._batch = []
-    self._batch_size = self._batch_size_estimator.next_batch_size()
+    self._running_batch_size = 0
+    self._target_batch_size = self._batch_size_estimator.next_batch_size()
     # The first emit often involves non-trivial setup.
     self._batch_size_estimator.ignore_next_timing()
 
   def process(self, element):
     self._batch.append(element)
-    if len(self._batch) >= self._batch_size:
-      with self._batch_size_estimator.record_time(self._batch_size):
-        yield self._batch
+    self._running_batch_size += self._element_size_fn(element)
+    if self._running_batch_size >= self._target_batch_size:
+      with self._batch_size_estimator.record_time(self._running_batch_size):
+        yield window.GlobalWindows.windowed_value_at_end_of_window(self._batch)
       self._batch = []
-      self._batch_size = self._batch_size_estimator.next_batch_size()
+      self._running_batch_size = 0
+      self._target_batch_size = self._batch_size_estimator.next_batch_size()
 
   def finish_bundle(self):
     if self._batch:
-      with self._batch_size_estimator.record_time(self._batch_size):
-        yield window.GlobalWindows.windowed_value(self._batch)
+      with self._batch_size_estimator.record_time(self._running_batch_size):
+        yield window.GlobalWindows.windowed_value_at_end_of_window(self._batch)
       self._batch = None
-      self._batch_size = self._batch_size_estimator.next_batch_size()
+      self._running_batch_size = 0
+    self._target_batch_size = self._batch_size_estimator.next_batch_size()
+    logging.info(
+        "BatchElements statistics: " + self._batch_size_estimator.stats())
+
+
+class _SizedBatch():
+  def __init__(self):
+    self.elements = []
+    self.size = 0
 
 
 class _WindowAwareBatchingDoFn(DoFn):
 
   _MAX_LIVE_WINDOWS = 10
 
-  def __init__(self, batch_size_estimator):
+  def __init__(self, batch_size_estimator, element_size_fn):
     self._batch_size_estimator = batch_size_estimator
+    self._element_size_fn = element_size_fn
 
   def start_bundle(self):
-    self._batches = collections.defaultdict(list)
-    self._batch_size = self._batch_size_estimator.next_batch_size()
+    self._batches = collections.defaultdict(_SizedBatch)
+    self._target_batch_size = self._batch_size_estimator.next_batch_size()
     # The first emit often involves non-trivial setup.
     self._batch_size_estimator.ignore_next_timing()
 
   def process(self, element, window=DoFn.WindowParam):
-    self._batches[window].append(element)
-    if len(self._batches[window]) >= self._batch_size:
-      with self._batch_size_estimator.record_time(self._batch_size):
+    batch = self._batches[window]
+    batch.elements.append(element)
+    batch.size += self._element_size_fn(element)
+    if batch.size >= self._target_batch_size:
+      with self._batch_size_estimator.record_time(batch.size):
         yield windowed_value.WindowedValue(
-            self._batches[window], window.max_timestamp(), (window, ))
+            batch.elements, window.max_timestamp(), (window, ))
       del self._batches[window]
-      self._batch_size = self._batch_size_estimator.next_batch_size()
+      self._target_batch_size = self._batch_size_estimator.next_batch_size()
     elif len(self._batches) > self._MAX_LIVE_WINDOWS:
-      window, _ = sorted(
+      window, batch = max(
           self._batches.items(),
-          key=lambda window_batch: len(window_batch[1]),
-          reverse=True)[0]
-      with self._batch_size_estimator.record_time(self._batch_size):
+          key=lambda window_batch: window_batch[1].size)
+      with self._batch_size_estimator.record_time(batch.size):
         yield windowed_value.WindowedValue(
-            self._batches[window], window.max_timestamp(), (window, ))
+            batch.elements, window.max_timestamp(), (window, ))
       del self._batches[window]
-      self._batch_size = self._batch_size_estimator.next_batch_size()
+      self._target_batch_size = self._batch_size_estimator.next_batch_size()
 
   def finish_bundle(self):
     for window, batch in self._batches.items():
       if batch:
-        with self._batch_size_estimator.record_time(self._batch_size):
+        with self._batch_size_estimator.record_time(batch.size):
           yield windowed_value.WindowedValue(
-              batch, window.max_timestamp(), (window, ))
+              batch.elements, window.max_timestamp(), (window, ))
     self._batches = None
-    self._batch_size = self._batch_size_estimator.next_batch_size()
+    self._target_batch_size = self._batch_size_estimator.next_batch_size()
 
 
 @typehints.with_input_types(T)
@@ -577,33 +668,49 @@ class BatchElements(PTransform):
   corresponding to its contents.
 
   Args:
-    min_batch_size: (optional) the smallest number of elements per batch
-    max_batch_size: (optional) the largest number of elements per batch
+    min_batch_size: (optional) the smallest size of a batch
+    max_batch_size: (optional) the largest size of a batch
     target_batch_overhead: (optional) a target for fixed_cost / time,
         as used in the formula above
     target_batch_duration_secs: (optional) a target for total time per bundle,
-        in seconds
+        in seconds, excluding fixed cost
+    target_batch_duration_secs_including_fixed_cost: (optional) a target for
+        total time per bundle, in seconds, including fixed cost
+    element_size_fn: (optional) A mapping of an element to its contribution to
+        batch size, defaulting to every element having size 1.  When provided,
+        attempts to provide batches of optimal total size which may consist of
+        a varying number of elements.
     variance: (optional) the permitted (relative) amount of deviation from the
         (estimated) ideal batch size used to produce a wider base for
         linear interpolation
     clock: (optional) an alternative to time.time for measuring the cost of
         donwstream operations (mostly for testing)
+    record_metrics: (optional) whether or not to record beam metrics on
+        distributions of the batch size. Defaults to True.
   """
   def __init__(
       self,
       min_batch_size=1,
       max_batch_size=10000,
       target_batch_overhead=.05,
-      target_batch_duration_secs=1,
+      target_batch_duration_secs=10,
+      target_batch_duration_secs_including_fixed_cost=None,
+      *,
+      element_size_fn=lambda x: 1,
       variance=0.25,
-      clock=time.time):
+      clock=time.time,
+      record_metrics=True):
     self._batch_size_estimator = _BatchSizeEstimator(
         min_batch_size=min_batch_size,
         max_batch_size=max_batch_size,
         target_batch_overhead=target_batch_overhead,
         target_batch_duration_secs=target_batch_duration_secs,
+        target_batch_duration_secs_including_fixed_cost=(
+            target_batch_duration_secs_including_fixed_cost),
         variance=variance,
-        clock=clock)
+        clock=clock,
+        record_metrics=record_metrics)
+    self._element_size_fn = element_size_fn
 
   def expand(self, pcoll):
     if getattr(pcoll.pipeline.runner, 'is_streaming', False):
@@ -612,9 +719,12 @@ class BatchElements(PTransform):
       # This is the same logic as _GlobalWindowsBatchingDoFn, but optimized
       # for that simpler case.
       return pcoll | ParDo(
-          _GlobalWindowsBatchingDoFn(self._batch_size_estimator))
+          _GlobalWindowsBatchingDoFn(
+              self._batch_size_estimator, self._element_size_fn))
     else:
-      return pcoll | ParDo(_WindowAwareBatchingDoFn(self._batch_size_estimator))
+      return pcoll | ParDo(
+          _WindowAwareBatchingDoFn(
+              self._batch_size_estimator, self._element_size_fn))
 
 
 class _IdentityWindowFn(NonMergingWindowFn):
@@ -655,8 +765,6 @@ class ReshufflePerKey(PTransform):
   but operationally provides some of the side effects of a GroupByKey,
   in particular checkpointing, and preventing fusion of the surrounding
   transforms.
-
-  ReshufflePerKey is experimental. No backwards compatibility guarantees.
   """
   def expand(self, pcoll):
     windowing_saved = pcoll.windowing
@@ -694,9 +802,9 @@ class ReshufflePerKey(PTransform):
 
     ungrouped = pcoll | Map(reify_timestamps).with_output_types(Any)
 
-    # TODO(BEAM-8104) Using global window as one of the standard window.
-    # This is to mitigate the Dataflow Java Runner Harness limitation to
-    # accept only standard coders.
+    # TODO(https://github.com/apache/beam/issues/19785) Using global window as
+    # one of the standard window. This is to mitigate the Dataflow Java Runner
+    # Harness limitation to accept only standard coders.
     ungrouped._windowing = Windowing(
         window.GlobalWindows(),
         triggerfn=Always(),
@@ -720,15 +828,30 @@ class Reshuffle(PTransform):
 
   Reshuffle adds a temporary random key to each element, performs a
   ReshufflePerKey, and finally removes the temporary key.
-
-  Reshuffle is experimental. No backwards compatibility guarantees.
   """
+
+  # We use 32-bit integer as the default number of buckets.
+  _DEFAULT_NUM_BUCKETS = 1 << 32
+
+  def __init__(self, num_buckets=None):
+    """
+    :param num_buckets: If set, specifies the maximum random keys that would be
+      generated.
+    """
+    self.num_buckets = num_buckets if num_buckets else self._DEFAULT_NUM_BUCKETS
+
+    valid_buckets = isinstance(num_buckets, int) and num_buckets > 0
+    if not (num_buckets is None or valid_buckets):
+      raise ValueError(
+          'If `num_buckets` is set, it has to be an '
+          'integer greater than 0, got %s' % num_buckets)
+
   def expand(self, pcoll):
     # type: (pvalue.PValue) -> pvalue.PCollection
     return (
-        pcoll
-        | 'AddRandomKeys' >> Map(lambda t: (random.getrandbits(32), t)).
-        with_input_types(T).with_output_types(Tuple[int, T])
+        pcoll | 'AddRandomKeys' >>
+        Map(lambda t: (random.randrange(0, self.num_buckets), t)
+            ).with_input_types(T).with_output_types(Tuple[int, T])
         | ReshufflePerKey()
         | 'RemoveRandomKeys' >> Map(lambda t: t[1]).with_input_types(
             Tuple[int, T]).with_output_types(T))
@@ -745,6 +868,7 @@ class Reshuffle(PTransform):
 
 
 def fn_takes_side_inputs(fn):
+  fn = getattr(fn, '_argspec_fn', fn)
   try:
     signature = get_signature(fn)
   except TypeError:
@@ -782,7 +906,6 @@ def WithKeys(pcoll, k, *args, **kwargs):
   return pcoll | Map(lambda v: (k, v))
 
 
-@experimental()
 @typehints.with_input_types(Tuple[K, V])
 @typehints.with_output_types(Tuple[K, Iterable[V]])
 class GroupIntoBatches(PTransform):
@@ -791,9 +914,6 @@ class GroupIntoBatches(PTransform):
   point they are output to the output Pcollection.
 
   Windows are preserved (batches will contain elements from the same window)
-
-  GroupIntoBatches is experimental. Its use case will depend on the runner if
-  it has support of States and Timers.
   """
   def __init__(
       self, batch_size, max_buffering_duration_secs=None, clock=time.time):
@@ -1027,6 +1147,49 @@ class ToString(object):
 
   # An alias for Iterables.
   Kvs = Iterables
+
+
+@typehints.with_input_types(T)
+@typehints.with_output_types(T)
+class LogElements(PTransform):
+  """
+  PTransform for printing the elements of a PCollection.
+  """
+  class _LoggingFn(DoFn):
+    def __init__(self, prefix='', with_timestamp=False, with_window=False):
+      super().__init__()
+      self.prefix = prefix
+      self.with_timestamp = with_timestamp
+      self.with_window = with_window
+
+    def process(
+        self,
+        element,
+        timestamp=DoFn.TimestampParam,
+        window=DoFn.WindowParam,
+        **kwargs):
+      log_line = self.prefix + str(element)
+
+      if self.with_timestamp:
+        log_line += ', timestamp=' + repr(timestamp.to_rfc3339())
+
+      if self.with_window:
+        log_line += ', window(start=' + window.start.to_rfc3339()
+        log_line += ', end=' + window.end.to_rfc3339() + ')'
+
+      print(log_line)
+      yield element
+
+  def __init__(
+      self, label=None, prefix='', with_timestamp=False, with_window=False):
+    super().__init__(label)
+    self.prefix = prefix
+    self.with_timestamp = with_timestamp
+    self.with_window = with_window
+
+  def expand(self, input):
+    return input | ParDo(
+        self._LoggingFn(self.prefix, self.with_timestamp, self.with_window))
 
 
 class Reify(object):

@@ -20,7 +20,6 @@ package org.apache.beam.runners.dataflow.options;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.dataflow.DataflowRunner;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.io.FileSystems;
@@ -31,7 +30,6 @@ import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
-import org.apache.beam.sdk.options.Hidden;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.Validation;
@@ -41,7 +39,7 @@ import org.slf4j.LoggerFactory;
 /** Options that can be used to configure the {@link DataflowRunner}. */
 @Description("Options that configure the Dataflow pipeline.")
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public interface DataflowPipelineOptions
     extends PipelineOptions,
@@ -52,7 +50,6 @@ public interface DataflowPipelineOptions
         BigQueryOptions,
         GcsOptions,
         StreamingOptions,
-        CloudDebuggerOptions,
         DataflowWorkerLoggingOptions,
         DataflowProfilingOptions,
         PubsubOptions {
@@ -120,8 +117,6 @@ public interface DataflowPipelineOptions
   void setDataflowServiceOptions(List<String> options);
 
   /** Run the job as a specific service account, instead of the default GCE robot. */
-  @Hidden
-  @Experimental
   @Description("Run the job as a specific service account, instead of the default GCE robot.")
   String getServiceAccount();
 
@@ -156,7 +151,7 @@ public interface DataflowPipelineOptions
   @Description("The customized dataflow worker jar")
   String getDataflowWorkerJar();
 
-  void setDataflowWorkerJar(String dataflowWorkerJar);
+  void setDataflowWorkerJar(String dataflowWorkerJafr);
 
   /** Set of available Flexible Resource Scheduling goals. */
   enum FlexResourceSchedulingGoal {
@@ -217,4 +212,22 @@ public interface DataflowPipelineOptions
   boolean isHotKeyLoggingEnabled();
 
   void setHotKeyLoggingEnabled(boolean value);
+
+  /**
+   * Open modules needed for reflection that access JDK internals with Java 9+
+   *
+   * <p>With JDK 16+, <a href="#{https://openjdk.java.net/jeps/403}">JDK internals are strongly
+   * encapsulated</a> and can result in an InaccessibleObjectException being thrown if a tool or
+   * library uses reflection that access JDK internals. If you see these errors in your worker logs,
+   * you can pass in modules to open using the format module/package=target-module(,target-module)*
+   * to allow access to the library. E.g. java.base/java.lang=jamm
+   *
+   * <p>You may see warnings that jamm, a library used to more accurately size objects, is unable to
+   * make a private field accessible. To resolve the warning, open the specified module/package to
+   * jamm.
+   */
+  @Description("Open modules needed for reflection with Java 17+.")
+  List<String> getJdkAddOpenModules();
+
+  void setJdkAddOpenModules(List<String> options);
 }

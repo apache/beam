@@ -44,7 +44,6 @@ import org.mockito.Mockito;
 @SuppressWarnings("unchecked")
 public class ParDoOperationTest {
 
-  private static final String COUNTER_PREFIX = "test-";
   private CounterSet counterSet = new CounterSet();
   private OperationContext context =
       TestOperationContext.create(

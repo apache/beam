@@ -17,15 +17,14 @@
  */
 package org.apache.beam.fn.harness.data;
 
+import java.util.List;
+import java.util.function.Supplier;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
-import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.fn.data.BeamFnDataOutboundAggregator;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
-import org.apache.beam.sdk.fn.data.DecodingFnDataReceiver;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
-import org.apache.beam.sdk.fn.data.InboundDataClient;
-import org.apache.beam.sdk.fn.data.LogicalEndpoint;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
 
 /**
  * The {@link BeamFnDataClient} is able to forward inbound elements to a {@link FnDataReceiver} and
@@ -34,40 +33,48 @@ import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
  */
 public interface BeamFnDataClient {
   /**
-   * Registers the following inbound receiver for the provided instruction id and target.
-   *
-   * <p>The provided coder is used to decode inbound elements. The decoded elements are passed to
-   * the provided receiver. Any failure during decoding or processing of the element will complete
-   * the returned future exceptionally. On successful termination of the stream, the returned future
-   * is completed successfully.
+   * Registers a receiver for the provided instruction id.
    *
    * <p>The receiver is not required to be thread safe.
+   *
+   * <p>Receivers for successfully processed bundles must be unregistered. See {@link
+   * #unregisterReceiver} for details.
+   *
+   * <p>Any failure during {@link FnDataReceiver#accept} will mark the provided {@code
+   * instructionId} as invalid and will ignore any future data. It is expected that if a bundle
+   * fails during processing then the failure will become visible to the {@link BeamFnDataClient}
+   * during a future {@link FnDataReceiver#accept} invocation.
    */
-  default <T> InboundDataClient receive(
-      ApiServiceDescriptor apiServiceDescriptor,
-      LogicalEndpoint inputLocation,
-      Coder<T> coder,
-      FnDataReceiver<T> receiver) {
-    return receive(
-        apiServiceDescriptor, inputLocation, new DecodingFnDataReceiver<T>(coder, receiver));
-  }
-
-  InboundDataClient receive(
-      ApiServiceDescriptor apiServiceDescriptor,
-      LogicalEndpoint inputLocation,
-      FnDataReceiver<ByteString> receiver);
+  void registerReceiver(
+      String instructionId,
+      List<ApiServiceDescriptor> apiServiceDescriptors,
+      CloseableFnDataReceiver<Elements> receiver);
 
   /**
-   * Creates a {@link CloseableFnDataReceiver} using the provided instruction id and target.
+   * Receivers are only expected to be unregistered when bundle processing has completed
+   * successfully.
    *
-   * <p>The provided coder is used to encode elements on the outbound stream.
-   *
-   * <p>Closing the returned receiver signals the end of the stream.
-   *
-   * <p>The returned closeable receiver is not thread safe.
+   * <p>It is expected that if a bundle fails during processing then the failure will become visible
+   * to the {@link BeamFnDataClient} during a future {@link FnDataReceiver#accept} invocation.
    */
-  <T> CloseableFnDataReceiver<T> send(
+  void unregisterReceiver(String instructionId, List<ApiServiceDescriptor> apiServiceDescriptors);
+
+  /**
+   * Creates a {@link BeamFnDataOutboundAggregator} for buffering and sending outbound data and
+   * timers over the data plane. It is important that {@link
+   * BeamFnDataOutboundAggregator#sendOrCollectBufferedDataAndFinishOutboundStreams()} is called on
+   * the returned BeamFnDataOutboundAggregator at the end of each bundle. If
+   * collectElementsIfNoFlushes is set to true, {@link
+   * BeamFnDataOutboundAggregator#sendOrCollectBufferedDataAndFinishOutboundStreams()} returns the
+   * buffered elements instead of sending it through the outbound StreamObserver if there's no
+   * previous flush.
+   *
+   * <p>Closing the returned aggregator signals the end of the streams.
+   *
+   * <p>The returned aggregator is not thread safe.
+   */
+  BeamFnDataOutboundAggregator createOutboundAggregator(
       Endpoints.ApiServiceDescriptor apiServiceDescriptor,
-      LogicalEndpoint outputLocation,
-      Coder<T> coder);
+      Supplier<String> processBundleRequestIdSupplier,
+      boolean collectElementsIfNoFlushes);
 }

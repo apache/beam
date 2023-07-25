@@ -72,10 +72,10 @@ import org.slf4j.LoggerFactory;
  * executed.
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "keyfor",
   "nullness"
-}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+}) // TODO(https://github.com/apache/beam/issues/20497)
 class EvaluationContext {
   private static final Logger LOG = LoggerFactory.getLogger(EvaluationContext.class);
 
@@ -103,8 +103,6 @@ class EvaluationContext {
 
   private final Set<PValue> keyedPValues;
 
-  private final ExecutorService executorService;
-
   public static EvaluationContext create(
       Clock clock,
       BundleFactory bundleFactory,
@@ -124,7 +122,6 @@ class EvaluationContext {
     this.bundleFactory = checkNotNull(bundleFactory);
     this.graph = checkNotNull(graph);
     this.keyedPValues = keyedPValues;
-    this.executorService = executorService;
 
     this.watermarkManager = WatermarkManager.create(clock, graph, AppliedPTransform::getFullName);
     this.sideInputContainer = SideInputContainer.create(this, graph.getViews());

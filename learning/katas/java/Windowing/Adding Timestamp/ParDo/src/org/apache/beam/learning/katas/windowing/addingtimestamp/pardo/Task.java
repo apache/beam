@@ -18,6 +18,19 @@
 
 package org.apache.beam.learning.katas.windowing.addingtimestamp.pardo;
 
+// beam-playground:
+//   name: WindowingAddTimestamp
+//   description: Task from katas to assign each element a timestamp based on the `Event.timestamp`.
+//   multifile: true
+//   context_line: 46
+//   categories:
+//     - Streaming
+//   complexity: MEDIUM
+//   tags:
+//     - timestamp
+//     - transforms
+//     - event
+
 import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.kinesis;
 
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.Collection;
@@ -48,13 +49,15 @@ import org.slf4j.LoggerFactory;
  * separate threads. Read records are stored in a blocking queue of limited capacity.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class ShardReadersPool {
 
   private static final Logger LOG = LoggerFactory.getLogger(ShardReadersPool.class);
   public static final int DEFAULT_CAPACITY_PER_SHARD = 10_000;
   private static final int ATTEMPTS_TO_SHUTDOWN = 3;
+  private static final int QUEUE_OFFER_TIMEOUT_MS = 500;
+  private static final int QUEUE_POLL_TIMEOUT_MS = 1000;
 
   /**
    * Executor service for running the threads that read records from shards handled by this pool.
@@ -145,8 +148,15 @@ class ShardReadersPool {
           List<KinesisRecord> kinesisRecords = shardRecordsIterator.readNextBatch();
           try {
             for (KinesisRecord kinesisRecord : kinesisRecords) {
-              recordsQueue.put(kinesisRecord);
-              numberOfRecordsInAQueueByShard.get(kinesisRecord.getShardId()).incrementAndGet();
+              while (true) {
+                if (!poolOpened.get()) {
+                  return;
+                }
+                if (recordsQueue.offer(kinesisRecord, QUEUE_OFFER_TIMEOUT_MS, MILLISECONDS)) {
+                  numberOfRecordsInAQueueByShard.get(kinesisRecord.getShardId()).incrementAndGet();
+                  break;
+                }
+              }
             }
           } finally {
             // One of the paths into this finally block is recordsQueue.put() throwing
@@ -193,7 +203,7 @@ class ShardReadersPool {
 
   CustomOptional<KinesisRecord> nextRecord() {
     try {
-      KinesisRecord record = recordsQueue.poll(1, TimeUnit.SECONDS);
+      KinesisRecord record = recordsQueue.poll(QUEUE_POLL_TIMEOUT_MS, MILLISECONDS);
       if (record == null) {
         return CustomOptional.absent();
       }

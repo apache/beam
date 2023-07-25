@@ -28,7 +28,13 @@ import java.io.Serializable;
  * ensure it can be sent to worker machines.
  */
 public interface AwsClientsProvider extends Serializable {
-  AmazonCloudWatch getCloudWatchClient();
+
+  /** @deprecated SnsIO doesn't require a CloudWatch client */
+  @Deprecated
+  @SuppressWarnings("return")
+  default AmazonCloudWatch getCloudWatchClient() {
+    return null;
+  }
 
   AmazonSNS createSnsPublisher();
 }

@@ -25,12 +25,11 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.zip.GZIPInputStream;
-import org.apache.beam.sdk.io.snowflake.services.SnowflakeService;
+import org.apache.beam.sdk.io.snowflake.services.SnowflakeServices;
 import org.apache.beam.sdk.io.snowflake.services.SnowflakeStreamingServiceConfig;
 
-/** Fake implementation of {@link SnowflakeService} used in tests. */
-public class FakeSnowflakeStreamingServiceImpl
-    implements SnowflakeService<SnowflakeStreamingServiceConfig> {
+/** Fake implementation of {@link SnowflakeServices.StreamingService} used in tests. */
+public class FakeSnowflakeStreamingServiceImpl implements SnowflakeServices.StreamingService {
   private FakeSnowflakeIngestManager snowflakeIngestManager;
 
   @Override

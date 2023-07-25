@@ -27,7 +27,7 @@ import (
 // [START metrics_query]
 
 func queryMetrics(pr beam.PipelineResult, ns, n string) metrics.QueryResults {
-	return pr.Metrics().Query(func(r metrics.SingleResult) bool {
+	return pr.Metrics().Query(func(r beam.MetricResult) bool {
 		return r.Namespace() == ns && r.Name() == n
 	})
 }
@@ -49,7 +49,7 @@ func executePipelineAndGetMetrics(ctx context.Context, p *beam.Pipeline) (metric
 	}
 
 	// Request the metric called "counter1" in namespace called "namespace"
-	ms := pr.Metrics().Query(func(r metrics.SingleResult) bool {
+	ms := pr.Metrics().Query(func(r beam.MetricResult) bool {
 		return r.Namespace() == "namespace" && r.Name() == "counter1"
 	})
 

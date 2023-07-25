@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.runners.dataflow.util.Structs.getString;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.service.AutoService;
 import java.io.IOException;
@@ -34,18 +35,19 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.PaneInfoCoder;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.beam.sdk.values.ValueWithRecordId.ValueWithRecordIdCoder;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class WindmillSink<T> extends Sink<WindowedValue<T>> {
   private WindmillStreamWriter writer;
@@ -69,7 +71,7 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
       Collection<? extends BoundedWindow> windows,
       PaneInfo pane)
       throws IOException {
-    ByteString.Output stream = ByteString.newOutput();
+    ByteStringOutputStream stream = new ByteStringOutputStream();
     PaneInfoCoder.INSTANCE.encode(pane, stream);
     windowsCoder.encode(windows, stream, Coder.Context.OUTER);
     return stream.toByteString();
@@ -128,16 +130,21 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
   class WindmillStreamWriter implements SinkWriter<WindowedValue<T>> {
     private Map<ByteString, Windmill.KeyedMessageBundle.Builder> productionMap;
     private final String destinationName;
+    private final ByteStringOutputStream stream; // Kept across encodes for buffer reuse.
 
     private WindmillStreamWriter(String destinationName) {
       this.destinationName = destinationName;
       productionMap = new HashMap<>();
+      stream = new ByteStringOutputStream();
     }
 
     private <EncodeT> ByteString encode(Coder<EncodeT> coder, EncodeT object) throws IOException {
-      ByteString.Output stream = ByteString.newOutput();
+      checkState(
+          stream.size() == 0,
+          "Expected output stream to be empty but had %s",
+          stream.toByteString());
       coder.encode(object, stream, Coder.Context.OUTER);
-      return stream.toByteString();
+      return stream.toByteStringAndReset();
     }
 
     @Override

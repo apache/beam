@@ -26,11 +26,6 @@ from typing import List
 
 import hamcrest as hc
 
-import avro
-import avro.datafile
-from avro.datafile import DataFileWriter
-from avro.io import DatumWriter
-from avro.schema import Parse
 from fastavro.schema import parse_schema
 from fastavro import writer
 
@@ -42,11 +37,14 @@ from apache_beam.io import iobase
 from apache_beam.io import source_test_utils
 from apache_beam.io.avroio import _create_avro_sink  # For testing
 from apache_beam.io.avroio import _create_avro_source  # For testing
+from apache_beam.io.filesystems import FileSystems
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
+from apache_beam.transforms.userstate import CombiningValueStateSpec
+from apache_beam.utils.timestamp import Timestamp
 
 # Import snappy optionally; some tests will be skipped when import fails.
 try:
@@ -100,7 +98,13 @@ class AvroBase(object):
         os.remove(path)
     self._temp_files = []
 
-  def _write_data(self, directory, prefix, codec, count, sync_interval):
+  def _write_data(
+      self,
+      directory=None,
+      prefix=None,
+      codec=None,
+      count=None,
+      sync_interval=None):
     raise NotImplementedError
 
   def _write_pattern(self, num_files, return_filenames=False):
@@ -121,7 +125,7 @@ class AvroBase(object):
 
   def _run_avro_test(
       self, pattern, desired_bundle_size, perform_splitting, expected_result):
-    source = _create_avro_source(pattern, use_fastavro=self.use_fastavro)
+    source = _create_avro_source(pattern)
 
     if perform_splitting:
       assert desired_bundle_size
@@ -158,7 +162,6 @@ class AvroBase(object):
         _create_avro_source(
             file_name,
             validate=False,
-            use_fastavro=self.use_fastavro
         )
     dd = DisplayData.create_from(source)
 
@@ -174,8 +177,7 @@ class AvroBase(object):
     read = \
         avroio.ReadFromAvro(
             file_name,
-            validate=False,
-            use_fastavro=self.use_fastavro)
+            validate=False)
     dd = DisplayData.create_from(read)
 
     # No extra avro parameters for AvroSource.
@@ -188,14 +190,7 @@ class AvroBase(object):
   def test_sink_display_data(self):
     file_name = 'some_avro_sink'
     sink = _create_avro_sink(
-        file_name,
-        self.SCHEMA,
-        'null',
-        '.end',
-        0,
-        None,
-        'application/x-avro',
-        use_fastavro=self.use_fastavro)
+        file_name, self.SCHEMA, 'null', '.end', 0, None, 'application/x-avro')
     dd = DisplayData.create_from(sink)
 
     expected_items = [
@@ -211,8 +206,7 @@ class AvroBase(object):
 
   def test_write_display_data(self):
     file_name = 'some_avro_sink'
-    write = avroio.WriteToAvro(
-        file_name, self.SCHEMA, use_fastavro=self.use_fastavro)
+    write = avroio.WriteToAvro(file_name, self.SCHEMA)
     dd = DisplayData.create_from(write)
     expected_items = [
         DisplayDataItemMatcher('schema', str(self.SCHEMA)),
@@ -226,12 +220,12 @@ class AvroBase(object):
 
   def test_read_reentrant_without_splitting(self):
     file_name = self._write_data()
-    source = _create_avro_source(file_name, use_fastavro=self.use_fastavro)
+    source = _create_avro_source(file_name)
     source_test_utils.assert_reentrant_reads_succeed((source, None, None))
 
   def test_read_reantrant_with_splitting(self):
     file_name = self._write_data()
-    source = _create_avro_source(file_name, use_fastavro=self.use_fastavro)
+    source = _create_avro_source(file_name)
     splits = [split for split in source.split(desired_bundle_size=100000)]
     assert len(splits) == 1
     source_test_utils.assert_reentrant_reads_succeed(
@@ -252,7 +246,7 @@ class AvroBase(object):
     sync_interval = 16000
     file_name = self._write_data(count=num_records, sync_interval=sync_interval)
 
-    source = _create_avro_source(file_name, use_fastavro=self.use_fastavro)
+    source = _create_avro_source(file_name)
 
     splits = [split for split in source.split(desired_bundle_size=float('inf'))]
     assert len(splits) == 1
@@ -312,7 +306,7 @@ class AvroBase(object):
 
   def test_dynamic_work_rebalancing_exhaustive(self):
     def compare_split_points(file_name):
-      source = _create_avro_source(file_name, use_fastavro=self.use_fastavro)
+      source = _create_avro_source(file_name)
       splits = [
           split for split in source.split(desired_bundle_size=float('inf'))
       ]
@@ -340,17 +334,14 @@ class AvroBase(object):
       f.write(corrupted_data)
       corrupted_file_name = f.name
 
-    source = _create_avro_source(
-        corrupted_file_name, use_fastavro=self.use_fastavro)
+    source = _create_avro_source(corrupted_file_name)
     with self.assertRaisesRegex(ValueError, r'expected sync marker'):
       source_test_utils.read_from_source(source, None, None)
 
   def test_read_from_avro(self):
     path = self._write_data()
     with TestPipeline() as p:
-      assert_that(
-          p | avroio.ReadFromAvro(path, use_fastavro=self.use_fastavro),
-          equal_to(self.RECORDS))
+      assert_that(p | avroio.ReadFromAvro(path), equal_to(self.RECORDS))
 
   def test_read_all_from_avro_single_file(self):
     path = self._write_data()
@@ -358,7 +349,7 @@ class AvroBase(object):
       assert_that(
           p \
           | Create([path]) \
-          | avroio.ReadAllFromAvro(use_fastavro=self.use_fastavro),
+          | avroio.ReadAllFromAvro(),
           equal_to(self.RECORDS))
 
   def test_read_all_from_avro_many_single_files(self):
@@ -369,7 +360,7 @@ class AvroBase(object):
       assert_that(
           p \
           | Create([path1, path2, path3]) \
-          | avroio.ReadAllFromAvro(use_fastavro=self.use_fastavro),
+          | avroio.ReadAllFromAvro(),
           equal_to(self.RECORDS * 3))
 
   def test_read_all_from_avro_file_pattern(self):
@@ -378,7 +369,7 @@ class AvroBase(object):
       assert_that(
           p \
           | Create([file_pattern]) \
-          | avroio.ReadAllFromAvro(use_fastavro=self.use_fastavro),
+          | avroio.ReadAllFromAvro(),
           equal_to(self.RECORDS * 5))
 
   def test_read_all_from_avro_many_file_patterns(self):
@@ -389,7 +380,7 @@ class AvroBase(object):
       assert_that(
           p \
           | Create([file_pattern1, file_pattern2, file_pattern3]) \
-          | avroio.ReadAllFromAvro(use_fastavro=self.use_fastavro),
+          | avroio.ReadAllFromAvro(),
           equal_to(self.RECORDS * 10))
 
   def test_read_all_from_avro_with_filename(self):
@@ -399,9 +390,96 @@ class AvroBase(object):
       assert_that(
           p \
           | Create([file_pattern]) \
-          | avroio.ReadAllFromAvro(use_fastavro=self.use_fastavro,
-                                   with_filename=True),
+          | avroio.ReadAllFromAvro(with_filename=True),
           equal_to(result))
+
+  class _WriteFilesFn(beam.DoFn):
+    """writes a couple of files with deferral."""
+
+    COUNT_STATE = CombiningValueStateSpec('count', combine_fn=sum)
+
+    def __init__(self, SCHEMA, RECORDS, tempdir):
+      self._thread = None
+      self.SCHEMA = SCHEMA
+      self.RECORDS = RECORDS
+      self.tempdir = tempdir
+
+    def get_expect(self, match_updated_files):
+      results_file1 = [('file1', x) for x in self.gen_records(1)]
+      results_file2 = [('file2', x) for x in self.gen_records(3)]
+      if match_updated_files:
+        results_file1 += [('file1', x) for x in self.gen_records(2)]
+      return results_file1 + results_file2
+
+    def gen_records(self, count):
+      return self.RECORDS * (count // len(self.RECORDS)) + self.RECORDS[:(
+          count % len(self.RECORDS))]
+
+    def process(self, element, count_state=beam.DoFn.StateParam(COUNT_STATE)):
+      counter = count_state.read()
+      if counter == 0:
+        count_state.add(1)
+        with open(FileSystems.join(self.tempdir, 'file1'), 'wb') as f:
+          writer(f, self.SCHEMA, self.gen_records(2))
+        with open(FileSystems.join(self.tempdir, 'file2'), 'wb') as f:
+          writer(f, self.SCHEMA, self.gen_records(3))
+      # convert dumb key to basename in output
+      basename = FileSystems.split(element[1][0])[1]
+      content = element[1][1]
+      yield basename, content
+
+  def test_read_all_continuously_new(self):
+    with TestPipeline() as pipeline:
+      tempdir = tempfile.mkdtemp()
+      writer_fn = self._WriteFilesFn(self.SCHEMA, self.RECORDS, tempdir)
+      with open(FileSystems.join(tempdir, 'file1'), 'wb') as f:
+        writer(f, writer_fn.SCHEMA, writer_fn.gen_records(1))
+      match_pattern = FileSystems.join(tempdir, '*')
+      interval = 0.5
+      last = 2
+
+      p_read_once = (
+          pipeline
+          | 'Continuously read new files' >> avroio.ReadAllFromAvroContinuously(
+              match_pattern,
+              with_filename=True,
+              start_timestamp=Timestamp.now(),
+              interval=interval,
+              stop_timestamp=Timestamp.now() + last,
+              match_updated_files=False)
+          | 'add dumb key' >> beam.Map(lambda x: (0, x))
+          | 'Write files on-the-fly' >> beam.ParDo(writer_fn))
+      assert_that(
+          p_read_once,
+          equal_to(writer_fn.get_expect(match_updated_files=False)),
+          label='assert read new files results')
+
+  def test_read_all_continuously_update(self):
+    with TestPipeline() as pipeline:
+      tempdir = tempfile.mkdtemp()
+      writer_fn = self._WriteFilesFn(self.SCHEMA, self.RECORDS, tempdir)
+      with open(FileSystems.join(tempdir, 'file1'), 'wb') as f:
+        writer(f, writer_fn.SCHEMA, writer_fn.gen_records(1))
+      match_pattern = FileSystems.join(tempdir, '*')
+      interval = 0.5
+      last = 2
+
+      p_read_upd = (
+          pipeline
+          | 'Continuously read updated files' >>
+          avroio.ReadAllFromAvroContinuously(
+              match_pattern,
+              with_filename=True,
+              start_timestamp=Timestamp.now(),
+              interval=interval,
+              stop_timestamp=Timestamp.now() + last,
+              match_updated_files=True)
+          | 'add dumb key' >> beam.Map(lambda x: (0, x))
+          | 'Write files on-the-fly' >> beam.ParDo(writer_fn))
+      assert_that(
+          p_read_upd,
+          equal_to(writer_fn.get_expect(match_updated_files=True)),
+          label='assert read updated files results')
 
   def test_sink_transform(self):
     with tempfile.NamedTemporaryFile() as dst:
@@ -410,12 +488,12 @@ class AvroBase(object):
         # pylint: disable=expression-not-assigned
         p \
         | beam.Create(self.RECORDS) \
-        | avroio.WriteToAvro(path, self.SCHEMA, use_fastavro=self.use_fastavro)
+        | avroio.WriteToAvro(path, self.SCHEMA,)
       with TestPipeline() as p:
         # json used for stable sortability
         readback = \
             p \
-            | avroio.ReadFromAvro(path + '*', use_fastavro=self.use_fastavro) \
+            | avroio.ReadFromAvro(path + '*', ) \
             | beam.Map(json.dumps)
         assert_that(readback, equal_to([json.dumps(r) for r in self.RECORDS]))
 
@@ -430,55 +508,34 @@ class AvroBase(object):
         | avroio.WriteToAvro(
             path,
             self.SCHEMA,
-            codec='snappy',
-            use_fastavro=self.use_fastavro)
+            codec='snappy')
       with TestPipeline() as p:
         # json used for stable sortability
         readback = \
             p \
-            | avroio.ReadFromAvro(path + '*', use_fastavro=self.use_fastavro) \
+            | avroio.ReadFromAvro(path + '*') \
             | beam.Map(json.dumps)
         assert_that(readback, equal_to([json.dumps(r) for r in self.RECORDS]))
 
+  def test_writer_open_and_close(self):
+    # Create and then close a temp file so we can manually open it later
+    dst = tempfile.NamedTemporaryFile(delete=False)
+    dst.close()
 
-@unittest.skipIf(
-    os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-    'This test requires that Beam depends on avro-python3>=1.9 or newer. '
-    'See: BEAM-6522.')
-class TestAvro(AvroBase, unittest.TestCase):
-  def __init__(self, methodName='runTest'):
-    super().__init__(methodName)
-    self.use_fastavro = False
-    self.SCHEMA = Parse(self.SCHEMA_STRING)
+    schema = parse_schema(json.loads(self.SCHEMA_STRING))
+    sink = _create_avro_sink(
+        'some_avro_sink', schema, 'null', '.end', 0, None, 'application/x-avro')
 
-  def _write_data(
-      self,
-      directory=None,
-      prefix=tempfile.template,
-      codec='null',
-      count=len(RECORDS),
-      sync_interval=avro.datafile.SYNC_INTERVAL):
-    old_sync_interval = avro.datafile.SYNC_INTERVAL
-    try:
-      avro.datafile.SYNC_INTERVAL = sync_interval
-      with tempfile.NamedTemporaryFile(delete=False,
-                                       dir=directory,
-                                       prefix=prefix) as f:
-        writer = DataFileWriter(f, DatumWriter(), self.SCHEMA, codec=codec)
-        len_records = len(self.RECORDS)
-        for i in range(count):
-          writer.append(self.RECORDS[i % len_records])
-        writer.close()
-        self._temp_files.append(f.name)
-        return f.name
-    finally:
-      avro.datafile.SYNC_INTERVAL = old_sync_interval
+    w = sink.open(dst.name)
+
+    sink.close(w)
+
+    os.unlink(dst.name)
 
 
 class TestFastAvro(AvroBase, unittest.TestCase):
   def __init__(self, methodName='runTest'):
     super().__init__(methodName)
-    self.use_fastavro = True
     self.SCHEMA = parse_schema(json.loads(self.SCHEMA_STRING))
 
   def _write_data(

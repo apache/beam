@@ -405,9 +405,9 @@ class SupportedZetaSqlBuiltinFunctions {
           FunctionSignatureId.FN_MAX, // max
           FunctionSignatureId.FN_MIN, // min
           FunctionSignatureId.FN_STRING_AGG_STRING, // string_agg(s)
-          // FunctionSignatureId.FN_STRING_AGG_DELIM_STRING, // string_agg(s, delim_s)
-          // FunctionSignatureId.FN_STRING_AGG_BYTES, // string_agg(b)
-          // FunctionSignatureId.FN_STRING_AGG_DELIM_BYTES, // string_agg(b, delim_b)
+          FunctionSignatureId.FN_STRING_AGG_DELIM_STRING, // string_agg(s, delim_s)
+          FunctionSignatureId.FN_STRING_AGG_BYTES, // string_agg(b)
+          FunctionSignatureId.FN_STRING_AGG_DELIM_BYTES, // string_agg(b, delim_b)
           FunctionSignatureId.FN_SUM_INT64, // sum
           FunctionSignatureId.FN_SUM_DOUBLE, // sum
           FunctionSignatureId.FN_SUM_NUMERIC, // sum

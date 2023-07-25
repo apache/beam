@@ -28,7 +28,6 @@ import org.apache.beam.sdk.values.PCollectionView;
  */
 class WriteGroupedRecordsToFiles<DestinationT, ElementT>
     extends DoFn<KV<DestinationT, Iterable<ElementT>>, WriteBundlesToFiles.Result<DestinationT>> {
-
   private final PCollectionView<String> tempFilePrefix;
   private final long maxFileSize;
   private final RowWriterFactory<ElementT, DestinationT> rowWriterFactory;
@@ -58,11 +57,11 @@ class WriteGroupedRecordsToFiles<DestinationT, ElementT>
       for (ElementT tableRow : element.getValue()) {
         if (writer.getByteSize() > maxFileSize) {
           writer.close();
-          writer = rowWriterFactory.createRowWriter(tempFilePrefix, element.getKey());
           BigQueryRowWriter.Result result = writer.getResult();
           o.output(
               new WriteBundlesToFiles.Result<>(
                   result.resourceId.toString(), result.byteSize, c.element().getKey()));
+          writer = rowWriterFactory.createRowWriter(tempFilePrefix, element.getKey());
         }
         writer.write(tableRow);
       }

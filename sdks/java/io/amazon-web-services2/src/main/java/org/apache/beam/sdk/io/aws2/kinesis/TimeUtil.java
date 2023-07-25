@@ -17,12 +17,15 @@
  */
 package org.apache.beam.sdk.io.aws2.kinesis;
 
+import java.util.Comparator;
 import java.util.Optional;
+import java.util.stream.Stream;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.joda.time.Instant;
 
 /** Time conversion utilities. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public final class TimeUtil {
 
@@ -34,6 +37,10 @@ public final class TimeUtil {
 
   public static Instant toJoda(java.time.Instant instant) {
     return Optional.ofNullable(instant).map(t -> new Instant(t.toEpochMilli())).orElse(null);
+  }
+
+  static Instant minTimestamp(Stream<Instant> timestamps) {
+    return timestamps.min(Comparator.naturalOrder()).orElse(BoundedWindow.TIMESTAMP_MAX_VALUE);
   }
 
   private TimeUtil() {}

@@ -284,7 +284,7 @@ public interface PipelineOptions extends HasDisplayData {
 
   @Description(
       "Name of the pipeline execution."
-          + "It must match the regular expression '[a-z]([-a-z0-9]{0,38}[a-z0-9])?'."
+          + "It must match the regular expression '[a-z]([-a-z0-9]{0,1022}[a-z0-9])?'."
           + "It defaults to ApplicationName-UserName-Date-RandomInteger")
   @Default.InstanceFactory(JobNameFactory.class)
   String getJobName();

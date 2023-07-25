@@ -22,6 +22,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -31,7 +33,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * in a thread-safe manner.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class MetricsMap<K, T> implements Serializable {
 
@@ -75,6 +77,19 @@ public class MetricsMap<K, T> implements Serializable {
   /** Return an iterable over the values in the current {@link MetricsMap}. */
   public Iterable<T> values() {
     return Iterables.unmodifiableIterable(metrics.values());
+  }
+
+  /** Operates on each value in the metric map. * */
+  public void forEachValue(Consumer<T> c) {
+    metrics.forEach(
+        (k, v) -> {
+          c.accept(v);
+        });
+  }
+
+  /** Operates on each entry in the metric map. * */
+  public void forEach(BiConsumer<K, T> c) {
+    metrics.forEach(c);
   }
 
   @Override

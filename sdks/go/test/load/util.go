@@ -20,16 +20,16 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"os"
-	"reflect"
 	"strings"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 )
 
 const (
@@ -60,7 +60,8 @@ var (
 )
 
 func init() {
-	beam.RegisterType(reflect.TypeOf((*RuntimeMonitor)(nil)).Elem())
+	register.DoFn3x0[[]byte, []byte, func([]byte, []byte)]((*RuntimeMonitor)(nil))
+	register.Emitter2[[]byte, []byte]()
 }
 
 // RuntimeMonitor is a DoFn to record processing time in the pipeline.
@@ -132,10 +133,16 @@ func newLoadTestResult(value float64) loadTestResult {
 // PublishMetrics calculates the runtime and sends the result to InfluxDB database.
 func PublishMetrics(results metrics.QueryResults) {
 	options := newInfluxDBOptions()
+	ress := toLoadTestResults(results)
+	for _, res := range ress {
+		log.Printf("%s %v", res.metric, time.Duration(float64(time.Second)*res.value))
+	}
+	if len(ress) == 0 {
+		log.Print("No metrics returned.")
+		return
+	}
 	if options.validate() {
-		if res := toLoadTestResults(results); len(res) > 0 {
-			publishMetricstoInfluxDB(options, toLoadTestResults(results))
-		}
+		publishMetricstoInfluxDB(options, ress)
 	} else {
 		log.Print("Missing InfluxDB options. Metrics will not be published to InfluxDB")
 	}
@@ -203,7 +210,7 @@ func publishMetricstoInfluxDB(options *influxDBOptions, results []loadTestResult
 	}
 	defer resp.Body.Close()
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Print(err)
 		return
@@ -212,8 +219,8 @@ func publishMetricstoInfluxDB(options *influxDBOptions, results []loadTestResult
 	if resp.StatusCode != 204 {
 		jsonData := make(map[string]string)
 		json.Unmarshal(body, &jsonData)
-		log.Print(fmt.Errorf("Failed to publish metrics to InfluxDB. Received status code %v "+
-			"with an error message: %v", resp.StatusCode, jsonData["error"]))
+		log.Printf("Failed to publish metrics to InfluxDB. Received status code %v "+
+			"with an error message: %v", resp.StatusCode, jsonData["error"])
 	}
 }
 

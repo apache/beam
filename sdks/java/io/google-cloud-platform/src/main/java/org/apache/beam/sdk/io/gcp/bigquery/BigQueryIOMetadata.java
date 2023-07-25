@@ -21,16 +21,14 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.apache.beam.sdk.extensions.gcp.util.GceMetadataUtil;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Metadata class for BigQueryIO. i.e. to use as BQ job labels. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 final class BigQueryIOMetadata {
 
-  private String beamJobId;
+  private @Nullable String beamJobId;
 
-  private BigQueryIOMetadata(String beamJobId) {
+  private BigQueryIOMetadata(@Nullable String beamJobId) {
     this.beamJobId = beamJobId;
   }
 
@@ -61,6 +59,13 @@ final class BigQueryIOMetadata {
       jobLabels.put("beam_job_id", this.beamJobId);
     }
     return jobLabels;
+  }
+
+  /*
+   * Returns the beam job id. Can be null if it is not running on Dataflow.
+   */
+  public @Nullable String getBeamJobId() {
+    return this.beamJobId;
   }
 
   /**

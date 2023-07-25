@@ -18,6 +18,18 @@
 
 package org.apache.beam.learning.katas.commontransforms.aggregation.mean;
 
+// beam-playground:
+//   name: AggregationMean
+//   description: Task from katas to count mean value of the given pipeline with numbers.
+//   multifile: false
+//   context_line: 43
+//   categories:
+//     - Combiners
+//   complexity: BASIC
+//   tags:
+//     - count
+//     - numbers
+
 import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;

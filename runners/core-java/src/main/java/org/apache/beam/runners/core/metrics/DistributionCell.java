@@ -50,8 +50,8 @@ public class DistributionCell implements Distribution, MetricCell<DistributionDa
 
   @Override
   public void reset() {
-    dirty.afterModification();
     value.set(DistributionData.EMPTY);
+    dirty.reset();
   }
 
   /** Increment the distribution by the given amount. */

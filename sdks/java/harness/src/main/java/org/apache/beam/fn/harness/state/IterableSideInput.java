@@ -17,55 +17,44 @@
  */
 package org.apache.beam.fn.harness.state;
 
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+
+import org.apache.beam.fn.harness.Cache;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.Materializations.IterableView;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
 
 /**
  * An implementation of a iterable side input that utilizes the Beam Fn State API to fetch values.
- *
- * <p>TODO: Support block level caching and prefetch.
  */
 @SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class IterableSideInput<T> implements IterableView<T> {
 
-  private final BeamFnStateClient beamFnStateClient;
-  private final String instructionId;
-  private final String ptransformId;
-  private final String sideInputId;
-  private final ByteString encodedWindow;
-  private final Coder<T> valueCoder;
+  private final Iterable<T> values;
 
   public IterableSideInput(
+      Cache<?, ?> cache,
       BeamFnStateClient beamFnStateClient,
       String instructionId,
-      String ptransformId,
-      String sideInputId,
-      ByteString encodedWindow,
+      StateKey stateKey,
       Coder<T> valueCoder) {
-    this.beamFnStateClient = beamFnStateClient;
-    this.instructionId = instructionId;
-    this.ptransformId = ptransformId;
-    this.sideInputId = sideInputId;
-    this.encodedWindow = encodedWindow;
-    this.valueCoder = valueCoder;
+    checkArgument(
+        stateKey.hasIterableSideInput(),
+        "Expected IterableSideInput StateKey but received %s.",
+        stateKey);
+    this.values =
+        StateFetchingIterators.readAllAndDecodeStartingFrom(
+            cache,
+            beamFnStateClient,
+            StateRequest.newBuilder().setInstructionId(instructionId).setStateKey(stateKey).build(),
+            valueCoder);
   }
 
   @Override
   public Iterable<T> get() {
-    StateRequest.Builder requestBuilder = StateRequest.newBuilder();
-    requestBuilder
-        .setInstructionId(instructionId)
-        .getStateKeyBuilder()
-        .getIterableSideInputBuilder()
-        .setTransformId(ptransformId)
-        .setSideInputId(sideInputId)
-        .setWindow(encodedWindow);
-
-    return StateFetchingIterators.readAllAndDecodeStartingFrom(
-        beamFnStateClient, requestBuilder.build(), valueCoder);
+    return values;
   }
 }

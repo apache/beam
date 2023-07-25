@@ -19,8 +19,6 @@ package org.apache.beam.sdk.coders;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -104,52 +102,48 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
     if (iterable == null) {
       throw new CoderException("cannot encode a null " + iterableName);
     }
-    DataOutputStream dataOutStream = new DataOutputStream(outStream);
     if (iterable instanceof Collection) {
       // We can know the size of the Iterable.  Use an encoding with a
       // leading size field, followed by that many elements.
       Collection<T> collection = (Collection<T>) iterable;
-      dataOutStream.writeInt(collection.size());
+      BitConverters.writeBigEndianInt(collection.size(), outStream);
       for (T elem : collection) {
-        elementCoder.encode(elem, dataOutStream);
+        elementCoder.encode(elem, outStream);
       }
     } else {
       // We don't know the size without traversing it so use a fixed size buffer
       // and encode as many elements as possible into it before outputting the size followed
       // by the elements.
-      dataOutStream.writeInt(-1);
+      BitConverters.writeBigEndianInt(-1, outStream);
       BufferedElementCountingOutputStream countingOutputStream =
-          new BufferedElementCountingOutputStream(dataOutStream);
+          new BufferedElementCountingOutputStream(outStream);
       for (T elem : iterable) {
         countingOutputStream.markElementStart();
         elementCoder.encode(elem, countingOutputStream);
       }
       countingOutputStream.finish();
     }
-    // Make sure all our output gets pushed to the underlying outStream.
-    dataOutStream.flush();
   }
 
   @Override
   public IterableT decode(InputStream inStream) throws IOException, CoderException {
-    DataInputStream dataInStream = new DataInputStream(inStream);
-    int size = dataInStream.readInt();
+    int size = BitConverters.readBigEndianInt(inStream);
     if (size >= 0) {
       List<T> elements = new ArrayList<>(size);
       for (int i = 0; i < size; i++) {
-        elements.add(elementCoder.decode(dataInStream));
+        elements.add(elementCoder.decode(inStream));
       }
       return decodeToIterable(elements);
     }
     List<T> elements = new ArrayList<>();
     // We don't know the size a priori.  Check if we're done with
     // each block of elements.
-    long count = VarInt.decodeLong(dataInStream);
+    long count = VarInt.decodeLong(inStream);
     while (count > 0L) {
-      elements.add(elementCoder.decode(dataInStream));
+      elements.add(elementCoder.decode(inStream));
       --count;
       if (count == 0L) {
-        count = VarInt.decodeLong(dataInStream);
+        count = VarInt.decodeLong(inStream);
       }
     }
     if (count == 0) {
@@ -211,7 +205,8 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
           elementCoder.registerByteSizeObserver(elem, observer);
         }
       } else {
-        // TODO: (BEAM-1537) Update to use an accurate count depending on size and count,
+        // TODO: (https://github.com/apache/beam/issues/18169) Update to use an accurate count
+        // depending on size and count,
         // currently we are under estimating the size by up to 10 bytes per block of data since we
         // are not encoding the count prefix which occurs at most once per 64k of data and is upto
         // 10 bytes long. Since we include the total count we can upper bound the underestimate

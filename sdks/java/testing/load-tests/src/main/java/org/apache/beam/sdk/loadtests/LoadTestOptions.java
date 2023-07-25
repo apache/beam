@@ -41,22 +41,6 @@ public interface LoadTestOptions extends PipelineOptions, ApplicationNameOptions
 
   void setStepOptions(String stepOptions);
 
-  @Description("Whether the results should be published to BigQuery database")
-  @Default.Boolean(false)
-  Boolean getPublishToBigQuery();
-
-  void setPublishToBigQuery(Boolean publishToBigQuery);
-
-  @Description("BigQuery dataset name")
-  String getBigQueryDataset();
-
-  void setBigQueryDataset(String dataset);
-
-  @Description("BigQuery table name")
-  String getBigQueryTable();
-
-  void setBigQueryTable(String tableName);
-
   @Description("Timeout for a load test expressed in minutes")
   @Default.Integer(240)
   Integer getLoadTestTimeout();

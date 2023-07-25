@@ -27,13 +27,13 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.extensions.avro.io.AvroSource;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryResourceNaming.JobType;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,7 +49,7 @@ class BigQueryQuerySourceDef implements BigQuerySourceDef {
   private final String tempDatasetId;
   private final String kmsKey;
 
-  private transient AtomicReference<JobStatistics> dryRunJobStats;
+  private transient AtomicReference<@Nullable JobStatistics> dryRunJobStats;
 
   static BigQueryQuerySourceDef create(
       BigQueryServices bqServices,
@@ -135,14 +135,15 @@ class BigQueryQuerySourceDef implements BigQuerySourceDef {
                 bqOptions.getJobName(), stepUuid, JobType.QUERY),
             queryTempDatasetOpt);
 
-    BigQueryServices.DatasetService tableService = bqServices.getDatasetService(bqOptions);
-    LOG.info("Deleting temporary table with query results {}", tableToRemove);
-    tableService.deleteTable(tableToRemove);
-    boolean datasetCreatedByBeam = !queryTempDatasetOpt.isPresent();
-    if (datasetCreatedByBeam) {
-      // Remove temporary dataset only if it was created by Beam
-      LOG.info("Deleting temporary dataset with query results {}", tableToRemove.getDatasetId());
-      tableService.deleteDataset(tableToRemove.getProjectId(), tableToRemove.getDatasetId());
+    try (BigQueryServices.DatasetService tableService = bqServices.getDatasetService(bqOptions)) {
+      LOG.info("Deleting temporary table with query results {}", tableToRemove);
+      tableService.deleteTable(tableToRemove);
+      boolean datasetCreatedByBeam = !queryTempDatasetOpt.isPresent();
+      if (datasetCreatedByBeam) {
+        // Remove temporary dataset only if it was created by Beam
+        LOG.info("Deleting temporary dataset with query results {}", tableToRemove.getDatasetId());
+        tableService.deleteDataset(tableToRemove.getProjectId(), tableToRemove.getDatasetId());
+      }
     }
   }
 
@@ -151,14 +152,13 @@ class BigQueryQuerySourceDef implements BigQuerySourceDef {
   public <T> BigQuerySourceBase<T> toSource(
       String stepUuid,
       Coder<T> coder,
-      SerializableFunction<SchemaAndRecord, T> parseFn,
+      SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<T>> readerFactory,
       boolean useAvroLogicalTypes) {
     return BigQueryQuerySource.create(
-        stepUuid, this, bqServices, coder, parseFn, useAvroLogicalTypes);
+        stepUuid, this, bqServices, coder, readerFactory, useAvroLogicalTypes);
   }
 
   /** {@inheritDoc} */
-  @Experimental(Kind.SCHEMAS)
   @Override
   public Schema getBeamSchema(BigQueryOptions bqOptions) {
     try {

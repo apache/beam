@@ -65,7 +65,7 @@ class NaturalLanguageMlTest(unittest.TestCase):
                     '._get_api_client'):
       p = TestPipeline()
       features = [
-          naturallanguageml.types.AnnotateTextRequest.Features(
+          naturallanguageml.language_v1.AnnotateTextRequest.Features(
               extract_syntax=True)
       ]
       _ = (

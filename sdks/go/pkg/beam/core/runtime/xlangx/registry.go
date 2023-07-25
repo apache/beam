@@ -36,8 +36,10 @@ var defaultReg = newRegistry()
 // replace calls to a Beam ExpansionService.
 //
 // Then, expansion addresses of the forms
-//   "<namespace>" or
-//   "<namespace>:<configuration>"
+//
+//	"<namespace>" or
+//	"<namespace>:<configuration>"
+//
 // can be used with beam.CrossLanguage. Any configuration after the separator is
 // provided to the HandlerFunc on call for the handler func to use at it's leisure.
 func RegisterHandler(namespace string, handler HandlerFunc) {
@@ -51,8 +53,9 @@ func RegisterHandler(namespace string, handler HandlerFunc) {
 // or be a namespaced handler registered with RegisterHandler.
 //
 // When the expansion address is for a handler, it may take the forms
-//  "<namespace>" or
-//  "<namespace>:<configuration>"
+//
+//	"<namespace>" or
+//	"<namespace>:<configuration>"
 func RegisterOverrideForUrn(urn, expansionAddr string) {
 	if err := defaultReg.RegisterOverrideForUrn(urn, expansionAddr); err != nil {
 		panic(err)
@@ -230,6 +233,16 @@ func (r *registry) getHandlerFunc(urn, expansionAddr string) (HandlerFunc, strin
 		expansionAddr = addr
 		ns, config = parseAddr(addr)
 	}
+	// Check this after hardoverrides and URN overrides so those can point to automated expansion
+	// themselves.
+	switch ns {
+	case autoJavaNamespace:
+		// Leave expansionAddr unmodified so the autoNamespace keyword sticks.
+		// We strip it manually in the HandlerFunc.
+		return QueryAutomatedExpansionService, expansionAddr
+	case autoPythonNamespace:
+		return QueryPythonExpansionService, expansionAddr
+	}
 
 	// Now that overrides have been handled, we can look up if there's a handler, and return that.
 	if h, ok := r.handlers[ns]; ok {
@@ -242,8 +255,12 @@ func (r *registry) getHandlerFunc(urn, expansionAddr string) (HandlerFunc, strin
 
 const (
 	// Separator is the canonical separator between a namespace and optional configuration.
-	Separator             = ":"
+	Separator = ":"
+	// ClasspathSeparator is the canonical separator between a classpath namespace config string from other namespace-configuration string.
+	ClasspathSeparator    = ";"
 	hardOverrideNamespace = "hardoverride"
+	autoJavaNamespace     = "autojava"
+	autoPythonNamespace   = "autopython"
 )
 
 // Require takes an expansionAddr and requires cross language expansion
@@ -257,9 +274,63 @@ func Require(expansionAddr string) string {
 	return hardOverrideNamespace + Separator + expansionAddr
 }
 
+// ExpansionServiceOption provides an option for xlangx.UseAutomatedJavaExpansionService()
+type ExpansionServiceOption func(*string)
+
+// AddClasspaths is an expansion service option for xlangx.UseAutomatedExpansionService
+// that accepts a classpaths slice and creates a tagged  expansion address string
+// suffixed with classpath separator and classpaths provided.
+func AddClasspaths(classpaths []string) ExpansionServiceOption {
+	return func(expansionAddress *string) {
+		*expansionAddress += ClasspathSeparator + strings.Join(classpaths, " ")
+	}
+}
+
+// AddExtraPackages is an expansion service option for xlangx.UseAutomatedPythonExpansionService
+// that accepts a extra packages slice and creates a tagged  expansion address string
+// suffixed with classpath separator and service module provided.
+func AddExtraPackages(packages []string) ExpansionServiceOption {
+	return func(expansionAddress *string) {
+		*expansionAddress += ClasspathSeparator + strings.Join(packages, " ")
+	}
+}
+
+// UseAutomatedJavaExpansionService takes a gradle target and creates a
+// tagged string to indicate that it should be used to start up an
+// automated expansion service for a cross-language expansion.
+//
+// Intended for use by cross language wrappers to permit spinning
+// up an expansion service for a user if no expansion service address
+// is provided.
+func UseAutomatedJavaExpansionService(gradleTarget string, opts ...ExpansionServiceOption) string {
+	expansionAddress := autoJavaNamespace + Separator + gradleTarget
+
+	for _, opt := range opts {
+		opt(&expansionAddress)
+	}
+	return expansionAddress
+}
+
+// UseAutomatedPythonExpansionService takes a expansion service module name and creates a
+// tagged string to indicate that it should be used to start up an
+// automated expansion service for a cross-language expansion.
+//
+// Intended for use by cross language wrappers to permit spinning
+// up an expansion service for a user if no expansion service address
+// is provided.
+func UseAutomatedPythonExpansionService(service string, opts ...ExpansionServiceOption) string {
+	expansionAddress := autoPythonNamespace + Separator + service
+
+	for _, opt := range opts {
+		opt(&expansionAddress)
+	}
+	return expansionAddress
+}
+
 // restricted namespaces to prevent some awkward edge cases.
 var restricted = map[string]struct{}{
 	hardOverrideNamespace: {}, // Special handler for overriding.
+	autoJavaNamespace:     {}, // Special handler for automated Java expansion services.
 	"localhost":           {},
 	"http":                {},
 	"https":               {},
@@ -275,4 +346,16 @@ func parseAddr(expansionAddr string) (ns, config string) {
 		return expansionAddr, ""
 	}
 	return split[0], split[1]
+}
+
+func parseClasspath(expansionAddr string) (string, string) {
+	split := strings.SplitN(expansionAddr, ClasspathSeparator, 2)
+	if len(split) == 1 {
+		return expansionAddr, ""
+	}
+	return split[0], split[1]
+}
+
+func parseExtraPackages(expansionAddr string) (string, string) {
+	return parseClasspath(expansionAddr)
 }

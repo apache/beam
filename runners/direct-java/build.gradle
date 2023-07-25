@@ -26,7 +26,8 @@ def dependOnProjects = [":runners:core-construction-java",
                         ":runners:core-java",
                         ":runners:local-java",
                         ":runners:java-fn-execution",
-                        ":sdks:java:fn-execution"
+                        ":sdks:java:fn-execution",
+                        ":sdks:java:extensions:avro"
                         ]
 
 applyJavaNature(
@@ -57,41 +58,49 @@ description = "Apache Beam :: Runners :: Direct Java"
 evaluationDependsOn(":runners:core-construction-java")
 evaluationDependsOn(":runners:core-java")
 evaluationDependsOn(":sdks:java:core")
+evaluationDependsOn(":examples:java")
 
 configurations {
   needsRunner
   validatesRunner
+  examplesJavaIntegrationTest
 }
 
 dependencies {
   shadow library.java.vendored_guava_26_0_jre
   shadow project(path: ":model:pipeline", configuration: "shadow")
   dependOnProjects.each {
-    compile project(it)
+    implementation project(it)
   }
   shadow project(path: ":sdks:java:core", configuration: "shadow")
-  shadow library.java.vendored_grpc_1_36_0
+  shadow library.java.vendored_grpc_1_54_0
   shadow library.java.joda_time
   shadow library.java.slf4j_api
   shadow library.java.jackson_databind
-  provided library.java.hamcrest_core
+  provided library.java.hamcrest
+  permitUnusedDeclared library.java.hamcrest
   provided library.java.junit
+  permitUnusedDeclared library.java.junit
   shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")
-  shadowTest project(path: ":runners:core-java", configuration: "testRuntime")
+  shadowTest project(path: ":runners:core-java", configuration: "testRuntimeMigration")
   shadowTest library.java.mockito_core
-  needsRunner project(path: ":runners:core-construction-java", configuration: "testRuntime")
-  needsRunner project(path: ":runners:core-java", configuration: "testRuntime")
+  needsRunner project(path: ":runners:core-construction-java", configuration: "testRuntimeMigration")
+  needsRunner project(path: ":runners:core-java", configuration: "testRuntimeMigration")
   needsRunner project(path: ":sdks:java:core", configuration: "shadowTest")
   needsRunner project(path: project.path, configuration: "shadow")
   needsRunner project(path: project.path, configuration: "shadowTest")
-  validatesRunner project(path: ":runners:core-construction-java", configuration: "testRuntime")
-  validatesRunner project(path: ":runners:core-java", configuration: "testRuntime")
+  validatesRunner project(path: ":runners:core-construction-java", configuration: "testRuntimeMigration")
+  validatesRunner project(path: ":runners:core-java", configuration: "testRuntimeMigration")
   validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
   validatesRunner project(path: project.path, configuration: "shadow")
   validatesRunner project(path: project.path, configuration: "shadowTest")
-  permitUnusedDeclared library.java.vendored_grpc_1_36_0
+  permitUnusedDeclared library.java.vendored_grpc_1_54_0
   permitUnusedDeclared project(":runners:java-fn-execution")
   permitUnusedDeclared project(":sdks:java:fn-execution")
+  permitUnusedDeclared project(":sdks:java:extensions:avro")
+  examplesJavaIntegrationTest project(project.path)
+  examplesJavaIntegrationTest project(":examples:java")
+  examplesJavaIntegrationTest project(path: ":examples:java", configuration: "testRuntimeMigration")
 }
 
 // windows handles quotes differently from linux,
@@ -107,6 +116,13 @@ static def pipelineOptionsStringCrossPlatformHandling(String[] options) {
     return JsonOutput.toJson(options)
   }
 }
+
+def sickbayTests = [
+        // https://github.com/apache/beam/issues/18499
+        'org.apache.beam.sdk.testing.UsesLoopingTimer',
+        // https://github.com/apache/beam/issues/19344
+        'org.apache.beam.sdk.io.BoundedReadFromUnboundedSourceTest.testTimeBound',
+]
 
 task needsRunnerTests(type: Test) {
   group = "Verification"
@@ -124,15 +140,22 @@ task needsRunnerTests(type: Test) {
   testClassesDirs += files(project(":runners:core-java").sourceSets.test.output.classesDirs)
   testClassesDirs += files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
   useJUnit {
+
+    filter {
+      for (String test : sickbayTests) {
+        excludeTestsMatching test
+      }
+    }
+
     includeCategories "org.apache.beam.sdk.testing.NeedsRunner"
+    // Should be run only in a properly configured SDK harness environment
+    excludeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
     excludeCategories "org.apache.beam.sdk.testing.LargeKeys\$Above100MB"
     // MetricsPusher isn't implemented in direct runner
     excludeCategories "org.apache.beam.sdk.testing.UsesMetricsPusher"
-    excludeCategories "org.apache.beam.sdk.testing.UsesCrossLanguageTransforms"
+    excludeCategories "org.apache.beam.sdk.testing.UsesJavaExpansionService"
     excludeCategories "org.apache.beam.sdk.testing.UsesPythonExpansionService"
     excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
-    // https://issues.apache.org/jira/browse/BEAM-2791
-    excludeCategories 'org.apache.beam.sdk.testing.UsesLoopingTimer'
   }
   testLogging {
     outputs.upToDateWhen {false}
@@ -158,12 +181,34 @@ task validatesRunner(type: Test) {
   testClassesDirs += files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
   useJUnit {
     includeCategories "org.apache.beam.sdk.testing.ValidatesRunner"
+    // Should be run only in a properly configured SDK harness environment
+    excludeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
     excludeCategories "org.apache.beam.sdk.testing.LargeKeys\$Above100MB"
     excludeCategories 'org.apache.beam.sdk.testing.UsesMetricsPusher'
-    excludeCategories "org.apache.beam.sdk.testing.UsesCrossLanguageTransforms"
+    excludeCategories "org.apache.beam.sdk.testing.UsesJavaExpansionService"
     excludeCategories "org.apache.beam.sdk.testing.UsesPythonExpansionService"
-    // https://issues.apache.org/jira/browse/BEAM-2791
+    // https://github.com/apache/beam/issues/18499
     excludeCategories 'org.apache.beam.sdk.testing.UsesLoopingTimer'
+  }
+}
+
+tasks.register("validatesRunnerSickbay", Test) {
+  group = "Verification"
+  description "Validates Direct runner (Sickbay Tests)"
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+          "--runner=DirectRunner",
+  ])
+
+  classpath = configurations.needsRunner
+  testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
+
+  filter {
+    for (String test : sickbayTests) {
+      includeTestsMatching test
+    }
+
+    // https://github.com/apache/beam/issues/18826
+    includeTestsMatching 'org.apache.beam.runners.direct.WatermarkManagerTest.updateWatermarkWithDifferentWindowedValueInstances'
   }
 }
 
@@ -171,6 +216,7 @@ def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
 def gcsBucket = project.findProperty('gcsBucket') ?: 'temp-storage-for-release-validation-tests/nightly-snapshot-validation'
 def bqDataset = project.findProperty('bqDataset') ?: 'beam_postrelease_mobile_gaming'
 def pubsubTopic = project.findProperty('pubsubTopic') ?: 'java_mobile_gaming_topic'
+def tempLocation = project.findProperty('tempLocation') ?: 'gs://temp-storage-for-end-to-end-tests'
 
 // Generates :runners:direct-java:runQuickstartJavaDirect
 createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner: 'Direct')
@@ -182,3 +228,30 @@ createJavaExamplesArchetypeValidationTask(type: 'MobileGaming',
   gcsBucket: gcsBucket,
   bqDataset: bqDataset,
   pubsubTopic: pubsubTopic)
+
+task examplesIntegrationTest(type: Test) {
+  description = "Runs examples tests on DirectRunner"
+
+  testLogging.showStandardStreams = true
+
+  String[] pipelineOptions = [
+          "--runner=DirectRunner",
+          "--runnerDeterminedSharding=false",
+          "--tempLocation=${tempLocation}",
+          "--tempRoot=${tempLocation}",
+          "--project=${gcpProject}",
+  ]
+  systemProperty "beamTestPipelineOptions", pipelineOptionsStringCrossPlatformHandling(pipelineOptions)
+
+  include '**/*IT.class'
+  maxParallelForks 4
+  classpath = configurations.examplesJavaIntegrationTest
+  testClassesDirs = files(project(":examples:java").sourceSets.test.output.classesDirs)
+  useJUnit {
+    filter{
+      // TODO (https://github.com/apache/beam/issues/21344) Fix integration Tests to run with DirectRunner: Timeout error
+      excludeTestsMatching 'org.apache.beam.examples.complete.TfIdfIT'
+      excludeTestsMatching 'org.apache.beam.examples.WindowedWordCountIT.testWindowedWordCountInBatchDynamicSharding'
+    }
+  }
+}

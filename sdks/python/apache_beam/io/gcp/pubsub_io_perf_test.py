@@ -34,7 +34,6 @@ python -m apache_beam.io.gcp.pubsub_io_perf_test \
     --publish_to_big_query=<OPTIONAL><true/false>
     --metrics_dataset=<OPTIONAL>
     --metrics_table=<OPTIONAL>
-    --dataflow_worker_jar=<OPTIONAL>
     --input_options='{
       \"num_records\": <SIZE_OF_INPUT>
       \"key_size\": 1
@@ -54,7 +53,6 @@ from apache_beam.io import Read
 from apache_beam.io import ReadFromPubSub
 from apache_beam.io.gcp.tests.pubsub_matcher import PubSubMessageMatcher
 from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.testing.load_tests.load_test import LoadTest
 from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
@@ -139,17 +137,16 @@ class PubsubWritePerfTest(PubsubIOPerfTest):
 
   def _setup_pipeline(self):
     options = PipelineOptions(self.pipeline.get_full_options_as_args())
-    options.view_as(SetupOptions).save_main_session = True
     options.view_as(StandardOptions).streaming = True
     self.pipeline = TestPipeline(options=options)
 
   def _setup_pubsub(self):
     super()._setup_pubsub()
-    _ = self.pub_client.create_topic(self.topic_name)
+    _ = self.pub_client.create_topic(name=self.topic_name)
 
     _ = self.sub_client.create_subscription(
-        self.read_sub_name,
-        self.topic_name,
+        name=self.read_sub_name,
+        topic=self.topic_name,
     )
 
 
@@ -184,11 +181,11 @@ class PubsubReadPerfTest(PubsubIOPerfTest):
 
   def _setup_pubsub(self):
     super()._setup_pubsub()
-    _ = self.pub_client.create_topic(self.matcher_topic_name)
+    _ = self.pub_client.create_topic(name=self.matcher_topic_name)
 
     _ = self.sub_client.create_subscription(
-        self.read_matcher_sub_name,
-        self.matcher_topic_name,
+        name=self.read_matcher_sub_name,
+        topic=self.matcher_topic_name,
     )
 
   def _setup_pipeline(self):
@@ -202,16 +199,15 @@ class PubsubReadPerfTest(PubsubIOPerfTest):
     extra_opts = {
         'on_success_matcher': all_of(pubsub_msg_verifier),
         'streaming': True,
-        'save_main_session': True
     }
     args = self.pipeline.get_full_options_as_args(**extra_opts)
     self.pipeline = TestPipeline(options=PipelineOptions(args))
 
   def cleanup(self):
-    self.sub_client.delete_subscription(self.read_sub_name)
-    self.sub_client.delete_subscription(self.read_matcher_sub_name)
-    self.pub_client.delete_topic(self.topic_name)
-    self.pub_client.delete_topic(self.matcher_topic_name)
+    self.sub_client.delete_subscription(subscription=self.read_sub_name)
+    self.sub_client.delete_subscription(subscription=self.read_matcher_sub_name)
+    self.pub_client.delete_topic(topic=self.topic_name)
+    self.pub_client.delete_topic(topic=self.matcher_topic_name)
 
 
 if __name__ == '__main__':

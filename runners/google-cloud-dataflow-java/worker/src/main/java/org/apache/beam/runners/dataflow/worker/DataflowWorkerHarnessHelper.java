@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import com.google.common.base.Strings;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -30,7 +29,8 @@ import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.ExperimentContext.Experiment;
 import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingInitializer;
 import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingMDC;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.TextFormat;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.TextFormat;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.conscrypt.OpenSSLProvider;
 import org.slf4j.Logger;
@@ -38,7 +38,7 @@ import org.slf4j.LoggerFactory;
 
 /** A helper class for initialization of the Dataflow worker harness. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public final class DataflowWorkerHarnessHelper {
   private static final Logger LOG = LoggerFactory.getLogger(DataflowWorkerHarnessHelper.class);
@@ -146,7 +146,7 @@ public final class DataflowWorkerHarnessHelper {
 
     try (FileInputStream inputStream = new FileInputStream(pipelineFile)) {
       RunnerApi.Pipeline pipelineProto = RunnerApi.Pipeline.parseFrom(inputStream);
-      LOG.info("Found portable pipeline:\n{}", TextFormat.printToString(pipelineProto));
+      LOG.info("Found portable pipeline:\n{}", TextFormat.printer().printToString(pipelineProto));
       return pipelineProto;
     }
   }

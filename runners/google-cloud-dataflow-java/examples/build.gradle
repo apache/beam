@@ -19,31 +19,50 @@
 import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(publish: false, exportJavadoc: false)
+applyJavaNature( publish: false, exportJavadoc: false)
 // Evaluate the given project before this one, to allow referencing
 // its sourceSets.test.output directly.
 evaluationDependsOn(":examples:java")
 evaluationDependsOn(":runners:google-cloud-dataflow-java")
-evaluationDependsOn(":runners:google-cloud-dataflow-java:worker:legacy-worker")
 evaluationDependsOn(":runners:google-cloud-dataflow-java:worker")
 evaluationDependsOn(":sdks:java:container")
 
 configurations { dataflowRunnerPreCommit }
 
 dependencies {
-  testRuntimeOnly project(":examples:java")
-  testRuntimeOnly project(path: ":examples:java", configuration: "testRuntime")
+  testRuntimeOnly project(path: ":examples:java", configuration: "testRuntimeMigration")
   testRuntimeOnly project(":runners:google-cloud-dataflow-java")
 }
 
 def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
 def gcpRegion = project.findProperty('gcpRegion') ?: 'us-central1'
 def gcsTempRoot = project.findProperty('gcsTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests/'
-def dockerImageName = project(':runners:google-cloud-dataflow-java').ext.dockerImageName
+def dockerJavaImageName = project(':runners:google-cloud-dataflow-java').ext.dockerJavaImageName
 // If -PuseExecutableStage is set, the use_executable_stage_bundle_execution wil be enabled.
 def fnapiExperiments = project.hasProperty('useExecutableStage') ? 'beam_fn_api_use_deprecated_read,use_executable_stage_bundle_execution' : "beam_fn_api,beam_fn_api_use_deprecated_read"
 
-def commonConfig = { dataflowWorkerJar, workerHarnessContainerImage = '', additionalOptions = [] ->
+// For testing impersonation, we use three ingredients:
+//  - a principal to impersonate
+//  - a dataflow service account that only that principal is allowed to launch jobs as
+//  - a temp root that only the above two accounts have access to
+//
+// Jenkins and Dataflow workers both run as GCE default service account. So we remove that account from all the above.
+def impersonateServiceAccount = project.findProperty('gcpImpersonateServiceAccount') ?: 'allows-impersonation@apache-beam-testing.iam.gserviceaccount.com'
+def dataflowWorkerImpersonationServiceAccount = project.findProperty('dataflowWorkerImpersonationServiceAccount') ?:
+        "impersonation-dataflow-worker@apache-beam-testing.iam.gserviceaccount.com"
+def impersonationTempRoot = project.findProperty('gcpImpersonationTempRoot') ?: 'gs://impersonation-test-bucket/tmproot'
+
+
+def commonConfig = { Map args ->
+    if (!args.dataflowWorkerJar) {
+        throw new GradleException("Dataflow integration test configuration requires dataflowWorkerJar parameter")
+    }
+
+    def actualDataflowWorkerJar = args.dataflowWorkerJar
+    def actualWorkerHarnessContainerImage = args.workerHarnessContainerImage ?: ''
+    def actualGcsTempRoot = args.gcsTempRoot ?: gcsTempRoot
+    def additionalOptions = args.additionalOptions ?: []
+
    // return the preevaluated configuration closure
    return {
        testClassesDirs = files(project(":examples:java").sourceSets.test.output.classesDirs)
@@ -55,44 +74,72 @@ def commonConfig = { dataflowWorkerJar, workerHarnessContainerImage = '', additi
        def preCommitBeamTestPipelineOptions = [
                "--project=${gcpProject}",
                "--region=${gcpRegion}",
-               "--tempRoot=${gcsTempRoot}",
+               "--tempRoot=${actualGcsTempRoot}",
                "--runner=TestDataflowRunner",
-               "--dataflowWorkerJar=${dataflowWorkerJar}",
-               "--workerHarnessContainerImage=${workerHarnessContainerImage}"
+               "--dataflowWorkerJar=${actualDataflowWorkerJar}",
+               "--workerHarnessContainerImage=${actualWorkerHarnessContainerImage}"
                ] + additionalOptions
        systemProperty "beamTestPipelineOptions", JsonOutput.toJson(preCommitBeamTestPipelineOptions)
      }
  }
 
 task preCommitLegacyWorker(type: Test) {
-  dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
-  def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
-  with commonConfig(dataflowWorkerJar)
+  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
+  def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
+  with commonConfig(dataflowWorkerJar: dataflowWorkerJar)
+}
+
+task preCommitLegacyWorkerImpersonate(type: Test) {
+    dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
+    def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
+    with commonConfig(
+     dataflowWorkerJar: dataflowWorkerJar,
+         gcsTempRoot: impersonationTempRoot,
+         additionalOptions: [
+            "--impersonateServiceAccount=${impersonateServiceAccount}",
+            "--serviceAccount=${dataflowWorkerImpersonationServiceAccount}"
+    ])
 }
 
 task verifyFnApiWorker(type: Test) {
   dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
   dependsOn ":runners:google-cloud-dataflow-java:buildAndPushDockerContainer"
   def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
-  with commonConfig(dataflowWorkerJar, dockerImageName, ["--experiments=${fnapiExperiments}"])
+  with commonConfig(
+          dataflowWorkerJar: dataflowWorkerJar,
+          workerHarnessContainerImage: dockerJavaImageName,
+          additionalOptions: ["--experiments=${fnapiExperiments}"]
+  )
   useJUnit {
     excludeCategories 'org.apache.beam.sdk.testing.StreamingIT'
   }
 }
 
 task postCommitLegacyWorkerJava11(type: Test) {
-  dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
-  def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
+  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
+  def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
   systemProperty "java.specification.version", "11"
-  with commonConfig(dataflowWorkerJar)
+  with commonConfig(dataflowWorkerJar: dataflowWorkerJar)
 }
 
 task java11PostCommit() {
   dependsOn postCommitLegacyWorkerJava11
 }
 
+task postCommitLegacyWorkerJava17(type: Test) {
+    dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
+    def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
+    systemProperty "java.specification.version", "17"
+    with commonConfig(dataflowWorkerJar: dataflowWorkerJar)
+}
+
+task java17PostCommit() {
+    dependsOn postCommitLegacyWorkerJava17
+}
+
 task preCommit() {
   dependsOn preCommitLegacyWorker
+  dependsOn preCommitLegacyWorkerImpersonate
 }
 
 task verifyPortabilityApi() {

@@ -31,20 +31,23 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
+import org.apache.beam.fn.harness.Cache;
+import org.apache.beam.fn.harness.Caches;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.runners.core.construction.CoderTranslation.TranslationContext;
 import org.apache.beam.runners.core.construction.CoderTranslator;
 import org.apache.beam.runners.core.construction.CoderTranslatorRegistrar;
 import org.apache.beam.sdk.coders.IterableLikeCoder;
-import org.apache.beam.sdk.fn.stream.DataStreams;
+import org.apache.beam.sdk.fn.stream.PrefetchableIterable;
+import org.apache.beam.sdk.fn.stream.PrefetchableIterators;
 import org.apache.beam.sdk.util.BufferedElementCountingOutputStream;
 import org.apache.beam.sdk.util.VarInt;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
 
 /**
@@ -57,40 +60,32 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
  * CoderTranslator#fromComponents} to be able to create a {@link StateBackedIterable.Coder}.
  */
 @SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class StateBackedIterable<T> implements Iterable<T>, Serializable {
 
-  private final transient BeamFnStateClient beamFnStateClient;
-  private final org.apache.beam.sdk.coders.Coder<T> elemCoder;
   @VisibleForTesting final StateRequest request;
   @VisibleForTesting final List<T> prefix;
+  private final transient PrefetchableIterable<T> suffix;
 
   public StateBackedIterable(
+      Cache<?, ?> cache,
       BeamFnStateClient beamFnStateClient,
       String instructionId,
-      ByteString runnerKey,
+      StateKey stateKey,
       org.apache.beam.sdk.coders.Coder<T> elemCoder,
       List<T> prefix) {
-    this.beamFnStateClient = beamFnStateClient;
-    this.elemCoder = elemCoder;
-
-    StateRequest.Builder requestBuilder = StateRequest.newBuilder();
-    requestBuilder
-        .setInstructionId(instructionId)
-        .getStateKeyBuilder()
-        .getRunnerBuilder()
-        .setKey(runnerKey);
-    this.request = requestBuilder.build();
+    this.request =
+        StateRequest.newBuilder().setInstructionId(instructionId).setStateKey(stateKey).build();
     this.prefix = prefix;
+    this.suffix =
+        StateFetchingIterators.readAllAndDecodeStartingFrom(
+            Caches.subCache(cache, stateKey), beamFnStateClient, request, elemCoder);
   }
 
   @Override
   public Iterator<T> iterator() {
-    return Iterators.concat(
-        prefix.iterator(),
-        new DataStreams.DataStreamDecoder(
-            elemCoder, StateFetchingIterators.readAllStartingFrom(beamFnStateClient, request)));
+    return PrefetchableIterators.concat(prefix.iterator(), suffix.iterator());
   }
 
   protected Object writeReplace() throws ObjectStreamException {
@@ -104,14 +99,17 @@ public class StateBackedIterable<T> implements Iterable<T>, Serializable {
    */
   public static class Coder<T> extends IterableLikeCoder<T, Iterable<T>> {
 
+    private final Supplier<Cache<?, ?>> cache;
     private final BeamFnStateClient beamFnStateClient;
     private final Supplier<String> instructionId;
 
     public Coder(
+        Supplier<Cache<?, ?>> cache,
         BeamFnStateClient beamFnStateClient,
         Supplier<String> instructionId,
         org.apache.beam.sdk.coders.Coder<T> elemCoder) {
       super(elemCoder, "StateBackedIterable");
+      this.cache = cache;
       this.beamFnStateClient = beamFnStateClient;
       this.instructionId = instructionId;
     }
@@ -128,7 +126,12 @@ public class StateBackedIterable<T> implements Iterable<T>, Serializable {
         long tokenLength = VarInt.decodeLong(in);
         ByteString token = ByteString.readFrom(ByteStreams.limit(in, tokenLength));
         return new StateBackedIterable<>(
-            beamFnStateClient, instructionId.get(), token, getElemCoder(), decodedElements);
+            cache.get(),
+            beamFnStateClient,
+            instructionId.get(),
+            StateKey.newBuilder().setRunner(StateKey.Runner.newBuilder().setKey(token)).build(),
+            getElemCoder(),
+            decodedElements);
       } else {
         throw new IllegalStateException(
             String.format(
@@ -171,6 +174,8 @@ public class StateBackedIterable<T> implements Iterable<T>, Serializable {
 
   /** Additional parameters required by the {@link StateBackedIterable.Coder}. */
   public interface StateBackedIterableTranslationContext extends TranslationContext {
+    Supplier<Cache<?, ?>> getCache();
+
     BeamFnStateClient getStateClient();
 
     Supplier<String> getCurrentInstructionId();
@@ -216,6 +221,7 @@ public class StateBackedIterable<T> implements Iterable<T>, Serializable {
         TranslationContext context) {
       if (context instanceof StateBackedIterableTranslationContext) {
         return new StateBackedIterable.Coder<>(
+            ((StateBackedIterableTranslationContext) context).getCache(),
             ((StateBackedIterableTranslationContext) context).getStateClient(),
             ((StateBackedIterableTranslationContext) context).getCurrentInstructionId(),
             Iterables.getOnlyElement(components));

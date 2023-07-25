@@ -88,7 +88,7 @@ import org.mockito.Mockito;
  */
 @RunWith(JUnit4.class)
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class WatermarkManagerTest implements Serializable {
   @Rule public transient ExpectedException thrown = ExpectedException.none();
@@ -785,7 +785,7 @@ public class WatermarkManagerTest implements Serializable {
   }
 
   @Test
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-4191")
+  @Ignore("https://github.com/apache/beam/issues/18826")
   public void updateWatermarkWithDifferentWindowedValueInstances() {
     manager.updateWatermarks(
         null,
@@ -1017,7 +1017,7 @@ public class WatermarkManagerTest implements Serializable {
         BoundedWindow.TIMESTAMP_MAX_VALUE);
     manager.refreshAll();
     Instant startTime = clock.now();
-    clock.set(startTime.plus(250L));
+    clock.set(startTime.plus(Duration.millis(250L)));
     // We're held based on the past timer
     assertThat(filteredWms.getSynchronizedProcessingOutputTime(), not(greaterThan(startTime)));
     assertThat(
@@ -1051,7 +1051,7 @@ public class WatermarkManagerTest implements Serializable {
         BoundedWindow.TIMESTAMP_MAX_VALUE);
     manager.refreshAll();
 
-    clock.set(startTime.plus(500L));
+    clock.set(startTime.plus(Duration.millis(500L)));
     assertThat(filteredWms.getSynchronizedProcessingOutputTime(), not(greaterThan(clock.now())));
     // filtered should be held to the time at which the filteredTimerResult fired
     assertThat(

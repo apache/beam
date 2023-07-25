@@ -1,0 +1,78 @@
+#    Licensed to the Apache Software Foundation (ASF) under one or more
+#    contributor license agreements.  See the NOTICE file distributed with
+#    this work for additional information regarding copyright ownership.
+#    The ASF licenses this file to You under the Apache License, Version 2.0
+#    (the "License"); you may not use this file except in compliance with
+#    the License.  You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the License for the specific language governing permissions and
+#    limitations under the License.
+
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: memsqlclusters.memsql.com
+spec:
+  group: memsql.com
+  names:
+    kind: MemsqlCluster
+    listKind: MemsqlClusterList
+    plural: memsqlclusters
+    singular: memsqlcluster
+    shortNames:
+      - singlestore
+      - singlestoredb
+      - memsql
+  scope: Namespaced
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          description: Schema for the SingleStoreDB Cluster
+          properties:
+            apiVersion:
+              description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+              type: string
+            kind:
+              description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+              type: string
+            metadata:
+              type: object
+            spec:
+              description: Spec defines the desired state of Cluster
+              type: object
+              x-kubernetes-preserve-unknown-fields: true
+            status:
+              description: Status defines the observed state of Cluster
+              type: object
+              x-kubernetes-preserve-unknown-fields: true
+          type: object
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: Aggregators
+          type: integer
+          description: Number of Aggregators
+          jsonPath: .status.expectedAggregators
+        - name: Leaves
+          type: integer
+          description: Number of Leaf Nodes (per availability group)
+          jsonPath: .status.expectedLeaves
+        - name: Redundancy Level
+          type: integer
+          description: Redundancy level of the Cluster
+          jsonPath: .spec.redundancyLevel
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp

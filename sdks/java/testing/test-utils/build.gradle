@@ -26,19 +26,20 @@ applyJavaNature(
 description = "Apache Beam :: SDKs :: Java :: Test Utils"
 
 dependencies {
-  compile enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile library.java.vendored_guava_26_0_jre
-  compile library.java.google_cloud_bigquery
-  compile library.java.google_code_gson
-  compile library.java.joda_time
-  compile library.java.commons_compress
-  compile library.java.commons_lang3
-  compile library.java.http_client
-  compile library.java.http_core
-  compile library.java.slf4j_api
+  implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.google_cloud_bigquery
+  implementation library.java.google_code_gson
+  implementation library.java.joda_time
+  implementation library.java.commons_compress
+  implementation library.java.commons_lang3
+  implementation library.java.http_client
+  implementation library.java.http_core
+  implementation library.java.slf4j_api
+  provided library.java.jmh_core
 
-  testCompile library.java.junit
+  testImplementation library.java.junit
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadowTest")
 }
 
@@ -47,6 +48,17 @@ task verifyJavaVersion(type: Test) {
     includeTestsMatching 'org.apache.beam.sdk.testutils.jvmverification.JvmVerification.verifyCodeIsCompiledWithJava8'
     includeTestsMatching 'org.apache.beam.sdk.testutils.jvmverification.JvmVerification.verifyTestCodeIsCompiledWithJava11'
     includeTestsMatching 'org.apache.beam.sdk.testutils.jvmverification.JvmVerification.verifyRunningJVMVersionIs11'
+  }
+  doLast {
+    println 'Java verified'
+  }
+}
+
+task verifyJavaVersion17(type: Test) {
+  filter {
+    includeTestsMatching 'org.apache.beam.sdk.testutils.jvmverification.JvmVerification.verifyCodeIsCompiledWithJava8'
+    includeTestsMatching 'org.apache.beam.sdk.testutils.jvmverification.JvmVerification.verifyTestCodeIsCompiledWithJava17'
+    includeTestsMatching 'org.apache.beam.sdk.testutils.jvmverification.JvmVerification.verifyRunningJVMVersionIs17'
   }
   doLast {
     println 'Java verified'

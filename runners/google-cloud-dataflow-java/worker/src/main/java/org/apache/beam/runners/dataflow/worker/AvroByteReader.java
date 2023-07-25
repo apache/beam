@@ -29,8 +29,8 @@ import java.util.Optional;
 import org.apache.avro.Schema;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.io.AvroSource;
-import org.apache.beam.sdk.io.AvroSource.AvroReader;
+import org.apache.beam.sdk.extensions.avro.io.AvroSource;
+import org.apache.beam.sdk.extensions.avro.io.AvroSource.AvroReader;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.OffsetBasedSource;
@@ -47,7 +47,7 @@ import org.slf4j.LoggerFactory;
  * @param <T> the type of the elements read from the source
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class AvroByteReader<T> extends NativeReader<T> {
   private static final Logger LOG = LoggerFactory.getLogger(AvroByteReader.class);

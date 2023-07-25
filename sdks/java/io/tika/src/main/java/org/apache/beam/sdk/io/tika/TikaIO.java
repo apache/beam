@@ -23,8 +23,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import com.google.auto.value.AutoValue;
 import java.io.InputStream;
 import java.nio.channels.Channels;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.Compression;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.FileIO.ReadableFile;
@@ -89,9 +87,8 @@ import org.xml.sax.ContentHandler;
  *    .apply(TikaIO.parseFiles());
  * }</pre>
  */
-@Experimental(Kind.SOURCE_SINK)
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class TikaIO {
   /** Parses files matching a given filepattern. */

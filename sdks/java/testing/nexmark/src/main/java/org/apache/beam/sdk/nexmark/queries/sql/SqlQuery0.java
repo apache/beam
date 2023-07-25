@@ -29,7 +29,6 @@ import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Event;
-import org.apache.beam.sdk.nexmark.model.Event.Type;
 import org.apache.beam.sdk.nexmark.model.sql.SelectEvent;
 import org.apache.beam.sdk.nexmark.queries.NexmarkQueryTransform;
 import org.apache.beam.sdk.nexmark.queries.NexmarkQueryUtil;
@@ -51,23 +50,23 @@ import org.apache.beam.sdk.values.Row;
  * configuration.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class SqlQuery0 extends NexmarkQueryTransform<Bid> {
 
   private final Class<? extends QueryPlanner> plannerClass;
 
-  private SqlQuery0(String name, Class<? extends QueryPlanner> plannerClass) {
+  private SqlQuery0(Class<? extends QueryPlanner> plannerClass) {
     super("SqlQuery0");
     this.plannerClass = plannerClass;
   }
 
   public static SqlQuery0 zetaSqlQuery0() {
-    return new SqlQuery0("ZetaSqlQuery0", ZetaSQLQueryPlanner.class);
+    return new SqlQuery0(ZetaSQLQueryPlanner.class);
   }
 
   public static SqlQuery0 calciteSqlQuery0() {
-    return new SqlQuery0("SqlQuery0", CalciteQueryPlanner.class);
+    return new SqlQuery0(CalciteQueryPlanner.class);
   }
 
   @Override
@@ -75,7 +74,7 @@ public class SqlQuery0 extends NexmarkQueryTransform<Bid> {
     PCollection<Row> rows =
         allEvents
             .apply(Filter.by(NexmarkQueryUtil.IS_BID))
-            .apply(getName() + ".SelectEvent", new SelectEvent(Type.BID));
+            .apply(getName() + ".SelectEvent", new SelectEvent(Event.Type.BID));
 
     return rows.apply(getName() + ".Serialize", logBytesMetric(rows.getCoder()))
         .setRowSchema(rows.getSchema())

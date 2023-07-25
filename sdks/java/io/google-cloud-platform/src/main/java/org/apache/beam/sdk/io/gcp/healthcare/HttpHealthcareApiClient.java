@@ -23,10 +23,12 @@ import com.google.api.client.http.HttpRequest;
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.JsonFactory;
+import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.services.healthcare.v1.CloudHealthcare;
-import com.google.api.services.healthcare.v1.CloudHealthcare.Projects.Locations.Datasets.FhirStores.Fhir.Search;
+import com.google.api.services.healthcare.v1.CloudHealthcare.Projects.Locations.Datasets.FhirStores.Fhir.PatientEverything;
 import com.google.api.services.healthcare.v1.CloudHealthcare.Projects.Locations.Datasets.Hl7V2Stores.Messages;
+import com.google.api.services.healthcare.v1.CloudHealthcareRequest;
 import com.google.api.services.healthcare.v1.CloudHealthcareScopes;
 import com.google.api.services.healthcare.v1.model.CreateMessageRequest;
 import com.google.api.services.healthcare.v1.model.DeidentifyConfig;
@@ -35,6 +37,7 @@ import com.google.api.services.healthcare.v1.model.DicomStore;
 import com.google.api.services.healthcare.v1.model.Empty;
 import com.google.api.services.healthcare.v1.model.ExportResourcesRequest;
 import com.google.api.services.healthcare.v1.model.FhirStore;
+import com.google.api.services.healthcare.v1.model.GoogleCloudHealthcareV1FhirBigQueryDestination;
 import com.google.api.services.healthcare.v1.model.GoogleCloudHealthcareV1FhirGcsDestination;
 import com.google.api.services.healthcare.v1.model.GoogleCloudHealthcareV1FhirGcsSource;
 import com.google.api.services.healthcare.v1.model.Hl7V2Store;
@@ -47,6 +50,7 @@ import com.google.api.services.healthcare.v1.model.ListMessagesResponse;
 import com.google.api.services.healthcare.v1.model.Message;
 import com.google.api.services.healthcare.v1.model.NotificationConfig;
 import com.google.api.services.healthcare.v1.model.Operation;
+import com.google.api.services.healthcare.v1.model.SchemaConfig;
 import com.google.api.services.healthcare.v1.model.SearchResourcesRequest;
 import com.google.api.services.storage.StorageScopes;
 import com.google.auth.oauth2.GoogleCredentials;
@@ -74,18 +78,14 @@ import org.apache.beam.sdk.extensions.gcp.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
-import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.client.methods.RequestBuilder;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.entity.ByteArrayEntity;
-import org.apache.http.entity.ContentType;
-import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.DefaultHttpRequestRetryHandler;
 import org.apache.http.impl.client.HttpClients;
-import org.apache.http.util.EntityUtils;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -97,16 +97,14 @@ import org.slf4j.LoggerFactory;
  * serializable in the HTTP client.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class HttpHealthcareApiClient implements HealthcareApiClient, Serializable {
   private static final String USER_AGENT =
       String.format(
           "apache-beam-io-google-cloud-platform-healthcare/%s",
           ReleaseInfo.getReleaseInfo().getSdkVersion());
-  private static final String FHIRSTORE_HEADER_CONTENT_TYPE = "application/fhir+json";
-  private static final String FHIRSTORE_HEADER_ACCEPT = "application/fhir+json; charset=utf-8";
-  private static final String FHIRSTORE_HEADER_ACCEPT_CHARSET = "utf-8";
+  private static final JsonFactory PARSER = new GsonFactory();
   private static final Logger LOG = LoggerFactory.getLogger(HttpHealthcareApiClient.class);
   private transient CloudHealthcare client;
   private transient HttpClient httpClient;
@@ -249,7 +247,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
             .setEntity(requestEntity)
             .addHeader("Content-Type", "application/dicom")
             .build();
-    HttpResponse response = httpClient.execute(request);
+    httpClient.execute(request);
     return new Empty();
   }
 
@@ -523,6 +521,28 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
   }
 
   @Override
+  public Operation exportFhirResourceToBigQuery(String fhirStore, String bigQueryDatasetUri)
+      throws IOException {
+    final GoogleCloudHealthcareV1FhirBigQueryDestination bigQueryDestination =
+        new GoogleCloudHealthcareV1FhirBigQueryDestination();
+    bigQueryDestination.setDatasetUri(bigQueryDatasetUri);
+
+    final SchemaConfig schemaConfig = new SchemaConfig();
+    schemaConfig.setSchemaType("ANALYTICS");
+    bigQueryDestination.setSchemaConfig(schemaConfig);
+
+    final ExportResourcesRequest exportRequest = new ExportResourcesRequest();
+    exportRequest.setBigqueryDestination(bigQueryDestination);
+    return client
+        .projects()
+        .locations()
+        .datasets()
+        .fhirStores()
+        .export(fhirStore, exportRequest)
+        .execute();
+  }
+
+  @Override
   public Operation deidentifyFhirStore(
       String sourcefhirStore, String destinationFhirStore, DeidentifyConfig deidConfig)
       throws IOException {
@@ -541,7 +561,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
   @Override
   public Operation pollOperation(Operation operation, Long sleepMs)
       throws InterruptedException, IOException {
-    LOG.debug(String.format("started opertation %s. polling until complete.", operation.getName()));
+    LOG.debug(String.format("Operation %s started, polling until complete.", operation.getName()));
     while (operation.getDone() == null || !operation.getDone()) {
       // Update the status of the operation with another request.
       Thread.sleep(sleepMs); // Pause between requests.
@@ -552,45 +572,20 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
   }
 
   @Override
-  public HttpBody executeFhirBundle(String fhirStore, String bundle)
-      throws IOException, HealthcareHttpException {
-    if (httpClient == null || client == null) {
+  public HttpBody executeFhirBundle(String fhirStore, String bundle) throws IOException {
+    if (client == null) {
       initClient();
     }
+    HttpBody httpBody = PARSER.fromString(bundle, HttpBody.class);
 
-    credentials.refreshIfExpired();
-    StringEntity requestEntity = new StringEntity(bundle, ContentType.APPLICATION_JSON);
-    URI uri;
-    try {
-      uri = new URIBuilder(client.getRootUrl() + "v1/" + fhirStore + "/fhir").build();
-    } catch (URISyntaxException e) {
-      LOG.error("URL error when making executeBundle request to FHIR API. " + e.getMessage());
-      throw new IllegalArgumentException(e);
-    }
-
-    HttpUriRequest request =
-        RequestBuilder.post()
-            .setUri(uri)
-            .setEntity(requestEntity)
-            .addHeader("Authorization", "Bearer " + credentials.getAccessToken().getTokenValue())
-            .addHeader("User-Agent", USER_AGENT)
-            .addHeader("Content-Type", FHIRSTORE_HEADER_CONTENT_TYPE)
-            .addHeader("Accept-Charset", FHIRSTORE_HEADER_ACCEPT_CHARSET)
-            .addHeader("Accept", FHIRSTORE_HEADER_ACCEPT)
-            .build();
-
-    HttpResponse response = httpClient.execute(request);
-    HttpEntity responseEntity = response.getEntity();
-    String content = EntityUtils.toString(responseEntity);
-
-    // Check 2XX code.
-    int statusCode = response.getStatusLine().getStatusCode();
-    if (!(statusCode / 100 == 2)) {
-      throw HealthcareHttpException.of(statusCode, content);
-    }
-    HttpBody responseModel = new HttpBody();
-    responseModel.setData(content);
-    return responseModel;
+    return client
+        .projects()
+        .locations()
+        .datasets()
+        .fhirStores()
+        .fhir()
+        .executeBundle(fhirStore, httpBody)
+        .execute();
   }
 
   /**
@@ -629,8 +624,15 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
   }
 
   @Override
-  public HttpBody readFhirResource(String resourceId) throws IOException {
-    return client.projects().locations().datasets().fhirStores().fhir().read(resourceId).execute();
+  public HttpBody readFhirResource(String resourceName) throws IOException {
+    return client
+        .projects()
+        .locations()
+        .datasets()
+        .fhirStores()
+        .fhir()
+        .read(resourceName)
+        .execute();
   }
 
   @Override
@@ -640,9 +642,26 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
       @Nullable Map<String, Object> parameters,
       String pageToken)
       throws IOException {
-    SearchResourcesRequest request = new SearchResourcesRequest().setResourceType(resourceType);
-    Search search =
-        client.projects().locations().datasets().fhirStores().fhir().search(fhirStore, request);
+    CloudHealthcareRequest<HttpBody> search;
+    if (Strings.isNullOrEmpty(resourceType)) {
+      search =
+          client
+              .projects()
+              .locations()
+              .datasets()
+              .fhirStores()
+              .fhir()
+              .search(fhirStore, new SearchResourcesRequest());
+    } else {
+      search =
+          client
+              .projects()
+              .locations()
+              .datasets()
+              .fhirStores()
+              .fhir()
+              .searchType(fhirStore, resourceType, new SearchResourcesRequest());
+    }
     if (parameters != null && !parameters.isEmpty()) {
       parameters.forEach(search::set);
     }
@@ -650,6 +669,27 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
       search.set("_page_token", URLDecoder.decode(pageToken, "UTF-8"));
     }
     return search.execute();
+  }
+
+  @Override
+  public HttpBody getPatientEverything(
+      String resourceName, @Nullable Map<String, Object> filters, String pageToken)
+      throws IOException {
+    PatientEverything patientEverything =
+        client
+            .projects()
+            .locations()
+            .datasets()
+            .fhirStores()
+            .fhir()
+            .patientEverything(resourceName);
+    if (filters != null && !filters.isEmpty()) {
+      filters.forEach(patientEverything::set);
+    }
+    if (pageToken != null && !pageToken.isEmpty()) {
+      patientEverything.set("_page_token", URLDecoder.decode(pageToken, "UTF-8"));
+    }
+    return patientEverything.execute();
   }
 
   public static class AuthenticatedRetryInitializer extends RetryHttpRequestInitializer {
@@ -862,147 +902,135 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
     }
   }
 
-  public static class FhirResourcePages implements Iterable<JsonArray> {
+  /** The type FhirResourcePagesIterator for methods which return paged output. */
+  public static class FhirResourcePagesIterator implements Iterator<JsonArray> {
 
+    public enum FhirMethod {
+      SEARCH,
+      PATIENT_EVERYTHING
+    }
+
+    private final FhirMethod fhirMethod;
     private final String fhirStore;
     private final String resourceType;
+    private final String resourceName;
     private final Map<String, Object> parameters;
-    private transient HealthcareApiClient client;
+
+    private final HealthcareApiClient client;
+    private final ObjectMapper mapper;
+    private String pageToken;
+    private boolean isFirstRequest;
+
+    public FhirResourcePagesIterator(
+        FhirMethod fhirMethod,
+        HealthcareApiClient client,
+        String fhirStore,
+        String resourceType,
+        String resourceName,
+        @Nullable Map<String, Object> parameters) {
+      this.fhirMethod = fhirMethod;
+      this.client = client;
+      this.fhirStore = fhirStore;
+      this.resourceType = resourceType;
+      this.resourceName = resourceName;
+      this.parameters = parameters;
+      this.pageToken = null;
+      this.isFirstRequest = true;
+      this.mapper = new ObjectMapper();
+    }
 
     /**
-     * Instantiates a new Fhir resource pages.
+     * Instantiates a new search FHIR resource pages iterator.
      *
      * @param client the client
      * @param fhirStore the Fhir store
      * @param resourceType the Fhir resource type to search for
-     * @param parameters the search parameters
+     * @param parameters the query parameters
      */
-    FhirResourcePages(
+    public static FhirResourcePagesIterator ofSearch(
         HealthcareApiClient client,
         String fhirStore,
         String resourceType,
         @Nullable Map<String, Object> parameters) {
-      this.client = client;
-      this.fhirStore = fhirStore;
-      this.resourceType = resourceType;
-      this.parameters = parameters;
+      return new FhirResourcePagesIterator(
+          FhirMethod.SEARCH, client, fhirStore, resourceType, "", parameters);
     }
 
     /**
-     * Make search request.
+     * Instantiates a new GetPatientEverything FHIR resource pages iterator.
      *
      * @param client the client
-     * @param fhirStore the Fhir store
-     * @param resourceType the Fhir resource type to search for
-     * @param parameters the search parameters
-     * @param pageToken the page token
-     * @return the search response
-     * @throws IOException the io exception
+     * @param resourceName the FHIR resource name
+     * @param parameters the filter parameters
      */
-    public static HttpBody makeSearchRequest(
-        HealthcareApiClient client,
-        String fhirStore,
-        String resourceType,
-        @Nullable Map<String, Object> parameters,
-        String pageToken)
-        throws IOException {
-      return client.searchFhirResource(fhirStore, resourceType, parameters, pageToken);
+    public static FhirResourcePagesIterator ofPatientEverything(
+        HealthcareApiClient client, String resourceName, @Nullable Map<String, Object> parameters) {
+      return new FhirResourcePagesIterator(
+          FhirMethod.PATIENT_EVERYTHING, client, "", "", resourceName, parameters);
     }
 
     @Override
-    public Iterator<JsonArray> iterator() {
-      return new FhirResourcePagesIterator(
-          this.client, this.fhirStore, this.resourceType, this.parameters);
+    public boolean hasNext() throws NoSuchElementException {
+      if (!isFirstRequest) {
+        return this.pageToken != null && !this.pageToken.isEmpty();
+      }
+      try {
+        HttpBody response = executeFhirRequest();
+        JsonObject jsonResponse =
+            JsonParser.parseString(mapper.writeValueAsString(response)).getAsJsonObject();
+        JsonArray resources = jsonResponse.getAsJsonArray("entry");
+        return resources != null && resources.size() != 0;
+      } catch (IOException e) {
+        throw new NoSuchElementException(
+            String.format(
+                "Failed to list first page of FHIR resources from %s: %s",
+                fhirStore, e.getMessage()));
+      }
     }
 
-    /** The type Fhir resource pages iterator. */
-    public static class FhirResourcePagesIterator implements Iterator<JsonArray> {
-
-      private final String fhirStore;
-      private final String resourceType;
-      private final Map<String, Object> parameters;
-      private HealthcareApiClient client;
-      private String pageToken;
-      private boolean isFirstRequest;
-      private ObjectMapper mapper;
-
-      /**
-       * Instantiates a new Fhir resource pages iterator.
-       *
-       * @param client the client
-       * @param fhirStore the Fhir store
-       * @param resourceType the Fhir resource type to search for
-       * @param parameters the search parameters
-       */
-      FhirResourcePagesIterator(
-          HealthcareApiClient client,
-          String fhirStore,
-          String resourceType,
-          @Nullable Map<String, Object> parameters) {
-        this.client = client;
-        this.fhirStore = fhirStore;
-        this.resourceType = resourceType;
-        this.parameters = parameters;
+    @Override
+    public JsonArray next() throws NoSuchElementException {
+      try {
+        HttpBody response = executeFhirRequest();
+        this.isFirstRequest = false;
+        JsonObject jsonResponse =
+            JsonParser.parseString(mapper.writeValueAsString(response)).getAsJsonObject();
+        JsonArray links = jsonResponse.getAsJsonArray("link");
+        this.pageToken = parsePageToken(links);
+        JsonArray resources = jsonResponse.getAsJsonArray("entry");
+        return resources;
+      } catch (IOException e) {
         this.pageToken = null;
-        this.isFirstRequest = true;
-        this.mapper = new ObjectMapper();
+        throw new NoSuchElementException(
+            String.format("Error listing FHIR resources from %s: %s", fhirStore, e.getMessage()));
       }
+    }
 
-      @Override
-      public boolean hasNext() throws NoSuchElementException {
-        if (!isFirstRequest) {
-          return this.pageToken != null && !this.pageToken.isEmpty();
-        }
-        try {
-          HttpBody response =
-              makeSearchRequest(client, fhirStore, resourceType, parameters, this.pageToken);
-          JsonObject jsonResponse =
-              JsonParser.parseString(mapper.writeValueAsString(response)).getAsJsonObject();
-          JsonArray resources = jsonResponse.getAsJsonArray("entry");
-          return resources != null && resources.size() != 0;
-        } catch (IOException e) {
-          throw new NoSuchElementException(
-              String.format(
-                  "Failed to list first page of Fhir resources from %s: %s",
-                  fhirStore, e.getMessage()));
-        }
+    private HttpBody executeFhirRequest() throws IOException {
+      switch (fhirMethod) {
+        case PATIENT_EVERYTHING:
+          return client.getPatientEverything(resourceName, parameters, pageToken);
+        case SEARCH:
+        default:
+          return client.searchFhirResource(fhirStore, resourceType, parameters, pageToken);
       }
+    }
 
-      @Override
-      public JsonArray next() throws NoSuchElementException {
-        try {
-          HttpBody response =
-              makeSearchRequest(client, fhirStore, resourceType, parameters, this.pageToken);
-          this.isFirstRequest = false;
-          JsonObject jsonResponse =
-              JsonParser.parseString(mapper.writeValueAsString(response)).getAsJsonObject();
-          JsonArray links = jsonResponse.getAsJsonArray("link");
-          this.pageToken = parsePageToken(links);
-          JsonArray resources = jsonResponse.getAsJsonArray("entry");
-          return resources;
-        } catch (IOException e) {
-          this.pageToken = null;
-          throw new NoSuchElementException(
-              String.format("Error listing Fhir resources from %s: %s", fhirStore, e.getMessage()));
-        }
-      }
-
-      private static String parsePageToken(JsonArray links) throws MalformedURLException {
-        for (JsonElement e : links) {
-          JsonObject link = e.getAsJsonObject();
-          if (link.get("relation").getAsString().equalsIgnoreCase("next")) {
-            URL url = new URL(link.get("url").getAsString());
-            List<String> parameters = Splitter.on("&").splitToList(url.getQuery());
-            for (String parameter : parameters) {
-              List<String> parts = Splitter.on("=").limit(2).splitToList(parameter);
-              if (parts.get(0).equalsIgnoreCase("_page_token")) {
-                return parts.get(1);
-              }
+    private static String parsePageToken(JsonArray links) throws MalformedURLException {
+      for (JsonElement e : links) {
+        JsonObject link = e.getAsJsonObject();
+        if (link.get("relation").getAsString().equalsIgnoreCase("next")) {
+          URL url = new URL(link.get("url").getAsString());
+          List<String> parameters = Splitter.on("&").splitToList(url.getQuery());
+          for (String parameter : parameters) {
+            List<String> parts = Splitter.on("=").limit(2).splitToList(parameter);
+            if (parts.get(0).equalsIgnoreCase("_page_token")) {
+              return parts.get(1);
             }
           }
         }
-        return "";
       }
+      return "";
     }
   }
 }

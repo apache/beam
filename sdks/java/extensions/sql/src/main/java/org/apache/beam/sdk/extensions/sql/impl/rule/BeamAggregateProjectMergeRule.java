@@ -21,16 +21,16 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamIOSourceRel;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelOptRuleCall;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.volcano.RelSubset;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelNode;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.SingleRel;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.core.Aggregate;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.core.Filter;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.core.Project;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.core.RelFactories;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.rules.AggregateProjectMergeRule;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.tools.RelBuilderFactory;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptRuleCall;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.volcano.RelSubset;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.SingleRel;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.core.Aggregate;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.core.Filter;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.core.Project;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.core.RelFactories;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.rules.AggregateProjectMergeRule;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.tools.RelBuilderFactory;
 
 /**
  * This rule is essentially a wrapper around Calcite's {@code AggregateProjectMergeRule}. In the
@@ -38,7 +38,7 @@ import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.tools.RelBuilde
  * Project} with an {@code Aggregate}, leaving it for the {@code BeamIOPUshDownRule}.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class BeamAggregateProjectMergeRule extends AggregateProjectMergeRule {
   public static final AggregateProjectMergeRule INSTANCE =

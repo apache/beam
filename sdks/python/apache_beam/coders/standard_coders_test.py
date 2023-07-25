@@ -29,7 +29,9 @@ from copy import deepcopy
 from typing import Dict
 from typing import Tuple
 
+import numpy as np
 import yaml
+from numpy.testing import assert_array_equal
 
 from apache_beam.coders import coder_impl
 from apache_beam.portability.api import beam_runner_api_pb2
@@ -145,6 +147,8 @@ class StandardCodersTest(unittest.TestCase):
           end=Timestamp(micros=x['end'] * 1000)),
       'beam:coder:iterable:v1': lambda x,
       parser: list(map(parser, x)),
+      'beam:coder:state_backed_iterable:v1': lambda x,
+      parser: list(map(parser, x)),
       'beam:coder:global_window:v1': lambda x: window.GlobalWindow(),
       'beam:coder:windowed_value:v1': lambda x,
       value_parser,
@@ -191,7 +195,9 @@ class StandardCodersTest(unittest.TestCase):
       value_parser: ShardedKey(
           key=value_parser(x['key']), shard_id=x['shardId'].encode('utf-8')),
       'beam:coder:custom_window:v1': lambda x,
-      window_parser: window_parser(x['window'])
+      window_parser: window_parser(x['window']),
+      'beam:coder:nullable:v1': lambda x,
+      value_parser: x.encode('utf-8') if x else None
   }
 
   def test_standard_coders(self):
@@ -227,6 +233,29 @@ class StandardCodersTest(unittest.TestCase):
           self.assertEqual(
               decode_nested(coder, expected_encoded, nested), value)
 
+    if spec['coder']['urn'] == 'beam:coder:row:v1':
+      # Test batch encoding/decoding as well.
+      values = [
+          parse_value(json_value) for json_value in spec['examples'].values()
+      ]
+      columnar = {
+          field.name: np.array([getattr(value, field.name) for value in values])
+          for field in coder.schema.fields
+      }
+      dest = {
+          field: np.empty_like(values)
+          for field, values in columnar.items()
+      }
+      for column in dest.values():
+        column[:] = 0 if 'int' in column.dtype.name else None
+      expected_encoded = ''.join(spec['examples'].keys()).encode('latin1')
+      actual_encoded = encode_batch(coder, columnar)
+      assert_equal(expected_encoded, actual_encoded)
+      decoded_count = decode_batch(coder, expected_encoded, dest)
+      assert_equal(len(spec['examples']), decoded_count)
+      for field, values in dest.items():
+        assert_array_equal(columnar[field], dest[field])
+
   def parse_coder(self, spec):
     context = pipeline_context.PipelineContext()
     coder_id = str(hash(str(spec)))
@@ -234,6 +263,18 @@ class StandardCodersTest(unittest.TestCase):
         context.coders.get_id(self.parse_coder(c))
         for c in spec.get('components', ())
     ]
+    if spec.get('state'):
+
+      def iterable_state_read(state_token, elem_coder):
+        state = spec.get('state').get(state_token.decode('latin1'))
+        if state is None:
+          state = ''
+        input_stream = coder_impl.create_InputStream(state.encode('latin1'))
+        while input_stream.size() > 0:
+          yield elem_coder.decode_from_stream(input_stream, True)
+
+      context.iterable_state_read = iterable_state_read
+
     context.coders.put_proto(
         coder_id,
         beam_runner_api_pb2.Coder(
@@ -287,6 +328,17 @@ def encode_nested(coder, value, nested=True):
 def decode_nested(coder, encoded, nested=True):
   return coder.get_impl().decode_from_stream(
       coder_impl.create_InputStream(encoded), nested)
+
+
+def encode_batch(row_coder, values):
+  out = coder_impl.create_OutputStream()
+  row_coder.get_impl().encode_batch_to_stream(values, out)
+  return out.get()
+
+
+def decode_batch(row_coder, encoded, dest):
+  return row_coder.get_impl().decode_batch_from_stream(
+      dest, coder_impl.create_InputStream(encoded))
 
 
 if __name__ == '__main__':

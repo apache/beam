@@ -84,10 +84,18 @@ public class SamzaJobServerDriver extends JobServerDriver {
       SamzaServerConfiguration configuration,
       ServerFactory jobServerFactory,
       ServerFactory artifactServerFactory) {
-    super(
+    this(
         configuration,
         jobServerFactory,
         artifactServerFactory,
         () -> SamzaJobInvoker.create(configuration));
+  }
+
+  protected SamzaJobServerDriver(
+      ServerConfiguration configuration,
+      ServerFactory jobServerFactory,
+      ServerFactory artifactServerFactory,
+      JobInvokerFactory jobInvokerFactory) {
+    super(configuration, jobServerFactory, artifactServerFactory, jobInvokerFactory);
   }
 }

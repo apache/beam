@@ -1,0 +1,93 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+ * Protocol Buffers describing the Provision API, for communicating with a runner
+ * for job and environment provisioning information over GRPC.
+ */
+
+syntax = "proto3";
+
+package org.apache.beam.model.fn_execution.v1;
+
+option go_package = "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1;fnexecution_v1";
+option java_package = "org.apache.beam.model.fnexecution.v1";
+option java_outer_classname = "ProvisionApi";
+
+import "org/apache/beam/model/pipeline/v1/beam_runner_api.proto";
+import "org/apache/beam/model/pipeline/v1/endpoints.proto";
+import "google/protobuf/struct.proto";
+
+// A service to provide runtime provisioning information to the SDK harness
+// worker instances -- such as pipeline options, resource constraints and
+// other job metadata -- needed by an SDK harness instance to initialize.
+service ProvisionService {
+    // Get provision information for the SDK harness worker instance.
+    rpc GetProvisionInfo(GetProvisionInfoRequest) returns (GetProvisionInfoResponse);
+}
+
+// A request to get the provision info of a SDK harness worker instance.
+message GetProvisionInfoRequest { }
+
+// A response containing the provision info of a SDK harness worker instance.
+message GetProvisionInfoResponse {
+    ProvisionInfo info = 1;
+}
+
+// Runtime provisioning information for a SDK harness worker instance,
+// such as pipeline options, resource constraints and other job metadata
+message ProvisionInfo {
+    // (required) Pipeline options. For non-template jobs, the options are
+    // identical to what is passed to job submission.
+    google.protobuf.Struct pipeline_options = 3;
+
+    // (required) The artifact retrieval token produced by
+    // LegacyArtifactStagingService.CommitManifestResponse.
+    string retrieval_token = 6;
+
+    // (optional) The endpoint that the runner is hosting for the SDK to submit
+    // status reports to during pipeline execution. This field will only be
+    // populated if the runner supports SDK status reports. For more details see
+    // https://s.apache.org/beam-fn-api-harness-status
+    org.apache.beam.model.pipeline.v1.ApiServiceDescriptor status_endpoint = 7;
+
+    // (optional) The logging endpoint this SDK should use.
+    org.apache.beam.model.pipeline.v1.ApiServiceDescriptor logging_endpoint = 8;
+
+    // (optional) The artifact retrieval endpoint this SDK should use.
+    org.apache.beam.model.pipeline.v1.ApiServiceDescriptor artifact_endpoint = 9;
+
+    // (optional) The control endpoint this SDK should use.
+    org.apache.beam.model.pipeline.v1.ApiServiceDescriptor control_endpoint = 10;
+
+    // The set of dependencies that should be staged into this environment.
+    repeated org.apache.beam.model.pipeline.v1.ArtifactInformation dependencies = 11;
+
+    // (optional) A set of capabilities that this SDK is allowed to use in its
+    // interactions with this runner.
+    repeated string runner_capabilities = 12;
+
+    // (optional) Runtime environment metadata that are static throughout the
+    // pipeline execution.
+    map<string, string> metadata = 13;
+
+    // (optional) If this environment supports SIBLING_WORKERS, used to indicate
+    // the ids of sibling workers, if any, that should be started in addition
+    // to this worker (which already has its own worker id).
+    repeated string sibling_worker_ids = 14;
+}

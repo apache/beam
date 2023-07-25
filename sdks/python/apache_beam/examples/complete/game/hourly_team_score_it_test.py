@@ -90,6 +90,35 @@ class HourlyTeamScoreIT(unittest.TestCase):
         self.test_pipeline.get_full_options_as_args(**extra_opts),
         save_main_session=False)
 
+  @pytest.mark.no_xdist
+  @pytest.mark.examples_postcommit
+  def test_hourly_team_score_output_checksum_on_small_input(self):
+    # Small dataset to prevent Out of Memory when running in local runners
+    INPUT_FILE = 'gs://apache-beam-samples/game/small/gaming_data.csv'
+    EXPECTED_CHECKSUM = '91143e81622aa391eb62eaa3f3a5123401edb07d'
+    state_verifier = PipelineStateMatcher(PipelineState.DONE)
+    query = (
+        'SELECT COUNT(*) FROM `%s.%s.%s`' %
+        (self.project, self.dataset_ref.dataset_id, self.OUTPUT_TABLE))
+
+    bigquery_verifier = BigqueryMatcher(self.project, query, EXPECTED_CHECKSUM)
+
+    extra_opts = {
+        'input': INPUT_FILE,
+        'dataset': self.dataset_ref.dataset_id,
+        'window_duration': 1,
+        'on_success_matcher': all_of(state_verifier, bigquery_verifier)
+    }
+
+    # Register clean up before pipeline execution
+    # Note that actual execution happens in reverse order.
+    self.addCleanup(utils.delete_bq_dataset, self.project, self.dataset_ref)
+
+    # Get pipeline options from command argument: --test-pipeline-options,
+    # and start pipeline job by calling pipeline main function.
+    hourly_team_score.run(
+        self.test_pipeline.get_full_options_as_args(**extra_opts))
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.DEBUG)

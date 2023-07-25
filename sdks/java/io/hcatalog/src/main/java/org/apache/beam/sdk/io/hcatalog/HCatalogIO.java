@@ -28,8 +28,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.hadoop.WritableCoder;
@@ -69,6 +67,12 @@ import org.slf4j.LoggerFactory;
 
 /**
  * IO to read and write data using HCatalog.
+ *
+ * <p><b>WARNING:</b>This package requires users to declare their own dependency on
+ * org.apache.hive:hive-exec and org.apache.hive.hcatalog. At the time of this Beam release every
+ * released version of those packages had a transitive dependency on a version of log4j vulnerable
+ * to CVE-2021-44228. We strongly encourage users to pin a non-vulnerable version of log4j when
+ * using this package. See <a href="https://github.com/apache/beam/issues/21426">Issue #21426</a>.
  *
  * <h3>Reading using HCatalog</h3>
  *
@@ -125,9 +129,8 @@ import org.slf4j.LoggerFactory;
  *       .withBatchSize(1024L)) //optional, assumes a default batch size of 1024 if none specified
  * }</pre>
  */
-@Experimental(Kind.SOURCE_SINK)
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class HCatalogIO {
 

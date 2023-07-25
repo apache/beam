@@ -63,6 +63,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -93,13 +94,10 @@ import org.slf4j.LoggerFactory;
  * the data directly into the final table, skipping temporary tables. In this case, the output
  * {@link KV} maps the final table to itself.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
-class WriteTables<DestinationT>
+class WriteTables<DestinationT extends @NonNull Object>
     extends PTransform<
         PCollection<KV<ShardedKey<DestinationT>, WritePartition.Result>>,
-        PCollection<KV<TableDestination, WriteTables.Result>>> {
+        PCollection<KV<DestinationT, WriteTables.Result>>> {
   @AutoValue
   abstract static class Result {
     abstract String getTableName();
@@ -137,20 +135,20 @@ class WriteTables<DestinationT>
   private final Set<SchemaUpdateOption> schemaUpdateOptions;
   private final DynamicDestinations<?, DestinationT> dynamicDestinations;
   private final List<PCollectionView<?>> sideInputs;
-  private final TupleTag<KV<TableDestination, WriteTables.Result>> mainOutputTag;
+  private final TupleTag<KV<DestinationT, WriteTables.Result>> mainOutputTag;
   private final TupleTag<String> temporaryFilesTag;
-  private final ValueProvider<String> loadJobProjectId;
+  private final @Nullable ValueProvider<String> loadJobProjectId;
   private final int maxRetryJobs;
   private final boolean ignoreUnknownValues;
   private final @Nullable String kmsKey;
   private final String sourceFormat;
   private final boolean useAvroLogicalTypes;
-  private @Nullable DatasetService datasetService;
+  private transient @Nullable DatasetService datasetService;
   private @Nullable JobService jobService;
+  private final @Nullable String tempDataset;
 
   private class WriteTablesDoFn
-      extends DoFn<
-          KV<ShardedKey<DestinationT>, WritePartition.Result>, KV<TableDestination, Result>> {
+      extends DoFn<KV<ShardedKey<DestinationT>, WritePartition.Result>, KV<DestinationT, Result>> {
 
     private Map<DestinationT, String> jsonSchemas = Maps.newHashMap();
 
@@ -161,6 +159,7 @@ class WriteTables<DestinationT>
       final List<String> partitionFiles;
       final TableDestination tableDestination;
       final TableReference tableReference;
+      final DestinationT destinationT;
       final boolean isFirstPane;
 
       public PendingJobData(
@@ -169,12 +168,14 @@ class WriteTables<DestinationT>
           List<String> partitionFiles,
           TableDestination tableDestination,
           TableReference tableReference,
+          DestinationT destinationT,
           boolean isFirstPane) {
         this.window = window;
         this.retryJob = retryJob;
         this.partitionFiles = partitionFiles;
         this.tableDestination = tableDestination;
         this.tableReference = tableReference;
+        this.destinationT = destinationT;
         this.isFirstPane = isFirstPane;
       }
     }
@@ -205,8 +206,8 @@ class WriteTables<DestinationT>
             BigQueryHelpers.fromJsonString(jsonSchemas.get(destination), TableSchema.class);
       } else {
         tableSchema = dynamicDestinations.getSchema(destination);
-        checkArgument(
-            tableSchema != null,
+        Preconditions.checkArgumentNotNull(
+            tableSchema,
             "Unless create disposition is %s, a schema must be specified, i.e. "
                 + "DynamicDestinations.getSchema() may not return null. "
                 + "However, create disposition is %s, and %s returned null for destination %s",
@@ -251,6 +252,9 @@ class WriteTables<DestinationT>
               c.sideInput(loadJobIdPrefixView), tableDestination, partition, c.pane().getIndex());
 
       if (tempTable) {
+        if (tempDataset != null) {
+          tableReference.setDatasetId(tempDataset);
+        }
         // This is a temp table. Create a new one for each partition and each pane.
         tableReference.setTableId(jobIdPrefix);
       }
@@ -265,7 +269,7 @@ class WriteTables<DestinationT>
       } else if (tempTable) {
         // In this case, we are writing to a temp table and always need to create it.
         // WRITE_TRUNCATE is set so that we properly handle retries of this pane.
-        writeDisposition = WriteDisposition.WRITE_TRUNCATE;
+        writeDisposition = WriteDisposition.WRITE_APPEND;
         createDisposition = CreateDisposition.CREATE_IF_NEEDED;
       }
 
@@ -282,6 +286,7 @@ class WriteTables<DestinationT>
               writeDisposition,
               createDisposition,
               schemaUpdateOptions);
+
       pendingJobs.add(
           new PendingJobData(
               window,
@@ -289,6 +294,7 @@ class WriteTables<DestinationT>
               partitionFiles,
               tableDestination,
               tableReference,
+              destination,
               element.getValue().isFirstPane()));
     }
 
@@ -350,14 +356,13 @@ class WriteTables<DestinationT>
                                   BigQueryHelpers.stripPartitionDecorator(ref.getTableId())),
                           pendingJob.tableDestination.getTableDescription());
                     }
-
                     Result result =
                         new AutoValue_WriteTables_Result(
                             BigQueryHelpers.toJsonString(pendingJob.tableReference),
                             pendingJob.isFirstPane);
                     c.output(
                         mainOutputTag,
-                        KV.of(pendingJob.tableDestination, result),
+                        KV.of(pendingJob.destinationT, result),
                         pendingJob.window.maxTimestamp(),
                         pendingJob.window);
                     for (String file : pendingJob.partitionFiles) {
@@ -395,10 +400,11 @@ class WriteTables<DestinationT>
       @Nullable ValueProvider<String> loadJobProjectId,
       int maxRetryJobs,
       boolean ignoreUnknownValues,
-      String kmsKey,
+      @Nullable String kmsKey,
       String sourceFormat,
       boolean useAvroLogicalTypes,
-      Set<SchemaUpdateOption> schemaUpdateOptions) {
+      Set<SchemaUpdateOption> schemaUpdateOptions,
+      @Nullable String tempDataset) {
 
     this.tempTable = tempTable;
     this.bqServices = bqServices;
@@ -416,10 +422,11 @@ class WriteTables<DestinationT>
     this.sourceFormat = sourceFormat;
     this.useAvroLogicalTypes = useAvroLogicalTypes;
     this.schemaUpdateOptions = schemaUpdateOptions;
+    this.tempDataset = tempDataset;
   }
 
   @Override
-  public PCollection<KV<TableDestination, Result>> expand(
+  public PCollection<KV<DestinationT, Result>> expand(
       PCollection<KV<ShardedKey<DestinationT>, WritePartition.Result>> input) {
     PCollectionTuple writeTablesOutputs =
         input.apply(
@@ -445,6 +452,7 @@ class WriteTables<DestinationT>
         .apply(GroupByKey.create())
         .apply(Values.create())
         .apply(ParDo.of(new GarbageCollectTemporaryFiles()));
+
     return writeTablesOutputs.get(mainOutputTag);
   }
 
@@ -453,13 +461,16 @@ class WriteTables<DestinationT>
       DatasetService datasetService,
       String jobIdPrefix,
       TableReference ref,
-      TimePartitioning timePartitioning,
-      Clustering clustering,
+      @Nullable TimePartitioning timePartitioning,
+      @Nullable Clustering clustering,
       @Nullable TableSchema schema,
       List<String> gcsUris,
       WriteDisposition writeDisposition,
       CreateDisposition createDisposition,
       Set<SchemaUpdateOption> schemaUpdateOptions) {
+    @SuppressWarnings({
+      "nullness" // nulls allowed in most fields but API client not annotated
+    })
     JobConfigurationLoad loadConfig =
         new JobConfigurationLoad()
             .setDestinationTable(ref)
@@ -479,16 +490,18 @@ class WriteTables<DestinationT>
     }
     if (timePartitioning != null) {
       loadConfig.setTimePartitioning(timePartitioning);
-      // only set clustering if timePartitioning is set
-      if (clustering != null) {
-        loadConfig.setClustering(clustering);
-      }
+    }
+    if (clustering != null) {
+      loadConfig.setClustering(clustering);
     }
     if (kmsKey != null) {
       loadConfig.setDestinationEncryptionConfiguration(
           new EncryptionConfiguration().setKmsKeyName(kmsKey));
     }
-    String projectId = loadJobProjectId == null ? ref.getProjectId() : loadJobProjectId.get();
+    String projectId =
+        loadJobProjectId == null || loadJobProjectId.get() == null
+            ? ref.getProjectId()
+            : loadJobProjectId.get();
     String bqLocation =
         BigQueryHelpers.getDatasetLocation(datasetService, ref.getProjectId(), ref.getDatasetId());
 

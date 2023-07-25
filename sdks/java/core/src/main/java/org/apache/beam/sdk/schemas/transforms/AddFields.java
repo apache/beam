@@ -28,8 +28,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor.FieldDescriptor.Qualifier;
 import org.apache.beam.sdk.schemas.Schema;
@@ -63,8 +61,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *       .field("userDetails.isSpecialUser", "FieldType.BOOLEAN", false));
  * }</pre>
  */
-@Experimental(Kind.SCHEMAS)
-@SuppressWarnings({"nullness", "keyfor"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({"nullness", "keyfor"}) // TODO(https://github.com/apache/beam/issues/20497)
 public class AddFields {
   public static <T> Inner<T> create() {
     return new Inner<>();
@@ -134,7 +131,7 @@ public class AddFields {
       }
     }
 
-    /** This class encapsulates all data needed to add a a new field to the schema. */
+    /** This class encapsulates all data needed to add a new field to the schema. */
     @AutoValue
     abstract static class AddFieldsInformation implements Serializable {
       // The new output fieldtype after adding the new field.

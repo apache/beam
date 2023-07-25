@@ -19,9 +19,9 @@ limitations under the License.
 
 {{< localstorage language language-py >}}
 
-If you already know [_Apache Spark_](http://spark.apache.org/),
-learning _Apache Beam_ is familiar.
-The Beam and Spark APIs are similar, so you already know the basic concepts.
+If you already know [_Apache Spark_](https://spark.apache.org/),
+using Beam should be easy.
+The basic concepts are the same, and the APIs are similar as well.
 
 Spark stores data _Spark DataFrames_ for structured data,
 and in _Resilient Distributed Datasets_ (RDD) for unstructured data.
@@ -74,6 +74,7 @@ with beam.Pipeline() as pipeline:
 > ℹ️ Note that we called `print` inside a `Map` transform.
 > That's because we can only access the elements of a PCollection
 > from within a PTransform.
+> To inspect the data locally, you can use the [InteractiveRunner](https://cloud.google.com/dataflow/docs/guides/interactive-pipeline-development#creating_your_pipeline)
 
 Another thing to note is that Beam pipelines are constructed lazily.
 This means that when you pipe `|` data you're only declaring the
@@ -86,7 +87,7 @@ closed.
 > it implicitly calls `pipeline.run()` which triggers the computation to happen.
 
 The pipeline is then sent to your
-[runner of choice](https://beam.apache.org/documentation/runners/capability-matrix/)
+[runner of choice](/documentation/runners/capability-matrix/)
 and it processes the data.
 
 > ℹ️ The pipeline can run locally with the _DirectRunner_,
@@ -116,12 +117,13 @@ with beam.Pipeline() as pipeline:
 
 Here's a comparison on how to get started both in PySpark and Beam.
 
+<div class="table-container-wrapper">
 {{< table >}}
-<table>
+<table style="width:100%" class="table-wrapper--equal-p">
 <tr>
-    <th></th>
-    <th>PySpark</th>
-    <th>Beam</th>
+    <th style="width:20%"></th>
+    <th style="width:40%">PySpark</th>
+    <th style="width:40%">Beam</th>
 </tr>
 <tr>
     <td><b>Install</b></td>
@@ -173,29 +175,93 @@ Here's a comparison on how to get started both in PySpark and Beam.
 </tr>
 </table>
 {{< /table >}}
+</div>
 
 ## Transforms
 
 Here are the equivalents of some common transforms in both PySpark and Beam.
 
+<div class="table-container-wrapper">
 {{< table >}}
-|                                                                                  | PySpark                               | Beam                                                    |
-|----------------------------------------------------------------------------------|---------------------------------------|---------------------------------------------------------|
-| [**Map**](/documentation/transforms/python/elementwise/map/)                     | `values.map(lambda x: x * 2)`         | `values | beam.Map(lambda x: x * 2)`                    |
-| [**Filter**](/documentation/transforms/python/elementwise/filter/)               | `values.filter(lambda x: x % 2 == 0)` | `values | beam.Filter(lambda x: x % 2 == 0)`            |
-| [**FlatMap**](/documentation/transforms/python/elementwise/flatmap/)             | `values.flatMap(lambda x: range(x))`  | `values | beam.FlatMap(lambda x: range(x))`             |
-| [**Group by key**](/documentation/transforms/python/aggregation/groupbykey/)     | `pairs.groupByKey()`                  | `pairs | beam.GroupByKey()`                             |
-| [**Reduce**](/documentation/transforms/python/aggregation/combineglobally/)      | `values.reduce(lambda x, y: x+y)`     | `values | beam.CombineGlobally(sum)`                    |
-| [**Reduce by key**](/documentation/transforms/python/aggregation/combineperkey/) | `pairs.reduceByKey(lambda x, y: x+y)` | `pairs | beam.CombinePerKey(sum)`                       |
-| [**Distinct**](/documentation/transforms/python/aggregation/distinct/)           | `values.distinct()`                   | `values | beam.Distinct()`                              |
-| [**Count**](/documentation/transforms/python/aggregation/count/)                 | `values.count()`                      | `values | beam.combiners.Count.Globally()`              |
-| [**Count by key**](/documentation/transforms/python/aggregation/count/)          | `pairs.countByKey()`                  | `pairs | beam.combiners.Count.PerKey()`                 |
-| [**Take smallest**](/documentation/transforms/python/aggregation/top/)           | `values.takeOrdered(3)`               | `values | beam.combiners.Top.Smallest(3)`               |
-| [**Take largest**](/documentation/transforms/python/aggregation/top/)            | `values.takeOrdered(3, lambda x: -x)` | `values | beam.combiners.Top.Largest(3)`                |
-| [**Random sample**](/documentation/transforms/python/aggregation/sample/)        | `values.takeSample(False, 3)`         | `values | beam.combiners.Sample.FixedSizeGlobally(3)`   |
-| [**Union**](/documentation/transforms/python/other/flatten/)                     | `values.union(otherValues)`           | `(values, otherValues) | beam.Flatten()`                |
-| [**Co-group**](/documentation/transforms/python/aggregation/cogroupbykey/)       | `pairs.cogroup(otherPairs)`           | `{'Xs': pairs, 'Ys': otherPairs} | beam.CoGroupByKey()` |
+<table style="width:100%" class="table-wrapper--equal-p">
+<tr>
+    <th style="width:20%"></th>
+    <th style="width:40%">PySpark</th>
+    <th style="width:40%">Beam</th>
+</tr>
+<tr>
+    <td><b><a href="/documentation/transforms/python/elementwise/map/">Map</a></b></td>
+    <td><code>values.map(lambda x: x * 2)</code></td>
+    <td><code>values | beam.Map(lambda x: x * 2)</code></td>
+</tr>
+<tr>
+    <td><b><a href="/documentation/transforms/python/elementwise/filter/">Filter</a></b></td>
+    <td><code>values.filter(lambda x: x % 2 == 0)</code></td>
+    <td><code>values | beam.Filter(lambda x: x % 2 == 0)</code></td>
+</tr>
+<tr>
+    <td><b><a href="/documentation/transforms/python/elementwise/flatmap/">FlatMap</a></b></td>
+    <td><code>values.flatMap(lambda x: range(x))</code></td>
+    <td><code>values | beam.FlatMap(lambda x: range(x))</code></td>
+</tr>
+<tr>
+    <td><b><a href="/documentation/transforms/python/aggregation/groupbykey/">Group by key</a></b></td>
+    <td><code>pairs.groupByKey()</code></td>
+    <td><code>pairs | beam.GroupByKey()</code></td>
+</tr>
+<tr>
+    <td><b><a href="/documentation/transforms/python/aggregation/combineglobally/">Reduce</a></b></td>
+    <td><code>values.reduce(lambda x, y: x+y)</code></td>
+    <td><code>values | beam.CombineGlobally(sum)</code></td>
+</tr>
+<tr>
+    <td><b><a href="/documentation/transforms/python/aggregation/combineperkey/">Reduce by key</a></b></td>
+    <td><code>pairs.reduceByKey(lambda x, y: x+y)</code></td>
+    <td><code>pairs | beam.CombinePerKey(sum)</code></td>
+</tr>
+<tr>
+    <td><b><a href="/documentation/transforms/python/aggregation/distinct/">Distinct</a></b></td>
+    <td><code>values.distinct()</code></td>
+    <td><code>values | beam.Distinct()</code></td>
+</tr>
+<tr>
+    <td><b><a href="/documentation/transforms/python/aggregation/count/">Count</a></b></td>
+    <td><code>values.count()</code></td>
+    <td><code>values | beam.combiners.Count.Globally()</code></td>
+</tr>
+<tr>
+    <td><b><a href="/documentation/transforms/python/aggregation/count/">Count by key</a></b></td>
+    <td><code>pairs.countByKey()</code></td>
+    <td><code>pairs | beam.combiners.Count.PerKey()</code></td>
+</tr>
+<tr>
+    <td><b><a href="/documentation/transforms/python/aggregation/top/">Take smallest</a></b></td>
+    <td><code>values.takeOrdered(3)</code></td>
+    <td><code>values | beam.combiners.Top.Smallest(3)</code></td>
+</tr>
+<tr>
+    <td><b><a href="/documentation/transforms/python/aggregation/top/">Take largest</a></b></td>
+    <td><code>values.takeOrdered(3, lambda x: -x)</code></td>
+    <td><code>values | beam.combiners.Top.Largest(3)</code></td>
+</tr>
+<tr>
+    <td><b><a href="/documentation/transforms/python/aggregation/sample/">Random sample</a></b></td>
+    <td><code>values.takeSample(False, 3)</code></td>
+    <td><code>values | beam.combiners.Sample.FixedSizeGlobally(3)</code></td>
+</tr>
+<tr>
+    <td><b><a href="/documentation/transforms/python/other/flatten/">Union</a></b></td>
+    <td><code>values.union(otherValues)</code></td>
+    <td><code>(values, otherValues) | beam.Flatten()</code></td>
+</tr>
+<tr>
+    <td><b><a href="/documentation/transforms/python/aggregation/cogroupbykey/">Co-group</a></b></td>
+    <td><code>pairs.cogroup(otherPairs)</code></td>
+    <td><code>{'Xs': pairs, 'Ys': otherPairs} | beam.CoGroupByKey()</code></td>
+</tr>
+</table>
 {{< /table >}}
+</div>
 
 > ℹ️ To learn more about the transforms available in Beam, check the
 > [Python transform gallery](/documentation/transforms/python/overview).
@@ -215,10 +281,11 @@ import pyspark
 
 sc = pyspark.SparkContext()
 values = sc.parallelize([1, 2, 3, 4])
-total = values.reduce(lambda x, y: x + y)
+min_value = values.reduce(min)
+max_value = values.reduce(max)
 
-# We can simply use `total` since it's already a Python `int` value from `reduce`.
-scaled_values = values.map(lambda x: x / total)
+# We can simply use `min_value` and `max_value` since it's already a Python `int` value from `reduce`.
+scaled_values = values.map(lambda x: (x - min_value) / (max_value - min_value))
 
 # But to access `scaled_values`, we need to call `collect`.
 print(scaled_values.collect())
@@ -242,18 +309,23 @@ import apache_beam as beam
 
 with beam.Pipeline() as pipeline:
     values = pipeline | beam.Create([1, 2, 3, 4])
-    total = values | beam.CombineGlobally(sum)
+    min_value = values | beam.CombineGlobally(min)
+    max_value = values | beam.CombineGlobally(max)
 
-    # To access `total`, we need to pass it as a side input.
+    # To access `min_value` and `max_value`, we need to pass them as a side input.
     scaled_values = values | beam.Map(
-        lambda x, total: x / total,
-        total=beam.pvalue.AsSingleton(total))
+        lambda x, minimum, maximum: (x - minimum) / (maximum - minimum),
+        minimum=beam.pvalue.AsSingleton(min_value),
+        maximum=beam.pvalue.AsSingleton(max_value),
+    )
 
     scaled_values | beam.Map(print)
 {{< /highlight >}}
 
 > ℹ️ In Beam we need to pass a side input explicitly, but we get the
 > benefit that a reduction or aggregation does _not_ have to fit into memory.
+> Lazily computing side inputs also allows us to compute `values` only once,
+> rather than for each distinct reduction (or requiring explicit caching of the RDD).
 
 ## Next Steps
 
@@ -261,7 +333,7 @@ with beam.Pipeline() as pipeline:
 * Learn how to read from and write to files in the [_Pipeline I/O_ section of the _Programming guide_](/documentation/programming-guide/#pipeline-io)
 * Walk through additional WordCount examples in the [WordCount Example Walkthrough](/get-started/wordcount-example).
 * Take a self-paced tour through our [Learning Resources](/documentation/resources/learning-resources).
-* Dive in to some of our favorite [Videos and Podcasts](/documentation/resources/videos-and-podcasts).
+* Dive in to some of our favorite [Videos and Podcasts](/get-started/resources/videos-and-podcasts).
 * Join the Beam [users@](/community/contact-us) mailing list.
 * If you're interested in contributing to the Apache Beam codebase, see the [Contribution Guide](/contribute).
 

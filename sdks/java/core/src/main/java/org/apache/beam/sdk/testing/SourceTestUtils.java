@@ -78,7 +78,7 @@ import org.slf4j.LoggerFactory;
  * <p>Like {@link PAssert}, requires JUnit and Hamcrest to be present in the classpath.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class SourceTestUtils {
   private static final Logger LOG = LoggerFactory.getLogger(SourceTestUtils.class);

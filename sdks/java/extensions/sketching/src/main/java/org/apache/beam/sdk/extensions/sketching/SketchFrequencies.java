@@ -25,7 +25,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.Iterator;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -173,13 +172,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
  * {@literal    .<MyObject>}create(new MyObjectCoder())
  *              .withAccuracy(eps, conf)));
  * </code></pre>
- *
- * <p><b>Warning: this class is experimental.</b> <br>
- * Its API is subject to change in future versions of Beam.
  */
-@Experimental
 @SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public final class SketchFrequencies {
 

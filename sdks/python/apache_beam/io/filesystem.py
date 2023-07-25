@@ -28,6 +28,7 @@ import abc
 import bz2
 import io
 import logging
+import lzma
 import os
 import posixpath
 import re
@@ -38,6 +39,8 @@ from typing import Iterator
 from typing import List
 from typing import Optional
 from typing import Tuple
+
+import zstandard
 
 from apache_beam.utils.plugin import BeamPlugin
 
@@ -63,6 +66,10 @@ class CompressionTypes(object):
   #   .bz2 (implies BZIP2 as described below).
   #   .gz  (implies GZIP as described below)
   #   .deflate (implies DEFLATE as described below)
+  #   .zst (implies ZSTD as described below)
+  #   .zst (implies ZSTD as described below)
+  #   .xz (implies LZMA as described below)
+  #   .lzma (implies LZMA as described below)
   # Any non-recognized extension implies UNCOMPRESSED as described below.
   AUTO = 'auto'
 
@@ -72,8 +79,14 @@ class CompressionTypes(object):
   # DEFLATE compression
   DEFLATE = 'deflate'
 
+  # ZSTD compression
+  ZSTD = 'zstd'
+
   # GZIP compression (deflate with GZIP headers).
   GZIP = 'gzip'
+
+  # LZMA compression
+  LZMA = 'lzma'
 
   # Uncompressed (i.e., may be split).
   UNCOMPRESSED = 'uncompressed'
@@ -86,6 +99,8 @@ class CompressionTypes(object):
         CompressionTypes.BZIP2,
         CompressionTypes.DEFLATE,
         CompressionTypes.GZIP,
+        CompressionTypes.ZSTD,
+        CompressionTypes.LZMA,
         CompressionTypes.UNCOMPRESSED
     ])
     return compression_type in types
@@ -96,6 +111,8 @@ class CompressionTypes(object):
         cls.BZIP2: 'application/x-bz2',
         cls.DEFLATE: 'application/x-deflate',
         cls.GZIP: 'application/x-gzip',
+        cls.ZSTD: 'application/zstd',
+        cls.LZMA: 'application/lzma'
     }
     return mime_types_by_compression_type.get(compression_type, default)
 
@@ -103,7 +120,13 @@ class CompressionTypes(object):
   def detect_compression_type(cls, file_path):
     """Returns the compression type of a file (based on its suffix)."""
     compression_types_by_suffix = {
-        '.bz2': cls.BZIP2, '.deflate': cls.DEFLATE, '.gz': cls.GZIP
+        '.bz2': cls.BZIP2,
+        '.deflate': cls.DEFLATE,
+        '.gz': cls.GZIP,
+        '.zst': cls.ZSTD,
+        '.zstd': cls.ZSTD,
+        '.xz': cls.LZMA,
+        '.lzma': cls.LZMA
     }
     lowercased_path = file_path.lower()
     for suffix, compression_type in compression_types_by_suffix.items():
@@ -166,6 +189,15 @@ class CompressedFile(object):
       self._decompressor = bz2.BZ2Decompressor()
     elif self._compression_type == CompressionTypes.DEFLATE:
       self._decompressor = zlib.decompressobj()
+    elif self._compression_type == CompressionTypes.ZSTD:
+      # hardcoded max_window_size to avoid too much memory
+      # errors when reading big files, please refer
+      # to the following issue for further explanation:
+      # https://github.com/indygreg/python-zstandard/issues/157
+      self._decompressor = zstandard.ZstdDecompressor(
+          max_window_size=2147483648).decompressobj()
+    elif self._compression_type == CompressionTypes.LZMA:
+      self._decompressor = lzma.LZMADecompressor()
     else:
       assert self._compression_type == CompressionTypes.GZIP
       self._decompressor = zlib.decompressobj(self._gzip_mask)
@@ -176,6 +208,10 @@ class CompressedFile(object):
     elif self._compression_type == CompressionTypes.DEFLATE:
       self._compressor = zlib.compressobj(
           zlib.Z_DEFAULT_COMPRESSION, zlib.DEFLATED)
+    elif self._compression_type == CompressionTypes.ZSTD:
+      self._compressor = zstandard.ZstdCompressor().compressobj()
+    elif self._compression_type == CompressionTypes.LZMA:
+      self._compressor = lzma.LZMACompressor()
     else:
       assert self._compression_type == CompressionTypes.GZIP
       self._compressor = zlib.compressobj(
@@ -236,7 +272,9 @@ class CompressedFile(object):
         # EOF of current stream reached.
         if (self._compression_type == CompressionTypes.BZIP2 or
             self._compression_type == CompressionTypes.DEFLATE or
-            self._compression_type == CompressionTypes.GZIP):
+            self._compression_type == CompressionTypes.ZSTD or
+            self._compression_type == CompressionTypes.GZIP or
+            self._compression_type == CompressionTypes.LZMA):
           pass
         else:
           # Deflate, Gzip and bzip2 formats do not require flushing
@@ -257,8 +295,7 @@ class CompressedFile(object):
     self._read_buffer.seek(0, os.SEEK_END)  # Allow future writes.
     return result
 
-  def read(self, num_bytes):
-    # type: (int) -> bytes
+  def read(self, num_bytes: Optional[int] = None) -> bytes:
     if not self._decompressor:
       raise ValueError('decompressor not initialized')
 
@@ -422,27 +459,44 @@ class CompressedFile(object):
 
 
 class FileMetadata(object):
-  """Metadata about a file path that is the output of FileSystem.match."""
-  def __init__(self, path, size_in_bytes):
+  """Metadata about a file path that is the output of FileSystem.match.
+
+  Fields:
+    path: [Required] file path.
+    size_in_bytes: [Required] file size in bytes.
+    last_updated_in_seconds: [Optional] last modified timestamp of the file, or
+    valued 0.0 if not specified.
+  """
+  def __init__(
+      self,
+      path: str,
+      size_in_bytes: int,
+      last_updated_in_seconds: float = 0.0):
     assert isinstance(path, str) and path, "Path should be a string"
     assert isinstance(size_in_bytes, int) and size_in_bytes >= 0, \
         "Invalid value for size_in_bytes should %s (of type %s)" % (
             size_in_bytes, type(size_in_bytes))
     self.path = path
     self.size_in_bytes = size_in_bytes
+    self.last_updated_in_seconds = last_updated_in_seconds
 
   def __eq__(self, other):
     """Note: This is only used in tests where we verify that mock objects match.
     """
     return (
         isinstance(other, FileMetadata) and self.path == other.path and
-        self.size_in_bytes == other.size_in_bytes)
+        self.size_in_bytes == other.size_in_bytes and
+        self.last_updated_in_seconds == other.last_updated_in_seconds)
 
   def __hash__(self):
-    return hash((self.path, self.size_in_bytes))
+    return hash((self.path, self.size_in_bytes, self.last_updated_in_seconds))
 
   def __repr__(self):
-    return 'FileMetadata(%s, %s)' % (self.path, self.size_in_bytes)
+    if self.last_updated_in_seconds == 0.0:
+      return 'FileMetadata(%s, %s)' % (self.path, self.size_in_bytes)
+    else:
+      return 'FileMetadata(%s, %s, %s)' % (
+          self.path, self.size_in_bytes, self.last_updated_in_seconds)
 
 
 class MatchResult(object):
@@ -718,7 +772,7 @@ class FileSystem(BeamPlugin, metaclass=abc.ABCMeta):
       if prefix_or_dir == pattern:
         # Short-circuit calling self.list() if there's no glob pattern to match.
         if self.exists(pattern):
-          file_metadatas = [FileMetadata(pattern, self.size(pattern))]
+          file_metadatas = [self.metadata(pattern)]
       else:
         if self.has_dirs():
           prefix_dirname = self._url_dirname(prefix_or_dir)
@@ -873,6 +927,27 @@ class FileSystem(BeamPlugin, metaclass=abc.ABCMeta):
       path: string path of a file.
 
     Returns: string containing checksum
+
+    Raises:
+      ``BeamIOError``: if path isn't a file or doesn't exist.
+    """
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def metadata(self, path):
+    """Fetch metadata of a file on the
+    :class:`~apache_beam.io.filesystem.FileSystem`.
+
+    This operation returns metadata as stored in the underlying
+    FileSystem. It should not need to read file data to obtain this value.
+    For web based file systems, this method should also incur as few as
+    possible requests.
+
+    Args:
+      path: string path of a file.
+
+    Returns:
+      :class:`~apache_beam.io.filesystem.FileMetadata`.
 
     Raises:
       ``BeamIOError``: if path isn't a file or doesn't exist.

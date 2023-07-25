@@ -18,6 +18,19 @@
 
 package org.apache.beam.learning.katas.examples.wordcount;
 
+// beam-playground:
+//   name: WordCountKata
+//   description: Task from katas to create a pipeline that counts the number of words.
+//   multifile: false
+//   context_line: 50
+//   categories:
+//     - Combiners
+//   complexity: BASIC
+//   tags:
+//     - count
+//     - transforms
+//     - numbers
+
 import java.util.Arrays;
 import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;

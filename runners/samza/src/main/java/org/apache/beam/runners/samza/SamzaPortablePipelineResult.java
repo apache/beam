@@ -37,7 +37,7 @@ public class SamzaPortablePipelineResult extends SamzaPipelineResult
       SamzaExecutionContext executionContext,
       SamzaPipelineLifeCycleListener listener,
       Config config) {
-    super(app, runner, executionContext, listener, config);
+    super(runner, executionContext, listener, config);
   }
 
   @Override

@@ -107,10 +107,15 @@ import org.joda.time.DateTimeZone;
  * org.apache.beam.sdk.transforms.GroupByKey} operations.
  *
  * @param <T> the type of elements handled by this coder
+ * @deprecated Avro related classes are deprecated in module <code>beam-sdks-java-core</code> and
+ *     will be eventually removed. Please, migrate to a new module <code>
+ *     beam-sdks-java-extensions-avro</code> by importing <code>
+ *     org.apache.beam.sdk.extensions.avro.coders.AvroCoder</code> instead of this one.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
+@Deprecated
 public class AvroCoder<T> extends CustomCoder<T> {
 
   /**
@@ -158,7 +163,9 @@ public class AvroCoder<T> extends CustomCoder<T> {
    * @param <T> the element type
    */
   public static <T> AvroCoder<T> of(Class<T> type, boolean useReflectApi) {
-    return of(type, new ReflectData(type.getClassLoader()).getSchema(type), useReflectApi);
+    ClassLoader cl = type.getClassLoader();
+    SpecificData data = useReflectApi ? new ReflectData(cl) : new SpecificData(cl);
+    return of(type, data.getSchema(type), useReflectApi);
   }
 
   /**
@@ -217,6 +224,7 @@ public class AvroCoder<T> extends CustomCoder<T> {
   }
 
   private final Class<T> type;
+  private final boolean useReflectApi;
   private final SerializableSchemaSupplier schemaSupplier;
   private final TypeDescriptor<T> typeDescriptor;
 
@@ -307,6 +315,7 @@ public class AvroCoder<T> extends CustomCoder<T> {
 
   protected AvroCoder(Class<T> type, Schema schema, boolean useReflectApi) {
     this.type = type;
+    this.useReflectApi = useReflectApi;
     this.schemaSupplier = new SerializableSchemaSupplier(schema);
     typeDescriptor = TypeDescriptor.of(type);
     nonDeterministicReasons = new AvroDeterminismChecker().check(TypeDescriptor.of(type), schema);
@@ -354,6 +363,10 @@ public class AvroCoder<T> extends CustomCoder<T> {
   /** Returns the type this coder encodes/decodes. */
   public Class<T> getType() {
     return type;
+  }
+
+  public boolean useReflectApi() {
+    return useReflectApi;
   }
 
   @Override
@@ -482,7 +495,7 @@ public class AvroCoder<T> extends CustomCoder<T> {
         return;
       }
 
-      // If the the record isn't a true class, but rather a GenericRecord, SpecificRecord, etc.
+      // If the record isn't a true class, but rather a GenericRecord, SpecificRecord, etc.
       // with a specified schema, then we need to make the decision based on the generated
       // implementations.
       if (isSubtypeOf(type, IndexedRecord.class)) {
@@ -765,12 +778,13 @@ public class AvroCoder<T> extends CustomCoder<T> {
     }
     AvroCoder<?> that = (AvroCoder<?>) other;
     return Objects.equals(this.schemaSupplier.get(), that.schemaSupplier.get())
-        && Objects.equals(this.typeDescriptor, that.typeDescriptor);
+        && Objects.equals(this.typeDescriptor, that.typeDescriptor)
+        && this.useReflectApi == that.useReflectApi;
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(schemaSupplier.get(), typeDescriptor);
+    return Objects.hash(schemaSupplier.get(), typeDescriptor, useReflectApi);
   }
 
   /**

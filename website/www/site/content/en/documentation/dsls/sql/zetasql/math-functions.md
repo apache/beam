@@ -78,7 +78,7 @@ type) that is not greater than X.
 Example behavior of Cloud Dataflow SQL rounding functions:
 
 {{< table >}}
-<table>
+<table class="table-wrapper--equal-p">
 <thead>
 <tr>
 <th>Input "X"</th>

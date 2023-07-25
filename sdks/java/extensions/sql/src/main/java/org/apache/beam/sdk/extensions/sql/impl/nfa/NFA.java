@@ -50,7 +50,7 @@ import org.apache.beam.sdk.values.Row;
  *     href="https://dl.acm.org/doi/10.1145/1376616.1376634">https://dl.acm.org/doi/10.1145/1376616.1376634</a>
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class NFA implements Serializable {
 

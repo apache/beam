@@ -18,20 +18,50 @@
 
 import 'package:flutter/material.dart';
 
+import '../../constants/font_weight.dart';
+import '../../constants/fonts.dart';
+import '../../constants/sizes.dart';
+import '../../src/assets/assets.gen.dart';
+
+const double kTitleFontSize = 18;
+
 class Logo extends StatelessWidget {
   const Logo({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return RichText(
-      text: TextSpan(
-        style: theme.textTheme.headline6,
-        children: <TextSpan>[
-          TextSpan(text: 'Beam', style: TextStyle(color: theme.primaryColor)),
-          const TextSpan(text: ' Playground'),
-        ],
-      ),
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Image(
+          image: AssetImage(Assets.beamLg.path),
+          width: kIconSizeLg,
+          height: kIconSizeLg,
+        ),
+        RichText(
+          text: TextSpan(
+            style: getTitleFontStyle(
+              textStyle: const TextStyle(
+                fontSize: kTitleFontSize,
+                fontWeight: kLightWeight,
+              ),
+            ),
+            children: <TextSpan>[
+              TextSpan(
+                text: 'Beam',
+                style: TextStyle(color: theme.primaryColor),
+              ),
+              TextSpan(
+                text: ' Playground',
+                style: TextStyle(
+                  color: theme.textTheme.bodyText1?.color,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

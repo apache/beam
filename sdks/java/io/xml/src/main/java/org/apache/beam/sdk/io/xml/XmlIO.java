@@ -54,7 +54,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Transforms for reading and writing XML files using JAXB mappers. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class XmlIO {
   // CHECKSTYLE.OFF: JavadocStyle

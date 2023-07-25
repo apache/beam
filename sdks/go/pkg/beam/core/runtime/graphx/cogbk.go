@@ -26,7 +26,7 @@ import (
 
 // CoGBK support
 //
-// TODO(BEAM-490): CoGBK is not a supported model primitive, so similarly to other
+// TODO(https://github.com/apache/beam/issues/18032): CoGBK is not a supported model primitive, so similarly to other
 // SDKs, a translation into GBK is performed to run on portable runners. Due to
 // various constraints and to preserve CoGBK as a first-class concept in areas
 // such as type-checking and for non-portability runners, the Go translation is

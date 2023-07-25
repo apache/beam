@@ -21,7 +21,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
 import org.apache.beam.sdk.expansion.service.JavaClassLookupTransformProvider.AllowList;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
@@ -37,10 +36,22 @@ public interface ExpansionServiceOptions extends PipelineOptions {
 
   void setJavaClassLookupAllowlist(AllowList file);
 
-  @Description("Allow list file for Java class based transform expansion")
+  @Description(
+      "Allow list file for Java class based transform expansion, or '*' to allow anything.")
   String getJavaClassLookupAllowlistFile();
 
   void setJavaClassLookupAllowlistFile(String file);
+
+  @Description("Expansion service configuration file.")
+  String getExpansionServiceConfigFile();
+
+  void setExpansionServiceConfigFile(String configFile);
+
+  @Description("Expansion service configuration.")
+  @Default.InstanceFactory(ExpansionServiceConfigFactory.class)
+  ExpansionServiceConfig getExpansionServiceConfig();
+
+  void setExpansionServiceConfig(ExpansionServiceConfig configFile);
 
   /**
    * Loads the allow list from {@link #getJavaClassLookupAllowlistFile}, defaulting to an empty
@@ -53,6 +64,9 @@ public interface ExpansionServiceOptions extends PipelineOptions {
       String allowListFile =
           options.as(ExpansionServiceOptions.class).getJavaClassLookupAllowlistFile();
       if (allowListFile != null) {
+        if (allowListFile.equals("*")) {
+          return AllowList.everything();
+        }
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
         File allowListFileObj = new File(allowListFile);
         if (!allowListFileObj.exists()) {
@@ -68,8 +82,32 @@ public interface ExpansionServiceOptions extends PipelineOptions {
       }
 
       // By default produces an empty allow-list.
-      return new AutoValue_JavaClassLookupTransformProvider_AllowList(
-          JavaClassLookupTransformProvider.ALLOW_LIST_VERSION, new ArrayList<>());
+      return AllowList.nothing();
+    }
+  }
+
+  /** Loads the ExpansionService config. */
+  class ExpansionServiceConfigFactory implements DefaultValueFactory<ExpansionServiceConfig> {
+
+    @Override
+    public ExpansionServiceConfig create(PipelineOptions options) {
+      String configFile = options.as(ExpansionServiceOptions.class).getExpansionServiceConfigFile();
+      if (configFile != null) {
+        ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
+        File configFileObj = new File(configFile);
+        if (!configFileObj.exists()) {
+          throw new IllegalArgumentException("Config file " + configFile + " does not exist");
+        }
+        try {
+          return mapper.readValue(configFileObj, ExpansionServiceConfig.class);
+        } catch (IOException e) {
+          throw new IllegalArgumentException(
+              "Could not load the provided config file " + configFile, e);
+        }
+      }
+
+      // By default produces null.
+      return ExpansionServiceConfig.empty();
     }
   }
 }

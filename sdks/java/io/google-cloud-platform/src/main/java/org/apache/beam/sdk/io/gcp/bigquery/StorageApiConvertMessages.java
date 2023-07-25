@@ -17,60 +17,152 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import com.google.api.services.bigquery.model.TableRow;
+import java.io.IOException;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.StorageApiDynamicDestinations.MessageConverter;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Instant;
 
 /**
  * A transform that converts messages to protocol buffers in preparation for writing to BigQuery.
  */
 public class StorageApiConvertMessages<DestinationT, ElementT>
-    extends PTransform<
-        PCollection<KV<DestinationT, ElementT>>, PCollection<KV<DestinationT, byte[]>>> {
+    extends PTransform<PCollection<KV<DestinationT, ElementT>>, PCollectionTuple> {
   private final StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations;
+  private final BigQueryServices bqServices;
+  private final TupleTag<BigQueryStorageApiInsertError> failedWritesTag;
+  private final TupleTag<KV<DestinationT, StorageApiWritePayload>> successfulWritesTag;
+  private final Coder<BigQueryStorageApiInsertError> errorCoder;
+  private final Coder<KV<DestinationT, StorageApiWritePayload>> successCoder;
+
+  private final @Nullable SerializableFunction<ElementT, RowMutationInformation> rowMutationFn;
 
   public StorageApiConvertMessages(
-      StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations) {
+      StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations,
+      BigQueryServices bqServices,
+      TupleTag<BigQueryStorageApiInsertError> failedWritesTag,
+      TupleTag<KV<DestinationT, StorageApiWritePayload>> successfulWritesTag,
+      Coder<BigQueryStorageApiInsertError> errorCoder,
+      Coder<KV<DestinationT, StorageApiWritePayload>> successCoder,
+      @Nullable SerializableFunction<ElementT, RowMutationInformation> rowMutationFn) {
     this.dynamicDestinations = dynamicDestinations;
+    this.bqServices = bqServices;
+    this.failedWritesTag = failedWritesTag;
+    this.successfulWritesTag = successfulWritesTag;
+    this.errorCoder = errorCoder;
+    this.successCoder = successCoder;
+    this.rowMutationFn = rowMutationFn;
   }
 
   @Override
-  public PCollection<KV<DestinationT, byte[]>> expand(
-      PCollection<KV<DestinationT, ElementT>> input) {
+  public PCollectionTuple expand(PCollection<KV<DestinationT, ElementT>> input) {
     String operationName = input.getName() + "/" + getName();
 
-    return input.apply(
-        "Convert to message",
-        ParDo.of(new ConvertMessagesDoFn<>(dynamicDestinations, operationName))
-            .withSideInputs(dynamicDestinations.getSideInputs()));
+    PCollectionTuple result =
+        input.apply(
+            "Convert to message",
+            ParDo.of(
+                    new ConvertMessagesDoFn<>(
+                        dynamicDestinations,
+                        bqServices,
+                        operationName,
+                        failedWritesTag,
+                        successfulWritesTag,
+                        rowMutationFn))
+                .withOutputTags(successfulWritesTag, TupleTagList.of(failedWritesTag))
+                .withSideInputs(dynamicDestinations.getSideInputs()));
+    result.get(successfulWritesTag).setCoder(successCoder);
+    result.get(failedWritesTag).setCoder(errorCoder);
+    return result;
   }
 
-  public static class ConvertMessagesDoFn<DestinationT, ElementT>
-      extends DoFn<KV<DestinationT, ElementT>, KV<DestinationT, byte[]>> {
+  public static class ConvertMessagesDoFn<DestinationT extends @NonNull Object, ElementT>
+      extends DoFn<KV<DestinationT, ElementT>, KV<DestinationT, StorageApiWritePayload>> {
     private final StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations;
     private TwoLevelMessageConverterCache<DestinationT, ElementT> messageConverters;
+    private final BigQueryServices bqServices;
+    private final TupleTag<BigQueryStorageApiInsertError> failedWritesTag;
+    private final TupleTag<KV<DestinationT, StorageApiWritePayload>> successfulWritesTag;
+    private final @Nullable SerializableFunction<ElementT, RowMutationInformation> rowMutationFn;
+    private transient @Nullable DatasetService datasetServiceInternal = null;
 
     ConvertMessagesDoFn(
         StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations,
-        String operationName) {
+        BigQueryServices bqServices,
+        String operationName,
+        TupleTag<BigQueryStorageApiInsertError> failedWritesTag,
+        TupleTag<KV<DestinationT, StorageApiWritePayload>> successfulWritesTag,
+        @Nullable SerializableFunction<ElementT, RowMutationInformation> rowMutationFn) {
       this.dynamicDestinations = dynamicDestinations;
       this.messageConverters = new TwoLevelMessageConverterCache<>(operationName);
+      this.bqServices = bqServices;
+      this.failedWritesTag = failedWritesTag;
+      this.successfulWritesTag = successfulWritesTag;
+      this.rowMutationFn = rowMutationFn;
+    }
+
+    private DatasetService getDatasetService(PipelineOptions pipelineOptions) throws IOException {
+      if (datasetServiceInternal == null) {
+        datasetServiceInternal =
+            bqServices.getDatasetService(pipelineOptions.as(BigQueryOptions.class));
+      }
+      return datasetServiceInternal;
+    }
+
+    @Teardown
+    public void onTeardown() {
+      try {
+        if (datasetServiceInternal != null) {
+          datasetServiceInternal.close();
+          datasetServiceInternal = null;
+        }
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
     }
 
     @ProcessElement
     public void processElement(
         ProcessContext c,
+        PipelineOptions pipelineOptions,
         @Element KV<DestinationT, ElementT> element,
-        OutputReceiver<KV<DestinationT, byte[]>> o)
+        @Timestamp Instant timestamp,
+        MultiOutputReceiver o)
         throws Exception {
       dynamicDestinations.setSideInputAccessorFromProcessContext(c);
       MessageConverter<ElementT> messageConverter =
-          messageConverters.get(element.getKey(), dynamicDestinations);
-      o.output(
-          KV.of(element.getKey(), messageConverter.toMessage(element.getValue()).toByteArray()));
+          messageConverters.get(
+              element.getKey(), dynamicDestinations, getDatasetService(pipelineOptions));
+
+      RowMutationInformation rowMutationInformation = null;
+      if (rowMutationFn != null) {
+        rowMutationInformation =
+            Preconditions.checkStateNotNull(rowMutationFn).apply(element.getValue());
+      }
+      try {
+        StorageApiWritePayload payload =
+            messageConverter
+                .toMessage(element.getValue(), rowMutationInformation)
+                .withTimestamp(timestamp);
+        o.get(successfulWritesTag).output(KV.of(element.getKey(), payload));
+      } catch (TableRowToStorageApiProto.SchemaConversionException e) {
+        TableRow tableRow = messageConverter.toTableRow(element.getValue());
+        o.get(failedWritesTag).output(new BigQueryStorageApiInsertError(tableRow, e.toString()));
+      }
     }
   }
 }

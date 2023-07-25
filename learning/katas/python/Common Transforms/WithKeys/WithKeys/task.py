@@ -14,13 +14,22 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-import apache_beam as beam
+# beam-playground:
+#   name: WithKeys
+#   description: Task from katas to convert each fruit name into a KV of its first letter and itself.
+#   multifile: false
+#   context_line: 31
+#   categories:
+#     - Core Transforms
+#   complexity: BASIC
+#   tags:
+#     - map
+#     - strings
 
-from log_elements import LogElements
+import apache_beam as beam
 
 with beam.Pipeline() as p:
 
   (p | beam.Create(['apple', 'banana', 'cherry', 'durian', 'guava', 'melon'])
      | beam.WithKeys(lambda word: word[0:1])
-     | LogElements())
-
+     | beam.LogElements())

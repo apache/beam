@@ -49,8 +49,6 @@ import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.Sum;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -62,7 +60,6 @@ import org.junit.Test;
 /** Tests for {@link StateInternals}. */
 public abstract class StateInternalsTest {
 
-  private static final BoundedWindow WINDOW_1 = new IntervalWindow(new Instant(0), new Instant(10));
   private static final StateNamespace NAMESPACE_1 = new StateNamespaceForTest("ns1");
   private static final StateNamespace NAMESPACE_2 = new StateNamespaceForTest("ns2");
   private static final StateNamespace NAMESPACE_3 = new StateNamespaceForTest("ns3");

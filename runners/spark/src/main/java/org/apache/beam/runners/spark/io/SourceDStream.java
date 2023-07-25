@@ -51,7 +51,7 @@ import scala.Tuple2;
  * RateController} mechanism.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class SourceDStream<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
     extends InputDStream<Tuple2<Source<T>, CheckpointMarkT>> {
@@ -183,7 +183,7 @@ class SourceDStream<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
         proportionalDuration.isLongerThan(lowerBoundDuration)
             ? proportionalDuration
             : lowerBoundDuration;
-    LOG.info("Read duration set to: " + readDuration);
+    LOG.info("Read duration set to: {}", readDuration);
     return readDuration;
   }
 

@@ -35,7 +35,7 @@ import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
 import org.apache.beam.sdk.fn.server.GrpcFnServer;
 import org.apache.beam.sdk.fn.server.ServerFactory;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,7 +60,6 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
         loggingServiceServer,
         retrievalServiceServer,
         provisioningServiceServer,
-        idGenerator,
         clientSource);
   }
 
@@ -68,7 +67,7 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
   private final GrpcFnServer<GrpcLoggingService> loggingServiceServer;
   private final GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer;
   private final GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer;
-  private final IdGenerator idGenerator;
+
   private final ControlClientPool.Source clientSource;
 
   private ExternalEnvironmentFactory(
@@ -76,13 +75,11 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
       GrpcFnServer<GrpcLoggingService> loggingServiceServer,
       GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
       GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
-      IdGenerator idGenerator,
       ControlClientPool.Source clientSource) {
     this.controlServiceServer = controlServiceServer;
     this.loggingServiceServer = loggingServiceServer;
     this.retrievalServiceServer = retrievalServiceServer;
     this.provisioningServiceServer = provisioningServiceServer;
-    this.idGenerator = idGenerator;
     this.clientSource = clientSource;
   }
 

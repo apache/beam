@@ -13,8 +13,8 @@
 - id: home-hero-title
   translation: Introducing Apache Beam
 - id: home-hero-heading
-  translation: An advanced unified programming model
+  translation: The Unified Apache Beam Model
 - id: home-hero-subheading
-  translation: Implement batch and streaming data processing jobs that run on any execution engine.
+  translation: The easiest way to do batch and streaming data processing. Write once, run anywhere data processing for mission-critical production workloads. 
 - id: home-hero-button
-  translation: Install Beam
+  translation: Link to GitHub Repo

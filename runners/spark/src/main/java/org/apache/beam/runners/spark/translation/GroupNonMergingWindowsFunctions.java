@@ -47,7 +47,7 @@ import org.slf4j.LoggerFactory;
 import scala.Tuple2;
 
 /** Functions for GroupByKey with Non-Merging windows translations to Spark. */
-@SuppressWarnings({"keyfor", "nullness"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({"keyfor", "nullness"}) // TODO(https://github.com/apache/beam/issues/20497)
 public class GroupNonMergingWindowsFunctions {
 
   private static final Logger LOG = LoggerFactory.getLogger(GroupNonMergingWindowsFunctions.class);
@@ -259,25 +259,32 @@ public class GroupNonMergingWindowsFunctions {
   }
 
   /**
-   * Group all values with a given key for that composite key with Spark's groupByKey,
-   * dropping the Window (which must be GlobalWindow) and returning the grouped
-   * result in the appropriate global window.
+   * Group all values with a given key for that composite key with Spark's groupByKey, dropping the
+   * Window (which must be GlobalWindow) and returning the grouped result in the appropriate global
+   * window.
    */
   static <K, V, W extends BoundedWindow>
-  JavaRDD<WindowedValue<KV<K, Iterable<V>>>> groupByKeyInGlobalWindow(
+      JavaRDD<WindowedValue<KV<K, Iterable<V>>>> groupByKeyInGlobalWindow(
           JavaRDD<WindowedValue<KV<K, V>>> rdd,
           Coder<K> keyCoder,
           Coder<V> valueCoder,
           Partitioner partitioner) {
-    JavaPairRDD<ByteArray, byte[]> rawKeyValues = rdd.mapToPair(wv -> new Tuple2<>(
-            new ByteArray(CoderHelpers.toByteArray(wv.getValue().getKey(), keyCoder)),
+    JavaPairRDD<ByteArray, byte[]> rawKeyValues =
+        rdd.mapToPair(
+            wv ->
+                new Tuple2<>(
+                    new ByteArray(CoderHelpers.toByteArray(wv.getValue().getKey(), keyCoder)),
                     CoderHelpers.toByteArray(wv.getValue().getValue(), valueCoder)));
-    return rawKeyValues.groupByKey().map(
-            kvs -> WindowedValue.timestampedValueInGlobalWindow(
+    return rawKeyValues
+        .groupByKey()
+        .map(
+            kvs ->
+                WindowedValue.timestampedValueInGlobalWindow(
                     KV.of(
-                      CoderHelpers.fromByteArray(kvs._1.getValue(), keyCoder),
-                            Iterables.transform(
-                                    kvs._2, encodedValue -> CoderHelpers.fromByteArray(encodedValue, valueCoder))),
+                        CoderHelpers.fromByteArray(kvs._1.getValue(), keyCoder),
+                        Iterables.transform(
+                            kvs._2,
+                            encodedValue -> CoderHelpers.fromByteArray(encodedValue, valueCoder))),
                     GlobalWindow.INSTANCE.maxTimestamp(),
                     PaneInfo.ON_TIME_AND_ONLY_FIRING));
   }

@@ -35,7 +35,7 @@ PARQUET_WRITE_URN = "beam:transforms:xlang:test:parquet_write"
 
 
 # TODO: enable test_xlang_parquetio_write after fixing BEAM-10507
-# @pytest.mark.xlang_transforms
+# @pytest.mark.uses_java_expansion_service
 @unittest.skipUnless(
     os.environ.get('EXPANSION_JAR'),
     "EXPANSION_JAR environment variable is not set.")
@@ -60,7 +60,7 @@ class XlangParquetIOTest(unittest.TestCase):
               AvroRecord({"name": "ghi"})]) \
           | beam.ExternalTransform(
               PARQUET_WRITE_URN,
-              ImplicitSchemaPayloadBuilder({'data': u'/tmp/test.parquet'}),
+              ImplicitSchemaPayloadBuilder({'data': '/tmp/test.parquet'}),
               address)
     except RuntimeError as e:
       if re.search(PARQUET_WRITE_URN, str(e)):

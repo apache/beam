@@ -20,6 +20,7 @@ package org.apache.beam.runners.dataflow.worker.windmill;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +34,7 @@ import org.apache.beam.runners.dataflow.worker.status.StatusDataProvider;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitStatus;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataResponse;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.net.HostAndPort;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
@@ -40,7 +42,7 @@ import org.joda.time.Instant;
 
 /** Stub for communicating with a Windmill server. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public abstract class WindmillServerStub implements StatusDataProvider {
 
@@ -69,16 +71,6 @@ public abstract class WindmillServerStub implements StatusDataProvider {
   /** Report execution information to the server. */
   public abstract Windmill.ReportStatsResponse reportStats(Windmill.ReportStatsRequest request);
 
-  /** Functional interface for receiving WorkItems. */
-  @FunctionalInterface
-  public interface WorkItemReceiver {
-    void receiveWork(
-        String computation,
-        @Nullable Instant inputDataWatermark,
-        Instant synchronizedProcessingTime,
-        Windmill.WorkItem workItem);
-  }
-
   /**
    * Gets work to process, returned as a stream.
    *
@@ -99,6 +91,18 @@ public abstract class WindmillServerStub implements StatusDataProvider {
 
   @Override
   public void appendSummaryHtml(PrintWriter writer) {}
+
+  /** Functional interface for receiving WorkItems. */
+  @FunctionalInterface
+  public interface WorkItemReceiver {
+
+    void receiveWork(
+        String computation,
+        @Nullable Instant inputDataWatermark,
+        @Nullable Instant synchronizedProcessingTime,
+        Windmill.WorkItem workItem,
+        Collection<LatencyAttribution> getWorkStreamLatencies);
+  }
 
   /** Superclass for streams returned by streaming Windmill methods. */
   @ThreadSafe
@@ -133,6 +137,7 @@ public abstract class WindmillServerStub implements StatusDataProvider {
   /** Interface for streaming CommitWorkRequests to Windmill. */
   @ThreadSafe
   public interface CommitWorkStream extends WindmillStream {
+
     /**
      * Commits a work item and running onDone when the commit has been processed by the server.
      * Returns true if the request was accepted. If false is returned the stream should be flushed
@@ -157,13 +162,8 @@ public abstract class WindmillServerStub implements StatusDataProvider {
   public static class StreamPool<S extends WindmillStream> {
 
     private final Duration streamTimeout;
-
-    private final class StreamData {
-      final S stream = supplier.get();
-      int holds = 1;
-    };
-
     private final List<StreamData> streams;
+
     private final Supplier<S> supplier;
     private final HashMap<S, StreamData> holds;
 
@@ -216,6 +216,11 @@ public abstract class WindmillServerStub implements StatusDataProvider {
       if (closeStream) {
         stream.close();
       }
+    }
+
+    private final class StreamData {
+      final S stream = supplier.get();
+      int holds = 1;
     }
   }
 

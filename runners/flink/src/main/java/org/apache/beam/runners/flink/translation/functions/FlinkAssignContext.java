@@ -24,7 +24,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
 import org.joda.time.Instant;
 
 /** {@link org.apache.beam.sdk.transforms.windowing.WindowFn.AssignContext} for Flink functions. */
-@SuppressWarnings({"keyfor", "nullness"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({"keyfor", "nullness"}) // TODO(https://github.com/apache/beam/issues/20497)
 class FlinkAssignContext<InputT, W extends BoundedWindow>
     extends WindowFn<InputT, W>.AssignContext {
   private final WindowedValue<InputT> value;

@@ -27,7 +27,7 @@ import edu.iu.dsc.tws.tset.env.BatchTSetEnvironment;
  * will later be injected into the correct TSetEnvironment one submitted.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class BeamBatchTSetEnvironment extends BatchTSetEnvironment {
 

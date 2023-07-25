@@ -33,6 +33,7 @@ import com.google.api.services.cloudresourcemanager.CloudResourceManager.Project
 import com.google.api.services.cloudresourcemanager.model.Project;
 import com.google.api.services.storage.model.Bucket;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
@@ -209,7 +210,9 @@ public class GcpOptionsTest {
     public void testDefaultGcpTempLocationDoesNotExist() throws IOException {
       String tempLocation = "gs://does/not/exist";
       options.setTempLocation(tempLocation);
-      when(mockGcsUtil.bucketAccessible(any(GcsPath.class))).thenReturn(false);
+      doThrow(new FileNotFoundException())
+          .when(mockGcsUtil)
+          .verifyBucketAccessible(any(GcsPath.class));
       thrown.expect(IllegalArgumentException.class);
       thrown.expectMessage(
           "Error constructing default value for gcpTempLocation: tempLocation is not"

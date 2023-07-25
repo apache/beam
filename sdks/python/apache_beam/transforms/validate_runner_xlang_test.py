@@ -94,7 +94,7 @@ class CrossLanguageTestPipelines(object):
           | beam.Create(['a', 'b']).with_output_types(str)
           | beam.ExternalTransform(
               TEST_PREFIX_URN,
-              ImplicitSchemaPayloadBuilder({'data': u'0'}),
+              ImplicitSchemaPayloadBuilder({'data': '0'}),
               self.expansion_service))
       assert_that(res, equal_to(['0a', '0b']))
 
@@ -248,43 +248,51 @@ class ValidateRunnerXlangTest(unittest.TestCase):
     test_pipeline.not_use_test_runner_api = True
     return test_pipeline
 
-  @pytest.mark.xlang_transforms
+  @pytest.mark.uses_java_expansion_service
+  @pytest.mark.uses_python_expansion_service
   def test_prefix(self, test_pipeline=None):
     CrossLanguageTestPipelines().run_prefix(
         test_pipeline or self.create_pipeline())
 
-  @pytest.mark.xlang_transforms
+  @pytest.mark.uses_java_expansion_service
+  @pytest.mark.uses_python_expansion_service
   def test_multi_input_output_with_sideinput(self, test_pipeline=None):
     CrossLanguageTestPipelines().run_multi_input_output_with_sideinput(
         test_pipeline or self.create_pipeline())
 
-  @pytest.mark.xlang_transforms
+  @pytest.mark.uses_java_expansion_service
+  @pytest.mark.uses_python_expansion_service
   def test_group_by_key(self, test_pipeline=None):
     CrossLanguageTestPipelines().run_group_by_key(
         test_pipeline or self.create_pipeline())
 
-  @pytest.mark.xlang_transforms
+  @pytest.mark.uses_java_expansion_service
+  @pytest.mark.uses_python_expansion_service
   def test_cogroup_by_key(self, test_pipeline=None):
     CrossLanguageTestPipelines().run_cogroup_by_key(
         test_pipeline or self.create_pipeline())
 
-  @pytest.mark.xlang_transforms
+  @pytest.mark.uses_java_expansion_service
+  @pytest.mark.uses_python_expansion_service
   def test_combine_globally(self, test_pipeline=None):
     CrossLanguageTestPipelines().run_combine_globally(
         test_pipeline or self.create_pipeline())
 
-  @pytest.mark.xlang_transforms
+  @pytest.mark.uses_java_expansion_service
+  @pytest.mark.uses_python_expansion_service
   def test_combine_per_key(self, test_pipeline=None):
     CrossLanguageTestPipelines().run_combine_per_key(
         test_pipeline or self.create_pipeline())
 
   # TODO: enable after fixing BEAM-10507
-  # @pytest.mark.xlang_transforms
+  # @pytest.mark.uses_java_expansion_service
+  # @pytest.mark.uses_python_expansion_service
   def test_flatten(self, test_pipeline=None):
     CrossLanguageTestPipelines().run_flatten(
         test_pipeline or self.create_pipeline())
 
-  @pytest.mark.xlang_transforms
+  @pytest.mark.uses_java_expansion_service
+  @pytest.mark.uses_python_expansion_service
   def test_partition(self, test_pipeline=None):
     CrossLanguageTestPipelines().run_partition(
         test_pipeline or self.create_pipeline())

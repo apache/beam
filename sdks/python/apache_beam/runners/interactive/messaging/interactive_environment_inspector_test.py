@@ -21,14 +21,14 @@
 import json
 import sys
 import unittest
-from unittest.mock import patch
 
 import apache_beam as beam
 import apache_beam.runners.interactive.messaging.interactive_environment_inspector as inspector
 from apache_beam.runners.interactive import interactive_beam as ib
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import interactive_runner as ir
-from apache_beam.runners.interactive.testing.mock_ipython import mock_get_ipython
+from apache_beam.runners.interactive.dataproc.types import ClusterMetadata
+from apache_beam.runners.interactive.testing.mock_env import isolated_env
 from apache_beam.runners.interactive.utils import obfuscate
 
 
@@ -37,20 +37,17 @@ from apache_beam.runners.interactive.utils import obfuscate
     '[interactive] dependency is not installed.')
 @unittest.skipIf(
     sys.version_info < (3, 7), 'The tests require at least Python 3.7 to work.')
+@isolated_env
 class InteractiveEnvironmentInspectorTest(unittest.TestCase):
-  def setUp(self):
-    ie.new_env()
-
-  @patch('IPython.get_ipython', new_callable=mock_get_ipython)
-  def test_inspect(self, cell):
-    with cell:  # Cell 1
+  def test_inspect(self):
+    with self.cell:  # Cell 1
       pipeline = beam.Pipeline(ir.InteractiveRunner())
       # Early watch the pipeline so that cell re-execution can be handled.
       ib.watch({'pipeline': pipeline})
       # pylint: disable=bad-option-value
       pcoll = pipeline | 'Create' >> beam.Create(range(10))
 
-    with cell:  # Cell 2
+    with self.cell:  # Cell 2
       # Re-executes the line that created the pcoll causing the original
       # pcoll no longer inspectable.
       # pylint: disable=bad-option-value
@@ -70,13 +67,12 @@ class InteractiveEnvironmentInspectorTest(unittest.TestCase):
     for inspectable in inspector.inspect().items():
       self.assertTrue(inspectable in expected_inspectables.items())
 
-  @patch('IPython.get_ipython', new_callable=mock_get_ipython)
-  def test_inspect_pipelines(self, cell):
-    with cell:  # Cell 1
+  def test_inspect_pipelines(self):
+    with self.cell:  # Cell 1
       pipeline_1 = beam.Pipeline(ir.InteractiveRunner())
       pipeline_2 = beam.Pipeline(ir.InteractiveRunner())
 
-    with cell:  # Cell 2
+    with self.cell:  # Cell 2
       # Re-executes the line that created pipeline_1 causing the original
       # pipeline_1 no longer inspectable.
       pipeline_1 = beam.Pipeline(ir.InteractiveRunner())
@@ -102,15 +98,14 @@ class InteractiveEnvironmentInspectorTest(unittest.TestCase):
     for inspectable in inspector.inspect().items():
       self.assertTrue(inspectable in expected_inspectables.items())
 
-  @patch('IPython.get_ipython', new_callable=mock_get_ipython)
-  def test_list_inspectables(self, cell):
-    with cell:  # Cell 1
+  def test_list_inspectables(self):
+    with self.cell:  # Cell 1
       pipeline = beam.Pipeline(ir.InteractiveRunner())
       # pylint: disable=bad-option-value
       pcoll_1 = pipeline | 'Create' >> beam.Create(range(10))
       pcoll_2 = pcoll_1 | 'Square' >> beam.Map(lambda x: x * x)
 
-    with cell:  # Cell 2
+    with self.cell:  # Cell 2
       # Re-executes the line that created pipeline causing the original
       # pipeline become an anonymous pipeline that is still inspectable because
       # its pcoll_1 and pcoll_2 are still inspectable.
@@ -140,14 +135,13 @@ class InteractiveEnvironmentInspectorTest(unittest.TestCase):
     actual_listings = ins.list_inspectables()
     self.assertEqual(actual_listings, json.dumps(expected_inspectable_list))
 
-  @patch('IPython.get_ipython', new_callable=mock_get_ipython)
-  def test_get_val(self, cell):
-    with cell:  # Cell 1
+  def test_get_val(self):
+    with self.cell:  # Cell 1
       pipeline = beam.Pipeline(ir.InteractiveRunner())
       # pylint: disable=bad-option-value
       pcoll = pipeline | 'Create' >> beam.Create(range(10))
 
-    with cell:  # Cell 2
+    with self.cell:  # Cell 2
       # Re-executes the line that created pipeline causing the original
       # pipeline become an anonymous pipeline that is still inspectable because
       # its pcoll is still inspectable.
@@ -187,6 +181,27 @@ class InteractiveEnvironmentInspectorTest(unittest.TestCase):
         counts, include_window_info=True).to_json(orient='table')
     self.assertEqual(
         actual_counts_with_window_info, expected_counts_with_window_info)
+
+  def test_list_clusters(self):
+    self.current_env.options.cache_root = 'gs://fake'
+    meta = ClusterMetadata(project_id='project')
+    dcm = self.current_env.clusters.create(meta)
+    p = beam.Pipeline()
+    dcm.pipelines.add(p)
+    self.current_env.clusters.pipelines[p] = dcm
+    cluster_id = obfuscate(meta)
+    self.assertEqual({
+        cluster_id: {
+            'cluster_name': meta.cluster_name,
+            'project': meta.project_id,
+            'region': meta.region,
+            'master_url': meta.master_url,
+            'dashboard': meta.dashboard,
+            'pipelines': [str(id(p)) for p in dcm.pipelines]
+        }
+    },
+                     json.loads(self.current_env.inspector.list_clusters()))
+    self.current_env.options.cache_root = None
 
 
 if __name__ == '__main__':

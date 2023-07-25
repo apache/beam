@@ -33,7 +33,7 @@ import org.apache.hive.hcatalog.common.HCatUtil;
 
 /** Utility classes to enable meta store conf/client creation. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class HCatalogUtils {
 

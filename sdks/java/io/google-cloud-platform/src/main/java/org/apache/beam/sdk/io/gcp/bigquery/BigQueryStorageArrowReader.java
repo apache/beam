@@ -28,13 +28,11 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.extensions.arrow.ArrowConversion;
 import org.apache.beam.sdk.extensions.arrow.ArrowConversion.RecordBatchRowIterator;
-import org.apache.beam.sdk.schemas.utils.AvroUtils;
+import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.values.Row;
 
-@SuppressWarnings("nullness")
 class BigQueryStorageArrowReader implements BigQueryStorageReader {
 
-  private org.apache.beam.sdk.schemas.Schema arrowBeamSchema;
   private @Nullable RecordBatchRowIterator recordBatchIterator;
   private long rowCount;
   private ArrowSchema protoSchema;
@@ -42,10 +40,6 @@ class BigQueryStorageArrowReader implements BigQueryStorageReader {
 
   BigQueryStorageArrowReader(ReadSession readSession) throws IOException {
     protoSchema = readSession.getArrowSchema();
-    InputStream input = protoSchema.getSerializedSchema().newInput();
-    this.arrowBeamSchema =
-        ArrowConversion.ArrowSchemaTranslator.toBeamSchema(
-            ArrowConversion.arrowSchemaFromInput(input));
     this.rowCount = 0;
     this.alloc = null;
   }
@@ -55,12 +49,13 @@ class BigQueryStorageArrowReader implements BigQueryStorageReader {
     com.google.cloud.bigquery.storage.v1.ArrowRecordBatch recordBatch =
         readRowsResponse.getArrowRecordBatch();
     rowCount = recordBatch.getRowCount();
-    this.alloc = new RootAllocator(Long.MAX_VALUE);
     InputStream input = protoSchema.getSerializedSchema().newInput();
     Schema arrowSchema = ArrowConversion.arrowSchemaFromInput(input);
+    RootAllocator alloc = new RootAllocator(Long.MAX_VALUE);
+    this.alloc = alloc;
     this.recordBatchIterator =
         ArrowConversion.rowsFromSerializedRecordBatch(
-            arrowSchema, recordBatch.getSerializedRecordBatch().newInput(), this.alloc);
+            arrowSchema, recordBatch.getSerializedRecordBatch().newInput(), alloc);
   }
 
   @Override
@@ -74,7 +69,8 @@ class BigQueryStorageArrowReader implements BigQueryStorageReader {
       throw new IOException("Not Initialized");
     }
     Row row = recordBatchIterator.next();
-    // TODO(BEAM-12551): Update this interface to expect a Row, and avoid converting Arrow data to
+    // TODO(https://github.com/apache/beam/issues/21076): Update this interface to expect a Row, and
+    // avoid converting Arrow data to
     // GenericRecord.
     return AvroUtils.toGenericRecord(row, null);
   }

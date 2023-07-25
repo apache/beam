@@ -11,14 +11,14 @@
 # limitations under the License.
 
 - title: Unified
-  body: Use a single programming model for both batch and streaming use cases.
+  body: A simplified, single programming model for both batch and streaming use cases for every member of your data and application teams.
   icon: icons/unified-icon.svg
 - title: Extensible
-  body: Write and share new SDKs, IO connectors, and transformation libraries.
+  body: Apache Beam is extensible, with projects such as TensorFlow Extended and Apache Hop built on top of Apache Beam.
   icon: icons/extensible-icon.svg
 - title: Portable
-  body: Execute pipelines on multiple execution environments.
+  body: Execute pipelines on multiple execution environments (runners), providing flexibility and avoiding lock-in.
   icon: icons/portable-icon.svg
 - title: Open Source
-  body: Community-based development and support to help evolve your application and use cases.
+  body: Open, community-based development and support to help evolve your application and meet the needs of your specific use cases.
   icon: icons/open-source-icon.svg

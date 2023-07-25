@@ -92,7 +92,7 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link IsmReader}. */
 @RunWith(JUnit4.class)
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class IsmReaderTest {
   private static final long BLOOM_FILTER_SIZE_LIMIT = 10_000;
@@ -115,8 +115,6 @@ public class IsmReaderTest {
           WeightedValue<NavigableMap<RandomAccessData, WindowedValue<IsmRecord<byte[]>>>>>
       cache;
   private DataflowExecutionContext executionContext;
-  private DataflowOperationContext operationContext;
-  private SideInputReadCounter sideInputReadCounter;
   private Closeable stateCloseable;
 
   @Before
@@ -136,10 +134,7 @@ public class IsmReaderTest {
             .getExecutionStateRegistry()
             .getState(
                 NameContextsForTests.nameContextForTest(), "test", null, NoopProfileScope.NOOP);
-    operationContext =
-        executionContext.createOperationContext(NameContextsForTests.nameContextForTest());
     stateCloseable = executionContext.getExecutionStateTracker().enterState(state);
-    sideInputReadCounter = new DataflowSideInputReadCounter(executionContext, operationContext, 1);
   }
 
   @After

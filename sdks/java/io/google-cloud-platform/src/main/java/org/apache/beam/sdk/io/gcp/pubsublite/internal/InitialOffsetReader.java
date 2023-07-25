@@ -20,9 +20,6 @@ package org.apache.beam.sdk.io.gcp.pubsublite.internal;
 import com.google.api.gax.rpc.ApiException;
 import com.google.cloud.pubsublite.Offset;
 
-interface InitialOffsetReader extends AutoCloseable {
+interface InitialOffsetReader {
   Offset read() throws ApiException;
-
-  @Override
-  void close();
 }

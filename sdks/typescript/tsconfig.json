@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "target": "es2021",
+    "strictNullChecks": true,
+    "moduleResolution": "node",
+    "plugins": [
+      {
+        "transform": "ts-closure-transform",
+        "import": "beforeTransform"
+      },
+      {
+        "transform": "ts-closure-transform",
+        "import": "afterTransform",
+        "after": true
+      }
+    ],
+    "declaration": true,
+    "sourceMap": true,
+    "outDir": "dist/",
+    "baseUrl": ".",
+    "paths": {
+      "*": ["node_modules/*", "src/types/*"]
+    }
+  },
+  "include": ["src/**/*", "test/**/*"]
+}

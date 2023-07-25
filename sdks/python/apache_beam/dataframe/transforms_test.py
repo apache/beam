@@ -16,15 +16,18 @@
 
 import typing
 import unittest
+import warnings
 
 import pandas as pd
 
 import apache_beam as beam
 from apache_beam import coders
+from apache_beam import metrics
 from apache_beam.dataframe import convert
 from apache_beam.dataframe import expressions
 from apache_beam.dataframe import frame_base
 from apache_beam.dataframe import transforms
+from apache_beam.runners.portability.fn_api_runner import fn_runner
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
@@ -130,7 +133,9 @@ class TransformTest(unittest.TestCase):
     })
 
     def median_sum_fn(x):
-      return (x.foo + x.bar).median()
+      with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", message="Mean of empty slice")
+        return (x.foo + x.bar).median()
 
     describe = lambda df: df.describe()
 
@@ -165,6 +170,8 @@ class TransformTest(unittest.TestCase):
       a = pd.Series([1, 2, 6])
       self.run_scenario(a, lambda a: a.agg(sum))
       self.run_scenario(a, lambda a: a / a.agg(sum))
+      self.run_scenario(a, lambda a: a / (a.max() - a.min()))
+      self.run_scenario(a, lambda a: a / (a.sum() - 1))
 
       # Tests scalar being used as an input to a downstream stage.
       df = pd.DataFrame({'key': ['a', 'a', 'b'], 'val': [1, 2, 6]})
@@ -206,8 +213,8 @@ class TransformTest(unittest.TestCase):
     with beam.Pipeline() as p:
       result = (
           p
-          | beam.Create([(u'Falcon', 380.), (u'Falcon', 370.), (u'Parrot', 24.),
-                         (u'Parrot', 26.)])
+          | beam.Create([('Falcon', 380.), ('Falcon', 370.), ('Parrot', 24.),
+                         ('Parrot', 26.)])
           | beam.Map(lambda tpl: beam.Row(Animal=tpl[0], Speed=tpl[1]))
           | transforms.DataframeTransform(
               lambda df: df.groupby('Animal').mean(), include_indexes=True))
@@ -218,8 +225,8 @@ class TransformTest(unittest.TestCase):
     with beam.Pipeline() as p:
       df = convert.to_dataframe(
           p
-          | beam.Create([(u'Falcon', 380.), (u'Falcon', 370.), (
-              u'Parrot', 24.), (u'Parrot', 26.)])
+          | beam.Create([('Falcon', 380.), ('Falcon', 370.), ('Parrot', 24.), (
+              'Parrot', 26.)])
           | beam.Map(lambda tpl: beam.Row(Animal=tpl[0], Speed=tpl[1])))
 
       result = convert.to_pcollection(
@@ -253,8 +260,8 @@ class TransformTest(unittest.TestCase):
     with beam.Pipeline() as p:
       result = (
           p
-          | beam.Create([(u'Falcon', 380.), (u'Falcon', 370.), (u'Parrot', 24.),
-                         (u'Parrot', 26.)])
+          | beam.Create([('Falcon', 380.), ('Falcon', 370.), ('Parrot', 24.),
+                         ('Parrot', 26.)])
           | beam.Map(lambda tpl: beam.Row(Animal=tpl[0], Speed=tpl[1]))
           | transforms.DataframeTransform(lambda df: df.Animal))
 
@@ -346,6 +353,44 @@ class TransformTest(unittest.TestCase):
               columns={'B': 'C'}, index={
                   0: 2, 2: 0
               }, errors='raise'))
+
+
+class FusionTest(unittest.TestCase):
+  @staticmethod
+  def fused_stages(p):
+    return p.result.monitoring_metrics().query(
+        metrics.MetricsFilter().with_name(
+            fn_runner.FnApiRunner.NUM_FUSED_STAGES_COUNTER)
+    )['counters'][0].result
+
+  @staticmethod
+  def create_animal_speed_input(p):
+    return p | beam.Create([
+        AnimalSpeed('Aardvark', 5),
+        AnimalSpeed('Ant', 2),
+        AnimalSpeed('Elephant', 35),
+        AnimalSpeed('Zebra', 40)
+    ],
+                           reshuffle=False)
+
+  def test_loc_filter(self):
+    with beam.Pipeline() as p:
+      _ = (
+          self.create_animal_speed_input(p)
+          | transforms.DataframeTransform(lambda df: df[df.Speed > 10]))
+    self.assertEqual(self.fused_stages(p), 1)
+
+  def test_column_manipulation(self):
+    def set_column(df, name, s):
+      df[name] = s
+      return df
+
+    with beam.Pipeline() as p:
+      _ = (
+          self.create_animal_speed_input(p)
+          | transforms.DataframeTransform(
+              lambda df: set_column(df, 'x', df.Speed + df.Animal.str.len())))
+    self.assertEqual(self.fused_stages(p), 1)
 
 
 class TransformPartsTest(unittest.TestCase):

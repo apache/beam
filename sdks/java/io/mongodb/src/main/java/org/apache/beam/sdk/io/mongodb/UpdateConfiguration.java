@@ -22,22 +22,23 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
 
 /** Builds a MongoDB UpdateConfiguration object. */
-@Experimental(Kind.SOURCE_SINK)
 @AutoValue
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public abstract class UpdateConfiguration implements Serializable {
 
+  @Pure
+  abstract @Nullable String findKey();
+
+  @Pure
   abstract @Nullable String updateKey();
 
+  @Pure
   abstract @Nullable List<UpdateField> updateFields();
 
+  @Pure
   abstract boolean isUpsert();
 
   private static Builder builder() {
@@ -56,6 +57,8 @@ public abstract class UpdateConfiguration implements Serializable {
   abstract static class Builder {
     abstract Builder setUpdateFields(@Nullable List<UpdateField> updateFields);
 
+    abstract Builder setFindKey(@Nullable String findKey);
+
     abstract Builder setUpdateKey(@Nullable String updateKey);
 
     abstract Builder setIsUpsert(boolean isUpsert);
@@ -72,6 +75,10 @@ public abstract class UpdateConfiguration implements Serializable {
   }
 
   /** Sets the filters to find. */
+  public UpdateConfiguration withFindKey(String findKey) {
+    return toBuilder().setFindKey(findKey).build();
+  }
+
   public UpdateConfiguration withUpdateKey(String updateKey) {
     return toBuilder().setUpdateKey(updateKey).build();
   }

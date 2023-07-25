@@ -26,12 +26,12 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.net.HostAndPort;
  * specified location.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class WindmillServerBase extends WindmillServerStub {
 
   /** Pointer to the underlying native windmill client object. */
-  private long nativePointer;
+  private final long nativePointer;
 
   WindmillServerBase(String host) {
     this.nativePointer = create(host);

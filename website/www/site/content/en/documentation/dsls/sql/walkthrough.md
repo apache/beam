@@ -20,18 +20,15 @@ limitations under the License.
 
 This page illustrates the usage of Beam SQL with example code.
 
-## Row
+## Beam Schemas and Rows
 
-Before applying a SQL query to a `PCollection`, the data in the collection must
-be in `Row` format. A `Row` represents a single, immutable record in a Beam SQL
-`PCollection`. The names and types of the fields/columns in the row are defined
-by its associated [Schema](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/index.html?org/apache/beam/sdk/schemas/Schema.html).
-You can use the [Schema.builder()](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/index.html?org/apache/beam/sdk/schemas/Schema.html) to create
-`Schemas`. See [Data
-Types](/documentation/dsls/sql/data-types) for more details on supported primitive data types.
+A SQL query can only be applied to a `PCollection<T>`
+where `T` has a schema registered, or a `PCollection<Row>`. See the
+[schema documentation](/documentation/programming-guide/#what-is-a-schema) in
+the Beam Programming Guide for details on registering a schema for a type `T`.
 
-
-A `PCollection<Row>` can be obtained multiple ways, for example:
+If you don't have an existing type `T`, a `PCollection<Row>` can be obtained
+multiple ways, for example:
 
   - **From in-memory data** (typically for unit testing).
 
@@ -117,7 +114,7 @@ to either a single `PCollection` or a `PCollectionTuple` which holds multiple
         SqlTransform.query(
           "SELECT appId, description, rowtime "
             + "FROM PCOLLECTION "
-            + "WHERE id=1"));
+            + "WHERE appId=1"));
     {{< /highlight >}}
   - when applying to a `PCollectionTuple`, the tuple tag for each `PCollection` in the tuple defines the table name that may be used to query it. Note that table names are bound to the specific `PCollectionTuple`, and thus are only valid in the context of queries applied to it.
 

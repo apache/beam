@@ -28,7 +28,7 @@ import org.slf4j.LoggerFactory;
  * equivalent.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class TrivialNativeTransformExpander {
   private static final Logger LOG = LoggerFactory.getLogger(TrivialNativeTransformExpander.class);
@@ -55,7 +55,7 @@ public class TrivialNativeTransformExpander {
           trimmedPipeline.getComponents().getTransformsOrDefault(ptransformId, null);
       if (currentTransform != null && knownUrns.contains(currentTransform.getSpec().getUrn())) {
         LOG.debug(
-            "Removing descendants and environment of known native PTransform {}" + ptransformId);
+            "Removing descendants and environment of known native PTransform {}", ptransformId);
         removeDescendants(trimmedPipeline, ptransformId);
         trimmedPipeline
             .getComponentsBuilder()

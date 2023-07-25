@@ -17,13 +17,20 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 
 import com.google.cloud.ByteArray;
 import com.google.cloud.Date;
 import com.google.cloud.Timestamp;
+import com.google.cloud.spanner.Key;
+import com.google.cloud.spanner.KeyRange;
+import com.google.cloud.spanner.KeySet;
 import com.google.cloud.spanner.Mutation;
+import com.google.cloud.spanner.Struct;
+import com.google.cloud.spanner.Type;
+import com.google.cloud.spanner.Value;
 import java.math.BigDecimal;
 import java.util.Arrays;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -45,11 +52,28 @@ public class MutationSizeEstimatorTest {
             .set("one")
             .to(new BigDecimal("12345678901234567890.123456789"))
             .build();
+    Mutation pgNumeric =
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("one")
+            .to(Value.pgNumeric("12345678901234567890.123456789"))
+            .build();
+    Mutation pgNumericNaN =
+        Mutation.newInsertOrUpdateBuilder("test").set("one").to(Value.pgNumeric("NaN")).build();
+    Mutation json =
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("one")
+            .to(Value.json("{\"key1\":\"value1\", \"key2\":\"value2\"}"))
+            .build();
+    Mutation deleteDouble = Mutation.delete("test", Key.of(1223.));
 
     assertThat(MutationSizeEstimator.sizeOf(int64), is(8L));
     assertThat(MutationSizeEstimator.sizeOf(float64), is(8L));
     assertThat(MutationSizeEstimator.sizeOf(bool), is(1L));
     assertThat(MutationSizeEstimator.sizeOf(numeric), is(30L));
+    assertThat(MutationSizeEstimator.sizeOf(pgNumeric), is(30L));
+    assertThat(MutationSizeEstimator.sizeOf(pgNumericNaN), is(3L));
+    assertThat(MutationSizeEstimator.sizeOf(json), is(34L));
+    assertThat(MutationSizeEstimator.sizeOf(deleteDouble), is(8L));
   }
 
   @Test
@@ -79,11 +103,41 @@ public class MutationSizeEstimatorTest {
                     new BigDecimal("123456789012345678901234.1234567890123456"),
                     new BigDecimal("1234567890123456789012345.1234567890123456789")))
             .build();
+    Mutation pgNumeric =
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("one")
+            .toPgNumericArray(
+                ImmutableList.of(
+                    "12345678901234567890.123456789",
+                    "12345678901234567890123.1234567890123",
+                    "123456789012345678901234.1234567890123456",
+                    "1234567890123456789012345.1234567890123456789",
+                    "NaN"))
+            .build();
 
+    Mutation json =
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("one")
+            .toJsonArray(
+                ImmutableList.of(
+                    "{\"key1\":\"value1\", \"key2\":\"value2\"}",
+                    "{\"key1\":\"value1\", \"key2\":20}"))
+            .build();
+    Mutation bytes =
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("bytes")
+            .toBytesArray(
+                ImmutableList.of(
+                    ByteArray.copyFrom("some_bytes".getBytes(UTF_8)),
+                    ByteArray.copyFrom("some_bytes".getBytes(UTF_8))))
+            .build();
     assertThat(MutationSizeEstimator.sizeOf(int64), is(24L));
     assertThat(MutationSizeEstimator.sizeOf(float64), is(16L));
     assertThat(MutationSizeEstimator.sizeOf(bool), is(4L));
     assertThat(MutationSizeEstimator.sizeOf(numeric), is(153L));
+    assertThat(MutationSizeEstimator.sizeOf(pgNumeric), is(156L));
+    assertThat(MutationSizeEstimator.sizeOf(json), is(62L));
+    assertThat(MutationSizeEstimator.sizeOf(bytes), is(20L));
   }
 
   @Test
@@ -102,11 +156,19 @@ public class MutationSizeEstimatorTest {
             .set("one")
             .toNumericArray((Iterable<BigDecimal>) null)
             .build();
+    Mutation pgNumeric =
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("one")
+            .toPgNumericArray((Iterable<String>) null)
+            .build();
+    Mutation json = Mutation.newInsertOrUpdateBuilder("test").set("one").toJsonArray(null).build();
 
     assertThat(MutationSizeEstimator.sizeOf(int64), is(0L));
     assertThat(MutationSizeEstimator.sizeOf(float64), is(0L));
     assertThat(MutationSizeEstimator.sizeOf(bool), is(0L));
     assertThat(MutationSizeEstimator.sizeOf(numeric), is(0L));
+    assertThat(MutationSizeEstimator.sizeOf(pgNumeric), is(0L));
+    assertThat(MutationSizeEstimator.sizeOf(json), is(0L));
   }
 
   @Test
@@ -122,12 +184,14 @@ public class MutationSizeEstimatorTest {
             .build();
     Mutation nullArray =
         Mutation.newInsertOrUpdateBuilder("test").set("one").toStringArray(null).build();
+    Mutation deleteString = Mutation.delete("test", Key.of("one", "two"));
 
     assertThat(MutationSizeEstimator.sizeOf(emptyString), is(0L));
     assertThat(MutationSizeEstimator.sizeOf(nullString), is(0L));
     assertThat(MutationSizeEstimator.sizeOf(sampleString), is(3L));
     assertThat(MutationSizeEstimator.sizeOf(sampleArray), is(6L));
     assertThat(MutationSizeEstimator.sizeOf(nullArray), is(0L));
+    assertThat(MutationSizeEstimator.sizeOf(deleteString), is(6L));
   }
 
   @Test
@@ -143,10 +207,33 @@ public class MutationSizeEstimatorTest {
             .build();
     Mutation nullArray =
         Mutation.newInsertOrUpdateBuilder("test").set("one").toBytesArray(null).build();
+    Mutation deleteBytes =
+        Mutation.delete("test", Key.of(ByteArray.copyFrom("some_bytes".getBytes(UTF_8))));
 
     assertThat(MutationSizeEstimator.sizeOf(empty), is(0L));
     assertThat(MutationSizeEstimator.sizeOf(nullValue), is(0L));
     assertThat(MutationSizeEstimator.sizeOf(sample), is(6L));
+    assertThat(MutationSizeEstimator.sizeOf(nullArray), is(0L));
+    assertThat(MutationSizeEstimator.sizeOf(deleteBytes), is(10L));
+  }
+
+  @Test
+  public void jsons() throws Exception {
+    Mutation empty =
+        Mutation.newInsertOrUpdateBuilder("test").set("one").to(Value.json("{}")).build();
+    Mutation nullValue =
+        Mutation.newInsertOrUpdateBuilder("test").set("one").to(Value.json((String) null)).build();
+    Mutation sample =
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("one")
+            .to(Value.json("{\"name\":\"number\",\"val\":12345.123}"))
+            .build();
+    Mutation nullArray =
+        Mutation.newInsertOrUpdateBuilder("test").set("one").toJsonArray(null).build();
+
+    assertThat(MutationSizeEstimator.sizeOf(empty), is(2L));
+    assertThat(MutationSizeEstimator.sizeOf(nullValue), is(0L));
+    assertThat(MutationSizeEstimator.sizeOf(sample), is(33L));
     assertThat(MutationSizeEstimator.sizeOf(nullArray), is(0L));
   }
 
@@ -183,6 +270,9 @@ public class MutationSizeEstimatorTest {
         Mutation.newInsertOrUpdateBuilder("test").set("one").toTimestampArray(null).build();
     Mutation nullDateArray =
         Mutation.newInsertOrUpdateBuilder("test").set("one").toDateArray(null).build();
+    Mutation deleteTimestamp =
+        Mutation.delete("test", Key.of(Timestamp.parseTimestamp("2077-10-15T00:00:00Z")));
+    Mutation deleteDate = Mutation.delete("test", Key.of(Date.fromYearMonthDay(2017, 1, 1)));
 
     assertThat(MutationSizeEstimator.sizeOf(timestamp), is(12L));
     assertThat(MutationSizeEstimator.sizeOf(date), is(12L));
@@ -192,6 +282,8 @@ public class MutationSizeEstimatorTest {
     assertThat(MutationSizeEstimator.sizeOf(dateArray), is(48L));
     assertThat(MutationSizeEstimator.sizeOf(nullTimestampArray), is(0L));
     assertThat(MutationSizeEstimator.sizeOf(nullDateArray), is(0L));
+    assertThat(MutationSizeEstimator.sizeOf(deleteTimestamp), is(12L));
+    assertThat(MutationSizeEstimator.sizeOf(deleteDate), is(12L));
   }
 
   @Test
@@ -203,5 +295,33 @@ public class MutationSizeEstimatorTest {
     MutationGroup group = MutationGroup.create(int64, float64, bool);
 
     assertThat(MutationSizeEstimator.sizeOf(group), is(17L));
+  }
+
+  @Test
+  public void deleteKeyRanges() throws Exception {
+    Mutation range =
+        Mutation.delete("test", KeySet.range(KeyRange.openOpen(Key.of(1L), Key.of(4L))));
+    assertThat(MutationSizeEstimator.sizeOf(range), is(16L));
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void unsupportedArrayType() {
+    Mutation unsupportedArray =
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("one")
+            .toStructArray(
+                Type.struct(Type.StructField.of("int64", Type.int64())), ImmutableList.of())
+            .build();
+    MutationSizeEstimator.sizeOf(unsupportedArray);
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void unsupportedStructType() {
+    Mutation struct =
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("one")
+            .to(Struct.newBuilder().build())
+            .build();
+    MutationSizeEstimator.sizeOf(struct);
   }
 }

@@ -64,8 +64,8 @@ import org.joda.time.Instant;
 
 /** A {@link Combine} that performs the combine in multiple steps. */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class MultiStepCombine<
         K extends @Nullable Object,
@@ -429,7 +429,7 @@ class MultiStepCombine<
     @Override
     public <InputT> TransformEvaluator<InputT> forApplication(
         AppliedPTransform<?, ?, ?> application, CommittedBundle<?> inputBundle) throws Exception {
-      return createEvaluator((AppliedPTransform) application, (CommittedBundle) inputBundle);
+      return createEvaluator((AppliedPTransform) application);
     }
 
     private <K, AccumT, OutputT> TransformEvaluator<KV<K, Iterable<AccumT>>> createEvaluator(
@@ -437,8 +437,7 @@ class MultiStepCombine<
                 PCollection<KV<K, Iterable<AccumT>>>,
                 PCollection<KV<K, OutputT>>,
                 MergeAndExtractAccumulatorOutput<K, AccumT, OutputT>>
-            application,
-        CommittedBundle<KV<K, Iterable<AccumT>>> inputBundle) {
+            application) {
       return new MergeAccumulatorsAndExtractOutputEvaluator<>(ctxt, application);
     }
 

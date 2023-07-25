@@ -30,7 +30,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -59,10 +58,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * <p>Batch size defines how big are batches sent to DLP at once in bytes.
  */
-@Experimental
 @AutoValue
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public abstract class DLPInspectText
     extends PTransform<

@@ -17,10 +17,11 @@ package kafka
 
 import (
 	"flag"
+	"fmt"
 	"log"
-	"os"
 	"testing"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/dataflow"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/flink"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/samza"
@@ -32,6 +33,7 @@ import (
 // bootstrapAddr should be set by TestMain once a Kafka cluster has been
 // started, and is used by each test.
 var bootstrapAddr string
+var expansionAddr string // Populate with expansion address labelled "io".
 
 const (
 	basicTopic = "xlang_kafkaio_basic_test"
@@ -39,9 +41,6 @@ const (
 )
 
 func checkFlags(t *testing.T) {
-	if *integration.IoExpansionAddr == "" {
-		t.Skip("No IO expansion address provided.")
-	}
 	if bootstrapAddr == "" {
 		t.Skip("No bootstrap server address provided.")
 	}
@@ -59,20 +58,17 @@ func TestKafkaIO_BasicReadWrite(t *testing.T) {
 	}
 	topic := appendUuid(basicTopic)
 
-	write := WritePipeline(*integration.IoExpansionAddr, bootstrapAddr, topic, inputs)
+	write := WritePipeline(expansionAddr, bootstrapAddr, topic, inputs)
 	ptest.RunAndValidate(t, write)
-	read := ReadPipeline(*integration.IoExpansionAddr, bootstrapAddr, topic, inputs)
+	read := ReadPipeline(expansionAddr, bootstrapAddr, topic, inputs)
 	ptest.RunAndValidate(t, read)
 }
 
 // TestMain starts up a Kafka cluster from integration.KafkaJar before running
 // tests through ptest.Main.
 func TestMain(m *testing.M) {
-	// Defer os.Exit so it happens after other defers.
-	var retCode int
-	defer func() { os.Exit(retCode) }()
-
 	flag.Parse()
+	beam.Init()
 
 	// Start local Kafka cluster and defer its shutdown.
 	if *integration.BootstrapServers != "" {
@@ -80,11 +76,20 @@ func TestMain(m *testing.M) {
 	} else if *integration.KafkaJar != "" {
 		cluster, err := runLocalKafka(*integration.KafkaJar, *integration.KafkaJarTimeout)
 		if err != nil {
-			log.Fatalf("Kafka cluster failed to start: %v", err)
+			panic(fmt.Errorf("kafka cluster failed to start: %v", err))
 		}
 		defer func() { cluster.Shutdown() }()
 		bootstrapAddr = cluster.bootstrapAddr
 	}
 
-	retCode = ptest.MainRet(m)
+	services := integration.NewExpansionServices()
+	defer func() { services.Shutdown() }()
+	addr, err := services.GetAddr("io")
+	if err != nil {
+		log.Printf("skipping missing expansion service: %v", err)
+	} else {
+		expansionAddr = addr
+	}
+
+	ptest.MainRet(m)
 }

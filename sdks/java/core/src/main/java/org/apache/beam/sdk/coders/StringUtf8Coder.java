@@ -127,7 +127,7 @@ public class StringUtf8Coder extends AtomicCoder<String> {
   /**
    * {@inheritDoc}
    *
-   * @return the byte size of the UTF-8 encoding of the a string or, in a nested context, the byte
+   * @return the byte size of the UTF-8 encoding of the string or, in a nested context, the byte
    *     size of the encoding plus the encoded length prefix.
    */
   @Override

@@ -21,8 +21,6 @@ import com.fasterxml.jackson.annotation.JsonFilter;
 import com.google.auto.value.AutoValue;
 import java.util.function.BiFunction;
 import java.util.function.Function;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -30,11 +28,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * <p>TODO(BEAM-6265): Decouple wire formats from internal formats, remove usage of MetricName.
  */
-@Experimental(Kind.METRICS)
 @JsonFilter("committedMetrics")
 @AutoValue
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public abstract class MetricResult<T> {
   /** Return the name of the metric. */

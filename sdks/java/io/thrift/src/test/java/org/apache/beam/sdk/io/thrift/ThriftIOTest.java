@@ -36,7 +36,6 @@ import org.apache.thrift.protocol.TBinaryProtocol;
 import org.apache.thrift.protocol.TCompactProtocol;
 import org.apache.thrift.protocol.TJSONProtocol;
 import org.apache.thrift.protocol.TProtocolFactory;
-import org.apache.thrift.protocol.TSimpleJSONProtocol;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -51,13 +50,12 @@ public class ThriftIOTest implements Serializable {
   private static final String RESOURCE_DIR = "ThriftIOTest/";
 
   private static final String THRIFT_DIR = Resources.getResource(RESOURCE_DIR).getPath();
-  private static final String ALL_THRIFT_STRING =
-      Resources.getResource(RESOURCE_DIR).getPath() + "*";
+
   private static final TestThriftStruct TEST_THRIFT_STRUCT = new TestThriftStruct();
   private static List<TestThriftStruct> testThriftStructs;
   private final TProtocolFactory tBinaryProtoFactory = new TBinaryProtocol.Factory();
   private final TProtocolFactory tJsonProtocolFactory = new TJSONProtocol.Factory();
-  private final TProtocolFactory tSimpleJsonProtocolFactory = new TSimpleJSONProtocol.Factory();
+
   private final TProtocolFactory tCompactProtocolFactory = new TCompactProtocol.Factory();
   @Rule public transient TestPipeline mainPipeline = TestPipeline.create();
   @Rule public transient TestPipeline readPipeline = TestPipeline.create();

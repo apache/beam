@@ -65,13 +65,13 @@
 #        example in the format "us.gcr.io/<project>".
 #    --region -> GCP region to run Dataflow jobs on.
 #    --gcs_location -> GCS URL for storing temporary files for Dataflow jobs.
-#    --dataflow_worker_jar -> The Dataflow worker jar to use when running jobs.
-#        If not specified, the script attempts to retrieve a previously built
-#        jar from the appropriate gradle module, which may not succeed.
 
 set -e
 trap '! [[ "$BASH_COMMAND" =~ ^(echo|read|if|ARGS|shift|SOCKET_SCRIPT|\[\[) ]] && \
 cmd=`eval echo "$BASH_COMMAND" 2>/dev/null` && echo "\$ $cmd"' DEBUG
+
+# Resolve current directory
+CURRENT_DIRECTORY=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 # Default test targets.
 TESTS="./test/integration/... ./test/regression"
@@ -81,13 +81,14 @@ RUNNER=portable
 
 # Default timeout. This timeout is applied per-package, as tests in different
 # packages are executed in parallel.
-TIMEOUT=2h
+TIMEOUT=3h
 
 # Default limit on simultaneous test binaries/packages being executed.
 SIMULTANEOUS=3
 
 # Where to store integration test outputs.
 GCS_LOCATION=gs://temp-storage-for-end-to-end-tests
+GCS_SUBFOLDER="test$RANDOM"
 
 # Project for the container and integration test
 PROJECT=apache-beam-testing
@@ -104,6 +105,12 @@ exit_background_processes () {
   fi
   if [[ ! -z "$IO_EXPANSION_PID" ]]; then
     kill -9 $IO_EXPANSION_PID
+  fi
+  if [[ ! -z "$SCHEMAIO_EXPANSION_PID" ]]; then
+    kill -9 $SCHEMAIO_EXPANSION_PID
+  fi
+  if [[ ! -z "$DEBEZIUMIO_EXPANSION_PID" ]]; then
+    kill -9 $DEBEZIUMIO_EXPANSION_PID
   fi
 }
 trap exit_background_processes SIGINT SIGTERM EXIT
@@ -152,11 +159,6 @@ case $key in
         shift # past argument
         shift # past value
         ;;
-    --dataflow_worker_jar)
-        DATAFLOW_WORKER_JAR="$2"
-        shift # past argument
-        shift # past value
-        ;;
     --flink_job_server_jar)
         FLINK_JOB_SERVER_JAR="$2"
         shift # past argument
@@ -197,6 +199,26 @@ case $key in
         shift # past argument
         shift # past value
         ;;
+    --schemaio_expansion_jar)
+        SCHEMAIO_EXPANSION_JAR="$2"
+        shift # past argument
+        shift # past value
+        ;;
+    --schemaio_expansion_addr)
+        SCHEMAIO_EXPANSION_ADDR="$2"
+        shift # past argument
+        shift # past value
+        ;;
+    --debeziumio_expansion_jar)
+        DEBEZIUMIO_EXPANSION_JAR="$2"
+        shift # past argument
+        shift # past value
+        ;;
+    --debeziumio_expansion_addr)
+        DEBEZIUMIO_EXPANSION_ADDR="$2"
+        shift # past argument
+        shift # past value
+        ;;
     --sdk_overrides)
         SDK_OVERRIDES="$2"
         shift # past argument
@@ -204,6 +226,11 @@ case $key in
         ;;
     --pipeline_opts)
         PIPELINE_OPTS="$2"
+        shift # past argument
+        shift # past value
+        ;;
+    --java11_home)
+        JAVA11_HOME="$2"
         shift # past argument
         shift # past value
         ;;
@@ -231,27 +258,7 @@ s.close()
 "
 
 # Set up environment based on runner.
-if [[ "$RUNNER" == "dataflow" ]]; then
-  if [[ -z "$DATAFLOW_WORKER_JAR" ]]; then
-    DATAFLOW_WORKER_JAR=$(find $(pwd)/runners/google-cloud-dataflow-java/worker/build/libs/beam-runners-google-cloud-dataflow-java-fn-api-worker-*.jar)
-  fi
-  echo "Using Dataflow worker jar: $DATAFLOW_WORKER_JAR"
-
-  if [[ -z "$TEST_EXPANSION_ADDR" && -n "$TEST_EXPANSION_JAR" ]]; then
-    EXPANSION_PORT=$(python3 -c "$SOCKET_SCRIPT")
-    TEST_EXPANSION_ADDR="localhost:$EXPANSION_PORT"
-    echo "No test expansion address specified; starting a new test expansion server on $TEST_EXPANSION_ADDR"
-    java -jar $TEST_EXPANSION_JAR $EXPANSION_PORT &
-    TEST_EXPANSION_PID=$!
-  fi
-  if [[ -z "$IO_EXPANSION_ADDR" && -n "$IO_EXPANSION_JAR" ]]; then
-    EXPANSION_PORT=$(python3 -c "$SOCKET_SCRIPT")
-    IO_EXPANSION_ADDR="localhost:$EXPANSION_PORT"
-    echo "No IO expansion address specified; starting a new IO expansion server on $IO_EXPANSION_ADDR"
-    java -jar $IO_EXPANSION_JAR $EXPANSION_PORT &
-    IO_EXPANSION_PID=$!
-  fi
-elif [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "samza" || "$RUNNER" == "portable" ]]; then
+if [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "samza" || "$RUNNER" == "portable" ]]; then
   if [[ -z "$ENDPOINT" ]]; then
     JOB_PORT=$(python3 -c "$SOCKET_SCRIPT")
     ENDPOINT="localhost:$JOB_PORT"
@@ -260,6 +267,7 @@ elif [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "samza" || 
       java \
           -jar $FLINK_JOB_SERVER_JAR \
           --flink-master [local] \
+          --flink-conf-dir $CURRENT_DIRECTORY/../../../runners/flink/src/test/resources \
           --job-port $JOB_PORT \
           --expansion-port 0 \
           --artifact-port 0 &
@@ -286,7 +294,9 @@ elif [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "samza" || 
     fi
     JOBSERVER_PID=$!
   fi
+fi
 
+if [[ "$RUNNER" != "direct" ]]; then
   if [[ -z "$TEST_EXPANSION_ADDR" && -n "$TEST_EXPANSION_JAR" ]]; then
     EXPANSION_PORT=$(python3 -c "$SOCKET_SCRIPT")
     TEST_EXPANSION_ADDR="localhost:$EXPANSION_PORT"
@@ -300,6 +310,20 @@ elif [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "samza" || 
     echo "No IO expansion address specified; starting a new IO expansion server on $IO_EXPANSION_ADDR"
     java -jar $IO_EXPANSION_JAR $EXPANSION_PORT &
     IO_EXPANSION_PID=$!
+  fi
+  if [[ -z "$SCHEMAIO_EXPANSION_ADDR" && -n "$SCHEMAIO_EXPANSION_JAR" ]]; then
+      EXPANSION_PORT=$(python3 -c "$SOCKET_SCRIPT")
+      SCHEMAIO_EXPANSION_ADDR="localhost:$EXPANSION_PORT"
+      echo "No SchemaIO expansion address specified; starting a new SchemaIO expansion server on $SCHEMAIO_EXPANSION_ADDR"
+      java -jar $SCHEMAIO_EXPANSION_JAR $EXPANSION_PORT &
+      SCHEMAIO_EXPANSION_PID=$!
+  fi
+  if [[ -z "$DEBEZIUMIO_EXPANSION_ADDR" && -n "$DEBEZIUMIO_EXPANSION_JAR" ]]; then
+      EXPANSION_PORT=$(python3 -c "$SOCKET_SCRIPT")
+      DEBEZIUMIO_EXPANSION_ADDR="localhost:$EXPANSION_PORT"
+      echo "No DebeziumIO expansion address specified; starting a new DebeziumIO expansion server on $DEBEZIUMIO_EXPANSION_ADDR"
+      java -jar $DEBEZIUMIO_EXPANSION_JAR $EXPANSION_PORT &
+      DEBEZIUMIO_EXPANSION_PID=$!
   fi
 fi
 
@@ -342,7 +366,7 @@ if [[ "$RUNNER" == "dataflow" ]]; then
   # Push the container
   gcloud docker -- push $CONTAINER:$TAG
 
-  if [[ -n "$TEST_EXPANSION_ADDR" || -n "$IO_EXPANSION_ADDR" ]]; then
+  if [[ -n "$TEST_EXPANSION_ADDR" || -n "$IO_EXPANSION_ADDR" || -n "$SCHEMAIO_EXPANSION_ADDR" || -n "$DEBEZIUMIO_EXPANSION_ADDR" ]]; then
     ARGS="$ARGS --experiments=use_portable_job_submission"
 
     if [[ -z "$SDK_OVERRIDES" ]]; then
@@ -350,7 +374,7 @@ if [[ "$RUNNER" == "dataflow" ]]; then
       JAVA_TAG=$(date +%Y%m%d-%H%M%S)
       JAVA_CONTAINER=us.gcr.io/$PROJECT/$USER/beam_java11_sdk
       echo "Using container $JAVA_CONTAINER for cross-language java transforms"
-      ./gradlew :sdks:java:container:java11:docker -Pdocker-repository-root=us.gcr.io/$PROJECT/$USER -Pdocker-tag=$JAVA_TAG
+      ./gradlew :sdks:java:container:java11:docker -Pdocker-repository-root=us.gcr.io/$PROJECT/$USER -Pdocker-tag=$JAVA_TAG -Pjava11Home=$JAVA11_HOME
 
       # Verify it exists
       docker images | grep $JAVA_TAG
@@ -378,15 +402,20 @@ ARGS="$ARGS --project=$DATAFLOW_PROJECT"
 ARGS="$ARGS --region=$REGION"
 ARGS="$ARGS --environment_type=DOCKER"
 ARGS="$ARGS --environment_config=$CONTAINER:$TAG"
-ARGS="$ARGS --staging_location=$GCS_LOCATION/staging-validatesrunner-test"
-ARGS="$ARGS --temp_location=$GCS_LOCATION/temp-validatesrunner-test"
-ARGS="$ARGS --dataflow_worker_jar=$DATAFLOW_WORKER_JAR"
+ARGS="$ARGS --staging_location=$GCS_LOCATION/staging-validatesrunner-test/$GCS_SUBFOLDER"
+ARGS="$ARGS --temp_location=$GCS_LOCATION/temp-validatesrunner-test/$GCS_SUBFOLDER"
 ARGS="$ARGS --endpoint=$ENDPOINT"
 if [[ -n "$TEST_EXPANSION_ADDR" ]]; then
   ARGS="$ARGS --test_expansion_addr=$TEST_EXPANSION_ADDR"
 fi
 if [[ -n "$IO_EXPANSION_ADDR" ]]; then
   ARGS="$ARGS --io_expansion_addr=$IO_EXPANSION_ADDR"
+fi
+if [[ -n "$SCHEMAIO_EXPANSION_ADDR" ]]; then
+  ARGS="$ARGS --schemaio_expansion_addr=$SCHEMAIO_EXPANSION_ADDR"
+fi
+if [[ -n "$DEBEZIUMIO_EXPANSION_ADDR" ]]; then
+  ARGS="$ARGS --debeziumio_expansion_addr=$DEBEZIUMIO_EXPANSION_ADDR"
 fi
 if [[ -n "$SDK_OVERRIDES" ]]; then
   OVERRIDE=--sdk_harness_container_image_override="$SDK_OVERRIDES"
@@ -396,7 +425,7 @@ ARGS="$ARGS $PIPELINE_OPTS"
 
 cd sdks/go
 echo ">>> RUNNING $RUNNER integration tests with pipeline options: $ARGS"
-go test -v $TESTS $ARGS 1>&2 \
+./run_with_go_version.sh test -v $TESTS $ARGS 1>&2 \
     || TEST_EXIT_CODE=$? # don't fail fast here; clean up environment before exiting
 cd ../..
 
@@ -405,7 +434,7 @@ if [[ "$RUNNER" == "dataflow" ]]; then
   docker rmi $CONTAINER:$TAG || echo "Failed to remove container"
   gcloud --quiet container images delete $CONTAINER:$TAG || echo "Failed to delete container"
 
-  if [[ -n "$TEST_EXPANSION_ADDR" || -n "$IO_EXPANSION_ADDR" ]]; then
+  if [[ -n "$TEST_EXPANSION_ADDR" || -n "$IO_EXPANSION_ADDR" || -n "$SCHEMAIO_EXPANSION_ADDR" || -n "$DEBEZIUMIO_EXPANSION_ADDR" ]]; then
     # Delete the java cross-language container locally and remotely
     docker rmi $JAVA_CONTAINER:$JAVA_TAG || echo "Failed to remove container"
     gcloud --quiet container images delete $JAVA_CONTAINER:$JAVA_TAG || echo "Failed to delete container"

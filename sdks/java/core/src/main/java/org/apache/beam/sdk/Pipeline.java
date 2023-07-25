@@ -28,8 +28,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nonnull;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.io.Read;
@@ -122,7 +120,7 @@ import org.slf4j.LoggerFactory;
  * }</pre>
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class Pipeline {
   private static final Logger LOG = LoggerFactory.getLogger(Pipeline.class);
@@ -338,7 +336,6 @@ public class Pipeline {
     return coderRegistry;
   }
 
-  @Experimental(Kind.SCHEMAS)
   public SchemaRegistry getSchemaRegistry() {
     if (schemaRegistry == null) {
       schemaRegistry = SchemaRegistry.createDefault();
@@ -659,14 +656,14 @@ public class Pipeline {
     @Override
     public CompositeBehavior enterCompositeTransform(Node node) {
       if (node.getTransform() != null) {
-        node.getTransform().validate(options);
+        node.getTransform().validate(options, node.getInputs(), node.getOutputs());
       }
       return CompositeBehavior.ENTER_TRANSFORM;
     }
 
     @Override
     public void visitPrimitiveTransform(Node node) {
-      node.getTransform().validate(options);
+      node.getTransform().validate(options, node.getInputs(), node.getOutputs());
     }
   }
 

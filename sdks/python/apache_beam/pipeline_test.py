@@ -23,22 +23,23 @@ import copy
 import platform
 import unittest
 
+import mock
 import pytest
 
 import apache_beam as beam
 from apache_beam import typehints
 from apache_beam.coders import BytesCoder
 from apache_beam.io import Read
-from apache_beam.metrics import Metrics
+from apache_beam.io.iobase import SourceBase
 from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.pipeline import Pipeline
 from apache_beam.pipeline import PipelineOptions
 from apache_beam.pipeline import PipelineVisitor
 from apache_beam.pipeline import PTransformOverride
 from apache_beam.portability import common_urns
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.pvalue import AsSingleton
 from apache_beam.pvalue import TaggedOutput
-from apache_beam.runners.dataflow.native_io.iobase import NativeSource
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -59,39 +60,9 @@ from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils import windowed_value
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 
-# TODO(BEAM-1555): Test is failing on the service, with FakeSource.
 
-
-class FakeSource(NativeSource):
-  """Fake source returning a fixed list of values."""
-  class _Reader(object):
-    def __init__(self, vals):
-      self._vals = vals
-      self._output_counter = Metrics.counter('main', 'outputs')
-
-    def __enter__(self):
-      return self
-
-    def __exit__(self, exception_type, exception_value, traceback):
-      pass
-
-    def __iter__(self):
-      for v in self._vals:
-        self._output_counter.inc()
-        yield v
-
-  def __init__(self, vals):
-    self._vals = vals
-
-  def reader(self):
-    return FakeSource._Reader(self._vals)
-
-
-class FakeUnboundedSource(NativeSource):
+class FakeUnboundedSource(SourceBase):
   """Fake unbounded source. Does not work at runtime"""
-  def reader(self):
-    return None
-
   def is_bounded(self):
     return False
 
@@ -256,24 +227,6 @@ class PipelineTest(unittest.TestCase):
     with TestPipeline() as pipeline:
       pcoll = pipeline | 'label' >> Create([[1, 2, 3]])
       assert_that(pcoll, equal_to([[1, 2, 3]]))
-
-  # TODO(BEAM-1555): Test is failing on the service, with FakeSource.
-  # @pytest.mark.it_validatesrunner
-  def test_metrics_in_fake_source(self):
-    pipeline = TestPipeline()
-    pcoll = pipeline | Read(FakeSource([1, 2, 3, 4, 5, 6]))
-    assert_that(pcoll, equal_to([1, 2, 3, 4, 5, 6]))
-    res = pipeline.run()
-    metric_results = res.metrics().query()
-    outputs_counter = metric_results['counters'][0]
-    self.assertEqual(outputs_counter.key.step, 'Read')
-    self.assertEqual(outputs_counter.key.metric.name, 'outputs')
-    self.assertEqual(outputs_counter.committed, 6)
-
-  def test_fake_read(self):
-    with TestPipeline() as pipeline:
-      pcoll = pipeline | 'read' >> Read(FakeSource([1, 2, 3]))
-      assert_that(pcoll, equal_to([1, 2, 3]))
 
   def test_visit_entire_graph(self):
     pipeline = Pipeline()
@@ -679,6 +632,21 @@ class PipelineTest(unittest.TestCase):
     self.assertIs(pcoll2_unbounded.is_bounded, False)
     self.assertIs(merged.is_bounded, False)
 
+  def test_incompatible_submission_and_runtime_envs_fail_pipeline(self):
+    with mock.patch(
+        'apache_beam.transforms.environments.sdk_base_version_capability'
+    ) as base_version:
+      base_version.side_effect = [
+          f"beam:version:sdk_base:apache/beam_python3.5_sdk:2.{i}.0"
+          for i in range(100)
+      ]
+      with self.assertRaisesRegex(
+          RuntimeError,
+          'Pipeline construction environment and pipeline runtime '
+          'environment are not compatible.'):
+        with TestPipeline() as p:
+          _ = p | Create([None])
+
 
 class DoFnTest(unittest.TestCase):
   def test_element(self):
@@ -1021,7 +989,6 @@ class RunnerApiTest(unittest.TestCase):
 
     p = beam.Pipeline()
     p | MyPTransform()  # pylint: disable=expression-not-assigned
-    from apache_beam.portability.api import beam_runner_api_pb2
 
     proto_pipeline = Pipeline.to_runner_api(p, use_fake_coders=True)
     my_transform, = [
@@ -1290,6 +1257,85 @@ class RunnerApiTest(unittest.TestCase):
             b'second_application', environment.resource_hints.get('foo_urn'))
         count += 1
     assert count == 2
+
+  def test_environments_are_deduplicated(self):
+    def file_artifact(path, hash, staged_name):
+      return beam_runner_api_pb2.ArtifactInformation(
+          type_urn=common_urns.artifact_types.FILE.urn,
+          type_payload=beam_runner_api_pb2.ArtifactFilePayload(
+              path=path, sha256=hash).SerializeToString(),
+          role_urn=common_urns.artifact_roles.STAGING_TO.urn,
+          role_payload=beam_runner_api_pb2.ArtifactStagingToRolePayload(
+              staged_name=staged_name).SerializeToString(),
+      )
+
+    proto = beam_runner_api_pb2.Pipeline(
+        components=beam_runner_api_pb2.Components(
+            transforms={
+                f'transform{ix}': beam_runner_api_pb2.PTransform(
+                    environment_id=f'e{ix}')
+                for ix in range(8)
+            },
+            environments={
+                # Same hash and destination.
+                'e1': beam_runner_api_pb2.Environment(
+                    dependencies=[file_artifact('a1', 'x', 'dest')]),
+                'e2': beam_runner_api_pb2.Environment(
+                    dependencies=[file_artifact('a2', 'x', 'dest')]),
+                # Different hash.
+                'e3': beam_runner_api_pb2.Environment(
+                    dependencies=[file_artifact('a3', 'y', 'dest')]),
+                # Different destination.
+                'e4': beam_runner_api_pb2.Environment(
+                    dependencies=[file_artifact('a4', 'y', 'dest2')]),
+                # Multiple files with same hash and destinations.
+                'e5': beam_runner_api_pb2.Environment(
+                    dependencies=[
+                        file_artifact('a1', 'x', 'dest'),
+                        file_artifact('b1', 'xb', 'destB')
+                    ]),
+                'e6': beam_runner_api_pb2.Environment(
+                    dependencies=[
+                        file_artifact('a2', 'x', 'dest'),
+                        file_artifact('b2', 'xb', 'destB')
+                    ]),
+                # Overlapping, but not identical, files.
+                'e7': beam_runner_api_pb2.Environment(
+                    dependencies=[
+                        file_artifact('a1', 'x', 'dest'),
+                        file_artifact('b2', 'y', 'destB')
+                    ]),
+                # Same files as first, but differing other properties.
+                'e0': beam_runner_api_pb2.Environment(
+                    resource_hints={'hint': b'value'},
+                    dependencies=[file_artifact('a1', 'x', 'dest')]),
+            }))
+    Pipeline.merge_compatible_environments(proto)
+
+    # These environments are equivalent.
+    self.assertEqual(
+        proto.components.transforms['transform1'].environment_id,
+        proto.components.transforms['transform2'].environment_id)
+
+    self.assertEqual(
+        proto.components.transforms['transform5'].environment_id,
+        proto.components.transforms['transform6'].environment_id)
+
+    # These are not.
+    self.assertNotEqual(
+        proto.components.transforms['transform1'].environment_id,
+        proto.components.transforms['transform3'].environment_id)
+    self.assertNotEqual(
+        proto.components.transforms['transform4'].environment_id,
+        proto.components.transforms['transform3'].environment_id)
+    self.assertNotEqual(
+        proto.components.transforms['transform6'].environment_id,
+        proto.components.transforms['transform7'].environment_id)
+    self.assertNotEqual(
+        proto.components.transforms['transform1'].environment_id,
+        proto.components.transforms['transform0'].environment_id)
+
+    self.assertEqual(len(proto.components.environments), 6)
 
 
 if __name__ == '__main__':

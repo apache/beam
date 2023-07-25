@@ -86,11 +86,46 @@ public interface BigQueryOptions
   void setUseStorageWriteApi(Boolean value);
 
   @Description(
-      "If set, then BigQueryIO.Write will default to using this number of Storage Write API streams.")
+      "If set, then BigQueryIO.Write will default to using the approximate Storage Write API.")
+  @Default.Boolean(false)
+  Boolean getUseStorageWriteApiAtLeastOnce();
+
+  void setUseStorageWriteApiAtLeastOnce(Boolean value);
+
+  @Description(
+      "If set, then BigQueryIO.Write will default to using this number of Storage Write API streams. ")
   @Default.Integer(0)
   Integer getNumStorageWriteApiStreams();
 
   void setNumStorageWriteApiStreams(Integer value);
+
+  @Description(
+      "When using the {@link org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.Method#STORAGE_API_AT_LEAST_ONCE} write method, "
+          + "this option sets the number of stream append clients that will be allocated at a per worker and destination basis. "
+          + "A large value can cause a large pipeline to go over the BigQuery connection quota quickly on a job with "
+          + "enough number of workers. On the case of low-mid volume pipelines using the default configuration should be sufficient.")
+  @Default.Integer(1)
+  Integer getNumStorageWriteApiStreamAppendClients();
+
+  void setNumStorageWriteApiStreamAppendClients(Integer value);
+
+  @Description("The max number of messages inflight that we expect each connection will retain.")
+  @Default.Long(1000)
+  Long getStorageWriteMaxInflightRequests();
+
+  void setStorageWriteMaxInflightRequests(Long value);
+
+  @Description(
+      "The max size in bytes for inflight messages that we expect each connection will retain.")
+  @Default.Long(104857600)
+  Long getStorageWriteMaxInflightBytes();
+
+  void setStorageWriteMaxInflightBytes(Long value);
+
+  @Default.Boolean(false)
+  Boolean getUseStorageApiConnectionPool();
+
+  void setUseStorageApiConnectionPool(Boolean value);
 
   @Description(
       "If set, then BigQueryIO.Write will default to triggering the Storage Write API writes this often.")
@@ -110,4 +145,30 @@ public interface BigQueryOptions
   String getBigQueryProject();
 
   void setBigQueryProject(String value);
+
+  @Description("Maximum (best effort) size of a single append to the storage API.")
+  @Default.Integer(2 * 1024 * 1024)
+  Integer getStorageApiAppendThresholdBytes();
+
+  void setStorageApiAppendThresholdBytes(Integer value);
+
+  @Description("Maximum (best effort) record count of a single append to the storage API.")
+  @Default.Integer(150000)
+  Integer getStorageApiAppendThresholdRecordCount();
+
+  void setStorageApiAppendThresholdRecordCount(Integer value);
+
+  @Description("Maximum request size allowed by the storage write API. ")
+  @Default.Long(10 * 1000 * 1000)
+  Long getStorageWriteApiMaxRequestSize();
+
+  void setStorageWriteApiMaxRequestSize(Long value);
+
+  @Description(
+      "If set, BigQueryIO.Read will use the StreamBundle based"
+          + "implementation of the Read API Source")
+  @Default.Boolean(false)
+  Boolean getEnableBundling();
+
+  void setEnableBundling(Boolean value);
 }

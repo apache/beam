@@ -24,7 +24,7 @@ import pandas as pd
 
 import apache_beam as beam
 from apache_beam.dataframe.frame_base import DeferredBase
-from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.interactive import background_caching_job as bcj
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import interactive_runner as ir
@@ -85,19 +85,19 @@ class ElementStream:
     return utils.obfuscate(self._cache_key, suffix)
 
   def is_computed(self):
-    # type: () -> boolean
+    # type: () -> boolean # noqa: F821
 
     """Returns True if no more elements will be recorded."""
     return self._pcoll in ie.current_env().computed_pcollections
 
   def is_done(self):
-    # type: () -> boolean
+    # type: () -> boolean # noqa: F821
 
     """Returns True if no more new elements will be yielded."""
     return self._done
 
   def read(self, tail=True):
-    # type: (boolean) -> Any
+    # type: (boolean) -> Any # noqa: F821
 
     """Reads the elements currently recorded."""
 
@@ -133,7 +133,7 @@ class ElementStream:
       # From the to_element_list we either get TestStreamPayload.Events if
       # include_time_events or decoded elements from the reader. Make sure we
       # only count the decoded elements to break early.
-      if isinstance(e, TestStreamPayload.Event):
+      if isinstance(e, beam_runner_api_pb2.TestStreamPayload.Event):
         time_limiter.update(e)
       else:
         count_limiter.update(e)
@@ -155,7 +155,7 @@ class Recording:
   def __init__(
       self,
       user_pipeline,  # type: beam.Pipeline
-      pcolls,  # type: List[beam.pvalue.PCollection]
+      pcolls,  # type: List[beam.pvalue.PCollection] # noqa: F821
       result,  # type: beam.runner.PipelineResult
       max_n,  # type: int
       max_duration_secs,  # type: float
@@ -217,7 +217,7 @@ class Recording:
       ie.current_env().mark_pcollection_computed(self._pcolls)
 
   def is_computed(self):
-    # type: () -> boolean
+    # type: () -> boolean # noqa: F821
 
     """Returns True if all PCollections are computed."""
     return all(s.is_computed() for s in self._streams.values())
@@ -275,7 +275,7 @@ class Recording:
 class RecordingManager:
   """Manages recordings of PCollections for a given pipeline."""
   def __init__(self, user_pipeline, pipeline_var=None, test_limiters=None):
-    # type: (beam.Pipeline, str, list[Limiter]) -> None
+    # type: (beam.Pipeline, str, list[Limiter]) -> None # noqa: F821
 
     self.user_pipeline = user_pipeline  # type: beam.Pipeline
     self.pipeline_var = pipeline_var if pipeline_var else ''  # type: str
@@ -284,7 +284,7 @@ class RecordingManager:
     self._test_limiters = test_limiters if test_limiters else []
 
   def _watch(self, pcolls):
-    # type: (List[beam.pvalue.PCollection]) -> None
+    # type: (List[beam.pvalue.PCollection]) -> None # noqa: F821
 
     """Watch any pcollections not being watched.
 
@@ -304,8 +304,8 @@ class RecordingManager:
     # Convert them one-by-one to generate a unique label for each. This allows
     # caching at a more fine-grained granularity.
     #
-    # TODO(BEAM-12388): investigate the mixing pcollections in multiple
-    # pipelines error when using the default label.
+    # TODO(https://github.com/apache/beam/issues/20929): investigate the mixing
+    # pcollections in multiple pipelines error when using the default label.
     for df in watched_dataframes:
       pcoll, _ = utils.deferred_df_to_pcollection(df)
       watched_pcollections.add(pcoll)
@@ -398,12 +398,11 @@ class RecordingManager:
     utils.watch_sources(self.user_pipeline)
 
     # Attempt to run background caching job to record any sources.
-    if ie.current_env().is_in_ipython:
-      warnings.filterwarnings(
-          'ignore',
-          'options is deprecated since First stable release. References to '
-          '<pipeline>.options will not be supported',
-          category=DeprecationWarning)
+    warnings.filterwarnings(
+        'ignore',
+        'options is deprecated since First stable release. References to '
+        '<pipeline>.options will not be supported',
+        category=DeprecationWarning)
     if bcj.attempt_to_run_background_caching_job(
         runner,
         self.user_pipeline,
@@ -414,7 +413,7 @@ class RecordingManager:
     return False
 
   def record(self, pcolls, max_n, max_duration):
-    # type: (List[beam.pvalue.PCollection], int, Union[int,str]) -> Recording
+    # type: (List[beam.pvalue.PCollection], int, Union[int,str]) -> Recording # noqa: F821
 
     """Records the given PCollections."""
 
@@ -454,8 +453,12 @@ class RecordingManager:
           'options is deprecated since First stable release. References to '
           '<pipeline>.options will not be supported',
           category=DeprecationWarning)
-      pf.PipelineFragment(list(uncomputed_pcolls),
-                          self.user_pipeline.options).run()
+      cache_path = ie.current_env().options.cache_root
+      is_remote_run = cache_path and ie.current_env(
+      ).options.cache_root.startswith('gs://')
+      pf.PipelineFragment(
+          list(uncomputed_pcolls),
+          self.user_pipeline.options).run(blocking=is_remote_run)
       result = ie.current_env().pipeline_result(self.user_pipeline)
     else:
       result = None
@@ -467,7 +470,7 @@ class RecordingManager:
     return recording
 
   def read(self, pcoll_name, pcoll, max_n, max_duration_secs):
-    # type: (str, beam.pvalue.PValue, int, float) -> Union[None, ElementStream]
+    # type: (str, beam.pvalue.PValue, int, float) -> Union[None, ElementStream] # noqa: F821
 
     """Reads an ElementStream of a computed PCollection.
 

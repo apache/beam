@@ -36,11 +36,13 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.deser.DefaultDeserializationContext;
 import com.fasterxml.jackson.databind.deser.impl.MethodProperty;
+import com.fasterxml.jackson.databind.deser.impl.TypeWrappedDeserializer;
 import com.fasterxml.jackson.databind.introspect.AnnotatedMember;
 import com.fasterxml.jackson.databind.introspect.AnnotatedMethod;
 import com.fasterxml.jackson.databind.introspect.AnnotationCollector;
 import com.fasterxml.jackson.databind.introspect.BeanPropertyDefinition;
 import com.fasterxml.jackson.databind.introspect.TypeResolutionContext;
+import com.fasterxml.jackson.databind.jsontype.TypeDeserializer;
 import com.fasterxml.jackson.databind.node.TreeTraversingParser;
 import com.fasterxml.jackson.databind.ser.DefaultSerializerProvider;
 import com.fasterxml.jackson.databind.type.TypeBindings;
@@ -83,7 +85,6 @@ import javax.annotation.Nonnull;
 import org.apache.beam.model.jobmanagement.v1.JobApi.PipelineOptionDescriptor;
 import org.apache.beam.model.jobmanagement.v1.JobApi.PipelineOptionType;
 import org.apache.beam.sdk.PipelineRunner;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.Validation.Required;
 import org.apache.beam.sdk.runners.PipelineRunnerRegistrar;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -138,7 +139,7 @@ import org.slf4j.LoggerFactory;
  */
 @SuppressWarnings({
   "keyfor",
-  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes"
 })
 public class PipelineOptionsFactory {
@@ -499,12 +500,15 @@ public class PipelineOptionsFactory {
       new ObjectMapper()
           .registerModules(ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
 
-  private static final DefaultDeserializationContext DESERIALIZATION_CONTEXT =
-      new DefaultDeserializationContext.Impl(MAPPER.getDeserializationContext().getFactory())
-          .createInstance(
-              MAPPER.getDeserializationConfig(),
-              new TokenBuffer(MAPPER, false).asParser(),
-              new InjectableValues.Std());
+  private static final ThreadLocal<DefaultDeserializationContext> DESERIALIZATION_CONTEXT =
+      ThreadLocal.withInitial(
+          () ->
+              new DefaultDeserializationContext.Impl(
+                      MAPPER.getDeserializationContext().getFactory())
+                  .createInstance(
+                      MAPPER.getDeserializationConfig(),
+                      new TokenBuffer(MAPPER, false).asParser(),
+                      new InjectableValues.Std()));
 
   static final DefaultSerializerProvider SERIALIZER_PROVIDER =
       new DefaultSerializerProvider.Impl()
@@ -565,13 +569,12 @@ public class PipelineOptionsFactory {
   /**
    * Resets the set of interfaces registered with this factory to the default state.
    *
-   * <p>IMPORTANT: this is marked as experimental because the correct usage of this method requires
-   * appropriate synchronization beyond the scope of this method.
+   * <p>IMPORTANT: correct usage of this method requires appropriate synchronization beyond the
+   * scope of this method.
    *
    * @see PipelineOptionsFactory#register(Class)
    * @see Cache#Cache()
    */
-  @Experimental
   public static synchronized void resetCache() {
     CACHE.set(new Cache());
   }
@@ -857,8 +860,7 @@ public class PipelineOptionsFactory {
    *
    * <p>TODO: Swap back to using Introspector once the proxy class issue with AppEngine is resolved.
    */
-  private static List<PropertyDescriptor> getPropertyDescriptors(
-      Set<Method> methods, Class<? extends PipelineOptions> beanClass)
+  private static List<PropertyDescriptor> getPropertyDescriptors(Set<Method> methods)
       throws IntrospectionException {
     SortedMap<String, Method> propertyNamesToGetters = new TreeMap<>();
     for (Map.Entry<String, Method> entry :
@@ -1012,7 +1014,7 @@ public class PipelineOptionsFactory {
             .filter(input1 -> !Modifier.isStatic(input1.getModifiers()))
             .collect(ImmutableSortedSet.toImmutableSortedSet(MethodComparator.INSTANCE));
 
-    List<PropertyDescriptor> descriptors = getPropertyDescriptors(allInterfaceMethods, iface);
+    List<PropertyDescriptor> descriptors = getPropertyDescriptors(allInterfaceMethods);
 
     // Verify that all method annotations are valid.
     validateMethodAnnotations(allInterfaceMethods, descriptors);
@@ -1728,16 +1730,23 @@ public class PipelineOptionsFactory {
       BeanProperty prop = createBeanProperty(method);
       AnnotatedMember annotatedMethod = prop.getMember();
 
+      DefaultDeserializationContext context = DESERIALIZATION_CONTEXT.get();
       Object maybeDeserializerClass =
-          DESERIALIZATION_CONTEXT.getAnnotationIntrospector().findDeserializer(annotatedMethod);
+          context.getAnnotationIntrospector().findDeserializer(annotatedMethod);
 
       JsonDeserializer<Object> jsonDeserializer =
-          DESERIALIZATION_CONTEXT.deserializerInstance(annotatedMethod, maybeDeserializerClass);
+          context.deserializerInstance(annotatedMethod, maybeDeserializerClass);
 
       if (jsonDeserializer == null) {
-        jsonDeserializer =
-            DESERIALIZATION_CONTEXT.findContextualValueDeserializer(prop.getType(), prop);
+        jsonDeserializer = context.findContextualValueDeserializer(prop.getType(), prop);
       }
+
+      TypeDeserializer typeDeserializer =
+          context.getFactory().findTypeDeserializer(context.getConfig(), prop.getType());
+      if (typeDeserializer != null) {
+        jsonDeserializer = new TypeWrappedDeserializer(typeDeserializer, jsonDeserializer);
+      }
+
       return jsonDeserializer;
     } catch (JsonMappingException e) {
       throw new RuntimeException(e);
@@ -1793,7 +1802,7 @@ public class PipelineOptionsFactory {
     parser.nextToken();
 
     JsonDeserializer<Object> jsonDeserializer = getDeserializerForMethod(method);
-    return jsonDeserializer.deserialize(parser, DESERIALIZATION_CONTEXT);
+    return jsonDeserializer.deserialize(parser, DESERIALIZATION_CONTEXT.get());
   }
 
   /**
@@ -2166,7 +2175,7 @@ public class PipelineOptionsFactory {
       // Validate that the local view of the class is well formed.
       if (!interfaceCache.containsKey(iface)) {
         @SuppressWarnings({
-          "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+          "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
           "unchecked"
         })
         Class<T> proxyClass =

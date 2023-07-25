@@ -33,7 +33,6 @@ import java.util.Map;
 import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
-import org.apache.beam.runners.dataflow.worker.BatchModeExecutionContext;
 import org.apache.beam.runners.dataflow.worker.DataflowOperationContext.DataflowExecutionState;
 import org.apache.beam.runners.dataflow.worker.ExperimentContext.Experiment;
 import org.apache.beam.runners.dataflow.worker.TestOperationContext.TestDataflowExecutionState;
@@ -42,6 +41,7 @@ import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.common.Reiterator;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -51,13 +51,12 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link GroupingShuffleEntryIterator}. */
 @RunWith(JUnit4.class)
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class GroupingShuffleEntryIteratorTest {
   private static final ByteArrayShufflePosition START_POSITION =
@@ -132,9 +131,9 @@ public class GroupingShuffleEntryIteratorTest {
     return new ShuffleEntry(
         /* use key itself as position */
         ByteArrayShufflePosition.of(key.getBytes(Charsets.UTF_8)),
-        key.getBytes(Charsets.UTF_8),
-        new byte[0],
-        value.getBytes(Charsets.UTF_8));
+        ByteString.copyFrom(key.getBytes(Charsets.UTF_8)),
+        ByteString.copyFrom(new byte[0]),
+        ByteString.copyFrom(value.getBytes(Charsets.UTF_8)));
   }
 
   @Test
@@ -146,8 +145,6 @@ public class GroupingShuffleEntryIteratorTest {
     options
         .as(DataflowPipelineDebugOptions.class)
         .setExperiments(Lists.newArrayList(Experiment.IntertransformIO.getName()));
-    BatchModeExecutionContext spyExecutionContext =
-        Mockito.spy(BatchModeExecutionContext.forTesting(options, "STAGE"));
 
     ArrayList<ShuffleEntry> entries = new ArrayList<>();
     entries.add(shuffleEntry("k1", "v11"));

@@ -28,14 +28,13 @@ import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedTVFScan;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelNode;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.logical.LogicalTableFunctionScan;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexCall;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.logical.LogicalTableFunctionScan;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexCall;
 
 /** Converts TVFScan. */
 @SuppressWarnings({
-  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-  "rawtypes"
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class TVFScanConverter extends RelConverter<ResolvedTVFScan> {
 
@@ -68,7 +67,7 @@ class TVFScanConverter extends RelConverter<ResolvedTVFScan> {
 
   @Override
   public List<ResolvedNode> getInputs(ResolvedTVFScan zetaNode) {
-    List<ResolvedNode> inputs = new ArrayList();
+    List<ResolvedNode> inputs = new ArrayList<>();
     if (zetaNode.getTvf() != null
         && context
             .getUserDefinedTableValuedFunctions()

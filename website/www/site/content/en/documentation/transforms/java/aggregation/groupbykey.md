@@ -18,7 +18,7 @@ limitations under the License.
 <table align="left">
     <a target="_blank" class="button"
         href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/transforms/GroupByKey.html">
-      <img src="https://beam.apache.org/images/logos/sdks/java.png" width="20px" height="20px"
+      <img src="/images/logos/sdks/java.png" width="20px" height="20px"
            alt="Javadoc" />
      Javadoc
     </a>
@@ -36,10 +36,10 @@ windowing or triggering is necessary when processing unbounded collections.
 See more information in the [Beam Programming Guide](/documentation/programming-guide/#groupbykey).
 
 ## Examples
-**Example 1**: (a, 1), (b, 2), (a, 3) will result into (a, [1, 3]), (b, [2]).
 
-**Example 2**: Given a collection of customer orders keyed by postal code,
-you could use `GroupByKey` to get the collection of all orders in each postal code.
+{{< playground height="700px" >}}
+{{< playground_snippet language="java" path="PG_BEAMDOC_SDK_JAVA_GroupByKey" show="main_section" >}}
+{{< /playground >}}
 
 ## Related transforms
 * [CoGroupByKey](/documentation/transforms/java/aggregation/cogroupbykey)

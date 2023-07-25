@@ -70,8 +70,9 @@ class AugmentedPipeline:
   def augmented_pipeline(self) -> beam_runner_api_pb2.Pipeline:
     return self.augment()
 
-  # TODO(BEAM-10708): Support generating a background recording job that
-  # contains unbound source recording transforms only.
+  # TODO(https://github.com/apache/beam/issues/20526): Support generating a
+  # background recording job that contains unbound source recording transforms
+  # only.
   @property
   def background_recording_pipeline(self) -> beam_runner_api_pb2.Pipeline:
     raise NotImplementedError
@@ -123,6 +124,6 @@ class AugmentedPipeline:
           self._context,
           self._cache_manager,
           self._cacheables[writecache_pcoll]).write_cache()
-    # TODO(BEAM-10708): Support streaming, add pruning logic, and integrate
-    # pipeline fragment logic.
+    # TODO(https://github.com/apache/beam/issues/20526): Support streaming, add
+    # pruning logic, and integrate pipeline fragment logic.
     return pipeline

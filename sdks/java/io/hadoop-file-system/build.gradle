@@ -28,26 +28,28 @@ ext.summary = "Library to read and write Hadoop/HDFS file formats from Beam."
 def hadoopVersions = [
     "285": "2.8.5",
     "292": "2.9.2",
-    "2101": "2.10.1",
-    "321": "3.2.1",
+    "2102": "2.10.2",
+    "324": "3.2.4",
 ]
 
 hadoopVersions.each {kv -> configurations.create("hadoopVersion$kv.key")}
 
 dependencies {
-  compile library.java.vendored_guava_26_0_jre
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile library.java.jackson_core
-  compile library.java.jackson_databind
-  compile library.java.slf4j_api
-  provided library.java.hadoop_client
-  provided library.java.hadoop_common
-  provided library.java.hadoop_mapreduce_client_core
-  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
-  testCompile library.java.mockito_core
-  testCompile library.java.junit
-  testCompile library.java.hadoop_minicluster
-  testCompile library.java.hadoop_hdfs_tests
+  implementation library.java.vendored_guava_26_0_jre
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation library.java.jackson_core
+  implementation library.java.jackson_databind
+  implementation library.java.slf4j_api
+  compileOnly library.java.hadoop_client
+  permitUnusedDeclared library.java.hadoop_client
+  compileOnly library.java.hadoop_common
+  compileOnly library.java.hadoop_mapreduce_client_core
+  permitUnusedDeclared library.java.hadoop_mapreduce_client_core
+  testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+  testImplementation library.java.mockito_core
+  testImplementation library.java.junit
+  testImplementation library.java.hadoop_minicluster
+  testImplementation library.java.hadoop_hdfs_tests
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
   hadoopVersions.each {kv ->
@@ -68,13 +70,19 @@ hadoopVersions.each {kv ->
       force "org.apache.hadoop:hadoop-mapreduce-client-core:$kv.value"
       force "org.apache.hadoop:hadoop-minicluster:$kv.value"
       force "org.apache.hadoop:hadoop-hdfs:$kv.value:tests"
+      force "org.apache.hadoop:hadoop-hdfs-client:$kv.value:tests"
       force library.java.slf4j_jdk14
     }
   }
 }
 
 // Hadoop dependencies require old version of Guava (BEAM-11626)
-configurations.all {
+configurations.all (Configuration it) -> {
+  // error-prone requires newer guava, don't override for annotation processing
+  // https://github.com/google/error-prone/issues/2745
+  if (it.name == "annotationProcessor" || it.name =="testAnnotationProcessor") {
+    return
+  }
   resolutionStrategy {
     force 'com.google.guava:guava:25.1-jre'
   }

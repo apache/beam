@@ -22,6 +22,7 @@
 import collections
 import logging
 import sys
+import types
 import typing
 
 from apache_beam.typehints import typehints
@@ -35,6 +36,14 @@ _LOGGER = logging.getLogger(__name__)
 # beam_type is the Beam type the user type should map to.
 _TypeMapEntry = collections.namedtuple(
     '_TypeMapEntry', ['match', 'arity', 'beam_type'])
+
+_BUILTINS_TO_TYPING = {
+    dict: typing.Dict,
+    list: typing.List,
+    tuple: typing.Tuple,
+    set: typing.Set,
+    frozenset: typing.FrozenSet,
+}
 
 
 def _get_args(typ):
@@ -147,10 +156,7 @@ def is_new_type(typ):
   return hasattr(typ, '__supertype__')
 
 
-try:
-  _ForwardRef = typing.ForwardRef  # Python 3.7+
-except AttributeError:
-  _ForwardRef = typing._ForwardRef
+_ForwardRef = typing.ForwardRef  # Python 3.7+
 
 
 def is_forward_ref(typ):
@@ -160,6 +166,41 @@ def is_forward_ref(typ):
 # Mapping from typing.TypeVar/typehints.TypeVariable ids to an object of the
 # other type. Bidirectional mapping preserves typing.TypeVar instances.
 _type_var_cache = {}  # type: typing.Dict[int, typehints.TypeVariable]
+
+
+def convert_builtin_to_typing(typ):
+  """Convert recursively a given builtin to a typing object.
+
+  Args:
+    typ (`builtins`): builtin object that exist in _BUILTINS_TO_TYPING.
+
+  Returns:
+    type: The given builtins converted to a type.
+
+  """
+  if getattr(typ, '__origin__', None) in _BUILTINS_TO_TYPING:
+    args = map(convert_builtin_to_typing, typ.__args__)
+    typ = _BUILTINS_TO_TYPING[typ.__origin__].copy_with(tuple(args))
+  return typ
+
+
+def convert_collections_to_typing(typ):
+  """Converts a given collections.abc type to a typing object.
+
+  Args:
+    typ: an object inheriting from a collections.abc object
+
+  Returns:
+    type: The corresponding typing object.
+  """
+  if hasattr(typ, '__iter__'):
+    if hasattr(typ, '__next__'):
+      typ = typing.Iterator[typ.__args__]
+    elif hasattr(typ, 'send') and hasattr(typ, 'throw'):
+      typ = typing.Generator[typ.__args__]
+    elif _match_is_exactly_iterable(typ):
+      typ = typing.Iterable[typ.__args__]
+  return typ
 
 
 def convert_to_beam_type(typ):
@@ -176,6 +217,21 @@ def convert_to_beam_type(typ):
   Raises:
     ValueError: The type was malformed.
   """
+  # Convert `int | float` to typing.Union[int, float]
+  # pipe operator as Union and types.UnionType are introduced
+  # in Python 3.10.
+  # GH issue: https://github.com/apache/beam/issues/21972
+  if (sys.version_info.major == 3 and
+      sys.version_info.minor >= 10) and (isinstance(typ, types.UnionType)):
+    typ = typing.Union[typ]
+
+  if sys.version_info >= (3, 9) and isinstance(typ, types.GenericAlias):
+    typ = convert_builtin_to_typing(typ)
+
+  if sys.version_info >= (3, 9) and getattr(typ, '__module__',
+                                            None) == 'collections.abc':
+    typ = convert_collections_to_typing(typ)
+
   if isinstance(typ, typing.TypeVar):
     # This is a special case, as it's not parameterized by types.
     # Also, identity must be preserved through conversion (i.e. the same
@@ -189,17 +245,25 @@ def convert_to_beam_type(typ):
     return _type_var_cache[id(typ)]
   elif isinstance(typ, str):
     # Special case for forward references.
-    # TODO(BEAM-8487): Currently unhandled.
+    # TODO(https://github.com/apache/beam/issues/19954): Currently unhandled.
     _LOGGER.info('Converting string literal type hint to Any: "%s"', typ)
+    return typehints.Any
+  elif sys.version_info >= (3, 10) and isinstance(typ, typing.NewType):  # pylint: disable=isinstance-second-argument-not-valid-type
+    # Special case for NewType, where, since Python 3.10, NewType is now a class
+    # rather than a function.
+    # TODO(https://github.com/apache/beam/issues/20076): Currently unhandled.
+    _LOGGER.info('Converting NewType type hint to Any: "%s"', typ)
     return typehints.Any
   elif getattr(typ, '__module__', None) != 'typing':
     # Only translate types from the typing module.
     return typ
 
   type_map = [
-      # TODO(BEAM-9355): Currently unsupported.
+      # TODO(https://github.com/apache/beam/issues/20076): Currently
+      # unsupported.
       _TypeMapEntry(match=is_new_type, arity=0, beam_type=typehints.Any),
-      # TODO(BEAM-8487): Currently unsupported.
+      # TODO(https://github.com/apache/beam/issues/19954): Currently
+      # unsupported.
       _TypeMapEntry(match=is_forward_ref, arity=0, beam_type=typehints.Any),
       _TypeMapEntry(match=is_any, arity=0, beam_type=typehints.Any),
       _TypeMapEntry(
@@ -258,11 +322,11 @@ def convert_to_beam_type(typ):
     elif _match_is_union(typ):
       raise ValueError('Unsupported Union with no arguments.')
     elif _match_issubclass(typing.Generator)(typ):
-      raise ValueError('Unsupported Generator with no arguments.')
+      # Assume a simple generator.
+      args = (typehints.TypeVariable('T_co'), type(None), type(None))
     elif _match_issubclass(typing.Dict)(typ):
       args = (typehints.TypeVariable('KT'), typehints.TypeVariable('VT'))
     elif (_match_issubclass(typing.Iterator)(typ) or
-          _match_issubclass(typing.Generator)(typ) or
           _match_is_exactly_iterable(typ)):
       args = (typehints.TypeVariable('T_co'), )
     else:

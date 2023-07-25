@@ -165,7 +165,7 @@ public class TFRecordIOTest {
 
   @Test
   public void testWriteDisplayData() {
-    // TODO: Java core test failing on windows, https://issues.apache.org/jira/browse/BEAM-10739
+    // TODO: Java core test failing on windows, https://github.com/apache/beam/issues/20469
     assumeFalse(SystemUtils.IS_OS_WINDOWS);
     TFRecordIO.Write write =
         TFRecordIO.write()

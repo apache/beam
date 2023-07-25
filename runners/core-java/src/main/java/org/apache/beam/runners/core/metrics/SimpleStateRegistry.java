@@ -21,14 +21,15 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
 
 /**
  * A Class for registering SimpleExecutionStates with and extracting execution time MonitoringInfos.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class SimpleStateRegistry {
   private List<SimpleExecutionState> executionStates = new ArrayList<SimpleExecutionState>();
@@ -64,12 +65,16 @@ public class SimpleStateRegistry {
     for (SimpleExecutionState state : executionStates) {
       if (state.getTotalMillis() != 0) {
         String shortId = state.getTotalMillisShortId(shortIds);
-        if (result.containsKey(shortId)) {
-          // This can happen due to flatten unzipping.
-          result.put(shortId, state.mergeTotalMillisPayload(result.get(shortId)));
-        } else {
-          result.put(shortId, state.getTotalMillisPayload());
-        }
+        result.compute(
+            shortId,
+            (String k, @Nullable ByteString existing) -> {
+              if (existing != null) {
+                // This can happen due to flatten unzipping.
+                return state.mergeTotalMillisPayload(existing);
+              } else {
+                return state.getTotalMillisPayload();
+              }
+            });
       }
     }
     return result;

@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.state;
 
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -41,7 +39,6 @@ import org.joda.time.Instant;
  * <p>Timer callbacks are not guaranteed to be called immediately according to the local view of the
  * {@link TimeDomain}, but will be called at some time after the requested time, in timestamp order.
  */
-@Experimental(Kind.TIMERS)
 public interface Timer {
   /**
    * Sets or resets the time in the timer's {@link TimeDomain} at which it should fire. If the timer
@@ -98,6 +95,12 @@ public interface Timer {
    * the timer fires.
    */
   Timer withOutputTimestamp(Instant outputTime);
+
+  /**
+   * Asserts that there is no output timestamp. The output watermark will not be held up, and it is
+   * illegal to output messages from this timer using the default output timestamp.
+   */
+  Timer withNoOutputTimestamp();
 
   /**
    * Returns the current relative time used by {@link #setRelative()} and {@link #offset}. This can

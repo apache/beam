@@ -17,8 +17,8 @@ package test
 
 import (
 	"beam.apache.org/learning/katas/core_transforms/groupbykey/groupbykey/pkg/task"
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 	"github.com/google/go-cmp/cmp"
 	"testing"
 )

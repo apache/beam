@@ -22,8 +22,12 @@ files:
 - name: task.py
   visible: true
   placeholders:
-  - offset: 981
-    length: 65
-    placeholder_text: '| TODO()'
-- name: tests.py
+  - offset: 1170
+    length: 63
+    placeholder_text: TODO()
+- name: tests/test_task.py
+  visible: false
+- name: __init__.py
+  visible: false
+- name: tests/__init__.py
   visible: false

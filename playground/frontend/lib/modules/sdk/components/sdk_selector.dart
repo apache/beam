@@ -17,49 +17,57 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/config/theme.dart';
-import 'package:playground/constants/sizes.dart';
-import 'package:playground/modules/sdk/models/sdk.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:playground_components/playground_components.dart';
+import 'package:provider/provider.dart';
 
-typedef SetSdk = void Function(SDK sdk);
+import '../../../constants/sizes.dart';
+import 'sdk_selector_row.dart';
+
+const double _width = 150;
 
 class SDKSelector extends StatelessWidget {
-  final SDK sdk;
-  final SetSdk setSdk;
+  final ValueChanged<Sdk> onChanged;
+  final Sdk? value;
 
-  const SDKSelector({Key? key, required this.sdk, required this.setSdk})
-      : super(key: key);
+  const SDKSelector({
+    required this.onChanged,
+    required this.value,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        vertical: kZeroSpacing,
-        horizontal: kLgSpacing,
-      ),
-      decoration: BoxDecoration(
-        color: ThemeColors.of(context).greyColor,
-        borderRadius: BorderRadius.circular(kBorderRadius),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<SDK>(
-          value: sdk,
-          icon: const Icon(Icons.keyboard_arrow_down),
-          iconSize: kIconSizeMd,
-          elevation: kElevation,
-          borderRadius: BorderRadius.circular(kBorderRadius),
-          alignment: Alignment.bottomCenter,
-          onChanged: (SDK? newSdk) {
-            if (newSdk != null) {
-              setSdk(newSdk);
-            }
-          },
-          items: SDK.values.map<DropdownMenuItem<SDK>>((SDK value) {
-            return DropdownMenuItem<SDK>(
-              value: value,
-              child: Text(value.displayName),
-            );
-          }).toList(),
+    final localizations = AppLocalizations.of(context)!;
+    final text = value == null
+        ? localizations.selectSdkPlaceholder
+        : 'SDK: ${value?.title}';
+
+    return Semantics(
+      container: true,
+      button: true,
+      label: localizations.selectSdkDropdownSemantics,
+      child: Consumer<PlaygroundController>(
+        builder: (context, controller, child) => AppDropdownButton(
+          buttonText: Text(text),
+          createDropdown: (close) => Column(
+            children: [
+              const SizedBox(height: kMdSpacing),
+              ...Sdk.known.map((Sdk value) {
+                return SizedBox(
+                  width: double.infinity,
+                  child: SdkSelectorRow(
+                    sdk: value,
+                    onSelect: () {
+                      close();
+                      onChanged(value);
+                    },
+                  ),
+                );
+              }),
+              const SizedBox(height: kMdSpacing),
+            ],
+          ),
+          width: _width,
         ),
       ),
     );

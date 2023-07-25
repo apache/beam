@@ -46,12 +46,16 @@ class MonotonicWatermarkEstimatorTest(unittest.TestCase):
     self.assertEqual(watermark_estimator.current_watermark(), Timestamp(20))
     watermark_estimator.observe_timestamp(Timestamp(20))
     self.assertEqual(watermark_estimator.current_watermark(), Timestamp(20))
-    with self.assertRaises(ValueError):
-      watermark_estimator.observe_timestamp(Timestamp(10))
+    watermark_estimator.observe_timestamp(Timestamp(10))
+    self.assertEqual(watermark_estimator.current_watermark(), Timestamp(20))
 
   def test_get_estimator_state(self):
     watermark_estimator = MonotonicWatermarkEstimator(Timestamp(10))
+    self.assertEqual(watermark_estimator.get_estimator_state(), Timestamp(10))
     watermark_estimator.observe_timestamp(Timestamp(15))
+    # State only progresses when we request a new watermark
+    self.assertEqual(watermark_estimator.get_estimator_state(), Timestamp(10))
+    self.assertEqual(watermark_estimator.current_watermark(), Timestamp(15))
     self.assertEqual(watermark_estimator.get_estimator_state(), Timestamp(15))
 
 

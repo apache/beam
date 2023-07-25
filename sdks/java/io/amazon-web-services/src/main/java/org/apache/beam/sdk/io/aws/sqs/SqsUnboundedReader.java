@@ -23,6 +23,7 @@ import static java.util.stream.Collectors.toMap;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.amazonaws.services.sqs.AmazonSQS;
+import com.amazonaws.services.sqs.AmazonSQSClientBuilder;
 import com.amazonaws.services.sqs.model.BatchResultErrorEntry;
 import com.amazonaws.services.sqs.model.ChangeMessageVisibilityBatchRequestEntry;
 import com.amazonaws.services.sqs.model.ChangeMessageVisibilityBatchResult;
@@ -40,7 +41,6 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -57,11 +57,14 @@ import java.util.stream.IntStream;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.Max;
+import org.apache.beam.sdk.transforms.Min;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.BucketingFunction;
 import org.apache.beam.sdk.util.MovingFunction;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.EvictingQueue;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.joda.time.Duration;
@@ -70,10 +73,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class SqsUnboundedReader extends UnboundedSource.UnboundedReader<Message> {
   private static final Logger LOG = LoggerFactory.getLogger(SqsUnboundedReader.class);
+
+  /** Request time attribute in {@link Message#getMessageAttributes()}. */
+  static final String REQUEST_TIME = "requestTimeMsSinceEpoch";
 
   /** Maximum number of messages to pull from SQS per request. */
   public static final int MAX_NUMBER_OF_MESSAGES = 10;
@@ -129,33 +135,9 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<Message> {
    */
   private static final int MIN_WATERMARK_SPREAD = 2;
 
-  // TODO: Would prefer to use MinLongFn but it is a BinaryCombineFn<Long> rather
-  // than a BinaryCombineLongFn. [BEAM-285]
-  private static final Combine.BinaryCombineLongFn MIN =
-      new Combine.BinaryCombineLongFn() {
-        @Override
-        public long apply(long left, long right) {
-          return Math.min(left, right);
-        }
+  private static final Combine.BinaryCombineLongFn MIN = Min.ofLongs();
 
-        @Override
-        public long identity() {
-          return Long.MAX_VALUE;
-        }
-      };
-
-  private static final Combine.BinaryCombineLongFn MAX =
-      new Combine.BinaryCombineLongFn() {
-        @Override
-        public long apply(long left, long right) {
-          return Math.max(left, right);
-        }
-
-        @Override
-        public long identity() {
-          return Long.MIN_VALUE;
-        }
-      };
+  private static final Combine.BinaryCombineLongFn MAX = Max.ofLongs();
 
   private static final Combine.BinaryCombineLongFn SUM = Sum.ofLongs();
 
@@ -167,6 +149,9 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<Message> {
    * closed, and it will have a non-null value within {@link #SqsUnboundedReader}.
    */
   private AtomicBoolean active = new AtomicBoolean(true);
+
+  /** SQS client of this reader instance. */
+  private AmazonSQS sqsClient = null;
 
   /** The current message, or {@literal null} if none. */
   private Message current;
@@ -361,6 +346,7 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<Message> {
 
     if (sqsCheckpointMark != null) {
       long nowMsSinceEpoch = now();
+      initClient();
       extendBatch(nowMsSinceEpoch, sqsCheckpointMark.notYetReadReceipts, 0);
       numReleased.add(nowMsSinceEpoch, sqsCheckpointMark.notYetReadReceipts.size());
     }
@@ -446,8 +432,7 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<Message> {
     List<String> requestAttributes =
         Collections.singletonList(QueueAttributeName.ApproximateNumberOfMessages.toString());
     Map<String, String> queueAttributes =
-        source
-            .getSqs()
+        sqsClient
             .getQueueAttributes(source.getRead().queueUrl(), requestAttributes)
             .getAttributes();
     long numMessages =
@@ -464,10 +449,10 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<Message> {
 
   @Override
   public boolean start() throws IOException {
+    initClient();
     visibilityTimeoutMs =
         Integer.parseInt(
-                source
-                    .getSqs()
+                sqsClient
                     .getQueueAttributes(
                         new GetQueueAttributesRequest(source.getRead().queueUrl())
                             .withAttributeNames("VisibilityTimeout"))
@@ -475,6 +460,17 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<Message> {
                     .get("VisibilityTimeout"))
             * 1000L;
     return advance();
+  }
+
+  private void initClient() {
+    if (sqsClient == null) {
+      sqsClient =
+          AmazonSQSClientBuilder.standard()
+              .withClientConfiguration(source.getSqsConfiguration().getClientConfiguration())
+              .withCredentials(source.getSqsConfiguration().getAwsCredentialsProvider())
+              .withRegion(source.getSqsConfiguration().getAwsRegion())
+              .build();
+    }
   }
 
   @Override
@@ -549,9 +545,8 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<Message> {
     if (!active.get() && numInFlightCheckpoints.get() == 0) {
       // The reader has been closed and it has no more outstanding checkpoints. The client
       // must be closed so it doesn't leak
-      AmazonSQS client = source.getSqs();
-      if (client != null) {
-        client.shutdown();
+      if (sqsClient != null) {
+        sqsClient.shutdown();
       }
     }
   }
@@ -602,7 +597,7 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<Message> {
               .collect(Collectors.toList());
 
       DeleteMessageBatchResult result =
-          source.getSqs().deleteMessageBatch(source.getRead().queueUrl(), entries);
+          sqsClient.deleteMessageBatch(source.getRead().queueUrl(), entries);
 
       // Retry errors except invalid handles
       Set<BatchResultErrorEntry> retryErrors =
@@ -662,7 +657,7 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<Message> {
     receiveMessageRequest.setAttributeNames(
         Arrays.asList(MessageSystemAttributeName.SentTimestamp.toString()));
     final ReceiveMessageResult receiveMessageResult =
-        source.getSqs().receiveMessage(receiveMessageRequest);
+        sqsClient.receiveMessage(receiveMessageRequest);
 
     final List<Message> messages = receiveMessageResult.getMessages();
 
@@ -675,8 +670,10 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<Message> {
 
     // Capture the received messages.
     for (Message message : messages) {
-      // The Message class does not contain request time.
-      setRequestTimeMsSinceEpoch(message, requestTimeMsSinceEpoch);
+      // Keep request time as message attribute for later usage
+      MessageAttributeValue reqTime =
+          new MessageAttributeValue().withStringValue(Long.toString(requestTimeMsSinceEpoch));
+      message.setMessageAttributes(ImmutableMap.of(REQUEST_TIME, reqTime));
       messagesNotYetRead.add(message);
       notYetReadBytes += message.getBody().getBytes(UTF_8).length;
       inFlight.put(
@@ -685,12 +682,11 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<Message> {
               message.getReceiptHandle(), requestTimeMsSinceEpoch, deadlineMsSinceEpoch));
       numReceived++;
       numReceivedRecently.add(requestTimeMsSinceEpoch, 1L);
-      minReceivedTimestampMsSinceEpoch.add(
-          requestTimeMsSinceEpoch, getTimestamp(message).getMillis());
-      maxReceivedTimestampMsSinceEpoch.add(
-          requestTimeMsSinceEpoch, getTimestamp(message).getMillis());
-      minUnreadTimestampMsSinceEpoch.add(
-          requestTimeMsSinceEpoch, getTimestamp(message).getMillis());
+
+      long timestampMillis = getTimestamp(message).getMillis();
+      minReceivedTimestampMsSinceEpoch.add(requestTimeMsSinceEpoch, timestampMillis);
+      maxReceivedTimestampMsSinceEpoch.add(requestTimeMsSinceEpoch, timestampMillis);
+      minUnreadTimestampMsSinceEpoch.add(requestTimeMsSinceEpoch, timestampMillis);
     }
   }
 
@@ -827,7 +823,7 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<Message> {
               .collect(Collectors.toList());
 
       ChangeMessageVisibilityBatchResult result =
-          source.getSqs().changeMessageVisibilityBatch(source.getRead().queueUrl(), entries);
+          sqsClient.changeMessageVisibilityBatch(source.getRead().queueUrl(), entries);
 
       // Retry errors except invalid handles
       Set<BatchResultErrorEntry> retryErrors =
@@ -941,22 +937,8 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<Message> {
             message.getAttributes().get(MessageSystemAttributeName.SentTimestamp.toString())));
   }
 
-  /**
-   * Since SQS Message instances does not hold the request timestamp, store a new message attribute
-   * as the given {@code requestTimeMsSinceEpoch}.
-   */
-  private void setRequestTimeMsSinceEpoch(
-      final Message message, final long requestTimeMsSinceEpoch) {
-    Map<String, MessageAttributeValue> attributes = new HashMap<>();
-    attributes.put(
-        "requestTimeMsSinceEpoch",
-        new MessageAttributeValue().withStringValue(Long.toString(requestTimeMsSinceEpoch)));
-    message.setMessageAttributes(attributes);
-  }
-
   /** Extract the request timestamp from the given {@code message}. */
   private Long getRequestTimeMsSinceEpoch(final Message message) {
-    return Long.parseLong(
-        message.getMessageAttributes().get("requestTimeMsSinceEpoch").getStringValue());
+    return Long.parseLong(message.getMessageAttributes().get(REQUEST_TIME).getStringValue());
   }
 }

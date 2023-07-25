@@ -19,13 +19,19 @@ package org.apache.beam.runners.flink;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import java.util.Map;
 import org.apache.beam.runners.core.construction.resources.PipelineResources;
+import org.apache.beam.runners.core.metrics.MetricsPusher;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.metrics.MetricsOptions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,7 +44,7 @@ import org.slf4j.LoggerFactory;
  * (translated) job.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class FlinkPipelineExecutionEnvironment {
 
@@ -96,18 +102,14 @@ class FlinkPipelineExecutionEnvironment {
 
     FlinkPipelineTranslator translator;
     if (options.isStreaming()) {
-      this.flinkStreamEnv =
-          FlinkExecutionEnvironments.createStreamExecutionEnvironment(
-              options, options.getFilesToStage());
+      this.flinkStreamEnv = FlinkExecutionEnvironments.createStreamExecutionEnvironment(options);
       if (hasUnboundedOutput && !flinkStreamEnv.getCheckpointConfig().isCheckpointingEnabled()) {
         LOG.warn(
             "UnboundedSources present which rely on checkpointing, but checkpointing is disabled.");
       }
       translator = new FlinkStreamingPipelineTranslator(flinkStreamEnv, options);
     } else {
-      this.flinkBatchEnv =
-          FlinkExecutionEnvironments.createBatchExecutionEnvironment(
-              options, options.getFilesToStage());
+      this.flinkBatchEnv = FlinkExecutionEnvironments.createBatchExecutionEnvironment(options);
       translator = new FlinkBatchPipelineTranslator(flinkBatchEnv, options);
     }
 
@@ -130,16 +132,54 @@ class FlinkPipelineExecutionEnvironment {
   }
 
   /** Launches the program execution. */
-  public JobExecutionResult executePipeline() throws Exception {
+  public PipelineResult executePipeline() throws Exception {
     final String jobName = options.getJobName();
 
     if (flinkBatchEnv != null) {
-      return flinkBatchEnv.execute(jobName);
+      if (options.getAttachedMode()) {
+        JobExecutionResult jobExecutionResult = flinkBatchEnv.execute(jobName);
+        return createAttachedPipelineResult(jobExecutionResult);
+      } else {
+        JobClient jobClient = flinkBatchEnv.executeAsync(jobName);
+        return createDetachedPipelineResult(jobClient, options);
+      }
     } else if (flinkStreamEnv != null) {
-      return flinkStreamEnv.execute(jobName);
+      if (options.getAttachedMode()) {
+        JobExecutionResult jobExecutionResult = flinkStreamEnv.execute(jobName);
+        return createAttachedPipelineResult(jobExecutionResult);
+      } else {
+        JobClient jobClient = flinkStreamEnv.executeAsync(jobName);
+        return createDetachedPipelineResult(jobClient, options);
+      }
     } else {
       throw new IllegalStateException("The Pipeline has not yet been translated.");
     }
+  }
+
+  private FlinkDetachedRunnerResult createDetachedPipelineResult(
+      JobClient jobClient, FlinkPipelineOptions options) {
+    LOG.info("Pipeline submitted in detached mode");
+    return new FlinkDetachedRunnerResult(jobClient, options.getJobCheckIntervalInSecs());
+  }
+
+  private FlinkRunnerResult createAttachedPipelineResult(JobExecutionResult result) {
+    LOG.info("Execution finished in {} msecs", result.getNetRuntime());
+    Map<String, Object> accumulators = result.getAllAccumulatorResults();
+    if (accumulators != null && !accumulators.isEmpty()) {
+      LOG.info("Final accumulator values:");
+      for (Map.Entry<String, Object> entry : result.getAllAccumulatorResults().entrySet()) {
+        LOG.info("{} : {}", entry.getKey(), entry.getValue());
+      }
+    }
+    FlinkRunnerResult flinkRunnerResult =
+        new FlinkRunnerResult(accumulators, result.getNetRuntime());
+    MetricsPusher metricsPusher =
+        new MetricsPusher(
+            flinkRunnerResult.getMetricsContainerStepMap(),
+            options.as(MetricsOptions.class),
+            flinkRunnerResult);
+    metricsPusher.start();
+    return flinkRunnerResult;
   }
 
   /**
@@ -149,7 +189,11 @@ class FlinkPipelineExecutionEnvironment {
   @VisibleForTesting
   JobGraph getJobGraph(Pipeline p) {
     translate(p);
-    return flinkStreamEnv.getStreamGraph().getJobGraph();
+    StreamGraph streamGraph = flinkStreamEnv.getStreamGraph();
+    // Normally the job name is set when we execute the job, and JobGraph is immutable, so we need
+    // to set the job name here.
+    streamGraph.setJobName(p.getOptions().getJobName());
+    return streamGraph.getJobGraph();
   }
 
   @VisibleForTesting

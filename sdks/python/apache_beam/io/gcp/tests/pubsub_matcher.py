@@ -104,6 +104,7 @@ class PubSubMessageMatcher(BaseMatcher):
     self.expected_msg_len = expected_msg_len or len(self.expected_msg)
     self.timeout = timeout
     self.messages = None
+    self.messages_all_details = None
     self.with_attributes = with_attributes
     self.strip_attributes = strip_attributes
     self.sleep_time = sleep_time
@@ -112,7 +113,7 @@ class PubSubMessageMatcher(BaseMatcher):
 
   def _matches(self, _):
     if self.messages is None:
-      self.messages = self._wait_for_messages(
+      self.messages, self.messages_all_details = self._wait_for_messages(
           self.expected_msg_len, self.timeout)
     if self.expected_msg:
       return Counter(self.messages) == Counter(self.expected_msg)
@@ -122,19 +123,26 @@ class PubSubMessageMatcher(BaseMatcher):
   def _wait_for_messages(self, expected_num, timeout):
     """Wait for messages from given subscription."""
     total_messages = []
+    total_messages_all_details = []
 
     sub_client = pubsub.SubscriberClient()
     start_time = time.time()
     while time.time() - start_time <= timeout:
       response = sub_client.pull(
-          self.sub_name,
+          subscription=self.sub_name,
           max_messages=self.max_messages_in_one_pull,
-          return_immediately=True,
           timeout=self.pull_timeout)
       for rm in response.received_messages:
         msg = PubsubMessage._from_message(rm.message)
+        full_message = (
+            msg.data,
+            msg.attributes,
+            msg.attributes,
+            msg.publish_time,
+            msg.ordering_key)
         if not self.with_attributes:
           total_messages.append(msg.data)
+          total_messages_all_details.append(full_message)
           continue
 
         if self.strip_attributes:
@@ -146,10 +154,11 @@ class PubSubMessageMatcher(BaseMatcher):
                   'PubSubMessageMatcher error: '
                   'expected attribute not found.')
         total_messages.append(msg)
+        total_messages_all_details.append(full_message)
 
       ack_ids = [rm.ack_id for rm in response.received_messages]
       if ack_ids:
-        sub_client.acknowledge(self.sub_name, ack_ids)
+        sub_client.acknowledge(subscription=self.sub_name, ack_ids=ack_ids)
       if len(total_messages) >= expected_num:
         break
       time.sleep(self.sleep_time)
@@ -160,7 +169,7 @@ class PubSubMessageMatcher(BaseMatcher):
           timeout,
           len(total_messages),
           self.sub_name)
-    return total_messages
+    return total_messages, total_messages_all_details
 
   def describe_to(self, description):
     description.append_text('Expected %d messages.' % self.expected_msg_len)
@@ -170,11 +179,25 @@ class PubSubMessageMatcher(BaseMatcher):
     c_actual = Counter(self.messages)
     mismatch_description.append_text("Got %d messages. " % (len(self.messages)))
     if self.expected_msg:
+      expected = (c_expected - c_actual).items()
+      unexpected = (c_actual - c_expected).items()
+      unexpected_keys = [repr(item[0]) for item in unexpected]
+      if self.with_attributes:
+        unexpected_all_details = [
+            x for x in self.messages_all_details
+            if 'PubsubMessage(%s, %s)' % (repr(x[0]), x[1]) in unexpected_keys
+        ]
+      else:
+        unexpected_all_details = [
+            x for x in self.messages_all_details
+            if repr(x[0]) in unexpected_keys
+        ]
       mismatch_description.append_text(
           "Diffs (item, count):\n"
           "  Expected but not in actual: %s\n"
-          "  Unexpected: %s" % ((c_expected - c_actual).items(),
-                                (c_actual - c_expected).items()))
+          "  Unexpected: %s\n"
+          "  Unexpected (with all details): %s" %
+          (expected, unexpected, unexpected_all_details))
     if self.with_attributes and self.strip_attributes:
       mismatch_description.append_text(
           '\n  Stripped attributes: %r' % self.strip_attributes)

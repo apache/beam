@@ -21,11 +21,15 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 )
 
-//go:generate go install github.com/apache/beam/sdks/v2/go/cmd/starcgen
-//go:generate starcgen --package=filter --identifiers=filterFn,mapFn,mergeFn
-//go:generate go fmt
+func init() {
+	register.DoFn2x0[beam.T, func(beam.T)]((*filterFn)(nil))
+	register.Function1x2(mapFn)
+	register.Function2x1(mergeFn)
+	register.Emitter1[beam.T]()
+}
 
 var (
 	sig = funcx.MakePredicate(beam.TType) // T -> bool
@@ -36,13 +40,13 @@ var (
 // the filter function returns false. It returns a PCollection of the same type
 // as the input. For example:
 //
-//    words := beam.Create(s, "a", "b", "long", "alsolong")
-//    short := filter.Include(s, words, func(s string) bool {
-//        return len(s) < 3
-//    })
+//	words := beam.Create(s, "a", "b", "long", "alsolong")
+//	short := filter.Include(s, words, func(s string) bool {
+//	    return len(s) < 3
+//	})
 //
 // Here, "short" will contain "a" and "b" at runtime.
-func Include(s beam.Scope, col beam.PCollection, fn interface{}) beam.PCollection {
+func Include(s beam.Scope, col beam.PCollection, fn any) beam.PCollection {
 	s = s.Scope("filter.Include")
 
 	funcx.MustSatisfy(fn, funcx.Replace(sig, beam.TType, col.Type().Type()))
@@ -54,13 +58,13 @@ func Include(s beam.Scope, col beam.PCollection, fn interface{}) beam.PCollectio
 // the filter function returns true. It returns a PCollection of the same type
 // as the input. For example:
 //
-//    words := beam.Create(s, "a", "b", "long", "alsolong")
-//    long := filter.Exclude(s, words, func(s string) bool {
-//        return len(s) < 3
-//    })
+//	words := beam.Create(s, "a", "b", "long", "alsolong")
+//	long := filter.Exclude(s, words, func(s string) bool {
+//	    return len(s) < 3
+//	})
 //
 // Here, "long" will contain "long" and "alsolong" at runtime.
-func Exclude(s beam.Scope, col beam.PCollection, fn interface{}) beam.PCollection {
+func Exclude(s beam.Scope, col beam.PCollection, fn any) beam.PCollection {
 	s = s.Scope("filter.Exclude")
 
 	funcx.MustSatisfy(fn, funcx.Replace(sig, beam.TType, col.Type().Type()))

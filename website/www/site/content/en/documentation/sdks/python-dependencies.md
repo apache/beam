@@ -32,7 +32,7 @@ Dependencies for your Beam SDK version are listed in `setup.py` in the Beam repo
     https://raw.githubusercontent.com/apache/beam/v<VERSION_NUMBER>/sdks/python/setup.py
     ```
 
-    Replace `<VERSION_NUMBER>` with the major.minor.patch version of the SDK. For example, <a href="ttps://raw.githubusercontent.com/apache/beam/v{{< param release_latest >}}/sdks/python/setup.py" target="_blank">https://raw.githubusercontent.com/apache/beam/v{{< param release_latest >}}/sdks/python/setup.py</a> will provide the dependencies for the {{< param release_latest >}} release.
+    <p class="paragraph-wrap">Replace `<VERSION_NUMBER>` with the major.minor.patch version of the SDK. For example, <a href="ttps://raw.githubusercontent.com/apache/beam/v{{< param release_latest >}}/sdks/python/setup.py" target="_blank" rel="noopener noreferrer">https://raw.githubusercontent.com/apache/beam/v{{< param release_latest >}}/sdks/python/setup.py</a> will provide the dependencies for the {{< param release_latest >}} release.</p>
 
 
 2. Review the core dependency list under `REQUIRED_PACKAGES`.
@@ -44,7 +44,7 @@ You can also retrieve the dependency list from the command line using the follow
 1.  Create a clean virtual environment on your local machine using a supported python version.
 
     ```
-    $ python -m venv env && source env/bin/activate
+    $ python3 -m venv env && source ./env/bin/activate && pip install --upgrade pip setuptools wheel
     ```
 
 2. [Install the Beam Python SDK](/get-started/quickstart-py/#download-and-install).

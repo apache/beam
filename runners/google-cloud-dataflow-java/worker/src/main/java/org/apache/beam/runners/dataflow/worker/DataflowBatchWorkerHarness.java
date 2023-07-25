@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
+import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.sdk.fn.JvmInitializers;
 import org.apache.beam.sdk.io.FileSystems;
@@ -63,6 +64,12 @@ public class DataflowBatchWorkerHarness {
             DataflowBatchWorkerHarness.class);
     DataflowBatchWorkerHarness batchHarness = new DataflowBatchWorkerHarness(pipelineOptions);
     DataflowWorkerHarnessHelper.configureLogging(pipelineOptions);
+
+    checkArgument(
+        !DataflowRunner.hasExperiment(pipelineOptions, "beam_fn_api"),
+        "%s cannot be main() class with beam_fn_api enabled",
+        DataflowBatchWorkerHarness.class.getSimpleName());
+
     JvmInitializers.runBeforeProcessing(pipelineOptions);
     batchHarness.run();
   }
@@ -141,7 +148,7 @@ public class DataflowBatchWorkerHarness {
         LOG.debug("{} processing one WorkItem.", success ? "Finished" : "Failed");
         return success;
       } catch (IOException e) { // If there is a problem getting work.
-        LOG.debug("There was a problem getting work.", e);
+        LOG.info("There was a problem getting work.", e);
         return false;
       } catch (Exception e) { // These exceptions are caused by bugs within the SDK
         LOG.error("There was an unhandled error caused by the Dataflow SDK.", e);

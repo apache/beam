@@ -45,6 +45,7 @@ from apache_beam.io.gcp.internal.clients import storage
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions  # pylint: disable=unused-import
 from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.options.pipeline_options import WorkerOptions
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.dataflow.internal.clients import cloudbuild
@@ -74,7 +75,7 @@ class SdkContainerImageBuilder(plugin.BeamPlugin):
         beam_version.__version__
         if 'dev' not in beam_version.__version__ else 'latest')
     self._base_image = (
-        self._options.view_as(SetupOptions).prebuild_sdk_container_base_image or
+        self._options.view_as(WorkerOptions).sdk_container_image or
         'apache/beam_python%s.%s_sdk:%s' %
         (sys.version_info[0], sys.version_info[1], version))
     self._temp_src_dir = None
@@ -97,7 +98,7 @@ class SdkContainerImageBuilder(plugin.BeamPlugin):
       resources = Stager.extract_staging_tuple_iter(artifacts)
       # make a copy of the staged artifacts into the temp source folder.
       file_names = []
-      for path, name in resources:
+      for path, name, _ in resources:
         shutil.copyfile(path, os.path.join(self._temp_src_dir, name))
         file_names.append(name)
       with open(os.path.join(self._temp_src_dir, 'Dockerfile'), 'w') as file:
@@ -203,10 +204,12 @@ class _SdkContainerImageCloudBuilder(SdkContainerImageBuilder):
   def __init__(self, options):
     super().__init__(options)
     self._google_cloud_options = options.view_as(GoogleCloudOptions)
+    self._cloud_build_machine_type = self._get_cloud_build_machine_type_enum(
+        options.view_as(SetupOptions).cloud_build_machine_type)
     if self._google_cloud_options.no_auth:
       credentials = None
     else:
-      credentials = get_service_credentials()
+      credentials = get_service_credentials(options)
     self._storage_client = storage.StorageV1(
         url='https://www.googleapis.com/storage/v1',
         credentials=credentials,
@@ -243,10 +246,19 @@ class _SdkContainerImageCloudBuilder(SdkContainerImageBuilder):
     self._upload_to_gcs(tarball_path, gcs_location)
 
     build = cloudbuild.Build()
+    if self._cloud_build_machine_type:
+      build.options = cloudbuild.BuildOptions()
+      build.options.machineType = self._cloud_build_machine_type
     build.steps = []
     step = cloudbuild.BuildStep()
     step.name = 'gcr.io/kaniko-project/executor:latest'
-    step.args = ['--destination=' + container_image_name, '--cache=true']
+    # Disable compression caching to allow for large images to be cached.
+    # See: https://github.com/GoogleContainerTools/kaniko/issues/1669
+    step.args = [
+        '--destination=' + container_image_name,
+        '--cache=true',
+        '--compressed-caching=false',
+    ]
     step.dir = SOURCE_FOLDER
 
     build.steps.append(step)
@@ -276,6 +288,7 @@ class _SdkContainerImageCloudBuilder(SdkContainerImageBuilder):
         cloudbuild.CloudbuildProjectsBuildsGetRequest(
             id=build_id, projectId=project_id))
     while response.status in [cloudbuild.Build.StatusValueValuesEnum.QUEUED,
+                              cloudbuild.Build.StatusValueValuesEnum.PENDING,
                               cloudbuild.Build.StatusValueValuesEnum.WORKING]:
       time.sleep(10)
       response = self._cloudbuild_client.projects_builds.Get(
@@ -338,3 +351,24 @@ class _SdkContainerImageCloudBuilder(SdkContainerImageBuilder):
   def _make_tarfile(output_filename, source_dir):
     with tarfile.open(output_filename, "w:gz") as tar:
       tar.add(source_dir, arcname=SOURCE_FOLDER)
+
+  @staticmethod
+  def _get_cloud_build_machine_type_enum(machine_type: str):
+    if not machine_type:
+      return None
+    mappings = {
+        'n1-highcpu-8': cloudbuild.BuildOptions.MachineTypeValueValuesEnum.
+        N1_HIGHCPU_8,
+        'n1-highcpu-32': cloudbuild.BuildOptions.MachineTypeValueValuesEnum.
+        N1_HIGHCPU_32,
+        'e2-highcpu-8': cloudbuild.BuildOptions.MachineTypeValueValuesEnum.
+        E2_HIGHCPU_8,
+        'e2-highcpu-32': cloudbuild.BuildOptions.MachineTypeValueValuesEnum.
+        E2_HIGHCPU_32
+    }
+    if machine_type.lower() in mappings:
+      return mappings[machine_type.lower()]
+    else:
+      raise ValueError(
+          'Unknown Cloud Build Machine Type option, please specify one of '
+          '[n1-highcpu-8, n1-highcpu-32, e2-highcpu-8, e2-highcpu-32].')

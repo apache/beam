@@ -33,10 +33,10 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.MapState;
+import org.apache.beam.sdk.state.MultimapState;
 import org.apache.beam.sdk.state.OrderedListState;
 import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.SetState;
@@ -63,7 +63,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>Note: Ignore index of key. Mainly for SideInputs.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class FlinkBroadcastStateInternals<K> implements StateInternals {
 
@@ -102,14 +102,14 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
           public <T2> ValueState<T2> bindValue(StateTag<ValueState<T2>> address, Coder<T2> coder) {
 
             return new FlinkBroadcastValueState<>(
-                stateBackend, address, namespace, coder, pipelineOptions.get());
+                stateBackend, address, namespace, coder, pipelineOptions);
           }
 
           @Override
           public <T2> BagState<T2> bindBag(StateTag<BagState<T2>> address, Coder<T2> elemCoder) {
 
             return new FlinkBroadcastBagState<>(
-                stateBackend, address, namespace, elemCoder, pipelineOptions.get());
+                stateBackend, address, namespace, elemCoder, pipelineOptions);
           }
 
           @Override
@@ -135,6 +135,15 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
           }
 
           @Override
+          public <KeyT, ValueT> MultimapState<KeyT, ValueT> bindMultimap(
+              StateTag<MultimapState<KeyT, ValueT>> spec,
+              Coder<KeyT> keyCoder,
+              Coder<ValueT> valueCoder) {
+            throw new UnsupportedOperationException(
+                String.format("%s is not supported", MultimapState.class.getSimpleName()));
+          }
+
+          @Override
           public <InputT, AccumT, OutputT>
               CombiningState<InputT, AccumT, OutputT> bindCombiningValue(
                   StateTag<CombiningState<InputT, AccumT, OutputT>> address,
@@ -142,7 +151,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
                   Combine.CombineFn<InputT, AccumT, OutputT> combineFn) {
 
             return new FlinkCombiningState<>(
-                stateBackend, address, combineFn, namespace, accumCoder, pipelineOptions.get());
+                stateBackend, address, combineFn, namespace, accumCoder, pipelineOptions);
           }
 
           @Override
@@ -157,7 +166,6 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
                 combineFn,
                 namespace,
                 accumCoder,
-                FlinkBroadcastStateInternals.this,
                 CombineContextFactory.createFromStateContext(context));
           }
 
@@ -188,7 +196,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
         String name,
         StateNamespace namespace,
         Coder<T> coder,
-        PipelineOptions pipelineOptions) {
+        SerializablePipelineOptions pipelineOptions) {
       this.name = name;
 
       this.namespace = namespace;
@@ -304,7 +312,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
         StateTag<ValueState<T>> address,
         StateNamespace namespace,
         Coder<T> coder,
-        PipelineOptions pipelineOptions) {
+        SerializablePipelineOptions pipelineOptions) {
       super(flinkStateBackend, address.getId(), namespace, coder, pipelineOptions);
 
       this.namespace = namespace;
@@ -364,7 +372,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
         StateTag<BagState<T>> address,
         StateNamespace namespace,
         Coder<T> coder,
-        PipelineOptions pipelineOptions) {
+        SerializablePipelineOptions pipelineOptions) {
       super(flinkStateBackend, address.getId(), namespace, ListCoder.of(coder), pipelineOptions);
 
       this.namespace = namespace;
@@ -452,7 +460,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
         Combine.CombineFn<InputT, AccumT, OutputT> combineFn,
         StateNamespace namespace,
         Coder<AccumT> accumCoder,
-        PipelineOptions pipelineOptions) {
+        SerializablePipelineOptions pipelineOptions) {
       super(flinkStateBackend, address.getId(), namespace, accumCoder, pipelineOptions);
 
       this.namespace = namespace;
@@ -554,146 +562,12 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
     }
   }
 
-  private class FlinkKeyedCombiningState<K2, InputT, AccumT, OutputT>
-      extends AbstractBroadcastState<AccumT> implements CombiningState<InputT, AccumT, OutputT> {
-
-    private final StateNamespace namespace;
-    private final StateTag<CombiningState<InputT, AccumT, OutputT>> address;
-    private final Combine.CombineFn<InputT, AccumT, OutputT> combineFn;
-    private final FlinkBroadcastStateInternals<K2> flinkStateInternals;
-
-    FlinkKeyedCombiningState(
-        OperatorStateBackend flinkStateBackend,
-        StateTag<CombiningState<InputT, AccumT, OutputT>> address,
-        Combine.CombineFn<InputT, AccumT, OutputT> combineFn,
-        StateNamespace namespace,
-        Coder<AccumT> accumCoder,
-        FlinkBroadcastStateInternals<K2> flinkStateInternals,
-        PipelineOptions pipelineOptions) {
-      super(flinkStateBackend, address.getId(), namespace, accumCoder, pipelineOptions);
-
-      this.namespace = namespace;
-      this.address = address;
-      this.combineFn = combineFn;
-      this.flinkStateInternals = flinkStateInternals;
-    }
-
-    @Override
-    public CombiningState<InputT, AccumT, OutputT> readLater() {
-      return this;
-    }
-
-    @Override
-    public void add(InputT value) {
-      try {
-        AccumT current = readInternal();
-        if (current == null) {
-          current = combineFn.createAccumulator();
-        }
-        current = combineFn.addInput(current, value);
-        writeInternal(current);
-      } catch (Exception e) {
-        throw new RuntimeException("Error adding to state.", e);
-      }
-    }
-
-    @Override
-    public void addAccum(AccumT accum) {
-      try {
-        AccumT current = readInternal();
-        if (current == null) {
-          writeInternal(accum);
-        } else {
-          current = combineFn.mergeAccumulators(Arrays.asList(current, accum));
-          writeInternal(current);
-        }
-      } catch (Exception e) {
-        throw new RuntimeException("Error adding to state.", e);
-      }
-    }
-
-    @Override
-    public AccumT getAccum() {
-      try {
-        AccumT accum = readInternal();
-        return accum != null ? accum : combineFn.createAccumulator();
-      } catch (Exception e) {
-        throw new RuntimeException("Error reading state.", e);
-      }
-    }
-
-    @Override
-    public AccumT mergeAccumulators(Iterable<AccumT> accumulators) {
-      return combineFn.mergeAccumulators(accumulators);
-    }
-
-    @Override
-    public OutputT read() {
-      try {
-        AccumT accum = readInternal();
-        if (accum != null) {
-          return combineFn.extractOutput(accum);
-        } else {
-          return combineFn.extractOutput(combineFn.createAccumulator());
-        }
-      } catch (Exception e) {
-        throw new RuntimeException("Error reading state.", e);
-      }
-    }
-
-    @Override
-    public ReadableState<Boolean> isEmpty() {
-      return new ReadableState<Boolean>() {
-        @Override
-        public Boolean read() {
-          try {
-            return readInternal() == null;
-          } catch (Exception e) {
-            throw new RuntimeException("Error reading state.", e);
-          }
-        }
-
-        @Override
-        public ReadableState<Boolean> readLater() {
-          return this;
-        }
-      };
-    }
-
-    @Override
-    public void clear() {
-      clearInternal();
-    }
-
-    @Override
-    public boolean equals(@Nullable Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-
-      FlinkKeyedCombiningState<?, ?, ?, ?> that = (FlinkKeyedCombiningState<?, ?, ?, ?>) o;
-
-      return namespace.equals(that.namespace) && address.equals(that.address);
-    }
-
-    @Override
-    public int hashCode() {
-      int result = namespace.hashCode();
-      result = 31 * result + address.hashCode();
-      return result;
-    }
-  }
-
   private class FlinkCombiningStateWithContext<K2, InputT, AccumT, OutputT>
       extends AbstractBroadcastState<AccumT> implements CombiningState<InputT, AccumT, OutputT> {
 
     private final StateNamespace namespace;
     private final StateTag<CombiningState<InputT, AccumT, OutputT>> address;
     private final CombineWithContext.CombineFnWithContext<InputT, AccumT, OutputT> combineFn;
-    private final FlinkBroadcastStateInternals<K2> flinkStateInternals;
     private final CombineWithContext.Context context;
 
     FlinkCombiningStateWithContext(
@@ -702,14 +576,12 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
         CombineWithContext.CombineFnWithContext<InputT, AccumT, OutputT> combineFn,
         StateNamespace namespace,
         Coder<AccumT> accumCoder,
-        FlinkBroadcastStateInternals<K2> flinkStateInternals,
         CombineWithContext.Context context) {
-      super(flinkStateBackend, address.getId(), namespace, accumCoder, pipelineOptions.get());
+      super(flinkStateBackend, address.getId(), namespace, accumCoder, pipelineOptions);
 
       this.namespace = namespace;
       this.address = address;
       this.combineFn = combineFn;
-      this.flinkStateInternals = flinkStateInternals;
       this.context = context;
     }
 

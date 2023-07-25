@@ -121,12 +121,12 @@ import (
 	"fmt"
 	"regexp"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
-	"github.com/apache/beam/sdks/go/pkg/beam/runners/direct"
-	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/direct"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
 
-	_ "github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/local"
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/local"
 )
 
 var (
@@ -181,7 +181,7 @@ For a more detailed explanation about how WordCount works, see the [WordCount Ex
 
 * Walk through additional WordCount examples in the [WordCount Example Walkthrough](/get-started/wordcount-example).
 * Take a self-paced tour through our [Learning Resources](/documentation/resources/learning-resources).
-* Dive in to some of our favorite [Videos and Podcasts](/documentation/resources/videos-and-podcasts).
+* Dive in to some of our favorite [Videos and Podcasts](/get-started/resources/videos-and-podcasts).
 * Join the Beam [users@](/community/contact-us) mailing list.
 * If you're interested in contributing to the Apache Beam codebase, see the [Contribution Guide](/contribute).
 

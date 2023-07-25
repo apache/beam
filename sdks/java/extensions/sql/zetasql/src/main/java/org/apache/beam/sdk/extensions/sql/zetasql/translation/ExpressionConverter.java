@@ -71,24 +71,24 @@ import org.apache.beam.sdk.extensions.sql.impl.ZetaSqlUserDefinedSQLNativeTableV
 import org.apache.beam.sdk.extensions.sql.impl.utils.TVFStreamingUtils;
 import org.apache.beam.sdk.extensions.sql.zetasql.ZetaSqlCalciteTranslationUtils;
 import org.apache.beam.sdk.extensions.sql.zetasql.ZetaSqlException;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.avatica.util.TimeUnit;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelOptCluster;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelNode;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.type.RelDataType;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.type.RelDataTypeField;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.type.RelDataTypeFieldImpl;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.type.RelRecordType;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexBuilder;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexCall;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexInputRef;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexLiteral;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexNode;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlIdentifier;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlIntervalQualifier;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlKind;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlOperator;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.fun.SqlRowOperator;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.avatica.util.TimeUnit;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptCluster;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.type.RelDataType;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.type.RelDataTypeFieldImpl;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.type.RelRecordType;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexBuilder;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexCall;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexInputRef;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexLiteral;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlIdentifier;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlIntervalQualifier;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlKind;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlOperator;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.fun.SqlRowOperator;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.parser.SqlParserPos;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -97,7 +97,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 @Internal
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class ExpressionConverter {
 
@@ -609,7 +609,7 @@ public class ExpressionConverter {
       Map<String, RexNode> outerFunctionArguments) {
     final String funGroup = functionCall.getFunction().getGroup();
     final String funName = functionCall.getFunction().getName();
-    SqlOperator op = SqlOperatorMappingTable.ZETASQL_FUNCTION_TO_CALCITE_SQL_OPERATOR.get(funName);
+    SqlOperator op = SqlOperatorMappingTable.create(functionCall);
     List<RexNode> operands = new ArrayList<>();
 
     if (PRE_DEFINED_WINDOW_FUNCTIONS.equals(funGroup)) {

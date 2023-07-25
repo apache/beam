@@ -1,0 +1,20 @@
+<!-- Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+ 
+      http://www.apache.org/licenses/LICENSE-2.0
+ 
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License. -->
+
+<svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M10 19C14.9706 19 19 14.9706 19 10C19 8.81443 18.7708 7.68239 18.3542 6.64581C18.3067 6.52774 18.2569 6.41091 18.2046 6.29539C17.754 5.29897 17.1272 4.39928 16.364 3.63604C16.1972 3.46923 16.0238 3.30895 15.8444 3.15559C15.2028 2.60724 14.4833 2.14752 13.7046 1.79539C12.5748 1.28444 11.3206 1 10 1V9V15V19Z" fill="#A0A4AB" />
+    <path d="M10 19C14.9706 19 19 14.9706 19 10C19 8.81443 18.7708 7.68239 18.3542 6.64581C18.3067 6.52774 18.2569 6.41091 18.2046 6.29539C17.754 5.29897 17.1272 4.39928 16.364 3.63604C16.1972 3.46923 16.0238 3.30895 15.8444 3.15559C15.2028 2.60724 14.4833 2.14752 13.7046 1.79539C12.5748 1.28444 11.3206 1 10 1M10 19C5.02944 19 1 14.9706 1 10C1 5.02944 5.02944 1 10 1M10 19V15V9V1" stroke="#A0A4AB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+</svg>

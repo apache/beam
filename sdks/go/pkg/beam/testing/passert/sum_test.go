@@ -87,6 +87,13 @@ func TestSum_bad(t *testing.T) {
 			16,
 			[]string{"{15, size: 5}", "want {16, size:5}"},
 		},
+		{
+			"empty",
+			[]int{},
+			1,
+			1,
+			[]string{"PCollection is empty, want non-empty collection"},
+		},
 	}
 	for _, tc := range tests {
 		p, s := beam.NewPipelineWithRoot()

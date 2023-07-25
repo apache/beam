@@ -26,7 +26,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 
 /** doc. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public final class TranslationUtils {
   private static final Logger LOG = Logger.getLogger(TranslationUtils.class.getName());

@@ -367,11 +367,7 @@ public class SelectTest {
   @DefaultSchema(AutoValueSchema.class)
   @AutoValue
   abstract static class PartialRowMultipleArray {
-    private static final List<Schema1Selected> ROW_LIST =
-        ImmutableList.of(
-            Schema1Selected.create(), Schema1Selected.create(), Schema1Selected.create());
-    private static final List<List<Schema1Selected>> ROW_LIST_LIST =
-        ImmutableList.of(ROW_LIST, ROW_LIST, ROW_LIST);
+
     private static final List<String> STRING_LIST = ImmutableList.of("field1", "field1", "field1");
     private static final List<List<String>> STRING_LISTLIST =
         ImmutableList.of(STRING_LIST, STRING_LIST, STRING_LIST);
@@ -675,10 +671,9 @@ public class SelectTest {
         bottomRow.stream()
             .map(r -> Row.withSchema(NESTED_SCHEMA).addValues(r, r).build())
             .collect(Collectors.toList());
-    PCollection<Row> unnested =
-        pipeline
-            .apply(Create.of(rows).withRowSchema(NESTED_SCHEMA))
-            .apply(Select.<Row>flattenedSchema().keepMostNestedFieldName());
+    pipeline
+        .apply(Create.of(rows).withRowSchema(NESTED_SCHEMA))
+        .apply(Select.<Row>flattenedSchema().keepMostNestedFieldName());
     pipeline.run();
   }
 

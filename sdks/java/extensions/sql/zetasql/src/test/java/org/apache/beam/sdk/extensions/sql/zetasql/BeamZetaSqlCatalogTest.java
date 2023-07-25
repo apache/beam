@@ -34,7 +34,7 @@ import org.apache.beam.sdk.extensions.sql.impl.ScalarFunctionImpl;
 import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.UserFunctionDefinitions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.schema.SchemaPlus;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.SchemaPlus;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Rule;
@@ -97,9 +97,8 @@ public class BeamZetaSqlCatalogTest {
     calciteSchema.add("return_array", ScalarFunctionImpl.create(method));
     thrown.expect(UnsupportedOperationException.class);
     thrown.expectMessage("Calcite type TIME not allowed in function return_array");
-    BeamZetaSqlCatalog beamCatalog =
-        BeamZetaSqlCatalog.create(
-            calciteSchema, jdbcConnection.getTypeFactory(), SqlAnalyzer.baseAnalyzerOptions());
+    BeamZetaSqlCatalog.create(
+        calciteSchema, jdbcConnection.getTypeFactory(), SqlAnalyzer.baseAnalyzerOptions());
   }
 
   @Test
@@ -110,9 +109,8 @@ public class BeamZetaSqlCatalogTest {
     calciteSchema.add("take_array", ScalarFunctionImpl.create(method));
     thrown.expect(UnsupportedOperationException.class);
     thrown.expectMessage("Calcite type TIME not allowed in function take_array");
-    BeamZetaSqlCatalog beamCatalog =
-        BeamZetaSqlCatalog.create(
-            calciteSchema, jdbcConnection.getTypeFactory(), SqlAnalyzer.baseAnalyzerOptions());
+    BeamZetaSqlCatalog.create(
+        calciteSchema, jdbcConnection.getTypeFactory(), SqlAnalyzer.baseAnalyzerOptions());
   }
 
   @Test

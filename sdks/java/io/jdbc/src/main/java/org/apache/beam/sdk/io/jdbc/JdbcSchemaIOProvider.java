@@ -22,17 +22,18 @@ import java.io.Serializable;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.io.SchemaIO;
 import org.apache.beam.sdk.schemas.io.SchemaIOProvider;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * An implementation of {@link SchemaIOProvider} for reading and writing JSON payloads with {@link
@@ -40,9 +41,6 @@ import org.apache.beam.sdk.values.Row;
  */
 @Internal
 @AutoService(SchemaIOProvider.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class JdbcSchemaIOProvider implements SchemaIOProvider {
 
   /** Returns an id that uniquely represents this IO. */
@@ -68,6 +66,13 @@ public class JdbcSchemaIOProvider implements SchemaIOProvider {
         .addNullableField("writeStatement", FieldType.STRING)
         .addNullableField("fetchSize", FieldType.INT16)
         .addNullableField("outputParallelization", FieldType.BOOLEAN)
+        .addNullableField("autosharding", FieldType.BOOLEAN)
+        // Partitioning support. If you specify a partition column we will use that instead of
+        // readQuery
+        .addNullableField("partitionColumn", FieldType.STRING)
+        .addNullableField("partitions", FieldType.INT16)
+        .addNullableField("maxConnections", FieldType.INT16)
+        .addNullableField("driverJars", FieldType.STRING)
         .build();
   }
 
@@ -76,7 +81,7 @@ public class JdbcSchemaIOProvider implements SchemaIOProvider {
    * resides there, and some IO-specific configuration object.
    */
   @Override
-  public JdbcSchemaIO from(String location, Row configuration, Schema dataSchema) {
+  public JdbcSchemaIO from(String location, Row configuration, @Nullable Schema dataSchema) {
     return new JdbcSchemaIO(location, configuration);
   }
 
@@ -101,7 +106,8 @@ public class JdbcSchemaIOProvider implements SchemaIOProvider {
     }
 
     @Override
-    public Schema schema() {
+    @SuppressWarnings("nullness") // need to fix core SDK, but in a separate change
+    public @Nullable Schema schema() {
       return null;
     }
 
@@ -110,26 +116,49 @@ public class JdbcSchemaIOProvider implements SchemaIOProvider {
       return new PTransform<PBegin, PCollection<Row>>() {
         @Override
         public PCollection<Row> expand(PBegin input) {
-          String readQuery;
-          if (config.getString("readQuery") != null) {
-            readQuery = config.getString("readQuery");
+
+          // If we define a partition column we need to go a different route
+          @Nullable
+          String partitionColumn =
+              config.getSchema().hasField("partitionColumn")
+                  ? config.getString("partitionColumn")
+                  : null;
+          if (partitionColumn != null) {
+            JdbcIO.ReadWithPartitions<Row, ?> readRows =
+                JdbcIO.<Row>readWithPartitions()
+                    .withDataSourceConfiguration(getDataSourceConfiguration())
+                    .withTable(location)
+                    .withPartitionColumn(partitionColumn)
+                    .withRowOutput();
+            @Nullable Short partitions = config.getInt16("partitions");
+            if (partitions != null) {
+              readRows = readRows.withNumPartitions(partitions);
+            }
+            return input.apply(readRows);
           } else {
-            readQuery = String.format("SELECT * FROM %s", location);
-          }
 
-          JdbcIO.ReadRows readRows =
-              JdbcIO.readRows()
-                  .withDataSourceConfiguration(getDataSourceConfiguration())
-                  .withQuery(readQuery);
+            @Nullable String readQuery = config.getString("readQuery");
+            if (readQuery == null) {
+              readQuery = String.format("SELECT * FROM %s", location);
+            }
 
-          if (config.getInt16("fetchSize") != null) {
-            readRows = readRows.withFetchSize(config.getInt16("fetchSize"));
+            JdbcIO.ReadRows readRows =
+                JdbcIO.readRows()
+                    .withDataSourceConfiguration(getDataSourceConfiguration())
+                    .withQuery(readQuery);
+
+            @Nullable Short fetchSize = config.getInt16("fetchSize");
+            if (fetchSize != null) {
+              readRows = readRows.withFetchSize(fetchSize);
+            }
+
+            @Nullable Boolean outputParallelization = config.getBoolean("outputParallelization");
+            if (outputParallelization != null) {
+              readRows = readRows.withOutputParallelization(outputParallelization);
+            }
+
+            return input.apply(readRows);
           }
-          if (config.getBoolean("outputParallelization") != null) {
-            readRows =
-                readRows.withOutputParallelization(config.getBoolean("outputParallelization"));
-          }
-          return input.apply(readRows);
         }
       };
     }
@@ -139,42 +168,59 @@ public class JdbcSchemaIOProvider implements SchemaIOProvider {
       return new PTransform<PCollection<Row>, PDone>() {
         @Override
         public PDone expand(PCollection<Row> input) {
-          return input.apply(
+          JdbcIO.Write<Row> writeRows =
               JdbcIO.<Row>write()
                   .withDataSourceConfiguration(getDataSourceConfiguration())
                   .withStatement(generateWriteStatement(input.getSchema()))
-                  .withPreparedStatementSetter(new JdbcUtil.BeamRowPreparedStatementSetter()));
+                  .withPreparedStatementSetter(new JdbcUtil.BeamRowPreparedStatementSetter());
+          @Nullable Boolean autosharding = config.getBoolean("autosharding");
+          if (autosharding != null && autosharding) {
+            writeRows = writeRows.withAutoSharding();
+          }
+          return input.apply(writeRows);
         }
       };
     }
 
     protected JdbcIO.DataSourceConfiguration getDataSourceConfiguration() {
-      @Nullable Iterable<String> connectionInitSqls = config.getIterable("connectionInitSqls");
-
       JdbcIO.DataSourceConfiguration dataSourceConfiguration =
           JdbcIO.DataSourceConfiguration.create(
-                  config.getString("driverClassName"), config.getString("jdbcUrl"))
+                  Preconditions.checkStateNotNull(config.getString("driverClassName")),
+                  Preconditions.checkStateNotNull(config.getString("jdbcUrl")))
               .withUsername(config.getString("username"))
               .withPassword(config.getString("password"));
 
-      if (config.getString("connectionProperties") != null) {
+      @Nullable String connectionProperties = config.getString("connectionProperties");
+      if (connectionProperties != null) {
         dataSourceConfiguration =
-            dataSourceConfiguration.withConnectionProperties(
-                config.getString("connectionProperties"));
+            dataSourceConfiguration.withConnectionProperties(connectionProperties);
       }
 
+      @Nullable Iterable<String> connectionInitSqls = config.getIterable("connectionInitSqls");
       if (connectionInitSqls != null) {
-        List<String> initSqls =
+        List<@Nullable String> initSqls =
             StreamSupport.stream(connectionInitSqls.spliterator(), false)
                 .collect(Collectors.toList());
         dataSourceConfiguration = dataSourceConfiguration.withConnectionInitSqls(initSqls);
       }
+
+      @Nullable Integer maxConnections = config.getInt32("maxConnections");
+      if (maxConnections != null) {
+        dataSourceConfiguration = dataSourceConfiguration.withMaxConnections(maxConnections);
+      }
+
+      @Nullable String driverJars = config.getString("driverJars");
+      if (driverJars != null) {
+        dataSourceConfiguration = dataSourceConfiguration.withDriverJars(driverJars);
+      }
+
       return dataSourceConfiguration;
     }
 
     private String generateWriteStatement(Schema schema) {
-      if (config.getString("writeStatement") != null) {
-        return config.getString("writeStatement");
+      @Nullable String configuredWriteStatement = config.getString("writeStatement");
+      if (configuredWriteStatement != null) {
+        return configuredWriteStatement;
       } else {
         StringBuilder writeStatement = new StringBuilder("INSERT INTO ");
         writeStatement.append(location);

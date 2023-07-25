@@ -30,13 +30,14 @@ import org.apache.beam.sdk.schemas.Schema;
  * incrementing count of days where day 0 is 1970-01-01 (ISO).
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class Date implements Schema.LogicalType<LocalDate, Long> {
+  public static final String IDENTIFIER = "beam:logical_type:date:v1";
 
   @Override
   public String getIdentifier() {
-    return "beam:logical_type:date:v1";
+    return IDENTIFIER;
   }
 
   // unused

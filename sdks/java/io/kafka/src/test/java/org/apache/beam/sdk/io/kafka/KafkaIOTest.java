@@ -72,6 +72,9 @@ import org.apache.beam.sdk.io.AvroGeneratedUser;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
+import org.apache.beam.sdk.io.kafka.KafkaIO.Read.FakeFlinkPipelineOptions;
+import org.apache.beam.sdk.io.kafka.KafkaMocks.PositionErrorConsumerFactory;
+import org.apache.beam.sdk.io.kafka.KafkaMocks.SendErrorProducerFactory;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
@@ -80,9 +83,11 @@ import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.metrics.SinkMetrics;
 import org.apache.beam.sdk.metrics.SourceMetrics;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Distinct;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
@@ -164,6 +169,11 @@ public class KafkaIOTest {
   @Rule public final transient TestPipeline p = TestPipeline.create();
 
   @Rule public ExpectedException thrown = ExpectedException.none();
+
+  @Rule
+  public ExpectedLogs unboundedReaderExpectedLogs = ExpectedLogs.none(KafkaUnboundedReader.class);
+
+  @Rule public ExpectedLogs kafkaIOExpectedLogs = ExpectedLogs.none(KafkaIO.class);
 
   private static final Instant LOG_APPEND_START_TIME = new Instant(600 * 1000);
   private static final String TIMESTAMP_START_MILLIS_CONFIG = "test.timestamp.start.millis";
@@ -357,7 +367,7 @@ public class KafkaIOTest {
     }
   }
 
-  private static KafkaIO.Read<Integer, Long> mkKafkaReadTransform(
+  static KafkaIO.Read<Integer, Long> mkKafkaReadTransform(
       int numElements, @Nullable SerializableFunction<KV<Integer, Long>, Instant> timestampFn) {
     return mkKafkaReadTransform(numElements, numElements, timestampFn);
   }
@@ -366,9 +376,9 @@ public class KafkaIOTest {
    * Creates a consumer with two topics, with 10 partitions each. numElements are (round-robin)
    * assigned all the 20 partitions.
    */
-  private static KafkaIO.Read<Integer, Long> mkKafkaReadTransform(
+  static KafkaIO.Read<Integer, Long> mkKafkaReadTransform(
       int numElements,
-      int maxNumRecords,
+      @Nullable Integer maxNumRecords,
       @Nullable SerializableFunction<KV<Integer, Long>, Instant> timestampFn) {
 
     List<String> topics = ImmutableList.of("topic_a", "topic_b");
@@ -381,8 +391,10 @@ public class KafkaIOTest {
                 new ConsumerFactoryFn(
                     topics, 10, numElements, OffsetResetStrategy.EARLIEST)) // 20 partitions
             .withKeyDeserializer(IntegerDeserializer.class)
-            .withValueDeserializer(LongDeserializer.class)
-            .withMaxNumRecords(maxNumRecords);
+            .withValueDeserializer(LongDeserializer.class);
+    if (maxNumRecords != null) {
+      reader = reader.withMaxNumRecords(maxNumRecords);
+    }
 
     if (timestampFn != null) {
       return reader.withTimestampFn(timestampFn);
@@ -577,6 +589,27 @@ public class KafkaIOTest {
   }
 
   @Test
+  public void testRiskyConfigurationWarnsProperly() {
+    int numElements = 1000;
+
+    p.getOptions().as(FakeFlinkPipelineOptions.class).setCheckpointingInterval(1L);
+
+    PCollection<Long> input =
+        p.apply(
+                mkKafkaReadTransform(numElements, new ValueAsTimestampFn())
+                    .withConsumerConfigUpdates(
+                        ImmutableMap.of(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, true))
+                    .withoutMetadata())
+            .apply(Values.create());
+
+    addCountingAsserts(input, numElements);
+
+    kafkaIOExpectedLogs.verifyWarn(
+        "When using the Flink runner with checkpointingInterval enabled");
+    p.run();
+  }
+
+  @Test
   public void testUnreachableKafkaBrokers() {
     // Expect an exception when the Kafka brokers are not reachable on the workers.
     // We specify partitions explicitly so that splitting does not involve server interaction.
@@ -686,6 +719,87 @@ public class KafkaIOTest {
     PAssert.that(input).satisfies(new AssertMultipleOf(5));
 
     PAssert.thatSingleton(input.apply(Count.globally())).isEqualTo(numElements / 10L);
+
+    p.run();
+  }
+
+  @Test
+  public void testUnboundedSourceWithPattern() {
+    int numElements = 1000;
+
+    List<String> topics =
+        ImmutableList.of(
+            "best", "gest", "hest", "jest", "lest", "nest", "pest", "rest", "test", "vest", "west",
+            "zest");
+
+    KafkaIO.Read<byte[], Long> reader =
+        KafkaIO.<byte[], Long>read()
+            .withBootstrapServers("none")
+            .withTopicPattern("[a-z]est")
+            .withConsumerFactoryFn(
+                new ConsumerFactoryFn(topics, 10, numElements, OffsetResetStrategy.EARLIEST))
+            .withKeyDeserializer(ByteArrayDeserializer.class)
+            .withValueDeserializer(LongDeserializer.class)
+            .withMaxNumRecords(numElements);
+
+    PCollection<Long> input = p.apply(reader.withoutMetadata()).apply(Values.create());
+
+    addCountingAsserts(input, numElements);
+    p.run();
+  }
+
+  @Test
+  public void testUnboundedSourceWithPartiallyMatchedPattern() {
+    int numElements = 1000;
+    long numMatchedElements = numElements / 2; // Expected elements if split across 2 topics
+
+    List<String> topics = ImmutableList.of("test", "Test");
+
+    KafkaIO.Read<byte[], Long> reader =
+        KafkaIO.<byte[], Long>read()
+            .withBootstrapServers("none")
+            .withTopicPattern("[a-z]est")
+            .withConsumerFactoryFn(
+                new ConsumerFactoryFn(topics, 1, numElements, OffsetResetStrategy.EARLIEST))
+            .withKeyDeserializer(ByteArrayDeserializer.class)
+            .withValueDeserializer(LongDeserializer.class)
+            .withMaxNumRecords(numMatchedElements);
+
+    PCollection<Long> input = p.apply(reader.withoutMetadata()).apply(Values.create());
+
+    // With 1 partition per topic element to partition allocation alternates between test and Test,
+    // producing even elements for test and odd elements for Test.
+    // The pattern only matches test, so we expect even elements.
+    PAssert.that(input).satisfies(new AssertMultipleOf(2));
+
+    PAssert.thatSingleton(input.apply("Count", Count.globally())).isEqualTo(numMatchedElements);
+
+    p.run();
+  }
+
+  @Test
+  public void testUnboundedSourceWithUnmatchedPattern() {
+    // Expect an exception when provided pattern doesn't match any Kafka topics.
+    thrown.expect(PipelineExecutionException.class);
+    thrown.expectCause(instanceOf(IllegalStateException.class));
+    thrown.expectMessage(
+        "Could not find any partitions. Please check Kafka configuration and topic names");
+
+    int numElements = 1000;
+
+    List<String> topics = ImmutableList.of("chest", "crest", "egest", "guest", "quest", "wrest");
+
+    KafkaIO.Read<byte[], Long> reader =
+        KafkaIO.<byte[], Long>read()
+            .withBootstrapServers("none")
+            .withTopicPattern("[a-z]est")
+            .withConsumerFactoryFn(
+                new ConsumerFactoryFn(topics, 10, numElements, OffsetResetStrategy.EARLIEST))
+            .withKeyDeserializer(ByteArrayDeserializer.class)
+            .withValueDeserializer(LongDeserializer.class)
+            .withMaxNumRecords(numElements);
+
+    p.apply(reader.withoutMetadata()).apply(Values.create());
 
     p.run();
   }
@@ -1007,8 +1121,7 @@ public class KafkaIOTest {
   }
 
   /** A timestamp function that uses the given value as the timestamp. */
-  private static class ValueAsTimestampFn
-      implements SerializableFunction<KV<Integer, Long>, Instant> {
+  static class ValueAsTimestampFn implements SerializableFunction<KV<Integer, Long>, Instant> {
     @Override
     public Instant apply(KV<Integer, Long> input) {
       return new Instant(input.getValue());
@@ -1231,6 +1344,31 @@ public class KafkaIOTest {
     assertThat(commitsEnqueuedMetrics.getCounters(), IsIterableWithSize.iterableWithSize(1));
     assertThat(
         commitsEnqueuedMetrics.getCounters().iterator().next().getAttempted(), greaterThan(0L));
+  }
+
+  @Test
+  public void testUnboundedReaderLogsCommitFailure() throws Exception {
+
+    List<String> topics = ImmutableList.of("topic_a");
+
+    PositionErrorConsumerFactory positionErrorConsumerFactory = new PositionErrorConsumerFactory();
+
+    UnboundedSource<KafkaRecord<Integer, Long>, KafkaCheckpointMark> source =
+        KafkaIO.<Integer, Long>read()
+            .withBootstrapServers("myServer1:9092,myServer2:9092")
+            .withTopics(topics)
+            .withConsumerFactoryFn(positionErrorConsumerFactory)
+            .withKeyDeserializer(IntegerDeserializer.class)
+            .withValueDeserializer(LongDeserializer.class)
+            .makeSource();
+
+    UnboundedReader<KafkaRecord<Integer, Long>> reader = source.createReader(null, null);
+
+    reader.start();
+
+    unboundedReaderExpectedLogs.verifyWarn("exception while fetching latest offset for partition");
+
+    reader.close();
   }
 
   @Test
@@ -1616,6 +1754,41 @@ public class KafkaIOTest {
   }
 
   @Test
+  public void testExactlyOnceSinkWithSendException() throws Throwable {
+
+    if (!ProducerSpEL.supportsTransactions()) {
+      LOG.warn(
+          "testExactlyOnceSink() is disabled as Kafka client version does not support transactions.");
+      return;
+    }
+
+    thrown.expect(KafkaException.class);
+    thrown.expectMessage("fakeException");
+
+    String topic = "test";
+
+    p.apply(Create.of(ImmutableList.of(KV.of(1, 1L), KV.of(2, 2L))))
+        .apply(
+            KafkaIO.<Integer, Long>write()
+                .withBootstrapServers("none")
+                .withTopic(topic)
+                .withKeySerializer(IntegerSerializer.class)
+                .withValueSerializer(LongSerializer.class)
+                .withEOS(1, "testException")
+                .withConsumerFactoryFn(
+                    new ConsumerFactoryFn(
+                        Lists.newArrayList(topic), 10, 10, OffsetResetStrategy.EARLIEST))
+                .withProducerFactoryFn(new SendErrorProducerFactory()));
+
+    try {
+      p.run();
+    } catch (PipelineExecutionException e) {
+      // throwing inner exception helps assert that first exception is thrown from the Sink
+      throw e.getCause();
+    }
+  }
+
+  @Test
   public void testSinkWithSendErrors() throws Throwable {
     // similar to testSink(), except that up to 10 of the send calls to producer will fail
     // asynchronously.
@@ -1731,6 +1904,25 @@ public class KafkaIOTest {
     DisplayData displayData = DisplayData.from(read);
 
     assertThat(displayData, hasDisplayItem("topicPartitions", "test-5,test-6"));
+    assertThat(displayData, hasDisplayItem("enable.auto.commit", false));
+    assertThat(displayData, hasDisplayItem("bootstrap.servers", "myServer1:9092,myServer2:9092"));
+    assertThat(displayData, hasDisplayItem("auto.offset.reset", "latest"));
+    assertThat(displayData, hasDisplayItem("receive.buffer.bytes", 524288));
+  }
+
+  @Test
+  public void testSourceWithPatternDisplayData() {
+    KafkaIO.Read<byte[], byte[]> read =
+        KafkaIO.readBytes()
+            .withBootstrapServers("myServer1:9092,myServer2:9092")
+            .withTopicPattern("[a-z]est")
+            .withConsumerFactoryFn(
+                new ConsumerFactoryFn(
+                    Lists.newArrayList("test"), 10, 10, OffsetResetStrategy.EARLIEST));
+
+    DisplayData displayData = DisplayData.from(read);
+
+    assertThat(displayData, hasDisplayItem("topicPattern", "[a-z]est"));
     assertThat(displayData, hasDisplayItem("enable.auto.commit", false));
     assertThat(displayData, hasDisplayItem("bootstrap.servers", "myServer1:9092,myServer2:9092"));
     assertThat(displayData, hasDisplayItem("auto.offset.reset", "latest"));
@@ -1944,7 +2136,7 @@ public class KafkaIOTest {
   /**
    * We start MockProducer with auto-completion disabled. That implies a record is not marked sent
    * until #completeNext() is called on it. This class starts a thread to asynchronously 'complete'
-   * the the sends. During completion, we can also make those requests fail. This error injection is
+   * the sends. During completion, we can also make those requests fail. This error injection is
    * used in one of the tests.
    */
   private static class ProducerSendCompletionThread {

@@ -56,6 +56,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -202,10 +203,13 @@ final class FirestoreV1WriteFn {
     @Override
     public final void startBundle(StartBundleContext c) {
       String project = c.getPipelineOptions().as(GcpOptions.class).getProject();
+      String databaseId = c.getPipelineOptions().as(FirestoreOptions.class).getFirestoreDb();
       databaseRootName =
           DatabaseRootName.of(
               requireNonNull(project, "project must be defined on GcpOptions of PipelineOptions"),
-              "(default)");
+              requireNonNull(
+                  databaseId,
+                  "firestoreDb must be defined on FirestoreOptions of PipelineOptions"));
       firestoreStub = firestoreStatefulComponentFactory.getFirestoreStub(c.getPipelineOptions());
     }
 
@@ -383,7 +387,7 @@ final class FirestoreV1WriteFn {
           continue;
         }
 
-        long elapsedMillis = end.minus(start.getMillis()).getMillis();
+        long elapsedMillis = end.minus(Duration.millis(start.getMillis())).getMillis();
 
         int okCount = 0;
         long okBytes = 0L;

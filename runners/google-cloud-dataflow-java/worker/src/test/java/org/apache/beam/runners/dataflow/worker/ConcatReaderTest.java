@@ -52,7 +52,7 @@ import org.junit.runners.JUnit4;
 /** Tests for {@code ConcatReader}. */
 @RunWith(JUnit4.class)
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class ConcatReaderTest {
   private static final String READER_OBJECT = "reader_object";

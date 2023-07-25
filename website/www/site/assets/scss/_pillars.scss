@@ -18,7 +18,7 @@
 @import "media";
 
 .pillars {
-  padding: $pad-l $pad;
+  padding: 0 30px 15px;
 
   .pillars-title {
     @extend .component-title;
@@ -32,7 +32,7 @@
     grid-template-columns: 443px 443px;
     grid-gap: 50px 89px;
     justify-content: center;
-    margin-top: 84px;
+    margin-top: 30px;
 
     .pillars-item {
       display: flex;
@@ -62,12 +62,21 @@
     flex-direction: column;
     align-items: center;
     text-align: center;
-    margin-top: 117px;
+    margin-top: 30px;
 
     .pillars-social-icons {
       display: flex;
       align-items: center;
+      justify-content: space-between;
       margin-bottom: 45px;
+
+      div {
+        padding-right: 20px;
+
+        &:last-child {
+          padding-right: 0;
+        }
+      }
 
       svg {
         height: 41px;
@@ -87,15 +96,83 @@
           opacity: 1;
         }
       }
-
-      .pillars-youtube-icon {
-        margin: 0 80px;
-      }
     }
 
     .pillars-social-text {
       @extend .component-text;
       max-width: 285px;
+    }
+  }
+
+  h2 {
+    @extend .component-title;
+  }
+
+  .margin {
+    margin-top: 84px;
+    margin-bottom: 84px;
+    @media (max-width: $mobile) {
+      margin-top: 0;
+      margin-bottom: 64px;
+    }
+  }
+
+  .row {
+    display: flex;
+    justify-content: space-between;
+    @media (max-width: $mobile) {
+      flex-direction: column;
+      align-items: center;
+    }
+    .logos-row {
+      display: flex;
+      align-items: center;
+      margin-top: 20px;
+      max-height: 73px;
+      @media (max-width: $mobile) {
+        margin-top: 64px;
+      }
+      img {
+        height: auto;
+        width: 112px;
+      }
+    }
+    .first_logo {
+      margin-right: 18px;
+    }
+    #last_logo {
+      margin-left: 18px;
+      width: 55px;
+    }
+    .column {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      max-width: 306px;
+
+      h4 {
+        margin-top: 32px;
+      }
+      .more {
+        margin-top: 32px;
+        font-size: 14px;
+        font-weight: bold;
+        line-height: 16px;
+        letter-spacing: 0.6px;
+        color: #f26628;
+      }
+    }
+    .icon {
+      width: 34px;
+      height: 44px;
+      margin-top: 16px;
+      @media (max-width: $mobile) {
+        margin-top: 64px;
+      }
+    }
+    img {
+      max-width: 306px;
+      height: 42px;
     }
   }
 }
@@ -111,6 +188,10 @@
 
       .pillars-item {
         align-items: flex-start;
+        @media (max-width: $mobile) {
+          padding-left: 10px;
+          padding-right: 10px;
+        }
 
         .pillars-item-icon {
           margin-right: 17px;

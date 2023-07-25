@@ -19,32 +19,30 @@ package org.apache.beam.fn.harness;
 
 import java.util.Collections;
 import java.util.EnumMap;
-import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
 import org.apache.beam.fn.harness.control.BeamFnControlClient;
+import org.apache.beam.fn.harness.control.ExecutionStateSampler;
 import org.apache.beam.fn.harness.control.FinalizeBundleHandler;
 import org.apache.beam.fn.harness.control.HarnessMonitoringInfosInstructionHandler;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler;
 import org.apache.beam.fn.harness.data.BeamFnDataGrpcClient;
+import org.apache.beam.fn.harness.debug.DataSampler;
 import org.apache.beam.fn.harness.logging.BeamFnLoggingClient;
 import org.apache.beam.fn.harness.state.BeamFnStateGrpcClientCache;
 import org.apache.beam.fn.harness.status.BeamFnStatusClient;
 import org.apache.beam.fn.harness.stream.HarnessStreamObserverFactories;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.fnexecution.v1.BeamFnControlGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
-import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.ShortIdMap;
-import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.JvmInitializers;
@@ -54,14 +52,12 @@ import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.function.ThrowingFunction;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
+import org.apache.beam.sdk.options.ExecutorOptions;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.TextFormat;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.TextFormat;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheLoader;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.LoadingCache;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
@@ -86,7 +82,7 @@ import org.slf4j.LoggerFactory;
  * </ul>
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class FnHarness {
   private static final String HARNESS_ID = "HARNESS_ID";
@@ -95,6 +91,7 @@ public class FnHarness {
   private static final String STATUS_API_SERVICE_DESCRIPTOR = "STATUS_API_SERVICE_DESCRIPTOR";
   private static final String PIPELINE_OPTIONS = "PIPELINE_OPTIONS";
   private static final String RUNNER_CAPABILITIES = "RUNNER_CAPABILITIES";
+  private static final String ENABLE_DATA_SAMPLING_EXPERIMENT = "enable_data_sampling";
   private static final Logger LOG = LoggerFactory.getLogger(FnHarness.class);
 
   private static Endpoints.ApiServiceDescriptor getApiServiceDescriptor(String descriptor)
@@ -172,14 +169,14 @@ public class FnHarness {
       @Nullable Endpoints.ApiServiceDescriptor statusApiServiceDescriptor)
       throws Exception {
     ManagedChannelFactory channelFactory;
-    List<String> experiments = options.as(ExperimentalOptions.class).getExperiments();
-    if (experiments != null && experiments.contains("beam_fn_api_epoll")) {
+    if (ExperimentalOptions.hasExperiment(options, "beam_fn_api_epoll")) {
       channelFactory = ManagedChannelFactory.createEpoll();
     } else {
       channelFactory = ManagedChannelFactory.createDefault();
     }
     OutboundObserverFactory outboundObserverFactory =
         HarnessStreamObserverFactories.fromOptions(options);
+
     main(
         id,
         options,
@@ -188,7 +185,8 @@ public class FnHarness {
         controlApiServiceDescriptor,
         statusApiServiceDescriptor,
         channelFactory,
-        outboundObserverFactory);
+        outboundObserverFactory,
+        Caches.fromOptions(options));
   }
 
   /**
@@ -203,6 +201,7 @@ public class FnHarness {
    * @param statusApiServiceDescriptor
    * @param channelFactory
    * @param outboundObserverFactory
+   * @param processWideCache
    * @throws Exception
    */
   public static void main(
@@ -213,20 +212,25 @@ public class FnHarness {
       Endpoints.ApiServiceDescriptor controlApiServiceDescriptor,
       Endpoints.ApiServiceDescriptor statusApiServiceDescriptor,
       ManagedChannelFactory channelFactory,
-      OutboundObserverFactory outboundObserverFactory)
+      OutboundObserverFactory outboundObserverFactory,
+      Cache<Object, Object> processWideCache)
       throws Exception {
     channelFactory =
         channelFactory.withInterceptors(ImmutableList.of(AddHarnessIdInterceptor.create(id)));
 
     IdGenerator idGenerator = IdGenerators.decrementingLongs();
     ShortIdMap metricsShortIds = new ShortIdMap();
-    ExecutorService executorService = options.as(GcsOptions.class).getExecutorService();
+    ExecutorService executorService =
+        options.as(ExecutorOptions.class).getScheduledExecutorService();
+    ExecutionStateSampler executionStateSampler =
+        new ExecutionStateSampler(options, System::currentTimeMillis);
+    final DataSampler dataSampler = new DataSampler();
+
     // The logging client variable is not used per se, but during its lifetime (until close()) it
     // intercepts logging and sends it to the logging service.
     try (BeamFnLoggingClient logging =
-        new BeamFnLoggingClient(
+        BeamFnLoggingClient.createAndStart(
             options, loggingApiServiceDescriptor, channelFactory::forDescriptor)) {
-
       LOG.info("Fn Harness started");
       // Register standard file systems.
       FileSystems.setDefaultPipelineOptions(options);
@@ -244,26 +248,34 @@ public class FnHarness {
           new BeamFnDataGrpcClient(options, channelFactory::forDescriptor, outboundObserverFactory);
 
       BeamFnStateGrpcClientCache beamFnStateGrpcClientCache =
-          new BeamFnStateGrpcClientCache(
-              idGenerator, channelFactory::forDescriptor, outboundObserverFactory);
+          new BeamFnStateGrpcClientCache(idGenerator, channelFactory, outboundObserverFactory);
 
-      FinalizeBundleHandler finalizeBundleHandler =
-          new FinalizeBundleHandler(options.as(GcsOptions.class).getExecutorService());
+      FinalizeBundleHandler finalizeBundleHandler = new FinalizeBundleHandler(executorService);
 
-      LoadingCache<String, BeamFnApi.ProcessBundleDescriptor> processBundleDescriptors =
-          CacheBuilder.newBuilder()
-              .maximumSize(1000)
-              .expireAfterAccess(10, TimeUnit.MINUTES)
-              .build(
-                  new CacheLoader<String, BeamFnApi.ProcessBundleDescriptor>() {
-                    @Override
-                    public BeamFnApi.ProcessBundleDescriptor load(String id) {
-                      return blockingControlStub.getProcessBundleDescriptor(
-                          BeamFnApi.GetProcessBundleDescriptorRequest.newBuilder()
-                              .setProcessBundleDescriptorId(id)
-                              .build());
-                    }
-                  });
+      // Create the sampler, if the experiment is enabled.
+      boolean shouldSample =
+          ExperimentalOptions.hasExperiment(options, ENABLE_DATA_SAMPLING_EXPERIMENT);
+
+      // Retrieves the ProcessBundleDescriptor from cache. Requests the PBD from the Runner if it
+      // doesn't exist. Additionally, runs any graph modifications.
+      Function<String, BeamFnApi.ProcessBundleDescriptor> getProcessBundleDescriptor =
+          new Function<String, ProcessBundleDescriptor>() {
+            private static final String PROCESS_BUNDLE_DESCRIPTORS = "ProcessBundleDescriptors";
+            private final Cache<String, BeamFnApi.ProcessBundleDescriptor> cache =
+                Caches.subCache(processWideCache, PROCESS_BUNDLE_DESCRIPTORS);
+
+            @Override
+            public BeamFnApi.ProcessBundleDescriptor apply(String id) {
+              return cache.computeIfAbsent(id, this::loadDescriptor);
+            }
+
+            private BeamFnApi.ProcessBundleDescriptor loadDescriptor(String id) {
+              return blockingControlStub.getProcessBundleDescriptor(
+                  BeamFnApi.GetProcessBundleDescriptorRequest.newBuilder()
+                      .setProcessBundleDescriptorId(id)
+                      .build());
+            }
+          };
 
       MetricsEnvironment.setProcessWideContainer(MetricsContainerImpl.createProcessWideContainer());
 
@@ -271,11 +283,15 @@ public class FnHarness {
           new ProcessBundleHandler(
               options,
               runnerCapabilites,
-              processBundleDescriptors::getUnchecked,
+              getProcessBundleDescriptor,
               beamFnDataMultiplexer,
               beamFnStateGrpcClientCache,
               finalizeBundleHandler,
-              metricsShortIds);
+              metricsShortIds,
+              executionStateSampler,
+              processWideCache,
+              shouldSample ? dataSampler : null);
+      logging.setProcessBundleHandler(processBundleHandler);
 
       BeamFnStatusClient beamFnStatusClient = null;
       if (statusApiServiceDescriptor != null) {
@@ -284,10 +300,12 @@ public class FnHarness {
                 statusApiServiceDescriptor,
                 channelFactory::forDescriptor,
                 processBundleHandler.getBundleProcessorCache(),
-                options);
+                options,
+                processWideCache);
       }
 
-      // TODO(BEAM-9729): Remove once runners no longer send this instruction.
+      // TODO(https://github.com/apache/beam/issues/20270): Remove once runners no longer send this
+      // instruction.
       handlers.put(
           BeamFnApi.InstructionRequest.RequestCase.REGISTER,
           request ->
@@ -312,31 +330,18 @@ public class FnHarness {
                   .setMonitoringInfos(
                       BeamFnApi.MonitoringInfosMetadataResponse.newBuilder()
                           .putAllMonitoringInfo(
-                              StreamSupport.stream(
-                                      request
-                                          .getMonitoringInfos()
-                                          .getMonitoringInfoIdList()
-                                          .spliterator(),
-                                      false)
-                                  .collect(
-                                      Collectors.toMap(
-                                          Function.identity(), metricsShortIds::get)))));
+                              metricsShortIds.get(
+                                  request.getMonitoringInfos().getMonitoringInfoIdList()))));
 
       HarnessMonitoringInfosInstructionHandler processWideHandler =
           new HarnessMonitoringInfosInstructionHandler(metricsShortIds);
       handlers.put(
           InstructionRequest.RequestCase.HARNESS_MONITORING_INFOS,
           processWideHandler::harnessMonitoringInfos);
+      handlers.put(
+          InstructionRequest.RequestCase.SAMPLE_DATA, dataSampler::handleDataSampleRequest);
 
       JvmInitializers.runBeforeProcessing(options);
-
-      String samplingPeriodMills =
-          ExperimentalOptions.getExperimentValue(
-              options, ExperimentalOptions.STATE_SAMPLING_PERIOD_MILLIS);
-      if (samplingPeriodMills != null) {
-        ExecutionStateSampler.setSamplingPeriod(Integer.parseInt(samplingPeriodMills));
-      }
-      ExecutionStateSampler.instance().start();
 
       LOG.info("Entering instruction processing loop");
 
@@ -349,14 +354,16 @@ public class FnHarness {
               outboundObserverFactory,
               executorService,
               handlers);
-      control.waitForTermination();
+      CompletableFuture.anyOf(control.terminationFuture(), logging.terminationFuture()).get();
       if (beamFnStatusClient != null) {
         beamFnStatusClient.close();
       }
       processBundleHandler.shutdown();
+    } catch (Exception e) {
+      System.out.println("Shutting down harness due to exception: " + e.toString());
     } finally {
       System.out.println("Shutting SDK harness down.");
-      ExecutionStateSampler.instance().stop();
+      executionStateSampler.stop();
       executorService.shutdown();
     }
   }

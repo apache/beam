@@ -71,6 +71,25 @@ func (n *buffer) NewIterable(ctx context.Context, reader exec.StateReader, w typ
 	return &exec.FixedReStream{Buf: n.buf}, nil
 }
 
+func (n *buffer) NewKeyedIterable(ctx context.Context, reader exec.StateReader, w typex.Window, iterKey any) (exec.ReStream, error) {
+	if !n.done {
+		panic(fmt.Sprintf("buffer[%v] incomplete: %v", n.uid, len(n.buf)))
+	}
+	s := &exec.FixedReStream{Buf: make([]exec.FullValue, 0)}
+	for _, v := range n.buf {
+		if v.Elm == iterKey {
+			s.Buf = append(s.Buf, exec.FullValue{
+				Elm:          v.Elm2,
+				Timestamp:    v.Timestamp,
+				Windows:      v.Windows,
+				Pane:         v.Pane,
+				Continuation: v.Continuation,
+			})
+		}
+	}
+	return s, nil
+}
+
 func (n *buffer) String() string {
 	return fmt.Sprintf("buffer[%v]. wait:%v Out:%v", n.uid, n.next, n.read)
 }
@@ -159,7 +178,6 @@ func (w *wait) FinishBundle(ctx context.Context) error {
 	}
 	w.done = true
 	return w.next.FinishBundle(ctx)
-
 }
 
 func (w *wait) Down(ctx context.Context) error {

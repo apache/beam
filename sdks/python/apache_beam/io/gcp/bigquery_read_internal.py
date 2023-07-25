@@ -150,7 +150,8 @@ class _PassThroughThenCleanupTempDatasets(PTransform):
 
     class CleanUpProjects(beam.DoFn):
       def process(self, unused_element, unused_signal, pipeline_details):
-        bq = bigquery_tools.BigQueryWrapper()
+        bq = bigquery_tools.BigQueryWrapper.from_pipeline_options(
+            input.pipeline.options)
         pipeline_details = pipeline_details[0]
         if 'temp_table_ref' in pipeline_details.keys():
           temp_table_ref = pipeline_details['temp_table_ref']
@@ -230,7 +231,8 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
   def process(self,
               element: 'ReadFromBigQueryRequest') -> Iterable[BoundedSource]:
     bq = bigquery_tools.BigQueryWrapper(
-        temp_dataset_id=self._get_temp_dataset().datasetId)
+        temp_dataset_id=self._get_temp_dataset().datasetId,
+        client=bigquery_tools.BigQueryWrapper._bigquery_client(self.options))
 
     if element.query is not None:
       self._setup_temporary_dataset(bq, element)
@@ -264,7 +266,7 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
 
   def _create_source(self, path, schema):
     if not self.use_json_exports:
-      return _create_avro_source(path, use_fastavro=True)
+      return _create_avro_source(path)
     else:
       return _TextSource(
           path,
@@ -332,24 +334,35 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
         self.gcs_location,
         temp_location,
         '%s%s' % (self._source_uuid, element.obj_id))
-    if self.use_json_exports:
-      job_ref = bq.perform_extract_job([gcs_location],
-                                       export_job_name,
-                                       table_reference,
-                                       bigquery_tools.FileFormat.JSON,
-                                       project=self._get_project(),
-                                       job_labels=job_labels,
-                                       include_header=False)
-    else:
-      job_ref = bq.perform_extract_job([gcs_location],
-                                       export_job_name,
-                                       table_reference,
-                                       bigquery_tools.FileFormat.AVRO,
-                                       project=self._get_project(),
-                                       include_header=False,
-                                       job_labels=job_labels,
-                                       use_avro_logical_types=True)
-    bq.wait_for_bq_job(job_ref)
+    try:
+      if self.use_json_exports:
+        job_ref = bq.perform_extract_job([gcs_location],
+                                         export_job_name,
+                                         table_reference,
+                                         bigquery_tools.FileFormat.JSON,
+                                         project=self._get_project(),
+                                         job_labels=job_labels,
+                                         include_header=False)
+      else:
+        job_ref = bq.perform_extract_job([gcs_location],
+                                         export_job_name,
+                                         table_reference,
+                                         bigquery_tools.FileFormat.AVRO,
+                                         project=self._get_project(),
+                                         include_header=False,
+                                         job_labels=job_labels,
+                                         use_avro_logical_types=True)
+      bq.wait_for_bq_job(job_ref)
+    except Exception as exn:  # pylint: disable=broad-except
+      # The error messages thrown in this case are generic and misleading,
+      # so leave this breadcrumb in case it's the root cause.
+      logging.warning(
+          "Error exporting table: %s. "
+          "Note that external tables cannot be exported: "
+          "https://cloud.google.com/bigquery/docs/external-tables"
+          "#external_table_limitations",
+          exn)
+      raise
     metadata_list = FileSystems.match([gcs_location])[0].metadata_list
 
     if isinstance(table_reference, ValueProvider):

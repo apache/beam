@@ -29,7 +29,7 @@ import org.apache.beam.sdk.extensions.sql.impl.utils.BigDecimalConverter;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.runtime.SqlFunctions;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.runtime.SqlFunctions;
 
 /**
  * {@link Combine.CombineFn} for <em>Variance</em> on {@link Number} types.
@@ -66,7 +66,7 @@ import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.runtime.SqlFunc
  */
 @Internal
 @SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class VarianceFn<T extends Number> extends Combine.CombineFn<T, VarianceAccumulator, T> {
 

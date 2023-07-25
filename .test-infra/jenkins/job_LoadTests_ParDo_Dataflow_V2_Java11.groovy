@@ -23,7 +23,7 @@ import PhraseTriggeringPostCommitBuilder
 import CronJobBuilder
 import InfluxDBCredentialsHelper
 
-def commonLoadTestConfig = { jobType, isStreaming, datasetName ->
+def commonLoadTestConfig = { jobType, isStreaming ->
   [
     [
       title          : 'Load test: ParDo 2GB 100 byte records 10 times',
@@ -34,9 +34,6 @@ def commonLoadTestConfig = { jobType, isStreaming, datasetName ->
         region              : 'us-central1',
         appName             : "load_tests_Java11_Dataflow_V2_${jobType}_ParDo_1",
         tempLocation        : 'gs://temp-storage-for-perf-tests/loadtests',
-        publishToBigQuery   : true,
-        bigQueryDataset     : datasetName,
-        bigQueryTable       : "java11_dataflow_v2_${jobType}_ParDo_1",
         influxMeasurement   : "java_${jobType}_pardo_1",
         influxTags          : """
                               {
@@ -69,9 +66,6 @@ def commonLoadTestConfig = { jobType, isStreaming, datasetName ->
         region              : 'us-central1',
         appName             : "load_tests_Java11_Dataflow_V2_${jobType}_ParDo_2",
         tempLocation        : 'gs://temp-storage-for-perf-tests/loadtests',
-        publishToBigQuery   : true,
-        bigQueryDataset     : datasetName,
-        bigQueryTable       : "java11_dataflow_v2_${jobType}_ParDo_2",
         influxMeasurement   : "java_${jobType}_pardo_2",
         influxTags          : """
                               {
@@ -105,9 +99,6 @@ def commonLoadTestConfig = { jobType, isStreaming, datasetName ->
         region              : 'us-central1',
         appName             : "load_tests_Java11_Dataflow_V2_${jobType}_ParDo_3",
         tempLocation        : 'gs://temp-storage-for-perf-tests/loadtests',
-        publishToBigQuery   : true,
-        bigQueryDataset     : datasetName,
-        bigQueryTable       : "java11_dataflow_v2_${jobType}_ParDo_3",
         influxMeasurement   : "java_${jobType}_pardo_3",
         influxTags          : """
                               {
@@ -141,9 +132,6 @@ def commonLoadTestConfig = { jobType, isStreaming, datasetName ->
         region              : 'us-central1',
         appName             : "load_tests_Java11_Dataflow_V2_${jobType}_ParDo_4",
         tempLocation        : 'gs://temp-storage-for-perf-tests/loadtests',
-        publishToBigQuery   : true,
-        bigQueryDataset     : datasetName,
-        bigQueryTable       : "java11_dataflow_v2_${jobType}_ParDo_4",
         influxMeasurement   : "java_${jobType}_pardo_4",
         influxTags          : """
                               {
@@ -177,8 +165,7 @@ def final JOB_SPECIFIC_SWITCHES = [
 ]
 
 def batchLoadTestJob = { scope, triggeringContext ->
-  def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
-  loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.JAVA, commonLoadTestConfig('batch', false, datasetName),
+  loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.JAVA, commonLoadTestConfig('batch', false),
       "ParDo", "batch", JOB_SPECIFIC_SWITCHES)
 }
 
@@ -186,15 +173,14 @@ def streamingLoadTestJob = {scope, triggeringContext ->
   scope.description('Runs Java 11 ParDo load tests on Dataflow runner V2 in streaming mode')
   commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
 
-  def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
-  for (testConfiguration in commonLoadTestConfig('streaming', true, datasetName)) {
+  for (testConfiguration in commonLoadTestConfig('streaming', true)) {
     testConfiguration.pipelineOptions << [inputWindowDurationSec: 1200]
     loadTestsBuilder.loadTest(scope, testConfiguration.title, testConfiguration.runner, CommonTestProperties.SDK.JAVA,
         testConfiguration.pipelineOptions, testConfiguration.test, JOB_SPECIFIC_SWITCHES)
   }
 }
 
-CronJobBuilder.cronJob('beam_LoadTests_Java_ParDo_Dataflow_V2_Batch_Java11', 'H 12 * * *', this) {
+CronJobBuilder.cronJob('beam_LoadTests_Java_ParDo_Dataflow_V2_Batch_Java11', 'H H * * *', this) {
   additionalPipelineArgs = [
     influxDatabase: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
     influxHost: InfluxDBCredentialsHelper.InfluxDBHostUrl,
@@ -202,7 +188,7 @@ CronJobBuilder.cronJob('beam_LoadTests_Java_ParDo_Dataflow_V2_Batch_Java11', 'H 
   batchLoadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT)
 }
 
-CronJobBuilder.cronJob('beam_LoadTests_Java_ParDo_Dataflow_V2_Streaming_Java11', 'H 12 * * *', this) {
+CronJobBuilder.cronJob('beam_LoadTests_Java_ParDo_Dataflow_V2_Streaming_Java11', 'H H * * *', this) {
   additionalPipelineArgs = [
     influxDatabase: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
     influxHost: InfluxDBCredentialsHelper.InfluxDBHostUrl,

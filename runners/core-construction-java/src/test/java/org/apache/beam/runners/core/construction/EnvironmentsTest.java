@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.core.construction;
 
+import static org.apache.beam.runners.core.construction.Environments.JAVA_SDK_HARNESS_CONTAINER_URL;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
@@ -183,17 +184,41 @@ public class EnvironmentsTest implements Serializable {
 
   @Test
   public void testCapabilities() {
+    // Check a subset of coders
     assertThat(Environments.getJavaCapabilities(), hasItem(ModelCoders.LENGTH_PREFIX_CODER_URN));
     assertThat(Environments.getJavaCapabilities(), hasItem(ModelCoders.ROW_CODER_URN));
+    // Check all protocol based capabilities
     assertThat(
         Environments.getJavaCapabilities(),
         hasItem(BeamUrns.getUrn(RunnerApi.StandardProtocols.Enum.MULTI_CORE_BUNDLE_PROCESSING)));
+    assertThat(
+        Environments.getJavaCapabilities(),
+        hasItem(BeamUrns.getUrn(RunnerApi.StandardProtocols.Enum.PROGRESS_REPORTING)));
+    assertThat(
+        Environments.getJavaCapabilities(),
+        hasItem(BeamUrns.getUrn(RunnerApi.StandardProtocols.Enum.HARNESS_MONITORING_INFOS)));
+    assertThat(
+        Environments.getJavaCapabilities(),
+        hasItem(
+            BeamUrns.getUrn(RunnerApi.StandardProtocols.Enum.CONTROL_REQUEST_ELEMENTS_EMBEDDING)));
+    assertThat(
+        Environments.getJavaCapabilities(),
+        hasItem(BeamUrns.getUrn(RunnerApi.StandardProtocols.Enum.STATE_CACHING)));
+    assertThat(
+        Environments.getJavaCapabilities(),
+        hasItem(BeamUrns.getUrn(RunnerApi.StandardProtocols.Enum.DATA_SAMPLING)));
+    // Check that SDF truncation is supported
     assertThat(
         Environments.getJavaCapabilities(),
         hasItem(
             BeamUrns.getUrn(
                 RunnerApi.StandardPTransforms.SplittableParDoComponents
                     .TRUNCATE_SIZED_RESTRICTION)));
+    // Check that the sdk_base is inserted
+    assertThat(
+        Environments.getJavaCapabilities(),
+        hasItem("beam:version:sdk_base:" + JAVA_SDK_HARNESS_CONTAINER_URL));
+    // Check that ToString is supported for pretty printing user data.
     assertThat(
         Environments.getJavaCapabilities(),
         hasItem(BeamUrns.getUrn(RunnerApi.StandardPTransforms.Primitives.TO_STRING)));
@@ -253,15 +278,30 @@ public class EnvironmentsTest implements Serializable {
   }
 
   @Test
-  public void testJavaVersion() {
+  public void testLtsJavaVersion() {
     assertEquals(JavaVersion.java8, JavaVersion.forSpecification("1.8"));
     assertEquals("java", JavaVersion.java8.legacyName());
     assertEquals(JavaVersion.java11, JavaVersion.forSpecification("11"));
     assertEquals("java11", JavaVersion.java11.legacyName());
+    assertEquals(JavaVersion.java17, JavaVersion.forSpecification("17"));
+    assertEquals("java17", JavaVersion.java17.legacyName());
+  }
+
+  @Test
+  public void testNonLtsJavaVersion() {
+    assertEquals(JavaVersion.java8, JavaVersion.forSpecification("9"));
+    assertEquals(JavaVersion.java11, JavaVersion.forSpecification("10"));
+    assertEquals(JavaVersion.java11, JavaVersion.forSpecification("12"));
+    assertEquals(JavaVersion.java11, JavaVersion.forSpecification("13"));
+    assertEquals(JavaVersion.java17, JavaVersion.forSpecification("14"));
+    assertEquals(JavaVersion.java17, JavaVersion.forSpecification("15"));
+    assertEquals(JavaVersion.java17, JavaVersion.forSpecification("16"));
+    assertEquals(JavaVersion.java17, JavaVersion.forSpecification("18"));
+    assertEquals(JavaVersion.java17, JavaVersion.forSpecification("19"));
   }
 
   @Test(expected = UnsupportedOperationException.class)
-  public void testJavaVersionInvalid() {
-    assertEquals(JavaVersion.java8, JavaVersion.forSpecification("invalid"));
+  public void testJavaVersionStrictInvalid() {
+    assertEquals(JavaVersion.java8, JavaVersion.forSpecificationStrict("invalid"));
   }
 }

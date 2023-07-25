@@ -69,6 +69,7 @@ variable-rgx=^[a-z][a-z0-9_]*$
 inlinevar-rgx=^[a-z][a-z0-9_]*$
 
 # List of builtins function names that should not be used, separated by a comma
+# TODO(https://github.com/apache/beam/issues/27473) Remove or re-enable
 bad-functions=input,apply,reduce
 
 # Good variable names which should always be accepted, separated by a comma
@@ -84,9 +85,7 @@ disable =
   arguments-differ,
   arguments-renamed,
   attribute-defined-outside-init,
-  bad-builtin,
-  bad-super-call,
-  bad-continuation,
+  bad-builtin, # TODO(https://github.com/apache/beam/issues/27473) Remove or re-enable
   broad-except,
   comparison-with-callable,
   consider-using-enumerate,
@@ -97,7 +96,6 @@ disable =
   cyclic-import,
   design,
   fixme,
-  function-redefined,
   global-statement,
   import-error,
   import-outside-toplevel,
@@ -105,15 +103,13 @@ disable =
   inconsistent-return-statements,
   invalid-overridden-method,
   invalid-name,
-  invalid-unary-operand-type,
   keyword-arg-before-vararg,
   len-as-condition,
   locally-disabled,
-  locally-enabled,
   logging-not-lazy,
-  misplaced-bare-raise,
   missing-docstring,
   multiple-statements,
+  no-self-use,
   no-else-break,
   no-else-continue,
   no-else-raise,
@@ -121,24 +117,19 @@ disable =
   no-member,
   no-name-in-module,
   no-self-argument,
-  no-self-use,
   no-value-for-parameter,
   not-callable,
   pointless-statement,
   protected-access,
-  raise-missing-from, #TODO(BEAM-12991) Enable and fix warnings
+  raise-missing-from, #TODO(https://github.com/apache/beam/issues/21169) Enable and fix warnings
   raising-format-tuple,
-  raising-non-exception,
   redefined-builtin,
   redefined-outer-name,
-  redefined-variable-type,
   redundant-keyword-arg,
-  relative-import,
   similarities,
   simplifiable-if-statement,
   stop-iteration-return,
   super-init-not-called,
-  super-on-old-class,
   try-except-raise,
   undefined-variable,
   unexpected-keyword-arg,
@@ -148,7 +139,7 @@ disable =
   unnecessary-pass,
   unneeded-not,
   unsubscriptable-object,
-  unspecified-encoding, #TODO(BEAM-12992) Enable explicit encoding
+  unspecified-encoding, #TODO(https://github.com/apache/beam/issues/21236) Enable explicit encoding
   unused-argument,
   unused-wildcard-import,
   useless-object-inheritance,

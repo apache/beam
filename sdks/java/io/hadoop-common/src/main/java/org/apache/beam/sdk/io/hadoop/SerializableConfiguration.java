@@ -32,7 +32,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * serialization mechanisms.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class SerializableConfiguration implements Externalizable {
   private static final long serialVersionUID = 0L;
@@ -62,7 +62,11 @@ public class SerializableConfiguration implements Externalizable {
   public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
     String className = in.readUTF();
     try {
-      conf = (Configuration) Class.forName(className).getDeclaredConstructor().newInstance();
+      conf =
+          Class.forName(className)
+              .asSubclass(Configuration.class)
+              .getDeclaredConstructor()
+              .newInstance();
       conf.readFields(in);
     } catch (InstantiationException
         | IllegalAccessException

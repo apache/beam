@@ -16,9 +16,9 @@
 // Package sql contains SQL transform APIs, allowing SQL queries to be used
 // in Beam Go pipelines.
 //
-// NOTE: This is an experimental feature. It currently only works when an
-// expansion service/handler is registered for SQL transform. The APIs are
-// subject to change without backward compatibility guarantees.
+// NOTE: This feature only works when an expansion service/handler is
+// registered for SQL transform. The APIs are subject to change without
+// backward compatibility guarantees.
 package sql
 
 import (
@@ -59,9 +59,9 @@ func Input(name string, in beam.PCollection) Option {
 //
 // There is currently no default output type, so users must set this option.
 // In the future, Row, once implemented, may become the default output type.
-func OutputType(t reflect.Type) Option {
+func OutputType(t reflect.Type, components ...typex.FullType) Option {
 	return func(o sqlx.Options) {
-		o.(*options).outType = typex.New(t)
+		o.(*options).outType = typex.New(t, components...)
 	}
 }
 
@@ -89,11 +89,14 @@ func ExpansionAddr(addr string) Option {
 //
 // Example:
 //
-//  in := beam.Create(s, 1, 2, 3)
-//  out := sql.Transform(s, "SELECT COUNT(*) FROM t",
-//      sql.Input("t", in),
-//      sql.OutputType(reflect.TypeOf(int64(0))))
-//  // `out` is a PCollection<int64> with a single element 3.
+//	in := beam.Create(s, 1, 2, 3)
+//	out := sql.Transform(s, "SELECT COUNT(*) FROM t",
+//	    sql.Input("t", in),
+//	    sql.OutputType(reflect.TypeOf(int64(0))))
+//	// `out` is a PCollection<int64> with a single element 3.
+//
+// If an expansion service address is not provided as an option, one will be
+// automatically started for the transform.
 func Transform(s beam.Scope, query string, opts ...Option) beam.PCollection {
 	o := &options{
 		inputs: make(map[string]beam.PCollection),
@@ -108,7 +111,6 @@ func Transform(s beam.Scope, query string, opts ...Option) beam.PCollection {
 	payload := beam.CrossLanguagePayload(&sqlx.ExpansionPayload{
 		Query:   query,
 		Dialect: o.dialect,
-		Options: o.customs,
 	})
 
 	expansionAddr := sqlx.DefaultExpansionAddr

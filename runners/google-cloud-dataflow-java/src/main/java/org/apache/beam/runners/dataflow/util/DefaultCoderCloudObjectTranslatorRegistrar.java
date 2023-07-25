@@ -42,6 +42,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.TextualIntegerCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.io.gcp.bigquery.RowMutation;
 import org.apache.beam.sdk.io.gcp.bigquery.TableDestinationCoderV2;
 import org.apache.beam.sdk.io.gcp.bigquery.TableDestinationCoderV3;
 import org.apache.beam.sdk.io.gcp.bigquery.TableRowJsonCoder;
@@ -56,7 +57,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  */
 @AutoService(CoderCloudObjectTranslatorRegistrar.class)
 @SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class DefaultCoderCloudObjectTranslatorRegistrar
     implements CoderCloudObjectTranslatorRegistrar {
@@ -79,6 +80,7 @@ public class DefaultCoderCloudObjectTranslatorRegistrar
           CloudObjectTranslators.iterableLike(ListCoder.class),
           CloudObjectTranslators.iterableLike(SetCoder.class),
           CloudObjectTranslators.map(),
+          CloudObjectTranslators.timestampedValue(),
           CloudObjectTranslators.nullable(),
           CloudObjectTranslators.union(),
           CloudObjectTranslators.coGroupByKeyResult(),
@@ -102,6 +104,7 @@ public class DefaultCoderCloudObjectTranslatorRegistrar
           IsmShardCoder.class,
           KeyPrefixCoder.class,
           RandomAccessDataCoder.class,
+          RowMutation.RowMutationCoder.class,
           StringUtf8Coder.class,
           TableDestinationCoderV2.class,
           TableDestinationCoderV3.class,

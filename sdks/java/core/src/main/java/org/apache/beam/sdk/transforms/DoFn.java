@@ -25,8 +25,6 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.StateSpec;
@@ -53,6 +51,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -98,6 +97,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
      * Returns the {@code PipelineOptions} specified with the {@link
      * org.apache.beam.sdk.PipelineRunner} invoking this {@code DoFn}.
      */
+    @Pure
     public abstract PipelineOptions getPipelineOptions();
   }
 
@@ -107,6 +107,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
      * Returns the {@code PipelineOptions} specified with the {@link
      * org.apache.beam.sdk.PipelineRunner} invoking this {@code DoFn}.
      */
+    @Pure
     public abstract PipelineOptions getPipelineOptions();
 
     /**
@@ -141,6 +142,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
      * Returns the {@code PipelineOptions} specified with the {@link
      * org.apache.beam.sdk.PipelineRunner} invoking this {@code DoFn}.
      */
+    @Pure
     public abstract PipelineOptions getPipelineOptions();
 
     /**
@@ -240,6 +242,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
      * <p>The element will not be changed -- it is safe to cache, etc. without copying.
      * Implementation of {@link DoFn.ProcessElement} method should not mutate the element.
      */
+    @Pure
     public abstract InputT element();
 
     /**
@@ -248,6 +251,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
      * @throws IllegalArgumentException if this is not a side input
      * @see ParDo.SingleOutput#withSideInputs
      */
+    @Pure
     public abstract <T> T sideInput(PCollectionView<T> view);
 
     /**
@@ -255,6 +259,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
      *
      * <p>See {@link Window} for more information.
      */
+    @Pure
     public abstract Instant timestamp();
 
     /**
@@ -264,11 +269,11 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
      * <p>Generally all data is in a single, uninteresting pane unless custom triggering and/or late
      * data has been explicitly requested. See {@link Window} for more information.
      */
+    @Pure
     public abstract PaneInfo pane();
   }
 
   /** Information accessible when running a {@link DoFn.OnTimer} method. */
-  @Experimental(Kind.TIMERS)
   public abstract class OnTimerContext extends WindowedContext {
 
     /** Returns the output timestamp of the current timer. */
@@ -287,6 +292,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   public abstract class OnWindowExpirationContext extends WindowedContext {
 
     /** Returns the window in which the window expiration is firing. */
+    @Pure
     public abstract BoundedWindow window();
   }
 
@@ -300,7 +306,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
    * @deprecated This method permits a {@link DoFn} to emit elements behind the watermark. These
    *     elements are considered late, and if behind the {@link Window#withAllowedLateness(Duration)
    *     allowed lateness} of a downstream {@link PCollection} may be silently dropped. See
-   *     https://issues.apache.org/jira/browse/BEAM-644 for details on a replacement.
+   *     https://github.com/apache/beam/issues/18065 for details on a replacement.
    */
   @Deprecated
   public Duration getAllowedTimestampSkew() {
@@ -349,7 +355,6 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
      * <p>The {@link PCollection} representing this tag must have a schema registered in order to
      * call this function.
      */
-    @Experimental(Kind.SCHEMAS)
     <T> OutputReceiver<Row> getRowReceiver(TupleTag<T> tag);
   }
 
@@ -390,7 +395,6 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target({ElementType.FIELD, ElementType.PARAMETER})
-  @Experimental(Kind.STATE)
   public @interface StateId {
     /** The state ID. */
     String value();
@@ -430,7 +434,6 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target({ElementType.FIELD, ElementType.PARAMETER})
-  @Experimental(Kind.STATE)
   public @interface AlwaysFetched {}
 
   /**
@@ -471,7 +474,6 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target({ElementType.FIELD, ElementType.PARAMETER})
-  @Experimental(Kind.TIMERS)
   public @interface TimerId {
     /** The timer ID. */
     String value() default "";
@@ -481,7 +483,6 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target({ElementType.FIELD, ElementType.PARAMETER})
-  @Experimental(Kind.TIMERS)
   public @interface TimerFamily {
     /** The TimerMap tag ID. */
     String value();
@@ -499,7 +500,6 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   /** Annotation for specifying specific fields that are accessed in a Schema PCollection. */
   @Retention(RetentionPolicy.RUNTIME)
   @Target({ElementType.FIELD, ElementType.PARAMETER})
-  @Experimental(Kind.SCHEMAS)
   public @interface FieldAccess {
     String value();
   }
@@ -517,7 +517,6 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.METHOD)
-  @Experimental(Kind.TIMERS)
   public @interface OnTimer {
     /** The timer ID. */
     String value();
@@ -536,7 +535,6 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.METHOD)
-  @Experimental(Kind.TIMERS)
   public @interface OnTimerFamily {
     /** The timer ID. */
     String value();
@@ -565,7 +563,6 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.METHOD)
-  @Experimental(Kind.STATE)
   public @interface OnWindowExpiration {}
 
   /**
@@ -788,10 +785,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
     String value();
   }
   /**
-   * <b><i>Experimental - no backwards compatibility guarantees. The exact name or usage of this
-   * feature may change.</i></b>
-   *
-   * <p>Annotation that may be added to a {@link ProcessElement}, {@link OnTimer}, or {@link
+   * Annotation that may be added to a {@link ProcessElement}, {@link OnTimer}, or {@link
    * OnWindowExpiration} method to indicate that the runner must ensure that the observable contents
    * of the input {@link PCollection} or mutable state must be stable upon retries.
    *
@@ -805,16 +799,12 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
    * PCollection} is permitted to be recomputed in any manner.
    */
   @Documented
-  @Experimental
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.METHOD)
   public @interface RequiresStableInput {}
 
   /**
-   * <b><i>Experimental - no backwards compatibility guarantees. The exact name or usage of this
-   * feature may change.</i></b>
-   *
-   * <p>Annotation that may be added to a {@link ProcessElement} method to indicate that the runner
+   * Annotation that may be added to a {@link ProcessElement} method to indicate that the runner
    * must ensure that the observable contents of the input {@link PCollection} is sorted by time, in
    * ascending order. The time ordering is defined by element's timestamp, ordering of elements with
    * equal timestamps is not defined.
@@ -831,7 +821,6 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
    * will have to be dropped. This might change in the future with introduction of retractions.
    */
   @Documented
-  @Experimental
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.METHOD)
   public @interface RequiresTimeSortedInput {}
@@ -850,8 +839,8 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
    *       commits the output of this bundle. See <a
    *       href="https://s.apache.org/beam-finalizing-bundles">Apache Beam Portability API: How to
    *       Finalize Bundles</a> for further details.
-   *   <li>TODO(BEAM-1287): Add support for an {@link OutputReceiver} and {@link
-   *       MultiOutputReceiver} that can output to a window.
+   *   <li>TODO(https://github.com/apache/beam/issues/18203): Add support for an {@link
+   *       OutputReceiver} and {@link MultiOutputReceiver} that can output to a window.
    * </ul>
    *
    * <p>Note that {@link FinishBundle @FinishBundle} is invoked before the runner commits the output
@@ -992,6 +981,9 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
    *       additional details such as the number of bytes for keys and values is known for the key
    *       range.
    * </ul>
+   *
+   * <p>Must be thread safe. Will be invoked concurrently during bundle processing due to runner
+   * initiated splitting and progress estimation.
    */
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
@@ -1355,7 +1347,6 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
    * consumers without waiting for finalization to succeed. For pipelines that are sensitive to
    * duplicate messages, they must perform output deduplication in the pipeline.
    */
-  @Experimental(Kind.PORTABILITY)
   public interface BundleFinalizer {
     /**
      * The provided function will be called after the runner successfully commits the output of a

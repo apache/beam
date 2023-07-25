@@ -24,7 +24,7 @@ files:
 - name: src/org/apache/beam/learning/katas/windowing/addingtimestamp/withtimestamps/Task.java
   visible: true
   placeholders:
-  - offset: 2223
+  - offset: 2442
     length: 69
     placeholder_text: TODO()
 - name: test/org/apache/beam/learning/katas/windowing/addingtimestamp/withtimestamps/TaskTest.java

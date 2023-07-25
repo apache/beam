@@ -20,7 +20,6 @@ package org.apache.beam.sdk.extensions.zetasketch;
 import com.google.auto.value.AutoValue;
 import java.util.List;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.extensions.zetasketch.HllCount.Init.Builder;
@@ -36,8 +35,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * {@code PTransform}s for estimating the number of distinct elements in a {@code PCollection}, or
@@ -76,10 +73,7 @@ import org.slf4j.LoggerFactory;
  *       .via(kv -> KV.of(kv.getKey(), (long) kv.getValue().hashCode())));
  * }</pre>
  */
-@Experimental
 public class ApproximateCountDistinct {
-
-  private static final Logger LOG = LoggerFactory.getLogger(ApproximateCountDistinct.class);
 
   private static final List<TypeDescriptor<?>> HLL_IMPLEMENTED_TYPES =
       ImmutableList.of(
@@ -154,7 +148,7 @@ public class ApproximateCountDistinct {
         return input.apply(builder.globally()).apply(HllCount.Extract.globally());
       }
 
-      // Boiler plate to avoid  [argument.type.incompatible] NonNull vs Nullable
+      // Boiler plate to avoid  [argument] NonNull vs Nullable
       Contextful<Fn<T, Long>> mapping = getMapping();
 
       if (mapping != null) {
@@ -225,7 +219,7 @@ public class ApproximateCountDistinct {
         return input.apply(builder.perKey()).apply(HllCount.Extract.perKey());
       }
 
-      // Boiler plate to avoid  [argument.type.incompatible] NonNull vs Nullable
+      // Boiler plate to avoid  [argument] NonNull vs Nullable
       Contextful<Fn<KV<K, V>, KV<K, Long>>> mapping = getMapping();
 
       if (mapping != null) {

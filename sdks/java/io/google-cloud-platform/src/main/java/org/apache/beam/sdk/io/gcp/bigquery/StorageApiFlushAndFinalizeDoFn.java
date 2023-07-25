@@ -19,8 +19,8 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.StatusCode.Code;
-import com.google.cloud.bigquery.storage.v1beta2.FinalizeWriteStreamResponse;
-import com.google.cloud.bigquery.storage.v1beta2.FlushRowsResponse;
+import com.google.cloud.bigquery.storage.v1.FinalizeWriteStreamResponse;
+import com.google.cloud.bigquery.storage.v1.FlushRowsResponse;
 import java.io.IOException;
 import java.io.Serializable;
 import java.time.Instant;
@@ -38,6 +38,7 @@ import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.joda.time.Duration;
@@ -49,7 +50,7 @@ public class StorageApiFlushAndFinalizeDoFn extends DoFn<KV<String, Operation>, 
   private static final Logger LOG = LoggerFactory.getLogger(StorageApiFlushAndFinalizeDoFn.class);
 
   private final BigQueryServices bqServices;
-  @Nullable private DatasetService datasetService = null;
+  private transient @Nullable DatasetService datasetService = null;
   private final Counter flushOperationsSent =
       Metrics.counter(StorageApiFlushAndFinalizeDoFn.class, "flushOperationsSent");
   private final Counter flushOperationsSucceeded =
@@ -130,7 +131,6 @@ public class StorageApiFlushAndFinalizeDoFn extends DoFn<KV<String, Operation>, 
     }
   }
 
-  @SuppressWarnings({"nullness"})
   @ProcessElement
   public void process(PipelineOptions pipelineOptions, @Element KV<String, Operation> element)
       throws Exception {
@@ -155,7 +155,8 @@ public class StorageApiFlushAndFinalizeDoFn extends DoFn<KV<String, Operation>, 
           },
           // onError
           contexts -> {
-            Throwable error = Iterables.getFirst(contexts, null).getError();
+            Throwable error =
+                Preconditions.checkArgumentNotNull(Iterables.getFirst(contexts, null)).getError();
             LOG.warn(
                 "Flush of stream " + streamId + " to offset " + offset + " failed with " + error);
             flushOperationsFailed.inc();
@@ -170,6 +171,9 @@ public class StorageApiFlushAndFinalizeDoFn extends DoFn<KV<String, Operation>, 
                 flushOperationsInvalidArgument.inc();
                 // Implies that the stream has already been finalized.
                 // TODO: Storage API should provide a more-specific way of identifying this failure.
+                return RetryType.DONT_RETRY;
+              }
+              if (statusCode.equals(Code.NOT_FOUND)) {
                 return RetryType.DONT_RETRY;
               }
             }
@@ -205,8 +209,18 @@ public class StorageApiFlushAndFinalizeDoFn extends DoFn<KV<String, Operation>, 
                 "Finalize of stream "
                     + streamId
                     + " failed with "
-                    + Iterables.getFirst(contexts, null).getError());
+                    + Preconditions.checkArgumentNotNull(Iterables.getFirst(contexts, null))
+                        .getError());
             finalizeOperationsFailed.inc();
+            @Nullable
+            Context<FinalizeWriteStreamResponse> firstContext = Iterables.getFirst(contexts, null);
+            @Nullable Throwable error = firstContext == null ? null : firstContext.getError();
+            if (error instanceof ApiException) {
+              Code statusCode = ((ApiException) error).getStatusCode().getCode();
+              if (statusCode.equals(Code.NOT_FOUND)) {
+                return RetryType.DONT_RETRY;
+              }
+            }
             return RetryType.RETRY_ALL_OPERATIONS;
           },
           r -> {

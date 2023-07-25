@@ -1,0 +1,1642 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "target": {
+          "limit": 100,
+          "matchAny": false,
+          "tags": [],
+          "type": "dashboard"
+        },
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "gnetId": null,
+  "graphTooltip": 0,
+  "id": 28,
+  "links": [],
+  "panels": [
+    {
+      "datasource": "BeamInfluxDB",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 38,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "normal"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "id": 18,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "alias": "",
+          "groupBy": [
+            {
+              "params": [
+                "1w"
+              ],
+              "type": "time"
+            },
+            {
+              "params": [
+                "benchmark"
+              ],
+              "type": "tag"
+            },
+            {
+              "params": [
+                "none"
+              ],
+              "type": "fill"
+            }
+          ],
+          "measurement": "java_jmh_thrpt",
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "SELECT sum(\"durationMs\") / 60000.0  FROM \"java_jmh_thrpt\" WHERE $timeFilter GROUP BY time(1d), benchmark fill(none)",
+          "rawQuery": true,
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "durationMs"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "sum"
+              }
+            ]
+          ],
+          "tags": []
+        }
+      ],
+      "title": "Accumulated runtimes (minutes)",
+      "transformations": [
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": ".*?\\.([A-Z]\\w+)\\..*",
+            "renamePattern": "$1"
+          }
+        },
+        {
+          "id": "seriesToColumns",
+          "options": {
+            "byField": "Time"
+          }
+        },
+        {
+          "id": "groupBy",
+          "options": {
+            "fields": {
+              "BeamFnLoggingClientBenchmark": {
+                "aggregations": [
+                  "sum"
+                ],
+                "operation": "aggregate"
+              },
+              "ByteStringOutputStreamBenchmark": {
+                "aggregations": [
+                  "sum"
+                ],
+                "operation": "aggregate"
+              },
+              "PrecombineGroupingTableBenchmark": {
+                "aggregations": [
+                  "sum"
+                ],
+                "operation": "aggregate"
+              },
+              "ExecutionStateSamplerBenchmark": {
+                "aggregations": [
+                  "sum"
+                ],
+                "operation": "aggregate"
+              },
+              "GetterBasedSchemaProviderBenchmark": {
+                "aggregations": [
+                  "sum"
+                ],
+                "operation": "aggregate"
+              },
+              "MetricsBenchmark": {
+                "aggregations": [
+                  "sum"
+                ],
+                "operation": "aggregate"
+              },
+              "ProcessBundleBenchmark": {
+                "aggregations": [
+                  "sum"
+                ],
+                "operation": "aggregate"
+              },
+              "TextSourceBenchmark": {
+                "aggregations": [
+                  "sum"
+                ],
+                "operation": "aggregate"
+              },
+              "Time": {
+                "aggregations": [],
+                "operation": "groupby"
+              }
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "BeamFnLoggingClientBenchmark (sum) 1": false,
+              "BeamFnLoggingClientBenchmark (sum) 2": true,
+              "BeamFnLoggingClientBenchmark (sum) 3": true,
+              "ByteStringOutputStreamBenchmark (sum) 10": true,
+              "ByteStringOutputStreamBenchmark (sum) 11": true,
+              "ByteStringOutputStreamBenchmark (sum) 12": true,
+              "ByteStringOutputStreamBenchmark (sum) 13": true,
+              "ByteStringOutputStreamBenchmark (sum) 14": true,
+              "ByteStringOutputStreamBenchmark (sum) 15": true,
+              "ByteStringOutputStreamBenchmark (sum) 16": true,
+              "ByteStringOutputStreamBenchmark (sum) 17": true,
+              "ByteStringOutputStreamBenchmark (sum) 18": true,
+              "ByteStringOutputStreamBenchmark (sum) 19": true,
+              "ByteStringOutputStreamBenchmark (sum) 2": true,
+              "ByteStringOutputStreamBenchmark (sum) 20": true,
+              "ByteStringOutputStreamBenchmark (sum) 21": true,
+              "ByteStringOutputStreamBenchmark (sum) 22": true,
+              "ByteStringOutputStreamBenchmark (sum) 3": true,
+              "ByteStringOutputStreamBenchmark (sum) 4": true,
+              "ByteStringOutputStreamBenchmark (sum) 5": true,
+              "ByteStringOutputStreamBenchmark (sum) 6": true,
+              "ByteStringOutputStreamBenchmark (sum) 7": true,
+              "ByteStringOutputStreamBenchmark (sum) 8": true,
+              "ByteStringOutputStreamBenchmark (sum) 9": true,
+              "ExecutionStateSamplerBenchmark (sum) 2": true,
+              "ExecutionStateSamplerBenchmark (sum) 3": true,
+              "ExecutionStateSamplerBenchmark (sum) 4": true,
+              "GetterBasedSchemaProviderBenchmark (sum) 1": false,
+              "GetterBasedSchemaProviderBenchmark (sum) 10": true,
+              "GetterBasedSchemaProviderBenchmark (sum) 11": true,
+              "GetterBasedSchemaProviderBenchmark (sum) 12": true,
+              "GetterBasedSchemaProviderBenchmark (sum) 2": true,
+              "GetterBasedSchemaProviderBenchmark (sum) 3": true,
+              "GetterBasedSchemaProviderBenchmark (sum) 4": true,
+              "GetterBasedSchemaProviderBenchmark (sum) 5": true,
+              "GetterBasedSchemaProviderBenchmark (sum) 6": true,
+              "GetterBasedSchemaProviderBenchmark (sum) 7": true,
+              "GetterBasedSchemaProviderBenchmark (sum) 8": true,
+              "GetterBasedSchemaProviderBenchmark (sum) 9": true,
+              "MetricsBenchmark (sum) 2": true,
+              "MetricsBenchmark (sum) 3": true,
+              "MetricsBenchmark (sum) 4": true,
+              "ProcessBundleBenchmark (sum) 2": true,
+              "ProcessBundleBenchmark (sum) 3": true,
+              "ProcessBundleBenchmark (sum) 4": true,
+              "TextSourceBenchmark (sum) 1": false,
+              "TextSourceBenchmark (sum) 2": true
+            },
+            "indexByName": {},
+            "renameByName": {}
+          }
+        },
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": "(.*?)\\s.*",
+            "renamePattern": "$1"
+          }
+        }
+      ],
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "datasource": null,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 8
+      },
+      "id": 6,
+      "panels": [],
+      "title": ":sdks:java:harness:jmh",
+      "type": "row"
+    },
+    {
+      "datasource": "BeamInfluxDB",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "always",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 9
+      },
+      "id": 2,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "pluginVersion": "8.1.8",
+      "targets": [
+        {
+          "alias": "$tag_benchmark",
+          "groupBy": [
+            {
+              "params": [
+                "1d"
+              ],
+              "type": "time"
+            },
+            {
+              "params": [
+                "benchmark"
+              ],
+              "type": "tag"
+            },
+            {
+              "params": [
+                "action"
+              ],
+              "type": "tag"
+            },
+            {
+              "params": [
+                "none"
+              ],
+              "type": "fill"
+            }
+          ],
+          "measurement": "java_jmh_thrpt",
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "SELECT median(\"score\") FROM \"java_jmh_thrpt\" WHERE (\"benchmark\" =~ /ProcessBundleBenchmark/) AND $timeFilter GROUP BY time(1d), \"benchmark\" fill(none)",
+          "rawQuery": true,
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "score"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "median"
+              }
+            ]
+          ],
+          "tags": [
+            {
+              "key": "benchmark",
+              "operator": "=~",
+              "value": "/org.apache.beam.sdk.jmh.schemas.GetterBasedSchemaProviderBenchmark.*/"
+            }
+          ]
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "ProcessBundleBenchmark (thrpt)",
+      "transformations": [
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": ".*\\.(.+)",
+            "renamePattern": "$1"
+          }
+        }
+      ],
+      "type": "timeseries"
+    },
+    {
+      "datasource": "BeamInfluxDB",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "always",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 9
+      },
+      "id": 10,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "pluginVersion": "8.1.8",
+      "targets": [
+        {
+          "alias": "$tag_benchmark",
+          "groupBy": [
+            {
+              "params": [
+                "1d"
+              ],
+              "type": "time"
+            },
+            {
+              "params": [
+                "benchmark"
+              ],
+              "type": "tag"
+            },
+            {
+              "params": [
+                "action"
+              ],
+              "type": "tag"
+            },
+            {
+              "params": [
+                "none"
+              ],
+              "type": "fill"
+            }
+          ],
+          "measurement": "java_jmh_thrpt",
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "SELECT median(\"score\") FROM \"java_jmh_thrpt\" WHERE (\"benchmark\" =~ /MetricsBenchmark/) AND $timeFilter GROUP BY time(1d), \"benchmark\" fill(none)",
+          "rawQuery": true,
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "score"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "median"
+              }
+            ]
+          ],
+          "tags": [
+            {
+              "key": "benchmark",
+              "operator": "=~",
+              "value": "/org.apache.beam.sdk.jmh.schemas.GetterBasedSchemaProviderBenchmark.*/"
+            }
+          ]
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "MetricsBenchmark (thrpt)",
+      "transformations": [
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": ".*\\.(.+)",
+            "renamePattern": "$1"
+          }
+        }
+      ],
+      "type": "timeseries"
+    },
+    {
+      "datasource": "BeamInfluxDB",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "always",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 16
+      },
+      "id": 11,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "pluginVersion": "8.1.8",
+      "targets": [
+        {
+          "alias": "$tag_benchmark [distribution=$tag_distribution][globallyWindowed=$tag_globallyWindowed]",
+          "groupBy": [
+            {
+              "params": [
+                "1d"
+              ],
+              "type": "time"
+            },
+            {
+              "params": [
+                "benchmark"
+              ],
+              "type": "tag"
+            },
+            {
+              "params": [
+                "action"
+              ],
+              "type": "tag"
+            },
+            {
+              "params": [
+                "none"
+              ],
+              "type": "fill"
+            }
+          ],
+          "measurement": "java_jmh_thrpt",
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "SELECT median(\"score\") FROM \"java_jmh_thrpt\" WHERE (\"benchmark\" =~ /PrecombineGroupingTableBenchmark/) AND $timeFilter GROUP BY time(1d), \"benchmark\", distribution, globallyWindowed fill(none)",
+          "rawQuery": true,
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "score"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "median"
+              }
+            ]
+          ],
+          "tags": [
+            {
+              "key": "benchmark",
+              "operator": "=~",
+              "value": "/org.apache.beam.sdk.jmh.schemas.GetterBasedSchemaProviderBenchmark.*/"
+            }
+          ]
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "PrecombineGroupingTableBenchmark (thrpt)",
+      "transformations": [
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": ".*\\.(.+)",
+            "renamePattern": "$1"
+          }
+        }
+      ],
+      "type": "timeseries"
+    },
+    {
+      "datasource": "BeamInfluxDB",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "always",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 16
+      },
+      "id": 13,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "pluginVersion": "8.1.8",
+      "targets": [
+        {
+          "alias": "$tag_benchmark",
+          "groupBy": [
+            {
+              "params": [
+                "1d"
+              ],
+              "type": "time"
+            },
+            {
+              "params": [
+                "benchmark"
+              ],
+              "type": "tag"
+            },
+            {
+              "params": [
+                "action"
+              ],
+              "type": "tag"
+            },
+            {
+              "params": [
+                "none"
+              ],
+              "type": "fill"
+            }
+          ],
+          "measurement": "java_jmh_thrpt",
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "SELECT median(\"score\") FROM \"java_jmh_thrpt\" WHERE (\"benchmark\" =~ /ExecutionStateSamplerBenchmark/) AND $timeFilter GROUP BY time(1d), \"benchmark\" fill(none)",
+          "rawQuery": true,
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "score"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "median"
+              }
+            ]
+          ],
+          "tags": [
+            {
+              "key": "benchmark",
+              "operator": "=~",
+              "value": "/org.apache.beam.sdk.jmh.schemas.GetterBasedSchemaProviderBenchmark.*/"
+            }
+          ]
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "ExecutionStateSamplerBenchmark (thrpt)",
+      "transformations": [
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": ".*\\.(.+)",
+            "renamePattern": "$1"
+          }
+        }
+      ],
+      "type": "timeseries"
+    },
+    {
+      "datasource": "BeamInfluxDB",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "log": 10,
+              "type": "log"
+            },
+            "showPoints": "always",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 23
+      },
+      "id": 12,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "pluginVersion": "8.1.8",
+      "targets": [
+        {
+          "alias": "$tag_benchmark",
+          "groupBy": [
+            {
+              "params": [
+                "1d"
+              ],
+              "type": "time"
+            },
+            {
+              "params": [
+                "benchmark"
+              ],
+              "type": "tag"
+            },
+            {
+              "params": [
+                "action"
+              ],
+              "type": "tag"
+            },
+            {
+              "params": [
+                "none"
+              ],
+              "type": "fill"
+            }
+          ],
+          "measurement": "java_jmh_thrpt",
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "SELECT median(\"score\") FROM \"java_jmh_thrpt\" WHERE (\"benchmark\" =~ /BeamFnLoggingClientBenchmark/) AND $timeFilter GROUP BY time(1d), \"benchmark\" fill(none)",
+          "rawQuery": true,
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "score"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "median"
+              }
+            ]
+          ],
+          "tags": [
+            {
+              "key": "benchmark",
+              "operator": "=~",
+              "value": "/org.apache.beam.sdk.jmh.schemas.GetterBasedSchemaProviderBenchmark.*/"
+            }
+          ]
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "BeamFnLoggingClientBenchmark (thrpt)",
+      "transformations": [
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": ".*\\.(.+)",
+            "renamePattern": "$1"
+          }
+        }
+      ],
+      "type": "timeseries"
+    },
+    {
+      "collapsed": true,
+      "datasource": null,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 30
+      },
+      "id": 4,
+      "panels": [
+        {
+          "datasource": "BeamInfluxDB",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "always",
+                "spanNulls": true,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "ops"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 9,
+            "w": 12,
+            "x": 0,
+            "y": 10
+          },
+          "id": 14,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          },
+          "pluginVersion": "8.1.8",
+          "targets": [
+            {
+              "alias": "$tag_benchmark",
+              "groupBy": [
+                {
+                  "params": [
+                    "1d"
+                  ],
+                  "type": "time"
+                },
+                {
+                  "params": [
+                    "benchmark"
+                  ],
+                  "type": "tag"
+                },
+                {
+                  "params": [
+                    "action"
+                  ],
+                  "type": "tag"
+                },
+                {
+                  "params": [
+                    "none"
+                  ],
+                  "type": "fill"
+                }
+              ],
+              "measurement": "java_jmh_thrpt",
+              "orderByTime": "ASC",
+              "policy": "default",
+              "query": "SELECT median(\"score\") FROM \"java_jmh_thrpt\" WHERE (\"benchmark\" =~ /ByteStringOutputStreamBenchmark\\.test/) AND $timeFilter GROUP BY time(1d), \"benchmark\" fill(none)",
+              "rawQuery": true,
+              "refId": "A",
+              "resultFormat": "time_series",
+              "select": [
+                [
+                  {
+                    "params": [
+                      "score"
+                    ],
+                    "type": "field"
+                  },
+                  {
+                    "params": [],
+                    "type": "median"
+                  }
+                ]
+              ],
+              "tags": [
+                {
+                  "key": "benchmark",
+                  "operator": "=~",
+                  "value": "/org.apache.beam.sdk.jmh.schemas.GetterBasedSchemaProviderBenchmark.*/"
+                }
+              ]
+            }
+          ],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "ByteStringOutputStreamBenchmark (thrpt)",
+          "transformations": [
+            {
+              "id": "renameByRegex",
+              "options": {
+                "regex": ".*\\.(.+)",
+                "renamePattern": "$1"
+              }
+            }
+          ],
+          "type": "timeseries"
+        },
+        {
+          "datasource": "BeamInfluxDB",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "always",
+                "spanNulls": true,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "ops"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 9,
+            "w": 12,
+            "x": 12,
+            "y": 10
+          },
+          "id": 15,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          },
+          "pluginVersion": "8.1.8",
+          "targets": [
+            {
+              "alias": "$tag_benchmark [copyVsNew=$tag_copyVsNew]",
+              "groupBy": [
+                {
+                  "params": [
+                    "1d"
+                  ],
+                  "type": "time"
+                },
+                {
+                  "params": [
+                    "benchmark"
+                  ],
+                  "type": "tag"
+                },
+                {
+                  "params": [
+                    "action"
+                  ],
+                  "type": "tag"
+                },
+                {
+                  "params": [
+                    "none"
+                  ],
+                  "type": "fill"
+                }
+              ],
+              "measurement": "java_jmh_thrpt",
+              "orderByTime": "ASC",
+              "policy": "default",
+              "query": "SELECT median(\"score\") FROM \"java_jmh_thrpt\" WHERE (\"benchmark\" =~ /ByteStringOutputStreamBenchmark\\.NewVsCopy./) AND $timeFilter GROUP BY time(1d), \"benchmark\", \"copyVsNew\" fill(none)",
+              "rawQuery": true,
+              "refId": "A",
+              "resultFormat": "time_series",
+              "select": [
+                [
+                  {
+                    "params": [
+                      "score"
+                    ],
+                    "type": "field"
+                  },
+                  {
+                    "params": [],
+                    "type": "median"
+                  }
+                ]
+              ],
+              "tags": [
+                {
+                  "key": "benchmark",
+                  "operator": "=~",
+                  "value": "/org.apache.beam.sdk.jmh.schemas.GetterBasedSchemaProviderBenchmark.*/"
+                }
+              ]
+            }
+          ],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "ByteStringOutputStreamBenchmark.NewVsCopy (thrpt)",
+          "transformations": [
+            {
+              "id": "renameByRegex",
+              "options": {
+                "regex": ".*\\.(.+)",
+                "renamePattern": "$1"
+              }
+            }
+          ],
+          "type": "timeseries"
+        },
+        {
+          "datasource": "BeamInfluxDB",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "always",
+                "spanNulls": true,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "ops"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 9,
+            "w": 12,
+            "x": 0,
+            "y": 19
+          },
+          "id": 9,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          },
+          "pluginVersion": "8.1.8",
+          "targets": [
+            {
+              "alias": "$tag_benchmark [$tag_action]",
+              "groupBy": [
+                {
+                  "params": [
+                    "1d"
+                  ],
+                  "type": "time"
+                },
+                {
+                  "params": [
+                    "benchmark"
+                  ],
+                  "type": "tag"
+                },
+                {
+                  "params": [
+                    "action"
+                  ],
+                  "type": "tag"
+                },
+                {
+                  "params": [
+                    "none"
+                  ],
+                  "type": "fill"
+                }
+              ],
+              "measurement": "java_jmh_thrpt",
+              "orderByTime": "ASC",
+              "policy": "default",
+              "query": "SELECT median(\"score\") FROM \"java_jmh_thrpt\" WHERE (\"benchmark\" =~ /org.apache.beam.sdk.jmh.schemas.GetterBasedSchemaProviderBenchmark.*/) AND $timeFilter GROUP BY time(1d), \"benchmark\", \"action\" fill(none) ",
+              "rawQuery": false,
+              "refId": "A",
+              "resultFormat": "time_series",
+              "select": [
+                [
+                  {
+                    "params": [
+                      "score"
+                    ],
+                    "type": "field"
+                  },
+                  {
+                    "params": [],
+                    "type": "median"
+                  }
+                ]
+              ],
+              "tags": [
+                {
+                  "key": "benchmark",
+                  "operator": "=~",
+                  "value": "/org.apache.beam.sdk.jmh.schemas.GetterBasedSchemaProviderBenchmark.*/"
+                }
+              ]
+            }
+          ],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "GetterBasedSchemaProviderBenchmark (thrpt)",
+          "transformations": [
+            {
+              "id": "renameByRegex",
+              "options": {
+                "regex": ".*\\.(.+)",
+                "renamePattern": "$1"
+              }
+            }
+          ],
+          "type": "timeseries"
+        },
+        {
+          "datasource": "BeamInfluxDB",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "always",
+                "spanNulls": true,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "ops"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 9,
+            "w": 12,
+            "x": 12,
+            "y": 19
+          },
+          "id": 16,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          },
+          "pluginVersion": "8.1.8",
+          "targets": [
+            {
+              "alias": "$tag_benchmark",
+              "groupBy": [
+                {
+                  "params": [
+                    "1d"
+                  ],
+                  "type": "time"
+                },
+                {
+                  "params": [
+                    "benchmark"
+                  ],
+                  "type": "tag"
+                },
+                {
+                  "params": [
+                    "action"
+                  ],
+                  "type": "tag"
+                },
+                {
+                  "params": [
+                    "none"
+                  ],
+                  "type": "fill"
+                }
+              ],
+              "measurement": "java_jmh_thrpt",
+              "orderByTime": "ASC",
+              "policy": "default",
+              "query": "SELECT median(\"score\") FROM \"java_jmh_thrpt\" WHERE (\"benchmark\" =~ /TextSourceBenchmark/) AND $timeFilter GROUP BY time(1d), \"benchmark\" fill(none)",
+              "rawQuery": true,
+              "refId": "A",
+              "resultFormat": "time_series",
+              "select": [
+                [
+                  {
+                    "params": [
+                      "score"
+                    ],
+                    "type": "field"
+                  },
+                  {
+                    "params": [],
+                    "type": "median"
+                  }
+                ]
+              ],
+              "tags": [
+                {
+                  "key": "benchmark",
+                  "operator": "=~",
+                  "value": "/org.apache.beam.sdk.jmh.schemas.GetterBasedSchemaProviderBenchmark.*/"
+                }
+              ]
+            }
+          ],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "TextSourceBenchmark (thrpt)",
+          "transformations": [
+            {
+              "id": "renameByRegex",
+              "options": {
+                "regex": ".*\\.(.+)",
+                "renamePattern": "$1"
+              }
+            }
+          ],
+          "type": "timeseries"
+        }
+      ],
+      "title": ":sdks:java:core:jmh",
+      "type": "row"
+    }
+  ],
+  "refresh": "",
+  "schemaVersion": 30,
+  "style": "dark",
+  "tags": [
+    "performance tests"
+  ],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-24d",
+    "to": "now"
+  },
+  "timepicker": {
+    "hidden": false,
+    "refresh_intervals": [
+      "5s",
+      "10s",
+      "30s",
+      "1m",
+      "5m",
+      "15m",
+      "30m",
+      "1h",
+      "2h",
+      "1d"
+    ]
+  },
+  "timezone": "",
+  "title": "Java JMH benchmarks",
+  "uid": "kllfR2vVk",
+  "version": 11
+}

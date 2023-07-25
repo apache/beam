@@ -32,8 +32,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTableFilter;
 import org.apache.beam.sdk.extensions.sql.meta.SchemaBaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
@@ -42,17 +40,15 @@ import org.apache.beam.sdk.io.gcp.bigtable.BeamRowToBigtableMutation;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableIO;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableRowToBeamRow;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableRowToBeamRowFlat;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
 
-@Experimental
 public class BigtableTable extends SchemaBaseBeamTable implements Serializable {
   // Should match:
   // googleapis.com/bigtable/projects/projectId/instances/instanceId/tables/tableId"
@@ -132,11 +128,6 @@ public class BigtableTable extends SchemaBaseBeamTable implements Serializable {
   @Override
   public PCollection.IsBounded isBounded() {
     return PCollection.IsBounded.BOUNDED;
-  }
-
-  @Override
-  public BeamTableStatistics getTableStatistics(PipelineOptions options) {
-    return BeamTableStatistics.BOUNDED_UNKNOWN;
   }
 
   @Override

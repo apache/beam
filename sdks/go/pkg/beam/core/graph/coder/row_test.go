@@ -29,7 +29,7 @@ import (
 func TestReflectionRowCoderGeneration(t *testing.T) {
 	num := 35
 	tests := []struct {
-		want interface{}
+		want any
 	}{
 		{
 			// Top level value check
@@ -204,6 +204,42 @@ func TestReflectionRowCoderGeneration(t *testing.T) {
 	}
 }
 
+func TestReflectionRowCoderGeneration_UnexportedEmbed(t *testing.T) {
+	input := userType5{
+		unexportedUserType: unexportedUserType{
+			A: 24,
+			B: "marmalade",
+			c: 10,
+		},
+		C: 79,
+	}
+	rt := reflect.TypeOf(input)
+	enc, err := RowEncoderForStruct(rt)
+	if err != nil {
+		t.Fatalf("RowEncoderForStruct(%v) = %v, want nil error", rt, err)
+	}
+	var buf bytes.Buffer
+	if err := enc(input, &buf); err != nil {
+		t.Fatalf("enc(%v) = err, want nil error", err)
+	}
+	dec, err := RowDecoderForStruct(rt)
+	if err != nil {
+		t.Fatalf("RowDecoderForStruct(%v) = %v, want nil error", rt, err)
+	}
+	b := buf.Bytes()
+	r := bytes.NewBuffer(b)
+	got, err := dec(r)
+	if err != nil {
+		t.Fatalf("RowDecoderForStruct(%v) = %v, want nil error", rt, err)
+	}
+	// Arrange expected output, should not have a value for the unexported field.
+	want := input
+	want.unexportedUserType.c = 0
+	if d := cmp.Diff(want, got, cmp.AllowUnexported(userType5{}, unexportedUserType{})); d != "" {
+		t.Fatalf("dec(enc(%v)) = %v\ndiff (-want, +got): %v", want, got, d)
+	}
+}
+
 type UserType1 struct {
 	A string
 	B int
@@ -246,7 +282,7 @@ type userType6 struct {
 // Note: pointers to unexported types can't be handled by
 // this package. See https://golang.org/issue/21357.
 
-func ut1Enc(val interface{}, w io.Writer) error {
+func ut1Enc(val any, w io.Writer) error {
 	if err := WriteSimpleRowHeader(3, w); err != nil {
 		return err
 	}
@@ -263,7 +299,7 @@ func ut1Enc(val interface{}, w io.Writer) error {
 	return nil
 }
 
-func ut1Dec(r io.Reader) (interface{}, error) {
+func ut1Dec(r io.Reader) (any, error) {
 	if err := ReadSimpleRowHeader(3, r); err != nil {
 		return nil, err
 	}
@@ -293,7 +329,7 @@ func TestRowCoder_CustomCoder(t *testing.T) {
 
 	num := 35
 	tests := []struct {
-		want interface{}
+		want any
 	}{
 		{
 			// Top level value check
@@ -351,13 +387,13 @@ func TestRowCoder_CustomCoder(t *testing.T) {
 		t.Run(fmt.Sprintf("%+v", test.want), func(t *testing.T) {
 			rt := reflect.TypeOf(test.want)
 			var encB RowEncoderBuilder
-			encB.Register(customRT, func(reflect.Type) (func(interface{}, io.Writer) error, error) { return customEnc, nil })
+			encB.Register(customRT, func(reflect.Type) (func(any, io.Writer) error, error) { return customEnc, nil })
 			enc, err := encB.Build(rt)
 			if err != nil {
 				t.Fatalf("RowEncoderBuilder.Build(%v) = %v, want nil error", rt, err)
 			}
 			var decB RowDecoderBuilder
-			decB.Register(customRT, func(reflect.Type) (func(io.Reader) (interface{}, error), error) { return customDec, nil })
+			decB.Register(customRT, func(reflect.Type) (func(io.Reader) (any, error), error) { return customDec, nil })
 			dec, err := decB.Build(rt)
 			if err != nil {
 				t.Fatalf("RowDecoderBuilder.Build(%v) = %v, want nil error", rt, err)
@@ -375,7 +411,7 @@ func TestRowCoder_CustomCoder(t *testing.T) {
 }
 
 func BenchmarkRowCoder_RoundTrip(b *testing.B) {
-	ut1Enc := func(val interface{}, w io.Writer) error {
+	ut1Enc := func(val any, w io.Writer) error {
 		elm := val.(UserType1)
 		// We have 3 fields we use.
 		if err := EncodeVarInt(3, w); err != nil {
@@ -396,7 +432,7 @@ func BenchmarkRowCoder_RoundTrip(b *testing.B) {
 		}
 		return nil
 	}
-	ut1Dec := func(r io.Reader) (interface{}, error) {
+	ut1Dec := func(r io.Reader) (any, error) {
 		// We have 3 fields we use.
 		n, err := DecodeVarInt(r)
 		if err != nil {
@@ -434,10 +470,10 @@ func BenchmarkRowCoder_RoundTrip(b *testing.B) {
 
 	num := 35
 	benches := []struct {
-		want      interface{}
+		want      any
 		customRT  reflect.Type
-		customEnc func(interface{}, io.Writer) error
-		customDec func(io.Reader) (interface{}, error)
+		customEnc func(any, io.Writer) error
+		customDec func(io.Reader) (any, error)
 	}{
 		{
 			// Top level value check
@@ -567,13 +603,13 @@ func BenchmarkRowCoder_RoundTrip(b *testing.B) {
 		}
 		if bench.customEnc != nil && bench.customDec != nil {
 			var encB RowEncoderBuilder
-			encB.Register(bench.customRT, func(reflect.Type) (func(interface{}, io.Writer) error, error) { return bench.customEnc, nil })
+			encB.Register(bench.customRT, func(reflect.Type) (func(any, io.Writer) error, error) { return bench.customEnc, nil })
 			enc, err := encB.Build(rt)
 			if err != nil {
 				b.Fatalf("RowEncoderBuilder.Build(%v) = %v, want nil error", rt, err)
 			}
 			var decB RowDecoderBuilder
-			decB.Register(bench.customRT, func(reflect.Type) (func(io.Reader) (interface{}, error), error) { return bench.customDec, nil })
+			decB.Register(bench.customRT, func(reflect.Type) (func(io.Reader) (any, error), error) { return bench.customDec, nil })
 			dec, err := decB.Build(rt)
 			if err != nil {
 				b.Fatalf("RowDecoderBuilder.Build(%v) = %v, want nil error", rt, err)
@@ -628,12 +664,12 @@ func (p *testProvider) FromLogicalType(rt reflect.Type) (reflect.Type, error) {
 	return testStorageType, nil
 }
 
-func (p *testProvider) BuildEncoder(rt reflect.Type) (func(interface{}, io.Writer) error, error) {
+func (p *testProvider) BuildEncoder(rt reflect.Type) (func(any, io.Writer) error, error) {
 	if _, err := p.FromLogicalType(rt); err != nil {
 		return nil, err
 	}
 
-	return func(iface interface{}, w io.Writer) error {
+	return func(iface any, w io.Writer) error {
 		v := iface.(testInterface)
 		data, err := v.TestEncode()
 		if err != nil {
@@ -649,13 +685,13 @@ func (p *testProvider) BuildEncoder(rt reflect.Type) (func(interface{}, io.Write
 	}, nil
 }
 
-func (p *testProvider) BuildDecoder(rt reflect.Type) (func(io.Reader) (interface{}, error), error) {
+func (p *testProvider) BuildDecoder(rt reflect.Type) (func(io.Reader) (any, error), error) {
 	if _, err := p.FromLogicalType(rt); err != nil {
 		return nil, err
 	}
 	if rt.Kind() == reflect.Ptr {
 		rt = rt.Elem()
-		return func(r io.Reader) (interface{}, error) {
+		return func(r io.Reader) (any, error) {
 			if err := ReadSimpleRowHeader(1, r); err != nil {
 				return nil, err
 			}
@@ -673,7 +709,7 @@ func (p *testProvider) BuildDecoder(rt reflect.Type) (func(io.Reader) (interface
 			return v, nil
 		}, nil
 	}
-	return func(r io.Reader) (interface{}, error) {
+	return func(r io.Reader) (any, error) {
 		if err := ReadSimpleRowHeader(1, r); err != nil {
 			return nil, err
 		}
@@ -786,29 +822,29 @@ func TestSchemaProviderInterface(t *testing.T) {
 			},
 		},
 		StructMap: map[int64]testStruct{
-			0: testStruct{
+			0: {
 				A: 17,
 				b: 18,
 			},
-			1: testStruct{
+			1: {
 				A: 19,
 				b: 20,
 			},
-			2: testStruct{
+			2: {
 				A: 21,
 				b: 22,
 			},
 		},
 		StructPtrMap: map[int64]*testStruct{
-			0: &testStruct{
+			0: {
 				A: 23,
 				b: 24,
 			},
-			1: &testStruct{
+			1: {
 				A: 25,
 				b: 26,
 			},
-			2: &testStruct{
+			2: {
 				A: 27,
 				b: 28,
 			},
@@ -825,4 +861,47 @@ func TestSchemaProviderInterface(t *testing.T) {
 	if diff := cmp.Diff(want, got, cmp.AllowUnexported(testStruct{})); diff != "" {
 		t.Errorf("Decode(Encode(%v)): %v", want, diff)
 	}
+}
+
+func TestRowHeader_TrailingZeroBytes(t *testing.T) {
+	// https://github.com/apache/beam/issues/21232: The row header should elide trailing 0 bytes.
+	// But be tolerant of trailing 0 bytes.
+
+	const count = 255
+	// For each bit, lets ensure we can check and lookup all the nils.
+	for i := -1; i < count; i++ {
+		t.Run(fmt.Sprintf("%d is nil", i), func(t *testing.T) {
+			var buf bytes.Buffer
+			if err := WriteRowHeader(count, func(f int) bool { return f == i }, &buf); err != nil {
+				t.Fatalf("WriteRowHeader failed: %v", err)
+			}
+			// 3+(i/8+1) is the expected byte count for the header when trailing nils are elided.
+			// 2 bytes for the varint encoded `count`
+			// 1 byte for the varint encoded bitset length
+			// i/8+1 nil filed index to get the number of bytes in the bitset.
+			const fcl = 3
+			if got, want := len(buf.Bytes()), fcl+(i/8+1); i != -1 && got != want {
+				t.Errorf("len(header: %+v) = %v, want %v", buf.Bytes(), got, want)
+			}
+			// In the no nils case, header should only be fcl bytes long.
+			if got, want := len(buf.Bytes()), fcl; i == -1 && got != want {
+				t.Errorf("len(header: %+v) = %v, want %v", buf.Bytes(), got, want)
+			}
+			n, nils, err := ReadRowHeader(&buf)
+			if err != nil {
+				t.Fatalf("ReadRowHeader failed: %v", err)
+			}
+			if got, want := n, count; got != want {
+				t.Fatalf("ReadRowHeader returned %v fields, but want %v", got, want)
+			}
+			// Look up all fields, and ensure they actually match.
+			// Only a single nil field is being set at most, the matching iteration index.
+			for f := 0; f < count; f++ {
+				if got, want := IsFieldNil(nils, f), i == f; got != want {
+					t.Errorf("IsFieldNil(%v, %v) = %v but want %v", nils, f, got, want)
+				}
+			}
+		})
+	}
+
 }

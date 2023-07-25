@@ -209,6 +209,7 @@ public class AvroCoderTest {
    * Tests that {@link AvroCoder} works around issues in Avro where cache classes might be from the
    * wrong ClassLoader, causing confusing "Cannot cast X to X" error messages.
    */
+  @SuppressWarnings("ReturnValueIgnored")
   @Test
   public void testTwoClassLoaders() throws Exception {
     ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
@@ -248,7 +249,7 @@ public class AvroCoderTest {
 
   /**
    * Confirm that we can serialize and deserialize an AvroCoder object and still decode after.
-   * (BEAM-349).
+   * (https://github.com/apache/beam/issues/18022).
    *
    * @throws Exception
    */
@@ -344,6 +345,20 @@ public class AvroCoderTest {
   }
 
   @Test
+  public void testDisableReflectionEncoding() {
+    try {
+      AvroCoder.of(Pojo.class, false);
+      fail("When userReclectApi is disable, schema should not be generated through reflection");
+    } catch (AvroRuntimeException e) {
+      String message =
+          "avro.shaded.com.google.common.util.concurrent.UncheckedExecutionException: "
+              + "org.apache.avro.AvroRuntimeException: "
+              + "Not a Specific class: class org.apache.beam.sdk.coders.AvroCoderTest$Pojo";
+      assertEquals(message, e.getMessage());
+    }
+  }
+
+  @Test
   public void testGenericRecordEncoding() throws Exception {
     String schemaString =
         "{\"namespace\": \"example.avro\",\n"
@@ -417,7 +432,7 @@ public class AvroCoderTest {
 
   @Test
   public void testAvroSpecificCoderIsSerializable() throws Exception {
-    AvroCoder<Pojo> coder = AvroCoder.of(Pojo.class, false);
+    AvroCoder<TestAvro> coder = AvroCoder.of(TestAvro.class, false);
 
     // Check that the coder is serializable using the regular JSON approach.
     SerializableUtils.ensureSerializable(coder);

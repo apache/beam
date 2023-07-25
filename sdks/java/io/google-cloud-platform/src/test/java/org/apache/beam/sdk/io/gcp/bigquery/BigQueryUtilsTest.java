@@ -48,12 +48,12 @@ import org.apache.avro.Conversions;
 import org.apache.avro.LogicalTypes;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.util.Utf8;
+import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.ConversionOptions.TruncateTimestamps;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
-import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.DateTime;
@@ -400,6 +400,12 @@ public class BigQueryUtilsTest {
               "ids",
               Arrays.asList(
                   Collections.singletonMap("v", "123"), Collections.singletonMap("v", "124")));
+
+  // sometimes, a TableRow array will not be of format [{v: value1}, {v: value2}, ...]
+  // it will instead be of format [value1, value2, ...]
+  // this "inline row" covers the latter case
+  private static final TableRow BQ_INLINE_ARRAY_ROW =
+      new TableRow().set("ids", Arrays.asList("123", "124"));
 
   private static final Row ROW_ROW = Row.withSchema(ROW_TYPE).addValues(FLAT_ROW).build();
 
@@ -875,6 +881,12 @@ public class BigQueryUtilsTest {
   @Test
   public void testToBeamRow_array() {
     Row beamRow = BigQueryUtils.toBeamRow(ARRAY_TYPE, BQ_ARRAY_ROW);
+    assertEquals(ARRAY_ROW, beamRow);
+  }
+
+  @Test
+  public void testToBeamRow_inlineArray() {
+    Row beamRow = BigQueryUtils.toBeamRow(ARRAY_TYPE, BQ_INLINE_ARRAY_ROW);
     assertEquals(ARRAY_ROW, beamRow);
   }
 

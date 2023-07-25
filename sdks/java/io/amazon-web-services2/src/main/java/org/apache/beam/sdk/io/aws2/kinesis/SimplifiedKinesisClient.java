@@ -21,18 +21,17 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import java.util.List;
 import java.util.concurrent.Callable;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import org.apache.beam.sdk.util.BackOff;
-import org.apache.beam.sdk.util.BackOffUtils;
-import org.apache.beam.sdk.util.FluentBackoff;
-import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
-import org.joda.time.Duration;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.joda.time.Minutes;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.core.exception.SdkServiceException;
+import software.amazon.awssdk.core.internal.retry.SdkDefaultRetrySetting;
 import software.amazon.awssdk.services.cloudwatch.CloudWatchClient;
 import software.amazon.awssdk.services.cloudwatch.model.Datapoint;
 import software.amazon.awssdk.services.cloudwatch.model.Dimension;
@@ -40,7 +39,6 @@ import software.amazon.awssdk.services.cloudwatch.model.GetMetricStatisticsReque
 import software.amazon.awssdk.services.cloudwatch.model.GetMetricStatisticsResponse;
 import software.amazon.awssdk.services.cloudwatch.model.Statistic;
 import software.amazon.awssdk.services.kinesis.KinesisClient;
-import software.amazon.awssdk.services.kinesis.model.DescribeStreamRequest;
 import software.amazon.awssdk.services.kinesis.model.ExpiredIteratorException;
 import software.amazon.awssdk.services.kinesis.model.GetRecordsRequest;
 import software.amazon.awssdk.services.kinesis.model.GetRecordsResponse;
@@ -49,39 +47,35 @@ import software.amazon.awssdk.services.kinesis.model.LimitExceededException;
 import software.amazon.awssdk.services.kinesis.model.ProvisionedThroughputExceededException;
 import software.amazon.awssdk.services.kinesis.model.Record;
 import software.amazon.awssdk.services.kinesis.model.Shard;
+import software.amazon.awssdk.services.kinesis.model.ShardFilter;
+import software.amazon.awssdk.services.kinesis.model.ShardFilterType;
 import software.amazon.awssdk.services.kinesis.model.ShardIteratorType;
-import software.amazon.awssdk.services.kinesis.model.StreamDescription;
 import software.amazon.kinesis.retrieval.AggregatorUtil;
 import software.amazon.kinesis.retrieval.KinesisClientRecord;
 
 /** Wraps {@link KinesisClient} class providing much simpler interface and proper error handling. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-class SimplifiedKinesisClient {
+class SimplifiedKinesisClient implements AutoCloseable {
+  private static final Logger LOG = LoggerFactory.getLogger(SimplifiedKinesisClient.class);
 
   private static final String KINESIS_NAMESPACE = "AWS/Kinesis";
   private static final String INCOMING_RECORDS_METRIC = "IncomingBytes";
   private static final int PERIOD_GRANULARITY_IN_SECONDS = 60;
   private static final String STREAM_NAME_DIMENSION = "StreamName";
-  private static final int LIST_SHARDS_DESCRIBE_STREAM_MAX_ATTEMPTS = 10;
-  private static final Duration LIST_SHARDS_DESCRIBE_STREAM_INITIAL_BACKOFF =
-      Duration.standardSeconds(1);
 
-  private final KinesisClient kinesis;
-  private final CloudWatchClient cloudWatch;
-  private final Integer limit;
+  private final LazyResource<KinesisClient> kinesis;
+  private final LazyResource<CloudWatchClient> cloudWatch;
+  private final @Nullable Integer limit;
 
-  public SimplifiedKinesisClient(
-      KinesisClient kinesis, CloudWatchClient cloudWatch, Integer limit) {
-    this.kinesis = checkNotNull(kinesis, "kinesis");
-    this.cloudWatch = checkNotNull(cloudWatch, "cloudWatch");
+  SimplifiedKinesisClient(
+      Supplier<KinesisClient> kinesisSupplier,
+      Supplier<CloudWatchClient> cloudWatchSupplier,
+      @Nullable Integer limit) {
+    this.kinesis = new LazyResource<>(checkNotNull(kinesisSupplier, "kinesis"));
+    this.cloudWatch = new LazyResource<>(checkNotNull(cloudWatchSupplier, "cloudWatch"));
     this.limit = limit;
-  }
-
-  public static SimplifiedKinesisClient from(AWSClientsProvider provider, Integer limit) {
-    return new SimplifiedKinesisClient(
-        provider.getKinesisClient(), provider.getCloudWatchClient(), limit);
   }
 
   public String getShardIterator(
@@ -92,63 +86,31 @@ class SimplifiedKinesisClient {
       final Instant timestamp)
       throws TransientKinesisException {
     return wrapExceptions(
-        () ->
-            kinesis
-                .getShardIterator(
-                    GetShardIteratorRequest.builder()
-                        .streamName(streamName)
-                        .shardId(shardId)
-                        .shardIteratorType(shardIteratorType)
-                        .startingSequenceNumber(startingSequenceNumber)
-                        .timestamp(TimeUtil.toJava(timestamp))
-                        .build())
-                .shardIterator());
+        () -> {
+          GetShardIteratorRequest request =
+              GetShardIteratorRequest.builder()
+                  .streamName(streamName)
+                  .shardId(shardId)
+                  .shardIteratorType(shardIteratorType)
+                  .startingSequenceNumber(startingSequenceNumber)
+                  .timestamp(TimeUtil.toJava(timestamp))
+                  .build();
+
+          LOG.info("Starting getIterator request {}", request);
+          return kinesis.get().getShardIterator(request).shardIterator();
+        });
   }
 
-  public List<Shard> listShards(final String streamName) throws TransientKinesisException {
+  public List<Shard> listShardsFollowingClosedShard(
+      final String streamName, final String exclusiveStartShardId)
+      throws TransientKinesisException {
+    ShardFilter shardFilter =
+        ShardFilter.builder()
+            .type(ShardFilterType.AFTER_SHARD_ID)
+            .shardId(exclusiveStartShardId)
+            .build();
     return wrapExceptions(
-        () -> {
-          List<Shard> shards = Lists.newArrayList();
-          String lastShardId = null;
-
-          // DescribeStream has limits that can be hit fairly easily if we are attempting
-          // to configure multiple KinesisIO inputs in the same account. Retry up to
-          // LIST_SHARDS_DESCRIBE_STREAM_MAX_ATTEMPTS times if we end up hitting that limit.
-          //
-          // Only pass the wrapped exception up once that limit is reached. Use FluentBackoff
-          // to implement the retry policy.
-          FluentBackoff retryBackoff =
-              FluentBackoff.DEFAULT
-                  .withMaxRetries(LIST_SHARDS_DESCRIBE_STREAM_MAX_ATTEMPTS)
-                  .withInitialBackoff(LIST_SHARDS_DESCRIBE_STREAM_INITIAL_BACKOFF);
-          StreamDescription description = null;
-          do {
-            BackOff backoff = retryBackoff.backoff();
-            Sleeper sleeper = Sleeper.DEFAULT;
-            while (true) {
-              try {
-                description =
-                    kinesis
-                        .describeStream(
-                            DescribeStreamRequest.builder()
-                                .streamName(streamName)
-                                .exclusiveStartShardId(lastShardId)
-                                .build())
-                        .streamDescription();
-                break;
-              } catch (LimitExceededException exc) {
-                if (!BackOffUtils.next(sleeper, backoff)) {
-                  throw exc;
-                }
-              }
-            }
-
-            shards.addAll(description.shards());
-            lastShardId = shards.get(shards.size() - 1).shardId();
-          } while (description.hasMoreShards());
-
-          return shards;
-        });
+        () -> ShardListingUtils.listShards(kinesis.get(), streamName, shardFilter));
   }
 
   /**
@@ -176,9 +138,9 @@ class SimplifiedKinesisClient {
       throws TransientKinesisException {
     return wrapExceptions(
         () -> {
-          GetRecordsResponse response =
-              kinesis.getRecords(
-                  GetRecordsRequest.builder().shardIterator(shardIterator).limit(limit).build());
+          GetRecordsRequest request =
+              GetRecordsRequest.builder().shardIterator(shardIterator).limit(limit).build();
+          GetRecordsResponse response = kinesis.get().getRecords(request);
           List<Record> records = response.records();
           return new GetKinesisRecordsResult(
               deaggregate(records),
@@ -227,7 +189,7 @@ class SimplifiedKinesisClient {
               createMetricStatisticsRequest(streamName, countSince, countTo, period);
 
           long totalSizeInBytes = 0;
-          GetMetricStatisticsResponse response = cloudWatch.getMetricStatistics(request);
+          GetMetricStatisticsResponse response = cloudWatch.get().getMetricStatistics(request);
           for (Datapoint point : response.datapoints()) {
             totalSizeInBytes += point.sum().longValue();
           }
@@ -256,7 +218,7 @@ class SimplifiedKinesisClient {
    * @throws ExpiredIteratorException - if iterator needs to be refreshed
    * @throws RuntimeException - in all other cases
    */
-  private <T> T wrapExceptions(Callable<T> callable) throws TransientKinesisException {
+  private static <T> T wrapExceptions(Callable<T> callable) throws TransientKinesisException {
     try {
       return callable.call();
     } catch (ExpiredIteratorException e) {
@@ -265,14 +227,58 @@ class SimplifiedKinesisClient {
       throw new KinesisClientThrottledException(
           "Too many requests to Kinesis. Wait some time and retry.", e);
     } catch (SdkServiceException e) {
-      throw new TransientKinesisException("Kinesis backend failed. Wait some time and retry.", e);
-    } catch (SdkClientException e) {
-      if (e.retryable()) {
-        throw new TransientKinesisException("Retryable client failure", e);
+      if (e.isThrottlingException()
+          || SdkDefaultRetrySetting.RETRYABLE_STATUS_CODES.contains(e.statusCode())) {
+        throw new TransientKinesisException("Kinesis backend failed. Wait some time and retry.", e);
       }
-      throw new RuntimeException("Not retryable client failure", e);
+      throw e; // others, such as 4xx, are not retryable
+    } catch (SdkClientException e) {
+      if (SdkDefaultRetrySetting.RETRYABLE_EXCEPTIONS.contains(e.getClass())) {
+        throw new TransientKinesisException("Retryable failure", e);
+      }
+      throw e;
     } catch (Exception e) {
       throw new RuntimeException("Unknown kinesis failure, when trying to reach kinesis", e);
+    }
+  }
+
+  @Override
+  public void close() throws Exception {
+    try (AutoCloseable c1 = kinesis;
+        AutoCloseable c2 = cloudWatch) {
+      // nothing to do
+    }
+  }
+
+  /** Memoizing supplier that closes resources appropriately. */
+  private static class LazyResource<T extends AutoCloseable> implements Supplier<T>, AutoCloseable {
+    private final Supplier<T> initializer;
+    private volatile T resource = null;
+
+    private LazyResource(Supplier<T> initializer) {
+      this.initializer = initializer;
+    }
+
+    @Override
+    public void close() throws Exception {
+      T res = resource;
+      if (res != null) {
+        res.close();
+      }
+    }
+
+    @Override
+    public T get() {
+      T res = resource;
+      if (res == null) {
+        synchronized (this) {
+          res = resource; // need to read again in synchronized
+          if (res == null) {
+            resource = res = initializer.get();
+          }
+        }
+      }
+      return res;
     }
   }
 }

@@ -38,13 +38,13 @@ func TestEncodeDecodeMap(t *testing.T) {
 		v.Set(reflect.New(reflectx.Uint8))
 		return byteDec(v.Elem(), r)
 	}
-	byteCtnrPtrEnc := containerNilEncoder(bytePtrEnc)
-	byteCtnrPtrDec := containerNilDecoder(bytePtrDec)
+	byteCtnrPtrEnc := NullableEncoder(bytePtrEnc)
+	byteCtnrPtrDec := NullableDecoder(bytePtrDec)
 
 	ptrByte := byte(42)
 
 	tests := []struct {
-		v          interface{}
+		v          any
 		encK, encV func(reflect.Value, io.Writer) error
 		decK, decV func(reflect.Value, io.Reader) error
 		encoded    []byte
@@ -98,8 +98,7 @@ func TestEncodeDecodeMap(t *testing.T) {
 		t.Run(fmt.Sprintf("decode %v", test.v), func(t *testing.T) {
 			buf := bytes.NewBuffer(test.encoded)
 			rt := reflect.TypeOf(test.v)
-			var dec func(reflect.Value, io.Reader) error
-			dec = mapDecoder(rt, typeDecoderFieldReflect{decode: test.decK}, typeDecoderFieldReflect{decode: test.decV})
+			dec := mapDecoder(rt, typeDecoderFieldReflect{decode: test.decK}, typeDecoderFieldReflect{decode: test.decV})
 			rv := reflect.New(rt).Elem()
 			err := dec(rv, buf)
 			if err != nil {

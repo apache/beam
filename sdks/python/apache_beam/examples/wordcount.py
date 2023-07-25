@@ -19,6 +19,23 @@
 
 # pytype: skip-file
 
+# beam-playground:
+#   name: WordCount
+#   description: An example that counts words in Shakespeare's works.
+#   multifile: false
+#   pipeline_options: --output output.txt
+#   context_line: 87
+#   categories:
+#     - Combiners
+#     - Options
+#     - Quickstart
+#   complexity: MEDIUM
+#   tags:
+#     - options
+#     - count
+#     - combine
+#     - strings
+
 import argparse
 import logging
 import re
@@ -75,7 +92,7 @@ def run(argv=None, save_main_session=True):
     counts = (
         lines
         | 'Split' >> (beam.ParDo(WordExtractingDoFn()).with_output_types(str))
-        | 'PairWIthOne' >> beam.Map(lambda x: (x, 1))
+        | 'PairWithOne' >> beam.Map(lambda x: (x, 1))
         | 'GroupAndSum' >> beam.CombinePerKey(sum))
 
     # Format the counts into a PCollection of strings.

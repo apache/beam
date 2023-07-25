@@ -32,7 +32,7 @@ import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
-@SuppressWarnings({"nullness", "rawtypes", "uninitialized"})
+@SuppressWarnings({"nullness", "uninitialized"})
 public class DicomIOReadIT {
   private static final String TEST_FILE_PATH = "src/test/resources/DICOM/testDicomFile.dcm";
   private static final String TEST_FILE_STUDY_ID = "study_000000000";
@@ -61,7 +61,7 @@ public class DicomIOReadIT {
     client.deleteDicomStore(healthcareDataset + "/dicomStores/" + storeName);
   }
 
-  @Ignore("https://jira.apache.org/jira/browse/BEAM-11376")
+  @Ignore("https://github.com/apache/beam/issues/20644")
   @Test
   public void testDicomMetadataRead() throws IOException {
     String webPath =

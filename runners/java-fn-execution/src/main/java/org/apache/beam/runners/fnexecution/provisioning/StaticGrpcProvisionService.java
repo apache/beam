@@ -28,13 +28,13 @@ import org.apache.beam.model.fnexecution.v1.ProvisionServiceGrpc.ProvisionServic
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.fn.server.FnService;
 import org.apache.beam.sdk.fn.server.HeaderAccessor;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.StreamObserver;
 
 /**
  * A {@link ProvisionServiceImplBase provision service} that returns a static response to all calls.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class StaticGrpcProvisionService extends ProvisionServiceGrpc.ProvisionServiceImplBase
     implements FnService {
@@ -59,7 +59,7 @@ public class StaticGrpcProvisionService extends ProvisionServiceGrpc.ProvisionSe
       ProvisionApi.GetProvisionInfoRequest request,
       StreamObserver<GetProvisionInfoResponse> responseObserver) {
     if (!environments.containsKey(headerAccessor.getSdkWorkerId())) {
-      // TODO(BEAM-9818): Remove once the JRH is gone.
+      // TODO(https://github.com/apache/beam/issues/20253): Remove once the JRH is gone.
       responseObserver.onNext(GetProvisionInfoResponse.newBuilder().setInfo(info).build());
       responseObserver.onCompleted();
       return;

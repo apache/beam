@@ -28,6 +28,7 @@ import grpc
 import hamcrest as hc
 import mock
 
+from apache_beam.coders import FastPrimitivesCoder
 from apache_beam.coders import VarIntCoder
 from apache_beam.internal.metrics.metric import Metrics as InternalMetrics
 from apache_beam.metrics import monitoring_infos
@@ -194,7 +195,7 @@ class SdkWorkerTest(unittest.TestCase):
             instruction_id='split_instruction_id',
             process_bundle_split=beam_fn_api_pb2.ProcessBundleSplitResponse()))
 
-  def get_responses(self, instruction_requests):
+  def get_responses(self, instruction_requests, data_sampler=None):
     """Evaluates and returns {id: InstructionResponse} for the requests."""
     test_controller = BeamFnControlServicer(instruction_requests)
 
@@ -205,13 +206,15 @@ class SdkWorkerTest(unittest.TestCase):
     server.start()
 
     harness = sdk_worker.SdkHarness(
-        "localhost:%s" % test_port, state_cache_size=100)
+        "localhost:%s" % test_port,
+        state_cache_size=100,
+        data_sampler=data_sampler)
     harness.run()
     return test_controller.responses
 
   def test_harness_monitoring_infos_and_metadata(self):
     # Clear the process wide metric container.
-    MetricsEnvironment.process_wide_container().reset()
+    MetricsEnvironment.process_wide_container().metrics = {}
     # Create a process_wide metric.
     urn = 'my.custom.urn'
     labels = {'key': 'value'}
@@ -272,6 +275,61 @@ class SdkWorkerTest(unittest.TestCase):
         hc.contains_string(
             'Bundle processing associated with instruction_id has failed'))
 
+  def test_data_sampling_response(self):
+    # Create a data sampler with some fake sampled data. This data will be seen
+    # in the sample response.
+    coder = FastPrimitivesCoder()
+
+    class FakeDataSampler:
+      def samples(self, pcollection_ids):
+        return beam_fn_api_pb2.SampleDataResponse(
+            element_samples={
+                'pcoll_id_1': beam_fn_api_pb2.SampleDataResponse.ElementList(
+                    elements=[
+                        beam_fn_api_pb2.SampledElement(
+                            element=coder.encode_nested('a'))
+                    ]),
+                'pcoll_id_2': beam_fn_api_pb2.SampleDataResponse.ElementList(
+                    elements=[
+                        beam_fn_api_pb2.SampledElement(
+                            element=coder.encode_nested('b'))
+                    ])
+            })
+
+      def stop(self):
+        pass
+
+    data_sampler = FakeDataSampler()
+
+    # Create and send the fake reponse. The SdkHarness should query the
+    # DataSampler and fill out the sample response.
+    sample_request = beam_fn_api_pb2.InstructionRequest(
+        instruction_id='sample_request',
+        sample_data=beam_fn_api_pb2.SampleDataRequest(
+            pcollection_ids=['pcoll_id_1', 'pcoll_id_2']))
+    responses = self.get_responses([sample_request], data_sampler)
+    self.assertEqual(len(responses), 1)
+
+    # Get and assert the correct response.
+    response = responses['sample_request']
+    expected_response = beam_fn_api_pb2.InstructionResponse(
+        instruction_id='sample_request',
+        sample_data=beam_fn_api_pb2.SampleDataResponse(
+            element_samples={
+                'pcoll_id_1': beam_fn_api_pb2.SampleDataResponse.ElementList(
+                    elements=[
+                        beam_fn_api_pb2.SampledElement(
+                            element=coder.encode_nested('a'))
+                    ]),
+                'pcoll_id_2': beam_fn_api_pb2.SampleDataResponse.ElementList(
+                    elements=[
+                        beam_fn_api_pb2.SampledElement(
+                            element=coder.encode_nested('b'))
+                    ])
+            }))
+
+    self.assertEqual(response, expected_response)
+
 
 class CachingStateHandlerTest(unittest.TestCase):
   def test_caching(self):
@@ -294,7 +352,7 @@ class CachingStateHandlerTest(unittest.TestCase):
         yield
 
     underlying_state = FakeUnderlyingState()
-    state_cache = statecache.StateCache(100)
+    state_cache = statecache.StateCache(100 << 20)
     caching_state_hander = GlobalCachingStateHandler(
         state_cache, underlying_state)
 
@@ -430,7 +488,7 @@ class CachingStateHandlerTest(unittest.TestCase):
     coder = VarIntCoder()
 
     underlying_state_handler = self.UnderlyingStateHandler()
-    state_cache = statecache.StateCache(100)
+    state_cache = statecache.StateCache(100 << 20)
     handler = GlobalCachingStateHandler(state_cache, underlying_state_handler)
 
     def get():
@@ -460,7 +518,7 @@ class CachingStateHandlerTest(unittest.TestCase):
 
   def test_continuation_token(self):
     underlying_state_handler = self.UnderlyingStateHandler()
-    state_cache = statecache.StateCache(100)
+    state_cache = statecache.StateCache(100 << 20)
     handler = GlobalCachingStateHandler(state_cache, underlying_state_handler)
 
     coder = VarIntCoder()

@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.pubsublite.internal;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
@@ -34,9 +35,7 @@ import com.google.cloud.pubsublite.proto.ComputeMessageStatsResponse;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.Progress;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Stopwatch;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Ticker;
-import org.joda.time.Duration;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -58,13 +57,7 @@ public class OffsetByteRangeTrackerTest {
   public void setUp() {
     initMocks(this);
     when(ticker.read()).thenReturn(0L);
-    tracker =
-        new OffsetByteRangeTracker(
-            OffsetByteRange.of(RANGE, 0),
-            unownedBacklogReader,
-            Stopwatch.createUnstarted(ticker),
-            Duration.millis(500),
-            MIN_BYTES);
+    tracker = new OffsetByteRangeTracker(OffsetByteRange.of(RANGE, 0), unownedBacklogReader);
   }
 
   @Test
@@ -86,7 +79,7 @@ public class OffsetByteRangeTrackerTest {
   }
 
   @Test
-  @SuppressWarnings({"dereference.of.nullable", "argument.type.incompatible"})
+  @SuppressWarnings({"dereference.of.nullable", "argument"})
   public void claimSplitSuccess() {
     assertTrue(tracker.tryClaim(OffsetByteProgress.of(Offset.of(1_000), MIN_BYTES)));
     assertTrue(tracker.tryClaim(OffsetByteProgress.of(Offset.of(10_000), MIN_BYTES)));
@@ -105,7 +98,7 @@ public class OffsetByteRangeTrackerTest {
   }
 
   @Test
-  @SuppressWarnings({"dereference.of.nullable", "argument.type.incompatible"})
+  @SuppressWarnings({"dereference.of.nullable", "argument"})
   public void splitWithoutClaimEmpty() {
     when(ticker.read()).thenReturn(100000000000000L);
     SplitResult<OffsetByteRange> splits = tracker.trySplit(IGNORED_FRACTION);
@@ -136,31 +129,7 @@ public class OffsetByteRangeTrackerTest {
   @Test
   public void cannotClaimSplitRange() {
     assertTrue(tracker.tryClaim(OffsetByteProgress.of(Offset.of(1_000), MIN_BYTES)));
-    assertTrue(tracker.trySplit(IGNORED_FRACTION) != null);
+    assertNotNull(tracker.trySplit(IGNORED_FRACTION));
     assertFalse(tracker.tryClaim(OffsetByteProgress.of(Offset.of(1_001), MIN_BYTES)));
-  }
-
-  @Test
-  public void cannotSplitNotEnoughBytesOrTime() {
-    assertTrue(tracker.tryClaim(OffsetByteProgress.of(Offset.of(1_000), MIN_BYTES - 2)));
-    assertTrue(tracker.tryClaim(OffsetByteProgress.of(Offset.of(1_001), 1)));
-    when(ticker.read()).thenReturn(100_000_000L);
-    assertTrue(tracker.trySplit(IGNORED_FRACTION) == null);
-  }
-
-  @Test
-  public void canSplitTimeOnly() {
-    assertTrue(tracker.tryClaim(OffsetByteProgress.of(Offset.of(1_000), MIN_BYTES - 2)));
-    assertTrue(tracker.tryClaim(OffsetByteProgress.of(Offset.of(1_001), 1)));
-    when(ticker.read()).thenReturn(1_000_000_000L);
-    assertTrue(tracker.trySplit(IGNORED_FRACTION) != null);
-  }
-
-  @Test
-  public void canSplitBytesOnly() {
-    assertTrue(tracker.tryClaim(OffsetByteProgress.of(Offset.of(1_000), MIN_BYTES - 2)));
-    assertTrue(tracker.tryClaim(OffsetByteProgress.of(Offset.of(1_001), 2)));
-    when(ticker.read()).thenReturn(100_000_000L);
-    assertTrue(tracker.trySplit(IGNORED_FRACTION) != null);
   }
 }

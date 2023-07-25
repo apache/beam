@@ -46,8 +46,8 @@ import org.apache.beam.sdk.extensions.sql.meta.provider.bigquery.BigQueryTablePr
 import org.apache.beam.sdk.extensions.sql.meta.provider.pubsub.PubsubTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.text.TextTableProvider;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
@@ -229,7 +229,7 @@ public class DataCatalogTableProvider extends FullNameTableProvider implements A
               .build());
       return true;
     } else {
-      LOG.info(String.format("Not updating schema for '%s' since it already has one.", resource));
+      LOG.info("Not updating schema for '{}' since it already has one.", resource);
       return false;
     }
   }

@@ -25,6 +25,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/coderx"
 )
 
@@ -55,6 +56,9 @@ func TestCoders(t *testing.T) {
 			}(),
 			val: &FullValue{Elm: "myString"},
 		}, {
+			coder: &coder.Coder{Kind: coder.LP, Components: []*coder.Coder{coder.NewString()}},
+			val:   &FullValue{Elm: "myString"},
+		}, {
 			coder: coder.NewKV([]*coder.Coder{coder.NewVarInt(), coder.NewBool()}),
 			val:   &FullValue{Elm: int64(72), Elm2: false},
 		}, {
@@ -64,6 +68,30 @@ func TestCoders(t *testing.T) {
 					coder.NewDouble(),
 					coder.NewBool()})}),
 			val: &FullValue{Elm: int64(42), Elm2: &FullValue{Elm: float64(3.14), Elm2: true}},
+		}, {
+			coder: &coder.Coder{Kind: coder.Window, Window: coder.NewGlobalWindow()},
+			val:   &FullValue{Windows: []typex.Window{window.GlobalWindow{}}},
+		}, {
+			coder: &coder.Coder{Kind: coder.Window, Window: coder.NewIntervalWindow()},
+			val:   &FullValue{Windows: []typex.Window{window.IntervalWindow{Start: 0, End: 100}}},
+		}, {
+			coder: coder.NewW(coder.NewVarInt(), coder.NewGlobalWindow()),
+			val:   &FullValue{Elm: int64(13), Windows: []typex.Window{window.GlobalWindow{}}},
+		}, {
+			coder: coder.NewW(coder.NewVarInt(), coder.NewIntervalWindow()),
+			val:   &FullValue{Elm: int64(13), Windows: []typex.Window{window.IntervalWindow{Start: 0, End: 100}, window.IntervalWindow{Start: 50, End: 150}}},
+		}, {
+			coder: coder.NewPW(coder.NewString(), coder.NewGlobalWindow()),
+			val:   &FullValue{Elm: "myString" /*Windowing info isn't encoded for PW so we can omit it here*/},
+		}, {
+			coder: coder.NewN(coder.NewBytes()),
+			val:   &FullValue{},
+		}, {
+			coder: coder.NewN(coder.NewBytes()),
+			val:   &FullValue{Elm: []byte("myBytes")},
+		}, {
+			coder: coder.NewIntervalWindowCoder(),
+			val:   &FullValue{Elm: window.IntervalWindow{Start: 0, End: 100}},
 		},
 	} {
 		t.Run(fmt.Sprintf("%v", test.coder), func(t *testing.T) {
@@ -115,5 +143,121 @@ func compareFV(t *testing.T, got *FullValue, want *FullValue) {
 	} else if got, want := got.Elm2, want.Elm2; got != want {
 		t.Errorf("got %v [type: %s], want %v [type %s]",
 			got, reflect.TypeOf(got), wantFv, reflect.TypeOf(wantFv))
+	}
+
+	// Check if the desired FV has windowing information
+	if want.Windows != nil {
+		if gotLen, wantLen := len(got.Windows), len(want.Windows); gotLen != wantLen {
+			t.Fatalf("got %d windows in FV, want %v", gotLen, wantLen)
+		}
+		for i := range want.Windows {
+			if gotWin, wantWin := got.Windows[i], want.Windows[i]; !wantWin.Equals(gotWin) {
+				t.Errorf("got window %v at position %d, want %v", gotWin, i, wantWin)
+			}
+		}
+	}
+}
+
+func TestIterableCoder(t *testing.T) {
+	cod := coder.NewI(coder.NewVarInt())
+	wantVals := []int64{8, 24, 72}
+	val := &FullValue{Elm: wantVals}
+
+	var buf bytes.Buffer
+	enc := MakeElementEncoder(cod)
+	if err := enc.Encode(val, &buf); err != nil {
+		t.Fatalf("Couldn't encode value: %v", err)
+	}
+
+	dec := MakeElementDecoder(cod)
+	result, err := dec.Decode(&buf)
+	if err != nil {
+		t.Fatalf("Couldn't decode value: %v", err)
+	}
+
+	gotVals, ok := result.Elm.([]int64)
+	if !ok {
+		t.Fatalf("got output element %v, want []int64", result.Elm)
+	}
+
+	if got, want := len(gotVals), len(wantVals); got != want {
+		t.Errorf("got %d elements in iterable, want %d", got, want)
+	}
+
+	for i := range gotVals {
+		if got, want := gotVals[i], wantVals[i]; got != want {
+			t.Errorf("got %d at position %d, want %d", got, i, want)
+		}
+	}
+}
+
+type namedTypeForTest struct {
+	A, B int64
+	C    string
+}
+
+func TestRowCoder(t *testing.T) {
+	var buf bytes.Buffer
+	rCoder := coder.NewR(typex.New(reflect.TypeOf((*namedTypeForTest)(nil))))
+	wantStruct := &namedTypeForTest{A: int64(8), B: int64(24), C: "myString"}
+	wantVal := &FullValue{Elm: wantStruct}
+
+	enc := MakeElementEncoder(rCoder)
+	if err := enc.Encode(wantVal, &buf); err != nil {
+		t.Fatalf("Couldn't encode value: %v", err)
+	}
+
+	dec := MakeElementDecoder(rCoder)
+	result, err := dec.Decode(&buf)
+	if err != nil {
+		t.Fatalf("Couldn't decode value: %v", err)
+	}
+	gotPtr, ok := result.Elm.(*namedTypeForTest)
+	gotStruct := *gotPtr
+	if !ok {
+		t.Fatalf("got %v, want namedTypeForTest struct", result.Elm)
+	}
+	if got, want := gotStruct.A, wantStruct.A; got != want {
+		t.Errorf("got A field value %d, want %d", got, want)
+	}
+	if got, want := gotStruct.B, wantStruct.B; got != want {
+		t.Errorf("got B field value %d, want %d", got, want)
+	}
+	if got, want := gotStruct.C, wantStruct.C; got != want {
+		t.Errorf("got C field value %v, want %v", got, want)
+	}
+}
+
+func TestPaneCoder(t *testing.T) {
+	pn := coder.NewPane(0x04)
+	val := &FullValue{Pane: pn}
+	cod := &coder.Coder{Kind: coder.PaneInfo}
+
+	var buf bytes.Buffer
+	enc := MakeElementEncoder(cod)
+	if err := enc.Encode(val, &buf); err != nil {
+		t.Fatalf("Couldn't encode value: %v", err)
+	}
+
+	dec := MakeElementDecoder(cod)
+	result, err := dec.Decode(&buf)
+	if err != nil {
+		t.Fatalf("Couldn't decode value: %v", err)
+	}
+
+	if got, want := result.Pane.Timing, pn.Timing; got != want {
+		t.Errorf("got pane timing %v, want %v", got, want)
+	}
+	if got, want := result.Pane.IsFirst, pn.IsFirst; got != want {
+		t.Errorf("got IsFirst %v, want %v", got, want)
+	}
+	if got, want := result.Pane.IsLast, pn.IsLast; got != want {
+		t.Errorf("got IsLast %v, want %v", got, want)
+	}
+	if got, want := result.Pane.Index, pn.Index; got != want {
+		t.Errorf("got pane index %v, want %v", got, want)
+	}
+	if got, want := result.Pane.NonSpeculativeIndex, pn.NonSpeculativeIndex; got != want {
+		t.Errorf("got pane non-speculative index %v, want %v", got, want)
 	}
 }

@@ -22,7 +22,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /** Known "Nexmark" queries, some of which are of our own devising but use the same data set. */
 @SuppressWarnings({
   "ImmutableEnumChecker",
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public enum NexmarkQueryName {
   // A baseline
@@ -44,6 +44,7 @@ public enum NexmarkQueryName {
   USER_SESSIONS(11), // Query "11"
   PROCESSING_TIME_WINDOWS(12), // Query "12"
   PORTABILITY_BATCH(15), // Query "13"
+  RESHUFFLE(16), // Query "14"
 
   // Other non-numbered queries
   BOUNDED_SIDE_INPUT_JOIN(13),

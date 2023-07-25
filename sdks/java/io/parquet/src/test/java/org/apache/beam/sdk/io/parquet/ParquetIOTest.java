@@ -29,6 +29,7 @@ import static org.mockito.Mockito.when;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.Serializable;
+import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.avro.Schema;
@@ -39,12 +40,12 @@ import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.io.JsonEncoder;
 import org.apache.avro.reflect.ReflectData;
-import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
+import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.parquet.ParquetIO.GenericRecordPassthroughFn;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.schemas.SchemaCoder;
-import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -182,9 +183,10 @@ public class ParquetIOTest implements Serializable {
                 .to(temporaryFolder.getRoot().getAbsolutePath()));
     mainPipeline.run().waitUntilFinish();
 
+    ParquetIO.Read read = ParquetIO.read(SCHEMA);
+
     PCollection<GenericRecord> readBack =
-        readPipeline.apply(
-            ParquetIO.read(SCHEMA).from(temporaryFolder.getRoot().getAbsolutePath() + "/*"));
+        readPipeline.apply(read.from(temporaryFolder.getRoot().getAbsolutePath() + "/*"));
     PAssert.that(readBack).containsInAnyOrder(records);
     readPipeline.run().waitUntilFinish();
   }
@@ -204,27 +206,6 @@ public class ParquetIOTest implements Serializable {
         readPipeline.apply(
             ParquetIO.read(SCHEMA).from(temporaryFolder.getRoot().getAbsolutePath() + "/*"));
     PAssert.that(readBack).containsInAnyOrder(records);
-    readPipeline.run().waitUntilFinish();
-  }
-
-  @Test
-  public void testWriteAndReadWithSplit() {
-    List<GenericRecord> records = generateGenericRecords(1000);
-
-    mainPipeline
-        .apply(Create.of(records).withCoder(AvroCoder.of(SCHEMA)))
-        .apply(
-            FileIO.<GenericRecord>write()
-                .via(ParquetIO.sink(SCHEMA))
-                .to(temporaryFolder.getRoot().getAbsolutePath()));
-    mainPipeline.run().waitUntilFinish();
-
-    PCollection<GenericRecord> readBackWithSplit =
-        readPipeline.apply(
-            ParquetIO.read(SCHEMA)
-                .from(temporaryFolder.getRoot().getAbsolutePath() + "/*")
-                .withSplit());
-    PAssert.that(readBackWithSplit).containsInAnyOrder(records);
     readPipeline.run().waitUntilFinish();
   }
 
@@ -252,7 +233,7 @@ public class ParquetIOTest implements Serializable {
   }
 
   @Test
-  public void testWriteAndReadFilesAsJsonForWithSplitForUnknownSchema() {
+  public void testWriteAndReadFilesAsJsonForUnknownSchema() {
     List<GenericRecord> records = generateGenericRecords(1000);
 
     mainPipeline
@@ -263,19 +244,20 @@ public class ParquetIOTest implements Serializable {
                 .to(temporaryFolder.getRoot().getAbsolutePath()));
     mainPipeline.run().waitUntilFinish();
 
-    PCollection<String> readBackAsJsonWithSplit =
+    PCollection<String> readBackAsJson =
         readPipeline.apply(
             ParquetIO.parseGenericRecords(ParseGenericRecordAsJsonFn.create())
-                .from(temporaryFolder.getRoot().getAbsolutePath() + "/*")
-                .withSplit());
+                .from(temporaryFolder.getRoot().getAbsolutePath() + "/*"));
 
-    PAssert.that(readBackAsJsonWithSplit).containsInAnyOrder(convertRecordsToJson(records));
+    PAssert.that(readBackAsJson).containsInAnyOrder(convertRecordsToJson(records));
     readPipeline.run().waitUntilFinish();
   }
 
   @Test
   public void testWriteAndReadFiles() {
     List<GenericRecord> records = generateGenericRecords(1000);
+
+    ParquetIO.ReadFiles readFiles = ParquetIO.readFiles(SCHEMA);
 
     PCollection<GenericRecord> writeThenRead =
         mainPipeline
@@ -288,7 +270,7 @@ public class ParquetIOTest implements Serializable {
             .apply(Values.create())
             .apply(FileIO.matchAll())
             .apply(FileIO.readMatches())
-            .apply(ParquetIO.readFiles(SCHEMA));
+            .apply(readFiles);
 
     PAssert.that(writeThenRead).containsInAnyOrder(records);
 
@@ -299,6 +281,9 @@ public class ParquetIOTest implements Serializable {
   public void testReadFilesAsJsonForUnknownSchemaFiles() {
     List<GenericRecord> records = generateGenericRecords(1000);
     List<String> expectedJsonRecords = convertRecordsToJson(records);
+
+    ParquetIO.ParseFiles<String> parseFiles =
+        ParquetIO.parseFilesGenericRecords(ParseGenericRecordAsJsonFn.create());
 
     PCollection<String> writeThenRead =
         mainPipeline
@@ -311,7 +296,7 @@ public class ParquetIOTest implements Serializable {
             .apply(Values.create())
             .apply(FileIO.matchAll())
             .apply(FileIO.readMatches())
-            .apply(ParquetIO.parseFilesGenericRecords(ParseGenericRecordAsJsonFn.create()));
+            .apply(parseFiles);
 
     assertEquals(1000, expectedJsonRecords.size());
     PAssert.that(writeThenRead).containsInAnyOrder(expectedJsonRecords);
@@ -377,7 +362,6 @@ public class ParquetIOTest implements Serializable {
     ArrayList<GenericRecord> data = new ArrayList<>();
     GenericRecordBuilder builder = new GenericRecordBuilder(REQUESTED_ENCODER_SCHEMA);
     for (int i = 0; i < count; i++) {
-      int index = i % SCIENTISTS.length;
       GenericRecord record = builder.set("id", Integer.toString(i)).set("name", null).build();
       data.add(record);
     }
@@ -392,7 +376,6 @@ public class ParquetIOTest implements Serializable {
         DisplayData.from(
             ParquetIO.read(SCHEMA)
                 .from("foo.parquet")
-                .withSplit()
                 .withProjection(REQUESTED_SCHEMA, SCHEMA)
                 .withAvroDataModel(GenericData.get())
                 .withConfiguration(configuration));
@@ -400,7 +383,6 @@ public class ParquetIOTest implements Serializable {
     assertThat(displayData, hasDisplayItem("filePattern", "foo.parquet"));
     assertThat(displayData, hasDisplayItem("schema", SCHEMA.toString()));
     assertThat(displayData, hasDisplayItem("inferBeamSchema", false));
-    assertThat(displayData, hasDisplayItem("splittable", true));
     assertThat(displayData, hasDisplayItem("projectionSchema", REQUESTED_SCHEMA.toString()));
     assertThat(displayData, hasDisplayItem("avroDataModel", GenericData.get().toString()));
     assertThat(displayData, hasDisplayItem("parquet.foo", "foo"));
@@ -436,29 +418,6 @@ public class ParquetIOTest implements Serializable {
     readPipeline.run().waitUntilFinish();
   }
 
-  @Test(expected = org.apache.beam.sdk.Pipeline.PipelineExecutionException.class)
-  public void testWriteAndReadWithSplitUsingReflectDataSchemaWithoutDataModelThrowsException() {
-    Schema testRecordSchema = ReflectData.get().getSchema(TestRecord.class);
-
-    List<GenericRecord> records = generateGenericRecords(1000);
-    mainPipeline
-        .apply(Create.of(records).withCoder(AvroCoder.of(testRecordSchema)))
-        .apply(
-            FileIO.<GenericRecord>write()
-                .via(ParquetIO.sink(testRecordSchema))
-                .to(temporaryFolder.getRoot().getAbsolutePath()));
-    mainPipeline.run().waitUntilFinish();
-
-    PCollection<GenericRecord> readBack =
-        readPipeline.apply(
-            ParquetIO.read(testRecordSchema)
-                .withSplit()
-                .from(temporaryFolder.getRoot().getAbsolutePath() + "/*"));
-
-    PAssert.that(readBack).containsInAnyOrder(records);
-    readPipeline.run().waitUntilFinish();
-  }
-
   @Test
   public void testWriteAndReadUsingReflectDataSchemaWithDataModel() {
     Schema testRecordSchema = ReflectData.get().getSchema(TestRecord.class);
@@ -475,30 +434,6 @@ public class ParquetIOTest implements Serializable {
     PCollection<GenericRecord> readBack =
         readPipeline.apply(
             ParquetIO.read(testRecordSchema)
-                .withAvroDataModel(GenericData.get())
-                .from(temporaryFolder.getRoot().getAbsolutePath() + "/*"));
-
-    PAssert.that(readBack).containsInAnyOrder(records);
-    readPipeline.run().waitUntilFinish();
-  }
-
-  @Test
-  public void testWriteAndReadwithSplitUsingReflectDataSchemaWithDataModel() {
-    Schema testRecordSchema = ReflectData.get().getSchema(TestRecord.class);
-
-    List<GenericRecord> records = generateGenericRecords(1000);
-    mainPipeline
-        .apply(Create.of(records).withCoder(AvroCoder.of(testRecordSchema)))
-        .apply(
-            FileIO.<GenericRecord>write()
-                .via(ParquetIO.sink(testRecordSchema))
-                .to(temporaryFolder.getRoot().getAbsolutePath()));
-    mainPipeline.run().waitUntilFinish();
-
-    PCollection<GenericRecord> readBack =
-        readPipeline.apply(
-            ParquetIO.read(testRecordSchema)
-                .withSplit()
                 .withAvroDataModel(GenericData.get())
                 .from(temporaryFolder.getRoot().getAbsolutePath() + "/*"));
 
@@ -530,30 +465,6 @@ public class ParquetIOTest implements Serializable {
   }
 
   @Test
-  public void testWriteAndReadwithSplitUsingGenericDataSchemaWithDataModel() {
-    Schema schema = new Schema.Parser().parse(SCHEMA_STRING);
-
-    List<GenericRecord> records = generateGenericRecords(1000);
-    mainPipeline
-        .apply(Create.of(records).withCoder(AvroCoder.of(schema)))
-        .apply(
-            FileIO.<GenericRecord>write()
-                .via(ParquetIO.sink(schema).withAvroDataModel(GenericData.get()))
-                .to(temporaryFolder.getRoot().getAbsolutePath()));
-    mainPipeline.run().waitUntilFinish();
-
-    PCollection<GenericRecord> readBack =
-        readPipeline.apply(
-            ParquetIO.read(schema)
-                .withSplit()
-                .withAvroDataModel(GenericData.get())
-                .from(temporaryFolder.getRoot().getAbsolutePath() + "/*"));
-
-    PAssert.that(readBack).containsInAnyOrder(records);
-    readPipeline.run().waitUntilFinish();
-  }
-
-  @Test
   public void testWriteAndReadWithConfiguration() {
     List<GenericRecord> records = generateGenericRecords(10);
     List<GenericRecord> expectedRecords = generateGenericRecords(1);
@@ -574,9 +485,36 @@ public class ParquetIOTest implements Serializable {
         readPipeline.apply(
             ParquetIO.read(SCHEMA)
                 .from(temporaryFolder.getRoot().getAbsolutePath() + "/*")
-                .withConfiguration(configuration)
-                .withSplit());
+                .withConfiguration(configuration));
     PAssert.that(readBack).containsInAnyOrder(expectedRecords);
+    readPipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testWriteAndReadFilesAsJsonForUnknownSchemaWithConfiguration() {
+    List<GenericRecord> records = generateGenericRecords(10);
+    List<GenericRecord> expectedRecords = generateGenericRecords(1);
+
+    mainPipeline
+        .apply(Create.of(records).withCoder(AvroCoder.of(SCHEMA)))
+        .apply(
+            FileIO.<GenericRecord>write()
+                .via(ParquetIO.sink(SCHEMA))
+                .to(temporaryFolder.getRoot().getAbsolutePath()));
+    mainPipeline.run().waitUntilFinish();
+
+    Configuration configuration = new Configuration();
+    FilterPredicate filterPredicate =
+        FilterApi.eq(FilterApi.binaryColumn("id"), Binary.fromString("0"));
+    ParquetInputFormat.setFilterPredicate(configuration, filterPredicate);
+
+    PCollection<String> readBackAsJson =
+        readPipeline.apply(
+            ParquetIO.parseGenericRecords(ParseGenericRecordAsJsonFn.create())
+                .withConfiguration(configuration)
+                .from(temporaryFolder.getRoot().getAbsolutePath() + "/*"));
+
+    PAssert.that(readBackAsJson).containsInAnyOrder(convertRecordsToJson(expectedRecords));
     readPipeline.run().waitUntilFinish();
   }
 
@@ -604,7 +542,11 @@ public class ParquetIOTest implements Serializable {
       } catch (IOException ioException) {
         throw new RuntimeException("error converting record to JSON", ioException);
       }
-      return baos.toString();
+      try {
+        return baos.toString("UTF-8");
+      } catch (UnsupportedEncodingException e) {
+        throw new RuntimeException(e);
+      }
     }
   }
 }

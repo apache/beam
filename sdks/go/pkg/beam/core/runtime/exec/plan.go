@@ -21,20 +21,25 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync/atomic"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // Plan represents the bundle execution plan. It will generally be constructed
 // from a part of a pipeline. A plan can be used to process multiple bundles
 // serially.
 type Plan struct {
-	id    string // id of the bundle descriptor for this plan
-	roots []Root
-	units []Unit
-	pcols []*PCollection
+	id          string // id of the bundle descriptor for this plan
+	roots       []Root
+	units       []Unit
+	pcols       []*PCollection
+	bf          *bundleFinalizer
+	checkpoints []*Checkpoint
 
-	status Status
+	status Status // Uses atomic getter and setter to avoid dataraces on Splits.
 
 	// TODO: there can be more than 1 DataSource in a bundle.
 	source *DataSource
@@ -45,6 +50,11 @@ func NewPlan(id string, units []Unit) (*Plan, error) {
 	var roots []Root
 	var pcols []*PCollection
 	var source *DataSource
+	bf := bundleFinalizer{
+		callbacks:         []bundleFinalizationCallback{},
+		lastValidCallback: time.Now(),
+	}
+	var onTimers map[string]*ParDo
 
 	for _, u := range units {
 		if u == nil {
@@ -59,9 +69,22 @@ func NewPlan(id string, units []Unit) (*Plan, error) {
 		if p, ok := u.(*PCollection); ok {
 			pcols = append(pcols, p)
 		}
+		if pd, ok := u.(*ParDo); ok && pd.HasOnTimer() {
+			if onTimers == nil {
+				onTimers = map[string]*ParDo{}
+			}
+			onTimers[pd.PID] = pd
+		}
+		if p, ok := u.(needsBundleFinalization); ok {
+			p.AttachFinalizer(&bf)
+		}
 	}
 	if len(roots) == 0 {
 		return nil, errors.Errorf("no root units")
+	}
+
+	if len(onTimers) > 0 {
+		source.OnTimerTransforms = onTimers
 	}
 
 	return &Plan{
@@ -70,8 +93,17 @@ func NewPlan(id string, units []Unit) (*Plan, error) {
 		roots:  roots,
 		units:  units,
 		pcols:  pcols,
+		bf:     &bf,
 		source: source,
 	}, nil
+}
+
+func (p *Plan) getStatus() Status {
+	return Status(atomic.LoadInt32((*int32)(&p.status)))
+}
+
+func (p *Plan) setStatus(s Status) {
+	atomic.StoreInt32((*int32)(&p.status), int32(s))
 }
 
 // ID returns the plan identifier.
@@ -88,55 +120,99 @@ func (p *Plan) SourcePTransformID() string {
 // are brought up on the first execution. If a bundle fails, the plan cannot
 // be reused for further bundles. Does not panic. Blocking.
 func (p *Plan) Execute(ctx context.Context, id string, manager DataContext) error {
-	if p.status == Initializing {
+	if p.getStatus() == Initializing {
 		for _, u := range p.units {
 			if err := callNoPanic(ctx, u.Up); err != nil {
-				p.status = Broken
+				p.setStatus(Broken)
 				return errors.Wrapf(err, "while executing Up for %v", p)
 			}
 		}
-		p.status = Up
+		p.setStatus(Up)
 	}
 	if p.source != nil {
 		p.source.InitSplittable()
 	}
 
-	if p.status != Up {
-		return errors.Errorf("invalid status for plan %v: %v", p.id, p.status)
+	if s := p.getStatus(); s != Up {
+		return errors.Errorf("invalid status for plan %v: %v", p.id, s)
 	}
 
 	// Process bundle. If there are any kinds of failures, we bail and mark the plan broken.
 
-	p.status = Active
+	p.setStatus(Active)
 	for _, root := range p.roots {
 		if err := callNoPanic(ctx, func(ctx context.Context) error { return root.StartBundle(ctx, id, manager) }); err != nil {
-			p.status = Broken
+			p.setStatus(Broken)
 			return errors.Wrapf(err, "while executing StartBundle for %v", p)
 		}
 	}
 	for _, root := range p.roots {
-		if err := callNoPanic(ctx, root.Process); err != nil {
-			p.status = Broken
+		if err := callNoPanic(ctx, func(ctx context.Context) error {
+			cps, err := root.Process(ctx)
+			p.checkpoints = cps
+			return err
+		}); err != nil {
+			p.setStatus(Broken)
 			return errors.Wrapf(err, "while executing Process for %v", p)
 		}
 	}
 	for _, root := range p.roots {
 		if err := callNoPanic(ctx, root.FinishBundle); err != nil {
-			p.status = Broken
+			p.setStatus(Broken)
 			return errors.Wrapf(err, "while executing FinishBundle for %v", p)
 		}
 	}
-
-	p.status = Up
+	p.setStatus(Up)
 	return nil
+}
+
+// Finalize runs any callbacks registered by the bundleFinalizer. Should be run on bundle finalization.
+func (p *Plan) Finalize() error {
+	if s := p.getStatus(); s != Up {
+		return errors.Errorf("invalid status for plan %v: %v", p.id, s)
+	}
+	failedIndices := []int{}
+	for idx, bfc := range p.bf.callbacks {
+		if time.Now().Before(bfc.validUntil) {
+			if err := bfc.callback(); err != nil {
+				failedIndices = append(failedIndices, idx)
+			}
+		}
+	}
+
+	newFinalizer := bundleFinalizer{
+		callbacks:         []bundleFinalizationCallback{},
+		lastValidCallback: time.Now(),
+	}
+
+	for _, idx := range failedIndices {
+		newFinalizer.callbacks = append(newFinalizer.callbacks, p.bf.callbacks[idx])
+		if newFinalizer.lastValidCallback.Before(p.bf.callbacks[idx].validUntil) {
+			newFinalizer.lastValidCallback = p.bf.callbacks[idx].validUntil
+		}
+	}
+
+	p.bf = &newFinalizer
+
+	if len(failedIndices) > 0 {
+		return errors.Errorf("Plan %v failed %v callbacks", p.ID(), len(failedIndices))
+	}
+	return nil
+}
+
+// GetExpirationTime returns the last expiration time of any of the callbacks registered by the bundleFinalizer.
+// Once we have passed this time, it is safe to move this plan to inactive without missing any valid callbacks.
+func (p *Plan) GetExpirationTime() time.Time {
+	return p.bf.lastValidCallback
 }
 
 // Down takes the plan and associated units down. Does not panic.
 func (p *Plan) Down(ctx context.Context) error {
-	if p.status == Down {
+	// Technically racy, but only one thread calls this method on the plan.
+	if p.getStatus() == Down {
 		return nil // ok: already down
 	}
-	p.status = Down
+	p.setStatus(Down)
 
 	var errs []error
 	for _, u := range p.units {
@@ -200,6 +276,8 @@ type SplitPoints struct {
 
 // SplitResult contains the result of performing a split on a Plan.
 type SplitResult struct {
+	Unsuccessful bool // Indicates the split was unsuccessful.
+
 	// Indices are always included, for both channel and sub-element splits.
 	PI int64 // Primary index, last element of the primary.
 	RI int64 // Residual index, first element of the residual.
@@ -210,16 +288,26 @@ type SplitResult struct {
 	RS   [][]byte // Residual splits. If an element is split, these are the encoded residuals.
 	TId  string   // Transform ID of the transform receiving the split elements.
 	InId string   // Input ID of the input the split elements are received from.
+
+	OW map[string]*timestamppb.Timestamp // Map of outputs to output watermark for the plan being split
 }
 
 // Split takes a set of potential split indexes, and if successful returns
 // the split result.
 // Returns an error when unable to split.
-func (p *Plan) Split(s SplitPoints) (SplitResult, error) {
+func (p *Plan) Split(ctx context.Context, s SplitPoints) (SplitResult, error) {
+	// Can't split inactive plans.
+	// Split occurs asynchronously, so the state check here must be atomic.
+	if p.getStatus() != Active {
+		return SplitResult{Unsuccessful: true}, nil
+	}
 	// TODO: When bundles with multiple sources, are supported, perform splits
 	// on all sources.
-	if p.source != nil {
-		return p.source.Split(s.Splits, s.Frac, s.BufSize)
-	}
-	return SplitResult{}, fmt.Errorf("failed to split at requested splits: {%v}, Source not initialized", s)
+	return p.source.Split(ctx, s.Splits, s.Frac, s.BufSize)
+}
+
+// Checkpoint attempts to split an SDF if the DoFn self-checkpointed.
+func (p *Plan) Checkpoint() []*Checkpoint {
+	defer func() { p.checkpoints = nil }()
+	return p.checkpoints
 }

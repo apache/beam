@@ -18,7 +18,7 @@ limitations under the License.
 <table align="left">
     <a target="_blank" class="button"
         href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/transforms/Keys.html">
-      <img src="https://beam.apache.org/images/logos/sdks/java.png" width="20px" height="20px"
+      <img src="/images/logos/sdks/java.png" width="20px" height="20px"
            alt="Javadoc" />
      Javadoc
     </a>
@@ -28,12 +28,10 @@ limitations under the License.
 Takes a collection of key-value pairs, and returns the key of each element.
 
 ## Examples
-**Example**
 
-{{< highlight java >}}
-PCollection<KV<String, Integer>> keyValuePairs = /* ... */;
-PCollection<String> keys = keyValuePairs.apply(Keys.create());
-{{< /highlight >}}
+{{< playground height="700px" >}}
+{{< playground_snippet language="java" path="SDK_JAVA_Keys" show="main_section" >}}
+{{< /playground >}}
 
 ## Related transforms
 * [KvSwap](/documentation/transforms/java/elementwise/kvswap) swaps key-value pair values.

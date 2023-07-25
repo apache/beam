@@ -18,15 +18,16 @@
 package org.apache.beam.runners.dataflow.worker.util.common.worker;
 
 import org.apache.beam.sdk.util.common.Reiterable;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
 
 /** A collection of ShuffleEntries, all with the same key. */
 public class KeyGroupedShuffleEntries {
   public final ShufflePosition position;
-  public final byte[] key;
+  public final ByteString key;
   public final Reiterable<ShuffleEntry> values;
 
   public KeyGroupedShuffleEntries(
-      ShufflePosition position, byte[] key, Reiterable<ShuffleEntry> values) {
+      ShufflePosition position, ByteString key, Reiterable<ShuffleEntry> values) {
     this.position = position;
     this.key = key;
     this.values = values;

@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+// TODO(https://github.com/apache/beam/issues/20209): Move this definition into common.gradle.
+
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(publish: false, exportJavadoc: false)
 
@@ -30,14 +32,14 @@ def jobPort = BeamModulePlugin.getRandomPort()
 def tmpDir = System.getenv("TMPDIR") ?: System.getenv("WORKSPACE") ?: "/tmp"
 def pidFile = "${tmpDir}/local_job_service_main-${jobPort}.pid"
 
-def setupTask = project.tasks.create(name: "fnApiJobServerSetup", type: Exec) {
+def setupTask = project.tasks.register("fnApiJobServerSetup", Exec) {
   dependsOn ':sdks:python:installGcpTest'
 
   executable 'sh'
   args '-c', ". ${envDir}/bin/activate && python -m apache_beam.runners.portability.local_job_service_main --job_port ${jobPort} --pid_file ${pidFile} --background --stdout_file ${tmpDir}/beam-fnapi-job-server.log"
 }
 
-def cleanupTask = project.tasks.create(name: "fnApiJobServerCleanup", type: Exec) {
+def cleanupTask = project.tasks.register("fnApiJobServerCleanup", Exec) {
   executable 'sh'
   args '-c', ". ${envDir}/bin/activate && python -m apache_beam.runners.portability.local_job_service_main --pid_file ${pidFile} --stop"
 }

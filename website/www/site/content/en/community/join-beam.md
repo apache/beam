@@ -21,6 +21,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
+<div class="wrapper-join-beam">
+
 # Join Beam Community!
 
 We’re so glad you want to join the Apache Beam community. Here’s a pathway you can follow to help you get started. This is not the only way to join, but it’s the recommended progression so you’re successful at reaching your objectives.
@@ -44,3 +46,4 @@ We’re so glad you want to join the Apache Beam community. Here’s a pathway y
 ## Still have questions?
 
 Send us a note at <a href="mailto:dev@beam.apache.org">user@beam.apache.org</a> OR mention <a target="_blank" href="https://twitter.com/apachebeam?lang=en">@ApacheBeam</a> on Twitter OR ask us in the #beam slack channel. We look forward to seeing you in the community!
+</div>

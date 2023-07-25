@@ -20,4 +20,4 @@ limitations under the License.
 This roadmap is in progress. In the meantime, here are available resources:
 
  - [Runner documentation](/documentation/runners/twister2)
- - JIRA: [runner-twister2](https://issues.apache.org/jira/browse/BEAM-10830?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20runner-twister2)
+ - Issues: [runner-twister2](https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Arunner-twister2)

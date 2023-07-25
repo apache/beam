@@ -30,10 +30,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.testing.RestoreDataflowLoggingMDC;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
-import org.apache.beam.sdk.extensions.gcp.util.FastNanoClockAndSleeper;
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.RestoreSystemProperties;
+import org.apache.beam.sdk.util.FastNanoClockAndSleeper;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -147,36 +147,21 @@ public class DataflowBatchWorkerHarnessTest {
     private AtomicInteger count = new AtomicInteger(0);
 
     public FakeWorker(DataflowWorkerHarnessOptions options, boolean returnValue) {
-      super(
-          null /* pipeline */,
-          SdkHarnessRegistries.emptySdkHarnessRegistry(),
-          mockWorkUnitClient,
-          IntrinsicMapTaskExecutorFactory.defaultFactory(),
-          options);
+      super(mockWorkUnitClient, IntrinsicMapTaskExecutorFactory.defaultFactory(), options);
       ioExceptionValue = null;
       runtimeExceptionValue = null;
       this.returnValue = returnValue;
     }
 
     public FakeWorker(DataflowWorkerHarnessOptions options, IOException e) {
-      super(
-          null /* pipeline */,
-          SdkHarnessRegistries.emptySdkHarnessRegistry(),
-          mockWorkUnitClient,
-          IntrinsicMapTaskExecutorFactory.defaultFactory(),
-          options);
+      super(mockWorkUnitClient, IntrinsicMapTaskExecutorFactory.defaultFactory(), options);
       ioExceptionValue = e;
       runtimeExceptionValue = null;
       this.returnValue = false;
     }
 
     public FakeWorker(DataflowWorkerHarnessOptions options, RuntimeException e) {
-      super(
-          null /* pipeline */,
-          SdkHarnessRegistries.emptySdkHarnessRegistry(),
-          mockWorkUnitClient,
-          IntrinsicMapTaskExecutorFactory.defaultFactory(),
-          options);
+      super(mockWorkUnitClient, IntrinsicMapTaskExecutorFactory.defaultFactory(), options);
       ioExceptionValue = null;
       runtimeExceptionValue = e;
       this.returnValue = false;

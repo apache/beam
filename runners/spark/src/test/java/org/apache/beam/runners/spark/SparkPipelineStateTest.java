@@ -20,190 +20,137 @@ package org.apache.beam.runners.spark;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.fail;
+import static org.joda.time.Duration.millis;
+import static org.junit.Assert.assertThrows;
 
 import java.io.Serializable;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.spark.io.CreateStream;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.joda.time.Duration;
-import org.junit.Rule;
+import org.junit.ClassRule;
 import org.junit.Test;
-import org.junit.rules.TestName;
 
 /** This suite tests that various scenarios result in proper states of the pipeline. */
 public class SparkPipelineStateTest implements Serializable {
 
-  private static class MyCustomException extends RuntimeException {
+  @ClassRule public static SparkContextRule contextRule = new SparkContextRule();
 
-    MyCustomException(final String message) {
+  private static class CustomException extends RuntimeException {
+    CustomException(final String message) {
       super(message);
     }
   }
 
-  private final transient SparkPipelineOptions options =
-      PipelineOptionsFactory.as(SparkPipelineOptions.class);
-
-  @Rule public transient TestName testName = new TestName();
+  private static class FailAlways extends SimpleFunction<String, String> {
+    @Override
+    public String apply(final String input) {
+      throw new CustomException(FAILED_THE_BATCH_INTENTIONALLY);
+    }
+  }
 
   private static final String FAILED_THE_BATCH_INTENTIONALLY = "Failed the batch intentionally";
 
-  private ParDo.SingleOutput<String, String> printParDo(final String prefix) {
-    return ParDo.of(
-        new DoFn<String, String>() {
-
-          @ProcessElement
-          public void processElement(final ProcessContext c) {
-            System.out.println(prefix + " " + c.element());
-          }
-        });
-  }
-
-  private PTransform<PBegin, PCollection<String>> getValues(final SparkPipelineOptions options) {
-    final boolean doNotSyncWithWatermark = false;
-    return options.isStreaming()
-        ? CreateStream.of(StringUtf8Coder.of(), Duration.millis(1), doNotSyncWithWatermark)
-            .nextBatch("one", "two")
-        : Create.of("one", "two");
-  }
-
-  private SparkPipelineOptions getStreamingOptions() {
+  private Pipeline createPipeline(
+      boolean isStreaming, @Nullable SimpleFunction<String, String> mapFun) {
+    SparkContextOptions options = contextRule.createPipelineOptions();
     options.setRunner(SparkRunner.class);
-    options.setStreaming(true);
-    return options;
-  }
+    options.setStreaming(isStreaming);
 
-  private SparkPipelineOptions getBatchOptions() {
-    options.setRunner(SparkRunner.class);
-    options.setStreaming(false); // explicit because options is reused throughout the test.
-    return options;
-  }
+    Pipeline pipeline = Pipeline.create(options);
+    PTransform<PBegin, PCollection<String>> values =
+        isStreaming
+            ? CreateStream.of(StringUtf8Coder.of(), millis(1), false).nextBatch("one", "two")
+            : Create.of("one", "two");
 
-  private Pipeline getPipeline(final SparkPipelineOptions options) {
-
-    final Pipeline pipeline = Pipeline.create(options);
-    final String name = testName.getMethodName() + "(isStreaming=" + options.isStreaming() + ")";
-
-    pipeline.apply(getValues(options)).setCoder(StringUtf8Coder.of()).apply(printParDo(name));
-
+    PCollection<String> collection = pipeline.apply(values).setCoder(StringUtf8Coder.of());
+    if (mapFun != null) {
+      collection.apply(MapElements.via(mapFun));
+    }
     return pipeline;
   }
 
-  private void testFailedPipeline(final SparkPipelineOptions options) throws Exception {
+  private void testFailedPipeline(boolean isStreaming) throws Exception {
+    Pipeline pipeline = createPipeline(isStreaming, new FailAlways());
+    SparkPipelineResult result = (SparkPipelineResult) pipeline.run();
 
-    SparkPipelineResult result = null;
-
-    try {
-      final Pipeline pipeline = Pipeline.create(options);
-      pipeline
-          .apply(getValues(options))
-          .setCoder(StringUtf8Coder.of())
-          .apply(
-              MapElements.via(
-                  new SimpleFunction<String, String>() {
-
-                    @Override
-                    public String apply(final String input) {
-                      throw new MyCustomException(FAILED_THE_BATCH_INTENTIONALLY);
-                    }
-                  }));
-
-      result = (SparkPipelineResult) pipeline.run();
-      result.waitUntilFinish();
-    } catch (final Exception e) {
-      assertThat(e, instanceOf(Pipeline.PipelineExecutionException.class));
-      assertThat(e.getCause(), instanceOf(MyCustomException.class));
-      assertThat(e.getCause().getMessage(), is(FAILED_THE_BATCH_INTENTIONALLY));
-      assertThat(result.getState(), is(PipelineResult.State.FAILED));
-      result.cancel();
-      return;
-    }
-
-    fail("An injected failure did not affect the pipeline as expected.");
+    PipelineExecutionException e =
+        assertThrows(PipelineExecutionException.class, () -> result.waitUntilFinish());
+    assertThat(e.getCause(), instanceOf(CustomException.class));
+    assertThat(e.getCause().getMessage(), is(FAILED_THE_BATCH_INTENTIONALLY));
+    assertThat(result.getState(), is(PipelineResult.State.FAILED));
+    result.cancel();
   }
 
-  private void testTimeoutPipeline(final SparkPipelineOptions options) throws Exception {
+  private void testWaitUntilFinishedTimeout(boolean isStreaming) throws Exception {
+    Pipeline pipeline = createPipeline(isStreaming, null);
+    SparkPipelineResult result = (SparkPipelineResult) pipeline.run();
+    result.waitUntilFinish(millis(1));
 
-    final Pipeline pipeline = getPipeline(options);
-
-    final SparkPipelineResult result = (SparkPipelineResult) pipeline.run();
-
-    result.waitUntilFinish(Duration.millis(1));
-
+    // Wait timed out, pipeline is still running
     assertThat(result.getState(), is(PipelineResult.State.RUNNING));
-
     result.cancel();
   }
 
-  private void testCanceledPipeline(final SparkPipelineOptions options) throws Exception {
-
-    final Pipeline pipeline = getPipeline(options);
-
-    final SparkPipelineResult result = (SparkPipelineResult) pipeline.run();
-
+  private void testCanceledPipeline(boolean isStreaming) throws Exception {
+    Pipeline pipeline = createPipeline(isStreaming, null);
+    SparkPipelineResult result = (SparkPipelineResult) pipeline.run();
     result.cancel();
-
     assertThat(result.getState(), is(PipelineResult.State.CANCELLED));
   }
 
-  private void testRunningPipeline(final SparkPipelineOptions options) throws Exception {
-
-    final Pipeline pipeline = getPipeline(options);
-
-    final SparkPipelineResult result = (SparkPipelineResult) pipeline.run();
-
+  private void testRunningPipeline(boolean isStreaming) throws Exception {
+    Pipeline pipeline = createPipeline(isStreaming, null);
+    SparkPipelineResult result = (SparkPipelineResult) pipeline.run();
     assertThat(result.getState(), is(PipelineResult.State.RUNNING));
-
     result.cancel();
   }
 
   @Test
   public void testStreamingPipelineRunningState() throws Exception {
-    testRunningPipeline(getStreamingOptions());
+    testRunningPipeline(true);
   }
 
   @Test
   public void testBatchPipelineRunningState() throws Exception {
-    testRunningPipeline(getBatchOptions());
+    testRunningPipeline(false);
   }
 
   @Test
   public void testStreamingPipelineCanceledState() throws Exception {
-    testCanceledPipeline(getStreamingOptions());
+    testCanceledPipeline(true);
   }
 
   @Test
   public void testBatchPipelineCanceledState() throws Exception {
-    testCanceledPipeline(getBatchOptions());
+    testCanceledPipeline(false);
   }
 
   @Test
   public void testStreamingPipelineFailedState() throws Exception {
-    testFailedPipeline(getStreamingOptions());
+    testFailedPipeline(true);
   }
 
   @Test
   public void testBatchPipelineFailedState() throws Exception {
-    testFailedPipeline(getBatchOptions());
+    testFailedPipeline(false);
   }
 
   @Test
-  public void testStreamingPipelineTimeoutState() throws Exception {
-    testTimeoutPipeline(getStreamingOptions());
+  public void testStreamingPipelineWaitTimeout() throws Exception {
+    testWaitUntilFinishedTimeout(true);
   }
 
   @Test
-  public void testBatchPipelineTimeoutState() throws Exception {
-    testTimeoutPipeline(getBatchOptions());
+  public void testBatchPipelineWaitTimeout() throws Exception {
+    testWaitUntilFinishedTimeout(false);
   }
 }

@@ -55,7 +55,7 @@ public class SyntheticUnboundedSourceTest {
     sourceOptions = SyntheticTestUtils.optionsFromString(optionsJson, SyntheticSourceOptions.class);
 
     source = new SyntheticUnboundedSource(sourceOptions);
-    checkpoint = new SyntheticRecordsCheckpoint(0, sourceOptions.numRecords);
+    checkpoint = new SyntheticRecordsCheckpoint(0);
   }
 
   @Test
@@ -80,7 +80,7 @@ public class SyntheticUnboundedSourceTest {
   @Test
   public void startPositionShouldBeExclusive() throws IOException {
     int startPosition = 0;
-    checkpoint = new SyntheticRecordsCheckpoint(startPosition, sourceOptions.numRecords);
+    checkpoint = new SyntheticRecordsCheckpoint(startPosition);
 
     UnboundedSource.UnboundedReader<KV<byte[], byte[]>> reader =
         source.createReader(pipeline.getOptions(), checkpoint);
@@ -95,7 +95,7 @@ public class SyntheticUnboundedSourceTest {
   @Test
   public void lastElementShouldBeInclusive() throws IOException {
     int endPosition = 2;
-    checkpoint = new SyntheticRecordsCheckpoint(0, endPosition);
+    checkpoint = new SyntheticRecordsCheckpoint(0);
 
     UnboundedSource.UnboundedReader<KV<byte[], byte[]>> reader =
         source.createReader(pipeline.getOptions(), checkpoint);

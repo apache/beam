@@ -24,7 +24,8 @@
 #   version: # package version, it is required because license may change between versions.
 #     license: optional, url_to_license or "skip"
 #       # skip: don't add license for the dependency
-#       # url_to_license: a url to source code (https://...) or a local file (file://...)
+#       # url_to_license: a url to source code (https://...) or a local file (file://{}/...)
+#         where the remaining value is relative to the manual license folder
 #     notice: optional, url_to_notice
 #     type: optional, license type, ie: Apache License 2.0. Type should be provided if the plug in does not provide moduleLicense.
 #     source: optional, url_to_maven_repo. If maven artifact repo does not follow a patten of 'https://repo1.maven.org/maven2/{module}/{version}', the url should be provided.
@@ -41,7 +42,7 @@ jaxen:
   '1.1.6':
     type: "3-Clause BSD"
 libraries-bom:
-  '22.0.0':
+  '26.17.0':
     license: "https://raw.githubusercontent.com/GoogleCloudPlatform/cloud-opensource-java/master/LICENSE"
     type: "Apache License 2.0"
 paranamer:
@@ -50,13 +51,21 @@ paranamer:
   '2.8':
     license: "https://raw.githubusercontent.com/paul-hammant/paranamer/master/LICENSE.txt"
 xz:
-  '1.5':
-    license: "https://git.tukaani.org/?p=xz-java.git;a=blob;f=COPYING;h=c1d404dc7a6f06a0437bf1055fedaa4a4c89d728;hb=9f1f97a26f090ffec6568c004a38c6534aa82b94"
+  '1.5': # The original repo is down. This license is taken from https://tukaani.org/xz/java.html.
+    license: "file://{}/xz/COPYING"
 jackson-bom:
-  '2.12.4':
+  '2.14.1':
     license: "https://raw.githubusercontent.com/FasterXML/jackson-bom/master/LICENSE"
     type: "Apache License 2.0"
 junit-dep:
   '4.11':
     license: "https://opensource.org/licenses/cpl1.0.txt"
     type: "Common Public License Version 1.0"
+org.eclipse.jgit:
+  '4.4.1.201607150455-r':
+    license: "https://www.eclipse.org/org/documents/edl-v10.html"
+    type: "Eclipse Distribution License - v1.0"
+zstd-jni:
+  '1.5.2-5':
+    license: "https://raw.githubusercontent.com/luben/zstd-jni/master/LICENSE"
+    type: "2-Clause BSD"

@@ -22,7 +22,8 @@ import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
 import InfluxDBCredentialsHelper
 
-import static LoadTestsBuilder.DOCKER_CONTAINER_REGISTRY
+import static LoadTestsBuilder.DOCKER_BEAM_JOBSERVER
+import static LoadTestsBuilder.GO_SDK_CONTAINER
 
 def now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
@@ -44,7 +45,7 @@ def batchScenarios = {
         parallelism        : 10,
         endpoint           : 'localhost:8099',
         environment_type   : 'DOCKER',
-        environment_config : "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest",
+        environment_config : GO_SDK_CONTAINER,
       ]
     ],
     [
@@ -62,7 +63,7 @@ def batchScenarios = {
         parallelism        : 10,
         endpoint           : 'localhost:8099',
         environment_type   : 'DOCKER',
-        environment_config : "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest",
+        environment_config : GO_SDK_CONTAINER,
       ]
     ],
   ]
@@ -75,10 +76,10 @@ def loadTestJob = { scope, triggeringContext, mode ->
   Flink flink = new Flink(scope, "beam_LoadTests_Go_SideInput_Flink_${mode.capitalize()}")
   flink.setUp(
       [
-        "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest"
+        GO_SDK_CONTAINER
       ],
       numberOfWorkers,
-      "${DOCKER_CONTAINER_REGISTRY}/beam_flink1.12_job_server:latest")
+      "${DOCKER_BEAM_JOBSERVER}/beam_flink${CommonTestProperties.getFlinkVersion()}_job_server:latest")
 
   loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.GO,
       batchScenarios(), 'SideInput', mode)
@@ -94,11 +95,11 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
       loadTestJob(delegate, CommonTestProperties.TriggeringContext.PR, 'batch')
     }
 
-CronJobBuilder.cronJob('beam_LoadTests_Go_SideInput_Flink_Batch', 'H 11 * * *', this) {
+CronJobBuilder.cronJob('beam_LoadTests_Go_SideInput_Flink_Batch', 'H H * * *', this) {
   additionalPipelineArgs = [
     influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
     influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,
   ]
-  // TODO(BEAM-12898): Re-enable this test once fixed.
-  // loadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT, 'batch')
+  // TODO(BEAM): Fix this test.
+  loadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT, 'batch')
 }

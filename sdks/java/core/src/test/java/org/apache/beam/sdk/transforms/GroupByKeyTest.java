@@ -24,6 +24,7 @@ import static org.hamcrest.CoreMatchers.hasItem;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
+import static org.junit.Assert.assertThrows;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -43,21 +44,32 @@ import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderProviders;
+import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.MapCoder;
+import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.io.GenerateSequence;
+import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.state.Timer;
+import org.apache.beam.sdk.state.TimerSpec;
+import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.testing.LargeKeys;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
+import org.apache.beam.sdk.testing.UsesProcessingTimeTimers;
 import org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime;
+import org.apache.beam.sdk.testing.UsesTimersInParDo;
+import org.apache.beam.sdk.testing.UsesUnboundedPCollections;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
@@ -83,27 +95,25 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.experimental.runners.Enclosed;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** Tests for GroupByKey. */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "unchecked"
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "unchecked",
+  "unused"
 })
 @RunWith(Enclosed.class)
 public class GroupByKeyTest implements Serializable {
   /** Shared test base class with setup/teardown helpers. */
   public abstract static class SharedTestBase {
     @Rule public transient TestPipeline p = TestPipeline.create();
-
-    @Rule public transient ExpectedException thrown = ExpectedException.none();
   }
 
   /** Tests validating basic {@link GroupByKey} scenarios. */
   @RunWith(JUnit4.class)
-  public static class BasicTests extends SharedTestBase {
+  public static class BasicTests extends SharedTestBase implements Serializable {
     @Test
     @Category(ValidatesRunner.class)
     public void testGroupByKey() {
@@ -186,9 +196,116 @@ public class GroupByKeyTest implements Serializable {
       p.run();
     }
 
+    /**
+     * Tests that data from a processing time trigger flows through subsequent GroupByKey
+     * transforms. To test this with TestStream, we check that it arrives in an early pane,
+     * demonstrating that the watermark did not cause the output.
+     */
+    @Test
+    @Category({ValidatesRunner.class, UsesTestStreamWithProcessingTime.class})
+    public void testAfterProcessingTimeContinuationTriggerEarly() throws Exception {
+      final long triggerMillis = 1; // Setting of the processing time trigger
+      final long advanceMillis = 10; // How far we advance time for the first GBK to trigger
+      final long waitMillis = 500; // How far we advance time for the second GBK to trigger
+
+      PCollection<Integer> triggeredSums =
+          p.apply(
+                  TestStream.create(VarIntCoder.of())
+                      .advanceWatermarkTo(new Instant(0))
+                      .addElements(42)
+                      .advanceProcessingTime(Duration.millis(advanceMillis))
+                      .advanceProcessingTime(Duration.millis(waitMillis))
+                      .advanceWatermarkToInfinity())
+              .apply(
+                  Window.<Integer>configure()
+                      .triggering(
+                          Repeatedly.forever(
+                              AfterProcessingTime.pastFirstElementInPane()
+                                  .plusDelayOf(Duration.millis(triggerMillis))))
+                      .accumulatingFiredPanes()
+                      .withOnTimeBehavior(Window.OnTimeBehavior.FIRE_IF_NON_EMPTY)
+                      .withAllowedLateness(Duration.millis(0)))
+              .apply("Triggered sum", Sum.integersGlobally().withoutDefaults())
+              .apply("Second Triggered sum", Sum.integersGlobally().withoutDefaults());
+
+      PAssert.that(triggeredSums).inEarlyGlobalWindowPanes().containsInAnyOrder(42);
+
+      p.run();
+    }
+
+    /**
+     * Tests that data from a processing time trigger flows through subsequent GroupByKey
+     * transforms. This version does not depend on {@link TestStream} with processing time, because
+     * many runners do not support it.
+     *
+     * <p>Since a delay in processing time is fundamental to this test, it unfortunately must have a
+     * real-time sleep. Currently the sleep is sub-second so it is acceptable delay for a unit test
+     * suite.
+     */
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesTimersInParDo.class,
+      UsesProcessingTimeTimers.class,
+      UsesUnboundedPCollections.class
+    })
+    public void testAfterProcessingTimeContinuationTriggerUsingState() throws Exception {
+      final long triggerMillis = 1;
+      final long waitMillis = 500;
+
+      PCollection<Integer> triggeredSums =
+          p.apply(
+                  GenerateSequence.from(0)
+                      .to(1)) // forces unbounded so delay cannot be fast-forwarded
+              .apply(WithKeys.of("dummy key"))
+              .apply(
+                  "output then delay",
+                  ParDo.of(
+                      new DoFn<KV<String, Long>, Integer>() {
+                        private static final String DELAY_TIMER = "delay";
+
+                        @TimerId(DELAY_TIMER)
+                        private final TimerSpec delayTimerSpec =
+                            TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+                        @ProcessElement
+                        public void process(
+                            @Timestamp Instant timestamp,
+                            BoundedWindow window,
+                            OutputReceiver<Integer> out,
+                            @TimerId(DELAY_TIMER) Timer delayTimer) {
+                          out.output(42);
+
+                          // wait a little bit while stopping downstream from firing the window
+                          delayTimer.set(window.maxTimestamp().minus(Duration.millis(10)));
+                        }
+
+                        @OnTimer(DELAY_TIMER)
+                        public void onDelay(@Timestamp Instant timestamp)
+                            throws InterruptedException {
+                          // noop, just here to force the pipeline to sleep so downstream GBK will
+                          // trigger
+                          Thread.sleep(waitMillis);
+                        }
+                      }))
+              .apply(
+                  Window.<Integer>configure()
+                      .triggering(
+                          Repeatedly.forever(
+                              AfterProcessingTime.pastFirstElementInPane()
+                                  .plusDelayOf(Duration.millis(triggerMillis))))
+                      .accumulatingFiredPanes()
+                      .withAllowedLateness(Duration.millis(0)))
+              .apply("Triggered sum", Sum.integersGlobally().withoutDefaults())
+              .apply("Second Triggered sum", Sum.integersGlobally().withoutDefaults());
+
+      PAssert.that(triggeredSums).inEarlyGlobalWindowPanes().containsInAnyOrder(42);
+
+      p.run();
+    }
+
     @Test
     public void testGroupByKeyNonDeterministic() throws Exception {
-
       List<KV<Map<String, String>, Integer>> ungroupedPairs = Arrays.asList();
 
       PCollection<KV<Map<String, String>, Integer>> input =
@@ -199,9 +316,31 @@ public class GroupByKeyTest implements Serializable {
                           MapCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()),
                           BigEndianIntegerCoder.of())));
 
-      thrown.expect(IllegalStateException.class);
-      thrown.expectMessage("must be deterministic");
-      input.apply(GroupByKey.create());
+      assertThrows(
+          "must be deterministic",
+          IllegalStateException.class,
+          () -> input.apply(GroupByKey.create()));
+    }
+
+    @Test
+    public void testGroupByKeyOutputCoderUnmodifiedAfterApplyAndBeforePipelineRun()
+        throws Exception {
+      List<KV<String, Integer>> ungroupedPairs = Arrays.asList();
+
+      PCollection<KV<String, Integer>> input =
+          p.apply(
+              Create.of(ungroupedPairs)
+                  .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
+
+      // Apply with a known good coder
+      PCollection<KV<String, Iterable<Integer>>> output = input.apply(GroupByKey.create());
+
+      // Change the output to have a different coder that doesn't match the input coder types
+      output.setCoder(
+          KvCoder.of(
+              SerializableCoder.of(String.class), IterableCoder.of(BigEndianIntegerCoder.of())));
+      assertThrows(
+          "the GroupByKey requires its output coder", IllegalStateException.class, () -> p.run());
     }
 
     // AfterPane.elementCountAtLeast(1) is not OK
@@ -214,9 +353,8 @@ public class GroupByKeyTest implements Serializable {
                       .discardingFiredPanes()
                       .triggering(AfterPane.elementCountAtLeast(1)));
 
-      thrown.expect(IllegalArgumentException.class);
-      thrown.expectMessage("Unsafe trigger");
-      input.apply(GroupByKey.create());
+      assertThrows(
+          "Unsafe trigger", IllegalArgumentException.class, () -> input.apply(GroupByKey.create()));
     }
 
     // AfterWatermark.pastEndOfWindow() is OK with 0 allowed lateness
@@ -262,9 +400,8 @@ public class GroupByKeyTest implements Serializable {
                       .triggering(AfterWatermark.pastEndOfWindow())
                       .withAllowedLateness(Duration.millis(10)));
 
-      thrown.expect(IllegalArgumentException.class);
-      thrown.expectMessage("Unsafe trigger");
-      input.apply(GroupByKey.create());
+      assertThrows(
+          "Unsafe trigger", IllegalArgumentException.class, () -> input.apply(GroupByKey.create()));
     }
 
     // AfterWatermark.pastEndOfWindow().withEarlyFirings() is not OK with > 0 allowed lateness
@@ -280,9 +417,8 @@ public class GroupByKeyTest implements Serializable {
                               .withEarlyFirings(AfterPane.elementCountAtLeast(1)))
                       .withAllowedLateness(Duration.millis(10)));
 
-      thrown.expect(IllegalArgumentException.class);
-      thrown.expectMessage("Unsafe trigger");
-      input.apply(GroupByKey.create());
+      assertThrows(
+          "Unsafe trigger", IllegalArgumentException.class, () -> input.apply(GroupByKey.create()));
     }
 
     // AfterWatermark.pastEndOfWindow().withLateFirings() is always OK
@@ -305,7 +441,6 @@ public class GroupByKeyTest implements Serializable {
     @Test
     @Category(NeedsRunner.class)
     public void testRemerge() {
-
       List<KV<String, Integer>> ungroupedPairs = Arrays.asList();
 
       PCollection<KV<String, Integer>> input =
@@ -332,7 +467,6 @@ public class GroupByKeyTest implements Serializable {
 
     @Test
     public void testGroupByKeyDirectUnbounded() {
-
       PCollection<KV<String, Integer>> input =
           p.apply(
               new PTransform<PBegin, PCollection<KV<String, Integer>>>() {
@@ -346,12 +480,11 @@ public class GroupByKeyTest implements Serializable {
                 }
               });
 
-      thrown.expect(IllegalStateException.class);
-      thrown.expectMessage(
+      assertThrows(
           "GroupByKey cannot be applied to non-bounded PCollection in the GlobalWindow without "
-              + "a trigger. Use a Window.into or Window.triggering transform prior to GroupByKey.");
-
-      input.apply("GroupByKey", GroupByKey.create());
+              + "a trigger. Use a Window.into or Window.triggering transform prior to GroupByKey.",
+          IllegalStateException.class,
+          () -> input.apply("GroupByKey", GroupByKey.create()));
     }
 
     /**
@@ -362,7 +495,6 @@ public class GroupByKeyTest implements Serializable {
     @Test
     @Category(ValidatesRunner.class)
     public void testTimestampCombinerEarliest() {
-
       p.apply(
               Create.timestamped(
                   TimestampedValue.of(KV.of(0, "hello"), new Instant(0)),
@@ -627,7 +759,6 @@ public class GroupByKeyTest implements Serializable {
     @Test
     @Category(NeedsRunner.class)
     public void testIdentityWindowFnPropagation() {
-
       List<KV<String, Integer>> ungroupedPairs = Arrays.asList();
 
       PCollection<KV<String, Integer>> input =
@@ -651,7 +782,6 @@ public class GroupByKeyTest implements Serializable {
     @Category(NeedsRunner.class)
     public void testWindowFnPostMerging() throws Exception {
 
-      List<KV<String, Integer>> ungroupedPairs = ImmutableList.of(KV.of("a", 3));
       PCollection<KV<String, Integer>> windowedInput =
           p.apply(
                   Create.timestamped(
@@ -768,7 +898,7 @@ public class GroupByKeyTest implements Serializable {
                       @ProcessElement
                       public void process(ProcessContext c) {
                         int size = 0;
-                        for (String value : c.element().getValue()) {
+                        for (String unused : c.element().getValue()) {
                           size++;
                         }
                         c.output(KV.of(c.element().getKey(), size));

@@ -48,6 +48,7 @@ from apache_beam.typehints.decorators import get_signature
 from apache_beam.typehints.decorators import get_type_hints
 from apache_beam.typehints.decorators import getcallargs_forhints
 from apache_beam.typehints.typehints import is_consistent_with
+from apache_beam.typehints.typehints import visit_inner_types
 
 
 def check_or_interleave(hint, value, var):
@@ -100,6 +101,15 @@ class SuperClass(object):
 
 
 class SubClass(SuperClass):
+  pass
+
+
+T = typing.TypeVar('T')
+
+
+class NonBuiltInGeneric(typing.NamedTuple('Entry', [('Field1', T),
+                                                    ('Field2', T)]),
+                        typing.Generic[T]):
   pass
 
 
@@ -218,6 +228,7 @@ class UnionHintTestCase(TypeHintTestCase):
         Union[int, Tuple[Any, Any]], Union[Tuple[int, Any], Tuple[Any, int]])
     self.assertCompatible(Union[int, SuperClass], SubClass)
     self.assertCompatible(Union[int, float, SuperClass], Union[int, SubClass])
+    self.assertCompatible(int, Union[()])
 
     self.assertNotCompatible(Union[int, SubClass], SuperClass)
     self.assertNotCompatible(
@@ -233,7 +244,12 @@ class UnionHintTestCase(TypeHintTestCase):
     self.assertIn(
         str(hint),
         # Uses frozen set internally, so order not guaranteed.
-        ['Union[str, DummyTestClass1]', 'Union[DummyTestClass1, str]'])
+        [
+            "Union[<class 'str'>, <class 'apache_beam.typehints."
+            "typehints_test.DummyTestClass1'>]",
+            "Union[<class 'apache_beam.typehints.typehints_test"
+            ".DummyTestClass1'>, <class 'str'>]"
+        ])
 
   def test_union_hint_enforcement_composite_type_in_union(self):
     o = DummyTestClass1()
@@ -253,9 +269,9 @@ class UnionHintTestCase(TypeHintTestCase):
       hint.type_check('test')
 
     self.assertEqual(
-        "Union[float, int] type-constraint violated. Expected an "
-        "instance of one of: ('float', 'int'), received str "
-        "instead.",
+        "Union[<class \'float\'>, <class \'int\'>] type-constraint violated. "
+        "Expected an instance of one of: (\"<class \'float\'>\", \"<class "
+        "\'int\'>\"), received str instead.",
         e.exception.args[0])
 
   def test_dict_union(self):
@@ -267,6 +283,59 @@ class UnionHintTestCase(TypeHintTestCase):
         typehints.Union[()],
         typehints.Union[typehints.Union[()], typehints.Union[()]])
     self.assertEqual(int, typehints.Union[typehints.Union[()], int])
+
+  def test_match_type_variables(self):
+    A = typehints.TypeVariable('A')  # pylint: disable=invalid-name
+    B = typehints.TypeVariable('B')  # pylint: disable=invalid-name
+    self.assertEqual(
+        typehints.Union[A, int].match_type_variables(str), {A: str})
+    self.assertEqual(typehints.Union[A, int].match_type_variables(int), {})
+    self.assertEqual(typehints.Union[A, B, int].match_type_variables(str), {})
+    # We could do better here, but most importantly we don't want to
+    # incorrectly infer A is a float.
+    self.assertEqual(
+        typehints.Tuple[A, typehints.Union[A, B, int]].match_type_variables(
+            typehints.Tuple[str, float]), {A: str})
+
+    self.assertEqual(
+        typehints.Union[Tuple[str, A], Tuple[float, B]].match_type_variables(
+            typehints.Tuple[Any, int]), {})
+    self.assertEqual(
+        typehints.Union[Tuple[str, A], Tuple[float, A]].match_type_variables(
+            typehints.Tuple[Any, int]), {A: int})
+    self.assertEqual(
+        typehints.Union[Tuple[str, A], Tuple[float, B]].match_type_variables(
+            typehints.Tuple[str, int]), {A: int})
+
+  def test_bind_type_variables(self):
+    A = typehints.TypeVariable('A')  # pylint: disable=invalid-name
+    B = typehints.TypeVariable('B')  # pylint: disable=invalid-name
+    hint = typehints.Union[A, B, int]
+    self.assertEqual(
+        hint.bind_type_variables({
+            A: str, B: float
+        }),
+        typehints.Union[str, float, int])
+    self.assertEqual(
+        hint.bind_type_variables({
+            A: str, B: int
+        }), typehints.Union[str, int])
+    self.assertEqual(hint.bind_type_variables({A: int, B: int}), int)
+
+  def test_visit_inner_types(self):
+    A = typehints.TypeVariable('A')  # pylint: disable=invalid-name
+    B = typehints.TypeVariable('B')  # pylint: disable=invalid-name
+    hint = typehints.Tuple[Tuple[A, A], B, int]
+
+    user_data = object()
+    nodes = []
+
+    def visitor(hint, arg):
+      self.assertIs(arg, user_data)
+      nodes.append(hint)
+
+    visit_inner_types(hint, visitor, user_data)
+    self.assertEqual(nodes, [hint, Tuple[A, A], A, A, B, int])
 
 
 class OptionalHintTestCase(TypeHintTestCase):
@@ -280,6 +349,14 @@ class OptionalHintTestCase(TypeHintTestCase):
   def test_getitem_proxy_to_union(self):
     hint = typehints.Optional[int]
     self.assertTrue(isinstance(hint, typehints.UnionHint.UnionConstraint))
+
+  def test_is_optional(self):
+    hint1 = typehints.Optional[int]
+    self.assertTrue(typehints.is_nullable(hint1))
+    hint2 = typehints.UnionConstraint({int, bytes})
+    self.assertFalse(typehints.is_nullable(hint2))
+    hint3 = typehints.UnionConstraint({int, bytes, type(None)})
+    self.assertFalse(typehints.is_nullable(hint3))
 
 
 class TupleHintTestCase(TypeHintTestCase):
@@ -302,9 +379,15 @@ class TupleHintTestCase(TypeHintTestCase):
       typehints.Tuple[5, [1, 3]]
     self.assertTrue(e.exception.args[0].startswith(expected_error_prefix))
 
-    with self.assertRaises(TypeError) as e:
-      typehints.Tuple[list, dict]
-    self.assertTrue(e.exception.args[0].startswith(expected_error_prefix))
+    if sys.version_info < (3, 9):
+      with self.assertRaises(TypeError) as e:
+        typehints.Tuple[list, dict]
+      self.assertTrue(e.exception.args[0].startswith(expected_error_prefix))
+    else:
+      try:
+        typehints.Tuple[list, dict]
+      except TypeError:
+        self.fail("built-in composite raised TypeError unexpectedly")
 
   def test_compatibility_arbitrary_length(self):
     self.assertNotCompatible(
@@ -342,13 +425,18 @@ class TupleHintTestCase(TypeHintTestCase):
 
   def test_repr(self):
     hint = typehints.Tuple[int, str, float]
-    self.assertEqual('Tuple[int, str, float]', str(hint))
+    self.assertEqual(
+        'Tuple[<class \'int\'>, <class \'str\'>, <class \'float\'>]', str(hint))
 
     hint = typehints.Tuple[DummyTestClass1, DummyTestClass2]
-    self.assertEqual('Tuple[DummyTestClass1, DummyTestClass2]', str(hint))
+    self.assertEqual(
+        'Tuple[<class \'apache_beam.typehints.typehints_test.' \
+        'DummyTestClass1\'>, <class \'apache_beam.typehints.typehints_test.' \
+        'DummyTestClass2\'>]',
+        str(hint))
 
     hint = typehints.Tuple[float, ...]
-    self.assertEqual('Tuple[float, ...]', str(hint))
+    self.assertEqual('Tuple[<class \'float\'>, ...]', str(hint))
 
   def test_type_check_must_be_tuple(self):
     hint = typehints.Tuple[int, str]
@@ -377,9 +465,9 @@ class TupleHintTestCase(TypeHintTestCase):
     with self.assertRaises(TypeError) as e:
       hint.type_check((4, False))
     self.assertEqual(
-        'Tuple[str, bool] hint type-constraint violated. The '
-        'type of element #0 in the passed tuple is incorrect.'
-        ' Expected an instance of type str, instead received '
+        'Tuple[<class \'str\'>, <class \'bool\'>] hint type-constraint '
+        'violated. The type of element #0 in the passed tuple is incorrect.'
+        ' Expected an instance of type <class \'str\'>, instead received '
         'an instance of type int.',
         e.exception.args[0])
 
@@ -390,10 +478,12 @@ class TupleHintTestCase(TypeHintTestCase):
       hint.type_check(t)
 
     self.assertEqual(
-        'Tuple[DummyTestClass1, DummyTestClass2] hint '
-        'type-constraint violated. The type of element #0 in the '
+        'Tuple[<class \'apache_beam.typehints.typehints_test.DummyTestClass1'
+        '\'>, <class \'apache_beam.typehints.typehints_test.DummyTestClass2\'>]'
+        ' hint type-constraint violated. The type of element #0 in the '
         'passed tuple is incorrect. Expected an instance of type '
-        'DummyTestClass1, instead received an instance of type '
+        '<class \'apache_beam.typehints.typehints_test.DummyTestClass1\'>, '
+        'instead received an instance of type '
         'DummyTestClass2.',
         e.exception.args[0])
 
@@ -427,9 +517,9 @@ class TupleHintTestCase(TypeHintTestCase):
       hint.type_check(t)
 
     self.assertEqual(
-        'Tuple[str, ...] hint type-constraint violated. The type '
-        'of element #2 in the passed tuple is incorrect. Expected '
-        'an instance of type str, instead received an instance of '
+        'Tuple[<class \'str\'>, ...] hint type-constraint violated. The type '
+        'of element #2 in the passed <class \'tuple\'> is incorrect. Expected '
+        'an instance of type <class \'str\'>, instead received an instance of '
         'type int.',
         e.exception.args[0])
 
@@ -441,12 +531,23 @@ class TupleHintTestCase(TypeHintTestCase):
       hint.type_check(t)
 
     self.assertEqual(
-        "Tuple[List[int], ...] hint type-constraint violated. The "
+        "Tuple[List[<class \'int\'>], ...] hint type-constraint violated. The "
         "type of element #1 in the passed tuple is incorrect: "
         "List type-constraint violated. Valid object instance "
         "must be of type 'list'. Instead, an instance of 'str' "
         "was received.",
         e.exception.args[0])
+
+  def test_normalize_with_builtin_tuple(self):
+    if sys.version_info >= (3, 9):
+      expected_beam_type = typehints.Tuple[int, int]
+      converted_beam_type = typehints.normalize(tuple[int, int], False)
+      self.assertEqual(converted_beam_type, expected_beam_type)
+
+  def test_builtin_and_type_compatibility(self):
+    if sys.version_info >= (3, 9):
+      self.assertCompatible(tuple, typing.Tuple)
+      self.assertCompatible(tuple[int, int], typing.Tuple[int, int])
 
 
 class ListHintTestCase(TypeHintTestCase):
@@ -466,7 +567,10 @@ class ListHintTestCase(TypeHintTestCase):
   def test_list_repr(self):
     hint = (typehints.List[typehints.Tuple[DummyTestClass1, DummyTestClass2]])
     self.assertEqual(
-        'List[Tuple[DummyTestClass1, DummyTestClass2]]', repr(hint))
+        'List[Tuple[<class \'apache_beam.typehints.typehints_test.'
+        'DummyTestClass1\'>, <class \'apache_beam.typehints.typehints_test.'
+        'DummyTestClass2\'>]]',
+        repr(hint))
 
   def test_enforce_list_type_constraint_valid_simple_type(self):
     hint = typehints.List[int]
@@ -483,9 +587,9 @@ class ListHintTestCase(TypeHintTestCase):
     with self.assertRaises(TypeError) as e:
       hint.type_check(l)
     self.assertEqual(
-        'List[int] hint type-constraint violated. The type of '
-        'element #0 in the passed list is incorrect. Expected an '
-        'instance of type int, instead received an instance of '
+        'List[<class \'int\'>] hint type-constraint violated. The type of '
+        'element #0 in the passed <class \'list\'> is incorrect. Expected an '
+        'instance of type <class \'int\'>, instead received an instance of '
         'type str.',
         e.exception.args[0])
 
@@ -496,13 +600,24 @@ class ListHintTestCase(TypeHintTestCase):
       hint.type_check(l)
 
     self.assertEqual(
-        'List[Tuple[int, int]] hint type-constraint violated.'
-        ' The type of element #0 in the passed list is '
-        'incorrect: Tuple[int, int] hint type-constraint '
-        'violated. The type of element #0 in the passed tuple'
-        ' is incorrect. Expected an instance of type int, '
+        'List[Tuple[<class \'int\'>, <class \'int\'>]] hint type-constraint '
+        'violated. The type of element #0 in the passed list is '
+        'incorrect: Tuple[<class \'int\'>, <class \'int\'>] hint '
+        'type-constraint violated. The type of element #0 in the passed tuple'
+        ' is incorrect. Expected an instance of type <class \'int\'>, '
         'instead received an instance of type str.',
         e.exception.args[0])
+
+  def test_normalize_with_builtin_list(self):
+    if sys.version_info >= (3, 9):
+      expected_beam_type = typehints.List[int]
+      converted_beam_type = typehints.normalize(list[int], False)
+      self.assertEqual(converted_beam_type, expected_beam_type)
+
+  def test_builtin_and_type_compatibility(self):
+    if sys.version_info >= (3, 9):
+      self.assertCompatible(list, typing.List)
+      self.assertCompatible(list[int], typing.List[int])
 
 
 class KVHintTestCase(TypeHintTestCase):
@@ -556,8 +671,14 @@ class DictHintTestCase(TypeHintTestCase):
         e.exception.args[0])
 
   def test_key_type_must_be_valid_composite_param(self):
-    with self.assertRaises(TypeError):
-      typehints.Dict[list, int]
+    if sys.version_info < (3, 9):
+      with self.assertRaises(TypeError):
+        typehints.Dict[list, int]
+    else:
+      try:
+        typehints.Tuple[list, int]
+      except TypeError:
+        self.fail("built-in composite raised TypeError unexpectedly")
 
   def test_value_type_must_be_valid_composite_param(self):
     with self.assertRaises(TypeError):
@@ -577,7 +698,10 @@ class DictHintTestCase(TypeHintTestCase):
 
   def test_repr(self):
     hint3 = typehints.Dict[int, typehints.List[typehints.Tuple[str, str, str]]]
-    self.assertEqual('Dict[int, List[Tuple[str, str, str]]]', repr(hint3))
+    self.assertEqual(
+        'Dict[<class \'int\'>, List[Tuple[<class \'str\'>, ' \
+        '<class \'str\'>, <class \'str\'>]]]',
+        repr(hint3))
 
   def test_type_checks_not_dict(self):
     hint = typehints.Dict[int, str]
@@ -595,10 +719,11 @@ class DictHintTestCase(TypeHintTestCase):
     with self.assertRaises((TypeError, TypeError)) as e:
       hint.type_check(d)
     self.assertEqual(
-        'Dict[Tuple[int, int, int], List[str]] hint key-type '
+        'Dict[Tuple[<class \'int\'>, <class \'int\'>, <class \'int\'>], '
+        'List[<class \'str\'>]] hint key-type '
         'constraint violated. All keys should be of type '
-        'Tuple[int, int, int]. Instead: Passed object '
-        'instance is of the proper type, but differs in '
+        'Tuple[<class \'int\'>, <class \'int\'>, <class \'int\'>]. Instead: '
+        'Passed object instance is of the proper type, but differs in '
         'length from the hinted type. Expected a tuple of '
         'length 3, received a tuple of length 2.',
         e.exception.args[0])
@@ -609,9 +734,9 @@ class DictHintTestCase(TypeHintTestCase):
     with self.assertRaises(TypeError) as e:
       hint.type_check(d)
     self.assertEqual(
-        'Dict[str, Dict[int, str]] hint value-type constraint'
-        ' violated. All values should be of type '
-        'Dict[int, str]. Instead: Dict type-constraint '
+        'Dict[<class \'str\'>, Dict[<class \'int\'>, <class \'str\'>]] hint '
+        'value-type constraint violated. All values should be of type '
+        'Dict[<class \'int\'>, <class \'str\'>]. Instead: Dict type-constraint '
         'violated. All passed instances must be of type dict.'
         ' [1, 2, 3] is of type list.',
         e.exception.args[0])
@@ -635,17 +760,36 @@ class DictHintTestCase(TypeHintTestCase):
     },
                      hint.match_type_variables(typehints.Dict[int, str]))
 
+  def test_normalize_with_builtin_dict(self):
+    if sys.version_info >= (3, 9):
+      expected_beam_type = typehints.Dict[str, int]
+      converted_beam_type = typehints.normalize(dict[str, int], False)
+      self.assertEqual(converted_beam_type, expected_beam_type)
+
+  def test_builtin_and_type_compatibility(self):
+    if sys.version_info >= (3, 9):
+      self.assertCompatible(dict, typing.Dict)
+      self.assertCompatible(dict[str, int], typing.Dict[str, int])
+      self.assertCompatible(
+          dict[str, list[int]], typing.Dict[str, typing.List[int]])
+
 
 class BaseSetHintTest:
   class CommonTests(TypeHintTestCase):
     def test_getitem_invalid_composite_type_param(self):
-      with self.assertRaises(TypeError) as e:
-        self.beam_type[list]
-      self.assertEqual(
-          "Parameter to a {} hint must be a non-sequence, a "
-          "type, or a TypeConstraint. {} is an instance of "
-          "type.".format(self.string_type, list),
-          e.exception.args[0])
+      if sys.version_info < (3, 9):
+        with self.assertRaises(TypeError) as e:
+          self.beam_type[list]
+        self.assertEqual(
+            "Parameter to a {} hint must be a non-sequence, a "
+            "type, or a TypeConstraint. {} is an instance of "
+            "type.".format(self.string_type, list),
+            e.exception.args[0])
+      else:
+        try:
+          self.beam_type[list]
+        except TypeError:
+          self.fail("built-in composite raised TypeError unexpectedly")
 
     def test_compatibility(self):
       hint1 = self.beam_type[typehints.List[str]]
@@ -656,7 +800,8 @@ class BaseSetHintTest:
 
     def test_repr(self):
       hint = self.beam_type[typehints.List[bool]]
-      self.assertEqual('{}[List[bool]]'.format(self.string_type), repr(hint))
+      self.assertEqual(
+          '{}[List[<class \'bool\'>]]'.format(self.string_type), repr(hint))
 
     def test_type_check_must_be_set(self):
       hint = self.beam_type[str]
@@ -743,7 +888,7 @@ class IterableHintTestCase(TypeHintTestCase):
 
   def test_repr(self):
     hint = typehints.Iterable[typehints.Set[str]]
-    self.assertEqual('Iterable[Set[str]]', repr(hint))
+    self.assertEqual('Iterable[Set[<class \'str\'>]]', repr(hint))
 
   def test_type_check_must_be_iterable(self):
     with self.assertRaises(TypeError) as e:
@@ -800,7 +945,7 @@ class TestGeneratorWrapper(TypeHintTestCase):
 class GeneratorHintTestCase(TypeHintTestCase):
   def test_repr(self):
     hint = typehints.Iterator[typehints.Set[str]]
-    self.assertEqual('Iterator[Set[str]]', repr(hint))
+    self.assertEqual('Iterator[Set[<class \'str\'>]]', repr(hint))
 
   def test_compatibility(self):
     self.assertCompatible(typehints.Iterator[int], typehints.Iterator[int])
@@ -822,9 +967,9 @@ class GeneratorHintTestCase(TypeHintTestCase):
       next(all_upper('hello'))
 
     self.assertEqual(
-        'Type-hint for return type violated: Iterator[int] '
+        'Type-hint for return type violated: Iterator[<class \'int\'>] '
         'hint type-constraint violated. Expected a iterator '
-        'of type int. Instead received a iterator of type '
+        'of type <class \'int\'>. Instead received a iterator of type '
         'str.',
         e.exception.args[0])
 
@@ -842,9 +987,9 @@ class GeneratorHintTestCase(TypeHintTestCase):
       increment(wrong_yield_gen())
 
     self.assertEqual(
-        "Type-hint for argument: 'a' violated: Iterator[int] "
+        "Type-hint for argument: 'a' violated: Iterator[<class \'int\'>] "
         "hint type-constraint violated. Expected a iterator "
-        "of type int. Instead received a iterator of type "
+        "of type <class \'int\'>. Instead received a iterator of type "
         "str.",
         e.exception.args[0])
 
@@ -903,7 +1048,7 @@ class TakesDecoratorTestCase(TypeHintTestCase):
       m = ['f', 'f']
       foo(m)
       self.assertEqual(
-          "Type-hint for argument: 'a' violated: List[int] hint "
+          "Type-hint for argument: 'a' violated: List[<class \'int\'>] hint "
           "type-constraint violated. The type of element #0 in "
           "the passed list is incorrect. Expected an instance of "
           "type int, instead received an instance of type str.",
@@ -1081,7 +1226,7 @@ class CombinedReturnsAndTakesTestCase(TypeHintTestCase):
     # Must re-define since the conditional is in the (maybe)wrapper.
     @check_type_hints
     @with_input_types(a=int)
-    def int_to_str(a):
+    def int_to_str(a):  # pylint: disable=function-redefined
       return str(a)
 
     # With run-time type checking enabled once again the same call-atttempt
@@ -1102,7 +1247,7 @@ class CombinedReturnsAndTakesTestCase(TypeHintTestCase):
     # Must re-define since the conditional is in the (maybe)wrapper.
     @check_type_hints
     @with_output_types(str)
-    def int_to_str(a):
+    def int_to_str(a):  # pylint: disable=function-redefined
       return a
 
     # With type-checking enabled once again we should get a TypeCheckError here.
@@ -1134,7 +1279,7 @@ class CombinedReturnsAndTakesTestCase(TypeHintTestCase):
     @check_type_hints
     @with_output_types(str)
     @with_input_types(a=str)
-    def to_lower(a):
+    def to_lower(a):  # pylint: disable=function-redefined
       return 9
 
     # Modified function now has an invalid return type.
@@ -1158,7 +1303,7 @@ class CombinedReturnsAndTakesTestCase(TypeHintTestCase):
     @check_type_hints
     @with_output_types(typehints.List[typehints.Tuple[int, int]])
     @with_input_types(it=typehints.List[int])
-    def expand_ints(it):
+    def expand_ints(it):  # pylint: disable=function-redefined
       return [str(i) for i in it]
 
     # Modified function now has invalid return type.
@@ -1240,15 +1385,6 @@ class DecoratorHelpers(TypeHintTestCase):
           'self': str, 'iterable': typehints.List[int]
       },
                        getcallargs_forhints(str.join, str, typehints.List[int]))
-
-  def test_unified_repr(self):
-    self.assertIn('int', typehints._unified_repr(int))
-    self.assertIn('PCollection', typehints._unified_repr(PCollection))
-    if sys.version_info < (3, 7):
-      self.assertIn('PCollection', typehints._unified_repr(PCollection[int]))
-    else:
-      self.assertIn(
-          'PCollection[int]', typehints._unified_repr(PCollection[int]))
 
 
 class TestGetYieldedType(unittest.TestCase):
@@ -1524,6 +1660,23 @@ class TestPTransformAnnotations(unittest.TestCase):
     th = MyPTransform().get_type_hints()
     self.assertEqual(th.input_types, ((typehints.Any, ), {}))
     self.assertEqual(th.input_types, ((typehints.Any, ), {}))
+
+  def test_pipe_operator_as_union(self):
+    # union types can be written using pipe operator from Python 3.10.
+    # https://peps.python.org/pep-0604/
+    if sys.version_info.major == 3 and sys.version_info.minor >= 10:
+      type_a = int | float  # pylint: disable=unsupported-binary-operation
+      type_b = typing.Union[int, float]
+      self.assertEqual(
+          native_type_compatibility.convert_to_beam_type(type_a),
+          native_type_compatibility.convert_to_beam_type(type_b))
+
+
+class TestNonBuiltInGenerics(unittest.TestCase):
+  def test_no_error_thrown(self):
+    input = NonBuiltInGeneric[str]
+    output = typehints.normalize(input)
+    self.assertEqual(input, output)
 
 
 if __name__ == '__main__':

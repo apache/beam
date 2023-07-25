@@ -1,0 +1,86 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License. See accompanying LICENSE file.
+*/}}
+{{/*
+
+Creates an embedded Playground with given examples.
+
+Embedding example:
+
+{{< playground height="700px" >}}
+{{< playground_snippet language="java" path="SDK_JAVA_AggregationCount" >}}
+{{< playground_snippet language="py" url="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/aggregation/count.py" >}}
+{{< playground_snippet language="go" path="SDK_GO_MinimalWordCount" >}}
+{{< playground_snippet language="scio" path="SDK_SCIO_MinimalWordCount" >}}
+{{< /playground >}}
+
+See playground_snippet for all supported options.
+
+*/}}
+<div class="playground-wrapper">
+    <div class="playground-snippets">
+        {{ .Inner }}
+    </div>
+    {{ $snippetsList := slice }}
+    {{ $divMatches := findRE "<div(\\s+)class=\"[^\"]+(playground-snippet)\"((.|\\s)*?)</div>" .Inner }}
+
+    {{ range $divMatches }}
+        {{ $sdk := replaceRE "(.|\\s)*data-sdk=\"(\\w+)\"(.|\\s)*" "$2" . }}
+        {{ $dict := dict "sdk" $sdk }}
+
+        {{ $pathRegex := "(.|\\s)*path=\"([^\"]+)\"(.|\\s)*" }}
+        {{ if findRE $pathRegex . }}
+            {{ $path := replaceRE $pathRegex "$2" . }}
+            {{ $dict = merge $dict (dict "path" $path) }}
+        {{ end }}
+
+        {{ $sharedRegex := "(.|\\s)*shared=\"([_a-zA-Z0-9]+)\"(.|\\s)*" }}
+        {{ if findRE $sharedRegex . }}
+            {{ $shared := replaceRE $sharedRegex "$2" . }}
+            {{ $dict = merge $dict (dict "shared" $shared) }}
+        {{ end }}
+
+        {{ $urlRegex := "(.|\\s)*url=\"([^\"]+)\"(.|\\s)*" }}
+        {{ if findRE $urlRegex . }}
+            {{ $url := replaceRE $urlRegex "$2" . }}
+            {{ $dict = merge $dict (dict "url" $url) }}
+        {{ end }}
+
+        {{ $readonlyRegex := "(.|\\s)*readonly=\"([_,a-zA-Z0-9]+)\"(.|\\s)*" }}
+        {{ if findRE $readonlyRegex . }}
+            {{ $readonly := replaceRE $readonlyRegex "$2" . }}
+            {{ $dict = merge $dict (dict "readonly" $readonly) }}
+        {{ end }}
+
+        {{ $showRegex := "(.|\\s)*show=\"([_a-zA-Z0-9]+)\"(.|\\s)*" }}
+        {{ if findRE $showRegex . }}
+            {{ $show := replaceRE $showRegex "$2" . }}
+            {{ $dict = merge $dict (dict "show" $show) }}
+        {{ end }}
+
+        {{ $unfoldRegex := "(.|\\s)*unfold=\"([_,a-zA-Z0-9]+)\"(.|\\s)*" }}
+        {{ if findRE $unfoldRegex . }}
+            {{ $unfold := replaceRE $unfoldRegex "$2" . }}
+            {{ $dict = merge $dict (dict "unfold" $unfold) }}
+        {{ end }}
+
+        {{ $snippetsList = append (jsonify $dict) $snippetsList }}
+    {{ end}}
+
+    {{ $snippets := printf "%s%s%s" "[" (delimit $snippetsList ",") "]" }}
+    {{ $editable := 1 }}{{ if isset .Params "editable" }}{{ $editable = index .Params "editable" }}{{ end }}
+    <div
+        class="code-snippet code-snippet-playground"
+        data-src="https://play.beam.apache.org/embedded?editable={{ $editable }}&examples={{ $snippets }}"
+        data-width="100%"
+        data-height="{{ .Get "height" }}"
+    ></div>
+</div>

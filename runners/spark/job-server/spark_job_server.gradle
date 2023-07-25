@@ -1,3 +1,4 @@
+import groovy.json.JsonOutput
 import org.apache.beam.gradle.BeamModulePlugin
 
 /*
@@ -50,16 +51,14 @@ configurations.all {
 }
 
 dependencies {
-  compile project(sparkRunnerProject)
+  implementation project(sparkRunnerProject)
   permitUnusedDeclared project(sparkRunnerProject)
-  compile project(path: sparkRunnerProject, configuration: "provided")
-  validatesPortableRunner project(path: sparkRunnerProject, configuration: "testRuntime")
-  validatesPortableRunner project(path: sparkRunnerProject, configuration: "provided")
+  validatesPortableRunner project(path: sparkRunnerProject, configuration: "testRuntimeMigration")
   validatesPortableRunner project(path: ":sdks:java:core", configuration: "shadowTest")
-  validatesPortableRunner project(path: ":runners:core-java", configuration: "testRuntime")
-  validatesPortableRunner project(path: ":runners:portability:java", configuration: "testRuntime")
-  runtime project(":sdks:java:extensions:google-cloud-platform-core")
-  runtime project(":sdks:java:io:amazon-web-services2")
+  validatesPortableRunner project(path: ":runners:core-java", configuration: "testRuntimeMigration")
+  validatesPortableRunner project(path: ":runners:portability:java", configuration: "testRuntimeMigration")
+  runtimeOnly project(":sdks:java:extensions:google-cloud-platform-core")
+  runtimeOnly project(":sdks:java:io:amazon-web-services2")
 //  TODO: Enable HDFS file system.
 }
 
@@ -85,93 +84,120 @@ runShadow {
     jvmArgs += ["-Dorg.slf4j.simpleLogger.defaultLogLevel=${project.property('logLevel')}"]
 }
 
-def portableValidatesRunnerTask(String name, Boolean streaming) {
+def sickbayTests = [
+        // TODO(BEAM-13498)
+        'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testProcessElementSkew',
+]
+
+def portableValidatesRunnerTask(String name, boolean streaming, boolean docker, ArrayList<String> sickbayTests) {
   def pipelineOptions = []
   def testCategories
   def testFilter
 
-  if (streaming) {
-    pipelineOptions += "--streaming"
-    pipelineOptions += "--streamingTimeoutMs=30000"
+  if (docker) {
+    // Run the limited set of tests that need to validate the environment
+    // that contains the SDK is configured properly.
+    testCategories = { includeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment' }
+    testFilter = { }
+  } else {
+    if (streaming) {
+      pipelineOptions += "--streaming"
+      pipelineOptions += "--streamingTimeoutMs=120000"
 
-    testCategories = {
-      includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
-      excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
-      excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesFailureMessage'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesGaugeMetrics'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesKeyInParDo'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
-      // TODO (BEAM-7222) SplittableDoFnTests
-      excludeCategories 'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
-      // Currently unsupported in portable streaming:
-      // TODO (BEAM-10712)
-      excludeCategories 'org.apache.beam.sdk.testing.UsesSideInputs'
-      // TODO (BEAM-10754)
-      excludeCategories 'org.apache.beam.sdk.testing.UsesStatefulParDo'
-      // TODO (BEAM-10755)
-      excludeCategories 'org.apache.beam.sdk.testing.UsesTimersInParDo'
-    }
+      testCategories = {
+        includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+        // Should be run only in a properly configured SDK harness environment
+        excludeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
+        excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
+        excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesFailureMessage'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesGaugeMetrics'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderedDelivery'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesKeyInParDo'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
+        // TODO (https://github.com/apache/beam/issues/19468) SplittableDoFnTests
+        excludeCategories 'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
+        // Currently unsupported in portable streaming:
+        // TODO (https://github.com/apache/beam/issues/20395)
+        excludeCategories 'org.apache.beam.sdk.testing.UsesSideInputs'
+        // TODO (https://github.com/apache/beam/issues/20396)
+        excludeCategories 'org.apache.beam.sdk.testing.UsesStatefulParDo'
+        // TODO (https://github.com/apache/beam/issues/20397)
+        excludeCategories 'org.apache.beam.sdk.testing.UsesTimersInParDo'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesTriggeredSideInputs'
+      }
 
-    testFilter = {
-      // TODO (BEAM-10094)
-      excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testFlattenWithDifferentInputAndOutputCoders2'
-      // TODO (BEAM-10784) Currently unsupported in portable streaming:
-      // // Timeout error
-      excludeTestsMatching 'org.apache.beam.sdk.testing.PAssertTest.testWindowedContainsInAnyOrder'
-      excludeTestsMatching 'org.apache.beam.sdk.testing.PAssertTest.testWindowedSerializablePredicate'
-      excludeTestsMatching 'org.apache.beam.sdk.transforms.windowing.WindowTest.testNoWindowFnDoesNotReassignWindows'
-      // // Assertion error: empty iterable output
-      excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest$WindowingTests.testFixedWindowsCombine'
-      excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest$WindowingTests.testSessionsCombine'
-      excludeTestsMatching 'org.apache.beam.sdk.transforms.GroupByKeyTest$WindowTests'
-      excludeTestsMatching 'org.apache.beam.sdk.transforms.ReshuffleTest.testReshuffleAfterFixedWindowsAndGroupByKey'
-      excludeTestsMatching 'org.apache.beam.sdk.transforms.ReshuffleTest.testReshuffleAfterSessionsAndGroupByKey'
-      excludeTestsMatching 'org.apache.beam.sdk.transforms.ReshuffleTest.testReshuffleAfterSlidingWindowsAndGroupByKey'
-      excludeTestsMatching 'org.apache.beam.sdk.transforms.join.CoGroupByKeyTest.testCoGroupByKeyWithWindowing'
-      excludeTestsMatching 'org.apache.beam.sdk.transforms.windowing.WindowingTest'
-      // // Assertion error: incorrect output
-      excludeTestsMatching 'CombineTest$BasicTests.testHotKeyCombining'
+      testFilter = {
+        // TODO (https://github.com/apache/beam/issues/20189)
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testFlattenWithDifferentInputAndOutputCoders2'
+        // TODO (https://github.com/apache/beam/issues/20429) Currently unsupported in portable streaming:
+        // // Timeout error
+        excludeTestsMatching 'org.apache.beam.sdk.testing.PAssertTest.testWindowedContainsInAnyOrder'
+        excludeTestsMatching 'org.apache.beam.sdk.testing.PAssertTest.testWindowedSerializablePredicate'
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.windowing.WindowTest.testNoWindowFnDoesNotReassignWindows'
+        // // Assertion error: empty iterable output
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest$WindowingTests.testFixedWindowsCombine'
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest$WindowingTests.testSessionsCombine'
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.GroupByKeyTest$WindowTests'
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.ReshuffleTest.testReshuffleAfterFixedWindowsAndGroupByKey'
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.ReshuffleTest.testReshuffleAfterSessionsAndGroupByKey'
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.ReshuffleTest.testReshuffleAfterSlidingWindowsAndGroupByKey'
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.join.CoGroupByKeyTest.testCoGroupByKeyWithWindowing'
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.windowing.WindowingTest'
+        // // Assertion error: incorrect output
+        excludeTestsMatching 'CombineTest$BasicTests.testHotKeyCombining'
+      }
     }
-  }
-  else {
-    testCategories = {
-      includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
-      excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
-      excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesFailureMessage'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesGaugeMetrics'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesKeyInParDo'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
-      // TODO (BEAM-7222) SplittableDoFnTests
-      excludeCategories 'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
-    }
-    testFilter = {
-      // TODO (BEAM-10094)
-      excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testFlattenWithDifferentInputAndOutputCoders2'
+    else {
+      // Batch
+      testCategories = {
+        includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+        // Should be run only in a properly configured SDK harness environment
+        excludeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
+        excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
+        excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesFailureMessage'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesGaugeMetrics'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderedDelivery'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderInBundle'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesMultimapState'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesLoopingTimer'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesKeyInParDo'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
+        // TODO (https://github.com/apache/beam/issues/19468) SplittableDoFnTests
+        excludeCategories 'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
+      }
+      testFilter = {
+        // TODO (https://github.com/apache/beam/issues/20189)
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testFlattenWithDifferentInputAndOutputCoders2'
+
+        for (String test : sickbayTests) {
+          excludeTestsMatching test
+        }
+      }
     }
   }
 
@@ -182,7 +208,7 @@ def portableValidatesRunnerTask(String name, Boolean streaming) {
           testClasspathConfiguration: configurations.validatesPortableRunner,
           numParallelTests: 4,
           pipelineOpts: pipelineOptions,
-          environment: BeamModulePlugin.PortableValidatesRunnerConfiguration.Environment.EMBEDDED,
+          environment: docker ? BeamModulePlugin.PortableValidatesRunnerConfiguration.Environment.DOCKER : BeamModulePlugin.PortableValidatesRunnerConfiguration.Environment.EMBEDDED,
           systemProperties: [
                   "beam.spark.test.reuseSparkContext": "false",
                   "spark.ui.enabled": "false",
@@ -193,18 +219,37 @@ def portableValidatesRunnerTask(String name, Boolean streaming) {
     )
 }
 
-project.ext.validatesPortableRunnerBatch = portableValidatesRunnerTask("Batch", false)
-project.ext.validatesPortableRunnerStreaming = portableValidatesRunnerTask("Streaming", true)
+project.ext.validatesPortableRunnerDocker= portableValidatesRunnerTask("Docker", false, true, sickbayTests)
+project.ext.validatesPortableRunnerBatch = portableValidatesRunnerTask("Batch", false, false, sickbayTests)
+project.ext.validatesPortableRunnerStreaming = portableValidatesRunnerTask("Streaming", true, false, sickbayTests)
 
-task validatesPortableRunner() {
+tasks.register("validatesPortableRunner") {
+  dependsOn validatesPortableRunnerDocker
   dependsOn validatesPortableRunnerBatch
   dependsOn validatesPortableRunnerStreaming
+}
+
+tasks.register("validatesRunnerSickbay", Test) {
+  group = "Verification"
+  description "Validates Spark runner (Sickbay Tests)"
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+          "--runner=TestSparkRunner",
+  ])
+
+  classpath = configurations.validatesPortableRunner
+  testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
+
+  filter {
+    for (String test : sickbayTests) {
+      includeTestsMatching test
+    }
+  }
 }
 
 def jobPort = BeamModulePlugin.getRandomPort()
 def artifactPort = BeamModulePlugin.getRandomPort()
 
-def setupTask = project.tasks.create(name: "sparkJobServerSetup", type: Exec) {
+def setupTask = project.tasks.register("sparkJobServerSetup", Exec) {
   dependsOn shadowJar
   def pythonDir = project.project(":sdks:python").projectDir
   def sparkJobServerJar = shadowJar.archivePath
@@ -213,7 +258,7 @@ def setupTask = project.tasks.create(name: "sparkJobServerSetup", type: Exec) {
   args '-c', "$pythonDir/scripts/run_job_server.sh stop --group_id ${project.name} && $pythonDir/scripts/run_job_server.sh start --group_id ${project.name} --job_port ${jobPort} --artifact_port ${artifactPort} --job_server_jar ${sparkJobServerJar}"
 }
 
-def cleanupTask = project.tasks.create(name: "sparkJobServerCleanup", type: Exec) {
+def cleanupTask = project.tasks.register("sparkJobServerCleanup", Exec) {
   def pythonDir = project.project(":sdks:python").projectDir
 
   executable 'sh'

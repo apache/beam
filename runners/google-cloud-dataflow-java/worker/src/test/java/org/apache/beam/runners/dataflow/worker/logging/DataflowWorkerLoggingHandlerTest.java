@@ -27,15 +27,17 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.logging.Formatter;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
+import java.util.logging.SimpleFormatter;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.dataflow.worker.DataflowOperationContext.DataflowExecutionState;
 import org.apache.beam.runners.dataflow.worker.NameContextsForTests;
 import org.apache.beam.runners.dataflow.worker.TestOperationContext.TestDataflowExecutionState;
 import org.apache.beam.runners.dataflow.worker.testing.RestoreDataflowLoggingMDC;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.Timestamp;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.Timestamp;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
 import org.junit.After;
 import org.junit.Before;
@@ -44,6 +46,7 @@ import org.junit.Test;
 import org.junit.rules.TestRule;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.slf4j.MDC;
 
 /** Unit tests for {@link DataflowWorkerLoggingHandler}. */
 @RunWith(JUnit4.class)
@@ -88,6 +91,17 @@ public class DataflowWorkerLoggingHandlerTest {
     ByteArrayOutputStream output = new ByteArrayOutputStream();
     FixedOutputStreamFactory factory = new FixedOutputStreamFactory(output);
     DataflowWorkerLoggingHandler handler = new DataflowWorkerLoggingHandler(factory, 0);
+    // Format the record as JSON.
+    handler.publish(record);
+    // Decode the binary output as UTF-8 and return the generated string.
+    return new String(output.toByteArray(), StandardCharsets.UTF_8);
+  }
+
+  private static String createJson(LogRecord record, Formatter formatter) throws IOException {
+    ByteArrayOutputStream output = new ByteArrayOutputStream();
+    FixedOutputStreamFactory factory = new FixedOutputStreamFactory(output);
+    DataflowWorkerLoggingHandler handler = new DataflowWorkerLoggingHandler(factory, 0);
+    handler.setFormatter(formatter);
     // Format the record as JSON.
     handler.publish(record);
     // Decode the binary output as UTF-8 and return the generated string.
@@ -204,6 +218,29 @@ public class DataflowWorkerLoggingHandlerTest {
             + "\"worker\":\"testWorkerId\",\"work\":\"testWorkId\",\"logger\":\"LoggerName\"}"
             + System.lineSeparator(),
         createJson(createLogRecord("test.message", null /* throwable */)));
+  }
+
+  @Test
+  public void testWithMessageUsingCustomFormatter() throws IOException {
+    DataflowWorkerLoggingMDC.setJobId("testJobId");
+    DataflowWorkerLoggingMDC.setWorkerId("testWorkerId");
+    DataflowWorkerLoggingMDC.setWorkId("testWorkId");
+
+    Formatter customFormatter =
+        new SimpleFormatter() {
+          @Override
+          public synchronized String formatMessage(LogRecord record) {
+            return MDC.get("testMdcKey") + ":" + super.formatMessage(record);
+          }
+        };
+    MDC.put("testMdcKey", "testMdcValue");
+
+    assertEquals(
+        "{\"timestamp\":{\"seconds\":0,\"nanos\":1000000},\"severity\":\"INFO\","
+            + "\"message\":\"testMdcValue:test.message\",\"thread\":\"2\",\"job\":\"testJobId\","
+            + "\"worker\":\"testWorkerId\",\"work\":\"testWorkId\",\"logger\":\"LoggerName\"}"
+            + System.lineSeparator(),
+        createJson(createLogRecord("test.message", null /* throwable */), customFormatter));
   }
 
   @Test

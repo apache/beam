@@ -26,28 +26,30 @@ import org.apache.beam.runners.jobsubmission.JobInvocation;
 import org.apache.beam.runners.jobsubmission.JobInvoker;
 import org.apache.beam.runners.jobsubmission.PortablePipelineJarCreator;
 import org.apache.beam.runners.jobsubmission.PortablePipelineRunner;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListeningExecutorService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class SamzaJobInvoker extends JobInvoker {
 
   private static final Logger LOG = LoggerFactory.getLogger(SamzaJobInvoker.class);
-  private final SamzaJobServerDriver.SamzaServerConfiguration configuration;
 
   public static SamzaJobInvoker create(
       SamzaJobServerDriver.SamzaServerConfiguration configuration) {
-    return new SamzaJobInvoker(configuration);
+    return new SamzaJobInvoker();
   }
 
-  private SamzaJobInvoker(SamzaJobServerDriver.SamzaServerConfiguration configuration) {
-    super("samza-runner-job-invoker-%d");
-    this.configuration = configuration;
+  private SamzaJobInvoker() {
+    this("samza-runner-job-invoker-%d");
+  }
+
+  protected SamzaJobInvoker(String name) {
+    super(name);
   }
 
   @Override

@@ -22,8 +22,8 @@ files:
 - name: src/org/apache/beam/learning/katas/coretransforms/partition/Task.java
   visible: true
   placeholders:
-  - offset: 1966
-    length: 241
+  - offset: 2330
+    length: 249
     placeholder_text: TODO()
 - name: test/org/apache/beam/learning/katas/coretransforms/partition/TaskTest.java
   visible: false

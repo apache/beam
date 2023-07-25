@@ -17,14 +17,14 @@
  */
 package org.apache.beam.sdk.fn.server;
 
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.Context;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.Contexts;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.Metadata;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.Metadata.Key;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.ServerCall;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.ServerCall.Listener;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.ServerCallHandler;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.ServerInterceptor;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.Context;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.Contexts;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.Metadata;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.Metadata.Key;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ServerCall;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ServerCall.Listener;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ServerCallHandler;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ServerInterceptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 
 /**
@@ -32,7 +32,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditio
  * fields.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class GrpcContextHeaderAccessorProvider {
 
@@ -40,6 +40,8 @@ public class GrpcContextHeaderAccessorProvider {
       Key.of("worker_id", Metadata.ASCII_STRING_MARSHALLER);
   private static final Context.Key<String> SDK_WORKER_CONTEXT_KEY = Context.key("worker_id");
   private static final GrpcHeaderAccessor HEADER_ACCESSOR = new GrpcHeaderAccessor();
+
+  @SuppressWarnings("UnnecessaryAnonymousClass")
   private static final ServerInterceptor INTERCEPTOR =
       new ServerInterceptor() {
         @Override

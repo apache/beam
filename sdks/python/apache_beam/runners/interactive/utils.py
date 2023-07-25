@@ -32,7 +32,12 @@ import pandas as pd
 import apache_beam as beam
 from apache_beam.dataframe.convert import to_pcollection
 from apache_beam.dataframe.frame_base import DeferredBase
-from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
+from apache_beam.internal.gcp import auth
+from apache_beam.internal.http_client import get_new_http
+from apache_beam.io.gcp.internal.clients import storage
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.pipeline import Pipeline
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.interactive.caching.cacheable import Cacheable
 from apache_beam.runners.interactive.caching.cacheable import CacheKey
 from apache_beam.runners.interactive.caching.expression_cache import ExpressionCache
@@ -52,13 +57,13 @@ _INTERACTIVE_LOG_STYLE = """
 
 
 def to_element_list(
-    reader,  # type: Generator[Union[TestStreamPayload.Event, WindowedValueHolder]]
-    coder,  # type: Coder
+    reader,  # type: Generator[Union[beam_runner_api_pb2.TestStreamPayload.Event, WindowedValueHolder]] # noqa: F821
+    coder,  # type: Coder # noqa: F821
     include_window_info,  # type: bool
     n=None,  # type: int
     include_time_events=False, # type: bool
 ):
-  # type: (...) -> List[WindowedValue]
+  # type: (...) -> List[WindowedValue] # noqa: F821
 
   """Returns an iterator that properly decodes the elements from the reader.
   """
@@ -67,7 +72,7 @@ def to_element_list(
   # elements read. Otherwise, the count limit would need to be duplicated.
   def elements():
     for e in reader:
-      if isinstance(e, TestStreamPayload.Event):
+      if isinstance(e, beam_runner_api_pb2.TestStreamPayload.Event):
         if (e.HasField('watermark_event') or
             e.HasField('processing_time_event')):
           if include_time_events:
@@ -93,12 +98,12 @@ def to_element_list(
 
     yield e
 
-    if not isinstance(e, TestStreamPayload.Event):
+    if not isinstance(e, beam_runner_api_pb2.TestStreamPayload.Event):
       count += 1
 
 
 def elements_to_df(elements, include_window_info=False, element_type=None):
-  # type: (List[WindowedValue], bool, Any) -> DataFrame
+  # type: (List[WindowedValue], bool, Any) -> DataFrame # noqa: F821
 
   """Parses the given elements into a Dataframe.
 
@@ -183,8 +188,8 @@ class IPythonLogHandler(logging.Handler):
   def emit(self, record):
     try:
       from html import escape
-      from IPython.core.display import HTML
-      from IPython.core.display import display
+      from IPython.display import HTML
+      from IPython.display import display
       display(HTML(_INTERACTIVE_LOG_STYLE))
       display(
           HTML(
@@ -210,8 +215,11 @@ class ProgressIndicator(object):
   # https://code.google.com/archive/p/google-ajax-apis/issues/637 is resolved.
   spinner_template = """
             <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
-            <div id="{id}" class="spinner-border text-info" role="status">
-            </div>"""
+            <div id="{id}">
+              <div class="spinner-border text-info" role="status"></div>
+              <span class="text-info">{text}</span>
+            </div>
+            """
   spinner_removal_template = """
             $("#{id}").remove();"""
 
@@ -224,11 +232,14 @@ class ProgressIndicator(object):
 
   def __enter__(self):
     try:
-      from IPython.core.display import HTML
-      from IPython.core.display import display
+      from IPython.display import HTML
+      from IPython.display import display
       from apache_beam.runners.interactive import interactive_environment as ie
       if ie.current_env().is_in_notebook:
-        display(HTML(self.spinner_template.format(id=self._id)))
+        display(
+            HTML(
+                self.spinner_template.format(
+                    id=self._id, text=self._enter_text)))
       else:
         display(self._enter_text)
     except ImportError as e:
@@ -238,9 +249,9 @@ class ProgressIndicator(object):
 
   def __exit__(self, exc_type, exc_value, traceback):
     try:
-      from IPython.core.display import Javascript
-      from IPython.core.display import display
-      from IPython.core.display import display_javascript
+      from IPython.display import Javascript
+      from IPython.display import display
+      from IPython.display import display_javascript
       from apache_beam.runners.interactive import interactive_environment as ie
       if ie.current_env().is_in_notebook:
         script = self.spinner_removal_template.format(id=self._id)
@@ -257,20 +268,20 @@ class ProgressIndicator(object):
 
 
 def progress_indicated(func):
-  # type: (Callable[..., Any]) -> Callable[..., Any]
+  # type: (Callable[..., Any]) -> Callable[..., Any] # noqa: F821
 
   """A decorator using a unique progress indicator as a context manager to
   execute the given function within."""
   @functools.wraps(func)
   def run_within_progress_indicator(*args, **kwargs):
-    with ProgressIndicator('Processing...', 'Done.'):
+    with ProgressIndicator(f'Processing... {func.__name__}', 'Done.'):
       return func(*args, **kwargs)
 
   return run_within_progress_indicator
 
 
 def as_json(func):
-  # type: (Callable[..., Any]) -> Callable[..., str]
+  # type: (Callable[..., Any]) -> Callable[..., str] # noqa: F821
 
   """A decorator convert python objects returned by callables to json
   string.
@@ -294,8 +305,8 @@ def deferred_df_to_pcollection(df):
 
   # The proxy is used to output a DataFrame with the correct columns.
   #
-  # TODO(BEAM-11064): Once type hints are implemented for pandas, use those
-  # instead of the proxy.
+  # TODO(https://github.com/apache/beam/issues/20577): Once type hints are
+  # implemented for pandas, use those instead of the proxy.
   cache = ExpressionCache()
   cache.replace_with_cached(df._expr)
 
@@ -427,3 +438,46 @@ def create_var_in_main(name: str,
     from apache_beam.runners.interactive import interactive_environment as ie
     ie.current_env().watch({name: value})
   return name, value
+
+
+def assert_bucket_exists(bucket_name):
+  # type: (str) -> None
+
+  """Asserts whether the specified GCS bucket with the name
+  bucket_name exists.
+
+    Logs an error and raises a ValueError if the bucket does not exist.
+
+    Logs a warning if the bucket cannot be verified to exist.
+  """
+  try:
+    from apitools.base.py.exceptions import HttpError
+    storage_client = storage.StorageV1(
+        credentials=auth.get_service_credentials(PipelineOptions()),
+        get_credentials=False,
+        http=get_new_http(),
+        response_encoding='utf8')
+    request = storage.StorageBucketsGetRequest(bucket=bucket_name)
+    storage_client.buckets.Get(request)
+  except HttpError as e:
+    if e.status_code == 404:
+      _LOGGER.error('%s bucket does not exist!', bucket_name)
+      raise ValueError('Invalid GCS bucket provided!')
+    else:
+      _LOGGER.warning(
+          'HttpError - unable to verify whether bucket %s exists', bucket_name)
+  except ImportError:
+    _LOGGER.warning(
+        'ImportError - unable to verify whether bucket %s exists', bucket_name)
+
+
+def detect_pipeline_runner(pipeline):
+  if isinstance(pipeline, Pipeline):
+    from apache_beam.runners.interactive.interactive_runner import InteractiveRunner
+    if isinstance(pipeline.runner, InteractiveRunner):
+      pipeline_runner = pipeline.runner._underlying_runner
+    else:
+      pipeline_runner = pipeline.runner
+  else:
+    pipeline_runner = None
+  return pipeline_runner

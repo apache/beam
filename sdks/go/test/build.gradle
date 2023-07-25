@@ -22,62 +22,21 @@ applyPythonNature()
 
 description = "Apache Beam :: SDKs :: Go :: Test"
 
-// Disable gogradle's dependency resolution so it uses Go modules instead.
-installDependencies.enabled = false
-resolveBuildDependencies.enabled = false
-resolveTestDependencies.enabled = false
-
-clean.dependsOn cleanVendor
-
-dependencies {
-  golang {
-    // TODO(herohde): use "./" prefix to prevent gogradle use base github path, for now.
-    // TODO(herohde): get the pkg subdirectory only, if possible. We spend mins pulling cmd/beamctl deps.
-    build name: './github.com/apache/beam/sdks/go', dir: project(':sdks:go').projectDir
-    test name: './github.com/apache/beam/sdks/go', dir: project(':sdks:go').projectDir
-  }
-}
-
-golang {
-  packagePath = 'github.com/apache/beam/sdks/v2/go/test'
-
-  // Set -modcacherw on common tasks so module cache can be deleted by goBuild.
-  goTest {
-    environment 'GOFLAGS', '-modcacherw'
-  }
-  goVet {
-    environment 'GOFLAGS', '-modcacherw'
-  }
-  gofmt {
-    environment 'GOFLAGS', '-modcacherw'
-    gofmt '-w ./integration ./regression' // Avoid sub-directories with gradle modules.
-  }
-  goBuild {
-    environment 'GOFLAGS', '-modcacherw'
-
-    // Build the linux-amd64 worker. The native version is built in the parent to
-    // have a fixed name, which is not possible with multiple target platforms. The
-    // script would otherwise have to figure out which arch/platform binary to invoke.
-
-    targetPlatform = ['linux-amd64']
-    go 'build -o ./build/bin/linux-amd64/worker github.com/apache/beam/sdks/v2/go/test/integration/driver'
-  }
-}
-
 // ValidatesRunner tests for Dataflow. Runs tests in the integration directory
 // with Dataflow to validate that the runner behaves as expected.
 task dataflowValidatesRunner() {
   group = "Verification"
 
   dependsOn ":sdks:go:test:goBuild"
-  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
   dependsOn ":sdks:java:testing:expansion-service:buildTestExpansionServiceJar"
 
   doLast {
+    def pipelineOptions = [  // Pipeline options piped directly to Go SDK flags.
+        "--expansion_jar=test:${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
+    ]
     def options = [
-            "--runner dataflow",
-            "--dataflow_worker_jar ${project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath}",
-            "--test_expansion_jar ${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
+        "--runner dataflow",
+        "--pipeline_opts \"${pipelineOptions.join(' ')}\"",
     ]
     exec {
       executable "sh"
@@ -94,14 +53,16 @@ task flinkValidatesRunner {
   dependsOn ":sdks:go:test:goBuild"
   dependsOn ":sdks:go:container:docker"
   dependsOn ":sdks:java:container:java8:docker"
-  dependsOn ":sdks:java:container:java11:docker"
   dependsOn ":runners:flink:${project.ext.latestFlinkVersion}:job-server:shadowJar"
   dependsOn ":sdks:java:testing:expansion-service:buildTestExpansionServiceJar"
   doLast {
+    def pipelineOptions = [  // Pipeline options piped directly to Go SDK flags.
+        "--expansion_jar=test:${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
+    ]
     def options = [
-            "--runner flink",
-            "--flink_job_server_jar ${project(":runners:flink:${project.ext.latestFlinkVersion}:job-server").shadowJar.archivePath}",
-            "--test_expansion_jar ${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
+        "--runner flink",
+        "--flink_job_server_jar ${project(":runners:flink:${project.ext.latestFlinkVersion}:job-server").shadowJar.archivePath}",
+        "--pipeline_opts \"${pipelineOptions.join(' ')}\"",
     ]
     exec {
       executable "sh"
@@ -116,14 +77,16 @@ task samzaValidatesRunner {
   dependsOn ":sdks:go:test:goBuild"
   dependsOn ":sdks:go:container:docker"
   dependsOn ":sdks:java:container:java8:docker"
-  dependsOn ":sdks:java:container:java11:docker"
   dependsOn ":runners:samza:job-server:shadowJar"
   dependsOn ":sdks:java:testing:expansion-service:buildTestExpansionServiceJar"
   doLast {
+    def pipelineOptions = [  // Pipeline options piped directly to Go SDK flags.
+        "--expansion_jar=test:${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
+    ]
     def options = [
-            "--runner samza",
-            "--samza_job_server_jar ${project(":runners:samza:job-server").shadowJar.archivePath}",
-            "--test_expansion_jar ${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
+        "--runner samza",
+        "--samza_job_server_jar ${project(":runners:samza:job-server").shadowJar.archivePath}",
+        "--pipeline_opts \"${pipelineOptions.join(' ')}\"",
     ]
     exec {
       executable "sh"
@@ -139,14 +102,16 @@ task sparkValidatesRunner {
 
   dependsOn ":sdks:go:test:goBuild"
   dependsOn ":sdks:java:container:java8:docker"
-  dependsOn ":sdks:java:container:java11:docker"
-  dependsOn ":runners:spark:2:job-server:shadowJar"
+  dependsOn ":runners:spark:3:job-server:shadowJar"
   dependsOn ":sdks:java:testing:expansion-service:buildTestExpansionServiceJar"
   doLast {
+    def pipelineOptions = [  // Pipeline options piped directly to Go SDK flags.
+        "--expansion_jar=test:${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
+    ]
     def options = [
-            "--runner spark",
-            "--spark_job_server_jar ${project(":runners:spark:2:job-server").shadowJar.archivePath}",
-            "--test_expansion_jar ${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
+        "--runner spark",
+        "--spark_job_server_jar ${project(":runners:spark:3:job-server").shadowJar.archivePath}",
+        "--pipeline_opts \"${pipelineOptions.join(' ')}\"",
     ]
     exec {
       executable "sh"
@@ -162,20 +127,22 @@ task sparkValidatesRunner {
 // The ULR can exhibit strange behavior when containers are built with outdated
 // vendored directories. For best results use the clean task, like so:
 //   ./gradlew clean :sdks:go:test:ulrValidatesRunner
-task ulrValidatesRunner {
+tasks.register("ulrValidatesRunner") {
   group = "Verification"
 
   dependsOn ":sdks:go:test:goBuild"
   dependsOn ":sdks:go:container:docker"
   dependsOn ":sdks:java:container:java8:docker"
-  dependsOn ":sdks:java:container:java11:docker"
   dependsOn "setupVirtualenv"
   dependsOn ":sdks:python:buildPython"
   dependsOn ":sdks:java:testing:expansion-service:buildTestExpansionServiceJar"
   doLast {
+    def pipelineOptions = [  // Pipeline options piped directly to Go SDK flags.
+         "--expansion_jar=test:${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
+    ]
     def options = [
-            "--runner portable",
-            "--test_expansion_jar ${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
+        "--runner portable",
+        "--pipeline_opts \"${pipelineOptions.join(' ')}\"",
     ]
     exec {
       executable "sh"
@@ -191,21 +158,35 @@ task ulrValidatesRunner {
 
 // A method for configuring a cross-language validates runner test task,
 // intended to be used in calls to createCrossLanguageValidatesRunnerTask.
-ext.goIoValidatesRunnerTask = { proj, name, scriptOpts ->
-  return proj.tasks.create(name: name) {
+ext.goIoValidatesRunnerTask = { proj, name, scriptOpts, pipelineOpts ->
+  return proj.tasks.register(name) {
     group = "Verification"
 
     dependsOn ":sdks:go:test:goBuild"
     dependsOn ":sdks:go:container:docker"
     dependsOn ":sdks:java:io:expansion-service:build"
+    dependsOn ":sdks:java:extensions:schemaio-expansion-service:build"
+    dependsOn ":sdks:java:io:debezium:expansion-service:build"
+    dependsOn ":sdks:java:io:google-cloud-platform:expansion-service:build"
     dependsOn ":sdks:java:testing:kafka-service:buildTestKafkaServiceJar"
 
     doLast {
       def ioExpJar = project(":sdks:java:io:expansion-service").shadowJar.archivePath
+      def schemaIoExpJar = project(":sdks:java:extensions:schemaio-expansion-service").shadowJar.archivePath
+      def debeziumIoExpJar = project(":sdks:java:io:debezium:expansion-service").shadowJar.archivePath
+      def gcpIoExpJar = project(":sdks:java:io:google-cloud-platform:expansion-service").shadowJar.archivePath
       def kafkaJar = project(":sdks:java:testing:kafka-service:").buildTestKafkaServiceJar.archivePath
+      def pipelineOptions = [  // Pipeline options piped directly to Go SDK flags.
+          "--kafka_jar=${kafkaJar}",
+          "--expansion_jar=io:${ioExpJar}",
+          "--expansion_jar=schemaio:${schemaIoExpJar}",
+          "--expansion_jar=debeziumio:${debeziumIoExpJar}",
+          "--expansion_jar=gcpio:${gcpIoExpJar}",
+          "--bq_dataset=apache-beam-testing.beam_bigquery_io_test_temp",
+      ]
+      pipelineOptions.addAll(pipelineOpts)
       def options = [
-          "--io_expansion_jar ${ioExpJar}",
-          "--pipeline_opts \"--kafka_jar=${kafkaJar}\"",
+          "--pipeline_opts \"${pipelineOptions.join(' ')}\"",
       ]
       options.addAll(scriptOpts)
       logger.info("Running the command: sh -c ./run_validatesrunner_tests.sh ${options.join(' ')}")

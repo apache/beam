@@ -19,6 +19,9 @@ package org.apache.beam.sdk.io.kinesis;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
+import com.amazonaws.auth.AWSCredentialsProvider;
+import com.amazonaws.auth.AWSStaticCredentialsProvider;
+import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
 import com.amazonaws.services.kinesis.AmazonKinesis;
@@ -31,7 +34,6 @@ import com.amazonaws.services.kinesis.producer.UserRecordResult;
 import com.google.auto.value.AutoValue;
 import com.google.common.util.concurrent.ListenableFuture;
 import java.io.IOException;
-import java.io.ObjectInputStream;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -41,8 +43,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.function.Supplier;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.Read.Unbounded;
@@ -68,13 +68,23 @@ import org.slf4j.LoggerFactory;
  *
  * <h3>Reading from Kinesis</h3>
  *
- * <p>Example usage:
+ * <p>Example usages:
  *
  * <pre>{@code
  * p.apply(KinesisIO.read()
  *     .withStreamName("streamName")
  *     .withInitialPositionInStream(InitialPositionInStream.LATEST)
- *     .withAWSClientsProvider("AWS_KEY", _"AWS_SECRET", STREAM_REGION)
+ *     // using AWS default credentials provider chain (recommended)
+ *     .withAWSClientsProvider(DefaultAWSCredentialsProviderChain.getInstance(), STREAM_REGION)
+ *  .apply( ... ) // other transformations
+ * }</pre>
+ *
+ * <pre>{@code
+ * p.apply(KinesisIO.read()
+ *     .withStreamName("streamName")
+ *     .withInitialPositionInStream(InitialPositionInStream.LATEST)
+ *     // using plain AWS key and secret
+ *     .withAWSClientsProvider("AWS_KEY", "AWS_SECRET", STREAM_REGION)
  *  .apply( ... ) // other transformations
  * }</pre>
  *
@@ -90,7 +100,7 @@ import org.slf4j.LoggerFactory;
  *       </ul>
  *   <li>data used to initialize {@link AmazonKinesis} and {@link AmazonCloudWatch} clients:
  *       <ul>
- *         <li>credentials (aws key, aws secret)
+ *         <li>AWS credentials
  *         <li>region where the stream is located
  *       </ul>
  * </ul>
@@ -122,7 +132,7 @@ import org.slf4j.LoggerFactory;
  *  .apply( ... ) // other transformations
  * }</pre>
  *
- * <p>There’s also possibility to start reading using arbitrary point in time - in this case you
+ * <p>There's also possibility to start reading using arbitrary point in time - in this case you
  * need to provide {@link Instant} object:
  *
  * <pre>{@code
@@ -241,7 +251,7 @@ import org.slf4j.LoggerFactory;
  *
  * <h3>Writing to Kinesis</h3>
  *
- * <p>Example usage:
+ * <p>Example usages:
  *
  * <pre>{@code
  * PCollection<byte[]> data = ...;
@@ -249,7 +259,18 @@ import org.slf4j.LoggerFactory;
  * data.apply(KinesisIO.write()
  *     .withStreamName("streamName")
  *     .withPartitionKey("partitionKey")
- *     .withAWSClientsProvider(AWS_KEY, AWS_SECRET, STREAM_REGION));
+ *     // using AWS default credentials provider chain (recommended)
+ *     .withAWSClientsProvider(DefaultAWSCredentialsProviderChain.getInstance(), STREAM_REGION));
+ * }</pre>
+ *
+ * <pre>{@code
+ * PCollection<byte[]> data = ...;
+ *
+ * data.apply(KinesisIO.write()
+ *     .withStreamName("streamName")
+ *     .withPartitionKey("partitionKey")
+ *      // using plain AWS key and secret
+ *     .withAWSClientsProvider("AWS_KEY", "AWS_SECRET", STREAM_REGION));
  * }</pre>
  *
  * <p>As a client, you need to provide at least 3 things:
@@ -260,7 +281,7 @@ import org.slf4j.LoggerFactory;
  *       partition will be used for writing
  *   <li>data used to initialize {@link AmazonKinesis} and {@link AmazonCloudWatch} clients:
  *       <ul>
- *         <li>credentials (aws key, aws secret)
+ *         <li>AWS credentials
  *         <li>region where the stream is located
  *       </ul>
  * </ul>
@@ -291,11 +312,15 @@ import org.slf4j.LoggerFactory;
  * <p>For more information about configuratiom parameters, see the <a
  * href="https://github.com/awslabs/amazon-kinesis-producer/blob/master/java/amazon-kinesis-producer-sample/default_config.properties">sample
  * of configuration file</a>.
+ *
+ * @deprecated Module <code>beam-sdks-java-io-kinesis</code> is deprecated and will be eventually
+ *     removed. Please migrate to {@link org.apache.beam.sdk.io.aws2.kinesis.KinesisIO} in module
+ *     <code>beam-sdks-java-io-amazon-web-services2</code>.
  */
-@Experimental(Kind.SOURCE_SINK)
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
+@Deprecated
 public final class KinesisIO {
 
   private static final Logger LOG = LoggerFactory.getLogger(KinesisIO.class);
@@ -356,7 +381,7 @@ public final class KinesisIO {
           .setMaxNumRecords(Long.MAX_VALUE)
           .setUpToDateThreshold(Duration.ZERO)
           .setWatermarkPolicyFactory(WatermarkPolicyFactory.withArrivalTimePolicy())
-          .setRateLimitPolicyFactory(RateLimitPolicyFactory.withoutLimiter())
+          .setRateLimitPolicyFactory(RateLimitPolicyFactory.withDefaultRateLimiter())
           .setMaxCapacityPerShard(ShardReadersPool.DEFAULT_CAPACITY_PER_SHARD);
     }
 
@@ -416,10 +441,20 @@ public final class KinesisIO {
      * Allows to specify custom {@link AWSClientsProvider}. {@link AWSClientsProvider} provides
      * {@link AmazonKinesis} and {@link AmazonCloudWatch} instances which are later used for
      * communication with Kinesis. You should use this method if {@link
-     * Read#withAWSClientsProvider(String, String, Regions)} does not suit your needs.
+     * Read#withAWSClientsProvider(AWSCredentialsProvider, Regions)} does not suit your needs.
      */
     public Read<T> withAWSClientsProvider(AWSClientsProvider awsClientsProvider) {
       return toBuilder().setAWSClientsProvider(awsClientsProvider).build();
+    }
+
+    /**
+     * Specify {@link AWSCredentialsProvider} and region to be used to read from Kinesis. If you
+     * need more sophisticated credential protocol, then you should look at {@link
+     * Read#withAWSClientsProvider(AWSClientsProvider)}.
+     */
+    public Read<T> withAWSClientsProvider(
+        AWSCredentialsProvider awsCredentialsProvider, Regions region) {
+      return withAWSClientsProvider(awsCredentialsProvider, region, null);
     }
 
     /**
@@ -433,6 +468,19 @@ public final class KinesisIO {
     }
 
     /**
+     * Specify {@link AWSCredentialsProvider} and region to be used to read from Kinesis. If you
+     * need more sophisticated credential protocol, then you should look at {@link
+     * Read#withAWSClientsProvider(AWSClientsProvider)}.
+     *
+     * <p>The {@code serviceEndpoint} sets an alternative service host. This is useful to execute
+     * the tests with a kinesis service emulator.
+     */
+    public Read<T> withAWSClientsProvider(
+        AWSCredentialsProvider awsCredentialsProvider, Regions region, String serviceEndpoint) {
+      return withAWSClientsProvider(awsCredentialsProvider, region, serviceEndpoint, true);
+    }
+
+    /**
      * Specify credential details and region to be used to read from Kinesis. If you need more
      * sophisticated credential protocol, then you should look at {@link
      * Read#withAWSClientsProvider(AWSClientsProvider)}.
@@ -442,8 +490,28 @@ public final class KinesisIO {
      */
     public Read<T> withAWSClientsProvider(
         String awsAccessKey, String awsSecretKey, Regions region, String serviceEndpoint) {
+      return withAWSClientsProvider(awsAccessKey, awsSecretKey, region, serviceEndpoint, true);
+    }
+
+    /**
+     * Specify {@link AWSCredentialsProvider} and region to be used to read from Kinesis. If you
+     * need more sophisticated credential protocol, then you should look at {@link
+     * Read#withAWSClientsProvider(AWSClientsProvider)}.
+     *
+     * <p>The {@code serviceEndpoint} sets an alternative service host. This is useful to execute
+     * the tests with Kinesis service emulator.
+     *
+     * <p>The {@code verifyCertificate} disables or enables certificate verification. Never set it
+     * to false in production.
+     */
+    public Read<T> withAWSClientsProvider(
+        AWSCredentialsProvider awsCredentialsProvider,
+        Regions region,
+        String serviceEndpoint,
+        boolean verifyCertificate) {
       return withAWSClientsProvider(
-          new BasicKinesisProvider(awsAccessKey, awsSecretKey, region, serviceEndpoint));
+          new BasicKinesisProvider(
+              awsCredentialsProvider, region, serviceEndpoint, verifyCertificate));
     }
 
     /**
@@ -463,9 +531,10 @@ public final class KinesisIO {
         Regions region,
         String serviceEndpoint,
         boolean verifyCertificate) {
+      AWSCredentialsProvider awsCredentialsProvider =
+          new AWSStaticCredentialsProvider(new BasicAWSCredentials(awsAccessKey, awsSecretKey));
       return withAWSClientsProvider(
-          new BasicKinesisProvider(
-              awsAccessKey, awsSecretKey, region, serviceEndpoint, verifyCertificate));
+          awsCredentialsProvider, region, serviceEndpoint, verifyCertificate);
     }
 
     /** Specifies to read at most a given number of records. */
@@ -588,6 +657,10 @@ public final class KinesisIO {
 
     @Override
     public PCollection<T> expand(PBegin input) {
+      LOG.warn(
+          "You are using a deprecated IO for Kinesis. Please migrate to module "
+              + "'org.apache.beam:beam-sdks-java-io-amazon-web-services2'.");
+
       Unbounded<KinesisRecord> unbounded =
           org.apache.beam.sdk.io.Read.from(
               new KinesisSource(
@@ -698,11 +771,21 @@ public final class KinesisIO {
      * Allows to specify custom {@link AWSClientsProvider}. {@link AWSClientsProvider} creates new
      * {@link IKinesisProducer} which is later used for writing to Kinesis.
      *
-     * <p>This method should be used if {@link Write#withAWSClientsProvider(String, String,
+     * <p>This method should be used if {@link Write#withAWSClientsProvider(AWSCredentialsProvider,
      * Regions)} does not suit well.
      */
     public Write withAWSClientsProvider(AWSClientsProvider awsClientsProvider) {
       return builder().setAWSClientsProvider(awsClientsProvider).build();
+    }
+
+    /**
+     * Specify {@link AWSCredentialsProvider} and region to be used to write to Kinesis. If you need
+     * more sophisticated credential protocol, then you should look at {@link
+     * Write#withAWSClientsProvider(AWSClientsProvider)}.
+     */
+    public Write withAWSClientsProvider(
+        AWSCredentialsProvider awsCredentialsProvider, Regions region) {
+      return withAWSClientsProvider(awsCredentialsProvider, region, null);
     }
 
     /**
@@ -715,6 +798,19 @@ public final class KinesisIO {
     }
 
     /**
+     * Specify {@link AWSCredentialsProvider} and region to be used to write to Kinesis. If you need
+     * more sophisticated credential protocol, then you should look at {@link
+     * Write#withAWSClientsProvider(AWSClientsProvider)}.
+     *
+     * <p>The {@code serviceEndpoint} sets an alternative service host. This is useful to execute
+     * the tests with Kinesis service emulator.
+     */
+    public Write withAWSClientsProvider(
+        AWSCredentialsProvider awsCredentialsProvider, Regions region, String serviceEndpoint) {
+      return withAWSClientsProvider(awsCredentialsProvider, region, serviceEndpoint, true);
+    }
+
+    /**
      * Specify credential details and region to be used to write to Kinesis. If you need more
      * sophisticated credential protocol, then you should look at {@link
      * Write#withAWSClientsProvider(AWSClientsProvider)}.
@@ -724,8 +820,28 @@ public final class KinesisIO {
      */
     public Write withAWSClientsProvider(
         String awsAccessKey, String awsSecretKey, Regions region, String serviceEndpoint) {
+      return withAWSClientsProvider(awsAccessKey, awsSecretKey, region, serviceEndpoint, true);
+    }
+
+    /**
+     * Specify credential details and region to be used to write to Kinesis. If you need more
+     * sophisticated credential protocol, then you should look at {@link
+     * Write#withAWSClientsProvider(AWSClientsProvider)}.
+     *
+     * <p>The {@code serviceEndpoint} sets an alternative service host. This is useful to execute
+     * the tests with Kinesis service emulator.
+     *
+     * <p>The {@code verifyCertificate} disables or enables certificate verification. Never set it
+     * to false in production.
+     */
+    public Write withAWSClientsProvider(
+        AWSCredentialsProvider awsCredentialsProvider,
+        Regions region,
+        String serviceEndpoint,
+        boolean verifyCertificate) {
       return withAWSClientsProvider(
-          new BasicKinesisProvider(awsAccessKey, awsSecretKey, region, serviceEndpoint));
+          new BasicKinesisProvider(
+              awsCredentialsProvider, region, serviceEndpoint, verifyCertificate));
     }
 
     /**
@@ -745,9 +861,10 @@ public final class KinesisIO {
         Regions region,
         String serviceEndpoint,
         boolean verifyCertificate) {
+      AWSCredentialsProvider awsCredentialsProvider =
+          new AWSStaticCredentialsProvider(new BasicAWSCredentials(awsAccessKey, awsSecretKey));
       return withAWSClientsProvider(
-          new BasicKinesisProvider(
-              awsAccessKey, awsSecretKey, region, serviceEndpoint, verifyCertificate));
+          awsCredentialsProvider, region, serviceEndpoint, verifyCertificate);
     }
 
     /**
@@ -764,6 +881,10 @@ public final class KinesisIO {
 
     @Override
     public PDone expand(PCollection<byte[]> input) {
+      LOG.warn(
+          "You are using a deprecated IO for Kinesis. Please migrate to module "
+              + "'org.apache.beam:beam-sdks-java-io-amazon-web-services2'.");
+
       checkArgument(getStreamName() != null, "withStreamName() is required");
       checkArgument(
           (getPartitionKey() != null) || (getPartitioner() != null),
@@ -772,28 +893,79 @@ public final class KinesisIO {
           getPartitionKey() == null || (getPartitioner() == null),
           "only one of either withPartitionKey() or withPartitioner() is possible");
       checkArgument(getAWSClientsProvider() != null, "withAWSClientsProvider() is required");
+      createProducerConfiguration(); // verify Kinesis producer configuration can be built
 
       input.apply(ParDo.of(new KinesisWriterFn(this)));
       return PDone.in(input.getPipeline());
     }
 
-    private static class KinesisWriterFn extends DoFn<byte[], Void> {
+    private KinesisProducerConfiguration createProducerConfiguration() {
+      Properties props = getProducerProperties();
+      if (props == null) {
+        props = new Properties();
+      }
+      return KinesisProducerConfiguration.fromProperties(props);
+    }
 
+    private static class KinesisWriterFn extends DoFn<byte[], Void> {
       private static final int MAX_NUM_FAILURES = 10;
 
+      /** Usage count of static, shared Kinesis producer. */
+      private static int producerRefCount = 0;
+
+      /** Static, shared Kinesis producer. */
+      private static IKinesisProducer producer;
+
       private final KinesisIO.Write spec;
-      private static transient IKinesisProducer producer;
+
       private transient KinesisPartitioner partitioner;
       private transient LinkedBlockingDeque<KinesisWriteException> failures;
       private transient List<Future<UserRecordResult>> putFutures;
 
       KinesisWriterFn(KinesisIO.Write spec) {
         this.spec = spec;
-        initKinesisProducer();
+      }
+
+      /**
+       * Initialize statically shared Kinesis producer if required and count usage.
+       *
+       * <p>NOTE: If there is, for whatever reasons, another instance of a {@link KinesisWriterFn}
+       * with different producer properties or even a different implementation of {@link
+       * AWSClientsProvider}, these changes will be silently discarded in favor of an existing
+       * producer instance.
+       */
+      private void setupSharedProducer() {
+        synchronized (KinesisWriterFn.class) {
+          if (producer == null) {
+            producer =
+                spec.getAWSClientsProvider()
+                    .createKinesisProducer(spec.createProducerConfiguration());
+            producerRefCount = 0;
+          }
+          producerRefCount++;
+        }
+      }
+
+      /**
+       * Discard statically shared producer if it is not used anymore according to the usage count.
+       */
+      private void teardownSharedProducer() {
+        IKinesisProducer obsolete = null;
+        synchronized (KinesisWriterFn.class) {
+          if (--producerRefCount == 0) {
+            obsolete = producer;
+            producer = null;
+          }
+        }
+        if (obsolete != null) {
+          obsolete.flushSync(); // should be a noop, but just in case
+          obsolete.destroy();
+        }
       }
 
       @Setup
       public void setup() {
+        setupSharedProducer();
         // Use custom partitioner if it exists
         if (spec.getPartitioner() != null) {
           partitioner = spec.getPartitioner();
@@ -805,30 +977,6 @@ public final class KinesisIO {
         putFutures = Collections.synchronizedList(new ArrayList<>());
         /** Keep only the first {@link MAX_NUM_FAILURES} occurred exceptions */
         failures = new LinkedBlockingDeque<>(MAX_NUM_FAILURES);
-        initKinesisProducer();
-      }
-
-      private synchronized void initKinesisProducer() {
-        // Init producer config
-        Properties props = spec.getProducerProperties();
-        if (props == null) {
-          props = new Properties();
-        }
-        KinesisProducerConfiguration config = KinesisProducerConfiguration.fromProperties(props);
-        // Fix to avoid the following message "WARNING: Exception during updateCredentials" during
-        // producer.destroy() call. More details can be found in this thread:
-        // https://github.com/awslabs/amazon-kinesis-producer/issues/10
-        config.setCredentialsRefreshDelay(100);
-
-        // Init Kinesis producer
-        if (producer == null) {
-          producer = spec.getAWSClientsProvider().createKinesisProducer(config);
-        }
-      }
-
-      private void readObject(ObjectInputStream is) throws IOException, ClassNotFoundException {
-        is.defaultReadObject();
-        initKinesisProducer();
       }
 
       /**
@@ -905,11 +1053,10 @@ public final class KinesisIO {
             }
           }
 
-          message =
-              String.format(
-                  "After [%d] retries, number of failed records [%d] is still greater than 0",
-                  spec.getRetries(), numFailedRecords);
-          LOG.error(message);
+          LOG.error(
+              "After [{}] retries, number of failed records [{}] is still greater than 0",
+              spec.getRetries(),
+              numFailedRecords);
         }
 
         checkForFailures(message);
@@ -955,10 +1102,7 @@ public final class KinesisIO {
 
       @Teardown
       public void teardown() throws Exception {
-        if (producer != null && producer.getOutstandingRecordsCount() > 0) {
-          producer.flushSync();
-        }
-        producer = null;
+        teardownSharedProducer();
       }
     }
   }

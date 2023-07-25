@@ -63,19 +63,21 @@
 
       <ul class="section-nav-list">
         <li><a href="/documentation/programming-guide/#pipeline-io">Using I/O transforms</a></li>
-        <li><a href="/documentation/io/built-in/">Built-in I/O connectors</a></li>
+        <li><a href="/documentation/io/connectors/">I/O connectors</a></li>
 
         <li class="section-nav-item--collapsible">
-          <span class="section-nav-list-title">Built-in I/O connector guides</span>
+          <span class="section-nav-list-title">I/O connector guides</span>
           <ul class="section-nav-list">
-            <li><a href="/documentation/io/built-in/parquet/">Apache Parquet I/O connector
-            </a></li>
+            <li><a href="/documentation/io/built-in/parquet/">Apache Parquet I/O connector</a></li>
             <li><a href="/documentation/io/built-in/hadoop/">Hadoop Input/Output Format IO</a></li>
             <li><a href="/documentation/io/built-in/hcatalog/">HCatalog IO</a></li>
             <li><a href="/documentation/io/built-in/google-bigquery/">Google BigQuery I/O connector</a></li>
             <li><a href="/documentation/io/built-in/snowflake/">Snowflake I/O connector</a></li>
+            <li><a href="/documentation/io/built-in/cdap/">CDAP I/O connector</a></li>
+            <li><a href="/documentation/io/built-in/sparkreceiver/">Spark Receiver I/O connector</a></li>
+            <li><a href="/documentation/io/built-in/singlestore/">SingleStoreDB I/O connector</a></li>
           </ul>
-      </li>
+        </li>
 
 
         <li class="section-nav-item--collapsible">
@@ -85,6 +87,7 @@
           <li><a href="/documentation/io/developing-io-overview/">Overview: Developing connectors</a></li>
           <li><a href="/documentation/io/developing-io-java/">Developing connectors (Java)</a></li>
           <li><a href="/documentation/io/developing-io-python/">Developing connectors (Python)</a></li>
+          <li><a href="/documentation/io/io-standards/">I/O Standards</a></li>
           </ul>
         </li>
 
@@ -181,6 +184,7 @@
         <li><a href="/documentation/programming-guide/#x-lang-transform-runner-support">Runner Support</a></li>
       </ul>
     </li>
+    <li><a href="/documentation/programming-guide/#batched-dofns">Batched DoFns</a></li>
   </ul>
 </li>
 <li class="section-nav-item--collapsible">
@@ -205,7 +209,59 @@
     <li><a href="/documentation/patterns/ai-platform/">AI Platform</a></li>
     <li><a href="/documentation/patterns/schema/">Schema</a></li>
     <li><a href="/documentation/patterns/bqml/">BigQuery ML</a></li>
-    <li><a href="/documentation/patterns/cross-language/">Cross-language transforms</a></li>
+    <li><a href="/documentation/patterns/grouping-elements-for-efficient-external-service-calls/">Grouping elements for efficient external service calls</a></li>
+  </ul>
+</li>
+<li class="section-nav-item--collapsible">
+  <span class="section-nav-list-title">AI/ML pipelines</span>
+
+  <ul class="section-nav-list">
+    <li><a href="/documentation/ml/overview/">Get started with AI/ML</a></li>
+    <li><a href="/documentation/ml/about-ml/">About Beam ML</a></li>
+    <li class="section-nav-item--collapsible">
+      <span class="section-nav-list-title">Prediction and inference</span>
+      <ul class="section-nav-list">
+      <li><a href="/documentation/ml/inference-overview/">Overview</a></li>
+      <li><a href="/documentation/ml/multi-model-pipelines/">Build a pipeline with multiple models</a></li>
+      <li><a href="/documentation/ml/tensorrt-runinference">Build a custom model handler with TensorRT</a></li>
+      <li><a href="/documentation/ml/large-language-modeling">Use LLM inference</a></li>
+      <li><a href="/documentation/ml/multi-language-inference/">Build a multi-language inference pipeline</a></li>
+      <li><a href="/documentation/ml/side-input-updates/">Update your model in production</a></li>
+      </ul>
+    </li>
+    <li class="section-nav-item--collapsible">
+      <span class="section-nav-list-title">Data processing</span>
+      <ul class="section-nav-list">
+        <li><a href="/documentation/ml/data-processing/">Explore your data</a></li>
+      </ul>
+    </li>
+    <li class="section-nav-item--collapsible">
+      <span class="section-nav-list-title">Workflow orchestration</span>
+      <ul class="section-nav-list">
+        <li><a href="/documentation/ml/orchestration/">Use ML-OPS workflow orchestrators</a></li>
+      </ul>
+    </li>
+    <li class="section-nav-item--collapsible">
+      <span class="section-nav-list-title">Model training</span>
+      <ul class="section-nav-list">
+        <li><a href="/documentation/ml/per-entity-training">Per-entity training</a></li>
+        <li><a href="/documentation/ml/online-clustering/">Online clustering</a></li>
+        <li><a href="/documentation/ml/model-evaluation/">ML model evaluation</a></li>
+      </ul>
+    </li>
+    <li class="section-nav-item--collapsible">
+      <span class="section-nav-list-title">Use cases</span>
+      <ul class="section-nav-list">
+        <li><a href="/documentation/ml/anomaly-detection/">Build an anomaly detection pipeline</a></li>
+      </ul>
+    </li>
+    <li class="section-nav-item--collapsible">
+      <span class="section-nav-list-title">Reference</span>
+      <ul class="section-nav-list">
+        <li><a href="/documentation/ml/runinference-metrics/">RunInference metrics</a></li>
+        <li><a href="/documentation/ml/model-evaluation/">Model validation</a></li>
+      </ul>
+    </li>
   </ul>
 </li>
 <li class="section-nav-item--collapsible">
@@ -239,6 +295,14 @@
             <li><a href="/documentation/transforms/python/elementwise/partition/">Partition</a></li>
             <li><a href="/documentation/transforms/python/elementwise/regex/">Regex</a></li>
             <li><a href="/documentation/transforms/python/elementwise/reify/">Reify</a></li>
+             <li class="section-nav-item--collapsible">
+              <span class="section-nav-list-title">RunInference</span>
+              <ul class="section-nav-list">
+                <li><a href="/documentation/transforms/python/elementwise/runinference/">Overview</a></li>
+                <li><a href="/documentation/transforms/python/elementwise/runinference-pytorch/">PyTorch examples</a></li>
+                <li><a href="/documentation/transforms/python/elementwise/runinference-sklearn/">Sklearn examples</a></li>
+              </ul>
+              </li>
             <li><a href="/documentation/transforms/python/elementwise/tostring/">ToString</a></li>
             <li><a href="/documentation/transforms/python/elementwise/values/">Values</a></li>
             <li><a href="/documentation/transforms/python/elementwise/withtimestamps/">WithTimestamps</a></li>
@@ -254,13 +318,13 @@
             <li><a href="/documentation/transforms/python/aggregation/combinevalues/">CombineValues</a></li>
             <li><a href="/documentation/transforms/python/aggregation/count/">Count</a></li>
             <li><a href="/documentation/transforms/python/aggregation/distinct/">Distinct</a></li>
-            <li><a href="/documentation/transforms/python/aggregation/groupbykey/">GroupByKey</a></li>
             <li><a href="/documentation/transforms/python/aggregation/groupby/">GroupBy</a></li>
+            <li><a href="/documentation/transforms/python/aggregation/groupbykey/">GroupByKey</a></li>
             <li><a href="/documentation/transforms/python/aggregation/groupintobatches/">GroupIntoBatches</a></li>
             <li><a href="/documentation/transforms/python/aggregation/latest/">Latest</a></li>
             <li><a href="/documentation/transforms/python/aggregation/max/">Max</a></li>
-            <li><a href="/documentation/transforms/python/aggregation/min/">Min</a></li>
             <li><a href="/documentation/transforms/python/aggregation/mean/">Mean</a></li>
+            <li><a href="/documentation/transforms/python/aggregation/min/">Min</a></li>
             <li><a href="/documentation/transforms/python/aggregation/sample/">Sample</a></li>
             <li><a href="/documentation/transforms/python/aggregation/sum/">Sum</a></li>
             <li><a href="/documentation/transforms/python/aggregation/top/">Top</a></li>
@@ -297,8 +361,8 @@
             <li><a href="/documentation/transforms/java/elementwise/partition/">Partition</a></li>
             <li><a href="/documentation/transforms/java/elementwise/regex/">Regex</a></li>
             <li><a href="/documentation/transforms/java/elementwise/reify/">Reify</a></li>
-            <li><a href="/documentation/transforms/java/elementwise/values/">Values</a></li>
             <li><a href="/documentation/transforms/java/elementwise/tostring/">ToString</a></li>
+            <li><a href="/documentation/transforms/java/elementwise/values/">Values</a></li>
             <li><a href="/documentation/transforms/java/elementwise/withkeys/">WithKeys</a></li>
             <li><a href="/documentation/transforms/java/elementwise/withtimestamps/">WithTimestamps</a></li>
           </ul>

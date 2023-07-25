@@ -42,5 +42,19 @@
   translation: "Sponsorship"
 - id: nav-code-of-conduct
   translation: "Code of Conduct"
-- id: nav-powered-by
-  translation: "Powered by"
+- id: nav-case-studies
+  translation: "Case Studies"
+- id: nav-about
+  translation: "About"
+- id: nav-connectors
+  translation: "I/O Connectors"
+- id: nav-performance-general
+  translation: "General"
+- id: nav-performance-bigquery
+  translation: "BigQuery"
+- id: nav-performance-bigtable
+  translation: "BigTable"
+- id: nav-performance-textio
+  translation: "TextIO"
+- id: nav-performance-glossary
+  translation: "Glossary"

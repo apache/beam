@@ -29,8 +29,6 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ThreadLocalRandom;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
@@ -86,6 +84,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ArrayListMultimap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
@@ -116,10 +115,9 @@ import org.slf4j.LoggerFactory;
  *
  * <pre>{@code p.apply(WriteFiles.to(new MySink(...)).withNumShards(3));}</pre>
  */
-@Experimental(Kind.SOURCE_SINK)
 @AutoValue
 @SuppressWarnings({
-  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes"
 })
 public abstract class WriteFiles<UserT, DestinationT, OutputT>
@@ -145,6 +143,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
   // The record count and buffering duration to trigger flushing records to a tmp file. Mainly used
   // for writing unbounded data to avoid generating too many small files.
   private static final int FILE_TRIGGERING_RECORD_COUNT = 100000;
+  private static final int FILE_TRIGGERING_BYTE_COUNT = 64 * 1024 * 1024; // 64MiB as of now
   private static final Duration FILE_TRIGGERING_RECORD_BUFFERING_DURATION =
       Duration.standardSeconds(5);
 
@@ -166,6 +165,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
         .setWindowedWrites(false)
         .setMaxNumWritersPerBundle(DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE)
         .setSideInputs(sink.getDynamicDestinations().getSideInputs())
+        .setSkipIfEmpty(false)
         .build();
   }
 
@@ -182,6 +182,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
   public abstract boolean getWindowedWrites();
 
   abstract int getMaxNumWritersPerBundle();
+
+  abstract boolean getSkipIfEmpty();
 
   abstract List<PCollectionView<?>> getSideInputs();
 
@@ -204,6 +206,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
     abstract Builder<UserT, DestinationT, OutputT> setMaxNumWritersPerBundle(
         int maxNumWritersPerBundle);
+
+    abstract Builder<UserT, DestinationT, OutputT> setSkipIfEmpty(boolean skipIfEmpty);
 
     abstract Builder<UserT, DestinationT, OutputT> setSideInputs(
         List<PCollectionView<?>> sideInputs);
@@ -252,6 +256,11 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
   public WriteFiles<UserT, DestinationT, OutputT> withMaxNumWritersPerBundle(
       int maxNumWritersPerBundle) {
     return toBuilder().setMaxNumWritersPerBundle(maxNumWritersPerBundle).build();
+  }
+
+  /** Set this sink to skip writing any files if the PCollection is empty. */
+  public WriteFiles<UserT, DestinationT, OutputT> withSkipIfEmpty(boolean skipIfEmpty) {
+    return toBuilder().setSkipIfEmpty(skipIfEmpty).build();
   }
 
   public WriteFiles<UserT, DestinationT, OutputT> withSideInputs(
@@ -317,6 +326,10 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     return toBuilder().setMaxNumWritersPerBundle(-1).build();
   }
 
+  public WriteFiles<UserT, DestinationT, OutputT> withSkipIfEmpty() {
+    return toBuilder().setSkipIfEmpty(true).build();
+  }
+
   @Override
   public void validate(PipelineOptions options) {
     getSink().validate(options);
@@ -331,7 +344,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
           WriteFiles.class.getSimpleName());
       // Sharding used to be required due to https://issues.apache.org/jira/browse/BEAM-1438 and
       // similar behavior in other runners. Some runners may support runner determined sharding now.
-      // Check merging window here due to https://issues.apache.org/jira/browse/BEAM-12040.
+      // Check merging window here due to https://github.com/apache/beam/issues/20928.
       if (input.getWindowingStrategy().needsMerge()) {
         checkArgument(
             getComputeNumShards() != null || getNumShardsProvider() != null,
@@ -341,9 +354,9 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
       }
     }
     this.writeOperation = getSink().createWriteOperation();
-    this.writeOperation.setWindowedWrites(getWindowedWrites());
-
-    if (!getWindowedWrites()) {
+    if (getWindowedWrites()) {
+      this.writeOperation.setWindowedWrites();
+    } else {
       // Re-window the data into the global window and remove any existing triggers.
       input =
           input.apply(
@@ -447,7 +460,24 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
         // iterable to finalize if there are no results.
         return input
             .getPipeline()
-            .apply(Reify.viewInGlobalWindow(input.apply(View.asList()), ListCoder.of(resultCoder)));
+            .apply(
+                "AsPossiblyEmptyList",
+                Reify.viewInGlobalWindow(
+                    // Insert a reshuffle before taking the view to consolidate the (typically)
+                    // one-output-per-bundle writes.
+                    // This avoids producing a huge number of tiny files in the case that side
+                    // inputs are materialized to disk bundle-by-bundle.
+                    input.apply("Consolidate", Reshuffle.viaRandomKey()).apply(View.asIterable()),
+                    IterableCoder.of(resultCoder)))
+            // View.asIterable() can be (significantly) cheaper than View.asList(), as it does not
+            // create a backing indexable view, but we must return a list to maintain update
+            // compatibility for consumers that are shared between this path and the streaming one.
+            .apply(
+                "IterableToList",
+                MapElements.via(
+                    new SimpleFunction<Iterable<ResultT>, List<ResultT>>(
+                        x -> ImmutableList.copyOf(x)) {}))
+            .setCoder(ListCoder.of(resultCoder));
       }
     }
   }
@@ -509,7 +539,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
                         public void process(ProcessContext c) {
                           c.output(c.element().withShard(UNKNOWN_SHARDNUM));
                         }
-                      }));
+                      }))
+              .setCoder(fileResultCoder);
       return PCollectionList.of(writtenBundleFiles)
           .and(writtenSpilledFiles)
           .apply(Flatten.pCollections())
@@ -730,7 +761,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
       // records buffered or they have been buffered for a certain time, controlled by
       // FILE_TRIGGERING_RECORD_COUNT and BUFFERING_DURATION respectively.
       //
-      // TODO(BEAM-12040): The implementation doesn't currently work with merging windows.
+      // TODO(https://github.com/apache/beam/issues/20928): The implementation doesn't currently
+      // work with merging windows.
       PCollection<KV<org.apache.beam.sdk.util.ShardedKey<Integer>, Iterable<UserT>>> shardedInput =
           input
               .apply(
@@ -751,6 +783,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
               .apply(
                   "ShardAndBatch",
                   GroupIntoBatches.<Integer, UserT>ofSize(FILE_TRIGGERING_RECORD_COUNT)
+                      .withByteSize(FILE_TRIGGERING_BYTE_COUNT)
                       .withMaxBufferingDuration(FILE_TRIGGERING_RECORD_BUFFERING_DURATION)
                       .withShardedKey())
               .setCoder(
@@ -793,7 +826,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
                         public void process(ProcessContext c) {
                           c.output(c.element().withShard(UNKNOWN_SHARDNUM));
                         }
-                      }));
+                      }))
+              .setCoder(fileResultCoder);
 
       // Group temp file results by destinations again to gather all the results in the same window.
       // This is needed since we don't have shard idx associated with each temp file so have to rely
@@ -902,11 +936,14 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
   private class WriteShardsIntoTempFilesFn
       extends DoFn<KV<ShardedKey<Integer>, Iterable<UserT>>, FileResult<DestinationT>> {
-    private transient @Nullable List<CompletionStage<Void>> closeFutures = null;
-    private transient @Nullable List<KV<Instant, FileResult<DestinationT>>> deferredOutput = null;
+    private transient List<CompletionStage<Void>> closeFutures = new ArrayList<>();
+    private transient List<KV<Instant, FileResult<DestinationT>>> deferredOutput =
+        new ArrayList<>();
 
-    @StartBundle
-    public void startBundle() {
+    // Ensure that transient fields are initialized.
+    private void readObject(java.io.ObjectInputStream in)
+        throws IOException, ClassNotFoundException {
+      in.defaultReadObject();
       closeFutures = new ArrayList<>();
       deferredOutput = new ArrayList<>();
     }
@@ -937,7 +974,14 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
         writeOrClose(writer, getDynamicDestinations().formatRecord(input));
       }
 
-      // Close all writers.
+      // Ensure that we clean-up any prior writers that were being closed as part of this bundle
+      // before we return from this processElement call. This allows us to perform the writes/closes
+      // in parallel with the prior elements close calls and bounds the amount of data buffered to
+      // limit the number of OOMs.
+      CompletionStage<List<Void>> pastCloseFutures = MoreFutures.allAsList(closeFutures);
+      closeFutures.clear();
+
+      // Close all writers in the background
       for (Map.Entry<DestinationT, Writer<DestinationT, OutputT>> entry : writers.entrySet()) {
         int shard = c.element().getKey().getShardNumber();
         checkArgument(
@@ -951,6 +995,10 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
                 new FileResult<>(writer.getOutputFile(), shard, window, c.pane(), entry.getKey())));
         closeWriterInBackground(writer);
       }
+
+      // Block on completing the past closes before returning. We do so after starting the current
+      // closes in the background so that they can happen in parallel.
+      MoreFutures.get(pastCloseFutures);
     }
 
     private void closeWriterInBackground(Writer<DestinationT, OutputT> writer) {
@@ -972,10 +1020,15 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
     @FinishBundle
     public void finishBundle(FinishBundleContext c) throws Exception {
-      MoreFutures.get(MoreFutures.allAsList(closeFutures));
-      // If all writers were closed without exception, output the results to the next stage.
-      for (KV<Instant, FileResult<DestinationT>> result : deferredOutput) {
-        c.output(result.getValue(), result.getKey(), result.getValue().getWindow());
+      try {
+        MoreFutures.get(MoreFutures.allAsList(closeFutures));
+        // If all writers were closed without exception, output the results to the next stage.
+        for (KV<Instant, FileResult<DestinationT>> result : deferredOutput) {
+          c.output(result.getValue(), result.getKey(), result.getValue().getWindow());
+        }
+      } finally {
+        deferredOutput.clear();
+        closeFutures.clear();
       }
     }
   }
@@ -1029,6 +1082,9 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
         }
         List<FileResult<DestinationT>> fileResults = Lists.newArrayList(c.element());
         LOG.info("Finalizing {} file results", fileResults.size());
+        if (fileResults.isEmpty() && getSkipIfEmpty()) {
+          return;
+        }
         DestinationT defaultDest = getDynamicDestinations().getDefaultDestination();
         List<KV<FileResult<DestinationT>, ResourceId>> resultsToFinalFilenames =
             fileResults.isEmpty()

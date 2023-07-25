@@ -45,6 +45,7 @@ import com.google.datastore.v1.Mutation;
 import com.google.datastore.v1.PartitionId;
 import com.google.datastore.v1.Query;
 import com.google.datastore.v1.QueryResultBatch;
+import com.google.datastore.v1.ReadOptions;
 import com.google.datastore.v1.RunQueryRequest;
 import com.google.datastore.v1.RunQueryResponse;
 import com.google.datastore.v1.client.Datastore;
@@ -54,11 +55,14 @@ import com.google.datastore.v1.client.DatastoreHelper;
 import com.google.datastore.v1.client.DatastoreOptions;
 import com.google.datastore.v1.client.QuerySplitter;
 import com.google.protobuf.Int32Value;
+import com.google.protobuf.Timestamp;
+import com.google.protobuf.util.Timestamps;
 import com.google.rpc.Code;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Set;
@@ -84,7 +88,6 @@ import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
@@ -210,9 +213,14 @@ import org.slf4j.LoggerFactory;
  * above transforms. In such a case, all the Cloud Datastore API calls are directed to the Emulator.
  *
  * @see PipelineRunner
+ *     <h3>Updates to the connector code</h3>
+ *     For any updates to this connector, please consider involving corresponding code reviewers
+ *     mentioned <a
+ *     href="https://github.com/apache/beam/blob/master/sdks/java/io/google-cloud-platform/OWNERS">
+ *     here</a>.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class DatastoreV1 {
 
@@ -239,7 +247,7 @@ public class DatastoreV1 {
   /**
    * When choosing the number of updates in a single RPC, do not go below this value. The actual
    * number of entities per request may be lower when we flush for the end of a bundle or if we hit
-   * {@link DatastoreV1.DATASTORE_BATCH_UPDATE_BYTES_LIMIT}.
+   * {@link #DATASTORE_BATCH_UPDATE_BYTES_LIMIT}.
    */
   @VisibleForTesting static final int DATASTORE_BATCH_UPDATE_ENTITIES_MIN = 5;
 
@@ -315,6 +323,8 @@ public class DatastoreV1 {
 
     public abstract @Nullable String getLocalhost();
 
+    public abstract @Nullable Instant getReadTime();
+
     @Override
     public abstract String toString();
 
@@ -334,6 +344,8 @@ public class DatastoreV1 {
 
       abstract Builder setLocalhost(String localhost);
 
+      abstract Builder setReadTime(Instant readTime);
+
       abstract Read build();
     }
 
@@ -341,10 +353,11 @@ public class DatastoreV1 {
      * Computes the number of splits to be performed on the given query by querying the estimated
      * size from Cloud Datastore.
      */
-    static int getEstimatedNumSplits(Datastore datastore, Query query, @Nullable String namespace) {
+    static int getEstimatedNumSplits(
+        Datastore datastore, Query query, @Nullable String namespace, @Nullable Instant readTime) {
       int numSplits;
       try {
-        long estimatedSizeBytes = getEstimatedSizeBytes(datastore, query, namespace);
+        long estimatedSizeBytes = getEstimatedSizeBytes(datastore, query, namespace, readTime);
         LOG.info("Estimated size bytes for the query is: {}", estimatedSizeBytes);
         numSplits =
             (int)
@@ -365,7 +378,8 @@ public class DatastoreV1 {
      * table.
      */
     private static long queryLatestStatisticsTimestamp(
-        Datastore datastore, @Nullable String namespace) throws DatastoreException {
+        Datastore datastore, @Nullable String namespace, @Nullable Instant readTime)
+        throws DatastoreException {
       Query.Builder query = Query.newBuilder();
       // Note: namespace either being null or empty represents the default namespace, in which
       // case we treat it as not provided by the user.
@@ -376,7 +390,7 @@ public class DatastoreV1 {
       }
       query.addOrder(makeOrder("timestamp", DESCENDING));
       query.setLimit(Int32Value.newBuilder().setValue(1));
-      RunQueryRequest request = makeRequest(query.build(), namespace);
+      RunQueryRequest request = makeRequest(query.build(), namespace, readTime);
 
       RunQueryResponse response = datastore.runQuery(request);
       QueryResultBatch batch = response.getBatch();
@@ -384,13 +398,17 @@ public class DatastoreV1 {
         throw new NoSuchElementException("Datastore total statistics unavailable");
       }
       Entity entity = batch.getEntityResults(0).getEntity();
-      return entity.getProperties().get("timestamp").getTimestampValue().getSeconds() * 1000000;
+      return entity.getPropertiesOrThrow("timestamp").getTimestampValue().getSeconds() * 1000000;
     }
 
-    /** Retrieve latest table statistics for a given kind, namespace, and datastore. */
+    /**
+     * Retrieve latest table statistics for a given kind, namespace, and datastore. If the Read has
+     * readTime specified, the latest statistics at or before readTime is retrieved.
+     */
     private static Entity getLatestTableStats(
-        String ourKind, @Nullable String namespace, Datastore datastore) throws DatastoreException {
-      long latestTimestamp = queryLatestStatisticsTimestamp(datastore, namespace);
+        String ourKind, @Nullable String namespace, Datastore datastore, @Nullable Instant readTime)
+        throws DatastoreException {
+      long latestTimestamp = queryLatestStatisticsTimestamp(datastore, namespace, readTime);
       LOG.info("Latest stats timestamp for kind {} is {}", ourKind, latestTimestamp);
 
       Query.Builder queryBuilder = Query.newBuilder();
@@ -405,7 +423,7 @@ public class DatastoreV1 {
               makeFilter("kind_name", EQUAL, makeValue(ourKind).build()).build(),
               makeFilter("timestamp", EQUAL, makeValue(latestTimestamp).build()).build()));
 
-      RunQueryRequest request = makeRequest(queryBuilder.build(), namespace);
+      RunQueryRequest request = makeRequest(queryBuilder.build(), namespace, readTime);
 
       long now = System.currentTimeMillis();
       RunQueryResponse response = datastore.runQuery(request);
@@ -428,11 +446,12 @@ public class DatastoreV1 {
      *
      * <p>See https://cloud.google.com/datastore/docs/concepts/stats.
      */
-    static long getEstimatedSizeBytes(Datastore datastore, Query query, @Nullable String namespace)
+    static long getEstimatedSizeBytes(
+        Datastore datastore, Query query, @Nullable String namespace, @Nullable Instant readTime)
         throws DatastoreException {
       String ourKind = query.getKind(0).getName();
-      Entity entity = getLatestTableStats(ourKind, namespace, datastore);
-      return entity.getProperties().get("entity_bytes").getIntegerValue();
+      Entity entity = getLatestTableStats(ourKind, namespace, datastore, readTime);
+      return entity.getPropertiesOrThrow("entity_bytes").getIntegerValue();
     }
 
     private static PartitionId.Builder forNamespace(@Nullable String namespace) {
@@ -446,21 +465,38 @@ public class DatastoreV1 {
       return partitionBuilder;
     }
 
-    /** Builds a {@link RunQueryRequest} from the {@code query} and {@code namespace}. */
-    static RunQueryRequest makeRequest(Query query, @Nullable String namespace) {
-      return RunQueryRequest.newBuilder()
-          .setQuery(query)
-          .setPartitionId(forNamespace(namespace))
-          .build();
+    /**
+     * Builds a {@link RunQueryRequest} from the {@code query} and {@code namespace}, optionally at
+     * the requested {@code readTime}.
+     */
+    static RunQueryRequest makeRequest(
+        Query query, @Nullable String namespace, @Nullable Instant readTime) {
+      RunQueryRequest.Builder request =
+          RunQueryRequest.newBuilder().setQuery(query).setPartitionId(forNamespace(namespace));
+      if (readTime != null) {
+        Timestamp readTimeProto = Timestamps.fromMillis(readTime.getMillis());
+        request.setReadOptions(ReadOptions.newBuilder().setReadTime(readTimeProto).build());
+      }
+      return request.build();
     }
 
     @VisibleForTesting
-    /** Builds a {@link RunQueryRequest} from the {@code GqlQuery} and {@code namespace}. */
-    static RunQueryRequest makeRequest(GqlQuery gqlQuery, @Nullable String namespace) {
-      return RunQueryRequest.newBuilder()
-          .setGqlQuery(gqlQuery)
-          .setPartitionId(forNamespace(namespace))
-          .build();
+    /**
+     * Builds a {@link RunQueryRequest} from the {@code GqlQuery} and {@code namespace}, optionally
+     * at the requested {@code readTime}.
+     */
+    static RunQueryRequest makeRequest(
+        GqlQuery gqlQuery, @Nullable String namespace, @Nullable Instant readTime) {
+      RunQueryRequest.Builder request =
+          RunQueryRequest.newBuilder()
+              .setGqlQuery(gqlQuery)
+              .setPartitionId(forNamespace(namespace));
+      if (readTime != null) {
+        Timestamp readTimeProto = Timestamps.fromMillis(readTime.getMillis());
+        request.setReadOptions(ReadOptions.newBuilder().setReadTime(readTimeProto).build());
+      }
+
+      return request.build();
     }
 
     /**
@@ -472,10 +508,16 @@ public class DatastoreV1 {
         @Nullable String namespace,
         Datastore datastore,
         QuerySplitter querySplitter,
-        int numSplits)
+        int numSplits,
+        @Nullable Instant readTime)
         throws DatastoreException {
       // If namespace is set, include it in the split request so splits are calculated accordingly.
-      return querySplitter.getSplits(query, forNamespace(namespace).build(), numSplits, datastore);
+      PartitionId partitionId = forNamespace(namespace).build();
+      if (readTime != null) {
+        Timestamp readTimeProto = Timestamps.fromMillis(readTime.getMillis());
+        return querySplitter.getSplits(query, partitionId, numSplits, datastore, readTimeProto);
+      }
+      return querySplitter.getSplits(query, partitionId, numSplits, datastore);
     }
 
     /**
@@ -492,11 +534,13 @@ public class DatastoreV1 {
      * problem in practice.
      */
     @VisibleForTesting
-    static Query translateGqlQueryWithLimitCheck(String gql, Datastore datastore, String namespace)
+    static Query translateGqlQueryWithLimitCheck(
+        String gql, Datastore datastore, String namespace, @Nullable Instant readTime)
         throws DatastoreException {
       String gqlQueryWithZeroLimit = gql + " LIMIT 0";
       try {
-        Query translatedQuery = translateGqlQuery(gqlQueryWithZeroLimit, datastore, namespace);
+        Query translatedQuery =
+            translateGqlQuery(gqlQueryWithZeroLimit, datastore, namespace, readTime);
         // Clear the limit that we set.
         return translatedQuery.toBuilder().clearLimit().build();
       } catch (DatastoreException e) {
@@ -507,7 +551,7 @@ public class DatastoreV1 {
           LOG.warn("Failed to translate Gql query '{}': {}", gqlQueryWithZeroLimit, e.getMessage());
           LOG.warn("User query might have a limit already set, so trying without zero limit");
           // Retry without the zero limit.
-          return translateGqlQuery(gql, datastore, namespace);
+          return translateGqlQuery(gql, datastore, namespace, readTime);
         } else {
           throw e;
         }
@@ -515,10 +559,11 @@ public class DatastoreV1 {
     }
 
     /** Translates a gql query string to {@link Query}. */
-    private static Query translateGqlQuery(String gql, Datastore datastore, String namespace)
+    private static Query translateGqlQuery(
+        String gql, Datastore datastore, String namespace, @Nullable Instant readTime)
         throws DatastoreException {
       GqlQuery gqlQuery = GqlQuery.newBuilder().setQueryString(gql).setAllowLiterals(true).build();
-      RunQueryRequest req = makeRequest(gqlQuery, namespace);
+      RunQueryRequest req = makeRequest(gqlQuery, namespace, readTime);
       return datastore.runQuery(req).getQuery();
     }
 
@@ -623,6 +668,11 @@ public class DatastoreV1 {
       return toBuilder().setLocalhost(localhost).build();
     }
 
+    /** Returns a new {@link DatastoreV1.Read} that reads at the specified {@code readTime}. */
+    public DatastoreV1.Read withReadTime(Instant readTime) {
+      return toBuilder().setReadTime(readTime).build();
+    }
+
     /** Returns Number of entities available for reading. */
     public long getNumEntities(
         PipelineOptions options, String ourKind, @Nullable String namespace) {
@@ -633,8 +683,8 @@ public class DatastoreV1 {
             datastoreFactory.getDatastore(
                 options, v1Options.getProjectId(), v1Options.getLocalhost());
 
-        Entity entity = getLatestTableStats(ourKind, namespace, datastore);
-        return entity.getProperties().get("count").getIntegerValue();
+        Entity entity = getLatestTableStats(ourKind, namespace, datastore, getReadTime());
+        return entity.getPropertiesOrThrow("count").getIntegerValue();
       } catch (Exception e) {
         return -1;
       }
@@ -683,13 +733,13 @@ public class DatastoreV1 {
         inputQuery =
             input
                 .apply(Create.ofProvider(getLiteralGqlQuery(), StringUtf8Coder.of()))
-                .apply(ParDo.of(new GqlQueryTranslateFn(v1Options)));
+                .apply(ParDo.of(new GqlQueryTranslateFn(v1Options, getReadTime())));
       }
 
       return inputQuery
-          .apply("Split", ParDo.of(new SplitQueryFn(v1Options, getNumQuerySplits())))
+          .apply("Split", ParDo.of(new SplitQueryFn(v1Options, getNumQuerySplits(), getReadTime())))
           .apply("Reshuffle", Reshuffle.viaRandomKey())
-          .apply("Read", ParDo.of(new ReadFn(v1Options)));
+          .apply("Read", ParDo.of(new ReadFn(v1Options, getReadTime())));
     }
 
     @Override
@@ -700,7 +750,8 @@ public class DatastoreV1 {
           .addIfNotNull(DisplayData.item("projectId", getProjectId()).withLabel("ProjectId"))
           .addIfNotNull(DisplayData.item("namespace", getNamespace()).withLabel("Namespace"))
           .addIfNotNull(DisplayData.item("query", query).withLabel("Query"))
-          .addIfNotNull(DisplayData.item("gqlQuery", getLiteralGqlQuery()).withLabel("GqlQuery"));
+          .addIfNotNull(DisplayData.item("gqlQuery", getLiteralGqlQuery()).withLabel("GqlQuery"))
+          .addIfNotNull(DisplayData.item("readTime", getReadTime()).withLabel("ReadTime"));
     }
 
     @VisibleForTesting
@@ -759,15 +810,22 @@ public class DatastoreV1 {
     /** A DoFn that translates a Cloud Datastore gql query string to {@code Query}. */
     static class GqlQueryTranslateFn extends DoFn<String, Query> {
       private final V1Options v1Options;
+      private final @Nullable Instant readTime;
       private transient Datastore datastore;
       private final V1DatastoreFactory datastoreFactory;
 
       GqlQueryTranslateFn(V1Options options) {
-        this(options, new V1DatastoreFactory());
+        this(options, null, new V1DatastoreFactory());
       }
 
-      GqlQueryTranslateFn(V1Options options, V1DatastoreFactory datastoreFactory) {
+      GqlQueryTranslateFn(V1Options options, @Nullable Instant readTime) {
+        this(options, readTime, new V1DatastoreFactory());
+      }
+
+      GqlQueryTranslateFn(
+          V1Options options, @Nullable Instant readTime, V1DatastoreFactory datastoreFactory) {
         this.v1Options = options;
+        this.readTime = readTime;
         this.datastoreFactory = datastoreFactory;
       }
 
@@ -783,7 +841,8 @@ public class DatastoreV1 {
         String gqlQuery = c.element();
         LOG.info("User query: '{}'", gqlQuery);
         Query query =
-            translateGqlQueryWithLimitCheck(gqlQuery, datastore, v1Options.getNamespace());
+            translateGqlQueryWithLimitCheck(
+                gqlQuery, datastore, v1Options.getNamespace(), readTime);
         LOG.info("User gql query translated to Query({})", query);
         c.output(query);
       }
@@ -798,6 +857,8 @@ public class DatastoreV1 {
       private final V1Options options;
       // number of splits to make for a given query
       private final int numSplits;
+      // time from which to run the queries
+      private final @Nullable Instant readTime;
 
       private final V1DatastoreFactory datastoreFactory;
       // Datastore client
@@ -806,14 +867,23 @@ public class DatastoreV1 {
       private transient QuerySplitter querySplitter;
 
       public SplitQueryFn(V1Options options, int numSplits) {
-        this(options, numSplits, new V1DatastoreFactory());
+        this(options, numSplits, null, new V1DatastoreFactory());
+      }
+
+      public SplitQueryFn(V1Options options, int numSplits, @Nullable Instant readTime) {
+        this(options, numSplits, readTime, new V1DatastoreFactory());
       }
 
       @VisibleForTesting
-      SplitQueryFn(V1Options options, int numSplits, V1DatastoreFactory datastoreFactory) {
+      SplitQueryFn(
+          V1Options options,
+          int numSplits,
+          @Nullable Instant readTime,
+          V1DatastoreFactory datastoreFactory) {
         this.options = options;
         this.numSplits = numSplits;
         this.datastoreFactory = datastoreFactory;
+        this.readTime = readTime;
       }
 
       @StartBundle
@@ -837,7 +907,8 @@ public class DatastoreV1 {
         int estimatedNumSplits;
         // Compute the estimated numSplits if numSplits is not specified by the user.
         if (numSplits <= 0) {
-          estimatedNumSplits = getEstimatedNumSplits(datastore, query, options.getNamespace());
+          estimatedNumSplits =
+              getEstimatedNumSplits(datastore, query, options.getNamespace(), readTime);
         } else {
           estimatedNumSplits = numSplits;
         }
@@ -847,7 +918,12 @@ public class DatastoreV1 {
         try {
           querySplits =
               splitQuery(
-                  query, options.getNamespace(), datastore, querySplitter, estimatedNumSplits);
+                  query,
+                  options.getNamespace(),
+                  datastore,
+                  querySplitter,
+                  estimatedNumSplits,
+                  readTime);
         } catch (Exception e) {
           LOG.warn("Unable to parallelize the given query: {}", query, e);
           querySplits = ImmutableList.of(query);
@@ -868,6 +944,7 @@ public class DatastoreV1 {
               DisplayData.item("numQuerySplits", numSplits)
                   .withLabel("Requested number of Query splits"));
         }
+        builder.addIfNotNull(DisplayData.item("readTime", readTime).withLabel("ReadTime"));
       }
     }
 
@@ -875,6 +952,7 @@ public class DatastoreV1 {
     @VisibleForTesting
     static class ReadFn extends DoFn<Query, Entity> {
       private final V1Options options;
+      private final @Nullable Instant readTime;
       private final V1DatastoreFactory datastoreFactory;
       // Datastore client
       private transient Datastore datastore;
@@ -889,12 +967,17 @@ public class DatastoreV1 {
               .withInitialBackoff(Duration.standardSeconds(5));
 
       public ReadFn(V1Options options) {
-        this(options, new V1DatastoreFactory());
+        this(options, null, new V1DatastoreFactory());
+      }
+
+      public ReadFn(V1Options options, @Nullable Instant readTime) {
+        this(options, readTime, new V1DatastoreFactory());
       }
 
       @VisibleForTesting
-      ReadFn(V1Options options, V1DatastoreFactory datastoreFactory) {
+      ReadFn(V1Options options, @Nullable Instant readTime, V1DatastoreFactory datastoreFactory) {
         this.options = options;
+        this.readTime = readTime;
         this.datastoreFactory = datastoreFactory;
       }
 
@@ -919,7 +1002,8 @@ public class DatastoreV1 {
                   options.getProjectId(), options.getNamespace()));
           baseLabels.put(MonitoringInfoConstants.Labels.DATASTORE_PROJECT, options.getProjectId());
           baseLabels.put(
-              MonitoringInfoConstants.Labels.DATASTORE_NAMESPACE, options.getNamespace());
+              MonitoringInfoConstants.Labels.DATASTORE_NAMESPACE,
+              String.valueOf(options.getNamespace()));
           ServiceCallMetric serviceCallMetric =
               new ServiceCallMetric(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
           try {
@@ -961,7 +1045,7 @@ public class DatastoreV1 {
             queryBuilder.setStartCursor(currentBatch.getEndCursor());
           }
 
-          RunQueryRequest request = makeRequest(queryBuilder.build(), namespace);
+          RunQueryRequest request = makeRequest(queryBuilder.build(), namespace, readTime);
           RunQueryResponse response = runQueryWithRetries(request);
 
           currentBatch = response.getBatch();
@@ -999,6 +1083,7 @@ public class DatastoreV1 {
       public void populateDisplayData(DisplayData.Builder builder) {
         super.populateDisplayData(builder);
         builder.include("options", options);
+        builder.addIfNotNull(DisplayData.item("readTime", readTime).withLabel("ReadTime"));
       }
     }
   }
@@ -1219,10 +1304,10 @@ public class DatastoreV1 {
   /**
    * A {@link PTransform} that writes mutations to Cloud Datastore.
    *
-   * <p>It requires a {@link DoFn} that tranforms an object of type {@code T} to a {@link Mutation}.
-   * {@code T} is usually either an {@link Entity} or a {@link Key} <b>Note:</b> Only idempotent
-   * Cloud Datastore mutation operations (upsert and delete) should be used by the {@code DoFn}
-   * provided, as the commits are retried when failures occur.
+   * <p>It requires a {@link DoFn} that transforms an object of type {@code T} to a {@link
+   * Mutation}. {@code T} is usually either an {@link Entity} or a {@link Key} <b>Note:</b> Only
+   * idempotent Cloud Datastore mutation operations (upsert and delete) should be used by the {@code
+   * DoFn} provided, as the commits are retried when failures occur.
    */
   private abstract static class Mutate<T> extends PTransform<PCollection<T>, PDone> {
 
@@ -1400,6 +1485,7 @@ public class DatastoreV1 {
     private final V1DatastoreFactory datastoreFactory;
     // Current batch of mutations to be written.
     private final List<Mutation> mutations = new ArrayList<>();
+    private final HashSet<com.google.datastore.v1.Key> uniqueMutationKeys = new HashSet<>();
     private int mutationsSize = 0; // Accumulated size of protos in mutations.
     private WriteBatcher writeBatcher;
     private transient AdaptiveThrottler adaptiveThrottler;
@@ -1409,6 +1495,8 @@ public class DatastoreV1 {
         Metrics.counter(DatastoreWriterFn.class, "datastoreRpcErrors");
     private final Counter rpcSuccesses =
         Metrics.counter(DatastoreWriterFn.class, "datastoreRpcSuccesses");
+    private final Distribution batchSize =
+        Metrics.distribution(DatastoreWriterFn.class, "batchSize");
     private final Counter entitiesMutated =
         Metrics.counter(DatastoreWriterFn.class, "datastoreEntitiesMutated");
     private final Distribution latencyMsPerMutation =
@@ -1454,10 +1542,30 @@ public class DatastoreV1 {
       }
     }
 
+    private static com.google.datastore.v1.Key getKey(Mutation m) {
+      if (m.hasUpsert()) {
+        return m.getUpsert().getKey();
+      } else if (m.hasInsert()) {
+        return m.getInsert().getKey();
+      } else if (m.hasDelete()) {
+        return m.getDelete();
+      } else if (m.hasUpdate()) {
+        return m.getUpdate().getKey();
+      } else {
+        LOG.warn("Mutation {} does not have an operation type set.", m);
+        return Entity.getDefaultInstance().getKey();
+      }
+    }
+
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
-      Mutation write = c.element();
-      int size = write.getSerializedSize();
+      Mutation mutation = c.element();
+      int size = mutation.getSerializedSize();
+
+      if (!uniqueMutationKeys.add(getKey(mutation))) {
+        flushBatch();
+      }
+
       if (mutations.size() > 0
           && mutationsSize + size >= DatastoreV1.DATASTORE_BATCH_UPDATE_BYTES_LIMIT) {
         flushBatch();
@@ -1486,10 +1594,13 @@ public class DatastoreV1 {
      * @throws DatastoreException if the commit fails or IOException or InterruptedException if
      *     backing off between retries fails.
      */
-    private void flushBatch() throws DatastoreException, IOException, InterruptedException {
+    private synchronized void flushBatch()
+        throws DatastoreException, IOException, InterruptedException {
       LOG.debug("Writing batch of {} mutations", mutations.size());
       Sleeper sleeper = Sleeper.DEFAULT;
       BackOff backoff = BUNDLE_WRITE_BACKOFF.backoff();
+
+      batchSize.update(mutations.size());
 
       while (true) {
         // Batch upsert entities.
@@ -1559,6 +1670,7 @@ public class DatastoreV1 {
       }
       LOG.debug("Successfully wrote {} mutations", mutations.size());
       mutations.clear();
+      uniqueMutationKeys.clear();
       mutationsSize = 0;
     }
 

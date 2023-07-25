@@ -53,7 +53,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 @Category(UsesSchema.class)
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class CoGroupTest {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
@@ -426,13 +426,12 @@ public class CoGroupTest {
             .setRowSchema(CG_SCHEMA_3);
 
     thrown.expect(IllegalArgumentException.class);
-    PCollection<Row> joined =
-        PCollectionTuple.of("pc1", pc1, "pc2", pc2, "pc3", pc3)
-            .apply(
-                "CoGroup1",
-                CoGroup.join("pc1", By.fieldNames("user", "country").withSideInput())
-                    .join("pc2", By.fieldNames("user2", "country2").withSideInput())
-                    .join("pc3", By.fieldNames("user3", "country3").withSideInput()));
+    PCollectionTuple.of("pc1", pc1, "pc2", pc2, "pc3", pc3)
+        .apply(
+            "CoGroup1",
+            CoGroup.join("pc1", By.fieldNames("user", "country").withSideInput())
+                .join("pc2", By.fieldNames("user2", "country2").withSideInput())
+                .join("pc3", By.fieldNames("user3", "country3").withSideInput()));
     pipeline.run();
   }
 
@@ -459,14 +458,13 @@ public class CoGroupTest {
             .setRowSchema(CG_SCHEMA_3);
 
     thrown.expect(IllegalArgumentException.class);
-    PCollection<Row> joined =
-        PCollectionTuple.of("pc1", pc1, "pc2", pc2, "pc3", pc3)
-            .apply(
-                "CoGroup1",
-                CoGroup.join("pc1", By.fieldNames("user", "country").withOptionalParticipation())
-                    .join("pc2", By.fieldNames("user2", "country2").withOptionalParticipation())
-                    .join("pc3", By.fieldNames("user3", "country3").withSideInput())
-                    .crossProductJoin());
+    PCollectionTuple.of("pc1", pc1, "pc2", pc2, "pc3", pc3)
+        .apply(
+            "CoGroup1",
+            CoGroup.join("pc1", By.fieldNames("user", "country").withOptionalParticipation())
+                .join("pc2", By.fieldNames("user2", "country2").withOptionalParticipation())
+                .join("pc3", By.fieldNames("user3", "country3").withSideInput())
+                .crossProductJoin());
     pipeline.run();
   }
 
@@ -490,12 +488,11 @@ public class CoGroupTest {
             "Create3", Create.of(Row.withSchema(CG_SCHEMA_3).addValues("user1", 17, "us").build()));
 
     thrown.expect(IllegalArgumentException.class);
-    PCollection<Row> joined =
-        PCollectionTuple.of("pc1", pc1, "pc2", pc2, "pc3", pc3)
-            .apply(
-                "CoGroup",
-                CoGroup.join("pc1", By.fieldNames("user", "country"))
-                    .join("pc2", By.fieldNames("user2", "country2")));
+    PCollectionTuple.of("pc1", pc1, "pc2", pc2, "pc3", pc3)
+        .apply(
+            "CoGroup",
+            CoGroup.join("pc1", By.fieldNames("user", "country"))
+                .join("pc2", By.fieldNames("user2", "country2")));
     pipeline.run();
   }
 
@@ -516,11 +513,10 @@ public class CoGroupTest {
             .setRowSchema(CG_SCHEMA_1);
 
     thrown.expect(IllegalArgumentException.class);
-    PCollection<Row> joined =
-        PCollectionTuple.of("pc1", pc1, "pc2", pc2)
-            .apply(
-                "CoGroup",
-                CoGroup.join("pc1", By.fieldNames("user")).join("pc2", By.fieldNames("count")));
+    PCollectionTuple.of("pc1", pc1, "pc2", pc2)
+        .apply(
+            "CoGroup",
+            CoGroup.join("pc1", By.fieldNames("user")).join("pc2", By.fieldNames("count")));
     pipeline.run();
   }
 
@@ -755,7 +751,7 @@ public class CoGroupTest {
     // middle (pc2) PCollection are filled in with nulls. Missing events from other PCollections
     // are not. Events with key ("user2", "ar) show up in pc1 and pc3 but not in pc2, so we expect
     // the outer join to still produce those rows, with nulls for pc2. Events with key
-    // ("user3", "ar) however show up in in p2 and pc3, but not in pc1; since pc1 is marked for
+    // ("user3", "ar) however show up in p2 and pc3, but not in pc1; since pc1 is marked for
     // full participation (no outer join), these events should not be included in the join.
     expectedJoinedRows.add(
         Row.withSchema(expectedSchema)

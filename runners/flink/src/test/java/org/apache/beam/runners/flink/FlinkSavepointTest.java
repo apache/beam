@@ -18,12 +18,13 @@
 package org.apache.beam.runners.flink;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.Assume.assumeFalse;
 
 import java.io.Serializable;
 import java.net.URI;
 import java.util.Collections;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
@@ -50,10 +51,10 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListeningExecutorService;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
@@ -62,7 +63,6 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
-import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.hamcrest.Matchers;
 import org.hamcrest.core.IsIterableContaining;
 import org.joda.time.Instant;
@@ -83,7 +83,10 @@ import org.slf4j.LoggerFactory;
  * a different parallelism.
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  // TODO(https://github.com/apache/beam/issues/21230): Remove when new version of
+  // errorprone is released (2.11.0)
+  "unused"
 })
 public class FlinkSavepointTest implements Serializable {
 
@@ -95,6 +98,9 @@ public class FlinkSavepointTest implements Serializable {
   /** Static for synchronization between the pipeline state and the test. */
   private static volatile CountDownLatch oneShotLatch;
 
+  /** Reusable executor for portable jobs. */
+  private static ListeningExecutorService flinkJobExecutor;
+
   /** Temporary folder for savepoints. */
   @ClassRule public static transient TemporaryFolder tempFolder = new TemporaryFolder();
 
@@ -103,6 +109,8 @@ public class FlinkSavepointTest implements Serializable {
 
   @BeforeClass
   public static void beforeClass() throws Exception {
+    flinkJobExecutor = MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(1));
+
     Configuration config = new Configuration();
     // Avoid port collision in parallel tests
     config.setInteger(RestOptions.PORT, 0);
@@ -131,6 +139,13 @@ public class FlinkSavepointTest implements Serializable {
   public static void afterClass() throws Exception {
     flinkCluster.close();
     flinkCluster = null;
+
+    flinkJobExecutor.shutdown();
+    flinkJobExecutor.awaitTermination(10, TimeUnit.SECONDS);
+    if (!flinkJobExecutor.isShutdown()) {
+      LOG.warn("Could not shutdown Flink job executor");
+    }
+    flinkJobExecutor = null;
   }
 
   @After
@@ -145,8 +160,6 @@ public class FlinkSavepointTest implements Serializable {
 
   @Test
   public void testSavepointRestoreLegacy() throws Exception {
-    // Don't run on Flink 1.11. https://issues.apache.org/jira/browse/BEAM-10955
-    assumeFalse(EnvironmentInformation.getVersion().startsWith("1.11"));
     runSavepointAndRestore(false);
   }
 
@@ -165,6 +178,7 @@ public class FlinkSavepointTest implements Serializable {
     options.setShutdownSourcesAfterIdleMs(Long.MAX_VALUE);
 
     oneShotLatch = new CountDownLatch(1);
+    options.setJobName("initial-" + UUID.randomUUID());
     Pipeline pipeline = Pipeline.create(options);
     createStreamingJob(pipeline, false, isPortablePipeline);
 
@@ -182,6 +196,7 @@ public class FlinkSavepointTest implements Serializable {
     oneShotLatch = new CountDownLatch(1);
     // Increase parallelism
     options.setParallelism(4);
+    options.setJobName("restored-" + UUID.randomUUID());
     pipeline = Pipeline.create(options);
     createStreamingJob(pipeline, true, isPortablePipeline);
 
@@ -196,7 +211,7 @@ public class FlinkSavepointTest implements Serializable {
   private JobID executeLegacy(Pipeline pipeline) throws Exception {
     JobGraph jobGraph = getJobGraph(pipeline);
     flinkCluster.submitJob(jobGraph).get();
-    return waitForJobToBeReady();
+    return waitForJobToBeReady(pipeline.getOptions().getJobName());
   }
 
   private JobID executePortable(Pipeline pipeline) throws Exception {
@@ -208,26 +223,20 @@ public class FlinkSavepointTest implements Serializable {
 
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline);
 
-    ListeningExecutorService executorService =
-        MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(1));
     FlinkPipelineOptions pipelineOptions = pipeline.getOptions().as(FlinkPipelineOptions.class);
-    try {
-      JobInvocation jobInvocation =
-          FlinkJobInvoker.create(null)
-              .createJobInvocation(
-                  "id",
-                  "none",
-                  executorService,
-                  pipelineProto,
-                  pipelineOptions,
-                  new FlinkPipelineRunner(pipelineOptions, null, Collections.emptyList()));
+    JobInvocation jobInvocation =
+        FlinkJobInvoker.create(null)
+            .createJobInvocation(
+                "id",
+                "none",
+                flinkJobExecutor,
+                pipelineProto,
+                pipelineOptions,
+                new FlinkPipelineRunner(pipelineOptions, null, Collections.emptyList()));
 
-      jobInvocation.start();
+    jobInvocation.start();
 
-      return waitForJobToBeReady();
-    } finally {
-      executorService.shutdown();
-    }
+    return waitForJobToBeReady(pipeline.getOptions().getJobName());
   }
 
   private String getFlinkMaster() throws Exception {
@@ -242,11 +251,21 @@ public class FlinkSavepointTest implements Serializable {
     }
   }
 
-  private JobID waitForJobToBeReady() throws InterruptedException, ExecutionException {
+  private JobID waitForJobToBeReady(String jobName)
+      throws InterruptedException, ExecutionException {
     while (true) {
-      JobStatusMessage jobStatus = Iterables.getFirst(flinkCluster.listJobs().get(), null);
-      if (jobStatus != null && jobStatus.getJobState().name().equals("RUNNING")) {
-        return jobStatus.getJobId();
+      Optional<JobStatusMessage> jobId =
+          flinkCluster.listJobs().get().stream()
+              .filter((status) -> status.getJobName().equals(jobName))
+              .findAny();
+      if (jobId.isPresent()) {
+        JobStatusMessage status = jobId.get();
+        if (status.getJobState().equals(JobStatus.RUNNING)) {
+          return status.getJobId();
+        }
+        LOG.info("Job '{}' is in state {}, waiting...", jobName, status.getJobState());
+      } else {
+        LOG.info("Job '{}' does not yet exist, waiting...", jobName);
       }
       Thread.sleep(100);
     }
@@ -257,7 +276,7 @@ public class FlinkSavepointTest implements Serializable {
     // try multiple times because the job might not be ready yet
     for (int i = 0; i < 10; i++) {
       try {
-        return flinkCluster.triggerSavepoint(jobID, null, false).get();
+        return MiniClusterCompat.triggerSavepoint(flinkCluster, jobID, null, false).get();
       } catch (Exception e) {
         exception = e;
         LOG.debug("Exception while triggerSavepoint, trying again", e);
@@ -299,7 +318,7 @@ public class FlinkSavepointTest implements Serializable {
                   MapElements.via(
                       new InferableFunction<byte[], KV<String, Void>>() {
                         @Override
-                        public KV<String, Void> apply(byte[] input) throws Exception {
+                        public KV<String, Void> apply(byte[] input) {
                           // This only writes data to one of the two initial partitions.
                           // We want to test this due to
                           // https://jira.apache.org/jira/browse/BEAM-7144
@@ -310,6 +329,7 @@ public class FlinkSavepointTest implements Serializable {
                   "TimerStage",
                   ParDo.of(
                       new DoFn<KV<String, Void>, KV<String, Long>>() {
+
                         @StateId("nextInteger")
                         private final StateSpec<ValueState<Long>> valueStateSpec =
                             StateSpecs.value();

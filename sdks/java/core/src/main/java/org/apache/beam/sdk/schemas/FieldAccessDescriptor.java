@@ -33,8 +33,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor.FieldDescriptor.ListQualifier;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor.FieldDescriptor.MapQualifier;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor.FieldDescriptor.Qualifier;
@@ -58,10 +56,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * <p>This class always puts the selected fields in a deterministic order.
  */
-@Experimental(Kind.SCHEMAS)
 @AutoValue
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public abstract class FieldAccessDescriptor implements Serializable {
   /** Description of a single field. */
@@ -87,7 +84,7 @@ public abstract class FieldAccessDescriptor implements Serializable {
         MAP
       };
 
-      public abstract Kind getKind();
+      public abstract Qualifier.Kind getKind();
 
       public abstract ListQualifier getList();
 

@@ -22,15 +22,18 @@ import unittest
 from itertools import chain
 
 import numpy as np
+from numpy.testing import assert_array_equal
 
 import apache_beam as beam
 from apache_beam.coders import RowCoder
+from apache_beam.coders import coder_impl
 from apache_beam.coders.typecoders import registry as coders_registry
 from apache_beam.internal import pickler
 from apache_beam.portability.api import schema_pb2
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.typehints.schemas import named_tuple_from_schema
 from apache_beam.typehints.schemas import typing_to_runner_api
 from apache_beam.utils.timestamp import Timestamp
 
@@ -47,7 +50,23 @@ Person = typing.NamedTuple(
         ("favorite_time", Timestamp),
     ])
 
+NullablePerson = typing.NamedTuple(
+    "NullablePerson",
+    [("name", typing.Optional[str]), ("age", np.int32),
+     ("address", typing.Optional[str]), ("aliases", typing.List[str]),
+     ("knows_javascript", bool), ("payload", typing.Optional[bytes]),
+     ("custom_metadata", typing.Mapping[str, int]),
+     ("favorite_time", typing.Optional[Timestamp]),
+     ("one_more_field", typing.Optional[str])])
+
+
+class People(typing.NamedTuple):
+  primary: Person
+  partner: typing.Optional[Person]
+
+
 coders_registry.register_coder(Person, RowCoder)
+coders_registry.register_coder(People, RowCoder)
 
 
 class RowCoderTest(unittest.TestCase):
@@ -82,6 +101,23 @@ class RowCoderTest(unittest.TestCase):
           Timestamp.from_rfc3339('2020-08-12T15:51:00.032Z'))
   ]
 
+  def test_row_accepts_trailing_zeros_truncated(self):
+    expected_coder = RowCoder(
+        typing_to_runner_api(NullablePerson).row_type.schema)
+    person = NullablePerson(
+        None,
+        np.int32(25),
+        "Westeros", ["Mother of Dragons"],
+        False,
+        None, {"dragons": 3},
+        None,
+        "NotNull")
+    out = expected_coder.encode(person)
+    # 9 fields, 1 null byte, field 0, 5, 7 are null
+    new_payload = bytes([9, 1, 1 | 1 << 5 | 1 << 7]) + out[4:]
+    new_value = expected_coder.decode(new_payload)
+    self.assertEqual(person, new_value)
+
   def test_create_row_coder_from_named_tuple(self):
     expected_coder = RowCoder(typing_to_runner_api(Person).row_type.schema)
     real_coder = coders_registry.get_coder(Person)
@@ -92,6 +128,19 @@ class RowCoderTest(unittest.TestCase):
 
       self.assertEqual(
           test_case, real_coder.decode(real_coder.encode(test_case)))
+
+  def test_create_row_coder_from_nested_named_tuple(self):
+    expected_coder = RowCoder(typing_to_runner_api(People).row_type.schema)
+    real_coder = coders_registry.get_coder(People)
+
+    for primary in self.PEOPLE:
+      for other in self.PEOPLE + [None]:
+        test_case = People(primary=primary, partner=other)
+        self.assertEqual(
+            expected_coder.encode(test_case), real_coder.encode(test_case))
+
+        self.assertEqual(
+            test_case, real_coder.decode(real_coder.encode(test_case)))
 
   def test_create_row_coder_from_schema(self):
     schema = schema_pb2.Schema(
@@ -155,13 +204,14 @@ class RowCoderTest(unittest.TestCase):
       self.assertEqual(test_case, coder.decode(coder.encode(test_case)))
 
   @unittest.skip(
-      "BEAM-8030 - Overflow behavior in VarIntCoder is currently inconsistent")
+      "https://github.com/apache/beam/issues/19696 - Overflow behavior in "
+      "VarIntCoder is currently inconsistent")
   def test_overflows(self):
     IntTester = typing.NamedTuple(
         'IntTester',
         [
-            # TODO(BEAM-7996): Test int8 and int16 here as well when those
-            # types are supported
+            # TODO(https://github.com/apache/beam/issues/19815): Test int8 and
+            # int16 here as well when those types are supported
             # ('i8', typing.Optional[np.int8]),
             # ('i16', typing.Optional[np.int16]),
             ('i32', typing.Optional[np.int32]),
@@ -256,16 +306,133 @@ class RowCoderTest(unittest.TestCase):
 
     self.assertEqual(value, coder.decode(coder.encode(value)))
 
+  def test_encoding_position_reorder_fields(self):
+    schema1 = schema_pb2.Schema(
+        id="reorder_test_schema1",
+        fields=[
+            schema_pb2.Field(
+                name="f_int32",
+                type=schema_pb2.FieldType(atomic_type=schema_pb2.INT32),
+            ),
+            schema_pb2.Field(
+                name="f_str",
+                type=schema_pb2.FieldType(atomic_type=schema_pb2.STRING),
+            ),
+        ])
+    schema2 = schema_pb2.Schema(
+        id="reorder_test_schema2",
+        encoding_positions_set=True,
+        fields=[
+            schema_pb2.Field(
+                name="f_str",
+                type=schema_pb2.FieldType(atomic_type=schema_pb2.STRING),
+                encoding_position=1,
+            ),
+            schema_pb2.Field(
+                name="f_int32",
+                type=schema_pb2.FieldType(atomic_type=schema_pb2.INT32),
+                encoding_position=0,
+            ),
+        ])
+
+    RowSchema1 = named_tuple_from_schema(schema1)
+    RowSchema2 = named_tuple_from_schema(schema2)
+    roundtripped = RowCoder(schema2).decode(
+        RowCoder(schema1).encode(RowSchema1(42, "Hello World!")))
+
+    self.assertEqual(RowSchema2(f_int32=42, f_str="Hello World!"), roundtripped)
+
+  def test_encoding_position_add_fields_and_reorder(self):
+    old_schema = schema_pb2.Schema(
+        id="add_test_old",
+        fields=[
+            schema_pb2.Field(
+                name="f_int32",
+                type=schema_pb2.FieldType(atomic_type=schema_pb2.INT32),
+            ),
+            schema_pb2.Field(
+                name="f_str",
+                type=schema_pb2.FieldType(atomic_type=schema_pb2.STRING),
+            ),
+        ])
+    new_schema = schema_pb2.Schema(
+        encoding_positions_set=True,
+        id="add_test_new",
+        fields=[
+            schema_pb2.Field(
+                name="f_new_str",
+                type=schema_pb2.FieldType(
+                    atomic_type=schema_pb2.STRING, nullable=True),
+                encoding_position=2,
+            ),
+            schema_pb2.Field(
+                name="f_int32",
+                type=schema_pb2.FieldType(atomic_type=schema_pb2.INT32),
+                encoding_position=0,
+            ),
+            schema_pb2.Field(
+                name="f_str",
+                type=schema_pb2.FieldType(atomic_type=schema_pb2.STRING),
+                encoding_position=1,
+            ),
+        ])
+
+    Old = named_tuple_from_schema(old_schema)
+    New = named_tuple_from_schema(new_schema)
+    roundtripped = RowCoder(new_schema).decode(
+        RowCoder(old_schema).encode(Old(42, "Hello World!")))
+
+    self.assertEqual(
+        New(f_new_str=None, f_int32=42, f_str="Hello World!"), roundtripped)
+
   def test_row_coder_fail_early_bad_schema(self):
     schema_proto = schema_pb2.Schema(
         fields=[
             schema_pb2.Field(
                 name="type_with_no_typeinfo", type=schema_pb2.FieldType())
-        ])
+        ],
+        id='bad-schema')
 
     # Should raise an exception referencing the problem field
     self.assertRaisesRegex(
         ValueError, "type_with_no_typeinfo", lambda: RowCoder(schema_proto))
+
+  def test_batch_encode_decode(self):
+    coder = RowCoder(typing_to_runner_api(Person).row_type.schema).get_impl()
+    seq_out = coder_impl.create_OutputStream()
+    for person in self.PEOPLE:
+      coder.encode_to_stream(person, seq_out, False)
+
+    batch_out = coder_impl.create_OutputStream()
+    columnar = {
+        field: np.array([getattr(person, field) for person in self.PEOPLE],
+                        ndmin=1,
+                        dtype=object)
+        for field in Person._fields
+    }
+    coder.encode_batch_to_stream(columnar, batch_out)
+    if seq_out.get() != batch_out.get():
+      a, b = seq_out.get(), batch_out.get()
+      N = 25
+      for k in range(0, max(len(a), len(b)), N):
+        print(k, a[k:k + N] == b[k:k + N])
+        print(a[k:k + N])
+        print(b[k:k + N])
+    self.assertEqual(seq_out.get(), batch_out.get())
+
+    for size in [len(self.PEOPLE) - 1, len(self.PEOPLE), len(self.PEOPLE) + 1]:
+      dest = {
+          field: np.ndarray((size, ), dtype=a.dtype)
+          for field,
+          a in columnar.items()
+      }
+      n = min(size, len(self.PEOPLE))
+      self.assertEqual(
+          n,
+          coder.decode_batch_from_stream(
+              dest, coder_impl.create_InputStream(seq_out.get())))
+      for field, a in columnar.items():
+        assert_array_equal(a[:n], dest[field][:n])
 
 
 if __name__ == "__main__":

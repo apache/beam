@@ -57,6 +57,7 @@ import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /**
@@ -76,7 +77,7 @@ import org.joda.time.Instant;
  * together without requiring global state.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class WinningBids extends PTransform<PCollection<Event>, PCollection<AuctionBid>> {
   /** Windows for open auctions and bids. */
@@ -129,7 +130,10 @@ public class WinningBids extends PTransform<PCollection<Event>, PCollection<Auct
       // the upper bound of auctions assuming the auction starts at the same time as the bid,
       // and assuming the system is running at its lowest event rate (as per interEventDelayUs).
       return new AuctionOrBidWindow(
-          timestamp, timestamp.plus(expectedAuctionDurationMs * 2), bid.auction, false);
+          timestamp,
+          timestamp.plus(Duration.millis(expectedAuctionDurationMs * 2)),
+          bid.auction,
+          false);
     }
 
     /** Is this an auction window? */

@@ -52,9 +52,11 @@ WindowFn.
 import abc
 from functools import total_ordering
 from typing import Any
+from typing import Generic
 from typing import Iterable
 from typing import List
 from typing import Optional
+from typing import TypeVar
 
 from google.protobuf import duration_pb2
 from google.protobuf import timestamp_pb2
@@ -133,7 +135,7 @@ class WindowFn(urns.RunnerApiFn, metaclass=abc.ABCMeta):
 
   @abc.abstractmethod
   def assign(self, assign_context):
-    # type: (AssignContext) -> Iterable[BoundedWindow]
+    # type: (AssignContext) -> Iterable[BoundedWindow] # noqa: F821
 
     """Associates windows to an element.
 
@@ -278,8 +280,11 @@ class IntervalWindow(windowed_value._IntervalWindowBase, BoundedWindow):
         min(self.start, other.start), max(self.end, other.end))
 
 
+V = TypeVar("V")
+
+
 @total_ordering
-class TimestampedValue(object):
+class TimestampedValue(Generic[V]):
   """A timestamped value having a value and a timestamp.
 
   Attributes:
@@ -287,7 +292,7 @@ class TimestampedValue(object):
     timestamp: Timestamp associated with the value as seconds since Unix epoch.
   """
   def __init__(self, value, timestamp):
-    # type: (Any, TimestampTypes) -> None
+    # type: (V, TimestampTypes) -> None
     self.value = value
     self.timestamp = Timestamp.of(timestamp)
 
@@ -356,6 +361,17 @@ class NonMergingWindowFn(WindowFn):
 class GlobalWindows(NonMergingWindowFn):
   """A windowing function that assigns everything to one global window."""
   @classmethod
+  def windowed_batch(
+      cls,
+      batch,  # type: Any
+      timestamp=MIN_TIMESTAMP,  # type: Timestamp
+      pane_info=windowed_value.PANE_INFO_UNKNOWN  # type: windowed_value.PaneInfo
+  ):
+    # type: (...) -> windowed_value.WindowedBatch
+    return windowed_value.HomogeneousWindowedBatch.of(
+        batch, timestamp, (GlobalWindow(), ), pane_info)
+
+  @classmethod
   def windowed_value(
       cls,
       value,  # type: Any
@@ -364,6 +380,10 @@ class GlobalWindows(NonMergingWindowFn):
   ):
     # type: (...) -> WindowedValue
     return WindowedValue(value, timestamp, (GlobalWindow(), ), pane_info)
+
+  @classmethod
+  def windowed_value_at_end_of_window(cls, value):
+    return cls.windowed_value(value, GlobalWindow().max_timestamp())
 
   def assign(self, assign_context):
     # type: (WindowFn.AssignContext) -> List[GlobalWindow]

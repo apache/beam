@@ -25,9 +25,11 @@ import inspect
 import logging
 import random
 import sys
+import time
 import traceback
 import types
 import typing
+from itertools import dropwhile
 
 from apache_beam import coders
 from apache_beam import pvalue
@@ -50,11 +52,14 @@ from apache_beam.transforms.sideinputs import get_sideinput_index
 from apache_beam.transforms.userstate import StateSpec
 from apache_beam.transforms.userstate import TimerSpec
 from apache_beam.transforms.window import GlobalWindows
+from apache_beam.transforms.window import SlidingWindows
 from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.transforms.window import WindowedValue
 from apache_beam.transforms.window import WindowFn
+from apache_beam.typehints import row_type
 from apache_beam.typehints import trivial_inference
+from apache_beam.typehints.batch import BatchConverter
 from apache_beam.typehints.decorators import TypeCheckError
 from apache_beam.typehints.decorators import WithTypeHints
 from apache_beam.typehints.decorators import get_signature
@@ -62,7 +67,9 @@ from apache_beam.typehints.decorators import get_type_hints
 from apache_beam.typehints.decorators import with_input_types
 from apache_beam.typehints.decorators import with_output_types
 from apache_beam.typehints.trivial_inference import element_type
+from apache_beam.typehints.typehints import TypeConstraint
 from apache_beam.typehints.typehints import is_consistent_with
+from apache_beam.typehints.typehints import visit_inner_types
 from apache_beam.utils import urns
 from apache_beam.utils.timestamp import Duration
 
@@ -118,8 +125,6 @@ class DoFnContext(object):
 class DoFnProcessContext(DoFnContext):
   """A processing context passed to DoFn process() during execution.
 
-  Experimental; no backwards-compatibility guarantees.
-
   Most importantly, a DoFn.process method will access context.element
   to get the element it is supposed to process.
 
@@ -170,8 +175,6 @@ class DoFnProcessContext(DoFnContext):
 class ProcessContinuation(object):
   """An object that may be produced as the last element of a process method
     invocation.
-
-  Experimental; no backwards-compatibility guarantees.
 
   If produced, indicates that there is more work to be done for the current
   input element.
@@ -311,6 +314,9 @@ class RestrictionProvider(object):
     of the restriction.
 
     The return value must be non-negative.
+
+    Must be thread safe. Will be invoked concurrently during bundle processing
+    due to runner initiated splitting and progress estimation.
 
     This API is required to be implemented.
     """
@@ -578,6 +584,40 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
 
     return wrapper
 
+  @staticmethod
+  def yields_elements(fn):
+    """A decorator to apply to ``process_batch`` indicating it yields elements.
+
+    By default ``process_batch`` is assumed to both consume and produce
+    "batches", which are collections of multiple logical Beam elements. This
+    decorator indicates that ``process_batch`` **produces** individual elements
+    at a time. ``process_batch`` is always expected to consume batches.
+    """
+    if not fn.__name__ in ('process', 'process_batch'):
+      raise TypeError(
+          "@yields_elements must be applied to a process or "
+          f"process_batch method, got {fn!r}.")
+
+    fn._beam_yields_elements = True
+    return fn
+
+  @staticmethod
+  def yields_batches(fn):
+    """A decorator to apply to ``process`` indicating it yields batches.
+
+    By default ``process`` is assumed to both consume and produce
+    individual elements at a time. This decorator indicates that ``process``
+    **produces** "batches", which are collections of multiple logical Beam
+    elements.
+    """
+    if not fn.__name__ in ('process', 'process_batch'):
+      raise TypeError(
+          "@yields_elements must be applied to a process or "
+          f"process_batch method, got {fn!r}.")
+
+    fn._beam_yields_batches = True
+    return fn
+
   def default_label(self):
     return self.__class__.__name__
 
@@ -620,6 +660,9 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     Returns:
       An Iterable of output elements or None.
     """
+    raise NotImplementedError
+
+  def process_batch(self, batch, *args, **kwargs):
     raise NotImplementedError
 
   def setup(self):
@@ -667,31 +710,186 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     return get_function_arguments(self, func)
 
   def default_type_hints(self):
-    fn_type_hints = typehints.decorators.IOTypeHints.from_callable(self.process)
-    if fn_type_hints is not None:
-      try:
-        fn_type_hints = fn_type_hints.strip_iterable()
-      except ValueError as e:
-        raise ValueError('Return value not iterable: %s: %s' % (self, e))
+    process_type_hints = typehints.decorators.IOTypeHints.from_callable(
+        self.process) or typehints.decorators.IOTypeHints.empty()
+
+    if self._process_yields_batches:
+      # process() produces batches, don't use it's output typehint
+      process_type_hints = process_type_hints.with_output_types_from(
+          typehints.decorators.IOTypeHints.empty())
+
+    if self._process_batch_yields_elements:
+      # process_batch() produces elements, *do* use it's output typehint
+
+      # First access the typehint
+      process_batch_type_hints = typehints.decorators.IOTypeHints.from_callable(
+          self.process_batch) or typehints.decorators.IOTypeHints.empty()
+
+      # Then we deconflict with the typehint from process, if it exists
+      if (process_batch_type_hints.output_types !=
+          typehints.decorators.IOTypeHints.empty().output_types):
+        if (process_type_hints.output_types !=
+            typehints.decorators.IOTypeHints.empty().output_types and
+            process_batch_type_hints.output_types !=
+            process_type_hints.output_types):
+          raise TypeError(
+              f"DoFn {self!r} yields element from both process and "
+              "process_batch, but they have mismatched output typehints:\n"
+              f" process: {process_type_hints.output_types}\n"
+              f" process_batch: {process_batch_type_hints.output_types}")
+
+        process_type_hints = process_type_hints.with_output_types_from(
+            process_batch_type_hints)
+
+    try:
+      process_type_hints = process_type_hints.strip_iterable()
+    except ValueError as e:
+      raise ValueError('Return value not iterable: %s: %s' % (self, e))
+
     # Prefer class decorator type hints for backwards compatibility.
-    return get_type_hints(self.__class__).with_defaults(fn_type_hints)
+    return get_type_hints(self.__class__).with_defaults(process_type_hints)
 
   # TODO(sourabhbajaj): Do we want to remove the responsibility of these from
   # the DoFn or maybe the runner
   def infer_output_type(self, input_type):
-    # TODO(BEAM-8247): Side inputs types.
-    # TODO(robertwb): Assert compatibility with input type hint?
-    return self._strip_output_annotations(
-        trivial_inference.infer_return_type(self.process, [input_type]))
+    # TODO(https://github.com/apache/beam/issues/19824): Side inputs types.
+    return trivial_inference.element_type(
+        _strip_output_annotations(
+            trivial_inference.infer_return_type(self.process, [input_type])))
 
-  def _strip_output_annotations(self, type_hint):
-    annotations = (TimestampedValue, WindowedValue, pvalue.TaggedOutput)
-    # TODO(robertwb): These should be parameterized types that the
-    # type inferencer understands.
-    if (type_hint in annotations or
-        trivial_inference.element_type(type_hint) in annotations):
-      return typehints.Any
-    return type_hint
+  @property
+  def _process_defined(self) -> bool:
+    # Check if this DoFn's process method has been overridden
+    # Note that we retrieve the __func__ attribute, if it exists, to get the
+    # underlying function from the bound method.
+    # If __func__ doesn't exist, self.process was likely overridden with a free
+    # function, as in CallableWrapperDoFn.
+    return getattr(self.process, '__func__', self.process) != DoFn.process
+
+  @property
+  def _process_batch_defined(self) -> bool:
+    # Check if this DoFn's process_batch method has been overridden
+    # Note that we retrieve the __func__ attribute, if it exists, to get the
+    # underlying function from the bound method.
+    # If __func__ doesn't exist, self.process_batch was likely overridden with
+    # a free function.
+    return getattr(
+        self.process_batch, '__func__',
+        self.process_batch) != DoFn.process_batch
+
+  @property
+  def _can_yield_batches(self) -> bool:
+    return ((self._process_defined and self._process_yields_batches) or (
+        self._process_batch_defined and
+        not self._process_batch_yields_elements))
+
+  @property
+  def _process_yields_batches(self) -> bool:
+    return getattr(self.process, '_beam_yields_batches', False)
+
+  @property
+  def _process_batch_yields_elements(self) -> bool:
+    return getattr(self.process_batch, '_beam_yields_elements', False)
+
+  def get_input_batch_type(
+      self, input_element_type
+  ) -> typing.Optional[typing.Union[TypeConstraint, type]]:
+    """Determine the batch type expected as input to process_batch.
+
+    The default implementation of ``get_input_batch_type`` simply observes the
+    input typehint for the first parameter of ``process_batch``. A Batched DoFn
+    may override this method if a dynamic approach is required.
+
+    Args:
+      input_element_type: The **element type** of the input PCollection this
+        DoFn is being applied to.
+
+    Returns:
+      ``None`` if this DoFn cannot accept batches, else a Beam typehint or
+      a native Python typehint.
+    """
+    if not self._process_batch_defined:
+      return None
+    input_type = list(
+        inspect.signature(self.process_batch).parameters.values())[0].annotation
+    if input_type == inspect.Signature.empty:
+      # TODO(https://github.com/apache/beam/issues/21652): Consider supporting
+      # an alternative (dynamic?) approach for declaring input type
+      raise TypeError(
+          f"Either {self.__class__.__name__}.process_batch() must have a type "
+          f"annotation on its first parameter, or {self.__class__.__name__} "
+          "must override get_input_batch_type.")
+    return input_type
+
+  def _get_input_batch_type_normalized(self, input_element_type):
+    return typehints.native_type_compatibility.convert_to_beam_type(
+        self.get_input_batch_type(input_element_type))
+
+  def _get_output_batch_type_normalized(self, input_element_type):
+    return typehints.native_type_compatibility.convert_to_beam_type(
+        self.get_output_batch_type(input_element_type))
+
+  @staticmethod
+  def _get_element_type_from_return_annotation(method, input_type):
+    return_type = inspect.signature(method).return_annotation
+    if return_type == inspect.Signature.empty:
+      # output type not annotated, try to infer it
+      return_type = trivial_inference.infer_return_type(method, [input_type])
+
+    return_type = typehints.native_type_compatibility.convert_to_beam_type(
+        return_type)
+    if isinstance(return_type, typehints.typehints.IterableTypeConstraint):
+      return return_type.inner_type
+    elif isinstance(return_type, typehints.typehints.IteratorTypeConstraint):
+      return return_type.yielded_type
+    else:
+      raise TypeError(
+          "Expected Iterator in return type annotation for "
+          f"{method!r}, did you mean Iterator[{return_type}]? Note Beam DoFn "
+          "process and process_batch methods are expected to produce "
+          "generators - they should 'yield' rather than 'return'.")
+
+  def get_output_batch_type(
+      self, input_element_type
+  ) -> typing.Optional[typing.Union[TypeConstraint, type]]:
+    """Determine the batch type produced by this DoFn's ``process_batch``
+    implementation and/or its ``process`` implementation with
+    ``@yields_batch``.
+
+    The default implementation of this method observes the return type
+    annotations on ``process_batch`` and/or ``process``.  A Batched DoFn may
+    override this method if a dynamic approach is required.
+
+    Args:
+      input_element_type: The **element type** of the input PCollection this
+        DoFn is being applied to.
+
+    Returns:
+      ``None`` if this DoFn will never yield batches, else a Beam typehint or
+      a native Python typehint.
+    """
+    output_batch_type = None
+    if self._process_defined and self._process_yields_batches:
+      output_batch_type = self._get_element_type_from_return_annotation(
+          self.process, input_element_type)
+    if self._process_batch_defined and not self._process_batch_yields_elements:
+      process_batch_type = self._get_element_type_from_return_annotation(
+          self.process_batch,
+          self._get_input_batch_type_normalized(input_element_type))
+
+      # TODO: Consider requiring an inheritance relationship rather than
+      # equality
+      if (output_batch_type is not None and
+          (not process_batch_type == output_batch_type)):
+        raise TypeError(
+            f"DoFn {self!r} yields batches from both process and "
+            "process_batch, but they produce different types:\n"
+            f" process: {output_batch_type}\n"
+            f" process_batch: {process_batch_type!r}")
+
+      output_batch_type = process_batch_type
+
+    return output_batch_type
 
   def _process_argspec_fn(self):
     """Returns the Python callable that will eventually be invoked.
@@ -765,8 +963,9 @@ class CallableWrapperDoFn(DoFn):
     return type_hints
 
   def infer_output_type(self, input_type):
-    return self._strip_output_annotations(
-        trivial_inference.infer_return_type(self._fn, [input_type]))
+    return trivial_inference.element_type(
+        _strip_output_annotations(
+            trivial_inference.infer_return_type(self._fn, [input_type])))
 
   def _process_argspec_fn(self):
     return getattr(self._fn, '_argspec_fn', self._fn)
@@ -1050,12 +1249,13 @@ class CallableWrapperCombineFn(CombineFn):
     return self._fn(accumulator, *args, **kwargs)
 
   def default_type_hints(self):
-    fn_hints = get_type_hints(self._fn)
-    if fn_hints.input_types is None:
-      return fn_hints
+    fn_type_hints = typehints.decorators.IOTypeHints.from_callable(self._fn)
+    type_hints = get_type_hints(self._fn).with_defaults(fn_type_hints)
+    if type_hints.input_types is None:
+      return type_hints
     else:
       # fn(Iterable[V]) -> V becomes CombineFn(V) -> V
-      input_args, input_kwargs = fn_hints.input_types
+      input_args, input_kwargs = type_hints.input_types
       if not input_args:
         if len(input_kwargs) == 1:
           input_args, input_kwargs = tuple(input_kwargs.values()), {}
@@ -1070,7 +1270,11 @@ class CallableWrapperCombineFn(CombineFn):
             input_args[0])
       input_args = (element_type(input_args[0]), ) + input_args[1:]
       # TODO(robertwb): Assert output type is consistent with input type?
-      return fn_hints.with_input_types(*input_args, **input_kwargs)
+      return type_hints.with_input_types(*input_args, **input_kwargs)
+
+  def infer_output_type(self, input_type):
+    return _strip_output_annotations(
+        trivial_inference.infer_return_type(self._fn, [input_type]))
 
   def for_input_type(self, input_type):
     # Avoid circular imports.
@@ -1181,6 +1385,59 @@ class CallableWrapperPartitionFn(PartitionFn):
     return self._fn(element, num_partitions, *args, **kwargs)
 
 
+def _get_function_body_without_inners(func):
+  source_lines = inspect.getsourcelines(func)[0]
+  source_lines = dropwhile(lambda x: x.startswith("@"), source_lines)
+  def_line = next(source_lines).strip()
+  if def_line.startswith("def ") and def_line.endswith(":"):
+    first_line = next(source_lines)
+    indentation = len(first_line) - len(first_line.lstrip())
+    final_lines = [first_line[indentation:]]
+
+    skip_inner_def = False
+    if first_line[indentation:].startswith("def "):
+      skip_inner_def = True
+    for line in source_lines:
+      line_indentation = len(line) - len(line.lstrip())
+
+      if line[indentation:].startswith("def "):
+        skip_inner_def = True
+        continue
+
+      if skip_inner_def and line_indentation == indentation:
+        skip_inner_def = False
+
+      if skip_inner_def and line_indentation > indentation:
+        continue
+      final_lines.append(line[indentation:])
+
+    return "".join(final_lines)
+  else:
+    return def_line.rsplit(":")[-1].strip()
+
+
+def _check_fn_use_yield_and_return(fn):
+  if isinstance(fn, types.BuiltinFunctionType):
+    return False
+  try:
+    source_code = _get_function_body_without_inners(fn)
+    has_yield = False
+    has_return = False
+    for line in source_code.split("\n"):
+      if line.lstrip().startswith("yield ") or line.lstrip().startswith(
+          "yield("):
+        has_yield = True
+      if line.lstrip().startswith("return ") or line.lstrip().startswith(
+          "return("):
+        has_return = True
+      if has_yield and has_return:
+        return True
+    return False
+  except Exception as e:
+    _LOGGER.debug(str(e))
+    return False
+
+
 class ParDo(PTransformWithSideInputs):
   """A :class:`ParDo` transform.
 
@@ -1221,6 +1478,14 @@ class ParDo(PTransformWithSideInputs):
     if not isinstance(self.fn, DoFn):
       raise TypeError('ParDo must be called with a DoFn instance.')
 
+    # DoFn.process cannot allow both return and yield
+    if _check_fn_use_yield_and_return(self.fn.process):
+      _LOGGER.warning(
+          'Using yield and return in the process method '
+          'of %s can lead to unexpected behavior, see:'
+          'https://github.com/apache/beam/issues/22969.',
+          self.fn.__class__)
+
     # Validate the DoFn by creating a DoFnSignature
     from apache_beam.runners.common import DoFnSignature
     self._signature = DoFnSignature(self.fn)
@@ -1234,7 +1499,8 @@ class ParDo(PTransformWithSideInputs):
       partial=False,
       use_subprocess=False,
       threshold=1,
-      threshold_windowing=None):
+      threshold_windowing=None,
+      timeout=None):
     """Automatically provides a dead letter output for skipping bad records.
     This can allow a pipeline to continue successfully rather than fail or
     continuously throw errors on retry when bad elements are encountered.
@@ -1280,6 +1546,8 @@ class ParDo(PTransformWithSideInputs):
           up to 100% of records can be bad and the pipeline will still succeed).
       threshold_windowing: Event-time windowing to use for threshold. Optional,
           defaults to the windowing of the input.
+      timeout: If the element has not finished processing in timeout seconds,
+          raise a TimeoutError.  Defaults to None, meaning no time limit.
     """
     args, kwargs = self.raw_side_inputs
     return self.label >> _ExceptionHandlingWrapper(
@@ -1292,13 +1560,64 @@ class ParDo(PTransformWithSideInputs):
         partial,
         use_subprocess,
         threshold,
-        threshold_windowing)
+        threshold_windowing,
+        timeout)
 
   def default_type_hints(self):
     return self.fn.get_type_hints()
 
   def infer_output_type(self, input_type):
-    return trivial_inference.element_type(self.fn.infer_output_type(input_type))
+    return self.fn.infer_output_type(input_type)
+
+  def infer_batch_converters(self, input_element_type):
+    # TODO: Test this code (in batch_dofn_test)
+    if self.fn._process_batch_defined:
+      input_batch_type = self.fn._get_input_batch_type_normalized(
+          input_element_type)
+
+      if input_batch_type is None:
+        raise TypeError(
+            "process_batch method on {self.fn!r} does not have "
+            "an input type annoation")
+
+      try:
+        # Generate a batch converter to convert between the input type and the
+        # (batch) input type of process_batch
+        self.fn.input_batch_converter = BatchConverter.from_typehints(
+            element_type=input_element_type, batch_type=input_batch_type)
+      except TypeError as e:
+        raise TypeError(
+            "Failed to find a BatchConverter for the input types of DoFn "
+            f"{self.fn!r} (element_type={input_element_type!r}, "
+            f"batch_type={input_batch_type!r}).") from e
+
+    else:
+      self.fn.input_batch_converter = None
+
+    if self.fn._can_yield_batches:
+      output_batch_type = self.fn._get_output_batch_type_normalized(
+          input_element_type)
+      if output_batch_type is None:
+        # TODO: Mention process method in this error
+        raise TypeError(
+            f"process_batch method on {self.fn!r} does not have "
+            "a return type annoation")
+
+      # Generate a batch converter to convert between the output type and the
+      # (batch) output type of process_batch
+      output_element_type = self.infer_output_type(input_element_type)
+
+      try:
+        self.fn.output_batch_converter = BatchConverter.from_typehints(
+            element_type=output_element_type, batch_type=output_batch_type)
+      except TypeError as e:
+        raise TypeError(
+            "Failed to find a BatchConverter for the *output* types of DoFn "
+            f"{self.fn!r} (element_type={output_element_type!r}, "
+            f"batch_type={output_batch_type!r}). Maybe you need to override "
+            "DoFn.infer_output_type to set the output element type?") from e
+    else:
+      self.fn.output_batch_converter = None
 
   def make_fn(self, fn, has_side_inputs):
     if isinstance(fn, DoFn):
@@ -1337,7 +1656,14 @@ class ParDo(PTransformWithSideInputs):
             key_coder,
             self)
 
-    return pvalue.PCollection.from_(pcoll)
+    if self._signature.is_unbounded_per_element():
+      is_bounded = False
+    else:
+      is_bounded = pcoll.is_bounded
+
+    self.infer_batch_converters(pcoll.element_type)
+
+    return pvalue.PCollection.from_(pcoll, is_bounded=is_bounded)
 
   def with_outputs(self, *tags, main=None, allow_unknown_tags=None):
     """Returns a tagged tuple allowing access to the outputs of a
@@ -1652,7 +1978,9 @@ def Map(fn, *args, **kwargs):  # pylint: disable=invalid-name
             wrapper)
   output_hint = type_hints.simple_output_type(label)
   if output_hint:
-    wrapper = with_output_types(typehints.Iterable[output_hint])(wrapper)
+    wrapper = with_output_types(
+        typehints.Iterable[_strip_output_annotations(output_hint)])(
+            wrapper)
   # pylint: disable=protected-access
   wrapper._argspec_fn = fn
   # pylint: enable=protected-access
@@ -1713,14 +2041,17 @@ def MapTuple(fn, *args, **kwargs):  # pylint: disable=invalid-name
 
   # Proxy the type-hint information from the original function to this new
   # wrapped function.
-  type_hints = get_type_hints(fn)
+  type_hints = get_type_hints(fn).with_defaults(
+      typehints.decorators.IOTypeHints.from_callable(fn))
   if type_hints.input_types is not None:
-    wrapper = with_input_types(
-        *type_hints.input_types[0], **type_hints.input_types[1])(
-            wrapper)
+    # TODO(BEAM-14052): ignore input hints, as we do not have enough
+    # information to infer the input type hint of the wrapper function.
+    pass
   output_hint = type_hints.simple_output_type(label)
   if output_hint:
-    wrapper = with_output_types(typehints.Iterable[output_hint])(wrapper)
+    wrapper = with_output_types(
+        typehints.Iterable[_strip_output_annotations(output_hint)])(
+            wrapper)
 
   # Replace the first (args) component.
   modified_arg_names = ['tuple_element'] + arg_names[-num_defaults:]
@@ -1788,14 +2119,15 @@ def FlatMapTuple(fn, *args, **kwargs):  # pylint: disable=invalid-name
 
   # Proxy the type-hint information from the original function to this new
   # wrapped function.
-  type_hints = get_type_hints(fn)
+  type_hints = get_type_hints(fn).with_defaults(
+      typehints.decorators.IOTypeHints.from_callable(fn))
   if type_hints.input_types is not None:
-    wrapper = with_input_types(
-        *type_hints.input_types[0], **type_hints.input_types[1])(
-            wrapper)
+    # TODO(BEAM-14052): ignore input hints, as we do not have enough
+    # information to infer the input type hint of the wrapper function.
+    pass
   output_hint = type_hints.simple_output_type(label)
   if output_hint:
-    wrapper = with_output_types(output_hint)(wrapper)
+    wrapper = with_output_types(_strip_output_annotations(output_hint))(wrapper)
 
   # Replace the first (args) component.
   modified_arg_names = ['tuple_element'] + arg_names[-num_defaults:]
@@ -1821,7 +2153,8 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
       partial,
       use_subprocess,
       threshold,
-      threshold_windowing):
+      threshold_windowing,
+      timeout):
     if partial and use_subprocess:
       raise ValueError('partial and use_subprocess are mutually incompatible.')
     self._fn = fn
@@ -1834,17 +2167,24 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
     self._use_subprocess = use_subprocess
     self._threshold = threshold
     self._threshold_windowing = threshold_windowing
+    self._timeout = timeout
 
   def expand(self, pcoll):
+    if self._use_subprocess:
+      wrapped_fn = _SubprocessDoFn(self._fn, timeout=self._timeout)
+    elif self._timeout:
+      wrapped_fn = _TimeoutDoFn(self._fn, timeout=self._timeout)
+    else:
+      wrapped_fn = self._fn
     result = pcoll | ParDo(
         _ExceptionHandlingWrapperDoFn(
-            _SubprocessDoFn(self._fn) if self._use_subprocess else self._fn,
-            self._dead_letter_tag,
-            self._exc_class,
-            self._partial),
+            wrapped_fn, self._dead_letter_tag, self._exc_class, self._partial),
         *self._args,
         **self._kwargs).with_outputs(
             self._dead_letter_tag, main=self._main_tag, allow_unknown_tags=True)
+    #TODO(BEAM-18957): Fix when type inference supports tagged outputs.
+    result[self._main_tag].element_type = self._fn.infer_output_type(
+        pcoll.element_type)
 
     if self._threshold < 1.0:
 
@@ -1907,12 +2247,88 @@ class _ExceptionHandlingWrapperDoFn(DoFn):
                   traceback.format_exception(*sys.exc_info()))))
 
 
+# Idea adapted from https://github.com/tosun-si/asgarde.
+# TODO(robertwb): Consider how this could fit into the public API.
+# TODO(robertwb): Generalize to all PValue types.
+class _PValueWithErrors(object):
+  """This wraps a PCollection such that transforms can be chained in a linear
+  manner while still accumulating any errors."""
+  def __init__(self, pcoll, exception_handling_args, upstream_errors=()):
+    self._pcoll = pcoll
+    self._exception_handling_args = exception_handling_args
+    self._upstream_errors = upstream_errors
+
+  def main_output_tag(self):
+    return self._exception_handling_args.get('main_tag', 'good')
+
+  def error_output_tag(self):
+    return self._exception_handling_args.get('dead_letter_tag', 'bad')
+
+  def __or__(self, transform):
+    return self.apply(transform)
+
+  def apply(self, transform):
+    result = self._pcoll | transform.with_exception_handling(
+        **self._exception_handling_args)
+    if result[self.main_output_tag()].element_type == typehints.Any:
+      result[self.main_output_tag()].element_type = transform.infer_output_type(
+          self._pcoll.element_type)
+    # TODO(BEAM-18957): Add support for tagged type hints.
+    result[self.error_output_tag()].element_type = typehints.Any
+    return _PValueWithErrors(
+        result[self.main_output_tag()],
+        self._exception_handling_args,
+        self._upstream_errors + (result[self.error_output_tag()], ))
+
+  def accumulated_errors(self):
+    if len(self._upstream_errors) == 1:
+      return self._upstream_errors[0]
+    else:
+      return self._upstream_errors | Flatten()
+
+  def as_result(self, error_post_processing=None):
+    return {
+        self.main_output_tag(): self._pcoll,
+        self.error_output_tag(): self.accumulated_errors()
+        if error_post_processing is None else self.accumulated_errors()
+        | error_post_processing,
+    }
+
+
+class _MaybePValueWithErrors(object):
+  """This is like _PValueWithErrors, but only wraps values if
+  exception_handling_args is non-trivial.  It is useful for handling
+  error-catching and non-error-catching code in a uniform manner.
+  """
+  def __init__(self, pvalue, exception_handling_args=None):
+    if isinstance(pvalue, _PValueWithErrors):
+      assert exception_handling_args is None
+      self._pvalue = pvalue
+    elif exception_handling_args is None:
+      self._pvalue = pvalue
+    else:
+      self._pvalue = _PValueWithErrors(pvalue, exception_handling_args)
+
+  def __or__(self, transform):
+    return self.apply(transform)
+
+  def apply(self, transform):
+    return _MaybePValueWithErrors(self._pvalue | transform)
+
+  def as_result(self, error_post_processing=None):
+    if isinstance(self._pvalue, _PValueWithErrors):
+      return self._pvalue.as_result(error_post_processing)
+    else:
+      return self._pvalue
+
+
 class _SubprocessDoFn(DoFn):
   """Process method run in a subprocess, turning hard crashes into exceptions.
   """
-  def __init__(self, fn):
+  def __init__(self, fn, timeout=None):
     self._fn = fn
     self._serialized_fn = pickler.dumps(fn)
+    self._timeout = timeout
 
   def __getattribute__(self, name):
     if (name.startswith('__') or name in self.__dict__ or
@@ -1937,18 +2353,34 @@ class _SubprocessDoFn(DoFn):
 
   def teardown(self):
     self._call_remote(self._remote_teardown)
-    self._pool.shutdown()
-    self._pool = None
+    self._terminate_pool()
 
   def _call_remote(self, method, *args, **kwargs):
     if self._pool is None:
       self._pool = concurrent.futures.ProcessPoolExecutor(1)
       self._pool.submit(self._remote_init, self._serialized_fn).result()
     try:
-      return self._pool.submit(method, *args, **kwargs).result()
-    except concurrent.futures.process.BrokenProcessPool:
-      self._pool = None
+      return self._pool.submit(method, *args, **kwargs).result(
+          self._timeout if method == self._remote_process else None)
+    except (concurrent.futures.process.BrokenProcessPool,
+            TimeoutError,
+            concurrent.futures._base.TimeoutError):
+      self._terminate_pool()
       raise
+
+  def _terminate_pool(self):
+    """Forcibly terminate the pool, not leaving any live subprocesses."""
+    pool = self._pool
+    self._pool = None
+    processes = list(pool._processes.values())
+    pool.shutdown(wait=False)
+    for p in processes:
+      if p.is_alive():
+        p.kill()
+    time.sleep(1)
+    for p in processes:
+      if p.is_alive():
+        p.terminate()
 
   # These are classmethods to avoid picking the state of self.
   # They should only be called in an isolated process, so there's no concern
@@ -1990,9 +2422,49 @@ class _SubprocessDoFn(DoFn):
     cls._fn = None
 
 
+class _TimeoutDoFn(DoFn):
+  """Process method run in a separate thread allowing timeouts.
+  """
+  def __init__(self, fn, timeout=None):
+    self._fn = fn
+    self._timeout = timeout
+    self._pool = None
+
+  def __getattribute__(self, name):
+    if (name.startswith('__') or name in self.__dict__ or
+        name in type(self).__dict__):
+      return object.__getattribute__(self, name)
+    else:
+      return getattr(self._fn, name)
+
+  def process(self, *args, **kwargs):
+    if self._pool is None:
+      self._pool = concurrent.futures.ThreadPoolExecutor(10)
+    # Ensure we iterate over the entire output list in the given amount of time.
+    try:
+      return self._pool.submit(
+          lambda: list(self._fn.process(*args, **kwargs))).result(
+              self._timeout)
+    except TimeoutError:
+      self._pool.shutdown(wait=False)
+      self._pool = None
+      raise
+
+  def teardown(self):
+    try:
+      self._fn.teardown()
+    finally:
+      if self._pool is not None:
+        self._pool.shutdown(wait=False)
+        self._pool = None
+
+
 def Filter(fn, *args, **kwargs):  # pylint: disable=invalid-name
   """:func:`Filter` is a :func:`FlatMap` with its callable filtering out
   elements.
+
+  Filter accepts a function that keeps elements that return True, and filters
+  out the remaining elements.
 
   Args:
     fn (``Callable[..., bool]``): a callable object. First argument will be an
@@ -2040,7 +2512,9 @@ def Filter(fn, *args, **kwargs):  # pylint: disable=invalid-name
       get_type_hints(wrapper).input_types[0]):
     output_hint = get_type_hints(wrapper).input_types[0][0]
   if output_hint:
-    wrapper = with_output_types(typehints.Iterable[output_hint])(wrapper)
+    wrapper = with_output_types(
+        typehints.Iterable[_strip_output_annotations(output_hint)])(
+            wrapper)
   # pylint: disable=protected-access
   wrapper._argspec_fn = fn
   # pylint: enable=protected-access
@@ -2191,6 +2665,15 @@ class CombineGlobally(PTransform):
             "or CombineGlobally().as_singleton_view() to get the default "
             "output of the CombineFn if the input PCollection is empty.")
 
+      # log the error for this ill-defined streaming case now
+      if not pcoll.is_bounded and not pcoll.windowing.is_default():
+        _LOGGER.error(
+            "When combining elements in unbounded collections with "
+            "the non-default windowing strategy, you must explicitly "
+            "specify how to define the combined result of an empty window. "
+            "Please use CombineGlobally().without_defaults() to output "
+            "an empty PCollection if the input PCollection is empty.")
+
       def typed(transform):
         # TODO(robertwb): We should infer this.
         if combined.element_type:
@@ -2202,6 +2685,11 @@ class CombineGlobally(PTransform):
 
       def inject_default(_, combined):
         if combined:
+          if len(combined) > 1:
+            _LOGGER.error(
+                "Multiple combined values unexpectedly provided"
+                " for a global combine: %s",
+                combined)
           assert len(combined) == 1
           return combined[0]
         else:
@@ -2306,18 +2794,20 @@ class CombinePerKey(PTransformWithSideInputs):
         self.fn, *args, **kwargs)
 
   def default_type_hints(self):
-    hints = self.fn.get_type_hints()
-    if hints.input_types:
-      K = typehints.TypeVariable('K')
-      args, kwargs = hints.input_types
-      args = (typehints.Tuple[K, args[0]], ) + args[1:]
-      hints = hints.with_input_types(*args, **kwargs)
+    result = self.fn.get_type_hints()
+    k = typehints.TypeVariable('K')
+    if result.input_types:
+      args, kwargs = result.input_types
+      args = (typehints.Tuple[k, args[0]], ) + args[1:]
+      result = result.with_input_types(*args, **kwargs)
     else:
-      K = typehints.Any
-    if hints.output_types:
-      main_output_type = hints.simple_output_type('')
-      hints = hints.with_output_types(typehints.Tuple[K, main_output_type])
-    return hints
+      result = result.with_input_types(typehints.Tuple[k, typehints.Any])
+    if result.output_types:
+      main_output_type = result.simple_output_type('')
+      result = result.with_output_types(typehints.Tuple[k, main_output_type])
+    else:
+      result = result.with_output_types(typehints.Tuple[k, typehints.Any])
+    return result
 
   def to_runner_api_parameter(
       self,
@@ -2387,6 +2877,7 @@ class CombineValues(PTransformWithSideInputs):
 
 class CombineValuesDoFn(DoFn):
   """DoFn for performing per-key Combine transforms."""
+
   def __init__(
       self,
       input_pcoll_type,
@@ -2449,6 +2940,7 @@ class CombineValuesDoFn(DoFn):
 
 
 class _CombinePerKeyWithHotKeyFanout(PTransform):
+
   def __init__(
       self,
       combine_fn,  # type: CombineFn
@@ -2470,6 +2962,11 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
     from apache_beam.transforms.trigger import AccumulationMode
     combine_fn = self._combine_fn
     fanout_fn = self._fanout_fn
+
+    if isinstance(pcoll.windowing.windowfn, SlidingWindows):
+      raise ValueError(
+          'CombinePerKey.with_hot_key_fanout does not yet work properly with '
+          'SlidingWindows. See: https://github.com/apache/beam/issues/20528')
 
     class SplitHotCold(DoFn):
       def start_bundle(self):
@@ -2563,8 +3060,8 @@ class GroupByKey(PTransform):
 
     def infer_output_type(self, input_type):
       key_type, value_type = trivial_inference.key_value_types(input_type)
-      return typehints.Iterable[typehints.KV[
-          key_type, typehints.WindowedValue[value_type]]]  # type: ignore[misc]
+      return typehints.KV[
+          key_type, typehints.WindowedValue[value_type]]  # type: ignore[misc]
 
   def expand(self, pcoll):
     from apache_beam.transforms.trigger import DataLossReason
@@ -2658,11 +3155,12 @@ class GroupBy(PTransform):
   The GroupBy operation can be made into an aggregating operation by invoking
   its `aggregate_field` method.
   """
+
   def __init__(
       self,
       *fields,  # type: typing.Union[str, typing.Callable]
       **kwargs  # type: typing.Union[str, typing.Callable]
-    ):
+  ):
     if len(fields) == 1 and not kwargs:
       self._force_tuple_keys = False
       name = fields[0] if isinstance(fields[0], str) else 'key'
@@ -2685,7 +3183,7 @@ class GroupBy(PTransform):
       field,  # type: typing.Union[str, typing.Callable]
       combine_fn,  # type: typing.Union[typing.Callable, CombineFn]
       dest,  # type: str
-    ):
+  ):
     """Returns a grouping operation that also aggregates grouped values.
 
     Args:
@@ -2717,12 +3215,15 @@ class GroupBy(PTransform):
       key_exprs = [expr for _, expr in self._key_fields]
       return lambda element: key_type(*(expr(element) for expr in key_exprs))
 
-  def _key_type_hint(self):
+  def _key_type_hint(self, input_type):
     if not self._force_tuple_keys and len(self._key_fields) == 1:
-      return typing.Any
+      expr = self._key_fields[0][1]
+      return trivial_inference.infer_return_type(expr, [input_type])
     else:
-      return _dynamic_named_tuple(
-          'Key', tuple(name for name, _ in self._key_fields))
+      return row_type.RowTypeConstraint.from_fields([
+          (name, trivial_inference.infer_return_type(expr, [input_type]))
+          for (name, expr) in self._key_fields
+      ])
 
   def default_label(self):
     return 'GroupBy(%s)' % ', '.join(name for name, _ in self._key_fields)
@@ -2732,7 +3233,7 @@ class GroupBy(PTransform):
     return (
         pcoll
         | Map(lambda x: (self._key_func()(x), x)).with_output_types(
-            typehints.Tuple[self._key_type_hint(), input_type])
+            typehints.Tuple[self._key_type_hint(input_type), input_type])
         | GroupByKey())
 
 
@@ -2770,7 +3271,7 @@ class _GroupAndAggregate(PTransform):
       field,  # type: typing.Union[str, typing.Callable]
       combine_fn,  # type: typing.Union[typing.Callable, CombineFn]
       dest,  # type: str
-      ):
+  ):
     field = _expr_to_callable(field, 0)
     return _GroupAndAggregate(
         self._grouping, list(self._aggregations) + [(field, combine_fn, dest)])
@@ -2783,7 +3284,8 @@ class _GroupAndAggregate(PTransform):
     result_fields = tuple(name
                           for name, _ in self._grouping._key_fields) + tuple(
                               dest for _, __, dest in self._aggregations)
-    key_type_hint = self._grouping.force_tuple_keys(True)._key_type_hint()
+    key_type_hint = self._grouping.force_tuple_keys(True)._key_type_hint(
+        pcoll.element_type)
 
     return (
         pcoll
@@ -2811,27 +3313,35 @@ class Select(PTransform):
 
       pcoll | beam.Map(lambda x: beam.Row(a=x.a, b=foo(x)))
   """
-  def __init__(self,
-               *args,  # type: typing.Union[str, typing.Callable]
-               **kwargs  # type: typing.Union[str, typing.Callable]
-               ):
+
+  def __init__(
+      self,
+      *args,  # type: typing.Union[str, typing.Callable]
+      **kwargs  # type: typing.Union[str, typing.Callable]
+  ):
     self._fields = [(
         expr if isinstance(expr, str) else 'arg%02d' % ix,
         _expr_to_callable(expr, ix)) for (ix, expr) in enumerate(args)
                     ] + [(name, _expr_to_callable(expr, name))
                          for (name, expr) in kwargs.items()]
+    self._exception_handling_args = None
+
+  def with_exception_handling(self, **kwargs):
+    self._exception_handling_args = kwargs
+    return self
 
   def default_label(self):
     return 'ToRows(%s)' % ', '.join(name for name, _ in self._fields)
 
   def expand(self, pcoll):
-    return pcoll | Map(
-        lambda x: pvalue.Row(**{name: expr(x)
-                                for name, expr in self._fields}))
+    return (
+        _MaybePValueWithErrors(pcoll, self._exception_handling_args) | Map(
+            lambda x: pvalue.Row(
+                **{name: expr(x)
+                   for name, expr in self._fields}))).as_result()
 
   def infer_output_type(self, input_type):
-    from apache_beam.typehints import row_type
-    return row_type.RowTypeConstraint([
+    return row_type.RowTypeConstraint.from_fields([
         (name, trivial_inference.infer_return_type(expr, [input_type]))
         for (name, expr) in self._fields
     ])
@@ -2880,8 +3390,8 @@ class Windowing(object):
   def __init__(self,
                windowfn,  # type: WindowFn
                triggerfn=None,  # type: typing.Optional[TriggerFn]
-               accumulation_mode=None,  # type: typing.Optional[beam_runner_api_pb2.AccumulationMode.Enum]
-               timestamp_combiner=None,  # type: typing.Optional[beam_runner_api_pb2.OutputTime.Enum]
+               accumulation_mode=None,  # type: typing.Optional[beam_runner_api_pb2.AccumulationMode.Enum.ValueType]
+               timestamp_combiner=None,  # type: typing.Optional[beam_runner_api_pb2.OutputTime.Enum.ValueType]
                allowed_lateness=0, # type: typing.Union[int, float]
                environment_id=None, # type: typing.Optional[str]
                ):
@@ -2979,7 +3489,7 @@ class Windowing(object):
         output_time=self.timestamp_combiner,
         # TODO(robertwb): Support EMIT_IF_NONEMPTY
         closing_behavior=beam_runner_api_pb2.ClosingBehavior.EMIT_ALWAYS,
-        OnTimeBehavior=beam_runner_api_pb2.OnTimeBehavior.FIRE_ALWAYS,
+        on_time_behavior=beam_runner_api_pb2.OnTimeBehavior.FIRE_ALWAYS,
         allowed_lateness=self.allowed_lateness.micros // 1000,
         environment_id=environment_id)
 
@@ -3018,6 +3528,9 @@ class WindowInto(ParDo):
           timestamp, element=element, window=window)
       new_windows = self.windowing.windowfn.assign(context)
       yield WindowedValue(element, context.timestamp, new_windows)
+
+    def infer_output_type(self, input_type):
+      return input_type
 
   def __init__(
       self,
@@ -3184,7 +3697,8 @@ class Create(PTransform):
   def to_runner_api_parameter(self, context):
     # type: (PipelineContext) -> typing.Tuple[str, bytes]
     # Required as this is identified by type in PTransformOverrides.
-    # TODO(BEAM-3812): Use an actual URN here.
+    # TODO(https://github.com/apache/beam/issues/18713): Use an actual URN
+    # here.
     return self.to_runner_api_pickled(context)
 
   def infer_output_type(self, unused_input_type):
@@ -3269,3 +3783,25 @@ class Impulse(PTransform):
   def from_runner_api_parameter(
       unused_ptransform, unused_parameter, unused_context):
     return Impulse()
+
+
+def _strip_output_annotations(type_hint):
+  # TODO(robertwb): These should be parameterized types that the
+  # type inferencer understands.
+  # Then we can replace them with the correct element types instead of
+  # using Any. Refer to typehints.WindowedValue when doing this.
+  annotations = (TimestampedValue, WindowedValue, pvalue.TaggedOutput)
+
+  contains_annotation = False
+
+  def visitor(t, unused_args):
+    if t in annotations or (hasattr(t, '__name__') and
+                            t.__name__ == TimestampedValue.__name__):
+      raise StopIteration
+
+  try:
+    visit_inner_types(type_hint, visitor, [])
+  except StopIteration:
+    contains_annotation = True
+
+  return typehints.Any if contains_annotation else type_hint

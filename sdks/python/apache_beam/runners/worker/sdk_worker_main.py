@@ -19,6 +19,7 @@
 
 # pytype: skip-file
 
+import importlib
 import json
 import logging
 import os
@@ -34,21 +35,41 @@ from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import ProfilingOptions
+from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners.internal import names
+from apache_beam.runners.worker.data_sampler import DataSampler
 from apache_beam.runners.worker.log_handler import FnApiLogRecordHandler
 from apache_beam.runners.worker.sdk_worker import SdkHarness
 from apache_beam.utils import profiler
-
-# This module is experimental. No backwards-compatibility guarantees.
 
 _LOGGER = logging.getLogger(__name__)
 _ENABLE_GOOGLE_CLOUD_PROFILER = 'enable_google_cloud_profiler'
 
 
+def _import_beam_plugins(plugins):
+  for plugin in plugins:
+    try:
+      importlib.import_module(plugin)
+      _LOGGER.debug('Imported beam-plugin %s', plugin)
+    except ImportError:
+      try:
+        _LOGGER.debug((
+            "Looks like %s is not a module. "
+            "Trying to import it assuming it's a class"),
+                      plugin)
+        module, _ = plugin.rsplit('.', 1)
+        importlib.import_module(module)
+        _LOGGER.debug('Imported %s for beam-plugin %s', module, plugin)
+      except ImportError as exc:
+        _LOGGER.warning('Failed to import beam-plugin %s', plugin, exc_info=exc)
+
+
 def create_harness(environment, dry_run=False):
   """Creates SDK Fn Harness."""
+
+  deferred_exception = None
   if 'LOGGING_API_SERVICE_DESCRIPTOR' in environment:
     try:
       logging_service_descriptor = endpoints_pb2.ApiServiceDescriptor()
@@ -58,8 +79,6 @@ def create_harness(environment, dry_run=False):
 
       # Send all logs to the runner.
       fn_log_handler = FnApiLogRecordHandler(logging_service_descriptor)
-      # TODO(BEAM-5468): This should be picked up from pipeline options.
-      logging.getLogger().setLevel(logging.INFO)
       logging.getLogger().addHandler(fn_log_handler)
       _LOGGER.info('Logging handler created.')
     except Exception:
@@ -72,10 +91,16 @@ def create_harness(environment, dry_run=False):
 
   pipeline_options_dict = _load_pipeline_options(
       environment.get('PIPELINE_OPTIONS'))
+  default_log_level = _get_log_level_from_options_dict(pipeline_options_dict)
+  logging.getLogger().setLevel(default_log_level)
+  _set_log_level_overrides(pipeline_options_dict)
+
   # These are used for dataflow templates.
   RuntimeValueProvider.set_runtime_options(pipeline_options_dict)
   sdk_pipeline_options = PipelineOptions.from_dictionary(pipeline_options_dict)
   filesystems.FileSystems.set_options(sdk_pipeline_options)
+  pickle_library = sdk_pipeline_options.view_as(SetupOptions).pickle_library
+  pickler.set_library(pickle_library)
 
   if 'SEMI_PERSISTENT_DIRECTORY' in environment:
     semi_persistent_directory = environment['SEMI_PERSISTENT_DIRECTORY']
@@ -85,17 +110,26 @@ def create_harness(environment, dry_run=False):
   _LOGGER.info('semi_persistent_directory: %s', semi_persistent_directory)
   _worker_id = environment.get('WORKER_ID', None)
 
-  try:
-    _load_main_session(semi_persistent_directory)
-  except CorruptMainSessionException:
-    exception_details = traceback.format_exc()
-    _LOGGER.error(
-        'Could not load main session: %s', exception_details, exc_info=True)
-    raise
-  except Exception:  # pylint: disable=broad-except
-    exception_details = traceback.format_exc()
-    _LOGGER.error(
-        'Could not load main session: %s', exception_details, exc_info=True)
+  if pickle_library != pickler.USE_CLOUDPICKLE:
+    try:
+      _load_main_session(semi_persistent_directory)
+    except LoadMainSessionException:
+      exception_details = traceback.format_exc()
+      _LOGGER.error(
+          'Could not load main session: %s', exception_details, exc_info=True)
+      raise
+    except Exception:  # pylint: disable=broad-except
+      summary = (
+          "Could not load main session. Inspect which external dependencies "
+          "are used in the main module of your pipeline. Verify that "
+          "corresponding packages are installed in the pipeline runtime "
+          "environment and their installed versions match the versions used in "
+          "pipeline submission environment. For more information, see: https://"
+          "beam.apache.org/documentation/sdks/python-pipeline-dependencies/")
+      _LOGGER.error(summary, exc_info=True)
+      exception_details = traceback.format_exc()
+      deferred_exception = LoadMainSessionException(
+          f"{summary} {exception_details}")
 
   _LOGGER.info(
       'Pipeline_options: %s',
@@ -112,8 +146,17 @@ def create_harness(environment, dry_run=False):
 
   experiments = sdk_pipeline_options.view_as(DebugOptions).experiments or []
   enable_heap_dump = 'enable_heap_dump' in experiments
+
+  beam_plugins = sdk_pipeline_options.view_as(SetupOptions).beam_plugins or []
+  _import_beam_plugins(beam_plugins)
+
   if dry_run:
     return
+
+  data_sampler = None
+  if 'enable_data_sampling' in experiments:
+    data_sampler = DataSampler()
+
   sdk_harness = SdkHarness(
       control_address=control_service_descriptor.url,
       status_address=status_service_descriptor.url,
@@ -122,38 +165,54 @@ def create_harness(environment, dry_run=False):
       data_buffer_time_limit_ms=_get_data_buffer_time_limit_ms(experiments),
       profiler_factory=profiler.Profile.factory_from_options(
           sdk_pipeline_options.view_as(ProfilingOptions)),
-      enable_heap_dump=enable_heap_dump)
+      enable_heap_dump=enable_heap_dump,
+      data_sampler=data_sampler,
+      deferred_exception=deferred_exception)
   return fn_log_handler, sdk_harness, sdk_pipeline_options
+
+
+def _start_profiler(gcp_profiler_service_name, gcp_profiler_service_version):
+  try:
+    import googlecloudprofiler
+    if gcp_profiler_service_name and gcp_profiler_service_version:
+      googlecloudprofiler.start(
+          service=gcp_profiler_service_name,
+          service_version=gcp_profiler_service_version,
+          verbose=1)
+      _LOGGER.info('Turning on Google Cloud Profiler.')
+    else:
+      raise RuntimeError('Unable to find the job id or job name from envvar.')
+  except Exception as e:  # pylint: disable=broad-except
+    _LOGGER.warning(
+        'Unable to start google cloud profiler due to error: %s. For how to '
+        'enable Cloud Profiler with Dataflow see '
+        'https://cloud.google.com/dataflow/docs/guides/profiling-a-pipeline.'
+        'For troubleshooting tips with Cloud Profiler see '
+        'https://cloud.google.com/profiler/docs/troubleshooting.' % e)
+
+
+def _get_gcp_profiler_name_if_enabled(sdk_pipeline_options):
+  gcp_profiler_service_name = sdk_pipeline_options.view_as(
+      GoogleCloudOptions).get_cloud_profiler_service_name()
+
+  return gcp_profiler_service_name
 
 
 def main(unused_argv):
   """Main entry point for SDK Fn Harness."""
-  fn_log_handler, sdk_harness, sdk_pipeline_options = create_harness(os.environ)
-  experiments = sdk_pipeline_options.view_as(DebugOptions).experiments or []
-  dataflow_service_options = (
-      sdk_pipeline_options.view_as(GoogleCloudOptions).dataflow_service_options
-      or [])
-  if (_ENABLE_GOOGLE_CLOUD_PROFILER in experiments) or (
-      _ENABLE_GOOGLE_CLOUD_PROFILER in dataflow_service_options):
-    try:
-      import googlecloudprofiler
-      job_id = os.environ["JOB_ID"]
-      job_name = os.environ["JOB_NAME"]
-      if job_id and job_name:
-        googlecloudprofiler.start(
-            service=job_name, service_version=job_id, verbose=1)
-        _LOGGER.info('Turning on Google Cloud Profiler.')
-      else:
-        raise RuntimeError('Unable to find the job id or job name from envvar.')
-    except Exception as e:  # pylint: disable=broad-except
-      _LOGGER.warning(
-          'Unable to start google cloud profiler due to error: %s' % e)
+  (fn_log_handler, sdk_harness,
+   sdk_pipeline_options) = create_harness(os.environ)
+
+  gcp_profiler_name = _get_gcp_profiler_name_if_enabled(sdk_pipeline_options)
+  if gcp_profiler_name:
+    _start_profiler(gcp_profiler_name, os.environ["JOB_ID"])
+
   try:
     _LOGGER.info('Python sdk harness starting.')
     sdk_harness.run()
     _LOGGER.info('Python sdk harness exiting.')
   except:  # pylint: disable=broad-except
-    _LOGGER.exception('Python sdk harness failed: ')
+    _LOGGER.critical('Python sdk harness failed: ', exc_info=True)
     raise
   finally:
     if fn_log_handler:
@@ -189,8 +248,8 @@ def _get_state_cache_size(experiments):
   future releases.
 
   Returns:
-    an int indicating the maximum number of items to cache.
-      Default is 0 (disabled)
+    an int indicating the maximum number of megabytes to cache.
+      Default is 0 MB
   """
 
   for experiment in experiments:
@@ -198,7 +257,7 @@ def _get_state_cache_size(experiments):
     if re.match(r'state_cache_size=', experiment):
       return int(
           re.match(r'state_cache_size=(?P<state_cache_size>.*)',
-                   experiment).group('state_cache_size'))
+                   experiment).group('state_cache_size')) << 20
   return 0
 
 
@@ -209,7 +268,7 @@ def _get_data_buffer_time_limit_ms(experiments):
   not be available in future releases.
 
   Returns:
-    an int indicating the time limit in milliseconds of the the outbound
+    an int indicating the time limit in milliseconds of the outbound
       data buffering. Default is 0 (disabled)
   """
 
@@ -223,10 +282,51 @@ def _get_data_buffer_time_limit_ms(experiments):
   return 0
 
 
-class CorruptMainSessionException(Exception):
+def _get_log_level_from_options_dict(options_dict: dict) -> int:
+  """Get log level from options dict's entry `default_sdk_harness_log_level`.
+  If not specified, default log level is logging.INFO.
   """
-  Used to crash this worker if a main session file was provided but
-  is not valid.
+  dict_level = options_dict.get('default_sdk_harness_log_level', 'INFO')
+  log_level = dict_level
+  if log_level.isdecimal():
+    log_level = int(log_level)
+  else:
+    # labeled log level
+    log_level = getattr(logging, log_level, None)
+    if not isinstance(log_level, int):
+      # unknown log level.
+      _LOGGER.error("Unknown log level %s. Use default value INFO.", dict_level)
+      log_level = logging.INFO
+
+  return log_level
+
+
+def _set_log_level_overrides(options_dict: dict) -> None:
+  """Set module log level overrides from options dict's entry
+  `sdk_harness_log_level_overrides`.
+  """
+  parsed_overrides = options_dict.get('sdk_harness_log_level_overrides', None)
+
+  if not isinstance(parsed_overrides, dict):
+    if parsed_overrides is not None:
+      _LOGGER.error(
+          "Unable to parse sdk_harness_log_level_overrides: %s",
+          parsed_overrides)
+    return
+
+  for module_name, log_level in parsed_overrides.items():
+    try:
+      logging.getLogger(module_name).setLevel(log_level)
+    except Exception as e:
+      # Never crash the worker when exception occurs during log level setting
+      # but logging the error.
+      _LOGGER.error(
+          "Error occurred when setting log level for %s: %s", module_name, e)
+
+
+class LoadMainSessionException(Exception):
+  """
+  Used to crash this worker if a main session file failed to load.
   """
   pass
 
@@ -242,7 +342,8 @@ def _load_main_session(semi_persistent_directory):
       # This can happen if the worker fails to download the main session.
       # Raise a fatal error and crash this worker, forcing a restart.
       if os.path.getsize(session_file) == 0:
-        raise CorruptMainSessionException(
+        # Potenitally transient error, unclear if still happening.
+        raise LoadMainSessionException(
             'Session file found, but empty: %s. Functions defined in __main__ '
             '(interactive session) will almost certainly fail.' %
             (session_file, ))

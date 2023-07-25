@@ -18,12 +18,10 @@ package coder
 import (
 	"reflect"
 	"testing"
-
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 )
 
 func clearRegistry() {
-	coderRegistry = make(map[uintptr]func(reflect.Type) *CustomCoder)
+	coderRegistry = make(map[reflect.Type]func(reflect.Type) *CustomCoder)
 	interfaceOrdering = []reflect.Type{}
 }
 
@@ -75,17 +73,13 @@ func bDec([]byte) myB { return nil }
 func cEnc(myC) []byte { return nil }
 func cDec([]byte) myC { return nil }
 
-// General interface coder.
-func tEnc(typex.T) []byte { return nil }
-func tDec([]byte) typex.T { return nil }
-
 // TestRegisterCoder checks that RegisterCoder panics ag the panic behavior when validation fails.
 // All the examples below are negative examples, and are intended to fail.
 func TestRegisterCoder(t *testing.T) {
 	tests := []struct {
 		name     string
 		typ      reflect.Type
-		enc, dec interface{}
+		enc, dec any
 	}{{
 		name: "nonSatisfyingInterface",
 		typ:  msType, enc: aEnc, dec: aDec,
@@ -141,7 +135,7 @@ func TestRegisterCoder(t *testing.T) {
 }
 
 func TestLookupCustomCoder(t *testing.T) {
-	newCC := func(t *testing.T, name string, et reflect.Type, enc, dec interface{}) *CustomCoder {
+	newCC := func(t *testing.T, name string, et reflect.Type, enc, dec any) *CustomCoder {
 		t.Helper()
 		cc, err := NewCustomCoder(name, et, enc, dec)
 		if err != nil {

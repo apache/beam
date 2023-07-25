@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.values;
 
 import java.io.Serializable;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -27,7 +26,6 @@ import org.apache.beam.sdk.values.RowUtils.FieldOverrides;
 import org.apache.beam.sdk.values.RowUtils.RowFieldMatcher;
 import org.apache.beam.sdk.values.RowUtils.RowPosition;
 
-@Experimental
 public abstract class SchemaVerification implements Serializable {
   public static Object verifyFieldValue(Object value, FieldType type, String fieldName) {
     Schema schema = Schema.builder().addField(fieldName, type).build();

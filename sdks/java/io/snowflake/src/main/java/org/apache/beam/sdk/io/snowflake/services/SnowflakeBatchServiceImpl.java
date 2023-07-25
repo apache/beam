@@ -33,16 +33,12 @@ import org.apache.beam.sdk.io.snowflake.data.SnowflakeTableSchema;
 import org.apache.beam.sdk.io.snowflake.enums.CreateDisposition;
 import org.apache.beam.sdk.io.snowflake.enums.WriteDisposition;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-/** Implemenation of {@link SnowflakeService} used in production. */
+/** Implemenation of {@link SnowflakeServices.BatchService} used in production. */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-public class SnowflakeBatchServiceImpl implements SnowflakeService<SnowflakeBatchServiceConfig> {
-  private static final Logger LOG = LoggerFactory.getLogger(SnowflakeBatchServiceImpl.class);
+public class SnowflakeBatchServiceImpl implements SnowflakeServices.BatchService {
   private static final String SNOWFLAKE_GCS_PREFIX = "gcs://";
   private static final String GCS_PREFIX = "gs://";
 
@@ -171,7 +167,7 @@ public class SnowflakeBatchServiceImpl implements SnowflakeService<SnowflakeBatc
         selectQuery,
         resultSet -> {
           assert resultSet != null;
-          checkIfTableIsEmpty((ResultSet) resultSet);
+          checkIfTableIsEmpty(resultSet);
         });
   }
 
@@ -237,7 +233,7 @@ public class SnowflakeBatchServiceImpl implements SnowflakeService<SnowflakeBatc
         query,
         resultSet -> {
           assert resultSet != null;
-          if (!checkResultIfTableExists((ResultSet) resultSet)) {
+          if (!checkResultIfTableExists(resultSet)) {
             try {
               createTable(dataSource, table, tableSchema);
             } catch (SQLException e) {
@@ -274,13 +270,15 @@ public class SnowflakeBatchServiceImpl implements SnowflakeService<SnowflakeBatc
   }
 
   private static void runConnectionWithStatement(
-      DataSource dataSource, String query, Consumer resultSetMethod) throws SQLException {
+      DataSource dataSource, String query, Consumer<ResultSet> resultSetMethod)
+      throws SQLException {
     Connection connection = dataSource.getConnection();
     runStatement(query, connection, resultSetMethod);
     connection.close();
   }
 
-  private static void runStatement(String query, Connection connection, Consumer resultSetMethod)
+  private static void runStatement(
+      String query, Connection connection, Consumer<ResultSet> resultSetMethod)
       throws SQLException {
     PreparedStatement statement = connection.prepareStatement(query);
     try {

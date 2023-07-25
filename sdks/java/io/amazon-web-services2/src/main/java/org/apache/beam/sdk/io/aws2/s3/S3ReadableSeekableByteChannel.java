@@ -29,7 +29,6 @@ import java.nio.channels.ClosedChannelException;
 import java.nio.channels.NonWritableChannelException;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SeekableByteChannel;
-import org.apache.beam.sdk.io.aws2.options.S3Options;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.exception.SdkClientException;
@@ -41,24 +40,24 @@ import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 
 /** A readable S3 object, as a {@link SeekableByteChannel}. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class S3ReadableSeekableByteChannel implements SeekableByteChannel {
-
+  private static final long ABORT_THRESHOLD = 1024 * 8; // corresponds to default TCP buffer size
   private final S3Client s3Client;
   private final S3ResourceId path;
-  private final S3Options options;
+  private final S3FileSystemConfiguration config;
   private final long contentLength;
   private long position = 0;
   private boolean open = true;
   private @Nullable ResponseInputStream<GetObjectResponse> s3ResponseInputStream;
   private @Nullable ReadableByteChannel s3ObjectContentChannel;
 
-  S3ReadableSeekableByteChannel(S3Client s3Client, S3ResourceId path, S3Options options)
-      throws IOException {
+  S3ReadableSeekableByteChannel(
+      S3Client s3Client, S3ResourceId path, S3FileSystemConfiguration config) throws IOException {
     this.s3Client = checkNotNull(s3Client, "s3Client");
     checkNotNull(path, "path");
-    this.options = checkNotNull(options, "options");
+    this.config = checkNotNull(config, "config");
 
     if (path.getSize().isPresent()) {
       contentLength = path.getSize().get();
@@ -94,8 +93,8 @@ class S3ReadableSeekableByteChannel implements SeekableByteChannel {
           GetObjectRequest.builder()
               .bucket(path.getBucket())
               .key(path.getKey())
-              .sseCustomerKey(options.getSSECustomerKey().getKey())
-              .sseCustomerAlgorithm(options.getSSECustomerKey().getAlgorithm());
+              .sseCustomerKey(config.getSSECustomerKey().getKey())
+              .sseCustomerAlgorithm(config.getSSECustomerKey().getAlgorithm());
       if (position > 0) {
         builder.range(String.format("bytes=%s-%s", position, contentLength));
       }
@@ -145,12 +144,9 @@ class S3ReadableSeekableByteChannel implements SeekableByteChannel {
       return this;
     }
 
-    // The position has changed, so close and destroy the object to induce a re-creation on the next
-    // call to read()
-    if (s3ResponseInputStream != null) {
-      s3ResponseInputStream.close();
-      s3ResponseInputStream = null;
-    }
+    // The position has changed, close stream to force re-creation on the next read()
+    closeStream();
+
     position = newPosition;
     return this;
   }
@@ -163,12 +159,27 @@ class S3ReadableSeekableByteChannel implements SeekableByteChannel {
     return contentLength;
   }
 
+  private void closeStream() throws IOException {
+    if (s3ResponseInputStream == null) {
+      return;
+    }
+    if (contentLength - position > ABORT_THRESHOLD) {
+      // This will close the underlying connection and require establishing an HTTP connection which
+      // may outweigh the cost of reading the additional data.
+      s3ResponseInputStream.abort();
+      s3ResponseInputStream.release();
+    } else {
+      drainInputStream(s3ResponseInputStream);
+    }
+    s3ObjectContentChannel.close(); // will close s3ResponseInputStream
+
+    s3ObjectContentChannel = null;
+    s3ResponseInputStream = null;
+  }
+
   @Override
   public void close() throws IOException {
-    if (s3ResponseInputStream != null) {
-      drainInputStream(s3ResponseInputStream);
-      s3ResponseInputStream.close();
-    }
+    closeStream();
     open = false;
   }
 

@@ -15,9 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+evaluationDependsOn(':sdks:python:test-suites:xlang')
 
 def pythonVersionSuffix = project.ext.pythonVersion.replace('.', '')
-def pythonContainerVersion = project.ext.pythonVersion == '2.7' ? '2' : project.ext.pythonVersion
+def pythonContainerVersion = project.ext.pythonVersion
 def runScriptsDir = "${rootDir}/sdks/python/scripts"
 // Basic test options for ITs running on Jenkins.
 def basicTestOpts = [
@@ -28,7 +29,7 @@ def basicTestOpts = [
     "--log-cli-level=INFO" //log level info
 ]
 
-task postCommitIT {
+tasks.register("postCommitIT") {
   dependsOn 'installGcpTest'
 
   // Run IT tests with TestDirectRunner in batch in Python 3.
@@ -41,6 +42,26 @@ task postCommitIT {
         "apache_beam/io/gcp/bigquery_read_it_test.py",
         "apache_beam/io/gcp/bigquery_write_it_test.py",
         "apache_beam/io/gcp/datastore/v1new/datastore_write_it_test.py",
+    ]
+    def testOpts = basicTestOpts + ["${batchTests.join(' ')}"]
+    def argMap = ["runner": "TestDirectRunner",
+                  "test_opts": testOpts,
+                  "suite": "postCommitIT-direct-py${pythonVersionSuffix}",
+                  ]
+    def batchCmdArgs = mapToArgString(argMap)
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $batchCmdArgs"
+    }
+  }
+}
+
+tasks.register("spannerioIT") {
+  dependsOn 'installGcpTest'
+
+  // Run Spanner IO IT tests with TestDirectRunner in batch in Python 3.
+  doLast {
+    def batchTests = [
         "apache_beam/io/gcp/experimental/spannerio_read_it_test.py",
         "apache_beam/io/gcp/experimental/spannerio_write_it_test.py",
     ]
@@ -57,8 +78,27 @@ task postCommitIT {
   }
 }
 
+tasks.register("examples") {
+  dependsOn 'installGcpTest'
+  dependsOn ':sdks:python:sdist'
 
-task mongodbioIT {
+  doLast {
+    def testOpts = ["--log-cli-level=INFO"]
+    def argMap = ["runner": "TestDirectRunner",
+                  "test_opts": testOpts,
+                  "suite": "postCommitExamples-direct-py${pythonVersionSuffix}",
+                  "collect": "examples_postcommit and not sickbay_direct"
+    ]
+    def batchCmdArgs = mapToArgString(argMap)
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $batchCmdArgs"
+    }
+  }
+}
+
+
+tasks.register("mongodbioIT") {
   dependsOn 'setupVirtualenv'
 
   Random r = new Random()
@@ -73,7 +113,8 @@ task mongodbioIT {
   doFirst {
     exec {
       executable 'sh'
-      args '-c', "docker pull mongo && docker run --name ${containerName} -p ${port}:27017 -d mongo:latest"
+      // TODO(https://github.com/apache/beam/issues/25359) switch back to use latest container when issue resolved.
+      args '-c', "docker pull mongo && docker run --name ${containerName} -p ${port}:27017 -d mongo:6.0.3"
     }
   }
 
@@ -89,7 +130,7 @@ task mongodbioIT {
   }
 }
 
-task directRunnerIT {
+tasks.register("directRunnerIT") {
   dependsOn 'installGcpTest'
 
   // Run IT tests with TestDirectRunner in batch.
@@ -123,6 +164,8 @@ task directRunnerIT {
         "apache_beam/io/gcp/bigquery_test.py::BigQueryStreamingInsertTransformIntegrationTests::test_multiple_destinations_transform",
         "apache_beam/io/gcp/bigquery_test.py::PubSubBigQueryIT",
         "apache_beam/io/gcp/bigquery_file_loads_test.py::BigQueryFileLoadsIT::test_bqfl_streaming",
+        "apache_beam/io/gcp/bigquery_file_loads_test.py::BigQueryFileLoadsIT::test_bqfl_streaming_with_dynamic_destinations",
+        "apache_beam/io/gcp/bigquery_file_loads_test.py::BigQueryFileLoadsIT::test_bqfl_streaming_with_copy_jobs",
     ]
     def streamingTestOpts = basicTestOpts + ["${tests.join(' ')}"]
     def argMap = ["runner": "TestDirectRunner",
@@ -138,11 +181,195 @@ task directRunnerIT {
   }
 }
 
-task hdfsIntegrationTest {
+tasks.register("hdfsIntegrationTest") {
   doLast {
     exec {
       executable 'sh'
       args '-c', "${rootDir}/sdks/python/apache_beam/io/hdfs_integration_test/hdfs_integration_test.sh python:${pythonContainerVersion}"
     }
   }
+}
+
+tasks.register("azureIntegrationTest") {
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', "${rootDir}/sdks/python/apache_beam/io/azure/integration_test/azure_integration_test.sh python:${pythonContainerVersion}-bullseye"
+    }
+  }
+}
+
+// Pytorch RunInference IT tests
+task torchInferenceTest {
+  dependsOn 'installGcpTest'
+  dependsOn ':sdks:python:sdist'
+  def requirementsFile = "${rootDir}/sdks/python/apache_beam/ml/inference/torch_tests_requirements.txt"
+  doFirst {
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && pip install -r $requirementsFile"
+      }
+    }
+  doLast {
+      def testOpts = basicTestOpts
+      def argMap = [
+          "test_opts": testOpts,
+          "suite": "postCommitIT-direct-py${pythonVersionSuffix}",
+          "collect": "uses_pytorch and it_postcommit",
+          "runner": "TestDirectRunner"
+      ]
+      def cmdArgs = mapToArgString(argMap)
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && export FORCE_TORCH_IT=1 && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+      }
+    }
+
+}
+
+// Scikit-learn RunInference IT tests
+task sklearnInferenceTest {
+  dependsOn 'installGcpTest'
+  dependsOn ':sdks:python:sdist'
+  // TODO(https://github.com/apache/beam/issues/24787)
+  // Scikit learn tests fails from version 1.2.0
+  doFirst {
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && pip install 'scikit-learn<1.2.0'"
+      }
+    }
+  doLast {
+      def testOpts = basicTestOpts
+      def argMap = [
+          "test_opts": testOpts,
+          "suite": "postCommitIT-direct-py${pythonVersionSuffix}",
+          "collect": "uses_sklearn and it_postcommit" ,
+          "runner": "TestDirectRunner"
+      ]
+      def cmdArgs = mapToArgString(argMap)
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+      }
+    }
+}
+
+// TensorFlow Extended (TFX) RunInference IT tests
+task tfxInferenceTest {
+  dependsOn 'installGcpTest'
+  dependsOn ':sdks:python:sdist'
+  def requirementsFile = "${rootDir}/sdks/python/apache_beam/examples/inference/tfx_bsl/requirements.txt"
+  doFirst {
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && pip install -r $requirementsFile"
+      }
+    }
+  doLast {
+      def testOpts = basicTestOpts
+      def argMap = [
+          "test_opts": testOpts,
+          "suite": "postCommitIT-direct-py${pythonVersionSuffix}",
+          "collect": "uses_tensorflow and it_postcommit" ,
+          "runner": "TestDirectRunner"
+      ]
+      def cmdArgs = mapToArgString(argMap)
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+      }
+    }
+}
+
+// TensorFlow RunInference IT tests
+task tensorflowInferenceTest {
+  dependsOn 'installGcpTest'
+  dependsOn ':sdks:python:sdist'
+  def requirementsFile = "${rootDir}/sdks/python/apache_beam/ml/inference/tensorflow_tests_requirements.txt"
+  doFirst {
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && pip install -r $requirementsFile"
+      }
+    }
+  doLast {
+      def testOpts = basicTestOpts
+      def argMap = [
+          "test_opts": testOpts,
+          "suite": "postCommitIT-direct-py${pythonVersionSuffix}",
+          "collect": "uses_tf and it_postcommit" ,
+          "runner": "TestDirectRunner"
+      ]
+      def cmdArgs = mapToArgString(argMap)
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+      }
+    }
+}
+
+// XGBoost RunInference IT tests
+task xgboostInferenceTest {
+  dependsOn 'installGcpTest'
+  dependsOn ':sdks:python:sdist'
+  def requirementsFile = "${rootDir}/sdks/python/apache_beam/ml/inference/xgboost_tests_requirements.txt"
+  doFirst {
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && pip install -r $requirementsFile"
+      }
+    }
+  doLast {
+      def testOpts = basicTestOpts
+      def argMap = [
+          "test_opts": testOpts,
+          "suite": "postCommitIT-direct-py${pythonVersionSuffix}",
+          "collect": "uses_xgboost and it_postcommit",
+          "runner": "TestDirectRunner"
+      ]
+      def cmdArgs = mapToArgString(argMap)
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && export FORCE_XGBOOST_IT=1 && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+      }
+    }
+
+}
+
+// Add all the RunInference framework IT tests to this gradle task that runs on Direct Runner Post commit suite.
+project.tasks.register("inferencePostCommitIT") {
+  dependsOn = [
+  'torchInferenceTest',
+  'sklearnInferenceTest',
+  'tensorflowInferenceTest',
+  'xgboostInferenceTest'
+  // (TODO) https://github.com/apache/beam/issues/25799
+   // uncomment tfx bsl tests once tfx supports protobuf 4.x
+  // 'tfxInferenceTest',
+  ]
+}
+
+// Create cross-language tasks for running tests against Java expansion service(s)
+def gcpProject = project.findProperty('dataflowProject') ?: 'apache-beam-testing'
+
+project(":sdks:python:test-suites:xlang").ext.xlangTasks.each { taskMetadata ->
+    createCrossLanguageUsingJavaExpansionTask(
+      name: taskMetadata.name,
+      expansionProjectPath: taskMetadata.expansionProjectPath,
+      collectMarker: taskMetadata.collectMarker,
+      startJobServer: taskMetadata.startJobServer,
+      cleanupJobServer: taskMetadata.cleanupJobServer,
+      numParallelTests: 1,
+      pythonPipelineOptions: [
+        "--runner=TestDirectRunner",
+        "--project=${gcpProject}",
+      ],
+      pytestOptions: [
+        "--capture=no",  // print stdout instantly
+        "--timeout=4500", // timeout of whole command execution
+        "--color=yes", // console color
+        "--log-cli-level=INFO" //log level info
+      ]
+    )
 }

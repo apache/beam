@@ -30,7 +30,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
  * These options configure debug settings for Google API clients created within the Apache Beam SDK.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public interface GoogleApiDebugOptions extends PipelineOptions {
   /**

@@ -38,7 +38,7 @@ import org.apache.beam.sdk.values.PCollection;
  * <p>Lines that do not match the Regex will not be output.
  */
 @SuppressWarnings({
-  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes"
 })
 public class Regex {
@@ -978,10 +978,14 @@ public class Regex {
   public static class Split extends PTransform<PCollection<String>, PCollection<String>> {
     final Pattern pattern;
     boolean outputEmpty;
+    int splitLimit;
 
     public Split(Pattern pattern, boolean outputEmpty) {
       this.pattern = pattern;
       this.outputEmpty = outputEmpty;
+      // Use split with limit=0 iff this.outputEmpty is false, since it implicitly drops trailing
+      // empty strings
+      this.splitLimit = this.outputEmpty ? -1 : 0;
     }
 
     @Override
@@ -992,7 +996,7 @@ public class Regex {
                 @ProcessElement
                 public void processElement(@Element String element, OutputReceiver<String> r)
                     throws Exception {
-                  String[] items = pattern.split(element);
+                  String[] items = pattern.split(element, splitLimit);
 
                   for (String item : items) {
                     if (outputEmpty || !item.isEmpty()) {

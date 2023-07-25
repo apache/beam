@@ -37,7 +37,7 @@ const (
 
 	// EndOfGlobalWindowTime is the timestamp at the end of the global window. It
 	// is a day before the max timestamp.
-	// TODO Use GLOBAL_WINDOW_MAX_TIMESTAMP_MILLIS from the Runner API constants
+	// TODO(https://github.com/apache/beam/issues/18951) Use GLOBAL_WINDOW_MAX_TIMESTAMP_MILLIS from the Runner API constants
 	EndOfGlobalWindowTime = MaxTimestamp - 24*60*60*1000
 
 	// ZeroTimestamp is the default zero value time. It corresponds to the unix epoch.
@@ -65,7 +65,7 @@ func FromDuration(d time.Duration) Time {
 
 // FromTime returns a milli-second precision timestamp from a time.Time.
 func FromTime(t time.Time) Time {
-	return Normalize(Time(n2m(t.UnixNano())))
+	return Normalize(Time(t.UnixMilli()))
 }
 
 // Milliseconds returns the number of milli-seconds since the Unix epoch.
@@ -73,14 +73,23 @@ func (t Time) Milliseconds() int64 {
 	return int64(t)
 }
 
-// Add returns the time plus the duration.
-func (t Time) Add(d time.Duration) Time {
-	return Normalize(Time(int64(t) + n2m(d.Nanoseconds())))
+// ToTime returns the Time represented as a time.Time
+func (t Time) ToTime() time.Time {
+	return time.UnixMilli(int64(t)).UTC()
 }
 
-// Subtract returns the time minus the duration.
+// Add returns the time plus the duration. Input Durations of less than one
+// millisecond will not increment the time due to a loss of precision when
+// converting to milliseconds.
+func (t Time) Add(d time.Duration) Time {
+	return Normalize(Time(int64(t) + d.Milliseconds()))
+}
+
+// Subtract returns the time minus the duration. Input Durations of less than one
+// millisecond will not increment the time due to a loss of precision when
+// converting to milliseconds.
 func (t Time) Subtract(d time.Duration) Time {
-	return Normalize(Time(int64(t) - n2m(d.Nanoseconds())))
+	return Normalize(Time(int64(t) - d.Milliseconds()))
 }
 
 func (t Time) String() string {
@@ -115,9 +124,4 @@ func Max(a, b Time) Time {
 // Normalize ensures a Time is within [MinTimestamp,MaxTimestamp].
 func Normalize(t Time) Time {
 	return Min(Max(t, MinTimestamp), MaxTimestamp)
-}
-
-// n2m converts nanoseconds to milliseconds.
-func n2m(v int64) int64 {
-	return v / 1e6
 }

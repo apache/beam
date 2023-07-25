@@ -23,7 +23,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.joda.time.Instant;
 
-@SuppressWarnings({"keyfor", "nullness"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({"keyfor", "nullness"}) // TODO(https://github.com/apache/beam/issues/20497)
 class SamzaAssignContext<InT, W extends BoundedWindow> extends WindowFn<InT, W>.AssignContext {
   private final WindowedValue<InT> value;
 

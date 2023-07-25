@@ -284,7 +284,7 @@ class PipelineInstrument(object):
     roots = [root for root in pipeline_proto.root_transform_ids]
 
     # Get the transform IDs of the caching transforms. These caching operations
-    # are added the the _background_caching_pipeline in the instrument() method.
+    # are added to the _background_caching_pipeline in the instrument() method.
     # It's added there so that multiple calls to this method won't add multiple
     # caching operations (idempotent).
     transforms = pipeline_proto.components.transforms
@@ -300,7 +300,7 @@ class PipelineInstrument(object):
         v in transforms.items() if v.unique_name in required_transform_labels
     ]
 
-    # The required transforms are the tranforms that we want to cut out of
+    # The required transforms are the transforms that we want to cut out of
     # the pipeline_proto and insert into a new pipeline to return.
     required_transform_ids = (
         roots + caching_transform_ids + unbounded_source_ids)

@@ -18,6 +18,7 @@
 package org.apache.beam.runners.spark;
 
 import org.apache.beam.runners.core.construction.resources.PipelineResources;
+import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingRunner;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.Default;
@@ -50,6 +51,12 @@ public interface SparkCommonPipelineOptions
 
   void setCheckpointDir(String checkpointDir);
 
+  @Description("Batch default storage level")
+  @Default.InstanceFactory(StorageLevelFactory.class)
+  String getStorageLevel();
+
+  void setStorageLevel(String storageLevel);
+
   @Description("Enable/disable sending aggregator values to Spark's metric sinks")
   @Default.Boolean(true)
   Boolean getEnableSparkMetricSinks();
@@ -76,6 +83,19 @@ public interface SparkCommonPipelineOptions
   static void prepareFilesToStage(SparkCommonPipelineOptions options) {
     if (!options.getSparkMaster().matches("local\\[?\\d*]?")) {
       PipelineResources.prepareFilesForStaging(options);
+    }
+  }
+
+  /**
+   * Returns Spark's default storage level for the Dataset or RDD API based on the respective
+   * runner.
+   */
+  class StorageLevelFactory implements DefaultValueFactory<String> {
+    @Override
+    public String create(PipelineOptions options) {
+      return SparkStructuredStreamingRunner.class.equals(options.getRunner())
+          ? "MEMORY_AND_DISK"
+          : "MEMORY_ONLY";
     }
   }
 }

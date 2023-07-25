@@ -27,43 +27,21 @@ enableJavaPerformanceTesting()
 description = "Apache Beam :: SDKs :: Java :: IO :: Elasticsearch-Tests :: 7.x"
 ext.summary = "Tests of ElasticsearchIO on Elasticsearch 7.x"
 
-def log4j_version = "2.14.1"
 def elastic_search_version = "7.13.4"
 
-configurations.all {
-  resolutionStrategy {
-    // Make sure the log4j versions for api and core match instead of taking the default
-    // Gradle rule of using the latest.
-    force "org.apache.logging.log4j:log4j-core:$log4j_version"
-    force "org.apache.logging.log4j:log4j-api:$log4j_version"
-  }
-}
-
-test {
-  maxParallelForks = 1
-}
-
 dependencies {
-  testCompile project(path: ":sdks:java:io:elasticsearch-tests:elasticsearch-tests-common", configuration: "testRuntime")
-  testCompile "org.elasticsearch.test:framework:$elastic_search_version"
-  testCompile "org.elasticsearch.plugin:transport-netty4-client:$elastic_search_version"
-  testCompile "com.carrotsearch.randomizedtesting:randomizedtesting-runner:2.7.5"
-  testImplementation "org.testcontainers:elasticsearch:1.15.3"
+  testImplementation project(path: ":sdks:java:io:elasticsearch-tests:elasticsearch-tests-common", configuration: "testRuntimeMigration")
+  testImplementation library.java.testcontainers_elasticsearch
 
-  testCompile project(path: ":sdks:java:core", configuration: "shadow")
-  testCompile project(":sdks:java:io:elasticsearch")
-  testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
-  testCompile library.java.slf4j_api
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
-  testCompile library.java.junit
-  testCompile "org.elasticsearch.client:elasticsearch-rest-client:$elastic_search_version"
-  testRuntimeOnly "org.apache.logging.log4j:log4j-api:$log4j_version"
-  testRuntimeOnly "org.apache.logging.log4j:log4j-core:$log4j_version"
+  testImplementation project(path: ":sdks:java:core", configuration: "shadow")
+  testImplementation project(":sdks:java:io:elasticsearch")
+  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
+  testImplementation library.java.slf4j_api
+  testImplementation library.java.hamcrest
+  testImplementation library.java.junit
+  testImplementation "org.elasticsearch.client:elasticsearch-rest-client:$elastic_search_version"
+  testRuntimeOnly library.java.log4j2_api
+  testRuntimeOnly library.java.log4j2_core
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }
-
-//test {
-//  systemProperty 'elasticsearchVersion', elasticsearchVersion
-//}

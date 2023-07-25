@@ -17,7 +17,7 @@
 // (http://kafka.apache.org/). These transforms only work on runners that
 // support cross-language transforms.
 //
-// Setup
+// # Setup
 //
 // Transforms specified here are cross-language transforms implemented in a
 // different SDK (listed below). During pipeline construction, the Go SDK will
@@ -35,19 +35,21 @@
 //
 // Current supported SDKs, including expansion service modules and reference
 // documentation:
-// * Java
-//    - Vendored Module: beam-sdks-java-io-expansion-service
-//    - Run via Gradle: ./gradlew :sdks:java:io:expansion-service:runExpansionService
-//    - Reference Class: org.apache.beam.sdk.io.kafka.KafkaIO
+//
+// Java:
+//   - Vendored Module: beam-sdks-java-io-expansion-service
+//   - Run via Gradle: ./gradlew :sdks:java:io:expansion-service:runExpansionService
+//   - Reference Class: org.apache.beam.sdk.io.kafka.KafkaIO
 package kafkaio
 
-// TODO(BEAM-12492): Implement an API for specifying Kafka type serializers and
+// TODO(https://github.com/apache/beam/issues/21000): Implement an API for specifying Kafka type serializers and
 // deserializers.
 
 import (
 	"reflect"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/xlangx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
@@ -82,7 +84,11 @@ const (
 
 	readURN  = "beam:transform:org.apache.beam:kafka_read_without_metadata:v1"
 	writeURN = "beam:transform:org.apache.beam:kafka_write:v1"
+
+	serviceGradleTarget = ":sdks:java:io:expansion-service:runExpansionService"
 )
+
+var autoStartupAddress string = xlangx.UseAutomatedJavaExpansionService(serviceGradleTarget)
 
 // Read is a cross-language PTransform which reads from Kafka and returns a
 // KV pair for each item in the specified Kafka topics. By default, this runs
@@ -92,6 +98,9 @@ const (
 // Read requires the address for an expansion service for Kafka Read transforms,
 // a comma-seperated list of bootstrap server addresses (see the Kafka property
 // "bootstrap.servers" for details), and at least one topic to read from.
+// If an expansion service address is provided as "", an appropriate expansion
+// service will be automatically started; however this is slower than having a
+// persistent expansion service running.
 //
 // Read also accepts optional parameters as readOptions. All optional parameters
 // are predefined in this package as functions that return readOption. To set
@@ -99,16 +108,20 @@ const (
 //
 // Example of Read with required and optional parameters:
 //
-//   expansionAddr := "localhost:1234"
-//   bootstrapServer := "bootstrap-server:1234"
-//   topic := "topic_name"
-//   pcol := kafkaio.Read( s, expansionAddr, bootstrapServer, []string{topic},
-//       kafkaio.MaxNumRecords(100), kafkaio.CommitOffsetInFinalize(true))
+//	expansionAddr := "localhost:1234"
+//	bootstrapServer := "bootstrap-server:1234"
+//	topic := "topic_name"
+//	pcol := kafkaio.Read( s, expansionAddr, bootstrapServer, []string{topic},
+//	    kafkaio.MaxNumRecords(100), kafkaio.CommitOffsetInFinalize(true))
 func Read(s beam.Scope, addr string, servers string, topics []string, opts ...readOption) beam.PCollection {
 	s = s.Scope("kafkaio.Read")
 
 	if len(topics) == 0 {
 		panic("kafkaio.Read requires at least one topic to read from.")
+	}
+
+	if addr == "" {
+		addr = autoStartupAddress
 	}
 
 	rpl := readPayload{
@@ -229,6 +242,9 @@ type readPayload struct {
 // Write requires the address for an expansion service for Kafka Write
 // transforms, a comma-seperated list of bootstrap server addresses (see the
 // Kafka property "bootstrap.servers" for details), and a topic to write to.
+// If an expansion service address is provided as "", an appropriate expansion
+// service will be automatically started; however this is slower than having a
+// persistent expansion service running.
 //
 // Write also accepts optional parameters as writeOptions. All optional
 // parameters are predefined in this package as functions that return
@@ -237,13 +253,17 @@ type readPayload struct {
 //
 // Example of Write with required and optional parameters:
 //
-//   expansionAddr := "localhost:1234"
-//   bootstrapServer := "bootstrap-server:1234"
-//   topic := "topic_name"
-//   pcol := kafkaio.Read(s, expansionAddr, bootstrapServer, topic,
-//       kafkaio.ValueSerializer("foo.BarSerializer"))
+//	expansionAddr := "localhost:1234"
+//	bootstrapServer := "bootstrap-server:1234"
+//	topic := "topic_name"
+//	pcol := kafkaio.Read(s, expansionAddr, bootstrapServer, topic,
+//	    kafkaio.ValueSerializer("foo.BarSerializer"))
 func Write(s beam.Scope, addr, servers, topic string, col beam.PCollection, opts ...writeOption) {
 	s = s.Scope("kafkaio.Write")
+
+	if addr == "" {
+		addr = autoStartupAddress
+	}
 
 	wpl := writePayload{
 		ProducerConfig:  map[string]string{"bootstrap.servers": servers},

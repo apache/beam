@@ -18,7 +18,7 @@ limitations under the License.
 <table align="left">
     <a target="_blank" class="button"
         href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/transforms/ApproximateQuantiles.html">
-      <img src="https://beam.apache.org/images/logos/sdks/java.png" width="20px" height="20px"
+      <img src="/images/logos/sdks/java.png" width="20px" height="20px"
            alt="Javadoc" />
      Javadoc
     </a>
@@ -30,10 +30,15 @@ globally or per-key. Using an approximation algorithm, it returns the
 minimum value, *n-2* intermediate values, and the maximum value.
 
 ## Examples
+
 **Example**: to compute the quartiles of a `PCollection` of integers, we
 would use `ApproximateQuantiles.globally(5)`. This will produce a list
 containing 5 values: the minimum value, Quartile 1 value, Quartile 2
 value, Quartile 3 value, and the maximum value.
+
+{{< playground height="700px" >}}
+{{< playground_snippet language="java" path="SDK_JAVA_ApproximateQuantiles" show="main_section" >}}
+{{< /playground >}}
 
 ## Related transforms
 * [ApproximateUnique](/documentation/transforms/java/aggregation/approximateunique)

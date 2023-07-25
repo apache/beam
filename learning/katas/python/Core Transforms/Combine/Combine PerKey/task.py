@@ -14,9 +14,21 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-import apache_beam as beam
+# beam-playground:
+#   name: CombinePerKey
+#   description: Task from katas to implement the summation of scores per player.
+#   multifile: false
+#   context_line: 37
+#   categories:
+#     - Combiners
+#   complexity: BASIC
+#   tags:
+#     - map
+#     - combine
+#     - strings
+#     - numbers
 
-from log_elements import LogElements
+import apache_beam as beam
 
 PLAYER_1 = 'Player 1'
 PLAYER_2 = 'Player 2'
@@ -27,5 +39,4 @@ with beam.Pipeline() as p:
   (p | beam.Create([(PLAYER_1, 15), (PLAYER_2, 10), (PLAYER_1, 100),
                     (PLAYER_3, 25), (PLAYER_2, 75)])
      | beam.CombinePerKey(sum)
-     | LogElements())
-
+     | beam.LogElements())

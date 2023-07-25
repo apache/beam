@@ -25,6 +25,7 @@ import static org.hamcrest.Matchers.is;
 
 import java.io.Serializable;
 import org.apache.beam.runners.spark.StreamingTest;
+import org.apache.beam.runners.spark.TestSparkPipelineOptions;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.Source;
@@ -33,6 +34,7 @@ import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.metrics.SourceMetrics;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollection;
@@ -47,7 +49,7 @@ public class StreamingSourceMetricsTest implements Serializable {
   private static final MetricName ELEMENTS_READ = SourceMetrics.elementsRead().getName();
 
   // Force streaming pipeline using pipeline rule.
-  @Rule public final transient TestPipeline pipeline = TestPipeline.create();
+  @Rule public final transient TestPipeline pipeline = TestPipeline.fromOptions(streamingOptions());
 
   @Test
   @Category(StreamingTest.class)
@@ -86,5 +88,11 @@ public class StreamingSourceMetricsTest implements Serializable {
                 "GenerateSequence/Read(UnboundedCountingSource)",
                 greaterThanOrEqualTo(minElements),
                 false)));
+  }
+
+  private static PipelineOptions streamingOptions() {
+    PipelineOptions options = TestPipeline.testingPipelineOptions();
+    options.as(TestSparkPipelineOptions.class).setStreaming(true);
+    return options;
   }
 }

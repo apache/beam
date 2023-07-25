@@ -22,19 +22,15 @@ import static org.apache.beam.sdk.schemas.Schema.toSchema;
 import com.google.cloud.datacatalog.v1beta1.ColumnSchema;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
-import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.base.Strings;
-import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
-@Experimental(Kind.SCHEMAS)
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class SchemaUtils {
 
@@ -170,7 +166,7 @@ class SchemaUtils {
       case DECIMAL:
         return "NUMERIC";
       case LOGICAL_TYPE:
-        Schema.LogicalType logical = fieldType.getLogicalType();
+        Schema.LogicalType<?, ?> logical = fieldType.getLogicalType();
         if (SqlTypes.TIME.getIdentifier().equals(logical.getIdentifier())) {
           return "TIME";
         } else if (SqlTypes.DATE.getIdentifier().equals(logical.getIdentifier())) {

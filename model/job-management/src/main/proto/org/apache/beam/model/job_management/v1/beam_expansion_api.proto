@@ -1,0 +1,106 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+ * Protocol Buffers describing the Expansion API, an api for expanding
+ * transforms in a remote SDK.
+ */
+
+syntax = "proto3";
+
+package org.apache.beam.model.expansion.v1;
+
+option go_package = "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1;jobmanagement_v1";
+option java_package = "org.apache.beam.model.expansion.v1";
+option java_outer_classname = "ExpansionApi";
+
+import "org/apache/beam/model/pipeline/v1/beam_runner_api.proto";
+import "org/apache/beam/model/pipeline/v1/schema.proto";
+
+message ExpansionRequest {
+  // Set of components needed to interpret the transform, or which
+  // may be useful for its expansion.  This includes the input
+  // PCollections (if any) to the to-be-expanded transform, along
+  // with their coders and windowing strategies.
+  org.apache.beam.model.pipeline.v1.Components components = 1;
+
+  // The actual PTransform to be expaneded according to its spec.
+  // Its input should be set, but its subtransforms and outputs
+  // should not be.
+  org.apache.beam.model.pipeline.v1.PTransform transform = 2;
+
+  // A namespace (prefix) to use for the id of any newly created
+  // components.
+  string namespace = 3;
+
+  // (Optional) Map from a local output tag to a coder id.
+  // If it is set, asks the expansion service to use the given
+  // coders for the output PCollections. Note that the request
+  // may not be fulfilled.
+  map<string, string> output_coder_requests = 4;
+}
+
+message ExpansionResponse {
+  // Set of components needed to execute the expanded transform,
+  // including the (original) inputs, outputs, and subtransforms.
+  org.apache.beam.model.pipeline.v1.Components components = 1;
+
+  // The expanded transform itself, with references to its outputs
+  // and subtransforms.
+  org.apache.beam.model.pipeline.v1.PTransform transform = 2;
+
+  // A set of requirements that must be appended to this pipeline's
+  // requirements.
+  repeated string requirements = 3;
+
+  // (Optional) An string representation of any error encountered while
+  // attempting to expand this transform.
+  string error = 10;
+}
+
+message DiscoverSchemaTransformRequest  {
+}
+
+message SchemaTransformConfig {
+  // Config schema of the SchemaTransform
+  org.apache.beam.model.pipeline.v1.Schema config_schema = 1;
+
+  // Names of input PCollections
+  repeated string input_pcollection_names = 2;
+
+  // Names of output PCollections
+  repeated string output_pcollection_names = 3;
+}
+
+message DiscoverSchemaTransformResponse {
+  // A mapping from SchemaTransform ID to schema transform config of discovered
+  // SchemaTransforms
+  map <string, SchemaTransformConfig> schema_transform_configs = 1;
+
+  // If list of identifies are empty, this may contain an error.
+  string error = 2;
+}
+
+// Job Service for constructing pipelines
+service ExpansionService {
+  rpc Expand (ExpansionRequest) returns (ExpansionResponse);
+
+  //A RPC to discover already registered SchemaTransformProviders.
+  // See https://s.apache.org/easy-multi-language for more details.
+  rpc DiscoverSchemaTransform (DiscoverSchemaTransformRequest) returns (DiscoverSchemaTransformResponse);
+}

@@ -73,7 +73,7 @@ To run this example your `build.gradle` file should contain the following task t
 
 ```
 task execute (type:JavaExec) {
-    main = System.getProperty("mainClass")
+    mainClass = System.getProperty("mainClass")
     classpath = sourceSets.main.runtimeClasspath
     systemProperties System.getProperties()
     args System.getProperty("exec.args", "").split()

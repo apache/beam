@@ -30,6 +30,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
@@ -50,6 +51,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sample;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.Top;
 import org.apache.beam.sdk.values.PCollection;
@@ -69,7 +71,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 @Category(UsesSchema.class)
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class GroupTest implements Serializable {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
@@ -136,7 +138,7 @@ public class GroupTest implements Serializable {
                         toRow.apply(Basic.of("key2", 4L, "value4"))))
                 .build());
 
-    PAssert.that(grouped).satisfies(actual -> containsKIterableVs(expected, actual, new Basic[0]));
+    PAssert.that(grouped).satisfies(actual -> containsKIterableVs(expected, actual));
     pipeline.run();
   }
 
@@ -179,7 +181,7 @@ public class GroupTest implements Serializable {
                         toRow.apply(Basic.of("key2", 2L, "value4"))))
                 .build());
 
-    PAssert.that(grouped).satisfies(actual -> containsKIterableVs(expected, actual, new Basic[0]));
+    PAssert.that(grouped).satisfies(actual -> containsKIterableVs(expected, actual));
     pipeline.run();
   }
 
@@ -238,7 +240,7 @@ public class GroupTest implements Serializable {
                         toRow.apply(Outer.of(Basic.of("key2", 2L, "value4")))))
                 .build());
 
-    PAssert.that(grouped).satisfies(actual -> containsKIterableVs(expected, actual, new Outer[0]));
+    PAssert.that(grouped).satisfies(actual -> containsKIterableVs(expected, actual));
     pipeline.run();
   }
 
@@ -260,17 +262,30 @@ public class GroupTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testGlobalAggregation() {
+  public void testGlobalAggregationWithoutFanout() {
+    globalAggregationWithFanout(false);
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testGlobalAggregationWithFanout() {
+    globalAggregationWithFanout(true);
+  }
+
+  public void globalAggregationWithFanout(boolean withFanout) {
     Collection<Basic> elements =
         ImmutableList.of(
             Basic.of("key1", 1, "value1"),
             Basic.of("key1", 1, "value2"),
             Basic.of("key2", 2, "value3"),
             Basic.of("key2", 2, "value4"));
-    PCollection<Long> count =
-        pipeline
-            .apply(Create.of(elements))
-            .apply(Group.<Basic>globally().aggregate(Count.combineFn()));
+
+    Group.CombineGlobally<Basic, Long> transform =
+        Group.<Basic>globally().aggregate(Count.combineFn());
+    if (withFanout) {
+      transform = transform.withFanout(10);
+    }
+    PCollection<Long> count = pipeline.apply(Create.of(elements)).apply(transform);
     PAssert.that(count).containsInAnyOrder(4L);
 
     pipeline.run();
@@ -426,7 +441,17 @@ public class GroupTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testAggregateByMultipleFields() {
+  public void testAggregateByMultipleFieldsWithoutFanout() {
+    aggregateByMultipleFieldsWithFanout(false);
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testAggregateByMultipleFieldsWithFanout() {
+    aggregateByMultipleFieldsWithFanout(true);
+  }
+
+  public void aggregateByMultipleFieldsWithFanout(boolean withFanout) {
     Collection<Aggregate> elements =
         ImmutableList.of(
             Aggregate.of(1, 1, 2),
@@ -435,12 +460,14 @@ public class GroupTest implements Serializable {
             Aggregate.of(4, 2, 5));
 
     List<String> fieldNames = Lists.newArrayList("field1", "field2");
-    PCollection<Row> aggregate =
-        pipeline
-            .apply(Create.of(elements))
-            .apply(
-                Group.<Aggregate>globally()
-                    .aggregateFields(fieldNames, new MultipleFieldCombineFn(), "field1+field2"));
+
+    Group.CombineFieldsGlobally<Aggregate> transform =
+        Group.<Aggregate>globally()
+            .aggregateFields(fieldNames, new MultipleFieldCombineFn(), "field1+field2");
+    if (withFanout) {
+      transform = transform.withFanout(10);
+    }
+    PCollection<Row> aggregate = pipeline.apply(Create.of(elements)).apply(transform);
 
     Schema outputSchema = Schema.builder().addInt64Field("field1+field2").build();
     Row expectedRow = Row.withSchema(outputSchema).addValues(16L).build();
@@ -462,7 +489,25 @@ public class GroupTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testByKeyWithSchemaAggregateFnNestedFields() {
+  public void testByKeyWithSchemaAggregateFnNestedFieldsNoFanout() {
+    byKeyWithSchemaAggregateFnNestedFieldsWithFanout(null);
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testByKeyWithSchemaAggregateFnNestedFieldsWithNumberFanout() {
+    byKeyWithSchemaAggregateFnNestedFieldsWithFanout(Group.CombineFieldsByFields.Fanout.of(10));
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testByKeyWithSchemaAggregateFnNestedFieldsWithFunctionFanout() {
+    byKeyWithSchemaAggregateFnNestedFieldsWithFanout(
+        Group.CombineFieldsByFields.Fanout.of(SerializableFunctions.constant(10)));
+  }
+
+  public void byKeyWithSchemaAggregateFnNestedFieldsWithFanout(
+      @Nullable Group.CombineFieldsByFields.Fanout fanout) {
     Collection<OuterAggregate> elements =
         ImmutableList.of(
             OuterAggregate.of(Aggregate.of(1, 1, 2)),
@@ -470,14 +515,23 @@ public class GroupTest implements Serializable {
             OuterAggregate.of(Aggregate.of(3, 2, 4)),
             OuterAggregate.of(Aggregate.of(4, 2, 5)));
 
-    PCollection<Row> aggregations =
-        pipeline
-            .apply(Create.of(elements))
-            .apply(
-                Group.<OuterAggregate>byFieldNames("inner.field2")
-                    .aggregateField("inner.field1", Sum.ofLongs(), "field1_sum")
-                    .aggregateField("inner.field3", Sum.ofIntegers(), "field3_sum")
-                    .aggregateField("inner.field1", Top.largestLongsFn(1), "field1_top"));
+    Group.CombineFieldsByFields<OuterAggregate> transform =
+        Group.<OuterAggregate>byFieldNames("inner.field2")
+            .aggregateField("inner.field1", Sum.ofLongs(), "field1_sum")
+            .aggregateField("inner.field3", Sum.ofIntegers(), "field3_sum")
+            .aggregateField("inner.field1", Top.largestLongsFn(1), "field1_top");
+    if (fanout != null) {
+      switch (fanout.getKind()) {
+        case NUMBER:
+          transform = transform.withHotKeyFanout(fanout.getNumber());
+          break;
+        case FUNCTION:
+          transform = transform.withHotKeyFanout(fanout.getFunction());
+          break;
+      }
+    }
+
+    PCollection<Row> aggregations = pipeline.apply(Create.of(elements)).apply(transform);
 
     Schema keySchema = Schema.builder().addInt64Field("field2").build();
     Schema valueSchema =
@@ -537,7 +591,7 @@ public class GroupTest implements Serializable {
   @DefaultSchema(AutoValueSchema.class)
   @AutoValue
   abstract static class BasicEnum {
-    enum Test {
+    enum TestEnum {
       ZERO,
       ONE,
       TWO
@@ -545,9 +599,9 @@ public class GroupTest implements Serializable {
 
     abstract String getKey();
 
-    abstract Test getEnumeration();
+    abstract TestEnum getEnumeration();
 
-    static BasicEnum of(String key, Test value) {
+    static BasicEnum of(String key, TestEnum value) {
       return new AutoValue_GroupTest_BasicEnum(key, value);
     }
   }
@@ -565,7 +619,7 @@ public class GroupTest implements Serializable {
   public void testAggregateBaseValuesGlobally() {
     Collection<BasicEnum> elements =
         Lists.newArrayList(
-            BasicEnum.of("a", BasicEnum.Test.ONE), BasicEnum.of("a", BasicEnum.Test.TWO));
+            BasicEnum.of("a", BasicEnum.TestEnum.ONE), BasicEnum.of("a", BasicEnum.TestEnum.TWO));
 
     PCollection<Row> aggregate =
         pipeline
@@ -585,7 +639,7 @@ public class GroupTest implements Serializable {
   public void testAggregateLogicalValuesGlobally() {
     Collection<BasicEnum> elements =
         Lists.newArrayList(
-            BasicEnum.of("a", BasicEnum.Test.ONE), BasicEnum.of("a", BasicEnum.Test.TWO));
+            BasicEnum.of("a", BasicEnum.TestEnum.ONE), BasicEnum.of("a", BasicEnum.TestEnum.TWO));
 
     CombineFn<EnumerationType.Value, ?, Iterable<EnumerationType.Value>> sampleAnyCombineFn =
         Sample.anyCombineFn(100);
@@ -617,9 +671,7 @@ public class GroupTest implements Serializable {
     pipeline.run();
   }
 
-  private static <T> Void containsKIterableVs(
-      List<Row> expectedKvs, Iterable<Row> actualKvs, T[] emptyArray) {
-    List<Row> list = Lists.newArrayList(actualKvs);
+  private static <T> Void containsKIterableVs(List<Row> expectedKvs, Iterable<Row> actualKvs) {
     List<Matcher<? super Row>> matchers = new ArrayList<>();
     for (Row expected : expectedKvs) {
       List<Matcher> fieldMatchers = Lists.newArrayList();

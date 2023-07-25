@@ -18,13 +18,15 @@
 package org.apache.beam.sdk.io.aws.options;
 
 import com.amazonaws.ClientConfiguration;
+import com.amazonaws.SdkClientException;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
+import com.amazonaws.regions.DefaultAwsRegionProviderChain;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.Validation;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Options used to configure Amazon Web Services specific options such as credentials and region.
@@ -33,10 +35,23 @@ public interface AwsOptions extends PipelineOptions {
 
   /** AWS region used by the AWS client. */
   @Description("AWS region used by the AWS client")
-  @Validation.Required
+  @Default.InstanceFactory(AwsRegionFactory.class)
   String getAwsRegion();
 
   void setAwsRegion(String value);
+
+  /** Attempt to load default region. */
+  class AwsRegionFactory implements DefaultValueFactory<@Nullable String> {
+    @Override
+    @Nullable
+    public String create(PipelineOptions options) {
+      try {
+        return new DefaultAwsRegionProviderChain().getRegion();
+      } catch (SdkClientException e) {
+        return null;
+      }
+    }
+  }
 
   /** The AWS service endpoint used by the AWS client. */
   @Description("AWS service endpoint used by the AWS client")
@@ -103,34 +118,6 @@ public interface AwsOptions extends PipelineOptions {
   ClientConfiguration getClientConfiguration();
 
   void setClientConfiguration(ClientConfiguration clientConfiguration);
-
-  /**
-   * The client configuration instance that should be used to configure AWS service clients. Please
-   * note that the configuration deserialization allows aws http client configuration settings.
-   *
-   * <p>For example, to set different timeout for aws client service : Note that all the below
-   * fields are optional, so only add those configurations that need to be set. <code>
-   * --clientConfiguration={
-   *   "clientExecutionTimeout":1000,
-   *   "connectionMaxIdleTime":3000,
-   *   "connectionTimeout":10000,
-   *   "requestTimeout":30,
-   *   "socketTimeout":600,
-   *   "maxConnections":10,
-   *   "socketTimeout":5000
-   * }
-   * </code>
-   *
-   * @return
-   */
-  @Description(
-      "The client configuration instance that should be used to configure AWS http client configuration parameters."
-          + "Mentioned parameters are the available parameters that can be set. All above parameters are "
-          + "optional set only those that need custom changes.")
-  @Default.InstanceFactory(ClientConfigurationFactory.class)
-  ClientConfiguration getAwsHttpClientConfiguration();
-
-  void setAwsHttpClientConfiguration(ClientConfiguration clientConfiguration);
 
   /** Default AWS client configuration. */
   class ClientConfigurationFactory implements DefaultValueFactory<ClientConfiguration> {

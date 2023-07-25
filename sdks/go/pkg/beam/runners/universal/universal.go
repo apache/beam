@@ -19,7 +19,6 @@ package universal
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
@@ -46,7 +45,7 @@ func init() {
 // Execute executes the pipeline on a universal beam runner.
 func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error) {
 	if !beam.Initialized() {
-		panic(fmt.Sprint("Beam has not been initialized. Call beam.Init() before pipeline construction."))
+		panic("Beam has not been initialized. Call beam.Init() before pipeline construction.")
 	}
 
 	if *jobopts.Strict {
@@ -86,7 +85,10 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 	if err != nil {
 		return nil, errors.WithContextf(err, "generating model pipeline")
 	}
-	pipeline, err := graphx.Marshal(edges, &graphx.Options{Environment: environment})
+	pipeline, err := graphx.Marshal(edges, &graphx.Options{
+		Environment:           environment,
+		PipelineResourceHints: jobopts.GetPipelineResourceHints(),
+	})
 	if err != nil {
 		return nil, errors.WithContextf(err, "generating model pipeline")
 	}
@@ -99,7 +101,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 		Worker:       *jobopts.WorkerBinary,
 		RetainDocker: *jobopts.RetainDockerContainers,
 		Parallelism:  *jobopts.Parallelism,
+		Loopback:     jobopts.IsLoopback(),
 	}
-	presult, err := runnerlib.Execute(ctx, pipeline, endpoint, opt, *jobopts.Async)
-	return presult, err
+	return runnerlib.Execute(ctx, pipeline, endpoint, opt, *jobopts.Async)
 }

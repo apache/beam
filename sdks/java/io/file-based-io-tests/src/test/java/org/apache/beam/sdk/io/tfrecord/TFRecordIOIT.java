@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.tfrecord;
 import static org.apache.beam.sdk.io.Compression.AUTO;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.appendTimestampSuffix;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.readFileBasedIOITPipelineOptions;
+import static org.junit.Assert.assertNotEquals;
 
 import com.google.cloud.Timestamp;
 import java.nio.charset.StandardCharsets;
@@ -88,8 +89,6 @@ public class TFRecordIOIT {
   private static final String RUN_TIME = "run_time";
 
   private static String filenamePrefix;
-  private static String bigQueryDataset;
-  private static String bigQueryTable;
   private static Integer numberOfTextLines;
   private static Integer datasetSize;
   private static String expectedHash;
@@ -108,8 +107,6 @@ public class TFRecordIOIT {
     numberOfTextLines = options.getNumberOfRecords();
     compressionType = Compression.valueOf(options.getCompressionType());
     filenamePrefix = appendTimestampSuffix(options.getFilenamePrefix());
-    bigQueryDataset = options.getBigQueryDataset();
-    bigQueryTable = options.getBigQueryTable();
     settings =
         InfluxDBSettings.builder()
             .withHost(options.getInfluxHost())
@@ -143,7 +140,7 @@ public class TFRecordIOIT {
         .apply("Write content to files", writeTransform);
 
     final PipelineResult writeResult = writePipeline.run();
-    writeResult.waitUntilFinish();
+    PipelineResult.State writeState = writeResult.waitUntilFinish();
 
     String filenamePattern = createFilenamePattern();
     PCollection<String> consolidatedHashcode =
@@ -165,8 +162,11 @@ public class TFRecordIOIT {
             ParDo.of(new DeleteFileFn())
                 .withSideInputs(consolidatedHashcode.apply(View.asSingleton())));
     final PipelineResult readResult = readPipeline.run();
-    readResult.waitUntilFinish();
+    PipelineResult.State readState = readResult.waitUntilFinish();
     collectAndPublishMetrics(writeResult, readResult);
+    // Fail the test if pipeline failed.
+    assertNotEquals(writeState, PipelineResult.State.FAILED);
+    assertNotEquals(readState, PipelineResult.State.FAILED);
   }
 
   private void collectAndPublishMetrics(
@@ -184,7 +184,6 @@ public class TFRecordIOIT {
         MetricsReader.ofResults(readResults, TFRECORD_NAMESPACE)
             .readAll(getReadMetricSuppliers(uuid, timestamp)));
 
-    IOITMetrics.publish(bigQueryDataset, bigQueryTable, results);
     IOITMetrics.publishToInflux(uuid, timestamp, results, settings);
   }
 

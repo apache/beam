@@ -1,0 +1,67 @@
+
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: playground-java
+  labels:
+    app: backend-java
+    type: backend
+spec:
+  template:
+    metadata:
+     name: playground
+     labels:
+       app: backend-java
+       type: backend
+    spec:
+     containers:
+     - name: playground-backend-java
+       image: "{{ .Values.registry}}/{{ .Values.image.java_image }}:{{ .Values.tag }}"
+       imagePullPolicy: {{ .Values.image.pullPolicy }}
+       env:
+         - name: CACHE_TYPE
+           value: "remote"
+         - name: CACHE_ADDRESS
+           value: {{ .Values.redis_ip }}
+         - name: NUM_PARALLEL_JOBS
+           value: "6"
+         - name: DATASTORE_NAMESPACE
+           value: {{ .Values.datastore_name }}
+       livenessProbe:
+         httpGet:
+           path: /liveness
+           port: {{ .Values.healthcheck.port }}
+         initialDelaySeconds: {{ .Values.healthcheck.livInitialDelaySeconds }}
+         periodSeconds: {{ .Values.healthcheck.livPeriodSeconds }}
+       readinessProbe:
+         httpGet:
+           path: /readiness
+           port: {{ .Values.healthcheck.port }}
+         initialDelaySeconds: {{ .Values.healthcheck.readInitialDelaySeconds }}
+         periodSeconds: {{ .Values.healthcheck.readPeriodSeconds }}
+       resources:
+         requests:
+           memory: "6000Mi"
+           cpu: "1000m"
+         limits:
+           cpu: "8000m"
+           memory: "16000Mi"
+  replicas: {{ .Values.replicaCount  }}
+  selector:
+    matchLabels:
+     app: backend-java

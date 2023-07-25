@@ -65,8 +65,8 @@ class DictToObject(object):
 
 class TestDataflowMetrics(unittest.TestCase):
 
-  # TODO(BEAM-6734): Write a dump tool to generate this fake data, or
-  # somehow make this easier to maintain.
+  # TODO(https://github.com/apache/beam/issues/19258): Write a dump tool to
+  # generate this fake data, or somehow make this easier to maintain.
   ONLY_COUNTERS_LIST = {
       "metrics": [
           {
@@ -503,7 +503,6 @@ class TestDataflowMetrics(unittest.TestCase):
         self.ONLY_COUNTERS_LIST)
 
     pipeline_options = PipelineOptions([
-        '--experiments=use_runner_v2',
         '--experiments=use_portable_job_submission',
         '--temp_location=gs://any-location/temp',
         '--project=dummy_project',

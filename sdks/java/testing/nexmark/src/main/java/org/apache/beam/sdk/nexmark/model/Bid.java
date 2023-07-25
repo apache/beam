@@ -40,7 +40,7 @@ import org.joda.time.Instant;
 /** A bid for an item on auction. */
 @DefaultSchema(JavaFieldSchema.class)
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class Bid implements KnownSize, Serializable {
   private static final Coder<Instant> INSTANT_CODER = InstantCoder.of();
@@ -81,26 +81,15 @@ public class Bid implements KnownSize, Serializable {
    * Comparator to order bids by ascending price then descending time (for finding winning bids).
    */
   public static final Comparator<Bid> PRICE_THEN_DESCENDING_TIME =
-      (left, right) -> {
-        int i = Double.compare(left.price, right.price);
-        if (i != 0) {
-          return i;
-        }
-        return right.dateTime.compareTo(left.dateTime);
-      };
+      Comparator.comparing((Bid bid) -> bid.price)
+          .thenComparing(bid -> bid.dateTime, Comparator.reverseOrder());
 
   /**
    * Comparator to order bids by ascending time then ascending price. (for finding most recent
    * bids).
    */
   public static final Comparator<Bid> ASCENDING_TIME_THEN_PRICE =
-      (left, right) -> {
-        int i = left.dateTime.compareTo(right.dateTime);
-        if (i != 0) {
-          return i;
-        }
-        return Double.compare(left.price, right.price);
-      };
+      Comparator.comparing((Bid bid) -> bid.dateTime).thenComparingLong(bid -> bid.price);
 
   /** Id of auction this bid is for. */
   @JsonProperty public long auction; // foreign key: Auction.id
@@ -167,9 +156,9 @@ public class Bid implements KnownSize, Serializable {
     }
 
     Bid other = (Bid) otherObject;
-    return Objects.equals(auction, other.auction)
-        && Objects.equals(bidder, other.bidder)
-        && Objects.equals(price, other.price)
+    return auction == other.auction
+        && bidder == other.bidder
+        && price == other.price
         && Objects.equals(dateTime, other.dateTime)
         && Objects.equals(extra, other.extra);
   }

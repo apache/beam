@@ -19,24 +19,24 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.bigquery;
 
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.avatica.util.Casing;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.config.NullCollation;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.type.RelDataTypeSystem;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlAbstractDateTimeLiteral;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlCall;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlDialect;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlIntervalLiteral;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlNode;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlTimestampLiteral;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlWriter;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.dialect.BigQuerySqlDialect;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.avatica.util.Casing;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.config.NullCollation;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.type.RelDataTypeSystem;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlAbstractDateTimeLiteral;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlCall;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlDialect;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlIntervalLiteral;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlTimestampLiteral;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlWriter;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.dialect.BigQuerySqlDialect;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 // TODO(CALCITE-3381): some methods below can be deleted after updating vendor Calcite version.
 // Calcite v1_20_0 does not have type translation implemented, but later (unreleased) versions do.
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class BeamBigQuerySqlDialect extends BigQuerySqlDialect {
 

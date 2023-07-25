@@ -27,6 +27,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/gcpopts"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 )
 
@@ -40,6 +41,15 @@ const (
 var (
 	output = flag.String("output", "", "Output filename")
 )
+
+func init() {
+	register.Function1x2(extractEventDataFn)
+	register.Function1x2(extractCountryInfoFn)
+	register.Function2x1(formatFn)
+	register.Function4x0(processFn)
+	register.Iter1[string]()
+	register.Emitter2[Code, string]()
+}
 
 type Code string
 

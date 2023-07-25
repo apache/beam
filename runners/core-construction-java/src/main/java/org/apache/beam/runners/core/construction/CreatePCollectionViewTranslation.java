@@ -34,7 +34,7 @@ import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
 
 /**
  * Utility methods for translating a {@link View} transforms to and from {@link RunnerApi}
@@ -45,7 +45,7 @@ import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
  */
 @Deprecated
 @SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class CreatePCollectionViewTranslation {
 

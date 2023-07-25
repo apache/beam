@@ -39,8 +39,8 @@ import org.apache.beam.examples.common.ExampleOptions;
 import org.apache.beam.examples.common.ExampleUtils;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
+import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreIO;
@@ -96,7 +96,7 @@ import org.joda.time.Duration;
  * received.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class AutoComplete {
 
@@ -369,8 +369,8 @@ public class AutoComplete {
   }
 
   /**
-   * Takes as input a the top candidates per prefix, and emits an entity suitable for writing to
-   * Cloud Datastore.
+   * Takes as input the top candidates per prefix, and emits an entity suitable for writing to Cloud
+   * Datastore.
    *
    * <p>Note: We use ancestor keys for strong consistency. See the Cloud Datastore documentation on
    * <a href="https://cloud.google.com/datastore/docs/concepts/structuring_for_strong_consistency">
@@ -467,7 +467,6 @@ public class AutoComplete {
 
   public static void runAutocompletePipeline(Options options) throws IOException {
 
-    options.setBigQuerySchema(FormatForBigquery.getSchema());
     ExampleUtils exampleUtils = new ExampleUtils(options);
 
     // We support running the same pipeline in either

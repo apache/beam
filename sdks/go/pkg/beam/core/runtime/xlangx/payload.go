@@ -30,7 +30,7 @@ import (
 // ExternalConfigurationPayload proto, containing a Schema representation of
 // the original type and the original value encoded as a Row. This is intended
 // to be used as the expansion payload for an External transform.
-func EncodeStructPayload(pl interface{}) ([]byte, error) {
+func EncodeStructPayload(pl any) ([]byte, error) {
 	rt := reflect.TypeOf(pl)
 
 	// Encode payload value as a Row.
@@ -69,7 +69,7 @@ func EncodeStructPayload(pl interface{}) ([]byte, error) {
 // DecodeStructPayload takes a marshaled ExternalConfigurationPayload proto
 // and returns a native Go struct, with its type converted from the Schema
 // representation and its value decoded from the Row.
-func DecodeStructPayload(plBytes []byte) (interface{}, error) {
+func DecodeStructPayload(plBytes []byte) (any, error) {
 	// Unmarshal payload proto.
 	ecp := &pipepb.ExternalConfigurationPayload{}
 	if err := proto.Unmarshal(plBytes, ecp); err != nil {

@@ -21,9 +21,9 @@ import static org.junit.Assert.assertEquals;
 
 import org.apache.beam.sdk.extensions.sql.meta.provider.text.TextTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.parser.SqlParseException;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.tools.RelConversionException;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.tools.ValidationException;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.parser.SqlParseException;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.tools.RelConversionException;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.tools.ValidationException;
 import org.junit.Before;
 import org.junit.Ignore;
 
@@ -61,7 +61,7 @@ public class BeamSqlExplainTest {
             + "COMMENT '' ");
   }
 
-  // TODO: (BEAM-4561) 5/30/2017 The test here is too fragile.
+  // TODO: (https://github.com/apache/beam/issues/19059) 5/30/2017 The test here is too fragile.
   @Ignore
   public void testExplainCommaJoin() {
     String plan = cli.explainQuery("SELECT A.c1, B.c2 FROM A, B WHERE A.c1 = B.c2 AND A.c1 > 0");

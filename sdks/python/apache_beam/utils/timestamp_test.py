@@ -87,7 +87,15 @@ class TimestampTest(unittest.TestCase):
             datetime.datetime(1970, 1, 1, tzinfo=pytz.utc)),
         Timestamp(0))
     with self.assertRaisesRegex(ValueError, r'UTC'):
-      Timestamp.from_utc_datetime(datetime.datetime(1970, 1, 1))
+      Timestamp.from_utc_datetime(
+          datetime.datetime(1970, 1, 1, tzinfo=pytz.timezone('US/Eastern')))
+    with self.assertRaisesRegex(ValueError, r'dt has no timezone info'):
+      Timestamp.from_utc_datetime(datetime.datetime(1970, 1, 1, tzinfo=None))
+
+  def test_from_to_utc_datetime(self):
+    timestamp = Timestamp(seconds=1458343379.123456)
+    dt = timestamp.to_utc_datetime(has_tz=True)
+    self.assertEqual(timestamp, Timestamp.from_utc_datetime(dt))
 
   def test_arithmetic(self):
     # Supported operations.
@@ -132,9 +140,9 @@ class TimestampTest(unittest.TestCase):
     with self.assertRaises(TypeError):
       self.assertEqual(Duration(456) - Timestamp(123), 333)
     with self.assertRaises(TypeError):
-      self.assertEqual(-Timestamp(123), -123)
+      self.assertEqual(-Timestamp(123), -123)  # pylint: disable=invalid-unary-operand-type
     with self.assertRaises(TypeError):
-      self.assertEqual(-Timestamp(123), -Duration(123))
+      self.assertEqual(-Timestamp(123), -Duration(123))  # pylint: disable=invalid-unary-operand-type
     with self.assertRaises(TypeError):
       self.assertEqual(1230 % Timestamp(456), 318)
     with self.assertRaises(TypeError):
@@ -165,7 +173,8 @@ class TimestampTest(unittest.TestCase):
     self.assertEqual(actual_ts, expected_ts)
 
   def test_from_proto_fails_with_truncation(self):
-    # TODO(BEAM-8738): Better define timestamps.
+    # TODO(https://github.com/apache/beam/issues/19922): Better define
+    # timestamps.
     with self.assertRaises(ValueError):
       Timestamp.from_proto(timestamp_pb2.Timestamp(seconds=1234, nanos=56789))
 
@@ -226,7 +235,8 @@ class DurationTest(unittest.TestCase):
     self.assertEqual(actual_dur, expected_dur)
 
   def test_from_proto_fails_with_truncation(self):
-    # TODO(BEAM-8738): Better define durations.
+    # TODO(https://github.com/apache/beam/issues/19922): Better define
+    # durations.
     with self.assertRaises(ValueError):
       Duration.from_proto(duration_pb2.Duration(seconds=1234, nanos=56789))
 

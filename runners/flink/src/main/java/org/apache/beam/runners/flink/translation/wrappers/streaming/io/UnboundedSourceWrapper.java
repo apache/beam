@@ -28,6 +28,7 @@ import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
 import org.apache.beam.runners.flink.metrics.ReaderInvocationUtil;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.runners.flink.translation.utils.Workarounds;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.ProcessingTimeCallbackCompat;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
@@ -55,19 +56,18 @@ import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Wrapper for executing {@link UnboundedSource UnboundedSources} as a Flink Source. */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSource.CheckpointMark>
     extends RichParallelSourceFunction<WindowedValue<ValueWithRecordId<OutputT>>>
-    implements ProcessingTimeCallback,
+    implements ProcessingTimeCallbackCompat,
         BeamStoppableFunction,
         CheckpointListener,
         CheckpointedFunction {
@@ -383,44 +383,46 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
   @Override
   public void snapshotState(FunctionSnapshotContext functionSnapshotContext) throws Exception {
     if (!isRunning) {
+      // This implies that stop/drain is invoked and final checkpoint is triggered. This method
+      // should not be skipped in this scenario so that the notifyCheckpointComplete method is still
+      // invoked and performs the finalization step after commit is complete.
       LOG.debug("snapshotState() called on closed source");
-    } else {
-
-      if (checkpointCoder == null) {
-        // no checkpoint coder available in this source
-        return;
-      }
-
-      stateForCheckpoint.clear();
-
-      long checkpointId = functionSnapshotContext.getCheckpointId();
-
-      // we checkpoint the sources along with the CheckpointMarkT to ensure
-      // than we have a correct mapping of checkpoints to sources when
-      // restoring
-      List<CheckpointMarkT> checkpointMarks = new ArrayList<>(localSplitSources.size());
-
-      for (int i = 0; i < localSplitSources.size(); i++) {
-        UnboundedSource<OutputT, CheckpointMarkT> source = localSplitSources.get(i);
-        UnboundedSource.UnboundedReader<OutputT> reader = localReaders.get(i);
-
-        @SuppressWarnings("unchecked")
-        CheckpointMarkT mark = (CheckpointMarkT) reader.getCheckpointMark();
-        checkpointMarks.add(mark);
-        KV<UnboundedSource<OutputT, CheckpointMarkT>, CheckpointMarkT> kv = KV.of(source, mark);
-        stateForCheckpoint.add(kv);
-      }
-
-      // cleanup old pending checkpoints and add new checkpoint
-      int diff = pendingCheckpoints.size() - MAX_NUMBER_PENDING_CHECKPOINTS;
-      if (diff >= 0) {
-        for (Iterator<Long> iterator = pendingCheckpoints.keySet().iterator(); diff >= 0; diff--) {
-          iterator.next();
-          iterator.remove();
-        }
-      }
-      pendingCheckpoints.put(checkpointId, checkpointMarks);
     }
+
+    if (checkpointCoder == null) {
+      // no checkpoint coder available in this source
+      return;
+    }
+
+    stateForCheckpoint.clear();
+
+    long checkpointId = functionSnapshotContext.getCheckpointId();
+
+    // we checkpoint the sources along with the CheckpointMarkT to ensure
+    // than we have a correct mapping of checkpoints to sources when
+    // restoring
+    List<CheckpointMarkT> checkpointMarks = new ArrayList<>(localSplitSources.size());
+
+    for (int i = 0; i < localSplitSources.size(); i++) {
+      UnboundedSource<OutputT, CheckpointMarkT> source = localSplitSources.get(i);
+      UnboundedSource.UnboundedReader<OutputT> reader = localReaders.get(i);
+
+      @SuppressWarnings("unchecked")
+      CheckpointMarkT mark = (CheckpointMarkT) reader.getCheckpointMark();
+      checkpointMarks.add(mark);
+      KV<UnboundedSource<OutputT, CheckpointMarkT>, CheckpointMarkT> kv = KV.of(source, mark);
+      stateForCheckpoint.add(kv);
+    }
+
+    // cleanup old pending checkpoints and add new checkpoint
+    int diff = pendingCheckpoints.size() - MAX_NUMBER_PENDING_CHECKPOINTS;
+    if (diff >= 0) {
+      for (Iterator<Long> iterator = pendingCheckpoints.keySet().iterator(); diff >= 0; diff--) {
+        iterator.next();
+        iterator.remove();
+      }
+    }
+    pendingCheckpoints.put(checkpointId, checkpointMarks);
   }
 
   @Override
@@ -434,8 +436,7 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
     @SuppressWarnings("unchecked")
     CoderTypeInformation<KV<? extends UnboundedSource<OutputT, CheckpointMarkT>, CheckpointMarkT>>
         typeInformation =
-            (CoderTypeInformation)
-                new CoderTypeInformation<>(checkpointCoder, serializedOptions.get());
+            (CoderTypeInformation) new CoderTypeInformation<>(checkpointCoder, serializedOptions);
     stateForCheckpoint =
         stateStore.getListState(
             new ListStateDescriptor<>(
@@ -528,7 +529,6 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
 
   @Override
   public void notifyCheckpointComplete(long checkpointId) throws Exception {
-
     List<CheckpointMarkT> checkpointMarks = pendingCheckpoints.get(checkpointId);
 
     if (checkpointMarks != null) {

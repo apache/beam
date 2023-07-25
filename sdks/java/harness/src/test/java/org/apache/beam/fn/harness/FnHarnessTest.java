@@ -38,15 +38,15 @@ import org.apache.beam.model.fnexecution.v1.BeamFnControlGrpc;
 import org.apache.beam.model.fnexecution.v1.BeamFnLoggingGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
-import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.fn.test.TestStreams;
 import org.apache.beam.sdk.harness.JvmInitializer;
+import org.apache.beam.sdk.options.ExecutorOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.TextFormat;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.ServerBuilder;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.TextFormat;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ServerBuilder;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.junit.Rule;
 import org.junit.Test;
@@ -128,8 +128,8 @@ public class FnHarnessTest {
             CountDownLatch waitForResponses =
                 new CountDownLatch(1 /* number of responses expected */);
             options
-                .as(GcsOptions.class)
-                .getExecutorService()
+                .as(ExecutorOptions.class)
+                .getScheduledExecutorService()
                 .submit(
                     () -> {
                       responseObserver.onNext(INSTRUCTION_REQUEST);
@@ -163,9 +163,9 @@ public class FnHarnessTest {
                 .build();
 
         when(environmentVariableMock.apply("LOGGING_API_SERVICE_DESCRIPTOR"))
-            .thenReturn(TextFormat.printToString(loggingDescriptor));
+            .thenReturn(TextFormat.printer().printToString(loggingDescriptor));
         when(environmentVariableMock.apply("CONTROL_API_SERVICE_DESCRIPTOR"))
-            .thenReturn(TextFormat.printToString(controlDescriptor));
+            .thenReturn(TextFormat.printer().printToString(controlDescriptor));
 
         FnHarness.main(environmentVariableMock);
       } finally {

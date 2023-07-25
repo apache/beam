@@ -33,10 +33,10 @@ import java.util.stream.LongStream;
 import net.snowflake.client.jdbc.SnowflakeSQLException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.snowflake.SnowflakeIO;
-import org.apache.beam.sdk.io.snowflake.services.SnowflakeService;
+import org.apache.beam.sdk.io.snowflake.services.SnowflakeServices;
 import org.apache.beam.sdk.io.snowflake.test.FakeSnowflakeBasicDataSource;
 import org.apache.beam.sdk.io.snowflake.test.FakeSnowflakeDatabase;
-import org.apache.beam.sdk.io.snowflake.test.FakeSnowflakeStreamingServiceImpl;
+import org.apache.beam.sdk.io.snowflake.test.FakeSnowflakeServicesImpl;
 import org.apache.beam.sdk.io.snowflake.test.TestSnowflakePipelineOptions;
 import org.apache.beam.sdk.io.snowflake.test.TestUtils;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -56,15 +56,10 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-})
 public class StreamingWriteTest {
-  private static final Logger LOG = LoggerFactory.getLogger(StreamingWriteTest.class);
+
   private static final String FAKE_TABLE = "TEST_TABLE";
   private static final String STAGING_BUCKET_NAME = "BUCKET/";
   private static final String STORAGE_INTEGRATION_NAME = "STORAGE_INTEGRATION";
@@ -75,7 +70,7 @@ public class StreamingWriteTest {
 
   @Rule public ExpectedException exceptionRule = ExpectedException.none();
   private static SnowflakeIO.DataSourceConfiguration dataSourceConfiguration;
-  private static SnowflakeService snowflakeService;
+  private static SnowflakeServices snowflakeServices;
   private static TestSnowflakePipelineOptions options;
   private static List<Long> testData;
 
@@ -94,7 +89,7 @@ public class StreamingWriteTest {
 
   @BeforeClass
   public static void setup() {
-    snowflakeService = new FakeSnowflakeStreamingServiceImpl();
+    snowflakeServices = new FakeSnowflakeServicesImpl();
 
     PipelineOptionsFactory.register(TestSnowflakePipelineOptions.class);
     options = TestPipeline.testingPipelineOptions().as(TestSnowflakePipelineOptions.class);
@@ -140,7 +135,7 @@ public class StreamingWriteTest {
                 .withStorageIntegrationName(STORAGE_INTEGRATION_NAME)
                 .withSnowPipe(SNOW_PIPE)
                 .withUserDataMapper(TestUtils.getLongCsvMapper())
-                .withSnowflakeService(snowflakeService));
+                .withSnowflakeServices(snowflakeServices));
 
     pipeline.run(options);
   }
@@ -167,7 +162,7 @@ public class StreamingWriteTest {
                 .withStorageIntegrationName(STORAGE_INTEGRATION_NAME)
                 .withSnowPipe(SNOW_PIPE)
                 .withUserDataMapper(TestUtils.getLongCsvMapper())
-                .withSnowflakeService(snowflakeService));
+                .withSnowflakeServices(snowflakeServices));
 
     pipeline.run(options);
   }
@@ -194,7 +189,7 @@ public class StreamingWriteTest {
         SnowflakeIO.DataSourceConfiguration.create()
             .withKeyPairPathAuth(
                 options.getUsername(),
-                TestUtils.getValidPrivateKeyPath(getClass()),
+                TestUtils.getValidEncryptedPrivateKeyPath(getClass()),
                 TestUtils.getPrivateKeyPassphrase())
             .withServerName(options.getServerName())
             .withSchema("PUBLIC")
@@ -213,7 +208,7 @@ public class StreamingWriteTest {
                 .withFlushRowLimit(4)
                 .withFlushTimeLimit(WINDOW_DURATION)
                 .withUserDataMapper(TestUtils.getStringCsvMapper())
-                .withSnowflakeService(snowflakeService));
+                .withSnowflakeServices(snowflakeServices));
 
     pipeline.run(options).waitUntilFinish();
 
@@ -253,7 +248,7 @@ public class StreamingWriteTest {
         SnowflakeIO.DataSourceConfiguration.create()
             .withKeyPairPathAuth(
                 options.getUsername(),
-                TestUtils.getValidPrivateKeyPath(getClass()),
+                TestUtils.getValidEncryptedPrivateKeyPath(getClass()),
                 TestUtils.getPrivateKeyPassphrase())
             .withServerName(options.getServerName())
             .withSchema("PUBLIC")
@@ -273,7 +268,7 @@ public class StreamingWriteTest {
                 .withQuotationMark(quotationMark)
                 .withFlushTimeLimit(WINDOW_DURATION)
                 .withUserDataMapper(TestUtils.getStringCsvMapper())
-                .withSnowflakeService(snowflakeService));
+                .withSnowflakeServices(snowflakeServices));
 
     pipeline.run(options).waitUntilFinish();
 

@@ -41,7 +41,7 @@ import org.apache.beam.sdk.values.TypeDescriptors;
 
 /** Basic stream enrichment: join a stream to a bounded side input. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class SqlBoundedSideInputJoin extends NexmarkQueryTransform<Bid> {
   private final String query;
@@ -49,7 +49,6 @@ public class SqlBoundedSideInputJoin extends NexmarkQueryTransform<Bid> {
   private final Class<? extends QueryPlanner> plannerClass;
 
   private SqlBoundedSideInputJoin(
-      String name,
       NexmarkConfiguration configuration,
       Class<? extends QueryPlanner> plannerClass,
       String query) {
@@ -68,7 +67,6 @@ public class SqlBoundedSideInputJoin extends NexmarkQueryTransform<Bid> {
     //  - must have the CAST inside the WITH clause for the same reason, otherwise the cast
     //    occurs in the join condition CAST(side_id AS BIGINT) = side.id
     return new SqlBoundedSideInputJoin(
-        "SqlBoundedSideInputJoin",
         configuration,
         CalciteQueryPlanner.class,
         "WITH bid_with_side (auction, bidder, price, dateTime, extra, side_id) AS (%n"
@@ -89,7 +87,6 @@ public class SqlBoundedSideInputJoin extends NexmarkQueryTransform<Bid> {
     //   - INT64 instead of BIGINT
     //   - no column list for WITH table alias
     return new SqlBoundedSideInputJoin(
-        "ZetaSqlBoundedSideInputJoin",
         configuration,
         ZetaSQLQueryPlanner.class,
         "WITH bid_with_side AS (%n"

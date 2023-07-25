@@ -36,14 +36,13 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Twister pipeline translator for batch pipelines. */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class Twister2BatchPipelineTranslator extends Twister2PipelineTranslator {
 
   private static final Logger LOG =
       Logger.getLogger(Twister2BatchPipelineTranslator.class.getName());
-  private final Twister2PipelineOptions options;
 
   /**
    * A map from {@link PTransform} subclass to the corresponding {@link BatchTransformTranslator} to
@@ -73,7 +72,6 @@ public class Twister2BatchPipelineTranslator extends Twister2PipelineTranslator 
 
   public Twister2BatchPipelineTranslator(
       Twister2PipelineOptions options, Twister2BatchTranslationContext twister2TranslationContext) {
-    this.options = options;
     this.translationContext = twister2TranslationContext;
   }
 

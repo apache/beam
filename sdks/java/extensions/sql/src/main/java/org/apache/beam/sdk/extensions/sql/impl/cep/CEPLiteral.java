@@ -20,14 +20,14 @@ package org.apache.beam.sdk.extensions.sql.impl.cep;
 import java.math.BigDecimal;
 import org.apache.beam.sdk.extensions.sql.impl.SqlConversionException;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexLiteral;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexLiteral;
 import org.joda.time.ReadableDateTime;
 
 /**
  * {@code CEPLiteral} represents a literal node. It corresponds to {@code RexLiteral} in Calcite.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class CEPLiteral extends CEPOperation {
 

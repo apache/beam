@@ -1,0 +1,103 @@
+#  Licensed to the Apache Software Foundation (ASF) under one
+#  or more contributor license agreements.  See the NOTICE file
+#  distributed with this work for additional information
+#  regarding copyright ownership.  The ASF licenses this file
+#  to you under the Apache License, Version 2.0 (the
+#  "License"); you may not use this file except in compliance
+#  with the License.  You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing,
+#  software distributed under the License is distributed on an
+#  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+#  KIND, either express or implied.  See the License for the
+#  specific language governing permissions and limitations
+#  under the License.
+
+dialogs:
+  cancel: Cancel
+
+errors:
+  error: 'Error'
+  failedParseOptions: Failed to parse pipeline options.
+  internetUnavailable: 'Internet connection is unavailable'
+  loading: 'Error while loading.'
+  loadingCatalog: 'Cannot load the example catalog.'
+  loadingExample: 'Cannot load the example.'
+  failedLoadExampleWithToken: 'Failed to load the example: {token}.'
+  savingSnippet: 'Cannot create a shareable link.'
+  unknownError: 'Unknown error. Possibly internet connection problem or CORS issue'
+
+examples:
+  defaultTitle: 'Catalog'
+  userSharedName: 'User Snippet'
+
+ui:
+  copyright: '© The Apache Software Foundation'
+  darkMode: 'Dark Mode'
+  lightMode: 'Light Mode'
+  privacyPolicy: 'Privacy Policy'
+  reportIssue: 'Report Issue on GitHub'
+
+intents:
+  playground:
+    run: 'Run Code'
+    reset: 'Reset Code'
+
+widgets:
+  codeEditor:
+    label: 'Code Text Area'
+  
+  closeButton:
+    label: 'Close'
+  
+  feedback:
+    hint: "Have feedback? We'd love to hear it, but please don't share sensitive information."
+    negative: 'Bad Experience'
+    positive: 'Good Experience'
+    send: 'Send Feedback'
+    title: 'Feedback'
+
+  output:
+    filter:
+      all: 'All'
+      log: 'Log'
+      output: 'Output'
+    filterTitle: 'Display at this tab'
+    graph: 'Graph'
+    messages:
+      cachedResult: 'The results of this example are taken from the Apache Beam Playground cache'
+      pipelineCancelled: 'Pipeline cancelled'
+    result: 'Result'
+
+  resetButton:
+    label: 'Reset'
+
+  runOrCancelButton:
+    titles:
+      run: 'Run'
+      cancel: 'Cancel'
+    notificationTitles:
+      run: 'Run Code'
+      cancelExecution: 'Cancel Execution'
+  
+  pipelineOptions:
+    options: 'Options'
+    raw: 'Raw'
+    error: 'Please check the format (example: --key1 value1 --key2 value2)'
+    addParameter: Add parameter
+    saveAndClose: Save & close
+    input: Input
+    pipelineOptions: Pipeline Options
+    name: Name
+    value: Value
+
+  versions:
+    beam: 'Beam {version}'
+    commit: 'Commit {hash} from {date}'
+    title: 'Versions'
+    titles:
+      frontend: 'Frontend'
+      router: 'Router'
+      runner: '{sdk} Runner'

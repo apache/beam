@@ -58,6 +58,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIterable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
@@ -77,10 +78,10 @@ import org.joda.time.format.PeriodFormat;
  * @param <OutputT> the type of the {@link DoFn} (main) output elements
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "nullness",
   "keyfor"
-}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+}) // TODO(https://github.com/apache/beam/issues/20497)
 public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, OutputT> {
 
   private final PipelineOptions options;
@@ -107,8 +108,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
   // Because of setKey(Object), we really must refresh stateInternals() at each access
   private final StepContext stepContext;
-
-  private final @Nullable SchemaCoder<InputT> schemaCoder;
 
   final @Nullable SchemaCoder<OutputT> mainOutputSchemaCoder;
 
@@ -138,8 +137,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     this.observesWindow = signature.processElement().observesWindow() || !sideInputReader.isEmpty();
     this.invoker = DoFnInvokers.invokerFor(fn);
     this.sideInputReader = sideInputReader;
-    this.schemaCoder =
-        (inputCoder instanceof SchemaCoder) ? (SchemaCoder<InputT>) inputCoder : null;
     this.outputCoders = outputCoders;
     if (outputCoders != null && !outputCoders.isEmpty()) {
       Coder<OutputT> outputCoder = (Coder<OutputT>) outputCoders.get(mainOutputTag);
@@ -201,28 +198,10 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       Instant timestamp,
       Instant outputTimestamp,
       TimeDomain timeDomain) {
-
-    // The effective timestamp is when derived elements will have their timestamp set, if not
-    // otherwise specified. If this is an event time timer, then they have the timer's output
-    // timestamp. Otherwise, they are set to the input timestamp, which is by definition
-    // non-late.
-    Instant effectiveTimestamp;
-    switch (timeDomain) {
-      case EVENT_TIME:
-        effectiveTimestamp = outputTimestamp;
-        break;
-      case PROCESSING_TIME:
-      case SYNCHRONIZED_PROCESSING_TIME:
-        effectiveTimestamp = stepContext.timerInternals().currentInputWatermarkTime();
-        break;
-
-      default:
-        throw new IllegalArgumentException(String.format("Unknown time domain: %s", timeDomain));
-    }
+    Preconditions.checkNotNull(outputTimestamp, "outputTimestamp");
 
     OnTimerArgumentProvider<KeyT> argumentProvider =
-        new OnTimerArgumentProvider<>(
-            timerId, key, window, timestamp, effectiveTimestamp, timeDomain);
+        new OnTimerArgumentProvider<>(timerId, key, window, timestamp, outputTimestamp, timeDomain);
     invoker.invokeOnTimer(timerId, timerFamilyId, argumentProvider);
   }
 
@@ -267,6 +246,30 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     return sideInputReader.get(view, sideInputWindow);
   }
 
+  @SuppressWarnings("deprecation") // Allowed Skew is deprecated for users, but must be respected
+  private void checkTimestamp(Instant elemTimestamp, Instant timestamp) {
+    Instant lowerBound;
+    try {
+      lowerBound = elemTimestamp.minus(fn.getAllowedTimestampSkew());
+    } catch (ArithmeticException e) {
+      lowerBound = BoundedWindow.TIMESTAMP_MIN_VALUE;
+    }
+    if (timestamp.isBefore(lowerBound) || timestamp.isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
+      throw new IllegalArgumentException(
+          String.format(
+              "Cannot output with timestamp %s. Output timestamps must be no earlier than the "
+                  + "timestamp of the current input or timer (%s) minus the allowed skew (%s) and no "
+                  + "later than %s. See the DoFn#getAllowedTimestampSkew() Javadoc for details "
+                  + "on changing the allowed skew.",
+              timestamp,
+              elemTimestamp,
+              fn.getAllowedTimestampSkew().getMillis() >= Integer.MAX_VALUE
+                  ? fn.getAllowedTimestampSkew()
+                  : PeriodFormat.getDefault().print(fn.getAllowedTimestampSkew().toPeriod()),
+              BoundedWindow.TIMESTAMP_MAX_VALUE));
+    }
+  }
+
   private <T> void outputWindowedValue(TupleTag<T> tag, WindowedValue<T> windowedElem) {
     checkArgument(outputTags.contains(tag), "Unknown output tag %s", tag);
     outputManager.output(tag, windowedElem);
@@ -287,7 +290,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       }
     }
 
-    private final Context context = new Context();
+    private final DoFnStartBundleArgumentProvider.Context context =
+        new DoFnStartBundleArgumentProvider.Context();
 
     @Override
     public PipelineOptions pipelineOptions() {
@@ -330,7 +334,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       }
     }
 
-    private final Context context = new Context();
+    private final DoFnFinishBundleArgumentProvider.Context context =
+        new DoFnFinishBundleArgumentProvider.Context();
 
     @Override
     public PipelineOptions pipelineOptions() {
@@ -408,7 +413,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     @Override
     public void outputWithTimestamp(OutputT output, Instant timestamp) {
-      checkTimestamp(timestamp);
+      checkTimestamp(elem.getTimestamp(), timestamp);
       outputWithTimestamp(mainOutputTag, output, timestamp);
     }
 
@@ -421,7 +426,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
       checkNotNull(tag, "Tag passed to outputWithTimestamp cannot be null");
-      checkTimestamp(timestamp);
+      checkTimestamp(elem.getTimestamp(), timestamp);
       outputWindowedValue(
           tag, WindowedValue.of(output, timestamp, elem.getWindows(), elem.getPane()));
     }
@@ -433,24 +438,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     public Collection<? extends BoundedWindow> windows() {
       return elem.getWindows();
-    }
-
-    @SuppressWarnings("deprecation") // Allowed Skew is deprecated for users, but must be respected
-    private void checkTimestamp(Instant timestamp) {
-      // The documentation of getAllowedTimestampSkew explicitly permits Long.MAX_VALUE to be used
-      // for infinite skew. Defend against underflow in that case for timestamps before the epoch
-      if (fn.getAllowedTimestampSkew().getMillis() != Long.MAX_VALUE
-          && timestamp.isBefore(elem.getTimestamp().minus(fn.getAllowedTimestampSkew()))) {
-        throw new IllegalArgumentException(
-            String.format(
-                "Cannot output with timestamp %s. Output timestamps must be no earlier than the "
-                    + "timestamp of the current input (%s) minus the allowed skew (%s). See the "
-                    + "DoFn#getAllowedTimestampSkew() Javadoc for details on changing the allowed "
-                    + "skew.",
-                timestamp,
-                elem.getTimestamp(),
-                PeriodFormat.getDefault().print(fn.getAllowedTimestampSkew().toPeriod())));
-      }
     }
 
     @Override
@@ -847,16 +834,19 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     @Override
     public void outputWithTimestamp(OutputT output, Instant timestamp) {
+      checkTimestamp(timestamp(), timestamp);
       outputWithTimestamp(mainOutputTag, output, timestamp);
     }
 
     @Override
     public <T> void output(TupleTag<T> tag, T output) {
+      checkTimestamp(timestamp(), timestamp);
       outputWindowedValue(tag, WindowedValue.of(output, timestamp, window(), PaneInfo.NO_FIRING));
     }
 
     @Override
     public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
+      checkTimestamp(timestamp(), timestamp);
       outputWindowedValue(tag, WindowedValue.of(output, timestamp, window(), PaneInfo.NO_FIRING));
     }
 
@@ -1051,16 +1041,19 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     @Override
     public void outputWithTimestamp(OutputT output, Instant timestamp) {
+      checkTimestamp(this.timestamp, timestamp);
       outputWithTimestamp(mainOutputTag, output, timestamp);
     }
 
     @Override
     public <T> void output(TupleTag<T> tag, T output) {
+      checkTimestamp(this.timestamp, timestamp);
       outputWindowedValue(tag, WindowedValue.of(output, timestamp, window(), PaneInfo.NO_FIRING));
     }
 
     @Override
     public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
+      checkTimestamp(this.timestamp, timestamp);
       outputWindowedValue(tag, WindowedValue.of(output, timestamp, window(), PaneInfo.NO_FIRING));
     }
 
@@ -1083,7 +1076,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     private final String timerFamilyId;
     private final TimerSpec spec;
     private Instant target;
-    private Instant outputTimestamp;
+    private @Nullable Instant outputTimestamp;
+    private boolean noOutputTimestamp;
     private final Instant elementInputTimestamp;
     private Duration period = Duration.ZERO;
     private Duration offset = Duration.ZERO;
@@ -1100,6 +1094,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       this.timerId = timerId;
       this.timerFamilyId = "";
       this.spec = spec;
+      this.noOutputTimestamp = false;
       this.elementInputTimestamp = elementInputTimestamp;
       this.timerInternals = timerInternals;
     }
@@ -1135,7 +1130,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         target = now.plus(offset);
       } else {
         long millisSinceStart = now.plus(offset).getMillis() % period.getMillis();
-        target = millisSinceStart == 0 ? now : now.plus(period).minus(millisSinceStart);
+        target =
+            millisSinceStart == 0 ? now : now.plus(period).minus(Duration.millis(millisSinceStart));
       }
       target = minTargetAndGcTime(target);
 
@@ -1161,7 +1157,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     /**
-     * For event time timers the target time should be prior to window GC time. So it return
+     * For event time timers the target time should be prior to window GC time. So it returns
      * min(time to set, GC Time of window).
      */
     private Instant minTargetAndGcTime(Instant target) {
@@ -1177,62 +1173,84 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public Timer withOutputTimestamp(Instant outputTimestamp) {
       this.outputTimestamp = outputTimestamp;
+      this.noOutputTimestamp = false;
+      return this;
+    }
+
+    @Override
+    public Timer withNoOutputTimestamp() {
+      this.outputTimestamp = null;
+      this.noOutputTimestamp = true;
       return this;
     }
 
     /**
-     *
-     *
-     * <ul>
-     *   Ensures that:
-     *   <li>Users can't set {@code outputTimestamp} for processing time timers.
-     *   <li>Event time timers' {@code outputTimestamp} is set before window expiration.
-     * </ul>
+     * Ensures that a timer's {@code outputTimestamp} is set at or after the current input timestamp
+     * (minus allowed timestamp skew if set) and before the max timestamp of the window (plus
+     * allowed lateness). <br>
+     * If the outputTimestamp is not set, it is defaulted to either:
+     * <li>The firing timestamp for timers in the {@link TimeDomain#EVENT_TIME}
+     * <li>The current element timestamp for other time domains.
      */
     private void setAndVerifyOutputTimestamp() {
-
       if (outputTimestamp != null) {
-        checkArgument(
-            !outputTimestamp.isBefore(elementInputTimestamp),
-            "output timestamp %s should be after input message timestamp or output timestamp of firing timers %s",
-            outputTimestamp,
-            elementInputTimestamp);
-      }
-
-      // Output timestamp is set to the delivery time if not initialized by an user.
-      if (outputTimestamp == null && TimeDomain.EVENT_TIME.equals(spec.getTimeDomain())) {
+        Instant lowerBound;
+        try {
+          lowerBound = elementInputTimestamp.minus(fn.getAllowedTimestampSkew());
+        } catch (ArithmeticException e) {
+          lowerBound = BoundedWindow.TIMESTAMP_MIN_VALUE;
+        }
+        if (outputTimestamp.isBefore(lowerBound)
+            || outputTimestamp.isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
+          throw new IllegalArgumentException(
+              String.format(
+                  "Cannot output timer with output timestamp %s. Output timestamps must be no "
+                      + "earlier than the timestamp of the current input or timer (%s) minus the "
+                      + "allowed skew (%s) and no later than %s. See the "
+                      + "DoFn#getAllowedTimestampSkew() Javadoc for details on changing the "
+                      + "allowed skew.",
+                  outputTimestamp,
+                  elementInputTimestamp,
+                  fn.getAllowedTimestampSkew().getMillis() >= Integer.MAX_VALUE
+                      ? fn.getAllowedTimestampSkew()
+                      : PeriodFormat.getDefault().print(fn.getAllowedTimestampSkew().toPeriod()),
+                  BoundedWindow.TIMESTAMP_MAX_VALUE));
+        }
+      } else if (!noOutputTimestamp && TimeDomain.EVENT_TIME.equals(spec.getTimeDomain())) {
+        // The outputTimestamp was unset and this is a timer in the EVENT_TIME domain. The output
+        // timestamp will be the firing timestamp.
         outputTimestamp = target;
-      }
-      // For processing timers
-      if (outputTimestamp == null) {
-        // For processing timers output timestamp will be:
-        // 1) timestamp of input element
-        // OR
-        // 2) output timestamp of firing timer.
+      } else if (!noOutputTimestamp) {
+        // The outputTimestamp was unset and this is a timer in the PROCESSING_TIME
+        // (or SYNCHRONIZED_PROCESSING_TIME) domain. The output timestamp will be the timestamp of
+        // the element (or timer) setting this timer.
         outputTimestamp = elementInputTimestamp;
       }
-
-      Instant windowExpiry = window.maxTimestamp().plus(allowedLateness);
-      if (TimeDomain.EVENT_TIME.equals(spec.getTimeDomain())) {
-        checkArgument(
-            !outputTimestamp.isAfter(windowExpiry),
-            "Attempted to set an event-time timer with an output timestamp of %s that is"
-                + " after the expiration of window %s",
-            outputTimestamp,
-            windowExpiry);
-        checkArgument(
-            !target.isAfter(windowExpiry),
-            "Attempted to set an event-time timer with a firing timestamp of %s that is"
-                + " after the expiration of window %s",
-            target,
-            windowExpiry);
+      if (outputTimestamp != null) {
+        Instant windowExpiry = LateDataUtils.garbageCollectionTime(window, allowedLateness);
+        if (TimeDomain.EVENT_TIME.equals(spec.getTimeDomain())) {
+          checkArgument(
+              !outputTimestamp.isAfter(windowExpiry),
+              "Attempted to set an event-time timer with an output timestamp of %s that is"
+                  + " after the expiration of window %s",
+              outputTimestamp,
+              windowExpiry);
+          checkArgument(
+              !target.isAfter(windowExpiry),
+              "Attempted to set an event-time timer with a firing timestamp of %s that is"
+                  + " after the expiration of window %s",
+              target,
+              windowExpiry);
+        } else {
+          checkArgument(
+              !outputTimestamp.isAfter(windowExpiry),
+              "Attempted to set a processing-time timer with an output timestamp of %s that is"
+                  + " after the expiration of window %s",
+              outputTimestamp,
+              windowExpiry);
+        }
       } else {
-        checkArgument(
-            !outputTimestamp.isAfter(windowExpiry),
-            "Attempted to set a processing-time timer with an output timestamp of %s that is"
-                + " after the expiration of window %s",
-            outputTimestamp,
-            windowExpiry);
+        outputTimestamp = BoundedWindow.TIMESTAMP_MAX_VALUE.plus(Duration.millis(1));
       }
     }
 

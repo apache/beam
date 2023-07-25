@@ -172,7 +172,7 @@ Example usage on Cloud Dataflow runner:
 
 Example usage on HDFS filesystem and Direct runner:
 
-NOTE: Below setup will only work when /etc/hosts file contains entries with hadoop namenode and hadoop datanodes external IPs. Please see explanation in: [Small Cluster config file](https://github.com/apache/beam/blob/master/.test-infra/kubernetes/hadoop/SmallITCluster/pkb-config.yml) and [Large Cluster config file](https://github.com/apache/beam/blob/master/.test-infra/kubernetes/hadoop/LargeITCluster/pkb-config.yml).
+NOTE: Below setup will only work when /etc/hosts file contains entries with hadoop namenode and hadoop datanodes external IPs. Please see explanation in: [Small Cluster config file](https://github.com/apache/beam/blob/master/.test-infra/kubernetes/hadoop/SmallITCluster/hdfs-single-datanode-cluster.yml) and [Large Cluster config file](https://github.com/apache/beam/blob/master/.test-infra/kubernetes/hadoop/LargeITCluster/hdfs-multi-datanode-cluster.yml).
 
 ```
 export HADOOP_USER_NAME=root
@@ -334,7 +334,7 @@ If you modified/added new Jenkins job definitions in your Pull Request, run the 
 
 As mentioned before, we measure the performance of IOITs by gathering test execution times from Jenkins jobs that run periodically. The consequent results are stored in a database (BigQuery), therefore we can display them in a form of plots.
 
-The dashboard gathering all the results is available here: [Performance Testing Dashboard](https://s.apache.org/io-test-dashboards)
+The dashboard gathering all the results is available here: [Performance Testing Dashboard](http://metrics.beam.apache.org/d/1/getting-started?orgId=1&viewPanel=123125)
 
 ### Implementing Integration Tests {#implementing-integration-tests}
 
@@ -389,7 +389,7 @@ Guidelines for creating a Beam data store Kubernetes script:
 
 #### Jenkins jobs {#jenkins-jobs}
 
-You can find examples of existing IOIT jenkins job definitions in [.test-infra/jenkins](https://github.com/apache/beam/tree/master/.test-infra/jenkins) directory. Look for files caled job_PerformanceTest_*.groovy. The most prominent examples are:
+You can find examples of existing IOIT jenkins job definitions in [.test-infra/jenkins](https://github.com/apache/beam/tree/master/.test-infra/jenkins) directory. Look for files called job_PerformanceTest_*.groovy. The most prominent examples are:
 * [JDBC](https://github.com/apache/beam/blob/master/.test-infra/jenkins/job_PerformanceTests_JDBC.groovy) IOIT job
 * [MongoDB](https://github.com/apache/beam/blob/master/.test-infra/jenkins/job_PerformanceTests_MongoDBIO_IT.groovy) IOIT job
 * [File-based](https://github.com/apache/beam/blob/master/.test-infra/jenkins/job_PerformanceTests_FileBasedIO_IT.groovy) IOIT jobs

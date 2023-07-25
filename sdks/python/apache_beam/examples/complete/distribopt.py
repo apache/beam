@@ -58,12 +58,12 @@ import uuid
 from collections import defaultdict
 
 import numpy as np
+from scipy.optimize import minimize
 
 import apache_beam as beam
 from apache_beam import pvalue
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
-from scipy.optimize import minimize
 
 
 class Simulator(object):

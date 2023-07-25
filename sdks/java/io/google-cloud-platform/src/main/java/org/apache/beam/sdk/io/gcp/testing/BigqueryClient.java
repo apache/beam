@@ -52,6 +52,7 @@ import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.auth.oauth2.GoogleCredentials;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -113,7 +114,7 @@ import org.slf4j.LoggerFactory;
  */
 @Internal
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class BigqueryClient {
   private static final Logger LOG = LoggerFactory.getLogger(BigqueryClient.class);
@@ -288,7 +289,8 @@ public class BigqueryClient {
 
   /** Performs a query without flattening results. */
   @Nonnull
-  public List<TableRow> queryUnflattened(String query, String projectId, boolean typed)
+  public List<TableRow> queryUnflattened(
+      String query, String projectId, boolean typed, boolean useStandardSql)
       throws IOException, InterruptedException {
     Random rnd = new Random(System.currentTimeMillis());
     String temporaryDatasetId = "_dataflow_temporary_dataset_" + rnd.nextInt(1000000);
@@ -308,6 +310,7 @@ public class BigqueryClient {
             .setFlattenResults(false)
             .setAllowLargeResults(true)
             .setDestinationTable(tempTableReference)
+            .setUseLegacySql(!useStandardSql)
             .setQuery(query);
     JobConfiguration jc = new JobConfiguration().setQuery(jcQuery);
 
@@ -327,6 +330,9 @@ public class BigqueryClient {
 
     final TableSchema schema = qResponse.getSchema();
     final List<TableRow> rows = qResponse.getRows();
+    if (rows == null) {
+      return Collections.EMPTY_LIST;
+    }
     deleteDataset(projectId, temporaryDatasetId);
     return !typed
         ? rows
@@ -381,6 +387,13 @@ public class BigqueryClient {
   /** Creates a new dataset. */
   public void createNewDataset(String projectId, String datasetId)
       throws IOException, InterruptedException {
+    createNewDataset(projectId, datasetId, null);
+  }
+
+  /** Creates a new dataset with defaultTableExpirationMs. */
+  public void createNewDataset(
+      String projectId, String datasetId, @Nullable Long defaultTableExpirationMs)
+      throws IOException, InterruptedException {
     Sleeper sleeper = Sleeper.DEFAULT;
     BackOff backoff = BackOffAdapter.toGcpBackOff(BACKOFF_FACTORY.backoff());
     IOException lastException = null;
@@ -395,7 +408,8 @@ public class BigqueryClient {
                 .insert(
                     projectId,
                     new Dataset()
-                        .setDatasetReference(new DatasetReference().setDatasetId(datasetId)))
+                        .setDatasetReference(new DatasetReference().setDatasetId(datasetId))
+                        .setDefaultTableExpirationMs(defaultTableExpirationMs))
                 .execute();
         if (response != null) {
           LOG.info("Successfully created new dataset : " + response.getId());

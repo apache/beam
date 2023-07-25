@@ -16,15 +16,15 @@
 # limitations under the License.
 
 darwin_install_pip3_packages() {
-    echo "Installing setuptools grpcio-tools virtualenv"
-    pip3 install setuptools grpcio-tools virtualenv
+    echo "Installing setuptools grpcio-tools"
+    pip3 install setuptools grpcio-tools
     echo "Installing mypy-protobuf"
     pip3 install --user mypy-protobuf
 }
 
 install_go_packages(){
         echo "Installing goavro"
-        go get github.com/linkedin/goavro
+        go get github.com/linkedin/goavro/v2
         # As we are using bash, we are assuming .bashrc exists.
         grep -qxF "export GOPATH=${PWD}/sdks/go/examples/.gogradle/project_gopath" ~/.bashrc
         gopathExists=$?
@@ -48,12 +48,16 @@ if [ "$kernelname" = "Linux" ]; then
     type -P pip3 > /dev/null 2>&1
     pip3Exists=$?
     if [ $python3Exists -eq 0  -a $pip3Exists -eq 0 ]; then
-        echo "Installing grpcio-tools mypy-protobuf virtualenv"
-        pip3 install grpcio-tools mypy-protobuf virtualenv
+        echo "Installing grpcio-tools mypy-protobuf"
+        pip3 install grpcio-tools mypy-protobuf
     else
         echo "Python3 and pip3 are required but failed to install. Install them manually and rerun the script."
         exit
     fi
+
+    for ver in 3.8 3.9 3.10 3.11 3; do
+        apt install --yes python$ver-venv
+    done
 
     type -P go > /dev/null 2>&1
     goExists=$?
@@ -85,6 +89,22 @@ elif [ "$kernelname" = "Darwin" ]; then
         echo "Installing openjdk@8"
         brew install openjdk@8
     fi
+    for ver in 3.8 3.9 3.10 3.11; do
+      if brew ls --versions python@$ver > /dev/null; then
+          echo "python@$ver already installed. Skipping"
+          brew info python@$ver
+      else
+          echo "Installing python@$ver"
+          brew install python@$ver
+      fi
+      if [ ! $(type -P python$ver) > /dev/null 2>&1 ]; then
+          # For some python packages, brew does not add symlinks...
+          # TODO: Consider using pyenv to manage multiple installations of Python.
+          ln -s /usr/local/opt/python@$ver/bin/python3 /usr/local/bin/python$ver
+      fi
+    done
+
+    ls -l /usr/local/bin/python*
 
     type -P python3 > /dev/null 2>&1
     python3Exists=$?

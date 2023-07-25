@@ -51,14 +51,8 @@ class IOTypeHintsTest(unittest.TestCase):
     self.assertListEqual(list(s.parameters), ['a', 'b', 'c', 'd'])
 
   def test_get_signature_builtin(self):
-    # Tests a builtin function for 3.7+ and fallback result for older versions.
     s = decorators.get_signature(list)
-    if sys.version_info < (3, 7):
-      self.assertListEqual(
-          list(s.parameters),
-          ['_', '__unknown__varargs', '__unknown__keywords'])
-    else:
-      self.assertListEqual(list(s.parameters), ['iterable'])
+    self.assertListEqual(list(s.parameters), ['iterable'])
     self.assertEqual(s.return_annotation, List[Any])
 
   def test_from_callable_without_annotations(self):
@@ -96,6 +90,46 @@ class IOTypeHintsTest(unittest.TestCase):
         input_types=None, output_types=((before, ), {}), origin=[])
     after = th.strip_iterable()
     self.assertEqual(((expected_after, ), {}), after.output_types)
+
+  def test_with_output_types_from(self):
+    th = decorators.IOTypeHints(
+        input_types=((int), {
+            'foo': str
+        }),
+        output_types=((int, str), {}),
+        origin=[])
+
+    self.assertEqual(
+        th.with_output_types_from(decorators.IOTypeHints.empty()),
+        decorators.IOTypeHints(
+            input_types=((int), {
+                'foo': str
+            }), output_types=None, origin=[]))
+
+    self.assertEqual(
+        decorators.IOTypeHints.empty().with_output_types_from(th),
+        decorators.IOTypeHints(
+            input_types=None, output_types=((int, str), {}), origin=[]))
+
+  def test_with_input_types_from(self):
+    th = decorators.IOTypeHints(
+        input_types=((int), {
+            'foo': str
+        }),
+        output_types=((int, str), {}),
+        origin=[])
+
+    self.assertEqual(
+        th.with_input_types_from(decorators.IOTypeHints.empty()),
+        decorators.IOTypeHints(
+            input_types=None, output_types=((int, str), {}), origin=[]))
+
+    self.assertEqual(
+        decorators.IOTypeHints.empty().with_input_types_from(th),
+        decorators.IOTypeHints(
+            input_types=((int), {
+                'foo': str
+            }), output_types=None, origin=[]))
 
   def _test_strip_iterable_fail(self, before):
     with self.assertRaisesRegex(ValueError, r'not iterable'):
@@ -279,7 +313,7 @@ class IOTypeHintsTest(unittest.TestCase):
     with self.assertRaisesRegex(decorators.TypeCheckError, "missing.*'foo'"):
       decorators.getcallargs_forhints(fn, 5)
 
-  def test_origin(self):
+  def test_origin_annotated(self):
     def annotated(e: str) -> str:
       return e
 
@@ -369,9 +403,7 @@ class DecoratorsTest(unittest.TestCase):
     decorators.disable_type_annotations()
     self.assertTrue(decorators._disable_from_callable)
 
-
-class DecoratorsTest(unittest.TestCase):
-  def test_no_annotations(self):
+  def test_no_annotations_on_same_function(self):
     def fn(a: int) -> int:
       return a
 
@@ -383,9 +415,7 @@ class DecoratorsTest(unittest.TestCase):
     fn = decorators.no_annotations(fn)
     _ = ['a', 'b', 'c'] | Map(fn)
 
-
-class DecoratorsTest(unittest.TestCase):
-  def test_no_annotations(self):
+  def test_no_annotations_on_diff_function(self):
     def fn(a: int) -> int:
       return a
 

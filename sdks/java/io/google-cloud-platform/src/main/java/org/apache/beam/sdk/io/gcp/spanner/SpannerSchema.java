@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.spanner;
 
 import com.google.auto.value.AutoValue;
+import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.Type;
 import java.io.Serializable;
 import java.util.List;
@@ -31,10 +32,12 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 /** Encapsulates Cloud Spanner Schema. */
 @AutoValue
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-abstract class SpannerSchema implements Serializable {
+public abstract class SpannerSchema implements Serializable {
   abstract ImmutableList<String> tables();
+
+  abstract Dialect dialect();
 
   abstract ImmutableListMultimap<String, Column> columns();
 
@@ -45,13 +48,21 @@ abstract class SpannerSchema implements Serializable {
   abstract ImmutableMap<String, Long> cellsMutatedPerRow();
 
   public static Builder builder() {
-    return new AutoValue_SpannerSchema.Builder();
+    return builder(Dialect.GOOGLE_STANDARD_SQL);
+  }
+
+  public static Builder builder(Dialect dialect) {
+    return new AutoValue_SpannerSchema.Builder().setDialect(dialect);
   }
 
   /** Builder for {@link SpannerSchema}. */
   @AutoValue.Builder
   abstract static class Builder {
     abstract Builder setTables(ImmutableList<String> tablesBuilder);
+
+    abstract Builder setDialect(Dialect dialect);
+
+    abstract Dialect dialect();
 
     abstract ImmutableListMultimap.Builder<String, Column> columnsBuilder();
 
@@ -74,7 +85,7 @@ abstract class SpannerSchema implements Serializable {
       String tableLower = table.toLowerCase();
       String nameLower = name.toLowerCase();
 
-      columnsBuilder().put(tableLower, Column.create(nameLower, type));
+      columnsBuilder().put(tableLower, Column.create(nameLower, type, dialect()));
       cellsMutatedPerColumnBuilder().put(tableLower, nameLower, cellsMutated);
       return this;
     }
@@ -124,65 +135,108 @@ abstract class SpannerSchema implements Serializable {
   }
 
   @AutoValue
-  abstract static class KeyPart implements Serializable {
+  public abstract static class KeyPart implements Serializable {
     static KeyPart create(String field, boolean desc) {
       return new AutoValue_SpannerSchema_KeyPart(field, desc);
     }
 
-    abstract String getField();
+    public abstract String getField();
 
     abstract boolean isDesc();
   }
 
   @AutoValue
-  abstract static class Column implements Serializable {
+  public abstract static class Column implements Serializable {
 
     static Column create(String name, Type type) {
       return new AutoValue_SpannerSchema_Column(name, type);
     }
 
-    static Column create(String name, String spannerType) {
-      return create(name, parseSpannerType(spannerType));
+    static Column create(String name, String spannerType, Dialect dialect) {
+      return create(name, parseSpannerType(spannerType, dialect));
     }
 
     public abstract String getName();
 
     public abstract Type getType();
 
-    private static Type parseSpannerType(String spannerType) {
+    private static Type parseSpannerType(String spannerType, Dialect dialect) {
       spannerType = spannerType.toUpperCase();
-      if ("BOOL".equals(spannerType)) {
-        return Type.bool();
+      switch (dialect) {
+        case GOOGLE_STANDARD_SQL:
+          if ("BOOL".equals(spannerType)) {
+            return Type.bool();
+          }
+          if ("INT64".equals(spannerType)) {
+            return Type.int64();
+          }
+          if ("FLOAT64".equals(spannerType)) {
+            return Type.float64();
+          }
+          if (spannerType.startsWith("STRING")) {
+            return Type.string();
+          }
+          if (spannerType.startsWith("BYTES")) {
+            return Type.bytes();
+          }
+          if ("TIMESTAMP".equals(spannerType)) {
+            return Type.timestamp();
+          }
+          if ("DATE".equals(spannerType)) {
+            return Type.date();
+          }
+          if ("NUMERIC".equals(spannerType)) {
+            return Type.numeric();
+          }
+          if ("JSON".equals(spannerType)) {
+            return Type.json();
+          }
+          if (spannerType.startsWith("ARRAY")) {
+            // Substring "ARRAY<xxx>"
+            String spannerArrayType = spannerType.substring(6, spannerType.length() - 1);
+            Type itemType = parseSpannerType(spannerArrayType, dialect);
+            return Type.array(itemType);
+          }
+          throw new IllegalArgumentException("Unknown spanner type " + spannerType);
+        case POSTGRESQL:
+          if (spannerType.endsWith("[]")) {
+            // Substring "xxx[]"
+            // Must check array type first
+            String spannerArrayType = spannerType.substring(0, spannerType.length() - 2);
+            Type itemType = parseSpannerType(spannerArrayType, dialect);
+            return Type.array(itemType);
+          }
+          if ("BOOLEAN".equals(spannerType)) {
+            return Type.bool();
+          }
+          if ("BIGINT".equals(spannerType)) {
+            return Type.int64();
+          }
+          if ("DOUBLE PRECISION".equals(spannerType)) {
+            return Type.float64();
+          }
+          if (spannerType.startsWith("CHARACTER VARYING") || "TEXT".equals(spannerType)) {
+            return Type.string();
+          }
+          if ("BYTEA".equals(spannerType)) {
+            return Type.bytes();
+          }
+          if ("TIMESTAMP WITH TIME ZONE".equals(spannerType)) {
+            return Type.timestamp();
+          }
+          if ("DATE".equals(spannerType)) {
+            return Type.date();
+          }
+          if (spannerType.startsWith("NUMERIC")) {
+            return Type.pgNumeric();
+          }
+          if ("SPANNER.COMMIT_TIMESTAMP".equals(spannerType)) {
+            return Type.timestamp();
+          }
+          throw new IllegalArgumentException("Unknown spanner type " + spannerType);
+        default:
+          throw new IllegalArgumentException("Unrecognized dialect: " + dialect.name());
       }
-      if ("INT64".equals(spannerType)) {
-        return Type.int64();
-      }
-      if ("FLOAT64".equals(spannerType)) {
-        return Type.float64();
-      }
-      if (spannerType.startsWith("STRING")) {
-        return Type.string();
-      }
-      if (spannerType.startsWith("BYTES")) {
-        return Type.bytes();
-      }
-      if ("TIMESTAMP".equals(spannerType)) {
-        return Type.timestamp();
-      }
-      if ("DATE".equals(spannerType)) {
-        return Type.date();
-      }
-      if ("NUMERIC".equals(spannerType)) {
-        return Type.numeric();
-      }
-
-      if (spannerType.startsWith("ARRAY")) {
-        // Substring "ARRAY<xxx>"
-        String spannerArrayType = spannerType.substring(6, spannerType.length() - 1);
-        Type itemType = parseSpannerType(spannerArrayType);
-        return Type.array(itemType);
-      }
-      throw new IllegalArgumentException("Unknown spanner type " + spannerType);
     }
   }
 }

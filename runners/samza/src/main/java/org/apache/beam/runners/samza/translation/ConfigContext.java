@@ -17,10 +17,10 @@
  */
 package org.apache.beam.runners.samza.translation;
 
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
+import org.apache.beam.runners.samza.util.StoreIdGenerator;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -29,18 +29,19 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
 
 /** Helper that provides context data such as output for config generation. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class ConfigContext {
   private final Map<PValue, String> idMap;
   private AppliedPTransform<?, ?, ?> currentTransform;
   private final SamzaPipelineOptions options;
-  private final Set<String> stateIds;
+  private final StoreIdGenerator storeIdGenerator;
 
-  public ConfigContext(Map<PValue, String> idMap, SamzaPipelineOptions options) {
+  public ConfigContext(
+      Map<PValue, String> idMap, Set<String> nonUniqueStateIds, SamzaPipelineOptions options) {
     this.idMap = idMap;
     this.options = options;
-    this.stateIds = new HashSet<>();
+    this.storeIdGenerator = new StoreIdGenerator(nonUniqueStateIds);
   }
 
   public void setCurrentTransform(AppliedPTransform<?, ?, ?> currentTransform) {
@@ -64,8 +65,8 @@ public class ConfigContext {
     return this.options;
   }
 
-  public boolean addStateId(String stateId) {
-    return stateIds.add(stateId);
+  public StoreIdGenerator getStoreIdGenerator() {
+    return storeIdGenerator;
   }
 
   private String getIdForPValue(PValue pvalue) {

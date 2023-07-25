@@ -17,13 +17,17 @@
  */
 package org.apache.beam.runners.spark.metrics;
 
-import static java.util.stream.Collectors.toList;
 import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asAttemptedOnlyMetricResults;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Predicates.not;
 
+import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Metric;
-import java.util.ArrayList;
+import com.codahale.metrics.MetricFilter;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
@@ -33,71 +37,72 @@ import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Streams;
 
 /**
- * An adapter between the {@link MetricsContainerStepMap} and Codahale's {@link Metric} interface.
+ * An adapter between the {@link MetricsContainerStepMap} and the Dropwizard {@link Metric}
+ * interface.
  */
-public class SparkBeamMetric implements Metric {
+class SparkBeamMetric extends BeamMetricSet {
+
   private static final String ILLEGAL_CHARACTERS = "[^A-Za-z0-9-]";
 
-  static Map<String, ?> renderAll(MetricResults metricResults) {
-    Map<String, Object> metrics = new HashMap<>();
-    MetricQueryResults metricQueryResults = metricResults.allMetrics();
-    for (MetricResult<Long> metricResult : metricQueryResults.getCounters()) {
-      metrics.put(renderName(metricResult), metricResult.getAttempted());
+  @Override
+  public Map<String, Gauge<Double>> getValue(String prefix, MetricFilter filter) {
+    MetricResults metricResults =
+        asAttemptedOnlyMetricResults(MetricsAccumulator.getInstance().value());
+    Map<String, Gauge<Double>> metrics = new HashMap<>();
+    MetricQueryResults allMetrics = metricResults.allMetrics();
+    for (MetricResult<Long> metricResult : allMetrics.getCounters()) {
+      putFiltered(metrics, filter, renderName(prefix, metricResult), metricResult.getAttempted());
     }
-    for (MetricResult<DistributionResult> metricResult : metricQueryResults.getDistributions()) {
+    for (MetricResult<DistributionResult> metricResult : allMetrics.getDistributions()) {
       DistributionResult result = metricResult.getAttempted();
-      metrics.put(renderName(metricResult) + ".count", result.getCount());
-      metrics.put(renderName(metricResult) + ".sum", result.getSum());
-      metrics.put(renderName(metricResult) + ".min", result.getMin());
-      metrics.put(renderName(metricResult) + ".max", result.getMax());
-      metrics.put(renderName(metricResult) + ".mean", result.getMean());
+      String baseName = renderName(prefix, metricResult);
+      putFiltered(metrics, filter, baseName + ".count", result.getCount());
+      putFiltered(metrics, filter, baseName + ".sum", result.getSum());
+      putFiltered(metrics, filter, baseName + ".min", result.getMin());
+      putFiltered(metrics, filter, baseName + ".max", result.getMax());
+      putFiltered(metrics, filter, baseName + ".mean", result.getMean());
     }
-    for (MetricResult<GaugeResult> metricResult : metricQueryResults.getGauges()) {
-      metrics.put(renderName(metricResult), metricResult.getAttempted().getValue());
+    for (MetricResult<GaugeResult> metricResult : allMetrics.getGauges()) {
+      putFiltered(
+          metrics,
+          filter,
+          renderName(prefix, metricResult),
+          metricResult.getAttempted().getValue());
     }
     return metrics;
   }
 
-  public static Map<String, String> renderAllToString(MetricResults metricResults) {
-    Map<String, String> metricsString = new HashMap<>();
-    for (Map.Entry<String, ?> entry : renderAll(metricResults).entrySet()) {
-      String key = entry.getKey();
-      String value = String.valueOf(entry.getValue());
-      metricsString.put(key, value);
-    }
-    return metricsString;
-  }
-
-  Map<String, ?> renderAll() {
-    MetricResults metricResults =
-        asAttemptedOnlyMetricResults(MetricsAccumulator.getInstance().value());
-    return renderAll(metricResults);
-  }
-
   @VisibleForTesting
-  static String renderName(MetricResult<?> metricResult) {
+  @SuppressWarnings("nullness") // ok to have nullable elements on stream
+  static String renderName(String prefix, MetricResult<?> metricResult) {
     MetricKey key = metricResult.getKey();
     MetricName name = key.metricName();
     String step = key.stepName();
+    return Streams.concat(
+            Stream.of(prefix),
+            Stream.of(stripSuffix(normalizePart(step))),
+            Stream.of(name.getNamespace(), name.getName()).map(SparkBeamMetric::normalizePart))
+        .filter(not(Strings::isNullOrEmpty))
+        .collect(Collectors.joining("."));
+  }
 
-    ArrayList<String> pieces = new ArrayList<>();
+  private static @Nullable String normalizePart(@Nullable String str) {
+    return str != null ? str.replaceAll(ILLEGAL_CHARACTERS, "_") : null;
+  }
 
-    if (step != null) {
-      step = step.replaceAll(ILLEGAL_CHARACTERS, "_");
-      if (step.endsWith("_")) {
-        step = step.substring(0, step.length() - 1);
-      }
-      pieces.add(step);
+  private static @Nullable String stripSuffix(@Nullable String str) {
+    return str != null && str.endsWith("_") ? str.substring(0, str.length() - 1) : str;
+  }
+
+  private void putFiltered(
+      Map<String, Gauge<Double>> metrics, MetricFilter filter, String name, Number value) {
+    Gauge<Double> metric = staticGauge(value);
+    if (filter.matches(name, metric)) {
+      metrics.put(name, metric);
     }
-
-    pieces.addAll(
-        ImmutableList.of(name.getNamespace(), name.getName()).stream()
-            .map(str -> str.replaceAll(ILLEGAL_CHARACTERS, "_"))
-            .collect(toList()));
-
-    return String.join(".", pieces);
   }
 }

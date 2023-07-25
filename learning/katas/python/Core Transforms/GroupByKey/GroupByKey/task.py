@@ -14,14 +14,24 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-import apache_beam as beam
+# beam-playground:
+#   name: GroupByKey
+#   description: Task from katas that groups words by its first letter.
+#   multifile: false
+#   context_line: 32
+#   categories:
+#     - Combiners
+#   complexity: BASIC
+#   tags:
+#     - map
+#     - group
+#     - strings
 
-from log_elements import LogElements
+import apache_beam as beam
 
 with beam.Pipeline() as p:
 
   (p | beam.Create(['apple', 'ball', 'car', 'bear', 'cheetah', 'ant'])
      | beam.Map(lambda word: (word[0], word))
      | beam.GroupByKey()
-     | LogElements())
-
+     | beam.LogElements())

@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.coders;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -45,13 +43,13 @@ public class BigEndianLongCoder extends AtomicCoder<Long> {
     if (value == null) {
       throw new CoderException("cannot encode a null Long");
     }
-    new DataOutputStream(outStream).writeLong(value);
+    BitConverters.writeBigEndianLong(value, outStream);
   }
 
   @Override
   public Long decode(InputStream inStream) throws IOException, CoderException {
     try {
-      return new DataInputStream(inStream).readLong();
+      return BitConverters.readBigEndianLong(inStream);
     } catch (EOFException | UTFDataFormatException exn) {
       // These exceptions correspond to decoding problems, so change
       // what kind of exception they're branded as.

@@ -34,6 +34,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
 import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.TestBaseUtils;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.After;
@@ -69,7 +70,7 @@ public class TopWikipediaSessionsTest extends AbstractTestBase implements Serial
 
   @After
   public void postSubmit() throws Exception {
-    compareResultsByLinesInMemory(Joiner.on('\n').join(EXPECTED_RESULT), resultDir);
+    TestBaseUtils.compareResultsByLinesInMemory(Joiner.on('\n').join(EXPECTED_RESULT), resultDir);
   }
 
   @Test

@@ -47,4 +47,21 @@ public final class FutureUtils {
               return result;
             });
   }
+
+  public static <T> CompletionStage<Collection<T>> combineFutures(
+      CompletionStage<Collection<T>> future1, CompletionStage<Collection<T>> future2) {
+
+    if (future1 == null) {
+      return future2;
+    } else if (future2 == null) {
+      return future1;
+    } else {
+      return future1.thenCombine(
+          future2,
+          (c1, c2) -> {
+            c1.addAll(c2);
+            return c1;
+          });
+    }
+  }
 }

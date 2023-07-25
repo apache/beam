@@ -159,8 +159,8 @@ class SideInputsTest(unittest.TestCase):
     assert_that(result, equal_to([(1, 'empty'), (2, 'empty')]))
     pipeline.run()
 
-  # TODO(BEAM-5025): Disable this test in streaming temporarily.
-  # Remove sickbay-streaming tag after it's fixed.
+  # TODO(https://github.com/apache/beam/issues/19012): Disable this test in
+  # streaming temporarily. Remove sickbay-streaming tag after it's fixed.
   @pytest.mark.no_sickbay_streaming
   @pytest.mark.it_validatesrunner
   def test_multi_valued_singleton_side_input(self):
@@ -370,10 +370,10 @@ class SideInputsTest(unittest.TestCase):
   @pytest.mark.it_validatesrunner
   def test_multi_triggered_gbk_side_input(self):
     """Test a GBK sideinput, with multiple triggering."""
-    # TODO(BEAM-9322): Remove use of this experiment.
-    # This flag is only necessary when using the multi-output TestStream b/c
-    # it relies on using the PCollection output tags as the PCollection output
-    # ids.
+    # TODO(https://github.com/apache/beam/issues/20065): Remove use of this
+    # experiment. This flag is only necessary when using the multi-output
+    # TestStream b/c it relies on using the PCollection output tags as the
+    # PCollection output ids.
     with TestPipeline() as p:
 
       test_stream = (

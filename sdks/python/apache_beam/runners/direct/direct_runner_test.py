@@ -29,6 +29,7 @@ from apache_beam.metrics.cells import DistributionResult
 from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.execution import MetricResult
 from apache_beam.metrics.metric import Metrics
+from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.metrics.metricbase import MetricName
 from apache_beam.pipeline import Pipeline
 from apache_beam.runners import DirectRunner
@@ -84,7 +85,7 @@ class DirectPipelineResultTest(unittest.TestCase):
     assert_that(pcoll, equal_to([1, 2, 3, 4, 5]))
     result = p.run()
     result.wait_until_finish()
-    metrics = result.metrics().query()
+    metrics = result.metrics().query(MetricsFilter().with_step('Do'))
     namespace = '{}.{}'.format(MyDoFn.__module__, MyDoFn.__name__)
 
     hc.assert_that(
@@ -135,8 +136,8 @@ class BundleBasedRunnerTest(unittest.TestCase):
 
 class DirectRunnerRetryTests(unittest.TestCase):
   def test_retry_fork_graph(self):
-    # TODO(BEAM-3642): The FnApiRunner currently does not currently support
-    # retries.
+    # TODO(https://github.com/apache/beam/issues/18640): The FnApiRunner
+    # currently does not currently support retries.
     p = beam.Pipeline(runner='BundleBasedDirectRunner')
 
     # TODO(mariagh): Remove the use of globals from the test.

@@ -45,14 +45,14 @@ sdks/java/maven-archetypes/examples/src/main/resources/archetype-resources/sampl
 **/env/**/*
 **/.mypy_cache
 **/.dmypy.json
+**/.hypothesis
 sdks/python/**/*.c
 sdks/python/**/*.so
 sdks/python/**/*.egg
 sdks/python/LICENSE
 sdks/python/NOTICE
 sdks/python/README.md
-sdks/python/apache_beam/portability/api/*pb2*.*
-sdks/python/apache_beam/portability/api/*.yaml
+sdks/python/apache_beam/portability/api/*
 sdks/python/nosetests*.xml
 sdks/python/pytest*.xml
 sdks/python/postcommit_requirements.txt
@@ -93,6 +93,9 @@ sdks/python/coverage.xml
 # Ignore Jupyter notebook checkpoints.
 **/.ipynb_checkpoints/**/*
 
+# Ignore python venv
+**/venv
+
 # NOTE: if you modify this file, you probably need to modify the file set that
 # is an input to 'maven-assembly-plugin' that generates source distribution.
 # This is typically in files named 'src.xml' throughout this repository.
@@ -114,9 +117,29 @@ website/www/site/_config_branch_repo.toml
 website/www/yarn-error.log
 !website/www/site/content
 
+# Node
+**/node_modules
+
 # Dart/Flutter
 **/.dart_tool
-**/.packages
 **/.flutter-plugins
 **/.flutter-plugins-dependencies
+**/.packages
 **/generated_plugin_registrant.dart
+playground/frontend/playground_components/pubspec.lock
+playground/frontend/playground_components/test/tools/extract_symbols_java/dependencies
+playground/frontend/playground_components_dev/pubspec.lock
+
+# Ignore Beam Playground Terraform
+**/.terraform
+**/*.tfstate
+**/*.tfstate.*
+**/*.hcl
+**/*.tfvars
+playground/cloudfunction.zip
+
+# Ignore Katas auto-generated files
+**/*-remote-info.yaml
+
+# Exception to .gitignore .test-infra/pipelines related files
+!.test-infra/pipelines/**/apache-beam-testing.tfvars

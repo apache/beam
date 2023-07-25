@@ -14,9 +14,21 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-import apache_beam as beam
+# beam-playground:
+#   name: Branching
+#   description: Task from katas to branch out the numbers to two different transforms, one transform
+#     is multiplying each number by 5 and the other transform is multiplying each number by 10.
+#   multifile: false
+#   context_line: 33
+#   categories:
+#     - Branching
+#     - Multiple Outputs
+#   complexity: BASIC
+#   tags:
+#     - branching
+#     - numbers
 
-from log_elements import LogElements
+import apache_beam as beam
 
 with beam.Pipeline() as p:
 
@@ -25,6 +37,5 @@ with beam.Pipeline() as p:
   mult5_results = numbers | beam.Map(lambda num: num * 5)
   mult10_results = numbers | beam.Map(lambda num: num * 10)
 
-  mult5_results | 'Log multiply 5' >> LogElements(prefix='Multiplied by 5: ')
-  mult10_results | 'Log multiply 10' >> LogElements(prefix='Multiplied by 10: ')
-
+  mult5_results | 'Log multiply 5' >> beam.LogElements(prefix='Multiplied by 5: ')
+  mult10_results | 'Log multiply 10' >> beam.LogElements(prefix='Multiplied by 10: ')

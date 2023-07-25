@@ -19,6 +19,6 @@ limitations under the License.
 Not available.
 
 ## Examples
-See [BEAM-7389](https://issues.apache.org/jira/browse/BEAM-7389) for updates.
+See [Issue 19528](https://github.com/apache/beam/issues/19528) for updates.
 
 ## Related transforms

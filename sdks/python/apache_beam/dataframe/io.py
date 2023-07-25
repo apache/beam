@@ -41,6 +41,7 @@ instances (for example with
 """
 
 import itertools
+import math
 import re
 from io import BytesIO
 from io import StringIO
@@ -57,6 +58,33 @@ _DEFAULT_LINES_CHUNKSIZE = 10_000
 _DEFAULT_BYTES_CHUNKSIZE = 1 << 20
 
 
+def read_gbq(
+    table, dataset=None, project_id=None, use_bqstorage_api=False, **kwargs):
+  """This function reads data from a BigQuery table and produces a
+  :class:`~apache_beam.dataframe.frames.DeferredDataFrame.
+
+  Args:
+    table (str): Please specify a table. This can be done in the format
+      'PROJECT:dataset.table' if one would not wish to utilize
+      the parameters below.
+    dataset (str): Please specify the dataset
+      (can omit if table was specified as 'PROJECT:dataset.table').
+    project_id (str): Please specify the project ID
+      (can omit if table was specified as 'PROJECT:dataset.table').
+    use_bqstorage_api (bool): If you would like to utilize
+      the BigQuery Storage API in ReadFromBigQuery, please set
+      this flag to true. Otherwise, please set flag
+      to false or leave it unspecified.
+      """
+  if table is None:
+    raise ValueError("Please specify a BigQuery table to read from.")
+  elif len(kwargs) > 0:
+    raise ValueError(
+        f"Encountered unsupported parameter(s) in read_gbq: {kwargs.keys()!r}"
+        "")
+  return _ReadGbq(table, dataset, project_id, use_bqstorage_api)
+
+
 @frame_base.with_docs_from(pd)
 def read_csv(path, *args, splittable=False, **kwargs):
   """If your files are large and records do not contain quoted newlines, you may
@@ -71,7 +99,7 @@ def read_csv(path, *args, splittable=False, **kwargs):
       args,
       kwargs,
       incremental=True,
-      splitter=_CsvSplitter(args, kwargs) if splittable else None)
+      splitter=_TextFileSplitter(args, kwargs) if splittable else None)
 
 
 def _as_pc(df, label=None):
@@ -92,7 +120,14 @@ def to_csv(df, path, transform_label=None, *args, **kwargs):
 
 @frame_base.with_docs_from(pd)
 def read_fwf(path, *args, **kwargs):
-  return _ReadFromPandas(pd.read_fwf, path, args, kwargs, incremental=True)
+  return _ReadFromPandas(
+      pd.read_fwf,
+      path,
+      args,
+      kwargs,
+      incremental=True,
+      binary=False,
+      splitter=_TextFileSplitter(args, kwargs))
 
 
 @frame_base.with_docs_from(pd)
@@ -205,9 +240,9 @@ for name in dir(pd):
     globals()[name] = frame_base.not_implemented_method(name, base_type=pd)
 
 
-def _prefix_range_index_with(prefix, df):
+def _shift_range_index(offset, df):
   if isinstance(df.index, pd.RangeIndex):
-    return df.set_index(prefix + df.index.map(str).astype(str))
+    return df.set_index(df.index + offset)
   else:
     return df
 
@@ -238,8 +273,8 @@ class _ReadFromPandas(beam.PTransform):
     paths_pcoll = root | beam.Create([self.path])
     match = io.filesystems.FileSystems.match([self.path], limits=[1])[0]
     if not match.metadata_list:
-      # TODO(BEAM-12031): This should be allowed for streaming pipelines if
-      # user provides an explicit schema.
+      # TODO(https://github.com/apache/beam/issues/20858): This should be
+      # allowed for streaming pipelines if user provides an explicit schema.
       raise FileNotFoundError(f"Found no files that match {self.path!r}")
     first_path = match.metadata_list[0].path
     with io.filesystems.FileSystems.open(first_path) as handle:
@@ -251,9 +286,19 @@ class _ReadFromPandas(beam.PTransform):
       else:
         sample = self.reader(handle, *self.args, **self.kwargs)
 
+    matches_pcoll = paths_pcoll | fileio.MatchAll()
+    indices_pcoll = (
+        matches_pcoll.pipeline
+        | 'DoOnce' >> beam.Create([None])
+        | beam.Map(
+            lambda _,
+            paths: {path: ix
+                    for ix, path in enumerate(sorted(paths))},
+            paths=beam.pvalue.AsList(
+                matches_pcoll | beam.Map(lambda match: match.path))))
+
     pcoll = (
-        paths_pcoll
-        | fileio.MatchFiles(self.path)
+        matches_pcoll
         | beam.Reshuffle()
         | fileio.ReadMatches()
         | beam.ParDo(
@@ -263,10 +308,10 @@ class _ReadFromPandas(beam.PTransform):
                 self.kwargs,
                 self.binary,
                 self.incremental,
-                self.splitter)))
+                self.splitter),
+            path_indices=beam.pvalue.AsSingleton(indices_pcoll)))
     from apache_beam.dataframe import convert
-    return convert.to_dataframe(
-        pcoll, proxy=_prefix_range_index_with(':', sample[:0]))
+    return convert.to_dataframe(pcoll, proxy=sample[:0])
 
 
 class _Splitter:
@@ -339,7 +384,7 @@ def _maybe_encode(str_or_bytes):
     return str_or_bytes
 
 
-class _CsvSplitter(_DelimSplitter):
+class _TextFileSplitter(_DelimSplitter):
   """Splitter for dynamically sharding CSV files and newline record boundaries.
 
   Currently does not handle quoted newlines, so is off by default, but such
@@ -431,6 +476,7 @@ class _TruncatingFileHandle(object):
     self._done = False
     self._header, self._buffer = self._splitter.read_header(self._underlying)
     self._buffer_start_pos = len(self._header)
+    self._iterator = None
     start = self._tracker.current_restriction().start
     # Seek to first delimiter after the start position.
     if start > len(self._header):
@@ -460,9 +506,40 @@ class _TruncatingFileHandle(object):
 
   def __iter__(self):
     # For pandas is_file_like.
-    raise NotImplementedError()
+    return self
+
+  def __next__(self):
+    if self._iterator is None:
+      self._iterator = self._line_iterator()
+    return next(self._iterator)
+
+  def readline(self):
+    # This attribute is checked, but unused, by pandas.
+    return next(self)
+
+  def _line_iterator(self):
+    line_start = 0
+    chunk = self._read()
+    while True:
+      line_end = chunk.find(self._splitter._delim, line_start)
+      while line_end == -1:
+        more = self._read()
+        if not more:
+          if line_start < len(chunk):
+            yield chunk[line_start:]
+          return
+        chunk = chunk[line_start:] + more
+        line_start = 0
+        line_end = chunk.find(self._splitter._delim, line_start)
+      yield chunk[line_start:line_end + 1]
+      line_start = line_end + 1
 
   def read(self, size=-1):
+    if self._iterator:
+      raise NotImplementedError('Cannot call read after iterating.')
+    return self._read(size)
+
+  def _read(self, size=-1):
     if self._header:
       res = self._header
       self._header = None
@@ -521,10 +598,20 @@ class _ReadFromPandasDoFn(beam.DoFn, beam.RestrictionProvider):
       return beam.io.restriction_trackers.UnsplittableRestrictionTracker(
           tracker)
 
-  def process(self, readable_file, tracker=beam.DoFn.RestrictionParam()):
+  def process(
+      self, readable_file, path_indices, tracker=beam.DoFn.RestrictionParam()):
     reader = self.reader
     if isinstance(reader, str):
       reader = getattr(pd, self.reader)
+    indices_per_file = 10**int(math.log(2**63 // len(path_indices), 10))
+    if readable_file.metadata.size_in_bytes > indices_per_file:
+      raise RuntimeError(
+          f'Cannot safely index records from {len(path_indices)} files '
+          f'of size {readable_file.metadata.size_in_bytes} '
+          f'as their product is greater than 2^63.')
+    start_index = (
+        tracker.current_restriction().start +
+        path_indices[readable_file.metadata.path] * indices_per_file)
     with readable_file.open() as handle:
       if self.incremental:
         # TODO(robertwb): We could consider trying to get progress for
@@ -546,7 +633,7 @@ class _ReadFromPandasDoFn(beam.DoFn, beam.RestrictionProvider):
       else:
         frames = [reader(handle, *self.args, **self.kwargs)]
       for df in frames:
-        yield _prefix_range_index_with(readable_file.metadata.path + ':', df)
+        yield _shift_range_index(start_index, df)
       if not self.incremental:
         # Satisfy the SDF contract by claiming the whole range.
         # Do this after emitting the frames to avoid advancing progress to 100%
@@ -565,10 +652,15 @@ class _WriteToPandas(beam.PTransform):
     self.binary = binary
 
   def expand(self, pcoll):
-    dir, name = io.filesystems.FileSystems.split(self.path)
+    if 'file_naming' in self.kwargs:
+      dir, name = self.path, ''
+    else:
+      dir, name = io.filesystems.FileSystems.split(self.path)
     return pcoll | fileio.WriteToFiles(
         path=dir,
-        file_naming=fileio.default_file_naming(name),
+        shards=self.kwargs.pop('num_shards', None),
+        file_naming=self.kwargs.pop(
+            'file_naming', fileio.default_file_naming(name)),
         sink=lambda _: _WriteToPandasFileSink(
             self.writer, self.args, self.kwargs, self.incremental, self.binary))
 
@@ -658,3 +750,97 @@ class _WriteToPandasFileSink(fileio.FileSink):
     if self.buffer:
       self.write_to(pd.concat(self.buffer), self.file_handle)
       self.file_handle.flush()
+
+
+class ReadViaPandas(beam.PTransform):
+  def __init__(
+      self,
+      format,
+      *args,
+      include_indexes=False,
+      objects_as_strings=True,
+      **kwargs):
+    self._reader = globals()['read_%s' % format](*args, **kwargs)
+    self._include_indexes = include_indexes
+    self._objects_as_strings = objects_as_strings
+
+  def expand(self, p):
+    from apache_beam.dataframe import convert  # avoid circular import
+    df = p | self._reader
+    if self._objects_as_strings:
+      for col, t in zip(df.columns, df.dtypes):
+        if t == object:
+          df[col] = df[col].astype(pd.StringDtype())
+    return convert.to_pcollection(df, include_indexes=self._include_indexes)
+
+
+class WriteViaPandas(beam.PTransform):
+  def __init__(self, format, *args, **kwargs):
+    self._writer_func = globals()['to_%s' % format]
+    self._args = args
+    self._kwargs = kwargs
+
+  def expand(self, pcoll):
+    from apache_beam.dataframe import convert  # avoid circular import
+    return {
+        'files_written': self._writer_func(
+            convert.to_dataframe(pcoll), *self._args, **self._kwargs)
+        | beam.Map(lambda file_result: file_result.file_name).with_output_types(
+            str)
+    }
+
+
+class _ReadGbq(beam.PTransform):
+  """Read data from BigQuery with output type 'BEAM_ROW',
+  then convert it into a deferred dataframe.
+
+    This PTransform wraps the Python ReadFromBigQuery PTransform,
+    and sets the output_type as 'BEAM_ROW' to convert
+    into a Beam Schema. Once applied to a pipeline object,
+    it is passed into the to_dataframe() function to convert the
+    PCollection into a deferred dataframe.
+
+    This PTransform currently does not support queries.
+
+  Args:
+    table (str): The ID of the table. The ID must contain only
+      letters ``a-z``, ``A-Z``,
+      numbers ``0-9``, underscores ``_`` or white spaces.
+      Note that the table argument must contain the entire table
+      reference specified as: ``'PROJECT:DATASET.TABLE'``.
+    use_bq_storage_api (bool): The method to use to read from BigQuery.
+      It may be 'EXPORT' or
+      'DIRECT_READ'. EXPORT invokes a BigQuery export request
+      (https://cloud.google.com/bigquery/docs/exporting-data).
+      'DIRECT_READ' reads
+      directly from BigQuery storage using the BigQuery Read API
+      (https://cloud.google.com/bigquery/docs/reference/storage). If
+      unspecified or set to false, the default is currently utilized (EXPORT).
+      If the flag is set to true,
+      'DIRECT_READ' will be utilized."""
+  def __init__(
+      self,
+      table=None,
+      dataset_id=None,
+      project_id=None,
+      use_bqstorage_api=None):
+
+    self.table = table
+    self.dataset_id = dataset_id
+    self.project_id = project_id
+    self.use_bqstorage_api = use_bqstorage_api
+
+  def expand(self, root):
+    from apache_beam.dataframe import convert  # avoid circular import
+    if self.use_bqstorage_api:
+      method = 'DIRECT_READ'
+    else:
+      method = 'EXPORT'
+    return convert.to_dataframe(
+        root
+        | '_DataFrame_Read_From_BigQuery' >> beam.io.ReadFromBigQuery(
+            table=self.table,
+            dataset=self.dataset_id,
+            project=self.project_id,
+            method=method,
+            output_type='BEAM_ROW'))

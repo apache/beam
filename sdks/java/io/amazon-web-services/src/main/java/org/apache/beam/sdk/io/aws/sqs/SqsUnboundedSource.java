@@ -17,11 +17,8 @@
  */
 package org.apache.beam.sdk.io.aws.sqs;
 
-import com.amazonaws.services.sqs.AmazonSQS;
-import com.amazonaws.services.sqs.AmazonSQSClientBuilder;
 import com.amazonaws.services.sqs.model.Message;
 import java.io.IOException;
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
@@ -29,39 +26,29 @@ import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.aws.sqs.SqsIO.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Suppliers;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class SqsUnboundedSource extends UnboundedSource<Message, SqsCheckpointMark> {
 
   private final Read read;
   private final SqsConfiguration sqsConfiguration;
-  private final Supplier<AmazonSQS> sqs;
+  private final Coder<Message> outputCoder;
 
-  public SqsUnboundedSource(Read read, SqsConfiguration sqsConfiguration) {
+  public SqsUnboundedSource(
+      Read read, SqsConfiguration sqsConfiguration, Coder<Message> outputCoder) {
     this.read = read;
     this.sqsConfiguration = sqsConfiguration;
-
-    sqs =
-        Suppliers.memoize(
-            (Supplier<AmazonSQS> & Serializable)
-                () ->
-                    AmazonSQSClientBuilder.standard()
-                        .withClientConfiguration(sqsConfiguration.getClientConfiguration())
-                        .withCredentials(sqsConfiguration.getAwsCredentialsProvider())
-                        .withRegion(sqsConfiguration.getAwsRegion())
-                        .build());
+    this.outputCoder = outputCoder;
   }
 
   @Override
   public List<SqsUnboundedSource> split(int desiredNumSplits, PipelineOptions options) {
     List<SqsUnboundedSource> sources = new ArrayList<>();
     for (int i = 0; i < Math.max(1, desiredNumSplits); ++i) {
-      sources.add(new SqsUnboundedSource(read, sqsConfiguration));
+      sources.add(new SqsUnboundedSource(read, sqsConfiguration, outputCoder));
     }
     return sources;
   }
@@ -83,15 +70,15 @@ class SqsUnboundedSource extends UnboundedSource<Message, SqsCheckpointMark> {
 
   @Override
   public Coder<Message> getOutputCoder() {
-    return SerializableCoder.of(Message.class);
+    return outputCoder;
   }
 
   public Read getRead() {
     return read;
   }
 
-  public AmazonSQS getSqs() {
-    return sqs.get();
+  SqsConfiguration getSqsConfiguration() {
+    return sqsConfiguration;
   }
 
   @Override

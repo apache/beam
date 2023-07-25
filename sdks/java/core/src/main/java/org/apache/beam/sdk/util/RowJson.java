@@ -59,8 +59,6 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -72,7 +70,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.joda.time.DateTime;
+import org.joda.time.ReadableInstant;
 
 /**
  * Jackson serializer and deserializer for {@link Row Rows}.
@@ -92,9 +90,8 @@ import org.joda.time.DateTime;
  *   <li>{@link Schema.TypeName#DATETIME}
  * </ul>
  */
-@Experimental(Kind.SCHEMAS)
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class RowJson {
   private static final ImmutableSet<TypeName> SUPPORTED_TYPES =
@@ -527,7 +524,8 @@ public class RowJson {
           gen.writeNumber((BigDecimal) value);
           break;
         case DATETIME:
-          gen.writeString(((DateTime) value).toString()); // ISO 8601 format
+          // ReadableInstant.toString produces ISO8601 format string
+          gen.writeString(((ReadableInstant) value).toString());
           break;
         case ARRAY:
         case ITERABLE:

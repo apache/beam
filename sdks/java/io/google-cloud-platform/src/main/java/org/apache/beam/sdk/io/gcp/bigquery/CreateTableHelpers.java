@@ -19,20 +19,31 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
+import com.google.api.client.util.BackOff;
+import com.google.api.client.util.BackOffUtils;
+import com.google.api.gax.rpc.ApiException;
+import com.google.api.services.bigquery.model.Clustering;
 import com.google.api.services.bigquery.model.EncryptionConfiguration;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.api.services.bigquery.model.TimePartitioning;
+import io.grpc.StatusRuntimeException;
 import java.util.Collections;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.extensions.gcp.util.BackOffAdapter;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.util.FluentBackoff;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Duration;
 
 public class CreateTableHelpers {
   /**
@@ -40,22 +51,50 @@ public class CreateTableHelpers {
    *
    * <p>TODO: We should put a bound on memory usage of this. Use guava cache instead.
    */
-  private static Set<String> createdTables =
-      Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
+  private static Set<String> createdTables = Collections.newSetFromMap(new ConcurrentHashMap<>());
+
+  private static final Duration INITIAL_RPC_BACKOFF = Duration.millis(500);
+  private static final FluentBackoff DEFAULT_BACKOFF_FACTORY =
+      FluentBackoff.DEFAULT.withMaxRetries(4).withInitialBackoff(INITIAL_RPC_BACKOFF);
+
+  // When CREATE_IF_NEEDED is specified, BQ tables should be created if they do not exist. This
+  // method detects
+  // errors on table operations, and attempts to create the table if necessary.
+  static void createTableWrapper(Callable<Void> action, Callable<Boolean> tryCreateTable)
+      throws Exception {
+    BackOff backoff = BackOffAdapter.toGcpBackOff(DEFAULT_BACKOFF_FACTORY.backoff());
+    RuntimeException lastException = null;
+    do {
+      try {
+        action.call();
+        return;
+      } catch (ApiException | StatusRuntimeException e) {
+        lastException = e;
+        // TODO: Once BigQuery reliably returns a consistent error on table not found, we should
+        // only try creating
+        // the table on that error.
+        boolean created = tryCreateTable.call();
+        if (!created) {
+          throw e;
+        }
+      }
+    } while (BackOffUtils.next(com.google.api.client.util.Sleeper.DEFAULT, backoff));
+    throw Preconditions.checkStateNotNull(lastException);
+  }
 
   static TableDestination possiblyCreateTable(
-      DoFn<?, ?>.ProcessContext context,
+      BigQueryOptions bigQueryOptions,
       TableDestination tableDestination,
-      Supplier<TableSchema> schemaSupplier,
+      Supplier<@Nullable TableSchema> schemaSupplier,
       CreateDisposition createDisposition,
-      Coder<?> tableDestinationCoder,
-      String kmsKey,
+      @Nullable Coder<?> tableDestinationCoder,
+      @Nullable String kmsKey,
       BigQueryServices bqServices) {
     checkArgument(
         tableDestination.getTableSpec() != null,
         "DynamicDestinations.getTable() must return a TableDestination "
-            + "with a non-null table spec, but %s returned %s for destination %s,"
-            + "which has a null table spec",
+            + "with a non-null table spec, but %s "
+            + "has a null table spec",
         tableDestination);
     boolean destinationCoderSupportsClustering =
         !(tableDestinationCoder instanceof TableDestinationCoderV2);
@@ -65,11 +104,11 @@ public class CreateTableHelpers {
             + " if a destination coder is supplied that supports clustering, but %s is configured"
             + " to use TableDestinationCoderV2. Set withClustering() on BigQueryIO.write() and, "
             + " if you provided a custom DynamicDestinations instance, override"
-            + " getDestinationCoder() to return TableDestinationCoderV3.");
+            + " getDestinationCoder() to return TableDestinationCoderV3.",
+        tableDestination);
     TableReference tableReference = tableDestination.getTableReference().clone();
     if (Strings.isNullOrEmpty(tableReference.getProjectId())) {
-      tableReference.setProjectId(
-          context.getPipelineOptions().as(BigQueryOptions.class).getProject());
+      tableReference.setProjectId(bigQueryOptions.getProject());
       tableDestination = tableDestination.withTableReference(tableReference);
     }
     if (createDisposition == CreateDisposition.CREATE_NEVER) {
@@ -84,7 +123,7 @@ public class CreateTableHelpers {
       synchronized (createdTables) {
         if (!createdTables.contains(tableSpec)) {
           tryCreateTable(
-              context,
+              bigQueryOptions,
               schemaSupplier,
               tableDestination,
               createDisposition,
@@ -97,23 +136,23 @@ public class CreateTableHelpers {
     return tableDestination;
   }
 
-  @SuppressWarnings({"nullness"})
   private static void tryCreateTable(
-      DoFn<?, ?>.ProcessContext context,
-      Supplier<TableSchema> schemaSupplier,
+      BigQueryOptions options,
+      Supplier<@Nullable TableSchema> schemaSupplier,
       TableDestination tableDestination,
       CreateDisposition createDisposition,
       String tableSpec,
-      String kmsKey,
+      @Nullable String kmsKey,
       BigQueryServices bqServices) {
     TableReference tableReference = tableDestination.getTableReference().clone();
     tableReference.setTableId(BigQueryHelpers.stripPartitionDecorator(tableReference.getTableId()));
-    try (DatasetService datasetService =
-        bqServices.getDatasetService(context.getPipelineOptions().as(BigQueryOptions.class))) {
-      if (datasetService.getTable(tableReference) == null) {
+    try (DatasetService datasetService = bqServices.getDatasetService(options)) {
+      if (datasetService.getTable(
+              tableReference, Collections.emptyList(), DatasetService.TableMetadataView.BASIC)
+          == null) {
         TableSchema tableSchema = schemaSupplier.get();
-        checkArgument(
-            tableSchema != null,
+        Preconditions.checkArgumentNotNull(
+            tableSchema,
             "Unless create disposition is %s, a schema must be specified, i.e. "
                 + "DynamicDestinations.getSchema() may not return null. "
                 + "However, create disposition is %s, and "
@@ -122,13 +161,18 @@ public class CreateTableHelpers {
             createDisposition,
             tableDestination);
         Table table = new Table().setTableReference(tableReference).setSchema(tableSchema);
-        if (tableDestination.getTableDescription() != null) {
-          table = table.setDescription(tableDestination.getTableDescription());
+
+        String tableDescription = tableDestination.getTableDescription();
+        if (tableDescription != null) {
+          table = table.setDescription(tableDescription);
         }
-        if (tableDestination.getTimePartitioning() != null) {
-          table.setTimePartitioning(tableDestination.getTimePartitioning());
-          if (tableDestination.getClustering() != null) {
-            table.setClustering(tableDestination.getClustering());
+
+        TimePartitioning timePartitioning = tableDestination.getTimePartitioning();
+        if (timePartitioning != null) {
+          table.setTimePartitioning(timePartitioning);
+          Clustering clustering = tableDestination.getClustering();
+          if (clustering != null) {
+            table.setClustering(clustering);
           }
         }
         if (kmsKey != null) {

@@ -51,6 +51,13 @@
   that to expand transforms. Currently Jdbc transforms use the
   'beam-sdks-java-io-expansion-service' jar for this purpose.
 
+  The transforms in this file support an extra `classpath` argument, where one
+  can specify any extra JARs to be included in the classpath for the expansion
+  service. Users will need to specify this option to include the JDBC driver
+  for the database that you're trying to use. **By default, a Postgres JDBC
+  driver** is included (i.e. the Java package
+  `"org.postgresql:postgresql:42.2.16"`).
+
   *Option 2: specify a custom expansion service*
 
   In this option, you startup your own expansion service and provide that as
@@ -81,6 +88,8 @@
 
 import typing
 
+import numpy as np
+
 from apache_beam.coders import RowCoder
 from apache_beam.transforms.external import BeamJarExpansionService
 from apache_beam.transforms.external import ExternalTransform
@@ -93,9 +102,10 @@ __all__ = [
 ]
 
 
-def default_io_expansion_service():
+def default_io_expansion_service(classpath=None):
   return BeamJarExpansionService(
-      ':sdks:java:extensions:schemaio-expansion-service:shadowJar')
+      ':sdks:java:extensions:schemaio-expansion-service:shadowJar',
+      classpath=classpath)
 
 
 JdbcConfigSchema = typing.NamedTuple(
@@ -105,19 +115,21 @@ JdbcConfigSchema = typing.NamedTuple(
 
 Config = typing.NamedTuple(
     'Config',
-    [
-        ('driver_class_name', str),
-        ('jdbc_url', str),
-        ('username', str),
-        ('password', str),
-        ('connection_properties', typing.Optional[str]),
-        ('connection_init_sqls', typing.Optional[typing.List[str]]),
-        ('write_statement', typing.Optional[str]),
-        ('read_query', typing.Optional[str]),
-        ('fetch_size', typing.Optional[int]),
-        ('output_parallelization', typing.Optional[bool]),
-    ],
+    [('driver_class_name', str), ('jdbc_url', str), ('username', str),
+     ('password', str), ('connection_properties', typing.Optional[str]),
+     ('connection_init_sqls', typing.Optional[typing.List[str]]),
+     ('read_query', typing.Optional[str]),
+     ('write_statement', typing.Optional[str]),
+     ('fetch_size', typing.Optional[np.int16]),
+     ('output_parallelization', typing.Optional[bool]),
+     ('autosharding', typing.Optional[bool]),
+     ('partition_column', typing.Optional[str]),
+     ('partitions', typing.Optional[np.int16]),
+     ('max_connections', typing.Optional[np.int16]),
+     ('driver_jars', typing.Optional[str])],
 )
+
+DEFAULT_JDBC_CLASSPATH = ['org.postgresql:postgresql:42.2.16']
 
 
 class WriteToJdbc(ExternalTransform):
@@ -165,7 +177,11 @@ class WriteToJdbc(ExternalTransform):
       statement=None,
       connection_properties=None,
       connection_init_sqls=None,
+      autosharding=False,
+      max_connections=None,
+      driver_jars=None,
       expansion_service=None,
+      classpath=None,
   ):
     """
     Initializes a write operation to Jdbc.
@@ -180,9 +196,25 @@ class WriteToJdbc(ExternalTransform):
                                   [propertyName=property;]*
     :param connection_init_sqls: required only for MySql and MariaDB.
                                  passed as list of strings
+    :param autosharding: enable automatic re-sharding of bundles to scale the
+                         number of shards with the number of workers.
+    :param max_connections: sets the maximum total number of connections.
+                            use a negative value for no limit.
+    :param driver_jars: comma separated paths for JDBC drivers. if not
+                        specified, the default classloader is used to load the
+                        driver jars.
     :param expansion_service: The address (host:port) of the ExpansionService.
+    :param classpath: A list of JARs or Java packages to include in the
+                      classpath for the expansion service. This option is
+                      usually needed for `jdbc` to include extra JDBC driver
+                      packages.
+                      The packages can be in these three formats: (1) A local
+                      file, (2) A URL, (3) A gradle-style identifier of a Maven
+                      package (e.g. "org.postgresql:postgresql:42.3.1").
+                      By default, this argument includes a Postgres SQL JDBC
+                      driver.
     """
-
+    classpath = classpath or DEFAULT_JDBC_CLASSPATH
     super().__init__(
         self.URN,
         NamedTupleBasedPayloadBuilder(
@@ -201,9 +233,13 @@ class WriteToJdbc(ExternalTransform):
                             read_query=None,
                             fetch_size=None,
                             output_parallelization=None,
-                        ))),
+                            autosharding=autosharding,
+                            max_connections=max_connections,
+                            driver_jars=driver_jars,
+                            partitions=None,
+                            partition_column=None))),
         ),
-        expansion_service or default_io_expansion_service(),
+        expansion_service or default_io_expansion_service(classpath),
     )
 
 
@@ -248,9 +284,14 @@ class ReadFromJdbc(ExternalTransform):
       query=None,
       output_parallelization=None,
       fetch_size=None,
+      partition_column=None,
+      partitions=None,
       connection_properties=None,
       connection_init_sqls=None,
+      max_connections=None,
+      driver_jars=None,
       expansion_service=None,
+      classpath=None,
   ):
     """
     Initializes a read operation from Jdbc.
@@ -262,13 +303,32 @@ class ReadFromJdbc(ExternalTransform):
     :param query: sql query to be executed
     :param output_parallelization: is output parallelization on
     :param fetch_size: how many rows to fetch
+    :param partition_column: enable partitioned reads by splitting on this
+                             column
+    :param partitions: override the default number of splits when using
+                       partition_column
     :param connection_properties: properties of the jdbc connection
                                   passed as string with format
                                   [propertyName=property;]*
     :param connection_init_sqls: required only for MySql and MariaDB.
                                  passed as list of strings
+    :param max_connections: sets the maximum total number of connections.
+                            use a negative value for no limit.
+    :param driver_jars: comma separated paths for JDBC drivers. if not
+                        specified, the default classloader is used to load the
+                        driver jars.
     :param expansion_service: The address (host:port) of the ExpansionService.
+    :param classpath: A list of JARs or Java packages to include in the
+                      classpath for the expansion service. This option is
+                      usually needed for `jdbc` to include extra JDBC driver
+                      packages.
+                      The packages can be in these three formats: (1) A local
+                      file, (2) A URL, (3) A gradle-style identifier of a Maven
+                      package (e.g. "org.postgresql:postgresql:42.3.1").
+                      By default, this argument includes a Postgres SQL JDBC
+                      driver.
     """
+    classpath = classpath or DEFAULT_JDBC_CLASSPATH
     super().__init__(
         self.URN,
         NamedTupleBasedPayloadBuilder(
@@ -287,7 +347,11 @@ class ReadFromJdbc(ExternalTransform):
                             read_query=query,
                             fetch_size=fetch_size,
                             output_parallelization=output_parallelization,
-                        ))),
+                            autosharding=None,
+                            max_connections=max_connections,
+                            driver_jars=driver_jars,
+                            partition_column=partition_column,
+                            partitions=partitions))),
         ),
-        expansion_service or default_io_expansion_service(),
+        expansion_service or default_io_expansion_service(classpath),
     )

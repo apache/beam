@@ -49,6 +49,20 @@ except ImportError:
   client = None
 
 
+# used for internal testing only
+class FakeMessage:
+  def __init__(self, entity, key):
+    self.entity = entity
+    self.key = key
+
+  def ByteSize(self):
+    if self.entity is not None:
+      return helpers.entity_to_protobuf(self.entity)._pb.ByteSize()
+    else:
+      return self.key.to_protobuf()._pb.ByteSize()
+
+
+# used for internal testing only
 class FakeMutation(object):
   def __init__(self, entity=None, key=None):
     """Fake mutation request object.
@@ -63,12 +77,7 @@ class FakeMutation(object):
     """
     self.entity = entity
     self.key = key
-
-  def ByteSize(self):
-    if self.entity is not None:
-      return helpers.entity_to_protobuf(self.entity).ByteSize()
-    else:
-      return self.key.to_protobuf().ByteSize()
+    self._pb = FakeMessage(entity, key)
 
 
 class FakeBatch(object):
@@ -328,13 +337,17 @@ class DatastoreioTest(unittest.TestCase):
       client_query.fetch.side_effect = [
           exceptions.DeadlineExceeded("Deadline exceed")
       ]
-      list(_query_fn.process(self._mock_query))
-      self.verify_read_call_metric(
-          self._PROJECT, self._NAMESPACE, "deadline_exceeded", 1)
-      # Test success
-      client_query.fetch.side_effect = [[]]
-      list(_query_fn.process(self._mock_query))
-      self.verify_read_call_metric(self._PROJECT, self._NAMESPACE, "ok", 1)
+      try:
+        list(_query_fn.process(self._mock_query))
+      except Exception:
+        self.verify_read_call_metric(
+            self._PROJECT, self._NAMESPACE, "deadline_exceeded", 1)
+        # Test success
+        client_query.fetch.side_effect = [[]]
+        list(_query_fn.process(self._mock_query))
+        self.verify_read_call_metric(self._PROJECT, self._NAMESPACE, "ok", 1)
+      else:
+        raise Exception('Excepted  _query_fn.process call to raise an error')
 
   def verify_read_call_metric(self, project_id, namespace, status, count):
     """Check if a metric was recorded for the Datastore IO read API call."""
@@ -425,7 +438,7 @@ class DatastoreioTest(unittest.TestCase):
       datastore_write_fn = WriteToDatastore._DatastoreWriteFn(self._PROJECT)
       datastore_write_fn.start_bundle()
       for entity in entities:
-        entity.set_properties({'large': u'A' * 100000})
+        entity.set_properties({'large': 'A' * 100000})
         datastore_write_fn.process(entity)
       datastore_write_fn.finish_bundle()
 

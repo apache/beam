@@ -46,7 +46,6 @@ import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.stateful.SparkGroupAlsoByWindowViaWindowSet;
 import org.apache.beam.runners.spark.translation.streaming.UnboundedDataset;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
-import org.apache.beam.runners.spark.util.SparkCompat;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -66,20 +65,16 @@ import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.storage.StorageLevel;
 import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaInputDStream;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import scala.Tuple2;
+import scala.collection.JavaConverters;
 
 /** Translates an unbounded portable pipeline into a Spark job. */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class SparkStreamingPortablePipelineTranslator
     implements SparkPortablePipelineTranslator<SparkStreamingTranslationContext> {
-
-  private static final Logger LOG =
-      LoggerFactory.getLogger(SparkStreamingPortablePipelineTranslator.class);
 
   private final ImmutableMap<String, PTransformTranslator> urnToTransformTranslator;
 
@@ -241,7 +236,7 @@ public class SparkStreamingPortablePipelineTranslator
     Coder windowCoder =
         getWindowingStrategy(inputPCollectionId, components).getWindowFn().windowCoder();
 
-    // TODO (BEAM-10712): handle side inputs.
+    // TODO (https://github.com/apache/beam/issues/20395): handle side inputs.
     if (stagePayload.getSideInputsCount() > 0) {
       throw new UnsupportedOperationException(
           "Side inputs to executable stage are currently unsupported.");
@@ -326,13 +321,14 @@ public class SparkStreamingPortablePipelineTranslator
           // create a single RDD stream.
           Queue<JavaRDD<WindowedValue<T>>> q = new LinkedBlockingQueue<>();
           q.offer(((BoundedDataset) dataset).getRDD());
-          // TODO (BEAM-10789): this is not recoverable from checkpoint!
+          // TODO (https://github.com/apache/beam/issues/20426): this is not recoverable from
+          // checkpoint!
           JavaDStream<WindowedValue<T>> dStream = context.getStreamingContext().queueStream(q);
           dStreams.add(dStream);
         }
       }
       // Unify streams into a single stream.
-      unifiedStreams = SparkCompat.joinStreams(context.getStreamingContext(), dStreams);
+      unifiedStreams = context.getStreamingContext().union(JavaConverters.asScalaBuffer(dStreams));
     }
 
     context.pushDataset(

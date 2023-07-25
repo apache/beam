@@ -109,10 +109,11 @@ public class WaitTest implements Serializable {
     List<Event<Long>> events = Lists.newArrayList();
     for (int i = 0; i < numElements; ++i) {
       Instant processingTimestamp =
-          base.plus((long) (1.0 * i * totalDuration.getMillis() / (numElements + 1)));
+          base.plus(
+              Duration.millis((long) (1.0 * i * totalDuration.getMillis() / (numElements + 1))));
       Instant watermark = watermarks.get(i);
       Instant elementTimestamp =
-          watermark.minus((long) (Math.random() * allowedLateness.getMillis()));
+          watermark.minus(Duration.millis((long) (Math.random() * allowedLateness.getMillis())));
       events.add(new Event<>(processingTimestamp, watermark));
       events.add(new Event<>(processingTimestamp, TimestampedValue.of((long) i, elementTimestamp)));
     }

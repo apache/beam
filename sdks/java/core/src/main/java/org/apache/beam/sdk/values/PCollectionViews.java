@@ -42,8 +42,6 @@ import java.util.RandomAccess;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.function.Supplier;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.BooleanCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -82,7 +80,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 @Internal
 @SuppressWarnings({
   "keyfor",
-  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes"
 })
 public class PCollectionViews {
@@ -338,10 +336,9 @@ public class PCollectionViews {
    *
    * <p>{@link SingletonViewFn} is meant to be removed in the future and replaced with this class.
    */
-  @Experimental(Kind.CORE_RUNNERS_ONLY)
   @Internal
   public static class SingletonViewFn2<T> extends ViewFn<IterableView<T>, T>
-      implements HasDefaultValue<T> {
+      implements HasDefaultValue<T>, IsSingletonView<T> {
     private byte @Nullable [] encodedDefaultValue;
     private transient @Nullable T defaultValue;
     private @Nullable Coder<T> valueCoder;
@@ -428,6 +425,9 @@ public class PCollectionViews {
     T getDefaultValue();
   }
 
+  @Internal
+  public interface IsSingletonView<T> {}
+
   /**
    * Implementation which is able to adapt a multimap materialization to a {@code T}.
    *
@@ -436,9 +436,8 @@ public class PCollectionViews {
    * @deprecated See {@link SingletonViewFn2}.
    */
   @Deprecated
-  @Experimental(Kind.CORE_RUNNERS_ONLY)
   public static class SingletonViewFn<T> extends ViewFn<MultimapView<Void, T>, T>
-      implements HasDefaultValue<T> {
+      implements HasDefaultValue<T>, IsSingletonView<T> {
     private byte @Nullable [] encodedDefaultValue;
     private transient @Nullable T defaultValue;
     private @Nullable Coder<T> valueCoder;
@@ -464,7 +463,6 @@ public class PCollectionViews {
     }
 
     /** Returns if a default value was specified. */
-    @Internal
     public boolean hasDefault() {
       return hasDefault;
     }
@@ -529,7 +527,6 @@ public class PCollectionViews {
    *
    * <p>{@link IterableViewFn} is meant to be removed in the future and replaced with this class.
    */
-  @Experimental(Kind.CORE_RUNNERS_ONLY)
   @Internal
   public static class IterableViewFn2<T> extends ViewFn<IterableView<T>, Iterable<T>> {
     private TypeDescriptorSupplier<T> typeDescriptorSupplier;
@@ -562,7 +559,6 @@ public class PCollectionViews {
    * @deprecated See {@link IterableViewFn2}.
    */
   @Deprecated
-  @Experimental(Kind.CORE_RUNNERS_ONLY)
   public static class IterableViewFn<T> extends ViewFn<MultimapView<Void, T>, Iterable<T>> {
     private TypeDescriptorSupplier<T> typeDescriptorSupplier;
 
@@ -595,7 +591,6 @@ public class PCollectionViews {
    *
    * <p>{@link ListViewFn} is meant to be removed in the future and replaced with this class.
    */
-  @Experimental(Kind.CORE_RUNNERS_ONLY)
   @VisibleForTesting
   public static class ListViewFn2<T>
       extends ViewFn<MultimapView<Long, ValueOrMetadata<T, OffsetRange>>, List<T>> {
@@ -679,65 +674,6 @@ public class PCollectionViews {
       @Override
       public ListIterator<T> listIterator() {
         return super.listIterator();
-      }
-
-      /** A {@link ListIterator} over {@link MultimapView} adapter. */
-      private class ListIteratorOverMultimapView implements ListIterator<T> {
-        private int position;
-
-        @Override
-        public boolean hasNext() {
-          return position < size();
-        }
-
-        @Override
-        public T next() {
-          if (!hasNext()) {
-            throw new NoSuchElementException();
-          }
-          T rval = get(position);
-          position += 1;
-          return rval;
-        }
-
-        @Override
-        public boolean hasPrevious() {
-          return position > 0;
-        }
-
-        @Override
-        public T previous() {
-          if (!hasPrevious()) {
-            throw new NoSuchElementException();
-          }
-          position -= 1;
-          return get(position);
-        }
-
-        @Override
-        public int nextIndex() {
-          return position;
-        }
-
-        @Override
-        public int previousIndex() {
-          return position - 1;
-        }
-
-        @Override
-        public void remove() {
-          throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public void set(T e) {
-          throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public void add(T e) {
-          throw new UnsupportedOperationException();
-        }
       }
     }
   }
@@ -992,7 +928,6 @@ public class PCollectionViews {
    * @deprecated See {@link ListViewFn2}.
    */
   @Deprecated
-  @Experimental(Kind.CORE_RUNNERS_ONLY)
   public static class ListViewFn<T> extends ViewFn<MultimapView<Void, T>, List<T>> {
     private TypeDescriptorSupplier<T> typeDescriptorSupplier;
 
@@ -1040,7 +975,6 @@ public class PCollectionViews {
    *
    * <p>{@link MultimapViewFn} is meant to be removed in the future and replaced with this class.
    */
-  @Experimental(Kind.CORE_RUNNERS_ONLY)
   @Internal
   public static class MultimapViewFn2<K, V>
       extends ViewFn<MultimapView<K, V>, Map<K, Iterable<V>>> {
@@ -1081,7 +1015,6 @@ public class PCollectionViews {
    * @deprecated See {@link MultimapViewFn2}.
    */
   @Deprecated
-  @Experimental(Kind.CORE_RUNNERS_ONLY)
   public static class MultimapViewFn<K, V>
       extends ViewFn<MultimapView<Void, KV<K, V>>, Map<K, Iterable<V>>> {
     private TypeDescriptorSupplier<K> keyTypeDescriptorSupplier;
@@ -1101,7 +1034,8 @@ public class PCollectionViews {
 
     @Override
     public Map<K, Iterable<V>> apply(MultimapView<Void, KV<K, V>> primitiveViewT) {
-      // TODO: BEAM-3071 - fix this so that we aren't relying on Java equality and are
+      // TODO: https://github.com/apache/beam/issues/18569 - fix this so that we aren't relying on
+      // Java equality and are
       // using structural value equality.
       Multimap<K, V> multimap = ArrayListMultimap.create();
       for (KV<K, V> elem : primitiveViewT.get(null)) {
@@ -1167,7 +1101,6 @@ public class PCollectionViews {
    * @deprecated See {@link MapViewFn2}.
    */
   @Deprecated
-  @Experimental(Kind.CORE_RUNNERS_ONLY)
   public static class MapViewFn<K, V> extends ViewFn<MultimapView<Void, KV<K, V>>, Map<K, V>> {
     private TypeDescriptorSupplier<K> keyTypeDescriptorSupplier;
     private TypeDescriptorSupplier<V> valueTypeDescriptorSupplier;
@@ -1186,7 +1119,8 @@ public class PCollectionViews {
 
     @Override
     public Map<K, V> apply(MultimapView<Void, KV<K, V>> primitiveViewT) {
-      // TODO: BEAM-3071 - fix this so that we aren't relying on Java equality and are
+      // TODO: https://github.com/apache/beam/issues/18569 - fix this so that we aren't relying on
+      // Java equality and are
       // using structural value equality.
       Map<K, V> map = new HashMap<>();
       for (KV<K, V> elem : primitiveViewT.get(null)) {

@@ -131,7 +131,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * inside a {@link ParDo} over another {@link PCollection}.
  */
 @SuppressWarnings({
-  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes"
 })
 public class View {
@@ -331,7 +331,7 @@ public class View {
       }
 
       Coder<T> inputCoder = input.getCoder();
-      // HACK to work around https://issues.apache.org/jira/browse/BEAM-12228:
+      // HACK to work around https://github.com/apache/beam/issues/20873:
       // There are bugs in "composite" vs "primitive" transform distinction
       // in TransformHierachy. This noop transform works around them and should be zero
       // cost.
@@ -391,7 +391,6 @@ public class View {
       } catch (IllegalStateException e) {
         throw new IllegalStateException("Unable to create a side-input view from input", e);
       }
-
       Combine.Globally<T, T> singletonCombine =
           Combine.globally(new SingletonCombineFn<>(hasDefault, input.getCoder(), defaultValue));
       if (!hasDefault) {
@@ -481,7 +480,7 @@ public class View {
       KvCoder<K, V> kvCoder = (KvCoder<K, V>) input.getCoder();
       Coder<K> keyCoder = kvCoder.getKeyCoder();
       Coder<V> valueCoder = kvCoder.getValueCoder();
-      // HACK to work around https://issues.apache.org/jira/browse/BEAM-12228:
+      // HACK to work around https://github.com/apache/beam/issues/20873:
       // There are bugs in "composite" vs "primitive" transform distinction
       // in TransformHierachy. This noop transform works around them and should be zero
       // cost.

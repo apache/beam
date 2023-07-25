@@ -103,7 +103,7 @@ public class TwitterStream {
             new DoFn<String, String>() {
               @ProcessElement
               public void processElement(@Element String element, OutputReceiver<String> receiver) {
-                LOG.debug("Output tweets: " + element);
+                LOG.debug("Output tweets: {}", element);
                 receiver.output(element);
               }
             }));

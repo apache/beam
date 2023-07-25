@@ -39,7 +39,7 @@ import org.joda.time.Instant;
 /** An auction submitted by a person. */
 @DefaultSchema(JavaFieldSchema.class)
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class Auction implements KnownSize, Serializable {
   private static final Coder<Instant> INSTANT_CODER = InstantCoder.of();

@@ -48,7 +48,7 @@ public class DirtyState implements Serializable {
     COMMITTING
   }
 
-  private final AtomicReference<State> dirty = new AtomicReference<>(State.DIRTY);
+  private final AtomicReference<State> dirty = new AtomicReference<>(State.CLEAN);
 
   /**
    * Indicate that changes have been made to the metric being tracked by this {@link DirtyState}.
@@ -91,6 +91,14 @@ public class DirtyState implements Serializable {
    */
   public void afterCommit() {
     dirty.compareAndSet(State.COMMITTING, State.CLEAN);
+  }
+
+  /**
+   * Reset the dirty state. The next call next call to {@link #beforeCommit()} will return {@code
+   * false} unless there have been changes made after this call.
+   */
+  public void reset() {
+    dirty.set(State.CLEAN);
   }
 
   @Override

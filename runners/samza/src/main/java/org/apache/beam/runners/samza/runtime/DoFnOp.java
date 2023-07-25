@@ -21,14 +21,12 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.DoFnRunner;
@@ -45,7 +43,7 @@ import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.samza.SamzaExecutionContext;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
-import org.apache.beam.runners.samza.util.FutureUtils;
+import org.apache.beam.runners.samza.util.DoFnUtils;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
@@ -70,8 +68,8 @@ import org.slf4j.LoggerFactory;
 
 /** Samza operator for {@link DoFn}. */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   private static final Logger LOG = LoggerFactory.getLogger(DoFnOp.class);
@@ -126,6 +124,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
 
   private final DoFnSchemaInformation doFnSchemaInformation;
   private final Map<?, PCollectionView<?>> sideInputMapping;
+  private final Map<String, String> stateIdToStoreMapping;
 
   public DoFnOp(
       TupleTag<FnOutT> mainOutputTag,
@@ -147,7 +146,8 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
       JobInfo jobInfo,
       Map<String, TupleTag<?>> idToTupleTagMap,
       DoFnSchemaInformation doFnSchemaInformation,
-      Map<?, PCollectionView<?>> sideInputMapping) {
+      Map<?, PCollectionView<?>> sideInputMapping,
+      Map<String, String> stateIdToStoreMapping) {
     this.mainOutputTag = mainOutputTag;
     this.doFn = doFn;
     this.sideInputs = sideInputs;
@@ -170,6 +170,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
     this.bundleStateId = "_samza_bundle_" + transformId;
     this.doFnSchemaInformation = doFnSchemaInformation;
     this.sideInputMapping = sideInputMapping;
+    this.stateIdToStoreMapping = stateIdToStoreMapping;
   }
 
   @Override
@@ -196,13 +197,20 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
     final FutureCollector<OutT> outputFutureCollector = createFutureCollector();
 
     this.bundleManager =
-        new BundleManager<>(
-            createBundleProgressListener(),
-            outputFutureCollector,
-            samzaPipelineOptions.getMaxBundleSize(),
-            samzaPipelineOptions.getMaxBundleTimeMs(),
-            timerRegistry,
-            bundleCheckTimerId);
+        isPortable
+            ? new PortableBundleManager<>(
+                createBundleProgressListener(),
+                samzaPipelineOptions.getMaxBundleSize(),
+                samzaPipelineOptions.getMaxBundleTimeMs(),
+                timerRegistry,
+                bundleCheckTimerId)
+            : new ClassicBundleManager<>(
+                createBundleProgressListener(),
+                outputFutureCollector,
+                samzaPipelineOptions.getMaxBundleSize(),
+                samzaPipelineOptions.getMaxBundleTimeMs(),
+                timerRegistry,
+                bundleCheckTimerId);
 
     this.timerInternalsFactory =
         SamzaTimerInternalsFactory.createTimerInternalFactory(
@@ -224,6 +232,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
       this.fnRunner =
           SamzaDoFnRunners.createPortable(
               transformId,
+              DoFnUtils.toStepName(executableStage),
               bundleStateId,
               windowedValueCoder,
               executableStage,
@@ -234,6 +243,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
               samzaPipelineOptions,
               outputManagerFactory.create(emitter, outputFutureCollector),
               stageBundleFactory,
+              samzaExecutionContext,
               mainOutputTag,
               idToTupleTagMap,
               context,
@@ -256,7 +266,10 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
               sideOutputTags,
               outputCoders,
               doFnSchemaInformation,
-              (Map<String, PCollectionView<?>>) sideInputMapping);
+              (Map<String, PCollectionView<?>>) sideInputMapping,
+              stateIdToStoreMapping,
+              emitter,
+              outputFutureCollector);
     }
 
     this.pushbackFnRunner =
@@ -473,56 +486,6 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
                 windowedValue.getTimestamp(),
                 windowedValue.getWindows(),
                 windowedValue.getPane()));
-  }
-
-  static class FutureCollectorImpl<OutT> implements FutureCollector<OutT> {
-    private final List<CompletionStage<WindowedValue<OutT>>> outputFutures;
-    private final AtomicBoolean collectorSealed;
-
-    FutureCollectorImpl() {
-      /*
-       * Choosing synchronized list here since the concurrency is low as the message dispatch thread is single threaded.
-       * We need this guard against scenarios when watermark/finish bundle trigger outputs.
-       */
-      outputFutures = Collections.synchronizedList(new ArrayList<>());
-      collectorSealed = new AtomicBoolean(true);
-    }
-
-    @Override
-    public void add(CompletionStage<WindowedValue<OutT>> element) {
-      checkState(
-          !collectorSealed.get(),
-          "Cannot add elements to an unprepared collector. Make sure prepare() is invoked before adding elements.");
-      outputFutures.add(element);
-    }
-
-    @Override
-    public void discard() {
-      collectorSealed.compareAndSet(false, true);
-      outputFutures.clear();
-    }
-
-    @Override
-    public CompletionStage<Collection<WindowedValue<OutT>>> finish() {
-      /*
-       * We can ignore the results here because its okay to call finish without invoking prepare. It will be a no-op
-       * and an empty collection will be returned.
-       */
-      collectorSealed.compareAndSet(false, true);
-
-      CompletionStage<Collection<WindowedValue<OutT>>> sealedOutputFuture =
-          FutureUtils.flattenFutures(outputFutures);
-      outputFutures.clear();
-      return sealedOutputFuture;
-    }
-
-    @Override
-    public void prepare() {
-      boolean isCollectorSealed = collectorSealed.compareAndSet(true, false);
-      checkState(
-          isCollectorSealed,
-          "Failed to prepare the collector. Collector needs to be sealed before prepare() is invoked.");
-    }
   }
 
   /**

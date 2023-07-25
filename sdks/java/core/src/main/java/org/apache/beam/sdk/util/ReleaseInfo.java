@@ -36,7 +36,7 @@ import org.slf4j.LoggerFactory;
 @AutoValue
 @Internal
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public abstract class ReleaseInfo implements Serializable {
   private static final String PROPERTIES_PATH = "/org/apache/beam/sdk/sdk.properties";

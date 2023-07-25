@@ -44,7 +44,7 @@ import org.slf4j.LoggerFactory;
  * {@link NativeReader}s for sources lazily, i.e. only when elements from the particular {@code
  * NativeReader} are about to be read.
  *
- * <p>This class does does not cache {@link NativeReader}s and instead creates new set of {@link
+ * <p>This class does not cache {@link NativeReader}s and instead creates new set of {@link
  * NativeReader}s for every new {@link ConcatIterator}. Because of this, multiple {@link
  * ConcatIterator}s created using the same {@link ConcatReader} will not be able to share any state
  * between each other. This design was chosen since keeping a large number of {@link NativeReader}
@@ -57,8 +57,8 @@ import org.slf4j.LoggerFactory;
  * @param <T> Type of the elements read by the {@link NativeReader}s.
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class ConcatReader<T> extends NativeReader<T> {
   private static final Logger LOG = LoggerFactory.getLogger(ConcatReader.class);

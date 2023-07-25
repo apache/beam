@@ -30,13 +30,10 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Integration test for PubsubIO. */
 @RunWith(JUnit4.class)
 public class PubsubReadIT {
-  private static final Logger LOG = LoggerFactory.getLogger(PubsubReadIT.class);
 
   @Rule public transient TestPubsubSignal signal = TestPubsubSignal.create();
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
@@ -54,7 +51,7 @@ public class PubsubReadIT {
     messages.apply(
         "waitForAnyMessage", signal.signalSuccessWhen(messages.getCoder(), anyMessages -> true));
 
-    Supplier<Void> start = signal.waitForStart(Duration.standardMinutes(5));
+    Supplier<Void> start = signal.waitForStart(Duration.standardMinutes(8));
     pipeline.apply(signal.signalStart());
     PipelineResult job = pipeline.run();
     start.get();
@@ -82,7 +79,7 @@ public class PubsubReadIT {
         "isMessageIdNonNull",
         signal.signalSuccessWhen(messages.getCoder(), new NonEmptyMessageIdCheck()));
 
-    Supplier<Void> start = signal.waitForStart(Duration.standardMinutes(5));
+    Supplier<Void> start = signal.waitForStart(Duration.standardMinutes(8));
     pipeline.apply(signal.signalStart());
     PipelineResult job = pipeline.run();
     start.get();

@@ -19,7 +19,7 @@ import groovy.json.JsonOutput
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(automaticModuleName: 'org.apache.beam.runners.portability')
+applyJavaNature( automaticModuleName: 'org.apache.beam.runners.portability')
 applyPythonNature()
 
 description = "Apache Beam :: Runners :: Portability :: Java"
@@ -31,29 +31,28 @@ configurations {
 }
 
 dependencies {
-  compile library.java.vendored_guava_26_0_jre
-  compile project(":runners:java-fn-execution")
-  compile project(":runners:java-job-service")
-  compile project(path: ":sdks:java:harness", configuration: "shadow")
-  compile library.java.vendored_grpc_1_36_0
-  compile library.java.slf4j_api
-  compile library.java.joda_time
-  compile "org.hamcrest:hamcrest:2.1"
-  compile project(path: ":model:job-management:", configuration: "shadow")
-  compile project(path: ":model:pipeline", configuration: "shadow")
-  compile project(":runners:core-construction-java")
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile project(":sdks:java:fn-execution")
+  implementation project(path: ":model:job-management", configuration: "shadow")
+  implementation project(path: ":model:pipeline", configuration: "shadow")
+  implementation project(":runners:java-fn-execution")
+  implementation project(":runners:java-job-service")
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(path: ":sdks:java:harness", configuration: "shadow")
+  implementation library.java.hamcrest
+  permitUnusedDeclared library.java.hamcrest
+  implementation library.java.joda_time
+  implementation library.java.slf4j_api
+  implementation library.java.vendored_grpc_1_54_0
+  implementation library.java.vendored_guava_26_0_jre
 
-  testCompile project(path: ":runners:core-construction-java", configuration: "testRuntime")
-  testCompile library.java.hamcrest_core
-  testCompile library.java.junit
-  testCompile library.java.mockito_core
-  testCompile library.java.slf4j_jdk14
+  testImplementation project(path: ":runners:core-construction-java", configuration: "testRuntimeMigration")
+  testImplementation library.java.hamcrest
+  testImplementation library.java.junit
+  testImplementation library.java.mockito_core
+  testImplementation library.java.slf4j_jdk14
 
   validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
-  validatesRunner project(path: ":runners:core-java", configuration: "testRuntime")
-  validatesRunner project(path: project.path, configuration: "testRuntime")
+  validatesRunner project(path: ":runners:core-java", configuration: "testRuntimeMigration")
+  validatesRunner project(path: project.path, configuration: "testRuntimeMigration")
 }
 
 project.evaluationDependsOn(":sdks:java:core")
@@ -96,14 +95,14 @@ void execBackgroundInVirtualenv(String... args) {
   }
 }
 
-task installBeamPythonInVirtualenv {
+def installBeamPythonInVirtualenv = tasks.register("installBeamPythonInVirtualenv") {
   dependsOn setupVirtualenv
   doLast {
     execInVirtualenv "pip", "install", "-e", "."
   }
 }
 
-task startLocalJobService {
+def startLocalJobService = tasks.register("startLocalJobService") {
   dependsOn installBeamPythonInVirtualenv
 
   doLast {
@@ -125,7 +124,13 @@ task stopLocalJobService {
   }
 }
 
-startLocalJobService.finalizedBy stopLocalJobService
+startLocalJobService.configure{finalizedBy stopLocalJobService}
+
+def sickbayTests = [
+
+        //TODO: https://github.com/apache/beam/issues/20631
+        'org.apache.beam.sdk.transforms.windowing.WindowingTest.testWindowPreservation',
+]
 
 /**
  * Runs Java ValidatesRunner tests against the Universal Local Runner (ULR) aka local_job_service_main
@@ -144,23 +149,27 @@ def createUlrValidatesRunnerTask = { name, environmentType, dockerImageTask = ""
     testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
     useJUnit {
       includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+      // Should be run only in a properly configured SDK harness environment
+      excludeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
       excludeCategories 'org.apache.beam.sdk.testing.UsesGaugeMetrics'
       excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
       excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesMultimapState'
       excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
       excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
       excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
       excludeCategories 'org.apache.beam.sdk.testing.UsesTimersInParDo'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesTriggeredSideInputs'
     }
     filter {
       // There is not currently a category for excluding these _only_ in committed mode
-      // https://issues.apache.org/jira/browse/BEAM-10445
+      // https://github.com/apache/beam/issues/20370
       excludeTestsMatching 'org.apache.beam.sdk.metrics.MetricsTest$CommittedMetricTests.testCommittedCounterMetrics'
-      // https://issues.apache.org/jira/browse/BEAM-10446
+      // https://github.com/apache/beam/issues/20371
       excludeTestsMatching 'org.apache.beam.sdk.metrics.MetricsTest$CommittedMetricTests.testCommittedDistributionMetrics'
 
       // Teardown not called in exceptions
-      // https://issues.apache.org/jira/browse/BEAM-10447
+      // https://github.com/apache/beam/issues/20372
       excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInFinishBundle'
       excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInFinishBundleStateful'
       excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInProcessElement'
@@ -171,7 +180,7 @@ def createUlrValidatesRunnerTask = { name, environmentType, dockerImageTask = ""
       excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInStartBundleStateful'
 
       // Only known window fns supported, not general window merging
-      // https://issues.apache.org/jira/browse/BEAM-10448
+      // https://github.com/apache/beam/issues/20437
       excludeTestsMatching 'org.apache.beam.sdk.transforms.windowing.WindowTest.testMergingCustomWindows'
       excludeTestsMatching 'org.apache.beam.sdk.transforms.windowing.WindowTest.testMergingCustomWindowsKeyedCollection'
       excludeTestsMatching 'org.apache.beam.sdk.transforms.windowing.WindowTest.testMergingCustomWindowsWithoutCustomWindowTypes'
@@ -180,26 +189,28 @@ def createUlrValidatesRunnerTask = { name, environmentType, dockerImageTask = ""
       excludeTestsMatching 'org.apache.beam.sdk.transforms.GroupByKeyTest$WindowTests.testGroupByKeyMergingWindows'
 
       // Misc failures
-      // https://issues.apache.org/jira/browse/BEAM-10451
+      // https://github.com/apache/beam/issues/20375
       excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest$WindowingTests.testGlobalCombineWithDefaultsAndTriggers'
       excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest$WindowingTests.testSessionsCombine'
       excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest$WindowingTests.testSessionsCombineWithContext'
 
-      // https://issues.apache.org/jira/browse/BEAM-10454
+      // https://github.com/apache/beam/issues/20373
       excludeTestsMatching 'org.apache.beam.sdk.testing.PAssertTest.testWindowedIsEqualTo'
 
-      // https://issues.apache.org/jira/browse/BEAM-10452
+      // https://github.com/apache/beam/issues/20374
       excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest$BasicTests.testHotKeyCombiningWithAccumulationMode'
 
-      // https://issues.apache.org/jira/browse/BEAM-12275
+      // https://github.com/apache/beam/issues/20878
       excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$MultipleInputsAndOutputTests.testSideInputAnnotationWithMultipleSideInputs'
       excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testMapAsEntrySetSideInput'
       excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testWindowedMultimapAsEntrySetSideInput'
       excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testWindowedMapAsEntrySetSideInput'
       excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testMultimapAsEntrySetSideInput'
 
-      // https://issues.apache.org/jira/browse/BEAM-10995
-      excludeTestsMatching 'org.apache.beam.sdk.transforms.windowing.WindowingTest.testWindowPreservation'
+      for (String test : sickbayTests) {
+        excludeTestsMatching test
+      }
+
     }
   }
 
@@ -216,6 +227,23 @@ def createUlrValidatesRunnerTask = { name, environmentType, dockerImageTask = ""
   }
 
   return vrTask
+}
+
+tasks.register("validatesRunnerSickbay", Test) {
+  group = "Verification"
+  description "Validates Universal local runner (Sickbay Tests)"
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+          "--runner=TestUniversalRunner",
+  ])
+
+  classpath = configurations.validatesRunner
+  testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
+
+  filter {
+    for (String test : sickbayTests) {
+      includeTestsMatching test
+    }
+  }
 }
 
 task ulrDockerValidatesRunner {

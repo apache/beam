@@ -65,7 +65,6 @@ See apache_beam.typehints.decorators module for more details.
 """
 
 # pytype: skip-file
-
 from typing import Any
 from typing import Dict
 from typing import Iterable
@@ -97,7 +96,9 @@ class CoderRegistry(object):
     self._register_coder_internal(typehints.DictConstraint, coders.MapCoder)
     # Default fallback coders applied in that order until the first matching
     # coder found.
-    default_fallback_coders = [coders.ProtoCoder, coders.FastPrimitivesCoder]
+    default_fallback_coders = [
+        coders.ProtoCoder, coders.ProtoPlusCoder, coders.FastPrimitivesCoder
+    ]
     self._fallback_coder = fallback_coder or FirstOf(default_fallback_coders)
 
   def register_fallback_coder(self, fallback_coder):
@@ -115,10 +116,18 @@ class CoderRegistry(object):
           'Received %r instead.' % typehint_coder_class)
     if typehint_type not in self.custom_types:
       self.custom_types.append(typehint_type)
+    if typehint_type.__module__ == '__main__':
+      # See https://github.com/apache/beam/issues/21541
+      # TODO(robertwb): Remove once all runners are portable.
+      typehint_type = getattr(typehint_type, '__name__', str(typehint_type))
     self._register_coder_internal(typehint_type, typehint_coder_class)
 
   def get_coder(self, typehint):
     # type: (Any) -> coders.Coder
+    if typehint and typehint.__module__ == '__main__':
+      # See https://github.com/apache/beam/issues/21541
+      # TODO(robertwb): Remove once all runners are portable.
+      typehint = getattr(typehint, '__name__', str(typehint))
     coder = self._coders.get(
         typehint.__class__
         if isinstance(typehint, typehints.TypeConstraint) else typehint,
@@ -136,6 +145,8 @@ class CoderRegistry(object):
         return coders.IterableCoder.from_type_hint(typehint, self)
       elif isinstance(typehint, typehints.ListConstraint):
         return coders.ListCoder.from_type_hint(typehint, self)
+      elif typehints.is_nullable(typehint):
+        return coders.NullableCoder.from_type_hint(typehint, self)
       elif typehint is None:
         # In some old code, None is used for Any.
         # TODO(robertwb): Clean this up.

@@ -56,11 +56,11 @@ import org.apache.beam.sdk.fn.server.GrpcFnServer;
 import org.apache.beam.sdk.fn.stream.SynchronizedStreamObserver;
 import org.apache.beam.sdk.function.ThrowingConsumer;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.Struct;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.Status;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.StatusException;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.StatusRuntimeException;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.Status;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.StatusException;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.StatusRuntimeException;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.slf4j.Logger;
@@ -76,7 +76,7 @@ import org.slf4j.LoggerFactory;
  * <p>TODO: replace in-memory job management state with persistent solution.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implements FnService {
   private static final Logger LOG = LoggerFactory.getLogger(InMemoryJobService.class);

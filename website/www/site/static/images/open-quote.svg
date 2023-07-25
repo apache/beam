@@ -1,0 +1,21 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+<svg width="46" height="37" viewBox="0 0 46 37" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M8.064 36.54C5.628 36.54 3.654 35.658 2.142 33.894C0.714 32.046 0 29.484 0 26.208C0 22.848 0.504 19.782 1.512 17.01C2.52 14.238 3.906 11.76 5.67 9.576C7.434 7.308 9.45 5.376 11.718 3.78C14.07 2.184 16.59 0.923998 19.278 0L21.672 6.174C19.488 7.098 17.556 8.19 15.876 9.45C14.28 10.71 12.936 12.012 11.844 13.356C10.752 14.7 9.912 16.044 9.324 17.388C8.736 18.732 8.442 19.95 8.442 21.042H9.072C11.256 21.042 13.062 21.63 14.49 22.806C16.002 23.982 16.758 25.662 16.758 27.846C16.758 30.198 15.96 32.256 14.364 34.02C12.852 35.7 10.752 36.54 8.064 36.54ZM32.382 36.54C29.946 36.54 27.972 35.658 26.46 33.894C25.032 32.046 24.318 29.484 24.318 26.208C24.318 22.848 24.822 19.782 25.83 17.01C26.838 14.238 28.224 11.76 29.988 9.576C31.752 7.308 33.768 5.376 36.036 3.78C38.388 2.184 40.908 0.923998 43.596 0L45.99 6.174C43.806 7.098 41.874 8.19 40.194 9.45C38.598 10.71 37.254 12.012 36.162 13.356C35.07 14.7 34.23 16.044 33.642 17.388C33.054 18.732 32.76 19.95 32.76 21.042H33.39C35.574 21.042 37.38 21.63 38.808 22.806C40.32 23.982 41.076 25.662 41.076 27.846C41.076 30.198 40.278 32.256 38.682 34.02C37.17 35.7 35.07 36.54 32.382 36.54Z" fill="#E6E6E6"/>
+</svg>

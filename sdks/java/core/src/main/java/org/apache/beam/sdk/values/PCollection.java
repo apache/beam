@@ -23,8 +23,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import java.util.Collections;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.CannotProvideCoderException.ReasonCode;
@@ -45,6 +43,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.util.Preconditions;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -76,9 +75,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * @param <T> the type of the elements of this {@link PCollection}
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class PCollection<T> extends PValueBase implements PValue {
 
   /**
@@ -283,8 +279,7 @@ public class PCollection<T> extends PValueBase implements PValue {
    * @throws IllegalStateException if the {@link Coder} hasn't been set, and couldn't be inferred.
    */
   public Coder<T> getCoder() {
-    checkState(coderOrFailure.coder != null, coderOrFailure.failure);
-    return coderOrFailure.coder;
+    return Preconditions.checkStateNotNull(coderOrFailure.coder, coderOrFailure.failure);
   }
 
   /**
@@ -306,13 +301,11 @@ public class PCollection<T> extends PValueBase implements PValue {
    *
    * <p>Can only be called on a {@link PCollection<Row>}.
    */
-  @Experimental(Kind.SCHEMAS)
   public PCollection<T> setRowSchema(Schema schema) {
     return setCoder((SchemaCoder<T>) SchemaCoder.of(schema));
   }
 
   /** Sets a {@link Schema} on this {@link PCollection}. */
-  @Experimental(Kind.SCHEMAS)
   public PCollection<T> setSchema(
       Schema schema,
       TypeDescriptor<T> typeDescriptor,
@@ -322,13 +315,11 @@ public class PCollection<T> extends PValueBase implements PValue {
   }
 
   /** Returns whether this {@link PCollection} has an attached schema. */
-  @Experimental(Kind.SCHEMAS)
   public boolean hasSchema() {
     return coderOrFailure.coder != null && coderOrFailure.coder instanceof SchemaCoder;
   }
 
   /** Returns the attached schema. */
-  @Experimental(Kind.SCHEMAS)
   public Schema getSchema() {
     if (!hasSchema()) {
       throw new IllegalStateException("Cannot call getSchema when there is no schema");
@@ -337,7 +328,6 @@ public class PCollection<T> extends PValueBase implements PValue {
   }
 
   /** Returns the attached schema's toRowFunction. */
-  @Experimental(Kind.SCHEMAS)
   public SerializableFunction<T, Row> getToRowFunction() {
     if (!hasSchema()) {
       throw new IllegalStateException("Cannot call getToRowFunction when there is no schema");
@@ -346,7 +336,6 @@ public class PCollection<T> extends PValueBase implements PValue {
   }
 
   /** Returns the attached schema's fromRowFunction. */
-  @Experimental(Kind.SCHEMAS)
   public SerializableFunction<Row, T> getFromRowFunction() {
     if (!hasSchema()) {
       throw new IllegalStateException("Cannot call getFromRowFunction when there is no schema");

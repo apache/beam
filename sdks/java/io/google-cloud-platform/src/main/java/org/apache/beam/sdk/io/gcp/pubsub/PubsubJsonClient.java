@@ -47,14 +47,16 @@ import java.util.Map;
 import java.util.TreeMap;
 import org.apache.beam.sdk.extensions.gcp.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A Pubsub client using JSON transport. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class PubsubJsonClient extends PubsubClient {
 
@@ -73,6 +75,17 @@ public class PubsubJsonClient extends PubsubClient {
     public PubsubClient newClient(
         @Nullable String timestampAttribute, @Nullable String idAttribute, PubsubOptions options)
         throws IOException {
+
+      return newClient(timestampAttribute, idAttribute, options, null);
+    }
+
+    @Override
+    public PubsubClient newClient(
+        @Nullable String timestampAttribute,
+        @Nullable String idAttribute,
+        PubsubOptions options,
+        String rootUrlOverride)
+        throws IOException {
       Pubsub pubsub =
           new Pubsub.Builder(
                   Transport.getTransport(),
@@ -82,7 +95,7 @@ public class PubsubJsonClient extends PubsubClient {
                       // Do not log 404. It clutters the output and is possibly even required by the
                       // caller.
                       new RetryHttpRequestInitializer(ImmutableList.of(404))))
-              .setRootUrl(options.getPubsubRootUrl())
+              .setRootUrl(MoreObjects.firstNonNull(rootUrlOverride, options.getPubsubRootUrl()))
               .setApplicationName(options.getAppName())
               .setGoogleClientRequestInitializer(options.getGoogleApiTrace())
               .build();
@@ -128,11 +141,13 @@ public class PubsubJsonClient extends PubsubClient {
     List<PubsubMessage> pubsubMessages = new ArrayList<>(outgoingMessages.size());
     for (OutgoingMessage outgoingMessage : outgoingMessages) {
       PubsubMessage pubsubMessage =
-          new PubsubMessage().encodeData(outgoingMessage.message().getData().toByteArray());
+          new PubsubMessage().encodeData(outgoingMessage.getMessage().getData().toByteArray());
       pubsubMessage.setAttributes(getMessageAttributes(outgoingMessage));
-      if (!outgoingMessage.message().getOrderingKey().isEmpty()) {
-        pubsubMessage.setOrderingKey(outgoingMessage.message().getOrderingKey());
+      if (!outgoingMessage.getMessage().getOrderingKey().isEmpty()) {
+        pubsubMessage.setOrderingKey(outgoingMessage.getMessage().getOrderingKey());
       }
+
+      // N.B. publishTime and messageId are intentionally not set on the message that is published
       pubsubMessages.add(pubsubMessage);
     }
     PublishRequest request = new PublishRequest().setMessages(pubsubMessages);
@@ -143,13 +158,14 @@ public class PubsubJsonClient extends PubsubClient {
 
   private Map<String, String> getMessageAttributes(OutgoingMessage outgoingMessage) {
     Map<String, String> attributes = null;
-    if (outgoingMessage.message().getAttributesMap() == null) {
+    if (outgoingMessage.getMessage().getAttributesMap() == null) {
       attributes = new TreeMap<>();
     } else {
-      attributes = new TreeMap<>(outgoingMessage.message().getAttributesMap());
+      attributes = new TreeMap<>(outgoingMessage.getMessage().getAttributesMap());
     }
     if (timestampAttribute != null) {
-      attributes.put(timestampAttribute, String.valueOf(outgoingMessage.timestampMsSinceEpoch()));
+      attributes.put(
+          timestampAttribute, String.valueOf(outgoingMessage.getTimestampMsSinceEpoch()));
     }
     if (idAttribute != null && !Strings.isNullOrEmpty(outgoingMessage.recordId())) {
       attributes.put(idAttribute, outgoingMessage.recordId());
@@ -264,6 +280,11 @@ public class PubsubJsonClient extends PubsubClient {
   }
 
   @Override
+  public void createTopic(TopicPath topic, SchemaPath schema) throws IOException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
   public void deleteTopic(TopicPath topic) throws IOException {
     pubsub.projects().topics().delete(topic.getPath()).execute(); // ignore Empty result.
   }
@@ -343,5 +364,41 @@ public class PubsubJsonClient extends PubsubClient {
   @Override
   public boolean isEOF() {
     return false;
+  }
+
+  /** Create {@link com.google.api.services.pubsub.model.Schema} from Schema definition content. */
+  @Override
+  public void createSchema(
+      SchemaPath schemaPath, String schemaContent, com.google.pubsub.v1.Schema.Type type)
+      throws IOException {
+    throw new UnsupportedOperationException();
+  }
+
+  /** Delete {@link SchemaPath}. */
+  @Override
+  public void deleteSchema(SchemaPath schemaPath) throws IOException {
+    throw new UnsupportedOperationException();
+  }
+
+  /** Return {@link SchemaPath} from {@link TopicPath} if exists. */
+  @Override
+  public SchemaPath getSchemaPath(TopicPath topicPath) throws IOException {
+    Topic topic = pubsub.projects().topics().get(topicPath.getPath()).execute();
+    if (topic.getSchemaSettings() == null) {
+      return null;
+    }
+    String schemaPath = topic.getSchemaSettings().getSchema();
+    if (schemaPath.equals(SchemaPath.DELETED_SCHEMA_PATH)) {
+      return null;
+    }
+    return PubsubClient.schemaPathFromPath(schemaPath);
+  }
+
+  /** Return a Beam {@link Schema} from the Pub/Sub schema resource, if exists. */
+  @Override
+  public Schema getSchema(SchemaPath schemaPath) throws IOException {
+    com.google.api.services.pubsub.model.Schema pubsubSchema =
+        pubsub.projects().schemas().get(schemaPath.getPath()).execute();
+    return fromPubsubSchema(pubsubSchema);
   }
 }

@@ -22,12 +22,13 @@ import PostcommitJobBuilder
 
 // This job runs the suite of ValidatesRunner tests against the Dataflow
 // runner V2.
+this.buildSchedule = 'H H/8 * * *'
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_VR_Dataflow_V2',
     'Run Java Dataflow V2 ValidatesRunner', 'Google Cloud Dataflow Runner V2 Java ValidatesRunner Tests', this) {
 
       description('Runs Java ValidatesRunner suite on the Dataflow runner V2.')
 
-      commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 330)
+      commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 390)
 
       // Publish all test results to Jenkins
       publishers {

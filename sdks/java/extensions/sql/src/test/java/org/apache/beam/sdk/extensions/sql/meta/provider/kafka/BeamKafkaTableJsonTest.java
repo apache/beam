@@ -24,7 +24,7 @@ import java.util.List;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
-import org.testcontainers.shaded.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 public class BeamKafkaTableJsonTest extends BeamKafkaTableTest {
 
@@ -48,7 +48,7 @@ public class BeamKafkaTableJsonTest extends BeamKafkaTableTest {
   protected Row generateRow(int i) {
     boolean bool = i % 2 == 0;
     List<Object> values =
-        org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList.of(
+        ImmutableList.of(
             (long) i,
             "json_value" + i,
             bool,

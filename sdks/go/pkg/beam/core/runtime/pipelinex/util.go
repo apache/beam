@@ -34,10 +34,11 @@ func Bounded(p *pipepb.Pipeline) bool {
 
 // ContainerImages returns the set of container images used
 // in the given pipeline.
+//
+// Deprecated: Expand manually from pipeline.environments instead.
 func ContainerImages(p *pipepb.Pipeline) []string {
 	var ret []string
 	for _, t := range p.GetComponents().GetEnvironments() {
-		// TODO(angoenka) 09/14/2018 Check t.Urn before parsing the payload.
 		var payload pipepb.DockerPayload
 		proto.Unmarshal(t.GetPayload(), &payload)
 		ret = append(ret, payload.ContainerImage)
@@ -68,7 +69,7 @@ type visiter struct {
 
 func newVisiter(xforms map[string]*pipepb.PTransform, ids []string) *visiter {
 	ret := &visiter{
-		output: make([]string, len(ids), len(ids)),
+		output: make([]string, len(ids)),
 		index:  len(ids) - 1,
 		seen:   make(map[string]bool),
 		next:   make(map[string][]string),

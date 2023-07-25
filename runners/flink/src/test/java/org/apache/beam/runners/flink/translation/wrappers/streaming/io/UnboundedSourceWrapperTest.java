@@ -42,6 +42,7 @@ import java.util.stream.LongStream;
 import org.apache.beam.runners.core.construction.UnboundedReadFromBoundedSource;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
+import org.apache.beam.runners.flink.metrics.MetricGroupWrapper;
 import org.apache.beam.runners.flink.streaming.StreamSources;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -56,18 +57,14 @@ import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
@@ -88,7 +85,7 @@ import org.slf4j.LoggerFactory;
 /** Tests for {@link UnboundedSourceWrapper}. */
 @RunWith(Enclosed.class)
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class UnboundedSourceWrapperTest {
 
@@ -173,8 +170,8 @@ public class UnboundedSourceWrapperTest {
           StreamSources.run(
               sourceOperator,
               testHarness.getCheckpointLock(),
-              new TestStreamStatusMaintainer(),
-              new Output<StreamRecord<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>>>() {
+              new StreamSources.OutputWrapper<
+                  StreamRecord<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>>>() {
                 private boolean hasSeenMaxWatermark = false;
 
                 @Override
@@ -276,8 +273,7 @@ public class UnboundedSourceWrapperTest {
                   StreamSources.run(
                       sourceOperator,
                       testHarness.getCheckpointLock(),
-                      new TestStreamStatusMaintainer(),
-                      new Output<
+                      new StreamSources.OutputWrapper<
                           StreamRecord<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>>>() {
 
                         @Override
@@ -389,8 +385,8 @@ public class UnboundedSourceWrapperTest {
         StreamSources.run(
             sourceOperator,
             checkpointLock,
-            new TestStreamStatusMaintainer(),
-            new Output<StreamRecord<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>>>() {
+            new StreamSources.OutputWrapper<
+                StreamRecord<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>>>() {
               private int count = 0;
 
               @Override
@@ -426,6 +422,9 @@ public class UnboundedSourceWrapperTest {
 
       assertTrue("Did not successfully read first batch of elements.", readFirstBatchOfElements);
 
+      // simulate pipeline stop/drain scenario, where sources are closed first.
+      sourceOperator.cancel();
+
       // draw a snapshot
       OperatorSubtaskState snapshot = testHarness.snapshot(0, 0);
 
@@ -434,6 +433,9 @@ public class UnboundedSourceWrapperTest {
       TestCountingSource.setFinalizeTracker(finalizeList);
       testHarness.notifyOfCompletedCheckpoint(0);
       assertEquals(flinkWrapper.getLocalSplitSources().size(), finalizeList.size());
+
+      // stop the pipeline
+      testHarness.close();
 
       // create a completely new source but restore from the snapshot
       TestCountingSource restoredSource = new TestCountingSource(numElements);
@@ -470,8 +472,8 @@ public class UnboundedSourceWrapperTest {
         StreamSources.run(
             restoredSourceOperator,
             checkpointLock,
-            new TestStreamStatusMaintainer(),
-            new Output<StreamRecord<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>>>() {
+            new StreamSources.OutputWrapper<
+                StreamRecord<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>>>() {
               private int count = 0;
 
               @Override
@@ -713,7 +715,8 @@ public class UnboundedSourceWrapperTest {
       processingTimeService.setCurrentTime(0);
       when(runtimeContextMock.getProcessingTimeService()).thenReturn(processingTimeService);
 
-      when(runtimeContextMock.getMetricGroup()).thenReturn(new UnregisteredMetricsGroup());
+      when(runtimeContextMock.getMetricGroup())
+          .thenReturn(MetricGroupWrapper.createUnregisteredMetricGroup());
 
       sourceWrapper.setRuntimeContext(runtimeContextMock);
 
@@ -826,8 +829,8 @@ public class UnboundedSourceWrapperTest {
       StreamSources.run(
           sourceOperator,
           testHarness.getCheckpointLock(),
-          new TestStreamStatusMaintainer(),
-          new Output<StreamRecord<WindowedValue<ValueWithRecordId<String>>>>() {
+          new StreamSources.OutputWrapper<
+              StreamRecord<WindowedValue<ValueWithRecordId<String>>>>() {
             @Override
             public void emitWatermark(Watermark mark) {}
 
@@ -997,22 +1000,6 @@ public class UnboundedSourceWrapperTest {
 
     int getNumIdles() {
       return numIdles.getOrDefault(uuid, 0);
-    }
-  }
-
-  private static final class TestStreamStatusMaintainer implements StreamStatusMaintainer {
-    StreamStatus currentStreamStatus = StreamStatus.ACTIVE;
-
-    @Override
-    public void toggleStreamStatus(StreamStatus streamStatus) {
-      if (!currentStreamStatus.equals(streamStatus)) {
-        currentStreamStatus = streamStatus;
-      }
-    }
-
-    @Override
-    public StreamStatus getStreamStatus() {
-      return currentStreamStatus;
     }
   }
 }

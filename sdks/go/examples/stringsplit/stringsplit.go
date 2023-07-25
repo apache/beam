@@ -20,7 +20,8 @@
 //
 // 1. From a command line, navigate to the top-level beam/ directory and run
 // the Flink job server:
-//    ./gradlew :runners:flink:1.13:job-server:runShadow -Djob-host=localhost -Dflink-master=local
+//
+//	./gradlew :runners:flink:1.13:job-server:runShadow -Djob-host=localhost -Dflink-master=local
 //
 // 2. The job server is ready to receive jobs once it outputs a log like the
 // following: `JobService started on localhost:8099`. Take note of the endpoint
@@ -29,29 +30,45 @@
 // 3. While the job server is running in one command line window, create a
 // second one in the same directory and run this example with the following
 // command, using the endpoint you noted from step 2:
-//    go run sdks/go/examples/stringsplit/stringsplit.go --runner=universal --endpoint=localhost:8099
+//
+//	go run sdks/go/examples/stringsplit/stringsplit.go --runner=universal --endpoint=localhost:8099
 //
 // 4. Once the pipeline is complete, the job server can be closed with ctrl+C.
 // To check the output of the pipeline, search the job server logs for the
 // phrase "StringSplit Output".
 package main
 
+// beam-playground:
+//   name: StringSplit
+//   description: An example of using a Splittable DoFn in the Go SDK with a portable runner.
+//   multifile: false
+//   context_line: 154
+//   categories:
+//     - Debugging
+//     - Flatten
+//   complexity: MEDIUM
+//   tags:
+//     - pipeline
+//     - split
+//     - runner
+
 import (
 	"context"
 	"flag"
-	"reflect"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/rtrackers/offsetrange"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 )
 
 func init() {
-	beam.RegisterType(reflect.TypeOf((*StringSplitFn)(nil)).Elem())
-	beam.RegisterType(reflect.TypeOf((*LogFn)(nil)).Elem())
+	register.DoFn4x0[context.Context, *sdf.LockRTracker, string, func(string)](&StringSplitFn{})
+	register.DoFn2x0[context.Context, string](&LogFn{})
+	register.Emitter1[string]()
 }
 
 // StringSplitFn is a Splittable DoFn that splits strings into substrings of the

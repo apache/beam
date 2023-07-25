@@ -15,60 +15,36 @@
 # limitations under the License.
 #
 
-r"""Utilities for relating schema-aware PCollections and dataframe transforms.
+"""Utilities for relating schema-aware PCollections and DataFrame transforms.
 
-Imposes a mapping between native Python typings (specifically those compatible
-with :mod:`apache_beam.typehints.schemas`), and common pandas dtypes::
-
-  pandas dtype                    Python typing
-  np.int{8,16,32,64}      <-----> np.int{8,16,32,64}*
-  pd.Int{8,16,32,64}Dtype <-----> Optional[np.int{8,16,32,64}]*
-  np.float{32,64}         <-----> Optional[np.float{32,64}]
-                             \--- np.float{32,64}
-  Not supported           <------ Optional[bytes]
-  np.bool                 <-----> np.bool
-  np.dtype('S')           <-----> bytes
-  pd.BooleanDType()       <-----> Optional[bool]
-  pd.StringDType()        <-----> Optional[str]
-                             \--- str
-  np.object               <-----> Any
-
-  * int, float, bool are treated the same as np.int64, np.float64, np.bool
-
-Note that when converting to pandas dtypes, any types not specified here are
-shunted to ``np.object``.
-
-Similarly when converting from pandas to Python types, types that aren't
-otherwise specified here are shunted to ``Any``. Notably, this includes
-``np.datetime64``.
-
-Pandas does not support hierarchical data natively. Currently, all structured
-types (``Sequence``, ``Mapping``, nested ``NamedTuple`` types), are
-shunted to ``np.object`` like all other unknown types. In the future these
-types may be given special consideration.
+The utilities here enforce the type mapping defined in
+:mod:`apache_beam.typehints.pandas_type_compatibility`.
 """
 
 # pytype: skip-file
 
+import warnings
 from typing import Any
+from typing import Dict
 from typing import NamedTuple
 from typing import Optional
+from typing import Sequence
+from typing import Tuple
 from typing import TypeVar
 from typing import Union
 
-import numpy as np
 import pandas as pd
 
 import apache_beam as beam
 from apache_beam import typehints
-from apache_beam.portability.api import schema_pb2
 from apache_beam.transforms.util import BatchElements
-from apache_beam.typehints.native_type_compatibility import _match_is_optional
+from apache_beam.typehints.pandas_type_compatibility import INDEX_OPTION_NAME
+from apache_beam.typehints.pandas_type_compatibility import create_pandas_batch_converter
+from apache_beam.typehints.pandas_type_compatibility import dtype_from_typehint
+from apache_beam.typehints.pandas_type_compatibility import dtype_to_fieldtype
+from apache_beam.typehints.row_type import RowTypeConstraint
 from apache_beam.typehints.schemas import named_fields_from_element_type
-from apache_beam.typehints.schemas import named_fields_to_schema
-from apache_beam.typehints.schemas import named_tuple_from_schema
-from apache_beam.typehints.schemas import named_tuple_to_schema
-from apache_beam.utils import proto_utils
+from apache_beam.typehints.typehints import normalize
 
 __all__ = (
     'BatchRowsAsDataFrame',
@@ -77,47 +53,6 @@ __all__ = (
     'element_type_from_dataframe')
 
 T = TypeVar('T', bound=NamedTuple)
-
-# Generate type map (presented visually in the docstring)
-_BIDIRECTIONAL = [
-    (bool, bool),
-    (np.int8, np.int8),
-    (np.int16, np.int16),
-    (np.int32, np.int32),
-    (np.int64, np.int64),
-    (pd.Int8Dtype(), Optional[np.int8]),
-    (pd.Int16Dtype(), Optional[np.int16]),
-    (pd.Int32Dtype(), Optional[np.int32]),
-    (pd.Int64Dtype(), Optional[np.int64]),
-    (np.float32, Optional[np.float32]),
-    (np.float64, Optional[np.float64]),
-    (object, Any),
-    (pd.StringDtype(), Optional[str]),
-    (pd.BooleanDtype(), Optional[bool]),
-]
-
-PANDAS_TO_BEAM = {
-    pd.Series([], dtype=dtype).dtype: fieldtype
-    for dtype,
-    fieldtype in _BIDIRECTIONAL
-}
-BEAM_TO_PANDAS = {fieldtype: dtype for dtype, fieldtype in _BIDIRECTIONAL}
-
-# Shunt non-nullable Beam types to the same pandas types as their non-nullable
-# equivalents for FLOATs, DOUBLEs, and STRINGs. pandas has no non-nullable dtype
-# for these.
-OPTIONAL_SHUNTS = [np.float32, np.float64, str]
-
-for typehint in OPTIONAL_SHUNTS:
-  BEAM_TO_PANDAS[typehint] = BEAM_TO_PANDAS[Optional[typehint]]
-
-# int, float -> int64, np.float64
-BEAM_TO_PANDAS[int] = BEAM_TO_PANDAS[np.int64]
-BEAM_TO_PANDAS[Optional[int]] = BEAM_TO_PANDAS[Optional[np.int64]]
-BEAM_TO_PANDAS[float] = BEAM_TO_PANDAS[np.float64]
-BEAM_TO_PANDAS[Optional[float]] = BEAM_TO_PANDAS[Optional[np.float64]]
-
-BEAM_TO_PANDAS[bytes] = 'bytes'
 
 
 @typehints.with_input_types(T)
@@ -133,18 +68,21 @@ class BatchRowsAsDataFrame(beam.PTransform):
     self._proxy = proxy
 
   def expand(self, pcoll):
-    proxy = generate_proxy(
-        pcoll.element_type) if self._proxy is None else self._proxy
-    if isinstance(proxy, pd.DataFrame):
-      columns = proxy.columns
-      construct = lambda batch: pd.DataFrame.from_records(
-          batch, columns=columns)
-    elif isinstance(proxy, pd.Series):
-      dtype = proxy.dtype
-      construct = lambda batch: pd.Series(batch, dtype=dtype)
+    if self._proxy is not None:
+      # Generate typehint
+      proxy = self._proxy
+      element_typehint = _element_typehint_from_proxy(proxy)
     else:
-      raise NotImplementedError("Unknown proxy type: %s" % proxy)
-    return pcoll | self._batch_elements_transform | beam.Map(construct)
+      # Generate proxy
+      proxy = generate_proxy(pcoll.element_type)
+      element_typehint = pcoll.element_type
+
+    converter = create_pandas_batch_converter(
+        element_type=element_typehint, batch_type=type(proxy))
+
+    return (
+        pcoll | self._batch_elements_transform
+        | beam.Map(converter.produce_batch))
 
 
 def generate_proxy(element_type):
@@ -155,16 +93,14 @@ def generate_proxy(element_type):
   Currently only supports generating a DataFrame proxy from a schema-aware
   PCollection or a Series proxy from a primitively typed PCollection.
   """
-  if element_type != Any and element_type in BEAM_TO_PANDAS:
-    return pd.Series(dtype=BEAM_TO_PANDAS[element_type])
-
+  dtype = dtype_from_typehint(element_type)
+  if dtype is not object:
+    return pd.Series(dtype=dtype)
   else:
     fields = named_fields_from_element_type(element_type)
     proxy = pd.DataFrame(columns=[name for name, _ in fields])
     for name, typehint in fields:
-      # Default to np.object. This is lossy, we won't be able to recover
-      # the type at the output.
-      dtype = BEAM_TO_PANDAS.get(typehint, object)
+      dtype = dtype_from_typehint(typehint)
       proxy[name] = proxy[name].astype(dtype)
 
     return proxy
@@ -180,6 +116,28 @@ def element_type_from_dataframe(proxy, include_indexes=False):
   Currently only supports generating a DataFrame proxy from a schema-aware
   PCollection.
   """
+  return element_typehint_from_dataframe_proxy(proxy, include_indexes).user_type
+
+
+def _element_typehint_from_proxy(
+    proxy: pd.core.generic.NDFrame, include_indexes: bool = False):
+  if isinstance(proxy, pd.DataFrame):
+    return element_typehint_from_dataframe_proxy(
+        proxy, include_indexes=include_indexes)
+  elif isinstance(proxy, pd.Series):
+    if include_indexes:
+      warnings.warn(
+          "include_indexes=True for a Series input. Note that this "
+          "parameter is _not_ respected for DeferredSeries "
+          "conversion.")
+    return dtype_to_fieldtype(proxy.dtype)
+  else:
+    raise TypeError(f"Proxy '{proxy}' has unsupported type '{type(proxy)}'")
+
+
+def element_typehint_from_dataframe_proxy(
+    proxy: pd.DataFrame, include_indexes: bool = False) -> RowTypeConstraint:
+
   output_columns = []
   if include_indexes:
     remaining_index_names = list(proxy.index.names)
@@ -213,99 +171,29 @@ def element_type_from_dataframe(proxy, include_indexes=False):
 
   output_columns.extend(zip(proxy.columns, proxy.dtypes))
 
-  return named_tuple_from_schema(
-      named_fields_to_schema([(column, _dtype_to_fieldtype(dtype))
-                              for (column, dtype) in output_columns]))
+  fields = [(column, dtype_to_fieldtype(dtype))
+            for (column, dtype) in output_columns]
+  field_options: Optional[Dict[str, Sequence[Tuple[str, Any]]]]
+  if include_indexes:
+    field_options = {
+        index_name: [(INDEX_OPTION_NAME, None)]
+        for index_name in proxy.index.names
+    }
+  else:
+    field_options = None
 
-
-class _BaseDataframeUnbatchDoFn(beam.DoFn):
-  def __init__(self, namedtuple_ctor):
-    self._namedtuple_ctor = namedtuple_ctor
-
-  def _get_series(self, df):
-    raise NotImplementedError()
-
-  def process(self, df):
-    # TODO: Only do null checks for nullable types
-    def make_null_checking_generator(series):
-      nulls = pd.isnull(series)
-      return (None if isnull else value for isnull, value in zip(nulls, series))
-
-    all_series = self._get_series(df)
-    iterators = [
-        make_null_checking_generator(series) for series,
-        typehint in zip(all_series, self._namedtuple_ctor.__annotations__)
-    ]
-
-    # TODO: Avoid materializing the rows. Produce an object that references the
-    # underlying dataframe
-    for values in zip(*iterators):
-      yield self._namedtuple_ctor(*values)
-
-  def infer_output_type(self, input_type):
-    return self._namedtuple_ctor
-
-  @classmethod
-  def _from_serialized_schema(cls, schema_str):
-    return cls(
-        named_tuple_from_schema(
-            proto_utils.parse_Bytes(schema_str, schema_pb2.Schema)))
-
-  def __reduce__(self):
-    # when pickling, use bytes representation of the schema.
-    return (
-        self._from_serialized_schema,
-        (named_tuple_to_schema(self._namedtuple_ctor).SerializeToString(), ))
-
-
-class _UnbatchNoIndex(_BaseDataframeUnbatchDoFn):
-  def _get_series(self, df):
-    return [df[column] for column in df.columns]
-
-
-class _UnbatchWithIndex(_BaseDataframeUnbatchDoFn):
-  def _get_series(self, df):
-    return [df.index.get_level_values(i) for i in range(len(df.index.names))
-            ] + [df[column] for column in df.columns]
+  return RowTypeConstraint.from_fields(fields, field_options=field_options)
 
 
 def _unbatch_transform(proxy, include_indexes):
-  if isinstance(proxy, pd.DataFrame):
-    ctor = element_type_from_dataframe(proxy, include_indexes=include_indexes)
+  element_typehint = normalize(
+      _element_typehint_from_proxy(proxy, include_indexes=include_indexes))
 
-    return beam.ParDo(
-        _UnbatchWithIndex(ctor) if include_indexes else _UnbatchNoIndex(ctor)
-    ).with_output_types(ctor)
-  elif isinstance(proxy, pd.Series):
-    # Raise a TypeError if proxy has an unknown type
-    output_type = _dtype_to_fieldtype(proxy.dtype)
-    # TODO: Should the index ever be included for a Series?
-    if _match_is_optional(output_type):
+  converter = create_pandas_batch_converter(
+      element_type=element_typehint, batch_type=type(proxy))
 
-      def unbatch(series):
-        for isnull, value in zip(pd.isnull(series), series):
-          yield None if isnull else value
-    else:
-
-      def unbatch(series):
-        yield from series
-
-    return beam.FlatMap(unbatch).with_output_types(output_type)
-  # TODO: What about scalar inputs?
-  else:
-    raise TypeError(
-        "Proxy '%s' has unsupported type '%s'" % (proxy, type(proxy)))
-
-
-def _dtype_to_fieldtype(dtype):
-  fieldtype = PANDAS_TO_BEAM.get(dtype)
-
-  if fieldtype is not None:
-    return fieldtype
-  elif dtype.kind == 'S':
-    return bytes
-  else:
-    return Any
+  return beam.FlatMap(
+      converter.explode_batch).with_output_types(element_typehint)
 
 
 @typehints.with_input_types(Union[pd.DataFrame, pd.Series])

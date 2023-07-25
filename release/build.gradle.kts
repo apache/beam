@@ -28,9 +28,9 @@ repositories {
 val library = project.extensions.extraProperties["library"] as Map<String, Map<String, String>>
 
 dependencies {
-  compile(library.getValue("groovy").getValue("groovy_all"))
-  compile("commons-cli:commons-cli:1.2")
-  permitUnusedDeclared("commons-cli:commons-cli:1.2") // BEAM-11761
+  implementation(library.getValue("groovy").getValue("groovy_all"))
+  implementation("commons-cli:commons-cli:1.5.0")
+  permitUnusedDeclared("commons-cli:commons-cli:1.5.0") // BEAM-11761
 }
 
 task("runJavaExamplesValidationTask") {
@@ -38,7 +38,7 @@ task("runJavaExamplesValidationTask") {
   description = "Run the Beam quickstart across all Java runners"
   dependsOn(":runners:direct-java:runQuickstartJavaDirect")
   dependsOn(":runners:google-cloud-dataflow-java:runQuickstartJavaDataflow")
-  dependsOn(":runners:spark:2:runQuickstartJavaSpark")
+  dependsOn(":runners:spark:3:runQuickstartJavaSpark")
   dependsOn(":runners:flink:1.13:runQuickstartJavaFlinkLocal")
   dependsOn(":runners:direct-java:runMobileGamingJavaDirect")
   dependsOn(":runners:google-cloud-dataflow-java:runMobileGamingJavaDataflow")

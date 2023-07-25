@@ -18,13 +18,13 @@ package wordcount
 
 import (
 	"context"
+	"fmt"
 	"regexp"
 	"strings"
 
-	"fmt"
-
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
 )
@@ -35,6 +35,13 @@ var (
 	lineLen    = beam.NewDistribution("extract", "lineLenDistro")
 	smallWords = beam.NewCounter("extract", "smallWords")
 )
+
+func init() {
+	register.Function3x0(extractFn)
+	register.Function2x1(formatFn)
+
+	register.Emitter1[string]()
+}
 
 // CountWords is a composite transform that counts the words of a PCollection
 // of lines. It expects a PCollection of type string and returns a PCollection

@@ -33,7 +33,6 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.runners.core.construction.CoderTranslation.TranslationContext;
 import org.apache.beam.sdk.coders.AtomicCoder;
-import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.BooleanCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -42,11 +41,13 @@ import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
+import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.TimestampPrefixingWindowCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -68,7 +69,7 @@ import org.junit.runners.Parameterized.Parameters;
 
 /** Tests for {@link CoderTranslation}. */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class CoderTranslationTest {
   private static final Set<Coder<?>> KNOWN_CODERS =
@@ -97,6 +98,7 @@ public class CoderTranslationTest {
                       Field.of("bar", FieldType.logicalType(FixedBytes.of(123))))))
           .add(ShardedKey.Coder.of(StringUtf8Coder.of()))
           .add(TimestampPrefixingWindowCoder.of(IntervalWindowCoder.of()))
+          .add(NullableCoder.of(ByteArrayCoder.of()))
           .build();
 
   /**
@@ -111,7 +113,7 @@ public class CoderTranslationTest {
       // tests, which demonstrates that they are serialized via components and specified URNs rather
       // than java serialized
       Set<Class<? extends Coder>> knownCoderClasses =
-          ModelCoderRegistrar.BEAM_MODEL_CODER_URNS.keySet();
+          new ModelCoderRegistrar().getCoderURNs().keySet();
       Set<Class<? extends Coder>> knownCoderTests = new HashSet<>();
       for (Coder<?> coder : KNOWN_CODERS) {
         knownCoderTests.add(coder.getClass());
@@ -130,12 +132,12 @@ public class CoderTranslationTest {
     public void validateCoderTranslators() {
       assertThat(
           "Every Model Coder must have a Translator",
-          ModelCoderRegistrar.BEAM_MODEL_CODER_URNS.keySet(),
-          equalTo(ModelCoderRegistrar.BEAM_MODEL_CODERS.keySet()));
+          new ModelCoderRegistrar().getCoderURNs().keySet(),
+          equalTo(new ModelCoderRegistrar().getCoderTranslators().keySet()));
       assertThat(
           "All Model Coders should be registered",
           CoderTranslation.KNOWN_TRANSLATORS.keySet(),
-          hasItems(ModelCoderRegistrar.BEAM_MODEL_CODERS.keySet().toArray(new Class[0])));
+          hasItems(new ModelCoderRegistrar().getCoderTranslators().keySet().toArray(new Class[0])));
     }
   }
 

@@ -85,7 +85,7 @@ page at http://checkstyle.sourceforge.net/config.html -->
 
     <!-- Forbid importing any shaded code, since it does not exist at compile time and this is probably an IDE error -->
     <module name="IllegalImport">
-      <property name="illegalPkgs" value="autovalue.shaded, avro.shaded, com.google.api.client.repackaged, com.google.appengine.repackaged, io.netty.util.internal"/>
+      <property name="illegalPkgs" value="autovalue.shaded, avro.shaded, com.google.api.client.repackaged, com.google.appengine.repackaged, io.netty.util.internal, org.testcontainers.shaded"/>
     </module>
 
     <!-- This is not the Nullable annotation you are looking for -->
@@ -114,7 +114,7 @@ page at http://checkstyle.sourceforge.net/config.html -->
     -->
     <module name="RegexpSinglelineJava">
       <property name="id" value="ForbidNonVendoredGuava"/>
-      <property name="format" value="(\scom\.google\.common\.(?!testing))|(\scom\.google\.thirdparty)"/>
+      <property name="format" value="(\scom\.google\.common\.(?!testing|truth))|(\scom\.google\.thirdparty)"/>
       <property name="severity" value="error"/>
       <property name="message" value="You are using raw guava, please use vendored guava classes."/>
     </module>
@@ -176,14 +176,6 @@ page at http://checkstyle.sourceforge.net/config.html -->
       <property name="message" value="You should not use TestNG classes in Beam."/>
     </module>
 
-    <!-- Forbid Non-vendored byte-buddy imports. -->
-    <module name="RegexpSinglelineJava">
-      <property name="id" value="ForbidByteBuddy"/>
-      <property name="format" value="(\snet\.bytebuddy)"/>
-      <property name="severity" value="error"/>
-      <property name="message" value="You are using raw byte-buddy, please use vendored byte-buddy classes."/>
-    </module>
-
     <!-- Forbid Non-vendored calcite imports. -->
     <module name="RegexpSinglelineJava">
       <property name="id" value="ForbidCalcite"/>
@@ -241,7 +233,7 @@ page at http://checkstyle.sourceforge.net/config.html -->
 
     <!-- Check that paragraph tags are used correctly in Javadoc. -->
     <!--
-    TODO(https://issues.apache.org/jira/browse/BEAM-4670): re-enable after fixing after spotless
+    TODO(https://github.com/apache/beam/issues/18964): re-enable after fixing after spotless
 
     A lot of our Javadoc has moderately broken HTML. It lacks paragraph tags where it ought
     to have them. Spotless reformats so that checkstyle noticies this. This can be fixed
@@ -375,7 +367,7 @@ page at http://checkstyle.sourceforge.net/config.html -->
     -->
 
     <!--
-    TODO(https://issues.apache.org/jira/browse/BEAM-4669): re-enable after fixing after spotless
+    TODO(https://github.com/apache/beam/issues/18976): re-enable after fixing after spotless
 
     When spotless re-indents, multi-line strings are often split so close to 100 chars that the
     indentation makes them exceed the max line length. This can be fixed a bit at a time.
@@ -440,4 +432,3 @@ page at http://checkstyle.sourceforge.net/config.html -->
   </module>
 
 </module>
-

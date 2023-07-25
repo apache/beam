@@ -16,6 +16,7 @@
 package coder
 
 import (
+	"fmt"
 	"io"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
@@ -28,20 +29,23 @@ func EncodePane(v typex.PaneInfo, w io.Writer) error {
 
 	pane := byte(0)
 	if v.IsFirst {
-		pane |= 0x01
+		pane |= 0x02
 	}
 	if v.IsLast {
-		pane |= 0x02
+		pane |= 0x01
 	}
 	pane |= byte(v.Timing << 2)
 
 	switch {
-	case v.Index == 0 || v.NonSpeculativeIndex == 0 || v.Timing == typex.PaneUnknown:
+	case (v.Index == 0 && v.NonSpeculativeIndex == 0) || v.Timing == typex.PaneUnknown:
 		// The entire pane info is encoded as a single byte
 		paneByte := []byte{pane}
 		w.Write(paneByte)
 	case v.Index == v.NonSpeculativeIndex || v.Timing == typex.PaneEarly:
 		// The pane info is encoded as this byte plus a single VarInt encoded integer
+		if v.Timing == typex.PaneEarly && v.NonSpeculativeIndex != -1 {
+			return fmt.Errorf("error encoding pane %v: non-speculative index value must be equal to -1 if the pane timing is early", v)
+		}
 		paneByte := []byte{pane | 1<<4}
 		w.Write(paneByte)
 		EncodeVarInt(v.Index, w)
@@ -60,11 +64,11 @@ func EncodePane(v typex.PaneInfo, w io.Writer) error {
 func NewPane(b byte) typex.PaneInfo {
 	pn := typex.NoFiringPane()
 
-	if b&0x01 == 1 {
-		pn.IsFirst = true
+	if !(b&0x02 == 2) {
+		pn.IsFirst = false
 	}
-	if b&0x02 == 2 {
-		pn.IsLast = true
+	if !(b&0x01 == 1) {
+		pn.IsLast = false
 	}
 
 	pn.Timing = typex.PaneTiming((b >> 2) & 0x03)

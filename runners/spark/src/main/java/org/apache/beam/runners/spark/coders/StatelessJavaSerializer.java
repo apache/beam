@@ -44,8 +44,8 @@ import java.io.ObjectStreamClass;
  * https://github.com/spring-projects/spring-loaded/issues/107
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class StatelessJavaSerializer extends Serializer {
 
@@ -53,6 +53,7 @@ class StatelessJavaSerializer extends Serializer {
   // with this particular signature spares exploring further ones, which involves
   // NoSuchMethodException(s) being thrown as part of the exploration process and may slow
   // things down, see Kryo#newSerializer(), see https://goo.gl/Jn425G
+  @SuppressWarnings("unused")
   private StatelessJavaSerializer(final Kryo ignore1, final Class<?> ignore2) {}
 
   public StatelessJavaSerializer() {

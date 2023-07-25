@@ -64,15 +64,20 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** Test {@link Schema} support. */
 @RunWith(JUnit4.class)
 @Category(UsesSchema.class)
+// TODO(https://github.com/apache/beam/issues/21230): Remove when new version of errorprone is
+// released (2.11.0)
+@SuppressWarnings("unused")
 public class ParDoSchemaTest implements Serializable {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
   @Rule public transient ExpectedException thrown = ExpectedException.none();
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(1200);
 
   static class MyPojo implements Serializable {
     MyPojo(String stringField, Integer integerField) {
@@ -727,6 +732,7 @@ public class ParDoSchemaTest implements Serializable {
         new DoFn<KV<String, TestStateSchemaValue>, TestStateSchemaValues>() {
 
           // This should infer the schema.
+
           @StateId(stateId)
           private final StateSpec<BagState<TestStateSchemaValue>> bufferState = StateSpecs.bag();
 
@@ -777,6 +783,7 @@ public class ParDoSchemaTest implements Serializable {
         new DoFn<KV<String, TestStateSchemaValue>, TestStateSchemaValues>() {
 
           // This should infer the schema.
+
           @StateId(stateId)
           private final StateSpec<SetState<TestStateSchemaValue>> bufferState = StateSpecs.set();
 

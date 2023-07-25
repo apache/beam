@@ -56,7 +56,7 @@ import org.slf4j.LoggerFactory;
 // The use of NavigableSets everywhere provides consistent ordering but may be overkill for this
 // cause.
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class GreedyPipelineFuser {
   private static final Logger LOG = LoggerFactory.getLogger(GreedyPipelineFuser.class);

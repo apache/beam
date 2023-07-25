@@ -1,0 +1,10 @@
+{
+  "compile_cmd": "",
+  "run_cmd": "sbt",
+  "test_cmd": "sbt",
+  "compile_args": [],
+  "run_args": [
+    "runMain"
+  ],
+  "test_args": []
+}

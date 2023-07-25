@@ -71,7 +71,11 @@ class RampupThrottlingFn(DoFn):
     growth = max(
         0.0, (timedelta_since_first - self._RAMP_UP_INTERVAL) /
         self._RAMP_UP_INTERVAL)
-    max_ops_budget = int(self._BASE_BUDGET / self._num_workers * (1.5**growth))
+    try:
+      max_ops_budget = int(
+          self._BASE_BUDGET / self._num_workers * (1.5**growth))
+    except OverflowError:
+      max_ops_budget = float('inf')
     return max(1, max_ops_budget)
 
   def process(self, element, **kwargs):

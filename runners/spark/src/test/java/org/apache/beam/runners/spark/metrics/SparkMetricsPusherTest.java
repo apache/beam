@@ -21,9 +21,9 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 
 import org.apache.beam.runners.core.metrics.TestMetricsSink;
-import org.apache.beam.runners.spark.ReuseSparkContextRule;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.StreamingTest;
+import org.apache.beam.runners.spark.TestSparkPipelineOptions;
 import org.apache.beam.runners.spark.io.CreateStream;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.metrics.Counter;
@@ -52,8 +52,6 @@ public class SparkMetricsPusherTest {
   private static final Logger LOG = LoggerFactory.getLogger(SparkMetricsPusherTest.class);
   private static final String COUNTER_NAME = "counter";
 
-  @Rule public final transient ReuseSparkContextRule noContextResue = ReuseSparkContextRule.no();
-
   @Rule public final TestPipeline pipeline = TestPipeline.create();
 
   private Duration batchDuration() {
@@ -71,6 +69,8 @@ public class SparkMetricsPusherTest {
   @Category(StreamingTest.class)
   @Test
   public void testInStreamingMode() throws Exception {
+    pipeline.getOptions().as(TestSparkPipelineOptions.class).setStreaming(true);
+
     Instant instant = new Instant(0);
     CreateStream<Integer> source =
         CreateStream.of(VarIntCoder.of(), batchDuration())

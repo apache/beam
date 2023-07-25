@@ -22,7 +22,7 @@ import InfluxDBCredentialsHelper
 
 def now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
-// TODO(BEAM-10774): Skipping some cases because they are too slow.
+// TODO(https://github.com/apache/beam/issues/20403): Skipping some cases because they are too slow.
 def TESTS_TO_SKIP = [
   'load-tests-python-dataflow-streaming-gbk-1',
   'load-tests-python-dataflow-streaming-gbk-2',
@@ -47,7 +47,8 @@ def loadTestConfigurations = { mode, datasetName ->
         influx_measurement   : "python_${mode}_gbk_1",
         input_options        : '\'{"num_records": 200000000,' +
         '"key_size": 1,' +
-        '"value_size": 9}\'',
+        '"value_size": 9,' +
+        '"algorithm": "lcg"}\'',
         iterations           : 1,
         fanout               : 1,
         num_workers          : 5,
@@ -69,7 +70,8 @@ def loadTestConfigurations = { mode, datasetName ->
         influx_measurement   : "python_${mode}_gbk_2",
         input_options        : '\'{"num_records": 20000000,' +
         '"key_size": 10,' +
-        '"value_size": 90}\'',
+        '"value_size": 90,' +
+        '"algorithm": "lcg"}\'',
         iterations           : 1,
         fanout               : 1,
         num_workers          : 5,
@@ -91,7 +93,8 @@ def loadTestConfigurations = { mode, datasetName ->
         influx_measurement   : "python_${mode}_gbk_3",
         input_options        : '\'{"num_records": 20000,' +
         '"key_size": 10000,' +
-        '"value_size": 90000}\'',
+        '"value_size": 90000,' +
+        '"algorithm": "lcg"}\'',
         iterations           : 1,
         fanout               : 1,
         num_workers          : 5,
@@ -113,7 +116,8 @@ def loadTestConfigurations = { mode, datasetName ->
         influx_measurement   : "python_${mode}_gbk_4",
         input_options        : '\'{"num_records": 5000000,' +
         '"key_size": 10,' +
-        '"value_size": 90}\'',
+        '"value_size": 90,' +
+        '"algorithm": "lcg"}\'',
         iterations           : 1,
         fanout               : 4,
         num_workers          : 16,
@@ -135,7 +139,8 @@ def loadTestConfigurations = { mode, datasetName ->
         influx_measurement   : "python_${mode}_gbk_5",
         input_options        : '\'{"num_records": 2500000,' +
         '"key_size": 10,' +
-        '"value_size": 90}\'',
+        '"value_size": 90,' +
+        '"algorithm": "lcg"}\'',
         iterations           : 1,
         fanout               : 8,
         num_workers          : 16,
@@ -156,8 +161,7 @@ def addStreamingOptions(test) {
     // Use the new Dataflow runner, which offers improved efficiency of Dataflow jobs.
     // See https://cloud.google.com/dataflow/docs/guides/deploying-a-pipeline#dataflow-runner-v2
     // for more details.
-    // TODO(BEAM-11779) remove shuffle_mode=appliance with runner v2 once issue is resolved.
-    experiments: 'use_runner_v2, shuffle_mode=appliance',
+    experiments: 'use_runner_v2',
   ]
 }
 
@@ -177,7 +181,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
       loadTestJob(delegate, CommonTestProperties.TriggeringContext.PR, 'batch')
     }
 
-CronJobBuilder.cronJob('beam_LoadTests_Python_GBK_Dataflow_Batch', 'H 12 * * *', this) {
+CronJobBuilder.cronJob('beam_LoadTests_Python_GBK_Dataflow_Batch', 'H H * * *', this) {
   additionalPipelineArgs = [
     influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
     influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,
@@ -195,7 +199,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
       loadTestJob(delegate, CommonTestProperties.TriggeringContext.PR, 'streaming')
     }
 
-CronJobBuilder.cronJob('beam_LoadTests_Python_GBK_Dataflow_Streaming', 'H 12 * * *', this) {
+CronJobBuilder.cronJob('beam_LoadTests_Python_GBK_Dataflow_Streaming', 'H H * * *', this) {
   additionalPipelineArgs = [
     influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
     influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,

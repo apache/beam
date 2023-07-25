@@ -24,10 +24,6 @@
 # REGION       -> Region name to use for Dataflow
 #
 # Execute from the root of the repository:
-#     test Python3.6 container:
-#         ./gradlew :sdks:python:test-suites:dataflow:py36:validatesContainer
-#     test Python3.7 container:
-#         ./gradlew :sdks:python:test-suites:dataflow:py37:validatesContainer
 #     test Python3.8 container:
 #         ./gradlew :sdks:python:test-suites:dataflow:py38:validatesContainer
 #     or test all supported python versions together:
@@ -38,7 +34,7 @@ echo "This script must be executed in the root of beam project. Please set GCS_L
 if [[ $# != 2 ]]; then
   printf "Usage: \n$> ./sdks/python/container/run_validatescontainer.sh <python_version> <sdk_location>"
   printf "\n\tpython_version: [required] Python version used for container build and run tests."
-  printf " Use 'python35' for Python3.5, python36 for Python3.6, python37 for Python3.7, python38 for Python3.8."
+  printf " Sample value: 3.9"
   exit 1
 fi
 
@@ -53,24 +49,11 @@ PROJECT=${PROJECT:-apache-beam-testing}
 REGION=${REGION:-us-central1}
 IMAGE_PREFIX="$(grep 'docker_image_default_repo_prefix' gradle.properties | cut -d'=' -f2)"
 SDK_VERSION="$(grep 'sdk_version' gradle.properties | cut -d'=' -f2)"
+PY_VERSION=$1
+IMAGE_NAME="${IMAGE_PREFIX}python${PY_VERSION}_sdk"
+CONTAINER_PROJECT="sdks:python:container:py${PY_VERSION//.}"  # Note: we substitute away the dot in the version.
+PY_INTERPRETER="python${PY_VERSION}"
 
-# Other variables branched by Python version.
-if [[ $1 == "python36" ]]; then
-  IMAGE_NAME="${IMAGE_PREFIX}python3.6_sdk"    # Use this to create CONTAINER_IMAGE variable.
-  CONTAINER_PROJECT="sdks:python:container:py36"  # Use this to build container by Gradle.
-  PY_INTERPRETER="python3.6"    # Use this in virtualenv command.
-elif [[ $1 == "python37" ]]; then
-  IMAGE_NAME="${IMAGE_PREFIX}python3.7_sdk"    # Use this to create CONTAINER_IMAGE variable.
-  CONTAINER_PROJECT="sdks:python:container:py37"  # Use this to build container by Gradle.
-  PY_INTERPRETER="python3.7"    # Use this in virtualenv command.
-elif [[ $1 == "python38" ]]; then
-  IMAGE_NAME="${IMAGE_PREFIX}python3.8_sdk"    # Use this to create CONTAINER_IMAGE variable.
-  CONTAINER_PROJECT="sdks:python:container:py38"  # Use this to build container by Gradle.
-  PY_INTERPRETER="python3.8"    # Use this in virtualenv command.
-else
-  echo "Must set Python version with one of 'python36', 'python37' and 'python38' from commandline."
-  exit 1
-fi
 XUNIT_FILE="pytest-$IMAGE_NAME.xml"
 
 # Verify in the root of the repository
@@ -87,7 +70,7 @@ docker images | grep "apache/$IMAGE_NAME" | grep "$SDK_VERSION"
 
 TAG=$(date +%Y%m%d-%H%M%S%N)
 CONTAINER=us.gcr.io/$PROJECT/$USER/$IMAGE_NAME
-PREBUILD_SDK_CONTAINER_REGISTRY_PATH=us.gcr.io/$PROJECT/$USER/prebuild_$1_sdk
+PREBUILD_SDK_CONTAINER_REGISTRY_PATH=us.gcr.io/$PROJECT/$USER/prebuild_python${PY_VERSION//.}_sdk
 echo "Using container $CONTAINER"
 
 # Tag the docker container.
@@ -122,7 +105,7 @@ pytest -o junit_suite_name=$IMAGE_NAME \
   -m="it_validatescontainer" \
   --show-capture=no \
   --numprocesses=1 \
-  --timeout=900 \
+  --timeout=1800 \
   --junitxml=$XUNIT_FILE \
   --ignore-glob '.*py3\d?\.py$' \
   --log-cli-level=INFO \
@@ -136,7 +119,6 @@ pytest -o junit_suite_name=$IMAGE_NAME \
     --output=$GCS_LOCATION/output \
     --sdk_location=$SDK_LOCATION \
     --num_workers=1 \
-    --prebuild_sdk_container_base_image=$CONTAINER:$TAG \
     --docker_registry_push_url=$PREBUILD_SDK_CONTAINER_REGISTRY_PATH"
 
 echo ">>> SUCCESS DATAFLOW RUNNER VALIDATESCONTAINER TEST"

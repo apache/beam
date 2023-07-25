@@ -30,7 +30,8 @@ import org.apache.beam.runners.core.construction.External;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.testing.UsesCrossLanguageTransforms;
+import org.apache.beam.sdk.testing.UsesJavaExpansionService;
+import org.apache.beam.sdk.testing.UsesPythonExpansionService;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -42,8 +43,8 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.ServerBuilder;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ServerBuilder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.RequiresNonNull;
@@ -59,7 +60,7 @@ import org.junit.runners.JUnit4;
 /** Test External transforms. */
 @RunWith(JUnit4.class)
 @SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class ExternalTest implements Serializable {
   @Rule public transient TestPipeline testPipeline = TestPipeline.create();
@@ -100,7 +101,11 @@ public class ExternalTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesCrossLanguageTransforms.class})
+  @Category({
+    ValidatesRunner.class,
+    UsesJavaExpansionService.class,
+    UsesPythonExpansionService.class
+  })
   @RequiresNonNull("localExpansionAddr")
   public void expandSingleTest() {
     PCollection<String> col =
@@ -112,7 +117,11 @@ public class ExternalTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesCrossLanguageTransforms.class})
+  @Category({
+    ValidatesRunner.class,
+    UsesJavaExpansionService.class,
+    UsesPythonExpansionService.class
+  })
   @RequiresNonNull("localExpansionAddr")
   public void expandMultipleTest() {
     PCollection<String> pcol =
@@ -129,7 +138,11 @@ public class ExternalTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesCrossLanguageTransforms.class})
+  @Category({
+    ValidatesRunner.class,
+    UsesJavaExpansionService.class,
+    UsesPythonExpansionService.class
+  })
   @RequiresNonNull("localExpansionAddr")
   public void expandMultiOutputTest() {
     PCollectionTuple pTuple =

@@ -43,6 +43,8 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_XVR_Spark3',
             tasks(':runners:spark:3:job-server:validatesCrossLanguageRunner')
             commonJobProperties.setGradleSwitches(delegate)
             switches("-PpythonVersion=${pythonVersion}")
+            // only run non-python task (e.g. GoUsingJava) once
+            switches("-PskipNonPythonTask=${pythonVersion != CROSS_LANGUAGE_VALIDATES_RUNNER_PYTHON_VERSIONS[0]}")
           }
         }
       }

@@ -38,7 +38,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * to process.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class ByteKeyRangeTracker extends RestrictionTracker<ByteKeyRange, ByteKey>
     implements HasProgress {
@@ -153,14 +153,14 @@ public class ByteKeyRangeTracker extends RestrictionTracker<ByteKeyRange, ByteKe
         key,
         lastAttemptedKey);
     checkArgument(
-        key.compareTo(range.getStartKey()) > -1,
+        key.compareTo(range.getStartKey()) >= 0,
         "Trying to claim key %s before start of the range %s",
         key,
         range);
 
     lastAttemptedKey = key;
     // No respective checkArgument for i < range.to() - it's ok to try claiming keys beyond
-    if (!range.getEndKey().isEmpty() && key.compareTo(range.getEndKey()) > -1) {
+    if (!range.getEndKey().isEmpty() && key.compareTo(range.getEndKey()) >= 0) {
       return false;
     }
     lastClaimedKey = key;

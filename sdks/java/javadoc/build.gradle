@@ -62,6 +62,7 @@ task aggregateJavadoc(type: Javadoc) {
   source exportedJavadocProjects.collect { project(it).sourceSets.main.allJava }
   classpath = files(exportedJavadocProjects.collect { project(it).sourceSets.main.compileClasspath })
   destinationDir = file("${buildDir}/docs/javadoc")
+  failOnError = true
 
   exclude "org/apache/beam/examples/*"
   exclude "org/apache/beam/fn/harness/*"
@@ -76,7 +77,6 @@ task aggregateJavadoc(type: Javadoc) {
   exclude "org/apache/beam/sdk/util/*"
 
   options.with {
-    failOnError false
     title "Apache Beam " + project.version
     overview 'overview.html'
     for (dep in project.library.java.values()) {

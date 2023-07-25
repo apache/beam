@@ -87,7 +87,10 @@ import org.mockito.MockitoAnnotations;
 /** Tests for {@link StatefulParDoEvaluatorFactory}. */
 @RunWith(JUnit4.class)
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  // TODO(https://github.com/apache/beam/issues/21230): Remove when new version of
+  // errorprone is released (2.11.0)
+  "unused"
 })
 public class StatefulParDoEvaluatorFactoryTest implements Serializable {
   @Mock private transient EvaluationContext mockEvaluationContext;
@@ -153,6 +156,7 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
             .apply(
                 new ParDoMultiOverrideFactory.GbkThenStatefulParDo<>(
                     new DoFn<KV<String, Integer>, Integer>() {
+
                       @StateId(stateId)
                       private final StateSpec<ValueState<String>> spec =
                           StateSpecs.value(StringUtf8Coder.of());
@@ -250,8 +254,8 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
     PCollection<KV<String, Integer>> input =
         pipeline.apply(
             Create.timestamped(
-                TimestampedValue.of(KV.of("", 1), now.plus(2)),
-                TimestampedValue.of(KV.of("", 2), now.plus(1)),
+                TimestampedValue.of(KV.of("", 1), now.plus(Duration.millis(2))),
+                TimestampedValue.of(KV.of("", 2), now.plus(Duration.millis(1))),
                 TimestampedValue.of(KV.of("", 3), now)));
     PCollection<String> result = input.apply(ParDo.of(statefulConcat()));
     PAssert.that(result).containsInAnyOrder("3", "3:2", "3:2:1");
@@ -264,9 +268,9 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
     PCollection<KV<String, Integer>> input =
         pipeline.apply(
             TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
-                .addElements(TimestampedValue.of(KV.of("", 1), now.plus(2)))
-                .addElements(TimestampedValue.of(KV.of("", 2), now.plus(1)))
-                .advanceWatermarkTo(now.plus(1))
+                .addElements(TimestampedValue.of(KV.of("", 1), now.plus(Duration.millis(2))))
+                .addElements(TimestampedValue.of(KV.of("", 2), now.plus(Duration.millis(1))))
+                .advanceWatermarkTo(now.plus(Duration.millis(1)))
                 .addElements(TimestampedValue.of(KV.of("", 3), now))
                 .advanceWatermarkToInfinity());
     PCollection<String> result = input.apply(ParDo.of(statefulConcat()));
@@ -281,9 +285,9 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
         pipeline
             .apply(
                 TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
-                    .addElements(TimestampedValue.of(KV.of("", 1), now.plus(2)))
-                    .addElements(TimestampedValue.of(KV.of("", 2), now.plus(1)))
-                    .advanceWatermarkTo(now.plus(1))
+                    .addElements(TimestampedValue.of(KV.of("", 1), now.plus(Duration.millis(2))))
+                    .addElements(TimestampedValue.of(KV.of("", 2), now.plus(Duration.millis(1))))
+                    .advanceWatermarkTo(now.plus(Duration.millis(1)))
                     .addElements(TimestampedValue.of(KV.of("", 3), now))
                     .advanceWatermarkToInfinity())
             .apply(

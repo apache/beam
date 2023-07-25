@@ -57,39 +57,3 @@ func ShallowClonePTransform(t *pipepb.PTransform) *pipepb.PTransform {
 	ret.EnvironmentId = t.EnvironmentId
 	return ret
 }
-
-// ShallowCloneParDoPayload makes a shallow copy of the given ParDoPayload.
-func ShallowCloneParDoPayload(p *pipepb.ParDoPayload) *pipepb.ParDoPayload {
-	if p == nil {
-		return nil
-	}
-
-	ret := &pipepb.ParDoPayload{
-		DoFn:               p.DoFn,
-		RestrictionCoderId: p.RestrictionCoderId,
-	}
-	ret.SideInputs, _ = reflectx.ShallowClone(p.SideInputs).(map[string]*pipepb.SideInput)
-	ret.StateSpecs, _ = reflectx.ShallowClone(p.StateSpecs).(map[string]*pipepb.StateSpec)
-	ret.TimerFamilySpecs, _ = reflectx.ShallowClone(p.TimerFamilySpecs).(map[string]*pipepb.TimerFamilySpec)
-	return ret
-}
-
-// ShallowCloneSideInput makes a shallow copy of the given SideInput.
-func ShallowCloneSideInput(p *pipepb.SideInput) *pipepb.SideInput {
-	if p == nil {
-		return nil
-	}
-	var ret pipepb.SideInput
-	ret = *p
-	return &ret
-}
-
-// ShallowCloneFunctionSpec makes a shallow copy of the given FunctionSpec.
-func ShallowCloneFunctionSpec(p *pipepb.FunctionSpec) *pipepb.FunctionSpec {
-	if p == nil {
-		return nil
-	}
-	var ret pipepb.FunctionSpec
-	ret = *p
-	return &ret
-}

@@ -35,9 +35,10 @@ class EmbeddedSqsServer extends ExternalResource {
 
   @Override
   protected void before() {
-    sqsRestServer = SQSRestServerBuilder.start();
+    sqsRestServer = SQSRestServerBuilder.withDynamicPort().start();
+    int port = sqsRestServer.waitUntilStarted().localAddress().getPort();
 
-    String endpoint = "http://localhost:9324";
+    String endpoint = String.format("http://localhost:%d", port);
     String region = "elasticmq";
     String accessKey = "x";
     String secretKey = "x";
@@ -55,6 +56,7 @@ class EmbeddedSqsServer extends ExternalResource {
   @Override
   protected void after() {
     sqsRestServer.stopAndWait();
+    client.shutdown();
   }
 
   public AmazonSQS getClient() {

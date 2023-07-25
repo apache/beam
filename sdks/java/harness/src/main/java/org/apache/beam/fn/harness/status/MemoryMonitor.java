@@ -43,6 +43,7 @@ import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.CreateOptions.StandardCreateOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
@@ -75,7 +76,7 @@ import org.slf4j.LoggerFactory;
  * </ul>
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class MemoryMonitor implements Runnable {
   private static final Logger LOG = LoggerFactory.getLogger(MemoryMonitor.class);
@@ -166,6 +167,7 @@ public class MemoryMonitor implements Runnable {
    * before dumping the heap, this block of memory will be garbage collected, thus giving dumpHeap()
    * enough space to dump the heap.
    */
+  @SuppressWarnings("unused")
   @SuppressFBWarnings("unused")
   private byte[] reservedForDumpingHeap = new byte[HEAP_DUMP_RESERVED_BYTES];
 
@@ -201,7 +203,8 @@ public class MemoryMonitor implements Runnable {
 
   public static MemoryMonitor fromOptions(PipelineOptions options) {
     String uploadFilePath = options.getTempLocation();
-    boolean canDumpHeap = uploadFilePath != null;
+    PortablePipelineOptions portableOptions = options.as(PortablePipelineOptions.class);
+    boolean canDumpHeap = uploadFilePath != null && portableOptions.getEnableHeapDumps();
 
     return new MemoryMonitor(
         new SystemGCStatsProvider(),

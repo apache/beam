@@ -22,8 +22,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Queue;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -44,6 +44,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheLoade
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.LoadingCache;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.RemovalListener;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Queues;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -57,7 +58,7 @@ import org.slf4j.LoggerFactory;
  * EvaluationContext} to execute a {@link Pipeline}.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 final class ExecutorServiceParallelExecutor
     implements PipelineExecutor,
@@ -146,14 +147,15 @@ final class ExecutorServiceParallelExecutor
   }
 
   @Override
-  // TODO: [BEAM-4563] Pass Future back to consumer to check for async errors
+  // TODO: [https://github.com/apache/beam/issues/18968] Pass Future back to consumer to check for
+  // async errors
   @SuppressWarnings("FutureReturnValueIgnored")
   public void start(DirectGraph graph, RootProviderRegistry rootProviderRegistry) {
     int numTargetSplits = Math.max(3, targetParallelism);
-    ImmutableMap.Builder<AppliedPTransform<?, ?, ?>, ConcurrentLinkedQueue<CommittedBundle<?>>>
-        pendingRootBundles = ImmutableMap.builder();
+    ImmutableMap.Builder<AppliedPTransform<?, ?, ?>, Queue<CommittedBundle<?>>> pendingRootBundles =
+        ImmutableMap.builder();
     for (AppliedPTransform<?, ?, ?> root : graph.getRootTransforms()) {
-      ConcurrentLinkedQueue<CommittedBundle<?>> pending = new ConcurrentLinkedQueue<>();
+      Queue<CommittedBundle<?>> pending = Queues.newArrayDeque();
       try {
         Collection<CommittedBundle<?>> initialInputs =
             rootProviderRegistry.getInitialInputs(root, numTargetSplits);
@@ -172,7 +174,7 @@ final class ExecutorServiceParallelExecutor
           @Override
           public void run() {
             DriverState drive = executionDriver.drive();
-            if (drive.isTermainal()) {
+            if (drive.isTerminal()) {
               State newPipelineState = State.UNKNOWN;
               switch (drive) {
                 case FAILED:

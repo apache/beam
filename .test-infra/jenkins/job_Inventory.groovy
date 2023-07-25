@@ -46,7 +46,7 @@ nums.each {
         defaultNodes([machine])
         allowedNodes([machine])
         trigger('multiSelectionDisallowed')
-        eligibility('IgnoreOfflineNodeEligibility')
+        eligibility('AllNodeEligibility')
       }
       stringParam {
         name("tmp_unaccessed_for")
@@ -64,13 +64,11 @@ nums.each {
       ALL_SUPPORTED_VERSIONS.each { version ->
         shell("python${version} --version || echo \"python${version} not found\"")
       }
-      shell('/home/jenkins/tools/maven/latest/mvn -v || echo "mvn not found"')
-      shell('/home/jenkins/tools/gradle4.3/gradle -v || echo "gradle not found"')
       shell('gcloud -v || echo "gcloud not found"')
       shell('kubectl version || echo "kubectl not found"')
       ALL_SUPPORTED_VERSIONS.each { version ->
         def versionSuffix = version.replace('.', '')
-        shell("virtualenv -p python${version} test${versionSuffix} && . ./test${versionSuffix}/bin/activate && python --version && deactivate || echo \"python ${version} not found\"")
+        shell("python${version} -m venv test${versionSuffix} && . ./test${versionSuffix}/bin/activate && python --version && deactivate || echo \"python ${version} not found\"")
       }
       shell('echo "Maven home $MAVEN_HOME"')
       shell('env')

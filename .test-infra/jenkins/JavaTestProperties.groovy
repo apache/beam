@@ -17,5 +17,5 @@
  */
 
 class JavaTestProperties {
-  final static List<String> SUPPORTED_CONTAINER_TASKS = ['java8', 'java11']
+  final static List<String> SUPPORTED_CONTAINER_TASKS = ['java8', 'java11', 'java17']
 }

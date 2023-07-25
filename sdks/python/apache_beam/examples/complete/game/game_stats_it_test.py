@@ -75,13 +75,14 @@ class GameStatsIT(unittest.TestCase):
     from google.cloud import pubsub
     self.pub_client = pubsub.PublisherClient()
     self.input_topic = self.pub_client.create_topic(
-        self.pub_client.topic_path(self.project, self.INPUT_TOPIC + _unique_id))
+        name=self.pub_client.topic_path(
+            self.project, self.INPUT_TOPIC + _unique_id))
 
     self.sub_client = pubsub.SubscriberClient()
     self.input_sub = self.sub_client.create_subscription(
-        self.sub_client.subscription_path(
+        name=self.sub_client.subscription_path(
             self.project, self.INPUT_SUB + _unique_id),
-        self.input_topic.name)
+        topic=self.input_topic.name)
 
     # Set up BigQuery environment
     self.dataset_ref = utils.create_bq_dataset(
@@ -104,6 +105,12 @@ class GameStatsIT(unittest.TestCase):
     test_utils.cleanup_topics(self.pub_client, [self.input_topic])
 
   @pytest.mark.it_postcommit
+  @pytest.mark.examples_postcommit
+  # TODO(https://github.com/apache/beam/issues/21300) This example only works in
+  # Dataflow, remove mark to enable for other runners when fixed
+  @pytest.mark.sickbay_direct
+  @pytest.mark.sickbay_spark
+  @pytest.mark.sickbay_flink
   def test_game_stats_it(self):
     state_verifier = PipelineStateMatcher(PipelineState.RUNNING)
 

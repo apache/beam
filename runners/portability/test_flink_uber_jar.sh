@@ -80,8 +80,9 @@ docker -v
 docker images --format "{{.Repository}}:{{.Tag}}" | grep "$PYTHON_CONTAINER_IMAGE"
 
 # Set up Python environment
-virtualenv -p "python$PYTHON_VERSION" "$ENV_DIR"
+python$PYTHON_VERSION -m venv "$ENV_DIR"
 . $ENV_DIR/bin/activate
+pip install --retries 10 --upgrade pip setuptools wheel
 pip install --retries 10 -e "$PYTHON_ROOT_DIR"
 
 # Hacky python script to find a free port. Note there is a small chance the chosen port could

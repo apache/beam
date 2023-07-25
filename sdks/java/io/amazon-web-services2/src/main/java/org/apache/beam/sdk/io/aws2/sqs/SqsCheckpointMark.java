@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.apache.beam.sdk.io.UnboundedSource;
@@ -30,33 +31,43 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class SqsCheckpointMark implements UnboundedSource.CheckpointMark, Serializable {
 
   /**
-   * If the checkpoint is for persisting: the reader who's snapshotted state we are persisting. If
-   * the checkpoint is for restoring: {@literal null}. Not persisted in durable checkpoint. CAUTION:
-   * Between a checkpoint being taken and {@link #finalizeCheckpoint()} being called the 'true'
-   * active reader may have changed.
+   * The reader this checkpoint was created from.
+   *
+   * <p><b>Not persisted</b> in durable checkpoint, {@code null} after restoring the checkpoint.
+   *
+   * <p><b>CAUTION:</b>Between a checkpoint being taken and {@link #finalizeCheckpoint()} being
+   * called the 'true' active reader may have changed.
    */
   private transient Optional<SqsUnboundedReader> reader;
+
   /**
-   * If the checkpoint is for persisting: The ids of messages which have been passed downstream
-   * since the last checkpoint. If the checkpoint is for restoring: {@literal null}. Not persisted
-   * in durable checkpoint.
+   * Contains message ids that have been passed downstream since the last checkpoint.
+   *
+   * <p>Corresponding messages have to be purged from SQS when finalizing the checkpoint to prevent
+   * re-delivery.
+   *
+   * <p><b>Not persisted</b> in durable checkpoint, {@code null} after restoring the checkpoint.
    */
   private @Nullable List<String> safeToDeleteIds;
 
   /**
-   * If the checkpoint is for persisting: The receipt handles of messages which have been received
-   * from SQS but not yet passed downstream at the time of the snapshot. If the checkpoint is for
-   * restoring: Same, but recovered from durable storage.
+   * Contains receipt handles of messages which have been received from SQS, but not yet passed
+   * downstream at the time of the snapshot.
+   *
+   * <p>When restoring from a checkpoint, the visibility timeout of corresponding messages is set to
+   * {@code 0} to trigger immediate re-delivery.
    */
   @VisibleForTesting final List<String> notYetReadReceipts;
 
   SqsCheckpointMark(
-      SqsUnboundedReader reader, List<String> messagesToDelete, List<String> notYetReadReceipts) {
+      SqsUnboundedReader reader,
+      Collection<String> messagesToDelete,
+      Collection<String> notYetReadReceipts) {
     this.reader = Optional.of(reader);
     this.safeToDeleteIds = ImmutableList.copyOf(messagesToDelete);
     this.notYetReadReceipts = ImmutableList.copyOf(notYetReadReceipts);

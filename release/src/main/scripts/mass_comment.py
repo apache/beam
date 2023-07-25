@@ -17,49 +17,10 @@
 
 """Script for mass-commenting Jenkins test triggers on a Beam PR."""
 
-import itertools
 import os
-import socket
-import sys
-import time
-import traceback
-import re
 import requests
-from datetime import datetime
-
-COMMENTS_TO_ADD = [
-    "Run Release Gradle Build",
-    "Run Go PostCommit",
-    "Run Java PostCommit",
-    "Run Java Flink PortableValidatesRunner Batch",
-    "Run Java Flink PortableValidatesRunner Streaming",
-    "Run Dataflow ValidatesRunner",
-    "Run Flink ValidatesRunner",
-    "Run Samza ValidatesRunner",
-    "Run Spark ValidatesRunner",
-    "Run Java Spark PortableValidatesRunner Batch",
-    "Run Python Spark ValidatesRunner",
-    "Run Python Dataflow ValidatesContainer",
-    "Run Python Dataflow ValidatesRunner",
-    "Run Python Flink ValidatesRunner",
-    "Run Twister2 ValidatesRunner",
-    "Run Python 3.6 PostCommit",
-    "Run Python 3.7 PostCommit",
-    "Run Python 3.8 PostCommit",
-    "Run SQL PostCommit",
-    "Run Go PreCommit",
-    "Run Java PreCommit",
-    "Run Java_Examples_Dataflow PreCommit",
-    "Run JavaPortabilityApi PreCommit",
-    "Run Portable_Python PreCommit",
-    "Run PythonLint PreCommit",
-    "Run Python PreCommit",
-    "Run Python DockerBuild PreCommit",
-    "Run XVR_Direct PostCommit",
-    "Run XVR_Flink PostCommit",
-    "Run XVR_Spark PostCommit",
-    "Run XVR_Spark3 PostCommit",
-]
+import socket
+import time
 
 
 def executeGHGraphqlQuery(accessToken, query):
@@ -84,8 +45,8 @@ query FindPullRequestID {
   return response['data']['repository']['pullRequest']['id']
 
 
-def fetchGHData(accessToken, subjectId, commentBody):
-  '''Fetches GitHub data required for reporting Beam metrics'''
+def addPrComment(accessToken, subjectId, commentBody):
+  '''Adds a pr comment to the PR defined by subjectId'''
   query = '''
 mutation AddPullRequestComment {
   addComment(input:{subjectId:"%s",body: "%s"}) {
@@ -103,15 +64,40 @@ mutation AddPullRequestComment {
 ''' % (subjectId, commentBody)
   return executeGHGraphqlQuery(accessToken, query)
 
+def getPrStatuses(accessToken, prNumber):
+  query = '''
+query GetPRChecks {
+  repository(name: "beam", owner: "apache") {
+    pullRequest(number: %s) {
+      commits(last: 1) {
+        nodes {
+          commit {
+            status {
+              contexts {
+                targetUrl
+                context
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+''' % (prNumber)
+  return executeGHGraphqlQuery(accessToken, query)
 
-def postComments(accessToken, subjectId):
+
+def postComments(accessToken, subjectId, commentsToAdd):
   '''
-  Main workhorse method. Fetches data from GitHub and puts it in metrics table.
+  Main workhorse method. Posts comments to GH.
   '''
 
-  for commentBody in COMMENTS_TO_ADD:
-    jsonData = fetchGHData(accessToken, subjectId, commentBody)
+  for comment in commentsToAdd:
+    jsonData = addPrComment(accessToken, subjectId, comment[0])
     print(jsonData)
+    # Space out comments 30 seconds apart to avoid overwhelming Jenkins
+    time.sleep(30)
 
 
 def probeGitHubIsUp():
@@ -122,6 +108,23 @@ def probeGitHubIsUp():
   result = sock.connect_ex(('github.com', 443))
   return True if result == 0 else False
 
+def getRemainingComments(accessToken, pr, initialComments):
+  '''
+  Filters out the comments that already have statuses associated with them from initial comments
+  '''
+  queryResult = getPrStatuses(accessToken, pr)
+  pull = queryResult["data"]["repository"]["pullRequest"]
+  commit = pull["commits"]["nodes"][0]["commit"]
+  check_urls = str(list(map(lambda c : c["targetUrl"], commit["status"]["contexts"])))
+  remainingComments = []
+  for comment in initialComments:
+    if f'/{comment[1]}_Phrase/' not in check_urls and f'/{comment[1]}_PR/' not in check_urls \
+        and f'/{comment[1]}_Commit/' not in check_urls and f'/{comment[1]}/' not in check_urls \
+        and 'Sickbay' not in comment[1]:
+      print(comment)
+      remainingComments.append(comment)
+  return remainingComments
+
 
 ################################################################################
 if __name__ == '__main__':
@@ -131,7 +134,15 @@ if __name__ == '__main__':
   wrap work code in module check.
   '''
   print("Started.")
-
+  comments = []
+  dirname = os.path.dirname(__file__)
+  with open(os.path.join(dirname, 'jenkins_jobs.txt')) as file:
+    comments = [line.strip() for line in file if len(line.strip()) > 0]
+  
+  for i in range(len(comments)):
+    parts = comments[i].split(',')
+    comments[i] = (parts[0], parts[1])
+  
   if not probeGitHubIsUp():
     print("GitHub is unavailable, skipping fetching data.")
     exit()
@@ -142,8 +153,24 @@ if __name__ == '__main__':
 
   pr = input("Enter the Beam PR number to test (e.g. 11403): ")
   subjectId = getSubjectId(accessToken, pr)
-
-  postComments(accessToken, subjectId)
-  print("Fetched data.")
+  
+  remainingComments = getRemainingComments(accessToken, pr, comments)
+  if len(remainingComments) == 0:
+    print('Jobs have been started for all comments. If you would like to retry all jobs, create a new commit before running this script.')
+  while len(remainingComments) > 0:
+    postComments(accessToken, subjectId, remainingComments)
+    # Sleep 60 seconds to allow checks to start to status
+    time.sleep(60)
+    remainingComments = getRemainingComments(accessToken, pr, remainingComments)
+    if len(remainingComments) > 0:
+      print(f'{len(remainingComments)} comments must be reposted because no check has been created for them: {str(remainingComments)}')
+      print('Sleeping for 1 hour to allow Jenkins to recover and to give it time to status.')
+      for i in range(60):
+        time.sleep(60)
+        print(f'{i} minutes elapsed, {60-i} minutes remaining')
+    remainingComments = getRemainingComments(accessToken, pr, remainingComments)
+    if len(remainingComments) == 0:
+      print(f'{len(remainingComments)} comments still must be reposted: {str(remainingComments)}')
+      print('Trying to repost comments.')
 
   print('Done.')

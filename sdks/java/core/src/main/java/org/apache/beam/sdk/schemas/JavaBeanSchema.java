@@ -19,12 +19,12 @@ package org.apache.beam.sdk.schemas;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.annotations.SchemaCaseFormat;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldName;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldNumber;
 import org.apache.beam.sdk.schemas.annotations.SchemaIgnore;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.DefaultTypeConversionsFactory;
 import org.apache.beam.sdk.schemas.utils.FieldValueTypeSupplier;
@@ -32,6 +32,8 @@ import org.apache.beam.sdk.schemas.utils.JavaBeanUtils;
 import org.apache.beam.sdk.schemas.utils.ReflectUtils;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -47,9 +49,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>TODO: Validate equals() method is provided, and if not generate a "slow" equals method based
  * on the schema.
  */
-@Experimental(Kind.SCHEMAS)
 @SuppressWarnings({
-  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes"
 })
 public class JavaBeanSchema extends GetterBasedSchemaProvider {
@@ -60,11 +61,36 @@ public class JavaBeanSchema extends GetterBasedSchemaProvider {
 
     @Override
     public List<FieldValueTypeInformation> get(Class<?> clazz) {
-      return ReflectUtils.getMethods(clazz).stream()
-          .filter(ReflectUtils::isGetter)
-          .filter(m -> !m.isAnnotationPresent(SchemaIgnore.class))
-          .map(FieldValueTypeInformation::forGetter)
-          .collect(Collectors.toList());
+      List<Method> methods =
+          ReflectUtils.getMethods(clazz).stream()
+              .filter(ReflectUtils::isGetter)
+              .filter(m -> !m.isAnnotationPresent(SchemaIgnore.class))
+              .collect(Collectors.toList());
+      List<FieldValueTypeInformation> types = Lists.newArrayListWithCapacity(methods.size());
+      for (int i = 0; i < methods.size(); ++i) {
+        types.add(FieldValueTypeInformation.forGetter(methods.get(i), i));
+      }
+      types.sort(Comparator.comparing(FieldValueTypeInformation::getNumber));
+      validateFieldNumbers(types);
+      return types;
+    }
+
+    private static void validateFieldNumbers(List<FieldValueTypeInformation> types) {
+      for (int i = 0; i < types.size(); ++i) {
+        FieldValueTypeInformation type = types.get(i);
+        @javax.annotation.Nullable Integer number = type.getNumber();
+        if (number == null) {
+          throw new RuntimeException("Unexpected null number for " + type.getName());
+        }
+        Preconditions.checkState(
+            number == i,
+            "Expected field number "
+                + i
+                + " for field: "
+                + type.getName()
+                + " instead got "
+                + number);
+      }
     }
 
     @Override
@@ -91,6 +117,12 @@ public class JavaBeanSchema extends GetterBasedSchemaProvider {
           .map(FieldValueTypeInformation::forSetter)
           .map(
               t -> {
+                if (t.getMethod().getAnnotation(SchemaFieldNumber.class) != null) {
+                  throw new RuntimeException(
+                      String.format(
+                          "@SchemaFieldNumber can only be used on getters in Java Beans. Found on setter '%s'",
+                          t.getMethod().getName()));
+                }
                 if (t.getMethod().getAnnotation(SchemaFieldName.class) != null) {
                   throw new RuntimeException(
                       String.format(
@@ -180,7 +212,6 @@ public class JavaBeanSchema extends GetterBasedSchemaProvider {
   }
 
   /** A factory for creating {@link FieldValueSetter} objects for a JavaBean object. */
-  @Experimental(Kind.SCHEMAS)
   private static class JavaBeanSetterFactory implements Factory<List<FieldValueSetter>> {
     @Override
     public List<FieldValueSetter> create(Class<?> targetClass, Schema schema) {

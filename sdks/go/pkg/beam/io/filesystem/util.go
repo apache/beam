@@ -17,7 +17,11 @@ package filesystem
 
 import (
 	"context"
-	"io/ioutil"
+	"fmt"
+	"io"
+	"path/filepath"
+	"runtime"
+	"strings"
 )
 
 // Read fully reads the given file from the file system.
@@ -28,7 +32,7 @@ func Read(ctx context.Context, fs Interface, filename string) ([]byte, error) {
 	}
 	defer r.Close()
 
-	return ioutil.ReadAll(r)
+	return io.ReadAll(r)
 }
 
 // Write writes the given content to the file system.
@@ -42,4 +46,78 @@ func Write(ctx context.Context, fs Interface, filename string, data []byte) erro
 		return err
 	}
 	return w.Close()
+}
+
+// Copy replicates the file at oldpath to newpath. Requires the paths to
+// be on the same filesystem.
+//
+// If the file system implements Copier, it uses that, otherwise it does so manually.
+func Copy(ctx context.Context, fs Interface, oldpath, newpath string) error {
+	if cp, ok := fs.(Copier); ok {
+		if err := cp.Copy(ctx, oldpath, newpath); err != nil {
+			return err
+		}
+		return nil
+	}
+	w, err := fs.OpenWrite(ctx, newpath)
+	if err != nil {
+		return err
+	}
+
+	r, err := fs.OpenRead(ctx, oldpath)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	if _, err := io.Copy(w, r); err != nil {
+		return err
+	}
+	return w.Close()
+}
+
+// Rename moves the file at oldpath to newpath. Requires the paths to
+// be on the same filesystem.
+//
+// Rename will use Renamer, Remover, and Copier interfaces if implemented.
+// Renamer is tried first, and used if available. Otherwise, Rename requires
+// Remover to be implemented, and calls Copy.
+func Rename(ctx context.Context, fs Interface, oldpath, newpath string) error {
+	if rn, ok := fs.(Renamer); ok {
+		return rn.Rename(ctx, oldpath, newpath)
+	}
+
+	// Eagerly check if we can remove the temp files.
+	rm, ok := fs.(Remover)
+	if !ok {
+		return &unimplementedError{fs, "Remover", "Rename"}
+	}
+
+	if err := Copy(ctx, fs, oldpath, newpath); err != nil {
+		return err
+	}
+	// Clean up the old path.
+	if err := rm.Remove(ctx, oldpath); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Match is a platform agnostic version of filepath.Match where \ is treated as / on Windows.
+func Match(pattern, name string) (bool, error) {
+	// Windows accepts / and \ as directory separators. For the sake of consistency with other schemes such as memfs:// we'll convert \ to /.
+	if runtime.GOOS == "windows" {
+		return filepath.Match(strings.ReplaceAll(pattern, "/", "//"), strings.ReplaceAll(name, "/", "//"))
+	}
+	return filepath.Match(pattern, name)
+}
+
+type unimplementedError struct {
+	fs          Interface
+	iface, mthd string
+}
+
+func (e *unimplementedError) Error() string {
+	return fmt.Sprintf("%T doesn't implement filesystem.%v: can't use filesystem.%v", e.fs, e.iface, e.mthd)
 }

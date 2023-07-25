@@ -22,13 +22,21 @@ plugins {
   id 'com.avast.gradle.docker-compose'
   id 'org.ajoberstar.grgit'
 }
+
+ext {
+  cluster = 'metrics'
+  zone='us-central1-a'
+  projectName='apache-beam-testing'
+  kubeConfigPath = project.properties['KUBE_CONFIG_PATH'] ?: '/home/jenkins/.kube/config'
+}
+
 applyGroovyNature()
 
 repositories { mavenCentral() }
 
 dependencies {
-  testCompile library.groovy.groovy_all
-  testCompile library.java.junit
+  testImplementation library.groovy.groovy_all
+  testImplementation library.java.junit
 }
 
 task testMetricsStack {
@@ -51,8 +59,23 @@ dockerCompose {
 
 dockerCompose.isRequiredBy(testMetricsStack)
 
-task validateConfiguration(type: Exec) {
-  commandLine 'sh', '-c', 'kubectl apply --dry-run=true -Rf kubernetes'
+task getClusterCredentials(type: Exec) {
+  commandLine 'sh', '-c', "gcloud container clusters get-credentials ${cluster} --zone ${zone} --project ${projectName}"
+}
+
+task removeKubeConfig(type: Exec) {
+  commandLine 'sh', '-c', "rm ${kubeConfigPath}"
+}
+
+
+task validateK8sConfiguration(type: Exec) {
+  commandLine 'sh', '-c', 'kubectl apply --dry-run=client -Rf kubernetes'
+}
+
+task validateConfiguration {
+  dependsOn getClusterCredentials
+  dependsOn validateK8sConfiguration
+  finalizedBy removeKubeConfig
 }
 
 task preCommit {
@@ -102,7 +125,6 @@ task deploy {
         args '-c', "kubectl set image deployment/beamgrafana \
           beamgrafana=gcr.io/apache-beam-testing/beamgrafana:${project.lastCommitId} \
           beammetricssyncjenkins=gcr.io/apache-beam-testing/beammetricssyncjenkins:${project.lastCommitId} \
-          beammetricssyncjira=gcr.io/apache-beam-testing/beammetricssyncjira:${project.lastCommitId} \
           beammetricssyncgithub=gcr.io/apache-beam-testing/beammetricssyncgithub:${project.lastCommitId}"
       }
     } else {

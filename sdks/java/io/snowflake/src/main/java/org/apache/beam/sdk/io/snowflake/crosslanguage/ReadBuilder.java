@@ -19,8 +19,6 @@ package org.apache.beam.sdk.io.snowflake.crosslanguage;
 
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.io.snowflake.SnowflakeIO;
 import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
@@ -28,7 +26,6 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 
-@Experimental(Kind.PORTABILITY)
 public class ReadBuilder
     implements ExternalTransformBuilder<ReadBuilder.Configuration, PBegin, PCollection<byte[]>> {
 

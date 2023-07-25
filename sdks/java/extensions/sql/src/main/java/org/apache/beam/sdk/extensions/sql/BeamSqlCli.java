@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.extensions.sql;
 
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.ParseException;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamEnumerableConverter;
@@ -28,9 +27,8 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 
 /** {@link BeamSqlCli} provides methods to execute Beam SQL with an interactive client. */
-@Experimental
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class BeamSqlCli {
   private BeamSqlEnv env;

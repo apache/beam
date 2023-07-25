@@ -17,7 +17,4 @@
  */
 
 /** Provides default commandline for sqlline. */
-@Experimental
 package org.apache.beam.sdk.extensions.sql.jdbc;
-
-import org.apache.beam.sdk.annotations.Experimental;

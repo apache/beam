@@ -61,44 +61,40 @@ func (n *CoGBK) StartBundle(ctx context.Context, id string, data exec.DataContex
 }
 
 func (n *CoGBK) ProcessElement(ctx context.Context, elm *exec.FullValue, _ ...exec.ReStream) error {
-	index := elm.Elm.(int)
-	value := elm.Elm2.(*exec.FullValue)
+	index := elm.Elm2.(*exec.FullValue).Elm.(int)
+	value := elm.Elm2.(*exec.FullValue).Elm2
 
 	for _, w := range elm.Windows {
 		ws := []typex.Window{w}
 		n.wins = append(n.wins, ws...)
 
-		key, err := n.encodeKey(value.Elm, ws)
+		g, err := n.getGroup(n.m, elm, ws)
 		if err != nil {
-			return errors.Errorf("failed encoding key for %v: %v", elm, err)
+			return errors.Errorf("failed getGroup for %v: %v", elm, err)
 		}
-		g := n.getGroup(n.m, key, value, ws)
-		g.values[index] = append(g.values[index], exec.FullValue{Elm: value.Elm2, Timestamp: value.Timestamp})
+		g.values[index] = append(g.values[index], exec.FullValue{Elm: value, Timestamp: elm.Timestamp})
 	}
 	return nil
 }
 
-func (n *CoGBK) encodeKey(elm interface{}, ws []typex.Window) (string, error) {
+func (n *CoGBK) getGroup(m map[string]*group, elm *exec.FullValue, ws []typex.Window) (*group, error) {
 	var buf bytes.Buffer
-	if err := n.enc.Encode(&exec.FullValue{Elm: elm}, &buf); err != nil {
-		return "", errors.WithContextf(err, "encoding key %v for CoGBK", elm)
+	if err := n.enc.Encode(&exec.FullValue{Elm: elm.Elm}, &buf); err != nil {
+		return nil, errors.WithContextf(err, "encoding key %v for CoGBK", elm)
 	}
 	if err := n.wEnc.Encode(ws, &buf); err != nil {
-		return "", errors.WithContextf(err, "encoding window %v for CoGBK", ws)
+		return nil, errors.WithContextf(err, "encoding window %v for CoGBK", ws)
 	}
-	return buf.String(), nil
-}
-
-func (n *CoGBK) getGroup(m map[string]*group, key string, value *exec.FullValue, ws []typex.Window) *group {
+	key := buf.String()
 	g, ok := m[key]
 	if !ok {
 		g = &group{
-			key:    exec.FullValue{Elm: value.Elm, Timestamp: value.Timestamp, Windows: ws},
+			key:    exec.FullValue{Elm: elm.Elm, Timestamp: elm.Timestamp, Windows: ws},
 			values: make([][]exec.FullValue, len(n.Edge.Input)),
 		}
 		m[key] = g
 	}
-	return g
+	return g, nil
 }
 
 func (n *CoGBK) FinishBundle(ctx context.Context) error {
@@ -132,7 +128,7 @@ func (n *CoGBK) mergeWindows() (map[typex.Window]int, error) {
 	// mergeMap is a map from the oringal windows to the index of the new window
 	// in the mergedWins slice
 	mergeMap := make(map[typex.Window]int)
-	mergedWins := []typex.Window{}
+	var mergedWins []typex.Window
 	for i := 0; i < len(n.wins); {
 		intWin, ok := n.wins[i].(window.IntervalWindow)
 		if !ok {
@@ -164,11 +160,10 @@ func (n *CoGBK) reprocessByWindow(mergeMap map[typex.Window]int) error {
 	newGroups := make(map[string]*group)
 	for _, g := range n.m {
 		ws := []typex.Window{n.wins[mergeMap[g.key.Windows[0]]]}
-		key, err := n.encodeKey(g.key.Elm, ws)
+		gr, err := n.getGroup(newGroups, &g.key, ws)
 		if err != nil {
 			return errors.Errorf("failed encoding key for %v: %v", g.key.Elm, err)
 		}
-		gr := n.getGroup(newGroups, key, &g.key, ws)
 		for i, list := range g.values {
 			gr.values[i] = append(gr.values[i], list...)
 		}
@@ -206,7 +201,15 @@ func (n *Inject) StartBundle(ctx context.Context, id string, data exec.DataConte
 }
 
 func (n *Inject) ProcessElement(ctx context.Context, elm *exec.FullValue, values ...exec.ReStream) error {
-	return n.Out.ProcessElement(ctx, &exec.FullValue{Elm: n.N, Elm2: elm, Timestamp: elm.Timestamp, Windows: elm.Windows}, values...)
+	v := *elm
+	v.Elm = n.N
+	return n.Out.ProcessElement(ctx, &exec.FullValue{
+		Elm:       elm.Elm,
+		Elm2:      &v,
+		Timestamp: elm.Timestamp,
+		Windows:   elm.Windows,
+		Pane:      elm.Pane,
+	}, values...)
 }
 
 func (n *Inject) FinishBundle(ctx context.Context) error {

@@ -20,12 +20,19 @@ package org.apache.beam.sdk.io.gcp.healthcare;
 import static org.apache.beam.sdk.io.gcp.healthcare.FhirIOTestUtil.BUNDLES;
 import static org.apache.beam.sdk.io.gcp.healthcare.FhirIOTestUtil.DEFAULT_TEMP_BUCKET;
 import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.HEALTHCARE_DATASET_TEMPLATE;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 
 import java.io.IOException;
 import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.io.gcp.healthcare.FhirIO.ExecuteBundles;
+import org.apache.beam.sdk.io.gcp.healthcare.FhirIO.ExecuteBundlesResult;
 import org.apache.beam.sdk.io.gcp.healthcare.FhirIO.Import.ContentStructure;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
@@ -105,7 +112,7 @@ public class FhirIOWriteIT {
 
   @Test
   public void testFhirIO_ExecuteBundle() throws IOException {
-    FhirIO.Write.Result writeResult =
+    FhirIO.Write.AbstractResult writeResult =
         pipeline
             .apply(Create.of(BUNDLES.get(version)))
             .apply(FhirIO.Write.executeBundles(options.getFhirStore()));
@@ -116,12 +123,63 @@ public class FhirIOWriteIT {
   }
 
   @Test
+  public void testFhirIO_ExecuteBundle_parseResponse() {
+    List<FhirBundleParameter> bundles =
+        BUNDLES.get("BUNDLE_PARSE_TEST").stream()
+            .map(bundle -> FhirBundleParameter.of(bundle))
+            .collect(Collectors.toList());
+
+    ExecuteBundlesResult writeResult =
+        pipeline
+            .apply(Create.of(bundles).withCoder(SerializableCoder.of(FhirBundleParameter.class)))
+            .apply(new ExecuteBundles(options.getFhirStore()));
+
+    PAssert.that(writeResult.getSuccessfulBodies())
+        .satisfies(
+            input -> {
+              int counter = 0;
+              for (String resp : input) {
+                assertFalse(resp.isEmpty());
+                counter++;
+              }
+              assertEquals(2, counter);
+              return null;
+            });
+
+    PAssert.that(writeResult.getSuccessfulBundles())
+        .satisfies(
+            input -> {
+              int counter = 0;
+              for (FhirBundleResponse resp : input) {
+                assertFalse(resp.getResponse().isEmpty());
+                counter++;
+              }
+              assertEquals(2, counter);
+              return null;
+            });
+
+    PAssert.that(writeResult.getFailedBodies())
+        .satisfies(
+            input -> {
+              int counter = 0;
+              for (HealthcareIOError<String> resp : input) {
+                assertEquals(400, (int) resp.getStatusCode());
+                counter++;
+              }
+              assertEquals(2, counter);
+              return null;
+            });
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
   public void testFhirIO_Import() {
     Pipeline pipeline = Pipeline.create(options);
     if (options.getTempLocation() == null) {
       options.setTempLocation("gs://temp-storage-for-healthcare-io-tests");
     }
-    FhirIO.Write.Result result =
+    FhirIO.Write.AbstractResult result =
         pipeline
             .apply(Create.of(BUNDLES.get(version)))
             .apply(

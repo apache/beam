@@ -17,18 +17,25 @@
  */
 package org.apache.beam.sdk.state;
 
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@link ReadableState} cell containing a single value.
  *
  * @param <T> The type of value being stored.
  */
-@Experimental(Kind.STATE)
-public interface ValueState<T> extends ReadableState<T>, State {
+public interface ValueState<T> extends ReadableState<@Nullable T>, State {
   /** Set the value. */
   void write(T input);
+
+  /**
+   * {@inheritDoc}
+   *
+   * <p>Note that {@code null} will be returned if the value has never been written.
+   */
+  @Override
+  @Nullable
+  T read();
 
   @Override
   ValueState<T> readLater();

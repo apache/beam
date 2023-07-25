@@ -37,14 +37,14 @@ class CronJobBuilder {
    * @param cronPattern Defines when the job should be fired. Default: "every 6th hour".
    * @param jobDefinition Closure for the job.
    */
-  static void cronJob(nameBase, cronPattern = '0 */6 * * *', scope, jobDefinition = {}) {
+  static void cronJob(nameBase, cronPattern = 'H H/6 * * *', scope, jobDefinition = {}) {
     CronJobBuilder builder = new CronJobBuilder(scope, jobDefinition)
     builder.defineAutoPostCommitJob(nameBase, cronPattern)
   }
 
   void defineAutoPostCommitJob(name, cronPattern) {
     def autoBuilds = scope.job(name) {
-      commonJobProperties.setAutoJob(delegate, cronPattern, 'builds@beam.apache.org', false, true)
+      commonJobProperties.setAutoJob(delegate, cronPattern, 'builds@beam.apache.org', true)
     }
 
     autoBuilds.with(jobDefinition)

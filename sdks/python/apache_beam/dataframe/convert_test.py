@@ -83,6 +83,13 @@ class ConvertTest(unittest.TestCase):
       assert_that(pc_3a, equal_to(list(3 * a)), label='Check3a')
       assert_that(pc_ab, equal_to(list(a * b)), label='Checkab')
 
+  def test_convert_with_none(self):
+    # Ensure the logical Any type allows (nullable) None, see BEAM-12587.
+    df = pd.DataFrame({'A': ['str', 10, None], 'B': [None, 'str', 20]})
+    with beam.Pipeline() as p:
+      res = convert.to_pcollection(df, pipeline=p) | beam.Map(tuple)
+      assert_that(res, equal_to([(row.A, row.B) for _, row in df.iterrows()]))
+
   def test_convert_scalar(self):
     with beam.Pipeline() as p:
       pc = p | 'A' >> beam.Create([1, 2, 3])
@@ -158,6 +165,11 @@ class ConvertTest(unittest.TestCase):
     # cache size
     gc.disable()
 
+    # Also disable logging, as some implementations may artificially extend
+    # the life of objects.
+    import logging
+    logging.disable(logging.INFO)
+
     try:
       self.test_convert_memoization()
       self.assertEqual(len(convert.TO_PCOLLECTION_CACHE), 3)
@@ -168,8 +180,29 @@ class ConvertTest(unittest.TestCase):
       # scope and are GC'd
       self.assertEqual(len(convert.TO_PCOLLECTION_CACHE), 0)
     finally:
-      # Always re-enable GC
+      # Always re-enable GC and logging
       gc.enable()
+      logging.disable(logging.NOTSET)
+
+  def test_auto_convert(self):
+    class MySchemaTransform(beam.PTransform):
+      def expand(self, pcoll):
+        return pcoll | beam.Map(
+            lambda x: beam.Row(
+                a=x.n**2 - x.m**2, b=2 * x.m * x.n, c=x.n**2 + x.m**2))
+
+    with beam.Pipeline() as p:
+      pc_mn = p | beam.Create([
+          (1, 2), (2, 3), (3, 10)
+      ]) | beam.MapTuple(lambda m, n: beam.Row(m=m, n=n))
+
+      df_mn = convert.to_dataframe(pc_mn)
+
+      # Apply a transform directly to a dataframe to get another dataframe.
+      df_abc = df_mn | MySchemaTransform()
+
+      pc_abc = convert.to_pcollection(df_abc) | beam.Map(tuple)
+      assert_that(pc_abc, equal_to([(3, 4, 5), (5, 12, 13), (91, 60, 109)]))
 
 
 if __name__ == '__main__':

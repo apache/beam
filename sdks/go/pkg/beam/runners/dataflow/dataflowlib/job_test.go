@@ -17,8 +17,17 @@ package dataflowlib
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"testing"
+
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/protox"
+	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
+	df "google.golang.org/api/dataflow/v1b3"
+	"google.golang.org/protobuf/testing/protocmp"
 )
 
 func TestValidateWorkerSettings(t *testing.T) {
@@ -156,4 +165,118 @@ func TestValidateWorkerSettings(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCurrentStateMessage(t *testing.T) {
+	tests := []struct {
+		state   string
+		term    bool
+		want    string
+		wantErr error
+	}{
+		{state: "JOB_STATE_DONE", want: "Job JorbID-09876 succeeded!", term: true},
+		{state: "JOB_STATE_DRAINED", want: "Job JorbID-09876 drained", term: true},
+		{state: "JOB_STATE_UPDATED", want: "Job JorbID-09876 updated", term: true},
+		{state: "JOB_STATE_CANCELLED", want: "Job JorbID-09876 cancelled", term: true},
+		{state: "JOB_STATE_RUNNING", want: "Job still running ...", term: false},
+		{state: "JOB_STATE_FAILED", wantErr: fmt.Errorf("Job JorbID-09876 failed"), term: true},
+		{state: "Ossiphrage", want: "Job state: Ossiphrage ...", term: false},
+	}
+	for _, test := range tests {
+		t.Run(test.state, func(t *testing.T) {
+			const jobID = "JorbID-09876"
+			term, got, err := currentStateMessage(test.state, jobID)
+			if term != test.term {
+				termGot, termWant := "false (continues)", "true (terminal)"
+				if !test.term {
+					termGot, termWant = termWant, termGot
+				}
+				t.Errorf("currentStateMessage(%v, %q) = %v, want %v", test.state, jobID, termGot, termWant)
+			}
+			if err != nil && err.Error() != test.wantErr.Error() {
+				t.Errorf("currentStateMessage(%v, %q) = %v, want %v", test.state, jobID, err, test.wantErr)
+			}
+			if got != test.want {
+				t.Errorf("currentStateMessage(%v, %q) = %v, want %v", test.state, jobID, got, test.want)
+			}
+		})
+	}
+}
+
+func Test_containerImages(t *testing.T) {
+	type testcase struct {
+		name        string
+		envs        map[string]*pipepb.Environment
+		wantImages  []*df.SdkHarnessContainerImage
+		wantDisplay []string
+	}
+
+	type img struct {
+		id, image string
+		single    bool
+		caps      []string
+	}
+
+	newCase := func(name string, imgs ...img) testcase {
+		envs := map[string]*pipepb.Environment{}
+		images := []*df.SdkHarnessContainerImage{}
+		display := []string{}
+
+		for _, i := range imgs {
+			envs[i.id] = &pipepb.Environment{
+				Capabilities: i.caps,
+				Payload: protox.MustEncode(&pipepb.DockerPayload{
+					ContainerImage: i.image,
+				}),
+			}
+			images = append(images, &df.SdkHarnessContainerImage{
+				ContainerImage:            i.image,
+				UseSingleCorePerContainer: i.single,
+				Capabilities:              i.caps,
+				EnvironmentId:             i.id,
+			})
+			display = append(display, i.image)
+		}
+		return testcase{
+			name:        name,
+			envs:        envs,
+			wantImages:  images,
+			wantDisplay: display,
+		}
+	}
+
+	tests := []testcase{
+		newCase("go", img{"go", "goImage", false, []string{graphx.URNMultiCore}}),
+		newCase("py", img{"py", "pyImage", true, []string{graphx.URNWorkerStatus}}),
+		newCase("multi",
+			img{"py", "pyImage", true, []string{graphx.URNWorkerStatus}},
+			img{"go", "goImage", false, []string{graphx.URNMultiCore}},
+			img{"java", "javaImage", false, []string{graphx.URNMultiCore, graphx.URNExpand}},
+		),
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			pipeline := &pipepb.Pipeline{
+				Components: &pipepb.Components{
+					Environments: test.envs,
+				},
+			}
+			gotImages, gotDisplay, err := containerImages(pipeline)
+			if err != nil {
+				t.Fatalf("containerImages(...) error = %v, want nil", err)
+			}
+			less := func(a, b *df.SdkHarnessContainerImage) bool {
+				return a.ContainerImage < b.ContainerImage
+			}
+			if d := cmp.Diff(test.wantImages, gotImages, protocmp.Transform(), cmpopts.SortSlices(less)); d != "" {
+				t.Errorf("containerImages(...) images diff; (-want, +got)\n%v", d)
+			}
+			if d := cmp.Diff(test.wantDisplay, gotDisplay, cmpopts.SortSlices(func(a, b string) bool { return a < b })); d != "" {
+				t.Errorf("containerImages(...) display diff; (-want, +got)\n%v", d)
+			}
+		})
+
+	}
+
 }

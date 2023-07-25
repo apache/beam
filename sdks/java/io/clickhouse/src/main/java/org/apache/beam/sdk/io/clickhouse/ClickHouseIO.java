@@ -17,6 +17,11 @@
  */
 package org.apache.beam.sdk.io.clickhouse;
 
+import com.clickhouse.client.ClickHouseFormat;
+import com.clickhouse.client.ClickHouseRequest;
+import com.clickhouse.jdbc.ClickHouseConnection;
+import com.clickhouse.jdbc.ClickHouseDataSource;
+import com.clickhouse.jdbc.ClickHouseStatement;
 import com.google.auto.value.AutoValue;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -25,8 +30,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 import java.util.stream.Collectors;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.clickhouse.TableSchema.ColumnType;
 import org.apache.beam.sdk.io.clickhouse.TableSchema.DefaultType;
 import org.apache.beam.sdk.metrics.Counter;
@@ -47,16 +50,11 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import ru.yandex.clickhouse.ClickHouseConnection;
-import ru.yandex.clickhouse.ClickHouseDataSource;
-import ru.yandex.clickhouse.ClickHouseStatement;
-import ru.yandex.clickhouse.settings.ClickHouseQueryParam;
 
 /**
  * An IO to write to ClickHouse.
@@ -117,9 +115,8 @@ import ru.yandex.clickhouse.settings.ClickHouseQueryParam;
  * <p>Nested rows should be unnested using {@link Select#flattenedSchema()}. Type casting should be
  * done using {@link org.apache.beam.sdk.schemas.transforms.Cast} before {@link ClickHouseIO}.
  */
-@Experimental(Kind.SOURCE_SINK)
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class ClickHouseIO {
 
@@ -179,8 +176,8 @@ public class ClickHouseIO {
 
       Properties properties = properties();
 
-      set(properties, ClickHouseQueryParam.MAX_INSERT_BLOCK_SIZE, maxInsertBlockSize());
-      set(properties, ClickHouseQueryParam.INSERT_QUORUM, insertQuorum());
+      set(properties, "max_insert_block_size", maxInsertBlockSize());
+      set(properties, "insert_quorum", insertQuorum());
       set(properties, "insert_distributed_sync", insertDistributedSync());
       set(properties, "insert_deduplication", insertDeduplicate());
 
@@ -328,22 +325,6 @@ public class ClickHouseIO {
       public abstract Write<T> build();
     }
 
-    private static void set(Properties properties, ClickHouseQueryParam param, Object value) {
-      if (value != null) {
-        Preconditions.checkArgument(
-            param.getClazz().isInstance(value),
-            "Unexpected value '"
-                + value
-                + "' for "
-                + param.getKey()
-                + " got "
-                + value.getClass().getName()
-                + ", expected "
-                + param.getClazz().getName());
-        properties.put(param, value);
-      }
-    }
-
     private static void set(Properties properties, String param, Object value) {
       if (value != null) {
         properties.put(param, value);
@@ -356,7 +337,7 @@ public class ClickHouseIO {
 
     private static final Logger LOG = LoggerFactory.getLogger(WriteFn.class);
     private static final String RETRY_ATTEMPT_LOG =
-        "Error writing to ClickHouse. Retry attempt[%d]";
+        "Error writing to ClickHouse. Retry attempt[{}]";
 
     private ClickHouseConnection connection;
     private FluentBackoff retryBackoff;
@@ -366,7 +347,7 @@ public class ClickHouseIO {
 
     // TODO: This should be the same as resolved so that Beam knows which fields
     // are being accessed. Currently Beam only supports wildcard descriptors.
-    // Once BEAM-4457 is fixed, fix this.
+    // Once https://github.com/apache/beam/issues/18903 is fixed, fix this.
     @FieldAccess("filterFields")
     final FieldAccessDescriptor fieldAccessDescriptor = FieldAccessDescriptor.withAllFields();
 
@@ -398,6 +379,7 @@ public class ClickHouseIO {
 
     @Setup
     public void setup() throws SQLException {
+
       connection = new ClickHouseDataSource(jdbcUrl(), properties()).getConnection();
 
       retryBackoff =
@@ -440,16 +422,20 @@ public class ClickHouseIO {
       }
 
       batchSize.update(buffer.size());
-
       while (true) {
         try (ClickHouseStatement statement = connection.createStatement()) {
-          statement.sendRowBinaryStream(
-              insertSql(schema(), table()),
-              stream -> {
-                for (Row row : buffer) {
-                  ClickHouseWriter.writeRow(stream, schema(), row);
-                }
-              });
+          statement
+              .unwrap(ClickHouseRequest.class)
+              .write()
+              .table(table())
+              .format(ClickHouseFormat.RowBinary)
+              .data(
+                  out -> {
+                    for (Row row : buffer) {
+                      ClickHouseWriter.writeRow(out, schema(), row);
+                    }
+                  })
+              .sendAndWait(); // query happens in a separate thread
           buffer.clear();
           break;
         } catch (SQLException e) {
@@ -457,7 +443,7 @@ public class ClickHouseIO {
             throw e;
           } else {
             retries.inc();
-            LOG.warn(String.format(RETRY_ATTEMPT_LOG, attempt), e);
+            LOG.warn(RETRY_ATTEMPT_LOG, attempt, e);
             attempt++;
           }
         }

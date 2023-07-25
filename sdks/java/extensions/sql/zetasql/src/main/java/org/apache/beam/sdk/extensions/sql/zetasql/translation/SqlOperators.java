@@ -19,7 +19,12 @@ package org.apache.beam.sdk.extensions.sql.zetasql.translation;
 
 import static org.apache.beam.sdk.extensions.sql.zetasql.BeamZetaSqlCatalog.ZETASQL_FUNCTION_GROUP_NAME;
 
+import com.google.zetasql.Value;
+import com.google.zetasql.io.grpc.Status;
+import com.google.zetasql.io.grpc.StatusRuntimeException;
+import com.google.zetasql.resolvedast.ResolvedNodes;
 import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Internal;
@@ -31,35 +36,36 @@ import org.apache.beam.sdk.extensions.sql.impl.transform.agg.CountIf;
 import org.apache.beam.sdk.extensions.sql.impl.udaf.ArrayAgg;
 import org.apache.beam.sdk.extensions.sql.impl.udaf.StringAgg;
 import org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils;
+import org.apache.beam.sdk.extensions.sql.zetasql.ZetaSqlException;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.impl.BeamBuiltinMethods;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.impl.CastFunctionImpl;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.jdbc.JavaTypeFactoryImpl;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.type.RelDataType;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.type.RelDataTypeFactory;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.type.RelDataTypeFactoryImpl;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.schema.AggregateFunction;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.schema.Function;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.schema.FunctionParameter;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.schema.ScalarFunction;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlFunction;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlFunctionCategory;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlIdentifier;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlKind;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlOperator;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlSyntax;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.parser.SqlParserPos;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.type.ArraySqlType;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.type.FamilyOperandTypeChecker;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.type.InferTypes;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.type.OperandTypes;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.type.SqlReturnTypeInference;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.type.SqlTypeFactoryImpl;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.type.SqlTypeFamily;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.type.SqlTypeName;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.validate.SqlUserDefinedAggFunction;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.validate.SqlUserDefinedFunction;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.util.Optionality;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.util.Util;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.jdbc.JavaTypeFactoryImpl;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.type.RelDataType;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.type.RelDataTypeFactoryImpl;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.AggregateFunction;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.Function;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.FunctionParameter;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.ScalarFunction;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlFunction;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlFunctionCategory;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlIdentifier;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlKind;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlOperator;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlSyntax;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.type.ArraySqlType;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.type.FamilyOperandTypeChecker;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.type.InferTypes;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.type.OperandTypes;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.type.SqlReturnTypeInference;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.type.SqlTypeFactoryImpl;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.type.SqlTypeFamily;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.validate.SqlUserDefinedAggFunction;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.validate.SqlUserDefinedFunction;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.Optionality;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.Util;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 
@@ -69,7 +75,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
  */
 @Internal
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class SqlOperators {
   public static final SqlOperator ZETASQL_TIMESTAMP_ADD =
@@ -80,12 +86,6 @@ public class SqlOperators {
   private static final RelDataType NULLABLE_TIMESTAMP = createSqlType(SqlTypeName.TIMESTAMP, true);
   private static final RelDataType BIGINT = createSqlType(SqlTypeName.BIGINT, false);
   private static final RelDataType NULLABLE_BIGINT = createSqlType(SqlTypeName.BIGINT, true);
-
-  public static final SqlOperator STRING_AGG_STRING_FN =
-      createUdafOperator(
-          "string_agg",
-          x -> createTypeFactory().createSqlType(SqlTypeName.VARCHAR),
-          new UdafImpl<>(new StringAgg.StringAggString()));
 
   public static final SqlOperator ARRAY_AGG_FN =
       createUdafOperator(
@@ -179,6 +179,49 @@ public class SqlOperators {
           null,
           null,
           new CastFunctionImpl());
+
+  public static SqlOperator createStringAggOperator(
+      ResolvedNodes.ResolvedFunctionCallBase aggregateFunctionCall) {
+    List<ResolvedNodes.ResolvedExpr> args = aggregateFunctionCall.getArgumentList();
+    String inputType = args.get(0).getType().typeName();
+    Value delimiter = null;
+    if (args.size() == 2) {
+      ResolvedNodes.ResolvedExpr resolvedExpr = args.get(1);
+      if (resolvedExpr instanceof ResolvedNodes.ResolvedLiteral) {
+        delimiter = ((ResolvedNodes.ResolvedLiteral) resolvedExpr).getValue();
+      } else {
+        // TODO(https://github.com/apache/beam/issues/21283) Add support for params
+        throw new ZetaSqlException(
+            new StatusRuntimeException(
+                Status.INVALID_ARGUMENT.withDescription(
+                    String.format(
+                        "STRING_AGG only supports ResolvedLiteral as delimiter, provided %s",
+                        resolvedExpr.getClass().getName()))));
+      }
+    }
+
+    switch (inputType) {
+      case "BYTES":
+        return SqlOperators.createUdafOperator(
+            "string_agg",
+            x -> SqlOperators.createTypeFactory().createSqlType(SqlTypeName.VARBINARY),
+            new UdafImpl<>(
+                new StringAgg.StringAggByte(
+                    delimiter == null
+                        ? ",".getBytes(StandardCharsets.UTF_8)
+                        : delimiter.getBytesValue().toByteArray())));
+      case "STRING":
+        return SqlOperators.createUdafOperator(
+            "string_agg",
+            x -> SqlOperators.createTypeFactory().createSqlType(SqlTypeName.VARCHAR),
+            new UdafImpl<>(
+                new StringAgg.StringAggString(
+                    delimiter == null ? "," : delimiter.getStringValue())));
+      default:
+        throw new UnsupportedOperationException(
+            String.format("[%s] is not supported in STRING_AGG", inputType));
+    }
+  }
 
   /**
    * Create a dummy SqlFunction of type OTHER_FUNCTION from given function name and return type.

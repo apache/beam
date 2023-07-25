@@ -46,7 +46,7 @@ public abstract class InsertRetryPolicy implements Serializable {
 
   // A list of known persistent errors for which retrying never helps.
   static final Set<String> PERSISTENT_ERRORS =
-      ImmutableSet.of("invalid", "invalidQuery", "notImplemented");
+      ImmutableSet.of("invalid", "invalidQuery", "notImplemented", "row-too-large", "parseError");
 
   /** Return true if this failure should be retried. */
   public abstract boolean shouldRetry(Context context);

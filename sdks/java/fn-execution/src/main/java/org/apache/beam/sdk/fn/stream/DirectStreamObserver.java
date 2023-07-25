@@ -20,10 +20,9 @@ package org.apache.beam.sdk.fn.stream;
 import java.util.concurrent.Phaser;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.concurrent.ThreadSafe;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.CallStreamObserver;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.CallStreamObserver;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,7 +33,8 @@ import org.slf4j.LoggerFactory;
  * <p>Flow control with the underlying {@link CallStreamObserver} is handled with a {@link Phaser}
  * which waits for advancement of the phase if the {@link CallStreamObserver} is not ready. Creator
  * is expected to advance the {@link Phaser} whenever the underlying {@link CallStreamObserver}
- * becomes ready.
+ * becomes ready. If the {@link Phaser} is terminated, {@link DirectStreamObserver<T>.onNext(T)}
+ * will no longer wait for the {@link CallStreamObserver} to become ready.
  */
 @ThreadSafe
 public final class DirectStreamObserver<T> implements StreamObserver<T> {
@@ -43,9 +43,17 @@ public final class DirectStreamObserver<T> implements StreamObserver<T> {
 
   private final Phaser phaser;
   private final CallStreamObserver<T> outboundObserver;
+
+  /**
+   * Controls the number of messages that will be sent before isReady is invoked for the following
+   * message. For example, maxMessagesBeforeCheck = 0, would mean to check isReady for each message
+   * while maxMessagesBeforeCheck = 10, would mean that you are willing to send 10 messages and then
+   * check isReady before the 11th message is sent.
+   */
   private final int maxMessagesBeforeCheck;
 
-  private AtomicInteger numMessages = new AtomicInteger();
+  private final Object lock = new Object();
+  private int numMessages = -1;
 
   public DirectStreamObserver(Phaser phaser, CallStreamObserver<T> outboundObserver) {
     this(phaser, outboundObserver, DEFAULT_MAX_MESSAGES_BEFORE_CHECK);
@@ -60,55 +68,61 @@ public final class DirectStreamObserver<T> implements StreamObserver<T> {
 
   @Override
   public void onNext(T value) {
-    if (maxMessagesBeforeCheck <= 1
-        || numMessages.incrementAndGet() % maxMessagesBeforeCheck == 0) {
-      int waitTime = 1;
-      int totalTimeWaited = 0;
-      int phase = phaser.getPhase();
-      while (!outboundObserver.isReady()) {
-        try {
-          phaser.awaitAdvanceInterruptibly(phase, waitTime, TimeUnit.SECONDS);
-        } catch (TimeoutException e) {
-          totalTimeWaited += waitTime;
-          waitTime = waitTime * 2;
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-          throw new RuntimeException(e);
+    synchronized (lock) {
+      if (++numMessages >= maxMessagesBeforeCheck) {
+        numMessages = 0;
+        int waitSeconds = 1;
+        int totalSecondsWaited = 0;
+        int phase = phaser.getPhase();
+        // Record the initial phase in case we are in the inbound gRPC thread where the phase won't
+        // advance.
+        int initialPhase = phase;
+        // A negative phase indicates that the phaser is terminated.
+        while (phase >= 0 && !outboundObserver.isReady()) {
+          try {
+            phase = phaser.awaitAdvanceInterruptibly(phase, waitSeconds, TimeUnit.SECONDS);
+          } catch (TimeoutException e) {
+            totalSecondsWaited += waitSeconds;
+            // Double the backoff for re-evaluating the isReady bit up to a maximum of once per
+            // minute. This bounds the waiting if the onReady callback is not called as expected.
+            waitSeconds = Math.min(waitSeconds * 2, 60);
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException(e);
+          }
+        }
+        if (totalSecondsWaited > 0) {
+          // If the phase didn't change, this means that the installed onReady callback had not
+          // been invoked.
+          if (initialPhase == phase) {
+            LOG.info(
+                "Output channel stalled for {}s, outbound thread {}. See: "
+                    + "https://issues.apache.org/jira/browse/BEAM-4280 for the history for "
+                    + "this issue.",
+                totalSecondsWaited,
+                Thread.currentThread().getName());
+          } else {
+            LOG.debug(
+                "Output channel stalled for {}s, outbound thread {}.",
+                totalSecondsWaited,
+                Thread.currentThread().getName());
+          }
         }
       }
-      if (totalTimeWaited > 0) {
-        // If the phase didn't change, this means that the installed onReady callback had not
-        // been invoked.
-        if (phase == phaser.getPhase()) {
-          LOG.info(
-              "Output channel stalled for {}s, outbound thread {}. See: "
-                  + "https://issues.apache.org/jira/browse/BEAM-4280 for the history for "
-                  + "this issue.",
-              totalTimeWaited,
-              Thread.currentThread().getName());
-        } else {
-          LOG.debug(
-              "Output channel stalled for {}s, outbound thread {}.",
-              totalTimeWaited,
-              Thread.currentThread().getName());
-        }
-      }
-    }
-    synchronized (outboundObserver) {
       outboundObserver.onNext(value);
     }
   }
 
   @Override
   public void onError(Throwable t) {
-    synchronized (outboundObserver) {
+    synchronized (lock) {
       outboundObserver.onError(t);
     }
   }
 
   @Override
   public void onCompleted() {
-    synchronized (outboundObserver) {
+    synchronized (lock) {
       outboundObserver.onCompleted();
     }
   }

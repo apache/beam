@@ -29,7 +29,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Random;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -48,9 +47,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * @param <T> Type of input PCollection.
  */
-@Experimental
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 abstract class AnnotateImages<T>
     extends PTransform<PCollection<T>, PCollection<List<AnnotateImageResponse>>> {

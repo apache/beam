@@ -42,7 +42,8 @@ ENV DEBCONF_TERSE true
 ###
 RUN apt -q update \
    && apt install -y software-properties-common apt-utils apt-transport-https ca-certificates \
-   && add-apt-repository -y ppa:deadsnakes/ppa
+   && add-apt-repository -y ppa:deadsnakes/ppa \
+   && apt -q update
 
 RUN mkdir /package
 COPY pkglist /package/pkglist
@@ -66,7 +67,7 @@ RUN alias python=python3.6
 ###
 # Install grpcio-tools mypy-protobuf for `python3 sdks/python/setup.py sdist` to work
 ###
-RUN pip3 install grpcio-tools mypy-protobuf virtualenv
+RUN pip3 install grpcio-tools mypy-protobuf
 
 ###
 # Install useful tools
@@ -77,7 +78,7 @@ RUN pip3 install distlib==0.3.1 yapf==0.29.0 pytest
 ###
 # Install Go
 ###
-ENV DOWNLOAD_GO_VERSION=1.12.17
+ENV DOWNLOAD_GO_VERSION=1.19.6
 RUN wget https://golang.org/dl/go${DOWNLOAD_GO_VERSION}.linux-amd64.tar.gz && \
     tar -C /usr/local -xzf go${DOWNLOAD_GO_VERSION}.linux-amd64.tar.gz
 ENV GOROOT /usr/local/go

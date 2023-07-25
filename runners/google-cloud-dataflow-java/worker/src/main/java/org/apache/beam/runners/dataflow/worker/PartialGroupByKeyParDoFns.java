@@ -55,7 +55,7 @@ import org.joda.time.Instant;
 
 /** A factory class that creates {@link ParDoFn} for {@link PartialGroupByKeyInstruction}. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class PartialGroupByKeyParDoFns {
   public static <K, InputT, AccumT> ParDoFn create(

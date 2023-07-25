@@ -19,12 +19,9 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.hcatalog;
 
 import com.google.auto.value.AutoValue;
 import java.util.Map;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
 import org.apache.beam.sdk.extensions.sql.meta.BaseBeamTable;
 import org.apache.beam.sdk.io.hcatalog.HCatToRow;
 import org.apache.beam.sdk.io.hcatalog.HCatalogIO;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -37,7 +34,6 @@ import org.apache.beam.sdk.values.Row;
  * <p>Reads {@code HCatRecords} and converts them to {@link Row Rows}.
  */
 @AutoValue
-@Experimental
 public abstract class HCatalogTable extends BaseBeamTable {
 
   public abstract Schema schema();
@@ -67,11 +63,6 @@ public abstract class HCatalogTable extends BaseBeamTable {
   @Override
   public PCollection.IsBounded isBounded() {
     return PCollection.IsBounded.BOUNDED;
-  }
-
-  @Override
-  public BeamTableStatistics getTableStatistics(PipelineOptions options) {
-    return BeamTableStatistics.BOUNDED_UNKNOWN;
   }
 
   @Override

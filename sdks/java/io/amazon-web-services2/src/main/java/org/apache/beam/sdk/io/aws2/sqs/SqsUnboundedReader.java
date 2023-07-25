@@ -17,13 +17,23 @@
  */
 package org.apache.beam.sdk.io.aws2.sqs;
 
+import static java.lang.Boolean.FALSE;
+import static java.lang.Boolean.TRUE;
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static java.util.stream.Collectors.groupingBy;
+import static java.util.function.Function.identity;
+import static java.util.stream.Collectors.mapping;
+import static java.util.stream.Collectors.partitioningBy;
+import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
+import static java.util.stream.Collectors.toSet;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Collections2.transform;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Streams.mapWithIndex;
+import static software.amazon.awssdk.services.sqs.model.MessageSystemAttributeName.SENT_TIMESTAMP;
 import static software.amazon.awssdk.services.sqs.model.QueueAttributeName.VISIBILITY_TIMEOUT;
 
 import java.io.IOException;
+import java.time.Clock;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -31,23 +41,29 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.Objects;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
+import java.util.function.Function;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
+import org.apache.beam.sdk.io.aws2.common.ClientBuilderFactory;
+import org.apache.beam.sdk.io.aws2.common.ClientConfiguration;
+import org.apache.beam.sdk.io.aws2.options.AwsOptions;
 import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.Max;
+import org.apache.beam.sdk.transforms.Min;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.BucketingFunction;
 import org.apache.beam.sdk.util.MovingFunction;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Streams.FunctionWithIndex;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -60,16 +76,16 @@ import software.amazon.awssdk.services.sqs.model.ChangeMessageVisibilityBatchRes
 import software.amazon.awssdk.services.sqs.model.DeleteMessageBatchRequest;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageBatchRequestEntry;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageBatchResponse;
-import software.amazon.awssdk.services.sqs.model.GetQueueAttributesRequest;
 import software.amazon.awssdk.services.sqs.model.Message;
-import software.amazon.awssdk.services.sqs.model.MessageSystemAttributeName;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse;
 
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class SqsUnboundedReader extends UnboundedSource.UnboundedReader<SqsMessage> {
+  private static final String RECEIPT_HANDLE_IS_INVALID = "ReceiptHandleIsInvalid";
+
   private static final Logger LOG = LoggerFactory.getLogger(SqsUnboundedReader.class);
 
   /** Maximum number of messages to pull from SQS per request. */
@@ -123,44 +139,29 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<SqsMessage> {
    */
   private static final int MIN_WATERMARK_SPREAD = 2;
 
-  // TODO: Would prefer to use MinLongFn but it is a BinaryCombineFn<Long> rather
-  // than a BinaryCombineLongFn. [BEAM-285]
-  private static final Combine.BinaryCombineLongFn MIN =
-      new Combine.BinaryCombineLongFn() {
-        @Override
-        public long apply(long left, long right) {
-          return Math.min(left, right);
-        }
+  private static final Combine.BinaryCombineLongFn MIN = Min.ofLongs();
 
-        @Override
-        public long identity() {
-          return Long.MAX_VALUE;
-        }
-      };
-
-  private static final Combine.BinaryCombineLongFn MAX =
-      new Combine.BinaryCombineLongFn() {
-        @Override
-        public long apply(long left, long right) {
-          return Math.max(left, right);
-        }
-
-        @Override
-        public long identity() {
-          return Long.MIN_VALUE;
-        }
-      };
+  private static final Combine.BinaryCombineLongFn MAX = Max.ofLongs();
 
   private static final Combine.BinaryCombineLongFn SUM = Sum.ofLongs();
 
   /** For access to topic and SQS client. */
   private final SqsUnboundedSource source;
 
+  /** Clock for internal time. */
+  private final Clock clock;
+
+  /** AWS options. */
+  private final AwsOptions awsOptions;
+
   /**
    * The closed state of this {@link SqsUnboundedReader}. If true, the reader has not yet been
    * closed, and it will have a non-null value within {@link #SqsUnboundedReader}.
    */
   private AtomicBoolean active = new AtomicBoolean(true);
+
+  /** SQS client of this reader instance. */
+  private SqsClient sqsClient = null;
 
   /** The current message, or {@literal null} if none. */
   private SqsMessage current;
@@ -311,11 +312,24 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<SqsMessage> {
         function);
   }
 
-  public SqsUnboundedReader(SqsUnboundedSource source, SqsCheckpointMark sqsCheckpointMark)
+  public SqsUnboundedReader(
+      SqsUnboundedSource source, SqsCheckpointMark sqsCheckpointMark, AwsOptions awsOptions)
+      throws IOException {
+    this(source, sqsCheckpointMark, awsOptions, Clock.systemUTC());
+  }
+
+  @VisibleForTesting
+  SqsUnboundedReader(
+      SqsUnboundedSource source,
+      SqsCheckpointMark sqsCheckpointMark,
+      AwsOptions awsOptions,
+      Clock clock)
       throws IOException {
     this.source = source;
+    this.clock = clock;
+    this.awsOptions = awsOptions;
 
-    messagesNotYetRead = new ArrayDeque<>();
+    messagesNotYetRead = new ArrayDeque<>(MAX_NUMBER_OF_MESSAGES);
     safeToDeleteIds = new HashSet<>();
     inFlight = new LinkedHashMap<>();
     deletedIds = new ConcurrentLinkedQueue<>();
@@ -346,9 +360,8 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<SqsMessage> {
     maxInFlightCheckpoints = 0;
 
     if (sqsCheckpointMark != null) {
-      long nowMsSinceEpoch = now();
-      extendBatch(nowMsSinceEpoch, sqsCheckpointMark.notYetReadReceipts, 0);
-      numReleased.add(nowMsSinceEpoch, sqsCheckpointMark.notYetReadReceipts.size());
+      initClient();
+      expireBatchForRedelivery(sqsCheckpointMark.notYetReadReceipts);
     }
   }
 
@@ -398,7 +411,7 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<SqsMessage> {
       throw new NoSuchElementException();
     }
 
-    return getTimestamp(current.getTimeStamp());
+    return new Instant(current.getTimeStamp());
   }
 
   @Override
@@ -413,12 +426,8 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<SqsMessage> {
   public CheckpointMark getCheckpointMark() {
     int cur = numInFlightCheckpoints.incrementAndGet();
     maxInFlightCheckpoints = Math.max(maxInFlightCheckpoints, cur);
-    List<String> snapshotSafeToDeleteIds = Lists.newArrayList(safeToDeleteIds);
-    List<String> snapshotNotYetReadReceipts = new ArrayList<>(messagesNotYetRead.size());
-    for (SqsMessage message : messagesNotYetRead) {
-      snapshotNotYetReadReceipts.add(message.getReceiptHandle());
-    }
-    return new SqsCheckpointMark(this, snapshotSafeToDeleteIds, snapshotNotYetReadReceipts);
+    return new SqsCheckpointMark(
+        this, safeToDeleteIds, transform(messagesNotYetRead, SqsMessage::getReceiptHandle));
   }
 
   @Override
@@ -428,19 +437,25 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<SqsMessage> {
 
   @Override
   public boolean start() throws IOException {
-    visibilityTimeoutMs =
-        Integer.parseInt(
-                source
-                    .getSqs()
-                    .getQueueAttributes(
-                        GetQueueAttributesRequest.builder()
-                            .queueUrl(source.getRead().queueUrl())
-                            .attributeNames(VISIBILITY_TIMEOUT)
-                            .build())
-                    .attributes()
-                    .get(VISIBILITY_TIMEOUT))
-            * 1000L;
+    initClient();
+    String timeout =
+        sqsClient
+            .getQueueAttributes(b -> b.queueUrl(queueUrl()).attributeNames(VISIBILITY_TIMEOUT))
+            .attributes()
+            .get(VISIBILITY_TIMEOUT);
+    visibilityTimeoutMs = Integer.parseInt(timeout) * 1000L;
     return advance();
+  }
+
+  private String queueUrl() {
+    return source.getRead().queueUrl();
+  }
+
+  private void initClient() {
+    if (sqsClient == null) {
+      ClientConfiguration config = source.getRead().clientConfiguration();
+      sqsClient = ClientBuilderFactory.buildClient(awsOptions, SqsClient.builder(), config);
+    }
   }
 
   @Override
@@ -450,7 +465,7 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<SqsMessage> {
 
     if (current != null) {
       // Current is consumed. It can no longer contribute to holding back the watermark.
-      minUnreadTimestampMsSinceEpoch.remove(Long.parseLong(current.getRequestTimeStamp()));
+      minUnreadTimestampMsSinceEpoch.remove(current.getRequestTimeStamp());
       current = null;
     }
 
@@ -477,12 +492,13 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<SqsMessage> {
       // Try again later.
       return false;
     }
-    notYetReadBytes -= current.getBody().getBytes(UTF_8).length;
+    int currentBytes = current.getBody().getBytes(UTF_8).length;
+    notYetReadBytes -= currentBytes;
     checkState(notYetReadBytes >= 0);
     long nowMsSinceEpoch = now();
-    numReadBytes.add(nowMsSinceEpoch, current.getBody().getBytes(UTF_8).length);
+    numReadBytes.add(nowMsSinceEpoch, currentBytes);
     minReadTimestampMsSinceEpoch.add(nowMsSinceEpoch, getCurrentTimestamp().getMillis());
-    ;
+
     if (getCurrentTimestamp().getMillis() < lastWatermarkMsSinceEpoch) {
       numLateMessages.add(nowMsSinceEpoch, 1L);
     }
@@ -515,79 +531,93 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<SqsMessage> {
     if (!active.get() && numInFlightCheckpoints.get() == 0) {
       // The reader has been closed and it has no more outstanding checkpoints. The client
       // must be closed so it doesn't leak
-      SqsClient client = source.getSqs();
-      if (client != null) {
-        client.close();
+      if (sqsClient != null) {
+        sqsClient.close();
       }
     }
   }
 
-  /** delete the provided {@code messageIds} from SQS. */
+  /**
+   * Delete the provided {@code messageIds} from SQS in multiple batches. Each batch except the last
+   * one is of size {@code DELETE_BATCH_SIZE}. Message ids that already got removed from {@code
+   * inFlight} messages are ignored.
+   *
+   * <p>CAUTION: May be invoked from a separate thread.
+   */
   void delete(List<String> messageIds) throws IOException {
-    AtomicInteger counter = new AtomicInteger();
-    for (List<String> messageList :
-        messageIds.stream()
-            .collect(groupingBy(x -> counter.getAndIncrement() / DELETE_BATCH_SIZE))
-            .values()) {
-      deleteBatch(messageList);
+    ArrayList<String> receiptHandles = new ArrayList<>(DELETE_BATCH_SIZE);
+    for (String msgId : messageIds) {
+      InFlightState state = inFlight.get(msgId);
+      if (state == null) {
+        continue;
+      }
+      receiptHandles.add(state.receiptHandle);
+      if (receiptHandles.size() == DELETE_BATCH_SIZE) {
+        deleteBatch(receiptHandles);
+        receiptHandles.clear();
+      }
     }
+    if (!receiptHandles.isEmpty()) {
+      deleteBatch(receiptHandles);
+    }
+    deletedIds.add(messageIds);
   }
 
   /**
-   * delete the provided {@code messageIds} from SQS, blocking until all of the messages are
-   * deleted.
+   * Delete the provided {@code receiptHandles} from SQS. Blocking until all messages are deleted.
    *
    * <p>CAUTION: May be invoked from a separate thread.
-   *
-   * <p>CAUTION: Retains {@code messageIds}.
    */
-  private void deleteBatch(List<String> messageIds) throws IOException {
+  private void deleteBatch(List<String> receiptHandles) throws IOException {
     int retries = 0;
-    Map<String, String> pendingReceipts =
-        IntStream.range(0, messageIds.size())
-            .boxed()
-            .filter(i -> inFlight.containsKey(messageIds.get(i)))
-            .collect(toMap(Object::toString, i -> inFlight.get(messageIds.get(i)).receiptHandle));
 
-    while (!pendingReceipts.isEmpty()) {
+    FunctionWithIndex<String, DeleteMessageBatchRequestEntry> buildEntry =
+        (handle, id) ->
+            DeleteMessageBatchRequestEntry.builder()
+                .id(Long.toString(id))
+                .receiptHandle(handle)
+                .build();
+
+    Map<String, DeleteMessageBatchRequestEntry> pendingDeletes =
+        mapWithIndex(receiptHandles.stream(), buildEntry).collect(toMap(e -> e.id(), identity()));
+
+    while (!pendingDeletes.isEmpty()) {
 
       if (retries >= BATCH_OPERATION_MAX_RETIRES) {
         throw new IOException(
-            "Failed to extend visibility timeout for "
-                + pendingReceipts.size()
+            "Failed to delete "
+                + pendingDeletes.size()
                 + " messages after "
                 + retries
                 + " retries");
       }
 
-      List<DeleteMessageBatchRequestEntry> entries =
-          pendingReceipts.entrySet().stream()
-              .map(
-                  r ->
-                      DeleteMessageBatchRequestEntry.builder()
-                          .id(r.getKey())
-                          .receiptHandle(r.getValue())
-                          .build())
-              .collect(Collectors.toList());
-
       DeleteMessageBatchResponse result =
-          source
-              .getSqs()
-              .deleteMessageBatch(
-                  DeleteMessageBatchRequest.builder()
-                      .queueUrl(source.getRead().queueUrl())
-                      .entries(entries)
-                      .build());
+          sqsClient.deleteMessageBatch(
+              DeleteMessageBatchRequest.builder()
+                  .queueUrl(queueUrl())
+                  .entries(pendingDeletes.values())
+                  .build());
 
-      // Reflect failed message IDs to map
-      pendingReceipts
-          .keySet()
-          .retainAll(
-              result.failed().stream().map(BatchResultErrorEntry::id).collect(Collectors.toSet()));
+      Map<Boolean, Set<String>> failures =
+          result.failed().stream()
+              .collect(partitioningBy(this::isHandleInvalid, mapping(e -> e.id(), toSet())));
+
+      // Keep failed IDs only, but discard invalid receipt handles
+      pendingDeletes.keySet().retainAll(failures.getOrDefault(FALSE, ImmutableSet.of()));
+
+      int invalidHandles = failures.getOrDefault(TRUE, ImmutableSet.of()).size();
+      if (invalidHandles > 0) {
+        LOG.warn("Failed to delete {} messages due to expired receipt handles.", invalidHandles);
+      }
 
       retries += 1;
     }
-    deletedIds.add(messageIds);
+  }
+
+  /** Check {@link BatchResultErrorEntry#code()} for invalid expired receipt handles. */
+  private boolean isHandleInvalid(BatchResultErrorEntry error) {
+    return RECEIPT_HANDLE_IS_INVALID.equals(error.code());
   }
 
   /**
@@ -609,7 +639,7 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<SqsMessage> {
     }
   }
 
-  /** BLOCKING Fetch another batch of messages from SQS. */
+  /** BLOCKING. Fetch another batch of messages from SQS. */
   private void pull() {
     if (inFlight.size() >= MAX_IN_FLIGHT) {
       // Wait for checkpoint to be finalized before pulling anymore.
@@ -625,12 +655,12 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<SqsMessage> {
     final ReceiveMessageRequest receiveMessageRequest =
         ReceiveMessageRequest.builder()
             .maxNumberOfMessages(MAX_NUMBER_OF_MESSAGES)
-            .attributeNamesWithStrings(MessageSystemAttributeName.SENT_TIMESTAMP.toString())
-            .queueUrl(source.getRead().queueUrl())
+            .attributeNamesWithStrings(SENT_TIMESTAMP.toString())
+            .queueUrl(queueUrl())
             .build();
 
     final ReceiveMessageResponse receiveMessageResponse =
-        source.getSqs().receiveMessage(receiveMessageRequest);
+        sqsClient.receiveMessage(receiveMessageRequest);
 
     final List<Message> messages = receiveMessageResponse.messages();
 
@@ -642,15 +672,14 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<SqsMessage> {
 
     // Capture the received messages.
     for (Message orgMsg : messages) {
-      String timeStamp = orgMsg.attributes().get(MessageSystemAttributeName.SENT_TIMESTAMP);
-      String requestTimeStamp = Long.toString(requestTimeMsSinceEpoch);
+      long msgTimeStamp = Long.parseLong(orgMsg.attributes().get(SENT_TIMESTAMP));
       SqsMessage message =
           SqsMessage.create(
               orgMsg.body(),
               orgMsg.messageId(),
               orgMsg.receiptHandle(),
-              timeStamp,
-              requestTimeStamp);
+              msgTimeStamp,
+              requestTimeMsSinceEpoch);
       messagesNotYetRead.add(message);
       notYetReadBytes += message.getBody().getBytes(UTF_8).length;
       inFlight.put(
@@ -659,22 +688,19 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<SqsMessage> {
               message.getReceiptHandle(), requestTimeMsSinceEpoch, deadlineMsSinceEpoch));
       numReceived++;
       numReceivedRecently.add(requestTimeMsSinceEpoch, 1L);
-      minReceivedTimestampMsSinceEpoch.add(
-          requestTimeMsSinceEpoch, getTimestamp(message.getTimeStamp()).getMillis());
-      maxReceivedTimestampMsSinceEpoch.add(
-          requestTimeMsSinceEpoch, getTimestamp(message.getTimeStamp()).getMillis());
-      minUnreadTimestampMsSinceEpoch.add(
-          requestTimeMsSinceEpoch, getTimestamp(message.getTimeStamp()).getMillis());
+      minReceivedTimestampMsSinceEpoch.add(requestTimeMsSinceEpoch, msgTimeStamp);
+      maxReceivedTimestampMsSinceEpoch.add(requestTimeMsSinceEpoch, msgTimeStamp);
+      minUnreadTimestampMsSinceEpoch.add(requestTimeMsSinceEpoch, msgTimeStamp);
     }
   }
 
   /** Return the current time, in ms since epoch. */
   long now() {
-    return System.currentTimeMillis();
+    return clock.millis();
   }
 
   /**
-   * BLOCKING Extend deadline for all messages which need it. CAUTION: If extensions can't keep up
+   * BLOCKING. Extend deadline for all messages which need it. CAUTION: If extensions can't keep up
    * with wallclock then we'll never return.
    */
   private void extend() throws IOException {
@@ -744,81 +770,105 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<SqsMessage> {
         // We'll try to track that on our side, but note the deadlines won't necessarily agree.
         long extensionMs = (int) ((visibilityTimeoutMs * VISIBILITY_EXTENSION_PCT) / 100L);
         long newDeadlineMsSinceEpoch = nowMsSinceEpoch + extensionMs;
+        List<KV<String, String>> messages = new ArrayList<>(toBeExtended.size());
+
         for (String messageId : toBeExtended) {
           // Maintain increasing ack deadline order.
-          String receiptHandle = inFlight.get(messageId).receiptHandle;
           InFlightState state = inFlight.remove(messageId);
-          inFlight.put(
-              messageId,
-              new InFlightState(
-                  receiptHandle, state.requestTimeMsSinceEpoch, newDeadlineMsSinceEpoch));
+          state.visibilityDeadlineMsSinceEpoch = newDeadlineMsSinceEpoch;
+          inFlight.put(messageId, state);
+          messages.add(KV.of(messageId, state.receiptHandle));
         }
-        List<String> receiptHandles =
-            toBeExtended.stream()
-                .map(inFlight::get)
-                .filter(Objects::nonNull) // get rid of null values
-                .map(m -> m.receiptHandle)
-                .collect(Collectors.toList());
+
         // BLOCKs until extended.
-        extendBatch(nowMsSinceEpoch, receiptHandles, (int) (extensionMs / 1000));
+        extendBatch(nowMsSinceEpoch, messages, (int) (extensionMs / 1000));
       }
     }
   }
 
   /**
-   * BLOCKING Extend the visibility timeout for messages from SQS with the given {@code
-   * receiptHandles}.
+   * BLOCKING. Set the SQS visibility timeout for messages in {@code receiptHandles} to zero for
+   * immediate redelivery.
    */
-  void extendBatch(long nowMsSinceEpoch, List<String> receiptHandles, int extensionSec)
+  void expireBatchForRedelivery(List<String> receiptHandles) throws IOException {
+    List<KV<String, String>> messages =
+        mapWithIndex(receiptHandles.stream(), (handle, idx) -> KV.of(Long.toString(idx), handle))
+            .collect(toList());
+
+    long nowMsSinceEpoch = now();
+    extendBatch(nowMsSinceEpoch, messages, 0);
+    numReleased.add(nowMsSinceEpoch, receiptHandles.size());
+  }
+
+  /**
+   * BLOCKING. Extend the SQS visibility timeout for messages in {@code messages} as {@link KV} of
+   * message id, receipt handle.
+   */
+  void extendBatch(long nowMsSinceEpoch, List<KV<String, String>> messages, int extensionSec)
       throws IOException {
     int retries = 0;
-    int numMessages = receiptHandles.size();
-    Map<String, String> pendingReceipts =
-        IntStream.range(0, receiptHandles.size())
-            .boxed()
-            .collect(toMap(Object::toString, receiptHandles::get));
 
-    while (!pendingReceipts.isEmpty()) {
+    Function<KV<String, String>, ChangeMessageVisibilityBatchRequestEntry> buildEntry =
+        kv ->
+            ChangeMessageVisibilityBatchRequestEntry.builder()
+                .visibilityTimeout(extensionSec)
+                .id(kv.getKey())
+                .receiptHandle(kv.getValue())
+                .build();
+
+    Map<String, ChangeMessageVisibilityBatchRequestEntry> pendingExtends =
+        messages.stream().collect(toMap(KV::getKey, buildEntry));
+
+    while (!pendingExtends.isEmpty()) {
 
       if (retries >= BATCH_OPERATION_MAX_RETIRES) {
         throw new IOException(
             "Failed to extend visibility timeout for "
-                + receiptHandles.size()
+                + messages.size()
                 + " messages after "
                 + retries
                 + " retries");
       }
 
-      List<ChangeMessageVisibilityBatchRequestEntry> entries =
-          pendingReceipts.entrySet().stream()
-              .map(
-                  r ->
-                      ChangeMessageVisibilityBatchRequestEntry.builder()
-                          .id(r.getKey())
-                          .receiptHandle(r.getValue())
-                          .visibilityTimeout(extensionSec)
-                          .build())
-              .collect(Collectors.toList());
-
       ChangeMessageVisibilityBatchResponse response =
-          source
-              .getSqs()
-              .changeMessageVisibilityBatch(
-                  ChangeMessageVisibilityBatchRequest.builder()
-                      .queueUrl(source.getRead().queueUrl())
-                      .entries(entries)
-                      .build());
+          sqsClient.changeMessageVisibilityBatch(
+              ChangeMessageVisibilityBatchRequest.builder()
+                  .queueUrl(queueUrl())
+                  .entries(pendingExtends.values())
+                  .build());
 
-      pendingReceipts
-          .keySet()
-          .retainAll(
-              response.failed().stream()
-                  .map(BatchResultErrorEntry::id)
-                  .collect(Collectors.toSet()));
+      Map<Boolean, Set<String>> failures =
+          response.failed().stream()
+              .collect(partitioningBy(this::isHandleInvalid, mapping(e -> e.id(), toSet())));
+
+      // Keep failed IDs only, but discard invalid (expired) receipt handles
+      pendingExtends.keySet().retainAll(failures.getOrDefault(FALSE, ImmutableSet.of()));
+
+      // Skip stats update and inFlight management if explicitly expiring messages for immediate
+      // redelivery
+      if (extensionSec > 0) {
+        numExtendedDeadlines.add(nowMsSinceEpoch, response.successful().size());
+
+        Set<String> invalidMsgIds = failures.getOrDefault(TRUE, ImmutableSet.of());
+        if (invalidMsgIds.size() > 0) {
+          // consider invalid (expired) messages no longer in flight
+          numLateDeadlines.add(nowMsSinceEpoch, invalidMsgIds.size());
+          for (String msgId : invalidMsgIds) {
+            inFlight.remove(msgId);
+          }
+          LOG.warn(
+              "Failed to extend visibility timeout for {} messages with expired receipt handles.",
+              invalidMsgIds.size());
+        }
+      }
 
       retries += 1;
     }
-    numExtendedDeadlines.add(nowMsSinceEpoch, numMessages);
+  }
+
+  @VisibleForTesting
+  long getVisibilityTimeoutMs() {
+    return visibilityTimeoutMs;
   }
 
   /** Log stats if time to do so. */
@@ -876,7 +926,7 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<SqsMessage> {
             + "{} min recent read timestamp (significance = {}), "
             + "{} min recent unread timestamp (significance = {}), "
             + "{} last receive timestamp",
-        source.getRead().queueUrl(),
+        queueUrl(),
         numReceived,
         messagesNotYetRead.size(),
         notYetReadBytes,
@@ -902,9 +952,5 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<SqsMessage> {
         new Instant(lastReceivedMsSinceEpoch));
 
     lastLogTimestampMsSinceEpoch = nowMsSinceEpoch;
-  }
-
-  private Instant getTimestamp(String timeStamp) {
-    return new Instant(Long.parseLong(timeStamp));
   }
 }

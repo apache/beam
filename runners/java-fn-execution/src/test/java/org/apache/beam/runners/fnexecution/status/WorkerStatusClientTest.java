@@ -26,7 +26,7 @@ import java.util.concurrent.ExecutionException;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.WorkerStatusRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.WorkerStatusResponse;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.StreamObserver;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -68,8 +68,9 @@ public class WorkerStatusClientTest {
   }
 
   @Test
+  @SuppressWarnings("FutureReturnValueIgnored")
   public void testGetWorkerStatusRequestSent() {
-    CompletableFuture<WorkerStatusResponse> workerStatus = client.getWorkerStatus();
+    client.getWorkerStatus();
     verify(mockObserver).onNext(any(WorkerStatusRequest.class));
   }
 

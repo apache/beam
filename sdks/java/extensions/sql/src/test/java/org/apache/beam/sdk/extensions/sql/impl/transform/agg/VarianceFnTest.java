@@ -92,12 +92,12 @@ public class VarianceFnTest {
   }
 
   @Test
-  public void testCeatesAccumulatorCoder() {
+  public void testCreatesAccumulatorCoder() {
     assertNotNull(varianceFn.getAccumulatorCoder(CoderRegistry.createDefault(), VarIntCoder.of()));
   }
 
   @Test
-  public void testReturnsOutput() {
+  public void testExtractsOutput() {
     assertEquals(expectedExtractedResult, varianceFn.extractOutput(testAccumulatorInput));
   }
 }

@@ -37,6 +37,7 @@ import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.extensions.protobuf.PayloadMessages;
 import org.apache.beam.sdk.extensions.protobuf.ProtoMessageSchema;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
@@ -52,7 +53,6 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.Validation;
 import org.apache.beam.sdk.schemas.RowMessages;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
@@ -90,6 +90,9 @@ import org.testcontainers.utility.DockerImageName;
 
 /** Integration Test utility for KafkaTableProvider implementations. */
 @RunWith(Parameterized.class)
+// TODO(https://github.com/apache/beam/issues/21230): Remove when new version of errorprone is
+// released (2.11.0)
+@SuppressWarnings("unused")
 public class KafkaTableProviderIT {
   private static final String KAFKA_CONTAINER_VERSION = "5.5.2";
 

@@ -50,7 +50,6 @@ import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowTracing;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.TimestampedValue;
-import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -116,14 +115,6 @@ public class TriggerStateMachineTester<InputT, W extends BoundedWindow> {
     ExecutableTriggerStateMachine executableTriggerStateMachine =
         ExecutableTriggerStateMachine.create(stateMachine);
 
-    // Merging requires accumulation mode or early firings can break up a session.
-    // Not currently an issue with the tester (because we never GC) but we don't want
-    // mystery failures due to violating this need.
-    AccumulationMode mode =
-        windowFn.isNonMerging()
-            ? AccumulationMode.DISCARDING_FIRED_PANES
-            : AccumulationMode.ACCUMULATING_FIRED_PANES;
-
     return new SimpleTriggerStateMachineTester<>(
         executableTriggerStateMachine, windowFn, Duration.ZERO);
   }
@@ -133,14 +124,6 @@ public class TriggerStateMachineTester<InputT, W extends BoundedWindow> {
           TriggerStateMachine stateMachine, WindowFn<Object, W> windowFn) throws Exception {
     ExecutableTriggerStateMachine executableTriggerStateMachine =
         ExecutableTriggerStateMachine.create(stateMachine);
-
-    // Merging requires accumulation mode or early firings can break up a session.
-    // Not currently an issue with the tester (because we never GC) but we don't want
-    // mystery failures due to violating this need.
-    AccumulationMode mode =
-        windowFn.isNonMerging()
-            ? AccumulationMode.DISCARDING_FIRED_PANES
-            : AccumulationMode.ACCUMULATING_FIRED_PANES;
 
     return new TriggerStateMachineTester<>(executableTriggerStateMachine, windowFn, Duration.ZERO);
   }
@@ -221,7 +204,7 @@ public class TriggerStateMachineTester<InputT, W extends BoundedWindow> {
   public void advanceInputWatermark(Instant newInputWatermark) throws Exception {
     timerInternals.advanceInputWatermark(newInputWatermark);
     while (timerInternals.removeNextEventTimer() != null) {
-      // TODO: Should test timer firings: see https://issues.apache.org/jira/browse/BEAM-694
+      // TODO: Should test timer firings: see https://github.com/apache/beam/issues/18084
     }
   }
 
@@ -229,11 +212,11 @@ public class TriggerStateMachineTester<InputT, W extends BoundedWindow> {
   public void advanceProcessingTime(Instant newProcessingTime) throws Exception {
     timerInternals.advanceProcessingTime(newProcessingTime);
     while (timerInternals.removeNextProcessingTimer() != null) {
-      // TODO: Should test timer firings: see https://issues.apache.org/jira/browse/BEAM-694
+      // TODO: Should test timer firings: see https://github.com/apache/beam/issues/18084
     }
     timerInternals.advanceSynchronizedProcessingTime(newProcessingTime);
     while (timerInternals.removeNextSynchronizedProcessingTimer() != null) {
-      // TODO: Should test timer firings: see https://issues.apache.org/jira/browse/BEAM-694
+      // TODO: Should test timer firings: see https://github.com/apache/beam/issues/18084
     }
   }
 

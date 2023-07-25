@@ -36,6 +36,14 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
+import net.bytebuddy.description.type.TypeDescription.ForLoadedType;
+import net.bytebuddy.implementation.bytecode.Duplication;
+import net.bytebuddy.implementation.bytecode.StackManipulation;
+import net.bytebuddy.implementation.bytecode.StackManipulation.Compound;
+import net.bytebuddy.implementation.bytecode.TypeCreation;
+import net.bytebuddy.implementation.bytecode.assign.TypeCasting;
+import net.bytebuddy.implementation.bytecode.member.MethodInvocation;
+import net.bytebuddy.matcher.ElementMatchers;
 import org.apache.avro.AvroRuntimeException;
 import org.apache.avro.Conversions;
 import org.apache.avro.LogicalType;
@@ -51,8 +59,6 @@ import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.specific.SpecificData;
 import org.apache.avro.specific.SpecificRecord;
 import org.apache.avro.util.Utf8;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.AvroCoder.JodaTimestampConversion;
 import org.apache.beam.sdk.schemas.AvroRecordSchema;
@@ -66,7 +72,11 @@ import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.SchemaUserTypeCreator;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
+import org.apache.beam.sdk.schemas.logicaltypes.FixedString;
 import org.apache.beam.sdk.schemas.logicaltypes.OneOfType;
+import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
+import org.apache.beam.sdk.schemas.logicaltypes.VariableBytes;
+import org.apache.beam.sdk.schemas.logicaltypes.VariableString;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertType;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertValueForGetter;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertValueForSetter;
@@ -76,14 +86,6 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.description.type.TypeDescription.ForLoadedType;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.Duplication;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.StackManipulation;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.StackManipulation.Compound;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.TypeCreation;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.assign.TypeCasting;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.member.MethodInvocation;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.matcher.ElementMatchers;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.CaseFormat;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
@@ -95,12 +97,51 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.ReadableInstant;
 
-/** Utils to convert AVRO records to Beam rows. */
-@Experimental(Kind.SCHEMAS)
+/**
+ * Utils to convert AVRO records to Beam rows. Imposes a mapping between common avro types and Beam
+ * portable schemas (https://s.apache.org/beam-schemas):
+ *
+ * <pre>
+ *   Avro                Beam Field Type
+ *   INT         <-----> INT32
+ *   LONG        <-----> INT64
+ *   FLOAT       <-----> FLOAT
+ *   DOUBLE      <-----> DOUBLE
+ *   BOOLEAN     <-----> BOOLEAN
+ *   STRING      <-----> STRING
+ *   BYTES       <-----> BYTES
+ *               <------ LogicalType(urn="beam:logical_type:var_bytes:v1")
+ *   FIXED       <-----> LogicalType(urn="beam:logical_type:fixed_bytes:v1")
+ *   ARRAY       <-----> ARRAY
+ *   ENUM        <-----> LogicalType(EnumerationType)
+ *   MAP         <-----> MAP
+ *   RECORD      <-----> ROW
+ *   UNION       <-----> LogicalType(OneOfType)
+ *   LogicalTypes.Date              <-----> LogicalType(DATE)
+ *                                  <------ LogicalType(urn="beam:logical_type:date:v1")
+ *   LogicalTypes.TimestampMillis   <-----> DATETIME
+ *   LogicalTypes.Decimal           <-----> DECIMAL
+ * </pre>
+ *
+ * For SQL CHAR/VARCHAR types, an Avro schema
+ *
+ * <pre>
+ *   LogicalType({"type":"string","logicalType":"char","maxLength":MAX_LENGTH}) or
+ *   LogicalType({"type":"string","logicalType":"varchar","maxLength":MAX_LENGTH})
+ * </pre>
+ *
+ * is used.
+ *
+ * @deprecated Avro related classes are deprecated in module <code>beam-sdks-java-core</code> and
+ *     will be eventually removed. Please, migrate to a new module <code>
+ *     beam-sdks-java-extensions-avro</code> by importing <code>
+ *     org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils</code> instead of this one.
+ */
 @SuppressWarnings({
-  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes"
 })
+@Deprecated
 public class AvroUtils {
   static {
     // This works around a bug in the Avro library (AVRO-1891) around SpecificRecord's handling
@@ -109,10 +150,14 @@ public class AvroUtils {
     GenericData.get().addLogicalTypeConversion(new JodaTimestampConversion());
   }
 
-  // Unwrap an AVRO schema into the base type an whether it is nullable.
-  static class TypeWithNullability {
-    public final org.apache.avro.Schema type;
-    public final boolean nullable;
+  /** Unwrap an AVRO schema into the base type an whether it is nullable. */
+  public static class TypeWithNullability {
+    final org.apache.avro.Schema type;
+    final boolean nullable;
+
+    public static TypeWithNullability create(org.apache.avro.Schema avroSchema) {
+      return new TypeWithNullability(avroSchema);
+    }
 
     TypeWithNullability(org.apache.avro.Schema avroSchema) {
       if (avroSchema.getType() == org.apache.avro.Schema.Type.UNION) {
@@ -143,6 +188,14 @@ public class AvroUtils {
         type = avroSchema;
         nullable = false;
       }
+    }
+
+    public Boolean isNullable() {
+      return nullable;
+    }
+
+    public org.apache.avro.Schema getType() {
+      return type;
     }
   }
 
@@ -658,11 +711,13 @@ public class AvroUtils {
     @Override
     public List<FieldValueTypeInformation> get(Class<?> clazz, Schema schema) {
       Map<String, String> mapping = getMapping(schema);
+      List<Method> methods = ReflectUtils.getMethods(clazz);
       List<FieldValueTypeInformation> types = Lists.newArrayList();
-      for (Method method : ReflectUtils.getMethods(clazz)) {
+      for (int i = 0; i < methods.size(); ++i) {
+        Method method = methods.get(i);
         if (ReflectUtils.isGetter(method)) {
           FieldValueTypeInformation fieldValueTypeInformation =
-              FieldValueTypeInformation.forGetter(method);
+              FieldValueTypeInformation.forGetter(method, i);
           String name = mapping.get(fieldValueTypeInformation.getName());
           if (name != null) {
             types.add(fieldValueTypeInformation.withName(name));
@@ -706,10 +761,12 @@ public class AvroUtils {
   private static final class AvroPojoFieldValueTypeSupplier implements FieldValueTypeSupplier {
     @Override
     public List<FieldValueTypeInformation> get(Class<?> clazz) {
+      List<java.lang.reflect.Field> classFields = ReflectUtils.getFields(clazz);
       Map<String, FieldValueTypeInformation> types = Maps.newHashMap();
-      for (java.lang.reflect.Field f : ReflectUtils.getFields(clazz)) {
+      for (int i = 0; i < classFields.size(); ++i) {
+        java.lang.reflect.Field f = classFields.get(i);
         if (!f.isAnnotationPresent(AvroIgnore.class)) {
-          FieldValueTypeInformation typeInformation = FieldValueTypeInformation.forField(f);
+          FieldValueTypeInformation typeInformation = FieldValueTypeInformation.forField(f, i);
           AvroName avroname = f.getAnnotation(AvroName.class);
           if (avroname != null) {
             typeInformation = typeInformation.withName(avroname.value());
@@ -895,48 +952,44 @@ public class AvroUtils {
         break;
 
       case LOGICAL_TYPE:
-        switch (fieldType.getLogicalType().getIdentifier()) {
-          case FixedBytes.IDENTIFIER:
-            FixedBytesField fixedBytesField =
-                checkNotNull(FixedBytesField.fromBeamFieldType(fieldType));
-            baseType = fixedBytesField.toAvroType("fixed", namespace + "." + fieldName);
-            break;
-          case EnumerationType.IDENTIFIER:
-            EnumerationType enumerationType = fieldType.getLogicalType(EnumerationType.class);
-            baseType =
-                org.apache.avro.Schema.createEnum(fieldName, "", "", enumerationType.getValues());
-            break;
-          case OneOfType.IDENTIFIER:
-            OneOfType oneOfType = fieldType.getLogicalType(OneOfType.class);
-            baseType =
-                org.apache.avro.Schema.createUnion(
-                    oneOfType.getOneOfSchema().getFields().stream()
-                        .map(x -> getFieldSchema(x.getType(), x.getName(), namespace))
-                        .collect(Collectors.toList()));
-            break;
-          case "CHAR":
-          case "NCHAR":
-            baseType =
-                buildHiveLogicalTypeSchema("char", (int) fieldType.getLogicalType().getArgument());
-            break;
-          case "NVARCHAR":
-          case "VARCHAR":
-          case "LONGNVARCHAR":
-          case "LONGVARCHAR":
-            baseType =
-                buildHiveLogicalTypeSchema(
-                    "varchar", (int) fieldType.getLogicalType().getArgument());
-            break;
-          case "DATE":
-            baseType = LogicalTypes.date().addToSchema(org.apache.avro.Schema.create(Type.INT));
-            break;
-          case "TIME":
-            baseType =
-                LogicalTypes.timeMillis().addToSchema(org.apache.avro.Schema.create(Type.INT));
-            break;
-          default:
-            throw new RuntimeException(
-                "Unhandled logical type " + fieldType.getLogicalType().getIdentifier());
+        String identifier = fieldType.getLogicalType().getIdentifier();
+        if (FixedBytes.IDENTIFIER.equals(identifier)) {
+          FixedBytesField fixedBytesField =
+              checkNotNull(FixedBytesField.fromBeamFieldType(fieldType));
+          baseType = fixedBytesField.toAvroType("fixed", namespace + "." + fieldName);
+        } else if (VariableBytes.IDENTIFIER.equals(identifier)) {
+          // treat VARBINARY as bytes as that is what avro supports
+          baseType = org.apache.avro.Schema.create(Type.BYTES);
+        } else if (FixedString.IDENTIFIER.equals(identifier)
+            || "CHAR".equals(identifier)
+            || "NCHAR".equals(identifier)) {
+          baseType =
+              buildHiveLogicalTypeSchema("char", (int) fieldType.getLogicalType().getArgument());
+        } else if (VariableString.IDENTIFIER.equals(identifier)
+            || "NVARCHAR".equals(identifier)
+            || "VARCHAR".equals(identifier)
+            || "LONGNVARCHAR".equals(identifier)
+            || "LONGVARCHAR".equals(identifier)) {
+          baseType =
+              buildHiveLogicalTypeSchema("varchar", (int) fieldType.getLogicalType().getArgument());
+        } else if (EnumerationType.IDENTIFIER.equals(identifier)) {
+          EnumerationType enumerationType = fieldType.getLogicalType(EnumerationType.class);
+          baseType =
+              org.apache.avro.Schema.createEnum(fieldName, "", "", enumerationType.getValues());
+        } else if (OneOfType.IDENTIFIER.equals(identifier)) {
+          OneOfType oneOfType = fieldType.getLogicalType(OneOfType.class);
+          baseType =
+              org.apache.avro.Schema.createUnion(
+                  oneOfType.getOneOfSchema().getFields().stream()
+                      .map(x -> getFieldSchema(x.getType(), x.getName(), namespace))
+                      .collect(Collectors.toList()));
+        } else if ("DATE".equals(identifier) || SqlTypes.DATE.getIdentifier().equals(identifier)) {
+          baseType = LogicalTypes.date().addToSchema(org.apache.avro.Schema.create(Type.INT));
+        } else if ("TIME".equals(identifier)) {
+          baseType = LogicalTypes.timeMillis().addToSchema(org.apache.avro.Schema.create(Type.INT));
+        } else {
+          throw new RuntimeException(
+              "Unhandled logical type " + fieldType.getLogicalType().getIdentifier());
         }
         break;
 
@@ -1018,45 +1071,55 @@ public class AvroUtils {
         return ByteBuffer.wrap((byte[]) value);
 
       case LOGICAL_TYPE:
-        switch (fieldType.getLogicalType().getIdentifier()) {
-          case FixedBytes.IDENTIFIER:
-            FixedBytesField fixedBytesField =
-                checkNotNull(FixedBytesField.fromBeamFieldType(fieldType));
-            byte[] byteArray = (byte[]) value;
-            if (byteArray.length != fixedBytesField.getSize()) {
-              throw new IllegalArgumentException("Incorrectly sized byte array.");
-            }
-            return GenericData.get().createFixed(null, (byte[]) value, typeWithNullability.type);
-          case EnumerationType.IDENTIFIER:
-            EnumerationType enumerationType = fieldType.getLogicalType(EnumerationType.class);
-            return GenericData.get()
-                .createEnum(
-                    enumerationType.toString((EnumerationType.Value) value),
-                    typeWithNullability.type);
-          case OneOfType.IDENTIFIER:
-            OneOfType oneOfType = fieldType.getLogicalType(OneOfType.class);
-            OneOfType.Value oneOfValue = (OneOfType.Value) value;
-            FieldType innerFieldType = oneOfType.getFieldType(oneOfValue);
-            if (typeWithNullability.nullable && oneOfValue.getValue() == null) {
-              return null;
-            } else {
-              return genericFromBeamField(
-                  innerFieldType.withNullable(false),
-                  typeWithNullability.type.getTypes().get(oneOfValue.getCaseType().getValue()),
-                  oneOfValue.getValue());
-            }
-          case "NVARCHAR":
-          case "VARCHAR":
-          case "LONGNVARCHAR":
-          case "LONGVARCHAR":
-            return new Utf8((String) value);
-          case "DATE":
-            return Days.daysBetween(Instant.EPOCH, (Instant) value).getDays();
-          case "TIME":
-            return (int) ((Instant) value).getMillis();
-          default:
-            throw new RuntimeException(
-                "Unhandled logical type " + fieldType.getLogicalType().getIdentifier());
+        String identifier = fieldType.getLogicalType().getIdentifier();
+        if (FixedBytes.IDENTIFIER.equals(identifier)) {
+          FixedBytesField fixedBytesField =
+              checkNotNull(FixedBytesField.fromBeamFieldType(fieldType));
+          byte[] byteArray = (byte[]) value;
+          if (byteArray.length != fixedBytesField.getSize()) {
+            throw new IllegalArgumentException("Incorrectly sized byte array.");
+          }
+          return GenericData.get().createFixed(null, (byte[]) value, typeWithNullability.type);
+        } else if (VariableBytes.IDENTIFIER.equals(identifier)) {
+          return GenericData.get().createFixed(null, (byte[]) value, typeWithNullability.type);
+        } else if (FixedString.IDENTIFIER.equals(identifier)
+            || "CHAR".equals(identifier)
+            || "NCHAR".equals(identifier)) {
+          return new Utf8((String) value);
+        } else if (VariableString.IDENTIFIER.equals(identifier)
+            || "NVARCHAR".equals(identifier)
+            || "VARCHAR".equals(identifier)
+            || "LONGNVARCHAR".equals(identifier)
+            || "LONGVARCHAR".equals(identifier)) {
+          return new Utf8((String) value);
+        } else if (EnumerationType.IDENTIFIER.equals(identifier)) {
+          EnumerationType enumerationType = fieldType.getLogicalType(EnumerationType.class);
+          return GenericData.get()
+              .createEnum(
+                  enumerationType.toString((EnumerationType.Value) value),
+                  typeWithNullability.type);
+        } else if (OneOfType.IDENTIFIER.equals(identifier)) {
+          OneOfType oneOfType = fieldType.getLogicalType(OneOfType.class);
+          OneOfType.Value oneOfValue = (OneOfType.Value) value;
+          FieldType innerFieldType = oneOfType.getFieldType(oneOfValue);
+          if (typeWithNullability.nullable && oneOfValue.getValue() == null) {
+            return null;
+          } else {
+            return genericFromBeamField(
+                innerFieldType.withNullable(false),
+                typeWithNullability.type.getTypes().get(oneOfValue.getCaseType().getValue()),
+                oneOfValue.getValue());
+          }
+        } else if ("DATE".equals(identifier)) {
+          // "Date" is backed by joda.time.Instant
+          return Days.daysBetween(Instant.EPOCH, (Instant) value).getDays();
+        } else if (SqlTypes.DATE.getIdentifier().equals(identifier)) {
+          // portable SqlTypes.DATE is backed by java.time.LocalDate
+          return ((java.time.LocalDate) value).toEpochDay();
+        } else if ("TIME".equals(identifier)) {
+          return (int) ((Instant) value).getMillis();
+        } else {
+          throw new RuntimeException("Unhandled logical type " + identifier);
         }
 
       case ARRAY:
@@ -1132,6 +1195,8 @@ public class AvroUtils {
         if (value instanceof ReadableInstant) {
           int epochDays = Days.daysBetween(Instant.EPOCH, (ReadableInstant) value).getDays();
           return convertDateStrict(epochDays, fieldType);
+        } else if (value instanceof java.time.LocalDate) {
+          return convertDateStrict((int) ((java.time.LocalDate) value).toEpochDay(), fieldType);
         } else {
           return convertDateStrict((Integer) value, fieldType);
         }

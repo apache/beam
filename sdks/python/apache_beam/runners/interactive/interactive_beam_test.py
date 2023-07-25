@@ -18,6 +18,7 @@
 """Tests for apache_beam.runners.interactive.interactive_beam."""
 # pytype: skip-file
 
+import dataclasses
 import importlib
 import sys
 import time
@@ -27,13 +28,22 @@ from unittest.mock import patch
 
 import apache_beam as beam
 from apache_beam import dataframe as frames
+from apache_beam.options.pipeline_options import FlinkRunnerOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.runners.interactive import interactive_beam as ib
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import interactive_runner as ir
+from apache_beam.runners.interactive.dataproc.dataproc_cluster_manager import DataprocClusterManager
+from apache_beam.runners.interactive.dataproc.types import ClusterMetadata
 from apache_beam.runners.interactive.options.capture_limiters import Limiter
+from apache_beam.runners.interactive.testing.mock_env import isolated_env
 from apache_beam.runners.runner import PipelineState
 from apache_beam.testing.test_stream import TestStream
+
+
+@dataclasses.dataclass
+class MockClusterMetadata:
+  master_url = 'mock_url'
 
 
 class Record(NamedTuple):
@@ -55,10 +65,10 @@ def _get_watched_pcollections_with_variable_names():
   return watched_pcollections
 
 
+@isolated_env
 class InteractiveBeamTest(unittest.TestCase):
   def setUp(self):
     self._var_in_class_instance = 'a var in class instance, not directly used'
-    ie.new_env()
 
   def tearDown(self):
     ib.options.capture_control.set_limiters_for_test([])
@@ -282,6 +292,286 @@ class InteractiveBeamTest(unittest.TestCase):
     ib.recordings.clear(p)
     self.assertTrue(ib.recordings.record(p))
     ib.recordings.stop(p)
+
+
+@unittest.skipIf(
+    not ie.current_env().is_interactive_ready,
+    '[interactive] dependency is not installed.')
+@isolated_env
+class InteractiveBeamClustersTest(unittest.TestCase):
+  def setUp(self):
+    self.current_env.options.cache_root = 'gs://fake'
+    self.clusters = self.current_env.clusters
+
+  def tearDown(self):
+    self.current_env.options.cache_root = None
+
+  def test_cluster_metadata_pass_through_metadata(self):
+    cid = ClusterMetadata(project_id='test-project')
+    meta = self.clusters.cluster_metadata(cid)
+    self.assertIs(meta, cid)
+
+  def test_cluster_metadata_identifies_pipeline(self):
+    cid = beam.Pipeline()
+    known_meta = ClusterMetadata(project_id='test-project')
+    dcm = DataprocClusterManager(known_meta)
+    self.clusters.pipelines[cid] = dcm
+
+    meta = self.clusters.cluster_metadata(cid)
+    self.assertIs(meta, known_meta)
+
+  def test_cluster_metadata_identifies_master_url(self):
+    cid = 'test-url'
+    known_meta = ClusterMetadata(project_id='test-project')
+    _ = DataprocClusterManager(known_meta)
+    self.clusters.master_urls[cid] = known_meta
+
+    meta = self.clusters.cluster_metadata(cid)
+    self.assertIs(meta, known_meta)
+
+  def test_cluster_metadata_default_value(self):
+    cid_none = None
+    cid_unknown_p = beam.Pipeline()
+    cid_unknown_master_url = 'test-url'
+    default_meta = ClusterMetadata(project_id='test-project')
+    self.clusters.set_default_cluster(default_meta)
+
+    self.assertIs(default_meta, self.clusters.cluster_metadata(cid_none))
+    self.assertIs(default_meta, self.clusters.cluster_metadata(cid_unknown_p))
+    self.assertIs(
+        default_meta, self.clusters.cluster_metadata(cid_unknown_master_url))
+
+  def test_create_a_new_cluster(self):
+    meta = ClusterMetadata(project_id='test-project')
+    _ = self.clusters.create(meta)
+
+    # Derived fields are populated.
+    self.assertTrue(meta.master_url.startswith('test-url'))
+    self.assertEqual(meta.dashboard, 'test-dashboard')
+    # The cluster is known.
+    self.assertIn(meta, self.clusters.dataproc_cluster_managers)
+    self.assertIn(meta.master_url, self.clusters.master_urls)
+    # The default cluster is updated to the created cluster.
+    self.assertIs(meta, self.clusters.default_cluster_metadata)
+
+  def test_create_but_reuse_a_known_cluster(self):
+    known_meta = ClusterMetadata(
+        project_id='test-project', region='test-region')
+    known_dcm = DataprocClusterManager(known_meta)
+    known_meta.master_url = 'test-url'
+    self.clusters.set_default_cluster(known_meta)
+    self.clusters.dataproc_cluster_managers[known_meta] = known_dcm
+    self.clusters.master_urls[known_meta.master_url] = known_meta
+
+    # Use an equivalent meta as the identifier to create a cluster.
+    cid_meta = ClusterMetadata(
+        project_id=known_meta.project_id,
+        region=known_meta.region,
+        cluster_name=known_meta.cluster_name)
+    dcm = self.clusters.create(cid_meta)
+    # The known cluster manager is returned.
+    self.assertIs(dcm, known_dcm)
+
+    # Then use an equivalent master_url as the identifier.
+    cid_master_url = known_meta.master_url
+    dcm = self.clusters.create(cid_master_url)
+    self.assertIs(dcm, known_dcm)
+
+  def test_cleanup_by_a_pipeline(self):
+    meta = ClusterMetadata(project_id='test-project')
+    dcm = self.clusters.create(meta)
+
+    # Set up the association between a pipeline and a cluster.
+    # In real code, it's set by the runner the 1st time a pipeline is executed.
+    options = PipelineOptions()
+    options.view_as(FlinkRunnerOptions).flink_master = meta.master_url
+    p = beam.Pipeline(options=options)
+    self.clusters.pipelines[p] = dcm
+    dcm.pipelines.add(p)
+
+    self.clusters.cleanup(p)
+    # Delete the cluster.
+    self.m_delete_cluster.assert_called_once()
+    # Pipeline association is cleaned up.
+    self.assertNotIn(p, self.clusters.pipelines)
+    self.assertNotIn(p, dcm.pipelines)
+    self.assertEqual(options.view_as(FlinkRunnerOptions).flink_master, '[auto]')
+    # The cluster is unknown now.
+    self.assertNotIn(meta, self.clusters.dataproc_cluster_managers)
+    self.assertNotIn(meta.master_url, self.clusters.master_urls)
+    # The cleaned up cluster is also the default cluster. Clean the default.
+    self.assertIsNone(self.clusters.default_cluster_metadata)
+
+  def test_not_cleanup_if_multiple_pipelines_share_a_manager(self):
+    meta = ClusterMetadata(project_id='test-project')
+    dcm = self.clusters.create(meta)
+
+    options = PipelineOptions()
+    options.view_as(FlinkRunnerOptions).flink_master = meta.master_url
+    options2 = PipelineOptions()
+    options2.view_as(FlinkRunnerOptions).flink_master = meta.master_url
+    p = beam.Pipeline(options=options)
+    p2 = beam.Pipeline(options=options2)
+    self.clusters.pipelines[p] = dcm
+    self.clusters.pipelines[p2] = dcm
+    dcm.pipelines.add(p)
+    dcm.pipelines.add(p2)
+
+    self.clusters.cleanup(p)
+    # No cluster deleted.
+    self.m_delete_cluster.assert_not_called()
+    # Pipeline association of p is cleaned up.
+    self.assertNotIn(p, self.clusters.pipelines)
+    self.assertNotIn(p, dcm.pipelines)
+    self.assertEqual(options.view_as(FlinkRunnerOptions).flink_master, '[auto]')
+    # Pipeline association of p2 still presents.
+    self.assertIn(p2, self.clusters.pipelines)
+    self.assertIn(p2, dcm.pipelines)
+    self.assertEqual(
+        options2.view_as(FlinkRunnerOptions).flink_master, meta.master_url)
+    # The cluster is still known.
+    self.assertIn(meta, self.clusters.dataproc_cluster_managers)
+    self.assertIn(meta.master_url, self.clusters.master_urls)
+    # The default cluster still presents.
+    self.assertIs(meta, self.clusters.default_cluster_metadata)
+
+  def test_cleanup_by_a_master_url(self):
+    meta = ClusterMetadata(project_id='test-project')
+    _ = self.clusters.create(meta)
+
+    self.clusters.cleanup(meta.master_url)
+    self.m_delete_cluster.assert_called_once()
+    self.assertNotIn(meta, self.clusters.dataproc_cluster_managers)
+    self.assertNotIn(meta.master_url, self.clusters.master_urls)
+    self.assertIsNone(self.clusters.default_cluster_metadata)
+
+  def test_cleanup_by_meta(self):
+    known_meta = ClusterMetadata(
+        project_id='test-project', region='test-region')
+    _ = self.clusters.create(known_meta)
+
+    meta = ClusterMetadata(
+        project_id=known_meta.project_id,
+        region=known_meta.region,
+        cluster_name=known_meta.cluster_name)
+    self.clusters.cleanup(meta)
+    self.m_delete_cluster.assert_called_once()
+    self.assertNotIn(known_meta, self.clusters.dataproc_cluster_managers)
+    self.assertNotIn(known_meta.master_url, self.clusters.master_urls)
+    self.assertIsNone(self.clusters.default_cluster_metadata)
+
+  def test_force_cleanup_everything(self):
+    meta = ClusterMetadata(project_id='test-project')
+    meta2 = ClusterMetadata(project_id='test-project-2')
+    _ = self.clusters.create(meta)
+    _ = self.clusters.create(meta2)
+
+    self.clusters.cleanup(force=True)
+    self.assertEqual(self.m_delete_cluster.call_count, 2)
+    self.assertNotIn(meta, self.clusters.dataproc_cluster_managers)
+    self.assertNotIn(meta2, self.clusters.dataproc_cluster_managers)
+    self.assertIsNone(self.clusters.default_cluster_metadata)
+
+  def test_cleanup_noop_for_no_cluster_identifier(self):
+    meta = ClusterMetadata(project_id='test-project')
+    _ = self.clusters.create(meta)
+
+    self.clusters.cleanup()
+    self.m_delete_cluster.assert_not_called()
+
+  def test_cleanup_noop_unknown_cluster(self):
+    meta = ClusterMetadata(project_id='test-project')
+    dcm = self.clusters.create(meta)
+    p = beam.Pipeline()
+    self.clusters.pipelines[p] = dcm
+    dcm.pipelines.add(p)
+
+    cid_pipeline = beam.Pipeline()
+    self.clusters.cleanup(cid_pipeline)
+    self.m_delete_cluster.assert_not_called()
+
+    cid_master_url = 'some-random-url'
+    self.clusters.cleanup(cid_master_url)
+    self.m_delete_cluster.assert_not_called()
+
+    cid_meta = ClusterMetadata(project_id='random-project')
+    self.clusters.cleanup(cid_meta)
+    self.m_delete_cluster.assert_not_called()
+
+    self.assertIn(meta, self.clusters.dataproc_cluster_managers)
+    self.assertIn(meta.master_url, self.clusters.master_urls)
+    self.assertIs(meta, self.clusters.default_cluster_metadata)
+    self.assertIn(p, self.clusters.pipelines)
+    self.assertIn(p, dcm.pipelines)
+
+  def test_describe_everything(self):
+    meta = ClusterMetadata(project_id='test-project')
+    meta2 = ClusterMetadata(
+        project_id='test-project', region='some-other-region')
+    _ = self.clusters.create(meta)
+    _ = self.clusters.create(meta2)
+
+    meta_list = self.clusters.describe()
+    self.assertEqual([meta, meta2], meta_list)
+
+  def test_describe_by_cluster_identifier(self):
+    known_meta = ClusterMetadata(project_id='test-project')
+    known_meta2 = ClusterMetadata(
+        project_id='test-project', region='some-other-region')
+    dcm = self.clusters.create(known_meta)
+    dcm2 = self.clusters.create(known_meta2)
+    p = beam.Pipeline()
+    p2 = beam.Pipeline()
+    self.clusters.pipelines[p] = dcm
+    dcm.pipelines.add(p)
+    self.clusters.pipelines[p2] = dcm2
+    dcm.pipelines.add(p2)
+
+    cid_pipeline = p
+    meta = self.clusters.describe(cid_pipeline)
+    self.assertIs(meta, known_meta)
+
+    cid_master_url = known_meta.master_url
+    meta = self.clusters.describe(cid_master_url)
+    self.assertIs(meta, known_meta)
+
+    cid_meta = ClusterMetadata(
+        project_id=known_meta.project_id,
+        region=known_meta.region,
+        cluster_name=known_meta.cluster_name)
+    meta = self.clusters.describe(cid_meta)
+    self.assertIs(meta, known_meta)
+
+  def test_describe_everything_when_cluster_identifer_unknown(self):
+    known_meta = ClusterMetadata(project_id='test-project')
+    known_meta2 = ClusterMetadata(
+        project_id='test-project', region='some-other-region')
+    dcm = self.clusters.create(known_meta)
+    dcm2 = self.clusters.create(known_meta2)
+    p = beam.Pipeline()
+    p2 = beam.Pipeline()
+    self.clusters.pipelines[p] = dcm
+    dcm.pipelines.add(p)
+    self.clusters.pipelines[p2] = dcm2
+    dcm.pipelines.add(p2)
+
+    cid_pipeline = beam.Pipeline()
+    meta_list = self.clusters.describe(cid_pipeline)
+    self.assertEqual([known_meta, known_meta2], meta_list)
+
+    cid_master_url = 'some-random-url'
+    meta_list = self.clusters.describe(cid_master_url)
+    self.assertEqual([known_meta, known_meta2], meta_list)
+
+    cid_meta = ClusterMetadata(project_id='some-random-project')
+    meta_list = self.clusters.describe(cid_meta)
+    self.assertEqual([known_meta, known_meta2], meta_list)
+
+  def test_default_value_for_invalid_worker_number(self):
+    meta = ClusterMetadata(project_id='test-project', num_workers=1)
+    self.clusters.create(meta)
+
+    self.assertEqual(meta.num_workers, 2)
 
 
 if __name__ == '__main__':

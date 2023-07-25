@@ -33,15 +33,15 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
-var intInput = []interface{}{int(1), int(2), int(3), int(4), int(5), int(6)}
-var int64Input = []interface{}{int64(1), int64(2), int64(3), int64(4), int64(5), int64(6)}
-var strInput = []interface{}{"1", "2", "3", "4", "5", "6"}
+var intInput = []any{int(1), int(2), int(3), int(4), int(5), int(6)}
+var int64Input = []any{int64(1), int64(2), int64(3), int64(4), int64(5), int64(6)}
+var strInput = []any{"1", "2", "3", "4", "5", "6"}
 
 var tests = []struct {
-	Fn         interface{}
+	Fn         any
 	AccumCoder *coder.Coder
-	Input      []interface{}
-	Expected   interface{}
+	Input      []any
+	Expected   any
 }{
 	{Fn: mergeFn, AccumCoder: intCoder(reflectx.Int), Input: intInput, Expected: int(21)},
 	{Fn: nonBinaryMergeFn, AccumCoder: intCoder(reflectx.Int), Input: intInput, Expected: int(21)},
@@ -52,7 +52,7 @@ var tests = []struct {
 	{Fn: &MyErrorCombine{}, AccumCoder: intCoder(reflectx.Int64), Input: intInput, Expected: int(21)},
 }
 
-func fnName(x interface{}) string {
+func fnName(x any) string {
 	v := reflect.ValueOf(x)
 	if v.Kind() != reflect.Func {
 		return v.Type().String()
@@ -83,7 +83,7 @@ func TestCombine(t *testing.T) {
 // TestLiftedCombine verifies that the LiftedCombine, MergeAccumulators, and
 // ExtractOutput nodes work correctly after the lift has been performed.
 func TestLiftedCombine(t *testing.T) {
-	withCoder := func(t *testing.T, suffix string, key interface{}, keyCoder *coder.Coder) {
+	withCoder := func(t *testing.T, suffix string, key any, keyCoder *coder.Coder) {
 		// The test values are all single global window.
 		wc := coder.NewGlobalWindow()
 		for _, test := range tests {
@@ -116,14 +116,210 @@ func TestLiftedCombine(t *testing.T) {
 
 }
 
+// pigeonHasher only returns 0 for even hashes, and 1 for odd hashes
+// nearly guaranteeing that overflow behavior must be tested for small sets.
+type pigeonHasher struct {
+	hasher elementHasher
+}
+
+func (p *pigeonHasher) Hash(element any, w typex.Window) (uint64, error) {
+	k, err := p.hasher.Hash(element, w)
+	if err != nil {
+		return 0, err
+	}
+	return k & 0x1, nil
+}
+
+func TestLiftingCache(t *testing.T) {
+	zeroVal, zeroWindow := &FullValue{Elm: 0}, window.SingleGlobalWindow[0]
+	t.Run("lookup", func(t *testing.T) {
+		c := newLiftingCache(1, intCoder(reflectx.Int), coder.NewGlobalWindow())
+		// Replace with pigeon hasher to ensure pigeonholing.
+		c.keyHash = &pigeonHasher{hasher: c.keyHash}
+		c.start()
+
+		zerokey, fv, notfirst, err := c.lookup(zeroVal, zeroWindow)
+		if err != nil {
+			t.Fatalf("error on liftingCache.lookup(0, GW) = %v", err)
+		}
+
+		// Check properties of the cache
+		if got, want := len(c.cache), 1; got != want {
+			t.Fatalf("len(liftingCache.cache) = %v, want %v after first lookup", got, want)
+		}
+		if notfirst {
+			t.Fatalf("liftingCache.lookup(0, GW) = key(%v), %v, notfirst(%v) but want first value for key", zerokey, fv, notfirst)
+		}
+		// Set value to ensure we get the same one we expect later.
+		// the cache expects the value to have the key (Elm) and
+		// a window set.
+		fv.Elm = 0
+		fv.Elm2 = "want"
+		fv.Windows = window.SingleGlobalWindow
+
+		key, fv2, notfirst, err := c.lookup(zeroVal, zeroWindow)
+		if err != nil {
+			t.Fatalf("error on liftingCache.lookup(0, GW) = %v", err)
+		}
+		if got, want := len(c.cache), 1; got != want {
+			t.Fatalf("len(liftingCache.cache) = %v, want %v after lookup of existing key", got, want)
+		}
+		if got, want := key, zerokey; got != want {
+			t.Fatalf("liftingCache.lookup(0, GW) = key(%v), want %v", got, want)
+		}
+		// This shouldn't be the first value.
+		if !notfirst {
+			t.Fatalf("liftingCache.lookup(0, GW) = key(%v), %v, notfirst(%v) but want existing value for key", key, fv2, notfirst)
+		}
+		if got, want := fv2.Elm2, fv.Elm2; got != want {
+			t.Fatalf("liftingCache.lookup(0, GW) = %v, want %v", got, want)
+		}
+
+		// Now the hard part: We lookup new values until we pigeon hole & get a collision.
+		// This will validates overflow lookups.
+		var collision *FullValue
+		for i := 1; i < 100; i++ {
+			collision = &FullValue{Elm: i}
+			key, fv2, notfirst, err = c.lookup(collision, zeroWindow)
+			if err != nil {
+				t.Fatalf("error on liftingCache.lookup(%v, GW) = %v", i, err)
+			}
+			if key == zerokey {
+				break
+			}
+			// Set values so subsequent hits won't fail.
+			fv2.Elm = collision.Elm
+			fv2.Elm2 = "ignoreme"
+			fv2.Windows = window.SingleGlobalWindow
+		}
+		if notfirst {
+			t.Errorf("liftingCache.lookup(%v, GW) = key(%v), %v, notfirst(%v) but want first value for key", collision.Elm, key, fv2, notfirst)
+		}
+		// Set values so we can validate later.
+		fv2.Elm = collision.Elm
+		fv2.Elm2 = "newthing"
+		fv2.Windows = window.SingleGlobalWindow
+
+		key, fv2, notfirst, err = c.lookup(collision, zeroWindow)
+		if err != nil {
+			t.Fatalf("error on liftingCache.lookup(%v, GW) = %v", collision.Elm, err)
+		}
+		if !notfirst {
+			t.Errorf("liftingCache.lookup(%v, GW) = key(%v), %v, notfirst(%v) but want first value for key", collision.Elm, key, fv2, notfirst)
+		}
+		if got, want := fv2.Elm2, "newthing"; got != want {
+			t.Fatalf("liftingCache.lookup(%v, GW) = %v, want %v", collision.Elm, got, want)
+		}
+
+		// Check the original key again.
+		key, fv2, notfirst, err = c.lookup(zeroVal, zeroWindow)
+		if err != nil {
+			t.Fatalf("error on liftingCache.lookup(0, GW) = %v", err)
+		}
+		if got, want := key, zerokey; got != want {
+			t.Fatalf("liftingCache.lookup(0, GW) = key(%v), want %v", got, want)
+		}
+		if !notfirst {
+			t.Fatalf("liftingCache.lookup(0, GW) = key(%v), %v, notfirst(%v) but want existing value for key", key, fv2, notfirst)
+		}
+		if got, want := fv2.Elm2, "want"; got != want {
+			t.Fatalf("liftingCache.lookup(0, GW) = %v, want %v", got, want)
+		}
+	})
+	load := func(c *liftingCache, n int) {
+		t.Helper()
+		for i := 0; i < n; i++ {
+			_, fv, _, err := c.lookup(&FullValue{Elm: i}, zeroWindow)
+			if err != nil {
+				t.Fatalf("error on liftingCache.lookup(%v, GW) = %v", i, err)
+			}
+			// Set values so subsequent hits won't fail.
+			fv.Elm = i
+			fv.Elm2 = "ignoreme"
+			fv.Windows = window.SingleGlobalWindow
+		}
+	}
+	t.Run("compact_sparse", func(t *testing.T) {
+		max := 10
+		c := newLiftingCache(max, intCoder(reflectx.Int), coder.NewGlobalWindow())
+		c.start()
+		load(c, 100)
+		zerokey, _, _, err := c.lookup(zeroVal, zeroWindow)
+		if err != nil {
+			t.Fatalf("error on liftingCache.lookup(%v, GW) = %v", 0, err)
+		}
+		c.compact(context.Background(), zerokey, func(ctx context.Context, elm *FullValue, values ...ReStream) error { return nil })
+		if got := len(c.cache); got >= max {
+			t.Errorf("len(c.cache) = %v, want < %v", got, max)
+		}
+		// Validate that "current" key wasn't removed.
+		key, fv, notfirst, err := c.lookup(zeroVal, zeroWindow)
+		if err != nil {
+			t.Fatalf("error on liftingCache.lookup(%v, GW) = %v", 0, err)
+		}
+		if !notfirst {
+			t.Fatalf("liftingCache.lookup(0, GW) = key(%v), %v, notfirst(%v) but want existing value for key", key, fv, notfirst)
+		}
+		if got, want := fv.Elm2, "ignoreme"; got != want {
+			t.Fatalf("liftingCache.lookup(0, GW) = %v, want %v", got, want)
+		}
+	})
+	t.Run("compact_dense", func(t *testing.T) {
+		max := 1
+		c := newLiftingCache(max, intCoder(reflectx.Int), coder.NewGlobalWindow())
+		// Replace with pigeon hasher to ensure pigeonholing.
+		c.keyHash = &pigeonHasher{hasher: c.keyHash}
+		c.start()
+		load(c, 100)
+		zerokey, _, _, err := c.lookup(zeroVal, zeroWindow)
+		if err != nil {
+			t.Fatalf("error on liftingCache.lookup(%v, GW) = %v", 0, err)
+		}
+		c.compact(context.Background(), zerokey, func(ctx context.Context, elm *FullValue, values ...ReStream) error { return nil })
+		if got, want := len(c.cache), 1; got != want {
+			t.Errorf("len(c.cache) = %v, want %v", got, want)
+		}
+		key, fv, notfirst, err := c.lookup(zeroVal, zeroWindow)
+		if err != nil {
+			t.Fatalf("error on liftingCache.lookup(%v, GW) = %v", 0, err)
+		}
+		if !notfirst {
+			t.Fatalf("liftingCache.lookup(0, GW) = key(%v), %v, notfirst(%v) but want existing value for key", key, fv, notfirst)
+		}
+		if got, want := fv.Elm2, "ignoreme"; got != want {
+			t.Fatalf("liftingCache.lookup(0, GW) = %v, want %v", got, want)
+		}
+	})
+	t.Run("emitAll", func(t *testing.T) {
+		c := newLiftingCache(1, intCoder(reflectx.Int), coder.NewGlobalWindow())
+		// Replace with pigeon hasher to ensure pigeonholing.
+		c.keyHash = &pigeonHasher{hasher: c.keyHash}
+		c.start()
+		want := 100
+		load(c, want)
+		var got int
+		c.emitAll(context.Background(), func(ctx context.Context, elm *FullValue, values ...ReStream) error {
+			got++
+			return nil
+		})
+		if got != want {
+			t.Errorf("c.emitAll emitted %v values, want %v", got, want)
+		}
+		if got, want := len(c.cache), 0; got != want {
+			t.Errorf("len(c.cache) = %v, want %v", got, want)
+		}
+
+	})
+}
+
 // TestConvertToAccumulators verifies that the ConvertToAccumulators phase
 // correctly doesn't accumulate values at all.
 func TestConvertToAccumulators(t *testing.T) {
 	tests := []struct {
-		Fn         interface{}
+		Fn         any
 		AccumCoder *coder.Coder
-		Input      []interface{}
-		Expected   []interface{}
+		Input      []any
+		Expected   []any
 	}{
 		{Fn: mergeFn, AccumCoder: intCoder(reflectx.Int), Input: intInput, Expected: intInput},
 		{Fn: nonBinaryMergeFn, AccumCoder: intCoder(reflectx.Int), Input: intInput, Expected: intInput},
@@ -189,7 +385,7 @@ func (c *myCodable) DecodeMe(b []byte) {
 	c.val = binary.LittleEndian.Uint64(b)
 }
 
-func getCombineEdge(t *testing.T, cfn interface{}, kt reflect.Type, ac *coder.Coder) *graph.MultiEdge {
+func getCombineEdge(t *testing.T, cfn any, kt reflect.Type, ac *coder.Coder) *graph.MultiEdge {
 	t.Helper()
 	fn, err := graph.NewCombineFn(cfn)
 	if err != nil {
@@ -259,14 +455,14 @@ func constructAndExecutePlan(t *testing.T, us []Unit) {
 
 // mergeFn represents a combine that is just a binary merge, where
 //
-//  InputT == OutputT == AccumT == int
+//	InputT == OutputT == AccumT == int
 func mergeFn(a, b int) int {
 	return a + b
 }
 
 // nonBinaryMergeFn represents a combine with a context parameter and an error return, where
 //
-//  InputT == OutputT == AccumT == int
+//	InputT == OutputT == AccumT == int
 func nonBinaryMergeFn(ctx context.Context, a, b int) (int, error) {
 	return a + b, nil
 }
@@ -274,8 +470,8 @@ func nonBinaryMergeFn(ctx context.Context, a, b int) (int, error) {
 // MyCombine represents a combine with the same Input and Output type (int), but a
 // distinct accumulator type (int64).
 //
-//  InputT == OutputT == int
-//  AccumT == int64
+//	InputT == OutputT == int
+//	AccumT == int64
 type MyCombine struct{}
 
 func (*MyCombine) AddInput(a int64, v int) int64 {
@@ -292,9 +488,9 @@ func (*MyCombine) ExtractOutput(a int64) int {
 
 // MyOtherCombine is the same as MyCombine, but has strings extracted as output.
 //
-//  InputT == int
-//  AccumT == int64
-//  OutputT == string
+//	InputT == int
+//	AccumT == int64
+//	OutputT == string
 type MyOtherCombine struct {
 	MyCombine // Embedding to re-use the exisitng AddInput and MergeAccumulators implementations
 }
@@ -305,9 +501,9 @@ func (*MyOtherCombine) ExtractOutput(a int64) string {
 
 // MyThirdCombine parses strings as Input, and doesn't specify an ExtractOutput
 //
-//  InputT == string
-//  AccumT == int
-//  OutputT == int
+//	InputT == string
+//	AccumT == int
+//	OutputT == int
 type MyThirdCombine struct{}
 
 func (c *MyThirdCombine) AddInput(a int, s string) (int, error) {
@@ -324,9 +520,9 @@ func (*MyThirdCombine) MergeAccumulators(a, b int) int {
 
 // MyContextCombine is the same as MyCombine, but requires a context parameter.
 //
-//  InputT == int
-//  AccumT == int64
-//  OutputT == string
+//	InputT == int
+//	AccumT == int64
+//	OutputT == string
 type MyContextCombine struct {
 	MyCombine // Embedding to re-use the exisitng AddInput implementations
 }
@@ -337,9 +533,9 @@ func (*MyContextCombine) MergeAccumulators(_ context.Context, a, b int64) int64 
 
 // MyErrorCombine is the same as MyCombine, but may return an error.
 //
-//  InputT == int
-//  AccumT == int64
-//  OutputT == string
+//	InputT == int
+//	AccumT == int64
+//	OutputT == string
 type MyErrorCombine struct {
 	MyCombine // Embedding to re-use the exisitng AddInput implementations
 }

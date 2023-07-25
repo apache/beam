@@ -64,7 +64,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
@@ -168,7 +168,7 @@ public class StreamingModeExecutionContextTest {
     // still fire.
     Instant now = Instant.now();
     long offsetMillis = 60 * 1000;
-    Instant timerTimestamp = now.plus(offsetMillis);
+    Instant timerTimestamp = now.plus(Duration.millis(offsetMillis));
     timerBuilder
         .setTag(ByteString.copyFromUtf8("a"))
         .setTimestamp(timerTimestamp.getMillis() * 1000)

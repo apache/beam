@@ -19,7 +19,12 @@
 import java.util.stream.Collectors
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.io.hcatalog')
+applyJavaNature(
+  automaticModuleName: 'org.apache.beam.sdk.io.hcatalog',
+  // TODO(BEAM-13430): Re-enable this once the dependency analysis plugin stops failing with:
+  // Cannot accept visitor on URL: file:.../org.apache.curator/apache-curator/2.6.0/1bbbe3a8c191ec5a63ec2eaec7988d8292ea65d2/apache-curator-2.6.0.pom
+  enableStrictDependencies: false,
+)
 
 description = "Apache Beam :: SDKs :: Java :: IO :: HCatalog"
 ext.summary = "IO to read and write for HCatalog source."
@@ -27,46 +32,28 @@ ext.summary = "IO to read and write for HCatalog source."
 def hadoopVersions = [
     "285": "2.8.5",
     "292": "2.9.2",
-    "2101": "2.10.1",
+    "2102": "2.10.2",
 ]
 
 hadoopVersions.each {kv -> configurations.create("hadoopVersion$kv.key")}
 
-def hive_version = "2.1.0"
-
-test {
-  // TODO: Get tests to run. Known issues:
-  //  * calcite-avatica bundles w/o repackaging Jackson (CALCITE-1110)
-  //  * hive-exec bundles w/o repackaging Guava (HIVE-13690)
-  ignoreFailures true
-}
-
-configurations.testRuntimeClasspath {
-  resolutionStrategy {
-    def log4j_version = "2.8.2"
-    // Beam's build system forces a uniform log4j version resolution for all modules, however for
-    // the HCatalog case the current version of log4j produces NoClassDefFoundError so we need to
-    // force an old version on the tests runtime classpath
-    force "org.apache.logging.log4j:log4j-api:${log4j_version}"
-    force "org.apache.logging.log4j:log4j-core:${log4j_version}"
-  }
-}
+def hive_version = "3.1.3"
 
 /*
  * We need to rely on manually specifying these evaluationDependsOn to ensure that
  * the following projects are evaluated before we evaluate this project. This is because
  * we are attempting to reference the "sourceSets.test.output" directly.
- * TODO: Swap to generating test artifacts which we can then rely on instead of
+ * TODO: use testTextures feature which is introduced in Gradle 5.6 instead of
  * the test outputs directly.
  */
 evaluationDependsOn(":sdks:java:io:common")
 
 dependencies {
-  compile library.java.vendored_guava_26_0_jre
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile project(":sdks:java:io:hadoop-common")
-  compile library.java.slf4j_api
-  compile library.java.joda_time
+  implementation library.java.vendored_guava_26_0_jre
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(":sdks:java:io:hadoop-common")
+  implementation library.java.slf4j_api
+  implementation library.java.joda_time
   // Hive bundles without repackaging Jackson which is why we redeclare it here so that it appears
   // on the compile/test/runtime classpath before Hive.
   provided library.java.jackson_annotations
@@ -80,15 +67,15 @@ dependencies {
     exclude group: "org.apache.hive", module: "hive-exec"
     exclude group: "com.google.protobuf", module: "protobuf-java"
   }
-  testCompile project(":sdks:java:io:common").sourceSets.test.output
-  testCompile library.java.commons_io
-  testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
-  testCompile "org.apache.hive.hcatalog:hive-hcatalog-core:$hive_version:tests"
-  testCompile "org.apache.hive:hive-exec:$hive_version"
-  testCompile "org.apache.hive:hive-common:$hive_version"
-  testCompile "org.apache.hive:hive-cli:$hive_version"
+  testImplementation project(":sdks:java:io:common").sourceSets.test.output
+  testImplementation library.java.commons_io
+  testImplementation library.java.junit
+  testImplementation library.java.hamcrest
+  testImplementation "org.apache.hive.hcatalog:hive-hcatalog-core:$hive_version:tests"
+  testImplementation "org.apache.hive:hive-exec:$hive_version"
+  testImplementation "org.apache.hive:hive-common:$hive_version"
+  testImplementation "org.apache.hive:hive-cli:$hive_version"
+  testImplementation "org.apache.hive.hcatalog:hive-hcatalog-core:$hive_version"
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
   hadoopVersions.each {kv ->
     "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-common:$kv.value"

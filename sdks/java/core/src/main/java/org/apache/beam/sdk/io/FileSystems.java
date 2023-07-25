@@ -38,8 +38,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.CreateOptions.StandardCreateOptions;
@@ -65,9 +63,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.TreeMultimap;
 
 /** Clients facing {@link FileSystem} utility. */
-@Experimental(Kind.FILESYSTEM)
 @SuppressWarnings({
-  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes"
 })
 public class FileSystems {
@@ -442,6 +439,7 @@ public class FileSystems {
         continue;
       }
       if (matchDestResults != null
+          && matchSrcResults != null
           && matchDestResults.get(i).status().equals(Status.OK)
           && checksumMatch(
               matchDestResults.get(i).metadata().get(0),

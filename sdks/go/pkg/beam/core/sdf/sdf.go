@@ -14,10 +14,11 @@
 // limitations under the License.
 
 // Package contains interfaces used specifically for splittable DoFns.
-//
-// Warning: Splittable DoFns are still experimental, largely untested, and
-// likely to have bugs.
 package sdf
+
+import (
+	"time"
+)
 
 // RTracker is an interface used to interact with restrictions while processing elements in
 // splittable DoFns (specifically, in the ProcessElement method). Each RTracker tracks the progress
@@ -49,7 +50,7 @@ type RTracker interface {
 	// 		pos = position of next block within the restriction
 	// 	}
 	// 	return
-	TryClaim(pos interface{}) (ok bool)
+	TryClaim(pos any) (ok bool)
 
 	// GetError returns the error that made this RTracker stop executing, and returns nil if no
 	// error occurred. This is the error that is emitted if automated validation fails.
@@ -68,8 +69,15 @@ type RTracker interface {
 	// the only split point is the end of the restriction, or the split failed for some recoverable
 	// reason), then this function returns nil as the residual.
 	//
+	// If the split fraction is 0 (e.g. a self-checkpointing split) TrySplit() should return
+	// a primary restriction that represents no remaining work, and the residual should
+	// contain all remaining work. The RTracker should be marked as done
+	// (and return true when IsDone() is called) after that split.
+	// This will ensure that there is no data loss, which would result in
+	// the pipeline failing during the checkpoint.
+	//
 	// If an error is returned, some catastrophic failure occurred and the entire bundle will fail.
-	TrySplit(fraction float64) (primary, residual interface{}, err error)
+	TrySplit(fraction float64) (primary, residual any, err error)
 
 	// GetProgress returns two abstract scalars representing the amount of done and remaining work.
 	// These values have no specific units, but are used to estimate work in relation to each other
@@ -80,9 +88,41 @@ type RTracker interface {
 	// claimed. This method is called by the SDK Harness to validate that a splittable DoFn has
 	// correctly processed all work in a restriction before finishing. If this method still returns
 	// false after processing, then GetError is expected to return a non-nil error.
+	//
+	// When called immediately following a checkpointing TrySplit() call (with value 0.0), this
+	// should return true.
 	IsDone() bool
 
 	// GetRestriction returns the restriction this tracker is tracking, or nil if the restriction
 	// is unavailable for some reason.
-	GetRestriction() interface{}
+	GetRestriction() any
+}
+
+// BoundableRTracker is an interface used to interact with restrictions that may be bounded or unbounded
+// while processing elements in splittable DoFns (specifically, in the ProcessElement method and TruncateRestriction method).
+// Each BoundableRTracker tracks the progress of a single restriction.
+//
+// All BoundableRTracker methods should be thread-safe for dynamic splits to function correctly.
+type BoundableRTracker interface {
+	RTracker
+	// IsBounded returns the boundedness of the current restriction. If the current restriction represents a
+	// finite amount of work, it should return true. Otherwise, it should return false.
+	IsBounded() bool
+}
+
+// WatermarkEstimator is an interface used to represent a user defined watermark estimator.
+// Watermark estimators allow users to advance the output watermark of the current sdf.
+type WatermarkEstimator interface {
+	// CurrentWatermark returns the estimator's current watermark. It is called any time a DoFn
+	// splits or checkpoints to advance the output watermark of the restriction's stage.
+	CurrentWatermark() time.Time
+}
+
+// TimestampObservingEstimator is an interface used to represent a user defined watermark estimator that
+// has the ability to observe timestamps of elements outputted from a ParDo's emit function.
+type TimestampObservingEstimator interface {
+	WatermarkEstimator
+	// ObserveTimestamp is called any time a DoFn emits an element and can use that element's
+	// event time to modify the state of the estimator.
+	ObserveTimestamp(ts time.Time)
 }

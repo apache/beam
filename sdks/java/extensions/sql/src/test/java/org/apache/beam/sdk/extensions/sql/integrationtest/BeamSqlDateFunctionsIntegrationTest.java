@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.sql.integrationtest;
 
-import static org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.avatica.util.DateTimeUtils.MILLIS_PER_DAY;
-import static org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.avatica.util.DateTimeUtils.MILLIS_PER_SECOND;
+import static org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.avatica.util.DateTimeUtils.MILLIS_PER_DAY;
+import static org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.avatica.util.DateTimeUtils.MILLIS_PER_SECOND;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
@@ -39,7 +39,7 @@ public class BeamSqlDateFunctionsIntegrationTest
     extends BeamSqlBuiltinFunctionsIntegrationTestBase {
 
   @Test
-  @Ignore("https://jira.apache.org/jira/browse/BEAM-10328")
+  @Ignore("https://github.com/apache/beam/issues/20339")
   public void testDateTimeFunctions_currentTime() throws Exception {
     String sql =
         "SELECT "

@@ -33,8 +33,6 @@ import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 import okhttp3.OkHttpClient;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -56,8 +54,6 @@ import org.influxdb.dto.Query;
 import org.influxdb.dto.QueryResult;
 import org.influxdb.dto.QueryResult.Result;
 import org.influxdb.dto.QueryResult.Series;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * IO to read and write from InfluxDB.
@@ -98,12 +94,10 @@ import org.slf4j.LoggerFactory;
  *
  * <p>The source and sink also accepts optional configuration: {@code withRetentionPolicy()}
  */
-@Experimental(Kind.SOURCE_SINK)
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class InfluxDbIO {
-  private static final Logger LOG = LoggerFactory.getLogger(InfluxDbIO.class);
 
   private static final String DEFAULT_RETENTION_POLICY = "autogen";
 

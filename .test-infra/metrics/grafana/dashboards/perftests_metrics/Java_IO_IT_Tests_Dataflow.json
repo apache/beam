@@ -103,7 +103,7 @@
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "TextIOIT | 1 GB | GCS",
+      "title": "TextIOIT | GCS | 1 GB",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -225,7 +225,7 @@
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "TextIOIT | 1 GB | HDFS",
+      "title": "TextIOIT | HDFS | 1 GB",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -347,7 +347,7 @@
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "TextIOIT GZIP | 1 GB | GCS",
+      "title": "TextIOIT | GZIP GCS | 1 GB",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -469,7 +469,7 @@
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "TextIOIT GZIP | 1 GB | HDFS",
+      "title": "TextIOIT | GZIP HDFS | 1 GB",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -591,7 +591,7 @@
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "TextIOIT | 1 GB | GCP | \"Many files\"",
+      "title": "TextIOIT | \"Many files\" GCP | 1 GB",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -713,7 +713,7 @@
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "TextIOIT | 1 GB | HDFS | \"Many files\"",
+      "title": "TextIOIT | \"Many files\" HDFS | 1 GB",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -755,7 +755,7 @@
     },
     {
       "aliasColors": {
-        "copies_per_sec": "blue"
+        "rename_per_sec": "blue"
       },
       "bars": false,
       "cacheTimeout": null,
@@ -800,7 +800,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "alias": "copies_per_sec",
+          "alias": "rename_per_sec",
           "groupBy": [
             {
               "params": [
@@ -812,7 +812,7 @@
           "measurement": "",
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT value FROM \"many_files_textioit_results\" WHERE \"metric\" = 'copies_per_sec'",
+          "query": "SELECT value FROM \"many_files_textioit_results\" WHERE \"metric\" = 'rename_per_sec'",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series",
@@ -837,7 +837,7 @@
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "TextIOIT | 1 GB | GCS | \"Many files\" | GCS Copies",
+      "title": "TextIOIT | \"Many files\" GCS Rename | 1 GB",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -855,7 +855,7 @@
       "yaxes": [
         {
           "$$hashKey": "object:403",
-          "format": "s",
+          "format": "none",
           "label": null,
           "logBase": 1,
           "max": null,
@@ -959,7 +959,7 @@
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "AvroIOIT | 1 GB | GCS",
+      "title": "AvroIOIT | GCS | 1 GB",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -1081,7 +1081,7 @@
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "AvroIOIT | 1 GB | HDFS",
+      "title": "AvroIOIT | HDFS | 1 GB",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -1203,7 +1203,7 @@
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "XmlIOIT | 1 GB | GCS",
+      "title": "XmlIOIT | GCS | 1 GB",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -1325,7 +1325,7 @@
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "XmlIOIT | 1 GB | HDFS",
+      "title": "XmlIOIT | HDFS | 1 GB",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -1372,7 +1372,6 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": "BeamInfluxDB",
-      "description": "TODO: https://issues.apache.org/jira/browse/BEAM-7115",
       "fill": 1,
       "fillGradient": 0,
       "gridPos": {
@@ -1448,7 +1447,7 @@
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "TFRecordIO | 1 GB | GCS",
+      "title": "TFRecordIO | GCS |  1 GB",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -1571,7 +1570,7 @@
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "ParquetIO | 1 GB | GCS",
+      "title": "ParquetIO | GCS | 1 GB",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -1694,7 +1693,7 @@
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "ParquetIO | 1 GB | HDFS",
+      "title": "ParquetIO | HDFS | 1 GB",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -1817,7 +1816,7 @@
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "MongoDBIO",
+      "title": "MongoDBIO | 10M records",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -1875,7 +1874,7 @@
       },
       "hiddenSeries": false,
       "id": 19,
-      "interval": "6h",
+      "interval": "12h",
       "legend": {
         "avg": false,
         "current": false,
@@ -1940,7 +1939,7 @@
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "JdbcIO",
+      "title": "JdbcIO | 5M records",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -1998,7 +1997,7 @@
       },
       "hiddenSeries": false,
       "id": 20,
-      "interval": "6h",
+      "interval": "12h",
       "legend": {
         "avg": false,
         "current": false,
@@ -2063,7 +2062,7 @@
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "HadoopFormatIO",
+      "title": "HadoopFormatIO | 5M records",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -2149,7 +2148,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "alias": "$tag_metric",
+          "alias": "LEGACY_read_time",
           "groupBy": [
             {
               "params": [
@@ -2161,7 +2160,73 @@
           "measurement": "",
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT mean(\"value\") FROM \"kafkaioit_results\" WHERE (\"metric\" = 'write_time' OR \"metric\" = 'read_time') AND $timeFilter GROUP BY time($__interval), \"metric\"",
+          "query": "SELECT mean(\"value\") FROM \"kafkaioit_results\" WHERE \"metric\" = 'read_time' AND $timeFilter GROUP BY time($__interval), \"metric\"",
+          "rawQuery": true,
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "mean"
+              }
+            ]
+          ],
+          "tags": []
+        },
+        {
+          "alias": "write_time",
+          "groupBy": [
+            {
+              "params": [
+                "$__interval"
+              ],
+              "type": "time"
+            }
+          ],
+          "measurement": "",
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "SELECT mean(\"value\") FROM \"kafkaioit_results\" WHERE \"metric\" = 'write_time' AND $timeFilter GROUP BY time($__interval), \"metric\"",
+          "rawQuery": true,
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "mean"
+              }
+            ]
+          ],
+          "tags": []
+        },
+        {
+          "alias": "SDF_read_time",
+          "groupBy": [
+            {
+              "params": [
+                "$__interval"
+              ],
+              "type": "time"
+            }
+          ],
+          "measurement": "",
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "SELECT mean(\"value\") FROM \"kafkaioit_results_runner_v2\" WHERE \"metric\" = 'read_time' AND $timeFilter GROUP BY time($__interval), \"metric\"",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series",
@@ -2186,7 +2251,7 @@
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "KafkaIO | 1GB",
+      "title": "KafkaIO | 100M records, 10 GB",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -2309,7 +2374,7 @@
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "BigQueryIO | batch | JSON",
+      "title": "BigQueryIO batch JSON | 10M records, 10 GB",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -2432,7 +2497,7 @@
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "BigQueryIO | streaming | JSON",
+      "title": "BigQueryIO | streaming JSON | 10M records, 10 GB",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -2484,7 +2549,7 @@
       "fillGradient": 0,
       "gridPos": {
         "h": 9,
-        "w": 24,
+        "w": 12,
         "x": 0,
         "y": 97
       },
@@ -2555,7 +2620,376 @@
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "BigQueryIO | batch | Avro",
+      "title": "BigQueryIO | batch Avro | 10M records, 10 GB",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "transparent": true,
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "$$hashKey": "object:403",
+          "format": "s",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "$$hashKey": "object:404",
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "cacheTimeout": null,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "BeamInfluxDB",
+      "description": "",
+      "fill": 1,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 97
+      },
+      "hiddenSeries": false,
+      "id": 26,
+      "interval": "12h",
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": false,
+        "total": false,
+        "values": false
+      },
+      "lines": true,
+      "linewidth": 2,
+      "links": [],
+      "nullPointMode": "connected",
+      "options": {
+        "dataLinks": []
+      },
+      "percentage": false,
+      "pluginVersion": "6.7.2",
+      "pointradius": 2,
+      "points": true,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "alias": "$tag_metric",
+          "groupBy": [
+            {
+              "params": [
+                "$__interval"
+              ],
+              "type": "time"
+            }
+          ],
+          "measurement": "",
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "SELECT mean(\"value\") FROM \"cdapioit_results\" WHERE \"metric\" =~ /time/ AND $timeFilter GROUP BY time($__interval), \"metric\"",
+          "rawQuery": true,
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "mean"
+              }
+            ]
+          ],
+          "tags": []
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "CdapIO | 5M records",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "transparent": true,
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "$$hashKey": "object:403",
+          "format": "s",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "$$hashKey": "object:404",
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "cacheTimeout": null,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "BeamInfluxDB",
+      "description": "",
+      "fill": 1,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 106
+      },
+      "hiddenSeries": false,
+      "id": 27,
+      "interval": "12h",
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": false,
+        "total": false,
+        "values": false
+      },
+      "lines": true,
+      "linewidth": 2,
+      "links": [],
+      "nullPointMode": "connected",
+      "options": {
+        "dataLinks": []
+      },
+      "percentage": false,
+      "pluginVersion": "6.7.2",
+      "pointradius": 2,
+      "points": true,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "alias": "$tag_metric",
+          "groupBy": [
+            {
+              "params": [
+                "$__interval"
+              ],
+              "type": "time"
+            }
+          ],
+          "measurement": "",
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "SELECT mean(\"value\") FROM \"sparkreceiverioit_results\" WHERE \"metric\" =~ /time/ AND $timeFilter GROUP BY time($__interval), \"metric\"",
+          "rawQuery": true,
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "mean"
+              }
+            ]
+          ],
+          "tags": []
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "SparkReceiverIO | 5M Records",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "transparent": true,
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "$$hashKey": "object:403",
+          "format": "s",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "$$hashKey": "object:404",
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "cacheTimeout": null,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "BeamInfluxDB",
+      "description": "",
+      "fill": 1,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 106
+      },
+      "hiddenSeries": false,
+      "id": 28,
+      "interval": "6h",
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": false,
+        "total": false,
+        "values": false
+      },
+      "lines": true,
+      "linewidth": 2,
+      "links": [],
+      "nullPointMode": "connected",
+      "options": {
+        "dataLinks": []
+      },
+      "percentage": false,
+      "pluginVersion": "6.7.2",
+      "pointradius": 2,
+      "points": true,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "alias": "$tag_metric",
+          "groupBy": [
+            {
+              "params": [
+                "$__interval"
+              ],
+              "type": "time"
+            }
+          ],
+          "measurement": "",
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "SELECT mean(\"value\") FROM \"singlestoreioit_results\" WHERE \"metric\" =~ /time/ AND $timeFilter GROUP BY time($__interval), \"metric\"",
+          "rawQuery": true,
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "mean"
+              }
+            ]
+          ],
+          "tags": []
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "SingleStoreIO | 5M Records",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -2623,6 +3057,7 @@
   },
   "timezone": "",
   "title": "Java IO IT Tests | Dataflow",
+  "description": "Shows performance test metrics on Dataflow of Beam Java SDK.\nTests are named after 'IO Connector | Specifications | data size'.",
   "uid": "bnlHKP3Wz",
   "variables": {
     "list": []

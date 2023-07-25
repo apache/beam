@@ -24,6 +24,7 @@ import com.google.api.client.util.BackOffUtils;
 import com.google.api.client.util.Sleeper;
 import com.google.api.services.bigquery.model.Dataset;
 import com.google.api.services.bigquery.model.Job;
+import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.JobStatus;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
@@ -33,6 +34,7 @@ import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -47,15 +49,14 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.nullness.qual.PolyNull;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** A set of helper functions and classes used by {@link BigQueryIO}. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class BigQueryHelpers {
   private static final String RESOURCE_NOT_FOUND_ERROR =
       "BigQuery %1$s not found for table \"%2$s\" . Please create the %1$s before pipeline"
@@ -91,9 +92,10 @@ public class BigQueryHelpers {
   static class PendingJobManager {
     private static class JobInfo {
       private final PendingJob pendingJob;
-      private final @Nullable SerializableFunction<PendingJob, Exception> onSuccess;
+      private final SerializableFunction<PendingJob, @Nullable Exception> onSuccess;
 
-      public JobInfo(PendingJob pendingJob, SerializableFunction<PendingJob, Exception> onSuccess) {
+      public JobInfo(
+          PendingJob pendingJob, SerializableFunction<PendingJob, @Nullable Exception> onSuccess) {
         this.pendingJob = pendingJob;
         this.onSuccess = onSuccess;
       }
@@ -118,7 +120,7 @@ public class BigQueryHelpers {
 
     // Add a pending job and a function to call when the job has completed successfully.
     PendingJobManager addPendingJob(
-        PendingJob pendingJob, @Nullable SerializableFunction<PendingJob, Exception> onSuccess) {
+        PendingJob pendingJob, SerializableFunction<PendingJob, @Nullable Exception> onSuccess) {
       this.pendingJobs.add(new JobInfo(pendingJob, onSuccess));
       return this;
     }
@@ -173,7 +175,7 @@ public class BigQueryHelpers {
     private final int maxRetries;
     private int currentAttempt;
     RetryJobId currentJobId;
-    Job lastJobAttempted;
+    @Nullable Job lastJobAttempted = null;
     boolean started;
 
     PendingJob(
@@ -243,26 +245,26 @@ public class BigQueryHelpers {
             // This might happen if BigQuery's job listing is slow. Retry with the same
             // job id.
             LOG.info(
-                "Load job {} finished in unknown state: {}: {}",
+                "Load job {} finished in unknown state, {}: {}",
                 currentJobId,
-                job.getStatus(),
-                shouldRetry() ? "will retry" : "will not retry");
+                shouldRetry() ? "will retry" : "will not retry",
+                statusToPrettyString(job.getStatus()));
             return false;
           case FAILED:
             String oldJobId = currentJobId.getJobId();
-            currentJobId = BigQueryHelpers.getRetryJobId(currentJobId, lookupJob).jobId;
+            currentJobId = getRetryJobId(currentJobId, lookupJob).jobId;
             LOG.warn(
                 "Load job {} failed, {}: {}. Next job id {}",
                 oldJobId,
                 shouldRetry() ? "will retry" : "will not retry",
-                job.getStatus(),
+                statusToPrettyString(job.getStatus()),
                 currentJobId);
             return false;
           default:
             throw new IllegalStateException(
                 String.format(
                     "Unexpected status [%s] of load job: %s.",
-                    job.getStatus(), BigQueryHelpers.jobToPrettyString(job)));
+                    job.getStatus(), jobToPrettyString(job)));
         }
       }
       return false;
@@ -365,6 +367,24 @@ public class BigQueryHelpers {
         + tableReference.getTableId();
   }
 
+  /** Table full resource name formatted according to https://google.aip.dev/122. */
+  static String toTableFullResourceName(TableReference tableReference) {
+    return "//bigquery.googleapis.com/" + toTableResourceName(tableReference);
+  }
+
+  /**
+   * Unofficial full resource name for a BigQuery job. Used for logging QuotaEvents related to BQ
+   * jobs.
+   */
+  static String toJobFullResourceName(JobReference jobReference) {
+    return "//bigquery.googleapis.com/projects/"
+        + jobReference.getProjectId()
+        + "/locations/"
+        + jobReference.getLocation()
+        + "/jobs/"
+        + jobReference.getJobId();
+  }
+
   /** Return a displayable string representation for a {@link TableReference}. */
   static @Nullable ValueProvider<String> displayTable(
       @Nullable ValueProvider<TableReference> table) {
@@ -392,17 +412,23 @@ public class BigQueryHelpers {
 
   /**
    * Parse a table specification in the form {@code "[project_id]:[dataset_id].[table_id]"} or
-   * {@code "[dataset_id].[table_id]"}.
+   * {@code "[project_id].[dataset_id].[table_id]"} or {@code "[dataset_id].[table_id]"}.
    *
    * <p>If the project id is omitted, the default project id is used.
    */
+  @SuppressWarnings({
+    "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+  })
   public static TableReference parseTableSpec(String tableSpec) {
     Matcher match = BigQueryIO.TABLE_SPEC.matcher(tableSpec);
     if (!match.matches()) {
       throw new IllegalArgumentException(
-          "Table reference is not in [project_id]:[dataset_id].[table_id] "
-              + "format: "
-              + tableSpec);
+          String.format(
+              "Table specification [%s] is not in one of the expected formats ("
+                  + " [project_id]:[dataset_id].[table_id],"
+                  + " [project_id].[dataset_id].[table_id],"
+                  + " [dataset_id].[table_id])",
+              tableSpec));
     }
 
     TableReference ref = new TableReference();
@@ -411,6 +437,9 @@ public class BigQueryHelpers {
     return ref.setDatasetId(match.group("DATASET")).setTableId(match.group("TABLE"));
   }
 
+  @SuppressWarnings({
+    "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+  })
   public static TableReference parseTableUrn(String tableUrn) {
     Matcher match = BigQueryIO.TABLE_URN_SPEC.matcher(tableUrn);
     if (!match.matches()) {
@@ -432,6 +461,9 @@ public class BigQueryHelpers {
     return (index == -1) ? tableSpec : tableSpec.substring(0, index);
   }
 
+  @SuppressWarnings({
+    "nullness" // The BigQuery API library is documented to accept nulls but is not annotated
+  })
   static String jobToPrettyString(@Nullable Job job) throws IOException {
     if (job != null && job.getConfiguration().getLoad() != null) {
       // Removing schema and sourceUris from error messages for load jobs since these fields can be
@@ -462,7 +494,7 @@ public class BigQueryHelpers {
     }
   }
 
-  public static String toJsonString(Object item) {
+  public static @PolyNull String toJsonString(@PolyNull Object item) {
     if (item == null) {
       return null;
     }
@@ -475,12 +507,18 @@ public class BigQueryHelpers {
     }
   }
 
-  public static <T> T fromJsonString(String json, Class<T> clazz) {
+  public static <T> @PolyNull T fromJsonString(@PolyNull String json, Class<T> clazz) {
     if (json == null) {
       return null;
     }
     try {
-      return BigQueryIO.JSON_FACTORY.fromString(json, clazz);
+      // If T is Void then this ends up null, otherwise it is not; kind of a tough invariant
+      @SuppressWarnings({
+        "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+      })
+      @NonNull
+      T result = BigQueryIO.JSON_FACTORY.fromString(json, clazz);
+      return result;
     } catch (IOException e) {
       throw new RuntimeException(
           String.format("Cannot deserialize %s from a JSON string: %s.", clazz, json), e);
@@ -498,7 +536,9 @@ public class BigQueryHelpers {
 
   static void verifyTableNotExistOrEmpty(DatasetService datasetService, TableReference tableRef) {
     try {
-      if (datasetService.getTable(tableRef) != null) {
+      if (datasetService.getTable(
+              tableRef, Collections.emptyList(), DatasetService.TableMetadataView.BASIC)
+          != null) {
         checkState(
             datasetService.isTableEmpty(tableRef),
             "BigQuery table is not empty: %s.",
@@ -553,6 +593,17 @@ public class BigQueryHelpers {
     }
   }
 
+  public static @Nullable Table getTable(BigQueryOptions options, TableReference tableRef)
+      throws InterruptedException, IOException {
+    try (DatasetService datasetService = new BigQueryServicesImpl().getDatasetService(options)) {
+      return datasetService.getTable(tableRef);
+    } catch (IOException | InterruptedException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
   static String getDatasetLocation(
       DatasetService datasetService, String projectId, String datasetId) {
     Dataset dataset;
@@ -572,10 +623,15 @@ public class BigQueryHelpers {
 
   static void verifyTablePresence(DatasetService datasetService, TableReference table) {
     try {
-      datasetService.getTable(table);
+      Table fetchedTable = datasetService.getTable(table);
+      if (fetchedTable == null) {
+        throw new IOException("Table does not exist.");
+      }
     } catch (Exception e) {
       ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
-      if ((e instanceof IOException) && errorExtractor.itemNotFound((IOException) e)) {
+      if ((e instanceof IOException)
+          && ("Table does not exist.".equals(e.getMessage())
+              || errorExtractor.itemNotFound((IOException) e))) {
         throw new IllegalArgumentException(
             String.format(RESOURCE_NOT_FOUND_ERROR, "table", toTableSpec(table)), e);
       } else if (e instanceof RuntimeException) {

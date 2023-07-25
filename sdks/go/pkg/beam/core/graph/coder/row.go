@@ -40,7 +40,7 @@ func RequireAllFieldsExported(require bool) {
 }
 
 // RegisterSchemaProviders Register Custom Schema providers.
-func RegisterSchemaProviders(rt reflect.Type, enc, dec interface{}) {
+func RegisterSchemaProviders(rt reflect.Type, enc, dec any) {
 	defaultEnc.Register(rt, enc)
 	defaultDec.Register(rt, dec)
 }
@@ -50,7 +50,7 @@ func RegisterSchemaProviders(rt reflect.Type, enc, dec interface{}) {
 //
 // Returns an error if the given type is invalid or not encodable to a beam
 // schema row.
-func RowEncoderForStruct(rt reflect.Type) (func(interface{}, io.Writer) error, error) {
+func RowEncoderForStruct(rt reflect.Type) (func(any, io.Writer) error, error) {
 	return defaultEnc.Build(rt)
 }
 
@@ -59,7 +59,7 @@ func RowEncoderForStruct(rt reflect.Type) (func(interface{}, io.Writer) error, e
 //
 // Returns an error if the given type is invalid or not decodable from a beam
 // schema row.
-func RowDecoderForStruct(rt reflect.Type) (func(io.Reader) (interface{}, error), error) {
+func RowDecoderForStruct(rt reflect.Type) (func(io.Reader) (any, error), error) {
 	return defaultDec.Build(rt)
 }
 
@@ -122,7 +122,7 @@ func WriteRowHeader(n int, isNil func(int) bool, w io.Writer) error {
 	}
 	// Followed by a packed bit array of the nil fields.
 	var curByte byte
-	var nils bool
+	lastNilByte := -1
 	var bytes = make([]byte, 0, n/8+1)
 	for i := 0; i < n; i++ {
 		shift := i % 8
@@ -132,15 +132,15 @@ func WriteRowHeader(n int, isNil func(int) bool, w io.Writer) error {
 		}
 		if isNil(i) {
 			curByte |= (1 << uint8(shift))
-			nils = true
+			// This will always be 1 less than the actual bitset length
+			// since the working byte isn't appended until after the loop.
+			lastNilByte = len(bytes)
 		}
 	}
-	if nils {
-		bytes = append(bytes, curByte)
-	} else {
-		// If there are no nils, we write a 0 length byte array instead.
-		bytes = bytes[:0]
-	}
+	bytes = append(bytes, curByte)
+	// Trailing 0 bytes are elided, w/0 nil fields encoding to a varint 0.
+	bytes = bytes[:lastNilByte+1]
+
 	if err := EncodeVarInt(int64(len(bytes)), w); err != nil {
 		return err
 	}
@@ -186,7 +186,9 @@ func ReadRowHeader(r io.Reader) (int, []byte, error) {
 // and can be skipped in decoding.
 func IsFieldNil(nils []byte, f int) bool {
 	i, b := f/8, f%8
-	return len(nils) != 0 && (nils[i]>>uint8(b))&0x1 == 1
+	// https://github.com/apache/beam/issues/21232: The row header can elide trailing 0 bytes,
+	// and we shouldn't care if there are trailing 0 bytes when doing a lookup.
+	return i < len(nils) && len(nils) != 0 && (nils[i]>>uint8(b))&0x1 == 1
 }
 
 // WriteSimpleRowHeader is a convenience function to write Beam Schema Row Headers

@@ -19,6 +19,8 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.joda.JodaModule;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.google.api.services.bigquery.model.TableRow;
 import java.io.IOException;
 import java.io.InputStream;
@@ -68,7 +70,11 @@ public class TableRowJsonCoder extends AtomicCoder<TableRow> {
   // FAIL_ON_EMPTY_BEANS is disabled in order to handle null values in
   // TableRow.
   private static final ObjectMapper MAPPER =
-      new ObjectMapper().disable(SerializationFeature.FAIL_ON_EMPTY_BEANS);
+      new ObjectMapper()
+          .registerModule(new JavaTimeModule())
+          .registerModule(new JodaModule())
+          .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+          .disable(SerializationFeature.FAIL_ON_EMPTY_BEANS);
 
   private static final TableRowJsonCoder INSTANCE = new TableRowJsonCoder();
   private static final TypeDescriptor<TableRow> TYPE_DESCRIPTOR = new TypeDescriptor<TableRow>() {};

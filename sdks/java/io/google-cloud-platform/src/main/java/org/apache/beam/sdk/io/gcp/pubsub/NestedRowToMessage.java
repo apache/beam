@@ -42,7 +42,7 @@ class NestedRowToMessage extends SimpleFunction<Row, PubsubMessage> {
   private final SerializableFunction<Row, Map<String, String>> attributesExtractor;
   private final SerializableFunction<Row, byte[]> payloadExtractor;
 
-  @SuppressWarnings("methodref.receiver.bound.invalid")
+  @SuppressWarnings("methodref.receiver.bound")
   NestedRowToMessage(PayloadSerializer serializer, Schema schema) {
     this.serializer = serializer;
     if (schema.getField(ATTRIBUTES_FIELD).getType().equals(ATTRIBUTE_MAP_FIELD_TYPE)) {

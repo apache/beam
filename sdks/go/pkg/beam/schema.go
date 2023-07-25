@@ -37,11 +37,11 @@ import (
 //
 // Providers have three tasks with respect to a given supported logical type:
 //
-//   * Producing schema representative types for their logical types.
-//   * Producing schema encoders for values of that type, writing beam
-//   schema encoded bytes for a value, matching the schema representative type.
-//   * Producing schema decoders for values of that type, reading beam
-//   schema encoded bytes, and producing a value of that type.
+//   - Producing schema representative types for their logical types.
+//   - Producing schema encoders for values of that type, writing beam
+//     schema encoded bytes for a value, matching the schema representative type.
+//   - Producing schema decoders for values of that type, reading beam
+//     schema encoded bytes, and producing a value of that type.
 //
 // Representative Schema types must be structs with only exported fields.
 //
@@ -54,7 +54,7 @@ import (
 //
 // RegisterSchemaProvider must be called before beam.Init(), and conventionally
 // is called in a package init() function.
-func RegisterSchemaProvider(rt reflect.Type, provider interface{}) {
+func RegisterSchemaProvider(rt reflect.Type, provider any) {
 	p := provider.(SchemaProvider)
 	switch rt.Kind() {
 	case reflect.Interface:
@@ -77,6 +77,23 @@ func RegisterSchemaProvider(rt reflect.Type, provider interface{}) {
 	coder.RegisterSchemaProviders(rt, p.BuildEncoder, p.BuildDecoder)
 }
 
+// RegisterSchemaProviderWithURN is for internal use only. Users are recommended to use
+// beam.RegisterSchemaProvider() instead.
+// RegisterSchemaProviderWithURN registers a new schema provider for a new logical type defined
+// in pkg/beam/model/pipeline_v1/schema.pb.go
+//
+// RegisterSchemaProviderWithURN must be called before beam.Init(), and conventionally
+// is called in a package init() function.
+func RegisterSchemaProviderWithURN(rt reflect.Type, provider any, urn string) {
+	p := provider.(SchemaProvider)
+	st, err := p.FromLogicalType(rt)
+	if err != nil {
+		panic(fmt.Sprintf("beam.RegisterSchemaProvider: schema type provider for %v, doesn't support that type", rt))
+	}
+	schema.RegisterLogicalType(schema.ToLogicalType(urn, rt, st))
+	coder.RegisterSchemaProviders(rt, p.BuildEncoder, p.BuildDecoder)
+}
+
 // SchemaProvider specializes schema handling for complex types, including conversion to a
 // valid schema base type,
 //
@@ -85,6 +102,6 @@ func RegisterSchemaProvider(rt reflect.Type, provider interface{}) {
 // Sepearated out the acting type from the provider implementation is good.
 type SchemaProvider interface {
 	FromLogicalType(reflect.Type) (reflect.Type, error)
-	BuildEncoder(rt reflect.Type) (func(interface{}, io.Writer) error, error)
-	BuildDecoder(rt reflect.Type) (func(io.Reader) (interface{}, error), error)
+	BuildEncoder(rt reflect.Type) (func(any, io.Writer) error, error)
+	BuildDecoder(rt reflect.Type) (func(io.Reader) (any, error), error)
 }

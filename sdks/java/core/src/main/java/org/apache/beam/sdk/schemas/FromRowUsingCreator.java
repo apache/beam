@@ -25,8 +25,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
@@ -42,9 +40,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Function to convert a {@link Row} to a user type using a creator factory. */
-@Experimental(Kind.SCHEMAS)
 @SuppressWarnings({
-  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes"
 })
 class FromRowUsingCreator<T> implements SerializableFunction<Row, T> {
@@ -148,7 +145,9 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T> {
                 typeFactory);
         return (ValueT) oneOfType.createValue(oneOfValue.getCaseType(), fromValue);
       } else if (type.getTypeName().isLogicalType()) {
-        return (ValueT) type.getLogicalType().toBaseType(value);
+        Schema.LogicalType<ValueT, ValueT> logicalType =
+            (Schema.LogicalType<ValueT, ValueT>) type.getLogicalType();
+        return logicalType.toBaseType(value);
       }
       return value;
     }

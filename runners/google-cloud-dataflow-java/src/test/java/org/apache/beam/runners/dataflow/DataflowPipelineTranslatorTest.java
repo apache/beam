@@ -34,6 +34,7 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.argThat;
 import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -121,7 +122,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
@@ -139,7 +140,7 @@ import org.mockito.ArgumentMatcher;
 /** Tests for DataflowPipelineTranslator. */
 @RunWith(JUnit4.class)
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class DataflowPipelineTranslatorTest implements Serializable {
 
@@ -209,7 +210,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     GcsUtil mockGcsUtil = mock(GcsUtil.class);
     when(mockGcsUtil.expand(any(GcsPath.class)))
         .then(invocation -> ImmutableList.of((GcsPath) invocation.getArguments()[0]));
-    when(mockGcsUtil.bucketAccessible(any(GcsPath.class))).thenReturn(true);
+    doNothing().when(mockGcsUtil).verifyBucketAccessible(any(GcsPath.class));
 
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setRunner(DataflowRunner.class);
@@ -722,7 +723,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
     PCollectionTuple outputs =
         pipeline
-            .apply(Create.of(3))
+            .apply(Create.of(3, 4))
             .apply(
                 ParDo.of(
                         new DoFn<Integer, Integer>() {
@@ -774,7 +775,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     TupleTag<Integer> mainOutputTag = new TupleTag<Integer>() {};
 
     pipeline
-        .apply(Create.of(KV.of(1, 1)))
+        .apply(Create.of(KV.of(1, 1), KV.of(2, 3)))
         .apply(
             ParDo.of(
                     new DoFn<KV<Integer, Integer>, Integer>() {
@@ -832,24 +833,22 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     final PCollectionView<List<Integer>> view =
         pipeline.apply("CreateSideInput", Create.of(11, 13, 17, 23)).apply(View.asList());
 
-    PCollection<Integer> output =
-        pipeline
-            .apply("CreateMainInput", Create.of(29, 31))
-            .apply(
-                "OutputSideInputs",
-                ParDo.of(
-                        new DoFn<Integer, Integer>() {
-                          @ProcessElement
-                          public void processElement(ProcessContext c) {
-                            checkArgument(c.sideInput(view).size() == 4);
-                            checkArgument(
-                                c.sideInput(view).get(0).equals(c.sideInput(view).get(0)));
-                            for (Integer i : c.sideInput(view)) {
-                              c.output(i);
-                            }
-                          }
-                        })
-                    .withSideInputs(view));
+    pipeline
+        .apply("CreateMainInput", Create.of(29, 31))
+        .apply(
+            "OutputSideInputs",
+            ParDo.of(
+                    new DoFn<Integer, Integer>() {
+                      @ProcessElement
+                      public void processElement(ProcessContext c) {
+                        checkArgument(c.sideInput(view).size() == 4);
+                        checkArgument(c.sideInput(view).get(0).equals(c.sideInput(view).get(0)));
+                        for (Integer i : c.sideInput(view)) {
+                          c.output(i);
+                        }
+                      }
+                    })
+                .withSideInputs(view));
 
     DataflowRunner runner = DataflowRunner.fromOptions(options);
     DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
@@ -918,7 +917,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     // No need to actually check the pipeline as the ValidatesRunner tests
     // ensure translation is correct. This is just a quick check to see that translation
     // does not crash.
-    assertEquals(24, steps.size());
+    assertEquals(25, steps.size());
   }
 
   /** Smoke test to fail fast if translation of a splittable ParDo in streaming breaks. */
@@ -989,19 +988,17 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
 
     Pipeline pipeline = Pipeline.create(options);
-
-    PCollection<String> windowedInput =
-        pipeline
-            .apply(Impulse.create())
-            .apply(
-                MapElements.via(
-                    new SimpleFunction<byte[], String>() {
-                      @Override
-                      public String apply(byte[] input) {
-                        return "";
-                      }
-                    }))
-            .apply(Window.into(FixedWindows.of(Duration.standardMinutes(1))));
+    pipeline
+        .apply(Impulse.create())
+        .apply(
+            MapElements.via(
+                new SimpleFunction<byte[], String>() {
+                  @Override
+                  public String apply(byte[] input) {
+                    return "";
+                  }
+                }))
+        .apply(Window.into(FixedWindows.of(Duration.standardMinutes(1))));
 
     runner.replaceV1Transforms(pipeline);
 
@@ -1060,7 +1057,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     assertAllStepOutputsHaveUniqueIds(job);
 
     List<Step> steps = job.getSteps();
-    assertEquals(9, steps.size());
+    assertEquals(10, steps.size());
 
     @SuppressWarnings("unchecked")
     List<Map<String, Object>> toIsmRecordOutputs =
@@ -1109,6 +1106,30 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     assertEquals("CollectionToSingleton", collectionToSingletonStep.getKind());
   }
 
+  private JobSpecification runBatchGroupIntoBatchesAndGetJobSpec(
+      Boolean withShardedKey, List<String> experiments) throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.setExperiments(experiments);
+    options.setStreaming(false);
+    DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
+
+    Pipeline pipeline = Pipeline.create(options);
+    PCollection<KV<Integer, String>> input =
+        pipeline.apply(Create.of(Arrays.asList(KV.of(1, "1"), KV.of(2, "2"), KV.of(3, "3"))));
+    if (withShardedKey) {
+      input.apply(GroupIntoBatches.<Integer, String>ofSize(3).withShardedKey());
+    } else {
+      input.apply(GroupIntoBatches.ofSize(3));
+    }
+
+    DataflowRunner runner = DataflowRunner.fromOptions(options);
+    runner.replaceV1Transforms(pipeline);
+    SdkComponents sdkComponents = createSdkComponents(options);
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents, true);
+    return translator.translate(
+        pipeline, pipelineProto, sdkComponents, runner, Collections.emptyList());
+  }
+
   private JobSpecification runStreamingGroupIntoBatchesAndGetJobSpec(
       Boolean withShardedKey, List<String> experiments) throws IOException {
     DataflowPipelineOptions options = buildPipelineOptions();
@@ -1134,6 +1155,55 @@ public class DataflowPipelineTranslatorTest implements Serializable {
   }
 
   @Test
+  public void testBatchGroupIntoBatchesTranslation() throws Exception {
+    JobSpecification jobSpec =
+        runBatchGroupIntoBatchesAndGetJobSpec(false, Collections.emptyList());
+    List<Step> steps = jobSpec.getJob().getSteps();
+    Step shardedStateStep = steps.get(steps.size() - 1);
+    Map<String, Object> properties = shardedStateStep.getProperties();
+    assertTrue(properties.containsKey(PropertyNames.PRESERVES_KEYS));
+    assertEquals("true", getString(properties, PropertyNames.PRESERVES_KEYS));
+  }
+
+  @Test
+  public void testBatchGroupIntoBatchesWithShardedKeyTranslation() throws Exception {
+    List<String> experiments = Collections.emptyList();
+    JobSpecification jobSpec = runBatchGroupIntoBatchesAndGetJobSpec(true, experiments);
+    List<Step> steps = jobSpec.getJob().getSteps();
+    Step shardedStateStep = steps.get(steps.size() - 1);
+    Map<String, Object> properties = shardedStateStep.getProperties();
+    assertTrue(properties.containsKey(PropertyNames.PRESERVES_KEYS));
+    assertEquals("true", getString(properties, PropertyNames.PRESERVES_KEYS));
+  }
+
+  @Test
+  public void testBatchGroupIntoBatchesTranslationUnifiedWorker() throws Exception {
+    List<String> experiments = ImmutableList.of("use_runner_v2");
+    JobSpecification jobSpec = runBatchGroupIntoBatchesAndGetJobSpec(false, experiments);
+    List<Step> steps = jobSpec.getJob().getSteps();
+    Step shardedStateStep = steps.get(steps.size() - 1);
+    Map<String, Object> properties = shardedStateStep.getProperties();
+    assertTrue(properties.containsKey(PropertyNames.PRESERVES_KEYS));
+    assertEquals("true", getString(properties, PropertyNames.PRESERVES_KEYS));
+
+    // TODO: should check that the urn is populated, however it is not due to the override in
+    // DataflowRunner.
+  }
+
+  @Test
+  public void testBatchGroupIntoBatchesWithShardedKeyTranslationUnifiedWorker() throws Exception {
+    List<String> experiments = ImmutableList.of("use_runner_v2");
+    JobSpecification jobSpec = runBatchGroupIntoBatchesAndGetJobSpec(true, experiments);
+    List<Step> steps = jobSpec.getJob().getSteps();
+    Step shardedStateStep = steps.get(steps.size() - 1);
+    Map<String, Object> properties = shardedStateStep.getProperties();
+    assertTrue(properties.containsKey(PropertyNames.PRESERVES_KEYS));
+    assertEquals("true", getString(properties, PropertyNames.PRESERVES_KEYS));
+    // TODO: should check that the urn is populated, however it is not due to the override in
+    // DataflowRunner.
+  }
+
+  @Test
   public void testStreamingGroupIntoBatchesTranslation() throws Exception {
     List<String> experiments =
         new ArrayList<>(
@@ -1146,7 +1216,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     assertTrue(properties.containsKey(PropertyNames.USES_KEYED_STATE));
     assertEquals("true", getString(properties, PropertyNames.USES_KEYED_STATE));
     assertFalse(properties.containsKey(PropertyNames.ALLOWS_SHARDABLE_STATE));
-    assertFalse(properties.containsKey(PropertyNames.PRESERVES_KEYS));
+    assertTrue(properties.containsKey(PropertyNames.PRESERVES_KEYS));
   }
 
   @Test
@@ -1181,7 +1251,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     Map<String, Object> properties = shardedStateStep.getProperties();
     assertTrue(properties.containsKey(PropertyNames.USES_KEYED_STATE));
     assertFalse(properties.containsKey(PropertyNames.ALLOWS_SHARDABLE_STATE));
-    assertFalse(properties.containsKey(PropertyNames.PRESERVES_KEYS));
+    assertTrue(properties.containsKey(PropertyNames.PRESERVES_KEYS));
 
     // Also checks runner proto is correctly populated.
     Map<String, RunnerApi.PTransform> transformMap =
@@ -1197,7 +1267,8 @@ public class DataflowPipelineTranslatorTest implements Serializable {
   }
 
   @Test
-  public void testGroupIntoBatchesWithShardedKeyTranslationUnifiedWorker() throws Exception {
+  public void testStreamingGroupIntoBatchesWithShardedKeyTranslationUnifiedWorker()
+      throws Exception {
     List<String> experiments =
         new ArrayList<>(
             ImmutableList.of(

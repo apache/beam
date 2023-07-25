@@ -19,8 +19,20 @@
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyPythonNature()
 
-task mongodbioIT {
+tasks.register("mongodbioIT") {
   getVersionsAsList('direct_mongodbio_it_task_py_versions').each {
     dependsOn.add(":sdks:python:test-suites:direct:py${getVersionSuffix(it)}:mongodbioIT")
+  }
+}
+
+tasks.register("examplesPostCommit") {
+  getVersionsAsList('python_versions').each {
+    dependsOn.add(":sdks:python:test-suites:direct:py${getVersionSuffix(it)}:examples")
+  }
+}
+
+task gcpCrossLanguagePostCommit {
+  getVersionsAsList('cross_language_validates_gcp_py_versions').each {
+    dependsOn.add(":sdks:python:test-suites:direct:py${getVersionSuffix(it)}:gcpCrossLanguagePythonUsingJava")
   }
 }

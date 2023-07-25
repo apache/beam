@@ -30,6 +30,13 @@ from apache_beam.testing.util import equal_to
 
 
 class CustomCountTest(unittest.TestCase):
+  WORDS = ['CAT', 'DOG', 'CAT', 'CAT', 'DOG']
+
+  def create_content_input_file(self, path, contents):
+    logging.info('Creating temp file: %s', path)
+    with open(path, 'w') as f:
+      f.write(contents)
+
   def test_count1(self):
     self.run_pipeline(custom_ptransform.Count1())
 
@@ -42,7 +49,7 @@ class CustomCountTest(unittest.TestCase):
 
   def run_pipeline(self, count_implementation, factor=1):
     with TestPipeline() as p:
-      words = p | beam.Create(['CAT', 'DOG', 'CAT', 'CAT', 'DOG'])
+      words = p | beam.Create(self.WORDS)
       result = words | count_implementation
       assert_that(
           result, equal_to([('CAT', (3 * factor)), ('DOG', (2 * factor))]))

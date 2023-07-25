@@ -20,7 +20,6 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.test;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
@@ -29,14 +28,13 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TimestampedValue;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.util.Pair;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.Pair;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /** A mocked unbounded table. */
-@Experimental
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class TestUnboundedTable extends TestTable {
   /** rows flow out from this table with the specified watermark instant. */

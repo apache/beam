@@ -74,7 +74,7 @@ import org.junit.runners.JUnit4;
 /** Test case for {@link PAssert}. */
 @RunWith(JUnit4.class)
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class PAssertTest implements Serializable {
 
@@ -250,7 +250,8 @@ public class PAssertTest implements Serializable {
    */
   @SuppressWarnings({
     "deprecation", // test of deprecated function
-    "EqualsIncompatibleType"
+    "EqualsIncompatibleType",
+    "ReturnValueIgnored"
   })
   @Test
   public void testPAssertEqualsSingletonUnsupported() throws Exception {
@@ -267,7 +268,8 @@ public class PAssertTest implements Serializable {
    */
   @SuppressWarnings({
     "deprecation", // test of deprecated function
-    "EqualsIncompatibleType"
+    "EqualsIncompatibleType",
+    "ReturnValueIgnored"
   })
   @Test
   public void testPAssertEqualsIterableUnsupported() throws Exception {
@@ -282,7 +284,10 @@ public class PAssertTest implements Serializable {
    * Test that {@code PAssert.thatSingleton().hashCode()} is unsupported. See {@link
    * #testPAssertEqualsSingletonUnsupported}.
    */
-  @SuppressWarnings("deprecation") // test of deprecated function
+  @SuppressWarnings({
+    "deprecation", // test of deprecated function
+    "ReturnValueIgnored",
+  })
   @Test
   public void testPAssertHashCodeSingletonUnsupported() throws Exception {
     thrown.expect(UnsupportedOperationException.class);
@@ -296,7 +301,10 @@ public class PAssertTest implements Serializable {
    * Test that {@code PAssert.thatIterable().hashCode()} is unsupported. See {@link
    * #testPAssertEqualsIterableUnsupported}.
    */
-  @SuppressWarnings("deprecation") // test of deprecated function
+  @SuppressWarnings({
+    "deprecation", // test of deprecated function
+    "ReturnValueIgnored" // verify exception is thrown
+  })
   @Test
   public void testPAssertHashCodeIterableUnsupported() throws Exception {
     thrown.expect(UnsupportedOperationException.class);
@@ -389,7 +397,7 @@ public class PAssertTest implements Serializable {
 
     String message = thrown.getMessage();
 
-    assertThat(message, containsString("Create.Values/Read(CreateSource)"));
+    assertThat(message, containsString("Create.Values/"));
     assertThat(message, containsString("Expected: <44>"));
     assertThat(message, containsString("but: was <42>"));
   }

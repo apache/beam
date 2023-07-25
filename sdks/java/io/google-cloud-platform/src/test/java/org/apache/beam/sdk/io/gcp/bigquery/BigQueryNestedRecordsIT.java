@@ -41,8 +41,6 @@ public class BigQueryNestedRecordsIT {
   private static final String UNFLATTENABLE_QUERY =
       "SELECT * FROM [apache-beam-testing:big_query_nested_test.genomics_2]";
 
-  private static Integer stringifyCount = 0;
-
   /** Options supported by this class. */
   public interface Options extends PipelineOptions {
 
@@ -99,12 +97,13 @@ public class BigQueryNestedRecordsIT {
 
     TableRow queryUnflattened =
         bigQueryClient
-            .queryUnflattened(options.getInput(), bigQueryOptions.getProject(), true)
+            .queryUnflattened(options.getInput(), bigQueryOptions.getProject(), true, false)
             .get(0);
 
     TableRow queryUnflattenable =
         bigQueryClient
-            .queryUnflattened(options.getUnflattenableInput(), bigQueryOptions.getProject(), true)
+            .queryUnflattened(
+                options.getUnflattenableInput(), bigQueryOptions.getProject(), true, false)
             .get(0);
 
     // Verify that the results are the same.

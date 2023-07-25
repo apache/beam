@@ -1,5 +1,5 @@
 ---
-title: "Beam Quickstart for Java"
+title: "WordCount quickstart for Java"
 aliases:
   - /get-started/quickstart/
   - /use/quickstart/
@@ -19,462 +19,382 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Apache Beam Java SDK Quickstart
+# WordCount quickstart for Java
 
-This quickstart shows you how to set up a Java development environment and run an [example pipeline](/get-started/wordcount-example) written with the [Apache Beam Java SDK](/documentation/sdks/java), using a [runner](/documentation#runners) of your choice.
+This quickstart shows you how to set up a Java development environment and run
+an [example pipeline](/get-started/wordcount-example) written with the
+[Apache Beam Java SDK](/documentation/sdks/java), using a
+[runner](/documentation#runners) of your choice.
 
-If you're interested in contributing to the Apache Beam Java codebase, see the [Contribution Guide](/contribute).
+If you're interested in contributing to the Apache Beam Java codebase, see the
+[Contribution Guide](/contribute).
+
+On this page:
 
 {{< toc >}}
 
-## Set up your Development Environment
+## Set up your development environment
 
-1. Download and install the [Java Development Kit (JDK)](https://www.oracle.com/technetwork/java/javase/downloads/index.html) version 8. Verify that the [JAVA_HOME](https://docs.oracle.com/javase/8/docs/technotes/guides/troubleshoot/envvars001.html) environment variable is set and points to your JDK installation.
+1. Download and install the
+  [Java Development Kit (JDK)](https://www.oracle.com/technetwork/java/javase/downloads/index.html)
+  version 8, 11, or 17. Verify that the
+  [JAVA_HOME](https://docs.oracle.com/javase/8/docs/technotes/guides/troubleshoot/envvars001.html)
+  environment variable is set and points to your JDK installation.
+2. Download and install [Apache Maven](https://maven.apache.org/download.cgi) by
+   following the [installation guide](https://maven.apache.org/install.html)
+   for your operating system.
+3. Optional: If you want to convert your Maven project to Gradle, install
+   [Gradle](https://gradle.org/install/).
 
-1. Download and install [Apache Maven](https://maven.apache.org/download.cgi) by following Maven's [installation guide](https://maven.apache.org/install.html) for your specific operating system.
+## Get the example code
 
-1. Optional: Install [Gradle](https://gradle.org/install/) if you would like to convert your Maven project into Gradle.
+1. Generate a Maven example project that builds against the latest Beam release:
+   {{< shell unix >}}
+mvn archetype:generate \
+    -DarchetypeGroupId=org.apache.beam \
+    -DarchetypeArtifactId=beam-sdks-java-maven-archetypes-examples \
+    -DarchetypeVersion={{< param release_latest >}} \
+    -DgroupId=org.example \
+    -DartifactId=word-count-beam \
+    -Dversion="0.1" \
+    -Dpackage=org.apache.beam.examples \
+    -DinteractiveMode=false
+   {{< /shell >}}
+   {{< shell powerShell >}}
+mvn archetype:generate `
+  -D archetypeGroupId=org.apache.beam `
+  -D archetypeArtifactId=beam-sdks-java-maven-archetypes-examples `
+  -D archetypeVersion={{< param release_latest >}} `
+  -D groupId=org.example `
+  -D artifactId=word-count-beam `
+  -D version="0.1" `
+  -D package=org.apache.beam.examples `
+  -D interactiveMode=false
+   {{< /shell >}}
 
-## Get the Example Code
+   Maven creates a new project in the **word-count-beam** directory.
 
-Use the following command to generate a Maven project that contains Beam's WordCount examples and builds against the most recent Beam release:
+2. Change into **word-count-beam**:
+   {{< shell unix >}}
+cd word-count-beam/
+   {{< /shell >}}
+   {{< shell powerShell >}}
+cd .\word-count-beam
+   {{< /shell >}}
+   The directory contains a **pom.xml** and a **src** directory with example
+   pipelines.
 
-{{< shell unix >}}
-$ mvn archetype:generate \
-      -DarchetypeGroupId=org.apache.beam \
-      -DarchetypeArtifactId=beam-sdks-java-maven-archetypes-examples \
-      -DarchetypeVersion={{< param release_latest >}} \
-      -DgroupId=org.example \
-      -DartifactId=word-count-beam \
-      -Dversion="0.1" \
-      -Dpackage=org.apache.beam.examples \
-      -DinteractiveMode=false
-{{< /shell >}}
+3. List the example pipelines:
+   {{< shell unix >}}
+ls src/main/java/org/apache/beam/examples/
+   {{< /shell >}}
+   {{< shell powerShell >}}
+dir .\src\main\java\org\apache\beam\examples
+   {{< /shell >}}
+   You should see the following examples:
+   * **DebuggingWordCount.java** ([GitHub](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/DebuggingWordCount.java))
+   * **MinimalWordCount.java** ([GitHub](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/MinimalWordCount.java))
+   * **WindowedWordCount.java** ([GitHub](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/WindowedWordCount.java))
+   * **WordCount.java** ([GitHub](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/WordCount.java))
 
-{{< shell powerShell >}}
-PS> mvn archetype:generate `
- -D archetypeGroupId=org.apache.beam `
- -D archetypeArtifactId=beam-sdks-java-maven-archetypes-examples `
- -D archetypeVersion={{< param release_latest >}} `
- -D groupId=org.example `
- -D artifactId=word-count-beam `
- -D version="0.1" `
- -D package=org.apache.beam.examples `
- -D interactiveMode=false
-{{< /shell >}}
+   The example used in this tutorial, **WordCount.java**, defines a
+   Beam pipeline that counts words from an input file (by default, a **.txt**
+   file containing Shakespeare's "King Lear"). To learn more about the examples,
+   see the [WordCount Example Walkthrough](/get-started/wordcount-example).
 
-This will create a `word-count-beam` directory that contains a `pom.xml` and several example pipelines that count words in text files.
+## Optional: Convert from Maven to Gradle
 
-{{< shell unix >}}
-$ cd word-count-beam/
+The steps below explain how to convert the build from Maven to Gradle for the
+following runners:
+* Direct runner
+* Dataflow runner
 
-$ ls
-pom.xml	src
+The conversion process for other runners is similar. For additional guidance,
+see
+[Migrating Builds From Apache Maven](https://docs.gradle.org/current/userguide/migrating_from_maven.html).
 
-$ ls src/main/java/org/apache/beam/examples/
-DebuggingWordCount.java	WindowedWordCount.java	common
-MinimalWordCount.java	WordCount.java
-{{< /shell >}}
-
-{{< shell powerShell >}}
-PS> cd .\word-count-beam
-
-PS> dir
-
-...
-
-Mode                LastWriteTime         Length Name
-----                -------------         ------ ----
-d-----        7/19/2018  11:00 PM                src
--a----        7/19/2018  11:00 PM          16051 pom.xml
-
-PS> dir .\src\main\java\org\apache\beam\examples
-
-...
-Mode                LastWriteTime         Length Name
-----                -------------         ------ ----
-d-----        7/19/2018  11:00 PM                common
-d-----        7/19/2018  11:00 PM                complete
-d-----        7/19/2018  11:00 PM                subprocess
--a----        7/19/2018  11:00 PM           7073 DebuggingWordCount.java
--a----        7/19/2018  11:00 PM           5945 MinimalWordCount.java
--a----        7/19/2018  11:00 PM           9490 WindowedWordCount.java
--a----        7/19/2018  11:00 PM           7662 WordCount.java
-{{< /shell >}}
-
-For a detailed introduction to the Beam concepts used in these examples, see the [WordCount Example Walkthrough](/get-started/wordcount-example). Here, we'll just focus on executing `WordCount.java`.
-
-## Optional: Convert from Maven to Gradle Project
-
-The steps below explain how to convert the build for the Direct Runner from Maven to Gradle. Converting the builds for the other runners is a more involved process and is out of scope for this guide. For additional guidance, see [Migrating Builds From Apache Maven](https://docs.gradle.org/current/userguide/migrating_from_maven.html).
-
-1. Ensure you are in the same directory as the `pom.xml` file generated from the previous step. Automatically convert your project from Maven to Gradle by running:
-{{< highlight >}}
-$ gradle init
-{{< /highlight >}}
-You'll be asked if you want to generate a Gradle build. Enter **yes**. You'll also be prompted to choose a DSL (Groovy or Kotlin). This tutorial uses Groovy, so select that if you don't have a preference.
-1. After you've converted the project to Gradle, open the generated `build.gradle` file, and, in the `repositories` block, replace `mavenLocal()` with `mavenCentral()`:
-{{< highlight >}}
-repositories {
-    mavenCentral()
-    maven {
-        url = uri('https://repository.apache.org/content/repositories/snapshots/')
-    }
-
-    maven {
-        url = uri('http://repo.maven.apache.org/maven2')
+1. In the directory with the **pom.xml** file, run the automated Maven-to-Gradle
+   conversion:
+   {{< highlight >}}
+gradle init
+   {{< /highlight >}}
+   You'll be asked if you want to generate a Gradle build. Enter **yes**. You'll
+   also be prompted to choose a DSL (Groovy or Kotlin). For this tutorial, enter
+   **2** for Kotlin.
+2. Open the generated **build.gradle.kts** file and make the following changes:
+   1. In `repositories`, replace `mavenLocal()` with `mavenCentral()`.
+   2. In `repositories`, declare a repository for Confluent Kafka dependencies:
+      {{< highlight >}}
+maven {
+    url = uri("https://packages.confluent.io/maven/")
+}
+      {{< /highlight >}}
+   3. At the end of the build script, add the following conditional dependency:
+      {{< highlight >}}
+if (project.hasProperty("dataflow-runner")) {
+    dependencies {
+        runtimeOnly("org.apache.beam:beam-runners-google-cloud-dataflow-java:{{< param release_latest >}}")
     }
 }
-{{< /highlight >}}
-1. Add the following task in `build.gradle` to allow you to execute pipelines with Gradle:
-{{< highlight >}}
-task execute (type:JavaExec) {
-    main = System.getProperty("mainClass")
-    classpath = sourceSets.main.runtimeClasspath
-    systemProperties System.getProperties()
-    args System.getProperty("exec.args", "").split()
+      {{< /highlight >}}
+   4. At the end of the build script, add the following task:
+      {{< highlight >}}
+task("execute", JavaExec::class) {
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass.set(System.getProperty("mainClass"))
 }
-{{< /highlight >}}
-1. Rebuild your project by running:
-{{< highlight >}}
-$ gradle build
-{{< /highlight >}}
+      {{< /highlight >}}
+4. Build your project:
+   {{< highlight >}}
+gradle build
+   {{< /highlight >}}
 
 ## Get sample text
 
-> If you're planning to use the DataflowRunner, you can skip this step. The runner will pull text directly from Google Cloud Storage.
+> If you're planning to use the DataflowRunner, you can skip this step. The
+  runner will pull text directly from Google Cloud Storage.
 
 1. In the **word-count-beam** directory, create a file called **sample.txt**.
-1. Add some text to the file. For this example, you can use the text of Shakespeare's [Sonnets](https://storage.cloud.google.com/apache-beam-samples/shakespeare/sonnets.txt).
+2. Add some text to the file. For this example, use the text of Shakespeare's
+   [King Lear](https://storage.cloud.google.com/apache-beam-samples/shakespeare/kinglear.txt).
 
 ## Run a pipeline
 
-A single Beam pipeline can run on multiple Beam [runners](/documentation#runners), including the [FlinkRunner](/documentation/runners/flink), [SparkRunner](/documentation/runners/spark), [NemoRunner](/documentation/runners/nemo), [JetRunner](/documentation/runners/jet), or [DataflowRunner](/documentation/runners/dataflow). The [DirectRunner](/documentation/runners/direct) is a common runner for getting started, as it runs locally on your machine and requires no specific setup. If you're just trying out Beam and you're not sure what to use, use the [DirectRunner](/documentation/runners/direct).
+A single Beam pipeline can run on multiple Beam
+[runners](/documentation#runners). The
+[DirectRunner](/documentation/runners/direct) is useful for getting started,
+because it runs on your machine and requires no specific setup. If you're just
+trying out Beam and you're not sure what to use, use the
+[DirectRunner](/documentation/runners/direct).
 
 The general process for running a pipeline goes like this:
 
-1.  Ensure you've done any runner-specific setup.
-1.  Build your command line:
-    1. Specify a runner with `--runner=<runner>` (defaults to the [DirectRunner](/documentation/runners/direct)).
-    1. Add any runner-specific required options.
-    1. Choose input files and an output location that are accessible to the runner. (For example, you can't access a local file if you are running the pipeline on an external cluster.)
-1.  Run the command.
+1.  Complete any runner-specific setup.
+2.  Build your command line:
+    1. Specify a runner with `--runner=<runner>` (defaults to the
+       [DirectRunner](/documentation/runners/direct)).
+    2. Add any runner-specific required options.
+    3. Choose input files and an output location that are accessible to the
+       runner. (For example, you can't access a local file if you are running
+       the pipeline on an external cluster.)
+3.  Run the command.
 
-To run the WordCount pipeline, see the Maven and Gradle examples below.
+To run the WordCount pipeline:
 
-### Run WordCount Using Maven
+1. Follow the setup steps for your runner:
+   * [FlinkRunner](/documentation/runners/flink)
+   * [SparkRunner](/documentation/runners/spark)
+   * [DataflowRunner](/documentation/runners/dataflow)
+   * [SamzaRunner](/documentation/runners/samza)
+   * [NemoRunner](/documentation/runners/nemo)
+   * [JetRunner](/documentation/runners/jet)
+
+   The DirectRunner will work without additional setup.
+2. Run the corresponding Maven or Gradle command below.
+
+### Run WordCount using Maven
 
 For Unix shells:
 
 {{< runner direct >}}
-$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
-     -Dexec.args="--inputFile=sample.txt --output=counts" -Pdirect-runner
+mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+    -Dexec.args="--inputFile=sample.txt --output=counts" -Pdirect-runner
 {{< /runner >}}
-
 {{< runner flink >}}
-$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
-     -Dexec.args="--runner=FlinkRunner --inputFile=sample.txt --output=counts" -Pflink-runner
+mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+    -Dexec.args="--runner=FlinkRunner --inputFile=sample.txt --output=counts" -Pflink-runner
 {{< /runner >}}
-
 {{< runner flinkCluster >}}
-$ mvn package exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
-     -Dexec.args="--runner=FlinkRunner --flinkMaster=<flink master> --filesToStage=target/word-count-beam-bundled-0.1.jar \
-                  --inputFile=sample.txt --output=/tmp/counts" -Pflink-runner
-
-You can monitor the running job by visiting the Flink dashboard at http://<flink master>:8081
+mvn package exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+    -Dexec.args="--runner=FlinkRunner --flinkMaster=<flink master> --filesToStage=target/word-count-beam-bundled-0.1.jar \
+                 --inputFile=sample.txt --output=/tmp/counts" -Pflink-runner
 {{< /runner >}}
-
 {{< runner spark >}}
-$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
-     -Dexec.args="--runner=SparkRunner --inputFile=sample.txt --output=counts" -Pspark-runner
+mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+    -Dexec.args="--runner=SparkRunner --inputFile=sample.txt --output=counts" -Pspark-runner
 {{< /runner >}}
-
 {{< runner dataflow >}}
-Make sure you complete the setup steps at /documentation/runners/dataflow/#setup
-
-$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
-     -Dexec.args="--runner=DataflowRunner --project=<your-gcp-project> \
-                  --region=<your-gcp-region> \
-                  --gcpTempLocation=gs://<your-gcs-bucket>/tmp \
-                  --inputFile=gs://apache-beam-samples/shakespeare/* --output=gs://<your-gcs-bucket>/counts" \
-     -Pdataflow-runner
+mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+    -Dexec.args="--runner=DataflowRunner --project=<your-gcp-project> \
+                 --region=<your-gcp-region> \
+                 --gcpTempLocation=gs://<your-gcs-bucket>/tmp \
+                 --inputFile=gs://apache-beam-samples/shakespeare/* --output=gs://<your-gcs-bucket>/counts" \
+    -Pdataflow-runner
 {{< /runner >}}
-
 {{< runner samza >}}
-$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
-     -Dexec.args="--inputFile=sample.txt --output=/tmp/counts --runner=SamzaRunner" -Psamza-runner
+mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+    -Dexec.args="--inputFile=sample.txt --output=/tmp/counts --runner=SamzaRunner" -Psamza-runner
 {{< /runner >}}
-
 {{< runner nemo >}}
-$ mvn package -Pnemo-runner && java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount \
-     --runner=NemoRunner --inputFile=`pwd`/sample.txt --output=counts
+mvn package -Pnemo-runner && java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount \
+    --runner=NemoRunner --inputFile=`pwd`/sample.txt --output=counts
 {{< /runner >}}
-
 {{< runner jet >}}
-$ mvn package -Pjet-runner
-$ java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount \
-     --runner=JetRunner --jetLocalMode=3 --inputFile=`pwd`/sample.txt --output=counts
+mvn package -Pjet-runner
+java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount \
+    --runner=JetRunner --jetLocalMode=3 --inputFile=`pwd`/sample.txt --output=counts
 {{< /runner >}}
 
 For Windows PowerShell:
 
 {{< runner direct >}}
-PS> mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
+mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
  -D exec.args="--inputFile=sample.txt --output=counts" -P direct-runner
 {{< /runner >}}
-
 {{< runner flink >}}
-PS> mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
+mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
  -D exec.args="--runner=FlinkRunner --inputFile=sample.txt --output=counts" -P flink-runner
 {{< /runner >}}
-
 {{< runner flinkCluster >}}
-PS> mvn package exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
+mvn package exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
  -D exec.args="--runner=FlinkRunner --flinkMaster=<flink master> --filesToStage=.\target\word-count-beam-bundled-0.1.jar `
                --inputFile=C:\path\to\quickstart\sample.txt --output=C:\tmp\counts" -P flink-runner
-
-You can monitor the running job by visiting the Flink dashboard at http://<flink master>:8081
 {{< /runner >}}
-
 {{< runner spark >}}
-PS> mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
+mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
  -D exec.args="--runner=SparkRunner --inputFile=sample.txt --output=counts" -P spark-runner
 {{< /runner >}}
-
 {{< runner dataflow >}}
-Make sure you complete the setup steps at /documentation/runners/dataflow/#setup
-
-PS> mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
+mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
  -D exec.args="--runner=DataflowRunner --project=<your-gcp-project> `
                --region=<your-gcp-region> \
                --gcpTempLocation=gs://<your-gcs-bucket>/tmp `
                --inputFile=gs://apache-beam-samples/shakespeare/* --output=gs://<your-gcs-bucket>/counts" `
  -P dataflow-runner
 {{< /runner >}}
-
 {{< runner samza >}}
-PS> mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
-     -D exec.args="--inputFile=sample.txt --output=/tmp/counts --runner=SamzaRunner" -P samza-runner
+mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
+    -D exec.args="--inputFile=sample.txt --output=/tmp/counts --runner=SamzaRunner" -P samza-runner
 {{< /runner >}}
-
 {{< runner nemo >}}
-PS> mvn package -P nemo-runner -DskipTests
-PS> java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount `
-      --runner=NemoRunner --inputFile=`pwd`/sample.txt --output=counts
+mvn package -P nemo-runner -DskipTests
+java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount `
+    --runner=NemoRunner --inputFile=`pwd`/sample.txt --output=counts
 {{< /runner >}}
-
 {{< runner jet >}}
-PS> mvn package -P jet-runner
-PS> java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount `
-      --runner=JetRunner --jetLocalMode=3 --inputFile=$pwd/sample.txt --output=counts
+mvn package -P jet-runner
+java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount `
+    --runner=JetRunner --jetLocalMode=3 --inputFile=$pwd/sample.txt --output=counts
 {{< /runner >}}
 
-### Run WordCount Using Gradle
+### Run WordCount using Gradle
 
-For Unix shells (Instructions currently only available for Direct, Spark, and Dataflow):
+For Unix shells:
 
 {{< runner direct>}}
-$ gradle clean execute -DmainClass=org.apache.beam.examples.WordCount \
-    -Dexec.args="--inputFile=sample.txt --output=counts" -Pdirect-runner
+gradle clean execute -DmainClass=org.apache.beam.examples.WordCount \
+    --args="--inputFile=sample.txt --output=counts"
 {{< /runner >}}
-
 {{< runner flink>}}
-We are working on adding the instruction for this runner!
+TODO: document Flink on Gradle: https://github.com/apache/beam/issues/21498
 {{< /runner >}}
-
 {{< runner flinkCluster>}}
-We are working on adding the instruction for this runner!
+TODO: document FlinkCluster on Gradle: https://github.com/apache/beam/issues/21499
 {{< /runner >}}
-
 {{< runner spark >}}
-$ gradle clean execute -DmainClass=org.apache.beam.examples.WordCount \
-    -Dexec.args="--inputFile=sample.txt --output=counts" -Pspark-runner
+TODO: document Spark on Gradle: https://github.com/apache/beam/issues/21502
 {{< /runner >}}
-
 {{< runner dataflow >}}
-$ gradle clean execute -DmainClass=org.apache.beam.examples.WordCount \
-    -Dexec.args="--project=<your-gcp-project> --inputFile=gs://apache-beam-samples/shakespeare/* \
+gradle clean execute -DmainClass=org.apache.beam.examples.WordCount \
+    --args="--project=<your-gcp-project> --inputFile=gs://apache-beam-samples/shakespeare/* \
     --output=gs://<your-gcs-bucket>/counts" -Pdataflow-runner
 {{< /runner >}}
-
 {{< runner samza>}}
-We are working on adding the instruction for this runner!
+TODO: document Samza on Gradle: https://github.com/apache/beam/issues/21500
 {{< /runner >}}
-
 {{< runner nemo>}}
-We are working on adding the instruction for this runner!
+TODO: document Nemo on Gradle: https://github.com/apache/beam/issues/21503
 {{< /runner >}}
-
 {{< runner jet>}}
-We are working on adding the instruction for this runner!
+TODO: document Jet on Gradle: https://github.com/apache/beam/issues/21501
 {{< /runner >}}
 
 ## Inspect the results
 
-Once the pipeline has completed, you can view the output. You'll notice that there may be multiple output files prefixed by `count`. The exact number of these files is decided by the runner, giving it the flexibility to do efficient, distributed execution.
+After the pipeline has completed, you can view the output. There might be
+multiple output files prefixed by `count`. The number of output files is decided
+by the runner, giving it the flexibility to do efficient, distributed execution.
 
-{{< runner direct >}}
-$ ls counts*
-{{< /runner >}}
-
-{{< runner flink >}}
-$ ls counts*
-{{< /runner >}}
-
-{{< runner flinkCluster >}}
-$ ls /tmp/counts*
-{{< /runner >}}
-
-{{< runner spark >}}
-$ ls counts*
-{{< /runner >}}
-
-{{< runner dataflow >}}
-$ gsutil ls gs://<your-gcs-bucket>/counts*
-{{< /runner >}}
-
-{{< runner samza >}}
-$ ls /tmp/counts*
-{{< /runner >}}
-
-{{< runner nemo >}}
-$ ls counts*
-{{< /runner >}}
-
-{{< runner jet >}}
-$ ls counts*
-{{< /runner >}}
-
-When you look into the contents of the file, you'll see that they contain unique words and the number of occurrences of each word. The order of elements within the file may differ because the Beam model does not generally guarantee ordering, again to allow runners to optimize for efficiency.
-
-{{< runner direct >}}
-$ more counts*
-wrought: 2
-st: 32
-fresher: 1
-of: 351
-souls: 2
-CXVIII: 1
-reviewest: 1
-untold: 1
-th: 1
-single: 4
-...
-{{< /runner >}}
-
-{{< runner flink >}}
-$ more counts*
-wrought: 2
-st: 32
-fresher: 1
-of: 351
-souls: 2
-CXVIII: 1
-reviewest: 1
-untold: 1
-th: 1
-single: 4
-...
-{{< /runner >}}
-
-{{< runner flinkCluster >}}
-$ more /tmp/counts*
-wrought: 2
-st: 32
-fresher: 1
-of: 351
-souls: 2
-CXVIII: 1
-reviewest: 1
-untold: 1
-th: 1
-single: 4
-...
-{{< /runner >}}
-
-{{< runner spark >}}
-$ more counts*
-wrought: 2
-st: 32
-fresher: 1
-of: 351
-souls: 2
-CXVIII: 1
-reviewest: 1
-untold: 1
-th: 1
-single: 4
-...
-{{< /runner >}}
-
-
-{{< runner dataflow >}}
-$ gsutil cat gs://<your-gcs-bucket>/counts*
-wrought: 2
-st: 32
-fresher: 1
-of: 351
-souls: 2
-CXVIII: 1
-reviewest: 1
-untold: 1
-th: 1
-single: 4
-...
-{{< /runner >}}
-
-{{< runner samza >}}
-$ more /tmp/counts*
-wrought: 2
-st: 32
-fresher: 1
-of: 351
-souls: 2
-CXVIII: 1
-reviewest: 1
-untold: 1
-th: 1
-single: 4
-...
-{{< /runner >}}
-
-{{< runner nemo >}}
-$ more counts*
-wrought: 2
-st: 32
-fresher: 1
-of: 351
-souls: 2
-CXVIII: 1
-reviewest: 1
-untold: 1
-th: 1
-single: 4
-...
-{{< /runner >}}
-
-{{< runner jet >}}
-$ more counts*
-wrought: 2
-st: 32
-fresher: 1
-of: 351
-souls: 2
-CXVIII: 1
-reviewest: 1
-untold: 1
-th: 1
-single: 4
-...
-{{< /runner >}}
+1. View the output files in a Unix shell:
+   {{< runner direct >}}
+ls counts*
+   {{< /runner >}}
+   {{< runner flink >}}
+ls counts*
+   {{< /runner >}}
+   {{< runner flinkCluster >}}
+ls /tmp/counts*
+   {{< /runner >}}
+   {{< runner spark >}}
+ls counts*
+   {{< /runner >}}
+   {{< runner dataflow >}}
+gsutil ls gs://<your-gcs-bucket>/counts*
+   {{< /runner >}}
+   {{< runner samza >}}
+ls /tmp/counts*
+   {{< /runner >}}
+   {{< runner nemo >}}
+ls counts*
+   {{< /runner >}}
+   {{< runner jet >}}
+ls counts*
+   {{< /runner >}}
+   The output files contain unique words and the number of occurrences of each
+   word.
+2. View the output content in a Unix shell:
+   {{< runner direct >}}
+more counts*
+   {{< /runner >}}
+   {{< runner flink >}}
+more counts*
+   {{< /runner >}}
+   {{< runner flinkCluster >}}
+more /tmp/counts*
+   {{< /runner >}}
+   {{< runner spark >}}
+more counts*
+   {{< /runner >}}
+   {{< runner dataflow >}}
+gsutil cat gs://<your-gcs-bucket>/counts*
+   {{< /runner >}}
+   {{< runner samza >}}
+more /tmp/counts*
+   {{< /runner >}}
+   {{< runner nemo >}}
+more counts*
+   {{< /runner >}}
+   {{< runner jet >}}
+more counts*
+   {{< /runner >}}
+   The order of elements is not guaranteed, to allow runners to optimize for
+   efficiency. But the output should look something like this:
+   ```
+   ...
+   Think: 3
+   slower: 1
+   Having: 1
+   revives: 1
+   these: 33
+   wipe: 1
+   arrives: 1
+   concluded: 1
+   begins: 3
+   ...
+   ```
 
 ## Next Steps
 
 * Learn more about the [Beam SDK for Java](/documentation/sdks/java/)
-  and look through the [Java SDK API reference](https://beam.apache.org/releases/javadoc).
-* Walk through these WordCount examples in the [WordCount Example Walkthrough](/get-started/wordcount-example).
-* Take a self-paced tour through our [Learning Resources](/documentation/resources/learning-resources).
-* Dive in to some of our favorite [Videos and Podcasts](/documentation/resources/videos-and-podcasts).
+  and look through the
+  [Java SDK API reference](https://beam.apache.org/releases/javadoc).
+* Walk through the WordCount examples in the
+  [WordCount Example Walkthrough](/get-started/wordcount-example).
+* Take a self-paced tour through our
+  [Learning Resources](/documentation/resources/learning-resources).
+* Dive in to some of our favorite
+  [Videos and Podcasts](/get-started/resources/videos-and-podcasts).
 * Join the Beam [users@](/community/contact-us) mailing list.
 
-Please don't hesitate to [reach out](/community/contact-us) if you encounter any issues!
+Please don't hesitate to [reach out](/community/contact-us) if you encounter any
+issues!

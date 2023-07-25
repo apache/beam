@@ -77,6 +77,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link UserParDoFnFactory}. */
 @RunWith(JUnit4.class)
+// TODO(https://github.com/apache/beam/issues/21230): Remove when new version of errorprone is
+// released (2.11.0)
+@SuppressWarnings("unused")
 public class UserParDoFnFactoryTest {
   static class TestDoFn extends DoFn<Integer, String> {
     enum State {
@@ -304,7 +307,7 @@ public class UserParDoFnFactoryTest {
   private CloudObject getCloudObject(DoFn<?, ?> fn, WindowingStrategy<?, ?> windowingStrategy) {
     CloudObject object = CloudObject.forClassName("DoFn");
     @SuppressWarnings({
-      "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+      "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
       "unchecked"
     })
     DoFnInfo<?, ?> info =
@@ -366,8 +369,8 @@ public class UserParDoFnFactoryTest {
             SimpleParDoFn.CLEANUP_TIMER_ID,
             firstWindow,
             IntervalWindow.getCoder(),
-            firstWindow.maxTimestamp().plus(1L),
-            firstWindow.maxTimestamp().plus(1L));
+            firstWindow.maxTimestamp().plus(Duration.millis(1L)),
+            firstWindow.maxTimestamp().plus(Duration.millis(1L)));
   }
 
   @Test
@@ -430,8 +433,8 @@ public class UserParDoFnFactoryTest {
             TimerData.of(
                 SimpleParDoFn.CLEANUP_TIMER_ID,
                 firstWindowNamespace,
-                firstWindow.maxTimestamp().plus(1L),
-                firstWindow.maxTimestamp().plus(1L),
+                firstWindow.maxTimestamp().plus(Duration.millis(1L)),
+                firstWindow.maxTimestamp().plus(Duration.millis(1L)),
                 TimeDomain.EVENT_TIME))
         .thenReturn(null);
 
@@ -446,8 +449,8 @@ public class UserParDoFnFactoryTest {
             TimerData.of(
                 SimpleParDoFn.CLEANUP_TIMER_ID,
                 secondWindowNamespace,
-                secondWindow.maxTimestamp().plus(1L),
-                secondWindow.maxTimestamp().plus(1L),
+                secondWindow.maxTimestamp().plus(Duration.millis(1L)),
+                secondWindow.maxTimestamp().plus(Duration.millis(1L)),
                 TimeDomain.EVENT_TIME))
         .thenReturn(null);
 

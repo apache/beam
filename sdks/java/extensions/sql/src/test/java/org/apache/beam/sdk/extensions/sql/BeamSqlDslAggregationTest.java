@@ -899,9 +899,8 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     String sql =
         "SELECT f_int2, COUNT(*) AS `getFieldCount` FROM TABLE_A "
             + "GROUP BY f_int2, TUMBLE(f_long, INTERVAL '1' HOUR)";
-    PCollection<Row> result =
-        PCollectionTuple.of(new TupleTag<>("TABLE_A"), boundedInput1)
-            .apply("testWindowOnNonTimestampField", SqlTransform.query(sql));
+    PCollectionTuple.of(new TupleTag<>("TABLE_A"), boundedInput1)
+        .apply("testWindowOnNonTimestampField", SqlTransform.query(sql));
 
     pipeline.run().waitUntilFinish();
   }
@@ -914,8 +913,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
 
     String sql = "SELECT f_int2, COUNT(DISTINCT *) AS `size` " + "FROM PCOLLECTION GROUP BY f_int2";
 
-    PCollection<Row> result =
-        boundedInput1.apply("testUnsupportedDistinct", SqlTransform.query(sql));
+    boundedInput1.apply("testUnsupportedDistinct", SqlTransform.query(sql));
 
     pipeline.run().waitUntilFinish();
   }
