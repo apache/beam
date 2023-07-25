@@ -35,6 +35,7 @@ except ImportError:  # pylint: disable=bare-except
 
 _INPUT_GCS_BUCKET_ROOT = 'gs://apache-beam-ml/datasets/cloudml/criteo'
 _OUTPUT_GCS_BUCKET_ROOT = 'gs://temp-storage-for-end-to-end-tests/tft/'
+_DISK_SIZE = 150
 
 
 def _publish_metrics(pipeline, metric_value, metrics_table, metric_name):
@@ -103,7 +104,7 @@ class CriteoTest(unittest.TestCase):
     extra_opts['frequency_threshold'] = 0
 
     # dataflow pipeliens options
-    extra_opts['disk_size_gb'] = 100
+    extra_opts['disk_size_gb'] = _DISK_SIZE
     extra_opts['machine_type'] = 'n1-standard-4'
     extra_opts['job_name'] = (
         'mltransform-criteo-dataset-{}-10'.format(uuid.uuid4().hex))
@@ -133,43 +134,13 @@ class CriteoTest(unittest.TestCase):
     extra_opts['frequency_threshold'] = 0
 
     # dataflow pipeliens options
-    extra_opts['num_workers'] = 30
-    extra_opts['disk_size_gb'] = 100
+    extra_opts['max_num_workers'] = 50
+    extra_opts['disk_size_gb'] = _DISK_SIZE
     extra_opts['machine_type'] = 'n1-standard-4'
     extra_opts['job_name'] = (
-        'mltransform-criteo-dataset-{}-10-fixed-workers-30'.format(
+        'mltransform-criteo-dataset-{}-10-fixed-workers-50'.format(
             uuid.uuid4().hex))
 
-    start_time = time.time()
-    criteo.run(
-        test_pipeline.get_full_options_as_args(
-            **extra_opts, save_main_session=False))
-    end_time = time.time()
-    metrics_table = 'ml_transform_criteo_10GB_dataset_process_metrics'
-    _publish_metrics(
-        pipeline=test_pipeline,
-        metric_value=end_time - start_time,
-        metrics_table=metrics_table,
-        metric_name='runtime_sec')
-
-  def test_process_criteo_10GB_dataset_with_shuffle(self):
-    test_pipeline = TestPipeline(is_integration_test=True)
-    extra_opts = {}
-
-    # beam pipeline options
-    extra_opts['input'] = os.path.join(
-        _INPUT_GCS_BUCKET_ROOT, constants.INPUT_CRITEO_10GB)
-    extra_opts['artifact_location'] = os.path.join(
-        _OUTPUT_GCS_BUCKET_ROOT, 'tft_artifacts', uuid.uuid4().hex)
-
-    extra_opts['shuffle'] = True
-    extra_opts['frequency_threshold'] = 0
-
-    # dataflow pipeliens options
-    extra_opts['disk_size_gb'] = 100
-    extra_opts['machine_type'] = 'n1-standard-4'
-    extra_opts['job_name'] = (
-        'mltransform-no-shuffle-criteo-dataset-{}-10'.format(uuid.uuid4().hex))
     start_time = time.time()
     criteo.run(
         test_pipeline.get_full_options_as_args(

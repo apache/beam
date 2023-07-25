@@ -75,12 +75,6 @@ def parse_known_args(argv):
       "--artifact_location",
       required=True,
       help="Artifact location to store artifacts.")
-  parser.add_argument(
-      '--shuffle',
-      action='store_true',
-      dest='shuffle',
-      default=True,
-      help='Skips shuffling the data.')
   return parser.parse_known_args(argv)
 
 
@@ -104,9 +98,6 @@ def run(argv=None, ):
         | beam.Map(lambda x: {ordered_columns[i]: x[i]
                               for i in range(len(x))})
         | beam.Map(convert_str_to_int))
-
-    if known_args.shuffle:
-      processed_lines = processed_lines | beam.Reshuffle()
 
     artifact_location = known_args.artifact_location
     ml_transform = MLTransform(artifact_location=artifact_location)
