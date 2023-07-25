@@ -96,7 +96,7 @@ class CriteoTest(unittest.TestCase):
 
     # beam pipeline options
     extra_opts['input'] = os.path.join(
-        _INPUT_GCS_BUCKET_ROOT, constants.INPUT_CRITEO_SMALL)
+        _INPUT_GCS_BUCKET_ROOT, constants.INPUT_CRITEO_10GB)
     extra_opts['artifact_location'] = os.path.join(
         _OUTPUT_GCS_BUCKET_ROOT, 'tft_artifacts', uuid.uuid4().hex)
 
@@ -108,7 +108,7 @@ class CriteoTest(unittest.TestCase):
     extra_opts['job_name'] = (
         'mltransform-criteo-dataset-{}-10'.format(uuid.uuid4().hex))
     start_time = time.time()
-    _ = criteo.run(
+    criteo.run(
         test_pipeline.get_full_options_as_args(
             **extra_opts, save_main_session=False),
         test_pipeline=test_pipeline)
@@ -127,7 +127,7 @@ class CriteoTest(unittest.TestCase):
 
     # beam pipeline options
     extra_opts['input'] = os.path.join(
-        _INPUT_GCS_BUCKET_ROOT, constants.INPUT_CRITEO_SMALL)
+        _INPUT_GCS_BUCKET_ROOT, constants.INPUT_CRITEO_10GB)
     extra_opts['artifact_location'] = os.path.join(
         _OUTPUT_GCS_BUCKET_ROOT, 'tft_artifacts', uuid.uuid4().hex)
 
@@ -142,7 +142,7 @@ class CriteoTest(unittest.TestCase):
             uuid.uuid4().hex))
 
     start_time = time.time()
-    _ = criteo.run(
+    criteo.run(
         test_pipeline.get_full_options_as_args(
             **extra_opts, save_main_session=False),
         test_pipeline=test_pipeline)
@@ -160,7 +160,7 @@ class CriteoTest(unittest.TestCase):
 
     # beam pipeline options
     extra_opts['input'] = os.path.join(
-        _INPUT_GCS_BUCKET_ROOT, constants.INPUT_CRITEO_SMALL)
+        _INPUT_GCS_BUCKET_ROOT, constants.INPUT_CRITEO_10GB)
     extra_opts['artifact_location'] = os.path.join(
         _OUTPUT_GCS_BUCKET_ROOT, 'tft_artifacts', uuid.uuid4().hex)
 
@@ -173,7 +173,7 @@ class CriteoTest(unittest.TestCase):
     extra_opts['job_name'] = (
         'mltransform-no-shuffle-criteo-dataset-{}-10'.format(uuid.uuid4().hex))
     start_time = time.time()
-    _ = criteo.run(
+    criteo.run(
         test_pipeline.get_full_options_as_args(
             **extra_opts, save_main_session=False),
         test_pipeline=test_pipeline)

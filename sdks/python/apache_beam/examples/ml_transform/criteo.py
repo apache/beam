@@ -84,48 +84,40 @@ def parse_known_args(argv):
   return parser.parse_known_args(argv)
 
 
-def run(
-    argv=None,
-    test_pipeline=None  # for testing purposes.
-):
+def run(argv=None, ):
   known_args, pipeline_args = parse_known_args(argv)
   options = PipelineOptions(flags=pipeline_args)
   data_path = known_args.input
   ordered_columns = [
       LABEL_KEY
   ] + NUMERIC_FEATURE_KEYS + CATEGORICAL_FEATURE_KEYS
-  pipeline = test_pipeline
-  pipeline = test_pipeline or beam.Pipeline(options=options)
-  processed_lines = (
-      pipeline
-      # Read in TSV data.
-      | beam.io.ReadFromText(data_path, coder=beam.coders.StrUtf8Coder())
-      # Fill in missing elements with the defaults (zeros).
-      | "FillMissing" >> beam.ParDo(FillMissing())
-      # For numerical features, set negatives to zero. Then take log(x+1).
-      | "NegsToZeroLog" >> beam.ParDo(NegsToZeroLog())
-      | beam.Map(lambda x: str(x).split(csv_delimiter))
-      | beam.Map(lambda x: {ordered_columns[i]: x[i]
-                            for i in range(len(x))})
-      | beam.Map(convert_str_to_int))
+  with beam.Pipeline(options=options) as pipeline:
+    processed_lines = (
+        pipeline
+        # Read in TSV data.
+        | beam.io.ReadFromText(data_path, coder=beam.coders.StrUtf8Coder())
+        # Fill in missing elements with the defaults (zeros).
+        | "FillMissing" >> beam.ParDo(FillMissing())
+        # For numerical features, set negatives to zero. Then take log(x+1).
+        | "NegsToZeroLog" >> beam.ParDo(NegsToZeroLog())
+        | beam.Map(lambda x: str(x).split(csv_delimiter))
+        | beam.Map(lambda x: {ordered_columns[i]: x[i]
+                              for i in range(len(x))})
+        | beam.Map(convert_str_to_int))
 
-  if known_args.shuffle:
-    processed_lines = processed_lines | beam.Reshuffle()
+    if known_args.shuffle:
+      processed_lines = processed_lines | beam.Reshuffle()
 
-  artifact_location = known_args.artifact_location
-  ml_transform = MLTransform(artifact_location=artifact_location)
-  ml_transform.with_transform(
-      ComputeAndApplyVocabulary(columns=CATEGORICAL_FEATURE_KEYS))
-  ml_transform.with_transform(
-      Bucketize(columns=NUMERIC_FEATURE_KEYS, num_buckets=_NUM_BUCKETS))
+    artifact_location = known_args.artifact_location
+    ml_transform = MLTransform(artifact_location=artifact_location)
+    ml_transform.with_transform(
+        ComputeAndApplyVocabulary(columns=CATEGORICAL_FEATURE_KEYS))
+    ml_transform.with_transform(
+        Bucketize(columns=NUMERIC_FEATURE_KEYS, num_buckets=_NUM_BUCKETS))
 
-  transformed_lines = (processed_lines | 'MLTransform' >> ml_transform)
+    transformed_lines = (processed_lines | 'MLTransform' >> ml_transform)
 
-  _ = transformed_lines | beam.Map(logging.info)
-
-  result = pipeline.run()
-  result.wait_until_finish()
-  return result
+    _ = transformed_lines | beam.Map(logging.info)
 
 
 if __name__ == '__main__':
