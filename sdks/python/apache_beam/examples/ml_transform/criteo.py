@@ -62,15 +62,13 @@ class NegsToZeroLog(beam.DoFn):
   """For int features, sets negative values to zero and takes log(x+1)."""
   def process(self, element):
     elem_list = element.split('\t')
-
-    def convert(val, index):
-      if 0 < index <= NUM_NUMERIC_FEATURES:
-        num = int(val)
-        num = num if num >= 0 else 0
-        return str(np.log1p(num))
-
-    out_list = [convert(val, index) for index, val in enumerate(elem_list)]
-    yield '\t'.join(out_list)
+    out_list = []
+    for i, val in enumerate(elem_list):
+      if 0 < i <= NUM_NUMERIC_FEATURES:
+        val = "0" if int(val) < 0 else val
+        val = str(np.log(int(val) + 1))
+      out_list.append(val)
+    yield ('\t').join(out_list)
 
 
 def convert_str_to_int(element):
