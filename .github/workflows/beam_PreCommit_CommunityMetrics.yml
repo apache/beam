@@ -45,7 +45,7 @@ permissions:
 
 jobs:
   beam_PreCommit_CommunityMetrics:
-    name: beam_PreCommit_CommunityMetrics
+    name: beam_PreCommit_CommunityMetrics (Run CommunityMetrics PreCommit)
     runs-on: [self-hosted, ubuntu-20.04, main]
     if: |
       github.event_name == 'push' ||

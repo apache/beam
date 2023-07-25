@@ -56,7 +56,7 @@ jobs:
       github.event.comment.body == 'Run Website PreCommit' || 
       github.event_name == 'schedule'
     runs-on: [self-hosted, ubuntu-20.04, small]
-    name: beam_PreCommit_Website
+    name: beam_PreCommit_Website (Run Website PreCommit)
     steps:       
       - uses: actions/checkout@v3
         with:

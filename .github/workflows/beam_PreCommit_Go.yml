@@ -41,7 +41,7 @@ jobs:
       github.event_name == 'schedule' ||
       github.event.comment.body == 'Run Go PreCommit'
     runs-on: [self-hosted, ubuntu-20.04, main]
-    name: beam_PreCommit_Go
+    name: beam_PreCommit_Go (Run Go PreCommit)
     steps:       
       - uses: actions/checkout@v3
         with:

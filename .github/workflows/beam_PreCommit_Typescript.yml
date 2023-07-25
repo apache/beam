@@ -52,7 +52,7 @@ permissions:
   statuses: read
 jobs:
   beam_PreCommit_Typescript:
-    name: beam_PreCommit_Typescript
+    name: beam_PreCommit_Typescript (Run Typescript PreCommit)
     runs-on: [self-hosted, ubuntu-20.04, main]
     if: |
       github.event_name == 'push' ||
