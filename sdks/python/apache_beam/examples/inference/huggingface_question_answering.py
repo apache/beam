@@ -36,6 +36,7 @@ from apache_beam.ml.inference.base import KeyedModelHandler
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.inference.huggingface_inference import HuggingFacePipelineModelHandler
+from apache_beam.ml.inference.huggingface_inference import PipelineTask
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.runners.runner import PipelineResult
@@ -102,7 +103,10 @@ def run(
   if not test_pipeline:
     pipeline = beam.Pipeline(options=pipeline_options)
 
-  model_handler = HuggingFacePipelineModelHandler(model=known_args.model_name, )
+  model_handler = HuggingFacePipelineModelHandler(
+      task=PipelineTask.QuestionAnswering,
+      model=known_args.model_name,
+      load_model_args={'framework': 'pt'})
   if not known_args.input:
     text = (
         pipeline | 'CreateSentences' >> beam.Create([

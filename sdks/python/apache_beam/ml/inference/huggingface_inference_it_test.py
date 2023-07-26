@@ -39,8 +39,8 @@ except ImportError:
 
 @pytest.mark.uses_transformers
 @pytest.mark.it_postcommit
+@pytest.mark.timeout(1800)
 class HuggingFaceInference(unittest.TestCase):
-  @pytest.mark.timeout(1800)
   def test_hf_language_modeling(self):
     test_pipeline = TestPipeline(is_integration_test=True)
     # Path to text file containing some sentences

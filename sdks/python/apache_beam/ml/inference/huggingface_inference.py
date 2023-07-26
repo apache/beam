@@ -20,6 +20,7 @@
 import logging
 import sys
 from collections import defaultdict
+from enum import Enum
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -69,6 +70,39 @@ KeyedTensorInferenceFn = Callable[[
 PipelineInferenceFn = Callable[
     [Sequence[str], Pipeline, Optional[Dict[str, Any]]],
     Iterable[PredictionResult]]
+
+
+class PipelineTask(str, Enum):
+  AudioClassification = 'audio-classification'
+  AutomaticSpeechRecognition = 'automatic-speech-recognition'
+  Conversational = 'conversational'
+  DepthEstimation = 'depth-estimation'
+  DocumentQuestionAnswering = 'document-question-answering'
+  FeatureExtraction = 'feature-extraction'
+  FillMask = 'fill-mask'
+  ImageClassification = 'image-classification'
+  ImageSegmentation = 'image-segmentation'
+  ImageToText = 'image-to-text'
+  MaskGeneration = 'mask-generation'
+  NER = 'ner'
+  ObjectDetection = 'object-detection'
+  QuestionAnswering = 'question-answering'
+  SentimentAnalysis = 'sentiment-analysis'
+  Summarization = 'summarization'
+  TableQuestionAnswering = 'table-question-answering'
+  TextClassification = 'text-classification'
+  TextGeneration = 'text-generation'
+  Text2TextGeneration = 'text2text-generation'
+  TokenClassification = 'token-classification'
+  Translation = 'translation'
+  VideoClassification = 'video-classification'
+  VisualQuestionAnswering = 'visual-question-answering'
+  VQA = 'vqa'
+  ZeroShotAudioClassification = 'zero-shot-audio-classification'
+  ZeroShotClassification = 'zero-shot-classification'
+  ZeroShotImageClassification = 'zero-shot-image-classification'
+  ZeroShotObjectDetection = 'zero-shot-object-detection'
+  Translation_XX_to_YY = 'translation_XX_to_YY'
 
 
 def _validate_constructor_args(model_uri, model_class):
@@ -525,7 +559,7 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
                                                    Pipeline]):
   def __init__(
       self,
-      task: str = "",
+      task: Union[str, PipelineTask] = "",
       model=None,
       *,
       inference_fn: PipelineInferenceFn = _default_pipeline_inference_fn,
@@ -547,7 +581,8 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
         task="fill-mask"))
 
     Args:
-      task (str): task supported by HuggingFace Pipelines.
+      task (str or Enum): task supported by HuggingFace Pipelines.
+        Accepts a string task or an Enum from PipelineTask.
       model : path to pretrained model on Hugging Face Models Hub to use custom
         model for the chosen task. If the model already defines the task then
         no need to specify the task parameter.
