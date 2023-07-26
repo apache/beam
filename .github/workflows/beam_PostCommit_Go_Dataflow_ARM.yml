@@ -32,9 +32,13 @@ concurrency:
   group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
   cancel-in-progress: true
 
+env:
+  USER: GithubAction
+
 jobs:
   beam_PostCommit_Go_Dataflow_ARM:
     if: |
+      github.repository == 'celeste-zeng/beam'
       github.event_name == 'push' ||
       github.event_name == 'schedule' ||
       github.event.comment.body == 'Run Go PostCommit Dataflow ARM'
