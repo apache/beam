@@ -20,7 +20,7 @@ on:
     tags: ['v*']
     branches: ['master', 'release-*']
     paths: ['website/**','.github/workflows/beam_PreCommit_Website_Stage_GCS.yml']
-  pull_request_target:
+  pull_request:
     branches: ['master', 'release-*']
     paths: ['website/**']
   issue_comment:
@@ -57,7 +57,7 @@ jobs:
     timeout-minutes: 120
     if: |
       github.event_name == 'push' || 
-      github.event_name == 'pull_request_target' || 
+      github.event_name == 'pull_request' || 
       github.event_name == 'schedule' ||
       github.event.comment.body == 'Run Website_Stage_GCS PreCommit' 
     runs-on: [self-hosted, ubuntu-20.04, main]
@@ -108,10 +108,13 @@ jobs:
           arguments: -PwebsiteBucket=$gcsbucket
       - name: Add website link to the summary
         if: |
-          ${{ github.event_name == 'push' || github.event_name == 'pull_request_target' }} && ${{ github.ref != 'refs/heads/master' }}
+          github.event_name == 'push' || 
+          github.event_name == 'pull_request' || 
+          github.event.comment.body == 'Run Website_Stage_GCS PreCommit' && 
+          github.ref != 'refs/heads/master'
         run: echo "Website published to http://$gcsbucket.storage.googleapis.com/$ghprbPullId/index.html" >> $GITHUB_STEP_SUMMARY
       - name: Add website link to the summary if cron
-        if: ${{github.event_name != 'pull_request_target'}}
+        if: github.event_name != 'pull_request'
         run: |
           USERNAME="$(whoami)"
           echo "Website published to http://$gcsbucket.storage.googleapis.com/$USERNAME-${GITHUB_REF##*/}/index.html" >> $GITHUB_STEP_SUMMARY 
