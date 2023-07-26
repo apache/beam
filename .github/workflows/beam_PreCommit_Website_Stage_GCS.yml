@@ -26,12 +26,12 @@ on:
   issue_comment:
     types: [created]
   schedule:
-    - cron: '*/20 * * * *'
+    - cron: '*/10 * * * *'
 
-# This allows a subsequently queued workflow run to interrupt previous runs
-concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
-  cancel-in-progress: true
+# # This allows a subsequently queued workflow run to interrupt previous runs
+# concurrency:
+#   group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
+#   cancel-in-progress: true
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
 permissions:
@@ -112,5 +112,10 @@ jobs:
           github.event_name == 'pull_request_target'
         run: echo "Website published to http://$gcsbucket.storage.googleapis.com/$ghprbPullId/index.html" >> $GITHUB_STEP_SUMMARY
       - name: Add website link to the summary if cron
-        if: github.event_name == 'schedule'
-        run: echo "Website published to http://$gcsbucket.storage.googleapis.com/${{ github.actor }}-${GITHUB_REF##*/}/index.html" >> $GITHUB_STEP_SUMMARY
+        # if: |
+        #   github.event_name == 'push'
+        #   github.event_name == 'pull_request_target'
+        run: |
+          echo "baseUrl=${{ github.actor }}-${GITHUB_REF##*/}" >> $GITHUB_ENV
+          echo $baseUrl
+          echo "Website published to http://$gcsbucket.storage.googleapis.com/${{ github.actor }}-${GITHUB_REF##*/}/index.html" >> $GITHUB_STEP_SUMMARY
