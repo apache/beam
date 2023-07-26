@@ -47,7 +47,7 @@ class InjectorUtils {
     }
     if (credential.getClientAuthentication() != null) {
       System.out.println(
-          "\n***Warning! You are not using service account credentials to "
+          "\n***Error! You are not using service account credentials to "
               + "authenticate.\nYou need to use service account credentials for this example,"
               + "\nsince user-level credentials do not have enough pubsub quota,\nand so you will run "
               + "out of PubSub quota very quickly.\nSee "

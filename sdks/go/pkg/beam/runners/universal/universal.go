@@ -101,6 +101,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 		Worker:       *jobopts.WorkerBinary,
 		RetainDocker: *jobopts.RetainDockerContainers,
 		Parallelism:  *jobopts.Parallelism,
+		Loopback:     jobopts.IsLoopback(),
 	}
 	return runnerlib.Execute(ctx, pipeline, endpoint, opt, *jobopts.Async)
 }

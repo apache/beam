@@ -45,6 +45,7 @@ import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.StringUtils;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
+import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
@@ -497,6 +498,39 @@ class CloudObjectTranslators {
       @Override
       public String cloudObjectClassName() {
         return CloudObject.forClass(MapCoder.class).getClassName();
+      }
+    };
+  }
+
+  public static CloudObjectTranslator<TimestampedValue.TimestampedValueCoder> timestampedValue() {
+    return new CloudObjectTranslator<TimestampedValue.TimestampedValueCoder>() {
+      @Override
+      public CloudObject toCloudObject(
+          TimestampedValue.TimestampedValueCoder target, SdkComponents sdkComponents) {
+        CloudObject base = CloudObject.forClass(TimestampedValue.TimestampedValueCoder.class);
+        return addComponents(
+            base, ImmutableList.<Coder<?>>of(target.getValueCoder()), sdkComponents);
+      }
+
+      @Override
+      public TimestampedValue.TimestampedValueCoder<?> fromCloudObject(CloudObject cloudObject) {
+        List<Coder<?>> components = getComponents(cloudObject);
+        checkArgument(
+            components.size() == 1,
+            "Expected 1 components for %s, got %s",
+            TimestampedValue.TimestampedValueCoder.class.getSimpleName(),
+            components.size());
+        return TimestampedValue.TimestampedValueCoder.of(components.get(0));
+      }
+
+      @Override
+      public Class<? extends TimestampedValue.TimestampedValueCoder> getSupportedClass() {
+        return TimestampedValue.TimestampedValueCoder.class;
+      }
+
+      @Override
+      public String cloudObjectClassName() {
+        return CloudObject.forClass(TimestampedValue.TimestampedValueCoder.class).getClassName();
       }
     };
   }

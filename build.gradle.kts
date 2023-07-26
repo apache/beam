@@ -440,6 +440,10 @@ tasks.register("goPortablePreCommit") {
   dependsOn(":sdks:go:test:ulrValidatesRunner")
 }
 
+tasks.register("goPostCommitDataflowARM") {
+  dependsOn(":sdks:go:test:dataflowValidatesRunnerARM64")
+}
+
 tasks.register("goPostCommit") {
   dependsOn(":goIntegrationTests")
 }
@@ -472,7 +476,6 @@ tasks.register("pythonPreCommit") {
 tasks.register("pythonPreCommitIT") {
   dependsOn(":sdks:python:test-suites:tox:pycommon:preCommitPyCommon")
   dependsOn(":sdks:python:test-suites:dataflow:preCommitIT")
-  dependsOn(":sdks:python:test-suites:dataflow:preCommitIT_V2")
 }
 
 tasks.register("pythonDocsPreCommit") {

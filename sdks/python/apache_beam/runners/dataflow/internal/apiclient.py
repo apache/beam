@@ -1160,7 +1160,7 @@ def _get_required_container_version():
         current version of the SDK.
     """
   if 'dev' in beam_version.__version__:
-    return names.BEAM_FNAPI_CONTAINER_VERSION
+    return names.BEAM_DEV_SDK_CONTAINER_TAG
   else:
     return _get_container_image_tag()
 

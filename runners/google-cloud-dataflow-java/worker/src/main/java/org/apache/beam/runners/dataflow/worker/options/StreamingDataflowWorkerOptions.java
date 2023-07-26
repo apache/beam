@@ -19,9 +19,9 @@ package org.apache.beam.runners.dataflow.worker.options;
 
 import java.io.IOException;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
-import org.apache.beam.runners.dataflow.worker.windmill.GrpcWindmillServer;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServer;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
+import org.apache.beam.runners.dataflow.worker.windmill.grpcclient.GrpcWindmillServer;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
@@ -207,7 +207,7 @@ public interface StreamingDataflowWorkerOptions extends DataflowWorkerHarnessOpt
           || streamingOptions.isEnableStreamingEngine()
           || streamingOptions.getLocalWindmillHostport().startsWith("grpc:")) {
         try {
-          return new GrpcWindmillServer(streamingOptions);
+          return GrpcWindmillServer.create(streamingOptions);
         } catch (IOException e) {
           throw new RuntimeException("Failed to create GrpcWindmillServer: ", e);
         }

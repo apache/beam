@@ -71,18 +71,6 @@ public abstract class WindmillServerStub implements StatusDataProvider {
   /** Report execution information to the server. */
   public abstract Windmill.ReportStatsResponse reportStats(Windmill.ReportStatsRequest request);
 
-  /** Functional interface for receiving WorkItems. */
-  @FunctionalInterface
-  public interface WorkItemReceiver {
-
-    void receiveWork(
-        String computation,
-        @Nullable Instant inputDataWatermark,
-        Instant synchronizedProcessingTime,
-        Windmill.WorkItem workItem,
-        Collection<LatencyAttribution> getWorkStreamLatencies);
-  }
-
   /**
    * Gets work to process, returned as a stream.
    *
@@ -103,6 +91,18 @@ public abstract class WindmillServerStub implements StatusDataProvider {
 
   @Override
   public void appendSummaryHtml(PrintWriter writer) {}
+
+  /** Functional interface for receiving WorkItems. */
+  @FunctionalInterface
+  public interface WorkItemReceiver {
+
+    void receiveWork(
+        String computation,
+        @Nullable Instant inputDataWatermark,
+        @Nullable Instant synchronizedProcessingTime,
+        Windmill.WorkItem workItem,
+        Collection<LatencyAttribution> getWorkStreamLatencies);
+  }
 
   /** Superclass for streams returned by streaming Windmill methods. */
   @ThreadSafe
@@ -162,13 +162,8 @@ public abstract class WindmillServerStub implements StatusDataProvider {
   public static class StreamPool<S extends WindmillStream> {
 
     private final Duration streamTimeout;
-
-    private final class StreamData {
-      final S stream = supplier.get();
-      int holds = 1;
-    };
-
     private final List<StreamData> streams;
+
     private final Supplier<S> supplier;
     private final HashMap<S, StreamData> holds;
 
@@ -221,6 +216,11 @@ public abstract class WindmillServerStub implements StatusDataProvider {
       if (closeStream) {
         stream.close();
       }
+    }
+
+    private final class StreamData {
+      final S stream = supplier.get();
+      int holds = 1;
     }
   }
 
