@@ -47,10 +47,6 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 @Immutable
 class FirestoreStatefulComponentFactory implements Serializable {
 
-  private static final String DEFAULT_FIRESTORE_HOST = "batch-firestore.googleapis.com:443";
-  private static final String FIRESTORE_HOST_ENV_VARIABLE = "FIRESTORE_HOST";
-  private static final String FIRESTORE_EMULATOR_HOST_ENV_VARIABLE = "FIRESTORE_EMULATOR_HOST";
-
   static final FirestoreStatefulComponentFactory INSTANCE = new FirestoreStatefulComponentFactory();
 
   private FirestoreStatefulComponentFactory() {}
@@ -90,9 +86,6 @@ class FirestoreStatefulComponentFactory implements Serializable {
 
       FirestoreOptions firestoreOptions = options.as(FirestoreOptions.class);
       String emulatorHostPort = firestoreOptions.getEmulatorHost();
-      if (emulatorHostPort == null) {
-        emulatorHostPort = System.getenv(FIRESTORE_EMULATOR_HOST_ENV_VARIABLE);
-      }
       if (emulatorHostPort != null) {
         builder
             .setCredentialsProvider(FixedCredentialsProvider.create(new EmulatorCredentials()))
@@ -104,13 +97,9 @@ class FirestoreStatefulComponentFactory implements Serializable {
                     .build());
       } else {
         GcpOptions gcpOptions = options.as(GcpOptions.class);
-        String host = firestoreOptions.getHost();
-        if (host == null) {
-          host = System.getenv().getOrDefault(FIRESTORE_HOST_ENV_VARIABLE, DEFAULT_FIRESTORE_HOST);
-        }
         builder
             .setCredentialsProvider(FixedCredentialsProvider.create(gcpOptions.getGcpCredential()))
-            .setEndpoint(host);
+            .setEndpoint(firestoreOptions.getHost());
       }
 
       ClientContext clientContext = ClientContext.create(builder.build());

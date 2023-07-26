@@ -92,12 +92,10 @@ abstract class BaseFirestoreIT {
           .build();
 
   protected static String project;
-  protected GcpOptions gcpOptions;
 
   @Before
   public void setup() {
-    gcpOptions = TestPipeline.testingPipelineOptions().as(GcpOptions.class);
-    project = gcpOptions.getProject();
+    project = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
   }
 
   private static Instant toWriteTime(WriteResult result) {

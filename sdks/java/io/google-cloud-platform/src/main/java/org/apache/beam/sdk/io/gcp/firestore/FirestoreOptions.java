@@ -65,7 +65,8 @@ public interface FirestoreOptions extends PipelineOptions {
    * @return the string representation of a host and port pair to be used when constructing Cloud
    *     Firestore clients.
    */
-  @Nonnull
+  @Description("Firestore endpoint (host and port)")
+  @Default.String("batch-firestore.googleapis.com:443")
   String getHost();
 
   /**
