@@ -581,8 +581,8 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
         task="fill-mask"))
 
     Args:
-      task (str or Enum): task supported by HuggingFace Pipelines.
-        Accepts a string task or an Enum from PipelineTask.
+      task (str or PipelineTask): task supported by HuggingFace Pipelines.
+        Accepts a string task or an enum.Enum from PipelineTask.
       model : path to pretrained model on Hugging Face Models Hub to use custom
         model for the chosen task. If the model already defines the task then
         no need to specify the task parameter.
