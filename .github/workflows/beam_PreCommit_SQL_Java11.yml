@@ -95,7 +95,7 @@ jobs:
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sqlPreCommit
-          arguments: 
+          arguments: |
             -PdisableSpotlessCheck=true \
             -PdisableCheckStyle=true \
             -PcompileAndRunTestsWithJava11 \
