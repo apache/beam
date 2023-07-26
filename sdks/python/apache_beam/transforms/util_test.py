@@ -1042,7 +1042,7 @@ class GroupIntoBatchesTest(unittest.TestCase):
               ShardedKeyType[typehints.Tuple[int, int]],  # type: ignore[misc]
               typehints.Iterable[str]])
 
-  def test_with_type_hints(self):
+  def test_runtime_type_check(self):
     options = PipelineOptions()
     options.view_as(TypeOptions).runtime_type_check = True
     with TestPipeline(options=options) as pipeline:
