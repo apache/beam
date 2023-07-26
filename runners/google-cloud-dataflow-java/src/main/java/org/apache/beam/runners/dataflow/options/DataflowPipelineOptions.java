@@ -149,9 +149,11 @@ public interface DataflowPipelineOptions
   @Description(
       "The URL for the Dataflow API. If the string contains \"://\", this"
           + " will be treated as the entire URL, otherwise will be treated relative to apiRootUrl.")
+  @Override
   @Default.String(Dataflow.DEFAULT_SERVICE_PATH)
   String getDataflowEndpoint();
 
+  @Override
   void setDataflowEndpoint(String value);
 
   /** Labels that will be applied to the billing records for this job. */
