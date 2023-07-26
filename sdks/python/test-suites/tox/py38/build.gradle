@@ -122,9 +122,9 @@ preCommitPyCoverage.dependsOn "testPy38tft-113"
 
 // TODO(https://github.com/apache/beam/issues/25796) - uncomment onnx tox task once onnx supports protobuf 4.x.x
 // Create a test task for each minor version of onnx
-// toxTask "testPy38onnx-113", "py38-onnx-113", "${posargs}"
-// test.dependsOn "testPy38onnx-113"
-// preCommitPyCoverage.dependsOn "testPy38onnx-113"
+toxTask "testPy38onnx-113", "py38-onnx-113", "${posargs}"
+test.dependsOn "testPy38onnx-113"
+preCommitPyCoverage.dependsOn "testPy38onnx-113"
 // Create a test task for each minor version of tensorflow
 toxTask "testPy38tensorflow-212", "py38-tensorflow-212", "${posargs}"
 test.dependsOn "testPy38tensorflow-212"
