@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"strings"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
@@ -47,7 +48,12 @@ func Execute(ctx context.Context, raw *pipepb.Pipeline, opts *JobOptions, worker
 		} else {
 			// Cross-compile as last resort.
 
-			worker, err := runnerlib.BuildTempWorkerBinary(ctx)
+			var copts runnerlib.CompileOpts
+			if strings.HasPrefix(opts.MachineType, "t2a") {
+				copts.Arch = "arm64"
+			}
+
+			worker, err := runnerlib.BuildTempWorkerBinary(ctx, copts)
 			if err != nil {
 				return presult, err
 			}

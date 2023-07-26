@@ -42,6 +42,7 @@ The RunInference API supports the Tensorflow framework. To use Tensorflow locall
 pip install tensorflow==2.12.0
 ```
 
+
 ### PyTorch dependencies
 
 The following installation requirements are for the files used in these examples.
@@ -63,6 +64,21 @@ pip install transformers
 
 For installation of the `torch` dependency on a distributed runner such as Dataflow, refer to the
 [PyPI dependency instructions](https://beam.apache.org/documentation/sdks/python-pipeline-dependencies/#pypi-dependencies).
+
+
+### Transformers dependencies
+
+The following installation requirement is for the Hugging Face model handler examples.
+
+The RunInference API supports loading models from the Hugging Face Hub. To use it, first install `transformers`.
+```
+pip install transformers==4.30.0
+```
+Additional dependicies for PyTorch and TensorFlow may need to be installed separately:
+```
+pip install tensorflow==2.12.0
+pip install torch==1.10.0
+```
 
 
 ### TensorRT dependencies
@@ -687,3 +703,60 @@ MilkQualityAggregation(bad_quality_measurements=6, medium_quality_measurements=4
 MilkQualityAggregation(bad_quality_measurements=3, medium_quality_measurements=3, high_quality_measurements=3)
 MilkQualityAggregation(bad_quality_measurements=1, medium_quality_measurements=2, high_quality_measurements=1)
 ```
+
+---
+## Language modeling with Hugging Face Hub
+
+[`huggingface_language_modeling.py`](./huggingface_language_modeling.py) contains an implementation for a RunInference pipeline that performs masked language modeling (that is, decoding a masked token in a sentence) using the `AutoModelForMaskedLM` architecture from Hugging Face.
+
+The pipeline reads sentences, performs basic preprocessing to convert the last word into a `<mask>` token, passes the masked sentence to the Hugging Face implementation of RunInference, and then writes the predictions to a text file.
+
+### Dataset and model for language modeling
+
+To use this transform, you need a dataset and model for language modeling.
+
+1. Choose a checkpoint to load from Hugging Face Hub, eg:[MaskedLanguageModel](https://huggingface.co/stevhliu/my_awesome_eli5_mlm_model).
+2. (Optional) Create a file named `SENTENCES.txt` that contains sentences to feed into the model. The content of the file should be similar to the following example:
+```
+The capital of France is Paris .
+He looked up and saw the sun and stars .
+...
+```
+
+### Running `huggingface_language_modeling.py`
+
+To run the language modeling pipeline locally, use the following command:
+```sh
+python -m apache_beam.examples.inference.huggingface_language_modeling \
+  --input SENTENCES \
+  --output OUTPUT \
+  --model_name REPOSITORY_ID
+```
+The `input` argument is optional. If none is provided, it will run the pipeline with some
+example sentences.
+
+For example, if you've followed the naming conventions recommended above:
+```sh
+python -m apache_beam.examples.inference.huggingface_language_modeling \
+  --input SENTENCES.txt \
+  --output predictions.csv \
+  --model_name "stevhliu/my_awesome_eli5_mlm_model"
+```
+Or, using the default example sentences:
+```sh
+python -m apache_beam.examples.inference.huggingface_language_modeling \
+  --output predictions.csv \
+  --model_name "stevhliu/my_awesome_eli5_mlm_model"
+```
+
+This writes the output to the `predictions.csv` with contents like:
+```
+The capital of France is Paris .;paris
+He looked up and saw the sun and stars .;moon
+...
+```
+Each line has data separated by a semicolon ";".
+The first item is the input sentence. The model masks the last word and tries to predict it;
+the second item is the word that the model predicts for the mask.
+
+---

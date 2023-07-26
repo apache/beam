@@ -170,6 +170,7 @@ import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ErrorCollector;
@@ -2854,6 +2855,7 @@ public class StreamingDataflowWorkerTest {
   }
 
   @Test
+  @Ignore // Test is flaky on Jenkins (#27555)
   public void testMaxThreadMetric() throws Exception {
     int maxThreads = 2;
     int threadExpiration = 60;

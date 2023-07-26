@@ -22,7 +22,7 @@ wheel>=0.36.0
 grpcio-tools==1.53.0
 mypy-protobuf==3.4.0
 # Avoid https://github.com/pypa/virtualenv/issues/2006
-distlib==0.3.6
+distlib==0.3.7
 
 # Numpy headers
 numpy>=1.14.3,<1.26

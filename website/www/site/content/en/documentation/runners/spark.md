@@ -67,8 +67,8 @@ the portable Runner. For more information on portability, please visit the
 
 ## Spark Runner prerequisites and setup
 
-The Spark runner currently supports Spark's 3.1.x branch.
-> **Note:** Support for Spark 2.4.x was deprecated as of Beam 2.41.0 and finally dropped with the release of Beam 2.46.0.
+The Spark runner currently supports Spark's 3.2.x branch.
+> **Note:** Support for Spark 2.4.x was dropped with Beam 2.46.0.
 
 {{< paragraph class="language-java" >}}
 You can add a dependency on the latest version of the Spark runner by adding to your pom.xml the following:
@@ -215,7 +215,7 @@ options = PipelineOptions([
     "--job_endpoint=localhost:8099",
     "--environment_type=LOOPBACK"
 ])
-with beam.Pipeline(options=options) as p:
+with beam.Pipeline(options) as p:
     ...
 {{< /highlight >}}
 
@@ -243,7 +243,7 @@ See [here](/roadmap/portability/#sdk-harness-config) for details.)
 
 ###  Running on Dataproc cluster (YARN backed)
 
-To run Beam jobs written in Python, Go, and other supported languages, you can use the `SparkRunner` and `PortableRunner` as described on the Beam's [Spark Runner](/documentation/runners/spark/) page (also see [Portability Framework Roadmap](/roadmap/portability/)).
+To run Beam jobs written in Python, Go, and other supported languages, you can use the `SparkRunner` and `PortableRunner` as described on the Beam's [Spark Runner](https://beam.apache.org/documentation/runners/spark/) page (also see [Portability Framework Roadmap](https://beam.apache.org/roadmap/portability/)).
 
 The following example runs a portable Beam job in Python from the Dataproc cluster's master node with Yarn backed.
 
