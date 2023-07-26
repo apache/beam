@@ -32,7 +32,7 @@ require (
 	cloud.google.com/go/storage v1.31.0
 	github.com/aws/aws-sdk-go-v2 v1.19.0
 	github.com/aws/aws-sdk-go-v2/config v1.18.28
-	github.com/aws/aws-sdk-go-v2/credentials v1.13.27
+	github.com/aws/aws-sdk-go-v2/credentials v1.13.28
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.11.72
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.37.0
 	github.com/aws/smithy-go v1.13.5
@@ -96,7 +96,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.14.4 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sso v1.12.13 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.14.13 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sts v1.19.3 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sts v1.20.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.2.0 // indirect
 	github.com/census-instrumentation/opencensus-proto v0.4.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
