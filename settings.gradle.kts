@@ -100,6 +100,7 @@ include(":playground:kafka-emulator")
 include(":it:common")
 include(":it:conditions")
 include(":it:google-cloud-platform")
+include(":it:jdbc")
 include(":it:testcontainers")
 include(":it:truthmatchers")
 
