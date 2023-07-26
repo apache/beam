@@ -67,7 +67,7 @@ class VertexAIModelHandlerJSON(ModelHandler[Any,
       location: str,
       experiment: Optional[str] = None,
       network: Optional[str] = None,
-      private: Optional[bool] = False,
+      private: bool = False,
       **kwargs):
     """Implementation of the ModelHandler interface for Vertex AI.
     **NOTE:** This API and its implementation are under development and
@@ -141,7 +141,8 @@ class VertexAIModelHandlerJSON(ModelHandler[Any,
       ValueError: if endpoint is inactive or has no models deployed to it.
     """
     if is_private:
-      endpoint = aiplatform.PrivateEndpoint(endpoint_name=endpoint_id)
+      endpoint: aiplatform.Endpoint = aiplatform.PrivateEndpoint(
+          endpoint_name=endpoint_id)
       LOGGER.debug("Treating endpoint %s as private", endpoint_id)
     else:
       endpoint = aiplatform.Endpoint(endpoint_name=endpoint_id)
