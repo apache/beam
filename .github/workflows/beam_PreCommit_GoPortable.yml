@@ -51,6 +51,7 @@ permissions:
 
 jobs:
   beam_PreCommit_GoPortable:
+    timeout-minutes: 120
     if: |
       github.event_name == 'push' || 
       github.event_name == 'pull_request_target' || 
