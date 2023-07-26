@@ -136,7 +136,7 @@ public interface DataflowPipelineOptions
 
   void setRegion(String region);
 
-    /**
+  /**
    * Dataflow endpoint to use.
    *
    * <p>Defaults to the current version of the Google Cloud Dataflow API, at the time the current
@@ -152,7 +152,7 @@ public interface DataflowPipelineOptions
   String getDataflowEndpoint();
 
   void setDataflowEndpoint(String value);
-  
+
   /** Labels that will be applied to the billing records for this job. */
   @Description("Labels that will be applied to the billing records for this job.")
   Map<String, String> getLabels();
