@@ -1046,9 +1046,10 @@ class GroupIntoBatchesTest(unittest.TestCase):
     options = PipelineOptions()
     options.view_as(TypeOptions).runtime_type_check = True
     with TestPipeline(options=options) as pipeline:
-      collection = pipeline \
-        | beam.Create(GroupIntoBatchesTest._create_test_data()) \
-        | util.GroupIntoBatches(GroupIntoBatchesTest.BATCH_SIZE)
+      collection = (
+          pipeline
+          | beam.Create(GroupIntoBatchesTest._create_test_data())
+          | util.GroupIntoBatches(GroupIntoBatchesTest.BATCH_SIZE))
       num_batches = collection | beam.combiners.Count.Globally()
       assert_that(
           num_batches,
