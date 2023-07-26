@@ -118,7 +118,7 @@ class TFTOperation(BaseOperation[common_types.TensorType,
         fn,
         data,
         fn_output_signature=tf.RaggedTensorSpec(
-            common_types.TensorTypeShape([None, None]), tf.string))
+            tf.TensorShape([None, None]), tf.string))
     data = data.values.to_sparse()
     # the columns of the sparse tensor are suffixed with $indices, $values
     # related to sparse tensor. Create a new sparse tensor by extracting
