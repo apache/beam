@@ -26,7 +26,7 @@ on:
   issue_comment:
     types: [created]
   schedule:
-    - cron: '*/30 * * * *'
+    - cron: '*/20 * * * *'
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
@@ -113,4 +113,4 @@ jobs:
         run: echo "Website published to http://$gcsbucket.storage.googleapis.com/$ghprbPullId/index.html" >> $GITHUB_STEP_SUMMARY
       - name: Add website link to the summary if cron
         if: github.event_name == 'schedule'
-        run: echo "Website published to http://$gcsbucket.storage.googleapis.com/$baseUrl/index.html" >> $GITHUB_STEP_SUMMARY
+        run: echo "Website published to http://$gcsbucket.storage.googleapis.com/${{ github.actor }}-${GITHUB_REF##*/}/index.html" >> $GITHUB_STEP_SUMMARY
