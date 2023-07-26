@@ -112,9 +112,7 @@ jobs:
           github.event_name == 'pull_request_target'
         run: echo "Website published to http://$gcsbucket.storage.googleapis.com/$ghprbPullId/index.html" >> $GITHUB_STEP_SUMMARY
       - name: Add website link to the summary if cron
-        # if: |
-        #   github.event_name == 'push'
-        #   github.event_name == 'pull_request_target'
+        if: ${{ github.event_name != 'push' }} || ${{github.event_name != 'pull_request_target'}}
         run: |
           echo "baseUrl=${{ github.actor }}-${GITHUB_REF##*/}" >> $GITHUB_ENV
           echo $baseUrl
