@@ -23,7 +23,8 @@ from typing import Iterable
 from typing import Optional
 from typing import Sequence
 
-from google.api_core.exceptions import TooManyRequests, ServerError
+from google.api_core.exceptions import ServerError
+from google.api_core.exceptions import TooManyRequests
 from google.cloud import aiplatform
 
 from apache_beam.io.components.adaptive_throttler import AdaptiveThrottler
