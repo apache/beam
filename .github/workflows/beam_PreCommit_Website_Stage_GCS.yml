@@ -85,6 +85,9 @@ jobs:
       - name: echo PR number
         if: success() && steps.findPr.outputs.number
         run: echo "ghprbPullId=${{ steps.findPr.outputs.pr }}" >> $GITHUB_ENV
+      - name: echo PR number on comment
+        if: github.event.comment.body == 'Run Website_Stage_GCS PreCommit'
+        run: echo "ghprbPullId=${{ github.event.issue.number }}" >> $GITHUB_ENV
       - name: Setup self-hosted
         uses: ./.github/actions/setup-self-hosted-action
         with:
@@ -111,10 +114,10 @@ jobs:
           ${{ github.event_name == 'push' ||
           github.event_name == 'pull_request' || 
           github.event.comment.body == 'Run Website_Stage_GCS PreCommit' }} && 
-          github.ref != 'refs/heads/master'
+          ghprbPullId != null 
         run: echo "Website published to http://$gcsbucket.storage.googleapis.com/$ghprbPullId/index.html" >> $GITHUB_STEP_SUMMARY
       - name: Add website link to the summary if cron
-        if: github.event_name != 'pull_request'
+        if: ${{ github.event_name != 'pull_request' }}
         run: |
           USERNAME="$(whoami)"
           echo "Website published to http://$gcsbucket.storage.googleapis.com/$USERNAME-${GITHUB_REF##*/}/index.html" >> $GITHUB_STEP_SUMMARY 
