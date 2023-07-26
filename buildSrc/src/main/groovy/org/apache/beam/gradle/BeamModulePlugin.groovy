@@ -1260,13 +1260,13 @@ class BeamModulePlugin implements Plugin<Project> {
       // Configures a checkstyle plugin enforcing a set of rules and also allows for a set of
       // suppressions.
       project.apply plugin: 'checkstyle'
-      project.tasks.withType(Checkstyle) {
-        configFile = project.project(":").file("sdks/java/build-tools/src/main/resources/beam/checkstyle.xml")
-        configProperties = ["checkstyle.suppressions.file": project.project(":").file("sdks/java/build-tools/src/main/resources/beam/suppressions.xml")]
+      project.checkstyle {
+        configDirectory = project.rootProject.layout.projectDirectory.dir("sdks/java/build-tools/src/main/resources/beam/checkstyle")
+        configFile = project.rootProject.layout.projectDirectory.file("sdks/java/build-tools/src/main/resources/beam/checkstyle/checkstyle.xml").asFile
         showViolations = true
         maxErrors = 0
+        toolVersion = "8.23"
       }
-      project.checkstyle { toolVersion = "8.23" }
       // CheckStyle can be removed from the 'check' task by passing -PdisableCheckStyle=true on the Gradle
       // command-line. This is useful for pre-commit which runs checkStyle separately.
       def disableCheckStyle = project.hasProperty('disableCheckStyle') &&
