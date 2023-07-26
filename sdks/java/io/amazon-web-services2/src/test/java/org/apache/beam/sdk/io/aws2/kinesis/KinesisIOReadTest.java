@@ -111,12 +111,13 @@ public class KinesisIOReadTest {
   @Test
   public void testReadWithEFOFromShards() {
     SubscribeToShardEvent shard0event = eventWithRecords(3);
-    SubscribeToShardEvent shard1event = eventWithRecords(3);
-    SubscribeToShardEvent shard2event = eventWithRecords(3);
+    SubscribeToShardEvent shard1event = eventWithRecords(4);
+    SubscribeToShardEvent shard2event = eventWithRecords(5);
     EFOStubbedKinesisAsyncClient asyncClientStub = new EFOStubbedKinesisAsyncClient(10);
     asyncClientStub.stubSubscribeToShard("0", shard0event);
     asyncClientStub.stubSubscribeToShard("1", shard1event);
-    asyncClientStub.stubSubscribeToShard("2", shard1event);
+    asyncClientStub.stubSubscribeToShard("2", shard2event);
+
     MockClientBuilderFactory.set(p, KinesisAsyncClientBuilder.class, asyncClientStub);
     Iterable<Record> expectedRecords =
         concat(shard0event.records(), shard1event.records(), shard2event.records());
@@ -128,7 +129,7 @@ public class KinesisIOReadTest {
             .withConsumerArn("consumer")
             .withInitialPositionInStream(TRIM_HORIZON)
             .withArrivalTimeWatermarkPolicy()
-            .withMaxNumRecords(9);
+            .withMaxNumRecords(12);
 
     PCollection<Record> result = p.apply(read).apply(ParDo.of(new KinesisIOReadTest.ToRecord()));
     PAssert.that(result).containsInAnyOrder(expectedRecords);
