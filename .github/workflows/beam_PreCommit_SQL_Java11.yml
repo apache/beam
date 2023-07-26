@@ -27,6 +27,7 @@ on:
     types: [created]
   schedule:
     - cron: '* */6 * * *'
+  workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
@@ -95,7 +96,7 @@ jobs:
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sqlPreCommit
-          arguments: 
+          arguments: |
             -PdisableSpotlessCheck=true \
             -PdisableCheckStyle=true \
             -PcompileAndRunTestsWithJava11 \
@@ -107,7 +108,7 @@ jobs:
           name: JUnit Test Results
           path: '**/build/test-results/**/*.xml'
       - name: Archive SpotBugs Results
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: SpotBugs Results
           path: '**/build/reports/spotbugs/*.html'
