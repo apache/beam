@@ -15,7 +15,7 @@
     under the License.
 -->
 
-# Guidelines for Workflows
+# Guidelines for Adding or Modifying Workflows
 
 On top of normal Actions workflow steps, all new CI workflows (excluding release workflows or other workflow automation) should have the following:
 
