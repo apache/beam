@@ -91,7 +91,7 @@ Once a workflow has been added to the repo, you can develop normally on a branch
 To do so:
 
 1) Make your change on a development branch.
-2) Navigate to your workflow in the [Actions tab](https://github.com/apache/beam/actions) of your repo.
+2) Navigate to your workflow in the [Actions tab](https://github.com/apache/beam/actions). If your changes are on a fork, navigate to the fork's Actions tab instead.
 3) Click run workflow. Before clicking submit, update to run on your branch.
 
 # Workflows
