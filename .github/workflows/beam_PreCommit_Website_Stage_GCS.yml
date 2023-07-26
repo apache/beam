@@ -108,9 +108,9 @@ jobs:
           arguments: -PwebsiteBucket=$gcsbucket
       - name: Add website link to the summary
         if: |
-          github.event_name == 'push' || 
+          ${{ github.event_name == 'push' ||
           github.event_name == 'pull_request' || 
-          github.event.comment.body == 'Run Website_Stage_GCS PreCommit' && 
+          github.event.comment.body == 'Run Website_Stage_GCS PreCommit' }} && 
           github.ref != 'refs/heads/master'
         run: echo "Website published to http://$gcsbucket.storage.googleapis.com/$ghprbPullId/index.html" >> $GITHUB_STEP_SUMMARY
       - name: Add website link to the summary if cron
