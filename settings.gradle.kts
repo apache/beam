@@ -99,6 +99,7 @@ include(":playground:kafka-emulator")
 
 include(":it:common")
 include(":it:conditions")
+include(":it:elasticsearch")
 include(":it:google-cloud-platform")
 include(":it:testcontainers")
 include(":it:truthmatchers")
