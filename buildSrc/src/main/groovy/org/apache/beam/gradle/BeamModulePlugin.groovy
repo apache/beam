@@ -645,6 +645,7 @@ class BeamModulePlugin implements Plugin<Project> {
         commons_math3                               : "org.apache.commons:commons-math3:3.6.1",
         dbcp2                                       : "org.apache.commons:commons-dbcp2:$dbcp2_version",
         error_prone_annotations                     : "com.google.errorprone:error_prone_annotations:$errorprone_version",
+        failsafe                                    : "dev.failsafe:failsafe:3.3.0",
         flogger_system_backend                      : "com.google.flogger:flogger-system-backend:0.7.3",
         gax                                         : "com.google.api:gax", // google_cloud_platform_libraries_bom sets version
         gax_grpc                                    : "com.google.api:gax-grpc", // google_cloud_platform_libraries_bom sets version
@@ -818,6 +819,8 @@ class BeamModulePlugin implements Plugin<Project> {
         testcontainers_mysql                        : "org.testcontainers:mysql:$testcontainers_version",
         testcontainers_postgresql                   : "org.testcontainers:postgresql:$testcontainers_version",
         testcontainers_rabbitmq                     : "org.testcontainers:rabbitmq:$testcontainers_version",
+        truth                                       : "com.google.truth:truth:1.0.1",
+        threetenbp                                  : "org.threeten:threetenbp:1.6.8",
         vendored_grpc_1_54_0                        : "org.apache.beam:beam-vendor-grpc-1_54_0:0.1",
         vendored_guava_26_0_jre                     : "org.apache.beam:beam-vendor-guava-26_0-jre:0.1",
         vendored_calcite_1_28_0                     : "org.apache.beam:beam-vendor-calcite-1_28_0:0.2",
