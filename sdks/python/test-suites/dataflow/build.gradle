@@ -30,13 +30,6 @@ task preCommitIT {
   }
 }
 
-task preCommitIT_V2{
-  getVersionsAsList('dataflow_precommit_it_task_py_versions').each {
-    dependsOn.add(":sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:preCommitIT_batch_V2")
-    dependsOn.add(":sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:preCommitIT_streaming_V2")
-  }
-}
-
 task mongodbioIT {
   getVersionsAsList('dataflow_mongodbio_it_task_py_versions').each {
     dependsOn.add(":sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:mongodbioIT")
@@ -49,14 +42,14 @@ task chicagoTaxiExample {
   }
 }
 
-task validatesRunnerBatchTestsV2 {
-  getVersionsAsList('dataflow_validates_runner_batch_tests_V2').each {
+task validatesRunnerBatchTests {
+  getVersionsAsList('dataflow_validates_runner_batch_tests').each {
     dependsOn.add(":sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:validatesRunnerBatchTests")
   }
 }
 
-task validatesRunnerStreamingTestsV2 {
-  getVersionsAsList('dataflow_validates_runner_streaming_tests_V2').each {
+task validatesRunnerStreamingTests {
+  getVersionsAsList('dataflow_validates_runner_streaming_tests').each {
     dependsOn.add(":sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:validatesRunnerStreamingTests")
   }
 }

@@ -318,7 +318,7 @@ There are 2 ways to perform this verification, either running automation script(
      ```
      cd beam/release/src/main/scripts && ./verify_release_build.sh
      ```
-  1. Trigger `beam_Release_Gradle_Build` and all Jenkins PostCommit jobs from the PR created by the previous step.
+  1. Trigger all Jenkins PostCommit jobs from the PR created by the previous step.
      You can run [mass_comment.py](https://github.com/apache/beam/blob/master/release/src/main/scripts/mass_comment.py) to do that.
      Or manually add one trigger phrase per PR comment.
      See [jenkins_jobs.txt](https://github.com/apache/beam/blob/master/release/src/main/scripts/jenkins_jobs.txt)
@@ -327,9 +327,6 @@ There are 2 ways to perform this verification, either running automation script(
 * **Tasks included in the script**
   1. Installs ```hub``` with your agreement and setup local git repo;
   1. Create a test PR against release branch;
-
-The [`beam_Release_Gradle_Build`](https://ci-beam.apache.org/job/beam_Release_Gradle_Build/) Jenkins job runs `./gradlew build -PisRelease`.
-This only verifies that everything builds with unit tests passing.
 
 #### Verify the build succeeds
 

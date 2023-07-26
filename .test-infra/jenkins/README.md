@@ -295,7 +295,6 @@ Beam Jenkins overview page: [link](https://ci-beam.apache.org/)
 | beam_Publish_Beam_SDK_Snapshots | [cron](https://ci-beam.apache.org/job/beam_Publish_Beam_SDK_Snapshots/)| N/A | [![Build Status](https://ci-beam.apache.org/job/beam_Publish_Beam_SDK_Snapshots/badge/icon)](https://ci-beam.apache.org/job/beam_Publish_Beam_SDK_Snapshots/) |
 | beam_Publish_Docker_Snapshots | [cron](https://ci-beam.apache.org/job/beam_Publish_Docker_Snapshots/)| N/A | [![Build Status](https://ci-beam.apache.org/job/beam_Publish_Docker_Snapshots/badge/icon)](https://ci-beam.apache.org/job/beam_Publish_Docker_Snapshots/) |
 | beam_PostRelease_Python_Candidate | [cron](https://ci-beam.apache.org/job/beam_PostRelease_Python_Candidate/)| `Run Python ReleaseCandidate` | [![Build Status](https://ci-beam.apache.org/job/beam_PostRelease_Python_Candidate/badge/icon)](https://ci-beam.apache.org/job/beam_PostRelease_Python_Candidate/) |
-| beam_Release_Gradle_Build | [cron](https://ci-beam.apache.org/job/beam_Release_Gradle_Build/) | `Run Release Gradle Build` | [![Build Status](https://ci-beam.apache.org/job/beam_Release_Gradle_Build/badge/icon)](https://ci-beam.apache.org/job/beam_Release_Gradle_Build/)
 
 ### Notes:
 

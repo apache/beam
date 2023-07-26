@@ -271,7 +271,7 @@ public class UpdateSchemaDestination<DestinationT>
     try {
       destinationTable = datasetService.getTable(tableReference);
       if (destinationTable == null) {
-        return null; // no need to update schema ahead if table does not exists
+        return null; // no need to update schema ahead if table does not exist
       }
     } catch (IOException | InterruptedException e) {
       LOG.warn("Failed to get table {} with {}", tableReference, e.toString());
@@ -281,6 +281,7 @@ public class UpdateSchemaDestination<DestinationT>
     // or when destination schema is null (the write will set the schema)
     // or when provided schema is null (e.g. when using CREATE_NEVER disposition)
     if (destinationTable.getSchema() == null
+        || destinationTable.getSchema().isEmpty()
         || destinationTable.getSchema().equals(schema)
         || schema == null) {
       return null;
@@ -322,7 +323,7 @@ public class UpdateSchemaDestination<DestinationT>
                 jobService.startLoadJob(
                     jobRef, loadConfig, new ByteArrayContent("text/plain", new byte[0]));
               } catch (IOException | InterruptedException e) {
-                LOG.warn("Load job {} failed with {}", jobRef, e.toString());
+                LOG.warn("Schema update load job {} failed with {}", jobRef, e.toString());
                 throw new RuntimeException(e);
               }
               return null;

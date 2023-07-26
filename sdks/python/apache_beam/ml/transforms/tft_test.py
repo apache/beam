@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 # pytype: skip-file
 
 import shutil
@@ -70,40 +71,47 @@ class ScaleZScoreTest(unittest.TestCase):
   def tearDown(self):
     shutil.rmtree(self.artifact_location)
 
-  def test_z_score_unbatched(self):
-    unbatched_data = [{
-        'x': 1
-    }, {
-        'x': 2
-    }, {
-        'x': 3
-    }, {
-        'x': 4
-    }, {
-        'x': 5
-    }, {
-        'x': 6
-    }]
+  def test_z_score(self):
+    data = [
+        {
+            'x': 1
+        },
+        {
+            'x': 2
+        },
+        {
+            'x': 3
+        },
+        {
+            'x': 4
+        },
+        {
+            'x': 5
+        },
+        {
+            'x': 6
+        },
+    ]
 
     with beam.Pipeline() as p:
-      unbatched_result = (
+      result = (
           p
-          | "unbatchedCreate" >> beam.Create(unbatched_data)
-          | "unbatchedMLTransform" >> base.MLTransform(
+          | "Create" >> beam.Create(data)
+          | "MLTransform" >> base.MLTransform(
               artifact_location=self.artifact_location).with_transform(
                   tft.ScaleToZScore(columns=['x'])))
-      _ = (unbatched_result | beam.Map(assert_z_score_artifacts))
+      _ = (result | beam.Map(assert_z_score_artifacts))
 
-  def test_z_score_batched(self):
-    batched_data = [{'x': [1, 2, 3]}, {'x': [4, 5, 6]}]
+  def test_z_score_list_data(self):
+    list_data = [{'x': [1, 2, 3]}, {'x': [4, 5, 6]}]
     with beam.Pipeline() as p:
-      batched_result = (
+      list_result = (
           p
-          | "batchedCreate" >> beam.Create(batched_data)
-          | "batchedMLTransform" >> base.MLTransform(
+          | "listCreate" >> beam.Create(list_data)
+          | "listMLTransform" >> base.MLTransform(
               artifact_location=self.artifact_location).with_transform(
                   tft.ScaleToZScore(columns=['x'])))
-      _ = (batched_result | beam.Map(assert_z_score_artifacts))
+      _ = (list_result | beam.Map(assert_z_score_artifacts))
 
 
 class ScaleTo01Test(unittest.TestCase):
@@ -113,48 +121,36 @@ class ScaleTo01Test(unittest.TestCase):
   def tearDown(self):
     shutil.rmtree(self.artifact_location)
 
-  def test_ScaleTo01_batched(self):
-    batched_data = [{'x': [1, 2, 3]}, {'x': [4, 5, 6]}]
+  def test_ScaleTo01_list(self):
+    list_data = [{'x': [1, 2, 3]}, {'x': [4, 5, 6]}]
     with beam.Pipeline() as p:
-      batched_result = (
+      list_result = (
           p
-          | "batchedCreate" >> beam.Create(batched_data)
-          | "batchedMLTransform" >> base.MLTransform(
+          | "listCreate" >> beam.Create(list_data)
+          | "MLTransform" >> base.MLTransform(
               artifact_location=self.artifact_location).with_transform(
                   tft.ScaleTo01(columns=['x'])))
-      _ = (batched_result | beam.Map(assert_ScaleTo01_artifacts))
+      _ = (list_result | beam.Map(assert_ScaleTo01_artifacts))
 
       expected_output = [
           np.array([0, 0.2, 0.4], dtype=np.float32),
           np.array([0.6, 0.8, 1], dtype=np.float32)
       ]
-      actual_output = (batched_result | beam.Map(lambda x: x.x))
+      actual_output = (list_result | beam.Map(lambda x: x.x))
       assert_that(
           actual_output, equal_to(expected_output, equals_fn=np.array_equal))
 
-  def test_ScaleTo01_unbatched(self):
-    unbatched_data = [{
-        'x': 1
-    }, {
-        'x': 2
-    }, {
-        'x': 3
-    }, {
-        'x': 4
-    }, {
-        'x': 5
-    }, {
-        'x': 6
-    }]
+  def test_ScaleTo01(self):
+    data = [{'x': 1}, {'x': 2}, {'x': 3}, {'x': 4}, {'x': 5}, {'x': 6}]
     with beam.Pipeline() as p:
-      unbatched_result = (
+      result = (
           p
-          | "unbatchedCreate" >> beam.Create(unbatched_data)
-          | "unbatchedMLTransform" >> base.MLTransform(
+          | "Create" >> beam.Create(data)
+          | "MLTransform" >> base.MLTransform(
               artifact_location=self.artifact_location).with_transform(
                   tft.ScaleTo01(columns=['x'])))
 
-      _ = (unbatched_result | beam.Map(assert_ScaleTo01_artifacts))
+      _ = (result | beam.Map(assert_ScaleTo01_artifacts))
       expected_output = (
           np.array([0], dtype=np.float32),
           np.array([0.2], dtype=np.float32),
@@ -162,7 +158,7 @@ class ScaleTo01Test(unittest.TestCase):
           np.array([0.6], dtype=np.float32),
           np.array([0.8], dtype=np.float32),
           np.array([1], dtype=np.float32))
-      actual_output = (unbatched_result | beam.Map(lambda x: x.x))
+      actual_output = (result | beam.Map(lambda x: x.x))
       assert_that(
           actual_output, equal_to(expected_output, equals_fn=np.array_equal))
 
@@ -174,18 +170,18 @@ class BucketizeTest(unittest.TestCase):
   def tearDown(self):
     shutil.rmtree(self.artifact_location)
 
-  def test_bucketize_unbatched(self):
-    unbatched = [{'x': 1}, {'x': 2}, {'x': 3}, {'x': 4}, {'x': 5}, {'x': 6}]
+  def test_bucketize(self):
+    data = [{'x': 1}, {'x': 2}, {'x': 3}, {'x': 4}, {'x': 5}, {'x': 6}]
     with beam.Pipeline() as p:
-      unbatched_result = (
+      result = (
           p
-          | "unbatchedCreate" >> beam.Create(unbatched)
-          | "unbatchedMLTransform" >> base.MLTransform(
+          | "Create" >> beam.Create(data)
+          | "MLTransform" >> base.MLTransform(
               artifact_location=self.artifact_location).with_transform(
                   tft.Bucketize(columns=['x'], num_buckets=3)))
-      _ = (unbatched_result | beam.Map(assert_bucketize_artifacts))
+      _ = (result | beam.Map(assert_bucketize_artifacts))
 
-      transformed_data = (unbatched_result | beam.Map(lambda x: x.x))
+      transformed_data = (result | beam.Map(lambda x: x.x))
       expected_data = [
           np.array([0]),
           np.array([0]),
@@ -197,19 +193,19 @@ class BucketizeTest(unittest.TestCase):
       assert_that(
           transformed_data, equal_to(expected_data, equals_fn=np.array_equal))
 
-  def test_bucketize_batched(self):
-    batched = [{'x': [1, 2, 3]}, {'x': [4, 5, 6]}]
+  def test_bucketize_list(self):
+    list_data = [{'x': [1, 2, 3]}, {'x': [4, 5, 6]}]
     with beam.Pipeline() as p:
-      batched_result = (
+      list_result = (
           p
-          | "batchedCreate" >> beam.Create(batched)
-          | "batchedMLTransform" >> base.MLTransform(
+          | "Create" >> beam.Create(list_data)
+          | "MLTransform" >> base.MLTransform(
               artifact_location=self.artifact_location).with_transform(
                   tft.Bucketize(columns=['x'], num_buckets=3)))
-      _ = (batched_result | beam.Map(assert_bucketize_artifacts))
+      _ = (list_result | beam.Map(assert_bucketize_artifacts))
 
       transformed_data = (
-          batched_result
+          list_result
           | "TransformedColumnX" >> beam.Map(lambda ele: ele.x))
       expected_data = [
           np.array([0, 0, 1], dtype=np.int64),
@@ -290,9 +286,9 @@ class ComputeAndApplyVocabTest(unittest.TestCase):
   def tearDown(self):
     shutil.rmtree(self.artifact_location)
 
-  def test_compute_and_apply_vocabulary_unbatched_inputs(self):
-    batch_size = 100
-    num_instances = batch_size + 1
+  def test_compute_and_apply_vocabulary_inputs(self):
+    num_elements = 100
+    num_instances = num_elements + 1
     input_data = [{
         'x': '%.10i' % i,  # Front-padded to facilitate lexicographic sorting.
     } for i in range(num_instances)]
@@ -312,9 +308,9 @@ class ComputeAndApplyVocabTest(unittest.TestCase):
 
       assert_that(actual_data, equal_to(expected_data))
 
-  def test_compute_and_apply_vocabulary_batched(self):
-    batch_size = 100
-    num_instances = batch_size + 1
+  def test_compute_and_apply_vocabulary(self):
+    num_elements = 100
+    num_instances = num_elements + 1
     input_data = [
         {
             'x': ['%.10i' % i, '%.10i' % (i + 1), '%.10i' % (i + 2)],
@@ -322,7 +318,7 @@ class ComputeAndApplyVocabTest(unittest.TestCase):
         } for i in range(0, num_instances, 3)
     ]
 
-    # since we have 3 elements in a single batch, multiply with 3 for
+    # since we have 3 elements in a single list, multiply with 3 for
     # each iteration i on the expected output.
     excepted_data = [
         np.array([(len(input_data) * 3 - 1) - i,
@@ -344,6 +340,64 @@ class ComputeAndApplyVocabTest(unittest.TestCase):
       assert_that(
           actual_output, equal_to(excepted_data, equals_fn=np.array_equal))
 
+  def test_with_basic_example_list(self):
+    data = [{
+        'x': ['I', 'like', 'pie'],
+    }, {
+        'x': ['yum', 'yum', 'pie'],
+    }]
+    with beam.Pipeline() as p:
+      result = (
+          p
+          | "Create" >> beam.Create(data)
+          | "MLTransform" >> base.MLTransform(
+              artifact_location=self.artifact_location).with_transform(
+                  tft.ComputeAndApplyVocabulary(columns=['x'])))
+      result = result | beam.Map(lambda x: x.x)
+      expected_result = [np.array([3, 2, 1]), np.array([0, 0, 1])]
+      assert_that(result, equal_to(expected_result, equals_fn=np.array_equal))
+
+  def test_string_split_with_single_delimiter(self):
+    data = [{
+        'x': 'I like pie',
+    }, {
+        'x': 'yum yum pie'
+    }]
+    with beam.Pipeline() as p:
+      result = (
+          p
+          | "Create" >> beam.Create(data)
+          | "MLTransform" >> base.MLTransform(
+              artifact_location=self.artifact_location).with_transform(
+                  tft.ComputeAndApplyVocabulary(
+                      columns=['x'], split_string_by_delimiter=' ')))
+      result = result | beam.Map(lambda x: x.x)
+      expected_result = [np.array([3, 2, 1]), np.array([0, 0, 1])]
+      assert_that(result, equal_to(expected_result, equals_fn=np.array_equal))
+
+  def test_string_split_with_multiple_delimiters(self):
+    data = [{
+        'x': 'I like pie',
+    }, {
+        'x': 'yum;yum;pie'
+    }, {
+        'x': 'yum yum pie'
+    }]
+
+    with beam.Pipeline() as p:
+      result = (
+          p
+          | "Create" >> beam.Create(data)
+          | "MLTransform" >> base.MLTransform(
+              artifact_location=self.artifact_location).with_transform(
+                  tft.ComputeAndApplyVocabulary(
+                      columns=['x'], split_string_by_delimiter=' ;')))
+      result = result | beam.Map(lambda x: x.x)
+      expected_result = [
+          np.array([3, 2, 1]), np.array([0, 0, 1]), np.array([0, 0, 1])
+      ]
+      assert_that(result, equal_to(expected_result, equals_fn=np.array_equal))
+
 
 class TFIDIFTest(unittest.TestCase):
   def setUp(self) -> None:
@@ -352,7 +406,7 @@ class TFIDIFTest(unittest.TestCase):
   def tearDown(self):
     shutil.rmtree(self.artifact_location)
 
-  def test_tfidf_batched_compute_vocab_size_during_runtime(self):
+  def test_tfidf_compute_vocab_size_during_runtime(self):
     raw_data = [
         dict(x=["I", "like", "pie", "pie", "pie"]),
         dict(x=["yum", "yum", "pie"])
@@ -389,6 +443,149 @@ class TFIDIFTest(unittest.TestCase):
                               'x_vocab_index': np.array([0, 1], dtype=np.int32)
                           }])
       assert_that(actual_output, equal_to(expected_output, equals_fn=equals_fn))
+
+
+class ScaleToMinMaxTest(unittest.TestCase):
+  def setUp(self) -> None:
+    self.artifact_location = tempfile.mkdtemp()
+
+  def tearDown(self):
+    shutil.rmtree(self.artifact_location)
+
+  def test_scale_to_min_max(self):
+    data = [{
+        'x': 4,
+    }, {
+        'x': 1,
+    }, {
+        'x': 5,
+    }, {
+        'x': 2,
+    }]
+    with beam.Pipeline() as p:
+      result = (
+          p
+          | "Create" >> beam.Create(data)
+          | "MLTransform" >> base.MLTransform(
+              artifact_location=self.artifact_location).with_transform(
+                  tft.ScaleByMinMax(
+                      columns=['x'],
+                      min_value=-1,
+                      max_value=1,
+                  ),
+              ))
+      result = result | beam.Map(lambda x: x.as_dict())
+      expected_data = [{
+          'x': np.array([0.5], dtype=np.float32)
+      }, {
+          'x': np.array([-1.0], dtype=np.float32)
+      }, {
+          'x': np.array([1.0], dtype=np.float32)
+      }, {
+          'x': np.array([-0.5], dtype=np.float32)
+      }]
+      assert_that(result, equal_to(expected_data))
+
+  def test_fail_max_value_less_than_min(self):
+    with self.assertRaises(ValueError):
+      tft.ScaleByMinMax(columns=['x'], min_value=10, max_value=0)
+
+
+class NGramsTest(unittest.TestCase):
+  def setUp(self) -> None:
+    self.artifact_location = tempfile.mkdtemp()
+
+  def tearDown(self):
+    shutil.rmtree(self.artifact_location)
+
+  def test_ngrams_on_list_separated_words(self):
+    data = [{
+        'x': ['I', 'like', 'pie'],
+    }, {
+        'x': ['yum', 'yum', 'pie']
+    }]
+    with beam.Pipeline() as p:
+      result = (
+          p
+          | "Create" >> beam.Create(data)
+          | "MLTransform" >> base.MLTransform(
+              artifact_location=self.artifact_location,
+              transforms=[
+                  tft.NGrams(
+                      columns=['x'], ngram_range=(1, 3), ngrams_separator=' ')
+              ]))
+      result = result | beam.Map(lambda x: x.x)
+      expected_data = [
+          np.array(
+              [b'I', b'I like', b'I like pie', b'like', b'like pie', b'pie'],
+              dtype=object),
+          np.array(
+              [b'yum', b'yum yum', b'yum yum pie', b'yum', b'yum pie', b'pie'],
+              dtype=object)
+      ]
+      assert_that(result, equal_to(expected_data, equals_fn=np.array_equal))
+
+  def test_with_string_split_delimiter(self):
+    data = [{
+        'x': 'I like pie',
+    }, {
+        'x': 'yum yum pie'
+    }]
+    with beam.Pipeline() as p:
+      result = (
+          p
+          | "Create" >> beam.Create(data)
+          | "MLTransform" >> base.MLTransform(
+              artifact_location=self.artifact_location,
+              transforms=[
+                  tft.NGrams(
+                      columns=['x'],
+                      split_string_by_delimiter=' ',
+                      ngram_range=(1, 3),
+                      ngrams_separator=' ')
+              ]))
+      result = result | beam.Map(lambda x: x.x)
+
+      expected_data = [
+          np.array(
+              [b'I', b'I like', b'I like pie', b'like', b'like pie', b'pie'],
+              dtype=object),
+          np.array(
+              [b'yum', b'yum yum', b'yum yum pie', b'yum', b'yum pie', b'pie'],
+              dtype=object)
+      ]
+      assert_that(result, equal_to(expected_data, equals_fn=np.array_equal))
+
+  def test_with_multiple_string_delimiters(self):
+    data = [{
+        'x': 'I?like?pie',
+    }, {
+        'x': 'yum yum pie'
+    }]
+    with beam.Pipeline() as p:
+      result = (
+          p
+          | "Create" >> beam.Create(data)
+          | "MLTransform" >> base.MLTransform(
+              artifact_location=self.artifact_location,
+              transforms=[
+                  tft.NGrams(
+                      columns=['x'],
+                      split_string_by_delimiter=' ?',
+                      ngram_range=(1, 3),
+                      ngrams_separator=' ')
+              ]))
+      result = result | beam.Map(lambda x: x.x)
+
+      expected_data = [
+          np.array(
+              [b'I', b'I like', b'I like pie', b'like', b'like pie', b'pie'],
+              dtype=object),
+          np.array(
+              [b'yum', b'yum yum', b'yum yum pie', b'yum', b'yum pie', b'pie'],
+              dtype=object)
+      ]
+      assert_that(result, equal_to(expected_data, equals_fn=np.array_equal))
 
 
 if __name__ == '__main__':

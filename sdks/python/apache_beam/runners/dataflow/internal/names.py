@@ -30,15 +30,10 @@ SOURCE_FORMAT = 'custom_source'
 SOURCE_TYPE = 'CustomSourcesType'
 SERIALIZED_SOURCE_KEY = 'serialized_source'
 
-# In a released SDK, container tags are selected based on the SDK version.
-# Unreleased versions use container versions based on values of
-# BEAM_CONTAINER_VERSION and BEAM_FNAPI_CONTAINER_VERSION (see below).
-
-# Update this version to the next version whenever there is a change that will
-# require changes to legacy Dataflow worker execution environment.
-BEAM_CONTAINER_VERSION = 'beam-master-20230629'
-# Update this version to the next version whenever there is a change that
+# In a released SDK, Python sdk container image is tagged with the SDK version.
+# Unreleased sdks use container image tag specified below.
+# Update this tag whenever there is a change that
 # requires changes to SDK harness container or SDK harness launcher.
-BEAM_FNAPI_CONTAINER_VERSION = 'beam-master-20230705'
+BEAM_DEV_SDK_CONTAINER_TAG = 'beam-master-20230717'
 
 DATAFLOW_CONTAINER_IMAGE_REPOSITORY = 'gcr.io/cloud-dataflow/v1beta3'

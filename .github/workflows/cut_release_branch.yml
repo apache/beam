@@ -100,6 +100,7 @@ jobs:
       MASTER_BRANCH: master
       NEXT_RELEASE: ${{ github.event.inputs.NEXT_VERSION }}
       SCRIPT_DIR: ./release/src/main/scripts
+      RELEASE: ${{ github.event.inputs.RELEASE_VERSION }}
     steps:
       - name: Mask Jenkins token
         run: |
@@ -146,10 +147,13 @@ jobs:
             fi
           done
 
-          cat /tmp/result | sort | uniq | grep -i -E 'precommit|postcommit|validates|vr|example|test|gradle build' | grep -v -i -E 'load|perf|website' >> release/src/main/scripts/jenkins_jobs.txt
+          cat /tmp/result | sort | uniq | grep -i -E 'precommit|postcommit|validates|vr|example|test' | grep -v -i -E 'load|perf|website' >> release/src/main/scripts/jenkins_jobs.txt
         env:
           JENKINS_USERNAME: ${{ github.event.inputs.JENKINS_USERNAME }}
           JENKINS_TOKEN: ${{ github.event.inputs.JENKINS_TOKEN }}
+      - name: Update .asf.yaml to protect new release branch from force push
+        run: |
+          sed -i -e "s/master: {}/master: {}\n    release-${RELEASE}: {}/g" .asf.yaml
       - name: Update master branch
         run: |
           bash "${SCRIPT_DIR}/set_version.sh" "${NEXT_VERSION_IN_BASE_BRANCH}"
@@ -159,6 +163,7 @@ jobs:
       - name: Commit and Push to master branch files with Next Version
         run: |
           git add *
+          git add .asf.yaml
           git commit -m "Moving to ${NEXT_VERSION_IN_BASE_BRANCH}-SNAPSHOT on master branch."
           git push origin ${MASTER_BRANCH}
 
@@ -170,6 +175,7 @@ jobs:
       REMOTE_NAME: remote_repo
       REMOTE_URL: ${{ github.server_url }}/${{ github.repository }}
       BRANCH_NAME: snapshot_build-${{ github.event.inputs.RELEASE_VERSION }}
+      RELEASE_BRANCH: release-${{ github.event.inputs.RELEASE_VERSION }}
     steps:
       - name: Install Hub
         run: |
@@ -187,7 +193,7 @@ jobs:
         run: |
           git remote add ${REMOTE_NAME} ${REMOTE_URL}
           git checkout -b ${BRANCH_NAME}
-          touch empty_file.txt
+          touch empty_file.json
           git add -A
           git commit -m "Add empty file in order to create PR"
           git push -f ${REMOTE_NAME}
@@ -195,7 +201,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          hub pull-request -F- <<<"[DO NOT MERGE]Start snapshot build for release process 
+          hub pull-request -b apache:${RELEASE_BRANCH} -F- <<<"[DO NOT MERGE]Start snapshot build for release process
           
           
           Run Gradle Publish"

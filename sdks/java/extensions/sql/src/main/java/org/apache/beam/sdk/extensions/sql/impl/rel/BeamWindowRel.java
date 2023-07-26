@@ -35,6 +35,7 @@ import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
@@ -254,7 +255,9 @@ public class BeamWindowRel extends Window implements BeamRelNode {
           org.apache.beam.sdk.schemas.transforms.Group.ByFields<Row> myg =
               org.apache.beam.sdk.schemas.transforms.Group.byFieldIds(af.partitionKeys);
           PCollection<KV<Row, Iterable<Row>>> partitionBy =
-              inputData.apply(prefix + "partitionBy", myg.getToKvs());
+              inputData
+                  .apply(prefix + "partitionByKV", myg.getToKV())
+                  .apply(prefix + "partitionByGK", GroupByKey.create());
           partitioned =
               partitionBy
                   .apply(prefix + "selectOnlyValues", ParDo.of(new SelectOnlyValues()))
