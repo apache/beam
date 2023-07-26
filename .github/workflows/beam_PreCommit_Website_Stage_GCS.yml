@@ -108,11 +108,10 @@ jobs:
           arguments: -PwebsiteBucket=$gcsbucket
       - name: Add website link to the summary
         if: |
-          github.event_name == 'push' ||
-          github.event_name == 'pull_request_target'
+          ${{ github.event_name == 'push' || github.event_name == 'pull_request_target' }} && ${{ github.ref != 'refs/heads/master' }}
         run: echo "Website published to http://$gcsbucket.storage.googleapis.com/$ghprbPullId/index.html" >> $GITHUB_STEP_SUMMARY
       - name: Add website link to the summary if cron
-        if: ${{ github.event_name != 'push' }} || ${{github.event_name != 'pull_request_target'}}
+        if: ${{github.event_name != 'pull_request_target'}}
         run: |
           USERNAME="$(whoami)"
           echo "Website published to http://$gcsbucket.storage.googleapis.com/$USERNAME-${GITHUB_REF##*/}/index.html" >> $GITHUB_STEP_SUMMARY 
