@@ -259,6 +259,14 @@ func dofnGBK2(k int64, vs func(*string) bool, emit func(string)) {
 	emit(sum)
 }
 
+func dofnGBKKV(k string, vs func(*int64) bool, emit func(string, int64)) {
+	var v, sum int64
+	for vs(&v) {
+		sum += v
+	}
+	emit(k, sum)
+}
+
 type testRow struct {
 	A string
 	B int64
