@@ -60,7 +60,8 @@ jobs:
     runs-on: [self-hosted, ubuntu-20.04, main]
     name: beam_PreCommit_GoPortable
     steps:
-      - uses: actions/checkout@v3
+      - name: Git checkout
+        uses: actions/checkout@v3
         with:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: Rerun on comment
@@ -77,7 +78,7 @@ jobs:
         with:
           requires-py-39: false
           requires-go: false
-      - name: run goPortablePreCommit script
+      - name: Run goPortablePreCommit script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :goPortablePreCommit
