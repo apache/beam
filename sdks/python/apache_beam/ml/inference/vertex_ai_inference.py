@@ -43,7 +43,7 @@ LOGGER = logging.getLogger("VertexAIModelHandlerJSON")
 def _retry_on_appropriate_gcp_error(exception):
   """
   Retry filter that returns True if a returned HTTP error code is 5xx or 429.
-  This is used to retry remote requests that fail, most notably 429 
+  This is used to retry remote requests that fail, most notably 429
   (TooManyRequests.)
 
   Args:
@@ -51,7 +51,7 @@ def _retry_on_appropriate_gcp_error(exception):
       loop.
 
   Returns:
-    boolean indication whether or not the exception is a Server Error (5xx) or 
+    boolean indication whether or not the exception is a Server Error (5xx) or
       a TooManyRequests (429) error.
   """
   return isinstance(exception, (TooManyRequests, ServerError))
@@ -89,11 +89,11 @@ class VertexAIModelHandlerJSON(ModelHandler[Any,
         network the endpoint is deployed on; used for private
         endpoints. The network or subnetwork Dataflow pipeline
         option must be set and match this network for pipeline
-        execution. 
+        execution.
         Ex: "projects/12345/global/networks/myVPC"
       private: optional. if the deployed Vertex AI endpoint is
         private, set to true. Requires a network to be provided
-        as well. 
+        as well.
     """
 
     self._env_vars = kwargs.get('env_vars', {})
