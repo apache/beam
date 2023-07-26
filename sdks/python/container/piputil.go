@@ -55,16 +55,13 @@ func pipInstallRequirements(files []string, dir, name string) error {
 
 
 func isPackageInstalled(pkgName string) (bool, error) {
-	// run pip list and capture the output
 	out, err := exec.Command("python", "-m", "pip", "list").Output()
 	if err != nil {
 		return false, fmt.Errorf("failed to fetch pip list: %v", err)
 	}
 
-	// Convert byte array to string
 	output := string(out[:])
 
-	// Check if package name is in the output
 	if strings.Contains(output, pkgName) {
 		return true, nil
 	}
