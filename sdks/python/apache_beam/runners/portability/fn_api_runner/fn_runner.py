@@ -847,6 +847,7 @@ class FnApiRunner(runner.PipelineRunner):
         if buffer_id not in runner_execution_context.pcoll_buffers:
           buffer = bundle_context_manager.get_buffer(buffer_id, transform_id)
           runner_execution_context.pcoll_buffers[buffer_id] = buffer
+          buffers_to_clean.add(buffer_id)
 
         # If the buffer has already been added to be consumed by
         # (stage, transform), then we don't need to add it again. This case
