@@ -27,6 +27,8 @@ on:
     types: [created]
   schedule:
     - cron: '* */6 * * *'
+  workflow_dispatch:
+
 permissions:
   actions: write
   pull-requests: read
