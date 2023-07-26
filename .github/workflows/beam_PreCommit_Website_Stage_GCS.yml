@@ -26,7 +26,7 @@ on:
   issue_comment:
     types: [created]
   schedule:
-    - cron: '* */6 * * *'
+    - cron: '*/30 * * * *'
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
@@ -107,4 +107,7 @@ jobs:
           gradle-command: :website:stageWebsite
           arguments: -PwebsiteBucket=$gcsbucket
       - name: Add website link to the summary
+        if: |
+          github.event_name == 'push' ||
+          github.event_name == 'pull_request_target'
         run: echo "Website published to http://$gcsbucket.storage.googleapis.com/$ghprbPullId/index.html" >> $GITHUB_STEP_SUMMARY
